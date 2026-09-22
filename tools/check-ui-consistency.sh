@@ -1,0 +1,111 @@
+#!/usr/bin/env bash
+# UI consistency guard for the Phase 1 design system refactor.
+#
+# Enforces the zero-duplication / zero-inconsistency rules of
+# docs/ui-split-plan.md with a ratchet: tools/ui-debt-allowlist.txt records the
+# maximum allowed violation count per (rule, file). Counts may only shrink.
+#
+# Usage:
+#   tools/check-ui-consistency.sh            # verify the current tree
+#   tools/check-ui-consistency.sh --update   # rewrite the allowlist baseline
+#
+# Rules:
+#   raw-color    Color(0x…) literals outside designsystem/IcodeColors.kt
+#   fq-androidx  fully-qualified androidx.* references inside ui/
+#   dp-literal   hard-coded dp values inside ui/screens
+#   sp-literal   hard-coded sp values inside ui/screens
+#   screen-lines screen files larger than the 300-line budget
+
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+src_root="$repo_root/app/src/main/java"
+ui_root="$src_root/dev/icode/mobile/ui"
+allow_file="$repo_root/tools/ui-debt-allowlist.txt"
+report_file="$(mktemp)"
+trap 'rm -f "$report_file"' EXIT
+
+emit() { printf '%s|%s|%s\n' "$1" "$2" "$3" >> "$report_file"; }
+
+count_matches() { # pattern, root
+    local pattern="$1" root="$2"
+    { grep -rEn "$pattern" "$root" --include='*.kt' 2>/dev/null || true; } \
+        | grep -v '/IcodeColors\.kt:' \
+        | awk -F: '{print $1}' \
+        | sort | uniq -c \
+        | awk '{print $2 " " $1}'
+}
+
+# 1. Raw color literals outside the token file.
+while read -r file count; do
+    [[ -z "$file" ]] && continue
+    emit "raw-color" "${file#"$repo_root/"}" "$count"
+done < <(count_matches 'Color\(0x' "$src_root")
+
+# 2. Fully-qualified androidx references inside ui/ (import lines excluded).
+while read -r file count; do
+    [[ -z "$file" ]] && continue
+    emit "fq-androidx" "${file#"$repo_root/"}" "$count"
+done < <(
+    { grep -rEn 'androidx\.' "$ui_root" --include='*.kt' 2>/dev/null || true; } \
+        | grep -v ':import ' \
+        | awk -F: '{print $1}' \
+        | sort | uniq -c \
+        | awk '{print $2 " " $1}'
+)
+
+# 3. + 4. Hard-coded dp / sp values inside screens.
+while read -r file count; do
+    [[ -z "$file" ]] && continue
+    emit "dp-literal" "${file#"$repo_root/"}" "$count"
+done < <(count_matches '[0-9]+\.dp' "$ui_root/screens")
+
+while read -r file count; do
+    [[ -z "$file" ]] && continue
+    emit "sp-literal" "${file#"$repo_root/"}" "$count"
+done < <(count_matches '[0-9]+\.sp' "$ui_root/screens")
+
+# 5. Screen files above the 300-line budget.
+while read -r file; do
+    [[ -z "$file" ]] && continue
+    lines="$(wc -l < "$file")"
+    if (( lines > 300 )); then
+        emit "screen-lines" "${file#"$repo_root/"}" "$lines"
+    fi
+done < <(find "$ui_root/screens" -type f -name '*.kt' 2>/dev/null | sort)
+
+if [[ "${1:-}" == "--update" ]]; then
+    {
+        echo "# UI debt allowlist for tools/check-ui-consistency.sh."
+        echo "# Ratchet: cycles may only shrink these counts, never grow them."
+        echo "# Format: rule|path|max"
+        sort "$report_file"
+    } > "$allow_file"
+    echo "Updated $allow_file ($(grep -c '|' "$allow_file") entries)."
+    exit 0
+fi
+
+if [[ ! -f "$allow_file" ]]; then
+    echo "Missing $allow_file. Run tools/check-ui-consistency.sh --update first." >&2
+    exit 1
+fi
+
+fail=0
+while IFS='|' read -r rule path count; do
+    [[ -z "$rule" ]] && continue
+    allowed="$(awk -F'|' -v r="$rule" -v p="$path" '$1 == r && $2 == p { print $3 }' "$allow_file" | head -1)"
+    if [[ -z "$allowed" ]]; then
+        printf 'new violation:      %s  %s (%s)\n' "$rule" "$path" "$count" >&2
+        fail=1
+    elif (( count > allowed )); then
+        printf 'regression:         %s  %s (%s > %s)\n' "$rule" "$path" "$count" "$allowed" >&2
+        fail=1
+    fi
+done < "$report_file"
+
+if (( fail )); then
+    echo "UI consistency check failed. Fix the regression; only use --update to record a smaller baseline." >&2
+    exit 1
+fi
+
+echo "UI consistency check passed."
