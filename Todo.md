@@ -58,6 +58,23 @@ Verification evidence:
 - Automated capture command: `tools/capture-figma-screens.sh`
 - Result: no unresolved content overlap or control clipping was found in the final 40-screen review. Android system bars remain device-native, and long settings content remains intentionally scrollable.
 
+### UI structure maintenance (Phase 1.5)
+
+- [x] Split every Figma frame into its own screen file (39 screens + 5 group hosts) and delete the five monolith screen files.
+- [x] Extract the shared kit into 12 role files and the tokens into 5 files under `designsystem/`.
+- [x] Remove duplicated components/styling: `DetailRow`, `IcodeListRow`, `IcodeTextField`, `LabeledTextField`, `CodeSurface`, `NoticeCard`, `DiffRow`/`DiffBand`, `PanelTabStrip`, `BottomPanelBar`, `EditorTab`, `EmptyState`, `IconBadge`, `ActivityRail`, `DiagnosticRow`, `SectionHeader`, `Stepper`, `SegmentedControl`, `ChoiceChip`, `DialogScaffold`, `IcodeBottomSheet`, `ActivityRail`.
+- [x] Delete dead API (`IconText`, `VerticalGap`, `HorizontalGap`, `DemoActions.reset`) and move `DemoActions` into `navigation`.
+- [x] Centralize duplicated demo fixtures in `demo/DemoContent.kt`; move screen state to `rememberSaveable`/`Saver` holders.
+- [x] Add `tools/check-ui-consistency.sh` with the shrinking ratchet `tools/ui-debt-allowlist.txt` (currently zero debt).
+- [x] Keep the 40-frame catalog test, the `DemoScreen` registry, and the capture workflow unchanged.
+- [x] Rebuild: compile, unit tests, lint, and debug APK all pass after the refactor.
+
+Verification evidence:
+
+- Plan and audit: [`docs/ui-split-plan.md`](./docs/ui-split-plan.md)
+- Guard: `tools/check-ui-consistency.sh` (passed, empty allowlist)
+- Largest screen file: 152 lines; largest kit file: 184 lines
+
 ## Phase 2 — Backend planning
 
 Do not begin until Phase 1 is visually validated.

@@ -74,3 +74,161 @@ The Figma design is completed and will be treated as the **single source of trut
 - Finish the UI **completely first**.
 - Avoid unnecessary changes.
 - Build the architecture so backend and future integrations can be **added cleanly**.
+
+
+# UI Splitting plan
+
+I’ve completed the UI porting from Figma according to `@Todo.md` and `@plan.md`.
+
+Before moving to the next phase, I want to make the entire UI codebase maintainable, consistent, and easy to integrate.
+
+First, audit the current UI architecture across all ~40 screens and identify:
+
+- Large/monolithic screen files that should be split.
+- Duplicate UI patterns and components.
+- Inconsistencies in spacing, typography, colors, layouts, states, and interactions.
+- Components that should become shared/reusable UI-kit components.
+- Poor separation of screen, component, state, navigation, and design-system responsibilities.
+- Architectural/design-pattern issues that could make future integration difficult.
+
+Then create **one master, phased plan** — do not modify code yet.
+
+## 1. UI Kit First
+
+- Define the shared design-system/UI-kit components we need.
+- Identify which existing components can be reused, refactored, merged, or removed.
+- Establish rules to prevent duplication and visual inconsistency.
+- Define clear ownership for shared vs screen-specific components.
+
+## 2. Screen Decomposition
+
+Plan how each of the ~40 screens should be split into maintainable files/components.
+
+- Keep each screen focused on composition/orchestration.
+- Separate reusable components, screen-specific components, state, and supporting models where appropriate.
+- Define what should remain in each main screen file.
+- Avoid splitting components that do not actually benefit from separation.
+
+## 3. Architecture
+
+Follow established Jetpack Compose/Kotlin best practices and appropriate design principles.
+
+- Prefer simple, practical architecture over unnecessary abstraction.
+- Establish clear dependency boundaries between:
+  - UI kit/design system
+  - Screens
+  - Screen-specific components
+  - State
+  - Navigation
+  - Domain
+- Avoid circular dependencies and unnecessary coupling.
+- Keep the architecture easy to understand and extend.
+
+## 4. Zero-Duplication / Zero-Inconsistency Goal
+
+Explicitly identify and plan how to eliminate:
+
+- Duplicate UI components.
+- Duplicate layouts.
+- Duplicate styling.
+- Duplicate interaction patterns.
+- Duplicate state-handling patterns.
+- Slightly different implementations of the same UI concept.
+- Inconsistent spacing, typography, colors, shapes, dimensions, icons, and behavior.
+
+Define rules that prevent these problems from returning.
+
+**Do not create abstractions merely for the sake of reducing file count.**
+
+## 5. Execution Strategy
+
+Break the work into small, safe implementation cycles.
+
+For every cycle define:
+
+- Goal.
+- Scope.
+- Files to create.
+- Files to modify.
+- Files to move/rename.
+- Files to delete, if any.
+- Dependencies affected.
+- Expected result.
+- Validation checklist.
+
+Each cycle should be independently understandable and preferably compilable/testable.
+
+Preserve existing UI behavior and visual output unless an inconsistency is intentionally corrected.
+
+Avoid large, risky refactors.
+
+## 6. Screen-by-Screen Plan
+
+For every screen, document:
+
+- Current file/location.
+- Current responsibilities.
+- Current problems.
+- Components to extract.
+- Shared components to reuse.
+- Screen-specific components to keep local.
+- State/model responsibilities.
+- Target file structure.
+- Dependencies.
+- Migration order.
+
+## 7. Target Folder/File Structure
+
+Propose the final maintainable folder structure.
+
+Show where:
+
+- Design-system components belong.
+- Shared UI components belong.
+- Screen-specific components belong.
+- Individual screens belong.
+- State belongs.
+- Navigation belongs.
+- Domain models/contracts belong.
+
+The structure should scale as more screens and real backend functionality are integrated.
+
+## 8. Validation
+
+Define validation criteria for every phase, including:
+
+- Compilation.
+- Existing tests.
+- UI behavior.
+- Visual consistency.
+- No accidental regressions.
+- No duplicated components.
+- No duplicated styling/constants.
+- No unnecessary dependencies.
+- Correct ownership of components.
+- Maintainability of each screen.
+
+## Final Deliverable
+
+Produce **one complete master refactoring plan** containing:
+
+1. Current architecture assessment.
+2. Current gaps, duplication, and inconsistencies.
+3. UI-kit audit and proposed UI-kit structure.
+4. Proposed folder/file structure.
+5. Screen-by-screen decomposition plan for all ~40 screens.
+6. Component ownership rules.
+7. Dependency/architecture rules.
+8. Zero-duplication and consistency strategy.
+9. Phased implementation order.
+10. Detailed cycle-by-cycle file changes.
+11. Validation checklist for every cycle.
+12. Final target architecture.
+
+Use the **actual codebase as the source of truth**.
+
+Read `@Todo.md`, `@plan.md`, and all relevant UI files before finalizing the plan.
+
+**Do not implement anything yet. First produce the complete plan, including assumptions, discovered issues, and any decisions that require confirmation.**
+
+**Master plan (approved and being executed): [`docs/ui-split-plan.md`](./docs/ui-split-plan.md)** — includes the duplication ledger, UI-kit audit, target structure, screen-by-screen map, cycle list and validation gates. Guardrail: `tools/check-ui-consistency.sh` + `tools/ui-debt-allowlist.txt`.
