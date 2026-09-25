@@ -3,6 +3,7 @@ package dev.icode.mobile.data.runtime
 import android.os.Build
 import dev.icode.mobile.domain.RuntimeDetails
 import java.io.File
+import java.io.IOException
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
 import java.nio.file.Path
@@ -74,7 +75,7 @@ internal class RuntimeInspector(
                     }
 
                     /** An unreadable entry is skipped, not a reason to give up. */
-                    override fun visitFileFailed(file: Path, error: java.io.IOException): FileVisitResult =
+                    override fun visitFileFailed(file: Path, error: IOException): FileVisitResult =
                         FileVisitResult.CONTINUE
                 },
             )

@@ -6,6 +6,7 @@ import dev.icode.mobile.data.io.Sha256
 import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.RuntimeState
 import dev.icode.mobile.domain.RuntimeInstallReason
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.isActive
@@ -242,7 +243,7 @@ internal class RuntimeInstaller(
         // the count is published from *this* one. A flow may only be emitted to
         // from the coroutine collecting it, so the reporting cannot be what
         // runs in the background — the work is.
-        val counted = java.util.concurrent.atomic.AtomicLong(0)
+        val counted = AtomicLong(0)
         coroutineScope {
             val work = async(Dispatchers.IO) {
                 RootfsExtractor().extract(archive, layout.rootfs) { entries -> counted.set(entries) }

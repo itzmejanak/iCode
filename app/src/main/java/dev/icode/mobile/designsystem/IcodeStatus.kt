@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -79,7 +80,8 @@ fun IndeterminateProgressTrack(modifier: Modifier = Modifier, color: Color = Ico
         val width = maxWidth
         Box(
             Modifier
-                .offset(x = width * start.coerceIn(-SWEEP_WIDTH, 1f))
+                // Read at placement, so the sweep moves without recomposing every frame.
+                .offset { IntOffset((width * start.coerceIn(-SWEEP_WIDTH, 1f)).roundToPx(), 0) }
                 .width(width * SWEEP_WIDTH)
                 .height(5.dp)
                 .background(color, IcodeShapes.Track),

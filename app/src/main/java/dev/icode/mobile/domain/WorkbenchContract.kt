@@ -391,7 +391,6 @@ sealed interface WorkbenchIntent {
     data object GenerateSshKey : WorkbenchIntent
     data class TestGitConnection(val url: String) : WorkbenchIntent
     data object RefreshGitAuth : WorkbenchIntent
-    data class SetLanguageServiceRunning(val name: String, val running: Boolean) : WorkbenchIntent
     data class SelectLanguageService(val id: String) : WorkbenchIntent
     data class SaveLanguageService(
         val id: String?,

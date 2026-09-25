@@ -33,6 +33,7 @@ import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.SegmentedControl
 import dev.icode.mobile.designsystem.SettingRow
 import dev.icode.mobile.designsystem.Stepper
+import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.IndentType
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
@@ -142,7 +143,7 @@ fun WorkspaceSettingsScreen(actions: NavigationActions) {
                 subtitle = "Application default or this repository's override",
                 onClick = { actions.navigate(Route.GitAuth) },
             )
-            val fetchFailure = state.gitOperation as? dev.icode.mobile.domain.GitOperationState.Failed
+            val fetchFailure = state.gitOperation as? GitOperationState.Failed
             if (fetchFailure?.label == "Fetching") {
                 Text("Last fetch failed: ${fetchFailure.reason}", style = IcodeType.Caption.copy(color = IcodeColors.Error))
             }
