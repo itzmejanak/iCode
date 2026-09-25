@@ -1,0 +1,145 @@
+package dev.icode.mobile.domain
+
+sealed interface WorkbenchIntent {
+    /** Shows Android's own prompt for [permission]. */
+    data class RequestSystemPermission(val permission: SystemPermission) : WorkbenchIntent
+    /** Android's prompt for [permission] has closed, whatever the answer. */
+    data class SystemPermissionAnswered(val permission: SystemPermission) : WorkbenchIntent
+    /** "Not now" on an optional permission: onboarding does not offer it again. */
+    data class DeclineSystemPermission(val permission: SystemPermission) : WorkbenchIntent
+    /** Opens Android's settings page for [permission], where it can be changed either way. */
+    data class OpenSystemSettings(val permission: SystemPermission) : WorkbenchIntent
+    /** Re-reads what Android allows; it may have changed while iCode was away. */
+    data object RefreshSystemAccess : WorkbenchIntent
+    /** The Notifications page was opened: everything on it has been seen. */
+    data object MarkNoticesRead : WorkbenchIntent
+    data class DeleteNotice(val id: String) : WorkbenchIntent
+    data object ClearNotices : WorkbenchIntent
+    data class StartFolderBrowser(val purpose: FolderBrowserPurpose) : WorkbenchIntent
+    data class BrowseFolder(val path: String) : WorkbenchIntent
+    data object BrowseParentFolder : WorkbenchIntent
+    data object ConfirmFolderSelection : WorkbenchIntent
+    data class RequestCreateFolder(val name: String) : WorkbenchIntent
+    data class OpenWorkspace(val path: String) : WorkbenchIntent
+    data class OpenWorkspaceTerminal(val path: String) : WorkbenchIntent
+    data class ResolveWorkspaceSwitch(val path: String, val openTerminal: Boolean, val saveChanges: Boolean) : WorkbenchIntent
+    data class ShowWorkspaceLocation(val path: String) : WorkbenchIntent
+    data class RemoveRecentWorkspace(val path: String) : WorkbenchIntent
+    /** [lineNumber] is one-based and [column] is zero-based, matching content-search results. */
+    data class OpenFile(val path: String, val lineNumber: Int? = null, val column: Int? = null) : WorkbenchIntent
+    data class CreateFile(
+        val name: String,
+        val parentLocation: String? = null,
+        val expectedWorkspace: String? = null,
+        val requestId: String? = null,
+    ) : WorkbenchIntent
+    /** Creates a subfolder without changing the active workspace. */
+    data class CreateWorkspaceFolder(
+        val name: String,
+        val parentLocation: String,
+        val expectedWorkspace: String,
+        val requestId: String,
+    ) : WorkbenchIntent
+    data class UpdateDocumentText(val location: String, val text: String) : WorkbenchIntent
+    /** Automatic requests carry the revision they observed; a later edit must start its own timer. */
+    data class SaveDocument(
+        val location: String,
+        val automatic: Boolean = false,
+        val expectedText: String? = null,
+        val expectedWorkspace: String? = null,
+    ) : WorkbenchIntent
+    data class RestoreDraft(val location: String) : WorkbenchIntent
+    data class DiscardDraft(val location: String) : WorkbenchIntent
+    data class ConfirmRecoveredOverwrite(val location: String) : WorkbenchIntent
+    data class SelectDocument(val location: String) : WorkbenchIntent
+    data class ReorderDocument(val movingLocation: String, val targetLocation: String) : WorkbenchIntent
+    /** A dirty tab requires an explicit save/discard choice; null is only valid for clean tabs. */
+    data class CloseDocument(val location: String, val saveChanges: Boolean? = null) : WorkbenchIntent
+    data class CloseOtherDocuments(val keepLocation: String, val saveChanges: Boolean? = null) : WorkbenchIntent
+    data object CloseSavedDocuments : WorkbenchIntent
+    data object InitializeGit : WorkbenchIntent
+    data class ToggleFolder(val path: String) : WorkbenchIntent
+    data class StageFile(val path: String) : WorkbenchIntent
+    data class UnstageFile(val path: String) : WorkbenchIntent
+    data object StageAllFiles : WorkbenchIntent
+    data object UnstageAllFiles : WorkbenchIntent
+    data class CommitStaged(val message: String) : WorkbenchIntent
+    data class ConfigureGitIdentity(val name: String, val email: String) : WorkbenchIntent
+    data class ConfigureGlobalGitIdentity(val name: String, val email: String) : WorkbenchIntent
+    data object ClearRepositoryGitIdentity : WorkbenchIntent
+    data class SwitchBranch(val branch: String) : WorkbenchIntent
+    data class CreateBranch(val branch: String) : WorkbenchIntent
+    data class DeleteBranch(val branch: String) : WorkbenchIntent
+
+    /** Installs Git into the runtime when it is not present yet. */
+    data object ProvisionGit : WorkbenchIntent
+    data object RefreshGit : WorkbenchIntent
+    /** [staged] selects the index-vs-HEAD comparison instead of worktree-vs-index. */
+    data class OpenDiff(val path: String, val staged: Boolean) : WorkbenchIntent
+    data object CloseDiff : WorkbenchIntent
+    /** Irreversible; the caller must have confirmed the exact path first. */
+    data class RequestDiscardChanges(val path: String) : WorkbenchIntent
+    data object CancelDiscardChanges : WorkbenchIntent
+    /** [status] is the porcelain code, because each one discards differently. */
+    data class DiscardChanges(val path: String, val status: String) : WorkbenchIntent
+    /** Ends a half-finished merge, rebase, cherry-pick or revert. */
+    data object AbortInProgress : WorkbenchIntent
+    data object FetchRemote : WorkbenchIntent
+    data object PullRemote : WorkbenchIntent
+    data object PushRemote : WorkbenchIntent
+    data class OpenConflict(val path: String) : WorkbenchIntent
+    data object CloseConflict : WorkbenchIntent
+    data class ResolveConflict(val path: String, val choice: GitConflictChoice) : WorkbenchIntent
+    data class MarkConflictResolved(val path: String) : WorkbenchIntent
+    data class UpdateCloneForm(val url: String, val branch: String) : WorkbenchIntent
+    data class CloneRepository(val url: String, val destination: String, val directoryName: String) : WorkbenchIntent
+
+    data class SelectGitProvider(val provider: GitProvider) : WorkbenchIntent
+    data class SelectGitAuthMethod(val method: GitAuthMethod) : WorkbenchIntent
+    /** The token is consumed straight into encrypted storage and never echoed back. */
+    data class SaveGitToken(val host: String, val username: String, val token: String) : WorkbenchIntent
+    data object ClearGitToken : WorkbenchIntent
+    data object GenerateSshKey : WorkbenchIntent
+    data class TestGitConnection(val url: String) : WorkbenchIntent
+    data object RefreshGitAuth : WorkbenchIntent
+    data class SelectLanguageService(val id: String) : WorkbenchIntent
+    data class SaveLanguageService(
+        val id: String?,
+        val name: String,
+        val command: String,
+        val patterns: String,
+        val rootMarkers: String,
+        val initializationOptions: String,
+    ) : WorkbenchIntent
+    data class RemoveLanguageService(val id: String) : WorkbenchIntent
+    data class StartLanguageService(val id: String) : WorkbenchIntent
+    data class StopLanguageService(val id: String) : WorkbenchIntent
+    data class RestartLanguageService(val id: String) : WorkbenchIntent
+    data class RunContentSearch(
+        val query: String,
+        val matchCase: Boolean,
+        val wholeWord: Boolean,
+        val regex: Boolean,
+    ) : WorkbenchIntent
+    data object ClearContentSearch : WorkbenchIntent
+
+    data object InstallRuntime : WorkbenchIntent
+    data object RefreshRuntimeDetails : WorkbenchIntent
+    data object RefreshStorage : WorkbenchIntent
+    data object ClearAppCache : WorkbenchIntent
+    data object RemoveStaleRecents : WorkbenchIntent
+    /** Rebuilds the base system, keeping the guest home directory. */
+    data object RepairRuntime : WorkbenchIntent
+    /** Rebuilds the base system and discards the guest home directory. */
+    data object ResetRuntime : WorkbenchIntent
+    data object OpenTerminalSession : WorkbenchIntent
+    data class SelectTerminalSession(val id: String) : WorkbenchIntent
+
+    /** Bring a session to the front: its workspace, the Terminal panel, that tab (from its notification). */
+    data class ShowTerminalSession(val id: String) : WorkbenchIntent
+    data class ReorderTerminalSession(val movingId: String, val targetId: String) : WorkbenchIntent
+    data class CloseTerminalSession(val id: String) : WorkbenchIntent
+    data class OpenExternalUrl(val url: String) : WorkbenchIntent
+
+    data object Refresh : WorkbenchIntent
+}
