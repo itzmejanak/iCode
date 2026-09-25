@@ -33,7 +33,6 @@ import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.TwoColumnActions
 import dev.icode.mobile.domain.ByteSize
-import dev.icode.mobile.domain.StorageMeasurement
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.ui.LocalWorkbenchGateway
@@ -140,11 +139,4 @@ fun StorageSettingsScreen(actions: NavigationActions) {
             )
         }
     }
-}
-
-private fun storageSizeLabel(measurement: StorageMeasurement?): String = when {
-    measurement == null -> "Measuring…"
-    measurement.truncated -> "Size exceeds scan limit"
-    measurement.bytes == null -> "Size unavailable"
-    else -> ByteSize.format(measurement.bytes)
 }

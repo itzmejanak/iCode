@@ -32,6 +32,7 @@ internal class RuntimeCoordinator(
 ) {
     private val inspector = RuntimeInspector(layout, RuntimeInstaller(appContext, layout).prootVersion())
     private var installJob: Job? = null
+    private var detailsJob: Job? = null
 
     /** Whether an install, repair or reset is running now. */
     val installing: Boolean get() = installJob?.isActive == true
@@ -57,13 +58,20 @@ internal class RuntimeCoordinator(
         }
     }
 
-    /** Reading the runtime's own files changes nothing, so it never waits on the mutation lock. */
+    /**
+     * Reading the runtime's own files changes nothing, so it never waits on the
+     * mutation lock. The quick facts are published first and the size after;
+     * a size already measured stays shown until the new one replaces it.
+     */
     fun refreshDetails() {
-        scope.launch(Dispatchers.IO) {
-            val details = runCatching { inspector.inspect() }
-                .onFailure { BackendLog.w("runtime", "Runtime inspection failed", it) }
-                .getOrNull() ?: return@launch
-            workbench.update { it.copy(runtimeDetails = details) }
+        if (detailsJob?.isActive == true) return
+        detailsJob = scope.launch(Dispatchers.IO) {
+            runCatching {
+                val facts = inspector.facts()
+                workbench.update { it.copy(runtimeDetails = facts.copy(rootfsSize = it.runtimeDetails.rootfsSize)) }
+                val size = inspector.rootfsSize()
+                workbench.update { it.copy(runtimeDetails = it.runtimeDetails.copy(rootfsSize = size)) }
+            }.onFailure { BackendLog.w("runtime", "Runtime inspection failed", it) }
         }
     }
 

@@ -47,11 +47,11 @@ fun AboutScreen(actions: NavigationActions) {
     val runtime = state.runtimeDetails
     val buildSpecs = listOf(
         "App Version" to BuildConfig.VERSION_NAME,
-        "Runtime Version" to (
-            runtime.release?.let { release ->
-                listOfNotNull(release, runtime.architecture.takeIf { it.isNotEmpty() }).joinToString(" · ")
-            } ?: "Not installed"
-        ),
+        "Runtime Version" to when {
+            !runtime.inspected -> "Checking…"
+            runtime.release == null -> "Not installed"
+            else -> listOfNotNull(runtime.release, runtime.architecture.takeIf { it.isNotEmpty() }).joinToString(" · ")
+        },
         "Editor Engine" to "Sora Editor ${BuildConfig.EDITOR_ENGINE_VERSION}",
         "Min Android API" to "API ${BuildConfig.MIN_SDK}",
     )

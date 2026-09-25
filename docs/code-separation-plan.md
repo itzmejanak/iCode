@@ -333,3 +333,15 @@ Git…"); if that fails, the clone form shows why. No separate onboarding step i
 installed where it is first needed (Clone, Source Control, credentials). Not run on the phone —
 its runtime already has Git, and removing it would change your environment. Gate: 254 tests;
 lint 0 / 18; UI guard passes.
+
+**S1 harden — Runtime screen while loading (2026-09-26), done.** Found on the phone: for the
+first ~7–10 s the Runtime screen said "Runtime Healthy — No base system is installed yet" with
+every row "Not measured", and About said "Runtime Version: Not installed" — the empty details
+read as facts while the rootfs (2.3 GB) was being walked. Now the header comes from the runtime
+state known at start-up; the quick facts (release, architecture, path, packages, PRoot, free
+space) are published at once and the size after it (`RuntimeDetails.inspected`,
+`rootfsSize: StorageMeasurement?`), so Disk Usage reads "Measuring… · 25.8 GB free" and then
+"2.3 GB used · 25.8 GB free" in the Storage screen's words (shared `storageSizeLabel`); About says
+"Checking…". A second refresh while one runs is not started. `measureTree` walks with one
+file-system call per entry (it had four). Checked on the phone at 1 s and 10 s. Gate: 254 tests;
+lint 0 / 18; UI guard passes.
