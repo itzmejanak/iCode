@@ -13,7 +13,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import org.json.JSONObject
 
 /**
  * Onboarding and the runtime (S1): whether the Linux runtime is there, its
@@ -43,7 +42,7 @@ internal class RuntimeCoordinator(
         val state = when {
             !layout.binariesPresent ->
                 RuntimeState.Failed("The runtime binaries are missing from this build", recoverable = false)
-            layout.isInstalled -> RuntimeState.Ready(installedRelease())
+            layout.isInstalled -> RuntimeState.Ready(layout.installedRelease() ?: "Linux runtime")
             preservedHome -> RuntimeState.NotInstalled("A runtime repair was interrupted; your home is preserved for retry")
             else -> RuntimeState.NotInstalled("The Linux runtime is not installed yet")
         }
@@ -57,11 +56,6 @@ internal class RuntimeCoordinator(
             )
         }
     }
-
-    private fun installedRelease(): String =
-        runCatching {
-            JSONObject(layout.installMarker.readText()).getString("base")
-        }.getOrDefault("Linux runtime")
 
     /** Reading the runtime's own files changes nothing, so it never waits on the mutation lock. */
     fun refreshDetails() {

@@ -309,3 +309,19 @@ running" guards), the runtime details read, and system access (read, answered, d
 gateway routes to it (1849 → 1749 lines); the storage prompt's hand-off to a waiting folder
 browser stays in the gateway until S2 owns the browser. Behaviour unchanged. Gate: 250 tests; lint
 0 / 20; UI guard passes.
+
+**S1 fixes — duplication and space (2026-09-26), done.**
+
+- One tree measurer, `data/io/measureTree`, for the Runtime screen's rootfs size and the Storage
+  screen's runtime, cache and workspace sizes. The two copies disagreed: Storage's gave up
+  ("Size unavailable") on any socket or pipe — a terminal program's socket in the runtime was
+  enough — and Runtime's skipped unreadable folders, printing a smaller number as if exact. Now:
+  special files hold nothing, an unlistable folder or a walk past its bound means no number.
+  5 tests. On the phone today: no unlistable folder or special file in the runtime, so nothing
+  shown changes.
+- The installed release is read in one place, `RuntimeLayout.installedRelease()`.
+- The install's space check counts what Android can free (`getAllocatableBytes`) and asks it to
+  (`allocateBytes`) when the space is only there once other apps' caches go; before, a phone full
+  of clearable cache was refused. The Runtime screen keeps showing what is free right now, as the
+  Storage screen does (lint notes the difference; marked as deliberate).
+- Checks: 254 unit tests; lint 0 errors, 18 warnings; UI guard passes.
