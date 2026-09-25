@@ -355,3 +355,15 @@ S3–S8 still hold there (tree, documents, drafts, index, language processes) an
 sequence of calls to their owners as they move. Gateway 1749 → 1551. Behaviour unchanged; on the
 phone: launcher recents, Open Folder browser and Storage (runtime 2.3 GB, a workspace 58 MB) all
 load. Gate: 254 tests; lint 0 / 18; UI guard passes.
+
+**S2 fix — "last opened" is a time, not frozen text (2026-09-26), done.** `WorkspaceSummary`
+and `RecentDocument` carried "4h ago" as text made when recents were last read, so a launcher
+left open kept saying it. They now carry `lastOpenedAt`; the launcher, Storage and the empty
+editor say how long ago when they draw (the recorded S2 deviation "presentation text in the
+snapshot" is closed for these; `activePath` is a fixed display path and stays).
+
+**X fix — one way to say how many (2026-09-26), done.** Counts were written five ways across
+scopes — "file(s)", "branch(es)", inline if/else, or never ("1 files" in the folder browser,
+seen on the phone). `domain/countOf(count, one, many)` now says it everywhere: folder browser,
+workspace switch and close-others dialogs, lost sessions, diff summary, find results, conflict
+gate, commit screen, conflict file, runtime packages. 1 test. Gate: 255 tests; lint 0 / 18.

@@ -32,6 +32,7 @@ import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.RuntimeDetails
 import dev.icode.mobile.domain.RuntimeState
 import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.countOf
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
@@ -131,7 +132,7 @@ fun RuntimeSettingsScreen(actions: NavigationActions) {
 }
 
 private fun packageCount(details: RuntimeDetails): String =
-    details.installedPackages?.let { "$it packages" } ?: UNKNOWN
+    details.installedPackages?.let { countOf(it, "package") } ?: UNKNOWN
 
 /** The measured size, or where its measurement stands, against real free space. */
 private fun diskUsage(details: RuntimeDetails): String {

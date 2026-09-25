@@ -44,9 +44,9 @@ object CaptureFixtures {
     /** Built per capture: the last commit's age is relative to now. */
     fun snapshot() = WorkbenchSnapshot(
         workspaces = listOf(
-            WorkspaceSummary("icode-subsystem", ROOT, "main", "2h ago"),
-            WorkspaceSummary("external-storage-driver", "~/sdcard/dev/storage-driver", "dev-v2", "5h ago"),
-            WorkspaceSummary("legacy-compiler-plugin", "~/storage/shared/legacy-plugin", null, "1d ago", available = false),
+            WorkspaceSummary("icode-subsystem", ROOT, "main", ago(hours = 2)),
+            WorkspaceSummary("external-storage-driver", "~/sdcard/dev/storage-driver", "dev-v2", ago(hours = 5)),
+            WorkspaceSummary("legacy-compiler-plugin", "~/storage/shared/legacy-plugin", null, ago(hours = 24), available = false),
         ),
         files = listOf(
             FileEntry("src", "src", FileKind.Folder, expanded = true),
@@ -132,8 +132,8 @@ object CaptureFixtures {
             document("README.md", "README.md"),
         ),
         recentDocuments = listOf(
-            RecentDocument("auth-guard.tsx", "$ROOT/src/components/auth-guard.tsx", "src/components/auth-guard.tsx", "10m ago"),
-            RecentDocument("token-utils.ts", "$ROOT/src/utils/token-utils.ts", "src/utils/token-utils.ts", "2h ago"),
+            RecentDocument("auth-guard.tsx", "$ROOT/src/components/auth-guard.tsx", "src/components/auth-guard.tsx", ago(minutes = 10)),
+            RecentDocument("token-utils.ts", "$ROOT/src/utils/token-utils.ts", "src/utils/token-utils.ts", ago(hours = 2)),
         ),
         recoverableDrafts = listOf(
             draft("src/components/auth.ts", sizeBytes = 4_301, minutesAgo = 2),
@@ -170,11 +170,14 @@ object CaptureFixtures {
         ),
     )
 
+    private fun ago(minutes: Int = 0, hours: Int = 0): Long =
+        System.currentTimeMillis() - (minutes + hours * 60) * MINUTE
+
     private fun draft(path: String, sizeBytes: Long, minutesAgo: Int) = RecoverableDraft(
         location = "$ROOT/$path",
         name = path.substringAfterLast('/'),
         sizeBytes = sizeBytes,
-        savedAtEpochMillis = System.currentTimeMillis() - minutesAgo * MINUTE,
+        savedAtEpochMillis = ago(minutes = minutesAgo),
     )
 
     private fun document(name: String, location: String, dirty: Boolean = false) = OpenDocument(

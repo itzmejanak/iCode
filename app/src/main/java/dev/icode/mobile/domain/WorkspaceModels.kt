@@ -6,7 +6,8 @@ data class WorkspaceSummary(
     val name: String,
     val path: String,
     val branch: String?,
-    val lastOpened: String,
+    /** When it was last opened; screens say how long ago, so it never goes stale in the snapshot. */
+    val lastOpenedAt: Long,
     val available: Boolean = true,
     /** Stable adapter-owned location. [path] remains presentation-safe. */
     val location: String = path,

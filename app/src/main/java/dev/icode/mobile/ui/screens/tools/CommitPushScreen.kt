@@ -31,6 +31,7 @@ import dev.icode.mobile.designsystem.TwoColumnActions
 import dev.icode.mobile.domain.GitRepositoryState
 import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.countOf
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalWorkbenchGateway
@@ -105,7 +106,7 @@ fun CommitPushScreen(actions: NavigationActions) {
                     StatusLabel("Working tree clean. No unstaged changes.", IcodeColors.Green)
                 }
                 else -> NoticeCard(tone = IcodeTone.Info, modifier = Modifier.fillMaxWidth()) {
-                    StatusLabel("${state.gitChanges.size} change(s) in the working tree.", IcodeColors.TextSecondary)
+                    StatusLabel("${countOf(state.gitChanges.size, "change")} in the working tree.", IcodeColors.TextSecondary)
                 }
             }
             IcodeCard(Modifier.fillMaxWidth(), elevated = true) {
@@ -159,7 +160,7 @@ private fun pushLabel(repository: GitRepositoryState?): String =
 private fun branchSummary(repository: GitRepositoryState?): String = when {
     repository == null -> "Initialize Git to enable source control"
     !repository.hasCommits -> "No commits yet — stage changes and commit"
-    repository.upstream != null -> "${repository.ahead} commit(s) ahead, ${repository.behind} behind"
+    repository.upstream != null -> "${countOf(repository.ahead, "commit")} ahead, ${repository.behind} behind"
     repository.hasRemote -> "Remote \"${repository.remoteName}\" · no upstream for this branch"
-    else -> "Local repository · ${repository.branches.size} branch(es)"
+    else -> "Local repository · ${countOf(repository.branches.size, "branch", "branches")}"
 }

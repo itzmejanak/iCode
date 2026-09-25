@@ -40,6 +40,7 @@ import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.MonoLine
+import dev.icode.mobile.domain.countOf
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.navigation.ToolPanelTab
@@ -96,7 +97,7 @@ fun WorkspaceEditorScreen(actions: NavigationActions) {
         val dirtyCount = state.openDocuments.count { it.location != document.location && it.dirty }
         IcodeSaveDiscardDialog(
             title = "Close other tabs?",
-            description = "$dirtyCount other ${if (dirtyCount == 1) "file has" else "files have"} unsaved changes.",
+            description = "${countOf(dirtyCount, "other file has", "other files have")} unsaved changes.",
             onSave = {
                 gateway.dispatch(WorkbenchIntent.CloseOtherDocuments(document.location, saveChanges = true))
                 closeOthers = false

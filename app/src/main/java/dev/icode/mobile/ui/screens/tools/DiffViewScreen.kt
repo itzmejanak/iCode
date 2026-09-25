@@ -29,6 +29,7 @@ import dev.icode.mobile.designsystem.PinchToScaleText
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.domain.GitDiffLineKind
 import dev.icode.mobile.domain.GitFileDiff
+import dev.icode.mobile.domain.countOf
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 import kotlinx.coroutines.launch
@@ -111,8 +112,7 @@ fun DiffViewScreen(actions: NavigationActions) {
                 IcodeBottomBar(
                     items = listOf(
                         BottomBarItem(
-                            "+${diff.addedLines} −${diff.removedLines} · ${diff.hunks.size} " +
-                                if (diff.hunks.size == 1) "hunk" else "hunks",
+                            "+${diff.addedLines} −${diff.removedLines} · ${countOf(diff.hunks.size, "hunk")}",
                         ),
                     ),
                     trailing = {

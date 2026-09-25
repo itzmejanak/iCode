@@ -24,6 +24,7 @@ import dev.icode.mobile.designsystem.StatusDot
 import dev.icode.mobile.domain.AppNotice
 import dev.icode.mobile.domain.LostTerminalSession
 import dev.icode.mobile.domain.ProcessEndCause
+import dev.icode.mobile.domain.countOf
 
 /**
  * One "terminal sessions ended" notice on the Notifications page: which
@@ -47,7 +48,7 @@ fun LostSessionsNotice(
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
                     if (new) StatusDot(IcodeColors.Accent)
                     Text(
-                        if (lost.sessions.size == 1) "A terminal session ended" else "${lost.sessions.size} terminal sessions ended",
+                        if (lost.sessions.size == 1) "A terminal session ended" else "${countOf(lost.sessions.size, "terminal session")} ended",
                         style = IcodeType.Body,
                     )
                 }
