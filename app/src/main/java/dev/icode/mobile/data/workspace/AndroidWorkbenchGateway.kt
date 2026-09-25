@@ -14,6 +14,7 @@ import dev.icode.mobile.data.git.GitWorkspaceSnapshot
 import dev.icode.mobile.data.io.measureTree
 import dev.icode.mobile.data.language.LanguageServiceProcessManager
 import dev.icode.mobile.data.language.LanguageServiceStore
+import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.settings.AndroidWorkspacePreferencesRepository
 import dev.icode.mobile.data.notices.NoticeStore
 import dev.icode.mobile.data.system.AndroidSystemAccess
@@ -989,6 +990,20 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
 
     private suspend fun cloneRepository(intent: WorkbenchIntent.CloneRepository) {
         val label = "Cloning"
+        // A new install has no Git until something needs it, and a clone is
+        // often the first thing that does: install it as part of this clone.
+        if (!git.isAvailable()) {
+            val installing = listOf("Installing Git…")
+            workbench.update { it.copy(gitOperation = GitOperationState.Running(label, output = installing)) }
+            val installed = runCatching { gitCli.provision() }.getOrNull()
+            if (!git.isAvailable()) {
+                val reason = (installed as? GitOutcome.Failure)?.message ?: "Git could not be installed"
+                BackendLog.w("git", "Git install before clone failed: $reason")
+                workbench.update { it.copy(gitOperation = GitOperationState.Failed(label, reason, installing)) }
+                return
+            }
+            workbench.update { it.copy(gitAvailable = true) }
+        }
         workbench.update { it.copy(gitOperation = GitOperationState.Running(label)) }
         var transcript = emptyList<String>()
         runCatching {
