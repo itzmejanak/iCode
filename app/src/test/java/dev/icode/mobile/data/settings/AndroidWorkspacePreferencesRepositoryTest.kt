@@ -13,7 +13,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -40,13 +42,17 @@ class AndroidWorkspacePreferencesRepositoryTest {
             first.setIndentTypeOverride("/root/one", IndentType.Tabs)
             first.setAutoFetch("/root/one", true)
         } finally {
-            firstScope.cancel()
+            // DataStore allows one active instance per file; cancel() alone returns before the
+            // first one has closed, and the reopened store then fails to read (measured: 17/300
+            // under load). Wait for it to close.
+            firstScope.coroutineContext.job.cancelAndJoin()
         }
         val secondScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         try {
             val reopened = AndroidWorkspacePreferencesRepository(
                 PreferenceDataStoreFactory.create(scope = secondScope, produceFile = { file }),
             )
+            assertNull(reopened.values("/root/one").first().loadError)
             assertEquals(6, reopened.values("/root/one").first().effectiveIndentSize)
             assertEquals(IndentType.Tabs, reopened.values("/root/one").first().effectiveIndentType)
             assertEquals(true, reopened.values("/root/one").first().autoFetch)
@@ -98,7 +104,10 @@ class AndroidWorkspacePreferencesRepositoryTest {
             repository.setBracketMatching(false)
             repository.setIndentSizeOverride("/root/one", 6)
         } finally {
-            firstScope.cancel()
+            // DataStore allows one active instance per file; cancel() alone returns before the
+            // first one has closed, and the reopened store then fails to read (measured: 17/300
+            // under load). Wait for it to close.
+            firstScope.coroutineContext.job.cancelAndJoin()
         }
         val secondScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         try {
