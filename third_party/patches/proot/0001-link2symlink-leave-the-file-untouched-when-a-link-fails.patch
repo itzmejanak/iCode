@@ -1,0 +1,142 @@
+link2symlink: leave the file untouched when a link fails
+
+Hard-link emulation renamed the file away before creating the symbolic
+links meant to stand in for it. On a filesystem that refuses symbolic
+links -- Android shared storage answers EPERM -- the rename had already
+happened: the caller's file was gone (left as `.l2s.<name>0001.0002`),
+and the rename fallback git then tries failed with ENOENT ("unable to
+rename temporary '*.pack' file"). The links are now created first and
+every completed step is undone on failure, so a refused link fails the
+way the kernel's own would, with the file where it was.
+
+Also: the l2s_* helpers return -1 with errno set; that -1 was passed to
+the tracee as is, turning every failure into EPERM. They now answer
+-errno.
+
+Upstream: termux/proot v5.1.107.92. Applied by app/src/main/cpp/CMakeLists.txt.
+
+--- a/src/extension/link2symlink/link2symlink.c
++++ b/src/extension/link2symlink/link2symlink.c
+@@ -576,22 +576,44 @@
+ 
+ 		strcpy(final, intermediate);
+ 		strcat(final, ".0002");
+-		status = l2s_rename(original, final);
+-		if (status < 0)
+-			return status;
+-		status = notify_extensions(tracee, LINK2SYMLINK_RENAME, (intptr_t) original, (intptr_t) final);
+-		if (status < 0)
+-			return status;
++
++		/* Nothing is moved until the links that will stand in for
++		 * the file exist, and each step is undone if a later one
++		 * fails.  A filesystem that refuses symbolic links --
++		 * Android shared storage answers EPERM -- used to be
++		 * found out only after the file had been renamed away:
++		 * the caller lost it, and the rename fallback it then
++		 * tried (git does exactly that) failed with ENOENT.  Now
++		 * such a link fails the way the kernel's own would, with
++		 * the file untouched.  */
+ 
+ 		/* Symlink the intermediate to the final file.  */
+ 		status = l2s_symlink(final, intermediate);
+ 		if (status < 0)
++			return -errno;
++
++		status = l2s_rename(original, final);
++		if (status < 0) {
++			status = -errno;
++			(void) l2s_unlink(intermediate);
++			return status;
++		}
++		status = notify_extensions(tracee, LINK2SYMLINK_RENAME, (intptr_t) original, (intptr_t) final);
++		if (status < 0) {
++			(void) l2s_rename(final, original);
++			(void) l2s_unlink(intermediate);
+ 			return status;
++		}
+ 
+ 		/* Symlink the original path to the intermediate one.  */
+ 		status = symlink(intermediate, original);
+-		if (status < 0)
++		if (status < 0) {
++			status = -errno;
++			(void) l2s_rename(final, original);
++			(void) notify_extensions(tracee, LINK2SYMLINK_RENAME, (intptr_t) final, (intptr_t) original);
++			(void) l2s_unlink(intermediate);
+ 			return status;
++		}
+ 	} else {
+ 		/*Move the original content to new location, by incrementing count at end of path. */
+ 		size = my_readlink(intermediate, final);
+@@ -604,9 +626,13 @@
+ 		strncpy(new_final, final, strlen(final) - 4);
+ 		sprintf(new_final + strlen(final) - 4, "%04d", link_count);
+ 
++		/* The l2s_* helpers keep the libc convention (-1 and
++		 * errno); this function answers -errno, which is what the
++		 * tracee is given.  Returning their -1 as is made every
++		 * failure look like EPERM.  */
+ 		status = l2s_rename(final, new_final);
+ 		if (status < 0)
+-			return status;
++			return -errno;
+ 		status = notify_extensions(tracee, LINK2SYMLINK_RENAME, (intptr_t) final, (intptr_t) new_final);
+ 		if (status < 0)
+ 			return status;
+@@ -614,10 +640,10 @@
+ 		/* Symlink the intermediate to the final file.  */
+ 		status = l2s_unlink(intermediate);
+ 		if (status < 0)
+-			return status;
++			return -errno;
+ 		status = l2s_symlink(final, intermediate);
+ 		if (status < 0)
+-			return status;
++			return -errno;
+ 	}
+ 
+ 	/* Perform symlink() operation within PRoot.  */
+@@ -627,7 +653,8 @@
+ 		if (status < 0) status = -errno;
+ 	}
+ 	if (status < 0) {
+-		status = -errno;
++		/* @status already holds the reason; errno may since have
++		 * been changed by read_path.  */
+ 		decrement_link_count(tracee, sysarg);
+ 		return status;
+ 	}
+@@ -703,7 +730,7 @@
+ 
+ 		status = l2s_rename(final, new_final);
+ 		if (status < 0)
+-			return status;
++			return -errno;
+ 		status = notify_extensions(tracee, LINK2SYMLINK_RENAME, (intptr_t) final, (intptr_t) new_final);
+ 		if (status < 0)
+ 			return status;
+@@ -713,19 +740,19 @@
+ 		/* Symlink the intermediate to the final file.  */
+ 		status = l2s_unlink(intermediate);
+ 		if (status < 0)
+-			return status;
++			return -errno;
+ 
+ 		status = l2s_symlink(final, intermediate);
+ 		if (status < 0)
+-			return status;
++			return -errno;
+ 	} else {
+ 		/* If it is the last, delete the intermediate and final */
+ 		status = l2s_unlink(intermediate);
+ 		if (status < 0)
+-			return status;
++			return -errno;
+ 		status = l2s_unlink(final);
+ 		if (status < 0)
+-			return status;
++			return -errno;
+ 		status = notify_extensions(tracee, LINK2SYMLINK_UNLINK, (intptr_t) final, 0);
+ 		if (status < 0)
+ 			return status;

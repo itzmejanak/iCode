@@ -1,8 +1,8 @@
 package dev.icode.mobile.ui.screens.settings
 
 import androidx.compose.runtime.Composable
-import dev.icode.mobile.navigation.DemoActions
-import dev.icode.mobile.navigation.DemoScreen
+import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.navigation.Route
 
 /**
  * Settings frames.
@@ -10,18 +10,18 @@ import dev.icode.mobile.navigation.DemoScreen
  * `else` stays until every frame in the group has migrated.
  */
 @Composable
-fun SettingsScreenHost(screen: DemoScreen, actions: DemoActions) {
+fun SettingsScreenHost(screen: Route, actions: NavigationActions) {
     when (screen) {
-        DemoScreen.SettingsRoot -> SettingsRootScreen(actions)
-        DemoScreen.SettingsEditor -> EditorSettingsScreen(actions)
-        DemoScreen.SettingsLanguages -> LanguageServicesScreen(actions)
-        DemoScreen.SettingsLanguageDetail -> LanguageDetailScreen(actions)
-        DemoScreen.SettingsRuntime -> RuntimeSettingsScreen(actions)
-        DemoScreen.AppearanceSettings -> AppearanceScreen(actions)
-        DemoScreen.TerminalSettings -> TerminalSettingsScreen(actions)
-        DemoScreen.StorageSettings -> StorageSettingsScreen(actions)
-        DemoScreen.About -> AboutScreen(actions)
-        DemoScreen.WorkspaceSettings -> WorkspaceSettingsScreen(actions)
+        Route.SettingsRoot -> SettingsRootScreen(actions)
+        Route.SettingsEditor -> EditorSettingsScreen(actions)
+        Route.SettingsLanguages -> LanguageServicesScreen(actions)
+        Route.SettingsLanguageDetail -> LanguageDetailScreen(actions)
+        Route.SettingsRuntime -> RuntimeSettingsScreen(actions)
+        Route.AppearanceSettings -> AppearanceScreen(actions)
+        Route.TerminalSettings -> TerminalSettingsScreen(actions)
+        Route.StorageSettings -> StorageSettingsScreen(actions)
+        Route.About -> AboutScreen(actions)
+        Route.WorkspaceSettings -> WorkspaceSettingsScreen(actions)
         else -> Unit
     }
 }

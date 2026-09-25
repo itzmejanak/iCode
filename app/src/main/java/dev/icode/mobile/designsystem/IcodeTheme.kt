@@ -2,8 +2,9 @@ package dev.icode.mobile.designsystem
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.graphics.Color
+import androidx.compose.runtime.CompositionLocalProvider
 
 /**
  * Material 3 bridge for the iCode design system.
@@ -12,32 +13,43 @@ import androidx.compose.ui.graphics.Color
  * [IcodeTone]; this file only wires them into [MaterialTheme] so Material
  * components inherit the same palette and type.
  */
-private val IcodeColorScheme = darkColorScheme(
-    primary = IcodeColors.Accent,
-    onPrimary = Color.Black,
-    secondary = IcodeColors.Green,
-    tertiary = IcodeColors.Blue,
-    background = IcodeColors.Background,
-    onBackground = IcodeColors.TextPrimary,
-    surface = IcodeColors.Surface,
-    onSurface = IcodeColors.TextPrimary,
-    surfaceVariant = IcodeColors.SurfaceElevated,
-    onSurfaceVariant = IcodeColors.TextSecondary,
-    outline = IcodeColors.Outline,
-    error = IcodeColors.Error,
-)
-
 @Composable
-fun IcodeTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = IcodeColorScheme,
-        typography = MaterialTheme.typography.copy(
-            bodyLarge = IcodeType.Body,
-            bodyMedium = IcodeType.Body,
-            labelLarge = IcodeType.Label,
-            titleLarge = IcodeType.PageTitle,
-            titleMedium = IcodeType.Title,
-        ),
-        content = content,
-    )
+fun IcodeTheme(
+    palette: IcodePalette = IcodePalette.Dark,
+    uiTextScalePercent: Int = 100,
+    compactLayout: Boolean = true,
+    content: @Composable () -> Unit,
+) {
+    CompositionLocalProvider(
+        LocalIcodePalette provides palette,
+        LocalIcodeUiTextScale provides uiTextScalePercent / 100f,
+        LocalIcodeCompactLayout provides compactLayout,
+    ) {
+        val scheme = if (palette == IcodePalette.Light) lightColorScheme(
+            primary = palette.accent, onPrimary = palette.onAccent,
+            secondary = palette.green, tertiary = palette.blue,
+            background = palette.background, onBackground = palette.textPrimary,
+            surface = palette.surface, onSurface = palette.textPrimary,
+            surfaceVariant = palette.surfaceElevated, onSurfaceVariant = palette.textSecondary,
+            outline = palette.outline, error = palette.error,
+        ) else darkColorScheme(
+            primary = palette.accent, onPrimary = palette.onAccent,
+            secondary = palette.green, tertiary = palette.blue,
+            background = palette.background, onBackground = palette.textPrimary,
+            surface = palette.surface, onSurface = palette.textPrimary,
+            surfaceVariant = palette.surfaceElevated, onSurfaceVariant = palette.textSecondary,
+            outline = palette.outline, error = palette.error,
+        )
+        MaterialTheme(
+            colorScheme = scheme,
+            typography = MaterialTheme.typography.copy(
+                bodyLarge = IcodeType.Body,
+                bodyMedium = IcodeType.Body,
+                labelLarge = IcodeType.Label,
+                titleLarge = IcodeType.PageTitle,
+                titleMedium = IcodeType.Title,
+            ),
+            content = content,
+        )
+    }
 }

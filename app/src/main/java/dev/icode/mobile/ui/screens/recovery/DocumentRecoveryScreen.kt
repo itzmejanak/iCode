@@ -28,12 +28,12 @@ import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.StatusDot
 import dev.icode.mobile.designsystem.TwoColumnActions
 import dev.icode.mobile.designsystem.IcodeTone
-import dev.icode.mobile.navigation.DemoActions
-import dev.icode.mobile.navigation.DemoScreen
+import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.navigation.Route
 
 /** Recovery center listing auto-saved documents after an unexpected shutdown. */
 @Composable
-fun DocumentRecoveryScreen(actions: DemoActions) {
+fun DocumentRecoveryScreen(actions: NavigationActions) {
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Recover Unsaved Work", subtitle = "Unexpected shutdown recovery center", onBack = actions.back)
         LazyColumn(
@@ -94,8 +94,8 @@ fun DocumentRecoveryScreen(actions: DemoActions) {
             modifier = Modifier.fillMaxWidth().background(IcodeColors.Surface).padding(IcodeSpacing.Space4),
             verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
         ) {
-            PrimaryButton("Restore All Workspace Docs", { actions.navigate(DemoScreen.WorkspaceEditor) }, Modifier.fillMaxWidth())
-            SecondaryButton("Discard All Recovery Files", { actions.navigate(DemoScreen.LauncherHome) }, Modifier.fillMaxWidth(), color = IcodeColors.TextMuted)
+            PrimaryButton("Restore All Workspace Docs", { actions.navigate(Route.WorkspaceEditor) }, Modifier.fillMaxWidth())
+            SecondaryButton("Discard All Recovery Files", { actions.navigate(Route.LauncherHome) }, Modifier.fillMaxWidth(), color = IcodeColors.TextMuted)
         }
     }
 }

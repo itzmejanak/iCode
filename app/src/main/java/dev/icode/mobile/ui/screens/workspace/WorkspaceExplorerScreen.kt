@@ -1,6 +1,8 @@
 package dev.icode.mobile.ui.screens.workspace
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -8,95 +10,165 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountTree
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Code
+import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowRight
-import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import dev.icode.mobile.demo.DemoContent
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.RectangleShape
 import dev.icode.mobile.designsystem.ActivityRail
 import dev.icode.mobile.designsystem.ActivityRailEntry
+import dev.icode.mobile.designsystem.IcodeActionMenu
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeListRow
+import dev.icode.mobile.designsystem.IcodeMenuAction
+import dev.icode.mobile.designsystem.IcodeShapes
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.SectionLabel
+import dev.icode.mobile.designsystem.StatusDot
+import dev.icode.mobile.designsystem.gitStatusTone
+import dev.icode.mobile.designsystem.tint
 import dev.icode.mobile.domain.FileEntry
 import dev.icode.mobile.domain.FileKind
 import dev.icode.mobile.domain.WorkbenchIntent
-import dev.icode.mobile.navigation.DemoActions
-import dev.icode.mobile.navigation.DemoScreen
+import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.navigation.Route
+import dev.icode.mobile.navigation.ToolPanelTab
 import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 
 /** File tree with the workspace activity rail. */
 @Composable
-fun WorkspaceExplorerScreen(actions: DemoActions) {
+fun WorkspaceExplorerScreen(actions: NavigationActions) {
     val state = LocalWorkbenchSnapshot.current
     val gateway = LocalWorkbenchGateway.current
-    var selectedPath by rememberSaveable { mutableStateOf(DemoContent.selectedExplorerPath) }
+    var selectedPath by rememberSaveable(state.activePath) { mutableStateOf(state.initialExplorerSelection.orEmpty()) }
+    var createParent by rememberSaveable { mutableStateOf<String?>(null) }
+    var createType by rememberSaveable { mutableStateOf<WorkspaceItemType?>(null) }
     Column(Modifier.fillMaxSize()) {
-        WorkspaceHeader(actions)
-        Row(Modifier.weight(1f)) {
+        WorkspaceHeader(onNewItem = { type ->
+            createParent = creationParentLocation(state.activeWorkspaceLocation, selectedPath, state.files)
+            createType = type
+        })
+        Row(Modifier.weight(1f).background(IcodeColors.Surface)) {
             ActivityRail(
                 entries = listOf(
                     ActivityRailEntry(Icons.Outlined.FolderOpen, "Explorer", active = true),
-                    ActivityRailEntry(Icons.Outlined.Search, "Search") { actions.navigate(DemoScreen.WorkspaceSearch) },
-                    ActivityRailEntry(Icons.Outlined.AccountTree, "Source control") { actions.navigate(DemoScreen.SourceControl) },
+                    ActivityRailEntry(Icons.Outlined.Terminal, "Terminal", accented = true) {
+                        actions.openPanel(ToolPanelTab.Terminal)
+                    },
+                    ActivityRailEntry(Icons.Outlined.Search, "Search") { actions.navigate(Route.WorkspaceSearch) },
+                    ActivityRailEntry(
+                        Icons.Outlined.AccountTree,
+                        if (state.gitRepository == null) "Initialize Git" else "Source control",
+                        // One badge per changed file, counting a file staged and
+                        // modified once, the way VS Code counts it.
+                        badge = state.gitChanges.map { it.path }.distinct().size,
+                    ) {
+                        if (state.gitRepository == null) {
+                            gateway.dispatch(WorkbenchIntent.InitializeGit)
+                        } else {
+                            actions.navigate(Route.SourceControl)
+                        }
+                    },
+                ),
+                bottomEntries = listOf(
+                    ActivityRailEntry(Icons.Outlined.Settings, "Workspace settings") {
+                        actions.navigate(Route.WorkspaceSettings)
+                    },
                 ),
             )
-            Column(Modifier.weight(1f)) {
+            Column(
+                Modifier
+                    .weight(1f)
+                    .fillMaxSize()
+                    .clip(IcodeShapes.RailContent)
+                    .background(IcodeColors.Background),
+            ) {
                 SectionLabel("Workspace Explorer", Modifier.padding(IcodeSpacing.Space3))
-                state.files.forEach { entry ->
-                    ExplorerRow(
-                        entry = entry,
-                        selected = entry.path == selectedPath,
-                        onClick = {
-                            selectedPath = entry.path
-                            if (entry.kind == FileKind.Folder) {
-                                gateway.dispatch(WorkbenchIntent.ToggleFolder(entry.path))
-                            } else {
-                                actions.navigate(DemoScreen.WorkspaceEditor)
-                            }
-                        },
-                    )
+                LazyColumn(Modifier.weight(1f)) {
+                    items(state.files, key = { it.path }) { entry ->
+                        ExplorerRow(
+                            entry = entry,
+                            selected = entry.path == selectedPath,
+                            onClick = {
+                                selectedPath = entry.path
+                                if (entry.kind == FileKind.Folder) {
+                                    gateway.dispatch(WorkbenchIntent.ToggleFolder(entry.path))
+                                } else {
+                                    gateway.dispatch(WorkbenchIntent.OpenFile(entry.path))
+                                }
+                            },
+                        )
+                    }
                 }
             }
         }
+    }
+    createType?.let { type ->
+        CreateWorkspaceItemDialog(type, createParent, onDismiss = { createType = null })
     }
 }
 
 /** Workspace header used by the explorer family. */
 @Composable
-private fun WorkspaceHeader(actions: DemoActions) {
+private fun WorkspaceHeader(onNewItem: (WorkspaceItemType) -> Unit) {
     val state = LocalWorkbenchSnapshot.current
+    var menuExpanded by remember { mutableStateOf(false) }
     IcodeTopBar(
         title = state.activeWorkspace,
         subtitle = state.activePath,
         actions = {
-            IconButton(onClick = { actions.navigate(DemoScreen.WorkspaceSettings) }) {
-                Icon(Icons.Outlined.MoreVert, contentDescription = "Workspace settings", tint = IcodeColors.TextPrimary)
+            Box {
+                IconButton(onClick = { menuExpanded = true }) {
+                    Icon(Icons.Outlined.Add, contentDescription = "Create in workspace", tint = IcodeColors.TextPrimary)
+                }
+                IcodeActionMenu(
+                    expanded = menuExpanded,
+                    onDismiss = { menuExpanded = false },
+                    actions = listOf(
+                        IcodeMenuAction("New file", Icons.Outlined.Description, { onNewItem(WorkspaceItemType.File) }),
+                        IcodeMenuAction("New folder", Icons.Outlined.CreateNewFolder, { onNewItem(WorkspaceItemType.Folder) }),
+                    ),
+                )
             }
         },
     )
+}
+
+/** A selected file targets its containing visible directory; a folder targets itself. */
+internal fun creationParentLocation(root: String?, selectedPath: String, files: List<FileEntry>): String? {
+    val index = files.indexOfFirst { it.path == selectedPath }
+    if (index < 0) return root
+    val selected = files[index]
+    if (selected.kind == FileKind.Folder) return selected.path
+    return files.take(index).lastOrNull { it.kind == FileKind.Folder && it.depth == selected.depth - 1 }?.path ?: root
 }
 
 @Composable
@@ -104,16 +176,20 @@ private fun ExplorerRow(entry: FileEntry, selected: Boolean, onClick: () -> Unit
     val icon = when (entry.kind) {
         FileKind.Folder -> if (entry.expanded) Icons.Outlined.FolderOpen else Icons.Outlined.Folder
         FileKind.TypeScript -> Icons.Outlined.Code
-        FileKind.Json, FileKind.Markdown -> Icons.Outlined.Description
+        FileKind.Code -> Icons.Outlined.Code
+        FileKind.Json, FileKind.Markdown, FileKind.Other -> Icons.Outlined.Description
     }
     val iconTint = when (entry.kind) {
         FileKind.TypeScript -> IcodeColors.Blue
+        FileKind.Code -> IcodeColors.Accent
         FileKind.Json -> IcodeColors.Amber
-        FileKind.Markdown -> IcodeColors.TextSecondary
+        FileKind.Markdown, FileKind.Other -> IcodeColors.TextSecondary
         FileKind.Folder -> if (entry.expanded) IcodeColors.Accent else IcodeColors.TextSecondary
     }
     IcodeListRow(
         selected = selected,
+        selectionBackground = IcodeColors.Surface,
+        rowShape = RectangleShape,
         indent = IcodeSpacing.IndentStep * entry.depth,
         onClick = onClick,
         leading = {
@@ -134,18 +210,26 @@ private fun ExplorerRow(entry: FileEntry, selected: Boolean, onClick: () -> Unit
                 Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(IcodeSizes.IconMd))
             }
         },
+        // As in VS Code: a changed name takes its status colour; a file shows
+        // its status letter, a folder a dot for the strongest change beneath it.
         content = {
             Text(
                 entry.name,
                 modifier = Modifier.weight(1f),
                 style = IcodeType.Body,
-                color = if (entry.kind == FileKind.Markdown) IcodeColors.TextSecondary else IcodeColors.TextPrimary,
+                color = when {
+                    entry.gitStatus != null -> gitStatusTone(entry.gitStatus).tint()
+                    entry.kind == FileKind.Markdown -> IcodeColors.TextSecondary
+                    else -> IcodeColors.TextPrimary
+                },
             )
         },
         trailing = {
-            if (entry.gitStatus != null) {
-                val tone = if (entry.gitStatus == "M" || entry.gitStatus == "•") IcodeColors.Amber else IcodeColors.Green
-                MonoLine(entry.gitStatus, color = tone, style = IcodeType.MonoSmall)
+            val status = entry.gitStatus
+            when {
+                status == null -> Unit
+                entry.kind == FileKind.Folder -> StatusDot(gitStatusTone(status).tint())
+                else -> MonoLine(status, color = gitStatusTone(status).tint(), style = IcodeType.MonoSmall)
             }
         },
     )

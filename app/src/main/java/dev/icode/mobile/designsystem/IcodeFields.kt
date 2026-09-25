@@ -9,6 +9,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,6 +40,9 @@ fun IcodeTextField(
     textStyle: TextStyle = IcodeType.Mono,
     singleLine: Boolean = true,
     borderColor: Color = IcodeColors.Outline,
+    inputModifier: Modifier = Modifier,
+    /** Masks the value; use for tokens and passwords, never for ordinary text. */
+    secret: Boolean = false,
 ) {
     IcodeCard(
         modifier = modifier,
@@ -61,10 +68,24 @@ fun IcodeTextField(
                 BasicTextField(
                     value = value,
                     onValueChange = onValueChange,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().then(inputModifier),
                     textStyle = textStyle,
                     singleLine = singleLine,
                     cursorBrush = SolidColor(IcodeColors.Accent),
+                    visualTransformation = if (secret) {
+                        PasswordVisualTransformation()
+                    } else {
+                        VisualTransformation.None
+                    },
+                    keyboardOptions = if (secret) {
+                        // A secret must not be learned, suggested or capitalised.
+                        KeyboardOptions(
+                            keyboardType = KeyboardType.Password,
+                            autoCorrectEnabled = false,
+                        )
+                    } else {
+                        KeyboardOptions.Default
+                    },
                 )
             }
             if (trailingText != null) {
@@ -83,12 +104,14 @@ fun LabeledTextField(
     modifier: Modifier = Modifier,
     placeholder: String? = null,
     singleLine: Boolean = true,
+    secret: Boolean = false,
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
         SectionLabel(label)
         IcodeTextField(
             value = value,
             onValueChange = onValueChange,
+            secret = secret,
             placeholder = placeholder,
             singleLine = singleLine,
         )

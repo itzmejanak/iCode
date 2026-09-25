@@ -232,3 +232,23 @@ Read `@Todo.md`, `@plan.md`, and all relevant UI files before finalizing the pla
 **Do not implement anything yet. First produce the complete plan, including assumptions, discovered issues, and any decisions that require confirmation.**
 
 **Master plan (approved and being executed): [`docs/ui-split-plan.md`](./docs/ui-split-plan.md)** — includes the duplication ledger, UI-kit audit, target structure, screen-by-screen map, cycle list and validation gates. Guardrail: `tools/check-ui-consistency.sh` + `tools/ui-debt-allowlist.txt`.
+
+---
+
+# Phase 2/3 Integration plan
+
+**Master plan (approved; Cycles 0–1 complete): [`docs/integration-plan.md`](./docs/integration-plan.md)** — audit of the
+regressed workspace-logic round, the demo→real→gaps→cleanup rule, library decisions (Sora Editor,
+ripgrep, Git CLI/JGit interim), and the cycle-by-cycle execution order with validation gates.
+The next sequence follows the live search report: frame 16 Editor Find/Sora, then frame 11
+Workspace Search and frame 14 Quick Open/ripgrep, then Git frames. Each frame keeps its demo
+controls and routes until its real lifecycle and failure states pass verification.
+Guardrails: `tools/check-ui-consistency.sh` (`orphan-route`, `demo-fork`).
+
+**Backend splitting standard for all future Android work:** [`docs/backend-split-rules.md`](./docs/backend-split-rules.md).
+It extends the completed UI split's ownership/consistency discipline to contracts, adapters,
+state, side effects, persistence, lifecycle, demo parity and verification. Apply it prospectively;
+split existing implementations only in a separately requested scoped cycle. The first worked
+feature plan and implementation ledger are [`docs/settings-backend-split-plan.md`](./docs/settings-backend-split-plan.md)
+for Appearance and Editor Settings. The typed settings and guarded save path are wired; palette
+approval, physical-device acceptance, formatter integration and broader session restore are still open.

@@ -29,10 +29,25 @@ fun MonoLine(
     Text(
         text,
         modifier = modifier,
-        style = style.copy(color = color),
+        style = style.scaledBy(LocalCodeTextScale.current).copy(color = color),
         maxLines = maxLines,
         overflow = TextOverflow.Ellipsis,
     )
+}
+
+/** Three equal-width action slots, for a choice between mutually exclusive options. */
+@Composable
+fun ThreeColumnActions(
+    first: @Composable () -> Unit,
+    second: @Composable () -> Unit,
+    third: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        Box(Modifier.weight(1f)) { first() }
+        Box(Modifier.weight(1f)) { second() }
+        Box(Modifier.weight(1f)) { third() }
+    }
 }
 
 /** Two equal-width action slots separated by the shared gutter. */

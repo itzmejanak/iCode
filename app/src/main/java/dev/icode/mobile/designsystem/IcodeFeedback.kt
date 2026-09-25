@@ -1,5 +1,7 @@
 package dev.icode.mobile.designsystem
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,11 +15,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -93,7 +98,21 @@ fun EmptyState(
     }
 }
 
-/** Modal backdrop with a top bar and a centered elevated card. */
+/** Shared elevated surface for compact modals and full-screen dialog routes. */
+@Composable
+fun IcodeDialogCard(
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    IcodeCard(
+        modifier = modifier,
+        elevated = true,
+        padding = PaddingValues(IcodeSpacing.Space4),
+        content = content,
+    )
+}
+
+/** Full-screen dialog frame used by recovery routes and static captures. */
 @Composable
 fun DialogScaffold(
     title: String,
@@ -106,22 +125,90 @@ fun DialogScaffold(
         Column(Modifier.fillMaxSize().background(IcodeColors.Scrim)) {
             IcodeTopBar(title, subtitle = subtitle, onBack = onBack)
         }
-        IcodeCard(
+        IcodeDialogCard(
             modifier = Modifier.align(Alignment.Center).fillMaxWidth().padding(IcodeSpacing.Space6),
-            elevated = true,
-            padding = PaddingValues(IcodeSpacing.Space5),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3), content = content)
         }
     }
 }
 
-/** Bottom sheet surface: handle, title row with close action and content. */
+/** Compact modal confirmation using the same surface and actions as screen dialogs. */
+@Composable
+fun IcodeConfirmDialog(
+    title: String,
+    confirmLabel: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    destructive: Boolean = false,
+    confirmEnabled: Boolean = true,
+    dismissEnabled: Boolean = true,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Dialog(onDismissRequest = { if (dismissEnabled) onDismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Box(Modifier.fillMaxWidth().padding(IcodeSpacing.Space4), contentAlignment = Alignment.Center) {
+            IcodeDialogCard(
+                modifier = Modifier.widthIn(max = IcodeSizes.DialogMaxWidth).fillMaxWidth(),
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3)) {
+                    Text(
+                        title,
+                        style = IcodeType.Title.copy(color = if (destructive) IcodeColors.Error else IcodeColors.TextPrimary),
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2), content = content)
+                    TwoColumnActions(
+                        left = { SecondaryButton("Cancel", onDismiss, Modifier.fillMaxWidth(), enabled = dismissEnabled) },
+                        right = {
+                            if (destructive) DangerButton(confirmLabel, onConfirm, Modifier.fillMaxWidth(), filled = true)
+                            else PrimaryButton(confirmLabel, onConfirm, Modifier.fillMaxWidth(), enabled = confirmEnabled)
+                        },
+                        modifier = Modifier.padding(top = IcodeSpacing.Space1),
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Three-way confirmation for an unsaved editor tab (or a set of tabs). */
+@Composable
+fun IcodeSaveDiscardDialog(
+    title: String,
+    description: String,
+    onSave: () -> Unit,
+    onDiscard: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Box(Modifier.fillMaxWidth().padding(IcodeSpacing.Space4), contentAlignment = Alignment.Center) {
+            IcodeDialogCard(Modifier.widthIn(max = IcodeSizes.DialogMaxWidth).fillMaxWidth()) {
+                Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3)) {
+                    Text(title, style = IcodeType.Title)
+                    Text(description, style = IcodeType.Body, color = IcodeColors.TextSecondary)
+                    TwoColumnActions(
+                        left = { DangerButton("Discard", onDiscard, Modifier.fillMaxWidth()) },
+                        right = { PrimaryButton("Save", onSave, Modifier.fillMaxWidth()) },
+                    )
+                    SecondaryButton("Cancel", onDismiss, Modifier.fillMaxWidth())
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Bottom sheet surface: handle and title row, then [content], then [footer].
+ *
+ * Only [content] scrolls, in whatever height is left, so a long list cannot
+ * push the title off the top or the footer off the bottom. The footer — say a
+ * field and the button that submits it — stays in view above the keyboard.
+ */
 @Composable
 fun IcodeBottomSheet(
     title: String,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
+    footer: (@Composable ColumnScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
@@ -129,7 +216,6 @@ fun IcodeBottomSheet(
             .fillMaxWidth()
             .background(IcodeColors.Surface, IcodeShapes.Sheet)
             .padding(IcodeSpacing.Space4),
-        verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
     ) {
         Box(
             Modifier
@@ -147,6 +233,51 @@ fun IcodeBottomSheet(
                 Icon(Icons.Outlined.Close, contentDescription = "Close", tint = IcodeColors.TextSecondary)
             }
         }
-        content()
+        Column(
+            Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
+            content = content,
+        )
+        if (footer != null) {
+            Column(
+                Modifier.padding(top = IcodeSpacing.Space3),
+                verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
+                content = footer,
+            )
+        }
+    }
+}
+
+/**
+ * Modal confirmation for an action that cannot be undone.
+ *
+ * Destructive actions get a visible control and this dialog rather than a
+ * hidden gesture: a long press gives no warning and no way back.
+ */
+@Composable
+fun IcodeConfirmDialog(
+    title: String,
+    message: String,
+    confirmLabel: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    detail: String? = null,
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        IcodeDialogCard(Modifier.fillMaxWidth()) {
+            Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3)) {
+                Text(title, style = IcodeType.Title.copy(color = IcodeColors.Error))
+                Text(message, style = IcodeType.Body, color = IcodeColors.TextSecondary)
+                if (detail != null) {
+                    MonoLine(detail, color = IcodeColors.Accent, style = IcodeType.MonoSmall)
+                }
+                TwoColumnActions(
+                    left = { SecondaryButton("Cancel", onDismiss, Modifier.fillMaxWidth()) },
+                    right = {
+                        DangerButton(confirmLabel, onConfirm, Modifier.fillMaxWidth(), filled = true)
+                    },
+                )
+            }
+        }
     }
 }

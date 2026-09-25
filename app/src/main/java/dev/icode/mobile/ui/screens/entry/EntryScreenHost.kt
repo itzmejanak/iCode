@@ -1,8 +1,8 @@
 package dev.icode.mobile.ui.screens.entry
 
 import androidx.compose.runtime.Composable
-import dev.icode.mobile.navigation.DemoActions
-import dev.icode.mobile.navigation.DemoScreen
+import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.navigation.Route
 
 /**
  * Entry, setup, permission and launcher frames.
@@ -11,18 +11,18 @@ import dev.icode.mobile.navigation.DemoScreen
  * stays until every frame in the group has migrated.
  */
 @Composable
-fun EntryScreenHost(screen: DemoScreen, actions: DemoActions) {
+fun EntryScreenHost(screen: Route, actions: NavigationActions) {
     when (screen) {
-        DemoScreen.Splash -> SplashScreen(actions)
-        DemoScreen.RuntimeInstalling -> RuntimeInstallingScreen(actions)
-        DemoScreen.RuntimeError -> RuntimeErrorScreen(actions)
-        DemoScreen.PermissionExplanation -> PermissionScreen(actions)
-        DemoScreen.LauncherHome -> LauncherScreen(actions, empty = false)
-        DemoScreen.LauncherEmpty -> LauncherScreen(actions, empty = true)
-        DemoScreen.CloneRepository -> CloneRepositoryScreen(actions)
-        DemoScreen.CloneProgress -> CloneProgressScreen(actions)
-        DemoScreen.CreateFolder -> CreateFolderScreen(actions)
-        DemoScreen.OpenFolderBrowser -> OpenFolderScreen(actions)
+        Route.Splash -> SplashScreen(actions)
+        Route.RuntimeInstalling -> RuntimeInstallingScreen(actions)
+        Route.PermissionExplanation -> PermissionScreen(actions)
+        Route.LauncherHome -> LauncherScreen(actions, empty = false)
+        Route.LauncherEmpty -> LauncherScreen(actions, empty = true)
+        Route.Notifications -> NotificationsScreen(actions)
+        Route.CloneRepository -> CloneRepositoryScreen(actions)
+        Route.CloneProgress -> CloneProgressScreen(actions)
+        Route.CreateFolder -> CreateFolderScreen(actions)
+        Route.OpenFolderBrowser -> OpenFolderScreen(actions)
         else -> Unit
     }
 }

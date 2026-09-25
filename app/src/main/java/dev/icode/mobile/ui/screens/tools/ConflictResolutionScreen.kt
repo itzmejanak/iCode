@@ -1,91 +1,200 @@
 package dev.icode.mobile.ui.screens.tools
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Text
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
-import dev.icode.mobile.designsystem.ChoiceChip
 import dev.icode.mobile.designsystem.CodeSurface
 import dev.icode.mobile.designsystem.DiffBand
 import dev.icode.mobile.designsystem.DiffKind
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeSpacing
+import dev.icode.mobile.designsystem.IcodeTone
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.MonoLine
+import dev.icode.mobile.designsystem.PinchToScaleText
+import dev.icode.mobile.designsystem.NoticeCard
 import dev.icode.mobile.designsystem.PrimaryButton
+import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.StatusLabel
-import dev.icode.mobile.navigation.DemoActions
-import dev.icode.mobile.navigation.DemoScreen
+import dev.icode.mobile.designsystem.ThreeColumnActions
+import dev.icode.mobile.domain.GitConflictChoice
+import dev.icode.mobile.domain.GitConflictFile
+import dev.icode.mobile.domain.GitConflictSection
+import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.ui.LocalWorkbenchGateway
+import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 
-private val mergeOptions = listOf("Accept Current", "Accept Incoming", "Accept Both", "Compare")
-
-/** Merge conflict resolution with per-side bands. */
+/**
+ * Merge conflict resolution on the real conflicted file.
+ *
+ * The file is shown as Git left it — its own lines and its own marker blocks —
+ * and a choice rewrites the file on disk. Marking the file resolved stays a
+ * separate, explicit step (`git add`), so a half-finished file is never staged
+ * by accident.
+ */
 @Composable
-fun ConflictResolutionScreen(actions: DemoActions) {
-    var choice by rememberSaveable { mutableStateOf(mergeOptions.first()) }
+fun ConflictResolutionScreen(actions: NavigationActions) {
+    val state = LocalWorkbenchSnapshot.current
+    val gateway = LocalWorkbenchGateway.current
+    val conflict = state.activeConflict
+    if (conflict == null) {
+        ConflictUnavailable(actions)
+        return
+    }
     Column(Modifier.fillMaxSize()) {
-        IcodeTopBar("auth.ts", onBack = actions.back, actions = { StatusLabel("Conflict", IcodeColors.Error) })
-        Row(
-            modifier = Modifier.fillMaxWidth().background(IcodeColors.Surface).padding(IcodeSpacing.Space2),
-            horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
-        ) {
-            mergeOptions.forEach { option ->
-                ChoiceChip(
-                    text = option,
-                    active = choice == option,
-                    modifier = Modifier.weight(1f),
-                    onClick = { choice = option },
+        IcodeTopBar(
+            conflict.path.substringAfterLast('/'),
+            subtitle = conflict.path,
+            onBack = {
+                gateway.dispatch(WorkbenchIntent.CloseConflict)
+                actions.back()
+            },
+            actions = {
+                StatusLabel(
+                    if (conflict.isResolved) "Resolved" else "${conflict.sections.size} conflict(s)",
+                    if (conflict.isResolved) IcodeColors.Green else IcodeColors.Error,
                 )
+            },
+        )
+        PinchToScaleText(Modifier.weight(1f)) {
+            // Scrolls: a long file, or one zoomed in, runs past the screen.
+            CodeSurface(
+                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                padding = PaddingValues(vertical = IcodeSpacing.Space3),
+            ) {
+                ConflictedFile(conflict) { choice ->
+                    gateway.dispatch(WorkbenchIntent.ResolveConflict(conflict.path, choice))
+                }
             }
         }
-        CodeSurface(
-            modifier = Modifier.weight(1f),
-            padding = PaddingValues(top = IcodeSpacing.Space3),
-        ) {
+        ConflictFooter(
+            conflict = conflict,
+            onMarkResolved = {
+                gateway.dispatch(WorkbenchIntent.MarkConflictResolved(conflict.path))
+                gateway.dispatch(WorkbenchIntent.CloseConflict)
+                actions.back()
+            },
+        )
+    }
+}
+
+/**
+ * The file, top to bottom.
+ *
+ * Lines outside a conflict are context; each marker block becomes a pair of
+ * bands with the choices attached, so the user acts where they are reading.
+ */
+@Composable
+private fun ConflictedFile(conflict: GitConflictFile, onChoice: (GitConflictChoice) -> Unit) {
+    var line = 0
+    while (line < conflict.lines.size) {
+        val section = conflict.sections.firstOrNull { it.startLine == line }
+        if (section == null) {
             MonoLine(
-                "export const validateToken = (token: string) => {",
-                modifier = Modifier.padding(horizontal = IcodeSpacing.Space3),
+                conflict.lines[line].ifBlank { " " },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = IcodeSpacing.Space3),
                 color = IcodeColors.TextMuted,
+                maxLines = 1,
             )
-            DiffBand("<<<<<<< HEAD (Current Change)", DiffKind.ConflictCurrent)
-            MonoLine(
-                "  const decoded = jwt.verify(token, SECRET);\n  return decoded.sub !== undefined;",
-                modifier = Modifier.padding(IcodeSpacing.Space3),
-            )
-            DiffBand("=======", DiffKind.Separator)
-            MonoLine(
-                "  const verified = oauth.decode(token);\n  return verified.isValid && verified.scope === 'write';",
-                modifier = Modifier.padding(IcodeSpacing.Space3),
-            )
-            DiffBand(">>>>>>> feature/oauth (Incoming Change)", DiffKind.ConflictIncoming)
-            MonoLine("};", modifier = Modifier.padding(horizontal = IcodeSpacing.Space3), color = IcodeColors.TextMuted)
+            line++
+        } else {
+            ConflictSection(section, onChoice)
+            line = section.endLine + 1
         }
-        Text(
-            "Conflicted — resolve all conflicts and mark as resolved",
+    }
+}
+
+@Composable
+private fun ConflictSection(section: GitConflictSection, onChoice: (GitConflictChoice) -> Unit) {
+    DiffBand("<<<<<<< ${section.currentLabel} (Current Change)", DiffKind.ConflictCurrent)
+    SideLines(section.current)
+    DiffBand("=======", DiffKind.Separator)
+    SideLines(section.incoming)
+    DiffBand(">>>>>>> ${section.incomingLabel} (Incoming Change)", DiffKind.ConflictIncoming)
+    ThreeColumnActions(
+        modifier = Modifier.padding(IcodeSpacing.Space3),
+        first = {
+            SecondaryButton("Current", { onChoice(GitConflictChoice.Current) }, Modifier.fillMaxWidth())
+        },
+        second = {
+            SecondaryButton("Incoming", { onChoice(GitConflictChoice.Incoming) }, Modifier.fillMaxWidth())
+        },
+        third = {
+            SecondaryButton("Both", { onChoice(GitConflictChoice.Both) }, Modifier.fillMaxWidth())
+        },
+    )
+}
+
+/** An empty side is stated rather than drawn as nothing, which reads as a bug. */
+@Composable
+private fun SideLines(lines: List<String>) {
+    if (lines.isEmpty()) {
+        MonoLine(
+            "(empty)",
+            modifier = Modifier.padding(horizontal = IcodeSpacing.Space3, vertical = IcodeSpacing.Space1),
+            color = IcodeColors.TextMuted,
+            style = IcodeType.MonoSmall,
+        )
+        return
+    }
+    lines.forEach { text ->
+        MonoLine(
+            text.ifBlank { " " },
             modifier = Modifier
                 .fillMaxWidth()
-                .background(IcodeColors.Surface)
-                .padding(IcodeSpacing.Space3 + IcodeSpacing.Micro),
-            style = IcodeType.Caption.copy(color = IcodeColors.Amber),
-            textAlign = TextAlign.Center,
+                .padding(horizontal = IcodeSpacing.Space3, vertical = IcodeSpacing.Micro),
+            color = IcodeColors.TextPrimary,
+            maxLines = 1,
         )
+    }
+}
+
+@Composable
+private fun ConflictFooter(conflict: GitConflictFile, onMarkResolved: () -> Unit) {
+    Column {
+        NoticeCard(
+            tone = if (conflict.isResolved) IcodeTone.Success else IcodeTone.Warning,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = IcodeSpacing.Space4),
+        ) {
+            StatusLabel(
+                if (conflict.isResolved) {
+                    "No markers left in this file. Mark it resolved to stage it."
+                } else {
+                    "Resolve every conflict before marking the file resolved."
+                },
+                if (conflict.isResolved) IcodeColors.Green else IcodeColors.Amber,
+            )
+        }
         PrimaryButton(
             "Mark as Resolved",
-            { actions.navigate(DemoScreen.SourceControl) },
+            onMarkResolved,
             Modifier.fillMaxWidth().padding(IcodeSpacing.Space4),
+            enabled = conflict.isResolved,
         )
+    }
+}
+
+/** Reached only if the file stopped being conflicted while the screen was open. */
+@Composable
+private fun ConflictUnavailable(actions: NavigationActions) {
+    Column(
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
+    ) {
+        IcodeTopBar("Conflict", onBack = actions.back)
+        NoticeCard(tone = IcodeTone.Info, modifier = Modifier.fillMaxWidth().padding(IcodeSpacing.Space4)) {
+            StatusLabel("This file is no longer conflicted.", IcodeColors.TextSecondary)
+        }
     }
 }

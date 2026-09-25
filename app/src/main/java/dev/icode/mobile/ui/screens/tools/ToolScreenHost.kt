@@ -1,8 +1,10 @@
 package dev.icode.mobile.ui.screens.tools
 
 import androidx.compose.runtime.Composable
-import dev.icode.mobile.navigation.DemoActions
-import dev.icode.mobile.navigation.DemoScreen
+import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.navigation.Route
+import dev.icode.mobile.ui.screens.workspace.FindMode
+import dev.icode.mobile.ui.screens.workspace.WorkspaceFindScreen
 
 /**
  * Source control, editor tooling and panel frames.
@@ -10,21 +12,19 @@ import dev.icode.mobile.navigation.DemoScreen
  * `else` stays until every frame in the group has migrated.
  */
 @Composable
-fun ToolScreenHost(screen: DemoScreen, actions: DemoActions) {
+fun ToolScreenHost(screen: Route, actions: NavigationActions) {
     when (screen) {
-        DemoScreen.SourceControl -> SourceControlScreen(actions)
-        DemoScreen.DiffView -> DiffViewScreen(actions)
-        DemoScreen.QuickOpen -> QuickOpenScreen(actions)
-        DemoScreen.BranchSelector -> BranchSelectorScreen(actions)
-        DemoScreen.EditorFind -> EditorFindScreen(actions)
-        DemoScreen.TerminalExpanded -> TerminalScreen(actions)
-        DemoScreen.ProblemsPanel -> ProblemsScreen(actions)
-        DemoScreen.ConflictResolution -> ConflictResolutionScreen(actions)
-        DemoScreen.CommandPalette -> CommandPaletteScreen(actions)
-        DemoScreen.OutputPanel -> OutputPanelScreen(actions)
-        DemoScreen.CommitPush -> CommitPushScreen(actions)
-        DemoScreen.PullFetchProgress -> PullProgressScreen(actions)
-        DemoScreen.GitAuth -> GitAuthScreen(actions)
+        Route.SourceControl -> SourceControlScreen(actions)
+        Route.DiffView -> DiffViewScreen(actions)
+        Route.QuickOpen -> WorkspaceFindScreen(actions, FindMode.Files)
+        Route.BranchSelector -> BranchSelectorScreen(actions)
+        Route.EditorFind -> EditorFindScreen(actions)
+        Route.TerminalExpanded, Route.ProblemsPanel, Route.OutputPanel -> TerminalScreen(actions)
+        Route.ConflictResolution -> ConflictResolutionScreen(actions)
+        Route.CommandPalette -> CommandPaletteScreen(actions)
+        Route.CommitPush -> CommitPushScreen(actions)
+        Route.PullFetchProgress -> PullProgressScreen(actions)
+        Route.GitAuth -> GitAuthScreen(actions)
         else -> Unit
     }
 }

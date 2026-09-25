@@ -1,6 +1,8 @@
 package dev.icode.mobile.designsystem
 
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.unit.dp
 
 /**
@@ -10,18 +12,20 @@ import androidx.compose.ui.unit.dp
  * for gutters; the implemented frames consistently use 16 dp, so 16 dp is the
  * adopted standard until Figma says otherwise (recorded deviation).
  */
+internal val LocalIcodeCompactLayout = staticCompositionLocalOf { true }
+
 object IcodeSpacing {
     val None = 0.dp
     val Micro = 2.dp
     val Space1 = 4.dp
-    val Space2 = 8.dp
-    val Space3 = 12.dp
-    val Space4 = 16.dp
-    val Space5 = 20.dp
-    val Space6 = 24.dp
+    val Space2 @Composable get() = if (LocalIcodeCompactLayout.current) 8.dp else 12.dp
+    val Space3 @Composable get() = if (LocalIcodeCompactLayout.current) 12.dp else 16.dp
+    val Space4 @Composable get() = if (LocalIcodeCompactLayout.current) 16.dp else 20.dp
+    val Space5 @Composable get() = if (LocalIcodeCompactLayout.current) 20.dp else 24.dp
+    val Space6 @Composable get() = if (LocalIcodeCompactLayout.current) 24.dp else 28.dp
 
-    val Gutter = Space4
-    val CardPadding = Space3
+    val Gutter @Composable get() = Space4
+    val CardPadding @Composable get() = Space3
 
     /** Tree indentation step (explorer rows). */
     val IndentStep = 18.dp
@@ -30,6 +34,8 @@ object IcodeSpacing {
 /** Shape tokens shared by every surface. */
 object IcodeShapes {
     val Small = RoundedCornerShape(4.dp)
+    val RailContent = RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp)
+    val AppIcon = RoundedCornerShape(22)
     val Chip = RoundedCornerShape(3.dp)
     val Pill = RoundedCornerShape(50)
     val Track = RoundedCornerShape(2.dp)
@@ -46,10 +52,17 @@ object IcodeSizes {
     val BadgeMd = 36.dp
     val Tile = 74.dp
     val TouchTarget = 48.dp
+    val MenuWidth = 200.dp
+    val DialogMaxWidth = 400.dp
     val DotMd = 12.dp
     val TopBar = 56.dp
     val TopBarWithSubtitle = 64.dp
     val TabStrip = 38.dp
+    val TerminalTabBar = 40.dp
+
+
+    /** Offscreen-sized input that only exists to receive keystrokes. */
+    val HiddenInput = 1.dp
     val BottomBar = 48.dp
     val LineNumberGutter = 32.dp
     val Swatch = 28.dp

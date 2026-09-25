@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build two labeled review sheets from the 40 captured demo screens."""
+"""Build two labeled review sheets from the captured route screenshots."""
 
 from pathlib import Path
 import sys
@@ -19,8 +19,11 @@ def main() -> None:
     source = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("artifacts/screens")
     destination = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("artifacts/review")
     screenshots = sorted(source.glob("*.png"))
-    if len(screenshots) != 40:
-        raise SystemExit(f"Expected 40 screenshots in {source}, found {len(screenshots)}.")
+    # 40 Figma frames, 39 routes: frame 3:55 "Runtime error" is the failed state
+    # of 3:27 and has no route of its own (docs/integration-plan.md).
+    expected = 39
+    if len(screenshots) != expected:
+        raise SystemExit(f"Expected {expected} screenshots in {source}, found {len(screenshots)}.")
 
     destination.mkdir(parents=True, exist_ok=True)
     with Image.open(screenshots[0]) as first:
@@ -52,7 +55,7 @@ def main() -> None:
             canvas.paste(image, (x, y))
             draw.text((x, y + thumb_height + 6), screenshot.stem, fill="#e9efe7", font=font)
 
-        target = destination / f"all-40-contact-sheet-{sheet_index + 1}.png"
+        target = destination / f"contact-sheet-{sheet_index + 1}.png"
         canvas.save(target, optimize=True)
         print(target)
 

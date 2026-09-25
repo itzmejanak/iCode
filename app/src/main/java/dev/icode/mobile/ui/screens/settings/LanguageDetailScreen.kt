@@ -1,10 +1,7 @@
 package dev.icode.mobile.ui.screens.settings
 
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -12,69 +9,143 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import dev.icode.mobile.designsystem.CodeSurface
 import dev.icode.mobile.designsystem.DangerButton
 import dev.icode.mobile.designsystem.DetailRow
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodeConfirmDialog
 import dev.icode.mobile.designsystem.IcodeSpacing
+import dev.icode.mobile.designsystem.IcodeTextField
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
-import dev.icode.mobile.designsystem.KeyChip
-import dev.icode.mobile.designsystem.LabeledField
-import dev.icode.mobile.designsystem.MonoLine
+import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.StatusLabel
-import dev.icode.mobile.navigation.DemoActions
+import dev.icode.mobile.domain.LanguageServiceRules
+import dev.icode.mobile.domain.LanguageServiceStatus
+import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.ui.LocalWorkbenchGateway
+import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 
-private val capabilityChips = listOf("completion", "hover", "diagnostics", "formatting")
-
-/** Detail page for the TypeScript language service. */
+/** Persisted server configuration plus observed guest-process status. */
 @Composable
-fun LanguageDetailScreen(actions: DemoActions) {
+fun LanguageDetailScreen(actions: NavigationActions) {
+    val state = LocalWorkbenchSnapshot.current
+    val gateway = LocalWorkbenchGateway.current
+    val service = state.languageServices.firstOrNull { it.id == state.selectedLanguageServiceId }
+    var name by remember(service?.id) { mutableStateOf(service?.name.orEmpty()) }
+    var command by remember(service?.id) { mutableStateOf(service?.command.orEmpty()) }
+    var patterns by remember(service?.id) { mutableStateOf(service?.patterns.orEmpty()) }
+    var rootMarkers by remember(service?.id) { mutableStateOf(service?.rootMarkers.orEmpty()) }
+    var options by remember(service?.id) { mutableStateOf(service?.initializationOptions ?: "{}") }
+    var confirmRemove by remember { mutableStateOf(false) }
+    val status = service?.status ?: LanguageServiceStatus.Stopped
+    val canEdit = status == LanguageServiceStatus.Stopped || status == LanguageServiceStatus.Failed
+    val validation = LanguageServiceRules.validate(name, command, patterns, options)
+
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar(
-            "TypeScript Service",
+            service?.name ?: "Add Language Service",
             onBack = actions.back,
-            actions = { StatusLabel("Running", IcodeColors.Green) },
+            actions = {
+                if (service != null) StatusLabel(
+                    status.name,
+                    if (status == LanguageServiceStatus.Running) IcodeColors.Green else IcodeColors.TextSecondary,
+                )
+            },
         )
         Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(IcodeSpacing.Space4),
-            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space4 + IcodeSpacing.Micro),
+            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(IcodeSpacing.Space4),
+            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
         ) {
             SectionLabel("Configuration")
-            LabeledField("Command", "typescript-language-server --stdio")
-            LabeledField("Root Markers", ".tsconfig.json, package.json")
-            LabeledField("File Patterns", "*.ts, *.tsx, *.js, *.jsx")
-            SectionLabel("Initialization Options", Modifier.padding(top = IcodeSpacing.Space1))
-            IcodeCard(Modifier.fillMaxWidth(), padding = PaddingValues(IcodeSpacing.None)) {
-                CodeSurface {
-                    MonoLine(
-                        "{\n  \"preferences\": {\n    \"importModuleSpecifier\": \"non-relative\"\n  }\n}",
-                        color = IcodeColors.Amber,
-                        maxLines = Int.MAX_VALUE,
+            ConfigField("Name", name, { name = it }, "e.g. TypeScript Language Server")
+            ConfigField("Command", command, { command = it }, "e.g. typescript-language-server --stdio")
+            ConfigField("File Patterns", patterns, { patterns = it }, "e.g. *.ts, *.tsx")
+            ConfigField("Root Markers", rootMarkers, { rootMarkers = it }, "e.g. tsconfig.json, package.json")
+            ConfigField("Initialization Options (JSON)", options, { options = it }, "{}", singleLine = false)
+            Text(
+                "File patterns, root markers and initialization options are saved for the LSP integration cycle. " +
+                    "They do not enable editor completion or diagnostics yet.",
+                style = IcodeType.Caption,
+                color = IcodeColors.TextSecondary,
+            )
+            if (!canEdit) Text("Stop the process before changing its configuration.", style = IcodeType.Caption)
+            PrimaryButton(
+                if (service == null) "Add Service" else "Save Configuration",
+                onClick = {
+                    gateway.dispatch(WorkbenchIntent.SaveLanguageService(
+                        service?.id, name, command, patterns, rootMarkers, options,
+                    ))
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = canEdit && validation == null && state.languageServicesLoadError == null,
+            )
+            if (service != null) {
+                SectionLabel("Process Status", Modifier.padding(top = IcodeSpacing.Space2))
+                IcodeCard(Modifier.fillMaxWidth()) {
+                    DetailRow("State", status.name)
+                    DetailRow("Host Process ID", service.processId?.toString() ?: "—")
+                    service.statusMessage?.let { Text(it, style = IcodeType.Caption) }
+                    Text(
+                        "A running process has not completed an LSP handshake. Capabilities are unavailable.",
+                        style = IcodeType.Caption,
+                        color = IcodeColors.TextSecondary,
                     )
                 }
-            }
-            SectionLabel("Status", Modifier.padding(top = IcodeSpacing.Space1))
-            IcodeCard(Modifier.fillMaxWidth()) {
-                DetailRow("Process ID", "24018")
-                DetailRow("Uptime", "1h 45m")
-                Text("Capabilities", style = IcodeType.Caption, modifier = Modifier.padding(top = IcodeSpacing.Space1 + IcodeSpacing.Micro))
-                Row(
-                    Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1 + IcodeSpacing.Micro),
-                ) {
-                    capabilityChips.forEach { KeyChip(it) }
+                when (status) {
+                    LanguageServiceStatus.Stopped, LanguageServiceStatus.Failed ->
+                        PrimaryButton("Start Server", { gateway.dispatch(WorkbenchIntent.StartLanguageService(service.id)) }, Modifier.fillMaxWidth())
+                    LanguageServiceStatus.Running -> {
+                        SecondaryButton("Restart Server", { gateway.dispatch(WorkbenchIntent.RestartLanguageService(service.id)) }, Modifier.fillMaxWidth())
+                        SecondaryButton("Stop Server", { gateway.dispatch(WorkbenchIntent.StopLanguageService(service.id)) }, Modifier.fillMaxWidth())
+                    }
+                    LanguageServiceStatus.Starting, LanguageServiceStatus.Stopping -> Unit
                 }
+                DangerButton("Remove Service", { confirmRemove = true }, Modifier.fillMaxWidth())
             }
-            SecondaryButton("Restart Server", {}, Modifier.fillMaxWidth())
-            DangerButton("Remove Service", {}, Modifier.fillMaxWidth())
         }
+    }
+    if (confirmRemove && service != null) {
+        IcodeConfirmDialog(
+            title = "Remove ${service.name}?",
+            confirmLabel = "Remove",
+            onConfirm = {
+                gateway.dispatch(WorkbenchIntent.RemoveLanguageService(service.id))
+                confirmRemove = false
+                actions.back()
+            },
+            onDismiss = { confirmRemove = false },
+            destructive = true,
+        ) {
+            Text("This removes the saved configuration and stops its process. It does not uninstall the server package.", style = IcodeType.Body)
+        }
+    }
+}
+
+@Composable
+private fun ConfigField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    singleLine: Boolean = true,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
+        Text(label, style = IcodeType.Caption)
+        IcodeTextField(
+            value,
+            onValueChange,
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = placeholder,
+            singleLine = singleLine,
+        )
     }
 }

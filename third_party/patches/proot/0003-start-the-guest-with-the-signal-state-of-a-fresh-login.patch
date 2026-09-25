@@ -1,0 +1,64 @@
+Start the guest with the signal state of a fresh login
+
+An Android app starts PRoot with SIGHUP ignored and SIGQUIT, SIGUSR1,
+SIGPIPE and glibc's internal signal blocked (the app's own
+/proc/self/status: SigIgn 0x1, SigBlk 0x80001204). Ignored dispositions
+and the blocked mask both survive fork(2) and execve(2), so every guest
+process inherited them: `kill -HUP` could not end a job, a closing
+terminal could not hang one up, and a blocked SIGPIPE stayed pending
+instead of ending the writer. Upstream already resets SIGPIPE's
+disposition at this point; this resets every ignored disposition and
+the mask as well.
+
+Upstream: termux/proot v5.1.107.92, after 0002. Applied by
+app/src/main/cpp/CMakeLists.txt.
+
+--- a/src/tracee/event.c
++++ b/src/tracee/event.c
+@@ -81,6 +81,28 @@
+  * Start @tracee->exe with the given @argv[].  This function
+  * returns -errno if an error occurred, otherwise 0.
+  */
++/**
++ * Give the calling process the signal state of a fresh login: nothing
++ * ignored, nothing blocked.
++ */
++static void reset_signal_state()
++{
++	sigset_t nothing;
++	int signum;
++
++	for (signum = 1; signum < NSIG; signum++) {
++		struct sigaction current;
++
++		if (signum == SIGKILL || signum == SIGSTOP)
++			continue;
++		if (sigaction(signum, NULL, &current) == 0 && current.sa_handler == SIG_IGN)
++			signal(signum, SIG_DFL);
++	}
++
++	sigemptyset(&nothing);
++	sigprocmask(SIG_SETMASK, &nothing, NULL);
++}
++
+ int launch_process(Tracee *tracee, char *const argv[])
+ {
+ 	char *const default_argv[] = { "-sh", NULL };
+@@ -114,6 +136,17 @@
+ 		 * system, like container runtimes do.  */
+ 		signal(SIGPIPE, SIG_DFL);
+ 
++		/* The same goes for everything else an Android app
++		 * hands down: its runtime ignores SIGHUP and blocks
++		 * SIGQUIT, SIGUSR1, SIGPIPE and the signal glibc uses
++		 * for thread cancellation (measured in the app's
++		 * /proc/self/status: SigIgn 0x1, SigBlk 0x80001204).
++		 * Inherited, a hangup could not end a job and a blocked
++		 * SIGPIPE stayed pending instead of ending the writer.
++		 * No handler is installed yet at this point, so every
++		 * disposition is either the default or ignored.  */
++		reset_signal_state();
++
+ 		/* Declare myself as ptraceable before executing the
+ 		 * requested program. */
+ 		status = ptrace(PTRACE_TRACEME, 0, NULL, NULL);

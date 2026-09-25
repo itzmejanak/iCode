@@ -15,6 +15,9 @@
 #   dp-literal   hard-coded dp values inside ui/screens
 #   sp-literal   hard-coded sp values inside ui/screens
 #   screen-lines screen files larger than the 300-line budget
+#   demo-fork    staticDemo branches inside ui/screens (demo data belongs in
+#                DemoWorkbenchGateway, not in product screens)
+#   orphan-route Route values with no navigate(...) entry point
 
 set -euo pipefail
 
@@ -64,6 +67,36 @@ while read -r file count; do
     [[ -z "$file" ]] && continue
     emit "sp-literal" "${file#"$repo_root/"}" "$count"
 done < <(count_matches '[0-9]+\.sp' "$ui_root/screens")
+
+# 5a. Demo forks inside product screens.
+#
+# Demo fixtures belong in DemoWorkbenchGateway so the post-integration cleanup
+# is one deletion. The remaining allowlisted uses are capture-timing gates that
+# only suppress auto-advance delays, never content.
+while read -r file count; do
+    [[ -z "$file" ]] && continue
+    emit "demo-fork" "${file#"$repo_root/"}" "$count"
+done < <(count_matches 'actions\.staticDemo' "$ui_root/screens")
+
+# 5b. Routes with no navigation entry point.
+#
+# A route reachable only by an ADB extra is a frame the user can never open.
+# Every Route value must be the target of a navigate(...) call somewhere
+# outside the route declaration, or be allowlisted with a reason.
+route_file="$src_root/dev/icode/mobile/navigation/Route.kt"
+while read -r route; do
+    [[ -z "$route" ]] && continue
+    # An edge is any reference outside the route declaration and the host
+    # dispatch tables: a navigate(...) call, a catalog entry, or an effect.
+    edges="$(
+        { grep -rEl "Route\\.$route\\b" "$src_root" --include='*.kt' 2>/dev/null || true; } \
+            | grep -v '/Route\.kt$' \
+            | grep -vc 'ScreenHost\.kt$' || true
+    )"
+    if (( edges == 0 )); then
+        emit "orphan-route" "$route" "1"
+    fi
+done < <(sed -n '/^enum class Route(/,/^}/p' "$route_file" | grep -oE '^    [A-Z][A-Za-z]*\(' | tr -d ' (')
 
 # 5. Screen files above the 300-line budget.
 while read -r file; do

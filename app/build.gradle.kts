@@ -4,18 +4,35 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+// One version for the editor engine: the dependency, and what About reports.
+val soraEditorVersion = "0.24.6"
+
 android {
     namespace = "dev.icode.mobile"
     compileSdk = 36
+    ndkVersion = "27.0.12077973"
 
     defaultConfig {
-        applicationId = "dev.icode.mobile.demo"
+        applicationId = "dev.icode.mobile"
         minSdk = 30
         targetSdk = 36
         versionCode = 1
-        versionName = "0.1.0-demo"
+        versionName = "0.1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // PRoot's syscall translation and the runtime rootfs are ARM64 only.
+        ndk.abiFilters += "arm64-v8a"
+
+        buildConfigField("String", "EDITOR_ENGINE_VERSION", "\"$soraEditorVersion\"")
+        buildConfigField("int", "MIN_SDK", "$minSdk")
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
     }
 
     buildFeatures {
@@ -41,6 +58,8 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+        // Sora's TextMate module uses newer java.time APIs below Android 13.
+        isCoreLibraryDesugaringEnabled = true
     }
 
     packaging {
@@ -49,6 +68,18 @@ android {
             "/META-INF/LICENSE*",
             "/META-INF/NOTICE*",
         )
+        jniLibs {
+            // Android forbids executing binaries from the app data directory
+            // (W^X, enforced by SELinux for untrusted_app). Runtime executables
+            // must therefore live in the native library directory, which only
+            // exists on disk when native libs are extracted at install time.
+            // Modern AGP defaults this to false and loads libs from the APK.
+            useLegacyPackaging = true
+            // Termux's prebuilt libtermux.so is linked for 4 KB pages; the one
+            // CMake builds from the same source is 16 KB aligned and must be the
+            // one packaged (third_party/termux-terminal-jni/README.md).
+            pickFirsts += "lib/*/libtermux.so"
+        }
     }
 }
 
@@ -60,18 +91,34 @@ kotlin {
 
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2026.04.01")
+    val soraBom = platform("io.github.rosemoe:editor-bom:$soraEditorVersion")
 
     implementation(composeBom)
+    implementation(soraBom)
     androidTestImplementation(composeBom)
 
     implementation("androidx.core:core-ktx:1.17.0")
+    implementation("org.apache.commons:commons-compress:1.27.1")
+    // VT/xterm emulator, renderer and input view (brings terminal-emulator).
+    // Apache-2.0 per termux-app LICENSE.md; see docs/terminal-maturity-plan.md §3.
+    implementation("com.github.termux.termux-app:terminal-view:v0.118.3")
+    implementation("androidx.core:core-splashscreen:1.0.1")
     implementation("androidx.activity:activity-compose:1.12.4")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
+    implementation("androidx.datastore:datastore-preferences:1.2.1")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended:1.7.8")
+    implementation("io.github.rosemoe:editor")
+    implementation("io.github.rosemoe:language-textmate")
+    implementation("io.noties.markwon:core:4.6.2")
+    implementation("io.noties.markwon:ext-tables:4.6.2")
+    implementation("io.noties.markwon:ext-strikethrough:4.6.2")
+    implementation("io.noties.markwon:ext-tasklist:4.6.2")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

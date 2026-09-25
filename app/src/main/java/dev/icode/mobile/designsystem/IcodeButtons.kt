@@ -6,12 +6,19 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -19,9 +26,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 
 /** Filled primary action. Labels are uppercase by design. */
 @Composable
@@ -95,11 +103,38 @@ fun DangerButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifie
     }
 }
 
+/** A compact, full-touch-target link between related workspace tools. */
+@Composable
+fun IcodeNavigationLink(
+    label: String,
+    detail: String,
+    icon: ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = IcodeSizes.TouchTarget)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = IcodeSpacing.Space2, vertical = IcodeSpacing.Space1),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
+    ) {
+        Icon(icon, contentDescription = null, tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconSm))
+        Column(Modifier.weight(1f)) {
+            Text(label, style = IcodeType.Caption.copy(color = IcodeColors.Accent), maxLines = 1)
+            Text(detail, style = IcodeType.MonoSmall.copy(color = IcodeColors.TextMuted), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        Icon(Icons.AutoMirrored.Outlined.ArrowForward, contentDescription = null, tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconSm))
+    }
+}
+
 /**
  * Compact technical chip: keyboard keys, shortcuts and small metadata.
  *
- * Pass [onClick] to make it an interactive chip; interactive chips render the
- * active state and a 48 dp touch target through [Modifier.clickable].
+ * Pass [onClick] to make it interactive. Callers with dense controls can
+ * supply an explicit touch-target size without changing every chip surface.
  */
 @Composable
 fun KeyChip(
@@ -114,14 +149,14 @@ fun KeyChip(
         modifier = clickableModifier
             .background(if (active) IcodeColors.Background else IcodeColors.SurfaceElevated, IcodeShapes.Small)
             .border(1.dp, if (active) IcodeColors.Accent else Color.Transparent, IcodeShapes.Small)
-            .padding(horizontal = if (compact) 4.dp else 10.dp, vertical = 7.dp),
+            .padding(horizontal = if (compact) IcodeSpacing.Space1 else 10.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center,
     ) {
         Text(
             text,
             style = IcodeType.MonoSmall.copy(
                 color = if (active) IcodeColors.Accent else IcodeColors.TextPrimary,
-                fontSize = if (compact) 8.sp else IcodeType.MonoSmall.fontSize,
+                fontSize = IcodeType.MonoSmall.fontSize,
             ),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -134,12 +169,13 @@ fun KeyChip(
 fun KeyChipRow(
     keys: List<String>,
     modifier: Modifier = Modifier,
+    chipModifier: Modifier = Modifier,
     activeKeys: Set<String> = emptySet(),
     onKey: ((String) -> Unit)? = null,
 ) {
     Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
         keys.forEach { key ->
-            KeyChip(key, active = key in activeKeys, onClick = onKey?.let { handler -> { handler(key) } })
+            KeyChip(key, modifier = chipModifier, active = key in activeKeys, onClick = onKey?.let { handler -> { handler(key) } })
         }
     }
 }

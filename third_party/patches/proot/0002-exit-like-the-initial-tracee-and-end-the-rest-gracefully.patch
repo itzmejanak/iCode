@@ -1,0 +1,360 @@
+Exit like the initial tracee, and end the rest gracefully
+
+PRoot exited with the status of whichever tracee exited last, and a
+tracee killed by a signal never set it: a shell's `exit 0` could be
+reported as a child's failure, and a shell killed by SIGKILL as some
+earlier command's code. PRoot now reports the initial tracee's own exit
+status, and when that tracee was killed by a signal PRoot dies by the
+same signal, so waitpid(2) on the host sees the truth.
+
+Ending a session is now graceful. With --kill-on-exit the remaining
+tracees get SIGHUP -- what a closing terminal delivers -- instead of
+SIGKILL at once. A SIGHUP or SIGTERM sent to PRoot itself, which PRoot
+used to ignore, is passed on to every tracee the same way; that is how
+closing a terminal tab, or asking a git command to stop, reaches the
+programs inside. In both cases tracees still alive two seconds later
+are killed. The request is checked right before waitpid(2), and its
+handler also arms a short wake-up timer, so an idle guest cannot keep
+it waiting; that timer is disarmed as soon as waitpid(2) returns, like
+the shadow-pipe timer.
+
+PTRACE_O_EXITKILL is set, so no tracee outlives PRoot. Killing PRoot
+used to leave its tracees running untraced, outside the guest's view of
+the file system (measured: TracerPid 0, reparented to init).
+
+Upstream: termux/proot v5.1.107.92, after 0001. Applied by
+app/src/main/cpp/CMakeLists.txt.
+
+--- a/src/cli/cli.c
++++ b/src/cli/cli.c
+@@ -26,6 +26,7 @@
+ #include <string.h>        /* str*(3), basename(3),  */
+ #include <talloc.h>        /* talloc*,  */
+ #include <stdlib.h>        /* exit(3), EXIT_*, strtol(3), {g,s}etenv(3), */
++#include <signal.h>        /* signal(2), raise(3), sigprocmask(2), */
+ #include <assert.h>        /* assert(3),  */
+ #include <sys/types.h>     /* getpid(2),  */
+ #include <unistd.h>        /* getpid(2),  */
+@@ -445,6 +446,25 @@
+ 
+ bool exit_failure = true;
+ 
++/**
++ * Terminate this process with @signum, the way the program it ran was
++ * terminated.
++ */
++static void die_by_signal(int signum)
++{
++	sigset_t mask;
++
++	signal(signum, SIG_DFL);
++	sigemptyset(&mask);
++	sigaddset(&mask, signum);
++	sigprocmask(SIG_UNBLOCK, &mask, NULL);
++	raise(signum);
++
++	/* Only reached for a signal whose default action doesn't
++	 * terminate: report it the way shells do.  */
++	exit(128 + signum);
++}
++
+ int main(int argc, char *const argv[])
+ {
+ 	Tracee *tracee;
+@@ -492,7 +512,15 @@
+ 	}
+ 
+ 	/* Start tracing the first tracee and all its children.  */
+-	exit(event_loop());
++	status = event_loop();
++
++	/* The program was killed by a signal: end the same way, so
++	 * whoever waits for PRoot learns what happened to it rather than
++	 * an exit code that merely looks like one.  */
++	if (initial_tracee_signal() > 0)
++		die_by_signal(initial_tracee_signal());
++
++	exit(status);
+ 
+ error:
+ 	TALLOC_FREE(tracee);
+--- a/src/tracee/event.c
++++ b/src/tracee/event.c
+@@ -23,9 +23,13 @@
+ #include <sched.h>      /* CLONE_*,  */
+ #include <sys/types.h>  /* pid_t, */
+ #include <sys/ptrace.h> /* ptrace(1), PTRACE_*, */
++#ifndef PTRACE_O_EXITKILL
++#define PTRACE_O_EXITKILL (1 << 20)
++#endif
+ #include <sys/types.h>  /* waitpid(2), */
+ #include <sys/wait.h>   /* waitpid(2), */
+ #include <sys/utsname.h> /* uname(2), */
++#include <sys/time.h>   /* setitimer(2), ITIMER_REAL, */
+ #include <signal.h>     /* signal(2), SIG_DFL, */
+ #include <unistd.h>     /* fork(2), chdir(2), getpid(2), */
+ #include <string.h>     /* strcmp(3), */
+@@ -168,6 +172,24 @@
+ {
+ }
+ 
++/* A SIGHUP or SIGTERM sent to PRoot itself, not yet passed on, and
++ * whether its handler armed the wake-up timer.  */
++static volatile sig_atomic_t end_request = 0;
++static volatile sig_atomic_t end_wakeup_armed = 0;
++
++static void request_end_of_tracees(int signum, siginfo_t *siginfo UNUSED, void *ucontext UNUSED)
++{
++	const struct itimerval soon = { .it_value = { .tv_sec = 0, .tv_usec = 1000 } };
++
++	end_request = signum;
++	end_wakeup_armed = 1;
++
++	/* The loop may have checked for a request just before this
++	 * one arrived and be about to block in waitpid(2), where an
++	 * idle guest generates no event: interrupt it shortly.  */
++	(void) setitimer(ITIMER_REAL, &soon, NULL);
++}
++
+ /**
+  * Helper for print_talloc_hierarchy().
+  */
+@@ -251,6 +273,23 @@
+ 
+ static int last_exit_status = -1;
+ 
++/* How the initial tracee -- the program PRoot was asked to run --
++ * ended.  That is what PRoot's own exit reports: previously it was
++ * whichever tracee happened to exit last, so a shell's status could
++ * be replaced by one of its children's, and a shell killed by a
++ * signal reported some earlier process's exit code.  */
++static int initial_exit_status = -1;
++static int initial_exit_signal = 0;
++
++/**
++ * Answer the signal that killed the initial tracee, or 0 when it
++ * exited by itself.
++ */
++int initial_tracee_signal()
++{
++	return initial_exit_signal;
++}
++
+ /**
+  * Check if this instance of PRoot can *technically* handle @tracee.
+  */
+@@ -375,6 +414,22 @@
+ 	if (status < 0)
+ 		note(NULL, WARNING, SYSTEM, "sigaction(SIGALRM)");
+ 
++	/* A hangup or a termination request sent to PRoot itself -- its
++	 * terminal closing, or whoever started it asking the session to
++	 * end -- is passed on to every tracee, as a terminal passes a
++	 * hangup to the programs it runs; those still alive after the
++	 * grace period are killed.  Ignored, as they used to be, they
++	 * left SIGKILL as the only way to end a session, which gives no
++	 * program the chance to clean up.  Like SIGALRM, they must not
++	 * restart waitpid(2), so the loop acts on them at once.  */
++	signal_action.sa_sigaction = request_end_of_tracees;
++	status = sigaction(SIGHUP, &signal_action, NULL);
++	if (status < 0)
++		note(NULL, WARNING, SYSTEM, "sigaction(SIGHUP)");
++	status = sigaction(SIGTERM, &signal_action, NULL);
++	if (status < 0)
++		note(NULL, WARNING, SYSTEM, "sigaction(SIGTERM)");
++
+ 	while (1) {
+ 		int tracee_status;
+ 		Tracee *tracee;
+@@ -395,12 +450,30 @@
+ 		 * timer is disarmed as soon as waitpid(2) returns, so
+ 		 * SIGALRM cannot interfere with the ptrace helpers that
+ 		 * do their own waitpid(2).  */
+-		shadow_pipes_set_timer(shadow_pipes_held());
++		shadow_pipes_set_timer(shadow_pipes_held() || enforce_end_deadline());
++
++		/* Pass on a request to end.  This is checked last before
++		 * waiting so that nothing in between can disarm the
++		 * wake-up a request arriving after it arms.  */
++		if (end_request != 0) {
++			int signum = end_request;
++
++			end_request = 0;
++			end_all_tracees(signum);
++			continue;
++		}
+ 
+ 		/* Wait for the next tracee's stop. */
+ 		pid = waitpid(-1, &tracee_status, __WALL);
+ 		saved_errno = errno;
+ 		shadow_pipes_set_timer(false);
++		if (end_wakeup_armed) {
++			/* Disarmed here for the same reason as above.  */
++			const struct itimerval never = { { 0, 0 }, { 0, 0 } };
++
++			end_wakeup_armed = 0;
++			(void) setitimer(ITIMER_REAL, &never, NULL);
++		}
+ 		errno = saved_errno;
+ 
+ 		if (pid < 0) {
+@@ -433,7 +506,7 @@
+ 		(void) restart_tracee(tracee, signal);
+ 	}
+ 
+-	return last_exit_status;
++	return initial_exit_status >= 0 ? initial_exit_status : last_exit_status;
+ }
+ 
+ /**
+@@ -479,6 +552,8 @@
+ 
+ 	if (WIFEXITED(tracee_status)) {
+ 		last_exit_status = WEXITSTATUS(tracee_status);
++		if (tracee->vpid == 1)
++			initial_exit_status = last_exit_status;
+ 		VERBOSE(tracee, 1,
+ 			"vpid %" PRIu64 ": exited with status %d",
+ 			tracee->vpid, last_exit_status);
+@@ -486,6 +561,8 @@
+ 	}
+ 	else if (WIFSIGNALED(tracee_status)) {
+ 		check_architecture(tracee);
++		if (tracee->vpid == 1)
++			initial_exit_signal = WTERMSIG(tracee_status);
+ 		VERBOSE(tracee, (int) (tracee->vpid != 1),
+ 			"vpid %" PRIu64 ": terminated with signal %d",
+ 			tracee->vpid, WTERMSIG(tracee_status));
+@@ -507,7 +584,12 @@
+ 				PTRACE_O_TRACEVFORKDONE	|
+ 				PTRACE_O_TRACEEXEC	|
+ 				PTRACE_O_TRACECLONE	|
+-				PTRACE_O_TRACEEXIT);
++				PTRACE_O_TRACEEXIT	|
++				/* No tracee outlives PRoot: were PRoot
++				 * killed, they would carry on untraced,
++				 * outside the guest's view of the file
++				 * system.  */
++				PTRACE_O_EXITKILL);
+ 
+ 			/* Distinguish some events from others and
+ 			 * automatically trace each new process with
+@@ -529,6 +611,10 @@
+ 				/* ... otherwise use default options only.  */
+ 				status = ptrace(PTRACE_SETOPTIONS, tracee->pid, NULL,
+ 						default_ptrace_options);
++				/* Linux older than 3.8 lacks PTRACE_O_EXITKILL.  */
++				if (status < 0)
++					status = ptrace(PTRACE_SETOPTIONS, tracee->pid, NULL,
++							default_ptrace_options & ~PTRACE_O_EXITKILL);
+ 				if (status < 0) {
+ 					note(tracee, ERROR, SYSTEM, "ptrace(PTRACE_SETOPTIONS)");
+ 					exit(EXIT_FAILURE);
+--- a/src/tracee/event.h
++++ b/src/tracee/event.h
+@@ -29,6 +29,7 @@
+ 
+ extern int launch_process(Tracee *tracee, char *const argv[]);
+ extern int event_loop();
++extern int initial_tracee_signal();
+ extern int handle_tracee_event(Tracee *tracee, int tracee_status);
+ extern bool restart_tracee(Tracee *tracee, int signal);
+ extern bool seccomp_event_happens_after_enter_sigtrap();
+--- a/src/tracee/tracee.c
++++ b/src/tracee/tracee.c
+@@ -29,6 +29,7 @@
+ #include <sys/queue.h>  /* LIST_*,  */
+ #include <talloc.h>     /* talloc_*, */
+ #include <signal.h>     /* kill(2), SIGKILL, */
++#include <time.h>       /* clock_gettime(2), CLOCK_MONOTONIC, */
+ #include <sys/ptrace.h> /* ptrace(2), PTRACE_*, */
+ #include <errno.h>      /* E*, */
+ #include <inttypes.h>   /* PRI*, */
+@@ -353,7 +354,7 @@
+ 	*/
+ 	if (tracee->killall_on_exit) {
+ 		VERBOSE(tracee, 1, "terminating all tracees on exit");
+-		kill_all_tracees();
++		end_all_tracees(SIGHUP);
+ 	}
+ }
+ 
+@@ -691,6 +692,67 @@
+ 	return 0;
+ }
+ 
++/* How long tracees get to act on a request to end before being
++ * killed.  */
++#define END_GRACE_MS 2000
++
++static bool end_pending = false;
++static struct timespec end_time;
++
++/**
++ * Send @signum to every tracee still running -- SIGHUP is what a
++ * closing terminal delivers -- and remember when, so the event loop
++ * can kill those that ignore it once the grace period is over.
++ * Killing them outright gave a server or a git command no chance to
++ * clean up.  A second request does not extend the first one's grace
++ * period.
++ */
++void end_all_tracees(int signum)
++{
++	Tracee *tracee;
++
++	LIST_FOREACH(tracee, &tracees, link)
++		if (!tracee->terminated)
++			kill(tracee->pid, signum);
++
++	if (end_pending)
++		return;
++
++	if (clock_gettime(CLOCK_MONOTONIC, &end_time) < 0) {
++		/* Without a clock there is no grace period to measure.  */
++		kill_all_tracees();
++		return;
++	}
++	end_pending = true;
++}
++
++/**
++ * Kill the tracees that outlived the grace period of a request to
++ * end.  This function returns true while that period is still
++ * running, so the event loop keeps waking up to check it.
++ */
++bool enforce_end_deadline()
++{
++	struct timespec now;
++	long long elapsed_ms;
++
++	if (!end_pending)
++		return false;
++
++	if (clock_gettime(CLOCK_MONOTONIC, &now) < 0)
++		elapsed_ms = END_GRACE_MS;
++	else
++		elapsed_ms = (now.tv_sec - end_time.tv_sec) * 1000LL
++			+ (now.tv_nsec - end_time.tv_nsec) / 1000000LL;
++
++	if (elapsed_ms < END_GRACE_MS)
++		return true;
++
++	end_pending = false;
++	kill_all_tracees();
++	return false;
++}
++
+ /* Send the KILL signal to all tracees.  */
+ void kill_all_tracees()
+ {
+--- a/src/tracee/tracee.h
++++ b/src/tracee/tracee.h
+@@ -406,6 +406,8 @@
+ extern void free_terminated_tracees();
+ extern int swap_config(Tracee *tracee1, Tracee *tracee2);
+ extern void kill_all_tracees();
++extern void end_all_tracees(int signum);
++extern bool enforce_end_deadline();
+ 
+ typedef LIST_HEAD(tracees, tracee) Tracees;
+ extern Tracees *get_tracees_list_head();

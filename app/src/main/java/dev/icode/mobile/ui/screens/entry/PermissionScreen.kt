@@ -8,7 +8,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeSizes
@@ -18,26 +24,114 @@ import dev.icode.mobile.designsystem.IconBadge
 import dev.icode.mobile.designsystem.PageHeading
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SecondaryButton
-import dev.icode.mobile.navigation.DemoActions
-import dev.icode.mobile.navigation.DemoScreen
+import dev.icode.mobile.domain.SystemPermission
+import dev.icode.mobile.domain.WorkbenchEffect
+import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.navigation.Route
+import dev.icode.mobile.ui.LocalWorkbenchGateway
+import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 
-private val permissionReasons = listOf(
-    "Allows you to read, edit, and compile repositories and source files in their original locations.",
-    "Permits opening any accessible storage directory as a workspace without file-picker restrictions.",
-    "Guarantees security. Private app spaces of other native tools remain entirely inaccessible.",
-    "You remain in control. This system-level developer permission is revocable at any time in Android settings.",
+/** What one step of the permission screen says. */
+private class PermissionStep(
+    val title: String,
+    val description: String,
+    val reasons: List<String>,
+    val allowLabel: String,
 )
 
-/** All-files-access explanation shown once during setup. */
+private fun stepOf(permission: SystemPermission): PermissionStep = when (permission) {
+    SystemPermission.Storage -> PermissionStep(
+        title = "All Files Access",
+        description = "iCode is an on-device local development tool. To function correctly, Android requires the MANAGE_EXTERNAL_STORAGE permission.",
+        reasons = listOf(
+            "Allows you to read, edit, and compile repositories and source files in their original locations.",
+            "Permits opening any accessible storage directory as a workspace without file-picker restrictions.",
+            "Guarantees security. Private app spaces of other native tools remain entirely inaccessible.",
+            "You remain in control. This system-level developer permission is revocable at any time in Android settings.",
+        ),
+        allowLabel = "Open System Settings",
+    )
+    SystemPermission.Notifications -> PermissionStep(
+        title = "Notifications",
+        description = "Terminal sessions keep running after you leave iCode. Android asks whether iCode may show them in the notification drawer.",
+        reasons = listOf(
+            "Each running session has its own notification: its name, its workspace and what it is running.",
+            "Exit a session, or keep the phone awake for it, right from its notification.",
+            "Tapping a notification opens that exact terminal.",
+            "Sessions run either way. Without this, Android lists them only in its Task Manager.",
+        ),
+        allowLabel = "Allow Notifications",
+    )
+    SystemPermission.Battery -> PermissionStep(
+        title = "Battery Optimization",
+        description = "While the phone is idle, battery optimization cuts apps off from the network and lets the processor sleep. Exempting iCode lets long commands such as installs, builds and servers keep going.",
+        reasons = listOf(
+            "Running sessions keep their network access while the phone is idle.",
+            "A session you keep awake from its notification can hold the processor awake.",
+            "Some phone makers pause background apps on their own; this setting does not change that.",
+            "You remain in control. Change it at any time in Terminal Settings.",
+        ),
+        allowLabel = "Allow Background Use",
+    )
+}
+
+private val stepsSaver = listSaver<List<SystemPermission>, String>(
+    save = { steps -> steps.map { it.name } },
+    restore = { names -> names.map(SystemPermission::valueOf) },
+)
+
+/**
+ * The permissions onboarding asks for, one at a time on this one screen.
+ *
+ * The steps are fixed when the screen opens, so answering one does not
+ * reshuffle the rest, and the position survives the trip to Android's own
+ * prompt. A step moves on when that prompt closes — storage only once
+ * granted, since nothing that opens a folder works without it — or on
+ * "Not Now".
+ */
 @Composable
-fun PermissionScreen(actions: DemoActions) {
+fun PermissionScreen(actions: NavigationActions) {
+    val gateway = LocalWorkbenchGateway.current
+    val access = LocalWorkbenchSnapshot.current.systemAccess
+    val steps = rememberSaveable(saver = stepsSaver) {
+        access?.onboardingSteps.orEmpty().ifEmpty { listOf(SystemPermission.Storage) }
+    }
+    var position by rememberSaveable { mutableIntStateOf(0) }
+    var storageSkipped by rememberSaveable { mutableStateOf(false) }
+
+    LaunchedEffect(gateway) {
+        gateway.effects.collect { effect ->
+            if (effect is WorkbenchEffect.SystemPermissionResolved &&
+                effect.permission == steps.getOrNull(position) &&
+                (effect.granted || effect.permission != SystemPermission.Storage)
+            ) {
+                position++
+            }
+        }
+    }
+
+    val current = steps.getOrNull(position)
+    if (current == null) {
+        // Without storage the launcher opens empty, with the banner that leads back.
+        LaunchedEffect(Unit) {
+            val storage = access?.storage == true && !storageSkipped
+            actions.replace(if (storage) Route.LauncherHome else Route.LauncherEmpty)
+        }
+        return
+    }
+    val step = stepOf(current)
     Column(Modifier.fillMaxSize().padding(IcodeSpacing.Space6)) {
-        PageHeading(
-            title = "All Files Access",
-            description = "iCode is an on-device local development tool. To function correctly, Android requires the MANAGE_EXTERNAL_STORAGE permission.",
-        )
+        if (steps.size > 1) {
+            Text(
+                "Step ${position + 1} of ${steps.size}",
+                modifier = Modifier.padding(bottom = IcodeSpacing.Space2),
+                style = IcodeType.MonoSmall,
+            )
+        }
+        PageHeading(title = step.title, description = step.description)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
-            permissionReasons.forEachIndexed { index, text ->
+            step.reasons.forEachIndexed { index, text ->
                 Row(
                     Modifier.padding(vertical = IcodeSpacing.Space2),
                     horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space4),
@@ -53,7 +147,19 @@ fun PermissionScreen(actions: DemoActions) {
                 }
             }
         }
-        PrimaryButton("Open System Settings", { actions.navigate(DemoScreen.LauncherHome) }, Modifier.fillMaxWidth())
-        SecondaryButton("Not Now", { actions.navigate(DemoScreen.LauncherEmpty) }, Modifier.fillMaxWidth().padding(top = IcodeSpacing.Space3))
+        PrimaryButton(
+            step.allowLabel,
+            { gateway.dispatch(WorkbenchIntent.RequestSystemPermission(current)) },
+            Modifier.fillMaxWidth(),
+        )
+        SecondaryButton(
+            "Not Now",
+            {
+                if (current == SystemPermission.Storage) storageSkipped = true
+                else gateway.dispatch(WorkbenchIntent.DeclineSystemPermission(current))
+                position++
+            },
+            Modifier.fillMaxWidth().padding(top = IcodeSpacing.Space3),
+        )
     }
 }

@@ -1,6 +1,16 @@
 package dev.icode.mobile.designsystem
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,6 +56,39 @@ fun ProgressTrack(progress: Float, modifier: Modifier = Modifier, color: Color =
         Box(Modifier.fillMaxWidth(progress.coerceIn(0f, 1f)).height(5.dp).background(color, IcodeShapes.Track))
     }
 }
+
+/**
+ * The same track for work whose share is unknown.
+ *
+ * A network command reports no percentage until it has contacted the remote,
+ * and a bar frozen at zero reads as a hang rather than as waiting.
+ */
+@Composable
+fun IndeterminateProgressTrack(modifier: Modifier = Modifier, color: Color = IcodeColors.Accent) {
+    val transition = rememberInfiniteTransition(label = "indeterminate")
+    val start by transition.animateFloat(
+        initialValue = -SWEEP_WIDTH,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = SWEEP_MILLIS, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "sweep",
+    )
+    BoxWithConstraints(modifier.height(5.dp).background(IcodeColors.SurfaceTrack, IcodeShapes.Track)) {
+        val width = maxWidth
+        Box(
+            Modifier
+                .offset(x = width * start.coerceIn(-SWEEP_WIDTH, 1f))
+                .width(width * SWEEP_WIDTH)
+                .height(5.dp)
+                .background(color, IcodeShapes.Track),
+        )
+    }
+}
+
+private const val SWEEP_WIDTH = 0.3f
+private const val SWEEP_MILLIS = 1100
 
 /** Tone for a Git porcelain status code in change lists. */
 fun gitStatusTone(status: String): IcodeTone = when (status) {

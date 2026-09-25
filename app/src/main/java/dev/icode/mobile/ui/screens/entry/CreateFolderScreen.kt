@@ -1,6 +1,7 @@
 package dev.icode.mobile.ui.screens.entry
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,24 +29,46 @@ import dev.icode.mobile.designsystem.LabeledTextField
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.StatusLabel
-import dev.icode.mobile.navigation.DemoActions
-import dev.icode.mobile.navigation.DemoScreen
+import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.domain.FolderBrowserPurpose
+import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.WorkspaceNameRules
+import dev.icode.mobile.ui.LocalWorkbenchGateway
+import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 
 /** Creates a folder in the active workspace with a storage check. */
 @Composable
-fun CreateFolderScreen(actions: DemoActions) {
+fun CreateFolderScreen(actions: NavigationActions) {
     var name by rememberSaveable { mutableStateOf("auth-v2_") }
+    val gateway = LocalWorkbenchGateway.current
+    val snapshot = LocalWorkbenchSnapshot.current
+    val destination = snapshot.createFolderDestination
+    val validationError = WorkspaceNameRules.validationError(name)
+    val destinationReady = destination != null
+    val destinationLabel = snapshot.createFolderDestinationDisplay ?: "No destination selected"
+    val storageLabel = snapshot.storage
+        ?.let { "${formatGib(it.availableBytes)} GB free of ${formatGib(it.totalBytes)} GB" }
+        ?: "Storage information unavailable"
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Create Folder", onBack = actions.back)
         Column(
             modifier = Modifier.weight(1f).padding(IcodeSpacing.Space5),
             verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space5),
         ) {
-            LabeledField("Destination Path", "~/projects/icode-subsystem/src") {
-                Text("Change", style = IcodeType.Label.copy(color = IcodeColors.Accent))
+            LabeledField("Destination Path", destinationLabel) {
+                Text(
+                    "Change",
+                    modifier = Modifier.clickable {
+                        gateway.dispatch(WorkbenchIntent.StartFolderBrowser(FolderBrowserPurpose.CreateFolderDestination))
+                    },
+                    style = IcodeType.Label.copy(color = IcodeColors.Accent),
+                )
             }
             LabeledTextField(label = "Folder Name", value = name, onValueChange = { name = it })
-            StatusLabel("Path is valid and available", IcodeColors.Green)
+            StatusLabel(
+                validationError ?: if (destinationReady) "Path is valid and available" else "Choose a destination first",
+                if (validationError == null && destinationReady) IcodeColors.Green else IcodeColors.Error,
+            )
             IcodeCard(Modifier.fillMaxWidth(), elevated = true) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -54,15 +77,18 @@ fun CreateFolderScreen(actions: DemoActions) {
                     Icon(Icons.Outlined.Storage, contentDescription = null, tint = IcodeColors.Blue)
                     Column {
                         Text("Device Available Storage", style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold))
-                        MonoLine("12.4 GB free of 128 GB (Ext4 partition)", style = IcodeType.MonoSmall)
+                        MonoLine(storageLabel, style = IcodeType.MonoSmall)
                     }
                 }
             }
         }
         PrimaryButton(
             "Create Folder",
-            { actions.navigate(DemoScreen.WorkspaceExplorer) },
+            { gateway.dispatch(WorkbenchIntent.RequestCreateFolder(name)) },
             Modifier.fillMaxWidth().padding(IcodeSpacing.Space5),
+            enabled = validationError == null && destinationReady,
         )
     }
 }
+
+private fun formatGib(bytes: Long): String = "%.1f".format(bytes.toDouble() / (1024.0 * 1024.0 * 1024.0))
