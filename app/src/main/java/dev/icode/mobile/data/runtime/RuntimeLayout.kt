@@ -1,7 +1,9 @@
 package dev.icode.mobile.data.runtime
 
 import android.content.Context
+import android.os.storage.StorageManager
 import java.io.File
+import org.json.JSONObject
 
 /**
  * Where the Linux runtime lives, and how it is launched.
@@ -29,6 +31,40 @@ internal class RuntimeLayout(context: Context) {
 
     val isInstalled: Boolean
         get() = installMarker.isFile && File(rootfs, "bin/sh").exists()
+
+    /**
+     * Space the runtime can have on its volume, counting the cached files of
+     * other apps that Android deletes on request — the figure Android says a
+     * decision about space must use. Worker thread: it can take seconds.
+     */
+    fun allocatableBytes(): Long {
+        val volume = runtimeRoot.parentFile ?: return 0L
+        return runCatching {
+            val storage = appContext.getSystemService(StorageManager::class.java)
+            storage.getAllocatableBytes(storage.getUuidForPath(volume))
+        }.getOrElse { volume.usableSpace }
+    }
+
+    /**
+     * Makes [bytes] free on the runtime's volume, having Android delete other
+     * apps' cached files if that is what it takes; false when it cannot.
+     */
+    fun reserveSpace(bytes: Long): Boolean {
+        val volume = runtimeRoot.parentFile ?: return false
+        if (volume.usableSpace >= bytes) return true
+        return runCatching {
+            val storage = appContext.getSystemService(StorageManager::class.java)
+            val uuid = storage.getUuidForPath(volume)
+            if (storage.getAllocatableBytes(uuid) < bytes) return false
+            storage.allocateBytes(uuid, bytes)
+            true
+        }.getOrDefault(false)
+    }
+
+    /** The release the installer recorded ("Ubuntu 24.04.5 LTS"), or null when there is none to read. */
+    fun installedRelease(): String? = runCatching {
+        JSONObject(installMarker.readText()).getString("base")
+    }.getOrNull()
 
     val binariesPresent: Boolean
         get() = proot.canExecute() && prootLoader.exists()

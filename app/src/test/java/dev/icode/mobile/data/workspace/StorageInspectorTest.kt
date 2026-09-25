@@ -2,7 +2,6 @@ package dev.icode.mobile.data.workspace
 
 import java.io.File
 import java.nio.file.Files
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -11,15 +10,6 @@ import org.junit.rules.TemporaryFolder
 
 class StorageInspectorTest {
     @get:Rule val temp = TemporaryFolder()
-
-    @Test fun `measurement is bounded and does not follow symbolic links`() {
-        val root = temp.newFolder("workspace")
-        File(root, "one.txt").writeText("abc")
-        val outside = temp.newFile("outside.txt").apply { writeText("outside data") }
-        Files.createSymbolicLink(File(root, "link").toPath(), outside.toPath())
-        assertEquals(3L, StorageInspector.measure(root).bytes)
-        assertTrue(StorageInspector.measure(root, maxEntries = 1).truncated)
-    }
 
     @Test fun `cache cleanup removes only selected cache paths without following links`() {
         val cache = temp.newFolder("cache")

@@ -11,6 +11,7 @@ import dev.icode.mobile.data.git.GitProgressParser
 import dev.icode.mobile.data.git.GitOperationOutcome
 import dev.icode.mobile.data.git.GitRepositoryClient
 import dev.icode.mobile.data.git.GitWorkspaceSnapshot
+import dev.icode.mobile.data.io.measureTree
 import dev.icode.mobile.data.language.LanguageServiceProcessManager
 import dev.icode.mobile.data.language.LanguageServiceStore
 import dev.icode.mobile.data.settings.AndroidWorkspacePreferencesRepository
@@ -1622,10 +1623,10 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             val workspaces = store.load()
             val details = device?.let { summary -> StorageDetails(
                 device = summary,
-                runtime = StorageInspector.measure(runtimeLayout.runtimeRoot, maxEntries = 400_000),
-                cache = StorageInspector.measure(appContext.cacheDir, maxEntries = 50_000),
+                runtime = measureTree(runtimeLayout.runtimeRoot, maxEntries = 400_000),
+                cache = measureTree(appContext.cacheDir, maxEntries = 50_000),
                 workspaceSizes = workspaces.associate { item ->
-                    item.location to StorageInspector.measure(File(item.location), maxEntries = 25_000)
+                    item.location to measureTree(File(item.location), maxEntries = 25_000)
                 },
             ) }
             currentCoroutineContext().ensureActive()

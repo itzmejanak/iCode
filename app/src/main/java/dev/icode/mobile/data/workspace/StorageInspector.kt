@@ -1,6 +1,5 @@
 package dev.icode.mobile.data.workspace
 
-import dev.icode.mobile.domain.StorageMeasurement
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
@@ -11,30 +10,6 @@ import java.nio.file.attribute.BasicFileAttributes
 
 /** Bounded, symlink-safe measurements; an incomplete walk never masquerades as an exact size. */
 internal object StorageInspector {
-    fun measure(root: File, maxEntries: Int = 100_000): StorageMeasurement {
-        require(maxEntries > 0)
-        if (!root.exists()) return StorageMeasurement(null)
-        var bytes = 0L
-        var visited = 0
-        val pending = ArrayDeque(listOf(root))
-        while (pending.isNotEmpty()) {
-            val current = pending.removeFirst()
-            if (Files.isSymbolicLink(current.toPath())) continue
-            if (current.isFile) {
-                bytes += current.length()
-            } else if (current.isDirectory) {
-                val children = current.listFiles() ?: return StorageMeasurement(null)
-                for (child in children) {
-                    if (++visited > maxEntries) return StorageMeasurement(null, truncated = true)
-                    pending.addLast(child)
-                }
-            } else {
-                return StorageMeasurement(null)
-            }
-        }
-        return StorageMeasurement(bytes)
-    }
-
     /** Only installer archives and PRoot temporary children are cache-cleanup targets. */
     fun clearRuntimeCache(cacheDir: File, prootTemp: File): Int {
         val cacheRoot = cacheDir.canonicalFile

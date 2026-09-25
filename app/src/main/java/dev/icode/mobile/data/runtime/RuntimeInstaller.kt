@@ -92,12 +92,12 @@ internal class RuntimeInstaller(
             return@flow
         }
 
-        val free = layout.runtimeRoot.parentFile?.usableSpace ?: 0L
-        if (free < descriptor.minimumFreeBytes) {
+        // Space other apps' caches hold counts: Android clears them for us when needed.
+        if (!layout.reserveSpace(descriptor.minimumFreeBytes)) {
             emit(
                 RuntimeState.Failed(
                     "Not enough storage: ${ByteSize.format(descriptor.minimumFreeBytes)} required, " +
-                        "${ByteSize.format(free)} free",
+                        "${ByteSize.format(layout.allocatableBytes())} free",
                 ),
             )
             return@flow
