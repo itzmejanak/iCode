@@ -31,6 +31,7 @@ import dev.icode.mobile.designsystem.PageHeading
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.ProgressTrack
 import dev.icode.mobile.designsystem.SecondaryButton
+import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.RuntimeState
 import dev.icode.mobile.domain.RuntimeInstallReason
 import dev.icode.mobile.domain.StorageSummary
@@ -231,9 +232,9 @@ private fun percentLabel(runtime: RuntimeState): String = when (runtime) {
 private fun transferLabel(runtime: RuntimeState): String = when (runtime) {
     is RuntimeState.Downloading ->
         if (runtime.totalBytes > 0) {
-            "${formatBytes(runtime.receivedBytes)} / ${formatBytes(runtime.totalBytes)}"
+            "${ByteSize.format(runtime.receivedBytes)} / ${ByteSize.format(runtime.totalBytes)}"
         } else {
-            formatBytes(runtime.receivedBytes)
+            ByteSize.format(runtime.receivedBytes)
         }
     else -> ""
 }
@@ -248,10 +249,5 @@ private fun stepLabel(runtime: RuntimeState): String = when (runtime) {
 }
 
 private fun storageLabel(storage: StorageSummary?): String = storage
-    ?.let { "Available storage: ${formatBytes(it.availableBytes)} of ${formatBytes(it.totalBytes)}" }
+    ?.let { "Available storage: ${ByteSize.format(it.availableBytes)} of ${ByteSize.format(it.totalBytes)}" }
     ?: "Checking available storage..."
-
-private fun formatBytes(bytes: Long): String {
-    val gib = bytes.toDouble() / (1024 * 1024 * 1024)
-    return if (gib >= 1) "%.1f GB".format(gib) else "%.0f MB".format(bytes.toDouble() / (1024 * 1024))
-}

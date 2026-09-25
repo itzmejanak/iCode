@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import dev.icode.mobile.data.io.Sha256
 import dev.icode.mobile.domain.IndentType
 import dev.icode.mobile.domain.AppTheme
 import dev.icode.mobile.domain.AppearanceSettings
@@ -20,7 +21,6 @@ import dev.icode.mobile.domain.TerminalExtraKey
 import dev.icode.mobile.domain.TerminalSettingRules
 import dev.icode.mobile.domain.WorkspacePreferences
 import dev.icode.mobile.domain.WorkspacePreferencesRepository
-import java.security.MessageDigest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
@@ -188,8 +188,7 @@ class AndroidWorkspacePreferencesRepository internal constructor(
 
     private fun workspaceKeyPrefix(location: String): String {
         require(location.isNotBlank())
-        val digest = MessageDigest.getInstance("SHA-256").digest(location.toByteArray(Charsets.UTF_8))
-        return "workspace_" + digest.joinToString("") { "%02x".format(it.toInt() and 0xff) }
+        return "workspace_" + Sha256.hex(location)
     }
 
     private inline fun <reified T : Enum<T>> enumOrNull(value: String): T? =

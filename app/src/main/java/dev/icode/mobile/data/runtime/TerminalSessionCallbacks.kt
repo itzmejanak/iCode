@@ -3,10 +3,10 @@ package dev.icode.mobile.data.runtime
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.util.Log
 import com.termux.terminal.TerminalEmulator
 import com.termux.terminal.TerminalSession
 import com.termux.terminal.TerminalSessionClient
+import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.domain.TerminalCursorStyle
 
 /**
@@ -62,12 +62,13 @@ internal class TerminalSessionCallbacks(
         TerminalCursorStyle.Bar -> TerminalEmulator.TERMINAL_CURSOR_STYLE_BAR
     }
 
+    // The terminal library's own lines go through the backend's log, under its tag.
     override fun logError(tag: String?, message: String?) {
-        Log.e(tag ?: LOG_TAG, message.orEmpty())
+        BackendLog.e(subsystem(tag), message.orEmpty())
     }
 
     override fun logWarn(tag: String?, message: String?) {
-        Log.w(tag ?: LOG_TAG, message.orEmpty())
+        BackendLog.w(subsystem(tag), message.orEmpty())
     }
 
     // Informational logging would carry what the user typed; it stays off.
@@ -76,15 +77,16 @@ internal class TerminalSessionCallbacks(
     override fun logVerbose(tag: String?, message: String?) = Unit
 
     override fun logStackTraceWithMessage(tag: String?, message: String?, e: Exception?) {
-        Log.e(tag ?: LOG_TAG, message.orEmpty(), e)
+        BackendLog.e(subsystem(tag), message.orEmpty(), e)
     }
 
     override fun logStackTrace(tag: String?, e: Exception?) {
-        Log.e(tag ?: LOG_TAG, "", e)
+        BackendLog.e(subsystem(tag), "Terminal library error", e)
     }
 
+    private fun subsystem(tag: String?): String = "terminal/${tag ?: "session"}"
+
     private companion object {
-        const val LOG_TAG = "IcodeTerminal"
         const val CLIP_LABEL = "Terminal"
     }
 }

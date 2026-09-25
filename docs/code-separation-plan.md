@@ -120,9 +120,9 @@ one cause.
 | **K0** | Capture baseline: the 39 route screenshots from the current build | the parity reference exists |
 | **K1** | Demo → capture fixtures (backend-split-audit §6): debug-only `CaptureFixtures`/`CaptureGateway`/`CapturePreferences`, release stub; `captureMode`, `capture_route`/`capture`, `capture-fork`; the simulation and its tests deleted; palette tests on their own snapshot; DocumentRecovery on real drafts with the existing restore/discard | pixel diff 0 over 39 frames; release APK has no fixture; no "demo" in `app/src` or `tools` |
 | **K2** | Living docs reworded; dated records keep their names with a note | "demo" only in dated records |
-| **X1** | Foundation shared by every scope: `WorkbenchStateHolder`; `BackendLog` + `WorkbenchAudit` (probes removed); one failure-report path; shared `Sha256`, `ByteSize`, `RelativeTime`, bounded reader — **before** the scopes, so no scope copies them again | gate; capture diff 0; each helper tested |
+| **X1** | Foundation shared by every scope: `WorkbenchStateHolder`; `BackendLog` + `WorkbenchAudit` (probes removed); one failure-report path; shared `Sha256`, `ByteSize`, `RelativeTime`, bounded reader — **before** the scopes, so no scope copies them again | gate; each helper tested |
 | **X2** | Contract split into one file per scope (same package, no call-site change); git models into `GitContract` | gate; zero call-site edits |
-| **S1 … S8** | Each scope by the §2 recipe, in the user's lifecycle order: move → fix → harden | per scope: gate, capture diff 0 for its frames, its lifecycle matrix on the device |
+| **S1 … S8** | Each scope by the §2 recipe, in the user's lifecycle order: move → fix → harden | per scope: gate, its lifecycle matrix on the device |
 | **G** | A backend consistency guard (file budget, one writer per store, no duplicate helpers, no UI → `data` imports) added to the routine gate | guard green and enforced |
 
 Why this order: repository and demo first, so no later step carries dead weight; shared
@@ -134,7 +134,8 @@ the order a user meets them, so each scope is verified with everything before it
 - Gate every step: `compileDebugKotlin`, `testDebugUnitTest`, `lintDebug` (no new warning;
   warnings in a touched scope fixed), `check-ui-consistency.sh` (allowlist only shrinks);
   from K1 `assembleRelease` with no fixture in its dex; from G the backend guard.
-- Capture diff against K0 for every move; a deliberate UI change is named in its step.
+- No routine screen capture (owner, 2026-09-26: it does not serve this goal). A deliberate UI
+  change is named in its step; the capture runs only when the owner asks.
 - Device: an APK built in the same step; each scope's lifecycle matrix, including background,
   process kill and permission loss; results recorded in this document's §7.
 
@@ -222,3 +223,36 @@ the H0 build replace the 2026-09-22 set; the contact sheets under their new name
   `terminal-background-plan`, `commands-panels-plan`, `ui-polish-plan`, `sudo-capability-plan`,
   `backend-split-audit`. The owner's rule name "demo→real→gaps→cleanup" stays: it names the way
   of working, not code.
+
+**X1a — shared helpers (2026-09-26), done.**
+
+- `data/io/Sha256` replaces the four SHA-256 copies (runtime archive check, file fingerprints,
+  draft file names, settings keys). Its output is pinned by the published test vector: a
+  different form would orphan every stored draft and workspace setting.
+- `data/io/readAtMost` replaces the two bounded readers (editor 5 MB, search 5 MB); each keeps
+  its own message.
+- `domain/ByteSize` now serves all five formatters (Runtime installer, Runtime installing,
+  Runtime settings, Storage, Create folder). One rule: one decimal below ten and always for
+  gigabytes — "4.2 KB", "12 KB", "14.2 GB free of 16.0 GB". Visible changes: sizes under 10 MB
+  gain a decimal ("5.5 MB" was "6 MB"), under 1 MB they read in KB instead of "0 MB", and
+  Document Recovery reads "1.8 KB" again instead of "2 KB".
+- `domain/RelativeTime` serves the gateway's recents too; under a minute now reads "just now"
+  there as on the commit screen (was "now").
+- Checks: compile debug and release; 244 unit tests (12 new, one file per helper); lint 0 errors,
+  23 warnings (unchanged); UI guard passes. The routine screen capture is no longer run (owner).
+
+**X1b — one log seam (2026-09-26), done.**
+
+- `data/log/BackendLog`: tags `iCode/<subsystem>`; debug and info lines in debug builds only,
+  warnings and errors always; every line (stack traces included) passes `credentialSafe`, which
+  masks `user:token@` in URLs — a Git error can echo the remote URL. Its writer is replaceable,
+  so unit tests read what would be logged (3 tests: token masked, SSH address kept, tag and error).
+- The runtime probes are gone (`refreshRuntimeDetails` logged every dispatch at debug and, through
+  an escaped `$`, the literal text `$details` instead of the details); an inspection failure is now
+  one warning. The terminal library's error and warning callbacks write through the seam
+  (`iCode/terminal/<tag>`); its info/debug callbacks stay off (they would carry typed text).
+- **`WorkbenchAudit` not built** (deviation from the audit doc §6): an in-memory ring that nothing
+  reads is the kind of dead weight this plan removes. The diagnostics export (S1, About) will
+  decide what history it needs; until then failures are logged through `BackendLog`.
+- Checks: compile debug and release; 247 unit tests; lint 0 errors, 23 warnings (unchanged); UI
+  guard passes.

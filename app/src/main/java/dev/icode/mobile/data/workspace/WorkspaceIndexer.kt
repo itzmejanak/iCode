@@ -1,11 +1,11 @@
 package dev.icode.mobile.data.workspace
 
+import dev.icode.mobile.data.io.readAtMost
 import dev.icode.mobile.domain.ContentMatch
 import dev.icode.mobile.domain.ContentSearchResult
 import dev.icode.mobile.domain.IndexedFile
-import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.IOException
+import java.io.InputStream
 import java.util.regex.Pattern
 import java.util.regex.PatternSyntaxException
 
@@ -123,19 +123,8 @@ internal object WorkspaceIndexer {
         return matches
     }
 
-    private fun readBounded(input: java.io.InputStream): ByteArray {
-        val output = ByteArrayOutputStream()
-        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-        var total = 0
-        while (true) {
-            val count = input.read(buffer)
-            if (count < 0) break
-            total += count
-            if (total > MAX_FILE_BYTES) throw IOException("File too large for search")
-            output.write(buffer, 0, count)
-        }
-        return output.toByteArray()
-    }
+    private fun readBounded(input: InputStream): ByteArray =
+        input.readAtMost(MAX_FILE_BYTES, "File too large for search")
 
     private fun String.toSearchPattern(matchCase: Boolean, wholeWord: Boolean, regex: Boolean): Pattern {
         if (isEmpty()) return Pattern.compile("$", Pattern.LITERAL)
