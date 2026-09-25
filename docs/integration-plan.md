@@ -4,6 +4,8 @@
 **Supersedes:** the ad-hoc "Latest workspace-logic round" entries in [`Todo.md`](../Todo.md)
 **Reads with:** [`plan.md`](../plan.md), [`docs/prd.md`](./prd.md), [`docs/architecture.md`](./architecture.md), [`docs/user-stories.md`](./user-stories.md), [`docs/ui-split-plan.md`](./ui-split-plan.md)
 
+> **Note (2026-09-26).** Names in this record are as they were then. The demo layer (`DemoWorkbenchGateway`, `DemoContent`, `staticDemo`, `demo-fork`) was replaced by debug-only capture fixtures (`CaptureGateway`, `CaptureFixtures`, `captureMode`, `capture-fork`) — [code-separation-plan.md](./code-separation-plan.md) K1.
+
 ### Workspace closeout audit and order (2026-09-23)
 
 This is the current implementation map for the requested workspace end-to-end pass. A Figma

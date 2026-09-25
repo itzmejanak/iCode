@@ -243,11 +243,11 @@ ripgrep, Git CLI/JGit interim), and the cycle-by-cycle execution order with vali
 The next sequence follows the live search report: frame 16 Editor Find/Sora, then frame 11
 Workspace Search and frame 14 Quick Open/ripgrep, then Git frames. Each frame keeps its demo
 controls and routes until its real lifecycle and failure states pass verification.
-Guardrails: `tools/check-ui-consistency.sh` (`orphan-route`, `demo-fork`).
+Guardrails: `tools/check-ui-consistency.sh` (`orphan-route`, `capture-fork`).
 
 **Backend splitting standard for all future Android work:** [`docs/backend-split-rules.md`](./docs/backend-split-rules.md).
 It extends the completed UI split's ownership/consistency discipline to contracts, adapters,
-state, side effects, persistence, lifecycle, demo parity and verification. Apply it prospectively;
+state, side effects, persistence, lifecycle, capture parity and verification. Apply it prospectively;
 split existing implementations only in a separately requested scoped cycle. The first worked
 feature plan and implementation ledger are [`docs/settings-backend-split-plan.md`](./docs/settings-backend-split-plan.md)
 for Appearance and Editor Settings. The typed settings and guarded save path are wired; palette

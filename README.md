@@ -1,8 +1,11 @@
 # iCode
 
-iCode is a native Android mobile IDE built from the complete Figma user flow. The app is now in production integration: workspace selection, recent workspaces, directory traversal, folder creation, text editing, and safe document saving use real Android storage. Unintegrated Git, runtime, terminal, recovery, and settings surfaces still use deterministic UI fixtures.
+iCode is a native Android mobile IDE built from the complete Figma user flow. It works on real
+phone storage and a real Linux runtime: workspaces, the file tree, the editor with autosave and
+recovery drafts, Git (clone, status, diff, commit, push, pull, branches, credentials), the
+terminal with background sessions and alerts, language services, and settings.
 
-## Run the demo
+## Build and run
 
 Requirements:
 
@@ -17,9 +20,11 @@ Build:
 
 The APK is written to `app/build/outputs/apk/debug/app-debug.apk`.
 
-In the normal app flow, grant the requested developer storage access. iCode's own folder screen then browses phone storage without handing the flow to Android's Files app. You can select or create a workspace, browse its real directory tree, open a text file, edit it, and save it back to its original location. Android Back returns through the navigation history.
+On first launch iCode installs its runtime, then asks for the permissions it needs, one at a
+time, with Android's own dialogs. iCode's folder screen browses phone storage itself; open or
+create a workspace, or clone a repository, and work on its real files.
 
-## Capture all 40 screens
+## Capture all 39 screens
 
 Connect an authorized Android device, build the debug APK, then run:
 
@@ -27,24 +32,33 @@ Connect an authorized Android device, build the debug APK, then run:
 tools/capture-figma-screens.sh
 ```
 
-The command installs the current APK, launches every screen in deterministic static mode, and writes the screenshots to `artifacts/screens/`. It also creates two labeled review sheets in `artifacts/review/`. The screen list is read from `Route.kt`, so the capture workflow does not maintain a duplicate registry. The registry and capture extras are verification tooling; the app itself no longer exposes a screen catalog.
+The command installs the current debug APK and opens every route with the extras
+`capture_route=<Route>` and `capture=true`, which draw the screen from fixed capture fixtures
+instead of the device, so every run gives the same pixels. It writes the screenshots to
+`artifacts/screens/` and two labeled review sheets to `artifacts/review/`. The route list is read
+from `Route.kt`. The fixtures live in `app/src/debug` only: a release build ignores the extras and
+contains no fixture.
 
 ## Structure
 
 ```text
 app/src/main/java/dev/icode/mobile/
 ├── designsystem/   # Semantic tokens (colors, type, metrics, tone, theme) + shared UI kit
-├── domain/         # UI-facing immutable state and intent contract
-├── data/workspace/ # Android storage, workspace history, tree projection, and text codec
-├── demo/           # Deterministic fixtures retained for static visual verification
-├── navigation/     # Figma screen registry and navigation actions
-└── ui/             # Composition root and one file per screen
+├── domain/         # UI-facing immutable state and the intent/effect contract
+├── data/           # Android implementations: workspace, git, runtime, settings, language, notices, system
+├── navigation/     # Routes and navigation actions
+└── ui/             # Composition root, editor, terminal, and one file per screen
     └── screens/{entry,workspace,tools,settings,recovery}/
+app/src/debug/java/dev/icode/mobile/capture/   # Capture fixtures (debug builds only)
 ```
 
-Each Figma frame lives in its own screen file with a small group host that dispatches it; the shared kit owns every reusable surface. Structural consistency is enforced by `tools/check-ui-consistency.sh` together with the shrinking ratchet in `tools/ui-debt-allowlist.txt` (currently zero debt).
+Each Figma frame lives in its own screen file with a small group host that dispatches it; the
+shared kit owns every reusable surface. Structural consistency is enforced by
+`tools/check-ui-consistency.sh` with the shrinking ratchet in `tools/ui-debt-allowlist.txt`.
 
-`WorkbenchGateway` is the only state/intent/effect seam between Compose and implementations. Normal launches use `AndroidWorkbenchGateway`; static screenshot launches use `DemoWorkbenchGateway`, keeping visual verification deterministic without leaking fixtures into production storage behavior.
+`WorkbenchGateway` is the only state/intent/effect seam between Compose and implementations.
+The app uses `AndroidWorkbenchGateway`; a capture launch uses `CaptureGateway`, which draws the
+fixtures and ignores every intent, so no fixture reaches real storage.
 
 ## Project documents
 

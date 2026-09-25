@@ -21,8 +21,14 @@ Completed baseline:
 - Shared kit, tokens, and navigation are complete.
 - The in-app screen catalog was removed after verification; titles and headings are static.
 - Screens use `WorkbenchGateway` and never access files, Git, processes, or storage directly.
-- Demo fixtures remain isolated in `DemoWorkbenchGateway` and `DemoContent`.
-- Existing unit, lint, build, device, and 40-frame capture checks are established.
+- Screenshots are drawn from debug-only capture fixtures (`app/src/debug/.../capture`); a release
+  build contains none.
+- Existing unit, lint, build, device, and 39-route capture checks are established.
+
+Names in dated records below are as they were then: the demo layer (`DemoWorkbenchGateway`,
+`DemoContent`, `staticDemo`, `demo-fork`) was replaced on 2026-09-26 by the capture fixtures
+(`CaptureGateway`, `CaptureFixtures`, `captureMode`, `capture-fork`) —
+[code-separation plan](./docs/code-separation-plan.md) K1.
 
 ## Remaining work by priority (reviewed 2026-09-24)
 
@@ -36,13 +42,13 @@ before code, then one verifiable step at a time.
 | 1 | **Outside changes reach the UI** | Agents and commands in the terminal edit the workspace — the owner's main way of working and one of the five production flows | Nothing watches the workspace and no screen dispatches `WorkbenchIntent.Refresh`: Explorer, Source Control and open editors stay stale until an in-app save or Git action. Only the save-time fingerprint check (`DirectFileWorkspaceSource`) prevents an overwrite | Measure on device whether inotify (`FileObserver`) reports writes made by PRoot processes under `/storage/emulated`; independent of that, refresh on resume and on leaving the terminal panel |
 | 2 | **Explorer rename / move / copy / delete** | Basic file management is missing | No such intents exist; the Delete confirmation frame serves Source Control only | Plan: guarded paths, confirmation, open tabs, recents and drafts follow the change |
 | 3 | **Workspace search and Quick Open on ripgrep (frames 11/14)** | Search can silently miss files | `WorkspaceIndexer` still serves both (known wrong, see below); no `rg` anywhere in the app | Provision `ripgrep` in the runtime the way `git` is, then streaming, cancellable search; delete `WorkspaceIndexer` after both flows pass |
-| 4 | **Honest About screen and licences** | Release blocker; About shows false facts | About lists `0.1.0-demo` and "Sora (integration planned)"; no licence notices for PRoot (GPL-2.0), talloc (LGPL-3.0), Sora (LGPL) or the Termux terminal libraries (Apache-2.0 inside a GPLv3 repository, [terminal-maturity-plan](./docs/terminal-maturity-plan.md) §3); iCode itself has no LICENSE | **Owner:** distribution and licence decision; then real build facts and a licences page |
+| 4 | **Honest About screen and licences** | Release blocker; licences unshown | About shows real build and runtime facts (2026-09-25); no licence notices for PRoot (GPL-2.0), talloc (LGPL-3.0), Sora (LGPL) or the Termux terminal libraries (Apache-2.0 inside a GPLv3 repository, [terminal-maturity-plan](./docs/terminal-maturity-plan.md) §3); iCode itself has no LICENSE | **Owner:** distribution and licence decision; then real build facts and a licences page |
 | 5 | **Developer tools at onboarding** | A new user reaches Source Control without `git`; search will need `rg` | `ProvisionGit` exists, reachable only from Source Control ([next-cycle-plan](./docs/next-cycle-plan.md) §3) | One skippable step after the runtime is ready |
 | 6 | **Session restore** | After a kill the open workspace and tabs are gone (S5 reports lost terminals; drafts survive) | Nothing persists the open workspace or tabs | Plan per B-05/B-06 item 8 below |
 | 7 | **Runtime fidelity — owner decisions** | `rm -rf` of a runtime tree holding emulated hard links fails ("Directory not empty"); `htop` cannot start | [terminal-maturity-plan](./docs/terminal-maturity-plan.md) §6 Open 2–3: `PROOT_L2S_DIR` proposed; `/proc` stand-ins versus the honest error | **Owner** decides; then patch and device A/B |
 | 8 | **LSP protocol, then diagnostics** | Completion, diagnostics, Problems navigation | Server configuration and process status exist; no JSON-RPC code | Plan per B-05/B-06 items 7 and 4 |
 | 9 | **Output channels; Command Palette acceptance** | Completes the tools panel | Output carries the Git transcript only; palette code slice done | Per B-05/B-06 items 5 and 2 |
-| 10 | **Device acceptance backlog, capture, demo cleanup** | Much finished code awaits a device pass | Consolidated below | One pass, then the 40-frame capture, then per-frame cleanup |
+| 10 | **Device acceptance backlog** | Much finished code awaits a device pass | Consolidated below; the demo cleanup is done (K1) | One pass, then the 39-route capture |
 
 ### Device acceptance backlog (code complete, not yet accepted on device)
 
@@ -80,7 +86,7 @@ Workspace closeout (2026-09-23; ordered audit in [`docs/integration-plan.md`](./
       duplicate-name feedback, and the Explorer selection surface on the installed app.
 - [ ] Next: Explorer rename/move/copy/delete with safe selection and confirmation;
       recovery/external changes; runtime-backed `rg` search; diagnostics/output/commands/settings.
-      Do not remove demo fixtures or routes until each replacement passes its real lifecycle.
+      Do not remove a route until its replacement passes its real lifecycle.
 
 Workspace settings and Explorer follow-up (2026-09-23):
 
@@ -349,10 +355,10 @@ Next delivery phase — one existing demo page and its full user lifecycle at a 
       pending while Git integration work shares the phone; do not treat this as completion of frame 11/14.
 - [x] Resume Git frames 12, 13, 30, 32, 31 and 24 (on the Git CLI in Cycle 4; device acceptance of 24/30/31 in the backlog), one reachable interaction at a time, with the
       real Git CLI behind `GitService`; remove JGit only after the replacement is verified.
-- [ ] For each touched frame, inventory demo controls/routes, implement real success and
+- [ ] For each touched frame, inventory its controls/routes, implement real success and
       loading/empty/error/cancel/recovery states, close missing gaps, verify tests/build/lint/
-      UI guard/device, then remove that frame's demo aid. No `staticDemo` screen fork or fake
-      success. Keep the 40-frame capture path until the final cleanup gate.
+      UI guard/device. No capture fork or fake success; keep the 39-route capture path. (The
+      demo aids themselves were removed in one step on 2026-09-26, K1.)
 
 Still open: PRoot is GPL-2.0, so source and licences must accompany any release. Sora Editor's
 LGPL distribution obligations also need review before its release build.
@@ -431,7 +437,7 @@ UI coverage by current route group:
 | SETTINGS | 10 | Settings hierarchy/search/overrides/reset; editor/terminal/Git/language/runtime/storage/appearance/scope; diagnostics/build/services; persistence/migrations |
 | RECOVERY | 3 | Delete confirmation; external-change detection/reload/compare/overwrite; auto-recovery restore/discard |
 
-Done when all screens consume only the gateway contract or clearly scoped local presentation state, every actionable control has an owner, and no platform adapter design is being inferred from demo strings.
+Done when all screens consume only the gateway contract or clearly scoped local presentation state, every actionable control has an owner, and no platform adapter design is being inferred from sample strings.
 
 ## Backend working rules
 
@@ -439,7 +445,7 @@ Done when all screens consume only the gateway contract or clearly scoped local 
 - Plan route by route before coding: affected frames, contract changes, gateway behavior, error mapping, cancellation, and tests. Never implement on an unverified assumption.
 - Domain models must not contain UI, Compose, filesystem-implementation, process, or database types.
 - Keep every feature behind `WorkbenchGateway`; screens continue to compose only.
-- Do not remove routes, change back behavior, regress capture output, or restore a screen catalog; remove only the documented demo aids.
+- Do not remove routes, change back behavior, regress capture output, or restore a screen catalog.
 
 ### B-01 — Domain and gateway boundary
 
@@ -536,7 +542,7 @@ checkbox: existing process status and editor recovery do not imply LSP diagnosti
    existence on restart. Keep dirty text in the guarded draft owner, never silently reopen a
    terminal command or claim a dead PTY is running. Test process death, permission revocation,
    corrupt state, workspace switch and recovery choices.
-9. [ ] **About (priority 4; today it shows `0.1.0-demo` and "Sora (integration planned)"):** replace version/runtime/editor literals with verified build/install facts;
+9. [ ] **About (priority 4; version, runtime and editor facts are real since 2026-09-25):** replace version/runtime/editor literals with verified build/install facts;
    make resource/diagnostic rows real actions or visibly unavailable, never no-op taps. Audit
    update, export, licence, source and issue destinations before wiring them; project URLs will be
    provided by the user later, so do not invent them. Redact secrets and workspace content from
@@ -582,21 +588,18 @@ checkbox: existing process status and editor recovery do not imply LSP diagnosti
 ## Integration cutover
 
 - Implement production `WorkbenchGateway` and wire every existing intent.
-- Replace demo snapshot/fixtures without changing screen composition.
-- Preserve all 40 routes, back behavior, scroll/clipping behavior, and capture workflow.
+- Replace demo snapshot/fixtures without changing screen composition (done: K1, 2026-09-26).
+- Preserve all 39 routes, back behavior, scroll/clipping behavior, and capture workflow.
 - Ensure every connected frame has genuine loading/empty/error/conflict/recovery/cancelled/read-only behavior.
 - Test storage, runtime, Git, process, network/auth, malformed-output, cancellation, restart, rotation, backgrounding, and uninstall/update paths.
 
-## Post-integration demo cleanup
+## Post-integration demo cleanup — done (2026-09-26)
 
-Run per frame after real data and behavior are wired:
-
-- Delete `DemoWorkbenchGateway` usage and any intent handling that existed only for the demo.
-- Remove `DemoContent` dependencies; delete demo-only constants, sample strings, and placeholder copy.
-- Remove demo wording from product strings: demo/sample/mock/placeholder labels and static-mode-only captions.
-- Remove or gate remaining verification-only aids such as static auto-navigation delays; keep the already-removed in-app screen catalog out of production UI.
-- Re-run unit, build, lint, consistency, capture, and physical-device checks.
-- Confirm remaining demo references are limited to the gateway shim, tests, tooling, and docs — no demo copy in screens or product strings.
+Done in one step, [code-separation plan](./docs/code-separation-plan.md) K1: the demo gateway,
+`DemoContent` and their tests are deleted; screenshots are drawn from debug-only capture fixtures
+(`app/src/debug/.../capture`), which a release build does not contain; the timing gates that
+keep a capture still are `captureMode` (guard `capture-fork`); no product string says demo.
+Checked with unit tests, build, lint, the consistency guard, the 39-route capture and the device.
 
 ## Validation
 

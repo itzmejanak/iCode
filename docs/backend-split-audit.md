@@ -7,6 +7,8 @@ where the two differ, that plan governs. Scoped application of
 (`data/`, `domain/`, `demo/`). It lists every oversized owner, duplication, inconsistency and
 verified gap, then splits them in small compilable cycles that preserve current behavior exactly.
 
+> **Note (2026-09-26).** K1 and K2 are done ([code-separation-plan.md](./code-separation-plan.md) §7): `demo/` is gone; the names below are the evidence as measured before.
+
 Owner decisions recorded 2026-09-25:
 
 1. **Granularity:** balanced — one coordinator per real lifecycle, ~90–270 lines; neither a swarm

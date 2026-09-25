@@ -79,7 +79,7 @@ one cause.
 | Fully-qualified names instead of imports (gateway 214, 218–223, 613, 980, 1259, 1818) | X |
 | `SharedPreferences.edit()` without the KTX form in 4 stores, `edit {}` elsewhere | S2, S5, S8 |
 | Presentation text inside the snapshot (`lastOpened`, `activePath`) | S2 (kept; recorded deviation — moving it changes captured pixels) |
-| "demo" names and wording (12 main files, 6 tests, 3 tools, 14 docs) | X (K1, K2) |
+| ~~"demo" names and wording (12 main files, 6 tests, 3 tools, 14 docs)~~ — renamed in K1 (code, tools), K2 (docs) | X (K1, K2) |
 
 ### Gaps (a user can meet them)
 
@@ -208,3 +208,17 @@ the H0 build replace the 2026-09-22 set; the contact sheets under their new name
   Document Recovery with the phone's draft folder empty shows "Nothing to recover". Restoring was
   not run on the phone: autosave would write the draft into a real project file.
 
+
+**K2 — living docs (2026-09-26), done.**
+
+- Reworded where the text states how things are now: `README.md` (it also said Git, runtime,
+  terminal and settings still ran on fixtures, "40 screens", and "zero debt" — all stale; now
+  what the app does, the 39-route capture and its extras, the packages), `backend-split-rules.md`
+  (rule 6 is now "one capture seam"; package list current), `ui-split-plan.md` rules 2, 3, 8, 10,
+  `plan.md` guardrails, `editor-grammar-provenance.md`, and `Todo.md`'s open items (the About row
+  said `0.1.0-demo`, fixed on 2026-09-25; the demo-cleanup section is now its done record).
+- Dated records keep their names, with one note each naming the replacement: `Todo.md`,
+  `integration-plan`, `attention-labels-cleanup-plan`, `settings-backend-split-plan`,
+  `terminal-background-plan`, `commands-panels-plan`, `ui-polish-plan`, `sudo-capability-plan`,
+  `backend-split-audit`. The owner's rule name "demo→real→gaps→cleanup" stays: it names the way
+  of working, not code.

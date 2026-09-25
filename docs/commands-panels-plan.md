@@ -5,6 +5,8 @@ Status: implementation in progress (2026-09-24). Follow
 [Todo.md](../Todo.md). This plan records verified code boundaries, not a claim
 that every demo frame is integrated.
 
+> **Note (2026-09-26).** Names in this record are as they were then. The demo layer (`DemoWorkbenchGateway`, `DemoContent`, `staticDemo`, `demo-fork`) was replaced by debug-only capture fixtures (`CaptureGateway`, `CaptureFixtures`, `captureMode`, `capture-fork`) — [code-separation-plan.md](./code-separation-plan.md) K1.
+
 ## Observed baseline and ownership
 
 | Surface | Verified current state | Canonical owner and write path |

@@ -2,6 +2,12 @@
 
 Master refactoring plan for the completed Phase 1 UI port (40 Figma frames), executed before Phase 2 backend planning.
 
+> **Note (2026-09-26).** The tables below record the split as it was done, with the names of
+> the time. `demo/` (`DemoWorkbenchGateway`, `DemoContent`) no longer exists: screens read the
+> real snapshot, and screenshots are drawn from debug-only capture fixtures
+> (`app/src/debug/.../capture`; [code-separation-plan.md](./code-separation-plan.md) K1). Rules
+> 2, 3, 8 and 10 below are updated to match.
+
 - Source of truth: the code under `app/src/main/java/dev/icode/mobile`.
 - Related: [plan.md](../plan.md) · [Todo.md](../Todo.md) · [layout.md](./layout.md) · [architecture.md](./architecture.md) · [backend splitting rules](./backend-split-rules.md) for future integration work.
 - Enforcement: `tools/check-ui-consistency.sh` + `tools/ui-debt-allowlist.txt` (ratchet — counts may only shrink).
@@ -123,15 +129,15 @@ Per-file rules: one public `XxxScreen(actions)` per file; screen ≤ 250 lines t
 ## 6. Ownership and dependency rules
 
 1. **Token → component → screen → host** is the only allowed dependency direction.
-2. `designsystem` depends on Compose and its own tokens only — no domain, demo, navigation or screen imports.
-3. Screens may depend on: `designsystem`, `domain` contracts, `navigation.Route`/`NavigationActions`, `ui.WorkbenchLocals` and Phase 1 fixtures in `demo.DemoContent`. Never on a sibling screen package and never on `ui.IcodeApp`.
+2. `designsystem` depends on Compose and its own tokens only — no domain, capture, navigation or screen imports.
+3. Screens may depend on: `designsystem`, `domain` contracts, `navigation.Route`/`NavigationActions` and `ui.WorkbenchLocals`. Never on a sibling screen package, never on `ui.IcodeApp`, never on fixtures.
 4. Kit components accept primitives and slots; screens map domain models onto kit parameters (`Severity` → `IcodeTone`, `GitChange` → row slots).
 5. Feature-local private composables stay in the screen file (e.g. `WorkspaceHeader`, `ExplorerRow`, `GitChangeRow`, `ThemeSwatch`). A component is promoted to the kit only when a second consumer exists — or when `layout.md` §26 assigns it to the design system (rail, editor tabs, diff rows, diagnostic rows, dialogs, fields, choice controls, empty/error states).
 6. Screens never restyle raw controls and never write literal colors, `sp` sizes or layout `dp` values; all metrics come from `IcodeSpacing` / `IcodeShapes` / `IcodeSizes` / `IcodeType`.
 7. `IcodeScreen` is owned by the shell; screens must not add system-bar padding or width clamps.
-8. Demo content used by more than one frame lives in `demo/DemoContent.kt`; unique per-frame content stays local to its screen.
+8. Screens show only snapshot data; sample content for screenshots lives in the debug-only `CaptureFixtures`, never in a screen.
 9. Interactive screen state that survives rotation uses `rememberSaveable` (or a `Saver`-backed state holder such as `EditorSettingsState`).
-10. The `Route` registry (40 frames), the 40-frame unit test and `tools/capture-figma-screens.sh` stay untouched.
+10. The `Route` registry (39 routes for the 40 frames; frame 3:55 is a state of 3:27), its unit test and `tools/capture-figma-screens.sh` stay consistent with each other.
 11. File budgets: screen ≤ 250 lines target (400 hard, guard threshold 300), kit file ≤ 300 lines, host file ≤ 60 lines.
 
 ## 7. Zero-duplication and zero-inconsistency enforcement
