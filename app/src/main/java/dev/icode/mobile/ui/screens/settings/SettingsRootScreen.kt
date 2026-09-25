@@ -1,10 +1,7 @@
 package dev.icode.mobile.ui.screens.settings
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -17,44 +14,67 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import dev.icode.mobile.designsystem.BottomBarItem
+import dev.icode.mobile.designsystem.IcodeBottomBar
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeSpacing
+import dev.icode.mobile.designsystem.IcodeTextField
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.SettingRow
-import dev.icode.mobile.navigation.DemoActions
-import dev.icode.mobile.navigation.DemoScreen
+import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.navigation.Route
+import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 
 /** Settings root with the application settings categories. */
 @Composable
-fun SettingsRootScreen(actions: DemoActions) {
+fun SettingsRootScreen(actions: NavigationActions) {
+    val hasWorkspace = LocalWorkbenchSnapshot.current.activeWorkspaceLocation != null
+    var searchVisible by rememberSaveable { mutableStateOf(false) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    val searchFocus = remember { FocusRequester() }
+    LaunchedEffect(searchVisible) { if (searchVisible) searchFocus.requestFocus() }
+    val categories = searchSettingsCategories(searchQuery)
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar(
             "Settings",
             onBack = actions.back,
             actions = {
-                IconButton(onClick = {}) {
+                IconButton(onClick = {
+                    searchVisible = !searchVisible
+                    if (!searchVisible) searchQuery = ""
+                }) {
                     Icon(Icons.Outlined.Search, contentDescription = "Search settings", tint = IcodeColors.TextPrimary)
                 }
             },
         )
-        Row(
-            modifier = Modifier.fillMaxWidth().background(IcodeColors.Surface).padding(IcodeSpacing.Space3),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text("Application Settings", style = IcodeType.Label.copy(color = IcodeColors.Accent))
-            Text(
-                "Switch to Workspace  ↻",
-                style = IcodeType.Caption,
-                modifier = Modifier.clickable { actions.navigate(DemoScreen.WorkspaceSettings) },
+        if (searchVisible) {
+            IcodeTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                placeholder = "Search settings",
+                leadingIcon = Icons.Outlined.Search,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = IcodeSpacing.Space3, vertical = IcodeSpacing.Space2),
+                inputModifier = Modifier.focusRequester(searchFocus),
             )
         }
         LazyColumn(
-            modifier = Modifier.padding(IcodeSpacing.Space3),
+            modifier = Modifier.weight(1f).padding(IcodeSpacing.Space3),
             verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
         ) {
-            items(settingsCategories) { category ->
+            if (categories.isEmpty()) item {
+                Text("No matching settings", style = IcodeType.Body, color = IcodeColors.TextSecondary)
+            }
+            items(categories) { category ->
                 SettingRow(
                     title = category.title,
                     subtitle = category.subtitle,
@@ -66,5 +86,25 @@ fun SettingsRootScreen(actions: DemoActions) {
                 }
             }
         }
+        SettingsScopeBar(workspace = false, actions, hasWorkspace)
     }
+}
+
+/**
+ * Which settings: the application's or the open workspace's — the bottom bar,
+ * as the editor's (owner's design). Switching replaces the page, as a tab
+ * does, so Back still returns to wherever settings were opened from.
+ */
+@Composable
+internal fun SettingsScopeBar(workspace: Boolean, actions: NavigationActions, hasWorkspace: Boolean = true) {
+    IcodeBottomBar(
+        items = listOf(
+            BottomBarItem("Application", onClick = { actions.replace(Route.SettingsRoot) }.takeIf { workspace }, active = !workspace),
+            if (hasWorkspace) {
+                BottomBarItem("Workspace", onClick = { actions.replace(Route.WorkspaceSettings) }.takeIf { !workspace }, active = workspace)
+            } else {
+                BottomBarItem("Open a Workspace", onClick = { actions.navigate(Route.LauncherHome) })
+            },
+        ),
+    )
 }

@@ -24,13 +24,34 @@ import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.IconBadge
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.SecondaryButton
-import dev.icode.mobile.navigation.DemoActions
-import dev.icode.mobile.navigation.DemoScreen
+import dev.icode.mobile.domain.GitChange
+import dev.icode.mobile.domain.GitStatusCodes
+import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.ui.LocalWorkbenchGateway
+import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 
-/** Destructive delete confirmation dialog. */
+/**
+ * Confirms discarding one file's changes.
+ *
+ * Discard is `git checkout --` for a tracked file and a delete for an
+ * untracked one — neither is recoverable, so the file, what will happen to it
+ * and its irreversibility are all stated before the destructive button.
+ */
 @Composable
-fun DeleteConfirmationScreen(actions: DemoActions) {
-    DialogScaffold(title = "auth.ts", subtitle = "Conflict workspace", onBack = actions.back) {
+fun DeleteConfirmationScreen(actions: NavigationActions) {
+    val state = LocalWorkbenchSnapshot.current
+    val gateway = LocalWorkbenchGateway.current
+    val change = state.pendingDiscard
+    val dismiss = {
+        gateway.dispatch(WorkbenchIntent.CancelDiscardChanges)
+        actions.back()
+    }
+    DialogScaffold(
+        title = change?.name ?: "Discard changes",
+        subtitle = state.activeWorkspace,
+        onBack = dismiss,
+    ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space4),
@@ -43,9 +64,23 @@ fun DeleteConfirmationScreen(actions: DemoActions) {
                 iconSize = IcodeSizes.MarkIconLg,
                 shape = IcodeShapes.Pill,
             )
-            Text("Delete Folder", style = IcodeType.PageTitle.copy(color = IcodeColors.Error))
             Text(
-                "Are you sure you want to delete the directory below?",
+                if (change == null) "Nothing to discard" else headline(change),
+                style = IcodeType.PageTitle.copy(color = IcodeColors.Error),
+                textAlign = TextAlign.Center,
+            )
+            if (change == null) {
+                Text(
+                    "This change is no longer in the working tree.",
+                    style = IcodeType.Body,
+                    color = IcodeColors.TextSecondary,
+                    textAlign = TextAlign.Center,
+                )
+                SecondaryButton("Close", dismiss, Modifier.fillMaxWidth())
+                return@DialogScaffold
+            }
+            Text(
+                "Are you sure you want to discard the changes in this file?",
                 style = IcodeType.Body,
                 textAlign = TextAlign.Center,
             )
@@ -53,21 +88,40 @@ fun DeleteConfirmationScreen(actions: DemoActions) {
                 modifier = Modifier.fillMaxWidth().clip(IcodeShapes.Small),
                 padding = PaddingValues(IcodeSpacing.Space3),
             ) {
-                MonoLine("src/components/auth", color = IcodeColors.Accent)
+                MonoLine(change.path, color = IcodeColors.Accent)
             }
             Text(
-                "This folder contains 8 files. This action is destructive and cannot be undone.",
+                consequence(change),
                 style = IcodeType.Body,
                 color = IcodeColors.TextSecondary,
                 textAlign = TextAlign.Center,
             )
             DangerButton(
-                "DELETE DESTRUCTIVELY",
-                { actions.navigate(DemoScreen.WorkspaceExplorer) },
+                if (change.status == GitStatusCodes.UNTRACKED) "DELETE FILE" else "DISCARD CHANGES",
+                {
+                    gateway.dispatch(WorkbenchIntent.DiscardChanges(change.path, change.status))
+                    actions.back()
+                },
                 Modifier.fillMaxWidth(),
                 filled = true,
             )
-            SecondaryButton("Cancel", actions.back, Modifier.fillMaxWidth())
+            SecondaryButton("Cancel", dismiss, Modifier.fillMaxWidth())
         }
     }
+}
+
+private fun headline(change: GitChange): String = when (change.status) {
+    GitStatusCodes.UNTRACKED -> "Delete File"
+    GitStatusCodes.DELETED -> "Restore File"
+    else -> "Discard Changes"
+}
+
+/** Says exactly what Git will do, because each status discards differently. */
+private fun consequence(change: GitChange): String = when (change.status) {
+    GitStatusCodes.UNTRACKED ->
+        "This file is not tracked by Git, so there is no copy to restore it from. It will be deleted."
+    GitStatusCodes.DELETED ->
+        "The file will be restored from the last commit, undoing the deletion."
+    else ->
+        "The file will be restored to its last committed state. Your edits cannot be recovered."
 }

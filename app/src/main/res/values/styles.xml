@@ -7,4 +7,19 @@
         <item name="android:navigationBarColor">#0A0D0B</item>
         <item name="android:windowActionModeOverlay">true</item>
     </style>
+
+    <!--
+      The launch theme.
+
+      Android always draws a system splash, and showing a mark there as well as
+      on the app's own splash frame is what made two splashes. This one is the
+      app's background and nothing else, so it is indistinguishable from the
+      frame that follows: the user sees a single splash, the designed one.
+    -->
+    <style name="Theme.Icode.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">#0A0D0B</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_blank</item>
+        <item name="windowSplashScreenIconBackgroundColor">#0A0D0B</item>
+        <item name="postSplashScreenTheme">@style/Theme.Icode</item>
+    </style>
 </resources>

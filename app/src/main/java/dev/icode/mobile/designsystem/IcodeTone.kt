@@ -1,5 +1,6 @@
 package dev.icode.mobile.designsystem
 
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
 /**
@@ -11,6 +12,7 @@ import androidx.compose.ui.graphics.Color
 enum class IcodeTone { Neutral, Accent, Info, Success, Warning, Error }
 
 /** Foreground tint for a tone. */
+@Composable
 fun IcodeTone.tint(): Color = when (this) {
     IcodeTone.Neutral -> IcodeColors.TextSecondary
     IcodeTone.Accent -> IcodeColors.Accent

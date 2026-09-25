@@ -1,10 +1,13 @@
 package dev.icode.mobile.designsystem
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -34,6 +37,7 @@ import androidx.compose.ui.unit.dp
  * [indent] shifts tree rows, and [selected] renders the shared selection state
  * so no screen invents its own highlight.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun IcodeListRow(
     modifier: Modifier = Modifier,
@@ -43,9 +47,14 @@ fun IcodeListRow(
     titleStyle: TextStyle = IcodeType.Body,
     titleColor: Color = IcodeColors.TextPrimary,
     selected: Boolean = false,
+    selectionBackground: Color = IcodeColors.SurfaceElevated,
+    rowShape: Shape = IcodeShapes.Small,
     card: Boolean = false,
+    cardPadding: PaddingValues = PaddingValues(IcodeSpacing.CardPadding),
     indent: Dp = 0.dp,
     onClick: (() -> Unit)? = null,
+    /** Secondary, usually destructive action for the row. */
+    onLongClick: (() -> Unit)? = null,
     leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable RowScope.() -> Unit)? = null,
     content: (@Composable RowScope.() -> Unit)? = null,
@@ -70,9 +79,20 @@ fun IcodeListRow(
 
     if (card) {
         IcodeCard(
-            modifier = modifier,
+            modifier = if (onLongClick == null) {
+                modifier
+            } else {
+                modifier.combinedClickable(
+                    role = Role.Button,
+                    onClick = onClick ?: {},
+                    onLongClick = onLongClick,
+                )
+            },
             borderColor = if (selected) IcodeColors.Accent else IcodeColors.Outline,
-            onClick = onClick,
+            padding = cardPadding,
+            // The card would otherwise install a second click handler that
+            // swallows the long press.
+            onClick = if (onLongClick == null) onClick else null,
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -86,9 +106,19 @@ fun IcodeListRow(
             modifier = modifier
                 .fillMaxWidth()
                 .padding(start = indent)
-                .clip(IcodeShapes.Small)
-                .background(if (selected) IcodeColors.SurfaceElevated else Color.Transparent)
-                .then(if (onClick == null) Modifier else Modifier.clickable(role = Role.Button, onClick = onClick))
+                .clip(rowShape)
+                .background(if (selected) selectionBackground else Color.Transparent)
+                .then(
+                    when {
+                        onLongClick != null -> Modifier.combinedClickable(
+                            role = Role.Button,
+                            onClick = onClick ?: {},
+                            onLongClick = onLongClick,
+                        )
+                        onClick != null -> Modifier.clickable(role = Role.Button, onClick = onClick)
+                        else -> Modifier
+                    },
+                )
                 .padding(horizontal = IcodeSpacing.Space2, vertical = IcodeSpacing.Space3),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),

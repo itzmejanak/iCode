@@ -9,21 +9,22 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.MoreVert
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import dev.icode.mobile.designsystem.DangerButton
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodeConfirmDialog
 import dev.icode.mobile.designsystem.IcodeListRow
-import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
@@ -31,75 +32,125 @@ import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.TwoColumnActions
-import dev.icode.mobile.navigation.DemoActions
+import dev.icode.mobile.domain.StorageMeasurement
+import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.WorkspaceActionsMenu
 
-private val usageLegend = "● Runtime (1.1GB)    ● Workspaces (410MB)    ● Cache (220MB)"
+private enum class CleanupAction { Cache, StaleRecents }
 
-/** Storage usage, workspace paths and cleanup operations. */
+/** Device totals and bounded app/workspace measurements, never fabricated sizes. */
 @Composable
-fun StorageSettingsScreen(actions: DemoActions) {
-    val workspaces = LocalWorkbenchSnapshot.current.workspaces
+fun StorageSettingsScreen(actions: NavigationActions) {
+    val state = LocalWorkbenchSnapshot.current
+    val gateway = LocalWorkbenchGateway.current
+    val device = state.storageDetails?.device ?: state.storage
+    val details = state.storageDetails
+    var pendingCleanup by remember { mutableStateOf<CleanupAction?>(null) }
+
+    LaunchedEffect(Unit) { gateway.dispatch(WorkbenchIntent.RefreshStorage) }
+
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Storage Settings", subtitle = "Disk usage and workspace folders", onBack = actions.back)
         LazyColumn(
-            modifier = Modifier.padding(IcodeSpacing.Space4),
+            modifier = Modifier.fillMaxSize().padding(IcodeSpacing.Space4),
             verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2 + IcodeSpacing.Micro),
         ) {
             item { SectionLabel("Storage Usage") }
             item {
                 IcodeCard(Modifier.fillMaxWidth()) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("1.8 GB Used", style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold))
-                        Text("14.2 GB Free of 16 GB", style = IcodeType.Caption)
-                    }
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .height(IcodeSpacing.Space2)
-                            .padding(top = IcodeSpacing.Space1 + IcodeSpacing.Micro),
-                    ) {
-                        Box(Modifier.weight(1.1f).height(IcodeSpacing.Space2).background(IcodeColors.Accent))
-                        Box(Modifier.weight(0.42f).height(IcodeSpacing.Space2).background(IcodeColors.Blue))
-                        Box(Modifier.weight(0.2f).height(IcodeSpacing.Space2).background(IcodeColors.Amber))
-                        Box(Modifier.weight(0.08f).height(IcodeSpacing.Space2).background(IcodeColors.SurfaceTrack))
+                    if (device == null || device.totalBytes <= 0) {
+                        Text("Storage usage is unavailable", style = IcodeType.Body)
+                    } else {
+                        val used = (device.totalBytes - device.availableBytes).coerceAtLeast(0)
+                        val fraction = (used.toFloat() / device.totalBytes).coerceIn(0f, 1f)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("${formatStorageBytes(used)} Used", style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold))
+                            Text("${formatStorageBytes(device.availableBytes)} Free of ${formatStorageBytes(device.totalBytes)}", style = IcodeType.Caption)
+                        }
+                        Box(
+                            Modifier.fillMaxWidth().padding(top = IcodeSpacing.Space3)
+                                .height(IcodeSpacing.Space2).background(IcodeColors.SurfaceTrack),
+                        ) {
+                            Box(Modifier.fillMaxWidth(fraction).height(IcodeSpacing.Space2).background(IcodeColors.Accent))
+                        }
+                        Text(
+                            "Device storage, including other apps and files",
+                            modifier = Modifier.padding(top = IcodeSpacing.Space2),
+                            style = IcodeType.Caption,
+                        )
                     }
                     Text(
-                        usageLegend,
-                        modifier = Modifier.padding(top = IcodeSpacing.Space3),
+                        "Runtime: ${storageSizeLabel(details?.runtime)}  ·  Cache: ${storageSizeLabel(details?.cache)}",
+                        modifier = Modifier.padding(top = IcodeSpacing.Space2),
                         style = IcodeType.Caption,
                     )
                 }
             }
             item { SectionLabel("Workspace Paths", Modifier.padding(top = IcodeSpacing.Space2)) }
-            items(workspaces) { workspace ->
-                val size = if (workspace.name.startsWith("external")) "1.2 GB" else "244 MB"
+            if (state.workspaces.isEmpty()) item {
+                Text("No recent workspaces", style = IcodeType.Body)
+            }
+            items(state.workspaces, key = { it.location }) { workspace ->
                 IcodeListRow(
                     card = true,
                     content = {
                         Column(Modifier.weight(1f)) {
                             Text(workspace.name, style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold))
                             MonoLine(workspace.path, style = IcodeType.MonoSmall)
-                            MonoLine("$size  · ${workspace.lastOpened}", color = IcodeColors.Accent, style = IcodeType.MonoSmall)
+                            MonoLine(
+                                "${storageSizeLabel(details?.workspaceSizes?.get(workspace.location))}  · ${workspace.lastOpened}",
+                                color = IcodeColors.Accent,
+                                style = IcodeType.MonoSmall,
+                            )
                         }
                     },
-                    trailing = {
-                        Icon(
-                            Icons.Outlined.MoreVert,
-                            contentDescription = null,
-                            tint = IcodeColors.TextSecondary,
-                            modifier = Modifier.size(IcodeSizes.IconMd),
-                        )
-                    },
+                    trailing = { WorkspaceActionsMenu(workspace) },
                 )
             }
             item { SectionLabel("Cleanup Operations", Modifier.padding(top = IcodeSpacing.Space2)) }
             item {
                 TwoColumnActions(
-                    left = { SecondaryButton("Clear Cache", {}, Modifier.fillMaxWidth()) },
-                    right = { DangerButton("Remove Stale", {}, Modifier.fillMaxWidth()) },
+                    left = { SecondaryButton("Clear Cache", { pendingCleanup = CleanupAction.Cache }, Modifier.fillMaxWidth()) },
+                    right = { DangerButton("Remove Stale", { pendingCleanup = CleanupAction.StaleRecents }, Modifier.fillMaxWidth()) },
                 )
             }
         }
     }
+
+    pendingCleanup?.let { action ->
+        IcodeConfirmDialog(
+            title = if (action == CleanupAction.Cache) "Clear runtime cache?" else "Remove stale recents?",
+            confirmLabel = if (action == CleanupAction.Cache) "Clear cache" else "Remove shortcuts",
+            destructive = action == CleanupAction.StaleRecents,
+            onConfirm = {
+                gateway.dispatch(if (action == CleanupAction.Cache) WorkbenchIntent.ClearAppCache else WorkbenchIntent.RemoveStaleRecents)
+                pendingCleanup = null
+            },
+            onDismiss = { pendingCleanup = null },
+        ) {
+            Text(
+                if (action == CleanupAction.Cache)
+                    "Removes cached runtime downloads and idle PRoot temporary files. Workspace files and recovery drafts stay untouched. Active runtime tasks must finish first."
+                else "Removes only shortcuts to missing workspace folders from Recents. No workspace files are deleted.",
+                style = IcodeType.Body,
+            )
+        }
+    }
+}
+
+private fun storageSizeLabel(measurement: StorageMeasurement?): String = when {
+    measurement == null -> "Measuring…"
+    measurement.truncated -> "Size exceeds scan limit"
+    measurement.bytes == null -> "Size unavailable"
+    else -> formatStorageBytes(measurement.bytes)
+}
+
+private fun formatStorageBytes(bytes: Long): String = when {
+    bytes >= 1024L * 1024 * 1024 -> "%.1f GB".format(bytes.toDouble() / (1024 * 1024 * 1024))
+    bytes >= 1024L * 1024 -> "%.0f MB".format(bytes.toDouble() / (1024 * 1024))
+    bytes >= 1024L -> "%.0f KB".format(bytes.toDouble() / 1024)
+    else -> "$bytes B"
 }

@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application>
+        <!-- Debug-only Cycle 1 packaging probe. See runtime/bootstrap/README.md. -->
+        <activity
+            android:name="dev.icode.mobile.runtime.ExecProbeActivity"
+            android:exported="true" />
+        <activity
+            android:name="dev.icode.mobile.runtime.RuntimeProbeActivity"
+            android:exported="true" />
+    </application>
+
+</manifest>

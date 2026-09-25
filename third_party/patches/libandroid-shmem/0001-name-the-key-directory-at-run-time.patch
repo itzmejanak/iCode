@@ -1,0 +1,57 @@
+Name the key directory at run time, and fail instead of spinning
+
+shmget() with a key records the key as a symbolic link in a directory
+that was compiled in (_PATH_TMP). An app's writable directories are
+named after its package, so any compiled-in directory is right for one
+package only: iCode's build named another package's cache, which this
+app cannot write. When symlink() failed for that reason, the loop that
+takes ownership of the key ran again forever, holding the mutex.
+
+The directory now comes from PROOT_TMP_DIR, which iCode sets for PRoot
+to the running app's own temporary directory, and a symlink() failure
+other than EEXIST returns -1 with its errno. Reached only through
+PRoot's --sysvipc extension, which iCode does not enable today.
+
+Upstream: termux/libandroid-shmem 7f0bd7e. Applied by
+app/src/main/cpp/CMakeLists.txt.
+
+--- a/shmem.c
++++ b/shmem.c
+@@ -23,7 +23,14 @@
+ #include "shm.h"
+ 
+ #define DBG(...) __android_log_print(ANDROID_LOG_INFO, "shmem", __VA_ARGS__)
+-#define ASHV_KEY_SYMLINK_PATH _PATH_TMP "ashv_key_%d"
++// The running app's own temporary directory, named at run time: iCode sets
++// PROOT_TMP_DIR for PRoot. A directory compiled in names one package only,
++// and another package's directory cannot be written.
++static const char *ashv_key_dir(void)
++{
++	const char *dir = getenv("PROOT_TMP_DIR");
++	return dir != NULL && dir[0] != '\0' ? dir : "/data/local/tmp";
++}
+ #define ANDROID_SHMEM_SOCKNAME "/dev/shm/%08x"
+ #define ROUND_UP(N, S) ((((N) + (S) - 1) / (S)) * (S))
+ 
+@@ -349,7 +356,7 @@
+ 		// (3) If connected and opened, done. If connection refused
+ 		//     take ownership of the key and create the symlink.
+ 		// (4) If no symlink, create it.
+-		sprintf(symlink_path, ASHV_KEY_SYMLINK_PATH, key);
++		snprintf(symlink_path, sizeof(symlink_path), "%s/ashv_key_%d", ashv_key_dir(), key);
+ 		char path_buffer[256];
+ 		char num_buffer[64];
+ 		while (true) {
+@@ -382,6 +389,12 @@
+ 				sprintf(num_buffer, "%d", shmid);
+ 			}
+ 			if (symlink(num_buffer, symlink_path) == 0) break;
++			// Only a link another process created meanwhile is worth another
++			// round; any other failure would repeat here forever.
++			if (errno != EEXIST) {
++				pthread_mutex_unlock(&mutex);
++				return -1;
++			}
+ 		}
+ 	}
+ 

@@ -23,12 +23,12 @@ import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SecondaryButton
-import dev.icode.mobile.navigation.DemoActions
-import dev.icode.mobile.navigation.DemoScreen
+import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.navigation.Route
 
 /** Conflict dialog shown when a file changed on disk while editing. */
 @Composable
-fun ExternalChangeScreen(actions: DemoActions) {
+fun ExternalChangeScreen(actions: NavigationActions) {
     DialogScaffold(title = "token-utils.ts", subtitle = "Modified state", onBack = actions.back) {
         Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3)) {
             Row(
@@ -46,9 +46,9 @@ fun ExternalChangeScreen(actions: DemoActions) {
                 DetailRow("Disk Version", "14:31:05 (Newer)", valueColor = IcodeColors.Amber, valueStyle = IcodeType.MonoSmall)
                 DetailRow("IDE Cache", "14:28:10 (Modified)", valueColor = IcodeColors.TextSecondary, valueStyle = IcodeType.MonoSmall)
             }
-            PrimaryButton("Reload From Disk", { actions.navigate(DemoScreen.WorkspaceEditor) }, Modifier.fillMaxWidth())
-            SecondaryButton("Compare Versions Side-by-Side", { actions.navigate(DemoScreen.DiffView) }, Modifier.fillMaxWidth())
-            SecondaryButton("Overwrites Disk with My Changes", { actions.navigate(DemoScreen.WorkspaceEditor) }, Modifier.fillMaxWidth())
+            PrimaryButton("Reload From Disk", { actions.navigate(Route.WorkspaceEditor) }, Modifier.fillMaxWidth())
+            SecondaryButton("Compare Versions Side-by-Side", { actions.navigate(Route.DiffView) }, Modifier.fillMaxWidth())
+            SecondaryButton("Overwrites Disk with My Changes", { actions.navigate(Route.WorkspaceEditor) }, Modifier.fillMaxWidth())
             Text(
                 "Ignore & Keep Editing",
                 modifier = Modifier.fillMaxWidth().padding(IcodeSpacing.Space2),

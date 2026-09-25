@@ -9,7 +9,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -17,54 +19,239 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import dev.icode.mobile.designsystem.Divider
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
+import dev.icode.mobile.designsystem.IndeterminateProgressTrack
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.PageHeading
+import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.ProgressTrack
-import dev.icode.mobile.navigation.DemoActions
-import dev.icode.mobile.navigation.DemoScreen
-import kotlinx.coroutines.delay
+import dev.icode.mobile.designsystem.SecondaryButton
+import dev.icode.mobile.domain.RuntimeState
+import dev.icode.mobile.domain.RuntimeInstallReason
+import dev.icode.mobile.domain.StorageSummary
+import dev.icode.mobile.domain.SystemAccess
+import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.navigation.OnboardingRoute
+import dev.icode.mobile.ui.LocalWorkbenchGateway
+import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 
-/** Runtime installation progress; tapping the log card shows the failure frame. */
+/**
+ * Runtime installation, including its failure.
+ *
+ * Failure is a state of this installation, not a place of its own: the user
+ * never asks to see it, they arrive because the install failed, and retrying
+ * belongs on the surface that was doing the work. A separate route also made
+ * retry impossible, because returning to this screen in a failed state only
+ * sent the user back to the failure again.
+ */
 @Composable
-fun RuntimeInstallingScreen(actions: DemoActions) {
-    LaunchedEffect(actions.staticDemo) {
-        if (!actions.staticDemo) {
-            delay(1_800)
-            actions.navigate(DemoScreen.PermissionExplanation)
+fun RuntimeInstallingScreen(actions: NavigationActions) {
+    val state = LocalWorkbenchSnapshot.current
+    val gateway = LocalWorkbenchGateway.current
+    val runtime = state.runtime
+    val reason = state.runtimeInstallReason
+    LaunchedEffect(actions.staticDemo, runtime, reason, state.systemAccess) {
+        if (actions.staticDemo) return@LaunchedEffect
+        when (runtime) {
+            is RuntimeState.NotInstalled -> gateway.dispatch(installIntent(reason))
+            is RuntimeState.Ready -> leave(actions, state.systemAccess)
+            else -> Unit
         }
     }
     Column(Modifier.fillMaxSize().padding(IcodeSpacing.Space6)) {
         PageHeading(
-            title = "Installing Runtime",
-            description = "Preparing the isolated Linux container subsystem for building and running code.",
+            title = when (reason) {
+                RuntimeInstallReason.Initial -> "Installing Runtime"
+                RuntimeInstallReason.Repair -> "Repairing Runtime"
+                RuntimeInstallReason.Reset -> "Resetting Runtime"
+            },
+            description = if (reason == RuntimeInstallReason.Initial)
+                "Preparing the isolated Linux container subsystem for building and running code."
+            else "Rebuilding the Linux runtime. Progress and failures come from the real installer.",
         )
         Spacer(Modifier.weight(1f))
-        ProgressTrack(0.705f, Modifier.fillMaxWidth())
+        if (runtime is RuntimeState.Failed) {
+            RuntimeFailure(
+                runtime = runtime,
+                onRetry = { gateway.dispatch(installIntent(reason)) },
+                onSkip = { leave(actions, state.systemAccess) },
+                rebuilding = reason != RuntimeInstallReason.Initial,
+            )
+            Spacer(Modifier.weight(1.35f))
+            StorageLine(state.storage)
+            return@Column
+        }
+        // Extraction has no measurable fraction. A bar parked at a fixed point
+        // for the minutes it takes reads as hung, so the phase sweeps instead
+        // and the step line below carries tar's own running count.
+        if (runtime is RuntimeState.Installing) {
+            IndeterminateProgressTrack(Modifier.fillMaxWidth())
+        } else {
+            ProgressTrack(installProgress(runtime), Modifier.fillMaxWidth())
+        }
         Row(
             modifier = Modifier.fillMaxWidth().padding(top = IcodeSpacing.Space2),
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            MonoLine("70.5% COMPLETE", color = IcodeColors.Accent, style = IcodeType.MonoSmall)
-            MonoLine("847 MB / 1.2 GB", style = IcodeType.MonoSmall)
+            MonoLine(percentLabel(runtime), color = IcodeColors.Accent, style = IcodeType.MonoSmall)
+            MonoLine(transferLabel(runtime), style = IcodeType.MonoSmall)
         }
         IcodeCard(
             modifier = Modifier.fillMaxWidth().padding(top = IcodeSpacing.Space4 + IcodeSpacing.Micro),
-            onClick = { actions.navigate(DemoScreen.RuntimeError) },
         ) {
             Row(horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2), verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Outlined.Terminal, contentDescription = null, tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconMd))
-                MonoLine("Extracting Ubuntu ARM64 rootfs...")
+                MonoLine(stepLabel(runtime))
             }
         }
         Spacer(Modifier.weight(1.35f))
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
-            Icon(Icons.Outlined.Storage, contentDescription = null, tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconMd))
-            Text("Allocated: 2.4 GB | Available storage: 45.2 GB", style = IcodeType.Caption)
+        StorageLine(state.storage)
+    }
+}
+
+/**
+ * Where onboarding goes once the runtime is settled.
+ *
+ * Reached from the Terminal there is something to return to; reached as the
+ * first step of onboarding there is not, and this screen must route onward.
+ */
+private fun leave(actions: NavigationActions, access: SystemAccess?) {
+    if (actions.canGoBack) {
+        actions.back()
+        return
+    }
+    // What Android allows has not been read yet; the next state change routes.
+    OnboardingRoute.afterRuntime(access)?.let { actions.replace(it) }
+}
+
+/**
+ * The failure, in the installer's own words rather than an invented one.
+ *
+ * File browsing and search never needed the runtime, so a failure offers to
+ * carry on without it instead of holding the whole app hostage.
+ */
+@Composable
+private fun RuntimeFailure(
+    runtime: RuntimeState.Failed,
+    onRetry: () -> Unit,
+    onSkip: () -> Unit,
+    rebuilding: Boolean,
+) {
+    IcodeCard(
+        modifier = Modifier.fillMaxWidth(),
+        borderColor = IcodeColors.Error,
+        padding = PaddingValues(IcodeSpacing.None),
+    ) {
+        Column {
+            Row(
+                modifier = Modifier.padding(IcodeSpacing.Space3),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
+            ) {
+                Icon(
+                    Icons.Outlined.WarningAmber,
+                    contentDescription = null,
+                    tint = IcodeColors.Error,
+                    modifier = Modifier.size(IcodeSizes.IconMd),
+                )
+                Text("Installation failed", style = IcodeType.Title.copy(color = IcodeColors.Error))
+            }
+            Divider()
+            MonoLine(
+                runtime.reason,
+                modifier = Modifier.padding(IcodeSpacing.Space3),
+                color = IcodeColors.TextSecondary,
+                style = IcodeType.MonoSmall,
+                maxLines = 6,
+            )
         }
     }
+    if (runtime.recoverable) {
+        PrimaryButton(
+            if (rebuilding) "Retry Rebuild" else "Retry Installation",
+            onRetry,
+            Modifier.fillMaxWidth().padding(top = IcodeSpacing.Space4),
+        )
+    } else {
+        MonoLine(
+            "This cannot be retried on this device.",
+            modifier = Modifier.padding(top = IcodeSpacing.Space4),
+            color = IcodeColors.Amber,
+            style = IcodeType.MonoSmall,
+        )
+    }
+    SecondaryButton(
+        if (rebuilding) "Return to Runtime Settings" else "Continue without the runtime",
+        onSkip,
+        Modifier.fillMaxWidth().padding(top = IcodeSpacing.Space3),
+    )
+}
+
+private fun installIntent(reason: RuntimeInstallReason): WorkbenchIntent = when (reason) {
+    RuntimeInstallReason.Initial -> WorkbenchIntent.InstallRuntime
+    RuntimeInstallReason.Repair -> WorkbenchIntent.RepairRuntime
+    RuntimeInstallReason.Reset -> WorkbenchIntent.ResetRuntime
+}
+
+@Composable
+private fun StorageLine(storage: StorageSummary?) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
+        Icon(Icons.Outlined.Storage, contentDescription = null, tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconMd))
+        Text(storageLabel(storage), style = IcodeType.Caption)
+    }
+}
+
+/**
+ * Real progress.
+ *
+ * Extraction has no measurable fraction, so it holds at a fixed point rather
+ * than inventing movement: a bar that pretends to advance is a lie about work.
+ */
+private fun installProgress(runtime: RuntimeState): Float = when (runtime) {
+    is RuntimeState.Downloading -> runtime.fraction ?: 0f
+    is RuntimeState.Ready -> 1f
+    else -> 0f
+}
+
+private fun percentLabel(runtime: RuntimeState): String = when (runtime) {
+    is RuntimeState.Downloading ->
+        runtime.fraction?.let { "%.1f%% DOWNLOADED".format(it * 100) } ?: "DOWNLOADING"
+    is RuntimeState.Installing -> "PREPARING"
+    is RuntimeState.Ready -> "100% COMPLETE"
+    is RuntimeState.Failed -> "FAILED"
+    else -> "STARTING"
+}
+
+private fun transferLabel(runtime: RuntimeState): String = when (runtime) {
+    is RuntimeState.Downloading ->
+        if (runtime.totalBytes > 0) {
+            "${formatBytes(runtime.receivedBytes)} / ${formatBytes(runtime.totalBytes)}"
+        } else {
+            formatBytes(runtime.receivedBytes)
+        }
+    else -> ""
+}
+
+private fun stepLabel(runtime: RuntimeState): String = when (runtime) {
+    is RuntimeState.Downloading -> runtime.label
+    is RuntimeState.Installing -> runtime.label
+    is RuntimeState.Ready -> "Ready: ${runtime.release}"
+    is RuntimeState.Failed -> runtime.reason
+    is RuntimeState.NotInstalled -> runtime.reason
+    else -> "Checking the runtime..."
+}
+
+private fun storageLabel(storage: StorageSummary?): String = storage
+    ?.let { "Available storage: ${formatBytes(it.availableBytes)} of ${formatBytes(it.totalBytes)}" }
+    ?: "Checking available storage..."
+
+private fun formatBytes(bytes: Long): String {
+    val gib = bytes.toDouble() / (1024 * 1024 * 1024)
+    return if (gib >= 1) "%.1f GB".format(gib) else "%.0f MB".format(bytes.toDouble() / (1024 * 1024))
 }

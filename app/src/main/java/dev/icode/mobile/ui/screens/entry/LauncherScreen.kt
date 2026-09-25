@@ -1,19 +1,23 @@
 package dev.icode.mobile.ui.screens.entry
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountTree
 import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FolderOpen
-import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Icon
@@ -26,6 +30,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeCard
+import androidx.compose.foundation.clickable
+import dev.icode.mobile.designsystem.IcodeTone
+import dev.icode.mobile.designsystem.NoticeCard
+import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodeSizes
@@ -35,34 +43,83 @@ import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.IconBadge
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.SectionLabel
+import dev.icode.mobile.designsystem.StatusDot
 import dev.icode.mobile.designsystem.StatusLabel
+import dev.icode.mobile.domain.FolderBrowserPurpose
+import dev.icode.mobile.domain.SystemPermission
+import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.domain.WorkspaceSummary
-import dev.icode.mobile.navigation.DemoActions
-import dev.icode.mobile.navigation.DemoScreen
+import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.navigation.Route
+import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.WorkspaceActionsMenu
 
 /** Launcher with recent workspaces; [empty] renders the first-run empty state. */
 @Composable
-fun LauncherScreen(actions: DemoActions, empty: Boolean) {
-    val workspaces = LocalWorkbenchSnapshot.current.workspaces
+fun LauncherScreen(actions: NavigationActions, empty: Boolean) {
+    val state = LocalWorkbenchSnapshot.current
+    val gateway = LocalWorkbenchGateway.current
+    val workspaces = state.workspaces
+    val showEmpty = empty || workspaces.isEmpty()
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar(
             title = "iCode",
             actions = {
-                IconButton(onClick = { actions.navigate(DemoScreen.SettingsRoot) }) {
+                val unread = state.notices.any { !it.read }
+                IconButton(onClick = { actions.navigate(Route.Notifications) }) {
+                    Box {
+                        Icon(
+                            Icons.Outlined.Notifications,
+                            contentDescription = if (unread) "Notifications, unread" else "Notifications",
+                            tint = IcodeColors.TextPrimary,
+                        )
+                        if (unread) Box(Modifier.align(Alignment.TopEnd)) { StatusDot(IcodeColors.Accent) }
+                    }
+                }
+                IconButton(onClick = { actions.navigate(Route.SettingsRoot) }) {
                     Icon(Icons.Outlined.Settings, contentDescription = "Settings", tint = IcodeColors.TextPrimary)
                 }
             },
         )
+        // Declining the permission during onboarding used to be a one-way
+        // door: the launcher looked identical, every action failed, and no
+        // screen led back. The way back lives here now.
+        if (state.systemAccess?.storage == false) {
+            NoticeCard(
+                tone = IcodeTone.Warning,
+                modifier = Modifier.fillMaxWidth().padding(
+                    start = IcodeSpacing.Space4,
+                    end = IcodeSpacing.Space4,
+                    top = IcodeSpacing.Space4,
+                ),
+            ) {
+                Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
+                    StatusLabel("Storage access is off", IcodeColors.Amber)
+                    MonoLine(
+                        "iCode cannot open folders or clone repositories until Android grants it.",
+                        color = IcodeColors.TextSecondary,
+                        style = IcodeType.MonoSmall,
+                    )
+                    SecondaryButton(
+                        "Grant access",
+                        { gateway.dispatch(WorkbenchIntent.RequestSystemPermission(SystemPermission.Storage)) },
+                        Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        }
         Row(
             modifier = Modifier.fillMaxWidth().padding(IcodeSpacing.Space4),
             horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
         ) {
-            LauncherActionTile(Icons.Outlined.FolderOpen, "Open Folder", Modifier.weight(1f)) { actions.navigate(DemoScreen.OpenFolderBrowser) }
-            LauncherActionTile(Icons.Outlined.AccountTree, "Clone Repo", Modifier.weight(1f)) { actions.navigate(DemoScreen.CloneRepository) }
-            LauncherActionTile(Icons.Outlined.CreateNewFolder, "New Folder", Modifier.weight(1f)) { actions.navigate(DemoScreen.CreateFolder) }
+            LauncherActionTile(Icons.Outlined.FolderOpen, "Open Folder", Modifier.weight(1f)) {
+                gateway.dispatch(WorkbenchIntent.StartFolderBrowser(FolderBrowserPurpose.OpenWorkspace))
+            }
+            LauncherActionTile(Icons.Outlined.AccountTree, "Clone Repo", Modifier.weight(1f)) { actions.navigate(Route.CloneRepository) }
+            LauncherActionTile(Icons.Outlined.CreateNewFolder, "New Folder", Modifier.weight(1f)) { actions.navigate(Route.CreateFolder) }
         }
-        if (empty) {
+        if (showEmpty) {
             Column(
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -75,20 +132,34 @@ fun LauncherScreen(actions: DemoActions, empty: Boolean) {
                 )
             }
         } else {
-            Column(
+            LazyColumn(
                 modifier = Modifier.padding(horizontal = IcodeSpacing.Space4).weight(1f),
                 verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
             ) {
-                SectionLabel("Recent Workspaces", Modifier.padding(bottom = IcodeSpacing.Space1))
-                workspaces.forEach { workspace ->
-                    WorkspaceRow(workspace) { actions.navigate(DemoScreen.EditorEmpty) }
+                item { SectionLabel("Recent Workspaces", Modifier.padding(bottom = IcodeSpacing.Space1)) }
+                items(workspaces, key = { it.location }) { workspace ->
+                    WorkspaceRow(
+                        item = workspace,
+                        onOpen = { gateway.dispatch(WorkbenchIntent.OpenWorkspace(workspace.location)) },
+                    )
                 }
             }
         }
+        // An unavailable runtime is something the user can act on, so the
+        // status is the way in rather than a label reporting a dead end.
         StatusLabel(
-            "RUNTIME HEALTHY",
-            IcodeColors.Green,
-            Modifier.align(Alignment.CenterHorizontally).padding(IcodeSpacing.Space5),
+            if (state.runtimeHealthy) "RUNTIME HEALTHY" else "RUNTIME UNAVAILABLE — INSTALL",
+            if (state.runtimeHealthy) IcodeColors.Green else IcodeColors.Amber,
+            Modifier
+                .align(Alignment.CenterHorizontally)
+                .then(
+                    if (state.runtimeHealthy) {
+                        Modifier
+                    } else {
+                        Modifier.clickable { actions.navigate(Route.RuntimeInstalling) }
+                    },
+                )
+                .padding(IcodeSpacing.Space5),
         )
     }
 }
@@ -104,10 +175,17 @@ private fun LauncherActionTile(icon: ImageVector, label: String, modifier: Modif
 }
 
 @Composable
-private fun WorkspaceRow(item: WorkspaceSummary, onClick: () -> Unit) {
+private fun WorkspaceRow(
+    item: WorkspaceSummary,
+    onOpen: () -> Unit,
+) {
     IcodeListRow(
         card = true,
-        onClick = onClick,
+        cardPadding = PaddingValues(
+            horizontal = IcodeSpacing.Space3,
+            vertical = (IcodeSizes.Tile - IcodeSizes.TouchTarget) / 2,
+        ),
+        onClick = onOpen,
         leading = {
             IconBadge(
                 icon = if (item.available) Icons.Outlined.Folder else Icons.Outlined.WarningAmber,
@@ -137,14 +215,13 @@ private fun WorkspaceRow(item: WorkspaceSummary, onClick: () -> Unit) {
             }
         },
         trailing = {
-            Column(horizontalAlignment = Alignment.End) {
-                Icon(
-                    Icons.Outlined.MoreVert,
-                    contentDescription = null,
-                    tint = IcodeColors.TextSecondary,
-                    modifier = Modifier.size(IcodeSizes.IconMd),
+            Box {
+                WorkspaceActionsMenu(item)
+                Text(
+                    item.lastOpened,
+                    style = IcodeType.Caption,
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(end = IcodeSpacing.Space1),
                 )
-                Text(item.lastOpened, style = IcodeType.Caption)
             }
         },
     )

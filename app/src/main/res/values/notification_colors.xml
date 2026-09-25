@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- iCode's accent (IcodePalette accent), used to tint the notification's
+         icon. Without a colour the system tint is left to the phone's skin. -->
+    <color name="notification_accent">#FF6B2C</color>
+</resources>

@@ -1,6 +1,7 @@
 package dev.icode.mobile.ui.screens.entry
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,6 +15,7 @@ import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import dev.icode.mobile.designsystem.IcodeColors
@@ -23,22 +25,27 @@ import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.PrimaryButton
-import dev.icode.mobile.navigation.DemoActions
-import dev.icode.mobile.navigation.DemoScreen
-
-private val demoFolders = listOf(
-    "src" to "12 directories, 4 files",
-    "public" to "2 directories, 15 files",
-    "tests" to "1 directory, 6 files",
-)
+import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.FolderBrowserPurpose
+import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.ui.LocalWorkbenchGateway
+import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 
 /** Directory browser used when opening an existing workspace folder. */
 @Composable
-fun OpenFolderScreen(actions: DemoActions) {
+fun OpenFolderScreen(actions: NavigationActions) {
+    val gateway = LocalWorkbenchGateway.current
+    val browser = LocalWorkbenchSnapshot.current.folderBrowser
+    LaunchedEffect(browser) {
+        if (browser == null) {
+            gateway.dispatch(WorkbenchIntent.StartFolderBrowser(FolderBrowserPurpose.OpenWorkspace))
+        }
+    }
+    val folders = browser?.folders.orEmpty()
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Open Folder", onBack = actions.back)
         MonoLine(
-            text = "root / projects / icode-subsystem",
+            text = browser?.displayPath.orEmpty(),
             modifier = Modifier
                 .fillMaxWidth()
                 .background(IcodeColors.Surface)
@@ -53,15 +60,20 @@ fun OpenFolderScreen(actions: DemoActions) {
                 Text(
                     "↰  ..",
                     style = IcodeType.Mono.copy(color = IcodeColors.Accent),
-                    modifier = Modifier.padding(IcodeSpacing.Space2),
+                    modifier = Modifier
+                        .clickable(enabled = browser != null && browser.currentPath != browser.rootPath) {
+                            gateway.dispatch(WorkbenchIntent.BrowseParentFolder)
+                        }
+                        .padding(IcodeSpacing.Space2),
                 )
             }
-            items(demoFolders) { (name, meta) ->
+            items(folders, key = { it.path }) { folder ->
                 IcodeListRow(
                     card = true,
-                    title = name,
-                    subtitle = meta,
+                    title = folder.name,
+                    subtitle = "${folder.directoryCount} directories, ${folder.fileCount} files",
                     titleStyle = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold),
+                    onClick = { gateway.dispatch(WorkbenchIntent.BrowseFolder(folder.path)) },
                     leading = { Icon(Icons.Outlined.Folder, contentDescription = null, tint = IcodeColors.Accent) },
                     trailing = {
                         Icon(
@@ -74,9 +86,10 @@ fun OpenFolderScreen(actions: DemoActions) {
             }
         }
         PrimaryButton(
-            "Open This Folder",
-            { actions.navigate(DemoScreen.EditorEmpty) },
+            if (browser?.purpose == FolderBrowserPurpose.CreateFolderDestination) "Use This Folder" else "Open This Folder",
+            { gateway.dispatch(WorkbenchIntent.ConfirmFolderSelection) },
             Modifier.fillMaxWidth().padding(IcodeSpacing.Space5),
+            enabled = browser != null,
         )
     }
 }

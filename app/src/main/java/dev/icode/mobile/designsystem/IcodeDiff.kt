@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 enum class DiffKind { Context, Separator, Added, Removed, ConflictCurrent, ConflictIncoming }
 
 /** Row background for a diff kind. */
+@Composable
 fun DiffKind.surface(): Color = when (this) {
     DiffKind.Context -> IcodeColors.Background
     DiffKind.Separator -> IcodeColors.Outline
@@ -24,6 +25,7 @@ fun DiffKind.surface(): Color = when (this) {
 }
 
 /** Content tint for a diff kind. */
+@Composable
 fun DiffKind.tint(): Color = when (this) {
     DiffKind.Context -> IcodeColors.TextPrimary
     DiffKind.Separator -> IcodeColors.TextMuted
@@ -45,7 +47,7 @@ fun DiffRow(
     Row(modifier = modifier.fillMaxWidth().background(kind.surface()).padding(vertical = 3.dp)) {
         MonoLine(
             text = numbers,
-            modifier = Modifier.width(56.dp).padding(horizontal = IcodeSpacing.Space1),
+            modifier = Modifier.width(56.dp * LocalCodeTextScale.current).padding(horizontal = IcodeSpacing.Space1),
             color = IcodeColors.TextSecondary,
             style = IcodeType.MonoSmall,
         )

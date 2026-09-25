@@ -19,12 +19,6 @@ object DemoContent {
 
     val branches = listOf("main", "develop", activeBranch, "feature/dashboard", "bugfix/login-error")
 
-    val authMethods = listOf(
-        "SSH Public/Private Key",
-        "Personal Access Token (PAT)",
-        "Username & Password",
-    )
-
     /** One recoverable document shown by the recovery center. */
     data class RecoveryDocument(
         val name: String,

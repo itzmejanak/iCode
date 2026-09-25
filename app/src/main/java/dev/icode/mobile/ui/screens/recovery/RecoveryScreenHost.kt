@@ -1,8 +1,8 @@
 package dev.icode.mobile.ui.screens.recovery
 
 import androidx.compose.runtime.Composable
-import dev.icode.mobile.navigation.DemoActions
-import dev.icode.mobile.navigation.DemoScreen
+import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.navigation.Route
 
 /**
  * Recovery and dialog frames.
@@ -11,11 +11,11 @@ import dev.icode.mobile.navigation.DemoScreen
  * group has migrated.
  */
 @Composable
-fun RecoveryScreenHost(screen: DemoScreen, actions: DemoActions) {
+fun RecoveryScreenHost(screen: Route, actions: NavigationActions) {
     when (screen) {
-        DemoScreen.DeleteConfirmation -> DeleteConfirmationScreen(actions)
-        DemoScreen.ExternalFileChange -> ExternalChangeScreen(actions)
-        DemoScreen.DocumentRecovery -> DocumentRecoveryScreen(actions)
+        Route.DeleteConfirmation -> DeleteConfirmationScreen(actions)
+        Route.ExternalFileChange -> ExternalChangeScreen(actions)
+        Route.DocumentRecovery -> DocumentRecoveryScreen(actions)
         else -> Unit
     }
 }

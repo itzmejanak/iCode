@@ -2,10 +2,11 @@ package dev.icode.mobile.ui.screens.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Add
@@ -26,32 +27,45 @@ import dev.icode.mobile.designsystem.IconBadge
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.domain.LanguageService
-import dev.icode.mobile.navigation.DemoActions
-import dev.icode.mobile.navigation.DemoScreen
+import dev.icode.mobile.domain.LanguageServiceStatus
+import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.navigation.Route
+import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 
 /** Language server list with running state. */
 @Composable
-fun LanguageServicesScreen(actions: DemoActions) {
-    val services = LocalWorkbenchSnapshot.current.languageServices
+fun LanguageServicesScreen(actions: NavigationActions) {
+    val state = LocalWorkbenchSnapshot.current
+    val services = state.languageServices
+    val gateway = LocalWorkbenchGateway.current
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar(
             "Language Services",
             onBack = actions.back,
             actions = {
-                IconButton(onClick = {}) {
+                IconButton(enabled = state.languageServicesLoadError == null, onClick = {
+                    gateway.dispatch(WorkbenchIntent.SelectLanguageService(""))
+                    actions.navigate(Route.SettingsLanguageDetail)
+                }) {
                     Icon(Icons.Outlined.Add, contentDescription = "Add language service", tint = IcodeColors.TextPrimary)
                 }
             },
         )
         Column(
-            modifier = Modifier.padding(IcodeSpacing.Space4).weight(1f),
+            modifier = Modifier.padding(IcodeSpacing.Space4).weight(1f).verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2 + IcodeSpacing.Micro),
         ) {
-            services.forEach { service ->
-                LanguageServiceRow(service) { actions.navigate(DemoScreen.SettingsLanguageDetail) }
+            state.languageServicesLoadError?.let { error ->
+                Text("Saved services could not be read: $error", style = IcodeType.Caption, color = IcodeColors.Error)
             }
-            Spacer(Modifier.weight(1f))
+            services.forEach { service ->
+                LanguageServiceRow(service) {
+                    gateway.dispatch(WorkbenchIntent.SelectLanguageService(service.id))
+                    actions.navigate(Route.SettingsLanguageDetail)
+                }
+            }
             Text(
                 "Install a language server in the terminal, then add its configuration here.",
                 modifier = Modifier.fillMaxWidth().padding(bottom = IcodeSpacing.Space2 + IcodeSpacing.Micro),
@@ -70,7 +84,7 @@ private fun LanguageServiceRow(service: LanguageService, onClick: () -> Unit) {
         leading = {
             IconBadge(
                 text = service.initials,
-                tint = if (service.running) IcodeColors.Blue else IcodeColors.Amber,
+                tint = if (service.status == LanguageServiceStatus.Running) IcodeColors.Blue else IcodeColors.Amber,
                 size = IcodeSizes.BadgeSm,
             )
         },
@@ -82,8 +96,8 @@ private fun LanguageServiceRow(service: LanguageService, onClick: () -> Unit) {
         },
         trailing = {
             StatusLabel(
-                if (service.running) "Running" else "Stopped",
-                if (service.running) IcodeColors.Green else IcodeColors.TextSecondary,
+                service.status.name,
+                if (service.status == LanguageServiceStatus.Running) IcodeColors.Green else IcodeColors.TextSecondary,
             )
             Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = IcodeColors.TextSecondary)
         },
