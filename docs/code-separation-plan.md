@@ -345,3 +345,13 @@ space) are published at once and the size after it (`RuntimeDetails.inspected`,
 "Checking…". A second refresh while one runs is not started. `measureTree` walks with one
 file-system call per entry (it had four). Checked on the phone at 1 s and 10 s. Gate: 254 tests;
 lint 0 / 18; UI guard passes.
+
+**S2 move — library and folder browser (2026-09-26), done.**
+`WorkspaceLibraryCoordinator` (163): recent workspaces and recent files — the one writer of the
+workspace store — plus storage measurement, stale-shortcut removal and cache cleanup.
+`FolderBrowserCoordinator` (112): the browser, its wait for all-files access, destinations and
+folder creation. The workspace switch itself stays in the gateway for now: it resets state that
+S3–S8 still hold there (tree, documents, drafts, index, language processes) and becomes a
+sequence of calls to their owners as they move. Gateway 1749 → 1551. Behaviour unchanged; on the
+phone: launcher recents, Open Folder browser and Storage (runtime 2.3 GB, a workspace 58 MB) all
+load. Gate: 254 tests; lint 0 / 18; UI guard passes.
