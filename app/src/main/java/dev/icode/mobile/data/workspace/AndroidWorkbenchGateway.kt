@@ -2,7 +2,6 @@ package dev.icode.mobile.data.workspace
 
 import android.content.Context
 import android.os.Environment
-import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.git.CliGitService
 import dev.icode.mobile.data.git.GitHeadReader
 import dev.icode.mobile.data.git.GitAuthenticator
@@ -17,12 +16,9 @@ import dev.icode.mobile.data.language.LanguageServiceStore
 import dev.icode.mobile.data.settings.AndroidWorkspacePreferencesRepository
 import dev.icode.mobile.data.notices.NoticeStore
 import dev.icode.mobile.data.system.AndroidSystemAccess
+import dev.icode.mobile.data.runtime.RuntimeCoordinator
 import dev.icode.mobile.data.runtime.RuntimeForegroundService
-import dev.icode.mobile.data.runtime.RuntimeInstaller
-import dev.icode.mobile.data.runtime.RuntimeInspector
-import dev.icode.mobile.data.runtime.RuntimeHomeBackup
 import dev.icode.mobile.data.runtime.RuntimeLayout
-import dev.icode.mobile.data.runtime.RuntimeWork
 import dev.icode.mobile.data.runtime.TerminalSessionManager
 import com.termux.terminal.TerminalSession
 import dev.icode.mobile.domain.FileEntry
@@ -31,7 +27,6 @@ import dev.icode.mobile.domain.GitConflictChoice
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.IndexedFile
-import dev.icode.mobile.domain.RuntimeState
 import dev.icode.mobile.domain.RuntimeInstallReason
 import dev.icode.mobile.domain.ContentSearchState
 import dev.icode.mobile.domain.FolderBrowserPurpose
@@ -50,7 +45,6 @@ import dev.icode.mobile.domain.RecentDocument
 import dev.icode.mobile.domain.RecoverableDraft
 import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.domain.StorageDetails
-import dev.icode.mobile.domain.SystemAccess
 import dev.icode.mobile.domain.SystemPermission
 import dev.icode.mobile.domain.reorderDocuments
 import dev.icode.mobile.domain.selectedAfterClose
@@ -61,7 +55,6 @@ import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -90,7 +83,6 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     /** Shared with every screen this process shows; see [close]. */
     private val terminals = TerminalSessionManager.get(appContext)
     private val languageStore = LanguageServiceStore(appContext)
-    private val systemAccessSource = AndroidSystemAccess(appContext)
     private val notices = NoticeStore.get(appContext)
     private val loadedLanguageConfigs = runCatching { languageStore.load() }
     private var languageConfigs = loadedLanguageConfigs.getOrDefault(emptyList())
@@ -105,9 +97,14 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         }) }
     }
     private val terminalPreferences = AndroidWorkspacePreferencesRepository(appContext)
-    private val runtimeInspector = RuntimeInspector(
+    private val runtime = RuntimeCoordinator(
+        appContext,
+        workbench,
+        scope,
         runtimeLayout,
-        RuntimeInstaller(appContext, runtimeLayout).prootVersion(),
+        AndroidSystemAccess(appContext),
+        sessionsRunning = { terminals.hasRunningSessions() || languageProcesses.hasActiveProcesses() },
+        onStorageAccessChanged = { refreshRecents() },
     )
     private val draftMutex = Mutex()
     private val draftStore = DocumentDraftStore(File(appContext.filesDir, "document-drafts"))
@@ -123,7 +120,6 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     @Volatile private var indexedWorkspace: String? = null
     private var gitRefreshJob: Job? = null
     private var storageRefreshJob: Job? = null
-    private var runtimeInstallJob: Job? = null
 
     override val snapshot: StateFlow<WorkbenchSnapshot> = workbench.snapshot
     override val effects: SharedFlow<WorkbenchEffect> = workbench.effects
@@ -148,7 +144,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                 }
             }
         }
-        scope.launch { reportRuntimeState() }
+        scope.launch { runtime.reportState() }
     }
 
     /** The live session behind a terminal tab, for the view that draws it. Main thread. */
@@ -183,88 +179,6 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         }
     }
 
-    /** Publishes what is actually on disk; never claims readiness it has not checked. */
-    private fun reportRuntimeState() {
-        val preservedHome = RuntimeHomeBackup(runtimeLayout.rootfs, runtimeLayout.runtimeRoot).hasPreservedHome
-        val state = when {
-            !runtimeLayout.binariesPresent ->
-                RuntimeState.Failed("The runtime binaries are missing from this build", recoverable = false)
-            runtimeLayout.isInstalled -> RuntimeState.Ready(installedRelease())
-            preservedHome -> RuntimeState.NotInstalled("A runtime repair was interrupted; your home is preserved for retry")
-            else -> RuntimeState.NotInstalled("The Linux runtime is not installed yet")
-        }
-        workbench.update {
-            it.copy(
-                runtime = state,
-                runtimeHealthy = state is RuntimeState.Ready,
-                runtimeInstallReason = if (preservedHome && state !is RuntimeState.Ready)
-                    RuntimeInstallReason.Repair else RuntimeInstallReason.Initial,
-                systemAccess = systemAccessSource.read(),
-            )
-        }
-    }
-
-    private fun installedRelease(): String =
-        runCatching {
-            JSONObject(runtimeLayout.installMarker.readText()).getString("base")
-        }.getOrDefault("Linux runtime")
-
-    private fun refreshRuntimeDetails() {
-        scope.launch(Dispatchers.IO) {
-            val details = runCatching { runtimeInspector.inspect() }
-                .onFailure { BackendLog.w("runtime", "Runtime inspection failed", it) }
-                .getOrNull() ?: return@launch
-            workbench.update { it.copy(runtimeDetails = details) }
-        }
-    }
-
-    /** One state-driven installer for first install, repair and reset. */
-    private suspend fun installRuntime(reason: RuntimeInstallReason): Boolean {
-        if (runtimeInstallJob?.isActive == true || workbench.current.runtime is RuntimeState.Downloading ||
-            workbench.current.runtime is RuntimeState.Installing) {
-            workbench.message("Runtime installation is already running")
-            return false
-        }
-        if (reason != RuntimeInstallReason.Initial &&
-            (terminals.hasRunningSessions() || languageProcesses.hasActiveProcesses())) {
-            workbench.message("Close running terminal and language service sessions before rebuilding the runtime")
-            return false
-        }
-        val label = when (reason) {
-            RuntimeInstallReason.Initial -> "Preparing runtime installation"
-            RuntimeInstallReason.Repair -> "Preparing runtime repair"
-            RuntimeInstallReason.Reset -> "Preparing runtime reset"
-        }
-        workbench.update { it.copy(
-            runtime = RuntimeState.Installing(label),
-            runtimeHealthy = false,
-            runtimeInstallReason = reason,
-        ) }
-        runtimeInstallJob = scope.launch {
-            try {
-                // Android kills a backgrounded app mid-install otherwise.
-                RuntimeWork.installStarted()
-                RuntimeForegroundService.ensureRunning(appContext)
-                RuntimeInstaller(appContext, runtimeLayout).install(reason).collect { state ->
-                    workbench.update { it.copy(runtime = state, runtimeHealthy = state is RuntimeState.Ready) }
-                    if (state is RuntimeState.Failed) {
-                        workbench.message(state.reason)
-                    }
-                    if (state is RuntimeState.Ready) refreshRuntimeDetails()
-                }
-            } catch (error: CancellationException) {
-                throw error
-            } catch (error: Throwable) {
-                val message = workbench.failureText("runtime", "Runtime installation failed", error)
-                workbench.update { it.copy(runtime = RuntimeState.Failed(message), runtimeHealthy = false) }
-                workbench.message(message)
-            } finally {
-                RuntimeWork.installEnded()
-            }
-        }
-        return true
-    }
-
     override fun dispatch(intent: WorkbenchIntent) {
         if (intent is WorkbenchIntent.SelectLanguageService) {
             workbench.update { state ->
@@ -281,7 +195,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         // Reading the runtime's own files changes nothing, so it does not wait
         // on the mutation lock behind whatever the workspace is doing.
         if (intent == WorkbenchIntent.RefreshRuntimeDetails) {
-            refreshRuntimeDetails()
+            runtime.refreshDetails()
             return
         }
         if (intent is WorkbenchIntent.UpdateDocumentText) {
@@ -294,13 +208,10 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     is WorkbenchIntent.RequestSystemPermission ->
                         workbench.emit(WorkbenchEffect.RequestSystemPermission(intent.permission))
                     is WorkbenchIntent.SystemPermissionAnswered -> systemPermissionAnswered(intent.permission)
-                    is WorkbenchIntent.DeclineSystemPermission -> {
-                        systemAccessSource.markOffered(intent.permission)
-                        refreshSystemAccess()
-                    }
+                    is WorkbenchIntent.DeclineSystemPermission -> runtime.declinePermission(intent.permission)
                     is WorkbenchIntent.OpenSystemSettings ->
                         workbench.emit(WorkbenchEffect.OpenSystemSettings(intent.permission))
-                    WorkbenchIntent.RefreshSystemAccess -> refreshSystemAccess()
+                    WorkbenchIntent.RefreshSystemAccess -> runtime.refreshSystemAccess()
                     WorkbenchIntent.MarkNoticesRead -> notices.markAllRead()
                     is WorkbenchIntent.DeleteNotice -> notices.delete(intent.id)
                     WorkbenchIntent.ClearNotices -> notices.clear()
@@ -414,18 +325,18 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     is WorkbenchIntent.RunContentSearch -> runContentSearch(intent.query, intent.matchCase, intent.wholeWord, intent.regex)
                     WorkbenchIntent.ClearContentSearch -> clearContentSearch()
                     WorkbenchIntent.Refresh -> refreshActiveWorkspace()
-                    WorkbenchIntent.InstallRuntime -> installRuntime(RuntimeInstallReason.Initial)
+                    WorkbenchIntent.InstallRuntime -> runtime.install(RuntimeInstallReason.Initial)
                     WorkbenchIntent.ClearAppCache -> clearAppCache()
                     WorkbenchIntent.RemoveStaleRecents -> removeStaleRecents()
                     // Repair keeps the home directory, reset does not; both go
                     // through the one installer rather than a second path.
                     WorkbenchIntent.RepairRuntime -> {
-                        if (installRuntime(RuntimeInstallReason.Repair)) {
+                        if (runtime.install(RuntimeInstallReason.Repair)) {
                             workbench.emit(WorkbenchEffect.RuntimeRebuildStarted)
                         }
                     }
                     WorkbenchIntent.ResetRuntime -> {
-                        if (installRuntime(RuntimeInstallReason.Reset)) {
+                        if (runtime.install(RuntimeInstallReason.Reset)) {
                             workbench.emit(WorkbenchEffect.RuntimeRebuildStarted)
                         }
                     }
@@ -440,22 +351,12 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         }
     }
 
-    private fun refreshSystemAccess(): SystemAccess {
-        val access = systemAccessSource.read()
-        val storageChanged = workbench.current.systemAccess?.storage != access.storage
-        workbench.update { it.copy(systemAccess = access) }
-        // Whether a recent workspace can be opened follows storage access.
-        if (storageChanged) refreshRecents()
-        return access
-    }
-
     /**
      * Android's prompt closed. Whatever the answer, onboarding has now offered
      * the permission; a folder browser that was waiting for storage opens.
      */
     private suspend fun systemPermissionAnswered(permission: SystemPermission) {
-        systemAccessSource.markOffered(permission)
-        val granted = refreshSystemAccess().granted(permission)
+        val granted = runtime.permissionAnswered(permission)
         if (permission == SystemPermission.Storage) {
             val purpose = pendingBrowserPurpose
             pendingBrowserPurpose = null
@@ -1733,7 +1634,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     }
 
     private suspend fun clearAppCache() {
-        if (terminals.hasRunningSessions() || languageProcesses.hasActiveProcesses() || runtimeInstallJob?.isActive == true ||
+        if (terminals.hasRunningSessions() || languageProcesses.hasActiveProcesses() || runtime.installing ||
             workbench.current.gitOperation is GitOperationState.Running) {
             workbench.message("Finish runtime, Git, terminal and language service tasks before clearing cache")
             return

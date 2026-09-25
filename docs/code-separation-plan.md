@@ -31,15 +31,15 @@ screens (`ui/screens`) and design-system parts. For each scope, in order:
 
 1. **Map** the user lifecycle of the scope (backend-split-rules §5) and every control on its screens.
 2. **Move** (behaviour unchanged): the scope's code out of the shared god objects into its own
-   owner — backend coordinator, contract file, screen pieces — proven by the gate and a
-   pixel-identical capture of the scope's frames.
+   owner — backend coordinator, contract file, screen pieces — proven by the gate (compile,
+   tests, lint, UI guard); no routine screen capture (owner, 2026-09-26).
 3. **Fix**, one change at a time: the scope's duplication, inconsistency and gaps listed below,
    each with a test where a pure seam exists and a device check of the lifecycle stage it fixes.
 4. **Harden**: walk the scope's lifecycle matrix on the device (enter, load, act, react,
    interrupt — background, kill, rotation, permission loss — recover).
 
-A move and a behaviour change never share a step, so every difference in a capture or a test has
-one cause.
+A move and a behaviour change never share a step, so every difference in a test or on the
+device has one cause.
 
 ## 3. Scope map
 
@@ -302,3 +302,10 @@ the H0 build replace the 2026-09-22 set; the contact sheets under their new name
   `WorkspaceNameRules`. Largest file 256 (`GitContract`).
 - Living references updated (`Todo.md`, `backend-split-rules.md`); dated records keep the old name.
 - Checks: compile debug and release; 250 unit tests; lint 0 errors, 20 warnings; UI guard passes.
+
+**S1 move — `RuntimeCoordinator` (2026-09-26), done.** `data/runtime/RuntimeCoordinator` (140)
+owns runtime state on disk, install/repair/reset (its job and the "already running" and "sessions
+running" guards), the runtime details read, and system access (read, answered, declined). The
+gateway routes to it (1849 → 1749 lines); the storage prompt's hand-off to a waiting folder
+browser stays in the gateway until S2 owns the browser. Behaviour unchanged. Gate: 250 tests; lint
+0 / 20; UI guard passes.
