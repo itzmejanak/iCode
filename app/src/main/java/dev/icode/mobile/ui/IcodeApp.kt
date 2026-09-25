@@ -22,9 +22,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.core.view.WindowCompat
-import dev.icode.mobile.demo.DemoWorkbenchGateway
 import dev.icode.mobile.ui.terminal.TerminalSessionSource
-import dev.icode.mobile.demo.DemoWorkspacePreferencesRepository
 import dev.icode.mobile.data.settings.AndroidWorkspacePreferencesRepository
 import dev.icode.mobile.data.workspace.DocumentAutoSaveCoordinator
 import dev.icode.mobile.designsystem.IcodeScreen
@@ -60,7 +58,8 @@ import dev.icode.mobile.designsystem.SecondaryButton
 @Composable
 fun IcodeApp(
     initialScreen: Route = Route.Splash,
-    staticDemo: Boolean = false,
+    /** Fixed state to draw instead of the device's; only the capture tool asks for it, in debug builds. */
+    capture: CaptureState? = null,
     /** Called once the first real screen can be drawn, releasing the system splash. */
     onReadyToRender: () -> Unit = {},
     /** A terminal session to bring to the front, from its notification. */
@@ -68,20 +67,19 @@ fun IcodeApp(
     onTerminalSessionShown: () -> Unit = {},
 ) {
     val context = LocalContext.current
-    val workbench: AndroidWorkbenchViewModel? = if (staticDemo) {
+    val captureMode = capture != null
+    val workbench: AndroidWorkbenchViewModel? = if (captureMode) {
         null
     } else {
         val factory = remember(context.applicationContext) { AndroidWorkbenchViewModelFactory(context) }
         viewModel<AndroidWorkbenchViewModel>(factory = factory)
     }
-    val gateway: WorkbenchGateway = workbench?.gateway ?: remember { DemoWorkbenchGateway() }
-    // Static capture has no runtime, so no terminal sessions to draw.
+    val gateway: WorkbenchGateway = capture?.gateway ?: checkNotNull(workbench).gateway
+    // A capture has no runtime, so no terminal sessions to draw.
     val terminalSessions = workbench?.terminalSessions ?: TerminalSessionSource.None
     val snapshot by gateway.snapshot.collectAsStateWithLifecycle()
-    val preferencesRepository: WorkspacePreferencesRepository = remember(context.applicationContext, staticDemo) {
-        if (staticDemo) DemoWorkspacePreferencesRepository()
-        else AndroidWorkspacePreferencesRepository(context.applicationContext)
-    }
+    val preferencesRepository: WorkspacePreferencesRepository = capture?.preferences
+        ?: remember(context.applicationContext) { AndroidWorkspacePreferencesRepository(context.applicationContext) }
     val root = snapshot.activeWorkspaceLocation
     val preferencesFlow = remember(preferencesRepository, root) { preferencesRepository.values(root) }
     val preferences by preferencesFlow.collectAsStateWithLifecycle(
@@ -106,13 +104,14 @@ fun IcodeApp(
         uiTextScalePercent = appearance?.uiTextScalePercent ?: 100,
         compactLayout = appearance?.compactLayout ?: true,
     ) {
-        LaunchedEffect(gateway, preferences.editor.autoSave, preferences.loaded, preferences.loadError, staticDemo) {
-            if (!staticDemo && preferences.loaded && preferences.loadError == null) {
+        LaunchedEffect(gateway, preferences.editor.autoSave, preferences.loaded, preferences.loadError, captureMode) {
+            if (!captureMode && preferences.loaded && preferences.loadError == null) {
                 DocumentAutoSaveCoordinator(gateway, preferences.editor.autoSave).run()
             }
         }
         var pendingWorkspaceSwitch by remember { mutableStateOf<WorkbenchEffect.ConfirmWorkspaceSwitch?>(null) }
-        var pendingDraftRecovery by remember { mutableStateOf<WorkbenchEffect.ConfirmDraftRecovery?>(null) }
+        // One question at a time: restoring several drafts asks about each in turn.
+        var pendingDraftRecoveries by remember { mutableStateOf<List<WorkbenchEffect.ConfirmDraftRecovery>>(emptyList()) }
         var pendingRecoveredOverwrite by remember { mutableStateOf<WorkbenchEffect.ConfirmRecoveredOverwrite?>(null) }
         val editorSessions = remember(context, gateway) { CodeEditorSessions(context) }
         LaunchedEffect(editorSessions, palette) { editorSessions.applyPalette(palette) }
@@ -131,7 +130,7 @@ fun IcodeApp(
         var lastAutomaticFetch by remember { mutableStateOf<Pair<String, Int>?>(null) }
         LaunchedEffect(root, resumeGeneration, preferences, snapshot.gitRepository?.hasRemote, snapshot.runtimeHealthy) {
             val key = root?.let { it to resumeGeneration }
-            if (!staticDemo && resumeGeneration >= 0 && key != null && key != lastAutomaticFetch &&
+            if (!captureMode && resumeGeneration >= 0 && key != null && key != lastAutomaticFetch &&
                 preferences.loaded && preferences.loadError == null &&
                 preferences.workspaceLocation == root && preferences.autoFetch &&
                 snapshot.runtimeHealthy && snapshot.gitRepository?.hasRemote == true
@@ -147,14 +146,14 @@ fun IcodeApp(
         }
         // Storage access decides whether onboarding or the launcher comes
         // first, so there is nothing honest to draw until it is known.
-        LaunchedEffect(staticDemo, snapshot.systemAccess) {
-            if (staticDemo || snapshot.systemAccess != null) onReadyToRender()
+        LaunchedEffect(captureMode, snapshot.systemAccess) {
+            if (captureMode || snapshot.systemAccess != null) onReadyToRender()
         }
         // A permission may have been changed in Android's settings meanwhile.
         LaunchedEffect(resumeGeneration) {
             if (resumeGeneration > 0) gateway.dispatch(WorkbenchIntent.RefreshSystemAccess)
         }
-        val navigation = rememberNavigationState(initialScreen, staticDemo)
+        val navigation = rememberNavigationState(initialScreen, captureMode)
         // Onboarding replaces the top screen as it advances, so a terminal
         // opened during it would be replaced; wait until it is over.
         val pastOnboarding = navigation.current !in ONBOARDING_SCREENS
@@ -189,7 +188,8 @@ fun IcodeApp(
                     // The creation dialog consumes these request-scoped results.
                     is WorkbenchEffect.WorkspaceItemCreated, is WorkbenchEffect.WorkspaceItemCreationFailed -> Unit
                     is WorkbenchEffect.ConfirmWorkspaceSwitch -> pendingWorkspaceSwitch = effect
-                    is WorkbenchEffect.ConfirmDraftRecovery -> pendingDraftRecovery = effect
+                    is WorkbenchEffect.ConfirmDraftRecovery -> pendingDraftRecoveries =
+                        pendingDraftRecoveries.filterNot { it.location == effect.location } + effect
                     is WorkbenchEffect.ConfirmRecoveredOverwrite -> pendingRecoveredOverwrite = effect
                     WorkbenchEffect.RuntimeRebuildStarted -> navigation.actions.navigate(Route.RuntimeInstalling)
                     WorkbenchEffect.GitInitialized -> navigation.actions.navigate(Route.SourceControl)
@@ -216,9 +216,6 @@ fun IcodeApp(
             }
         }
 
-        DisposableEffect(gateway) {
-            onDispose { if (staticDemo) gateway.close() }
-        }
         DisposableEffect(editorSessions) {
             onDispose { editorSessions.releaseAll() }
         }
@@ -242,15 +239,16 @@ fun IcodeApp(
                 onDismiss = { pendingWorkspaceSwitch = null },
             )
         }
-        pendingDraftRecovery?.let { recovery ->
+        pendingDraftRecoveries.firstOrNull()?.let { recovery ->
+            val answered = { pendingDraftRecoveries = pendingDraftRecoveries.drop(1) }
             IcodeConfirmDialog(
                 title = "Recover ${recovery.name}?",
                 confirmLabel = "Restore draft",
                 onConfirm = {
                     gateway.dispatch(WorkbenchIntent.RestoreDraft(recovery.location))
-                    pendingDraftRecovery = null
+                    answered()
                 },
-                onDismiss = { pendingDraftRecovery = null },
+                onDismiss = answered,
             ) {
                 Text(
                     if (recovery.sourceChanged)
@@ -262,7 +260,7 @@ fun IcodeApp(
                     "Keep disk version · discard draft",
                     onClick = {
                         gateway.dispatch(WorkbenchIntent.DiscardDraft(recovery.location))
-                        pendingDraftRecovery = null
+                        answered()
                     },
                     modifier = Modifier.fillMaxWidth(),
                     color = IcodeColors.Error,

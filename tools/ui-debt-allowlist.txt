@@ -2,19 +2,18 @@
 # Ratchet: cycles may only shrink these counts, never grow them.
 # Format: rule|path|max
 #
-# demo-fork entries below are capture-timing gates only: they suppress the
-# static auto-advance delay so tools/capture-figma-screens.sh gets a stable
-# frame. They never select demo content -- that lives in DemoWorkbenchGateway.
+# capture-fork entries below are capture-timing gates only: they stop the
+# screen's own auto-advance so tools/capture-figma-screens.sh gets a stable
+# frame. They never select content -- that lives in the debug-only CaptureFixtures.
 #
 # orphan-route entries and why each is accepted:
 #   EditorEmpty         rendered by WorkspaceScreenHost for the editor route
 #                       while no document is open; no separate edge needed.
 #   ExternalFileChange  fires from disk-fingerprint detection in Cycle 3.
 #   DocumentRecovery    fires from the recovery buffer at startup in Cycle 3.
-demo-fork|app/src/main/java/dev/icode/mobile/ui/screens/entry/CloneProgressScreen.kt|2
-demo-fork|app/src/main/java/dev/icode/mobile/ui/screens/entry/RuntimeInstallingScreen.kt|2
-demo-fork|app/src/main/java/dev/icode/mobile/ui/screens/entry/SplashScreen.kt|2
-demo-fork|app/src/main/java/dev/icode/mobile/ui/screens/tools/PullProgressScreen.kt|2
+capture-fork|app/src/main/java/dev/icode/mobile/ui/screens/entry/CloneProgressScreen.kt|2
+capture-fork|app/src/main/java/dev/icode/mobile/ui/screens/entry/RuntimeInstallingScreen.kt|2
+capture-fork|app/src/main/java/dev/icode/mobile/ui/screens/entry/SplashScreen.kt|2
 orphan-route|DocumentRecovery|1
 orphan-route|EditorEmpty|1
 orphan-route|ExternalFileChange|1

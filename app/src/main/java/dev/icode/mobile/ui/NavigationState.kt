@@ -14,7 +14,7 @@ import dev.icode.mobile.navigation.ToolPanelTab
 import dev.icode.mobile.navigation.panelTabOrNull
 
 /**
- * Demo back-stack state for [IcodeApp].
+ * The back stack and the tools panel's open tab, for [IcodeApp].
  *
  * Keeps navigation concerns out of the composition root and survives
  * configuration changes through [Saver].
@@ -23,7 +23,7 @@ import dev.icode.mobile.navigation.panelTabOrNull
 class NavigationState private constructor(
     initialHistory: List<String>,
     initialPanelTab: ToolPanelTab,
-    private val staticDemo: Boolean,
+    private val captureMode: Boolean,
 ) {
     var historyNames by mutableStateOf(initialHistory)
         private set
@@ -53,14 +53,14 @@ class NavigationState private constructor(
             panelTab = tab
             when {
                 current.panelTabOrNull() == null -> historyNames = historyNames + Route.TerminalExpanded.name
-                !staticDemo && current != Route.TerminalExpanded ->
+                !captureMode && current != Route.TerminalExpanded ->
                     historyNames = historyNames.dropLast(1) + Route.TerminalExpanded.name
             }
         },
         panelTab = panelTab,
         back = { if (canGoBack) historyNames = historyNames.dropLast(1) },
         canGoBack = canGoBack,
-        staticDemo = staticDemo,
+        captureMode = captureMode,
     )
 
     private fun panelRoute(destination: Route): Route {
@@ -69,14 +69,14 @@ class NavigationState private constructor(
     }
 
     companion object {
-        fun create(initialScreen: Route, staticDemo: Boolean): NavigationState =
+        fun create(initialScreen: Route, captureMode: Boolean): NavigationState =
             NavigationState(
                 initialHistory = listOf(initialScreen.name),
                 initialPanelTab = initialScreen.panelTabOrNull() ?: ToolPanelTab.Terminal,
-                staticDemo = staticDemo,
+                captureMode = captureMode,
             )
 
-        fun saver(initialScreen: Route, staticDemo: Boolean): Saver<NavigationState, Any> =
+        fun saver(initialScreen: Route, captureMode: Boolean): Saver<NavigationState, Any> =
             listSaver(
                 save = { state -> listOf(ArrayList(state.historyNames), state.panelTab.name) },
                 restore = { saved ->
@@ -91,7 +91,7 @@ class NavigationState private constructor(
                     NavigationState(
                         initialHistory = restoredHistory,
                         initialPanelTab = restoredTab,
-                        staticDemo = staticDemo,
+                        captureMode = captureMode,
                     )
                 },
             )
@@ -99,7 +99,7 @@ class NavigationState private constructor(
 }
 
 @Composable
-fun rememberNavigationState(initialScreen: Route, staticDemo: Boolean): NavigationState =
-    rememberSaveable(initialScreen, saver = NavigationState.saver(initialScreen, staticDemo)) {
-        NavigationState.create(initialScreen, staticDemo)
+fun rememberNavigationState(initialScreen: Route, captureMode: Boolean): NavigationState =
+    rememberSaveable(initialScreen, saver = NavigationState.saver(initialScreen, captureMode)) {
+        NavigationState.create(initialScreen, captureMode)
     }

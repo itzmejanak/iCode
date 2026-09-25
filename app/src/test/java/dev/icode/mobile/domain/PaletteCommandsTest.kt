@@ -1,13 +1,12 @@
 package dev.icode.mobile.domain
 
-import dev.icode.mobile.demo.DemoWorkbenchGateway
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PaletteCommandsTest {
-    private val snapshot = DemoWorkbenchGateway().snapshot.value
+    private val snapshot = paletteReadySnapshot
 
     @Test fun queryMatchesTitleAndKeywordsWithoutChangingIdentity() {
         assertEquals(

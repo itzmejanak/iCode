@@ -32,6 +32,7 @@ import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.TwoColumnActions
+import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.StorageMeasurement
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.navigation.NavigationActions
@@ -67,8 +68,8 @@ fun StorageSettingsScreen(actions: NavigationActions) {
                         val used = (device.totalBytes - device.availableBytes).coerceAtLeast(0)
                         val fraction = (used.toFloat() / device.totalBytes).coerceIn(0f, 1f)
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("${formatStorageBytes(used)} Used", style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold))
-                            Text("${formatStorageBytes(device.availableBytes)} Free of ${formatStorageBytes(device.totalBytes)}", style = IcodeType.Caption)
+                            Text("${ByteSize.format(used)} Used", style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold))
+                            Text("${ByteSize.format(device.availableBytes)} Free of ${ByteSize.format(device.totalBytes)}", style = IcodeType.Caption)
                         }
                         Box(
                             Modifier.fillMaxWidth().padding(top = IcodeSpacing.Space3)
@@ -145,12 +146,5 @@ private fun storageSizeLabel(measurement: StorageMeasurement?): String = when {
     measurement == null -> "Measuring…"
     measurement.truncated -> "Size exceeds scan limit"
     measurement.bytes == null -> "Size unavailable"
-    else -> formatStorageBytes(measurement.bytes)
-}
-
-private fun formatStorageBytes(bytes: Long): String = when {
-    bytes >= 1024L * 1024 * 1024 -> "%.1f GB".format(bytes.toDouble() / (1024 * 1024 * 1024))
-    bytes >= 1024L * 1024 -> "%.0f MB".format(bytes.toDouble() / (1024 * 1024))
-    bytes >= 1024L -> "%.0f KB".format(bytes.toDouble() / 1024)
-    else -> "$bytes B"
+    else -> ByteSize.format(measurement.bytes)
 }

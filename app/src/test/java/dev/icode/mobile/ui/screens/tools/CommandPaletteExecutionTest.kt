@@ -1,16 +1,16 @@
 package dev.icode.mobile.ui.screens.tools
 
-import dev.icode.mobile.demo.DemoWorkbenchGateway
 import dev.icode.mobile.domain.PaletteCommandId
 import dev.icode.mobile.domain.PaletteCommands
 import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.paletteReadySnapshot
 import dev.icode.mobile.navigation.Route
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CommandPaletteExecutionTest {
-    private val snapshot = DemoWorkbenchGateway().snapshot.value
+    private val snapshot = paletteReadySnapshot
 
     @Test fun pushAndPullRunTheirOwnIntentThenOpenProgress() {
         for ((id, expectedIntent) in listOf(

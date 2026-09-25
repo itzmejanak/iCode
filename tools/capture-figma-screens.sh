@@ -48,8 +48,8 @@ for entry in "${screens[@]}"; do
     "$adb_bin" shell am force-stop "$package_name"
     "$adb_bin" shell am start -W \
         -n "$package_name/$activity_name" \
-        --es demo_screen "$enum_name" \
-        --ez demo_static true >/dev/null
+        --es capture_route "$enum_name" \
+        --ez capture true >/dev/null
     # XOS animates the status bar after a cold activity launch. Waiting here
     # keeps system insets and status icons consistent across the full set.
     sleep 2

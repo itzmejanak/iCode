@@ -21,7 +21,7 @@ class ProcStatTest {
 
     @Test
     fun `a process without a terminal has no foreground group`() {
-        val stat = "8579 (bile.demo.debug) S 900 900 0 0 -1 1077936448 99213"
+        val stat = "8579 (de.mobile.debug) S 900 900 0 0 -1 1077936448 99213"
         assertEquals(-1, ProcStat.parse(stat)?.foregroundGroup)
     }
 

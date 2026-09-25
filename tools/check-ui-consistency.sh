@@ -15,8 +15,8 @@
 #   dp-literal   hard-coded dp values inside ui/screens
 #   sp-literal   hard-coded sp values inside ui/screens
 #   screen-lines screen files larger than the 300-line budget
-#   demo-fork    staticDemo branches inside ui/screens (demo data belongs in
-#                DemoWorkbenchGateway, not in product screens)
+#   capture-fork captureMode branches inside ui/screens (capture data belongs
+#                in the debug-only CaptureFixtures, not in product screens)
 #   orphan-route Route values with no navigate(...) entry point
 
 set -euo pipefail
@@ -68,15 +68,15 @@ while read -r file count; do
     emit "sp-literal" "${file#"$repo_root/"}" "$count"
 done < <(count_matches '[0-9]+\.sp' "$ui_root/screens")
 
-# 5a. Demo forks inside product screens.
+# 5a. Capture forks inside product screens.
 #
-# Demo fixtures belong in DemoWorkbenchGateway so the post-integration cleanup
-# is one deletion. The remaining allowlisted uses are capture-timing gates that
-# only suppress auto-advance delays, never content.
+# Capture fixtures live in app/src/debug (CaptureFixtures), never in a screen.
+# The allowlisted uses are capture-timing gates that only stop a screen from
+# moving on by itself, never choose content.
 while read -r file count; do
     [[ -z "$file" ]] && continue
-    emit "demo-fork" "${file#"$repo_root/"}" "$count"
-done < <(count_matches 'actions\.staticDemo' "$ui_root/screens")
+    emit "capture-fork" "${file#"$repo_root/"}" "$count"
+done < <(count_matches 'actions\.captureMode' "$ui_root/screens")
 
 # 5b. Routes with no navigation entry point.
 #
