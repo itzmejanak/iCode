@@ -12,7 +12,7 @@ Authoritative UI/design references:
 - [docs/user-stories.md](./docs/user-stories.md)
 - [docs/ui-split-plan.md](./docs/ui-split-plan.md)
 - [docs/backend-split-rules.md](./docs/backend-split-rules.md) — prospective repo-wide backend ownership/splitting rules
-- `app/src/main/java/dev/icode/mobile/domain/WorkbenchContract.kt`
+- `app/src/main/java/dev/icode/mobile/domain/` — `WorkbenchGateway`, `WorkbenchSnapshot`, `WorkbenchIntent`, `WorkbenchEffect`, and one models file per scope
 - `app/src/main/java/dev/icode/mobile/navigation/Route.kt`
 
 Completed baseline:

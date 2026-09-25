@@ -68,7 +68,7 @@ one cause.
 | gateway, `RuntimeInspector` | `installedRelease` 2× | S1 |
 | `RuntimeInspector.measure`, `StorageInspector.measure` | tree size measured 2× | S1/S2 |
 | gateway `gitCli.run("config"…)` ×3 vs `GitRepositoryClient`; `CliGitService` built twice | two write paths for Git config (D4, D5) | S5 |
-| `WorkbenchContract` vs `GitContract` | one feature's models in two contracts (D7) | S5 |
+| ~~`WorkbenchContract` vs `GitContract`~~ | ~~one feature's models in two contracts (D7)~~ — all Git models in `GitContract` since X2 | X2 |
 | ~~`demo/` (950 lines)~~ | ~~a second, simulated copy of the whole backend~~ — removed in K1 | X (K1) |
 
 ### Inconsistency
@@ -289,4 +289,16 @@ the H0 build replace the 2026-09-22 set; the contact sheets under their new name
 - Brand mark: the 1254 px, 714 KB bitmap in `drawable-nodpi` becomes the same art per density at
   its largest drawn size (74 dp): 90 KB for all five, ~24 KB loaded on this phone. Checked on the
   device (About, capture mode): same composition, size and place; edges slightly crisper.
+- Checks: compile debug and release; 250 unit tests; lint 0 errors, 20 warnings; UI guard passes.
+
+**X2 — contract split (2026-09-26), done.**
+
+- `WorkbenchContract.kt` (528 lines) is gone; same package, so no call site changed. Per scope:
+  `WorkspaceModels` (S2, with storage), `DocumentModels` (S3, with drafts and recents),
+  `SearchModels` (S4), `GitContract` (S5 — `GitChange`, `GitCommitSummary`, `GitRepositoryState`,
+  `GitStatusCodes` joined the rest of Git's models: D7 closed), `DiagnosticsContract` (S7),
+  `LanguageServiceContract` (S8); across scopes: `WorkbenchSnapshot`, `WorkbenchIntent` (145 — its
+  members are nested, so it stays one file), `WorkbenchEffect`, `WorkbenchGateway`, `UrlDetector`,
+  `WorkspaceNameRules`. Largest file 256 (`GitContract`).
+- Living references updated (`Todo.md`, `backend-split-rules.md`); dated records keep the old name.
 - Checks: compile debug and release; 250 unit tests; lint 0 errors, 20 warnings; UI guard passes.

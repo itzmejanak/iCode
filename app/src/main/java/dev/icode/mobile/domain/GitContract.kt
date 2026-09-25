@@ -1,12 +1,7 @@
 package dev.icode.mobile.domain
 
-/**
- * Git types that the CLI-backed service produces.
- *
- * These live apart from [WorkbenchSnapshot] so the Git feature can grow its own
- * vocabulary — diffs, hunks, conflicts — without widening the shared contract
- * every time.
- */
+// Git (S5): every Git model — status, repository, commits, diffs, conflicts,
+// operations and credentials — so the feature's vocabulary lives in one file.
 
 /** How one line participates in a diff. */
 enum class GitDiffLineKind { Context, Added, Removed }
@@ -212,3 +207,50 @@ data class GitAuthState(
 }
 
 data class GitAuthTestResult(val succeeded: Boolean, val message: String)
+
+data class GitChange(
+    val status: String,
+    val name: String,
+    val path: String,
+    val staged: Boolean,
+)
+
+data class GitCommitSummary(
+    val id: String,
+    val message: String,
+    val author: String,
+    val authoredAtEpochMillis: Long,
+)
+
+data class GitRepositoryState(
+    val workTreePath: String,
+    val branch: String,
+    val hasCommits: Boolean,
+    val remoteName: String?,
+    val authorName: String?,
+    val authorEmail: String?,
+    val branches: List<String>,
+    /** Remote-tracking branches as `remotes/origin/main`, for checking one out. */
+    val remoteBranches: List<String> = emptyList(),
+    /** An operation Git has half-finished, which the user must end before moving on. */
+    val inProgress: GitInProgress = GitInProgress.None,
+    val lastCommit: GitCommitSummary?,
+    /** Upstream branch name when one is configured, otherwise null. */
+    val upstream: String? = null,
+    /** Commits on the local branch the upstream does not have. */
+    val ahead: Int = 0,
+    /** Commits on the upstream the local branch does not have. */
+    val behind: Int = 0,
+) {
+    /** Remote synchronization is only meaningful once a remote exists. */
+    val hasRemote: Boolean get() = remoteName != null
+}
+
+/** Git status codes shared by Source Control, Explorer decorations and diffs. */
+object GitStatusCodes {
+    const val ADDED = "A"
+    const val MODIFIED = "M"
+    const val DELETED = "D"
+    const val UNTRACKED = "?"
+    const val CONFLICTED = "U"
+}

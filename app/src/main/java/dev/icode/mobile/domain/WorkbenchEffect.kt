@@ -1,0 +1,30 @@
+package dev.icode.mobile.domain
+
+sealed interface WorkbenchEffect {
+    data class RequestSystemPermission(val permission: SystemPermission) : WorkbenchEffect
+    data class SystemPermissionResolved(val permission: SystemPermission, val granted: Boolean) : WorkbenchEffect
+    data class OpenSystemSettings(val permission: SystemPermission) : WorkbenchEffect
+    data object FolderBrowserOpened : WorkbenchEffect
+    data class FolderDestinationSelected(val path: String) : WorkbenchEffect
+
+    data class WorkspaceOpened(val location: String) : WorkbenchEffect
+    data class WorkspaceTerminalOpened(val location: String) : WorkbenchEffect
+    data class WorkspaceItemCreated(val requestId: String, val location: String) : WorkbenchEffect
+    data class WorkspaceItemCreationFailed(val requestId: String, val message: String) : WorkbenchEffect
+    data class ConfirmWorkspaceSwitch(val location: String, val openTerminal: Boolean, val dirtyCount: Int) : WorkbenchEffect
+    data object GitInitialized : WorkbenchEffect
+    data object GitCommitted : WorkbenchEffect
+    data class DocumentOpened(val location: String, val lineNumber: Int? = null, val column: Int? = null) : WorkbenchEffect
+    data class DocumentSaved(val location: String, val automatic: Boolean = false) : WorkbenchEffect
+    data class ConfirmDraftRecovery(
+        val location: String,
+        val name: String,
+        val sourceChanged: Boolean,
+    ) : WorkbenchEffect
+    data class ConfirmRecoveredOverwrite(val location: String, val name: String) : WorkbenchEffect
+    data object RuntimeRebuildStarted : WorkbenchEffect
+    data class Message(val text: String) : WorkbenchEffect
+
+    /** Hand a URL to Android's browser; the app never renders it (PR-TERM-09). */
+    data class OpenExternalUrl(val url: String) : WorkbenchEffect
+}
