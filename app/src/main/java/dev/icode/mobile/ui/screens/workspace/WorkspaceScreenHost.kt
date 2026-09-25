@@ -14,8 +14,8 @@ import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 fun WorkspaceScreenHost(screen: Route, actions: NavigationActions) {
     when (screen) {
         Route.WorkspaceExplorer -> WorkspaceExplorerScreen(actions)
-        // The editor route shows the empty frame until a document is open, so
-        // frame 25 has a real condition instead of a demo-only entry point.
+        // The editor route shows the empty editor until a document is open:
+        // a real condition, not an entry point of its own.
         Route.WorkspaceEditor ->
             if (LocalWorkbenchSnapshot.current.activeDocument == null) EditorEmptyScreen(actions)
             else WorkspaceEditorScreen(actions)

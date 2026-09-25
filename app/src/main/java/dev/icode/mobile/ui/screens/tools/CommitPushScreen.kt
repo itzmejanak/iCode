@@ -29,12 +29,12 @@ import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.designsystem.TwoColumnActions
 import dev.icode.mobile.domain.GitRepositoryState
+import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
-import java.util.concurrent.TimeUnit
 
 /** Commit summary: branch state, last commit and remote synchronization. */
 @Composable
@@ -119,7 +119,7 @@ fun CommitPushScreen(actions: NavigationActions) {
                         DetailRow("Author", lastCommit.author, valueStyle = IcodeType.MonoSmall)
                         DetailRow(
                             "Time",
-                            relativeTime(lastCommit.authoredAtEpochMillis),
+                            RelativeTime.since(lastCommit.authoredAtEpochMillis),
                             valueStyle = IcodeType.MonoSmall,
                             valueColor = IcodeColors.TextSecondary,
                         )
@@ -162,17 +162,4 @@ private fun branchSummary(repository: GitRepositoryState?): String = when {
     repository.upstream != null -> "${repository.ahead} commit(s) ahead, ${repository.behind} behind"
     repository.hasRemote -> "Remote \"${repository.remoteName}\" · no upstream for this branch"
     else -> "Local repository · ${repository.branches.size} branch(es)"
-}
-
-private fun relativeTime(timestamp: Long): String {
-    val elapsedMillis = (System.currentTimeMillis() - timestamp).coerceAtLeast(0)
-    val minutes = TimeUnit.MILLISECONDS.toMinutes(elapsedMillis)
-    val hours = TimeUnit.MILLISECONDS.toHours(elapsedMillis)
-    val days = TimeUnit.MILLISECONDS.toDays(elapsedMillis)
-    return when {
-        minutes < 1 -> "just now"
-        hours < 1 -> "${minutes}m ago"
-        days < 1 -> "${hours}h ago"
-        else -> "${days}d ago"
-    }
 }

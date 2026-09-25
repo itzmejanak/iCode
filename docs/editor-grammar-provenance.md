@@ -13,7 +13,7 @@ network access or a language server. The registry is
   from [VS Code commit 307b60e7](https://github.com/microsoft/vscode/tree/307b60e7aba9fe6c2dec8cae5970561b126f807b/extensions)
   (MIT); some grammar files identify their own upstream source in comments.
 - The JSX and TSX grammars are from the same pinned VS Code commit and retain
-  their upstream comments. They are registered separately so the demo `App.tsx`
+  their upstream comments. They are registered separately so the capture fixture `App.tsx`
   and real React files receive their proper scopes.
 
 Unknown text extensions fall back to a readable uncolored editor rather than

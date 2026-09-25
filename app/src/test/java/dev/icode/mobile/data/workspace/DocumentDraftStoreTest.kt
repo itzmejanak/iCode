@@ -78,6 +78,23 @@ class DocumentDraftStoreTest {
     }
 
     @Test
+    fun `a listed draft's size is its text in bytes, multi-byte characters included`() {
+        val store = store()
+        val text = "héllo\nwörld — ✓\n"
+        store.write("/p/a.txt", "a.txt", text, "0123abcd")
+        val summary = store.list().single()
+        assertEquals("/p/a.txt", summary.location)
+        assertEquals(text.toByteArray().size.toLong(), summary.sizeBytes)
+    }
+
+    @Test
+    fun `an empty draft lists with size zero`() {
+        val store = store()
+        store.write("/p/empty.txt", "empty.txt", "", "f")
+        assertEquals(0L, store.list().single().sizeBytes)
+    }
+
+    @Test
     fun `reading a document with no draft reports none rather than failing`() {
         assertNull(store().read("/p/never-edited.txt"))
     }
@@ -102,12 +119,5 @@ class DocumentDraftStoreTest {
         store.write("/p/good.txt", "good.txt", "good", "f")
         File(temporaryFolder.root, "drafts").listFiles()!!.first().writeText("garbage")
         assertTrue(store.list().size <= 1)
-    }
-
-    @Test
-    fun `size reflects the draft's own bytes`() {
-        val store = store()
-        store.write("/p/f.txt", "f.txt", "12345", "f")
-        assertEquals(5, store.read("/p/f.txt")?.sizeBytes)
     }
 }

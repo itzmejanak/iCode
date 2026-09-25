@@ -7,7 +7,7 @@ import org.junit.Test
 
 class NavigationPanelTest {
     @Test fun tabsShareOneBackStackEntry() {
-        val navigation = NavigationState.create(Route.WorkspaceEditor, staticDemo = false)
+        val navigation = NavigationState.create(Route.WorkspaceEditor, captureMode = false)
         navigation.actions.openPanel(ToolPanelTab.Problems)
         assertEquals(Route.TerminalExpanded, navigation.current)
         assertEquals(ToolPanelTab.Problems, navigation.panelTab)
@@ -23,12 +23,12 @@ class NavigationPanelTest {
     }
 
     @Test fun oldFrameRoutesAreAliasesForTheSharedPanel() {
-        val navigation = NavigationState.create(Route.WorkspaceEditor, staticDemo = false)
+        val navigation = NavigationState.create(Route.WorkspaceEditor, captureMode = false)
         navigation.actions.navigate(Route.OutputPanel)
         assertEquals(Route.TerminalExpanded, navigation.current)
         assertEquals(ToolPanelTab.Output, navigation.panelTab)
 
-        val capture = NavigationState.create(Route.ProblemsPanel, staticDemo = true)
+        val capture = NavigationState.create(Route.ProblemsPanel, captureMode = true)
         assertEquals(Route.ProblemsPanel, capture.current)
         assertEquals(ToolPanelTab.Problems, capture.panelTab)
     }

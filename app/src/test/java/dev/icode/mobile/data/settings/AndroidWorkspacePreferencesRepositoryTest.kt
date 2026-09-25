@@ -20,6 +20,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -130,6 +131,33 @@ class AndroidWorkspacePreferencesRepositoryTest {
             assertFalse(one.editor.bracketMatching)
             assertEquals(6, one.effectiveIndentSize)
             assertEquals(4, two.effectiveIndentSize)
+        } finally {
+            secondScope.cancel()
+        }
+    }
+
+    @Test fun `terminal alerts are on until switched off, and the choice survives a restart`() = runBlocking {
+        val file = File(temporaryFolder.root, "alerts.preferences_pb")
+        val firstScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val repository = AndroidWorkspacePreferencesRepository(
+                PreferenceDataStoreFactory.create(scope = firstScope, produceFile = { file }),
+            )
+            val fresh = repository.values(null).first().terminal
+            assertTrue(fresh.bellAlerts)
+            assertTrue(fresh.finishAlerts)
+            repository.setTerminalBellAlerts(false)
+        } finally {
+            firstScope.coroutineContext.job.cancelAndJoin()
+        }
+        val secondScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val reopened = AndroidWorkspacePreferencesRepository(
+                PreferenceDataStoreFactory.create(scope = secondScope, produceFile = { file }),
+            ).values(null).first()
+            assertNull(reopened.loadError)
+            assertFalse(reopened.terminal.bellAlerts)
+            assertTrue(reopened.terminal.finishAlerts)
         } finally {
             secondScope.cancel()
         }

@@ -39,6 +39,17 @@ data class OpenDocument(
     val readOnly: Boolean,
 )
 
+/**
+ * Unsaved text a session left behind when it ended: the document was edited and
+ * never saved, and the draft kept the edits (Document Recovery).
+ */
+data class RecoverableDraft(
+    val location: String,
+    val name: String,
+    val sizeBytes: Long,
+    val savedAtEpochMillis: Long,
+)
+
 /** A file opened in the active workspace, including entries that have since gone missing. */
 data class RecentDocument(
     val name: String,
@@ -218,6 +229,8 @@ data class WorkbenchSnapshot(
     /** Ordered editor tabs. [activeDocument] must be one of these when non-null. */
     val openDocuments: List<OpenDocument> = emptyList(),
     val recentDocuments: List<RecentDocument> = emptyList(),
+    /** Drafts found when iCode started, until each is restored or discarded; newest first. */
+    val recoverableDrafts: List<RecoverableDraft> = emptyList(),
     /** Optional initial selection for a captured Explorer frame; real selections remain local UI state. */
     val initialExplorerSelection: String? = null,
     val folderBrowser: FolderBrowserState? = null,

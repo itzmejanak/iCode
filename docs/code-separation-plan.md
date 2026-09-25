@@ -62,14 +62,14 @@ one cause.
 | Where | What | Scope |
 |---|---|---|
 | `RuntimeInstaller`, `DirectFileWorkspaceSource`, `DocumentDraftStore`, `AndroidWorkspacePreferencesRepository` | SHA-256 hex written 4× | X (`Sha256`) |
-| `RuntimeInstaller`, `RuntimeInstallingScreen`, `RuntimeSettingsScreen`, `StorageSettingsScreen` (`formatStorageBytes`) | byte sizes formatted 4×, each differently | X (`ByteSize`) |
-| gateway `relativeTime`, `CommitPushScreen` | relative time 2× | X (`RelativeTime`) |
+| `RuntimeInstaller`, `RuntimeInstallingScreen`, `RuntimeSettingsScreen`, `StorageSettingsScreen` (`formatStorageBytes`) | byte sizes formatted 4×, each differently | X (`ByteSize`; K1 made it from Storage's and moved Storage onto it) |
+| gateway `relativeTime`, `CommitPushScreen` | relative time 2× | X (`RelativeTime`; K1 made it from Commit's and moved Commit onto it) |
 | `WorkspaceIndexer`, `DirectFileWorkspaceSource` | `readBounded` 2× | S3/S4 (one bounded reader) |
 | gateway, `RuntimeInspector` | `installedRelease` 2× | S1 |
 | `RuntimeInspector.measure`, `StorageInspector.measure` | tree size measured 2× | S1/S2 |
 | gateway `gitCli.run("config"…)` ×3 vs `GitRepositoryClient`; `CliGitService` built twice | two write paths for Git config (D4, D5) | S5 |
 | `WorkbenchContract` vs `GitContract` | one feature's models in two contracts (D7) | S5 |
-| `demo/` (950 lines) | a second, simulated copy of the whole backend | X (K1) |
+| ~~`demo/` (950 lines)~~ | ~~a second, simulated copy of the whole backend~~ — removed in K1 | X (K1) |
 
 ### Inconsistency
 
@@ -79,7 +79,7 @@ one cause.
 | Fully-qualified names instead of imports (gateway 214, 218–223, 613, 980, 1259, 1818) | X |
 | `SharedPreferences.edit()` without the KTX form in 4 stores, `edit {}` elsewhere | S2, S5, S8 |
 | Presentation text inside the snapshot (`lastOpened`, `activePath`) | S2 (kept; recorded deviation — moving it changes captured pixels) |
-| "demo" names and wording (12 main files, 6 tests, 3 tools, 14 docs) | X (K1, K2) |
+| ~~"demo" names and wording (12 main files, 6 tests, 3 tools, 14 docs)~~ — renamed in K1 (code, tools), K2 (docs) | X (K1, K2) |
 
 ### Gaps (a user can meet them)
 
@@ -87,7 +87,7 @@ one cause.
 |---|---|
 | Changes made outside the editor (an agent in the terminal) never reach the Explorer, Source Control or open editors: no watcher; `WorkbenchIntent.Refresh` is dispatched by nothing; the ExternalFileChange frame is unreachable | S3 |
 | Explorer cannot rename, move, copy or delete | S3 |
-| DocumentRecovery shows fixed demo documents with do-nothing buttons; nothing opens it | S3 |
+| DocumentRecovery: nothing opens it; restoring a draft from another workspace is refused ("outside the active workspace"). (Its fixed list and do-nothing buttons: fixed in K1) | S3 |
 | Find in files can miss files (`WorkspaceIndexer`: ~24-directory cap, early stop, no ignore rules, not cancellable) | S4 |
 | Session restore: open workspace and tabs are lost after a kill | S3 |
 | About: update, diagnostics, licences, source, docs, notes, issues unavailable (URLs and licence are the owner's) | S1 |
@@ -168,3 +168,57 @@ the order a user meets them, so each scope is verified with everything before it
   warnings, UI guard passes; the APK has no icon source and no `libexectest.so`. (The debug APK's
   total size is not a measure: its un-minified dex files are laid out differently from build to
   build.)
+
+**K0 — capture reference (2026-09-26), done.** Commit `61df5a5`: the 39 route screenshots from
+the H0 build replace the 2026-09-22 set; the contact sheets under their new names.
+
+**K1 — demo → capture fixtures (2026-09-26), done.**
+
+- `app/src/debug/.../capture/`: `CaptureFixtures` (the former demo snapshot, plus the folder
+  browser and recovery drafts it used to produce on request), `CaptureGateway` (draws the
+  fixtures; ignores every intent), `CapturePreferences` (fixed values; stores nothing),
+  `CaptureEnvironment` (the extras `capture_route` / `capture`). `app/src/release` has the
+  same `CaptureEnvironment` answering null. Main code keeps only `CaptureState` (the gateway and
+  preferences pair) and `captureMode`.
+- **Found and fixed:** a release build honoured `demo_screen`, so any app could start iCode on
+  any screen, onboarding skipped. Only a debug build reads the extras now.
+- Deleted: `demo/` (950 lines) and its two test classes (11 tests of the simulation). One of
+  them stated a rule of the real store that had no test there — terminal alerts on until
+  switched off — now tested on `AndroidWorkspacePreferencesRepository`, across a restart.
+  Palette tests use their own snapshot (`PaletteTestSnapshot.kt`).
+- Document Recovery on real drafts: `recoverableDrafts` in the snapshot holds the drafts found
+  at start (the last session's unsaved work) and shrinks as each is restored or discarded,
+  under the draft lock so a discarded one cannot come back. `DocumentDraftStore.list()` reads
+  headers only (a draft's text is never loaded to list it). Restore opens the file, where the
+  existing prompt asks draft against disk; Discard asks first (the unsaved text is deleted);
+  "Restore all" covers the drafts of the open workspace. `IcodeApp` now queues draft prompts —
+  one slot lost all but the last when several files opened at once.
+- Shared `ByteSize` and `RelativeTime` (domain) made from the Storage and Commit copies, which
+  now use them — output unchanged; X1 moves the other copies and settles one size rule (today
+  "1.8 KB" reads "2 KB", Storage's rounding).
+- Tools: `capture-fork` rule and allowlist (a stale `PullProgressScreen` entry, 0 uses, dropped);
+  the capture script's extras.
+- Checks: `compileDebugKotlin`, `compileReleaseKotlin`; 232 unit tests pass (241 − 11 simulation
+  tests − 1 replaced + 3 new); lint 0 errors, 23 warnings (unchanged); UI guard passes;
+  `grep -ri demo app/src tools` → nothing. Release dex: no fixture string and no capture class
+  (R8 removed `CaptureState` too); the debug dex has them. Capture: 38 of 39 frames
+  pixel-identical to K0 below the status bar; frame 38 (Document Recovery) changed as intended —
+  sizes and times from the shared formatters, every draft's dot amber (the demo greyed one for no
+  reason) — and is the new reference. Device (APK from this build): the real app opened on
+  Document Recovery with the phone's draft folder empty shows "Nothing to recover". Restoring was
+  not run on the phone: autosave would write the draft into a real project file.
+
+
+**K2 — living docs (2026-09-26), done.**
+
+- Reworded where the text states how things are now: `README.md` (it also said Git, runtime,
+  terminal and settings still ran on fixtures, "40 screens", and "zero debt" — all stale; now
+  what the app does, the 39-route capture and its extras, the packages), `backend-split-rules.md`
+  (rule 6 is now "one capture seam"; package list current), `ui-split-plan.md` rules 2, 3, 8, 10,
+  `plan.md` guardrails, `editor-grammar-provenance.md`, and `Todo.md`'s open items (the About row
+  said `0.1.0-demo`, fixed on 2026-09-25; the demo-cleanup section is now its done record).
+- Dated records keep their names, with one note each naming the replacement: `Todo.md`,
+  `integration-plan`, `attention-labels-cleanup-plan`, `settings-backend-split-plan`,
+  `terminal-background-plan`, `commands-panels-plan`, `ui-polish-plan`, `sudo-capability-plan`,
+  `backend-split-audit`. The owner's rule name "demo→real→gaps→cleanup" stays: it names the way
+  of working, not code.

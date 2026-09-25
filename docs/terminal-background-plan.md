@@ -3,6 +3,8 @@
 Status: **plan** (2026-09-24). Follows [backend-split-rules.md](./backend-split-rules.md);
 builds on [terminal-maturity-plan.md](./terminal-maturity-plan.md).
 
+> **Note (2026-09-26).** Names in this record are as they were then. The demo layer (`DemoWorkbenchGateway`, `DemoContent`, `staticDemo`, `demo-fork`) was replaced by debug-only capture fixtures (`CaptureGateway`, `CaptureFixtures`, `captureMode`, `capture-fork`) — [code-separation-plan.md](./code-separation-plan.md) K1.
+
 Goal: closing iCode (Back from the launcher, or swiping it from Recents) must not
 end terminal sessions. Reopening shows the same tabs, in the same order, with the
 same screens and still-running programs, until the user ends them. While sessions

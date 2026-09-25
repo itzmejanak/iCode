@@ -3,6 +3,8 @@
 Status: **plan** (2026-09-23). Follows [backend-split-rules.md](./backend-split-rules.md) §8.
 Companion to [integration-plan.md](./integration-plan.md) §9 (runtime lifecycle).
 
+> **Note (2026-09-26).** Names in this record are as they were then. The demo layer (`DemoWorkbenchGateway`, `DemoContent`, `staticDemo`, `demo-fork`) was replaced by debug-only capture fixtures (`CaptureGateway`, `CaptureFixtures`, `captureMode`, `capture-fork`) — [code-separation-plan.md](./code-separation-plan.md) K1.
+
 ## 1. The problem, as measured
 
 PRoot takes `--link2symlink` once per session, and the two filesystems a

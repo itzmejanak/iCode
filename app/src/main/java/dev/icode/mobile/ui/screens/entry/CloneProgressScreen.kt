@@ -31,8 +31,8 @@ fun CloneProgressScreen(actions: NavigationActions) {
     val operation = state.gitOperation
     // The clone finishes when Git exits, not after a fixed delay. A failure
     // returns to the form so the URL and destination can be corrected.
-    LaunchedEffect(actions.staticDemo, operation) {
-        if (actions.staticDemo) return@LaunchedEffect
+    LaunchedEffect(actions.captureMode, operation) {
+        if (actions.captureMode) return@LaunchedEffect
         when (operation) {
             is GitOperationState.Succeeded -> actions.navigate(Route.WorkspaceExplorer)
             is GitOperationState.Failed -> actions.back()

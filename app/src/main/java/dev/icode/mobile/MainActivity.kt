@@ -9,6 +9,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import dev.icode.mobile.capture.CaptureEnvironment
 import dev.icode.mobile.data.runtime.TerminalSessionManager
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.IcodeApp
@@ -31,16 +32,15 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         splashScreen.setKeepOnScreenCondition { !readyToRender }
         enableEdgeToEdge()
-        val requestedScreen = intent.getStringExtra(EXTRA_DEMO_SCREEN)
-            ?.let { name -> runCatching { Route.valueOf(name) }.getOrNull() }
-            ?: Route.Splash
-        val staticDemo = intent.getBooleanExtra(EXTRA_STATIC_DEMO, false)
+        // Only a debug build answers the capture tool's extras; a release build always starts at the splash.
+        val requestedScreen = CaptureEnvironment.requestedRoute(intent) ?: Route.Splash
+        val capture = CaptureEnvironment.state(intent)
         // A recreated activity has already acted on the intent it started with.
         if (savedInstanceState == null) terminalSessionToShow = terminalSessionIn(intent)
         setContent {
             IcodeApp(
                 initialScreen = requestedScreen,
-                staticDemo = staticDemo,
+                capture = capture,
                 onReadyToRender = { readyToRender = true },
                 terminalSessionToShow = terminalSessionToShow,
                 onTerminalSessionShown = { terminalSessionToShow = null },
@@ -73,8 +73,5 @@ class MainActivity : ComponentActivity() {
         /** Opens iCode on one terminal session: its workspace, the Terminal panel, that tab. */
         const val ACTION_SHOW_TERMINAL_SESSION = "dev.icode.mobile.action.SHOW_TERMINAL_SESSION"
         const val EXTRA_TERMINAL_SESSION_ID = "terminal_session"
-
-        private const val EXTRA_DEMO_SCREEN = "demo_screen"
-        private const val EXTRA_STATIC_DEMO = "demo_static"
     }
 }

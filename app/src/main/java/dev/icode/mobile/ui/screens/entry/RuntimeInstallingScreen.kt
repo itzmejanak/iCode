@@ -56,8 +56,8 @@ fun RuntimeInstallingScreen(actions: NavigationActions) {
     val gateway = LocalWorkbenchGateway.current
     val runtime = state.runtime
     val reason = state.runtimeInstallReason
-    LaunchedEffect(actions.staticDemo, runtime, reason, state.systemAccess) {
-        if (actions.staticDemo) return@LaunchedEffect
+    LaunchedEffect(actions.captureMode, runtime, reason, state.systemAccess) {
+        if (actions.captureMode) return@LaunchedEffect
         when (runtime) {
             is RuntimeState.NotInstalled -> gateway.dispatch(installIntent(reason))
             is RuntimeState.Ready -> leave(actions, state.systemAccess)

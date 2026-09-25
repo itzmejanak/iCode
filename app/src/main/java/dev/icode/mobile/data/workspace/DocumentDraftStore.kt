@@ -29,9 +29,15 @@ internal class DocumentDraftStore(private val root: File) {
         val text: String,
         val savedAtEpochMillis: Long,
         val sourceFingerprint: String,
-    ) {
-        val sizeBytes: Int get() = text.toByteArray().size
-    }
+    )
+
+    /** A draft as Document Recovery lists it; reading one never loads its text. */
+    data class Summary(
+        val location: String,
+        val name: String,
+        val savedAtEpochMillis: Long,
+        val sizeBytes: Long,
+    )
 
     fun write(location: String, name: String, text: String, sourceFingerprint: String) {
         root.mkdirs()
@@ -54,9 +60,9 @@ internal class DocumentDraftStore(private val root: File) {
     }
 
     /** Every draft currently held, newest first. */
-    fun list(): List<Draft> = (root.listFiles().orEmpty())
+    fun list(): List<Summary> = (root.listFiles().orEmpty())
         .filter { it.isFile && it.name.endsWith(DRAFT_SUFFIX) }
-        .mapNotNull(::decode)
+        .mapNotNull(::summarize)
         .sortedByDescending { it.savedAtEpochMillis }
 
     fun clear() {
@@ -98,6 +104,22 @@ internal class DocumentDraftStore(private val root: File) {
             )
         }.getOrNull()
     }
+
+    /** The header alone; the text's size is what follows it in the file. */
+    private fun summarize(file: File): Summary? = runCatching {
+        file.bufferedReader().use { reader ->
+            val header = List(HEADER_LINES) { reader.readLine() ?: return null }
+            if (header[0] != FORMAT_MARKER) return null
+            // Every header value is ASCII (marker, Base64, digits, hex): a byte per character, plus its newline.
+            val headerBytes = header.sumOf { it.length + 1L }
+            Summary(
+                location = decodeValue(header[1]),
+                name = decodeValue(header[2]),
+                savedAtEpochMillis = header[3].toLong(),
+                sizeBytes = file.length() - headerBytes,
+            )
+        }
+    }.getOrNull()
 
     private fun encodeValue(value: String): String =
         Base64.getEncoder().encodeToString(value.toByteArray())

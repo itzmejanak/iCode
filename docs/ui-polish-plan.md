@@ -3,6 +3,8 @@
 Status: **plan** (2026-09-25). Owner's list of the same date. Follows
 [backend-split-rules.md](./backend-split-rules.md) and [ui-split-plan.md](./ui-split-plan.md).
 
+> **Note (2026-09-26).** Names in this record are as they were then. The demo layer (`DemoWorkbenchGateway`, `DemoContent`, `staticDemo`, `demo-fork`) was replaced by debug-only capture fixtures (`CaptureGateway`, `CaptureFixtures`, `captureMode`, `capture-fork`) — [code-separation-plan.md](./code-separation-plan.md) K1.
+
 ## 1. Evidence (code and device, 2026-09-25)
 
 | Owner's item | What the code does today |

@@ -45,6 +45,7 @@ import dev.icode.mobile.domain.LanguageServiceConfiguration
 import dev.icode.mobile.domain.LanguageServiceRules
 import dev.icode.mobile.domain.LanguageServiceStatus
 import dev.icode.mobile.domain.RecentDocument
+import dev.icode.mobile.domain.RecoverableDraft
 import dev.icode.mobile.domain.StorageDetails
 import dev.icode.mobile.domain.SystemAccess
 import dev.icode.mobile.domain.SystemPermission
@@ -140,6 +141,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             scope.launch { mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("Unable to load language services"))) }
         }
         scope.launch { refreshRecents() }
+        scope.launch { loadRecoverableDrafts() }
         scope.launch { observeTerminals() }
         scope.launch { observeNotices() }
         scope.launch { reportTerminalEndings() }
@@ -805,6 +807,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     draftStore.delete(oldLocation)
                     lastDraftText.remove(oldLocation)
                 }
+                forgetRecoverableDrafts(closingDocuments)
             }
             indexedWorkspace = null
             if (openTerminal && runtimeLayout.isInstalled) {
@@ -1477,6 +1480,8 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         }
         if (draft.sourceFingerprint != sourceDocument.fingerprint) recoveredExternalChanges += location
         unresolvedRecoveryLocations.remove(location)
+        // Back in the editor, the draft is this session's live work again.
+        draftMutex.withLock { forgetRecoverableDrafts(listOf(location)) }
         mutableSnapshot.update { state ->
             val restored = state.openDocuments.firstOrNull { it.location == location }
                 ?.copy(text = draft.text, dirty = true, readOnly = sourceDocument.readOnly) ?: return@update state
@@ -1492,8 +1497,36 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         draftMutex.withLock {
             draftStore.delete(location)
             lastDraftText.remove(location)
+            forgetRecoverableDrafts(listOf(location))
         }
         unresolvedRecoveryLocations.remove(location)
+    }
+
+    /**
+     * Drafts present at start are the work the last session never saved — what
+     * Document Recovery offers. Drafts written from now on are this session's
+     * live work, so the list only shrinks. Held under [draftMutex] with every
+     * change to it, so a draft discarded meanwhile cannot come back.
+     */
+    private suspend fun loadRecoverableDrafts() {
+        runCatching {
+            draftMutex.withLock {
+                val drafts = draftStore.list().map { draft ->
+                    RecoverableDraft(draft.location, draft.name, draft.sizeBytes, draft.savedAtEpochMillis)
+                }
+                mutableSnapshot.update { it.copy(recoverableDrafts = drafts) }
+            }
+        }.onFailure { error ->
+            mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("Unable to read the recovery drafts")))
+        }
+    }
+
+    /** Callers hold [draftMutex]. */
+    private fun forgetRecoverableDrafts(locations: Collection<String>) {
+        if (mutableSnapshot.value.recoverableDrafts.none { it.location in locations }) return
+        mutableSnapshot.update { state ->
+            state.copy(recoverableDrafts = state.recoverableDrafts.filterNot { it.location in locations })
+        }
     }
 
     private suspend fun saveDocument(
