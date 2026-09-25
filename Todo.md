@@ -156,6 +156,7 @@ Cycle 1 — Linux runtime, step 1 of 7 (packaging spike) complete:
       the APK and nothing reaches `nativeLibraryDir` to execute.
 - [x] `ExecProbeActivity` (debug source set only) is the on-device verification path; this ROM
       stalls the instrumentation runner, so `NativeExecSpikeTest` covers CI and emulators instead.
+      (Both removed 2026-09-26 with the finished spike; see runtime/bootstrap/README.md.)
 - [x] Runtime design settled against a working reference implementation
       ([techjarves/Mobile-Harness](https://github.com/techjarves/Mobile-Harness), MIT): build PRoot
       from source with the NDK and deliver it via the *carrier pattern* (a decoy shared-library

@@ -77,6 +77,12 @@ is why the debug probe exists as the on-device path.
 The probe and its `libexectest.so` live in the **debug source set**, so neither
 can reach a release build.
 
+**Removed 2026-09-26** (code-separation plan, H0): the spike's question is answered and the real
+runtime executes from `nativeLibraryDir` on every launch, so `ExecProbeActivity`,
+`RuntimeProbeActivity`, `libexectest.so` (the only 4 KB-aligned library left in the APK) and
+`NativeExecSpikeTest` were deleted. The measurement above stays as the record; the commands no
+longer apply.
+
 ## 2. Component sourcing
 
 | Component | Source | Notes |
