@@ -240,3 +240,19 @@ the H0 build replace the 2026-09-22 set; the contact sheets under their new name
   there as on the commit screen (was "now").
 - Checks: compile debug and release; 244 unit tests (12 new, one file per helper); lint 0 errors,
   23 warnings (unchanged); UI guard passes. The routine screen capture is no longer run (owner).
+
+**X1b — one log seam (2026-09-26), done.**
+
+- `data/log/BackendLog`: tags `iCode/<subsystem>`; debug and info lines in debug builds only,
+  warnings and errors always; every line (stack traces included) passes `credentialSafe`, which
+  masks `user:token@` in URLs — a Git error can echo the remote URL. Its writer is replaceable,
+  so unit tests read what would be logged (3 tests: token masked, SSH address kept, tag and error).
+- The runtime probes are gone (`refreshRuntimeDetails` logged every dispatch at debug and, through
+  an escaped `$`, the literal text `$details` instead of the details); an inspection failure is now
+  one warning. The terminal library's error and warning callbacks write through the seam
+  (`iCode/terminal/<tag>`); its info/debug callbacks stay off (they would carry typed text).
+- **`WorkbenchAudit` not built** (deviation from the audit doc §6): an in-memory ring that nothing
+  reads is the kind of dead weight this plan removes. The diagnostics export (S1, About) will
+  decide what history it needs; until then failures are logged through `BackendLog`.
+- Checks: compile debug and release; 247 unit tests; lint 0 errors, 23 warnings (unchanged); UI
+  guard passes.

@@ -2,6 +2,7 @@ package dev.icode.mobile.data.workspace
 
 import android.content.Context
 import android.os.Environment
+import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.git.CliGitService
 import dev.icode.mobile.data.git.GitHeadReader
 import dev.icode.mobile.data.git.GitAuthenticator
@@ -217,12 +218,10 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         }.getOrDefault("Linux runtime")
 
     private fun refreshRuntimeDetails() {
-        android.util.Log.d("iCodeRuntime", "refreshRuntimeDetails dispatched")
         scope.launch(Dispatchers.IO) {
             val details = runCatching { runtimeInspector.inspect() }
-                .onFailure { android.util.Log.e("iCodeRuntime", "inspect failed", it) }
+                .onFailure { BackendLog.w("runtime", "Runtime inspection failed", it) }
                 .getOrNull() ?: return@launch
-            android.util.Log.d("iCodeRuntime", "inspected: ${'$'}details")
             mutableSnapshot.update { it.copy(runtimeDetails = details) }
         }
     }
