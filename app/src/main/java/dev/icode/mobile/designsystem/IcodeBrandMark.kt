@@ -11,7 +11,11 @@ import androidx.compose.ui.res.colorResource
 import androidx.compose.ui.res.painterResource
 import dev.icode.mobile.R
 
-/** The in-app brand mark shares the launcher icon's artwork and background. */
+/**
+ * The in-app brand mark shares the launcher icon's artwork and background.
+ * The art ships per density at the largest size drawn (`IcodeSizes.Tile`, 74 dp),
+ * from `design/brand/icon-with-background.png`.
+ */
 @Composable
 fun IcodeBrandMark(modifier: Modifier = Modifier, contentDescription: String? = null) {
     Box(

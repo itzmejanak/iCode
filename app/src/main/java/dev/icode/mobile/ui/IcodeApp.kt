@@ -2,7 +2,6 @@ package dev.icode.mobile.ui
 
 import android.app.Activity
 import android.content.Intent
-import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
@@ -16,6 +15,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
+import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -207,7 +207,7 @@ fun IcodeApp(
                     is WorkbenchEffect.OpenExternalUrl -> {
                         // The user's own browser opens the URL; the app never
                         // renders web content itself (architecture.md section 11.5).
-                        val view = Intent(Intent.ACTION_VIEW, Uri.parse(effect.url))
+                        val view = Intent(Intent.ACTION_VIEW, effect.url.toUri())
                             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         runCatching { context.startActivity(view) }
                             .onFailure { Toast.makeText(context, "No browser is available", Toast.LENGTH_LONG).show() }

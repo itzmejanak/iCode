@@ -25,9 +25,12 @@ import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.runtime.RuntimeWork
 import dev.icode.mobile.data.runtime.TerminalSessionManager
 import com.termux.terminal.TerminalSession
+import dev.icode.mobile.domain.FileEntry
 import dev.icode.mobile.domain.GitAuthTestResult
+import dev.icode.mobile.domain.GitConflictChoice
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.GitOutcome
+import dev.icode.mobile.domain.IndexedFile
 import dev.icode.mobile.domain.RuntimeState
 import dev.icode.mobile.domain.RuntimeInstallReason
 import dev.icode.mobile.domain.ContentSearchState
@@ -52,6 +55,7 @@ import dev.icode.mobile.domain.SystemPermission
 import dev.icode.mobile.domain.reorderDocuments
 import dev.icode.mobile.domain.selectedAfterClose
 import dev.icode.mobile.domain.WorkspaceNameRules
+import java.io.IOException
 import java.util.regex.PatternSyntaxException
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
@@ -70,6 +74,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import org.json.JSONObject
 
 class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     private val workbench = WorkbenchStateHolder()
@@ -201,7 +206,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
 
     private fun installedRelease(): String =
         runCatching {
-            org.json.JSONObject(runtimeLayout.installMarker.readText()).getString("base")
+            JSONObject(runtimeLayout.installMarker.readText()).getString("base")
         }.getOrDefault("Linux runtime")
 
     private fun refreshRuntimeDetails() {
@@ -401,7 +406,6 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     WorkbenchIntent.GenerateSshKey -> generateSshKey()
                     is WorkbenchIntent.TestGitConnection -> testGitConnection(intent.url)
                     WorkbenchIntent.RefreshGitAuth -> refreshGitAuth()
-                    is WorkbenchIntent.SelectLanguageService -> Unit
                     is WorkbenchIntent.SaveLanguageService -> saveLanguageService(intent)
                     is WorkbenchIntent.RemoveLanguageService -> removeLanguageService(intent.id)
                     is WorkbenchIntent.StartLanguageService -> startLanguageService(intent.id)
@@ -413,7 +417,6 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     WorkbenchIntent.InstallRuntime -> installRuntime(RuntimeInstallReason.Initial)
                     WorkbenchIntent.ClearAppCache -> clearAppCache()
                     WorkbenchIntent.RemoveStaleRecents -> removeStaleRecents()
-                    WorkbenchIntent.RefreshStorage -> Unit
                     // Repair keeps the home directory, reset does not; both go
                     // through the one installer rather than a second path.
                     WorkbenchIntent.RepairRuntime -> {
@@ -431,11 +434,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     is WorkbenchIntent.ShowTerminalSession -> showTerminalSession(intent.id)
                     is WorkbenchIntent.ReorderTerminalSession -> workbench.onMain { terminals.reorder(intent.movingId, intent.targetId) }
                     is WorkbenchIntent.CloseTerminalSession -> workbench.onMain { terminals.close(intent.id) }
-                    // Handled before the lock; see the top of dispatch.
                     is WorkbenchIntent.OpenExternalUrl -> workbench.emit(WorkbenchEffect.OpenExternalUrl(intent.url))
-                    is WorkbenchIntent.UpdateDocumentText,
-                    is WorkbenchIntent.SetLanguageServiceRunning,
-                    -> Unit
                 }
             }
         }
@@ -598,7 +597,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         val command = intent.command.trim()
         val options = intent.initializationOptions.trim().ifBlank { "{}" }
         val error = LanguageServiceRules.validate(name, command, intent.patterns, options)
-            ?: runCatching { LanguageServiceRules.commandArguments(command); org.json.JSONObject(options) }
+            ?: runCatching { LanguageServiceRules.commandArguments(command); JSONObject(options) }
                 .exceptionOrNull()?.let { "Check command quoting and enter a JSON object for initialization options" }
         if (error != null) {
             workbench.message(error)
@@ -870,7 +869,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                 listOf("config", "--global", "user.email", email.trim()),
             ).forEach { arguments ->
                 val result = gitCli.run(null, arguments)
-                if (!result.succeeded) throw java.io.IOException(result.errorMessage)
+                if (!result.succeeded) throw IOException(result.errorMessage)
             }
             activeRootLocation?.let { refreshWorkspaceState(it) }
             refreshGitAuth()
@@ -886,7 +885,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                 val current = gitCli.run(workspace, listOf("config", "--local", "--get", key))
                 if (current.succeeded) {
                     val result = gitCli.run(workspace, listOf("config", "--local", "--unset-all", key))
-                    if (!result.succeeded) throw java.io.IOException(result.errorMessage)
+                    if (!result.succeeded) throw IOException(result.errorMessage)
                 }
             }
             refreshWorkspaceState(workspace)
@@ -966,7 +965,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
      * and a single path keeps all three choices consistent with what the user
      * is looking at. Marking resolved stays a separate explicit step.
      */
-    private suspend fun resolveConflict(path: String, choice: dev.icode.mobile.domain.GitConflictChoice) {
+    private suspend fun resolveConflict(path: String, choice: GitConflictChoice) {
         val root = conflictRoot() ?: return
         val conflict = workbench.current.activeConflict
             ?: run {
@@ -1245,7 +1244,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         workbench.update { snapshot -> snapshot.copy(contentSearch = ContentSearchState.Empty) }
     }
 
-    private suspend fun ensureFileIndex(root: String): Pair<List<dev.icode.mobile.domain.IndexedFile>, Boolean> {
+    private suspend fun ensureFileIndex(root: String): Pair<List<IndexedFile>, Boolean> {
         if (indexedWorkspace == root && workbench.current.fileIndex.isNotEmpty()) {
             return workbench.current.fileIndex to workbench.current.fileIndexTruncated
         }
@@ -1834,7 +1833,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         }
     }
 
-    private fun decorateFiles(files: List<dev.icode.mobile.domain.FileEntry>, gitState: GitWorkspaceSnapshot) =
+    private fun decorateFiles(files: List<FileEntry>, gitState: GitWorkspaceSnapshot) =
         gitState.repository?.let { repository ->
             val statuses = gitState.changes.associate { change ->
                 File(repository.workTreePath, change.path).canonicalPath to change.status

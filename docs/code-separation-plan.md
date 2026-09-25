@@ -273,3 +273,20 @@ the H0 build replace the 2026-09-22 set; the contact sheets under their new name
   Noted for S5: the Git transcript shown in Output is not masked the same way.
 - Checks: compile debug and release; 250 unit tests (3 new: one line and one message; fallback
   words; token masked on screen and in the log); lint 0 errors, 23 warnings; UI guard passes.
+
+**X1d — dead code, names, X-scope lint, brand art (2026-09-26), done.**
+
+- `SetLanguageServiceRunning` removed (nothing dispatched it; the gateway ignored it). The locked
+  dispatch lost its three unreachable `-> Unit` branches: the Kotlin 2 compiler counts the early
+  returns above it (`SelectLanguageService`, `RefreshStorage`, `RefreshRuntimeDetails`,
+  `UpdateDocumentText`) toward exhaustiveness, so a new intent must still be placed.
+- Fully-qualified names replaced by imports in the gateway (7), `RuntimeInspector`,
+  `RuntimeInstaller`, `WorkspaceSettingsScreen`.
+- Lint: the progress sweep reads its animated value at placement (`offset { }`), so it no longer
+  recomposes every frame; `toUri()` in `IcodeApp`; the fixture's sample rootfs path is marked as
+  text, not a file access. 23 → 20 warnings; the rest belong to their scopes (`UseKtx` stores S2/S5/S8,
+  `UsableSpace` S1, `ClickableViewAccessibility` S3, `Aligned16KB` S6) or are version/policy notes.
+- Brand mark: the 1254 px, 714 KB bitmap in `drawable-nodpi` becomes the same art per density at
+  its largest drawn size (74 dp): 90 KB for all five, ~24 KB loaded on this phone. Checked on the
+  device (About, capture mode): same composition, size and place; edges slightly crisper.
+- Checks: compile debug and release; 250 unit tests; lint 0 errors, 20 warnings; UI guard passes.

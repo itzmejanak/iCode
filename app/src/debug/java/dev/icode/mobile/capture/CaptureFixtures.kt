@@ -1,5 +1,6 @@
 package dev.icode.mobile.capture
 
+import android.annotation.SuppressLint
 import dev.icode.mobile.data.git.GitConflictParser
 import dev.icode.mobile.domain.Diagnostic
 import dev.icode.mobile.domain.FileEntry
@@ -116,7 +117,7 @@ object CaptureFixtures {
         runtimeDetails = RuntimeDetails(
             release = "Ubuntu 24.04.5 LTS (noble) base",
             architecture = "arm64-v8a",
-            rootfsPath = "/data/user/0/dev.icode.mobile/files/runtime/rootfs",
+            rootfsPath = SAMPLE_ROOTFS,
             installedPackages = 247,
             rootfsBytes = 1_932_735_283L,
             availableBytes = 16_106_127_360L,
@@ -190,6 +191,10 @@ object CaptureFixtures {
     )
 
     private const val ROOT = "~/projects/icode-subsystem"
+
+    /** Drawn as text on the runtime screen; nothing opens it. */
+    @SuppressLint("SdCardPath")
+    private const val SAMPLE_ROOTFS = "/data/user/0/dev.icode.mobile/files/runtime/rootfs"
     private const val BRANCH = "feature/auth"
     private const val TYPESCRIPT_SERVICE = "typescript"
     private const val MINUTE = 60_000L
