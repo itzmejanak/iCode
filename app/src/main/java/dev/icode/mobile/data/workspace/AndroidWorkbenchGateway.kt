@@ -46,13 +46,13 @@ import dev.icode.mobile.domain.LanguageServiceRules
 import dev.icode.mobile.domain.LanguageServiceStatus
 import dev.icode.mobile.domain.RecentDocument
 import dev.icode.mobile.domain.RecoverableDraft
+import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.domain.StorageDetails
 import dev.icode.mobile.domain.SystemAccess
 import dev.icode.mobile.domain.SystemPermission
 import dev.icode.mobile.domain.reorderDocuments
 import dev.icode.mobile.domain.selectedAfterClose
 import dev.icode.mobile.domain.WorkspaceNameRules
-import java.util.concurrent.TimeUnit
 import java.util.regex.PatternSyntaxException
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
@@ -1421,7 +1421,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                 name = item.name,
                 location = item.location,
                 path = relative.toString(),
-                lastOpened = relativeTime(item.lastOpenedAt),
+                lastOpened = RelativeTime.since(item.lastOpenedAt),
                 available = File(item.location).isFile,
             )
         }
@@ -1799,7 +1799,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                 name = workspace.name,
                 path = workspace.displayPath,
                 branch = branch,
-                lastOpened = relativeTime(workspace.lastOpenedAt),
+                lastOpened = RelativeTime.since(workspace.lastOpenedAt),
                 available = Environment.isExternalStorageManager() && source.isAvailable(workspace.location),
                 location = workspace.location,
             )
@@ -1855,19 +1855,6 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             }
             GitTreeStatus.decorate(files, statuses)
         } ?: files
-
-    private fun relativeTime(timestamp: Long): String {
-        val elapsed = (System.currentTimeMillis() - timestamp).coerceAtLeast(0)
-        val minutes = TimeUnit.MILLISECONDS.toMinutes(elapsed)
-        val hours = TimeUnit.MILLISECONDS.toHours(elapsed)
-        val days = TimeUnit.MILLISECONDS.toDays(elapsed)
-        return when {
-            minutes < 1 -> "now"
-            hours < 1 -> "${minutes}m ago"
-            days < 1 -> "${hours}h ago"
-            else -> "${days}d ago"
-        }
-    }
 
     private fun Throwable.userMessage(fallback: String): String =
         message?.takeIf { it.isNotBlank() } ?: fallback

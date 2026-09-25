@@ -30,6 +30,7 @@ import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.FolderBrowserPurpose
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.domain.WorkspaceNameRules
@@ -47,7 +48,7 @@ fun CreateFolderScreen(actions: NavigationActions) {
     val destinationReady = destination != null
     val destinationLabel = snapshot.createFolderDestinationDisplay ?: "No destination selected"
     val storageLabel = snapshot.storage
-        ?.let { "${formatGib(it.availableBytes)} GB free of ${formatGib(it.totalBytes)} GB" }
+        ?.let { "${ByteSize.format(it.availableBytes)} free of ${ByteSize.format(it.totalBytes)}" }
         ?: "Storage information unavailable"
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Create Folder", onBack = actions.back)
@@ -90,5 +91,3 @@ fun CreateFolderScreen(actions: NavigationActions) {
         )
     }
 }
-
-private fun formatGib(bytes: Long): String = "%.1f".format(bytes.toDouble() / (1024.0 * 1024.0 * 1024.0))

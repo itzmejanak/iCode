@@ -2,6 +2,8 @@ package dev.icode.mobile.data.workspace
 
 import android.os.Environment
 import android.os.StatFs
+import dev.icode.mobile.data.io.Sha256
+import dev.icode.mobile.data.io.readAtMost
 import dev.icode.mobile.domain.FileKind
 import dev.icode.mobile.domain.FolderBrowserEntry
 import dev.icode.mobile.domain.FolderBrowserPurpose
@@ -9,14 +11,13 @@ import dev.icode.mobile.domain.FolderBrowserState
 import dev.icode.mobile.domain.LineEnding
 import dev.icode.mobile.domain.TextEncoding
 import dev.icode.mobile.domain.StorageSummary
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.io.InputStream
 import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
-import java.security.MessageDigest
 
 internal data class WorkspaceRoot(
     val name: String,
@@ -222,22 +223,10 @@ internal class DirectFileWorkspaceSource {
         return if (relative.isBlank()) "Internal storage" else "Internal storage/$relative"
     }
 
-    private fun readBounded(input: java.io.InputStream): ByteArray {
-        val output = ByteArrayOutputStream()
-        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-        var total = 0
-        while (true) {
-            val count = input.read(buffer)
-            if (count < 0) break
-            total += count
-            if (total > MAX_TEXT_BYTES) throw IOException("Files larger than 5 MB are not supported yet")
-            output.write(buffer, 0, count)
-        }
-        return output.toByteArray()
-    }
+    private fun readBounded(input: InputStream): ByteArray =
+        input.readAtMost(MAX_TEXT_BYTES, "Files larger than 5 MB are not supported yet")
 
-    private fun fingerprint(bytes: ByteArray): String =
-        MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { byte -> "%02x".format(byte) }
+    private fun fingerprint(bytes: ByteArray): String = Sha256.hex(bytes)
 
     private companion object {
         const val MAX_TEXT_BYTES = 5 * 1024 * 1024

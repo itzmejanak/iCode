@@ -1,7 +1,7 @@
 package dev.icode.mobile.data.workspace
 
+import dev.icode.mobile.data.io.Sha256
 import java.io.File
-import java.security.MessageDigest
 import java.util.Base64
 
 /**
@@ -71,7 +71,7 @@ internal class DocumentDraftStore(private val root: File) {
 
     private fun fileFor(location: String): File {
         root.mkdirs()
-        return File(root, digest(location) + DRAFT_SUFFIX)
+        return File(root, Sha256.hex(location) + DRAFT_SUFFIX)
     }
 
     /**
@@ -126,11 +126,6 @@ internal class DocumentDraftStore(private val root: File) {
 
     private fun decodeValue(value: String): String =
         String(Base64.getDecoder().decode(value))
-
-    private fun digest(location: String): String =
-        MessageDigest.getInstance("SHA-256")
-            .digest(location.toByteArray())
-            .joinToString("") { byte -> "%02x".format(byte) }
 
     private companion object {
         const val FORMAT_MARKER = "icode-draft/1"

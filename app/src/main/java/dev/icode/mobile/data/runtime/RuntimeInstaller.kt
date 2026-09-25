@@ -2,6 +2,8 @@ package dev.icode.mobile.data.runtime
 
 import android.content.Context
 import android.os.Build
+import dev.icode.mobile.data.io.Sha256
+import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.RuntimeState
 import dev.icode.mobile.domain.RuntimeInstallReason
 import kotlinx.coroutines.async
@@ -14,7 +16,6 @@ import java.io.File
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
-import java.security.MessageDigest
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -94,8 +95,8 @@ internal class RuntimeInstaller(
         if (free < descriptor.minimumFreeBytes) {
             emit(
                 RuntimeState.Failed(
-                    "Not enough storage: ${formatBytes(descriptor.minimumFreeBytes)} required, " +
-                        "${formatBytes(free)} free",
+                    "Not enough storage: ${ByteSize.format(descriptor.minimumFreeBytes)} required, " +
+                        "${ByteSize.format(free)} free",
                 ),
             )
             return@flow
@@ -112,13 +113,13 @@ internal class RuntimeInstaller(
         val archive = File(appContext.cacheDir, "${descriptor.id}.tar.gz")
 
         try {
-            if (!archive.isFile || digestOf(archive) != descriptor.sha256) {
+            if (!archive.isFile || Sha256.hexOf(archive) != descriptor.sha256) {
                 archive.delete()
                 download(descriptor, archive) { received, total ->
                     emit(RuntimeState.Downloading(received, total, "Downloading ${descriptor.base}"))
                 }
                 emit(RuntimeState.Installing("Verifying download"))
-                val actual = digestOf(archive)
+                val actual = Sha256.hexOf(archive)
                 if (actual != descriptor.sha256) {
                     archive.delete()
                     emit(RuntimeState.Failed("The downloaded runtime failed checksum verification"))
@@ -334,23 +335,5 @@ internal class RuntimeInstaller(
          * package manager every later provisioning step depends on.
          */
         val REQUIRED_PATHS = listOf("bin/sh", "usr/bin/apt")
-
-        fun digestOf(file: File): String {
-            val digest = MessageDigest.getInstance("SHA-256")
-            file.inputStream().use { input ->
-                val buffer = ByteArray(DOWNLOAD_BUFFER_BYTES)
-                while (true) {
-                    val count = input.read(buffer)
-                    if (count < 0) break
-                    digest.update(buffer, 0, count)
-                }
-            }
-            return digest.digest().joinToString("") { "%02x".format(it) }
-        }
-
-        fun formatBytes(bytes: Long): String {
-            val gib = bytes.toDouble() / (1024 * 1024 * 1024)
-            return if (gib >= 1) "%.1f GB".format(gib) else "%.0f MB".format(bytes.toDouble() / (1024 * 1024))
-        }
     }
 }

@@ -28,6 +28,7 @@ import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.NoticeCard
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SectionLabel
+import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.RuntimeDetails
 import dev.icode.mobile.domain.RuntimeState
 import dev.icode.mobile.domain.WorkbenchIntent
@@ -136,12 +137,7 @@ private fun packageCount(details: RuntimeDetails): String =
 /** Shows the measured size against real free space, or neither. */
 private fun diskUsage(details: RuntimeDetails): String {
     val used = details.rootfsBytes ?: return UNKNOWN
-    return "${formatBytes(used)} used · ${formatBytes(details.availableBytes)} free"
-}
-
-private fun formatBytes(bytes: Long): String {
-    val gigabytes = bytes.toDouble() / (1024 * 1024 * 1024)
-    return if (gigabytes >= 1) "%.1f GB".format(gigabytes) else "%.0f MB".format(bytes.toDouble() / (1024 * 1024))
+    return "${ByteSize.format(used)} used · ${ByteSize.format(details.availableBytes)} free"
 }
 
 private const val UNKNOWN = "Not measured"
