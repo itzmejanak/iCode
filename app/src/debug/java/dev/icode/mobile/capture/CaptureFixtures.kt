@@ -115,11 +115,12 @@ object CaptureFixtures {
         runtimeHealthy = true,
         runtime = RuntimeState.Ready("Ubuntu 24.04.5 LTS"),
         runtimeDetails = RuntimeDetails(
+            inspected = true,
             release = "Ubuntu 24.04.5 LTS (noble) base",
             architecture = "arm64-v8a",
             rootfsPath = SAMPLE_ROOTFS,
             installedPackages = 247,
-            rootfsBytes = 1_932_735_283L,
+            rootfsSize = StorageMeasurement(1_932_735_283L),
             availableBytes = 16_106_127_360L,
             prootVersion = "5.1.107.92",
         ),

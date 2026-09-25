@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.os.Build
 import dev.icode.mobile.data.io.measureTree
 import dev.icode.mobile.domain.RuntimeDetails
+import dev.icode.mobile.domain.StorageMeasurement
 import java.io.File
 
 /**
@@ -19,16 +20,19 @@ internal class RuntimeInspector(
     private val layout: RuntimeLayout,
     private val prootVersion: String?,
 ) {
-    fun inspect(): RuntimeDetails = RuntimeDetails(
+    /** Everything but the size: quick to read, so a screen shows it at once. */
+    fun facts(): RuntimeDetails = RuntimeDetails(
+        inspected = true,
         release = layout.installedRelease(),
         architecture = Build.SUPPORTED_ABIS.firstOrNull().orEmpty(),
         rootfsPath = layout.rootfs.absolutePath,
         installedPackages = countPackages(),
-        // A partial walk has no size, so the screen says "Not measured" instead of a wrong one.
-        rootfsBytes = measureTree(layout.rootfs, MAX_ENTRIES_WALKED).bytes,
         availableBytes = layout.runtimeRoot.parentFile?.usableSpace ?: 0L,
         prootVersion = prootVersion,
     )
+
+    /** Seconds on a full runtime; a partial walk has no size rather than a wrong one. */
+    fun rootfsSize(): StorageMeasurement = measureTree(layout.rootfs, MAX_ENTRIES_WALKED)
 
     /**
      * One `.list` file per installed package is how dpkg records them, so this

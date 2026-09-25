@@ -68,18 +68,17 @@ fun RuntimeSettingsScreen(actions: NavigationActions) {
                 icon = if (healthy) Icons.Outlined.Check else Icons.Outlined.WarningAmber,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text(
-                    details.release ?: "No base system is installed yet",
-                    style = IcodeType.Caption,
-                )
+                Text(runtimeSummary(state.runtime), style = IcodeType.Caption)
             }
             SectionLabel("Technical Details")
             IcodeCard(Modifier.fillMaxWidth()) {
-                DetailRow("Architecture", details.architecture.ifBlank { UNKNOWN })
-                DetailRow("Runtime Home", details.rootfsPath.ifBlank { UNKNOWN })
-                DetailRow("Installed Packages", packageCount(details))
-                DetailRow("Disk Usage", diskUsage(details))
-                DetailRow("PRoot Version", details.prootVersion ?: UNKNOWN)
+                // Until the first read lands, every row says so rather than "Not measured".
+                val checking = CHECKING.takeUnless { details.inspected }
+                DetailRow("Architecture", checking ?: details.architecture.ifBlank { UNKNOWN })
+                DetailRow("Runtime Home", checking ?: details.rootfsPath.ifBlank { UNKNOWN })
+                DetailRow("Installed Packages", checking ?: packageCount(details))
+                DetailRow("Disk Usage", checking ?: diskUsage(details))
+                DetailRow("PRoot Version", checking ?: details.prootVersion ?: UNKNOWN)
             }
             Spacer(Modifier.weight(1f))
             SecondaryButton(
@@ -134,10 +133,21 @@ fun RuntimeSettingsScreen(actions: NavigationActions) {
 private fun packageCount(details: RuntimeDetails): String =
     details.installedPackages?.let { "$it packages" } ?: UNKNOWN
 
-/** Shows the measured size against real free space, or neither. */
+/** The measured size, or where its measurement stands, against real free space. */
 private fun diskUsage(details: RuntimeDetails): String {
-    val used = details.rootfsBytes ?: return UNKNOWN
-    return "${ByteSize.format(used)} used · ${ByteSize.format(details.availableBytes)} free"
+    val used = details.rootfsSize?.bytes?.let { "${ByteSize.format(it)} used" } ?: storageSizeLabel(details.rootfsSize)
+    return "$used · ${ByteSize.format(details.availableBytes)} free"
+}
+
+/** What the runtime is right now, known from start-up, before any detail is read. */
+private fun runtimeSummary(runtime: RuntimeState): String = when (runtime) {
+    RuntimeState.Unknown -> CHECKING
+    is RuntimeState.Ready -> runtime.release
+    is RuntimeState.NotInstalled -> runtime.reason
+    is RuntimeState.Downloading -> runtime.label
+    is RuntimeState.Installing -> runtime.label
+    is RuntimeState.Failed -> runtime.reason
 }
 
 private const val UNKNOWN = "Not measured"
+private const val CHECKING = "Checking…"
