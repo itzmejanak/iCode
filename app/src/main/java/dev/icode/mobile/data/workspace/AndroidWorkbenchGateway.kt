@@ -32,8 +32,6 @@ import dev.icode.mobile.domain.RuntimeState
 import dev.icode.mobile.domain.RuntimeInstallReason
 import dev.icode.mobile.domain.ContentSearchState
 import dev.icode.mobile.domain.FolderBrowserPurpose
-import dev.icode.mobile.domain.GitRepositoryState
-import dev.icode.mobile.domain.GitChange
 import dev.icode.mobile.domain.GitTreeStatus
 import dev.icode.mobile.domain.WorkbenchEffect
 import dev.icode.mobile.domain.WorkbenchGateway
@@ -63,23 +61,18 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 
 class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
+    private val workbench = WorkbenchStateHolder()
     private val appContext = context.applicationContext
     private val source = DirectFileWorkspaceSource()
     private val store: WorkspaceStore = SharedPreferencesWorkspaceStore(appContext)
@@ -97,7 +90,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     private val loadedLanguageConfigs = runCatching { languageStore.load() }
     private var languageConfigs = loadedLanguageConfigs.getOrDefault(emptyList())
     private val languageProcesses = LanguageServiceProcessManager(runtimeLayout, scope) { id, status, pid, message ->
-        mutableSnapshot.update { state -> state.copy(languageServices = state.languageServices.map { service ->
+        workbench.update { state -> state.copy(languageServices = state.languageServices.map { service ->
             if (service.id == id) service.copy(
                 running = status == LanguageServiceStatus.Running,
                 status = status,
@@ -111,14 +104,11 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         runtimeLayout,
         RuntimeInstaller(appContext, runtimeLayout).prootVersion(),
     )
-    private val mutationMutex = Mutex()
     private val draftMutex = Mutex()
     private val draftStore = DocumentDraftStore(File(appContext.filesDir, "document-drafts"))
     private val lastDraftText = mutableMapOf<String, String>()
     private val recoveredExternalChanges = mutableSetOf<String>()
     private val unresolvedRecoveryLocations = mutableSetOf<String>()
-    private val mutableSnapshot = MutableStateFlow(emptySnapshot())
-    private val mutableEffects = MutableSharedFlow<WorkbenchEffect>(extraBufferCapacity = 1)
     private val childrenByParent = mutableMapOf<String, List<DocumentNode>>()
     private val expandedLocations = mutableSetOf<String>()
     private var activeRootLocation: String? = null
@@ -130,16 +120,16 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     private var storageRefreshJob: Job? = null
     private var runtimeInstallJob: Job? = null
 
-    override val snapshot: StateFlow<WorkbenchSnapshot> = mutableSnapshot.asStateFlow()
-    override val effects: SharedFlow<WorkbenchEffect> = mutableEffects.asSharedFlow()
+    override val snapshot: StateFlow<WorkbenchSnapshot> = workbench.snapshot
+    override val effects: SharedFlow<WorkbenchEffect> = workbench.effects
 
     init {
-        mutableSnapshot.update { it.copy(
+        workbench.update { it.copy(
             languageServices = languageConfigs.map(::languageServiceView),
-            languageServicesLoadError = loadedLanguageConfigs.exceptionOrNull()?.userMessage("Unable to load saved services"),
+            languageServicesLoadError = loadedLanguageConfigs.exceptionOrNull()?.let { workbench.failureText("language", "Unable to load saved services", it) },
         ) }
         loadedLanguageConfigs.exceptionOrNull()?.let { error ->
-            scope.launch { mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("Unable to load language services"))) }
+            scope.launch { workbench.report("language", "Unable to load language services", error) }
         }
         scope.launch { refreshRecents() }
         scope.launch { loadRecoverableDrafts() }
@@ -149,15 +139,12 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         scope.launch {
             terminalPreferences.values(null).collect { preferences ->
                 if (preferences.loaded && preferences.loadError == null) {
-                    onMain { terminals.applySettings(preferences.terminal) }
+                    workbench.onMain { terminals.applySettings(preferences.terminal) }
                 }
             }
         }
         scope.launch { reportRuntimeState() }
     }
-
-    /** The terminal session manager is main-thread confined. */
-    private suspend fun <T> onMain(block: () -> T): T = withContext(Dispatchers.Main.immediate) { block() }
 
     /** The live session behind a terminal tab, for the view that draws it. Main thread. */
     fun terminalSession(id: String): TerminalSession? = terminals.session(id)
@@ -172,7 +159,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     private suspend fun reportTerminalEndings() {
         terminals.endings.collect { ending ->
             if (ending.exitCode != 0) {
-                mutableEffects.emit(WorkbenchEffect.Message("${ending.title} exited with code ${ending.exitCode}"))
+                workbench.message("${ending.title} exited with code ${ending.exitCode}")
             }
         }
     }
@@ -181,13 +168,13 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     private suspend fun observeNotices() {
         terminals.ledger.takePrevious()?.let(notices::add)
         notices.notices.collect { list ->
-            mutableSnapshot.update { it.copy(notices = list) }
+            workbench.update { it.copy(notices = list) }
         }
     }
 
     private suspend fun observeTerminals() {
         terminals.snapshot.collect { terminal ->
-            mutableSnapshot.update { it.copy(terminal = terminal) }
+            workbench.update { it.copy(terminal = terminal) }
         }
     }
 
@@ -201,7 +188,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             preservedHome -> RuntimeState.NotInstalled("A runtime repair was interrupted; your home is preserved for retry")
             else -> RuntimeState.NotInstalled("The Linux runtime is not installed yet")
         }
-        mutableSnapshot.update {
+        workbench.update {
             it.copy(
                 runtime = state,
                 runtimeHealthy = state is RuntimeState.Ready,
@@ -222,20 +209,20 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             val details = runCatching { runtimeInspector.inspect() }
                 .onFailure { BackendLog.w("runtime", "Runtime inspection failed", it) }
                 .getOrNull() ?: return@launch
-            mutableSnapshot.update { it.copy(runtimeDetails = details) }
+            workbench.update { it.copy(runtimeDetails = details) }
         }
     }
 
     /** One state-driven installer for first install, repair and reset. */
     private suspend fun installRuntime(reason: RuntimeInstallReason): Boolean {
-        if (runtimeInstallJob?.isActive == true || mutableSnapshot.value.runtime is RuntimeState.Downloading ||
-            mutableSnapshot.value.runtime is RuntimeState.Installing) {
-            mutableEffects.emit(WorkbenchEffect.Message("Runtime installation is already running"))
+        if (runtimeInstallJob?.isActive == true || workbench.current.runtime is RuntimeState.Downloading ||
+            workbench.current.runtime is RuntimeState.Installing) {
+            workbench.message("Runtime installation is already running")
             return false
         }
         if (reason != RuntimeInstallReason.Initial &&
             (terminals.hasRunningSessions() || languageProcesses.hasActiveProcesses())) {
-            mutableEffects.emit(WorkbenchEffect.Message("Close running terminal and language service sessions before rebuilding the runtime"))
+            workbench.message("Close running terminal and language service sessions before rebuilding the runtime")
             return false
         }
         val label = when (reason) {
@@ -243,7 +230,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             RuntimeInstallReason.Repair -> "Preparing runtime repair"
             RuntimeInstallReason.Reset -> "Preparing runtime reset"
         }
-        mutableSnapshot.update { it.copy(
+        workbench.update { it.copy(
             runtime = RuntimeState.Installing(label),
             runtimeHealthy = false,
             runtimeInstallReason = reason,
@@ -254,18 +241,18 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                 RuntimeWork.installStarted()
                 RuntimeForegroundService.ensureRunning(appContext)
                 RuntimeInstaller(appContext, runtimeLayout).install(reason).collect { state ->
-                    mutableSnapshot.update { it.copy(runtime = state, runtimeHealthy = state is RuntimeState.Ready) }
+                    workbench.update { it.copy(runtime = state, runtimeHealthy = state is RuntimeState.Ready) }
                     if (state is RuntimeState.Failed) {
-                        mutableEffects.emit(WorkbenchEffect.Message(state.reason))
+                        workbench.message(state.reason)
                     }
                     if (state is RuntimeState.Ready) refreshRuntimeDetails()
                 }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
-                val message = error.userMessage("Runtime installation failed")
-                mutableSnapshot.update { it.copy(runtime = RuntimeState.Failed(message), runtimeHealthy = false) }
-                mutableEffects.emit(WorkbenchEffect.Message(message))
+                val message = workbench.failureText("runtime", "Runtime installation failed", error)
+                workbench.update { it.copy(runtime = RuntimeState.Failed(message), runtimeHealthy = false) }
+                workbench.message(message)
             } finally {
                 RuntimeWork.installEnded()
             }
@@ -275,7 +262,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
 
     override fun dispatch(intent: WorkbenchIntent) {
         if (intent is WorkbenchIntent.SelectLanguageService) {
-            mutableSnapshot.update { state ->
+            workbench.update { state ->
                 state.copy(selectedLanguageServiceId = intent.id.takeIf { id ->
                     state.languageServices.any { service -> service.id == id }
                 })
@@ -297,17 +284,17 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             return
         }
         scope.launch {
-            mutationMutex.withLock {
+            workbench.mutations.withLock {
                 when (intent) {
                     is WorkbenchIntent.RequestSystemPermission ->
-                        mutableEffects.emit(WorkbenchEffect.RequestSystemPermission(intent.permission))
+                        workbench.emit(WorkbenchEffect.RequestSystemPermission(intent.permission))
                     is WorkbenchIntent.SystemPermissionAnswered -> systemPermissionAnswered(intent.permission)
                     is WorkbenchIntent.DeclineSystemPermission -> {
                         systemAccessSource.markOffered(intent.permission)
                         refreshSystemAccess()
                     }
                     is WorkbenchIntent.OpenSystemSettings ->
-                        mutableEffects.emit(WorkbenchEffect.OpenSystemSettings(intent.permission))
+                        workbench.emit(WorkbenchEffect.OpenSystemSettings(intent.permission))
                     WorkbenchIntent.RefreshSystemAccess -> refreshSystemAccess()
                     WorkbenchIntent.MarkNoticesRead -> notices.markAllRead()
                     is WorkbenchIntent.DeleteNotice -> notices.delete(intent.id)
@@ -336,12 +323,12 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     )
                     is WorkbenchIntent.RestoreDraft -> restoreDraft(intent.location)
                     is WorkbenchIntent.DiscardDraft -> {
-                        if (mutableSnapshot.value.openDocuments.firstOrNull { it.location == intent.location }?.dirty == true) {
-                            mutableEffects.emit(WorkbenchEffect.Message("This document has new edits; close or save them before discarding recovery"))
+                        if (workbench.current.openDocuments.firstOrNull { it.location == intent.location }?.dirty == true) {
+                            workbench.message("This document has new edits; close or save them before discarding recovery")
                         } else {
                             discardDraft(intent.location)
                             val sourceReadOnly = documentSources[intent.location]?.readOnly ?: false
-                            mutableSnapshot.update { state ->
+                            workbench.update { state ->
                                 val unlocked = state.openDocuments.firstOrNull { it.location == intent.location }
                                     ?.copy(readOnly = sourceReadOnly) ?: return@update state
                                 state.copy(
@@ -376,11 +363,11 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     WorkbenchIntent.ProvisionGit -> provisionGit()
                     WorkbenchIntent.RefreshGit -> activeRootLocation?.let { refreshWorkspaceState(it) }
                     is WorkbenchIntent.OpenDiff -> openDiff(intent.path, intent.staged)
-                    WorkbenchIntent.CloseDiff -> mutableSnapshot.update { it.copy(activeDiff = null) }
-                    is WorkbenchIntent.RequestDiscardChanges -> mutableSnapshot.update { state ->
+                    WorkbenchIntent.CloseDiff -> workbench.update { it.copy(activeDiff = null) }
+                    is WorkbenchIntent.RequestDiscardChanges -> workbench.update { state ->
                         state.copy(pendingDiscard = state.gitChanges.firstOrNull { it.path == intent.path })
                     }
-                    WorkbenchIntent.CancelDiscardChanges -> mutableSnapshot.update { it.copy(pendingDiscard = null) }
+                    WorkbenchIntent.CancelDiscardChanges -> workbench.update { it.copy(pendingDiscard = null) }
                     is WorkbenchIntent.DiscardChanges -> discardChanges(intent.path, intent.status)
                     WorkbenchIntent.AbortInProgress -> abortInProgress()
                     WorkbenchIntent.FetchRemote -> runRemote("Fetching") { workspace, onStderr ->
@@ -391,19 +378,19 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     }
                     WorkbenchIntent.PushRemote -> pushRemote()
                     is WorkbenchIntent.OpenConflict -> openConflict(intent.path)
-                    WorkbenchIntent.CloseConflict -> mutableSnapshot.update { it.copy(activeConflict = null) }
+                    WorkbenchIntent.CloseConflict -> workbench.update { it.copy(activeConflict = null) }
                     is WorkbenchIntent.ResolveConflict -> resolveConflict(intent.path, intent.choice)
                     is WorkbenchIntent.MarkConflictResolved -> runGitAction(
                         operation = { git.markResolved(it, intent.path) },
                     )
-                    is WorkbenchIntent.UpdateCloneForm -> mutableSnapshot.update {
+                    is WorkbenchIntent.UpdateCloneForm -> workbench.update {
                 it.copy(cloneUrl = intent.url, cloneBranch = intent.branch)
             }
             is WorkbenchIntent.CloneRepository -> cloneRepository(intent)
-                    is WorkbenchIntent.SelectGitProvider -> mutableSnapshot.update {
+                    is WorkbenchIntent.SelectGitProvider -> workbench.update {
                 it.copy(gitAuth = it.gitAuth.copy(provider = intent.provider))
             }
-            is WorkbenchIntent.SelectGitAuthMethod -> mutableSnapshot.update {
+            is WorkbenchIntent.SelectGitAuthMethod -> workbench.update {
                         it.copy(gitAuth = it.gitAuth.copy(method = intent.method))
                     }
                     is WorkbenchIntent.SaveGitToken -> saveGitToken(intent)
@@ -431,21 +418,21 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     // through the one installer rather than a second path.
                     WorkbenchIntent.RepairRuntime -> {
                         if (installRuntime(RuntimeInstallReason.Repair)) {
-                            mutableEffects.emit(WorkbenchEffect.RuntimeRebuildStarted)
+                            workbench.emit(WorkbenchEffect.RuntimeRebuildStarted)
                         }
                     }
                     WorkbenchIntent.ResetRuntime -> {
                         if (installRuntime(RuntimeInstallReason.Reset)) {
-                            mutableEffects.emit(WorkbenchEffect.RuntimeRebuildStarted)
+                            workbench.emit(WorkbenchEffect.RuntimeRebuildStarted)
                         }
                     }
                     WorkbenchIntent.OpenTerminalSession -> openTerminalSession()
-                    is WorkbenchIntent.SelectTerminalSession -> onMain { terminals.select(intent.id) }
+                    is WorkbenchIntent.SelectTerminalSession -> workbench.onMain { terminals.select(intent.id) }
                     is WorkbenchIntent.ShowTerminalSession -> showTerminalSession(intent.id)
-                    is WorkbenchIntent.ReorderTerminalSession -> onMain { terminals.reorder(intent.movingId, intent.targetId) }
-                    is WorkbenchIntent.CloseTerminalSession -> onMain { terminals.close(intent.id) }
+                    is WorkbenchIntent.ReorderTerminalSession -> workbench.onMain { terminals.reorder(intent.movingId, intent.targetId) }
+                    is WorkbenchIntent.CloseTerminalSession -> workbench.onMain { terminals.close(intent.id) }
                     // Handled before the lock; see the top of dispatch.
-                    is WorkbenchIntent.OpenExternalUrl -> mutableEffects.emit(WorkbenchEffect.OpenExternalUrl(intent.url))
+                    is WorkbenchIntent.OpenExternalUrl -> workbench.emit(WorkbenchEffect.OpenExternalUrl(intent.url))
                     is WorkbenchIntent.UpdateDocumentText,
                     is WorkbenchIntent.SetLanguageServiceRunning,
                     -> Unit
@@ -456,8 +443,8 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
 
     private fun refreshSystemAccess(): SystemAccess {
         val access = systemAccessSource.read()
-        val storageChanged = mutableSnapshot.value.systemAccess?.storage != access.storage
-        mutableSnapshot.update { it.copy(systemAccess = access) }
+        val storageChanged = workbench.current.systemAccess?.storage != access.storage
+        workbench.update { it.copy(systemAccess = access) }
         // Whether a recent workspace can be opened follows storage access.
         if (storageChanged) refreshRecents()
         return access
@@ -475,78 +462,78 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             pendingBrowserPurpose = null
             if (granted && purpose != null) return startFolderBrowser(purpose)
         }
-        mutableEffects.emit(WorkbenchEffect.SystemPermissionResolved(permission, granted))
+        workbench.emit(WorkbenchEffect.SystemPermissionResolved(permission, granted))
     }
 
     private suspend fun startFolderBrowser(purpose: FolderBrowserPurpose) {
         if (!Environment.isExternalStorageManager()) {
             pendingBrowserPurpose = purpose
-            mutableEffects.emit(WorkbenchEffect.RequestSystemPermission(SystemPermission.Storage))
+            workbench.emit(WorkbenchEffect.RequestSystemPermission(SystemPermission.Storage))
             return
         }
         runCatching { source.initialBrowser(purpose) }
             .onSuccess { browser ->
-                mutableSnapshot.update { snapshot -> snapshot.copy(folderBrowser = browser) }
-                mutableEffects.emit(WorkbenchEffect.FolderBrowserOpened)
+                workbench.update { snapshot -> snapshot.copy(folderBrowser = browser) }
+                workbench.emit(WorkbenchEffect.FolderBrowserOpened)
             }
             .onFailure { error ->
-                mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("Unable to read phone storage")))
+                workbench.report("workspace", "Unable to read phone storage", error)
             }
     }
 
     private suspend fun showWorkspaceLocation(location: String) {
         if (!Environment.isExternalStorageManager()) {
-            mutableEffects.emit(WorkbenchEffect.Message("All files access is needed to browse this folder"))
+            workbench.message("All files access is needed to browse this folder")
             return
         }
         runCatching { source.browse(location, FolderBrowserPurpose.OpenWorkspace) }
             .onSuccess { browser ->
-                mutableSnapshot.update { it.copy(folderBrowser = browser) }
-                mutableEffects.emit(WorkbenchEffect.FolderBrowserOpened)
+                workbench.update { it.copy(folderBrowser = browser) }
+                workbench.emit(WorkbenchEffect.FolderBrowserOpened)
             }
             .onFailure { error ->
-                mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("Unable to locate folder")))
+                workbench.report("workspace", "Unable to locate folder", error)
             }
     }
 
     private suspend fun removeRecentWorkspace(location: String) {
         runCatching { store.remove(location) }
-            .onSuccess { mutableSnapshot.update { state ->
+            .onSuccess { workbench.update { state ->
                 state.copy(workspaces = state.workspaces.filterNot { it.location == location })
             } }
             .onFailure { error ->
-                mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("Unable to remove recent workspace")))
+                workbench.report("workspace", "Unable to remove recent workspace", error)
             }
     }
 
     private suspend fun browseFolder(path: String) {
-        val browser = mutableSnapshot.value.folderBrowser ?: return
+        val browser = workbench.current.folderBrowser ?: return
         runCatching { source.browse(path, browser.purpose) }
-            .onSuccess { mutableSnapshot.update { snapshot -> snapshot.copy(folderBrowser = it) } }
+            .onSuccess { workbench.update { snapshot -> snapshot.copy(folderBrowser = it) } }
             .onFailure { error ->
-                mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("Unable to read directory")))
+                workbench.report("workspace", "Unable to read directory", error)
             }
     }
 
     private suspend fun browseParentFolder() {
-        val browser = mutableSnapshot.value.folderBrowser ?: return
+        val browser = workbench.current.folderBrowser ?: return
         runCatching { source.parent(browser.currentPath, browser.purpose) }
-            .onSuccess { mutableSnapshot.update { snapshot -> snapshot.copy(folderBrowser = it) } }
+            .onSuccess { workbench.update { snapshot -> snapshot.copy(folderBrowser = it) } }
             .onFailure { error ->
-                mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("Unable to read parent directory")))
+                workbench.report("workspace", "Unable to read parent directory", error)
             }
     }
 
     private suspend fun confirmFolderSelection() {
-        val browser = mutableSnapshot.value.folderBrowser ?: return
+        val browser = workbench.current.folderBrowser ?: return
         when (browser.purpose) {
             FolderBrowserPurpose.OpenWorkspace -> openWorkspace(browser.currentPath, persist = true)
             FolderBrowserPurpose.CreateFolderDestination -> {
-                mutableSnapshot.update { snapshot -> snapshot.copy(
+                workbench.update { snapshot -> snapshot.copy(
                     createFolderDestination = browser.currentPath,
                     createFolderDestinationDisplay = browser.displayPath,
                 ) }
-                mutableEffects.emit(WorkbenchEffect.FolderDestinationSelected(browser.currentPath))
+                workbench.emit(WorkbenchEffect.FolderDestinationSelected(browser.currentPath))
             }
         }
     }
@@ -557,25 +544,25 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
      * goes through the same dirty-document confirmation as any switch.
      */
     private suspend fun showTerminalSession(id: String) {
-        val workspace = onMain {
+        val workspace = workbench.onMain {
             if (terminals.snapshot.value.sessions.none { it.id == id && it.isRunning }) return@onMain null
             terminals.select(id)
             terminals.workspaceOf(id) ?: ""
         }
         when (workspace) {
-            null -> mutableEffects.emit(WorkbenchEffect.Message("That terminal session has ended"))
-            "" -> mutableEffects.emit(WorkbenchEffect.WorkspaceTerminalOpened(activeRootLocation.orEmpty()))
+            null -> workbench.message("That terminal session has ended")
+            "" -> workbench.emit(WorkbenchEffect.WorkspaceTerminalOpened(activeRootLocation.orEmpty()))
             else -> openWorkspace(workspace, persist = true, openTerminal = true)
         }
     }
 
     private suspend fun openTerminalSession() {
         if (!runtimeLayout.isInstalled) {
-            mutableEffects.emit(WorkbenchEffect.Message("Install the Linux runtime before opening a terminal"))
+            workbench.message("Install the Linux runtime before opening a terminal")
             return
         }
         if (terminals.open(activeRootLocation) == null) {
-            mutableEffects.emit(WorkbenchEffect.Message("Unable to start a terminal session"))
+            workbench.message("Unable to start a terminal session")
         }
     }
 
@@ -603,8 +590,8 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     )
 
     private suspend fun saveLanguageService(intent: WorkbenchIntent.SaveLanguageService) {
-        if (mutableSnapshot.value.languageServicesLoadError != null) {
-            mutableEffects.emit(WorkbenchEffect.Message("Saved services could not be read; configuration was not overwritten"))
+        if (workbench.current.languageServicesLoadError != null) {
+            workbench.message("Saved services could not be read; configuration was not overwritten")
             return
         }
         val name = intent.name.trim()
@@ -614,20 +601,20 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             ?: runCatching { LanguageServiceRules.commandArguments(command); org.json.JSONObject(options) }
                 .exceptionOrNull()?.let { "Check command quoting and enter a JSON object for initialization options" }
         if (error != null) {
-            mutableEffects.emit(WorkbenchEffect.Message(error))
+            workbench.message(error)
             return
         }
         val existingId = intent.id
         if (existingId != null && languageConfigs.none { it.id == existingId }) {
-            mutableEffects.emit(WorkbenchEffect.Message("This language service no longer exists"))
+            workbench.message("This language service no longer exists")
             return
         }
         if (existingId != null && languageProcesses.isActive(existingId)) {
-            mutableEffects.emit(WorkbenchEffect.Message("Stop this server before editing its configuration"))
+            workbench.message("Stop this server before editing its configuration")
             return
         }
         if (existingId == null && languageConfigs.size >= LanguageServiceRules.MAX_SERVICES) {
-            mutableEffects.emit(WorkbenchEffect.Message("Maximum ${LanguageServiceRules.MAX_SERVICES} language services"))
+            workbench.message("Maximum ${LanguageServiceRules.MAX_SERVICES} language services")
             return
         }
         val id = existingId ?: UUID.randomUUID().toString()
@@ -640,29 +627,29 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         try {
             languageStore.save(updated)
             languageConfigs = updated
-            mutableSnapshot.update { state -> state.copy(
+            workbench.update { state -> state.copy(
                 languageServices = updated.map(::languageServiceView),
                 selectedLanguageServiceId = id,
             ) }
         } catch (failure: Exception) {
-            mutableEffects.emit(WorkbenchEffect.Message(failure.userMessage("Unable to save language service")))
+            workbench.report("language", "Unable to save language service", failure)
         }
     }
 
     private suspend fun removeLanguageService(id: String) {
-        if (mutableSnapshot.value.languageServicesLoadError != null) return
+        if (workbench.current.languageServicesLoadError != null) return
         if (languageConfigs.none { it.id == id }) return
         val updated = languageConfigs.filterNot { it.id == id }
         try {
             languageStore.save(updated)
             languageConfigs = updated
             languageProcesses.stop(id)
-            mutableSnapshot.update { state -> state.copy(
+            workbench.update { state -> state.copy(
                 languageServices = state.languageServices.filterNot { it.id == id },
                 selectedLanguageServiceId = null,
             ) }
         } catch (failure: Exception) {
-            mutableEffects.emit(WorkbenchEffect.Message(failure.userMessage("Unable to remove language service")))
+            workbench.report("language", "Unable to remove language service", failure)
         }
     }
 
@@ -670,11 +657,11 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         val config = languageConfigs.firstOrNull { it.id == id } ?: return
         val workspace = activeRootLocation
         if (workspace == null) {
-            mutableEffects.emit(WorkbenchEffect.Message("Open a workspace before starting a language service"))
+            workbench.message("Open a workspace before starting a language service")
             return
         }
         languageProcesses.start(config, workspace)?.let { error ->
-            mutableEffects.emit(WorkbenchEffect.Message(error))
+            workbench.message(error)
         }
     }
 
@@ -683,12 +670,12 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         scope.launch {
             repeat(30) {
                 if (!languageProcesses.isActive(id)) {
-                    mutationMutex.withLock { startLanguageService(id) }
+                    workbench.mutations.withLock { startLanguageService(id) }
                     return@launch
                 }
                 delay(100)
             }
-            mutableEffects.emit(WorkbenchEffect.Message("Server did not stop; retry after it exits"))
+            workbench.message("Server did not stop; retry after it exits")
         }
     }
 
@@ -696,21 +683,21 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         val name = rawName.trim()
         val error = WorkspaceNameRules.validationError(name)
         if (error != null) {
-            mutableEffects.emit(WorkbenchEffect.Message(error))
-        } else if (mutableSnapshot.value.createFolderDestination == null) {
-            mutableEffects.emit(WorkbenchEffect.Message("Choose a destination first"))
+            workbench.message(error)
+        } else if (workbench.current.createFolderDestination == null) {
+            workbench.message("Choose a destination first")
         } else {
             createFolder(name)
         }
     }
 
     private suspend fun createFolder(name: String) {
-        val parentLocation = mutableSnapshot.value.createFolderDestination ?: return
+        val parentLocation = workbench.current.createFolderDestination ?: return
         runCatching {
             val location = source.createDirectory(parentLocation, name)
             openWorkspace(location, persist = true)
         }.onFailure { error ->
-            mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("Unable to create folder")))
+            workbench.report("workspace", "Unable to create folder", error)
         }
     }
 
@@ -721,31 +708,31 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         dirtyChoiceResolved: Boolean = false,
     ) {
         if (!Environment.isExternalStorageManager()) {
-            mutableEffects.emit(WorkbenchEffect.Message("All files access is needed to open this folder"))
+            workbench.message("All files access is needed to open this folder")
             return
         }
         if (!source.isAvailable(location)) {
             val reason = if (!File(location).exists()) "This folder no longer exists" else "This folder is not accessible"
-            mutableEffects.emit(WorkbenchEffect.Message(reason))
+            workbench.message(reason)
             return
         }
         if (location == activeRootLocation) {
             if (openTerminal && runtimeLayout.isInstalled) {
                 runCatching { terminals.open(location, reuseExisting = true) }
-                    .onSuccess { mutableSnapshot.update { it.copy(terminal = terminals.snapshot.value) } }
+                    .onSuccess { workbench.update { it.copy(terminal = terminals.snapshot.value) } }
                     .onFailure { error ->
-                        mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("Unable to start terminal")))
+                        workbench.report("terminal", "Unable to start terminal", error)
                     }
             }
-            mutableEffects.emit(
+            workbench.emit(
                 if (openTerminal) WorkbenchEffect.WorkspaceTerminalOpened(location)
                 else WorkbenchEffect.WorkspaceOpened(location),
             )
             return
         }
-        val dirtyCount = mutableSnapshot.value.openDocuments.count { it.dirty }
+        val dirtyCount = workbench.current.openDocuments.count { it.dirty }
         if (dirtyCount > 0 && !dirtyChoiceResolved) {
-            mutableEffects.emit(WorkbenchEffect.ConfirmWorkspaceSwitch(location, openTerminal, dirtyCount))
+            workbench.emit(WorkbenchEffect.ConfirmWorkspaceSwitch(location, openTerminal, dirtyCount))
             return
         }
         runCatching {
@@ -757,7 +744,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             } else {
                 GitWorkspaceSnapshot(repository = null, changes = emptyList())
             }
-            val closingDocuments = mutableSnapshot.value.openDocuments
+            val closingDocuments = workbench.current.openDocuments
                 .filter { it.dirty || it.location !in unresolvedRecoveryLocations }
                 .map { it.location }
             languageProcesses.stopAll()
@@ -776,7 +763,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                 )
             }
             val recents = recentSummaries()
-            mutableSnapshot.update { snapshot -> snapshot.copy(
+            workbench.update { snapshot -> snapshot.copy(
                 workspaces = recents,
                 files = decorateFiles(projectVisibleFiles(root.location, childrenByParent, expandedLocations), gitState),
                 gitChanges = gitState.changes,
@@ -811,25 +798,25 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             indexedWorkspace = null
             if (openTerminal && runtimeLayout.isInstalled) {
                 runCatching { terminals.open(root.location, reuseExisting = true) }
-                    .onSuccess { mutableSnapshot.update { it.copy(terminal = terminals.snapshot.value) } }
+                    .onSuccess { workbench.update { it.copy(terminal = terminals.snapshot.value) } }
                     .onFailure { error ->
-                        mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("Unable to start terminal")))
+                        workbench.report("terminal", "Unable to start terminal", error)
                     }
             }
-            mutableEffects.emit(
+            workbench.emit(
                 if (openTerminal) WorkbenchEffect.WorkspaceTerminalOpened(location)
                 else WorkbenchEffect.WorkspaceOpened(location),
             )
             ensureFileIndex(root.location)
         }.onFailure { error ->
             refreshRecents()
-            mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("Unable to open folder")))
+            workbench.report("workspace", "Unable to open folder", error)
         }
     }
 
     private suspend fun resolveWorkspaceSwitch(intent: WorkbenchIntent.ResolveWorkspaceSwitch) {
         if (intent.saveChanges) {
-            val dirty = mutableSnapshot.value.openDocuments.filter { it.dirty }
+            val dirty = workbench.current.openDocuments.filter { it.dirty }
             for (document in dirty) if (!saveDocument(document.location)) return
         }
         openWorkspace(intent.path, persist = true, openTerminal = intent.openTerminal, dirtyChoiceResolved = true)
@@ -838,15 +825,15 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     private suspend fun initializeGit() {
         val workspace = activeRootLocation
         if (workspace == null) {
-            mutableEffects.emit(WorkbenchEffect.Message("Open a workspace before initializing Git"))
+            workbench.message("Open a workspace before initializing Git")
             return
         }
         runCatching {
             git.initialize(workspace)
             refreshWorkspaceState(workspace)
-            mutableEffects.emit(WorkbenchEffect.GitInitialized)
+            workbench.emit(WorkbenchEffect.GitInitialized)
         }.onFailure { error ->
-            mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("Unable to initialize Git")))
+            workbench.report("git", "Unable to initialize Git", error)
         }
     }
 
@@ -860,7 +847,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
 
     private suspend fun commitStaged(message: String) = runGitAction(
         operation = { workspace -> git.commit(workspace, message) },
-        onSuccess = { mutableEffects.emit(WorkbenchEffect.GitCommitted) },
+        onSuccess = { workbench.emit(WorkbenchEffect.GitCommitted) },
     )
 
     private suspend fun configureGitIdentity(name: String, email: String) = runGitAction(
@@ -870,11 +857,11 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
 
     private suspend fun configureGlobalGitIdentity(name: String, email: String) {
         if (name.isBlank() || !email.matches(Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"))) {
-            mutableEffects.emit(WorkbenchEffect.Message("Enter a name and valid Git author email"))
+            workbench.message("Enter a name and valid Git author email")
             return
         }
         if (!git.isAvailable()) {
-            mutableEffects.emit(WorkbenchEffect.Message("Install Git in the runtime first"))
+            workbench.message("Install Git in the runtime first")
             return
         }
         runCatching {
@@ -888,7 +875,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             activeRootLocation?.let { refreshWorkspaceState(it) }
             refreshGitAuth()
         }.onFailure { error ->
-            mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("Could not save Git identity")))
+            workbench.report("git", "Could not save Git identity", error)
         }
     }
 
@@ -905,7 +892,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             refreshWorkspaceState(workspace)
             refreshGitAuth()
         }.onFailure { error ->
-            mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("Could not reset repository identity")))
+            workbench.report("git", "Could not reset repository identity", error)
         }
     }
 
@@ -920,13 +907,13 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     /** Git is absent from a fresh runtime; this installs it and reports honestly. */
     private suspend fun provisionGit() {
         if (git.isAvailable()) {
-            mutableSnapshot.update { it.copy(gitAvailable = true) }
+            workbench.update { it.copy(gitAvailable = true) }
             return
         }
-        mutableSnapshot.update { it.copy(gitOperation = GitOperationState.Running("Installing Git")) }
+        workbench.update { it.copy(gitOperation = GitOperationState.Running("Installing Git")) }
         val installed = runCatching { CliGitService(runtimeLayout).provision() }.getOrNull()
         val available = git.isAvailable()
-        mutableSnapshot.update {
+        workbench.update {
             it.copy(
                 gitAvailable = available,
                 gitOperation = if (available) {
@@ -943,10 +930,10 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     private suspend fun openDiff(path: String, staged: Boolean) {
         val workspace = activeRootLocation ?: return
         runCatching { git.diff(workspace, path, staged) }
-            .onSuccess { diff -> mutableSnapshot.update { it.copy(activeDiff = diff) } }
+            .onSuccess { diff -> workbench.update { it.copy(activeDiff = diff) } }
             .onFailure { error ->
-                mutableSnapshot.update { it.copy(activeDiff = null) }
-                mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("Unable to read the diff")))
+                workbench.update { it.copy(activeDiff = null) }
+                workbench.report("git", "Unable to read the diff", error)
             }
     }
 
@@ -955,7 +942,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
      * the opened folder when a subdirectory of a repository is opened.
      */
     private fun conflictRoot(): String? =
-        mutableSnapshot.value.gitRepository?.workTreePath ?: activeRootLocation
+        workbench.current.gitRepository?.workTreePath ?: activeRootLocation
 
     /** Loads the conflicted file straight from the worktree, markers and all. */
     private suspend fun openConflict(path: String) {
@@ -963,11 +950,11 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         runCatching { file.readText() }
             .onSuccess { text ->
                 val parsed = GitConflictParser.parse(path, text)
-                mutableSnapshot.update { it.copy(activeConflict = parsed) }
+                workbench.update { it.copy(activeConflict = parsed) }
             }
             .onFailure { error ->
-                mutableSnapshot.update { it.copy(activeConflict = null) }
-                mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("Unable to read the conflicted file")))
+                workbench.update { it.copy(activeConflict = null) }
+                workbench.report("git", "Unable to read the conflicted file", error)
             }
     }
 
@@ -981,10 +968,10 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
      */
     private suspend fun resolveConflict(path: String, choice: dev.icode.mobile.domain.GitConflictChoice) {
         val root = conflictRoot() ?: return
-        val conflict = mutableSnapshot.value.activeConflict
+        val conflict = workbench.current.activeConflict
             ?: run {
                 openConflict(path)
-                mutableSnapshot.value.activeConflict
+                workbench.current.activeConflict
             }
             ?: return
         val resolved = GitConflictParser.resolve(conflict, choice)
@@ -994,17 +981,17 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                 activeRootLocation?.let { refreshWorkspaceState(it) }
             }
             .onFailure { error ->
-                mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("Unable to write the resolved file")))
+                workbench.report("git", "Unable to write the resolved file", error)
             }
     }
 
     private suspend fun discardChanges(path: String, status: String) {
         runGitAction(operation = { workspace -> git.discard(workspace, path, status) })
-        mutableSnapshot.update { it.copy(pendingDiscard = null) }
+        workbench.update { it.copy(pendingDiscard = null) }
     }
 
     private suspend fun abortInProgress() {
-        val inProgress = mutableSnapshot.value.gitRepository?.inProgress ?: return
+        val inProgress = workbench.current.gitRepository?.inProgress ?: return
         runGitAction(operation = { workspace -> git.abortInProgress(workspace, inProgress) })
     }
 
@@ -1023,10 +1010,10 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     ) {
         val workspace = activeRootLocation
         if (workspace == null) {
-            mutableEffects.emit(WorkbenchEffect.Message("Open a workspace first"))
+            workbench.message("Open a workspace first")
             return
         }
-        mutableSnapshot.update { it.copy(gitOperation = GitOperationState.Running(label)) }
+        workbench.update { it.copy(gitOperation = GitOperationState.Running(label)) }
         // Git reads the credential helper itself; this just makes sure the
         // helper points at the token the user most recently saved.
         authenticator.applyHttpsCredentials()
@@ -1038,20 +1025,20 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             }
         }
             .onSuccess {
-                mutableSnapshot.update {
+                workbench.update {
                     it.copy(gitOperation = GitOperationState.Succeeded(label, transcript))
                 }
                 refreshWorkspaceState(workspace)
                 // The progress surface closes itself, so the outcome is
                 // reported here or it is never reported at all.
-                mutableEffects.emit(WorkbenchEffect.Message(completionMessage(label, transcript)))
+                workbench.message(completionMessage(label, transcript))
             }
             .onFailure { error ->
-                mutableSnapshot.update {
+                workbench.update {
                     it.copy(
                         gitOperation = GitOperationState.Failed(
                             label,
-                            error.userMessage("$label failed"),
+                            workbench.failureText("git", "$label failed", error),
                             transcript,
                         ),
                     )
@@ -1066,7 +1053,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
      * push a finished operation back into a running state.
      */
     private fun publishProgress(label: String, stderr: String, transcript: List<String>) {
-        mutableSnapshot.update { state ->
+        workbench.update { state ->
             val running = state.gitOperation as? GitOperationState.Running ?: return@update state
             if (running.label != label) return@update state
             state.copy(
@@ -1087,7 +1074,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     }
 
     private suspend fun pushRemote() {
-        val repository = mutableSnapshot.value.gitRepository
+        val repository = workbench.current.gitRepository
         val needsUpstream = repository?.upstream == null
         runRemote("Pushing") { workspace, onStderr ->
             git.push(
@@ -1101,7 +1088,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
 
     private suspend fun cloneRepository(intent: WorkbenchIntent.CloneRepository) {
         val label = "Cloning"
-        mutableSnapshot.update { it.copy(gitOperation = GitOperationState.Running(label)) }
+        workbench.update { it.copy(gitOperation = GitOperationState.Running(label)) }
         var transcript = emptyList<String>()
         runCatching {
             git.clone(intent.url, intent.destination, intent.directoryName) { stderr ->
@@ -1110,17 +1097,17 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             }
         }
             .onSuccess {
-                mutableSnapshot.update {
+                workbench.update {
                     it.copy(gitOperation = GitOperationState.Succeeded(label, transcript))
                 }
                 openWorkspace(File(intent.destination, intent.directoryName).path, persist = true)
             }
             .onFailure { error ->
-                mutableSnapshot.update {
+                workbench.update {
                     it.copy(
                         gitOperation = GitOperationState.Failed(
                             label,
-                            error.userMessage("Clone failed"),
+                            workbench.failureText("git", "Clone failed", error),
                             transcript,
                         ),
                     )
@@ -1135,27 +1122,27 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             )
             authenticator.applyHttpsCredentials()
         }.onFailure { error ->
-            mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("Unable to save the token")))
+            workbench.report("git", "Unable to save the token", error)
         }
         refreshGitAuth()
     }
 
     private suspend fun generateSshKey() {
-        mutableSnapshot.update { it.copy(gitAuth = it.gitAuth.copy(busy = true)) }
+        workbench.update { it.copy(gitAuth = it.gitAuth.copy(busy = true)) }
         val available = authenticator.ensureSshAvailable()
         val outcome = if (available) {
             authenticator.generateSshKey(credentialStore.describeHttps() ?: "icode")
         } else {
             GitOperationOutcome(false, "The OpenSSH client could not be installed")
         }
-        if (!outcome.succeeded) mutableEffects.emit(WorkbenchEffect.Message(outcome.message))
+        if (!outcome.succeeded) workbench.message(outcome.message)
         refreshGitAuth()
     }
 
     private suspend fun testGitConnection(url: String) {
-        mutableSnapshot.update { it.copy(gitAuth = it.gitAuth.copy(busy = true, lastTest = null)) }
+        workbench.update { it.copy(gitAuth = it.gitAuth.copy(busy = true, lastTest = null)) }
         val outcome = authenticator.testConnection(url)
-        mutableSnapshot.update {
+        workbench.update {
             it.copy(
                 gitAuth = it.gitAuth.copy(
                     busy = false,
@@ -1176,10 +1163,10 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         val gitAvailable = git.isAvailable()
         val globalName = if (gitAvailable) config(null, "--global", "user.name") else null
         val globalEmail = if (gitAvailable) config(null, "--global", "user.email") else null
-        val workspace = activeRootLocation?.takeIf { mutableSnapshot.value.gitRepository != null }
+        val workspace = activeRootLocation?.takeIf { workbench.current.gitRepository != null }
         val localName = if (gitAvailable && workspace != null) config(workspace, "--local", "user.name") else null
         val localEmail = if (gitAvailable && workspace != null) config(workspace, "--local", "user.email") else null
-        mutableSnapshot.update {
+        workbench.update {
             it.copy(
                 gitAvailable = gitAvailable,
                 globalGitAuthorName = globalName,
@@ -1203,7 +1190,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     ) {
         val workspace = activeRootLocation
         if (workspace == null) {
-            mutableEffects.emit(WorkbenchEffect.Message("Open a workspace first"))
+            workbench.message("Open a workspace first")
             return
         }
         runCatching {
@@ -1211,23 +1198,23 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             refreshWorkspaceState(workspace)
             onSuccess()
         }.onFailure { error ->
-            mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("Git operation failed")))
+            workbench.report("git", "Git operation failed", error)
         }
     }
 
     private suspend fun runContentSearch(query: String, matchCase: Boolean, wholeWord: Boolean, regex: Boolean) {
         val root = activeRootLocation
         if (root == null) {
-            mutableEffects.emit(WorkbenchEffect.Message("Open a workspace before searching"))
+            workbench.message("Open a workspace before searching")
             return
         }
         if (query.isBlank()) {
-            mutableSnapshot.update { snapshot -> snapshot.copy(contentSearch = ContentSearchState.Empty) }
+            workbench.update { snapshot -> snapshot.copy(contentSearch = ContentSearchState.Empty) }
             return
         }
         try {
             val outcome = WorkspaceIndexer.search(root, query.trim(), matchCase, wholeWord, regex)
-            mutableSnapshot.update { snapshot -> snapshot.copy(
+            workbench.update { snapshot -> snapshot.copy(
                 contentSearch = ContentSearchState(
                     query = query.trim(),
                     matchCase = matchCase,
@@ -1239,7 +1226,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                 ),
             ) }
         } catch (error: PatternSyntaxException) {
-            mutableSnapshot.update { snapshot -> snapshot.copy(
+            workbench.update { snapshot -> snapshot.copy(
                 contentSearch = ContentSearchState(
                     query = query.trim(),
                     matchCase = matchCase,
@@ -1255,32 +1242,32 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     }
 
     private fun clearContentSearch() {
-        mutableSnapshot.update { snapshot -> snapshot.copy(contentSearch = ContentSearchState.Empty) }
+        workbench.update { snapshot -> snapshot.copy(contentSearch = ContentSearchState.Empty) }
     }
 
     private suspend fun ensureFileIndex(root: String): Pair<List<dev.icode.mobile.domain.IndexedFile>, Boolean> {
-        if (indexedWorkspace == root && mutableSnapshot.value.fileIndex.isNotEmpty()) {
-            return mutableSnapshot.value.fileIndex to mutableSnapshot.value.fileIndexTruncated
+        if (indexedWorkspace == root && workbench.current.fileIndex.isNotEmpty()) {
+            return workbench.current.fileIndex to workbench.current.fileIndexTruncated
         }
         val (index, truncated) = WorkspaceIndexer.indexFiles(root)
         indexedWorkspace = root
-        mutableSnapshot.update { snapshot -> snapshot.copy(fileIndex = index, fileIndexTruncated = truncated) }
+        workbench.update { snapshot -> snapshot.copy(fileIndex = index, fileIndexTruncated = truncated) }
         return index to truncated
     }
 
     private suspend fun openDocument(location: String, lineNumber: Int? = null, column: Int? = null) {
-        val existing = mutableSnapshot.value.openDocuments.firstOrNull { it.location == location }
+        val existing = workbench.current.openDocuments.firstOrNull { it.location == location }
         if (existing != null) {
             selectDocument(location)
             recordRecentDocument(location)
-            mutableEffects.emit(WorkbenchEffect.DocumentOpened(location, lineNumber, column))
+            workbench.emit(WorkbenchEffect.DocumentOpened(location, lineNumber, column))
             return
         }
         val root = activeRootLocation
         if (root == null || !runCatching {
                 File(location).canonicalFile.toPath().startsWith(File(root).canonicalFile.toPath())
             }.getOrDefault(false)) {
-            mutableEffects.emit(WorkbenchEffect.Message("The selected file is outside the active workspace"))
+            workbench.message("The selected file is outside the active workspace")
             return
         }
         runCatching {
@@ -1296,18 +1283,18 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                 dirty = false,
                 readOnly = document.readOnly,
             )
-            mutableSnapshot.update { snapshot -> snapshot.copy(
+            workbench.update { snapshot -> snapshot.copy(
                 openDocuments = snapshot.openDocuments + opened,
                 activeDocument = opened,
             ) }
             recordRecentDocument(document.location)
-            mutableEffects.emit(WorkbenchEffect.DocumentOpened(location, lineNumber, column))
+            workbench.emit(WorkbenchEffect.DocumentOpened(location, lineNumber, column))
             draftMutex.withLock { draftStore.read(document.location) }?.let { draft ->
                 if (draft.text == document.text) {
                     discardDraft(document.location)
                 } else {
                     unresolvedRecoveryLocations += document.location
-                    mutableSnapshot.update { state ->
+                    workbench.update { state ->
                         val locked = state.openDocuments.firstOrNull { it.location == document.location }
                             ?.copy(readOnly = true) ?: return@update state
                         state.copy(
@@ -1315,7 +1302,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                             activeDocument = if (state.activeDocument?.location == document.location) locked else state.activeDocument,
                         )
                     }
-                    mutableEffects.emit(WorkbenchEffect.ConfirmDraftRecovery(
+                    workbench.emit(WorkbenchEffect.ConfirmDraftRecovery(
                         location = document.location,
                         name = document.name,
                         sourceChanged = draft.sourceFingerprint != document.fingerprint,
@@ -1323,7 +1310,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                 }
             }
         }.onFailure { error ->
-            mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("Unable to open document")))
+            workbench.report("documents", "Unable to open document", error)
         }
     }
 
@@ -1348,9 +1335,9 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         }
         runCatching { source.createFile(parent, name) }.onSuccess { location ->
             refreshCreatedWorkspaceItem(root, parent, "File", updateIndex = true)
-            if (intent.requestId != null) mutableEffects.emit(WorkbenchEffect.WorkspaceItemCreated(intent.requestId, location))
+            if (intent.requestId != null) workbench.emit(WorkbenchEffect.WorkspaceItemCreated(intent.requestId, location))
             openDocument(location)
-        }.onFailure { error -> reportWorkspaceItemFailure(intent.requestId, error.userMessage("Unable to create file")) }
+        }.onFailure { error -> reportWorkspaceItemFailure(intent.requestId, workbench.failureText("workspace", "Unable to create file", error)) }
     }
 
     private suspend fun createWorkspaceFolder(intent: WorkbenchIntent.CreateWorkspaceFolder) {
@@ -1370,8 +1357,8 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         }
         runCatching { source.createDirectory(intent.parentLocation, name) }.onSuccess { location ->
             refreshCreatedWorkspaceItem(root, intent.parentLocation, "Folder", updateIndex = false)
-            mutableEffects.emit(WorkbenchEffect.WorkspaceItemCreated(intent.requestId, location))
-        }.onFailure { error -> reportWorkspaceItemFailure(intent.requestId, error.userMessage("Unable to create folder")) }
+            workbench.emit(WorkbenchEffect.WorkspaceItemCreated(intent.requestId, location))
+        }.onFailure { error -> reportWorkspaceItemFailure(intent.requestId, workbench.failureText("workspace", "Unable to create folder", error)) }
     }
 
     private fun isWorkspaceCreationParent(root: String, parent: String): Boolean = runCatching {
@@ -1390,13 +1377,13 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                 ensureFileIndex(root)
             }
         }.onFailure { error ->
-            mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("$kind created, but the workspace could not refresh")))
+            workbench.report("workspace", "$kind created, but the workspace could not refresh", error)
         }
     }
 
     private suspend fun reportWorkspaceItemFailure(requestId: String?, message: String) {
-        if (requestId == null) mutableEffects.emit(WorkbenchEffect.Message(message))
-        else mutableEffects.emit(WorkbenchEffect.WorkspaceItemCreationFailed(requestId, message))
+        if (requestId == null) workbench.message(message)
+        else workbench.emit(WorkbenchEffect.WorkspaceItemCreationFailed(requestId, message))
     }
 
     private suspend fun recordRecentDocument(location: String) {
@@ -1405,9 +1392,9 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             store.touchRecentDocument(
                 StoredRecentDocument(File(location).name, File(location).canonicalPath, root, System.currentTimeMillis()),
             )
-            mutableSnapshot.update { it.copy(recentDocuments = recentDocumentSummaries(root)) }
+            workbench.update { it.copy(recentDocuments = recentDocumentSummaries(root)) }
         }.onFailure { error ->
-            mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("File opened, but recent files could not be saved")))
+            workbench.report("documents", "File opened, but recent files could not be saved", error)
         }
     }
 
@@ -1426,7 +1413,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         }
 
     private fun updateDocumentText(intent: WorkbenchIntent.UpdateDocumentText) {
-        mutableSnapshot.update { state ->
+        workbench.update { state ->
             val document = state.openDocuments.firstOrNull { it.location == intent.location }
                 ?: return@update state
             if (document.readOnly) return@update state
@@ -1446,7 +1433,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         scope.launch {
             runCatching {
                 draftMutex.withLock {
-                    val document = mutableSnapshot.value.openDocuments.firstOrNull { it.location == location }
+                    val document = workbench.current.openDocuments.firstOrNull { it.location == location }
                         ?: return@withLock
                     val sourceDocument = documentSources[location] ?: return@withLock
                     if (document.dirty) {
@@ -1460,16 +1447,16 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     }
                 }
             }.onFailure { error ->
-                mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("Unable to keep a recovery draft")))
+                workbench.report("documents", "Unable to keep a recovery draft", error)
             }
         }
     }
 
     private suspend fun restoreDraft(location: String) {
         val draft = draftMutex.withLock { draftStore.read(location) } ?: return
-        val document = mutableSnapshot.value.openDocuments.firstOrNull { it.location == location } ?: return
+        val document = workbench.current.openDocuments.firstOrNull { it.location == location } ?: return
         if (document.dirty) {
-            mutableEffects.emit(WorkbenchEffect.Message("This document has newer edits. Save or discard them before restoring a draft"))
+            workbench.message("This document has newer edits. Save or discard them before restoring a draft")
             return
         }
         val sourceDocument = documentSources[location] ?: return
@@ -1481,7 +1468,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         unresolvedRecoveryLocations.remove(location)
         // Back in the editor, the draft is this session's live work again.
         draftMutex.withLock { forgetRecoverableDrafts(listOf(location)) }
-        mutableSnapshot.update { state ->
+        workbench.update { state ->
             val restored = state.openDocuments.firstOrNull { it.location == location }
                 ?.copy(text = draft.text, dirty = true, readOnly = sourceDocument.readOnly) ?: return@update state
             state.copy(
@@ -1513,17 +1500,17 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                 val drafts = draftStore.list().map { draft ->
                     RecoverableDraft(draft.location, draft.name, draft.sizeBytes, draft.savedAtEpochMillis)
                 }
-                mutableSnapshot.update { it.copy(recoverableDrafts = drafts) }
+                workbench.update { it.copy(recoverableDrafts = drafts) }
             }
         }.onFailure { error ->
-            mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("Unable to read the recovery drafts")))
+            workbench.report("documents", "Unable to read the recovery drafts", error)
         }
     }
 
     /** Callers hold [draftMutex]. */
     private fun forgetRecoverableDrafts(locations: Collection<String>) {
-        if (mutableSnapshot.value.recoverableDrafts.none { it.location in locations }) return
-        mutableSnapshot.update { state ->
+        if (workbench.current.recoverableDrafts.none { it.location in locations }) return
+        workbench.update { state ->
             state.copy(recoverableDrafts = state.recoverableDrafts.filterNot { it.location in locations })
         }
     }
@@ -1536,16 +1523,16 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         allowRecoveredOverwrite: Boolean = false,
     ): Boolean {
         val sourceDocument = documentSources[location]
-        val openDocument = mutableSnapshot.value.openDocuments.firstOrNull { it.location == location }
+        val openDocument = workbench.current.openDocuments.firstOrNull { it.location == location }
         if (automatic && (expectedWorkspace != activeRootLocation ||
-                !mutableSnapshot.value.isCurrentAutoSaveRequest(location, expectedWorkspace, expectedText))) return false
+                !workbench.current.isCurrentAutoSaveRequest(location, expectedWorkspace, expectedText))) return false
         if (sourceDocument == null || openDocument == null) {
-            mutableEffects.emit(WorkbenchEffect.Message("The document is no longer open"))
+            workbench.message("The document is no longer open")
             return false
         }
         if (!openDocument.dirty && location in unresolvedRecoveryLocations) {
             draftMutex.withLock { draftStore.read(location) }?.let { draft ->
-                mutableEffects.emit(WorkbenchEffect.ConfirmDraftRecovery(
+                workbench.emit(WorkbenchEffect.ConfirmDraftRecovery(
                     location,
                     openDocument.name,
                     draft.sourceFingerprint != sourceDocument.fingerprint,
@@ -1555,7 +1542,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             unresolvedRecoveryLocations.remove(location)
         }
         if (location in recoveredExternalChanges && !allowRecoveredOverwrite) {
-            if (!automatic) mutableEffects.emit(WorkbenchEffect.ConfirmRecoveredOverwrite(location, openDocument.name))
+            if (!automatic) workbench.emit(WorkbenchEffect.ConfirmRecoveredOverwrite(location, openDocument.name))
             return false
         }
         val textBeingSaved = openDocument.text
@@ -1563,7 +1550,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             documentSources[location] = source.writeDocument(sourceDocument, textBeingSaved)
             recoveredExternalChanges.remove(location)
             savedDocumentTexts[location] = textBeingSaved
-            mutableSnapshot.update { state ->
+            workbench.update { state ->
                 val current = state.openDocuments.firstOrNull { it.location == location } ?: return@update state
                 val saved = current.copy(dirty = current.text != textBeingSaved)
                 state.copy(
@@ -1576,12 +1563,12 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             scheduleGitRefresh()
             true
         }.onFailure { error ->
-            mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("Unable to save document")))
+            workbench.report("documents", "Unable to save document", error)
         }.getOrDefault(false)
         if (!saved) return false
         runCatching {
             draftMutex.withLock {
-                val latest = mutableSnapshot.value.openDocuments.firstOrNull { it.location == location }
+                val latest = workbench.current.openDocuments.firstOrNull { it.location == location }
                 if (latest?.dirty == true) {
                     val refreshedSource = documentSources[location]
                     if (refreshedSource != null) {
@@ -1594,33 +1581,33 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                 }
             }
         }.onFailure { error ->
-            mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("File saved, but recovery cache could not update")))
+            workbench.report("documents", "File saved, but recovery cache could not update", error)
         }
-        mutableEffects.emit(WorkbenchEffect.DocumentSaved(location, automatic))
+        workbench.emit(WorkbenchEffect.DocumentSaved(location, automatic))
         return true
     }
 
     private fun selectDocument(location: String) {
-        mutableSnapshot.update { state ->
+        workbench.update { state ->
             val selected = state.openDocuments.firstOrNull { it.location == location }
             if (selected == null) state else state.copy(activeDocument = selected)
         }
     }
 
     private fun reorderDocument(movingLocation: String, targetLocation: String) {
-        mutableSnapshot.update { state ->
+        workbench.update { state ->
             state.copy(openDocuments = reorderDocuments(state.openDocuments, movingLocation, targetLocation))
         }
     }
 
     private suspend fun closeDocument(location: String, saveChanges: Boolean?) {
-        val document = mutableSnapshot.value.openDocuments.firstOrNull { it.location == location } ?: return
+        val document = workbench.current.openDocuments.firstOrNull { it.location == location } ?: return
         if (document.dirty && saveChanges == null) {
-            mutableEffects.emit(WorkbenchEffect.Message("Choose Save, Discard or Cancel before closing ${document.name}"))
+            workbench.message("Choose Save, Discard or Cancel before closing ${document.name}")
             return
         }
         if (document.dirty && saveChanges == true && !saveDocument(location)) return
-        mutableSnapshot.update { state ->
+        workbench.update { state ->
             val nextLocation = selectedAfterClose(state.openDocuments, state.activeDocument?.location, location)
             val remaining = state.openDocuments.filterNot { it.location == location }
             state.copy(openDocuments = remaining, activeDocument = remaining.firstOrNull { it.location == nextLocation })
@@ -1634,9 +1621,9 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     }
 
     private suspend fun closeOtherDocuments(keepLocation: String, saveChanges: Boolean?) {
-        val others = mutableSnapshot.value.openDocuments.filterNot { it.location == keepLocation }
+        val others = workbench.current.openDocuments.filterNot { it.location == keepLocation }
         if (others.any { it.dirty } && saveChanges == null) {
-            mutableEffects.emit(WorkbenchEffect.Message("Choose Save, Discard or Cancel before closing dirty tabs"))
+            workbench.message("Choose Save, Discard or Cancel before closing dirty tabs")
             return
         }
         if (saveChanges == true) {
@@ -1656,14 +1643,14 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             }
         }
         others.forEach { unresolvedRecoveryLocations.remove(it.location) }
-        mutableSnapshot.update { state ->
+        workbench.update { state ->
             val kept = state.openDocuments.firstOrNull { it.location == keepLocation }
             state.copy(openDocuments = listOfNotNull(kept), activeDocument = kept)
         }
     }
 
     private suspend fun closeSavedDocuments() {
-        val removed = mutableSnapshot.value.openDocuments.filterNot { it.dirty }
+        val removed = workbench.current.openDocuments.filterNot { it.dirty }
         removed.forEach { document ->
             documentSources.remove(document.location)
             savedDocumentTexts.remove(document.location)
@@ -1678,7 +1665,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             }
         }
         removed.forEach { unresolvedRecoveryLocations.remove(it.location) }
-        mutableSnapshot.update { state ->
+        workbench.update { state ->
             val remaining = state.openDocuments.filter { it.dirty }
             state.copy(openDocuments = remaining, activeDocument = remaining.firstOrNull { it.location == state.activeDocument?.location } ?: remaining.firstOrNull())
         }
@@ -1691,13 +1678,13 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                 if (location !in childrenByParent) childrenByParent[location] = source.listChildren(location)
                 expandedLocations += location
             }.onFailure { error ->
-                mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("Unable to read folder")))
+                workbench.report("workspace", "Unable to read folder", error)
             }
         }
-        mutableSnapshot.update { snapshot -> snapshot.copy(
+        workbench.update { snapshot -> snapshot.copy(
             files = decorateFiles(
                 projectVisibleFiles(root, childrenByParent, expandedLocations),
-                GitWorkspaceSnapshot(mutableSnapshot.value.gitRepository, mutableSnapshot.value.gitChanges),
+                GitWorkspaceSnapshot(workbench.current.gitRepository, workbench.current.gitChanges),
             ),
         ) }
     }
@@ -1716,7 +1703,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             refreshWorkspaceState(root)
             ensureFileIndex(root)
         }.onFailure { error ->
-            mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("Unable to refresh workspace")))
+            workbench.report("workspace", "Unable to refresh workspace", error)
         }
     }
 
@@ -1725,7 +1712,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         // concurrent writer's fields are lost.
         val recents = recentSummaries()
         val storage = runCatching(source::storageSummary).getOrNull()
-        mutableSnapshot.update { it.copy(workspaces = recents, storage = storage) }
+        workbench.update { it.copy(workspaces = recents, storage = storage) }
     }
 
     private fun refreshStorage() {
@@ -1742,31 +1729,31 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                 },
             ) }
             currentCoroutineContext().ensureActive()
-            mutableSnapshot.update { it.copy(storage = device, storageDetails = details) }
+            workbench.update { it.copy(storage = device, storageDetails = details) }
         }
     }
 
     private suspend fun clearAppCache() {
         if (terminals.hasRunningSessions() || languageProcesses.hasActiveProcesses() || runtimeInstallJob?.isActive == true ||
-            mutableSnapshot.value.gitOperation is GitOperationState.Running) {
-            mutableEffects.emit(WorkbenchEffect.Message("Finish runtime, Git, terminal and language service tasks before clearing cache"))
+            workbench.current.gitOperation is GitOperationState.Running) {
+            workbench.message("Finish runtime, Git, terminal and language service tasks before clearing cache")
             return
         }
         runCatching {
             StorageInspector.clearRuntimeCache(appContext.cacheDir, runtimeLayout.prootTemp)
         }.onSuccess { removed ->
-            mutableEffects.emit(WorkbenchEffect.Message(
+            workbench.message(
                 if (removed == 0) "Runtime cache is already clear" else "Removed $removed cached runtime items",
-            ))
+            )
             refreshStorage()
         }.onFailure { error ->
-            mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("Unable to clear runtime cache")))
+            workbench.report("storage", "Unable to clear runtime cache", error)
         }
     }
 
     private suspend fun removeStaleRecents() {
         if (!Environment.isExternalStorageManager() || Environment.getExternalStorageState() != Environment.MEDIA_MOUNTED) {
-            mutableEffects.emit(WorkbenchEffect.Message("Storage access is needed before checking recent workspace paths"))
+            workbench.message("Storage access is needed before checking recent workspace paths")
             return
         }
         runCatching {
@@ -1776,12 +1763,12 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             refreshStorage()
             missing.size
         }.onSuccess { removed ->
-            mutableEffects.emit(WorkbenchEffect.Message(
+            workbench.message(
                 if (removed == 0) "No stale recent workspaces found"
                 else "Removed $removed stale recent shortcuts; no workspace files were deleted",
-            ))
+            )
         }.onFailure { error ->
-            mutableEffects.emit(WorkbenchEffect.Message(error.userMessage("Unable to remove stale recents")))
+            workbench.report("workspace", "Unable to remove stale recents", error)
         }
     }
 
@@ -1817,7 +1804,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         gitRefreshJob?.cancel()
         gitRefreshJob = scope.launch {
             delay(GIT_REFRESH_DEBOUNCE_MILLIS)
-            mutationMutex.withLock { refreshWorkspaceState(root) }
+            workbench.mutations.withLock { refreshWorkspaceState(root) }
         }
     }
 
@@ -1833,7 +1820,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         }
         val recents = recentSummaries()
         val files = decorateFiles(projectVisibleFiles(root, childrenByParent, expandedLocations), gitState)
-        mutableSnapshot.update {
+        workbench.update {
             it.copy(
                 workspaces = recents,
                 files = files,
@@ -1855,23 +1842,8 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             GitTreeStatus.decorate(files, statuses)
         } ?: files
 
-    private fun Throwable.userMessage(fallback: String): String =
-        message?.takeIf { it.isNotBlank() } ?: fallback
-
     private companion object {
         /** Long enough to absorb a burst of saves, short enough to feel immediate. */
         const val GIT_REFRESH_DEBOUNCE_MILLIS = 350L
-
-        fun emptySnapshot() = WorkbenchSnapshot(
-            workspaces = emptyList(),
-            files = emptyList(),
-            gitChanges = emptyList(),
-            diagnostics = emptyList(),
-            languageServices = emptyList(),
-            activeWorkspace = "No workspace",
-            activePath = "Open a folder to begin",
-            activeBranch = "",
-            runtimeHealthy = true,
-        )
     }
 }

@@ -256,3 +256,20 @@ the H0 build replace the 2026-09-22 set; the contact sheets under their new name
   decide what history it needs; until then failures are logged through `BackendLog`.
 - Checks: compile debug and release; 247 unit tests; lint 0 errors, 23 warnings (unchanged); UI
   guard passes.
+
+**X1c — state holder and one failure path (2026-09-26), done.**
+
+- `data/workspace/WorkbenchStateHolder`: the one snapshot and effect stream, the mutation lock,
+  `onMain`, the empty snapshot, and the failure path — `report(subsystem, fallback, error)` for a
+  message, `failureText(...)` where the failure is shown inside state (failed runtime, failed Git
+  operation, item-creation error, language load error). Both write one `BackendLog` warning and
+  give the user the error's own words or the fallback, with any `user:token@` masked (tokens
+  never reach the screen).
+- The gateway uses it everywhere (71 updates, 36 reads, 96 emits, 3 locks, 7 main-thread calls):
+  37 failure sites that showed a message and logged nothing now do both. Every coordinator split
+  out in S1–S8 takes the holder, so none needs its own flows or its own report helper.
+- Not changed here: failures that are swallowed on purpose (`runCatching { … }.getOrNull()` with
+  a fallback) — each scope reviews its own against the lifecycle, with the report path ready.
+  Noted for S5: the Git transcript shown in Output is not masked the same way.
+- Checks: compile debug and release; 250 unit tests (3 new: one line and one message; fallback
+  words; token masked on screen and in the log); lint 0 errors, 23 warnings; UI guard passes.
