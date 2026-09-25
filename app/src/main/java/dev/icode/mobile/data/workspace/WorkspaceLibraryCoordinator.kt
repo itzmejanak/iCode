@@ -6,7 +6,6 @@ import dev.icode.mobile.data.git.GitHeadReader
 import dev.icode.mobile.data.io.measureTree
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.domain.RecentDocument
-import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.domain.StorageDetails
 import dev.icode.mobile.domain.WorkspaceSummary
 import java.io.File
@@ -62,7 +61,7 @@ internal class WorkspaceLibraryCoordinator(
             // Reading .git/HEAD keeps the launcher instant; starting a Git
             // process for every recent workspace would cost a PRoot launch each.
             branch = if (available) runCatching { GitHeadReader.branchOf(workspace.location) }.getOrNull() else null,
-            lastOpened = RelativeTime.since(workspace.lastOpenedAt),
+            lastOpenedAt = workspace.lastOpenedAt,
             available = available,
             location = workspace.location,
         )
@@ -156,7 +155,7 @@ internal class WorkspaceLibraryCoordinator(
                 name = item.name,
                 location = item.location,
                 path = relative.toString(),
-                lastOpened = RelativeTime.since(item.lastOpenedAt),
+                lastOpenedAt = item.lastOpenedAt,
                 available = File(item.location).isFile,
             )
         }

@@ -46,6 +46,7 @@ import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.StatusDot
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.domain.FolderBrowserPurpose
+import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.domain.SystemPermission
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.domain.WorkspaceSummary
@@ -218,7 +219,7 @@ private fun WorkspaceRow(
             Box {
                 WorkspaceActionsMenu(item)
                 Text(
-                    item.lastOpened,
+                    RelativeTime.since(item.lastOpenedAt),
                     style = IcodeType.Caption,
                     modifier = Modifier.align(Alignment.BottomEnd).padding(end = IcodeSpacing.Space1),
                 )

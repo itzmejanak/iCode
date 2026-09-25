@@ -36,6 +36,7 @@ import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.SectionLabel
+import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.navigation.ToolPanelTab
@@ -89,7 +90,7 @@ fun EditorEmptyScreen(actions: NavigationActions) {
                 Text("Files you open will appear here", style = IcodeType.Caption, color = IcodeColors.TextSecondary)
             }
             state.recentDocuments.forEach { document ->
-                RecentFile(document.name, document.path, if (document.available) document.lastOpened else "Missing") {
+                RecentFile(document.name, document.path, if (document.available) RelativeTime.since(document.lastOpenedAt) else "Missing") {
                     gateway.dispatch(WorkbenchIntent.OpenFile(document.location))
                 }
             }

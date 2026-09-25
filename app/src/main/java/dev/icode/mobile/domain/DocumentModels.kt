@@ -43,6 +43,7 @@ data class RecentDocument(
     val name: String,
     val location: String,
     val path: String,
-    val lastOpened: String,
+    /** When it was last opened; screens say how long ago. */
+    val lastOpenedAt: Long,
     val available: Boolean = true,
 )

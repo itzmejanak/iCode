@@ -33,6 +33,7 @@ import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.TwoColumnActions
 import dev.icode.mobile.domain.ByteSize
+import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.ui.LocalWorkbenchGateway
@@ -101,7 +102,7 @@ fun StorageSettingsScreen(actions: NavigationActions) {
                             Text(workspace.name, style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold))
                             MonoLine(workspace.path, style = IcodeType.MonoSmall)
                             MonoLine(
-                                "${storageSizeLabel(details?.workspaceSizes?.get(workspace.location))}  · ${workspace.lastOpened}",
+                                "${storageSizeLabel(details?.workspaceSizes?.get(workspace.location))}  · ${RelativeTime.since(workspace.lastOpenedAt)}",
                                 color = IcodeColors.Accent,
                                 style = IcodeType.MonoSmall,
                             )
