@@ -23,6 +23,7 @@ import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.domain.GitInProgress
 import dev.icode.mobile.domain.GitOperationState
+import dev.icode.mobile.domain.countOf
 
 /** Shown when the runtime has no `git` binary yet. */
 @Composable
@@ -101,7 +102,7 @@ internal fun InProgressBanner(inProgress: GitInProgress, conflicts: Int, onAbort
             StatusLabel("A $name is in progress.", IcodeColors.Amber)
             MonoLine(
                 if (conflicts > 0) {
-                    "$conflicts file(s) still conflicted. Resolve them, then commit to finish."
+                    "${countOf(conflicts, "file")} still conflicted. Resolve them, then commit to finish."
                 } else {
                     "Nothing is conflicted. Commit to finish the $name."
                 },

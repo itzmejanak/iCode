@@ -29,6 +29,7 @@ import dev.icode.mobile.domain.GitConflictChoice
 import dev.icode.mobile.domain.GitConflictFile
 import dev.icode.mobile.domain.GitConflictSection
 import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.countOf
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
@@ -60,7 +61,7 @@ fun ConflictResolutionScreen(actions: NavigationActions) {
             },
             actions = {
                 StatusLabel(
-                    if (conflict.isResolved) "Resolved" else "${conflict.sections.size} conflict(s)",
+                    if (conflict.isResolved) "Resolved" else countOf(conflict.sections.size, "conflict"),
                     if (conflict.isResolved) IcodeColors.Green else IcodeColors.Error,
                 )
             },

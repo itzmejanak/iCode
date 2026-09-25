@@ -22,6 +22,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.core.view.WindowCompat
+import dev.icode.mobile.domain.countOf
 import dev.icode.mobile.ui.terminal.TerminalSessionSource
 import dev.icode.mobile.data.settings.AndroidWorkspacePreferencesRepository
 import dev.icode.mobile.data.workspace.DocumentAutoSaveCoordinator
@@ -227,7 +228,7 @@ fun IcodeApp(
         pendingWorkspaceSwitch?.let { switch ->
             IcodeSaveDiscardDialog(
                 title = "Switch workspace?",
-                description = "${switch.dirtyCount} ${if (switch.dirtyCount == 1) "file has" else "files have"} unsaved changes.",
+                description = "${countOf(switch.dirtyCount, "file has", "files have")} unsaved changes.",
                 onSave = {
                     gateway.dispatch(WorkbenchIntent.ResolveWorkspaceSwitch(switch.location, switch.openTerminal, saveChanges = true))
                     pendingWorkspaceSwitch = null

@@ -27,6 +27,7 @@ import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.domain.FolderBrowserPurpose
+import dev.icode.mobile.domain.countOf
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
@@ -71,7 +72,7 @@ fun OpenFolderScreen(actions: NavigationActions) {
                 IcodeListRow(
                     card = true,
                     title = folder.name,
-                    subtitle = "${folder.directoryCount} directories, ${folder.fileCount} files",
+                    subtitle = "${countOf(folder.directoryCount, "directory", "directories")}, ${countOf(folder.fileCount, "file")}",
                     titleStyle = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold),
                     onClick = { gateway.dispatch(WorkbenchIntent.BrowseFolder(folder.path)) },
                     leading = { Icon(Icons.Outlined.Folder, contentDescription = null, tint = IcodeColors.Accent) },

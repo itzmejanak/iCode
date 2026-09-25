@@ -33,6 +33,7 @@ import dev.icode.mobile.designsystem.tint
 import dev.icode.mobile.domain.ContentSearchState
 import dev.icode.mobile.domain.FileKind
 import dev.icode.mobile.domain.IndexedFile
+import dev.icode.mobile.domain.countOf
 
 /** Result cap keeps the list responsive on large workspaces. */
 private const val MAX_FILE_RESULTS = 50
@@ -111,7 +112,7 @@ internal fun TextResults(
                         "⌄  ${result.name}",
                         style = IcodeType.Mono.copy(color = IcodeColors.Accent, fontWeight = FontWeight.SemiBold),
                     )
-                    Text("  (${result.matches.size} matches)", style = IcodeType.MonoSmall)
+                    Text("  (${countOf(result.matches.size, "match", "matches")})", style = IcodeType.MonoSmall)
                 }
                 MonoLine(
                     result.path,
@@ -141,9 +142,8 @@ private fun SearchSummary(search: ContentSearchState, query: String, resultsAreC
         !resultsAreCurrent -> "Searching this workspace…"
         search.error != null -> search.error
         search.results.isEmpty() -> "No matches for \"${search.query}\""
-        else -> "${search.totalMatches} ${if (search.totalMatches == 1) "result" else "results"} in " +
-            "${search.results.size} ${if (search.results.size == 1) "file" else "files"}" +
-            " · ${search.searchedFiles} files scanned"
+        else -> "${countOf(search.totalMatches, "result")} in ${countOf(search.results.size, "file")}" +
+            " · ${countOf(search.searchedFiles, "file")} scanned"
     }
     Text(
         summary,
