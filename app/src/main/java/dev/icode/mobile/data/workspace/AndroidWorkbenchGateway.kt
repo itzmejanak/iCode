@@ -11,7 +11,6 @@ import dev.icode.mobile.data.git.GitProgressParser
 import dev.icode.mobile.data.git.GitOperationOutcome
 import dev.icode.mobile.data.git.GitRepositoryClient
 import dev.icode.mobile.data.git.GitWorkspaceSnapshot
-import dev.icode.mobile.data.io.measureTree
 import dev.icode.mobile.data.language.LanguageServiceProcessManager
 import dev.icode.mobile.data.language.LanguageServiceStore
 import dev.icode.mobile.data.log.BackendLog
@@ -31,22 +30,17 @@ import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.IndexedFile
 import dev.icode.mobile.domain.RuntimeInstallReason
 import dev.icode.mobile.domain.ContentSearchState
-import dev.icode.mobile.domain.FolderBrowserPurpose
 import dev.icode.mobile.domain.GitTreeStatus
 import dev.icode.mobile.domain.WorkbenchEffect
 import dev.icode.mobile.domain.WorkbenchGateway
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.domain.WorkbenchSnapshot
-import dev.icode.mobile.domain.WorkspaceSummary
 import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.domain.LanguageService
 import dev.icode.mobile.domain.LanguageServiceConfiguration
 import dev.icode.mobile.domain.LanguageServiceRules
 import dev.icode.mobile.domain.LanguageServiceStatus
-import dev.icode.mobile.domain.RecentDocument
 import dev.icode.mobile.domain.RecoverableDraft
-import dev.icode.mobile.domain.RelativeTime
-import dev.icode.mobile.domain.StorageDetails
 import dev.icode.mobile.domain.SystemPermission
 import dev.icode.mobile.domain.reorderDocuments
 import dev.icode.mobile.domain.selectedAfterClose
@@ -64,9 +58,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
@@ -99,14 +91,14 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         }) }
     }
     private val terminalPreferences = AndroidWorkspacePreferencesRepository(appContext)
-    private val runtime = RuntimeCoordinator(
+    private val runtime: RuntimeCoordinator = RuntimeCoordinator(
         appContext,
         workbench,
         scope,
         runtimeLayout,
         AndroidSystemAccess(appContext),
         sessionsRunning = { terminals.hasRunningSessions() || languageProcesses.hasActiveProcesses() },
-        onStorageAccessChanged = { refreshRecents() },
+        onStorageAccessChanged = { library.refreshRecents() },
     )
     private val draftMutex = Mutex()
     private val draftStore = DocumentDraftStore(File(appContext.filesDir, "document-drafts"))
@@ -116,12 +108,24 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     private val childrenByParent = mutableMapOf<String, List<DocumentNode>>()
     private val expandedLocations = mutableSetOf<String>()
     private var activeRootLocation: String? = null
-    private var pendingBrowserPurpose: FolderBrowserPurpose? = null
     private val documentSources = ConcurrentHashMap<String, WorkspaceDocument>()
     private val savedDocumentTexts = ConcurrentHashMap<String, String>()
     @Volatile private var indexedWorkspace: String? = null
     private var gitRefreshJob: Job? = null
-    private var storageRefreshJob: Job? = null
+
+    private val library: WorkspaceLibraryCoordinator = WorkspaceLibraryCoordinator(
+        appContext,
+        workbench,
+        scope,
+        source,
+        store,
+        runtimeLayout,
+        tasksRunning = {
+            terminals.hasRunningSessions() || languageProcesses.hasActiveProcesses() || runtime.installing ||
+                workbench.current.gitOperation is GitOperationState.Running
+        },
+    )
+    private val folders: FolderBrowserCoordinator = FolderBrowserCoordinator(workbench, source) { location -> openWorkspace(location, persist = true) }
 
     override val snapshot: StateFlow<WorkbenchSnapshot> = workbench.snapshot
     override val effects: SharedFlow<WorkbenchEffect> = workbench.effects
@@ -134,7 +138,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         loadedLanguageConfigs.exceptionOrNull()?.let { error ->
             scope.launch { workbench.report("language", "Unable to load language services", error) }
         }
-        scope.launch { refreshRecents() }
+        scope.launch { library.refreshRecents() }
         scope.launch { loadRecoverableDrafts() }
         scope.launch { observeTerminals() }
         scope.launch { observeNotices() }
@@ -191,7 +195,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             return
         }
         if (intent == WorkbenchIntent.RefreshStorage) {
-            refreshStorage()
+            library.refreshStorage()
             return
         }
         // Reading the runtime's own files changes nothing, so it does not wait
@@ -217,16 +221,16 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     WorkbenchIntent.MarkNoticesRead -> notices.markAllRead()
                     is WorkbenchIntent.DeleteNotice -> notices.delete(intent.id)
                     WorkbenchIntent.ClearNotices -> notices.clear()
-                    is WorkbenchIntent.StartFolderBrowser -> startFolderBrowser(intent.purpose)
-                    is WorkbenchIntent.ShowWorkspaceLocation -> showWorkspaceLocation(intent.path)
-                    is WorkbenchIntent.BrowseFolder -> browseFolder(intent.path)
-                    WorkbenchIntent.BrowseParentFolder -> browseParentFolder()
-                    WorkbenchIntent.ConfirmFolderSelection -> confirmFolderSelection()
-                    is WorkbenchIntent.RequestCreateFolder -> requestCreateFolder(intent.name)
+                    is WorkbenchIntent.StartFolderBrowser -> folders.start(intent.purpose)
+                    is WorkbenchIntent.ShowWorkspaceLocation -> folders.showLocation(intent.path)
+                    is WorkbenchIntent.BrowseFolder -> folders.browse(intent.path)
+                    WorkbenchIntent.BrowseParentFolder -> folders.browseParent()
+                    WorkbenchIntent.ConfirmFolderSelection -> folders.confirmSelection()
+                    is WorkbenchIntent.RequestCreateFolder -> folders.requestCreateFolder(intent.name)
                     is WorkbenchIntent.OpenWorkspace -> openWorkspace(intent.path, persist = true)
                     is WorkbenchIntent.OpenWorkspaceTerminal -> openWorkspace(intent.path, persist = true, openTerminal = true)
                     is WorkbenchIntent.ResolveWorkspaceSwitch -> resolveWorkspaceSwitch(intent)
-                    is WorkbenchIntent.RemoveRecentWorkspace -> removeRecentWorkspace(intent.path)
+                    is WorkbenchIntent.RemoveRecentWorkspace -> library.removeRecent(intent.path)
                     is WorkbenchIntent.OpenFile -> {
                         openDocument(intent.path, intent.lineNumber, intent.column)
                         ensureFileIndex(activeRootLocation ?: intent.path)
@@ -328,8 +332,8 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     WorkbenchIntent.ClearContentSearch -> clearContentSearch()
                     WorkbenchIntent.Refresh -> refreshActiveWorkspace()
                     WorkbenchIntent.InstallRuntime -> runtime.install(RuntimeInstallReason.Initial)
-                    WorkbenchIntent.ClearAppCache -> clearAppCache()
-                    WorkbenchIntent.RemoveStaleRecents -> removeStaleRecents()
+                    WorkbenchIntent.ClearAppCache -> library.clearCache()
+                    WorkbenchIntent.RemoveStaleRecents -> library.removeStale()
                     // Repair keeps the home directory, reset does not; both go
                     // through the one installer rather than a second path.
                     WorkbenchIntent.RepairRuntime -> {
@@ -359,85 +363,8 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
      */
     private suspend fun systemPermissionAnswered(permission: SystemPermission) {
         val granted = runtime.permissionAnswered(permission)
-        if (permission == SystemPermission.Storage) {
-            val purpose = pendingBrowserPurpose
-            pendingBrowserPurpose = null
-            if (granted && purpose != null) return startFolderBrowser(purpose)
-        }
+        if (permission == SystemPermission.Storage && folders.storageAnswered(granted)) return
         workbench.emit(WorkbenchEffect.SystemPermissionResolved(permission, granted))
-    }
-
-    private suspend fun startFolderBrowser(purpose: FolderBrowserPurpose) {
-        if (!Environment.isExternalStorageManager()) {
-            pendingBrowserPurpose = purpose
-            workbench.emit(WorkbenchEffect.RequestSystemPermission(SystemPermission.Storage))
-            return
-        }
-        runCatching { source.initialBrowser(purpose) }
-            .onSuccess { browser ->
-                workbench.update { snapshot -> snapshot.copy(folderBrowser = browser) }
-                workbench.emit(WorkbenchEffect.FolderBrowserOpened)
-            }
-            .onFailure { error ->
-                workbench.report("workspace", "Unable to read phone storage", error)
-            }
-    }
-
-    private suspend fun showWorkspaceLocation(location: String) {
-        if (!Environment.isExternalStorageManager()) {
-            workbench.message("All files access is needed to browse this folder")
-            return
-        }
-        runCatching { source.browse(location, FolderBrowserPurpose.OpenWorkspace) }
-            .onSuccess { browser ->
-                workbench.update { it.copy(folderBrowser = browser) }
-                workbench.emit(WorkbenchEffect.FolderBrowserOpened)
-            }
-            .onFailure { error ->
-                workbench.report("workspace", "Unable to locate folder", error)
-            }
-    }
-
-    private suspend fun removeRecentWorkspace(location: String) {
-        runCatching { store.remove(location) }
-            .onSuccess { workbench.update { state ->
-                state.copy(workspaces = state.workspaces.filterNot { it.location == location })
-            } }
-            .onFailure { error ->
-                workbench.report("workspace", "Unable to remove recent workspace", error)
-            }
-    }
-
-    private suspend fun browseFolder(path: String) {
-        val browser = workbench.current.folderBrowser ?: return
-        runCatching { source.browse(path, browser.purpose) }
-            .onSuccess { workbench.update { snapshot -> snapshot.copy(folderBrowser = it) } }
-            .onFailure { error ->
-                workbench.report("workspace", "Unable to read directory", error)
-            }
-    }
-
-    private suspend fun browseParentFolder() {
-        val browser = workbench.current.folderBrowser ?: return
-        runCatching { source.parent(browser.currentPath, browser.purpose) }
-            .onSuccess { workbench.update { snapshot -> snapshot.copy(folderBrowser = it) } }
-            .onFailure { error ->
-                workbench.report("workspace", "Unable to read parent directory", error)
-            }
-    }
-
-    private suspend fun confirmFolderSelection() {
-        val browser = workbench.current.folderBrowser ?: return
-        when (browser.purpose) {
-            FolderBrowserPurpose.OpenWorkspace -> openWorkspace(browser.currentPath, persist = true)
-            FolderBrowserPurpose.CreateFolderDestination -> {
-                workbench.update { snapshot -> snapshot.copy(
-                    createFolderDestination = browser.currentPath,
-                    createFolderDestinationDisplay = browser.displayPath,
-                ) }
-                workbench.emit(WorkbenchEffect.FolderDestinationSelected(browser.currentPath))
-            }
-        }
     }
 
     /**
@@ -581,28 +508,6 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         }
     }
 
-    private suspend fun requestCreateFolder(rawName: String) {
-        val name = rawName.trim()
-        val error = WorkspaceNameRules.validationError(name)
-        if (error != null) {
-            workbench.message(error)
-        } else if (workbench.current.createFolderDestination == null) {
-            workbench.message("Choose a destination first")
-        } else {
-            createFolder(name)
-        }
-    }
-
-    private suspend fun createFolder(name: String) {
-        val parentLocation = workbench.current.createFolderDestination ?: return
-        runCatching {
-            val location = source.createDirectory(parentLocation, name)
-            openWorkspace(location, persist = true)
-        }.onFailure { error ->
-            workbench.report("workspace", "Unable to create folder", error)
-        }
-    }
-
     private suspend fun openWorkspace(
         location: String,
         persist: Boolean,
@@ -654,17 +559,8 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             childrenByParent.clear()
             childrenByParent[root.location] = children
             expandedLocations.clear()
-            if (persist) {
-                store.touch(
-                    StoredWorkspace(
-                        name = root.name,
-                        location = root.location,
-                        displayPath = root.displayPath,
-                        lastOpenedAt = System.currentTimeMillis(),
-                    ),
-                )
-            }
-            val recents = recentSummaries()
+            if (persist) library.remember(root)
+            val recents = library.recentWorkspaces()
             workbench.update { snapshot -> snapshot.copy(
                 workspaces = recents,
                 files = decorateFiles(projectVisibleFiles(root.location, childrenByParent, expandedLocations), gitState),
@@ -681,7 +577,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     ?: GitHeadReader.branchOf(root.location).orEmpty(),
                 activeDocument = null,
                 openDocuments = emptyList(),
-                recentDocuments = recentDocumentSummaries(root.location),
+                recentDocuments = library.recentDocuments(root.location),
                 fileIndex = emptyList(),
                 fileIndexTruncated = false,
                 contentSearch = ContentSearchState.Empty,
@@ -711,7 +607,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             )
             ensureFileIndex(root.location)
         }.onFailure { error ->
-            refreshRecents()
+            library.refreshRecents()
             workbench.report("workspace", "Unable to open folder", error)
         }
     }
@@ -1175,7 +1071,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         val existing = workbench.current.openDocuments.firstOrNull { it.location == location }
         if (existing != null) {
             selectDocument(location)
-            recordRecentDocument(location)
+            activeRootLocation?.let { library.recordRecentDocument(it, location) }
             workbench.emit(WorkbenchEffect.DocumentOpened(location, lineNumber, column))
             return
         }
@@ -1203,7 +1099,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                 openDocuments = snapshot.openDocuments + opened,
                 activeDocument = opened,
             ) }
-            recordRecentDocument(document.location)
+            activeRootLocation?.let { library.recordRecentDocument(it, document.location) }
             workbench.emit(WorkbenchEffect.DocumentOpened(location, lineNumber, column))
             draftMutex.withLock { draftStore.read(document.location) }?.let { draft ->
                 if (draft.text == document.text) {
@@ -1302,31 +1198,6 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         else workbench.emit(WorkbenchEffect.WorkspaceItemCreationFailed(requestId, message))
     }
 
-    private suspend fun recordRecentDocument(location: String) {
-        val root = activeRootLocation ?: return
-        runCatching {
-            store.touchRecentDocument(
-                StoredRecentDocument(File(location).name, File(location).canonicalPath, root, System.currentTimeMillis()),
-            )
-            workbench.update { it.copy(recentDocuments = recentDocumentSummaries(root)) }
-        }.onFailure { error ->
-            workbench.report("documents", "File opened, but recent files could not be saved", error)
-        }
-    }
-
-    private fun recentDocumentSummaries(root: String): List<RecentDocument> = store.loadRecentDocuments(root)
-        .mapNotNull { item ->
-            val relative = runCatching { File(root).canonicalFile.toPath().relativize(File(item.location).canonicalFile.toPath()) }.getOrNull()
-                ?: return@mapNotNull null
-            if (relative.isAbsolute || relative.any { it.toString() == ".." || it.toString() == ".git" }) return@mapNotNull null
-            RecentDocument(
-                name = item.name,
-                location = item.location,
-                path = relative.toString(),
-                lastOpened = RelativeTime.since(item.lastOpenedAt),
-                available = File(item.location).isFile,
-            )
-        }
 
     private fun updateDocumentText(intent: WorkbenchIntent.UpdateDocumentText) {
         workbench.update { state ->
@@ -1608,7 +1479,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     private suspend fun refreshActiveWorkspace() {
         val root = activeRootLocation
         if (root == null) {
-            refreshRecents()
+            library.refreshRecents()
             return
         }
         runCatching {
@@ -1620,91 +1491,6 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             ensureFileIndex(root)
         }.onFailure { error ->
             workbench.report("workspace", "Unable to refresh workspace", error)
-        }
-    }
-
-    private fun refreshRecents() {
-        // Computed before the update so the atomic section stays short and no
-        // concurrent writer's fields are lost.
-        val recents = recentSummaries()
-        val storage = runCatching(source::storageSummary).getOrNull()
-        workbench.update { it.copy(workspaces = recents, storage = storage) }
-    }
-
-    private fun refreshStorage() {
-        storageRefreshJob?.cancel()
-        storageRefreshJob = scope.launch(Dispatchers.IO) {
-            val device = runCatching(source::storageSummary).getOrNull()
-            val workspaces = store.load()
-            val details = device?.let { summary -> StorageDetails(
-                device = summary,
-                runtime = measureTree(runtimeLayout.runtimeRoot, maxEntries = 400_000),
-                cache = measureTree(appContext.cacheDir, maxEntries = 50_000),
-                workspaceSizes = workspaces.associate { item ->
-                    item.location to measureTree(File(item.location), maxEntries = 25_000)
-                },
-            ) }
-            currentCoroutineContext().ensureActive()
-            workbench.update { it.copy(storage = device, storageDetails = details) }
-        }
-    }
-
-    private suspend fun clearAppCache() {
-        if (terminals.hasRunningSessions() || languageProcesses.hasActiveProcesses() || runtime.installing ||
-            workbench.current.gitOperation is GitOperationState.Running) {
-            workbench.message("Finish runtime, Git, terminal and language service tasks before clearing cache")
-            return
-        }
-        runCatching {
-            StorageInspector.clearRuntimeCache(appContext.cacheDir, runtimeLayout.prootTemp)
-        }.onSuccess { removed ->
-            workbench.message(
-                if (removed == 0) "Runtime cache is already clear" else "Removed $removed cached runtime items",
-            )
-            refreshStorage()
-        }.onFailure { error ->
-            workbench.report("storage", "Unable to clear runtime cache", error)
-        }
-    }
-
-    private suspend fun removeStaleRecents() {
-        if (!Environment.isExternalStorageManager() || Environment.getExternalStorageState() != Environment.MEDIA_MOUNTED) {
-            workbench.message("Storage access is needed before checking recent workspace paths")
-            return
-        }
-        runCatching {
-            val missing = store.load().filter { !File(it.location).exists() }
-            missing.forEach { store.remove(it.location) }
-            refreshRecents()
-            refreshStorage()
-            missing.size
-        }.onSuccess { removed ->
-            workbench.message(
-                if (removed == 0) "No stale recent workspaces found"
-                else "Removed $removed stale recent shortcuts; no workspace files were deleted",
-            )
-        }.onFailure { error ->
-            workbench.report("workspace", "Unable to remove stale recents", error)
-        }
-    }
-
-    private fun recentSummaries(): List<WorkspaceSummary> {
-        return store.load().map { workspace ->
-            // Reading .git/HEAD keeps the launcher instant; starting a Git
-            // process for every recent workspace would cost a PRoot launch each.
-            val branch = if (Environment.isExternalStorageManager() && source.isAvailable(workspace.location)) {
-                runCatching { GitHeadReader.branchOf(workspace.location) }.getOrNull()
-            } else {
-                null
-            }
-            WorkspaceSummary(
-                name = workspace.name,
-                path = workspace.displayPath,
-                branch = branch,
-                lastOpened = RelativeTime.since(workspace.lastOpenedAt),
-                available = Environment.isExternalStorageManager() && source.isAvailable(workspace.location),
-                location = workspace.location,
-            )
         }
     }
 
@@ -1734,7 +1520,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         } else {
             GitWorkspaceSnapshot(repository = null, changes = emptyList())
         }
-        val recents = recentSummaries()
+        val recents = library.recentWorkspaces()
         val files = decorateFiles(projectVisibleFiles(root, childrenByParent, expandedLocations), gitState)
         workbench.update {
             it.copy(
@@ -1745,7 +1531,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                 gitAvailable = available,
                 activeBranch = gitState.repository?.branch
                     ?: GitHeadReader.branchOf(root).orEmpty(),
-                recentDocuments = recentDocumentSummaries(root),
+                recentDocuments = library.recentDocuments(root),
             )
         }
     }
