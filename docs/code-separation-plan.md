@@ -325,3 +325,11 @@ browser stays in the gateway until S2 owns the browser. Behaviour unchanged. Gat
   of clearable cache was refused. The Runtime screen keeps showing what is free right now, as the
   Storage screen does (lint notes the difference; marked as deliberate).
 - Checks: 254 unit tests; lint 0 errors, 18 warnings; UI guard passes.
+
+**S1 fix — Git for a first clone (2026-09-26), done.** A fresh install had no Git, and Clone —
+often the first thing a new user does — ran `git clone` anyway and failed with a shell error.
+Clone now installs Git first when it is missing, as a step of the same progress ("Installing
+Git…"); if that fails, the clone form shows why. No separate onboarding step is added: Git is
+installed where it is first needed (Clone, Source Control, credentials). Not run on the phone —
+its runtime already has Git, and removing it would change your environment. Gate: 254 tests;
+lint 0 / 18; UI guard passes.
