@@ -144,7 +144,7 @@ internal class GitRepositoryClient(private val cli: CliGitService) :
         expect(workspacePath, arguments)
     }
 
-    override suspend fun markResolved(workspacePath: String, path: String) =
+    suspend fun markResolved(workspacePath: String, path: String) =
         expect(workspacePath, listOf("add", "--", path))
 
     /**

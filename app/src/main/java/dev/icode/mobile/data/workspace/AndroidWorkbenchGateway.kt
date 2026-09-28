@@ -3,7 +3,9 @@ package dev.icode.mobile.data.workspace
 import android.content.Context
 import android.os.Environment
 import dev.icode.mobile.data.git.CliGitService
+import dev.icode.mobile.data.git.ConflictFiles
 import dev.icode.mobile.data.git.GitAuthCoordinator
+import dev.icode.mobile.data.git.GitConflictCoordinator
 import dev.icode.mobile.data.git.GitAuthenticator
 import dev.icode.mobile.data.git.GitCredentialStore
 import dev.icode.mobile.data.git.GitRepositoryClient
@@ -118,6 +120,20 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         recentWorkspaces = library::recentWorkspaces,
         recentDocuments = library::recentDocuments,
         onInstalled = { gitAuth.refresh() },
+    )
+    private val gitConflicts = GitConflictCoordinator(
+        workbench,
+        object : ConflictFiles {
+            override fun read(location: String) = source.readDocument(location)
+            override fun write(document: WorkspaceDocument, text: String) = source.writeDocument(document, text)
+            override fun hasUnsavedEdits(location: String) =
+                workbench.current.openDocuments.any { it.location == location && it.dirty }
+            override suspend fun written(location: String) = documents.reconcileWithDisk()
+        },
+        activeRoot = { activeRootLocation },
+        act = gitWorkspace::act,
+        stage = { workspace, path -> git.markResolved(workspace, path) },
+        refresh = { gitWorkspace.refreshActive() },
     )
     private val gitTransfers = GitTransferCoordinator(
         workbench,
@@ -357,10 +373,10 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     WorkbenchIntent.FetchRemote -> gitTransfers.fetch()
                     WorkbenchIntent.PullRemote -> gitTransfers.pull()
                     WorkbenchIntent.PushRemote -> gitTransfers.push()
-                    is WorkbenchIntent.OpenConflict -> gitWorkspace.openConflict(intent.path)
-                    WorkbenchIntent.CloseConflict -> gitWorkspace.closeConflict()
-                    is WorkbenchIntent.ResolveConflict -> gitWorkspace.resolveConflict(intent.path, intent.choice)
-                    is WorkbenchIntent.MarkConflictResolved -> gitWorkspace.markResolved(intent.path)
+                    is WorkbenchIntent.OpenConflict -> gitConflicts.open(intent.path)
+                    WorkbenchIntent.CloseConflict -> gitConflicts.close()
+                    is WorkbenchIntent.ResolveConflict -> gitConflicts.resolve(intent.path, intent.sectionStart, intent.choice)
+                    is WorkbenchIntent.MarkConflictResolved -> gitConflicts.markResolved(intent.path)
                     is WorkbenchIntent.UpdateCloneForm -> workbench.update {
                 it.copy(cloneUrl = intent.url, cloneBranch = intent.branch)
             }

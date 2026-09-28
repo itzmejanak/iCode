@@ -314,6 +314,5 @@ class GitWorkspaceCoordinatorTest {
         }
         override suspend fun discard(workspacePath: String, path: String, status: String) = record("discard $workspacePath $path $status")
         override suspend fun abortInProgress(workspacePath: String, inProgress: GitInProgress) = record("abort $workspacePath $inProgress")
-        override suspend fun markResolved(workspacePath: String, path: String) = record("resolved $workspacePath $path")
     }
 }

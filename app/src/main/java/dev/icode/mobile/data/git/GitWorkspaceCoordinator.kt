@@ -2,7 +2,6 @@ package dev.icode.mobile.data.git
 
 import dev.icode.mobile.data.workspace.WorkbenchStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceTree
-import dev.icode.mobile.domain.GitConflictChoice
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.RecentDocument
@@ -26,8 +25,8 @@ internal data class GitPicture(
 
 /**
  * The open workspace's repository (S5): what Git reports about it and the
- * local changes made to it — staging, commits, branches, diffs, discards and
- * conflicts. Network transfers and credentials have their own owners.
+ * local changes made to it — staging, commits, branches, diffs and discards.
+ * Conflicts, network transfers and credentials have their own owners.
  */
 internal class GitWorkspaceCoordinator(
     private val workbench: WorkbenchStateHolder,
@@ -212,58 +211,6 @@ internal class GitWorkspaceCoordinator(
         val inProgress = workbench.current.gitRepository?.inProgress ?: return
         act(operation = { workspace -> git.abortInProgress(workspace, inProgress) })
     }
-
-    /**
-     * Git reports change paths relative to the repository root, which is not
-     * the opened folder when a subdirectory of a repository is opened.
-     */
-    private fun conflictRoot(): String? =
-        workbench.current.gitRepository?.workTreePath ?: activeRoot()
-
-    /** Loads the conflicted file straight from the worktree, markers and all. */
-    suspend fun openConflict(path: String) {
-        val file = File(conflictRoot() ?: return, path)
-        runCatching { file.readText() }
-            .onSuccess { text ->
-                val parsed = GitConflictParser.parse(path, text)
-                workbench.update { it.copy(activeConflict = parsed) }
-            }
-            .onFailure { error ->
-                workbench.update { it.copy(activeConflict = null) }
-                workbench.report("git", "Unable to read the conflicted file", error)
-            }
-    }
-
-    fun closeConflict() = workbench.update { it.copy(activeConflict = null) }
-
-    /**
-     * Writes the resolved text back and refreshes.
-     *
-     * The file is rebuilt from the parsed sections rather than through
-     * `checkout --ours/--theirs`, because "accept both" has no Git equivalent
-     * and a single path keeps all three choices consistent with what the user
-     * is looking at. Marking resolved stays a separate explicit step.
-     */
-    suspend fun resolveConflict(path: String, choice: GitConflictChoice) {
-        val root = conflictRoot() ?: return
-        val conflict = workbench.current.activeConflict
-            ?: run {
-                openConflict(path)
-                workbench.current.activeConflict
-            }
-            ?: return
-        val resolved = GitConflictParser.resolve(conflict, choice)
-        runCatching { File(root, path).writeText(resolved) }
-            .onSuccess {
-                openConflict(path)
-                refreshActive()
-            }
-            .onFailure { error ->
-                workbench.report("git", "Unable to write the resolved file", error)
-            }
-    }
-
-    suspend fun markResolved(path: String) = act(operation = { git.markResolved(it, path) })
 
     /** Runs one local Git change in the open workspace, then shows what Git now says. */
     suspend fun act(

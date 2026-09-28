@@ -23,7 +23,6 @@ internal interface GitWorkspaceOperations {
     suspend fun diff(workspacePath: String, path: String, staged: Boolean): GitFileDiff?
     suspend fun discard(workspacePath: String, path: String, status: String)
     suspend fun abortInProgress(workspacePath: String, inProgress: GitInProgress)
-    suspend fun markResolved(workspacePath: String, path: String)
 }
 
 /**

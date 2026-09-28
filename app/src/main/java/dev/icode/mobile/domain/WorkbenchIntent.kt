@@ -101,7 +101,8 @@ sealed interface WorkbenchIntent {
     data object PushRemote : WorkbenchIntent
     data class OpenConflict(val path: String) : WorkbenchIntent
     data object CloseConflict : WorkbenchIntent
-    data class ResolveConflict(val path: String, val choice: GitConflictChoice) : WorkbenchIntent
+    /** Resolves the one marker block that starts at line [sectionStart] (zero-based). */
+    data class ResolveConflict(val path: String, val sectionStart: Int, val choice: GitConflictChoice) : WorkbenchIntent
     data class MarkConflictResolved(val path: String) : WorkbenchIntent
     data class UpdateCloneForm(val url: String, val branch: String) : WorkbenchIntent
     data class CloneRepository(val url: String, val destination: String, val directoryName: String) : WorkbenchIntent
