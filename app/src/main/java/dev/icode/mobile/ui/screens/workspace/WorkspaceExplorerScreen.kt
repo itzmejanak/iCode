@@ -1,28 +1,24 @@
 package dev.icode.mobile.ui.screens.workspace
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountTree
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FolderOpen
-import androidx.compose.material.icons.outlined.KeyboardArrowDown
-import androidx.compose.material.icons.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Terminal
@@ -35,26 +31,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.RectangleShape
 import dev.icode.mobile.designsystem.ActivityRail
 import dev.icode.mobile.designsystem.ActivityRailEntry
 import dev.icode.mobile.designsystem.IcodeActionMenu
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodeMenuAction
 import dev.icode.mobile.designsystem.IcodeShapes
-import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
-import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.SectionLabel
-import dev.icode.mobile.designsystem.StatusDot
-import dev.icode.mobile.designsystem.gitStatusTone
-import dev.icode.mobile.designsystem.tint
 import dev.icode.mobile.domain.FileEntry
 import dev.icode.mobile.domain.FileKind
 import dev.icode.mobile.domain.WorkbenchIntent
@@ -79,6 +67,7 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
     var clipPath by rememberSaveable(state.activeWorkspaceLocation) { mutableStateOf<String?>(null) }
     var clipCut by rememberSaveable(state.activeWorkspaceLocation) { mutableStateOf(false) }
     val clipboard = clipPath?.let { ExplorerClipboard(it, clipCut) }
+    val rootSelectionInteraction = remember { MutableInteractionSource() }
     val pasteInto = { target: String? ->
         if (clipboard != null && target != null) {
             val left = paste(clipboard, target, gateway::dispatch)
@@ -131,7 +120,16 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
                     .background(IcodeColors.Background),
             ) {
                 SectionLabel("Workspace Explorer", Modifier.padding(IcodeSpacing.Space3))
-                LazyColumn(Modifier.weight(1f)) {
+                LazyColumn(
+                    Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .clickable(
+                            interactionSource = rootSelectionInteraction,
+                            indication = null,
+                            onClickLabel = "Select workspace root",
+                        ) { selectedPath = "" },
+                ) {
                     if (state.files.isEmpty() && state.activeWorkspaceLocation != null) {
                         item {
                             Text(
@@ -228,69 +226,4 @@ internal fun creationParentLocation(root: String?, selectedPath: String, files: 
     val selected = files[index]
     if (selected.kind == FileKind.Folder) return selected.path
     return files.take(index).lastOrNull { it.kind == FileKind.Folder && it.depth == selected.depth - 1 }?.path ?: root
-}
-
-@Composable
-private fun ExplorerRow(entry: FileEntry, selected: Boolean, onClick: () -> Unit, onLongClick: () -> Unit) {
-    val icon = when (entry.kind) {
-        FileKind.Folder -> if (entry.expanded) Icons.Outlined.FolderOpen else Icons.Outlined.Folder
-        FileKind.TypeScript -> Icons.Outlined.Code
-        FileKind.Code -> Icons.Outlined.Code
-        FileKind.Json, FileKind.Markdown, FileKind.Other -> Icons.Outlined.Description
-    }
-    val iconTint = when (entry.kind) {
-        FileKind.TypeScript -> IcodeColors.Blue
-        FileKind.Code -> IcodeColors.Accent
-        FileKind.Json -> IcodeColors.Amber
-        FileKind.Markdown, FileKind.Other -> IcodeColors.TextSecondary
-        FileKind.Folder -> if (entry.expanded) IcodeColors.Accent else IcodeColors.TextSecondary
-    }
-    IcodeListRow(
-        selected = selected,
-        selectionBackground = IcodeColors.Surface,
-        rowShape = RectangleShape,
-        indent = IcodeSpacing.IndentStep * entry.depth,
-        onClick = onClick,
-        onLongClick = onLongClick,
-        leading = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
-            ) {
-                if (entry.kind == FileKind.Folder) {
-                    Icon(
-                        if (entry.expanded) Icons.Outlined.KeyboardArrowDown else Icons.Outlined.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = IcodeColors.TextSecondary,
-                        modifier = Modifier.size(IcodeSizes.IconSm),
-                    )
-                } else {
-                    Spacer(Modifier.width(IcodeSizes.IconSm))
-                }
-                Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(IcodeSizes.IconMd))
-            }
-        },
-        // As in VS Code: a changed name takes its status colour; a file shows
-        // its status letter, a folder a dot for the strongest change beneath it.
-        content = {
-            Text(
-                entry.name,
-                modifier = Modifier.weight(1f),
-                style = IcodeType.Body,
-                color = when {
-                    entry.gitStatus != null -> gitStatusTone(entry.gitStatus).tint()
-                    entry.kind == FileKind.Markdown -> IcodeColors.TextSecondary
-                    else -> IcodeColors.TextPrimary
-                },
-            )
-        },
-        trailing = {
-            val status = entry.gitStatus
-            when {
-                status == null -> Unit
-                entry.kind == FileKind.Folder -> StatusDot(gitStatusTone(status).tint())
-                else -> MonoLine(status, color = gitStatusTone(status).tint(), style = IcodeType.MonoSmall)
-            }
-        },
-    )
 }

@@ -127,6 +127,7 @@ sealed interface WorkbenchIntent {
     data class StartLanguageService(val id: String) : WorkbenchIntent
     data class StopLanguageService(val id: String) : WorkbenchIntent
     data class RestartLanguageService(val id: String) : WorkbenchIntent
+    data object PrepareWorkspaceSearch : WorkbenchIntent
     data class RunContentSearch(
         val query: String,
         val matchCase: Boolean,

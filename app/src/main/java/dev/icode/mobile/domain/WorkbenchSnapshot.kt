@@ -41,6 +41,7 @@ data class WorkbenchSnapshot(
     val storageDetails: StorageDetails? = null,
     val fileIndex: List<IndexedFile> = emptyList(),
     val fileIndexTruncated: Boolean = false,
+    val searchEngine: SearchEngineState = SearchEngineState.Unknown,
     val contentSearch: ContentSearchState = ContentSearchState.Empty,
     val runtime: RuntimeState = RuntimeState.Unknown,
     val runtimeInstallReason: RuntimeInstallReason = RuntimeInstallReason.Initial,

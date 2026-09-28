@@ -24,5 +24,6 @@ class WorkspaceCreationParentTest {
     @Test fun `root file or stale selection uses workspace root`() {
         assertEquals("/project", creationParentLocation("/project", "/project/README.md", files))
         assertEquals("/project", creationParentLocation("/project", "/missing", files))
+        assertEquals("/project", creationParentLocation("/project", "", files))
     }
 }

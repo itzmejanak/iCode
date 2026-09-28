@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -61,12 +62,24 @@ fun WorkspaceFindScreen(actions: NavigationActions, initialMode: FindMode) {
     var wholeWord by rememberSaveable { mutableStateOf(search.wholeWord) }
     var regex by rememberSaveable { mutableStateOf(search.regex) }
 
-    val fileResults = remember(state.fileIndex, query) { rankFiles(state.fileIndex, query) }
+    val rankedFiles = remember(state.fileIndex, query) { rankFiles(state.fileIndex, query) }
     val resultsAreCurrent = query.isNotBlank() && query.trim() == search.query &&
         matchCase == search.matchCase && wholeWord == search.wholeWord && regex == search.regex
 
+    DisposableEffect(gateway) {
+        onDispose { gateway.dispatch(WorkbenchIntent.ClearContentSearch) }
+    }
+
+    // Quick Open asks for its index lazily: opening an ordinary workspace must
+    // not install a package the user has not used yet.
+    LaunchedEffect(mode, state.activeWorkspaceLocation) {
+        if (mode == FindMode.Files && state.activeWorkspaceLocation != null) {
+            gateway.dispatch(WorkbenchIntent.PrepareWorkspaceSearch)
+        }
+    }
+
     // Only text mode runs a scan; ranking the file index is instant and local.
-    LaunchedEffect(mode, query, matchCase, wholeWord, regex) {
+    LaunchedEffect(mode, query, matchCase, wholeWord, regex, state.activeWorkspaceLocation) {
         if (mode != FindMode.Text || query.isBlank()) {
             gateway.dispatch(WorkbenchIntent.ClearContentSearch)
         } else {
@@ -87,16 +100,19 @@ fun WorkspaceFindScreen(actions: NavigationActions, initialMode: FindMode) {
         Box(Modifier.weight(1f)) {
             when (mode) {
                 FindMode.Files -> FileResults(
-                    results = fileResults,
+                    results = rankedFiles.entries,
                     query = query,
                     indexSize = state.fileIndex.size,
-                    truncated = state.fileIndexTruncated,
+                    indexTruncated = state.fileIndexTruncated,
+                    rankTruncated = rankedFiles.truncated,
+                    engine = state.searchEngine,
                     onOpen = { path -> gateway.dispatch(WorkbenchIntent.OpenFile(path)) },
                 )
                 FindMode.Text -> TextResults(
                     search = search,
                     query = query,
                     resultsAreCurrent = resultsAreCurrent,
+                    engine = state.searchEngine,
                     onOpen = { path, line, column ->
                         gateway.dispatch(WorkbenchIntent.OpenFile(path, line, column))
                     },

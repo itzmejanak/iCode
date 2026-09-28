@@ -39,12 +39,12 @@ before code, then one verifiable step at a time.
 | # | Work | Why it matters | Where it stands (evidence) | First step |
 |---|---|---|---|---|
 | 0 | **Close the terminal/background cycle (S6)** | Finishes work already shipped | S0–S5 verified on device ([terminal-background-plan](./docs/terminal-background-plan.md) §6); `terminal-maturity-plan`, `terminal-background-plan` and `sudo-capability-plan` still say "plan" (the last is superseded by passthrough `sudo`) | Fresh-install acceptance matrix, then docs |
-| 1 | **Outside changes reach the UI** | Agents and commands in the terminal edit the workspace — the owner's main way of working and one of the five production flows | Nothing watches the workspace and no screen dispatches `WorkbenchIntent.Refresh`: Explorer, Source Control and open editors stay stale until an in-app save or Git action. Only the save-time fingerprint check (`DirectFileWorkspaceSource`) prevents an overwrite | Measure on device whether inotify (`FileObserver`) reports writes made by PRoot processes under `/storage/emulated`; independent of that, refresh on resume and on leaving the terminal panel |
-| 2 | **Explorer rename / move / copy / delete** | Basic file management is missing | No such intents exist; the Delete confirmation frame serves Source Control only | Plan: guarded paths, confirmation, open tabs, recents and drafts follow the change |
-| 3 | **Workspace search and Quick Open on ripgrep (frames 11/14)** | Search can silently miss files | `WorkspaceIndexer` still serves both (known wrong, see below); no `rg` anywhere in the app | Provision `ripgrep` in the runtime the way `git` is, then streaming, cancellable search; delete `WorkspaceIndexer` after both flows pass |
+| 1 | **Outside changes reach the UI — done (S3)** | Agents and commands in the terminal edit the workspace | Resume/terminal completion plus live `FileObserver` refresh; clean tabs reload, dirty tabs ask Reload/Compare/Overwrite, tree/Git/index refresh; device matrix passed | Process-death/permission-loss acceptance remains with session restore |
+| 2 | **Explorer rename / move / copy / delete — done (S3)** | Basic file management was missing | Real long-press Rename/Cut/Copy/Paste/Delete with path guards, confirmation, tab/tree/recent migration and 8 filesystem tests; device matrix passed | No remaining code step |
+| 3 | **Workspace search and Quick Open on ripgrep (frames 11/14) — done (S4)** | Search had silently missed files | Real first-use `ripgrep`; streaming, bounded, cancellable, ignore-aware; `WorkspaceIndexer` deleted; device matrix passed ([code-separation plan](./docs/code-separation-plan.md) S4) | Done |
 | 4 | **Honest About screen and licences** | Release blocker; licences unshown | About shows real build and runtime facts (2026-09-25); no licence notices for PRoot (GPL-2.0), talloc (LGPL-3.0), Sora (LGPL) or the Termux terminal libraries (Apache-2.0 inside a GPLv3 repository, [terminal-maturity-plan](./docs/terminal-maturity-plan.md) §3); iCode itself has no LICENSE | **Owner:** distribution and licence decision; then real build facts and a licences page |
 | 5 | **Developer tools at onboarding** | A new user reaches Source Control without `git`; search will need `rg` | Git: installed where it is first needed — Clone installs it first (S1, 2026-09-26); Source Control and credentials offer it. `rg` comes with S4 | Owner may still want an onboarding step; not added |
-| 6 | **Session restore** | After a kill the open workspace and tabs are gone (S5 reports lost terminals; drafts survive) | Nothing persists the open workspace or tabs | Plan per B-05/B-06 item 8 below |
+| 6 | **Session restore device acceptance** | A killed process must reopen safe workspace/tab state without inventing terminals | Code now persists workspace, tab order and selected tab; missing files are skipped and drafts still ask (S3, 2026-09-28) | Kill the process on device, then verify permission-loss/missing-file fallbacks |
 | 7 | **Runtime fidelity — owner decisions** | `rm -rf` of a runtime tree holding emulated hard links fails ("Directory not empty"); `htop` cannot start | [terminal-maturity-plan](./docs/terminal-maturity-plan.md) §6 Open 2–3: `PROOT_L2S_DIR` proposed; `/proc` stand-ins versus the honest error | **Owner** decides; then patch and device A/B |
 | 8 | **LSP protocol, then diagnostics** | Completion, diagnostics, Problems navigation | Server configuration and process status exist; no JSON-RPC code | Plan per B-05/B-06 items 7 and 4 |
 | 9 | **Output channels; Command Palette acceptance** | Completes the tools panel | Output carries the Git transcript only; palette code slice done | Per B-05/B-06 items 5 and 2 |
@@ -130,9 +130,9 @@ Workspace-logic round (Git gate and search) — partially reverted:
 - [x] **Regressed, then corrected in Cycle 0:** that round deleted Push/Fetch/Pull, the Source Control
       row routing to diff/delete/conflict, and the whole Git-credentials frame, and forked demo
       bodies into six product screens. See [`docs/integration-plan.md`](./docs/integration-plan.md) §1.
-- [ ] **Known wrong, still in use (priority 3):** `WorkspaceIndexer` caps traversal at ~24 directories
-      rather than 24 levels, ends the whole search when one file hits its match cap, ignores
-      `wholeWord` under `regex`, honours no ignore rules, and is neither streaming nor cancellable.
+- [x] **Replaced in S4 (2026-09-28):** `WorkspaceIndexer` is deleted. Quick Open uses
+      NUL-delimited `rg --files`; content search uses ripgrep JSON, with ignore/hidden/`.git` policy,
+      cancellation, stale-result suppression and visible caps. Device fixture passed.
 
 Cycle 0 — restore and guard (complete):
 
@@ -342,9 +342,9 @@ Next delivery phase — one existing demo page and its full user lifecycle at a 
       Markdown source/preview, tab selection/drag/close, pinch zoom, and dirty-workspace
       switch. (The empty editor's recent rows and New File tile were made real in the workspace
       closeout above.) Only after this gate remove the touched frame's obsolete demo aid.
-- [ ] Deliver frame 11 Search Workspace next, then frame 14 Quick Open: streaming/cancellable
-      `rg` results, ignore/include/exclude controls, match offsets and exact-range open; no scan
-      under the gateway mutation mutex. Delete `WorkspaceIndexer` only after both real flows pass.
+- [x] Delivered frame 11 Search Workspace and frame 14 Quick Open in S4: streaming/cancellable
+      `rg` results, ignore rules, exact match offsets/range open and no search under the gateway
+      mutation mutex. `WorkspaceIndexer` was deleted only after both real flows passed.
 - [x] Navigation handoff for frames 11/14: Explorer, empty editor, file Find and Quick Open
       expose Search Workspace; the content-search page links back to filename Quick Open and
       shows the active workspace. Switching between the two search tools replaces the current
@@ -419,6 +419,23 @@ Cycle 4 — Git end to end (verified on device against a real private repository
 - [ ] Remaining in this cycle: device verification only. Conflict resolution (frame 24) and branch
       delete/remote branches (frame 15) are implemented in the gateway, and JGit is gone from the
       build and the code (checked 2026-09-24).
+
+S4 — Search and Quick Open on real ripgrep (complete 2026-09-28):
+
+- [x] First-use runtime provisioning shared across concurrent requests; cancelled queries do not
+      interrupt apt. `GuestCommand` streams bounded newline/NUL records and kills/reaps on cancel.
+- [x] Quick Open uses `rg --files --null`; content uses `rg --json`. Hidden files are included,
+      `.git` excluded, ignore rules honored, spaces/quotes/Unicode/newlines preserved, byte offsets
+      converted to editor columns, and all caps shown honestly.
+- [x] `SearchCoordinator` owns independent jobs/generations off the gateway mutation lock;
+      stale query/workspace results cannot publish. `WorkspaceIndexer` and its tests are gone.
+- [x] Search result groups are functional compact accordions; count text no longer wraps into tall
+      rows. Explorer expansion stays responsive; tapping blank Explorer space makes creation target
+      the workspace root without a full-area ripple.
+- [x] Device: 355 matches / 69 files in a real workspace; isolated hidden/ignore/`.git` fixture;
+      Quick Open; accordion collapse/expand; Explorer root destination. Fixture cleanup touched only
+      the known scratch paths.
+- [x] Final gate: debug/release compile, 295 unit tests, lint 0 errors / 16 warnings, UI guard.
 
 Repository baseline:
 
