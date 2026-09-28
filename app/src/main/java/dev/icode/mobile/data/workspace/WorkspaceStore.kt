@@ -42,6 +42,8 @@ internal interface WorkspaceStore {
     fun remove(location: String)
     fun loadRecentDocuments(workspaceLocation: String): List<StoredRecentDocument>
     fun touchRecentDocument(document: StoredRecentDocument)
+    /** Rewrites every recent file entry at once: files renamed, moved or deleted in the Explorer. */
+    fun updateRecentDocuments(change: (List<StoredRecentDocument>) -> List<StoredRecentDocument>)
 }
 
 internal class SharedPreferencesWorkspaceStore(context: Context) : WorkspaceStore {
@@ -82,7 +84,14 @@ internal class SharedPreferencesWorkspaceStore(context: Context) : WorkspaceStor
         loadAllRecentDocuments().filter { it.workspaceLocation == workspaceLocation }
 
     override fun touchRecentDocument(document: StoredRecentDocument) {
-        val updated = touchRecentDocument(loadAllRecentDocuments(), document)
+        saveRecentDocuments(touchRecentDocument(loadAllRecentDocuments(), document))
+    }
+
+    override fun updateRecentDocuments(change: (List<StoredRecentDocument>) -> List<StoredRecentDocument>) {
+        saveRecentDocuments(change(loadAllRecentDocuments()))
+    }
+
+    private fun saveRecentDocuments(updated: List<StoredRecentDocument>) {
         val array = JSONArray()
         updated.forEach { item ->
             array.put(

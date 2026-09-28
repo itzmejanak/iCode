@@ -40,6 +40,11 @@ sealed interface WorkbenchIntent {
         val expectedWorkspace: String,
         val requestId: String,
     ) : WorkbenchIntent
+    /** Explorer file operations, inside the open workspace (as VS Code: Move is Cut, then Paste). */
+    data class RenameWorkspaceItem(val location: String, val newName: String, val requestId: String) : WorkbenchIntent
+    data class MoveWorkspaceItem(val location: String, val destinationFolder: String) : WorkbenchIntent
+    data class CopyWorkspaceItem(val location: String, val destinationFolder: String) : WorkbenchIntent
+    data class DeleteWorkspaceItem(val location: String) : WorkbenchIntent
     data class UpdateDocumentText(val location: String, val text: String) : WorkbenchIntent
     /** Automatic requests carry the revision they observed; a later edit must start its own timer. */
     data class SaveDocument(

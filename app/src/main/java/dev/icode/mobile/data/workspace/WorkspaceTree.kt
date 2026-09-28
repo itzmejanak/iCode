@@ -41,8 +41,14 @@ internal class WorkspaceTree(
         ) }
     }
 
-    /** Reads again the top level and every expanded folder. Throws when one cannot be read. */
+    /**
+     * Reads again the top level and every expanded folder. A folder deleted
+     * meanwhile — by an agent, say — is simply no longer shown open, rather
+     * than failing the refresh. Throws when one that exists cannot be read.
+     */
     fun reload(root: String) {
+        expanded.removeAll { !File(it).isDirectory }
+        childrenByParent.keys.retainAll { it == root || it in expanded }
         childrenByParent[root] = source.listChildren(root)
         expanded.toList().forEach { location ->
             childrenByParent[location] = source.listChildren(location)
@@ -53,6 +59,13 @@ internal class WorkspaceTree(
     fun reloadFolder(root: String, parent: String) {
         childrenByParent[parent] = source.listChildren(parent)
         if (parent != root) expanded += parent
+    }
+
+    /** Open folders stay open when they, or a folder above them, are renamed or moved. */
+    fun relocate(from: String, to: String) {
+        val moved = expanded.filter { it.isAtOrUnder(from) }
+        expanded.removeAll(moved.toSet())
+        moved.forEach { expanded += it.relocated(from, to) }
     }
 
     private fun decorate(files: List<FileEntry>, gitState: GitWorkspaceSnapshot) =

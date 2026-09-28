@@ -14,6 +14,7 @@ internal class WorkspaceItemsCoordinator(
     private val source: DirectFileWorkspaceSource,
     private val tree: WorkspaceTree,
     private val documents: DocumentSessionCoordinator,
+    private val library: WorkspaceLibraryCoordinator,
     private val activeRoot: () -> String?,
     /** Tree rows, Git status and recents after the worktree changed. */
     private val refreshWorkspaceState: suspend (root: String) -> Unit,
@@ -41,7 +42,7 @@ internal class WorkspaceItemsCoordinator(
         }
         runCatching { source.createFile(parent, name) }.onSuccess { location ->
             refreshAfterCreate(root, parent, "File", updateIndex = true)
-            if (intent.requestId != null) workbench.emit(WorkbenchEffect.WorkspaceItemCreated(intent.requestId, location))
+            if (intent.requestId != null) workbench.emit(WorkbenchEffect.WorkspaceItemChanged(intent.requestId, location))
             documents.open(location)
         }.onFailure { error -> fail(intent.requestId, workbench.failureText("workspace", "Unable to create file", error)) }
     }
@@ -63,8 +64,77 @@ internal class WorkspaceItemsCoordinator(
         }
         runCatching { source.createDirectory(intent.parentLocation, name) }.onSuccess { location ->
             refreshAfterCreate(root, intent.parentLocation, "Folder", updateIndex = false)
-            workbench.emit(WorkbenchEffect.WorkspaceItemCreated(intent.requestId, location))
+            workbench.emit(WorkbenchEffect.WorkspaceItemChanged(intent.requestId, location))
         }.onFailure { error -> fail(intent.requestId, workbench.failureText("workspace", "Unable to create folder", error)) }
+    }
+
+    suspend fun rename(intent: WorkbenchIntent.RenameWorkspaceItem) {
+        val root = activeRoot() ?: return fail(intent.requestId, "Open a workspace first")
+        val name = intent.newName.trim()
+        val nameError = if (File(intent.location).isDirectory) WorkspaceNameRules.workspaceFolderValidationError(name)
+        else WorkspaceNameRules.fileValidationError(name)
+        nameError?.let { return fail(intent.requestId, it) }
+        blocked(intent.location)?.let { return fail(intent.requestId, it) }
+        runCatching { WorkspaceFiles(File(root)).rename(intent.location, name) }
+            .onSuccess { target ->
+                followMove(root, intent.location, target.path)
+                workbench.emit(WorkbenchEffect.WorkspaceItemChanged(intent.requestId, target.path))
+            }
+            .onFailure { error -> fail(intent.requestId, workbench.failureText("workspace", "Unable to rename", error)) }
+    }
+
+    /** The second half of Cut: into [WorkbenchIntent.MoveWorkspaceItem.destinationFolder]. */
+    suspend fun move(intent: WorkbenchIntent.MoveWorkspaceItem) {
+        val root = activeRoot() ?: return
+        blocked(intent.location)?.let { return workbench.message(it) }
+        runCatching { WorkspaceFiles(File(root)).move(intent.location, intent.destinationFolder) }
+            .onSuccess { target -> if (target.path != intent.location) followMove(root, intent.location, target.path) }
+            .onFailure { error -> workbench.report("workspace", "Unable to move", error) }
+    }
+
+    suspend fun copy(intent: WorkbenchIntent.CopyWorkspaceItem) {
+        val root = activeRoot() ?: return
+        runCatching { WorkspaceFiles(File(root)).copy(intent.location, intent.destinationFolder) }
+            .onSuccess { refreshAfterChange(root) }
+            .onFailure { error -> workbench.report("workspace", "Unable to copy", error) }
+    }
+
+    /** Asked and confirmed in the Explorer first: this cannot be undone. */
+    suspend fun delete(intent: WorkbenchIntent.DeleteWorkspaceItem) {
+        val root = activeRoot() ?: return
+        blocked(intent.location)?.let { return workbench.message(it) }
+        runCatching { WorkspaceFiles(File(root)).delete(intent.location) }
+            .onSuccess {
+                documents.closeDeleted(intent.location)
+                library.forgetRecentDocumentsUnder(root, intent.location)
+                refreshAfterChange(root)
+            }
+            .onFailure { error ->
+                workbench.report("workspace", "Unable to delete", error)
+                // Part of a folder may be gone already: show what is left.
+                refreshAfterChange(root)
+            }
+    }
+
+    private fun blocked(location: String): String? = documents.blockingEdits(location)?.let { document ->
+        "${document.name} has unsaved edits. Save or close it first"
+    }
+
+    private suspend fun followMove(root: String, from: String, to: String) {
+        documents.relocate(from, to)
+        tree.relocate(from, to)
+        library.relocateRecentDocuments(root, from, to)
+        refreshAfterChange(root)
+    }
+
+    private suspend fun refreshAfterChange(root: String) {
+        runCatching {
+            tree.reload(root)
+            refreshWorkspaceState(root)
+            reindex(root)
+        }.onFailure { error ->
+            workbench.report("workspace", "The change was made, but the workspace could not refresh", error)
+        }
     }
 
     /** Inside the workspace and outside `.git`, which belongs to Git alone. */
@@ -86,6 +156,6 @@ internal class WorkspaceItemsCoordinator(
 
     private suspend fun fail(requestId: String?, message: String) {
         if (requestId == null) workbench.message(message)
-        else workbench.emit(WorkbenchEffect.WorkspaceItemCreationFailed(requestId, message))
+        else workbench.emit(WorkbenchEffect.WorkspaceItemFailed(requestId, message))
     }
 }

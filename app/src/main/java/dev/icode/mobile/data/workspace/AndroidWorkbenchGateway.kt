@@ -134,6 +134,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         source,
         tree,
         documents,
+        library,
         activeRoot = { activeRootLocation },
         refreshWorkspaceState = { root -> refreshWorkspaceState(root) },
         reindex = { root ->
@@ -271,6 +272,10 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     }
                     is WorkbenchIntent.CreateFile -> items.createFile(intent)
                     is WorkbenchIntent.CreateWorkspaceFolder -> items.createFolder(intent)
+                    is WorkbenchIntent.RenameWorkspaceItem -> items.rename(intent)
+                    is WorkbenchIntent.MoveWorkspaceItem -> items.move(intent)
+                    is WorkbenchIntent.CopyWorkspaceItem -> items.copy(intent)
+                    is WorkbenchIntent.DeleteWorkspaceItem -> items.delete(intent)
                     is WorkbenchIntent.SaveDocument -> documents.save(
                         intent.location,
                         intent.automatic,

@@ -145,6 +145,27 @@ internal class WorkspaceLibraryCoordinator(
         }
     }
 
+    /** Recent files follow a rename or move of the file or of a folder above it. */
+    suspend fun relocateRecentDocuments(root: String, from: String, to: String) = updateRecentDocuments(root) { all ->
+        all.map { item ->
+            if (!item.location.isAtOrUnder(from)) item
+            else item.relocated(from, to).let { location -> item.copy(location = location, name = File(location).name) }
+        }
+    }
+
+    /** Recent files a delete removed are dropped rather than shown missing. */
+    suspend fun forgetRecentDocumentsUnder(root: String, path: String) = updateRecentDocuments(root) { all ->
+        all.filterNot { it.location.isAtOrUnder(path) }
+    }
+
+    private fun StoredRecentDocument.relocated(from: String, to: String) = location.relocated(from, to)
+
+    private suspend fun updateRecentDocuments(root: String, change: (List<StoredRecentDocument>) -> List<StoredRecentDocument>) {
+        runCatching { store.updateRecentDocuments(change) }
+            .onFailure { error -> workbench.report("documents", "Recent files could not follow the change", error) }
+        workbench.update { it.copy(recentDocuments = recentDocuments(root)) }
+    }
+
     /** Recent files of [root] only; an entry that has left the workspace is dropped. */
     fun recentDocuments(root: String): List<RecentDocument> = store.loadRecentDocuments(root)
         .mapNotNull { item ->

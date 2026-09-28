@@ -185,6 +185,46 @@ internal class DocumentSessionCoordinator(
         }
     }
 
+    /**
+     * An open file at or under [path] whose edits an Explorer operation would
+     * strand: unsaved text, or a draft question not yet answered.
+     */
+    fun blockingEdits(path: String): OpenDocument? = workbench.current.openDocuments.firstOrNull {
+        it.location.isAtOrUnder(path) && (it.dirty || recovery.isUnresolved(it.location))
+    }
+
+    /** Tabs follow a rename or move of their file or of a folder above it. */
+    fun relocate(from: String, to: String) {
+        val moving = workbench.current.openDocuments.filter { it.location.isAtOrUnder(from) }
+        if (moving.isEmpty()) return
+        moving.forEach { document ->
+            val target = document.location.relocated(from, to)
+            sources.remove(document.location)?.let { sources[target] = it.copy(location = target, name = File(target).name) }
+            savedTexts.remove(document.location)?.let { savedTexts[target] = it }
+        }
+        fun moved(document: OpenDocument) = if (!document.location.isAtOrUnder(from)) document else {
+            val target = document.location.relocated(from, to)
+            document.copy(location = target, name = File(target).name)
+        }
+        workbench.update { state ->
+            state.copy(openDocuments = state.openDocuments.map(::moved), activeDocument = state.activeDocument?.let(::moved))
+        }
+    }
+
+    /** Tabs of files a delete removed close; none had edits (the operation checks first). */
+    fun closeDeleted(path: String) {
+        val removed = workbench.current.openDocuments.filter { it.location.isAtOrUnder(path) }
+        if (removed.isEmpty()) return
+        forget(removed)
+        workbench.update { state ->
+            val remaining = state.openDocuments.filterNot { it.location.isAtOrUnder(path) }
+            state.copy(
+                openDocuments = remaining,
+                activeDocument = state.activeDocument?.takeUnless { it.location.isAtOrUnder(path) } ?: remaining.firstOrNull(),
+            )
+        }
+    }
+
     /** The workspace is switching: every tab goes (the user was asked about unsaved edits). */
     fun clear() {
         sources.clear()
