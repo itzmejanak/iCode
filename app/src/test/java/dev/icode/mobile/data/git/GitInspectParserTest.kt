@@ -130,22 +130,24 @@ class GitInspectParserTest {
             output(status = status("# branch.oid (initial)", "# branch.head trunk")),
         ).repository!!
         assertFalse(repository.hasCommits)
+        assertFalse(repository.detached)
         assertEquals("trunk", repository.branch)
         assertEquals(listOf("trunk"), repository.branches)
         assertNull(repository.lastCommit)
     }
 
     @Test
-    fun `detached HEAD currently shows the first local branch`() {
-        // S5.6c replaces this with an explicit detached state.
+    fun `a detached HEAD is said the way Git says it, never as a branch`() {
+        val detached = status("# branch.oid 7d466e4c47d969352f2bc7f569d10ef8b72d2170", "# branch.head (detached)")
         val repository = GitInspectParser.parse(
             workspace,
-            output(
-                status = status("# branch.oid 7d466e4c47d969352f2bc7f569d10ef8b72d2170", "# branch.head (detached)"),
-                refs = "refs/heads/feature\nrefs/heads/main\n",
-            ),
+            output(status = detached, refs = "refs/heads/feature\nrefs/heads/main\n"),
         ).repository!!
-        assertEquals("feature", repository.branch)
+        assertTrue(repository.detached)
+        assertEquals("(HEAD detached at 7d466e4)", repository.branch)
+        assertEquals(listOf("feature", "main"), repository.branches)
+        // With no branch at all there is still none to list.
+        assertEquals(emptyList<String>(), GitInspectParser.parse(workspace, output(status = detached)).repository!!.branches)
     }
 
     @Test

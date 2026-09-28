@@ -231,6 +231,7 @@ data class GitCommitSummary(
 
 data class GitRepositoryState(
     val workTreePath: String,
+    /** The checked-out branch; when [detached], Git's own "(HEAD detached at …)" instead. */
     val branch: String,
     val hasCommits: Boolean,
     val remoteName: String?,
@@ -248,6 +249,8 @@ data class GitRepositoryState(
     val ahead: Int = 0,
     /** Commits on the upstream the local branch does not have. */
     val behind: Int = 0,
+    /** HEAD is a commit, not a branch: there is nothing to push or commit onto by name. */
+    val detached: Boolean = false,
 ) {
     /** Remote synchronization is only meaningful once a remote exists. */
     val hasRemote: Boolean get() = remoteName != null

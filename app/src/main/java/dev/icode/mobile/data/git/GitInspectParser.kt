@@ -74,9 +74,13 @@ internal object GitInspectParser {
             hasBisect = "BISECT_LOG" in markers,
         )
 
-        val branch = status.header.branch?.takeUnless { it == GitStatusHeader.DETACHED }
-            ?: branches.firstOrNull()
-            ?: DEFAULT_BRANCH
+        // A detached HEAD is said the way Git says it; naming a branch that is
+        // not checked out would send a commit or a push somewhere unintended.
+        val detached = status.header.detached
+        val branch = when {
+            detached -> "(HEAD detached at ${status.header.oid.orEmpty().take(DETACHED_ID_LENGTH)})"
+            else -> status.header.branch ?: DEFAULT_BRANCH
+        }
 
         return GitWorkspaceSnapshot(
             repository = GitRepositoryState(
@@ -86,13 +90,15 @@ internal object GitInspectParser {
                 remoteName = remote,
                 authorName = authorName,
                 authorEmail = authorEmail,
-                branches = branches.ifEmpty { listOf(branch) },
+                // An unborn branch has no ref yet, but it is the branch.
+                branches = branches.ifEmpty { if (detached) emptyList() else listOf(branch) },
                 remoteBranches = remoteRefs,
                 inProgress = inProgress,
                 lastCommit = lastCommit,
                 upstream = status.header.upstream,
                 ahead = status.header.ahead,
                 behind = status.header.behind,
+                detached = detached,
             ),
             changes = status.changes,
         )
@@ -111,6 +117,8 @@ internal object GitInspectParser {
     }
 
     private const val SHORT_ID_LENGTH = 12
+    /** What `git branch` shows for a detached HEAD. */
+    private const val DETACHED_ID_LENGTH = 7
     /** See GitCommandLine: bind-mounted Android paths never match ownership. */
     private const val SAFE_DIRECTORY = "-c 'safe.directory=*'"
     private const val NUL = '\u0000'

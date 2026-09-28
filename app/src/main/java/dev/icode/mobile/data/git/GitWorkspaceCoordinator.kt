@@ -51,12 +51,17 @@ internal class GitWorkspaceCoordinator(
         return GitPicture(available, state, state.repository?.branch ?: GitHeadReader.branchOf(root).orEmpty())
     }
 
-    /** Tree decoration, Git state and recents, after the worktree changed. */
+    /**
+     * Tree decoration, Git state and recents, after the worktree changed. Git
+     * takes a second or more; if another workspace opened meanwhile, this one's
+     * answer is dropped rather than painted over it.
+     */
     suspend fun refresh(root: String) {
         val picture = read(root)
         val recents = recentWorkspaces()
         val files = tree.rows(root, picture.state)
         workbench.update {
+            if (it.activeWorkspaceLocation != root) return@update it
             it.copy(
                 workspaces = recents,
                 files = files,
@@ -67,6 +72,12 @@ internal class GitWorkspaceCoordinator(
                 recentDocuments = recentDocuments(root),
             )
         }
+    }
+
+    /** The workspace is closing: a refresh still waiting for it has nothing left to show. */
+    fun workspaceClosing() {
+        refreshJob?.cancel()
+        refreshJob = null
     }
 
     suspend fun refreshActive() {
@@ -149,7 +160,7 @@ internal class GitWorkspaceCoordinator(
     suspend fun openDiff(path: String, staged: Boolean) {
         val workspace = activeRoot() ?: return
         runCatching { git.diff(workspace, path, staged) }
-            .onSuccess { diff -> workbench.update { it.copy(activeDiff = diff) } }
+            .onSuccess { diff -> workbench.update { if (it.activeWorkspaceLocation != workspace) it else it.copy(activeDiff = diff) } }
             .onFailure { error ->
                 workbench.update { it.copy(activeDiff = null) }
                 workbench.report("git", "Unable to read the diff", error)

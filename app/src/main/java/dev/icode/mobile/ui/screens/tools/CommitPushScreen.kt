@@ -159,6 +159,7 @@ private fun pushLabel(repository: GitRepositoryState?): String =
 
 private fun branchSummary(repository: GitRepositoryState?): String = when {
     repository == null -> "Initialize Git to enable source control"
+    repository.detached -> "No branch checked out — choose one to commit and push"
     !repository.hasCommits -> "No commits yet — stage changes and commit"
     repository.upstream != null -> "${countOf(repository.ahead, "commit")} ahead, ${repository.behind} behind"
     repository.hasRemote -> "Remote \"${repository.remoteName}\" · no upstream for this branch"

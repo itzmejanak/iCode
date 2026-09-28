@@ -27,6 +27,10 @@ internal class GitTransferCoordinator(
 
     suspend fun push() {
         val repository = workbench.current.gitRepository
+        if (repository?.detached == true) {
+            workbench.message("HEAD is detached. Check out a branch before pushing")
+            return
+        }
         val needsUpstream = repository?.upstream == null
         runRemote("Pushing") { workspace, onStderr ->
             git.push(

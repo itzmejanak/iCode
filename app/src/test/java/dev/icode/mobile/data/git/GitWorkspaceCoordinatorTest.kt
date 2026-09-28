@@ -59,8 +59,8 @@ class GitWorkspaceCoordinatorTest {
         lastCommit = null,
     )
 
-    private class Harness(val git: FakeGit, root: String?, val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)) {
-        val workbench = WorkbenchStateHolder()
+    private class Harness(val git: FakeGit, var root: String?, val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)) {
+        val workbench = WorkbenchStateHolder().apply { update { it.copy(activeWorkspaceLocation = root) } }
         var installed = 0
         val coordinator = GitWorkspaceCoordinator(
             workbench,
@@ -197,6 +197,30 @@ class GitWorkspaceCoordinatorTest {
             withTimeout(2_000) { harness.workbench.snapshot.first { it.gitAvailable == true } }
             delay(500)
             assertEquals(listOf("inspect $root"), git.calls)
+        } finally {
+            harness.scope.cancel()
+        }
+    }
+
+    @Test fun `an answer for a workspace no longer open is dropped`() = runBlocking {
+        val git = FakeGit().apply { snapshot = GitWorkspaceSnapshot(repository(), listOf(change)) }
+        val harness = Harness(git, root)
+        harness.workbench.update { it.copy(activeWorkspaceLocation = "/workspace/other") }
+
+        harness.coordinator.refresh(root)
+
+        assertTrue(harness.workbench.current.gitChanges.isEmpty())
+        assertNull(harness.workbench.current.gitRepository)
+    }
+
+    @Test fun `a refresh waiting for a closing workspace never runs`() = runBlocking {
+        val git = FakeGit().apply { snapshot = GitWorkspaceSnapshot(repository(), emptyList()) }
+        val harness = Harness(git, root)
+        try {
+            harness.coordinator.scheduleRefresh()
+            harness.coordinator.workspaceClosing()
+            delay(600)
+            assertTrue(git.calls.isEmpty())
         } finally {
             harness.scope.cancel()
         }
