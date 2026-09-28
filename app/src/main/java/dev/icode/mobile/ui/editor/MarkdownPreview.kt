@@ -1,5 +1,6 @@
 package dev.icode.mobile.ui.editor
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.text.method.LinkMovementMethod
 import android.util.TypedValue
@@ -89,6 +90,10 @@ internal class ScalableMarkdownTextView(context: Context) : TextView(context) {
         movementMethod = SelectableLinkMovementMethod()
     }
 
+    // A single tap goes to TextView's own onTouchEvent, which calls performClick
+    // (selectable text is clickable); a two-finger pinch is not a click. Lint
+    // only sees a performClick call written here.
+    @SuppressLint("ClickableViewAccessibility")
     override fun onTouchEvent(event: MotionEvent): Boolean {
         scaleDetector.onTouchEvent(event)
         if (event.actionMasked == MotionEvent.ACTION_POINTER_DOWN && event.pointerCount >= 2) {
@@ -107,8 +112,4 @@ internal class ScalableMarkdownTextView(context: Context) : TextView(context) {
         }
         return super.onTouchEvent(event)
     }
-
-    // A single tap reaches TextView's own handling above, which clicks through
-    // here — as do accessibility services; a two-finger pinch is not a click.
-    override fun performClick(): Boolean = super.performClick()
 }
