@@ -204,7 +204,12 @@ fun IcodeApp(
                     }
                     WorkbenchEffect.FolderBrowserOpened -> navigation.actions.navigate(Route.OpenFolderBrowser)
                     is WorkbenchEffect.FolderDestinationSelected -> navigation.actions.back()
-                    is WorkbenchEffect.WorkspaceOpened -> navigation.actions.navigate(Route.WorkspaceExplorer)
+                    // A finished clone's progress gives way to its workspace, so Back returns to the form.
+                    is WorkbenchEffect.WorkspaceOpened -> if (navigation.current == Route.CloneProgress) {
+                        navigation.actions.replace(Route.WorkspaceExplorer)
+                    } else {
+                        navigation.actions.navigate(Route.WorkspaceExplorer)
+                    }
                     is WorkbenchEffect.WorkspaceTerminalOpened -> navigation.actions.navigate(Route.TerminalExpanded)
                     // The creation dialog consumes these request-scoped results.
                     is WorkbenchEffect.WorkspaceItemChanged, is WorkbenchEffect.WorkspaceItemFailed -> Unit
