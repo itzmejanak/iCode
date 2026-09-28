@@ -82,6 +82,8 @@ sealed interface WorkbenchIntent {
     data class SwitchBranch(val branch: String) : WorkbenchIntent
     data class CreateBranch(val branch: String) : WorkbenchIntent
     data class DeleteBranch(val branch: String) : WorkbenchIntent
+    /** A local branch tracking [remoteBranch] (`origin/feature`), named by Git from the remote's refspec. */
+    data class CheckoutRemoteBranch(val remoteBranch: String) : WorkbenchIntent
 
     /** Installs Git into the runtime when it is not present yet. */
     data object ProvisionGit : WorkbenchIntent
@@ -96,6 +98,8 @@ sealed interface WorkbenchIntent {
     data object ConfirmDiscardChanges : WorkbenchIntent
     /** Ends a half-finished merge, rebase, cherry-pick or revert. */
     data object AbortInProgress : WorkbenchIntent
+    /** Adds a remote; one that already exists is Git's refusal to report, never replaced. */
+    data class AddRemote(val name: String, val url: String) : WorkbenchIntent
     data object FetchRemote : WorkbenchIntent
     data object PullRemote : WorkbenchIntent
     data object PushRemote : WorkbenchIntent

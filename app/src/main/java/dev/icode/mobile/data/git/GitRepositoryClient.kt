@@ -112,6 +112,17 @@ internal class GitRepositoryClient(private val cli: CliGitService) :
     override suspend fun deleteBranch(workspacePath: String, branch: String) =
         expect(workspacePath, listOf("branch", "-d", branch))
 
+    /**
+     * The full remote-tracking ref leaves nothing to guess: which remote, and —
+     * from that remote's refspec — the local name. A local branch of that name
+     * already existing is Git's refusal to report, not a switch to make.
+     */
+    override suspend fun checkoutRemote(workspacePath: String, remoteBranch: String) =
+        expect(workspacePath, listOf("checkout", "--track", "refs/remotes/$remoteBranch"))
+
+    override suspend fun addRemote(workspacePath: String, name: String, url: String) =
+        expect(workspacePath, listOf("remote", "add", "--", name, url))
+
     override suspend fun diff(workspacePath: String, path: String, staged: Boolean): GitFileDiff? {
         val arguments = buildList {
             add("diff")

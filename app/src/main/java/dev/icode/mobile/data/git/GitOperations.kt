@@ -20,6 +20,8 @@ internal interface GitWorkspaceOperations {
     suspend fun switchBranch(workspacePath: String, branch: String)
     suspend fun createBranch(workspacePath: String, branch: String)
     suspend fun deleteBranch(workspacePath: String, branch: String)
+    suspend fun checkoutRemote(workspacePath: String, remoteBranch: String)
+    suspend fun addRemote(workspacePath: String, name: String, url: String)
     suspend fun diff(workspacePath: String, path: String, staged: Boolean): GitFileDiff?
     suspend fun discard(workspacePath: String, path: String, status: String)
     suspend fun abortInProgress(workspacePath: String, inProgress: GitInProgress)
