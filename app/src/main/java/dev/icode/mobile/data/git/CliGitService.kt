@@ -228,6 +228,29 @@ internal class CliGitService(private val layout: RuntimeLayout) {
         }
     }
 
+    /**
+     * The disk version of [relativePath] against [editorBytes], as Git diffs
+     * two files (`diff --no-index`). The bytes go to a scratch file in the
+     * guest's /tmp, never into the workspace, and are removed afterwards.
+     */
+    suspend fun compareWithBytes(workspaceHostPath: String, relativePath: String, editorBytes: ByteArray): GitOutcome<GitFileDiff?> {
+        val scratch = File(layout.rootfs, COMPARE_SCRATCH_RELATIVE).apply { mkdirs() }
+        val copy = File(scratch, "editor-" + relativePath.substringAfterLast('/'))
+        copy.writeBytes(editorBytes)
+        try {
+            val guestCopy = "/$COMPARE_SCRATCH_RELATIVE/${copy.name}"
+            val result = run(workspaceHostPath, listOf("diff", "--no-index", "--no-color", "--", relativePath, guestCopy))
+            // --no-index exits 1 when the files differ, which is the answer asked for here.
+            return if (result.exitCode == 0 || result.exitCode == 1) {
+                GitOutcome.Success(GitDiffParser.parse(result.stdout).firstOrNull()?.copy(path = relativePath))
+            } else {
+                GitOutcome.Failure(result.errorMessage, result.exitCode)
+            }
+        } finally {
+            copy.delete()
+        }
+    }
+
     /** Escape hatch for provisioning, which is not itself a Git command. */
     private suspend fun runShell(workspaceHostPath: String?, script: String): CommandResult =
         withContext(Dispatchers.IO) {
@@ -247,6 +270,9 @@ internal class CliGitService(private val layout: RuntimeLayout) {
         }
 
     private companion object {
+        /** Guest /tmp, inside the rootfs: seen by Git, never part of any workspace. */
+        const val COMPARE_SCRATCH_RELATIVE = "tmp/icode-compare"
+
         const val GIT_RELATIVE_PATH = "usr/bin/git"
         const val PROGRESS_POLL_MILLIS = 200L
         const val SAFE_DIRECTORY_MARKER = "root/.icode-git-configured"

@@ -24,6 +24,7 @@ import dev.icode.mobile.data.runtime.TerminalSessionManager
 import com.termux.terminal.TerminalSession
 import dev.icode.mobile.domain.GitAuthTestResult
 import dev.icode.mobile.domain.GitConflictChoice
+import dev.icode.mobile.domain.GitFileDiff
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.IndexedFile
@@ -269,6 +270,9 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                         intent.location,
                         allowRecoveredOverwrite = true,
                     )
+                    is WorkbenchIntent.ReloadFromDisk -> documents.reloadFromDisk(intent.location)
+                    is WorkbenchIntent.OverwriteDisk -> documents.overwriteDisk(intent.location)
+                    is WorkbenchIntent.CompareWithDisk -> compareWithDisk(intent.location)
                     is WorkbenchIntent.SelectDocument -> documents.select(intent.location)
                     is WorkbenchIntent.ReorderDocument -> documents.reorder(intent.movingLocation, intent.targetLocation)
                     is WorkbenchIntent.CloseDocument -> documents.close(intent.location, intent.saveChanges)
@@ -583,6 +587,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                 fileIndex = emptyList(),
                 fileIndexTruncated = false,
                 contentSearch = ContentSearchState.Empty,
+                externalChanges = emptyList(),
             ) }
             documents.clear()
             recovery.workspaceClosing(closingDocuments)
@@ -1079,6 +1084,33 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         }
     }
 
+    /**
+     * The disk version against the editor's text, as Git diffs two files, into
+     * the diff view (US-EDIT-009 "Compare shows both relevant versions").
+     */
+    private suspend fun compareWithDisk(location: String) {
+        val root = activeRootLocation ?: return
+        val change = workbench.current.externalChanges.firstOrNull { it.location == location } ?: return
+        val document = workbench.current.openDocuments.firstOrNull { it.location == location } ?: return
+        val read = documents.sourceOf(location) ?: return
+        if (!git.isAvailable()) {
+            workbench.message("Comparing uses Git, which is not installed yet. Install it from Source Control")
+            return
+        }
+        workbench.update { it.copy(activeDiff = null) }
+        val editorBytes = DocumentCodec.encode(document.text, read.encoding, read.hasByteOrderMark)
+        runCatching { gitCli.compareWithBytes(root, change.path, editorBytes) }
+            .onSuccess { outcome ->
+                when (outcome) {
+                    is GitOutcome.Success -> workbench.update {
+                        it.copy(activeDiff = outcome.value ?: GitFileDiff(path = change.path, hunks = emptyList()))
+                    }
+                    is GitOutcome.Failure -> workbench.message(outcome.message)
+                }
+            }
+            .onFailure { error -> workbench.report("git", "Unable to compare the two versions", error) }
+    }
+
     private suspend fun refreshActiveWorkspace() {
         val root = activeRootLocation
         if (root == null) {
@@ -1091,6 +1123,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             // Files may have come and gone: Quick Open's index is rebuilt, not kept.
             indexedWorkspace = null
             ensureFileIndex(root)
+            documents.reconcileWithDisk()
         }.onFailure { error ->
             workbench.report("workspace", "Unable to refresh workspace", error)
         }

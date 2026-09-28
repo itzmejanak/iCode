@@ -1,60 +1,133 @@
 package dev.icode.mobile.ui.screens.recovery
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.WarningAmber
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
-import dev.icode.mobile.designsystem.DetailRow
-import dev.icode.mobile.designsystem.DialogScaffold
-import dev.icode.mobile.designsystem.IcodeCard
+import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeSizes
+import dev.icode.mobile.designsystem.IcodeConfirmDialog
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
-import dev.icode.mobile.designsystem.PrimaryButton
+import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.SecondaryButton
+import dev.icode.mobile.domain.ExternalChange
+import dev.icode.mobile.domain.RelativeTime
+import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.WorkbenchGateway
+import dev.icode.mobile.domain.WorkbenchSnapshot
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
+import dev.icode.mobile.ui.LocalWorkbenchGateway
+import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 
-/** Conflict dialog shown when a file changed on disk while editing. */
+/**
+ * A file changed on disk while it had unsaved edits here (US-EDIT-009): which
+ * version wins. The same dialog as every other question the editor asks.
+ * Nothing is written until the user says; Cancel keeps both, and autosave waits.
+ */
 @Composable
-fun ExternalChangeScreen(actions: NavigationActions) {
-    DialogScaffold(title = "token-utils.ts", subtitle = "Modified state", onBack = actions.back) {
-        Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
-            ) {
-                Icon(Icons.Outlined.WarningAmber, contentDescription = null, tint = IcodeColors.Amber, modifier = Modifier.size(IcodeSizes.IconXl))
-                Text("File Changed Externally", style = IcodeType.Title.copy(color = IcodeColors.Amber))
-            }
-            Text(
-                "token-utils.ts was modified outside the editor while you have unsaved changes inside the IDE.",
-                style = IcodeType.Body,
-            )
-            IcodeCard(Modifier.fillMaxWidth(), elevated = true) {
-                DetailRow("Disk Version", "14:31:05 (Newer)", valueColor = IcodeColors.Amber, valueStyle = IcodeType.MonoSmall)
-                DetailRow("IDE Cache", "14:28:10 (Modified)", valueColor = IcodeColors.TextSecondary, valueStyle = IcodeType.MonoSmall)
-            }
-            PrimaryButton("Reload From Disk", { actions.navigate(Route.WorkspaceEditor) }, Modifier.fillMaxWidth())
-            SecondaryButton("Compare Versions Side-by-Side", { actions.navigate(Route.DiffView) }, Modifier.fillMaxWidth())
-            SecondaryButton("Overwrites Disk with My Changes", { actions.navigate(Route.WorkspaceEditor) }, Modifier.fillMaxWidth())
-            Text(
-                "Ignore & Keep Editing",
-                modifier = Modifier.fillMaxWidth().padding(IcodeSpacing.Space2),
-                style = IcodeType.Body.copy(color = IcodeColors.TextSecondary),
-                textAlign = TextAlign.Center,
-            )
+fun ExternalChangeDialog(
+    change: ExternalChange,
+    onReload: () -> Unit,
+    onCompare: () -> Unit,
+    onOverwrite: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    IcodeConfirmDialog(
+        title = "${change.name} changed on disk",
+        confirmLabel = "Reload from disk",
+        onConfirm = onReload,
+        onDismiss = onDismiss,
+    ) {
+        MonoLine(change.path, style = IcodeType.MonoSmall, color = IcodeColors.TextSecondary)
+        Text(
+            "It was changed outside iCode ${RelativeTime.since(change.diskChangedAt)}, while you have unsaved edits here. " +
+                "Reload takes the disk version; Cancel keeps your edits, and saving asks again.",
+            style = IcodeType.Body,
+        )
+        SecondaryButton("Compare versions", onCompare, Modifier.fillMaxWidth())
+        SecondaryButton("Overwrite disk with my edits", onOverwrite, Modifier.fillMaxWidth(), color = IcodeColors.Error)
+    }
+}
+
+/**
+ * Asks about the external change [asked] names over whatever screen is open,
+ * and asks again on coming back from comparing the two versions.
+ */
+@Composable
+fun ExternalChangePrompt(
+    asked: String?,
+    onAskedChange: (String?) -> Unit,
+    snapshot: WorkbenchSnapshot,
+    gateway: WorkbenchGateway,
+    current: Route,
+    navigate: (Route) -> Unit,
+) {
+    var comparing by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(current) {
+        val location = comparing ?: return@LaunchedEffect
+        if (current != Route.DiffView) {
+            comparing = null
+            onAskedChange(location)
         }
     }
+    val change = snapshot.externalChanges.firstOrNull { it.location == asked } ?: return
+    ExternalChangeDialog(
+        change = change,
+        onReload = {
+            gateway.dispatch(WorkbenchIntent.ReloadFromDisk(change.location))
+            onAskedChange(null)
+        },
+        onCompare = {
+            gateway.dispatch(WorkbenchIntent.CompareWithDisk(change.location))
+            comparing = change.location
+            onAskedChange(null)
+            navigate(Route.DiffView)
+        },
+        onOverwrite = {
+            gateway.dispatch(WorkbenchIntent.OverwriteDisk(change.location))
+            onAskedChange(null)
+        },
+        onDismiss = { onAskedChange(null) },
+    )
+}
+
+/** The captured frame: the dialog as it appears over the editor. */
+@Composable
+fun ExternalChangeScreen(actions: NavigationActions) {
+    val state = LocalWorkbenchSnapshot.current
+    val gateway = LocalWorkbenchGateway.current
+    val change = state.externalChanges.firstOrNull()
+    if (change == null) {
+        EmptyState(
+            title = "Nothing to resolve",
+            description = "Every open file matches the version on disk.",
+            modifier = Modifier.fillMaxSize().padding(IcodeSpacing.Space6),
+        )
+        return
+    }
+    ExternalChangeDialog(
+        change = change,
+        onReload = {
+            gateway.dispatch(WorkbenchIntent.ReloadFromDisk(change.location))
+            actions.back()
+        },
+        onCompare = {
+            gateway.dispatch(WorkbenchIntent.CompareWithDisk(change.location))
+            actions.navigate(Route.DiffView)
+        },
+        onOverwrite = {
+            gateway.dispatch(WorkbenchIntent.OverwriteDisk(change.location))
+            actions.back()
+        },
+        onDismiss = actions.back,
+    )
 }

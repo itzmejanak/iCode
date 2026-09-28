@@ -37,3 +37,8 @@ fun WorkbenchSnapshot.withDocument(location: String, change: (OpenDocument) -> O
         activeDocument = if (activeDocument?.location == location) changed else activeDocument,
     )
 }
+
+/** The snapshot without the unanswered external change of [location], if it had one. */
+fun WorkbenchSnapshot.withoutExternalChange(location: String): WorkbenchSnapshot =
+    if (externalChanges.none { it.location == location }) this
+    else copy(externalChanges = externalChanges.filterNot { it.location == location })

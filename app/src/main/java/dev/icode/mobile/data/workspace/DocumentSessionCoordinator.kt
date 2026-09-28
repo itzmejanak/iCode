@@ -1,11 +1,13 @@
 package dev.icode.mobile.data.workspace
 
+import dev.icode.mobile.domain.ExternalChange
 import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.domain.WorkbenchEffect
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.domain.reorderDocuments
 import dev.icode.mobile.domain.selectedAfterClose
 import dev.icode.mobile.domain.withDocument
+import dev.icode.mobile.domain.withoutExternalChange
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
@@ -26,6 +28,9 @@ internal class DocumentSessionCoordinator(
     /** Each open file as read from disk: what a save must still find there. */
     private val sources = ConcurrentHashMap<String, WorkspaceDocument>()
     private val savedTexts = ConcurrentHashMap<String, String>()
+
+    /** Files already said to be gone from disk, so a refresh does not repeat it. */
+    private val goneNotified = mutableSetOf<String>()
 
     fun sourceOf(location: String): WorkspaceDocument? = sources[location]
 
@@ -95,6 +100,11 @@ internal class DocumentSessionCoordinator(
             workbench.message("The document is no longer open")
             return false
         }
+        // Changed on disk under these edits: nothing is written until the user picks a version.
+        if (workbench.current.externalChanges.any { it.location == location }) {
+            if (!automatic) workbench.emit(WorkbenchEffect.ExternalChangeDetected(location))
+            return false
+        }
         if (!recovery.clearToSave(location, openDocument, sourceDocument)) return false
         if (recovery.needsOverwriteConsent(location) && !allowRecoveredOverwrite) {
             if (!automatic) workbench.emit(WorkbenchEffect.ConfirmRecoveredOverwrite(location, openDocument.name))
@@ -110,7 +120,8 @@ internal class DocumentSessionCoordinator(
             onSaved()
             true
         }.onFailure { error ->
-            workbench.report("documents", "Unable to save document", error)
+            if (error is ChangedOnDiskException) changedUnderEdits(location, openDocument.name)
+            else workbench.report("documents", "Unable to save document", error)
         }.getOrDefault(false)
         if (!saved) return false
         recovery.saved(location)
@@ -178,12 +189,83 @@ internal class DocumentSessionCoordinator(
     fun clear() {
         sources.clear()
         savedTexts.clear()
+        goneNotified.clear()
+    }
+
+    /**
+     * Compares every open file with disk (US-FILE-005): a clean one takes the
+     * new version in place, one with unsaved edits is asked about, one deleted
+     * is said once and stays open with its text.
+     */
+    suspend fun reconcileWithDisk() {
+        for (document in workbench.current.openDocuments) {
+            val read = sources[document.location] ?: continue
+            val file = File(document.location)
+            val disk = if (file.isFile) runCatching { source.readDocument(document.location) }.getOrNull() else null
+            // Present but unreadable now (grown too large, say): nothing is claimed about it.
+            val diskFingerprint = if (!file.exists()) null else disk?.fingerprint ?: read.fingerprint
+            val asked = workbench.current.externalChanges.any { it.location == document.location }
+            if (diskFingerprint != null) goneNotified.remove(document.location)
+            when (decideOnDisk(read.fingerprint, diskFingerprint, document.dirty, recovery.isUnresolved(document.location), asked)) {
+                DiskDecision.Keep -> if (asked && diskFingerprint == read.fingerprint) {
+                    workbench.update { it.withoutExternalChange(document.location) }
+                }
+                DiskDecision.Reload -> disk?.let(::takeDiskVersion)
+                DiskDecision.Ask -> changedUnderEdits(document.location, document.name)
+                DiskDecision.Gone -> if (goneNotified.add(document.location)) {
+                    workbench.message("${document.name} was deleted outside iCode; its text stays open here")
+                }
+            }
+        }
+    }
+
+    /** The disk wins: the unsaved edits are dropped, by the user's choice. */
+    suspend fun reloadFromDisk(location: String) {
+        val disk = runCatching { source.readDocument(location) }.getOrElse { error ->
+            workbench.report("documents", "Unable to read the file on disk", error)
+            return
+        }
+        takeDiskVersion(disk)
+        recovery.discard(location)
+    }
+
+    /** The editor wins: its text is saved over exactly the version now on disk. */
+    suspend fun overwriteDisk(location: String) {
+        val disk = runCatching { source.readDocument(location) }.getOrElse { error ->
+            workbench.report("documents", "Unable to read the file on disk", error)
+            return
+        }
+        sources[location] = disk
+        workbench.update { it.withoutExternalChange(location) }
+        save(location)
+    }
+
+    private fun takeDiskVersion(disk: WorkspaceDocument) {
+        sources[disk.location] = disk
+        savedTexts[disk.location] = disk.text
+        workbench.update { state ->
+            state.withDocument(disk.location) {
+                it.copy(text = disk.text, encoding = disk.encoding, lineEnding = disk.lineEnding, dirty = false, readOnly = disk.readOnly)
+            }.withoutExternalChange(disk.location)
+        }
+    }
+
+    private suspend fun changedUnderEdits(location: String, name: String) {
+        if (workbench.current.externalChanges.any { it.location == location }) return
+        val root = activeRoot()
+        val path = root?.let { runCatching { File(it).toPath().relativize(File(location).toPath()).toString() }.getOrNull() } ?: name
+        val change = ExternalChange(location, name, path, File(location).lastModified())
+        workbench.update { it.copy(externalChanges = it.externalChanges + change) }
+        workbench.emit(WorkbenchEffect.ExternalChangeDetected(location))
     }
 
     private fun forget(documents: List<OpenDocument>) {
         documents.forEach { document ->
             sources.remove(document.location)
             savedTexts.remove(document.location)
+            goneNotified.remove(document.location)
         }
+        val closed = documents.map { it.location }.toSet()
+        workbench.update { state -> state.copy(externalChanges = state.externalChanges.filterNot { it.location in closed }) }
     }
 }

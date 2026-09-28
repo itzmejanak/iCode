@@ -36,6 +36,9 @@ internal data class WorkspaceDocument(
     val fingerprint: String,
 )
 
+/** A save found a different file on disk from the one that was read: nothing was written. */
+internal class ChangedOnDiskException : IOException("The file changed on disk since it was opened")
+
 internal class DirectFileWorkspaceSource {
     private val storageRoot: File
         get() = Environment.getExternalStorageDirectory().canonicalFile
@@ -132,7 +135,7 @@ internal class DirectFileWorkspaceSource {
         val target = requireFile(document.location)
         val currentBytes = target.inputStream().use(::readBounded)
         if (fingerprint(currentBytes) != document.fingerprint) {
-            throw IOException("The document changed outside iCode. Reopen it before saving")
+            throw ChangedOnDiskException()
         }
 
         val savedBytes = DocumentCodec.encode(text, document.encoding, document.hasByteOrderMark)
