@@ -11,7 +11,6 @@ import com.termux.terminal.TerminalSession
 import dev.icode.mobile.domain.LostTerminalSession
 import dev.icode.mobile.domain.TerminalSessionNames
 import dev.icode.mobile.domain.TerminalSessionState
-import dev.icode.mobile.domain.TerminalSettingRules
 import dev.icode.mobile.domain.TerminalSettings
 import dev.icode.mobile.domain.TerminalSnapshot
 import dev.icode.mobile.domain.TerminalStatus
@@ -106,7 +105,7 @@ internal class TerminalSessionManager private constructor(
         if (reuseExisting) {
             withContext(Dispatchers.Main.immediate) { selectRunning(workspaceHostPath) }?.let { return it }
         }
-        val launch = withContext(Dispatchers.IO) { prepare(workspaceHostPath) } ?: return null
+        val launch = withContext(Dispatchers.IO) { TerminalLaunch.prepare(layout, settings, workspaceHostPath) } ?: return null
         return withContext(Dispatchers.Main.immediate) { start(launch) }
     }
 
@@ -190,40 +189,8 @@ internal class TerminalSessionManager private constructor(
         return chosen?.also { publish(selectedId = it.id) }?.id
     }
 
-    /** File work done before a session starts; off the main thread. */
-    private fun prepare(workspaceHostPath: String?): Launch? {
-        if (!layout.isInstalled) return null
-        // The ids can change when Android reassigns the app's gids.
-        layout.ensureGuestGroups()
-        val current = settings
-        val shellFile = File(layout.rootfs, current.shellPath.removePrefix("/"))
-        val shellAvailable = TerminalSettingRules.validShellPath(current.shellPath) &&
-            shellFile.canonicalFile.toPath().startsWith(layout.rootfs.canonicalFile.toPath()) &&
-            shellFile.isFile
-        if (!shellAvailable) {
-            return Launch(
-                workspaceHostPath = workspaceHostPath,
-                transcriptRows = current.scrollbackLines,
-                failure = "The configured shell ${current.shellPath} is unavailable in the runtime",
-            )
-        }
-        layout.installShellPrompt()
-        val argv = layout.prootCommand(
-            guestCommand = if (current.shellPath == "/bin/bash") listOf(current.shellPath, "-l") else listOf(current.shellPath),
-            workspaceHostPath = workspaceHostPath,
-            guestWorkingDirectory = workspaceHostPath?.let(RuntimeLayout::guestWorkspace) ?: RuntimeLayout.GUEST_HOME,
-            killOnExit = true,
-        )
-        return Launch(
-            workspaceHostPath = workspaceHostPath,
-            transcriptRows = current.scrollbackLines,
-            argv = argv,
-            environment = layout.prootEnvironment().map { "${it.key}=${it.value}" },
-        )
-    }
-
     @MainThread
-    private fun start(launch: Launch): String {
+    private fun start(launch: TerminalLaunch): String {
         val id = "session-${nextId++}"
         val title = sessionNames.allocate(id)
         val entry = Entry(id, launch.workspaceHostPath, TerminalSessionState(id, title, TerminalStatus.Running))
@@ -309,14 +276,6 @@ internal class TerminalSessionManager private constructor(
         var session: TerminalSession? = null
         var observer: (() -> Unit)? = null
     }
-
-    private class Launch(
-        val workspaceHostPath: String?,
-        val transcriptRows: Int,
-        val argv: List<String> = emptyList(),
-        val environment: List<String> = emptyList(),
-        val failure: String? = null,
-    )
 
     companion object {
         // Holds the application context only (see get), which lives as long
