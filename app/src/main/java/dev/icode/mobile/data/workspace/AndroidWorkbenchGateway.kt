@@ -23,6 +23,7 @@ import dev.icode.mobile.data.runtime.RuntimeCoordinator
 import dev.icode.mobile.data.runtime.RuntimeForegroundService
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.runtime.RuntimePackageInstaller
+import dev.icode.mobile.data.runtime.TerminalCoordinator
 import dev.icode.mobile.data.runtime.TerminalSessionManager
 import com.termux.terminal.TerminalSession
 import dev.icode.mobile.domain.GitFileDiff
@@ -52,6 +53,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
@@ -71,6 +73,14 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     private val authenticator = GitAuthenticator(runtimeLayout, gitCli, packages, GitCredentialStore(appContext))
     /** Shared with every screen this process shows; see [close]. */
     private val terminals = TerminalSessionManager.get(appContext)
+    private val terminal: TerminalCoordinator = TerminalCoordinator(
+        workbench,
+        terminals,
+        runtimeInstalled = { runtimeLayout.isInstalled },
+        activeRoot = { activeRootLocation },
+        openWorkspaceTerminal = { location -> openWorkspace(location, persist = true, openTerminal = true) },
+        workspaceChanged = { requestRefresh(rebuildIndex = true) },
+    )
     private val languageStore = LanguageServiceStore(appContext)
     private val notices = NoticeStore.get(appContext)
     private val loadedLanguageConfigs = runCatching { languageStore.load() }
@@ -203,20 +213,14 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         }
         scope.launch { library.refreshRecents() }
         scope.launch { recovery.loadRecoverable() }
-        scope.launch { observeTerminals() }
         scope.launch { refreshOnRequest() }
-        scope.launch { refreshAfterCommands() }
         scope.launch { followWatchedFolders() }
         scope.launch { restoreThenKeepSession() }
         scope.launch { observeNotices() }
-        scope.launch { reportTerminalEndings() }
-        scope.launch {
-            terminalPreferences.values(null).collect { preferences ->
-                if (preferences.loaded && preferences.loadError == null) {
-                    workbench.onMain { terminals.applySettings(preferences.terminal) }
-                }
-            }
-        }
+        terminal.follow(
+            scope,
+            terminalPreferences.values(null).filter { it.loaded && it.loadError == null }.map { it.terminal },
+        )
         scope.launch { runtime.reportState() }
     }
 
@@ -226,30 +230,12 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     /** Reports screen changes of a terminal session until the handle is closed. Main thread. */
     fun observeTerminal(id: String, onScreenChanged: () -> Unit): AutoCloseable = terminals.observe(id, onScreenChanged)
 
-    /**
-     * A tab closes when its shell exits. A clean exit needs no comment; any
-     * other code is said once, so a shell that failed on its own is not silent.
-     */
-    private suspend fun reportTerminalEndings() {
-        terminals.endings.collect { ending ->
-            if (ending.exitCode != 0) {
-                workbench.message("${ending.title} exited with code ${ending.exitCode}")
-            }
-        }
-    }
-
     /** The Notifications page; first, once per process, what the previous process's end took with it. */
     private suspend fun observeNotices() {
         terminals.ledger.takePrevious()?.let(notices::add)
         interruptedTransfer?.let(notices::add)
         notices.notices.collect { list ->
             workbench.update { it.copy(notices = list) }
-        }
-    }
-
-    private suspend fun observeTerminals() {
-        terminals.snapshot.collect { terminal ->
-            workbench.update { it.copy(terminal = terminal) }
         }
     }
 
@@ -435,11 +421,11 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                             workbench.emit(WorkbenchEffect.RuntimeRebuildStarted)
                         }
                     }
-                    WorkbenchIntent.OpenTerminalSession -> openTerminalSession()
-                    is WorkbenchIntent.SelectTerminalSession -> workbench.onMain { terminals.select(intent.id) }
-                    is WorkbenchIntent.ShowTerminalSession -> showTerminalSession(intent.id)
-                    is WorkbenchIntent.ReorderTerminalSession -> workbench.onMain { terminals.reorder(intent.movingId, intent.targetId) }
-                    is WorkbenchIntent.CloseTerminalSession -> workbench.onMain { terminals.close(intent.id) }
+                    WorkbenchIntent.OpenTerminalSession -> terminal.open()
+                    is WorkbenchIntent.SelectTerminalSession -> terminal.select(intent.id)
+                    is WorkbenchIntent.ShowTerminalSession -> terminal.show(intent.id)
+                    is WorkbenchIntent.ReorderTerminalSession -> terminal.reorder(intent.movingId, intent.targetId)
+                    is WorkbenchIntent.CloseTerminalSession -> terminal.close(intent.id)
                     is WorkbenchIntent.OpenExternalUrl -> workbench.emit(WorkbenchEffect.OpenExternalUrl(intent.url))
                 }
             }
@@ -454,34 +440,6 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         val granted = runtime.permissionAnswered(permission)
         if (permission == SystemPermission.Storage && folders.storageAnswered(granted)) return
         workbench.emit(WorkbenchEffect.SystemPermissionResolved(permission, granted))
-    }
-
-    /**
-     * Selects the session, then opens its workspace on the Terminal panel. The
-     * workspace path reuses the running session the selection now names, and
-     * goes through the same dirty-document confirmation as any switch.
-     */
-    private suspend fun showTerminalSession(id: String) {
-        val workspace = workbench.onMain {
-            if (terminals.snapshot.value.sessions.none { it.id == id && it.isRunning }) return@onMain null
-            terminals.select(id)
-            terminals.workspaceOf(id) ?: ""
-        }
-        when (workspace) {
-            null -> workbench.message("That terminal session has ended")
-            "" -> workbench.emit(WorkbenchEffect.WorkspaceTerminalOpened(activeRootLocation.orEmpty()))
-            else -> openWorkspace(workspace, persist = true, openTerminal = true)
-        }
-    }
-
-    private suspend fun openTerminalSession() {
-        if (!runtimeLayout.isInstalled) {
-            workbench.message("Install the Linux runtime before opening a terminal")
-            return
-        }
-        if (terminals.open(activeRootLocation) == null) {
-            workbench.message("Unable to start a terminal session")
-        }
     }
 
     /**
@@ -616,13 +574,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             return
         }
         if (location == activeRootLocation) {
-            if (openTerminal && runtimeLayout.isInstalled) {
-                runCatching { terminals.open(location, reuseExisting = true) }
-                    .onSuccess { workbench.update { it.copy(terminal = terminals.snapshot.value) } }
-                    .onFailure { error ->
-                        workbench.report("terminal", "Unable to start terminal", error)
-                    }
-            }
+            if (openTerminal) terminal.openIn(location)
             if (announce) {
                 workbench.emit(
                     if (openTerminal) WorkbenchEffect.WorkspaceTerminalOpened(location)
@@ -673,13 +625,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             recovery.workspaceClosing(closingDocuments)
             search.workspaceClosing()
             gitWorkspace.workspaceClosing()
-            if (openTerminal && runtimeLayout.isInstalled) {
-                runCatching { terminals.open(root.location, reuseExisting = true) }
-                    .onSuccess { workbench.update { it.copy(terminal = terminals.snapshot.value) } }
-                    .onFailure { error ->
-                        workbench.report("terminal", "Unable to start terminal", error)
-                    }
-            }
+            if (openTerminal) terminal.openIn(root.location)
             if (announce) {
                 workbench.emit(
                     if (openTerminal) WorkbenchEffect.WorkspaceTerminalOpened(location)
@@ -749,14 +695,6 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             }
             .distinctUntilChanged()
             .collect { session -> library.saveSession(session) }
-    }
-
-    /** A command that ran in the open workspace may have written to it. */
-    private suspend fun refreshAfterCommands() {
-        terminals.commandsFinished.collect { sessionId ->
-            val workspace = workbench.onMain { terminals.workspaceOf(sessionId) }
-            if (workspace != null && workspace == activeRootLocation) requestRefresh(rebuildIndex = true)
-        }
     }
 
     /**
