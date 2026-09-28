@@ -208,6 +208,13 @@ data class GitAuthState(
 
 data class GitAuthTestResult(val succeeded: Boolean, val message: String)
 
+/** A commit author's email, checked the same way by the credentials form and the backend. */
+object GitIdentityRules {
+    private val EMAIL = Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")
+
+    fun isValidEmail(email: String): Boolean = EMAIL.matches(email)
+}
+
 data class GitChange(
     val status: String,
     val name: String,

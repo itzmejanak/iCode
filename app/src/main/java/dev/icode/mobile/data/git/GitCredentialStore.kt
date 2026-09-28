@@ -4,6 +4,7 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import androidx.core.content.edit
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -32,11 +33,11 @@ internal class GitCredentialStore(context: Context) {
         require(credential.host.isNotBlank()) { "Enter the host, for example github.com" }
         require(credential.username.isNotBlank()) { "Enter the account name" }
         require(credential.token.isNotBlank()) { "Enter a personal access token" }
-        preferences.edit()
-            .putString(KEY_HOST, credential.host.trim())
-            .putString(KEY_USERNAME, credential.username.trim())
-            .putString(KEY_TOKEN, encrypt(credential.token.trim()))
-            .apply()
+        preferences.edit {
+            putString(KEY_HOST, credential.host.trim())
+            putString(KEY_USERNAME, credential.username.trim())
+            putString(KEY_TOKEN, encrypt(credential.token.trim()))
+        }
     }
 
     fun loadHttps(): HttpsCredential? {
@@ -47,7 +48,11 @@ internal class GitCredentialStore(context: Context) {
     }
 
     fun clearHttps() {
-        preferences.edit().remove(KEY_HOST).remove(KEY_USERNAME).remove(KEY_TOKEN).apply()
+        preferences.edit {
+            remove(KEY_HOST)
+            remove(KEY_USERNAME)
+            remove(KEY_TOKEN)
+        }
     }
 
     val hasHttps: Boolean get() = preferences.contains(KEY_TOKEN)

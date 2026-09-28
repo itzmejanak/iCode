@@ -15,7 +15,12 @@ internal class GitAuthenticator(
     private val layout: RuntimeLayout,
     private val cli: CliGitService,
     private val credentials: GitCredentialStore,
-) {
+) : GitCredentialOperations {
+
+    override fun describeHttps(): String? = credentials.describeHttps()
+
+    override fun saveHttps(host: String, username: String, token: String) =
+        credentials.saveHttps(GitCredentialStore.HttpsCredential(host, username, token))
 
     /**
      * Writes the HTTPS credentials Git expects, with owner-only permissions.
@@ -24,7 +29,7 @@ internal class GitAuthenticator(
      * other application can read. It is rewritten from the encrypted store on
      * demand rather than kept in sync, so revoking a token takes effect at once.
      */
-    suspend fun applyHttpsCredentials(): Boolean {
+    override suspend fun applyHttpsCredentials(): Boolean {
         val credential = credentials.loadHttps() ?: return false
         val encodedUser = urlEncode(credential.username)
         val encodedToken = urlEncode(credential.token)
@@ -45,15 +50,15 @@ internal class GitAuthenticator(
     }
 
     /** Removes the stored credentials from both the app and the guest. */
-    suspend fun clearHttpsCredentials() {
+    override suspend fun clearHttpsCredentials() {
         credentials.clearHttps()
         cli.runScript(null, "rm -f ${GitCommandLine.quote(GUEST_CREDENTIALS_PATH)}")
     }
 
     /** True once an SSH key pair exists in the guest. */
-    fun hasSshKey(): Boolean = File(layout.rootfs, SSH_PUBLIC_RELATIVE).isFile
+    override fun hasSshKey(): Boolean = File(layout.rootfs, SSH_PUBLIC_RELATIVE).isFile
 
-    fun readSshPublicKey(): String? =
+    override fun readSshPublicKey(): String? =
         runCatching { File(layout.rootfs, SSH_PUBLIC_RELATIVE).readText().trim() }
             .getOrNull()
             ?.takeIf { it.isNotEmpty() }
@@ -65,7 +70,7 @@ internal class GitAuthenticator(
      * every major host. The private key never leaves the guest home, and only
      * the public half is ever shown.
      */
-    suspend fun generateSshKey(comment: String): GitOperationOutcome {
+    override suspend fun generateSshKey(comment: String): GitOperationOutcome {
         if (hasSshKey()) return GitOperationOutcome(true, "An SSH key already exists")
         val script = buildString {
             append("mkdir -p ~/.ssh && chmod 700 ~/.ssh && ")
@@ -83,7 +88,7 @@ internal class GitAuthenticator(
     }
 
     /** Installs the OpenSSH client, which the base image does not include. */
-    suspend fun ensureSshAvailable(): Boolean {
+    override suspend fun ensureSshAvailable(): Boolean {
         if (File(layout.rootfs, SSH_KEYGEN_RELATIVE).exists()) return true
         val installed = cli.runScript(
             null,
@@ -125,7 +130,7 @@ internal class GitAuthenticator(
      * without touching the repository. Nothing is reported as working unless
      * Git itself exits zero (PR-GIT-12).
      */
-    suspend fun testConnection(url: String): GitOperationOutcome {
+    override suspend fun testConnection(url: String): GitOperationOutcome {
         if (url.isBlank()) return GitOperationOutcome(false, "Enter a repository URL to test")
         if (url.startsWith("https://")) applyHttpsCredentials()
         val result = cli.run(
