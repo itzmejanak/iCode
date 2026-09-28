@@ -4,6 +4,7 @@ import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.workspace.WorkbenchStateHolder
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.GitOutcome
+import dev.icode.mobile.domain.GitRemoteRules
 import java.io.File
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CoroutineScope
@@ -44,8 +45,8 @@ internal class GitTransferCoordinator(
 
     fun push(): Job? = start("Pushing") { id -> push(id) }
 
-    fun clone(url: String, destination: String, directoryName: String): Job? =
-        start("Cloning") { id -> clone(id, url, destination, directoryName) }
+    fun clone(url: String, destination: String, directoryName: String, branch: String = ""): Job? =
+        start("Cloning") { id -> clone(id, url.trim(), destination, directoryName.trim(), branch.trim()) }
 
     /** Starts [work] as the one transfer, or says which one is still running. */
     private fun start(label: String, work: suspend (id: Long) -> Unit): Job? = synchronized(this) {
@@ -79,8 +80,13 @@ internal class GitTransferCoordinator(
         }
     }
 
-    private suspend fun clone(id: Long, url: String, destination: String, directoryName: String) {
+    private suspend fun clone(id: Long, url: String, destination: String, directoryName: String, branch: String) {
         val label = "Cloning"
+        // Checked again here, just before Git runs: the form's view may be old.
+        cloneProblem(url, destination, directoryName, branch)?.let { problem ->
+            workbench.update { it.copy(gitOperation = GitOperationState.Failed(label, problem)) }
+            return
+        }
         // A new install has no Git until something needs it, and a clone is
         // often the first thing that does: install it as part of this clone.
         if (!git.isAvailable()) {
@@ -99,7 +105,7 @@ internal class GitTransferCoordinator(
         var transcript = emptyList<String>()
         runCatching {
             withCredentials { config ->
-                git.clone(url, destination, directoryName, config) { stderr ->
+                git.clone(url, destination, directoryName, branch.ifEmpty { null }, config) { stderr ->
                     transcript = transcriptOf(stderr)
                     publishProgress(id, label, stderr, transcript)
                 }
@@ -122,6 +128,21 @@ internal class GitTransferCoordinator(
                     )
                 }
             }
+    }
+
+    private fun cloneProblem(url: String, destination: String, directoryName: String, branch: String): String? {
+        GitRemoteRules.urlError(url)?.let { return it }
+        if (branch.isNotEmpty()) GitRemoteRules.branchError(branch)?.let { return it }
+        if (!File(destination).isDirectory) return "Choose the folder to clone into"
+        if (directoryName.isEmpty() || directoryName == "." || directoryName == ".." || '/' in directoryName) {
+            return "The address does not name a repository folder"
+        }
+        // Git clones into an empty folder, and refuses anything else; say so first.
+        val target = File(destination, directoryName)
+        if (target.exists() && target.list()?.isNotEmpty() != false) {
+            return "$directoryName already exists there. Choose another folder or remove it first"
+        }
+        return null
     }
 
     /**

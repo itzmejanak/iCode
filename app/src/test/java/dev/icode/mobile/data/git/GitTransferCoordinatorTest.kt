@@ -7,7 +7,9 @@ import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.GitProgress
 import dev.icode.mobile.domain.GitRepositoryState
 import dev.icode.mobile.domain.WorkbenchEffect
+import java.io.File
 import java.io.IOException
+import java.nio.file.Files
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.async
@@ -26,6 +28,7 @@ import org.junit.Test
 class GitTransferCoordinatorTest {
     private val root = "/workspace/app"
     private val originalWriter = BackendLog.writer
+    private val destination = Files.createTempDirectory("projects").toFile()
 
     @Before fun quietLog() {
         BackendLog.writer = { _, _, _ -> }
@@ -33,6 +36,7 @@ class GitTransferCoordinatorTest {
 
     @After fun restoreLog() {
         BackendLog.writer = originalWriter
+        destination.deleteRecursively()
     }
 
     private class Harness(scope: CoroutineScope, val git: FakeTransfers, root: String? = "/workspace/app") {
@@ -170,7 +174,7 @@ class GitTransferCoordinatorTest {
             provisionOutcome = GitOutcome.Failure("E: Unable to fetch some archives", 100)
         })
 
-        harness.coordinator.clone("https://host/me/repo.git", "/storage/Projects", "repo")?.join()
+        harness.coordinator.clone("https://host/me/repo.git", destination.path, "repo")?.join()
 
         assertEquals(
             GitOperationState.Failed("Cloning", "E: Unable to fetch some archives", listOf("Installing Git…")),
@@ -180,15 +184,44 @@ class GitTransferCoordinatorTest {
         assertTrue(harness.events.isEmpty())
     }
 
+    @Test fun `a named branch is cloned by name`() = runBlocking {
+        val harness = Harness(this, FakeTransfers())
+
+        harness.coordinator.clone(" https://host/me/repo.git ", destination.path, "repo", branch = " release/2.0 ")?.join()
+
+        assertEquals(listOf("clone https://host/me/repo.git ${destination.path} repo branch=release/2.0"), harness.git.calls)
+    }
+
+    @Test fun `a clone is refused before Git runs when it could only fail`() = runBlocking {
+        File(destination, "taken").mkdirs()
+        File(destination, "taken/file.txt").writeText("mine")
+        val cases = listOf(
+            Triple("--upload-pack=evil", destination.path, "repo") to "An address cannot start with a dash",
+            Triple("https://host/me/repo.git", "${destination.path}/missing", "repo") to "Choose the folder to clone into",
+            Triple("https://host/me/taken.git", destination.path, "taken") to "taken already exists there. Choose another folder or remove it first",
+        )
+        cases.forEach { (request, reason) ->
+            val harness = Harness(this, FakeTransfers())
+            harness.coordinator.clone(request.first, request.second, request.third)?.join()
+            assertEquals(GitOperationState.Failed("Cloning", reason), harness.workbench.current.gitOperation)
+            assertTrue(harness.git.calls.isEmpty())
+        }
+        // An empty folder of that name is where Git may clone.
+        File(destination, "empty").mkdirs()
+        val harness = Harness(this, FakeTransfers())
+        harness.coordinator.clone("https://host/me/empty.git", destination.path, "empty")?.join()
+        assertEquals(1, harness.git.calls.size)
+    }
+
     @Test fun `a finished clone opens where Git put it`() = runBlocking {
         val harness = Harness(this, FakeTransfers())
 
-        harness.coordinator.clone("git@host:me/repo.git", "/storage/Projects", "repo")?.join()
+        harness.coordinator.clone("git@host:me/repo.git", destination.path, "repo")?.join()
 
-        assertEquals(listOf("clone git@host:me/repo.git /storage/Projects repo"), harness.git.calls)
+        assertEquals(listOf("clone git@host:me/repo.git ${destination.path} repo branch=null"), harness.git.calls)
         assertEquals(GitOperationState.Succeeded("Cloning", emptyList()), harness.workbench.current.gitOperation)
         // A private repository needs the saved token for its first clone too.
-        assertEquals(listOf("credentials", "open /storage/Projects/repo"), harness.events)
+        assertEquals(listOf("credentials", "open ${destination.path}/repo"), harness.events)
         assertEquals(listOf("credential.helper=store --file=/tmp/once"), harness.git.config)
     }
 
@@ -237,7 +270,13 @@ class GitTransferCoordinatorTest {
             run("pull $workspacePath", config, onStderr)
         override suspend fun push(workspacePath: String, setUpstream: Boolean, branch: String, config: List<String>, onStderr: ((String) -> Unit)?) =
             run("push $workspacePath upstream=$setUpstream branch=$branch", config, onStderr)
-        override suspend fun clone(url: String, destinationPath: String, directoryName: String, config: List<String>, onStderr: ((String) -> Unit)?) =
-            run("clone $url $destinationPath $directoryName", config, onStderr)
+        override suspend fun clone(
+            url: String,
+            destinationPath: String,
+            directoryName: String,
+            branch: String?,
+            config: List<String>,
+            onStderr: ((String) -> Unit)?,
+        ) = run("clone $url $destinationPath $directoryName branch=$branch", config, onStderr)
     }
 }

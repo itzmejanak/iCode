@@ -38,7 +38,14 @@ internal interface GitTransferOperations {
     suspend fun fetch(workspacePath: String, config: List<String>, onStderr: ((String) -> Unit)?)
     suspend fun pull(workspacePath: String, config: List<String>, onStderr: ((String) -> Unit)?)
     suspend fun push(workspacePath: String, setUpstream: Boolean, branch: String, config: List<String>, onStderr: ((String) -> Unit)?)
-    suspend fun clone(url: String, destinationPath: String, directoryName: String, config: List<String>, onStderr: ((String) -> Unit)?)
+    suspend fun clone(
+        url: String,
+        destinationPath: String,
+        directoryName: String,
+        branch: String?,
+        config: List<String>,
+        onStderr: ((String) -> Unit)?,
+    )
 }
 
 /** Where a Git setting lives: the runtime-wide default or one repository's override. */

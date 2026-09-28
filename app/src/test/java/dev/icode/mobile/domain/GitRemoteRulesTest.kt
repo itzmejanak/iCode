@@ -39,4 +39,16 @@ class GitRemoteRulesTest {
             assertNotNull(it, GitRemoteRules.hostError(it))
         }
     }
+
+    @Test fun `branch names Git accepts, and ones it refuses`() {
+        listOf("main", "release/2.0", "feature/login-page", "v1.2.3", "fix_#12").forEach { assertNull(it, GitRemoteRules.branchError(it)) }
+        listOf("", "-rf", "a b", "a..b", "x.lock", "a~1", "a^", "a:b", "a?", "a*", "a[b", "a\\b", "/a", "a/", "a//b", "a.", "@{-1}").forEach {
+            assertNotNull(it, GitRemoteRules.branchError(it))
+        }
+    }
+
+    @Test fun `an address is never an option`() {
+        assertNotNull(GitRemoteRules.urlError("--upload-pack=touch /tmp/x"))
+        assertNotNull(GitRemoteRules.urlError("-u"))
+    }
 }
