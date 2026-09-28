@@ -137,11 +137,13 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     )
     private val gitTransfers = GitTransferCoordinator(
         workbench,
+        scope,
         git,
         activeRoot = { activeRootLocation },
         withCredentials = { block -> authenticator.withHttpsCredentials(block) },
-        refresh = { workspace -> gitWorkspace.refresh(workspace) },
-        openClone = { location -> openWorkspace(location, persist = true) },
+        // A transfer runs outside the lock; what it changes afterwards takes it.
+        refresh = { workspace -> workbench.mutations.withLock { gitWorkspace.refresh(workspace) } },
+        openClone = { location -> workbench.mutations.withLock { openWorkspace(location, persist = true) } },
     )
     private val gitAuth: GitAuthCoordinator = GitAuthCoordinator(
         workbench,
@@ -298,6 +300,23 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             search.clear()
             return
         }
+        // A transfer is its own job: nothing waits behind a slow remote.
+        if (intent == WorkbenchIntent.FetchRemote) {
+            gitTransfers.fetch()
+            return
+        }
+        if (intent == WorkbenchIntent.PullRemote) {
+            gitTransfers.pull()
+            return
+        }
+        if (intent == WorkbenchIntent.PushRemote) {
+            gitTransfers.push()
+            return
+        }
+        if (intent is WorkbenchIntent.CloneRepository) {
+            gitTransfers.clone(intent.url, intent.destination, intent.directoryName)
+            return
+        }
         scope.launch {
             workbench.mutations.withLock {
                 when (intent) {
@@ -372,9 +391,6 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     WorkbenchIntent.ConfirmDiscardChanges -> gitWorkspace.confirmDiscard()
                     WorkbenchIntent.AbortInProgress -> gitWorkspace.abort()
                     is WorkbenchIntent.AddRemote -> gitWorkspace.addRemote(intent.name, intent.url)
-                    WorkbenchIntent.FetchRemote -> gitTransfers.fetch()
-                    WorkbenchIntent.PullRemote -> gitTransfers.pull()
-                    WorkbenchIntent.PushRemote -> gitTransfers.push()
                     is WorkbenchIntent.OpenConflict -> gitConflicts.open(intent.path)
                     WorkbenchIntent.CloseConflict -> gitConflicts.close()
                     is WorkbenchIntent.ResolveConflict -> gitConflicts.resolve(intent.path, intent.sectionStart, intent.choice)
@@ -382,7 +398,6 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     is WorkbenchIntent.UpdateCloneForm -> workbench.update {
                 it.copy(cloneUrl = intent.url, cloneBranch = intent.branch)
             }
-            is WorkbenchIntent.CloneRepository -> gitTransfers.clone(intent.url, intent.destination, intent.directoryName)
                     is WorkbenchIntent.SelectGitProvider -> gitAuth.selectProvider(intent.provider)
                     is WorkbenchIntent.SelectGitAuthMethod -> gitAuth.selectMethod(intent.method)
                     is WorkbenchIntent.SaveGitToken -> gitAuth.saveToken(intent.host, intent.username, intent.token)
