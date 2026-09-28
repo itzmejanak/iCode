@@ -76,7 +76,8 @@ internal class GuestCommand(private val layout: RuntimeLayout) {
     ): Result {
         require(argv.isNotEmpty()) { "A guest command needs an executable" }
         require(delimiter in 0..255) { "Record delimiter must be one byte" }
-        return run(workspaceHostPath, argv.joinToString(" ", transform = ::shellQuote), stderrName, environment, null) { input ->
+        val mount = workspaceHostPath?.let(::GuestMount)
+        return run(mount, argv.joinToString(" ", transform = ::shellQuote), stderrName, environment, null) { input ->
             readRecords(input, delimiter, onRecord)
         }
     }
@@ -87,7 +88,7 @@ internal class GuestCommand(private val layout: RuntimeLayout) {
      * progress there — and once more when the command has ended.
      */
     suspend fun capture(
-        workspaceHostPath: String?,
+        mount: GuestMount?,
         argv: List<String>,
         stderrName: String,
         environment: Map<String, String> = emptyMap(),
@@ -96,20 +97,20 @@ internal class GuestCommand(private val layout: RuntimeLayout) {
     ): Captured {
         require(argv.isNotEmpty()) { "A guest command needs an executable" }
         val command = argv.joinToString(" ", transform = ::shellQuote)
-        return captureCommand(workspaceHostPath, command, stderrName, environment, maxStdoutBytes, onStderr)
+        return captureCommand(mount, command, stderrName, environment, maxStdoutBytes, onStderr)
     }
 
     /** [capture] for a constant multi-command [script]; the stderr of all its commands is collected together. */
     suspend fun captureScript(
-        workspaceHostPath: String?,
+        mount: GuestMount?,
         script: String,
         stderrName: String,
         environment: Map<String, String> = emptyMap(),
         maxStdoutBytes: Int = MAX_CAPTURE_BYTES,
-    ): Captured = captureCommand(workspaceHostPath, "{ $script\n}", stderrName, environment, maxStdoutBytes, null)
+    ): Captured = captureCommand(mount, "{ $script\n}", stderrName, environment, maxStdoutBytes, null)
 
     private suspend fun captureCommand(
-        workspaceHostPath: String?,
+        mount: GuestMount?,
         command: String,
         stderrName: String,
         environment: Map<String, String>,
@@ -117,7 +118,7 @@ internal class GuestCommand(private val layout: RuntimeLayout) {
         onStderr: ((String) -> Unit)?,
     ): Captured {
         var stdout = ByteArray(0)
-        val result = run(workspaceHostPath, command, stderrName, environment, onStderr) { input ->
+        val result = run(mount, command, stderrName, environment, onStderr) { input ->
             stdout = input.readAtMost(maxStdoutBytes, "The command printed more than ${maxStdoutBytes / (1024 * 1024)} MB and was stopped")
             false
         }
@@ -130,7 +131,7 @@ internal class GuestCommand(private val layout: RuntimeLayout) {
      * on [read] stopping early (it returns true) and on [read] throwing.
      */
     private suspend fun run(
-        workspaceHostPath: String?,
+        mount: GuestMount?,
         command: String,
         stderrName: String,
         environment: Map<String, String>,
@@ -144,9 +145,10 @@ internal class GuestCommand(private val layout: RuntimeLayout) {
         val process = RuntimeProcess.start(
             argv = layout.prootCommand(
                 guestCommand = listOf("/bin/sh", "-c", script),
-                workspaceHostPath = workspaceHostPath,
-                guestWorkingDirectory = workspaceHostPath?.let(RuntimeLayout::guestWorkspace) ?: RuntimeLayout.GUEST_HOME,
+                workspaceHostPath = mount?.root,
+                guestWorkingDirectory = mount?.let { it.guestPathOf(it.workingDirectory) } ?: RuntimeLayout.GUEST_HOME,
                 killOnExit = true,
+                samePathBinds = mount?.samePath.orEmpty(),
             ),
             environment = layout.prootEnvironment(environment),
             workingDirectory = layout.runtimeRoot.absolutePath,

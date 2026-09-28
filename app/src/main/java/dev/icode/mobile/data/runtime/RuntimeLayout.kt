@@ -156,6 +156,8 @@ internal class RuntimeLayout(context: Context) {
          * background job would keep an exited shell's session open.
          */
         killOnExit: Boolean = false,
+        /** Host folders bound at their own path, for programs that find them by it. */
+        samePathBinds: List<String> = emptyList(),
     ): List<String> = buildList {
         add(proot.absolutePath)
         // Android refuses link(), and dpkg and friends need hard links inside
@@ -189,6 +191,11 @@ internal class RuntimeLayout(context: Context) {
             File(rootfs, guestWorkspace.removePrefix("/")).mkdirs()
             add("-b")
             add("$workspaceHostPath:$guestWorkspace")
+        }
+        samePathBinds.forEach { hostPath ->
+            File(rootfs, hostPath.removePrefix("/")).mkdirs()
+            add("-b")
+            add(hostPath)
         }
         add("-w")
         add(guestWorkingDirectory)

@@ -106,6 +106,10 @@ internal class GitWorkspaceCoordinator(
             workbench.message("Open a workspace before initializing Git")
             return
         }
+        if (GitHeadReader.isRepository(workspace)) {
+            workbench.message("This folder is already inside a Git repository")
+            return
+        }
         runCatching {
             git.initialize(workspace)
             refresh(workspace)
