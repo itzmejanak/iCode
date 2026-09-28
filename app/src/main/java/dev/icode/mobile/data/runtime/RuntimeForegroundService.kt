@@ -185,6 +185,7 @@ class RuntimeForegroundService : Service() {
         listOfNotNull(session.title, terminals.workspaceOf(session.id)?.let { File(it).name }).joinToString(" · ")
 
     private fun commandFinished(session: TerminalSessionState, finished: FinishedCommand) {
+        terminals.commandFinished(session.id)
         if (!terminals.settings.finishAlerts || terminals.lookingAt.value == session.id) return
         if (finished.durationMillis < TerminalSettingRules.FINISH_ALERT_MILLIS) return
         alerts.finished(session.id, finished, whereIs(session), openSession(session.id))

@@ -23,6 +23,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.core.view.WindowCompat
 import dev.icode.mobile.domain.countOf
+import dev.icode.mobile.navigation.ToolPanelTab
 import dev.icode.mobile.ui.terminal.TerminalSessionSource
 import dev.icode.mobile.data.settings.AndroidWorkspacePreferencesRepository
 import dev.icode.mobile.data.workspace.DocumentAutoSaveCoordinator
@@ -150,11 +151,23 @@ fun IcodeApp(
         LaunchedEffect(captureMode, snapshot.systemAccess) {
             if (captureMode || snapshot.systemAccess != null) onReadyToRender()
         }
-        // A permission may have been changed in Android's settings meanwhile.
+        // A permission may have been changed in Android's settings meanwhile,
+        // and the workspace by another app or a command left running.
         LaunchedEffect(resumeGeneration) {
-            if (resumeGeneration > 0) gateway.dispatch(WorkbenchIntent.RefreshSystemAccess)
+            if (resumeGeneration > 0) {
+                gateway.dispatch(WorkbenchIntent.RefreshSystemAccess)
+                gateway.dispatch(WorkbenchIntent.Refresh)
+            }
         }
         val navigation = rememberNavigationState(initialScreen, captureMode)
+        // Coming back from the terminal, where an agent or a command may have
+        // changed files, the Explorer, Source Control and open files catch up.
+        val terminalShown = navigation.current == Route.TerminalExpanded && navigation.panelTab == ToolPanelTab.Terminal
+        var terminalWasShown by remember { mutableStateOf(false) }
+        LaunchedEffect(terminalShown) {
+            if (terminalWasShown && !terminalShown) gateway.dispatch(WorkbenchIntent.Refresh)
+            terminalWasShown = terminalShown
+        }
         // Onboarding replaces the top screen as it advances, so a terminal
         // opened during it would be replaced; wait until it is over.
         val pastOnboarding = navigation.current !in ONBOARDING_SCREENS
