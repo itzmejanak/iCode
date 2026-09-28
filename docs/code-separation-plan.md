@@ -498,3 +498,9 @@ background need: before, they came back over an empty workspace. Gate: 283 tests
 Lint found the session write's `edit()…commit()` (19 warnings): the workspace store's two checked
 writes now go through one `commitString` helper, marked once — the KTX `edit {}` form would
 discard `commit()`'s answer, which the store turns into a reported failure. 17 warnings.
+
+**S4 move — `SearchCoordinator` (2026-09-28), done.** Find in files and Quick Open's index
+move out of the gateway into `data/search/SearchCoordinator`, unchanged. Found while reading it:
+`WorkspaceIndexer`'s depth limit counts folders visited, not depth, so both searches stop after
+about 24 folders of any real project — the "search can miss files" of Todo #3 — fixed next, with
+ripgrep as planned.
