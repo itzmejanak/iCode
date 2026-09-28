@@ -69,4 +69,11 @@ class GitCommandLineTest {
         val command = argv.joinToString(" ", transform = GitCommandLine::quote)
         assertTrue(command.endsWith("'commit' '-m' 'it'\\''s \$HOME `x`'"))
     }
+
+    @Test
+    fun `one command's configuration comes before its subcommand`() {
+        val argv = GitCommandLine.argv(listOf("fetch", "--prune"), config = listOf("credential.helper=", "credential.helper=store --file=/tmp/x"))
+        val fetch = argv.indexOf("fetch")
+        assertEquals(listOf("-c", "credential.helper=", "-c", "credential.helper=store --file=/tmp/x"), argv.subList(fetch - 4, fetch))
+    }
 }

@@ -139,7 +139,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         workbench,
         git,
         activeRoot = { activeRootLocation },
-        applyCredentials = { authenticator.applyHttpsCredentials() },
+        withCredentials = { block -> authenticator.withHttpsCredentials(block) },
         refresh = { workspace -> gitWorkspace.refresh(workspace) },
         openClone = { location -> openWorkspace(location, persist = true) },
     )

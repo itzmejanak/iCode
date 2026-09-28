@@ -69,7 +69,6 @@ internal class GitAuthCoordinator(
     suspend fun saveToken(host: String, username: String, token: String) {
         runCatching {
             credentials.saveHttps(host, username, token)
-            credentials.applyHttpsCredentials()
         }.onFailure { error ->
             workbench.report("git", "Unable to save the token", error)
         }

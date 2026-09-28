@@ -34,10 +34,11 @@ internal interface GitWorkspaceOperations {
 internal interface GitTransferOperations {
     suspend fun isAvailable(): Boolean
     suspend fun provision(): GitOutcome<Unit>
-    suspend fun fetch(workspacePath: String, onStderr: ((String) -> Unit)?)
-    suspend fun pull(workspacePath: String, onStderr: ((String) -> Unit)?)
-    suspend fun push(workspacePath: String, setUpstream: Boolean, branch: String, onStderr: ((String) -> Unit)?)
-    suspend fun clone(url: String, destinationPath: String, directoryName: String, onStderr: ((String) -> Unit)?)
+    // [config] (`key=value`) holds for that one command: the saved token's helper.
+    suspend fun fetch(workspacePath: String, config: List<String>, onStderr: ((String) -> Unit)?)
+    suspend fun pull(workspacePath: String, config: List<String>, onStderr: ((String) -> Unit)?)
+    suspend fun push(workspacePath: String, setUpstream: Boolean, branch: String, config: List<String>, onStderr: ((String) -> Unit)?)
+    suspend fun clone(url: String, destinationPath: String, directoryName: String, config: List<String>, onStderr: ((String) -> Unit)?)
 }
 
 /** Where a Git setting lives: the runtime-wide default or one repository's override. */
@@ -59,7 +60,11 @@ internal interface GitCredentialOperations {
     /** `account@host` of the saved token — never the token. */
     fun describeHttps(): String?
     fun saveHttps(host: String, username: String, token: String)
-    suspend fun applyHttpsCredentials(): Boolean
+    /**
+     * Runs [block] with the Git configuration that hands it the saved token
+     * for that one command, or none when no token is saved.
+     */
+    suspend fun <T> withHttpsCredentials(block: suspend (config: List<String>) -> T): T
     suspend fun clearHttpsCredentials()
     fun hasSshKey(): Boolean
     fun readSshPublicKey(): String?

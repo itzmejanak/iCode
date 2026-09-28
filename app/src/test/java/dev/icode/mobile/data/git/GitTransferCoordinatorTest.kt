@@ -39,7 +39,10 @@ class GitTransferCoordinatorTest {
             workbench,
             git,
             activeRoot = { root },
-            applyCredentials = { events += "credentials" },
+            withCredentials = { block ->
+                events += "credentials"
+                block(listOf("credential.helper=store --file=/tmp/once"))
+            },
             refresh = { events += "refresh $it" },
             openClone = { events += "open $it" },
         )
@@ -62,6 +65,7 @@ class GitTransferCoordinatorTest {
             harness.workbench.current.gitOperation,
         )
         assertEquals(listOf("credentials", "refresh $root"), harness.events)
+        assertEquals(listOf("credential.helper=store --file=/tmp/once"), harness.git.config)
         assertEquals(WorkbenchEffect.Message("Already up to date."), withTimeout(2_000) { message.await() })
     }
 
@@ -144,7 +148,9 @@ class GitTransferCoordinatorTest {
 
         assertEquals(listOf("clone git@host:me/repo.git /storage/Projects repo"), harness.git.calls)
         assertEquals(GitOperationState.Succeeded("Cloning", emptyList()), harness.workbench.current.gitOperation)
-        assertEquals(listOf("open /storage/Projects/repo"), harness.events)
+        // A private repository needs the saved token for its first clone too.
+        assertEquals(listOf("credentials", "open /storage/Projects/repo"), harness.events)
+        assertEquals(listOf("credential.helper=store --file=/tmp/once"), harness.git.config)
     }
 
     private fun repository(upstream: String?) = GitRepositoryState(
@@ -167,10 +173,12 @@ class GitTransferCoordinatorTest {
         var stderr = emptyList<String>()
         var failure: Exception? = null
         var observe: () -> GitOperationState = { GitOperationState.Idle }
+        var config = emptyList<String>()
 
         /** Reports stderr as it grows, the way the stderr file is tailed. */
-        private fun run(call: String, onStderr: ((String) -> Unit)?) {
+        private fun run(call: String, config: List<String>, onStderr: ((String) -> Unit)?) {
             calls += call
+            this.config = config
             var printed = ""
             stderr.forEach { chunk ->
                 printed += chunk
@@ -182,11 +190,13 @@ class GitTransferCoordinatorTest {
 
         override suspend fun isAvailable() = available
         override suspend fun provision(): GitOutcome<Unit> = provisionOutcome.also { calls += "provision" }
-        override suspend fun fetch(workspacePath: String, onStderr: ((String) -> Unit)?) = run("fetch $workspacePath", onStderr)
-        override suspend fun pull(workspacePath: String, onStderr: ((String) -> Unit)?) = run("pull $workspacePath", onStderr)
-        override suspend fun push(workspacePath: String, setUpstream: Boolean, branch: String, onStderr: ((String) -> Unit)?) =
-            run("push $workspacePath upstream=$setUpstream branch=$branch", onStderr)
-        override suspend fun clone(url: String, destinationPath: String, directoryName: String, onStderr: ((String) -> Unit)?) =
-            run("clone $url $destinationPath $directoryName", onStderr)
+        override suspend fun fetch(workspacePath: String, config: List<String>, onStderr: ((String) -> Unit)?) =
+            run("fetch $workspacePath", config, onStderr)
+        override suspend fun pull(workspacePath: String, config: List<String>, onStderr: ((String) -> Unit)?) =
+            run("pull $workspacePath", config, onStderr)
+        override suspend fun push(workspacePath: String, setUpstream: Boolean, branch: String, config: List<String>, onStderr: ((String) -> Unit)?) =
+            run("push $workspacePath upstream=$setUpstream branch=$branch", config, onStderr)
+        override suspend fun clone(url: String, destinationPath: String, directoryName: String, config: List<String>, onStderr: ((String) -> Unit)?) =
+            run("clone $url $destinationPath $directoryName", config, onStderr)
     }
 }

@@ -59,7 +59,7 @@ internal fun TokenSection(
             secret = true,
         )
         MonoLine(
-            "Encrypted by the Android Keystore; never shown again after saving.",
+            "Encrypted by the Android Keystore; never shown again after saving. Used by iCode's clone, fetch, pull and push; Git in the terminal asks for its own.",
             color = IcodeColors.TextMuted,
             style = IcodeType.MonoSmall,
         )

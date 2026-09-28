@@ -162,16 +162,17 @@ internal class GitRepositoryClient(private val cli: CliGitService) :
      * Network operations take `--progress` because Git only reports it when
      * stderr is a terminal, and here stderr is a file the host tails.
      */
-    override suspend fun fetch(workspacePath: String, onStderr: ((String) -> Unit)?) =
-        expect(workspacePath, listOf("fetch", "--prune", "--progress"), onStderr)
+    override suspend fun fetch(workspacePath: String, config: List<String>, onStderr: ((String) -> Unit)?) =
+        expect(workspacePath, listOf("fetch", "--prune", "--progress"), onStderr, config)
 
-    override suspend fun pull(workspacePath: String, onStderr: ((String) -> Unit)?) =
-        expect(workspacePath, listOf("pull", "--ff-only", "--progress"), onStderr)
+    override suspend fun pull(workspacePath: String, config: List<String>, onStderr: ((String) -> Unit)?) =
+        expect(workspacePath, listOf("pull", "--ff-only", "--progress"), onStderr, config)
 
     override suspend fun push(
         workspacePath: String,
         setUpstream: Boolean,
         branch: String,
+        config: List<String>,
         onStderr: ((String) -> Unit)?,
     ) {
         val arguments = buildList {
@@ -183,7 +184,7 @@ internal class GitRepositoryClient(private val cli: CliGitService) :
                 add(branch)
             }
         }
-        expect(workspacePath, arguments, onStderr)
+        expect(workspacePath, arguments, onStderr, config)
     }
 
     /** Clones into [destinationPath]; the caller opens the result only on success. */
@@ -191,10 +192,11 @@ internal class GitRepositoryClient(private val cli: CliGitService) :
         url: String,
         destinationPath: String,
         directoryName: String,
+        config: List<String>,
         onStderr: ((String) -> Unit)?,
     ) {
         require(url.isNotBlank()) { "Enter a repository URL" }
-        val result = cli.runIn(destinationPath, listOf("clone", "--progress", url, directoryName), onStderr)
+        val result = cli.runIn(destinationPath, listOf("clone", "--progress", url, directoryName), onStderr, config)
         if (!result.succeeded) throw IOException(result.errorMessage)
     }
 
@@ -202,8 +204,9 @@ internal class GitRepositoryClient(private val cli: CliGitService) :
         workspacePath: String,
         arguments: List<String>,
         onStderr: ((String) -> Unit)? = null,
+        config: List<String> = emptyList(),
     ) {
-        val result = cli.run(workspacePath, arguments, onStderr)
+        val result = cli.run(workspacePath, arguments, onStderr, config)
         if (!result.succeeded) throw IOException(result.errorMessage)
     }
 }

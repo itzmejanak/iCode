@@ -134,7 +134,6 @@ class GitAuthCoordinatorTest {
         harness.coordinator.saveToken("github.com", "ada", "ghp_secretValue123")
 
         assertEquals("ada@github.com", harness.workbench.current.gitAuth.httpsAccount)
-        assertEquals(1, harness.credentials.applied)
         assertFalse(harness.workbench.current.toString().contains("ghp_secretValue123"))
     }
 
@@ -190,7 +189,6 @@ class GitAuthCoordinatorTest {
 
     private class FakeCredentials : GitCredentialOperations {
         private var account: String? = null
-        var applied = 0
         var sshInstallable = true
         private var key: String? = null
 
@@ -199,7 +197,7 @@ class GitAuthCoordinatorTest {
             require(token.isNotBlank()) { "Enter a personal access token" }
             account = "$username@$host"
         }
-        override suspend fun applyHttpsCredentials() = true.also { applied++ }
+        override suspend fun <T> withHttpsCredentials(block: suspend (config: List<String>) -> T): T = block(emptyList())
         override suspend fun clearHttpsCredentials() {
             account = null
         }

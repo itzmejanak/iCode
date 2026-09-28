@@ -18,8 +18,10 @@ internal object GitCommandLine {
      * `-c core.quotepath=false` returns non-ASCII paths as UTF-8 rather than
      * octal escapes, and `--no-optional-locks` keeps a read-only status from
      * taking the index lock from a command the user runs in their own terminal.
+     * [config] (`key=value`) holds for this command alone.
      */
-    fun argv(arguments: List<String>): List<String> = BASE_ARGUMENTS + arguments
+    fun argv(arguments: List<String>, config: List<String> = emptyList()): List<String> =
+        BASE_ARGUMENTS + config.flatMap { listOf("-c", it) } + arguments
 
     /**
      * POSIX single-quoting, for the few constant scripts that are not one Git command.
