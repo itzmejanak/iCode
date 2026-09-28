@@ -313,6 +313,10 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             gitTransfers.push()
             return
         }
+        if (intent == WorkbenchIntent.CancelGitTransfer) {
+            gitTransfers.cancel()
+            return
+        }
         if (intent is WorkbenchIntent.CloneRepository) {
             gitTransfers.clone(intent.url, intent.destination, intent.directoryName, intent.branch)
             return

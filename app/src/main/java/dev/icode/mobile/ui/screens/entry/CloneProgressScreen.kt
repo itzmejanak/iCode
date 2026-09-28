@@ -9,6 +9,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.Divider
 import dev.icode.mobile.designsystem.IcodeCard
@@ -22,12 +26,15 @@ import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.navigation.Route
+import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 
 /** Clone progress with streaming Git output; auto-advances into the explorer. */
 @Composable
 fun CloneProgressScreen(actions: NavigationActions) {
     val state = LocalWorkbenchSnapshot.current
+    val gateway = LocalWorkbenchGateway.current
     val operation = state.gitOperation
     // The clone finishes when Git exits, not after a fixed delay. A failure
     // returns to the form so the URL and destination can be corrected. Success
@@ -37,10 +44,11 @@ fun CloneProgressScreen(actions: NavigationActions) {
         if (actions.captureMode) return@LaunchedEffect
         when (operation) {
             is GitOperationState.Succeeded -> actions.replace(Route.WorkspaceExplorer)
-            is GitOperationState.Failed -> actions.back()
+            is GitOperationState.Failed, is GitOperationState.Cancelled -> actions.back()
             else -> Unit
         }
     }
+    var cancelling by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().padding(IcodeSpacing.Space6)) {
         Text("GIT CLONE IN PROGRESS", style = IcodeType.Label.copy(color = IcodeColors.Accent))
         Text(
@@ -91,6 +99,19 @@ fun CloneProgressScreen(actions: NavigationActions) {
             }
         }
         Spacer(Modifier.weight(1f))
-        SecondaryButton("Cancel Clone", actions.back, Modifier.fillMaxWidth())
+        // Cancelling stops Git; the screen leaves once it has actually stopped.
+        SecondaryButton(
+            if (cancelling) "Cancelling…" else "Cancel Clone",
+            {
+                if (operation is GitOperationState.Running) {
+                    cancelling = true
+                    gateway.dispatch(WorkbenchIntent.CancelGitTransfer)
+                } else {
+                    actions.back()
+                }
+            },
+            Modifier.fillMaxWidth(),
+            enabled = !cancelling,
+        )
     }
 }

@@ -144,6 +144,39 @@ class GitTransferCoordinatorTest {
         assertTrue(harness.workbench.current.gitOperation is GitOperationState.Succeeded)
     }
 
+    @Test fun `a cancelled clone stops, says so, and names what Git left`() = runBlocking {
+        val gate = CompletableDeferred<Unit>()
+        val harness = Harness(this, FakeTransfers().apply {
+            hold = gate
+            // Git has written part of the repository when it is stopped.
+            beforeHold = { File(destination, "repo/.git").mkdirs() }
+        })
+        val cloning = harness.coordinator.clone("https://host/me/repo.git", destination.path, "repo")
+        while (harness.git.calls.isEmpty()) yield()
+
+        harness.coordinator.cancel()
+        cloning?.join()
+
+        assertEquals(
+            GitOperationState.Cancelled("Cloning", emptyList(), leftover = File(destination, "repo").path),
+            harness.workbench.current.gitOperation,
+        )
+        assertTrue("never opened", harness.events == listOf("credentials"))
+        assertTrue("never deleted", File(destination, "repo/.git").isDirectory)
+    }
+
+    @Test fun `a cancelled fetch is not left running`() = runBlocking {
+        val harness = Harness(this, FakeTransfers().apply { hold = CompletableDeferred() })
+        val fetching = harness.coordinator.fetch()
+        while (harness.git.calls.isEmpty()) yield()
+
+        harness.coordinator.cancel()
+        fetching?.join()
+
+        assertEquals(GitOperationState.Cancelled("Fetching"), harness.workbench.current.gitOperation)
+        assertTrue(harness.events == listOf("credentials"))
+    }
+
     @Test fun `a detached HEAD is not pushed`() = runBlocking {
         val harness = Harness(this, FakeTransfers())
         harness.workbench.update { it.copy(gitRepository = repository(upstream = null).copy(detached = true)) }
@@ -247,10 +280,12 @@ class GitTransferCoordinatorTest {
         var observe: () -> GitOperationState = { GitOperationState.Idle }
         var config = emptyList<String>()
         var hold: CompletableDeferred<Unit>? = null
+        var beforeHold: () -> Unit = {}
 
         /** Reports stderr as it grows, the way the stderr file is tailed. */
         private suspend fun run(call: String, config: List<String>, onStderr: ((String) -> Unit)?) {
             calls += call
+            beforeHold()
             hold?.await()
             this.config = config
             var printed = ""

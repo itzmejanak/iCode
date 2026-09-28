@@ -131,12 +131,23 @@ sealed interface GitOperationState {
         val output: List<String> = emptyList(),
     ) : GitOperationState
 
+    /**
+     * Stopped by the user before Git finished. [leftover] names a folder Git
+     * had started and left behind; nothing is deleted on the user's behalf.
+     */
+    data class Cancelled(
+        val label: String,
+        val output: List<String> = emptyList(),
+        val leftover: String? = null,
+    ) : GitOperationState
+
     /** Git's own output for whichever phase this operation is in. */
     val transcript: List<String>
         get() = when (this) {
             is Running -> output
             is Failed -> output
             is Succeeded -> output
+            is Cancelled -> output
             Idle -> emptyList()
         }
 }

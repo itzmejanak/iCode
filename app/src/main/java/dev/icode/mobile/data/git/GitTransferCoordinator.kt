@@ -7,6 +7,7 @@ import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.GitRemoteRules
 import java.io.File
 import java.util.concurrent.atomic.AtomicLong
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -57,7 +58,24 @@ internal class GitTransferCoordinator(
         }
         val id = operations.incrementAndGet()
         running = label
-        scope.launch { work(id) }.also { job = it }
+        scope.launch {
+            try {
+                work(id)
+            } catch (cancelled: CancellationException) {
+                // Stopped wherever it was — even installing Git first — it never stays "running".
+                workbench.update { state ->
+                    val stopped = state.gitOperation as? GitOperationState.Running
+                    if (stopped == null || !isCurrent(id)) state
+                    else state.copy(gitOperation = GitOperationState.Cancelled(stopped.label, stopped.output))
+                }
+                throw cancelled
+            }
+        }.also { job = it }
+    }
+
+    /** Stops the running transfer; its job kills and reaps Git. */
+    fun cancel() {
+        synchronized(this) { job }?.cancel()
     }
 
     private fun isCurrent(id: Long) = id == operations.get()
@@ -102,32 +120,28 @@ internal class GitTransferCoordinator(
             workbench.update { it.copy(gitAvailable = true) }
         }
         workbench.update { it.copy(gitOperation = GitOperationState.Running(label)) }
+        val target = File(destination, directoryName)
         var transcript = emptyList<String>()
-        runCatching {
+        try {
             withCredentials { config ->
                 git.clone(url, destination, directoryName, branch.ifEmpty { null }, config) { stderr ->
                     transcript = transcriptOf(stderr)
                     publishProgress(id, label, stderr, transcript)
                 }
             }
+        } catch (cancelled: CancellationException) {
+            // Killed partway, Git cannot clean up: what it wrote is named, not deleted.
+            val leftover = target.takeIf { it.list()?.isNotEmpty() == true }?.path
+            workbench.update { it.copy(gitOperation = GitOperationState.Cancelled(label, transcript, leftover)) }
+            throw cancelled
+        } catch (error: Exception) {
+            workbench.update {
+                it.copy(gitOperation = GitOperationState.Failed(label, workbench.failureText("git", "Clone failed", error), transcript))
+            }
+            return
         }
-            .onSuccess {
-                workbench.update {
-                    it.copy(gitOperation = GitOperationState.Succeeded(label, transcript))
-                }
-                openClone(File(destination, directoryName).path)
-            }
-            .onFailure { error ->
-                workbench.update {
-                    it.copy(
-                        gitOperation = GitOperationState.Failed(
-                            label,
-                            workbench.failureText("git", "Clone failed", error),
-                            transcript,
-                        ),
-                    )
-                }
-            }
+        workbench.update { it.copy(gitOperation = GitOperationState.Succeeded(label, transcript)) }
+        openClone(target.path)
     }
 
     private fun cloneProblem(url: String, destination: String, directoryName: String, branch: String): String? {
@@ -162,34 +176,26 @@ internal class GitTransferCoordinator(
         }
         workbench.update { it.copy(gitOperation = GitOperationState.Running(label)) }
         var transcript = emptyList<String>()
-        runCatching {
+        try {
             withCredentials { config ->
                 operation(workspace, config) { stderr ->
                     transcript = transcriptOf(stderr)
                     publishProgress(id, label, stderr, transcript)
                 }
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            workbench.update {
+                it.copy(gitOperation = GitOperationState.Failed(label, workbench.failureText("git", "$label failed", error), transcript))
+            }
+            return
         }
-            .onSuccess {
-                workbench.update {
-                    it.copy(gitOperation = GitOperationState.Succeeded(label, transcript))
-                }
-                refresh(workspace)
-                // The progress surface closes itself, so the outcome is
-                // reported here or it is never reported at all.
-                workbench.message(completionMessage(label, transcript))
-            }
-            .onFailure { error ->
-                workbench.update {
-                    it.copy(
-                        gitOperation = GitOperationState.Failed(
-                            label,
-                            workbench.failureText("git", "$label failed", error),
-                            transcript,
-                        ),
-                    )
-                }
-            }
+        workbench.update { it.copy(gitOperation = GitOperationState.Succeeded(label, transcript)) }
+        refresh(workspace)
+        // The progress surface closes itself, so the outcome is
+        // reported here or it is never reported at all.
+        workbench.message(completionMessage(label, transcript))
     }
 
     /**
