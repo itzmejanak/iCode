@@ -147,4 +147,7 @@ sealed interface WorkbenchIntent {
     data class OpenExternalUrl(val url: String) : WorkbenchIntent
 
     data object Refresh : WorkbenchIntent
+
+    /** iCode came on screen or left it: the open workspace is watched only while it is seen. */
+    data class ScreenVisible(val visible: Boolean) : WorkbenchIntent
 }

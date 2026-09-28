@@ -1,0 +1,45 @@
+package dev.icode.mobile.data.workspace
+
+import dev.icode.mobile.domain.FileEntry
+import dev.icode.mobile.domain.FileKind
+import dev.icode.mobile.domain.LineEnding
+import dev.icode.mobile.domain.OpenDocument
+import dev.icode.mobile.domain.TextEncoding
+import dev.icode.mobile.domain.paletteReadySnapshot
+import java.io.File
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class WorkspaceWatcherTest {
+    @Test fun `a burst ends after a second of quiet`() {
+        assertEquals(1_000L, settleDelay(first = 0, last = 0, now = 0))
+        assertEquals(700L, settleDelay(first = 0, last = 200, now = 500))
+        assertTrue(settleDelay(first = 0, last = 200, now = 1_200) <= 0)
+    }
+
+    @Test fun `a burst that never quiets is still reported every five seconds`() {
+        assertEquals(100L, settleDelay(first = 0, last = 4_900, now = 4_900))
+        assertTrue(settleDelay(first = 0, last = 4_990, now = 5_000) <= 0)
+    }
+
+    @Test fun `the root, expanded folders and the folders of open files are watched`() {
+        val root = "/w"
+        val snapshot = paletteReadySnapshot.copy(
+            activeWorkspaceLocation = root,
+            files = listOf(
+                FileEntry("src", "/w/src", FileKind.Folder, expanded = true),
+                FileEntry("docs", "/w/docs", FileKind.Folder, expanded = false),
+                FileEntry("a.kt", "/w/src/a.kt", FileKind.Code, depth = 1),
+            ),
+            openDocuments = listOf(
+                OpenDocument("b.md", "/w/notes/b.md", "", TextEncoding.Utf8, LineEnding.Lf, dirty = false, readOnly = false),
+            ),
+        )
+        assertEquals(setOf(File("/w"), File("/w/src"), File("/w/notes")), watchedFolders(snapshot))
+    }
+
+    @Test fun `without a workspace nothing is watched`() {
+        assertEquals(emptySet<File>(), watchedFolders(paletteReadySnapshot.copy(activeWorkspaceLocation = null)))
+    }
+}

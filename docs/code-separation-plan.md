@@ -442,3 +442,14 @@ disk's and removed the draft.
 **S3 gap C — measured (2026-09-28).** inotify on `/storage/emulated/0/…` reports writes made by
 the app's own PRoot processes: create, open, modify and close-after-write all arrived for a file
 written from iCode's terminal. A live watcher is therefore possible and is the next step.
+
+**S3 gap C — live watching (2026-09-28), done.** `WorkspaceWatcher` watches, with inotify
+(`FileObserver`), the workspace root, every expanded folder and the folder of each open file, only
+while iCode is on screen (`WorkbenchIntent.ScreenVisible` from the activity's start/stop); the set
+follows the state. A burst of writes becomes one refresh — after a second of quiet, or every five
+seconds while it goes on (`settleDelay`, `watchedFolders`: 4 tests). Quick Open's index is rebuilt
+only when entries came or went, not after a plain save. On the phone, with iCode on screen and no
+interaction: a file created from outside appeared in the Explorer within 3 s, and an open clean
+file changed from outside showed its new text within 3 s. Gate: 275 tests; lint 0 / 18; UI guard
+passes. The scratch workspace stays on the phone for the Explorer file-operation checks; it is
+removed when S3 is done.
