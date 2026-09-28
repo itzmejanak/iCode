@@ -478,3 +478,12 @@ file open in a tab renamed (one tab, new name, text kept); a folder created; Cut
 file into it; Copy + Paste beside itself made "live-added copy.txt"; deleting the folder asked
 first ("…and everything in it… cannot be undone") and closed the moved file's tab. Gate: 283
 tests; lint 0 / 18; UI guard passes.
+
+**S3 gap — a way into Document Recovery (2026-09-28), done in code; device check pending (owner
+using the phone).** While the last session's drafts exist, the Notifications page shows "Unsaved
+work from the last session — N files kept as drafts · Review" at the top (the owner's chosen place
+for such messages; not a stored notice, since it is work to resolve, not an event), and the bell
+keeps its dot. Review opens Document Recovery, whose Restore now opens the file in its own
+workspace when it is another recent one (`OpenRecoverableDraft`, `workspaceHolding`); with none, it
+says to open that folder first and keeps the draft. The route is no longer unreachable (allowlist
+entry removed). Gate: 283 tests; lint 0 / 18; UI guard passes.

@@ -283,6 +283,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                         intent.expectedWorkspace,
                     )
                     is WorkbenchIntent.RestoreDraft -> recovery.restore(intent.location)
+                    is WorkbenchIntent.OpenRecoverableDraft -> openRecoverableDraft(intent.location)
                     is WorkbenchIntent.DiscardDraft -> recovery.keepDiskVersion(intent.location)
                     is WorkbenchIntent.ConfirmRecoveredOverwrite -> documents.save(
                         intent.location,
@@ -1113,6 +1114,24 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             val workspace = workbench.onMain { terminals.workspaceOf(sessionId) }
             if (workspace != null && workspace == activeRootLocation) requestRefresh(rebuildIndex = true)
         }
+    }
+
+    /**
+     * Opens a draft's file for the recovery question, switching to its
+     * workspace first when it belongs to another one the user has opened.
+     */
+    private suspend fun openRecoverableDraft(location: String) {
+        val root = activeRootLocation
+        if (root == null || !location.isAtOrUnder(root)) {
+            val home = library.workspaceHolding(location) ?: run {
+                workbench.message("Open the folder that holds ${File(location).name} first; its draft is kept")
+                return
+            }
+            openWorkspace(home, persist = true)
+            // A switch that waits on unsaved edits, or failed, has said so already.
+            if (activeRootLocation != home) return
+        }
+        documents.open(location)
     }
 
     /**

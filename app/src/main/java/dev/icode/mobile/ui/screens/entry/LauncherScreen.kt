@@ -67,7 +67,8 @@ fun LauncherScreen(actions: NavigationActions, empty: Boolean) {
         IcodeTopBar(
             title = "iCode",
             actions = {
-                val unread = state.notices.any { !it.read }
+                // Unsaved work waiting in Document Recovery keeps the dot until it is resolved.
+                val unread = state.notices.any { !it.read } || state.recoverableDrafts.isNotEmpty()
                 IconButton(onClick = { actions.navigate(Route.Notifications) }) {
                     Box {
                         Icon(
