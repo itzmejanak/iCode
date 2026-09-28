@@ -107,4 +107,8 @@ internal class ScalableMarkdownTextView(context: Context) : TextView(context) {
         }
         return super.onTouchEvent(event)
     }
+
+    // A single tap reaches TextView's own handling above, which clicks through
+    // here — as do accessibility services; a two-finger pinch is not a click.
+    override fun performClick(): Boolean = super.performClick()
 }
