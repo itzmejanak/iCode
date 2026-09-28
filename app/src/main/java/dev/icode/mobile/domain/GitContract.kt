@@ -220,7 +220,14 @@ data class GitChange(
     val name: String,
     val path: String,
     val staged: Boolean,
-)
+) {
+    /**
+     * Only an unstaged edit, deletion or new file is thrown away: staged work
+     * is unstaged first, and a conflict is resolved, never discarded.
+     */
+    val discardable: Boolean
+        get() = !staged && status in setOf(GitStatusCodes.MODIFIED, GitStatusCodes.DELETED, GitStatusCodes.UNTRACKED)
+}
 
 data class GitCommitSummary(
     val id: String,

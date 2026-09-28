@@ -173,17 +173,64 @@ class GitWorkspaceCoordinatorTest {
         assertEquals(listOf("provision", "inspect $root"), git.calls)
     }
 
-    @Test fun `a discard holds its change until it has run`() = runBlocking {
-        val git = FakeGit().apply { snapshot = GitWorkspaceSnapshot(repository(), emptyList()) }
-        val harness = Harness(git, root)
-        harness.workbench.update { it.copy(gitChanges = listOf(change)) }
+    @Test fun `a file staged and edited again offers only its unstaged edit for discard`() = runBlocking {
+        val harness = Harness(FakeGit(), root)
+        val staged = change.copy(staged = true)
+        harness.workbench.update { it.copy(gitChanges = listOf(staged, change)) }
 
         harness.coordinator.requestDiscard("a.txt")
         assertEquals(change, harness.workbench.current.pendingDiscard)
-        harness.coordinator.discard("a.txt", GitStatusCodes.MODIFIED)
 
+        harness.workbench.update { it.copy(gitChanges = listOf(staged)) }
+        harness.coordinator.requestDiscard("a.txt")
+        assertNull("staged work is unstaged first, never discarded", harness.workbench.current.pendingDiscard)
+    }
+
+    @Test fun `a confirmed discard runs only while Git still reports that change`() = runBlocking {
+        val git = FakeGit().apply { snapshot = GitWorkspaceSnapshot(repository(), listOf(change)) }
+        val harness = Harness(git, root)
+        harness.workbench.update { it.copy(gitChanges = listOf(change)) }
+        harness.coordinator.requestDiscard("a.txt")
+
+        harness.coordinator.confirmDiscard()
+
+        assertEquals(listOf("inspect $root", "discard $root a.txt M", "inspect $root"), git.calls)
         assertNull(harness.workbench.current.pendingDiscard)
-        assertEquals(listOf("discard $root a.txt M", "inspect $root"), git.calls)
+    }
+
+    @Test fun `a change that moved on after confirming is not discarded`() = runBlocking {
+        // Confirmed as an edit; meanwhile the file was deleted from the terminal.
+        val git = FakeGit().apply { snapshot = GitWorkspaceSnapshot(repository(), listOf(change.copy(status = GitStatusCodes.DELETED))) }
+        val harness = Harness(git, root)
+        harness.workbench.update { it.copy(gitChanges = listOf(change)) }
+        harness.coordinator.requestDiscard("a.txt")
+        val message = async { harness.workbench.effects.first() }
+        yield()
+
+        harness.coordinator.confirmDiscard()
+
+        assertEquals(WorkbenchEffect.Message("a.txt changed after you confirmed. Review it again"), withTimeout(2_000) { message.await() })
+        assertEquals(listOf("inspect $root"), git.calls)
+    }
+
+    @Test fun `nothing outside the repository or inside dot-git is discarded`() = runBlocking {
+        listOf(".git/config", "../elsewhere.txt", "sub/.git", "/etc/passwd", "a/./b").forEach { path ->
+            val git = FakeGit()
+            val harness = Harness(git, root)
+            harness.workbench.update { it.copy(pendingDiscard = GitChange(GitStatusCodes.MODIFIED, "x", path, staged = false)) }
+
+            harness.coordinator.confirmDiscard()
+
+            assertTrue(path, git.calls.isEmpty())
+            assertNull(harness.workbench.current.pendingDiscard)
+        }
+    }
+
+    @Test fun `the discard rule`() {
+        assertTrue(change.discardable)
+        assertTrue(change.copy(status = GitStatusCodes.UNTRACKED, path = "build/").discardable)
+        assertFalse(change.copy(staged = true).discardable)
+        assertFalse(change.copy(status = GitStatusCodes.CONFLICTED).discardable)
     }
 
     @Test fun `saves in a burst become one refresh`() = runBlocking {
