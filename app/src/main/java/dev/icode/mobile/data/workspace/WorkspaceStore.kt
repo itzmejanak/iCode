@@ -1,5 +1,6 @@
 package dev.icode.mobile.data.workspace
 
+import android.annotation.SuppressLint
 import android.content.Context
 import org.json.JSONArray
 import org.json.JSONObject
@@ -112,9 +113,7 @@ internal class SharedPreferencesWorkspaceStore(context: Context) : WorkspaceStor
                     .put("lastOpenedAt", item.lastOpenedAt),
             )
         }
-        check(preferences.edit().putString(KEY_RECENT_DOCUMENTS, array.toString()).commit()) {
-            "Unable to save recent files"
-        }
+        commitString(KEY_RECENT_DOCUMENTS, array.toString(), "Unable to save recent files")
     }
 
     override fun loadSession(): StoredSession? = runCatching {
@@ -135,7 +134,13 @@ internal class SharedPreferencesWorkspaceStore(context: Context) : WorkspaceStor
                 .put("active", it.activeDocument ?: JSONObject.NULL)
                 .toString()
         }
-        check(preferences.edit().putString(KEY_SESSION, encoded).commit()) { "Unable to save the open workspace" }
+        commitString(KEY_SESSION, encoded, "Unable to save the open workspace")
+    }
+
+    /** Written now, and a failed write is an error: the KTX `edit {}` form would discard commit()'s answer. */
+    @SuppressLint("UseKtx")
+    private fun commitString(key: String, value: String?, failure: String) {
+        check(preferences.edit().putString(key, value).commit()) { failure }
     }
 
     private fun loadAllRecentDocuments(): List<StoredRecentDocument> = runCatching {

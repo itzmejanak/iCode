@@ -495,3 +495,6 @@ bump — when storage access is granted and the folder still exists; files gone 
 skipped; a leftover draft still asks its question; terminals are never reopened (their own ledger
 reports what ended). This is what the screens Android restores after ending the process in the
 background need: before, they came back over an empty workspace. Gate: 283 tests; lint 0 / 18.
+Lint found the session write's `edit()…commit()` (19 warnings): the workspace store's two checked
+writes now go through one `commitString` helper, marked once — the KTX `edit {}` form would
+discard `commit()`'s answer, which the store turns into a reported failure. 17 warnings.
