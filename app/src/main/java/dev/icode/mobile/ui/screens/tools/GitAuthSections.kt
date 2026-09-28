@@ -46,7 +46,7 @@ internal fun IdentitySection(
     onEmail: (String) -> Unit,
 ) {
     LabeledTextField("Name", name, onName, placeholder = "Your name", modifier = Modifier.fillMaxWidth())
-    LabeledTextField("Email", email, onEmail, placeholder = "you@example.com", modifier = Modifier.fillMaxWidth())
+    LabeledTextField("Email", email, onEmail, placeholder = "you@example.com", modifier = Modifier.fillMaxWidth(), literal = true)
     MonoLine(
         description,
         color = IcodeColors.TextMuted,
@@ -134,6 +134,7 @@ internal fun VerifySection(auth: GitAuthState, url: String, onUrl: (String) -> U
         onUrl,
         placeholder = "git@host:owner/repo.git",
         modifier = Modifier.fillMaxWidth(),
+        literal = true,
     )
     MonoLine(
         "Runs a read-only ls-remote. Nothing is written to the repository.",

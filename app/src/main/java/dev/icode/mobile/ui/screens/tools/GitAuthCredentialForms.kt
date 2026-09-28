@@ -44,9 +44,9 @@ internal fun TokenSection(
         }
         // GitHub, GitLab and Bitbucket each have one host; only a self-hosted server needs it typed.
         if (auth.provider.host.isEmpty()) {
-            LabeledTextField("Host", host, onHost, placeholder = "git.example.com", modifier = Modifier.fillMaxWidth())
+            LabeledTextField("Host", host, onHost, placeholder = "git.example.com", modifier = Modifier.fillMaxWidth(), literal = true)
         }
-        LabeledTextField("Account", username, onUsername, placeholder = "your-username", modifier = Modifier.fillMaxWidth())
+        LabeledTextField("Account", username, onUsername, placeholder = "your-username", modifier = Modifier.fillMaxWidth(), literal = true)
         LabeledTextField(
             "Personal Access Token",
             token,

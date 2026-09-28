@@ -78,6 +78,7 @@ fun BranchSelectorScreen(actions: NavigationActions) {
                     onValueChange = { newBranch = it },
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = "New branch name",
+                    literal = true,
                 )
                 PrimaryButton(
                     "⊕  Create New Branch",

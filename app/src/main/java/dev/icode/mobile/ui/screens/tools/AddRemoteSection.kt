@@ -29,13 +29,14 @@ internal fun AddRemoteSection(onAdd: (name: String, url: String) -> Unit) {
     IcodeCard(Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3)) {
             StatusLabel("No remote configured. Add one to fetch, pull and push.", IcodeColors.TextSecondary)
-            LabeledTextField("Remote name", name, { name = it }, modifier = Modifier.fillMaxWidth())
+            LabeledTextField("Remote name", name, { name = it }, modifier = Modifier.fillMaxWidth(), literal = true)
             LabeledTextField(
                 "Repository URL",
                 url,
                 { url = it },
                 modifier = Modifier.fillMaxWidth(),
                 placeholder = "https://host/owner/repo.git or git@host:owner/repo.git",
+                literal = true,
             )
             val shown = nameError ?: urlError.takeIf { url.isNotEmpty() }
             if (shown != null) Text(shown, style = IcodeType.Caption, color = IcodeColors.Error)
