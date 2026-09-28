@@ -1,0 +1,68 @@
+package dev.icode.mobile.data.git
+
+import dev.icode.mobile.domain.GitFileDiff
+import dev.icode.mobile.domain.GitInProgress
+import dev.icode.mobile.domain.GitOutcome
+
+// What each Git owner needs from the real client, narrow enough for a test to fake.
+
+/** The local operations on the open workspace's repository; tests put a fake in their place. */
+internal interface GitWorkspaceOperations {
+    suspend fun isAvailable(): Boolean
+    suspend fun provision(): GitOutcome<Unit>
+    suspend fun inspect(workspacePath: String): GitWorkspaceSnapshot
+    suspend fun initialize(workspacePath: String)
+    suspend fun stage(workspacePath: String, path: String)
+    suspend fun unstage(workspacePath: String, path: String)
+    suspend fun stageAll(workspacePath: String)
+    suspend fun unstageAll(workspacePath: String)
+    suspend fun commit(workspacePath: String, message: String)
+    suspend fun switchBranch(workspacePath: String, branch: String)
+    suspend fun createBranch(workspacePath: String, branch: String)
+    suspend fun deleteBranch(workspacePath: String, branch: String)
+    suspend fun diff(workspacePath: String, path: String, staged: Boolean): GitFileDiff?
+    suspend fun discard(workspacePath: String, path: String, status: String)
+    suspend fun abortInProgress(workspacePath: String, inProgress: GitInProgress)
+    suspend fun markResolved(workspacePath: String, path: String)
+}
+
+/**
+ * The network operations, each reporting Git's stderr while it runs; tests put
+ * a fake in their place. Nothing is finished until Git exits (PR-GIT-12).
+ */
+internal interface GitTransferOperations {
+    suspend fun isAvailable(): Boolean
+    suspend fun provision(): GitOutcome<Unit>
+    suspend fun fetch(workspacePath: String, onStderr: ((String) -> Unit)?)
+    suspend fun pull(workspacePath: String, onStderr: ((String) -> Unit)?)
+    suspend fun push(workspacePath: String, setUpstream: Boolean, branch: String, onStderr: ((String) -> Unit)?)
+    suspend fun clone(url: String, destinationPath: String, directoryName: String, onStderr: ((String) -> Unit)?)
+}
+
+/** Where a Git setting lives: the runtime-wide default or one repository's override. */
+internal enum class GitConfigScope(val option: String) { Global("--global"), Local("--local") }
+
+/** Git's own configuration, read and written in one place. */
+internal interface GitConfigOperations {
+    suspend fun isAvailable(): Boolean
+    /** The value set in exactly [scope], or null when it is unset there. [workspacePath] locates a local one. */
+    suspend fun readConfig(scope: GitConfigScope, key: String, workspacePath: String? = null): String?
+    suspend fun writeConfig(scope: GitConfigScope, key: String, value: String, workspacePath: String? = null)
+    /** Removes every value of [key] set in exactly [scope]; nothing to do when it is unset. */
+    suspend fun unsetConfig(scope: GitConfigScope, key: String, workspacePath: String? = null)
+    suspend fun configureIdentity(workspacePath: String, name: String, email: String)
+}
+
+/** Credentials Git uses, and the checks made with them. Never returns a secret. */
+internal interface GitCredentialOperations {
+    /** `account@host` of the saved token — never the token. */
+    fun describeHttps(): String?
+    fun saveHttps(host: String, username: String, token: String)
+    suspend fun applyHttpsCredentials(): Boolean
+    suspend fun clearHttpsCredentials()
+    fun hasSshKey(): Boolean
+    fun readSshPublicKey(): String?
+    suspend fun ensureSshAvailable(): Boolean
+    suspend fun generateSshKey(comment: String): GitOperationOutcome
+    suspend fun testConnection(url: String): GitOperationOutcome
+}

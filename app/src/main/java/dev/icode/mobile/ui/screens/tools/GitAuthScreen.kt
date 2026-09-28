@@ -25,6 +25,7 @@ import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SegmentedControl
 import dev.icode.mobile.designsystem.TwoColumnActions
 import dev.icode.mobile.domain.GitAuthState
+import dev.icode.mobile.domain.GitIdentityRules
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
@@ -101,7 +102,7 @@ fun GitAuthScreen(actions: NavigationActions) {
     }
 
     val identityValid = state.gitAvailable == true && name.isNotBlank() &&
-        email.matches(Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"))
+        GitIdentityRules.isValidEmail(email)
 
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Git Credentials", subtitle = step.caption, onBack = actions.back)

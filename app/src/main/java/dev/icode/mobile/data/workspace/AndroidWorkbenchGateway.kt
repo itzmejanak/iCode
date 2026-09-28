@@ -3,9 +3,9 @@ package dev.icode.mobile.data.workspace
 import android.content.Context
 import android.os.Environment
 import dev.icode.mobile.data.git.CliGitService
+import dev.icode.mobile.data.git.GitAuthCoordinator
 import dev.icode.mobile.data.git.GitAuthenticator
 import dev.icode.mobile.data.git.GitCredentialStore
-import dev.icode.mobile.data.git.GitOperationOutcome
 import dev.icode.mobile.data.git.GitRepositoryClient
 import dev.icode.mobile.data.git.GitTransferCoordinator
 import dev.icode.mobile.data.git.GitWorkspaceCoordinator
@@ -21,7 +21,6 @@ import dev.icode.mobile.data.runtime.RuntimeForegroundService
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.runtime.TerminalSessionManager
 import com.termux.terminal.TerminalSession
-import dev.icode.mobile.domain.GitAuthTestResult
 import dev.icode.mobile.domain.GitFileDiff
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.GitOutcome
@@ -36,7 +35,6 @@ import dev.icode.mobile.domain.LanguageServiceConfiguration
 import dev.icode.mobile.domain.LanguageServiceRules
 import dev.icode.mobile.domain.LanguageServiceStatus
 import dev.icode.mobile.domain.SystemPermission
-import java.io.IOException
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
@@ -64,8 +62,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     private val runtimeLayout = RuntimeLayout(appContext)
     private val gitCli = CliGitService(runtimeLayout)
     private val git = GitRepositoryClient(gitCli)
-    private val credentialStore = GitCredentialStore(appContext)
-    private val authenticator = GitAuthenticator(runtimeLayout, gitCli, credentialStore)
+    private val authenticator = GitAuthenticator(runtimeLayout, gitCli, GitCredentialStore(appContext))
     /** Shared with every screen this process shows; see [close]. */
     private val terminals = TerminalSessionManager.get(appContext)
     private val languageStore = LanguageServiceStore(appContext)
@@ -109,7 +106,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     private val folders: FolderBrowserCoordinator = FolderBrowserCoordinator(workbench, source) { location -> openWorkspace(location, persist = true) }
 
     private val tree = WorkspaceTree(workbench, source)
-    private val gitWorkspace = GitWorkspaceCoordinator(
+    private val gitWorkspace: GitWorkspaceCoordinator = GitWorkspaceCoordinator(
         workbench,
         scope,
         git,
@@ -117,7 +114,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         activeRoot = { activeRootLocation },
         recentWorkspaces = library::recentWorkspaces,
         recentDocuments = library::recentDocuments,
-        onInstalled = { refreshGitAuth() },
+        onInstalled = { gitAuth.refresh() },
     )
     private val gitTransfers = GitTransferCoordinator(
         workbench,
@@ -126,6 +123,14 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         applyCredentials = { authenticator.applyHttpsCredentials() },
         refresh = { workspace -> gitWorkspace.refresh(workspace) },
         openClone = { location -> openWorkspace(location, persist = true) },
+    )
+    private val gitAuth: GitAuthCoordinator = GitAuthCoordinator(
+        workbench,
+        git,
+        authenticator,
+        activeRoot = { activeRootLocation },
+        actInRepository = gitWorkspace::act,
+        refreshRepository = { root -> gitWorkspace.refresh(root) },
     )
     private val search = SearchCoordinator(workbench, scope, RipgrepService(runtimeLayout, scope)) { activeRootLocation }
     private val recovery: DocumentRecoveryCoordinator = DocumentRecoveryCoordinator(
@@ -332,9 +337,9 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     WorkbenchIntent.StageAllFiles -> gitWorkspace.stageAll()
                     WorkbenchIntent.UnstageAllFiles -> gitWorkspace.unstageAll()
                     is WorkbenchIntent.CommitStaged -> gitWorkspace.commit(intent.message)
-                    is WorkbenchIntent.ConfigureGitIdentity -> configureGitIdentity(intent.name, intent.email)
-                    is WorkbenchIntent.ConfigureGlobalGitIdentity -> configureGlobalGitIdentity(intent.name, intent.email)
-                    WorkbenchIntent.ClearRepositoryGitIdentity -> clearRepositoryGitIdentity()
+                    is WorkbenchIntent.ConfigureGitIdentity -> gitAuth.configureRepositoryIdentity(intent.name, intent.email)
+                    is WorkbenchIntent.ConfigureGlobalGitIdentity -> gitAuth.configureGlobalIdentity(intent.name, intent.email)
+                    WorkbenchIntent.ClearRepositoryGitIdentity -> gitAuth.clearRepositoryIdentity()
                     is WorkbenchIntent.SwitchBranch -> gitWorkspace.switchBranch(intent.branch)
                     is WorkbenchIntent.CreateBranch -> gitWorkspace.createBranch(intent.branch)
                     is WorkbenchIntent.DeleteBranch -> gitWorkspace.deleteBranch(intent.branch)
@@ -357,20 +362,13 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                 it.copy(cloneUrl = intent.url, cloneBranch = intent.branch)
             }
             is WorkbenchIntent.CloneRepository -> gitTransfers.clone(intent.url, intent.destination, intent.directoryName)
-                    is WorkbenchIntent.SelectGitProvider -> workbench.update {
-                it.copy(gitAuth = it.gitAuth.copy(provider = intent.provider))
-            }
-            is WorkbenchIntent.SelectGitAuthMethod -> workbench.update {
-                        it.copy(gitAuth = it.gitAuth.copy(method = intent.method))
-                    }
-                    is WorkbenchIntent.SaveGitToken -> saveGitToken(intent)
-                    WorkbenchIntent.ClearGitToken -> {
-                        authenticator.clearHttpsCredentials()
-                        refreshGitAuth()
-                    }
-                    WorkbenchIntent.GenerateSshKey -> generateSshKey()
-                    is WorkbenchIntent.TestGitConnection -> testGitConnection(intent.url)
-                    WorkbenchIntent.RefreshGitAuth -> refreshGitAuth()
+                    is WorkbenchIntent.SelectGitProvider -> gitAuth.selectProvider(intent.provider)
+                    is WorkbenchIntent.SelectGitAuthMethod -> gitAuth.selectMethod(intent.method)
+                    is WorkbenchIntent.SaveGitToken -> gitAuth.saveToken(intent.host, intent.username, intent.token)
+                    WorkbenchIntent.ClearGitToken -> gitAuth.clearToken()
+                    WorkbenchIntent.GenerateSshKey -> gitAuth.generateSshKey()
+                    is WorkbenchIntent.TestGitConnection -> gitAuth.testConnection(intent.url)
+                    WorkbenchIntent.RefreshGitAuth -> gitAuth.refresh()
                     is WorkbenchIntent.SaveLanguageService -> saveLanguageService(intent)
                     is WorkbenchIntent.RemoveLanguageService -> removeLanguageService(intent.id)
                     is WorkbenchIntent.StartLanguageService -> startLanguageService(intent.id)
@@ -653,121 +651,6 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             for (document in dirty) if (!documents.save(document.location)) return
         }
         openWorkspace(intent.path, persist = true, openTerminal = intent.openTerminal, dirtyChoiceResolved = true)
-    }
-
-    private suspend fun configureGitIdentity(name: String, email: String) = gitWorkspace.act(
-        operation = { workspace -> git.configureIdentity(workspace, name, email) },
-        onSuccess = { refreshGitAuth() },
-    )
-
-    private suspend fun configureGlobalGitIdentity(name: String, email: String) {
-        if (name.isBlank() || !email.matches(Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$"))) {
-            workbench.message("Enter a name and valid Git author email")
-            return
-        }
-        if (!git.isAvailable()) {
-            workbench.message("Install Git in the runtime first")
-            return
-        }
-        runCatching {
-            listOf(
-                listOf("config", "--global", "user.name", name.trim()),
-                listOf("config", "--global", "user.email", email.trim()),
-            ).forEach { arguments ->
-                val result = gitCli.run(null, arguments)
-                if (!result.succeeded) throw IOException(result.errorMessage)
-            }
-            gitWorkspace.refreshActive()
-            refreshGitAuth()
-        }.onFailure { error ->
-            workbench.report("git", "Could not save Git identity", error)
-        }
-    }
-
-    private suspend fun clearRepositoryGitIdentity() {
-        val workspace = activeRootLocation ?: return
-        runCatching {
-            listOf("user.name", "user.email").forEach { key ->
-                val current = gitCli.run(workspace, listOf("config", "--local", "--get", key))
-                if (current.succeeded) {
-                    val result = gitCli.run(workspace, listOf("config", "--local", "--unset-all", key))
-                    if (!result.succeeded) throw IOException(result.errorMessage)
-                }
-            }
-            gitWorkspace.refresh(workspace)
-            refreshGitAuth()
-        }.onFailure { error ->
-            workbench.report("git", "Could not reset repository identity", error)
-        }
-    }
-
-    private suspend fun saveGitToken(intent: WorkbenchIntent.SaveGitToken) {
-        runCatching {
-            credentialStore.saveHttps(
-                GitCredentialStore.HttpsCredential(intent.host, intent.username, intent.token),
-            )
-            authenticator.applyHttpsCredentials()
-        }.onFailure { error ->
-            workbench.report("git", "Unable to save the token", error)
-        }
-        refreshGitAuth()
-    }
-
-    private suspend fun generateSshKey() {
-        workbench.update { it.copy(gitAuth = it.gitAuth.copy(busy = true)) }
-        val available = authenticator.ensureSshAvailable()
-        val outcome = if (available) {
-            authenticator.generateSshKey(credentialStore.describeHttps() ?: "icode")
-        } else {
-            GitOperationOutcome(false, "The OpenSSH client could not be installed")
-        }
-        if (!outcome.succeeded) workbench.message(outcome.message)
-        refreshGitAuth()
-    }
-
-    private suspend fun testGitConnection(url: String) {
-        workbench.update { it.copy(gitAuth = it.gitAuth.copy(busy = true, lastTest = null)) }
-        val outcome = authenticator.testConnection(url)
-        workbench.update {
-            it.copy(
-                gitAuth = it.gitAuth.copy(
-                    busy = false,
-                    lastTest = GitAuthTestResult(outcome.succeeded, outcome.message),
-                ),
-            )
-        }
-    }
-
-    /** Recomputes what the auth surface may show — never the secret itself. */
-    private suspend fun refreshGitAuth() {
-        val account = credentialStore.describeHttps()
-        val hasSshKey = authenticator.hasSshKey()
-        val publicKey = authenticator.readSshPublicKey()
-        suspend fun config(workspace: String?, scope: String, key: String): String? =
-            gitCli.run(workspace, listOf("config", scope, "--get", key))
-                .takeIf { it.succeeded }?.stdout?.trim()?.takeIf { it.isNotEmpty() }
-        val gitAvailable = git.isAvailable()
-        val globalName = if (gitAvailable) config(null, "--global", "user.name") else null
-        val globalEmail = if (gitAvailable) config(null, "--global", "user.email") else null
-        val workspace = activeRootLocation?.takeIf { workbench.current.gitRepository != null }
-        val localName = if (gitAvailable && workspace != null) config(workspace, "--local", "user.name") else null
-        val localEmail = if (gitAvailable && workspace != null) config(workspace, "--local", "user.email") else null
-        workbench.update {
-            it.copy(
-                gitAvailable = gitAvailable,
-                globalGitAuthorName = globalName,
-                globalGitAuthorEmail = globalEmail,
-                localGitAuthorName = localName,
-                localGitAuthorEmail = localEmail,
-                gitIdentityLoaded = true,
-                gitAuth = it.gitAuth.copy(
-                    httpsAccount = account,
-                    hasSshKey = hasSshKey,
-                    sshPublicKey = publicKey,
-                    busy = false,
-                ),
-            )
-        }
     }
 
     /**

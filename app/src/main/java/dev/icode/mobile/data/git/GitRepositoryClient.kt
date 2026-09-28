@@ -2,43 +2,10 @@ package dev.icode.mobile.data.git
 
 import dev.icode.mobile.domain.GitStatusCodes
 import dev.icode.mobile.domain.GitInProgress
-import dev.icode.mobile.domain.GitConflictChoice
 import dev.icode.mobile.domain.GitFileDiff
+import dev.icode.mobile.domain.GitIdentityRules
 import dev.icode.mobile.domain.GitOutcome
 import java.io.IOException
-
-/** The local operations on the open workspace's repository; tests put a fake in their place. */
-internal interface GitWorkspaceOperations {
-    suspend fun isAvailable(): Boolean
-    suspend fun provision(): GitOutcome<Unit>
-    suspend fun inspect(workspacePath: String): GitWorkspaceSnapshot
-    suspend fun initialize(workspacePath: String)
-    suspend fun stage(workspacePath: String, path: String)
-    suspend fun unstage(workspacePath: String, path: String)
-    suspend fun stageAll(workspacePath: String)
-    suspend fun unstageAll(workspacePath: String)
-    suspend fun commit(workspacePath: String, message: String)
-    suspend fun switchBranch(workspacePath: String, branch: String)
-    suspend fun createBranch(workspacePath: String, branch: String)
-    suspend fun deleteBranch(workspacePath: String, branch: String)
-    suspend fun diff(workspacePath: String, path: String, staged: Boolean): GitFileDiff?
-    suspend fun discard(workspacePath: String, path: String, status: String)
-    suspend fun abortInProgress(workspacePath: String, inProgress: GitInProgress)
-    suspend fun markResolved(workspacePath: String, path: String)
-}
-
-/**
- * The network operations, each reporting Git's stderr while it runs; tests put
- * a fake in their place. Nothing is finished until Git exits (PR-GIT-12).
- */
-internal interface GitTransferOperations {
-    suspend fun isAvailable(): Boolean
-    suspend fun provision(): GitOutcome<Unit>
-    suspend fun fetch(workspacePath: String, onStderr: ((String) -> Unit)?)
-    suspend fun pull(workspacePath: String, onStderr: ((String) -> Unit)?)
-    suspend fun push(workspacePath: String, setUpstream: Boolean, branch: String, onStderr: ((String) -> Unit)?)
-    suspend fun clone(url: String, destinationPath: String, directoryName: String, onStderr: ((String) -> Unit)?)
-}
 
 /**
  * The repository operations the workbench needs, run through the real `git`.
@@ -47,7 +14,8 @@ internal interface GitTransferOperations {
  * report the actionable command error rather than a rewritten one
  * (PR-GIT-12). Nothing here reimplements Git behaviour.
  */
-internal class GitRepositoryClient(private val cli: CliGitService) : GitWorkspaceOperations, GitTransferOperations {
+internal class GitRepositoryClient(private val cli: CliGitService) :
+    GitWorkspaceOperations, GitTransferOperations, GitConfigOperations {
 
     override suspend fun isAvailable(): Boolean = cli.isAvailable()
 
@@ -85,13 +53,6 @@ internal class GitRepositoryClient(private val cli: CliGitService) : GitWorkspac
     }
 
     /**
-     * Throws away a working-tree change.
-     *
-     * Irreversible, which is why the caller must have confirmed the exact path
-     * first (US-GIT-006). An untracked file has nothing to restore from, so it
-     * is removed instead.
-     */
-    /**
      * Throws away one file's changes, whatever state it is in.
      *
      * The three cases genuinely differ: an untracked file has no committed
@@ -116,11 +77,27 @@ internal class GitRepositoryClient(private val cli: CliGitService) : GitWorkspac
         expect(workspacePath, listOf("commit", "-m", message))
     }
 
-    suspend fun configureIdentity(workspacePath: String, name: String, email: String) {
+    override suspend fun configureIdentity(workspacePath: String, name: String, email: String) {
         require(name.isNotBlank()) { "Enter a Git author name" }
-        require(email.matches(EMAIL_PATTERN)) { "Enter a valid Git author email" }
-        expect(workspacePath, listOf("config", "user.name", name.trim()))
-        expect(workspacePath, listOf("config", "user.email", email.trim()))
+        require(GitIdentityRules.isValidEmail(email)) { "Enter a valid Git author email" }
+        writeConfig(GitConfigScope.Local, "user.name", name.trim(), workspacePath)
+        writeConfig(GitConfigScope.Local, "user.email", email.trim(), workspacePath)
+    }
+
+    override suspend fun readConfig(scope: GitConfigScope, key: String, workspacePath: String?): String? =
+        cli.run(workspacePath, listOf("config", scope.option, "--get", key))
+            .takeIf { it.succeeded }?.stdout?.trim()?.takeIf { it.isNotEmpty() }
+
+    override suspend fun writeConfig(scope: GitConfigScope, key: String, value: String, workspacePath: String?) {
+        val result = cli.run(workspacePath, listOf("config", scope.option, key, value))
+        if (!result.succeeded) throw IOException(result.errorMessage)
+    }
+
+    override suspend fun unsetConfig(scope: GitConfigScope, key: String, workspacePath: String?) {
+        // `--unset-all` fails on a key that is not set, which is not a failure here.
+        if (!cli.run(workspacePath, listOf("config", scope.option, "--get", key)).succeeded) return
+        val result = cli.run(workspacePath, listOf("config", scope.option, "--unset-all", key))
+        if (!result.succeeded) throw IOException(result.errorMessage)
     }
 
     override suspend fun switchBranch(workspacePath: String, branch: String) =
@@ -144,28 +121,6 @@ internal class GitRepositoryClient(private val cli: CliGitService) : GitWorkspac
         val result = cli.run(workspacePath, arguments)
         if (!result.succeeded) throw IOException(result.errorMessage)
         return GitDiffParser.parse(result.stdout, staged).firstOrNull()
-    }
-
-    /** Reads a conflicted file's marker blocks straight from the worktree. */
-    suspend fun conflict(workspacePath: String, path: String): List<String> {
-        val result = cli.run(workspacePath, listOf("show", ":1:$path"))
-        return if (result.succeeded) result.stdout.lines() else emptyList()
-    }
-
-    /**
-     * Resolves a conflict by taking one side wholesale.
-     *
-     * `--ours`/`--theirs` are Git's own resolution, so the result is whatever
-     * Git would have produced; marking resolved stays a separate explicit step
-     * (US-GIT-010).
-     */
-    suspend fun resolveConflict(workspacePath: String, path: String, choice: GitConflictChoice) {
-        when (choice) {
-            GitConflictChoice.Current -> expect(workspacePath, listOf("checkout", "--ours", "--", path))
-            GitConflictChoice.Incoming -> expect(workspacePath, listOf("checkout", "--theirs", "--", path))
-            // "Both" keeps the merged file with its markers for manual editing.
-            GitConflictChoice.Both -> Unit
-        }
     }
 
     /**
@@ -236,9 +191,5 @@ internal class GitRepositoryClient(private val cli: CliGitService) : GitWorkspac
     ) {
         val result = cli.run(workspacePath, arguments, onStderr)
         if (!result.succeeded) throw IOException(result.errorMessage)
-    }
-
-    private companion object {
-        val EMAIL_PATTERN = Regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$")
     }
 }
