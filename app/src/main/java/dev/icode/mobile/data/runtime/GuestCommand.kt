@@ -23,7 +23,20 @@ internal fun shellQuote(value: String): String = "'" + value.replace("'", "'\\''
  * process; every process started here is reaped.
  */
 internal class GuestCommand(private val layout: RuntimeLayout) {
-    data class Result(val exitCode: Int, val stderr: String, val stoppedEarly: Boolean)
+    data class Result(val exitCode: Int, val stderr: String, val stoppedEarly: Boolean) {
+        /** The stderr line that explains a failure, bounded; null when there is none. */
+        fun failureDetail(): String? {
+            val lines = stderr.lineSequence().map(String::trim).filter(String::isNotEmpty).toList()
+            val explanatory = lines.lastOrNull { it.startsWith("error:", ignoreCase = true) }
+                ?: lines.lastOrNull { line ->
+                    listOf("permission denied", "not found", "failed", "unable", "error").any {
+                        line.contains(it, ignoreCase = true)
+                    }
+                }
+                ?: lines.lastOrNull()
+            return explanatory?.removePrefix("error: ")?.take(MAX_ERROR_CHARS)
+        }
+    }
 
     /** Streams newline-delimited UTF-8 output. [onLine] returns false when enough was read. */
     suspend fun stream(
@@ -131,5 +144,6 @@ internal class GuestCommand(private val layout: RuntimeLayout) {
     private companion object {
         const val BUFFER_BYTES = 8192
         const val MAX_RECORD_BYTES = 16 * 1024 * 1024
+        const val MAX_ERROR_CHARS = 300
     }
 }

@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.git
 
 import dev.icode.mobile.data.runtime.RuntimeLayout
+import dev.icode.mobile.data.runtime.RuntimePackageInstaller
 import java.io.File
 
 /**
@@ -14,6 +15,7 @@ import java.io.File
 internal class GitAuthenticator(
     private val layout: RuntimeLayout,
     private val cli: CliGitService,
+    private val packages: RuntimePackageInstaller,
     private val credentials: GitCredentialStore,
 ) : GitCredentialOperations {
 
@@ -90,10 +92,8 @@ internal class GitAuthenticator(
     /** Installs the OpenSSH client, which the base image does not include. */
     override suspend fun ensureSshAvailable(): Boolean {
         if (File(layout.rootfs, SSH_KEYGEN_RELATIVE).exists()) return true
-        val installed = cli.runScript(
-            null,
-            "apt-get install -y --no-install-recommends openssh-client",
-        ).succeeded
+        val installed = packages.ensure("openssh-client") { File(layout.rootfs, SSH_KEYGEN_RELATIVE).exists() } ==
+            RuntimePackageInstaller.Outcome.Ready
         if (installed) configureSshClient()
         return installed
     }

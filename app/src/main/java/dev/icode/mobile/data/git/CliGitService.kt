@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.git
 
 import dev.icode.mobile.data.runtime.RuntimeLayout
+import dev.icode.mobile.data.runtime.RuntimePackageInstaller
 import dev.icode.mobile.data.runtime.RuntimeProcess
 import dev.icode.mobile.domain.GitFileDiff
 import dev.icode.mobile.domain.GitOutcome
@@ -20,7 +21,10 @@ import kotlinx.coroutines.withContext
  * here reimplements Git behaviour, and no result is reported as successful
  * unless Git exited zero.
  */
-internal class CliGitService(private val layout: RuntimeLayout) {
+internal class CliGitService(
+    private val layout: RuntimeLayout,
+    private val packages: RuntimePackageInstaller,
+) {
 
     @Volatile
     private var configuredSafeDirectory = false
@@ -215,18 +219,12 @@ internal class CliGitService(private val layout: RuntimeLayout) {
         }
     }
 
-    /** Installs git through the guest's package manager; reports Git's own output on failure. */
-    suspend fun provision(onOutput: (String) -> Unit = {}): GitOutcome<Unit> {
-        val update = run(null, listOf("--version"))
-        if (update.succeeded) return GitOutcome.Success(Unit)
-        onOutput("Installing git…")
-        val install = runShell(null, "apt-get update && apt-get install -y --no-install-recommends git")
-        return if (install.succeeded && isAvailable()) {
-            GitOutcome.Success(Unit)
-        } else {
-            GitOutcome.Failure(install.errorMessage, install.exitCode)
+    /** Installs git through the runtime's one package installer; apt's own words explain a failure. */
+    suspend fun provision(): GitOutcome<Unit> =
+        when (val outcome = packages.ensure(PACKAGE) { File(layout.rootfs, GIT_RELATIVE_PATH).exists() }) {
+            RuntimePackageInstaller.Outcome.Ready -> GitOutcome.Success(Unit)
+            is RuntimePackageInstaller.Outcome.Failed -> GitOutcome.Failure(outcome.reason, 1)
         }
-    }
 
     /**
      * The disk version of [relativePath] against [editorBytes], as Git diffs
@@ -251,29 +249,12 @@ internal class CliGitService(private val layout: RuntimeLayout) {
         }
     }
 
-    /** Escape hatch for provisioning, which is not itself a Git command. */
-    private suspend fun runShell(workspaceHostPath: String?, script: String): CommandResult =
-        withContext(Dispatchers.IO) {
-            val process = RuntimeProcess.start(
-                argv = layout.prootCommand(
-                    guestCommand = listOf("/bin/sh", "-c", script),
-                    workspaceHostPath = workspaceHostPath,
-                    guestWorkingDirectory = RuntimeLayout.GUEST_HOME,
-                ),
-                environment = layout.prootEnvironment(mapOf("DEBIAN_FRONTEND" to "noninteractive")),
-                workingDirectory = layout.runtimeRoot.absolutePath,
-            )
-            val stdout = process.output.bufferedReader().use { it.readText() }
-            val exitCode = process.waitFor()
-            process.destroy()
-            CommandResult(exitCode, stdout, "")
-        }
-
     private companion object {
         /** Guest /tmp, inside the rootfs: seen by Git, never part of any workspace. */
         const val COMPARE_SCRATCH_RELATIVE = "tmp/icode-compare"
 
         const val GIT_RELATIVE_PATH = "usr/bin/git"
+        const val PACKAGE = "git"
         const val PROGRESS_POLL_MILLIS = 200L
         const val SAFE_DIRECTORY_MARKER = "root/.icode-git-configured"
         val EXPLANATORY_PREFIXES = listOf("fatal:", "error:")

@@ -19,6 +19,7 @@ import dev.icode.mobile.data.system.AndroidSystemAccess
 import dev.icode.mobile.data.runtime.RuntimeCoordinator
 import dev.icode.mobile.data.runtime.RuntimeForegroundService
 import dev.icode.mobile.data.runtime.RuntimeLayout
+import dev.icode.mobile.data.runtime.RuntimePackageInstaller
 import dev.icode.mobile.data.runtime.TerminalSessionManager
 import com.termux.terminal.TerminalSession
 import dev.icode.mobile.domain.GitFileDiff
@@ -60,9 +61,11 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     private val store: WorkspaceStore = SharedPreferencesWorkspaceStore(appContext)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val runtimeLayout = RuntimeLayout(appContext)
-    private val gitCli = CliGitService(runtimeLayout)
+    /** git, openssh-client and ripgrep install through it, one at a time. */
+    private val packages = RuntimePackageInstaller(runtimeLayout, scope)
+    private val gitCli = CliGitService(runtimeLayout, packages)
     private val git = GitRepositoryClient(gitCli)
-    private val authenticator = GitAuthenticator(runtimeLayout, gitCli, GitCredentialStore(appContext))
+    private val authenticator = GitAuthenticator(runtimeLayout, gitCli, packages, GitCredentialStore(appContext))
     /** Shared with every screen this process shows; see [close]. */
     private val terminals = TerminalSessionManager.get(appContext)
     private val languageStore = LanguageServiceStore(appContext)
@@ -132,7 +135,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         actInRepository = gitWorkspace::act,
         refreshRepository = { root -> gitWorkspace.refresh(root) },
     )
-    private val search = SearchCoordinator(workbench, scope, RipgrepService(runtimeLayout, scope)) { activeRootLocation }
+    private val search = SearchCoordinator(workbench, scope, RipgrepService(runtimeLayout, packages)) { activeRootLocation }
     private val recovery: DocumentRecoveryCoordinator = DocumentRecoveryCoordinator(
         workbench,
         scope,
