@@ -5,13 +5,12 @@ import android.os.Environment
 import dev.icode.mobile.data.git.CliGitService
 import dev.icode.mobile.data.git.GitAuthenticator
 import dev.icode.mobile.data.git.GitCredentialStore
-import dev.icode.mobile.data.git.GitProgressParser
 import dev.icode.mobile.data.git.GitOperationOutcome
 import dev.icode.mobile.data.git.GitRepositoryClient
+import dev.icode.mobile.data.git.GitTransferCoordinator
 import dev.icode.mobile.data.git.GitWorkspaceCoordinator
 import dev.icode.mobile.data.language.LanguageServiceProcessManager
 import dev.icode.mobile.data.language.LanguageServiceStore
-import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.search.RipgrepService
 import dev.icode.mobile.data.search.SearchCoordinator
 import dev.icode.mobile.data.settings.AndroidWorkspacePreferencesRepository
@@ -119,6 +118,14 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         recentWorkspaces = library::recentWorkspaces,
         recentDocuments = library::recentDocuments,
         onInstalled = { refreshGitAuth() },
+    )
+    private val gitTransfers = GitTransferCoordinator(
+        workbench,
+        git,
+        activeRoot = { activeRootLocation },
+        applyCredentials = { authenticator.applyHttpsCredentials() },
+        refresh = { workspace -> gitWorkspace.refresh(workspace) },
+        openClone = { location -> openWorkspace(location, persist = true) },
     )
     private val search = SearchCoordinator(workbench, scope, RipgrepService(runtimeLayout, scope)) { activeRootLocation }
     private val recovery: DocumentRecoveryCoordinator = DocumentRecoveryCoordinator(
@@ -339,13 +346,9 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     WorkbenchIntent.CancelDiscardChanges -> gitWorkspace.cancelDiscard()
                     is WorkbenchIntent.DiscardChanges -> gitWorkspace.discard(intent.path, intent.status)
                     WorkbenchIntent.AbortInProgress -> gitWorkspace.abort()
-                    WorkbenchIntent.FetchRemote -> runRemote("Fetching") { workspace, onStderr ->
-                        git.fetch(workspace, onStderr)
-                    }
-                    WorkbenchIntent.PullRemote -> runRemote("Pulling") { workspace, onStderr ->
-                        git.pull(workspace, onStderr)
-                    }
-                    WorkbenchIntent.PushRemote -> pushRemote()
+                    WorkbenchIntent.FetchRemote -> gitTransfers.fetch()
+                    WorkbenchIntent.PullRemote -> gitTransfers.pull()
+                    WorkbenchIntent.PushRemote -> gitTransfers.push()
                     is WorkbenchIntent.OpenConflict -> gitWorkspace.openConflict(intent.path)
                     WorkbenchIntent.CloseConflict -> gitWorkspace.closeConflict()
                     is WorkbenchIntent.ResolveConflict -> gitWorkspace.resolveConflict(intent.path, intent.choice)
@@ -353,7 +356,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     is WorkbenchIntent.UpdateCloneForm -> workbench.update {
                 it.copy(cloneUrl = intent.url, cloneBranch = intent.branch)
             }
-            is WorkbenchIntent.CloneRepository -> cloneRepository(intent)
+            is WorkbenchIntent.CloneRepository -> gitTransfers.clone(intent.url, intent.destination, intent.directoryName)
                     is WorkbenchIntent.SelectGitProvider -> workbench.update {
                 it.copy(gitAuth = it.gitAuth.copy(provider = intent.provider))
             }
@@ -696,136 +699,6 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         }.onFailure { error ->
             workbench.report("git", "Could not reset repository identity", error)
         }
-    }
-
-    /**
-     * Runs a network operation, reporting only what Git actually returned.
-     *
-     * The UI never claims success while offline: failure carries Git's message.
-     */
-    private suspend fun runRemote(
-        label: String,
-        operation: suspend (String, (String) -> Unit) -> Unit,
-    ) {
-        val workspace = activeRootLocation
-        if (workspace == null) {
-            workbench.message("Open a workspace first")
-            return
-        }
-        workbench.update { it.copy(gitOperation = GitOperationState.Running(label)) }
-        // Git reads the credential helper itself; this just makes sure the
-        // helper points at the token the user most recently saved.
-        authenticator.applyHttpsCredentials()
-        var transcript = emptyList<String>()
-        runCatching {
-            operation(workspace) { stderr ->
-                transcript = GitProgressParser.outputLines(stderr)
-                publishProgress(label, stderr, transcript)
-            }
-        }
-            .onSuccess {
-                workbench.update {
-                    it.copy(gitOperation = GitOperationState.Succeeded(label, transcript))
-                }
-                gitWorkspace.refresh(workspace)
-                // The progress surface closes itself, so the outcome is
-                // reported here or it is never reported at all.
-                workbench.message(completionMessage(label, transcript))
-            }
-            .onFailure { error ->
-                workbench.update {
-                    it.copy(
-                        gitOperation = GitOperationState.Failed(
-                            label,
-                            workbench.failureText("git", "$label failed", error),
-                            transcript,
-                        ),
-                    )
-                }
-            }
-    }
-
-    /**
-     * Publishes whatever Git has printed so far.
-     *
-     * Only applied while the operation is still running, so a late poll cannot
-     * push a finished operation back into a running state.
-     */
-    private fun publishProgress(label: String, stderr: String, transcript: List<String>) {
-        workbench.update { state ->
-            val running = state.gitOperation as? GitOperationState.Running ?: return@update state
-            if (running.label != label) return@update state
-            state.copy(
-                gitOperation = running.copy(
-                    progress = GitProgressParser.latest(stderr) ?: running.progress,
-                    output = transcript,
-                ),
-            )
-        }
-    }
-
-    /** Prefers Git's own last word, such as "Already up to date." */
-    private fun completionMessage(label: String, transcript: List<String>): String {
-        val summary = transcript.lastOrNull { line ->
-            line.startsWith("Already up to date") || line.startsWith("Everything up-to-date")
-        }
-        return summary ?: "$label complete"
-    }
-
-    private suspend fun pushRemote() {
-        val repository = workbench.current.gitRepository
-        val needsUpstream = repository?.upstream == null
-        runRemote("Pushing") { workspace, onStderr ->
-            git.push(
-                workspace,
-                setUpstream = needsUpstream,
-                branch = repository?.branch.orEmpty(),
-                onStderr = onStderr,
-            )
-        }
-    }
-
-    private suspend fun cloneRepository(intent: WorkbenchIntent.CloneRepository) {
-        val label = "Cloning"
-        // A new install has no Git until something needs it, and a clone is
-        // often the first thing that does: install it as part of this clone.
-        if (!git.isAvailable()) {
-            val installing = listOf("Installing Git…")
-            workbench.update { it.copy(gitOperation = GitOperationState.Running(label, output = installing)) }
-            val installed = runCatching { gitCli.provision() }.getOrNull()
-            if (!git.isAvailable()) {
-                val reason = (installed as? GitOutcome.Failure)?.message ?: "Git could not be installed"
-                BackendLog.w("git", "Git install before clone failed: $reason")
-                workbench.update { it.copy(gitOperation = GitOperationState.Failed(label, reason, installing)) }
-                return
-            }
-            workbench.update { it.copy(gitAvailable = true) }
-        }
-        workbench.update { it.copy(gitOperation = GitOperationState.Running(label)) }
-        var transcript = emptyList<String>()
-        runCatching {
-            git.clone(intent.url, intent.destination, intent.directoryName) { stderr ->
-                transcript = GitProgressParser.outputLines(stderr)
-                publishProgress(label, stderr, transcript)
-            }
-        }
-            .onSuccess {
-                workbench.update {
-                    it.copy(gitOperation = GitOperationState.Succeeded(label, transcript))
-                }
-                openWorkspace(File(intent.destination, intent.directoryName).path, persist = true)
-            }
-            .onFailure { error ->
-                workbench.update {
-                    it.copy(
-                        gitOperation = GitOperationState.Failed(
-                            label,
-                            workbench.failureText("git", "Clone failed", error),
-                            transcript,
-                        ),
-                    )
-                }
-            }
     }
 
     private suspend fun saveGitToken(intent: WorkbenchIntent.SaveGitToken) {

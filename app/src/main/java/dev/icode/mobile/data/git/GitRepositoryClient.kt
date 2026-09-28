@@ -28,13 +28,26 @@ internal interface GitWorkspaceOperations {
 }
 
 /**
+ * The network operations, each reporting Git's stderr while it runs; tests put
+ * a fake in their place. Nothing is finished until Git exits (PR-GIT-12).
+ */
+internal interface GitTransferOperations {
+    suspend fun isAvailable(): Boolean
+    suspend fun provision(): GitOutcome<Unit>
+    suspend fun fetch(workspacePath: String, onStderr: ((String) -> Unit)?)
+    suspend fun pull(workspacePath: String, onStderr: ((String) -> Unit)?)
+    suspend fun push(workspacePath: String, setUpstream: Boolean, branch: String, onStderr: ((String) -> Unit)?)
+    suspend fun clone(url: String, destinationPath: String, directoryName: String, onStderr: ((String) -> Unit)?)
+}
+
+/**
  * The repository operations the workbench needs, run through the real `git`.
  *
  * Every method either succeeds or throws with Git's own message, so callers
  * report the actionable command error rather than a rewritten one
  * (PR-GIT-12). Nothing here reimplements Git behaviour.
  */
-internal class GitRepositoryClient(private val cli: CliGitService) : GitWorkspaceOperations {
+internal class GitRepositoryClient(private val cli: CliGitService) : GitWorkspaceOperations, GitTransferOperations {
 
     override suspend fun isAvailable(): Boolean = cli.isAvailable()
 
@@ -180,17 +193,17 @@ internal class GitRepositoryClient(private val cli: CliGitService) : GitWorkspac
      * Network operations take `--progress` because Git only reports it when
      * stderr is a terminal, and here stderr is a file the host tails.
      */
-    suspend fun fetch(workspacePath: String, onStderr: ((String) -> Unit)? = null) =
+    override suspend fun fetch(workspacePath: String, onStderr: ((String) -> Unit)?) =
         expect(workspacePath, listOf("fetch", "--prune", "--progress"), onStderr)
 
-    suspend fun pull(workspacePath: String, onStderr: ((String) -> Unit)? = null) =
+    override suspend fun pull(workspacePath: String, onStderr: ((String) -> Unit)?) =
         expect(workspacePath, listOf("pull", "--ff-only", "--progress"), onStderr)
 
-    suspend fun push(
+    override suspend fun push(
         workspacePath: String,
         setUpstream: Boolean,
         branch: String,
-        onStderr: ((String) -> Unit)? = null,
+        onStderr: ((String) -> Unit)?,
     ) {
         val arguments = buildList {
             add("push")
@@ -205,11 +218,11 @@ internal class GitRepositoryClient(private val cli: CliGitService) : GitWorkspac
     }
 
     /** Clones into [destinationPath]; the caller opens the result only on success. */
-    suspend fun clone(
+    override suspend fun clone(
         url: String,
         destinationPath: String,
         directoryName: String,
-        onStderr: ((String) -> Unit)? = null,
+        onStderr: ((String) -> Unit)?,
     ) {
         require(url.isNotBlank()) { "Enter a repository URL" }
         val result = cli.run(destinationPath, listOf("clone", "--progress", url, directoryName), onStderr)
