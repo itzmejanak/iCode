@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.git
 
 import dev.icode.mobile.data.runtime.GuestCommand
+import dev.icode.mobile.data.runtime.GuestMount
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.runtime.RuntimePackageInstaller
 import dev.icode.mobile.domain.GitFileDiff
@@ -84,29 +85,39 @@ internal class CliGitService(
     }
 
     /**
-     * Runs one Git command in [workspaceHostPath].
-     *
-     * The workspace is bound into the guest rather than copied, so Git operates
-     * on the user's real repository. Cancelling the caller stops Git and every
-     * process it started; [onStderr] sees Git's progress as it is printed.
+     * Runs one Git command for [workspaceHostPath]: at the top of the
+     * repository that holds it ([GitMountResolver]), or in the folder itself
+     * when none does. The folder is bound into the guest rather than copied, so
+     * Git operates on the user's real repository. Cancelling the caller stops
+     * Git and every process it started; [onStderr] sees Git's progress as it is printed.
      */
     suspend fun run(
         workspaceHostPath: String?,
         arguments: List<String>,
         onStderr: ((String) -> Unit)? = null,
-    ): CommandResult {
-        val result = guest.capture(workspaceHostPath, GitCommandLine.argv(arguments), "git", onStderr = onStderr)
+    ): CommandResult = capture(workspaceHostPath?.let(GitMountResolver::resolve), arguments, onStderr)
+
+    /** Runs Git in exactly [directoryHostPath], whatever repository holds it: a clone into it, two files compared. */
+    suspend fun runIn(
+        directoryHostPath: String,
+        arguments: List<String>,
+        onStderr: ((String) -> Unit)? = null,
+    ): CommandResult = capture(GuestMount(directoryHostPath), arguments, onStderr)
+
+    private suspend fun capture(mount: GuestMount?, arguments: List<String>, onStderr: ((String) -> Unit)?): CommandResult {
+        val result = guest.capture(mount, GitCommandLine.argv(arguments), "git", onStderr = onStderr)
         return CommandResult(result.exitCode, result.stdout, result.stderr)
     }
 
     /**
-     * Runs a constant shell script in the workspace, with stderr captured.
+     * Runs a constant shell script, with stderr captured, in [mount] (a
+     * repository's top) or the guest home.
      *
-     * Starting PRoot costs roughly a second, so a refresh that needs six Git
-     * facts runs one script that prints them all rather than six processes.
+     * Starting PRoot costs roughly a second, so a refresh that needs eight Git
+     * facts runs one script that prints them all rather than eight processes.
      */
-    suspend fun runScript(workspaceHostPath: String?, script: String): CommandResult {
-        val result = guest.captureScript(workspaceHostPath, script, "git-script")
+    suspend fun runScript(mount: GuestMount?, script: String): CommandResult {
+        val result = guest.captureScript(mount, script, "git-script")
         return CommandResult(result.exitCode, result.stdout, result.stderr)
     }
 
@@ -128,7 +139,7 @@ internal class CliGitService(
         copy.writeBytes(editorBytes)
         try {
             val guestCopy = "/$COMPARE_SCRATCH_RELATIVE/${copy.name}"
-            val result = run(workspaceHostPath, listOf("diff", "--no-index", "--no-color", "--", relativePath, guestCopy))
+            val result = runIn(workspaceHostPath, listOf("diff", "--no-index", "--no-color", "--", relativePath, guestCopy))
             // --no-index exits 1 when the files differ, which is the answer asked for here.
             return if (result.exitCode == 0 || result.exitCode == 1) {
                 GitOutcome.Success(GitDiffParser.parse(result.stdout).firstOrNull()?.copy(path = relativePath))

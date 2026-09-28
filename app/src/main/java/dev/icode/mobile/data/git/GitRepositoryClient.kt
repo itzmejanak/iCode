@@ -27,8 +27,9 @@ internal class GitRepositoryClient(private val cli: CliGitService) :
         // Also makes `git` usable from the user's own terminal in this
         // workspace, not just from the commands this client runs.
         cli.ensureSafeDirectoryConfigured()
-        val result = cli.runScript(workspacePath, GitInspectParser.SCRIPT)
-        val snapshot = GitInspectParser.parse(workspacePath, result.stdout)
+        val mount = GitMountResolver.resolve(workspacePath)
+        val result = cli.runScript(mount, GitInspectParser.SCRIPT)
+        val snapshot = GitInspectParser.parse(mount.root, result.stdout)
         // Status failing inside a repository (a corrupt index, say) is a real
         // failure: shown as "no changes" it would hide the user's work.
         if (snapshot.repository != null && !result.succeeded) throw IOException(result.errorMessage)
@@ -185,7 +186,7 @@ internal class GitRepositoryClient(private val cli: CliGitService) :
         onStderr: ((String) -> Unit)?,
     ) {
         require(url.isNotBlank()) { "Enter a repository URL" }
-        val result = cli.run(destinationPath, listOf("clone", "--progress", url, directoryName), onStderr)
+        val result = cli.runIn(destinationPath, listOf("clone", "--progress", url, directoryName), onStderr)
         if (!result.succeeded) throw IOException(result.errorMessage)
     }
 

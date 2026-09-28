@@ -35,8 +35,11 @@ internal object GitInspectParser {
      * move a section boundary. Status comes last and runs to the end: its own
      * records are NUL-terminated too. UTF-8 never encodes another character
      * with a zero byte, so splitting the decoded text is splitting the bytes.
+     *
+     * [mountRoot] is the host folder the script's guest saw at
+     * [RuntimeLayout.guestWorkspace]: the repository's top, or a folder holding it.
      */
-    fun parse(workspacePath: String, output: String): GitWorkspaceSnapshot {
+    fun parse(mountRoot: String, output: String): GitWorkspaceSnapshot {
         val sections = output.split(NUL, limit = SECTIONS + 1)
         // rev-parse failing is the normal "not a repository" answer, not an error.
         val topLevel = sections.getOrNull(TOP_LEVEL).orEmpty().removeSuffix("\n")
@@ -44,11 +47,11 @@ internal object GitInspectParser {
         // Git ran inside the guest, so it reports the bind mount's path. Every
         // caller compares this against Android paths — the Explorer decorates
         // files by it — so it is translated back before it leaves this parser.
-        val guestWorkspace = RuntimeLayout.guestWorkspace(workspacePath)
+        val guestWorkspace = RuntimeLayout.guestWorkspace(mountRoot)
         val hostTopLevel = if (topLevel == guestWorkspace) {
-            workspacePath
+            mountRoot
         } else {
-            topLevel.replaceFirst(guestWorkspace, workspacePath.trimEnd('/'))
+            topLevel.replaceFirst(guestWorkspace, mountRoot.trimEnd('/'))
         }
 
         val status = GitPorcelainParser.parse(sections.getOrNull(STATUS).orEmpty())
