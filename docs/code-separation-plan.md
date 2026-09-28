@@ -487,3 +487,11 @@ keeps its dot. Review opens Document Recovery, whose Restore now opens the file 
 workspace when it is another recent one (`OpenRecoverableDraft`, `workspaceHolding`); with none, it
 says to open that folder first and keeps the draft. The route is no longer unreachable (allowlist
 entry removed). Gate: 283 tests; lint 0 / 18; UI guard passes.
+
+**S3 gap — session restore (2026-09-28), done in code; device check pending.** Todo item 8: the
+open workspace, its tabs in order and the selected tab are kept in the workspace store
+(`session_v1`) as they change. On start they are reopened quietly — no navigation, no recents
+bump — when storage access is granted and the folder still exists; files gone from disk are
+skipped; a leftover draft still asks its question; terminals are never reopened (their own ledger
+reports what ended). This is what the screens Android restores after ending the process in the
+background need: before, they came back over an empty workspace. Gate: 283 tests; lint 0 / 18.

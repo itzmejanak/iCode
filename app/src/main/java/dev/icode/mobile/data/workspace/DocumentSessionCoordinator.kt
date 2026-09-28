@@ -34,7 +34,8 @@ internal class DocumentSessionCoordinator(
 
     fun sourceOf(location: String): WorkspaceDocument? = sources[location]
 
-    suspend fun open(location: String, lineNumber: Int? = null, column: Int? = null) {
+    /** [announce] false when reopening the last session: nothing navigates, recents stay as they are. */
+    suspend fun open(location: String, lineNumber: Int? = null, column: Int? = null, announce: Boolean = true) {
         val existing = workbench.current.openDocuments.firstOrNull { it.location == location }
         if (existing != null) {
             select(location)
@@ -66,8 +67,10 @@ internal class DocumentSessionCoordinator(
                 openDocuments = snapshot.openDocuments + opened,
                 activeDocument = opened,
             ) }
-            activeRoot()?.let { library.recordRecentDocument(it, document.location) }
-            workbench.emit(WorkbenchEffect.DocumentOpened(location, lineNumber, column))
+            if (announce) {
+                activeRoot()?.let { library.recordRecentDocument(it, document.location) }
+                workbench.emit(WorkbenchEffect.DocumentOpened(location, lineNumber, column))
+            }
             recovery.opened(document)
         }.onFailure { error ->
             workbench.report("documents", "Unable to open document", error)

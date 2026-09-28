@@ -145,6 +145,14 @@ internal class WorkspaceLibraryCoordinator(
         }
     }
 
+    fun lastSession(): StoredSession? = store.loadSession()
+
+    /** Kept as it changes, so a process Android ends can reopen the same workspace and tabs. */
+    suspend fun saveSession(session: StoredSession?) {
+        runCatching { store.saveSession(session) }
+            .onFailure { error -> workbench.report("workspace", "The open workspace could not be remembered", error) }
+    }
+
     /** The recent workspace [location] lies in, the innermost when they nest; null when none does. */
     fun workspaceHolding(location: String): String? = store.load()
         .map { it.location }

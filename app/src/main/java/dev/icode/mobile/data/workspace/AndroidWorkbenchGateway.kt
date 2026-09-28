@@ -167,6 +167,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         scope.launch { refreshOnRequest() }
         scope.launch { refreshAfterCommands() }
         scope.launch { followWatchedFolders() }
+        scope.launch { restoreThenKeepSession() }
         scope.launch { observeNotices() }
         scope.launch { reportTerminalEndings() }
         scope.launch {
@@ -541,6 +542,8 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         persist: Boolean,
         openTerminal: Boolean = false,
         dirtyChoiceResolved: Boolean = false,
+        /** False when reopening the last session: nothing navigates. */
+        announce: Boolean = true,
     ) {
         if (!Environment.isExternalStorageManager()) {
             workbench.message("All files access is needed to open this folder")
@@ -559,10 +562,12 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                         workbench.report("terminal", "Unable to start terminal", error)
                     }
             }
-            workbench.emit(
-                if (openTerminal) WorkbenchEffect.WorkspaceTerminalOpened(location)
-                else WorkbenchEffect.WorkspaceOpened(location),
-            )
+            if (announce) {
+                workbench.emit(
+                    if (openTerminal) WorkbenchEffect.WorkspaceTerminalOpened(location)
+                    else WorkbenchEffect.WorkspaceOpened(location),
+                )
+            }
             return
         }
         val dirtyCount = workbench.current.openDocuments.count { it.dirty }
@@ -619,10 +624,12 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                         workbench.report("terminal", "Unable to start terminal", error)
                     }
             }
-            workbench.emit(
-                if (openTerminal) WorkbenchEffect.WorkspaceTerminalOpened(location)
-                else WorkbenchEffect.WorkspaceOpened(location),
-            )
+            if (announce) {
+                workbench.emit(
+                    if (openTerminal) WorkbenchEffect.WorkspaceTerminalOpened(location)
+                    else WorkbenchEffect.WorkspaceOpened(location),
+                )
+            }
             ensureFileIndex(root.location)
         }.onFailure { error ->
             library.refreshRecents()
@@ -1106,6 +1113,34 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         workbench.snapshot.map(::watchedFolders).distinctUntilChanged().collect { folders ->
             if (screenVisible) watcher.watch(folders)
         }
+    }
+
+    /**
+     * Reopens what was open when iCode last ran — after Android ended the
+     * process in the background, the screens come back and so must their
+     * workspace and tabs — then keeps it as it changes. Quietly: nothing
+     * navigates, recents are not bumped, a file gone from disk is skipped, and
+     * a leftover draft still asks its question. Terminals are never reopened.
+     */
+    private suspend fun restoreThenKeepSession() {
+        library.lastSession()?.let { session ->
+            workbench.mutations.withLock {
+                if (activeRootLocation != null || !Environment.isExternalStorageManager()) return@withLock
+                if (!File(session.workspaceLocation).isDirectory) return@withLock
+                openWorkspace(session.workspaceLocation, persist = false, announce = false)
+                if (activeRootLocation != session.workspaceLocation) return@withLock
+                session.documents.filter { File(it).isFile }.forEach { documents.open(it, announce = false) }
+                session.activeDocument?.let(documents::select)
+            }
+        }
+        workbench.snapshot
+            .map { state ->
+                state.activeWorkspaceLocation?.let { root ->
+                    StoredSession(root, state.openDocuments.map { it.location }, state.activeDocument?.location)
+                }
+            }
+            .distinctUntilChanged()
+            .collect { session -> library.saveSession(session) }
     }
 
     /** A command that ran in the open workspace may have written to it. */

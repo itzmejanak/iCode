@@ -18,6 +18,13 @@ internal data class StoredRecentDocument(
     val lastOpenedAt: Long,
 )
 
+/** What was open when iCode last ran: the workspace, its tabs in order, the one selected. */
+internal data class StoredSession(
+    val workspaceLocation: String,
+    val documents: List<String>,
+    val activeDocument: String?,
+)
+
 /** Most-recent-first, bounded per workspace and across all workspaces. */
 internal fun touchRecentDocument(
     current: List<StoredRecentDocument>,
@@ -44,6 +51,9 @@ internal interface WorkspaceStore {
     fun touchRecentDocument(document: StoredRecentDocument)
     /** Rewrites every recent file entry at once: files renamed, moved or deleted in the Explorer. */
     fun updateRecentDocuments(change: (List<StoredRecentDocument>) -> List<StoredRecentDocument>)
+    /** Null when there is none, or what was stored cannot be read. */
+    fun loadSession(): StoredSession?
+    fun saveSession(session: StoredSession?)
 }
 
 internal class SharedPreferencesWorkspaceStore(context: Context) : WorkspaceStore {
@@ -107,6 +117,27 @@ internal class SharedPreferencesWorkspaceStore(context: Context) : WorkspaceStor
         }
     }
 
+    override fun loadSession(): StoredSession? = runCatching {
+        val item = JSONObject(preferences.getString(KEY_SESSION, null) ?: return null)
+        val documents = item.getJSONArray("documents")
+        StoredSession(
+            workspaceLocation = item.getString("workspace"),
+            documents = (0 until documents.length()).map(documents::getString),
+            activeDocument = if (item.isNull("active")) null else item.getString("active"),
+        )
+    }.getOrNull()
+
+    override fun saveSession(session: StoredSession?) {
+        val encoded = session?.let {
+            JSONObject()
+                .put("workspace", it.workspaceLocation)
+                .put("documents", JSONArray(it.documents))
+                .put("active", it.activeDocument ?: JSONObject.NULL)
+                .toString()
+        }
+        check(preferences.edit().putString(KEY_SESSION, encoded).commit()) { "Unable to save the open workspace" }
+    }
+
     private fun loadAllRecentDocuments(): List<StoredRecentDocument> = runCatching {
         val array = JSONArray(preferences.getString(KEY_RECENT_DOCUMENTS, "[]"))
         buildList {
@@ -147,6 +178,7 @@ internal class SharedPreferencesWorkspaceStore(context: Context) : WorkspaceStor
         const val PREFERENCES_NAME = "workspace_history"
         const val KEY_RECENTS = "recent_workspaces_v1"
         const val KEY_RECENT_DOCUMENTS = "recent_documents_v1"
+        const val KEY_SESSION = "session_v1"
         const val MAX_RECENTS = 20
     }
 }
