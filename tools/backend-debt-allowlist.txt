@@ -1,0 +1,8 @@
+# Backend debt allowlist for tools/check-backend-consistency.sh.
+# Ratchet: cycles may only shrink these counts, never grow them.
+# Format: rule|path|max
+backend-lines|app/src/main/java/dev/icode/mobile/data/runtime/RuntimeForegroundService.kt|354
+backend-lines|app/src/main/java/dev/icode/mobile/data/runtime/RuntimeInstaller.kt|340
+backend-lines|app/src/main/java/dev/icode/mobile/data/runtime/TerminalSessionManager.kt|341
+backend-lines|app/src/main/java/dev/icode/mobile/data/workspace/AndroidWorkbenchGateway.kt|831
+backend-lines|app/src/main/java/dev/icode/mobile/data/workspace/DocumentSessionCoordinator.kt|314

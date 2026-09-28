@@ -1,6 +1,6 @@
 # S5 Git Separation and Hardening Plan
 
-Status: **plan for approval** (2026-09-28). This is the detailed S5 plan under
+Status: **done** (2026-09-28; record in §12). This is the detailed S5 plan under
 [code-separation-plan.md](./code-separation-plan.md), which remains authoritative. The dated
 [backend-split-audit.md](./backend-split-audit.md) is evidence, not the governing order. Follow
 [backend-split-rules.md](./backend-split-rules.md): one lifecycle owner, one writer per fact,
@@ -519,3 +519,70 @@ S5 is complete only when all are true:
 - Automatic deletion of partial clones or any user file.
 - Broad Output-channel history (S7); S5 only supplies the correct bounded sanitized Git source.
 - Routine whole-app screenshot capture or unrelated Git-screen restyling.
+
+## 12. Record (2026-09-28)
+
+Approved by the owner ("continue") and executed one reviewable commit per step, `20ff4fb`…`44383dd`
+on `code-separation`, none pushed. Gate after every step: debug and release compile, all unit tests,
+lint, the UI guard; from S5.10 also `tools/check-backend-consistency.sh`. Final: **391 unit tests**
+(295 before S5), lint **0 errors / 14 warnings** (16 before: the credential store's two `UseKtx`),
+both guards pass. No routine screen capture. Every device check used an APK built in the same step.
+
+**Moves (S5.1–S5.4, behaviour unchanged).** `GitInspectParser` (the inspect script and its reader,
+13 tests), `GitWorkspaceCoordinator`, `GitTransferCoordinator`, `GitAuthCoordinator`, each behind a
+narrow seam in `GitOperations.kt` so a fake stands in for Git in tests. The gateway keeps no Git
+command, credential or config call (1227 → 831 lines; the rest is S2/S3/S8 work). D4 (three direct
+`git config` calls) and D5 (a second `CliGitService`) closed. Git config has one path
+(read/write/unset on the client); one domain email rule replaced three copies.
+
+**Fixes, in order:**
+
+| Step | What was wrong | Now |
+|---|---|---|
+| S5.5b | three apt paths; two first uses could race dpkg | `RuntimePackageInstaller`: one dpkg writer, one shared install per package, owned by the gateway scope; install first, read lists only if that fails |
+| S5.5a | one shared stderr file for every Git command; blocking, uncancellable, unbounded | Git runs on `GuestCommand`: own stderr file, `--kill-on-exit`, kill and reap on cancel, 8 MB stdout bound, stderr tail |
+| S5.6a | inspect split on RS/US, legal in file names and subjects | NUL-framed sections, status last; status failing in a repository is reported |
+| S5.6b | a folder inside a repository, a submodule and a linked worktree looked like no repository, and Source Control offered to initialise a second one | `GitMountResolver` binds what Git needs; Git runs at the repository's top; initialising inside any repository is refused |
+| S5.6c | detached HEAD shown as the first branch; a late refresh painted an old workspace over the new one | explicit `detached`; push refuses it; a refresh or diff answers only its own workspace, and a waiting one is cancelled on switch |
+| S5.7a | discard took the staged row of a file staged and edited again, and wiped staged work; the deleted row confirmed nothing | `GitChange.discardable`; the confirmed row is pinned and re-checked with Git; edits return to the index; untracked files and folders named as such; `.git`, `..` refused |
+| S5.7b | one block's choice resolved every block; the file was written as UTF-8 around the editor | `GitConflictCoordinator`: one block at a time, through the document source (encoding, BOM, line endings; changed-on-disk re-read; unsaved tab blocks) |
+| S5.7c/d | remote branch checked out by a guessed short name; "Add one" remote with no way to | `checkout --track refs/remotes/…`; an Add Remote form with `GitRemoteRules` |
+| S5.8a | the typed token was `rememberSaveable` (saved state leaves the process); describing the account decrypted the token | plain `remember`; metadata read without decrypting; host and test address validated |
+| S5.8b | the token sat in plain text in `/root/.icode-git-credentials` behind a permanent global helper | an owner-only file per command, deleted when it ends; the legacy file and iCode's helper line removed |
+| S5.8c | transcripts unmasked and unbounded | every line masked and cut at 400 characters before state |
+| S5.9a | transfers held the workbench lock for their whole network time | one job, one at a time, operation numbers, off the lock |
+| S5.9b | the clone branch never reached Git; the address could be read as an option (`--upload-pack`) | `--branch`, `--` before addresses, a dash-led address refused, destination checked |
+| S5.9c | Cancel Clone only navigated back; a transfer cut off by process death was never mentioned | cancel kills and reaps, `Cancelled` names what Git left (nothing deleted); a ledger turns an unfinished transfer into a Notifications item |
+
+**Found on the way and fixed** (each its own commit): the row menu's label read the template text
+`${change.name}`; an untracked folder's row had no name; Git's text fields autocorrected
+("github" → "GitHub" in a stored URL; new `literal` field mode); Back from a freshly cloned
+workspace re-opened it forever.
+
+**Deviations from this plan, with reasons:**
+
+- **`safe.directory` stays `*`** (S5.6c). Git 2.43 in the runtime has no prefix form; exact entries
+  would refuse submodules and repositories nested in a workspace, in the app and in the user's
+  terminal, for no protection a user-chosen folder lacks.
+- **Conflicts got their own owner** (`GitConflictCoordinator`, 98 lines) instead of living in the
+  workspace coordinator, which was at its budget; it is one real lifecycle.
+- **No UI split** (S5.10): Source Control 298, Git Auth 277 lines; nothing crossed 300.
+- **S5.7c/d share one commit**: the same five files carried both.
+- **Changing an existing remote** stays in the terminal: only "add" is offered, and it never replaces.
+- **No cleanup button for a cancelled clone**: the leftover folder is named, never deleted by iCode.
+
+**Device (attached phone, fresh APK each time; test data only in throwaway folders, all removed):**
+inspect of a real repository (branch, ahead/behind, last commit) and an unborn one; a folder inside a
+repository opens as that repository; stage, unstage and staged diff on an unborn repository; exact
+discard (the staged text survived; the deleted row restored the file; an untracked file deleted); a
+real two-block merge conflict resolved block by block, marked resolved, then aborted; a remote added
+(a token-bearing address refused), fetched, and a remote branch checked out as a tracking branch;
+clone with a branch, clone into an existing folder refused, Back after a clone; fetch; pull refused
+on a diverged branch with Git's hints; clone cancelled (no Git or PRoot process left) and clone cut
+off by a force stop (reported at the next start).
+
+**Not verified on the device**, and why: HTTPS token and SSH flows and push (they need the owner's
+credentials and would write to the owner's remote); a detached HEAD, a linked worktree and a
+submodule (resolver and parser are unit-tested on Git's own layouts); legacy credential migration
+(this phone had no legacy file, helper line or saved token).
+

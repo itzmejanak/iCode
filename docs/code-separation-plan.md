@@ -132,7 +132,8 @@ the order a user meets them, so each scope is verified with everything before it
 ## 6. Verification
 
 - Gate every step: `compileDebugKotlin`, `testDebugUnitTest`, `lintDebug` (no new warning;
-  warnings in a touched scope fixed), `check-ui-consistency.sh` (allowlist only shrinks);
+  warnings in a touched scope fixed), `check-ui-consistency.sh` (allowlist only shrinks),
+  from S5 `check-backend-consistency.sh` (allowlist only shrinks);
   from K1 `assembleRelease` with no fixture in its dex; from G the backend guard.
 - No routine screen capture (owner, 2026-09-26: it does not serve this goal). A deliberate UI
   change is named in its step; the capture runs only when the owner asks.
@@ -538,10 +539,19 @@ Final gate after the UI-budget extraction: debug/release Kotlin compile, **295 u
 failures/errors), lint **0 errors / 16 warnings**, and UI consistency pass. A fresh APK from the
 same build step was installed for the preceding device checks; no routine 39-screen capture ran.
 
-**S5 plan — Git (2026-09-28), ready for approval.** [git-separation-plan.md](./git-separation-plan.md)
-maps every Git control and enter/load/act/react/interrupt/recover state, then separates the move from
-each behavior fix. It re-verifies the audit's C5 owners and adds current gaps found in code: unsafe
-inspect framing and repository mount cases; stale refresh; exact discard semantics; per-section
-conflict resolution through the document writer; clone branch/cancel; transfer identity and
-cancellation; one apt writer; exact safe-directory entries; one config path; command-scoped HTTPS
-credentials; and sanitized bounded transcripts. No S5 code has started.
+**S5 — Git (2026-09-28), done.** Detailed plan and full record:
+[git-separation-plan.md](./git-separation-plan.md) §12. Moves: `GitInspectParser`,
+`GitWorkspaceCoordinator`, `GitTransferCoordinator`, `GitAuthCoordinator` (plus `GitConflictCoordinator`,
+a lifecycle of its own), each behind a fakeable seam; the gateway keeps no Git command, credential or
+config call (1227 → 831). Then one fix per commit: one package installer; Git on the cancellable guest
+command; NUL-framed inspect; the repository around a subfolder, submodule or worktree; explicit detached
+HEAD and stale-refresh guard; exact discard; per-block conflict writes through the editor's writer; remote
+branch by full ref and Add Remote; the token out of saved state and out of plain text between commands;
+masked transcripts; transfers off the lock, one at a time, cancellable, clone branch, `--` before
+addresses, and a notice for a transfer cut off by process death. Also found and fixed: a template label
+read aloud, an unnamed folder row, autocorrected addresses, and a Back loop after cloning. Deviation:
+`safe.directory` stays `*` (Git 2.43 has no prefix form; exact entries would break submodules). New
+routine gate member: `tools/check-backend-consistency.sh` (file budget ratchet, one apt owner, no shared
+stderr file, no Git calls from `data/workspace`, no `data` imports in screens). Gate: 391 tests; lint
+0 errors / 14 warnings; both guards pass. Device matrix recorded there, with what needs the owner's
+credentials.
