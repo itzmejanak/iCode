@@ -9,17 +9,15 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Pins what the inspect script's sections mean today, before the protocol is
- * made filename-safe (S5.6). The status section reuses the porcelain format
- * captured from real `git` in [GitPorcelainParserTest].
+ * What each section of the inspect script means. The status section reuses
+ * the porcelain format captured from real `git` in [GitPorcelainParserTest].
  */
 class GitInspectParserTest {
 
     private val workspace = "/storage/emulated/0/Projects/app"
     private val nul = "\u0000"
-    private val unit = "\u001F"
 
-    /** toplevel, status, refs, remotes, user.name, user.email, last commit, markers — in the script's order. */
+    /** The script's sections in its order; status is last and runs to the end. */
     private fun output(
         topLevel: String = "/workspace/app\n",
         status: String = "",
@@ -29,7 +27,7 @@ class GitInspectParserTest {
         email: String = "",
         lastCommit: String = "",
         markers: String = "",
-    ) = listOf(topLevel, status, refs, remotes, name, email, lastCommit, markers).joinToString("\u001E")
+    ) = listOf(topLevel, refs, remotes, name, email, lastCommit, markers).joinToString("") { it + nul } + status
 
     private fun status(vararg records: String) = records.joinToString(nul, postfix = nul)
 
@@ -110,7 +108,7 @@ class GitInspectParserTest {
     fun `the last commit is shortened and timed in milliseconds`() {
         val commit = GitInspectParser.parse(
             workspace,
-            output(lastCommit = "7d466e4c47d969352f2bc7f569d10ef8b72d2170${unit}Fix: keep spaces here${unit}Ada <ada@example.com>${unit}1727500000\n"),
+            output(lastCommit = "7d466e4c47d969352f2bc7f569d10ef8b72d2170\n1727500000\nAda <ada@example.com>\nFix: keep spaces here\n"),
         ).repository!!.lastCommit!!
         assertEquals("7d466e4c47d9", commit.id)
         assertEquals("Fix: keep spaces here", commit.message)
@@ -120,8 +118,8 @@ class GitInspectParserTest {
 
     @Test
     fun `an incomplete last commit is absent and an unreadable time is zero`() {
-        assertNull(GitInspectParser.parse(workspace, output(lastCommit = "abc${unit}only two\n")).repository!!.lastCommit)
-        val commit = GitInspectParser.parse(workspace, output(lastCommit = "abc${unit}m${unit}a${unit}soon\n")).repository!!.lastCommit!!
+        assertNull(GitInspectParser.parse(workspace, output(lastCommit = "abc\nonly two\n")).repository!!.lastCommit)
+        val commit = GitInspectParser.parse(workspace, output(lastCommit = "abc\nsoon\na\nm\n")).repository!!.lastCommit!!
         assertEquals(0L, commit.authoredAtEpochMillis)
     }
 
@@ -152,7 +150,7 @@ class GitInspectParserTest {
 
     @Test
     fun `missing sections fall back to the default branch`() {
-        val repository = GitInspectParser.parse(workspace, "/workspace/app\n").repository!!
+        val repository = GitInspectParser.parse(workspace, "/workspace/app\n$nul").repository!!
         assertEquals(GitInspectParser.DEFAULT_BRANCH, repository.branch)
         assertEquals(listOf(GitInspectParser.DEFAULT_BRANCH), repository.branches)
         assertFalse(repository.hasCommits)
@@ -180,9 +178,40 @@ class GitInspectParserTest {
     }
 
     @Test
-    fun `the script prints eight sections and exits with status's code`() {
-        assertEquals(7, Regex("""printf '\\036'""").findAll(GitInspectParser.SCRIPT).count())
-        assertTrue(GitInspectParser.SCRIPT.endsWith("exit \$S"))
-        assertTrue(GitInspectParser.SCRIPT.contains("status --porcelain=v2 --branch -z"))
+    fun `the script ends seven sections with NUL and finishes with status`() {
+        assertEquals(7, "printf '\\0'".toRegex(RegexOption.LITERAL).findAll(GitInspectParser.SCRIPT).count())
+        // Last, so the script's exit code is status's.
+        assertTrue(GitInspectParser.SCRIPT.endsWith("status --porcelain=v2 --branch -z"))
+    }
+
+    @Test
+    fun `no byte of a path can move a section boundary`() {
+        // Legal names on Linux: a record separator, a unit separator, a newline.
+        val hostile = "odd\u001Ename\u001F\nwith lines.txt"
+        val snapshot = GitInspectParser.parse(
+            workspace,
+            output(
+                status = status("# branch.oid (initial)", "# branch.head main", "? $hostile"),
+                name = "Ada\n",
+            ),
+        )
+        assertEquals(listOf(hostile), snapshot.changes.map { it.path })
+        assertEquals("Ada", snapshot.repository!!.authorName)
+    }
+
+    @Test
+    fun `a subject is kept whole, whatever it contains`() {
+        val commit = GitInspectParser.parse(
+            workspace,
+            output(lastCommit = "abc\n1727500000\nAda <a@b.c>\nfix: a\u001Fb \u001E c\n"),
+        ).repository!!.lastCommit!!
+        assertEquals("fix: a\u001Fb \u001E c", commit.message)
+        assertEquals("Ada <a@b.c>", commit.author)
+    }
+
+    @Test
+    fun `a repository folder ending in a space keeps it`() {
+        val repository = GitInspectParser.parse("/storage/emulated/0/app ", output(topLevel = "/workspace/app \n")).repository!!
+        assertEquals("/storage/emulated/0/app ", repository.workTreePath)
     }
 }

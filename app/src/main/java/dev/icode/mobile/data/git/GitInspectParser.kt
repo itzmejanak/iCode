@@ -28,10 +28,18 @@ internal object GitInspectParser {
     /** The branch a new repository starts on, and the name shown when Git reported none. */
     const val DEFAULT_BRANCH = "main"
 
+    /**
+     * [output] is [SCRIPT]'s stdout. Seven NUL-terminated sections come first;
+     * none can hold a NUL (Git forbids it in paths, refs, config values and
+     * commit headers), so a path containing a newline or any other byte cannot
+     * move a section boundary. Status comes last and runs to the end: its own
+     * records are NUL-terminated too. UTF-8 never encodes another character
+     * with a zero byte, so splitting the decoded text is splitting the bytes.
+     */
     fun parse(workspacePath: String, output: String): GitWorkspaceSnapshot {
+        val sections = output.split(NUL, limit = SECTIONS + 1)
         // rev-parse failing is the normal "not a repository" answer, not an error.
-        val sections = output.split(RECORD_SEPARATOR)
-        val topLevel = sections.getOrNull(0)?.trim().orEmpty()
+        val topLevel = sections.getOrNull(TOP_LEVEL).orEmpty().removeSuffix("\n")
         if (topLevel.isEmpty()) return GitWorkspaceSnapshot(null, emptyList())
         // Git ran inside the guest, so it reports the bind mount's path. Every
         // caller compares this against Android paths — the Explorer decorates
@@ -43,8 +51,8 @@ internal object GitInspectParser {
             topLevel.replaceFirst(guestWorkspace, workspacePath.trimEnd('/'))
         }
 
-        val status = GitPorcelainParser.parse(sections.getOrNull(1).orEmpty())
-        val allRefs = sections.getOrNull(2).orEmpty().lines().map { it.trim() }.filter { it.isNotEmpty() }
+        val status = GitPorcelainParser.parse(sections.getOrNull(STATUS).orEmpty())
+        val allRefs = sections.getOrNull(REFS).orEmpty().lines().map { it.trim() }.filter { it.isNotEmpty() }
         val branches = allRefs
             .filter { it.startsWith(LOCAL_REF_PREFIX) }
             .map { it.removePrefix(LOCAL_REF_PREFIX) }
@@ -53,11 +61,11 @@ internal object GitInspectParser {
             .filter { it.startsWith(REMOTE_REF_PREFIX) }
             .map { it.removePrefix(REMOTE_REF_PREFIX) }
             .filterNot { it.endsWith("/HEAD") }
-        val remote = sections.getOrNull(3).orEmpty().lines().firstOrNull { it.isNotBlank() }?.trim()
-        val authorName = sections.getOrNull(4)?.trim()?.takeIf { it.isNotEmpty() }
-        val authorEmail = sections.getOrNull(5)?.trim()?.takeIf { it.isNotEmpty() }
-        val lastCommit = parseLastCommit(sections.getOrNull(6).orEmpty())
-        val markers = sections.getOrNull(7).orEmpty().lines().map { it.trim() }.filter { it.isNotEmpty() }
+        val remote = sections.getOrNull(REMOTES).orEmpty().lines().firstOrNull { it.isNotBlank() }?.trim()
+        val authorName = sections.getOrNull(USER_NAME)?.trim()?.takeIf { it.isNotEmpty() }
+        val authorEmail = sections.getOrNull(USER_EMAIL)?.trim()?.takeIf { it.isNotEmpty() }
+        val lastCommit = parseLastCommit(sections.getOrNull(LAST_COMMIT).orEmpty())
+        val markers = sections.getOrNull(MARKERS).orEmpty().lines().map { it.trim() }.filter { it.isNotEmpty() }
         val inProgress = GitInProgressDetector.detect(
             hasMergeHead = "MERGE_HEAD" in markers,
             hasRebase = "rebase-merge" in markers || "rebase-apply" in markers,
@@ -90,59 +98,57 @@ internal object GitInspectParser {
         )
     }
 
+    /** Hash, author time, author and subject, one per line: none of them can hold a newline. */
     private fun parseLastCommit(section: String): GitCommitSummary? {
-        val line = section.lineSequence().firstOrNull { it.isNotBlank() } ?: return null
-        val fields = line.split(UNIT_SEPARATOR)
-        if (fields.size < 4) return null
+        val fields = section.split('\n', limit = 4)
+        if (fields.size < 4 || fields[0].isBlank()) return null
         return GitCommitSummary(
             id = fields[0].take(SHORT_ID_LENGTH),
-            message = fields[1],
+            message = fields[3].removeSuffix("\n"),
             author = fields[2],
-            authoredAtEpochMillis = (fields[3].trim().toLongOrNull() ?: 0L) * 1000L,
+            authoredAtEpochMillis = (fields[1].trim().toLongOrNull() ?: 0L) * 1000L,
         )
     }
 
     private const val SHORT_ID_LENGTH = 12
     /** See GitCommandLine: bind-mounted Android paths never match ownership. */
     private const val SAFE_DIRECTORY = "-c 'safe.directory=*'"
-    private const val RECORD_SEPARATOR = '\u001E'
-    private const val UNIT_SEPARATOR = '\u001F'
+    private const val NUL = '\u0000'
     private const val LOCAL_REF_PREFIX = "refs/heads/"
     private const val REMOTE_REF_PREFIX = "refs/remotes/"
 
+    // Section order in [SCRIPT]; status is last and runs to the end.
+    private const val TOP_LEVEL = 0
+    private const val REFS = 1
+    private const val REMOTES = 2
+    private const val USER_NAME = 3
+    private const val USER_EMAIL = 4
+    private const val LAST_COMMIT = 5
+    private const val MARKERS = 6
+    private const val STATUS = 7
+    private const val SECTIONS = 7
+
     /**
-     * One process, six facts, separated by RS.
-     *
-     * `rev-parse` runs first: an empty first section means "not a
-     * repository" and the rest is ignored. The overall exit code is
-     * deliberately `status`'s, not the last command's, because `git config`
-     * exits non-zero simply when an identity is unset.
+     * One process, eight facts. `rev-parse` runs first: an empty first section
+     * means "not a repository" and the rest is ignored. Status runs last, so
+     * the script's exit code is status's — `git config` exits non-zero simply
+     * because an identity is unset, which is no failure.
      */
     val SCRIPT = buildString {
         append("git ")
         append(SAFE_DIRECTORY)
-        append(" rev-parse --show-toplevel 2>/dev/null; ")
-        append("printf '\\036'; ")
-        append("git -c core.quotepath=false ")
-        append(SAFE_DIRECTORY)
-        append(" --no-optional-locks status --porcelain=v2 --branch -z; S=$?; ")
-        append("printf '\\036'; ")
+        append(" rev-parse --show-toplevel 2>/dev/null; printf '\\0'; ")
         append("git ")
         append(SAFE_DIRECTORY)
         // The full refname, not the short one: only `refs/heads/` versus
         // `refs/remotes/` distinguishes a local branch from a remote one.
-        append(" branch -a --format='%(refname)' 2>/dev/null; ")
-        append("printf '\\036'; ")
-        append("git remote 2>/dev/null; ")
-        append("printf '\\036'; ")
-        append("git config user.name 2>/dev/null; ")
-        append("printf '\\036'; ")
-        append("git config user.email 2>/dev/null; ")
-        append("printf '\\036'; ")
+        append(" branch -a --format='%(refname)' 2>/dev/null; printf '\\0'; ")
+        append("git remote 2>/dev/null; printf '\\0'; ")
+        append("git config user.name 2>/dev/null; printf '\\0'; ")
+        append("git config user.email 2>/dev/null; printf '\\0'; ")
         append("git ")
         append(SAFE_DIRECTORY)
-        append(" log -1 --format='%H%x1f%s%x1f%an <%ae>%x1f%at' 2>/dev/null; ")
-        append("printf '\\036'; ")
+        append(" log -1 --format='%H%n%at%n%an <%ae>%n%s' 2>/dev/null; printf '\\0'; ")
         // An interrupted merge, rebase, cherry-pick, revert or bisect is
         // recorded as a file in .git. Reading them is how Git itself knows,
         // and it costs nothing compared with another command.
@@ -151,7 +157,9 @@ internal object GitInspectParser {
         append(" rev-parse --git-dir 2>/dev/null); ")
         append("for f in MERGE_HEAD rebase-merge rebase-apply CHERRY_PICK_HEAD REVERT_HEAD BISECT_LOG; do ")
         append("[ -e \"\$G/\$f\" ] && printf '%s\\n' \"\$f\"; ")
-        append("done; ")
-        append("exit \$S")
+        append("done; printf '\\0'; ")
+        append("git -c core.quotepath=false ")
+        append(SAFE_DIRECTORY)
+        append(" --no-optional-locks status --porcelain=v2 --branch -z")
     }
 }
