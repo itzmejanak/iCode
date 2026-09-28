@@ -76,7 +76,8 @@ fun GitAuthScreen(actions: NavigationActions) {
     var customHost by rememberSaveable { mutableStateOf("") }
     val host = auth.provider.host.ifEmpty { customHost }
     var username by rememberSaveable { mutableStateOf("") }
-    var token by rememberSaveable { mutableStateOf("") }
+    // Never saveable: saved state leaves the process in a Bundle, and a token must not.
+    var token by remember { mutableStateOf("") }
     var testUrl by rememberSaveable { mutableStateOf("") }
 
     // Start on the first thing that is not done yet, so a returning user is not

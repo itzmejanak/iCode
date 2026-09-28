@@ -2,6 +2,7 @@ package dev.icode.mobile.data.git
 
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.runtime.RuntimePackageInstaller
+import dev.icode.mobile.domain.GitRemoteRules
 import java.io.File
 
 /**
@@ -131,7 +132,7 @@ internal class GitAuthenticator(
      * Git itself exits zero (PR-GIT-12).
      */
     override suspend fun testConnection(url: String): GitOperationOutcome {
-        if (url.isBlank()) return GitOperationOutcome(false, "Enter a repository URL to test")
+        GitRemoteRules.urlError(url.trim())?.let { return GitOperationOutcome(false, it) }
         if (url.startsWith("https://")) applyHttpsCredentials()
         val result = cli.run(
             workspaceHostPath = null,

@@ -5,6 +5,7 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import androidx.core.content.edit
+import dev.icode.mobile.domain.GitRemoteRules
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -30,7 +31,7 @@ internal class GitCredentialStore(context: Context) {
     data class HttpsCredential(val host: String, val username: String, val token: String)
 
     fun saveHttps(credential: HttpsCredential) {
-        require(credential.host.isNotBlank()) { "Enter the host, for example github.com" }
+        GitRemoteRules.hostError(credential.host.trim())?.let { throw IllegalArgumentException(it) }
         require(credential.username.isNotBlank()) { "Enter the account name" }
         require(credential.token.isNotBlank()) { "Enter a personal access token" }
         preferences.edit {
@@ -57,8 +58,17 @@ internal class GitCredentialStore(context: Context) {
 
     val hasHttps: Boolean get() = preferences.contains(KEY_TOKEN)
 
-    /** `host` and account only — never the token, which must not reach a log or a screen. */
-    fun describeHttps(): String? = loadHttps()?.let { "${it.username}@${it.host}" }
+    /**
+     * `account@host` only, read without decrypting the token: describing a
+     * credential never brings the secret into memory. A token this device can
+     * no longer decrypt is found, and cleared, when it is used.
+     */
+    fun describeHttps(): String? {
+        if (!preferences.contains(KEY_TOKEN)) return null
+        val host = preferences.getString(KEY_HOST, null) ?: return null
+        val username = preferences.getString(KEY_USERNAME, null) ?: return null
+        return "$username@$host"
+    }
 
     private fun encrypt(value: String): String {
         val cipher = Cipher.getInstance(TRANSFORMATION)
