@@ -42,6 +42,7 @@ class GitTransferCoordinatorTest {
     private class Harness(scope: CoroutineScope, val git: FakeTransfers, root: String? = "/workspace/app") {
         val workbench = WorkbenchStateHolder()
         val events = mutableListOf<String>()
+        val ledger = mutableListOf<String>()
         val coordinator = GitTransferCoordinator(
             workbench,
             scope,
@@ -53,6 +54,14 @@ class GitTransferCoordinatorTest {
             },
             refresh = { events += "refresh $it" },
             openClone = { events += "open $it" },
+            ledger = object : TransferLedger {
+                override fun started(label: String, target: String) {
+                    ledger += "started $label $target"
+                }
+                override fun finished() {
+                    ledger += "finished"
+                }
+            },
         )
     }
 
@@ -163,6 +172,23 @@ class GitTransferCoordinatorTest {
         )
         assertTrue("never opened", harness.events == listOf("credentials"))
         assertTrue("never deleted", File(destination, "repo/.git").isDirectory)
+    }
+
+    @Test fun `every transfer is written down while it runs, and crossed off however it ends`() = runBlocking {
+        val harness = Harness(this, FakeTransfers())
+        harness.coordinator.fetch()?.join()
+        assertEquals(listOf("started Fetching $root", "finished"), harness.ledger)
+
+        val failing = Harness(this, FakeTransfers().apply { failure = IOException("offline") })
+        failing.coordinator.pull()?.join()
+        assertEquals(listOf("started Pulling $root", "finished"), failing.ledger)
+
+        val cancelled = Harness(this, FakeTransfers().apply { hold = CompletableDeferred() })
+        val cloning = cancelled.coordinator.clone("https://host/me/repo.git", destination.path, "repo")
+        while (cancelled.git.calls.isEmpty()) yield()
+        cancelled.coordinator.cancel()
+        cloning?.join()
+        assertEquals(listOf("started Cloning ${File(destination, "repo").path}", "finished"), cancelled.ledger)
     }
 
     @Test fun `a cancelled fetch is not left running`() = runBlocking {

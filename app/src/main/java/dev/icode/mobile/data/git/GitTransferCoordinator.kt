@@ -31,6 +31,7 @@ internal class GitTransferCoordinator(
     private val refresh: suspend (workspace: String) -> Unit,
     /** A finished clone opens as the workspace. */
     private val openClone: suspend (location: String) -> Unit,
+    private val ledger: TransferLedger,
 ) {
     private val operations = AtomicLong()
     private var job: Job? = null
@@ -69,6 +70,8 @@ internal class GitTransferCoordinator(
                     else state.copy(gitOperation = GitOperationState.Cancelled(stopped.label, stopped.output))
                 }
                 throw cancelled
+            } finally {
+                ledger.finished()
             }
         }.also { job = it }
     }
@@ -121,6 +124,7 @@ internal class GitTransferCoordinator(
         }
         workbench.update { it.copy(gitOperation = GitOperationState.Running(label)) }
         val target = File(destination, directoryName)
+        ledger.started(label, target.path)
         var transcript = emptyList<String>()
         try {
             withCredentials { config ->
@@ -175,6 +179,7 @@ internal class GitTransferCoordinator(
             return
         }
         workbench.update { it.copy(gitOperation = GitOperationState.Running(label)) }
+        ledger.started(label, workspace)
         var transcript = emptyList<String>()
         try {
             withCredentials { config ->
