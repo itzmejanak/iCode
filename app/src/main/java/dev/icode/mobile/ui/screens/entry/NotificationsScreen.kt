@@ -26,6 +26,7 @@ import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.domain.AppNotice
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 
@@ -50,7 +51,7 @@ fun NotificationsScreen(actions: NavigationActions) {
                 }
             },
         )
-        if (state.notices.isEmpty()) {
+        if (state.notices.isEmpty() && state.recoverableDrafts.isEmpty()) {
             // Centered in the space under the header, clear of the screen's edges.
             Box(
                 Modifier.weight(1f).fillMaxWidth().padding(horizontal = IcodeSpacing.Space6),
@@ -68,6 +69,15 @@ fun NotificationsScreen(actions: NavigationActions) {
             contentPadding = PaddingValues(IcodeSpacing.Space4),
             verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
         ) {
+            if (state.recoverableDrafts.isNotEmpty()) {
+                item(key = "unsaved-work") {
+                    UnsavedWorkNotice(
+                        state.recoverableDrafts,
+                        onReview = { actions.navigate(Route.DocumentRecovery) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
             items(state.notices, key = { it.id }) { notice ->
                 when (notice) {
                     is AppNotice.TerminalSessionsEnded -> LostSessionsNotice(

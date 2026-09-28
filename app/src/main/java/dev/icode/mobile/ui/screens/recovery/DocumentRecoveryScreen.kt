@@ -44,8 +44,9 @@ import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 /**
  * Unsaved work the last session left behind.
  *
- * Restoring opens the file, where the editor offers the draft against the
- * version on disk — the one restore path, so both ask the same question.
+ * Restoring opens the file — in its own workspace if that is another one —
+ * where the editor offers the draft against the version on disk: the one
+ * restore path, so both ask the same question.
  */
 @Composable
 fun DocumentRecoveryScreen(actions: NavigationActions) {
@@ -112,7 +113,7 @@ fun DocumentRecoveryScreen(actions: NavigationActions) {
                                 left = {
                                     SecondaryButton(
                                         "Restore Cache",
-                                        { gateway.dispatch(WorkbenchIntent.OpenFile(draft.location)) },
+                                        { gateway.dispatch(WorkbenchIntent.OpenRecoverableDraft(draft.location)) },
                                         Modifier.fillMaxWidth(),
                                         color = IcodeColors.Accent,
                                     )
@@ -139,7 +140,7 @@ fun DocumentRecoveryScreen(actions: NavigationActions) {
             if (inWorkspace.isNotEmpty()) {
                 PrimaryButton(
                     "Restore All Workspace Docs",
-                    { inWorkspace.forEach { gateway.dispatch(WorkbenchIntent.OpenFile(it.location)) } },
+                    { inWorkspace.forEach { gateway.dispatch(WorkbenchIntent.OpenRecoverableDraft(it.location)) } },
                     Modifier.fillMaxWidth(),
                 )
             }

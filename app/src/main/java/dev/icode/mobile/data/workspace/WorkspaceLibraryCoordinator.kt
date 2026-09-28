@@ -145,6 +145,12 @@ internal class WorkspaceLibraryCoordinator(
         }
     }
 
+    /** The recent workspace [location] lies in, the innermost when they nest; null when none does. */
+    fun workspaceHolding(location: String): String? = store.load()
+        .map { it.location }
+        .filter { location.isAtOrUnder(it) && location != it }
+        .maxByOrNull { it.length }
+
     /** Recent files follow a rename or move of the file or of a folder above it. */
     suspend fun relocateRecentDocuments(root: String, from: String, to: String) = updateRecentDocuments(root) { all ->
         all.map { item ->

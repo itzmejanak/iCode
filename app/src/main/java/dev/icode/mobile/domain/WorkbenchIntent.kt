@@ -54,6 +54,8 @@ sealed interface WorkbenchIntent {
         val expectedWorkspace: String? = null,
     ) : WorkbenchIntent
     data class RestoreDraft(val location: String) : WorkbenchIntent
+    /** From Document Recovery: opens the draft's file, in its own workspace if that is another one. */
+    data class OpenRecoverableDraft(val location: String) : WorkbenchIntent
     data class DiscardDraft(val location: String) : WorkbenchIntent
     data class ConfirmRecoveredOverwrite(val location: String) : WorkbenchIntent
 
