@@ -273,6 +273,28 @@ class GitWorkspaceCoordinatorTest {
         }
     }
 
+    @Test fun `a remote branch is checked out by its full name`() = runBlocking {
+        val git = FakeGit().apply { snapshot = GitWorkspaceSnapshot(repository("feature"), emptyList()) }
+        val harness = Harness(git, root)
+
+        harness.coordinator.checkoutRemote("upstream/team/feature")
+
+        assertEquals(listOf("track $root upstream/team/feature", "inspect $root"), git.calls)
+        assertEquals("feature", harness.workbench.current.activeBranch)
+    }
+
+    @Test fun `a remote is added only with a clean name and an address without an account`() = runBlocking {
+        val git = FakeGit().apply { snapshot = GitWorkspaceSnapshot(repository(), emptyList()) }
+        val harness = Harness(git, root)
+
+        harness.coordinator.addRemote("origin", "https://ada:ghp_secret@github.com/ada/app.git")
+        harness.coordinator.addRemote("-bad", "git@github.com:ada/app.git")
+        assertTrue(git.calls.isEmpty())
+
+        harness.coordinator.addRemote("origin", "git@github.com:ada/app.git")
+        assertEquals(listOf("remote $root origin git@github.com:ada/app.git", "inspect $root"), git.calls)
+    }
+
     @Test fun `abort ends the operation Git reported`() = runBlocking {
         val git = FakeGit().apply { snapshot = GitWorkspaceSnapshot(repository(), emptyList()) }
         val harness = Harness(git, root)
@@ -308,6 +330,8 @@ class GitWorkspaceCoordinatorTest {
         override suspend fun switchBranch(workspacePath: String, branch: String) = record("switch $workspacePath $branch")
         override suspend fun createBranch(workspacePath: String, branch: String) = record("create $workspacePath $branch")
         override suspend fun deleteBranch(workspacePath: String, branch: String) = record("delete $workspacePath $branch")
+        override suspend fun checkoutRemote(workspacePath: String, remoteBranch: String) = record("track $workspacePath $remoteBranch")
+        override suspend fun addRemote(workspacePath: String, name: String, url: String) = record("remote $workspacePath $name $url")
         override suspend fun diff(workspacePath: String, path: String, staged: Boolean): GitFileDiff? {
             record("diff $workspacePath $path $staged")
             return null

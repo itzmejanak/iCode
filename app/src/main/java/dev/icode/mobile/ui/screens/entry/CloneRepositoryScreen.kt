@@ -74,6 +74,7 @@ fun CloneRepositoryScreen(actions: NavigationActions) {
                     gateway.dispatch(WorkbenchIntent.UpdateCloneForm(it, branch))
                 },
                 placeholder = "https://host/owner/repo.git or git@host:owner/repo.git",
+                literal = true,
             )
             LabeledField(
                 "Destination Directory",
@@ -103,6 +104,7 @@ fun CloneRepositoryScreen(actions: NavigationActions) {
                     branch = it
                     gateway.dispatch(WorkbenchIntent.UpdateCloneForm(url, it))
                 },
+                literal = true,
             )
             (state.gitOperation as? GitOperationState.Failed)?.let { failure ->
                 NoticeCard(tone = IcodeTone.Error, modifier = Modifier.fillMaxWidth()) {

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -43,6 +44,11 @@ fun IcodeTextField(
     inputModifier: Modifier = Modifier,
     /** Masks the value; use for tokens and passwords, never for ordinary text. */
     secret: Boolean = false,
+    /**
+     * Typed exactly as it must be read — an address, a host, a branch or
+     * account name: no autocorrection, suggestion or capital letter.
+     */
+    literal: Boolean = false,
 ) {
     IcodeCard(
         modifier = modifier,
@@ -77,14 +83,18 @@ fun IcodeTextField(
                     } else {
                         VisualTransformation.None
                     },
-                    keyboardOptions = if (secret) {
+                    keyboardOptions = when {
                         // A secret must not be learned, suggested or capitalised.
-                        KeyboardOptions(
+                        secret -> KeyboardOptions(
                             keyboardType = KeyboardType.Password,
                             autoCorrectEnabled = false,
                         )
-                    } else {
-                        KeyboardOptions.Default
+                        literal -> KeyboardOptions(
+                            capitalization = KeyboardCapitalization.None,
+                            autoCorrectEnabled = false,
+                            keyboardType = KeyboardType.Uri,
+                        )
+                        else -> KeyboardOptions.Default
                     },
                 )
             }
@@ -105,6 +115,7 @@ fun LabeledTextField(
     placeholder: String? = null,
     singleLine: Boolean = true,
     secret: Boolean = false,
+    literal: Boolean = false,
 ) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
         SectionLabel(label)
@@ -112,6 +123,7 @@ fun LabeledTextField(
             value = value,
             onValueChange = onValueChange,
             secret = secret,
+            literal = literal,
             placeholder = placeholder,
             singleLine = singleLine,
         )

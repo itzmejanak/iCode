@@ -4,6 +4,7 @@ import dev.icode.mobile.data.workspace.WorkbenchStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceTree
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.GitOutcome
+import dev.icode.mobile.domain.GitRemoteRules
 import dev.icode.mobile.domain.RecentDocument
 import dev.icode.mobile.domain.WorkbenchEffect
 import dev.icode.mobile.domain.WorkspaceSummary
@@ -160,6 +161,18 @@ internal class GitWorkspaceCoordinator(
     suspend fun createBranch(branch: String) = act(operation = { workspace -> git.createBranch(workspace, branch) })
 
     suspend fun deleteBranch(branch: String) = act(operation = { workspace -> git.deleteBranch(workspace, branch) })
+
+    suspend fun checkoutRemote(remoteBranch: String) =
+        act(operation = { workspace -> git.checkoutRemote(workspace, remoteBranch) })
+
+    suspend fun addRemote(name: String, url: String) {
+        val problem = GitRemoteRules.nameError(name) ?: GitRemoteRules.urlError(url)
+        if (problem != null) {
+            workbench.message(problem)
+            return
+        }
+        act(operation = { workspace -> git.addRemote(workspace, name, url) })
+    }
 
     suspend fun openDiff(path: String, staged: Boolean) {
         val workspace = activeRoot() ?: return

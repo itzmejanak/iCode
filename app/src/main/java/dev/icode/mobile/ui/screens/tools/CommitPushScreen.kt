@@ -99,9 +99,7 @@ fun CommitPushScreen(actions: NavigationActions) {
                 repository == null -> NoticeCard(tone = IcodeTone.Warning, modifier = Modifier.fillMaxWidth()) {
                     StatusLabel("This workspace is not a Git repository.", IcodeColors.Amber)
                 }
-                !canSync -> NoticeCard(tone = IcodeTone.Info, modifier = Modifier.fillMaxWidth()) {
-                    StatusLabel("No remote configured. Add one to fetch, pull and push.", IcodeColors.TextSecondary)
-                }
+                !canSync -> AddRemoteSection { name, url -> gateway.dispatch(WorkbenchIntent.AddRemote(name, url)) }
                 state.gitChanges.isEmpty() -> NoticeCard(tone = IcodeTone.Success, modifier = Modifier.fillMaxWidth()) {
                     StatusLabel("Working tree clean. No unstaged changes.", IcodeColors.Green)
                 }

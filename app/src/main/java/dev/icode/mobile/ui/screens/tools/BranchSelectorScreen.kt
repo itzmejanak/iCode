@@ -78,6 +78,7 @@ fun BranchSelectorScreen(actions: NavigationActions) {
                     onValueChange = { newBranch = it },
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = "New branch name",
+                    literal = true,
                 )
                 PrimaryButton(
                     "⊕  Create New Branch",
@@ -116,9 +117,8 @@ fun BranchSelectorScreen(actions: NavigationActions) {
                         titleStyle = IcodeType.Mono,
                         titleColor = IcodeColors.TextSecondary,
                         onClick = {
-                            // Checking out the short name makes Git create the
-                            // local branch that tracks this remote.
-                            gateway.dispatch(WorkbenchIntent.SwitchBranch(remote.substringAfter('/')))
+                            // Git creates the local branch that tracks exactly this one.
+                            gateway.dispatch(WorkbenchIntent.CheckoutRemoteBranch(remote))
                             actions.back()
                         },
                         trailing = {
