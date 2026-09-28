@@ -95,17 +95,24 @@ internal class CliGitService(
         workspaceHostPath: String?,
         arguments: List<String>,
         onStderr: ((String) -> Unit)? = null,
-    ): CommandResult = capture(workspaceHostPath?.let(GitMountResolver::resolve), arguments, onStderr)
+        config: List<String> = emptyList(),
+    ): CommandResult = capture(workspaceHostPath?.let(GitMountResolver::resolve), arguments, onStderr, config)
 
     /** Runs Git in exactly [directoryHostPath], whatever repository holds it: a clone into it, two files compared. */
     suspend fun runIn(
         directoryHostPath: String,
         arguments: List<String>,
         onStderr: ((String) -> Unit)? = null,
-    ): CommandResult = capture(GuestMount(directoryHostPath), arguments, onStderr)
+        config: List<String> = emptyList(),
+    ): CommandResult = capture(GuestMount(directoryHostPath), arguments, onStderr, config)
 
-    private suspend fun capture(mount: GuestMount?, arguments: List<String>, onStderr: ((String) -> Unit)?): CommandResult {
-        val result = guest.capture(mount, GitCommandLine.argv(arguments), "git", onStderr = onStderr)
+    private suspend fun capture(
+        mount: GuestMount?,
+        arguments: List<String>,
+        onStderr: ((String) -> Unit)?,
+        config: List<String>,
+    ): CommandResult {
+        val result = guest.capture(mount, GitCommandLine.argv(arguments, config), "git", onStderr = onStderr)
         return CommandResult(result.exitCode, result.stdout, result.stderr)
     }
 

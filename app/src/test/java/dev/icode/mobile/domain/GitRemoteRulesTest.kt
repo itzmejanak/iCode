@@ -32,4 +32,11 @@ class GitRemoteRulesTest {
         assertNotNull(GitRemoteRules.urlError("https://github.com/ada/my app.git"))
         assertNotNull(GitRemoteRules.urlError(""))
     }
+
+    @Test fun `a host is a server name with an optional port`() {
+        listOf("github.com", "git.example.com:8443", "localhost", "10.0.2.2").forEach { assertNull(it, GitRemoteRules.hostError(it)) }
+        listOf("", "https://github.com", "github.com/ada", "ada@github.com", "git hub.com", "-x.com").forEach {
+            assertNotNull(it, GitRemoteRules.hostError(it))
+        }
+    }
 }

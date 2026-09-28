@@ -14,16 +14,16 @@ internal class GitTransferCoordinator(
     private val workbench: WorkbenchStateHolder,
     private val git: GitTransferOperations,
     private val activeRoot: () -> String?,
-    /** Git reads the credential helper itself; this points it at the token the user most recently saved. */
-    private val applyCredentials: suspend () -> Unit,
+    /** Runs one transfer with the saved token handed to Git for that command alone. */
+    private val withCredentials: suspend (block: suspend (config: List<String>) -> Unit) -> Unit,
     /** After a sync, what Git now says about the workspace. */
     private val refresh: suspend (workspace: String) -> Unit,
     /** A finished clone opens as the workspace. */
     private val openClone: suspend (location: String) -> Unit,
 ) {
-    suspend fun fetch() = runRemote("Fetching") { workspace, onStderr -> git.fetch(workspace, onStderr) }
+    suspend fun fetch() = runRemote("Fetching") { workspace, config, onStderr -> git.fetch(workspace, config, onStderr) }
 
-    suspend fun pull() = runRemote("Pulling") { workspace, onStderr -> git.pull(workspace, onStderr) }
+    suspend fun pull() = runRemote("Pulling") { workspace, config, onStderr -> git.pull(workspace, config, onStderr) }
 
     suspend fun push() {
         val repository = workbench.current.gitRepository
@@ -32,11 +32,12 @@ internal class GitTransferCoordinator(
             return
         }
         val needsUpstream = repository?.upstream == null
-        runRemote("Pushing") { workspace, onStderr ->
+        runRemote("Pushing") { workspace, config, onStderr ->
             git.push(
                 workspace,
                 setUpstream = needsUpstream,
                 branch = repository?.branch.orEmpty(),
+                config = config,
                 onStderr = onStderr,
             )
         }
@@ -61,9 +62,11 @@ internal class GitTransferCoordinator(
         workbench.update { it.copy(gitOperation = GitOperationState.Running(label)) }
         var transcript = emptyList<String>()
         runCatching {
-            git.clone(url, destination, directoryName) { stderr ->
-                transcript = GitProgressParser.outputLines(stderr)
-                publishProgress(label, stderr, transcript)
+            withCredentials { config ->
+                git.clone(url, destination, directoryName, config) { stderr ->
+                    transcript = transcriptOf(stderr)
+                    publishProgress(label, stderr, transcript)
+                }
             }
         }
             .onSuccess {
@@ -92,7 +95,7 @@ internal class GitTransferCoordinator(
      */
     private suspend fun runRemote(
         label: String,
-        operation: suspend (String, (String) -> Unit) -> Unit,
+        operation: suspend (workspace: String, config: List<String>, onStderr: (String) -> Unit) -> Unit,
     ) {
         val workspace = activeRoot()
         if (workspace == null) {
@@ -100,12 +103,13 @@ internal class GitTransferCoordinator(
             return
         }
         workbench.update { it.copy(gitOperation = GitOperationState.Running(label)) }
-        applyCredentials()
         var transcript = emptyList<String>()
         runCatching {
-            operation(workspace) { stderr ->
-                transcript = GitProgressParser.outputLines(stderr)
-                publishProgress(label, stderr, transcript)
+            withCredentials { config ->
+                operation(workspace, config) { stderr ->
+                    transcript = transcriptOf(stderr)
+                    publishProgress(label, stderr, transcript)
+                }
             }
         }
             .onSuccess {
@@ -149,11 +153,26 @@ internal class GitTransferCoordinator(
         }
     }
 
+    /**
+     * Git's output as the progress screen and Output show it. A remote's error
+     * can echo its address with an account and token in it, so every line is
+     * masked here, before it enters state; each is bounded as well.
+     */
+    private fun transcriptOf(stderr: String): List<String> =
+        GitProgressParser.outputLines(stderr).map { line ->
+            val safe = BackendLog.credentialSafe(line)
+            if (safe.length > MAX_LINE_CHARS) safe.take(MAX_LINE_CHARS) + "…" else safe
+        }
+
     /** Prefers Git's own last word, such as "Already up to date." */
     private fun completionMessage(label: String, transcript: List<String>): String {
         val summary = transcript.lastOrNull { line ->
             line.startsWith("Already up to date") || line.startsWith("Everything up-to-date")
         }
         return summary ?: "$label complete"
+    }
+
+    private companion object {
+        const val MAX_LINE_CHARS = 400
     }
 }

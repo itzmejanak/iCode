@@ -1,7 +1,10 @@
 package dev.icode.mobile.data.git
 
+import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.runtime.RuntimePackageInstaller
+import dev.icode.mobile.domain.GitRemoteRules
+import dev.icode.mobile.domain.countOf
 import java.io.File
 
 /**
@@ -19,42 +22,62 @@ internal class GitAuthenticator(
     private val credentials: GitCredentialStore,
 ) : GitCredentialOperations {
 
+    @Volatile
+    private var legacyForgotten = false
+
     override fun describeHttps(): String? = credentials.describeHttps()
 
     override fun saveHttps(host: String, username: String, token: String) =
         credentials.saveHttps(GitCredentialStore.HttpsCredential(host, username, token))
 
     /**
-     * Writes the HTTPS credentials Git expects, with owner-only permissions.
-     *
-     * The file lives in the guest home inside app-private storage, which no
-     * other application can read. It is rewritten from the encrypted store on
-     * demand rather than kept in sync, so revoking a token takes effect at once.
+     * Runs [block] with Git reading the saved token from a file made for that
+     * one command: owner-only, in the guest's `/tmp` inside app-private
+     * storage, and deleted when the command ends, however it ends. The token
+     * is otherwise only ciphertext; Git in the user's own terminal asks for
+     * credentials itself.
      */
-    override suspend fun applyHttpsCredentials(): Boolean {
-        val credential = credentials.loadHttps() ?: return false
-        val encodedUser = urlEncode(credential.username)
-        val encodedToken = urlEncode(credential.token)
-        val line = "https://$encodedUser:$encodedToken@${credential.host}"
-        // Written through the guest so the permissions apply inside it.
-        val script = buildString {
-            append("umask 077; ")
-            append("printf '%s\\n' ")
-            append(GitCommandLine.quote(line))
-            append(" > ")
-            append(GitCommandLine.quote(GUEST_CREDENTIALS_PATH))
-            append("; chmod 600 ")
-            append(GitCommandLine.quote(GUEST_CREDENTIALS_PATH))
-            append("; git config --global credential.helper ")
-            append(GitCommandLine.quote("store --file=$GUEST_CREDENTIALS_PATH"))
+    override suspend fun <T> withHttpsCredentials(block: suspend (config: List<String>) -> T): T {
+        forgetLegacyHelper()
+        if (!credentials.hasHttps) return block(emptyList())
+        val credential = credentials.loadHttps()
+        if (credential == null) {
+            // Encrypted with a key this device no longer has: unusable, so not kept.
+            BackendLog.w("git", "The saved token could not be decrypted and was removed")
+            credentials.clearHttps()
+            return block(emptyList())
         }
-        return cli.runScript(null, script).succeeded
+        val file = GitCredentialFile.create(
+            File(layout.rootfs, "tmp"),
+            GitCredentialFile.line(credential.host, credential.username, credential.token),
+        )
+        try {
+            // The empty value drops any helper configured elsewhere, for this command only.
+            return block(listOf("credential.helper=", "credential.helper=store --file=/tmp/${file.name}"))
+        } finally {
+            file.delete()
+        }
     }
 
-    /** Removes the stored credentials from both the app and the guest. */
+    /** Removes the saved token from the app; the guest never keeps one. */
     override suspend fun clearHttpsCredentials() {
         credentials.clearHttps()
-        cli.runScript(null, "rm -f ${GitCommandLine.quote(GUEST_CREDENTIALS_PATH)}")
+        forgetLegacyHelper()
+    }
+
+    /**
+     * Earlier versions kept the token in plain text in the guest home behind a
+     * global `store` helper. That file goes, and the helper line iCode wrote
+     * with it — only that line; a helper the user configured stays.
+     */
+    private suspend fun forgetLegacyHelper() {
+        if (legacyForgotten) return
+        legacyForgotten = true
+        File(layout.rootfs, LEGACY_CREDENTIALS_RELATIVE).delete()
+        cli.runScript(
+            null,
+            "git config --global --unset-all credential.helper '^store --file=/root/\\.icode-git-credentials\$' 2>/dev/null; true",
+        )
     }
 
     /** True once an SSH key pair exists in the guest. */
@@ -131,39 +154,26 @@ internal class GitAuthenticator(
      * Git itself exits zero (PR-GIT-12).
      */
     override suspend fun testConnection(url: String): GitOperationOutcome {
-        if (url.isBlank()) return GitOperationOutcome(false, "Enter a repository URL to test")
-        if (url.startsWith("https://")) applyHttpsCredentials()
-        val result = cli.run(
-            workspaceHostPath = null,
-            arguments = listOf("ls-remote", "--heads", url),
-        )
+        GitRemoteRules.urlError(url.trim())?.let { return GitOperationOutcome(false, it) }
+        val result = withHttpsCredentials { config ->
+            cli.run(workspaceHostPath = null, arguments = listOf("ls-remote", "--heads", url), config = config)
+        }
         return GitOperationOutcome(
             succeeded = result.succeeded,
             message = if (result.succeeded) {
                 val branches = result.stdout.lines().count { it.isNotBlank() }
-                "Connected — $branches branch(es) visible"
+                "Connected — ${countOf(branches, "branch", "branches")} visible"
             } else {
                 result.errorMessage
             },
         )
     }
 
-    /** Percent-encodes the characters that would otherwise break the credential URL. */
-    private fun urlEncode(value: String): String = buildString {
-        value.forEach { character ->
-            when {
-                character.isLetterOrDigit() || character in UNRESERVED -> append(character)
-                else -> append('%').append("%02X".format(character.code))
-            }
-        }
-    }
-
     private companion object {
-        const val GUEST_CREDENTIALS_PATH = "/root/.icode-git-credentials"
+        const val LEGACY_CREDENTIALS_RELATIVE = "root/.icode-git-credentials"
         const val GUEST_SSH_KEY_PATH = "/root/.ssh/id_ed25519"
         const val SSH_PUBLIC_RELATIVE = "root/.ssh/id_ed25519.pub"
         const val SSH_KEYGEN_RELATIVE = "usr/bin/ssh-keygen"
-        const val UNRESERVED = "-._~"
     }
 }
 

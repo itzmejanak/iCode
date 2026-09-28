@@ -3,6 +3,7 @@ package dev.icode.mobile.ui.screens.tools
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -21,6 +22,7 @@ import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.designsystem.TwoColumnActions
 import dev.icode.mobile.domain.GitAuthState
+import dev.icode.mobile.domain.GitRemoteRules
 
 @Composable
 internal fun TokenSection(
@@ -57,30 +59,23 @@ internal fun TokenSection(
             secret = true,
         )
         MonoLine(
-            "Encrypted by the Android Keystore; never shown again after saving.",
+            "Encrypted by the Android Keystore; never shown again after saving. Used by iCode's clone, fetch, pull and push; Git in the terminal asks for its own.",
             color = IcodeColors.TextMuted,
             style = IcodeType.MonoSmall,
         )
+        val hostError = GitRemoteRules.hostError(host.trim()).takeIf { host.isNotEmpty() }
+        hostError?.let { Text(it, style = IcodeType.Caption, color = IcodeColors.Error) }
+        val canSave = host.isNotBlank() && hostError == null && username.isNotBlank() && token.isNotBlank()
         val tokenUrl = auth.provider.tokenUrl
         if (tokenUrl == null) {
-            SecondaryButton(
-                "Save Token",
-                onSave,
-                Modifier.fillMaxWidth(),
-                enabled = host.isNotBlank() && username.isNotBlank() && token.isNotBlank(),
-            )
+            SecondaryButton("Save Token", onSave, Modifier.fillMaxWidth(), enabled = canSave)
         } else {
             TwoColumnActions(
                 left = {
                     SecondaryButton("Create on ${auth.provider.displayName}", { onOpenHost(tokenUrl) }, Modifier.fillMaxWidth())
                 },
                 right = {
-                    PrimaryButton(
-                        "Save Token",
-                        onSave,
-                        Modifier.fillMaxWidth(),
-                        enabled = host.isNotBlank() && username.isNotBlank() && token.isNotBlank(),
-                    )
+                    PrimaryButton("Save Token", onSave, Modifier.fillMaxWidth(), enabled = canSave)
                 },
             )
         }
