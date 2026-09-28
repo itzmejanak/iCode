@@ -46,10 +46,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
@@ -136,6 +139,8 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         },
     )
 
+    private val refreshRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+
     override val snapshot: StateFlow<WorkbenchSnapshot> = workbench.snapshot
     override val effects: SharedFlow<WorkbenchEffect> = workbench.effects
 
@@ -150,6 +155,8 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         scope.launch { library.refreshRecents() }
         scope.launch { recovery.loadRecoverable() }
         scope.launch { observeTerminals() }
+        scope.launch { refreshOnRequest() }
+        scope.launch { refreshAfterCommands() }
         scope.launch { observeNotices() }
         scope.launch { reportTerminalEndings() }
         scope.launch {
@@ -201,6 +208,10 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     state.languageServices.any { service -> service.id == id }
                 })
             }
+            return
+        }
+        if (intent == WorkbenchIntent.Refresh) {
+            refreshRequests.tryEmit(Unit)
             return
         }
         if (intent == WorkbenchIntent.RefreshStorage) {
@@ -324,7 +335,6 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     is WorkbenchIntent.RestartLanguageService -> restartLanguageService(intent.id)
                     is WorkbenchIntent.RunContentSearch -> runContentSearch(intent.query, intent.matchCase, intent.wholeWord, intent.regex)
                     WorkbenchIntent.ClearContentSearch -> clearContentSearch()
-                    WorkbenchIntent.Refresh -> refreshActiveWorkspace()
                     WorkbenchIntent.InstallRuntime -> runtime.install(RuntimeInstallReason.Initial)
                     WorkbenchIntent.ClearAppCache -> library.clearCache()
                     WorkbenchIntent.RemoveStaleRecents -> library.removeStale()
@@ -1050,6 +1060,25 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         return index to truncated
     }
 
+    /**
+     * Resume, leaving the terminal and a finished command often ask together;
+     * one refresh answers every request made while the last one ran.
+     */
+    private suspend fun refreshOnRequest() {
+        refreshRequests.conflate().collect {
+            delay(REFRESH_SETTLE_MILLIS)
+            workbench.mutations.withLock { refreshActiveWorkspace() }
+        }
+    }
+
+    /** A command that ran in the open workspace may have written to it. */
+    private suspend fun refreshAfterCommands() {
+        terminals.commandsFinished.collect { sessionId ->
+            val workspace = workbench.onMain { terminals.workspaceOf(sessionId) }
+            if (workspace != null && workspace == activeRootLocation) refreshRequests.tryEmit(Unit)
+        }
+    }
+
     private suspend fun refreshActiveWorkspace() {
         val root = activeRootLocation
         if (root == null) {
@@ -1059,6 +1088,8 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         runCatching {
             tree.reload(root)
             refreshWorkspaceState(root)
+            // Files may have come and gone: Quick Open's index is rebuilt, not kept.
+            indexedWorkspace = null
             ensureFileIndex(root)
         }.onFailure { error ->
             workbench.report("workspace", "Unable to refresh workspace", error)
@@ -1110,5 +1141,8 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     private companion object {
         /** Long enough to absorb a burst of saves, short enough to feel immediate. */
         const val GIT_REFRESH_DEBOUNCE_MILLIS = 350L
+
+        /** Lets requests that arrive together (resume and a panel change) become one refresh. */
+        const val REFRESH_SETTLE_MILLIS = 300L
     }
 }

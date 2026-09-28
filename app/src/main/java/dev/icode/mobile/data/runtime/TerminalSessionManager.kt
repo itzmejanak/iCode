@@ -76,6 +76,15 @@ internal class TerminalSessionManager private constructor(
     /** Sessions whose program rang the terminal bell. */
     val bells: SharedFlow<String> = mutableBells.asSharedFlow()
 
+    private val mutableCommandsFinished = MutableSharedFlow<String>(extraBufferCapacity = ENDINGS_BUFFER)
+    /** Sessions whose foreground command just ended: what it ran may have changed the workspace. */
+    val commandsFinished: SharedFlow<String> = mutableCommandsFinished.asSharedFlow()
+
+    /** Reported by the foreground service, which samples each session's program. */
+    fun commandFinished(sessionId: String) {
+        mutableCommandsFinished.tryEmit(sessionId)
+    }
+
     private var screenVisible = false
     private var viewedId: String? = null
     private val mutableLookingAt = MutableStateFlow<String?>(null)

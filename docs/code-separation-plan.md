@@ -391,3 +391,33 @@ unsaved work, leaves the recovery list and requires consent to save over a chang
 keeps a draft only while its question is unanswered and there are no new edits, for one tab or
 several; a save of an unanswered tab asks again; a workspace switch drops only the closing tabs'
 drafts; a draft follows the text. Gate: 266 tests; lint 0 / 18; UI guard passes.
+
+**S3 gap plan — changes made outside the editor (2026-09-28).** Requirement: PRD PR-FILE-04
+(Explorer refreshes after terminal, Git or external changes), PR-EDIT-07 and US-EDIT-009 (a
+dirty file changed on disk offers Reload, Compare, Overwrite; nothing is lost silently),
+US-FILE-005 (a clean open file updates). Today nothing notices: `WorkbenchIntent.Refresh` is
+sent by no one, and the External Change screen is fixed sample text ("token-utils.ts") whose
+buttons only navigate. Steps:
+
+- **A — when to look.** Refresh on app resume, on leaving the Terminal panel, and when a command
+  ends in a terminal of the open workspace (the service already samples each session's
+  foreground program every 5 s). Requests coalesce into one refresh; it relists the tree,
+  refreshes Git, and rebuilds Quick Open's index (which today stays stale for the session).
+- **B — open files.** On each refresh, every open file is compared with disk: unchanged → nothing;
+  clean and changed → reloaded in place; changed while it has unsaved edits → the External
+  Change screen, made real: Reload (disk wins), Compare (disk vs. the editor, through Git's own
+  `diff --no-index` into the existing diff view), Overwrite (the editor wins, said explicitly),
+  Keep editing. Autosave does not fight it: an automatic save of such a file waits silently.
+  Deleted on disk → said once; the tab and its text stay.
+- **C — live watching (needs the phone).** Measure whether inotify sees writes the app's own
+  processes make under `/storage/emulated`; if it does, a watcher on the open folders makes A
+  immediate while iCode is on screen. Measurement started 2026-09-28 and paused: the owner was
+  on a call.
+
+**S3 gap A — when to look (2026-09-28), done in code; device check pending (owner on a call).**
+`WorkbenchIntent.Refresh` is now sent on app resume and on leaving the Terminal panel, and the
+gateway sends it itself when the foreground service sees a command end in a terminal of the open
+workspace (`TerminalSessionManager.commandsFinished`). Requests are conflated into one refresh
+(settle 300 ms), routed off the dispatch lock and run under it; a refresh relists the tree,
+refreshes Git and rebuilds Quick Open's index (before, the index stayed as first built for the
+whole session). Gate: 266 tests; lint 0 / 18; UI guard passes.
