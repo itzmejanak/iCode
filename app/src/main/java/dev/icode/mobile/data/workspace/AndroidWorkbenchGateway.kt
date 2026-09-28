@@ -14,6 +14,8 @@ import dev.icode.mobile.data.git.GitWorkspaceSnapshot
 import dev.icode.mobile.data.language.LanguageServiceProcessManager
 import dev.icode.mobile.data.language.LanguageServiceStore
 import dev.icode.mobile.data.log.BackendLog
+import dev.icode.mobile.data.search.RipgrepService
+import dev.icode.mobile.data.search.SearchCoordinator
 import dev.icode.mobile.data.settings.AndroidWorkspacePreferencesRepository
 import dev.icode.mobile.data.notices.NoticeStore
 import dev.icode.mobile.data.system.AndroidSystemAccess
@@ -27,7 +29,6 @@ import dev.icode.mobile.domain.GitConflictChoice
 import dev.icode.mobile.domain.GitFileDiff
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.GitOutcome
-import dev.icode.mobile.domain.IndexedFile
 import dev.icode.mobile.domain.RuntimeInstallReason
 import dev.icode.mobile.domain.ContentSearchState
 import dev.icode.mobile.domain.WorkbenchEffect
@@ -40,7 +41,6 @@ import dev.icode.mobile.domain.LanguageServiceRules
 import dev.icode.mobile.domain.LanguageServiceStatus
 import dev.icode.mobile.domain.SystemPermission
 import java.io.IOException
-import java.util.regex.PatternSyntaxException
 import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
@@ -98,7 +98,6 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         onStorageAccessChanged = { library.refreshRecents() },
     )
     private var activeRootLocation: String? = null
-    @Volatile private var indexedWorkspace: String? = null
     private var gitRefreshJob: Job? = null
 
     private val library: WorkspaceLibraryCoordinator = WorkspaceLibraryCoordinator(
@@ -116,6 +115,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     private val folders: FolderBrowserCoordinator = FolderBrowserCoordinator(workbench, source) { location -> openWorkspace(location, persist = true) }
 
     private val tree = WorkspaceTree(workbench, source)
+    private val search = SearchCoordinator(workbench, scope, RipgrepService(runtimeLayout, scope)) { activeRootLocation }
     private val recovery: DocumentRecoveryCoordinator = DocumentRecoveryCoordinator(
         workbench,
         scope,
@@ -137,10 +137,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         library,
         activeRoot = { activeRootLocation },
         refreshWorkspaceState = { root -> refreshWorkspaceState(root) },
-        reindex = { root ->
-            indexedWorkspace = null
-            ensureFileIndex(root)
-        },
+        reindex = { root -> search.workspaceChanged(root) },
     )
 
     private val refreshRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
@@ -244,6 +241,27 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             documents.updateText(intent)
             return
         }
+        // Folder reads and expansion state belong to WorkspaceTree; they do
+        // not wait behind an unrelated Git refresh on the mutation lock.
+        if (intent is WorkbenchIntent.ToggleFolder) {
+            val root = activeRootLocation ?: return
+            scope.launch { tree.toggle(root, intent.path) }
+            return
+        }
+        // Search owns cancellable jobs. It must never wait behind a workspace
+        // mutation, and a new query must be able to cancel the old process.
+        if (intent == WorkbenchIntent.PrepareWorkspaceSearch) {
+            activeRootLocation?.let(search::prepareIndex)
+            return
+        }
+        if (intent is WorkbenchIntent.RunContentSearch) {
+            search.runContentSearch(intent.query, intent.matchCase, intent.wholeWord, intent.regex)
+            return
+        }
+        if (intent == WorkbenchIntent.ClearContentSearch) {
+            search.clear()
+            return
+        }
         scope.launch {
             workbench.mutations.withLock {
                 when (intent) {
@@ -267,10 +285,8 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     is WorkbenchIntent.OpenWorkspaceTerminal -> openWorkspace(intent.path, persist = true, openTerminal = true)
                     is WorkbenchIntent.ResolveWorkspaceSwitch -> resolveWorkspaceSwitch(intent)
                     is WorkbenchIntent.RemoveRecentWorkspace -> library.removeRecent(intent.path)
-                    is WorkbenchIntent.OpenFile -> {
+                    is WorkbenchIntent.OpenFile ->
                         documents.open(intent.path, intent.lineNumber, intent.column)
-                        ensureFileIndex(activeRootLocation ?: intent.path)
-                    }
                     is WorkbenchIntent.CreateFile -> items.createFile(intent)
                     is WorkbenchIntent.CreateWorkspaceFolder -> items.createFolder(intent)
                     is WorkbenchIntent.RenameWorkspaceItem -> items.rename(intent)
@@ -299,7 +315,6 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     is WorkbenchIntent.CloseOtherDocuments -> documents.closeOthers(intent.keepLocation, intent.saveChanges)
                     WorkbenchIntent.CloseSavedDocuments -> documents.closeSaved()
                     WorkbenchIntent.InitializeGit -> initializeGit()
-                    is WorkbenchIntent.ToggleFolder -> activeRootLocation?.let { tree.toggle(it, intent.path) }
                     is WorkbenchIntent.StageFile -> stageFile(intent.path)
                     is WorkbenchIntent.UnstageFile -> unstageFile(intent.path)
                     WorkbenchIntent.StageAllFiles -> stageAllFiles()
@@ -357,8 +372,6 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     is WorkbenchIntent.StartLanguageService -> startLanguageService(intent.id)
                     is WorkbenchIntent.StopLanguageService -> languageProcesses.stop(intent.id)
                     is WorkbenchIntent.RestartLanguageService -> restartLanguageService(intent.id)
-                    is WorkbenchIntent.RunContentSearch -> runContentSearch(intent.query, intent.matchCase, intent.wholeWord, intent.regex)
-                    WorkbenchIntent.ClearContentSearch -> clearContentSearch()
                     WorkbenchIntent.InstallRuntime -> runtime.install(RuntimeInstallReason.Initial)
                     WorkbenchIntent.ClearAppCache -> library.clearCache()
                     WorkbenchIntent.RemoveStaleRecents -> library.removeStale()
@@ -616,7 +629,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             ) }
             documents.clear()
             recovery.workspaceClosing(closingDocuments)
-            indexedWorkspace = null
+            search.workspaceClosing()
             if (openTerminal && runtimeLayout.isInstalled) {
                 runCatching { terminals.open(root.location, reuseExisting = true) }
                     .onSuccess { workbench.update { it.copy(terminal = terminals.snapshot.value) } }
@@ -630,7 +643,6 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     else WorkbenchEffect.WorkspaceOpened(location),
                 )
             }
-            ensureFileIndex(root.location)
         }.onFailure { error ->
             library.refreshRecents()
             workbench.report("workspace", "Unable to open folder", error)
@@ -1039,59 +1051,6 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         }
     }
 
-    private suspend fun runContentSearch(query: String, matchCase: Boolean, wholeWord: Boolean, regex: Boolean) {
-        val root = activeRootLocation
-        if (root == null) {
-            workbench.message("Open a workspace before searching")
-            return
-        }
-        if (query.isBlank()) {
-            workbench.update { snapshot -> snapshot.copy(contentSearch = ContentSearchState.Empty) }
-            return
-        }
-        try {
-            val outcome = WorkspaceIndexer.search(root, query.trim(), matchCase, wholeWord, regex)
-            workbench.update { snapshot -> snapshot.copy(
-                contentSearch = ContentSearchState(
-                    query = query.trim(),
-                    matchCase = matchCase,
-                    wholeWord = wholeWord,
-                    regex = regex,
-                    results = outcome.results,
-                    searchedFiles = outcome.searchedFiles,
-                    truncated = outcome.truncated,
-                ),
-            ) }
-        } catch (error: PatternSyntaxException) {
-            workbench.update { snapshot -> snapshot.copy(
-                contentSearch = ContentSearchState(
-                    query = query.trim(),
-                    matchCase = matchCase,
-                    wholeWord = wholeWord,
-                    regex = regex,
-                    results = emptyList(),
-                    searchedFiles = 0,
-                    truncated = false,
-                    error = "Invalid regular expression: ${error.description ?: "check the pattern"}",
-                ),
-            ) }
-        }
-    }
-
-    private fun clearContentSearch() {
-        workbench.update { snapshot -> snapshot.copy(contentSearch = ContentSearchState.Empty) }
-    }
-
-    private suspend fun ensureFileIndex(root: String): Pair<List<IndexedFile>, Boolean> {
-        if (indexedWorkspace == root && workbench.current.fileIndex.isNotEmpty()) {
-            return workbench.current.fileIndex to workbench.current.fileIndexTruncated
-        }
-        val (index, truncated) = WorkspaceIndexer.indexFiles(root)
-        indexedWorkspace = root
-        workbench.update { snapshot -> snapshot.copy(fileIndex = index, fileIndexTruncated = truncated) }
-        return index to truncated
-    }
-
     /**
      * Resume, leaving the terminal and a finished command often ask together;
      * one refresh answers every request made while the last one ran.
@@ -1208,9 +1167,8 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             // Files may have come and gone: Quick Open's index is rebuilt, not kept.
             if (indexStale) {
                 indexStale = false
-                indexedWorkspace = null
+                search.workspaceChanged(root)
             }
-            ensureFileIndex(root)
             documents.reconcileWithDisk()
         }.onFailure { error ->
             workbench.report("workspace", "Unable to refresh workspace", error)

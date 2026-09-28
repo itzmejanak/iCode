@@ -1,6 +1,6 @@
 # Code separation and hardening, by the user's lifecycle
 
-Status: **plan** (2026-09-26). The owner's plan; it supersedes the order and scope of
+Status: **plan and execution record** (updated 2026-09-28). The owner's plan; it supersedes the order and scope of
 [backend-split-audit.md](./backend-split-audit.md), which an agent wrote and which is used here only
 as verified evidence. Follows [backend-split-rules.md](./backend-split-rules.md) and
 [ui-split-plan.md](./ui-split-plan.md). Nothing here is executed before the owner approves it.
@@ -498,3 +498,42 @@ background need: before, they came back over an empty workspace. Gate: 283 tests
 Lint found the session write's `edit()…commit()` (19 warnings): the workspace store's two checked
 writes now go through one `commitString` helper, marked once — the KTX `edit {}` form would
 discard `commit()`'s answer, which the store turns into a reported failure. 17 warnings.
+
+**S4 move — `SearchCoordinator` (2026-09-28), done.** Find in files and Quick Open's index
+move out of the gateway into `data/search/SearchCoordinator`, unchanged. Found while reading it:
+`WorkspaceIndexer`'s depth limit counts folders visited, not depth, so both searches stop after
+about 24 folders of any real project — the "search can miss files" of Todo #3 — fixed next, with
+ripgrep as planned.
+
+**S4 fix and harden — real ripgrep search (2026-09-28), done.** `WorkspaceIndexer` and its tests are
+deleted. `RipgrepService` provisions the runtime's real `rg` on first use through the new shared
+non-interactive `GuestCommand`; provisioning is shared across concurrent requests and is not killed
+when one query is replaced. Quick Open uses `rg --files --null`; content search uses ripgrep's JSON
+Lines protocol. Both include hidden files, exclude `.git`, honor ignore rules outside a Git
+repository, preserve spaces/quotes/Unicode/embedded filename newlines, and stay byte-bounded. Match
+byte offsets become the editor's UTF-16 columns. The index is capped at 5,000 files; visible Quick
+Open at 50; content at 200 matches per file / 1,000 total, with truthful truncation.
+
+`SearchCoordinator` owns separate cancel-previous jobs and generations for index/content work, so a
+new query kills/reaps the old `rg` and a result from an old workspace cannot publish. Search runs
+outside the gateway mutation lock and starts lazily only when Search/Quick Open is used. A workspace
+change or file-structure change invalidates only an index that was actually used.
+
+Found and fixed on the touched UI: Search status and results no longer overlap; file groups are real
+accessible accordions; match counts remain one line beside an ellipsized filename; collapsed groups
+hide their path and matches. Explorer folder taps no longer queue behind slow Git refresh, and
+clicking blank Explorer space selects the workspace root for New File/New Folder without a full-area
+ripple. `ExplorerRow` moved beside its item actions to restore the 300-line UI budget
+(`WorkspaceExplorerScreen` 229, `ExplorerItemActions` 225), behavior unchanged.
+
+Device: in `superpowers`, real search returned **355 results in 69 files · 69 files scanned**; the
+accordion changed from Collapse→Expand and removed/restored its rows; Quick Open returned real
+README paths. An isolated scratch fixture found a visible spaced/Unicode file and `.hidden.txt`,
+excluded nested `.ignore` content and `.git/config`, exactly **2 results in 2 files**. Explorer
+expanded/collapsed immediately, and after selecting a nested folder a blank-area tap made the create
+dialog say `In icode-watch-check` (the workspace root). The isolated search fixture was removed;
+no other workspace data was touched.
+
+Final gate after the UI-budget extraction: debug/release Kotlin compile, **295 unit tests** (0
+failures/errors), lint **0 errors / 16 warnings**, and UI consistency pass. A fresh APK from the
+same build step was installed for the preceding device checks; no routine 39-screen capture ran.

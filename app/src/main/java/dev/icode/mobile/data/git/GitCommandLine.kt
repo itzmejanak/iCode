@@ -1,5 +1,7 @@
 package dev.icode.mobile.data.git
 
+import dev.icode.mobile.data.runtime.shellQuote
+
 /**
  * Builds the shell script that runs one Git command inside the guest.
  *
@@ -38,7 +40,7 @@ internal object GitCommandLine {
      * Single quotes protect everything except a single quote itself, which is
      * closed, escaped and reopened — the standard `'\''` dance.
      */
-    fun quote(value: String): String = "'" + value.replace("'", "'\\''") + "'"
+    fun quote(value: String): String = shellQuote(value)
 
     private val BASE_ARGUMENTS = listOf(
         "git",

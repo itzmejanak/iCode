@@ -2,6 +2,15 @@ package dev.icode.mobile.domain
 
 // Search (S4): Quick Open's file index and find-in-files results.
 
+/** Availability of the shared ripgrep engine, including first-use provisioning. */
+sealed interface SearchEngineState {
+    data object Unknown : SearchEngineState
+    data object Installing : SearchEngineState
+    data object Indexing : SearchEngineState
+    data class Ready(val warning: String? = null) : SearchEngineState
+    data class Failed(val reason: String) : SearchEngineState
+}
+
 /** One indexed workspace file used by Quick Open ranking. */
 data class IndexedFile(
     val name: String,

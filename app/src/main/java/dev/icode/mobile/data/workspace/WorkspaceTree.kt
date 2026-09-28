@@ -8,37 +8,54 @@ import java.io.File
 /**
  * The Explorer's tree of the open workspace (S3): folders read so far, which
  * are expanded, and the rows that makes — each marked with its Git status.
+ *
+ * Its own lock keeps taps responsive outside the gateway's slow Git mutation
+ * queue while still serializing two folder reads and a concurrent refresh.
  */
 internal class WorkspaceTree(
     private val workbench: WorkbenchStateHolder,
-    private val source: DirectFileWorkspaceSource,
+    source: DirectFileWorkspaceSource,
+    private val listChildren: (String) -> List<DocumentNode> = source::listChildren,
 ) {
+    private val treeLock = Any()
     private val childrenByParent = mutableMapOf<String, List<DocumentNode>>()
     private val expanded = mutableSetOf<String>()
+    private var currentRoot: String? = null
 
     /** A newly opened workspace: its top level only, nothing expanded. */
-    fun reset(root: String, children: List<DocumentNode>) {
+    fun reset(root: String, children: List<DocumentNode>) = synchronized(treeLock) {
+        currentRoot = root
         childrenByParent.clear()
         childrenByParent[root] = children
         expanded.clear()
     }
 
     /** The visible rows, Git status included. */
-    fun rows(root: String, gitState: GitWorkspaceSnapshot): List<FileEntry> =
-        decorate(projectVisibleFiles(root, childrenByParent, expanded), gitState)
+    fun rows(root: String, gitState: GitWorkspaceSnapshot): List<FileEntry> {
+        val visible = synchronized(treeLock) {
+            projectVisibleFiles(root, childrenByParent, expanded)
+        }
+        return decorate(visible, gitState)
+    }
 
     suspend fun toggle(root: String, location: String) {
-        if (!expanded.remove(location)) {
+        val error = synchronized(treeLock) {
+            if (root != currentRoot) return@synchronized null
+            if (expanded.remove(location)) return@synchronized null
             runCatching {
-                if (location !in childrenByParent) childrenByParent[location] = source.listChildren(location)
+                if (location !in childrenByParent) childrenByParent[location] = listChildren(location)
                 expanded += location
-            }.onFailure { error ->
-                workbench.report("workspace", "Unable to read folder", error)
+            }.exceptionOrNull()
+        }
+        if (error != null) workbench.report("workspace", "Unable to read folder", error)
+        if (synchronized(treeLock) { root == currentRoot }) {
+            workbench.update { snapshot ->
+                if (snapshot.activeWorkspaceLocation != root) snapshot
+                else snapshot.copy(
+                    files = rows(root, GitWorkspaceSnapshot(snapshot.gitRepository, snapshot.gitChanges)),
+                )
             }
         }
-        workbench.update { snapshot -> snapshot.copy(
-            files = rows(root, GitWorkspaceSnapshot(workbench.current.gitRepository, workbench.current.gitChanges)),
-        ) }
     }
 
     /**
@@ -46,23 +63,25 @@ internal class WorkspaceTree(
      * meanwhile — by an agent, say — is simply no longer shown open, rather
      * than failing the refresh. Throws when one that exists cannot be read.
      */
-    fun reload(root: String) {
+    fun reload(root: String) = synchronized(treeLock) {
+        if (root != currentRoot) return@synchronized
         expanded.removeAll { !File(it).isDirectory }
         childrenByParent.keys.retainAll { it == root || it in expanded }
-        childrenByParent[root] = source.listChildren(root)
+        childrenByParent[root] = listChildren(root)
         expanded.toList().forEach { location ->
-            childrenByParent[location] = source.listChildren(location)
+            childrenByParent[location] = listChildren(location)
         }
     }
 
     /** Reads [parent] again after something was created in it, and shows it expanded. */
-    fun reloadFolder(root: String, parent: String) {
-        childrenByParent[parent] = source.listChildren(parent)
+    fun reloadFolder(root: String, parent: String) = synchronized(treeLock) {
+        if (root != currentRoot) return@synchronized
+        childrenByParent[parent] = listChildren(parent)
         if (parent != root) expanded += parent
     }
 
     /** Open folders stay open when they, or a folder above them, are renamed or moved. */
-    fun relocate(from: String, to: String) {
+    fun relocate(from: String, to: String) = synchronized(treeLock) {
         val moved = expanded.filter { it.isAtOrUnder(from) }
         expanded.removeAll(moved.toSet())
         moved.forEach { expanded += it.relocated(from, to) }

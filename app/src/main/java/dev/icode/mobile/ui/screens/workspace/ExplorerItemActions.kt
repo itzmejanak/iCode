@@ -1,11 +1,23 @@
 package dev.icode.mobile.ui.screens.workspace
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.ContentCut
 import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.DriveFileRenameOutline
+import androidx.compose.material.icons.outlined.Code
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.FolderOpen
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -14,11 +26,21 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.RectangleShape
 import dev.icode.mobile.designsystem.IcodeActionMenu
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeConfirmDialog
+import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodeMenuAction
+import dev.icode.mobile.designsystem.IcodeSizes
+import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
+import dev.icode.mobile.designsystem.MonoLine
+import dev.icode.mobile.designsystem.StatusDot
+import dev.icode.mobile.designsystem.gitStatusTone
+import dev.icode.mobile.designsystem.tint
 import dev.icode.mobile.designsystem.LabeledTextField
 import dev.icode.mobile.domain.FileEntry
 import dev.icode.mobile.domain.FileKind
@@ -134,5 +156,70 @@ internal fun DeleteWorkspaceItemDialog(entry: FileEntry, onDismiss: () -> Unit) 
         },
         onDismiss = onDismiss,
         detail = root?.let { entry.path.removePrefix("$it/") } ?: entry.path,
+    )
+}
+
+@Composable
+internal fun ExplorerRow(entry: FileEntry, selected: Boolean, onClick: () -> Unit, onLongClick: () -> Unit) {
+    val icon = when (entry.kind) {
+        FileKind.Folder -> if (entry.expanded) Icons.Outlined.FolderOpen else Icons.Outlined.Folder
+        FileKind.TypeScript -> Icons.Outlined.Code
+        FileKind.Code -> Icons.Outlined.Code
+        FileKind.Json, FileKind.Markdown, FileKind.Other -> Icons.Outlined.Description
+    }
+    val iconTint = when (entry.kind) {
+        FileKind.TypeScript -> IcodeColors.Blue
+        FileKind.Code -> IcodeColors.Accent
+        FileKind.Json -> IcodeColors.Amber
+        FileKind.Markdown, FileKind.Other -> IcodeColors.TextSecondary
+        FileKind.Folder -> if (entry.expanded) IcodeColors.Accent else IcodeColors.TextSecondary
+    }
+    IcodeListRow(
+        selected = selected,
+        selectionBackground = IcodeColors.Surface,
+        rowShape = RectangleShape,
+        indent = IcodeSpacing.IndentStep * entry.depth,
+        onClick = onClick,
+        onLongClick = onLongClick,
+        leading = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
+            ) {
+                if (entry.kind == FileKind.Folder) {
+                    Icon(
+                        if (entry.expanded) Icons.Outlined.KeyboardArrowDown else Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                        contentDescription = null,
+                        tint = IcodeColors.TextSecondary,
+                        modifier = Modifier.size(IcodeSizes.IconSm),
+                    )
+                } else {
+                    Spacer(Modifier.width(IcodeSizes.IconSm))
+                }
+                Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(IcodeSizes.IconMd))
+            }
+        },
+        // As in VS Code: a changed name takes its status colour; a file shows
+        // its status letter, a folder a dot for the strongest change beneath it.
+        content = {
+            Text(
+                entry.name,
+                modifier = Modifier.weight(1f),
+                style = IcodeType.Body,
+                color = when {
+                    entry.gitStatus != null -> gitStatusTone(entry.gitStatus).tint()
+                    entry.kind == FileKind.Markdown -> IcodeColors.TextSecondary
+                    else -> IcodeColors.TextPrimary
+                },
+            )
+        },
+        trailing = {
+            val status = entry.gitStatus
+            when {
+                status == null -> Unit
+                entry.kind == FileKind.Folder -> StatusDot(gitStatusTone(status).tint())
+                else -> MonoLine(status, color = gitStatusTone(status).tint(), style = IcodeType.MonoSmall)
+            }
+        },
     )
 }
