@@ -130,4 +130,11 @@ class GitPorcelainParserTest {
     fun `empty output yields nothing`() {
         assertTrue(GitPorcelainParser.parse("").changes.isEmpty())
     }
+
+    @Test
+    fun `an untracked folder is named by its last segment`() {
+        val changes = GitPorcelainParser.parse(listOf("? build/", "? src/generated/", "").joinToString(nul)).changes
+        assertEquals(listOf("build/", "generated/"), changes.map { it.name })
+        assertEquals(listOf("build/", "src/generated/"), changes.map { it.path })
+    }
 }
