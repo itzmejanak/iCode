@@ -421,3 +421,24 @@ workspace (`TerminalSessionManager.commandsFinished`). Requests are conflated in
 (settle 300 ms), routed off the dispatch lock and run under it; a refresh relists the tree,
 refreshes Git and rebuilds Quick Open's index (before, the index stayed as first built for the
 whole session). Gate: 266 tests; lint 0 / 18; UI guard passes.
+
+**S3 gap B — open files against disk (2026-09-28), done; A checked on the phone too.** A refresh
+compares every open file with disk (`decideOnDisk`, 5 tests): a clean file takes the new version in
+place; unsaved edits over a changed file raise a question; a deleted file is said once and its text
+stays. A save that finds a different file on disk (`ChangedOnDiskException`, before a generic
+error) raises the same question, and autosave then waits silently until it is answered. The
+question is the editor's standard dialog (`IcodeConfirmDialog`, as for draft recovery — owner:
+"make it consistent with existing dialogs"), over the screen where it happens: Reload from disk,
+Compare versions (Git's `diff --no-index` of the disk file against the editor's text, written in
+the file's own encoding to the guest's /tmp and removed after; shown in the diff view, and the
+question returns on coming back), Overwrite disk with my edits (saved over exactly the version now
+on disk), Cancel (keep editing). The External Change route renders the same dialog for the capture
+set; its fixed "token-utils.ts" sample text is gone. On the phone, in a scratch workspace
+(`Download/icode-watch-check`): a file written from the terminal appeared on leaving the terminal;
+a clean open file changed from outside reloaded on resume; with unsaved edits the dialog came up
+by itself; Compare showed disk against editor; Overwrite wrote the editor's text; Reload took the
+disk's and removed the draft.
+
+**S3 gap C — measured (2026-09-28).** inotify on `/storage/emulated/0/…` reports writes made by
+the app's own PRoot processes: create, open, modify and close-after-write all arrived for a file
+written from iCode's terminal. A live watcher is therefore possible and is the next step.

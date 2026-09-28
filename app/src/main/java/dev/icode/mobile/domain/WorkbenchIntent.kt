@@ -51,6 +51,11 @@ sealed interface WorkbenchIntent {
     data class RestoreDraft(val location: String) : WorkbenchIntent
     data class DiscardDraft(val location: String) : WorkbenchIntent
     data class ConfirmRecoveredOverwrite(val location: String) : WorkbenchIntent
+
+    /** Answers to an [ExternalChange]: the disk wins, the editor wins, or look at both first. */
+    data class ReloadFromDisk(val location: String) : WorkbenchIntent
+    data class OverwriteDisk(val location: String) : WorkbenchIntent
+    data class CompareWithDisk(val location: String) : WorkbenchIntent
     data class SelectDocument(val location: String) : WorkbenchIntent
     data class ReorderDocument(val movingLocation: String, val targetLocation: String) : WorkbenchIntent
     /** A dirty tab requires an explicit save/discard choice; null is only valid for clean tabs. */

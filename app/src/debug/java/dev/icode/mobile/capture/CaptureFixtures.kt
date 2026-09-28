@@ -3,6 +3,7 @@ package dev.icode.mobile.capture
 import android.annotation.SuppressLint
 import dev.icode.mobile.data.git.GitConflictParser
 import dev.icode.mobile.domain.Diagnostic
+import dev.icode.mobile.domain.ExternalChange
 import dev.icode.mobile.domain.FileEntry
 import dev.icode.mobile.domain.FileKind
 import dev.icode.mobile.domain.FolderBrowserEntry
@@ -134,6 +135,9 @@ object CaptureFixtures {
         recentDocuments = listOf(
             RecentDocument("auth-guard.tsx", "$ROOT/src/components/auth-guard.tsx", "src/components/auth-guard.tsx", ago(minutes = 10)),
             RecentDocument("token-utils.ts", "$ROOT/src/utils/token-utils.ts", "src/utils/token-utils.ts", ago(hours = 2)),
+        ),
+        externalChanges = listOf(
+            ExternalChange("$ROOT/src/utils/token-utils.ts", "token-utils.ts", "src/utils/token-utils.ts", ago(minutes = 3)),
         ),
         recoverableDrafts = listOf(
             draft("src/components/auth.ts", sizeBytes = 4_301, minutesAgo = 2),

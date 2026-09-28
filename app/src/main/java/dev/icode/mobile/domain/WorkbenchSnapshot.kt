@@ -21,6 +21,8 @@ data class WorkbenchSnapshot(
     val recentDocuments: List<RecentDocument> = emptyList(),
     /** Drafts found when iCode started, until each is restored or discarded; newest first. */
     val recoverableDrafts: List<RecoverableDraft> = emptyList(),
+    /** Open files changed on disk under unsaved edits, oldest first; the screen answers the first. */
+    val externalChanges: List<ExternalChange> = emptyList(),
     /** Optional initial selection for a captured Explorer frame; real selections remain local UI state. */
     val initialExplorerSelection: String? = null,
     val folderBrowser: FolderBrowserState? = null,

@@ -9,8 +9,9 @@
 # orphan-route entries and why each is accepted:
 #   EditorEmpty         rendered by WorkspaceScreenHost for the editor route
 #                       while no document is open; no separate edge needed.
-#   ExternalFileChange  fires from disk-fingerprint detection in Cycle 3.
 #   DocumentRecovery    fires from the recovery buffer at startup in Cycle 3.
+#   ExternalFileChange  a dialog over the screen where the change is found
+#                       (ExternalChangePrompt); the route renders it for capture.
 capture-fork|app/src/main/java/dev/icode/mobile/ui/screens/entry/CloneProgressScreen.kt|2
 capture-fork|app/src/main/java/dev/icode/mobile/ui/screens/entry/RuntimeInstallingScreen.kt|2
 capture-fork|app/src/main/java/dev/icode/mobile/ui/screens/entry/SplashScreen.kt|2

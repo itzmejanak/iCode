@@ -38,6 +38,19 @@ data class RecoverableDraft(
     val savedAtEpochMillis: Long,
 )
 
+/**
+ * An open file whose disk version moved while it had unsaved edits: the
+ * External Change screen asks which version wins (US-EDIT-009). Until it is
+ * answered, autosave leaves the file alone.
+ */
+data class ExternalChange(
+    val location: String,
+    val name: String,
+    /** Relative to the workspace, as the screen and the comparison show it. */
+    val path: String,
+    val diskChangedAt: Long,
+)
+
 /** A file opened in the active workspace, including entries that have since gone missing. */
 data class RecentDocument(
     val name: String,

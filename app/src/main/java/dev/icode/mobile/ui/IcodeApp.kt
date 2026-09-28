@@ -24,6 +24,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.core.view.WindowCompat
 import dev.icode.mobile.domain.countOf
 import dev.icode.mobile.navigation.ToolPanelTab
+import dev.icode.mobile.ui.screens.recovery.ExternalChangePrompt
 import dev.icode.mobile.ui.terminal.TerminalSessionSource
 import dev.icode.mobile.data.settings.AndroidWorkspacePreferencesRepository
 import dev.icode.mobile.data.workspace.DocumentAutoSaveCoordinator
@@ -112,6 +113,7 @@ fun IcodeApp(
             }
         }
         var pendingWorkspaceSwitch by remember { mutableStateOf<WorkbenchEffect.ConfirmWorkspaceSwitch?>(null) }
+        var externalChangeAsked by remember { mutableStateOf<String?>(null) }
         // One question at a time: restoring several drafts asks about each in turn.
         var pendingDraftRecoveries by remember { mutableStateOf<List<WorkbenchEffect.ConfirmDraftRecovery>>(emptyList()) }
         var pendingRecoveredOverwrite by remember { mutableStateOf<WorkbenchEffect.ConfirmRecoveredOverwrite?>(null) }
@@ -205,6 +207,7 @@ fun IcodeApp(
                     is WorkbenchEffect.ConfirmDraftRecovery -> pendingDraftRecoveries =
                         pendingDraftRecoveries.filterNot { it.location == effect.location } + effect
                     is WorkbenchEffect.ConfirmRecoveredOverwrite -> pendingRecoveredOverwrite = effect
+                    is WorkbenchEffect.ExternalChangeDetected -> externalChangeAsked = effect.location
                     WorkbenchEffect.RuntimeRebuildStarted -> navigation.actions.navigate(Route.RuntimeInstalling)
                     WorkbenchEffect.GitInitialized -> navigation.actions.navigate(Route.SourceControl)
                     WorkbenchEffect.GitCommitted -> Toast.makeText(context, "Commit created", Toast.LENGTH_SHORT).show()
@@ -281,6 +284,14 @@ fun IcodeApp(
                 )
             }
         }
+        ExternalChangePrompt(
+            asked = externalChangeAsked,
+            onAskedChange = { externalChangeAsked = it },
+            snapshot = snapshot,
+            gateway = gateway,
+            current = navigation.current,
+            navigate = navigation.actions.navigate,
+        )
         pendingRecoveredOverwrite?.let { overwrite ->
             IcodeConfirmDialog(
                 title = "Overwrite newer file?",

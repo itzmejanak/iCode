@@ -22,6 +22,9 @@ sealed interface WorkbenchEffect {
         val sourceChanged: Boolean,
     ) : WorkbenchEffect
     data class ConfirmRecoveredOverwrite(val location: String, val name: String) : WorkbenchEffect
+
+    /** A file changed on disk under unsaved edits; the External Change screen asks which wins. */
+    data class ExternalChangeDetected(val location: String) : WorkbenchEffect
     data object RuntimeRebuildStarted : WorkbenchEffect
     data class Message(val text: String) : WorkbenchEffect
 
