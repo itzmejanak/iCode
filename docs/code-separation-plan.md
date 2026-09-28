@@ -50,7 +50,7 @@ device has one cause.
 | S3 | **Files and editing** — tree, open, edit, autosave, save, close, drafts, recovery, outside changes | WorkspaceExplorer, WorkspaceEditor, EditorEmpty, EditorFind, ExternalFileChange, DocumentRecovery, create-item dialog | gateway tree/documents/drafts clusters, `DirectFileWorkspaceSource` (245) → `DocumentSessionCoordinator`, `DocumentRecoveryCoordinator`, `WorkspaceItemsCoordinator` | document models |
 | S4 | **Search** — find in files, quick open | WorkspaceSearch (Files / In Files) | `WorkspaceIndexer` + gateway search cluster → `SearchCoordinator` | search models |
 | S5 | **Git** — status, diff, stage, commit, branches, conflicts, sync, credentials | SourceControl (299), DiffView, BranchSelector, ConflictResolution, CommitPush, PullProgress, GitAuth (275), DeleteConfirmation | gateway git clusters, `GitRepositoryClient` (353) → `GitWorkspaceCoordinator`, `GitTransferCoordinator`, `GitAuthCoordinator`, `GitInspectParser`; [detailed S5 plan](./git-separation-plan.md) | `GitContract` (all git models, D7) |
-| S6 | **Terminal and background** — sessions, background, alerts, lost sessions, notifications | Tools panel Terminal, TerminalSettings, Notifications | already separate: `TerminalSessionManager`, `RuntimeForegroundService`, `TerminalAlerts`, ledger, `NoticeStore`; the gateway only observes | terminal contracts |
+| S6 | **Terminal and background** — sessions, background, alerts, lost sessions, notifications | Tools panel Terminal, TerminalSettings, Notifications | already separate: `TerminalSessionManager`, `RuntimeForegroundService`, `TerminalAlerts`, ledger, `NoticeStore`; the gateway only observes; [detailed S6 plan](./terminal-separation-plan.md) | terminal contracts |
 | S7 | **Tools panel and commands** — problems, output, command palette | ProblemsPanel, OutputPanel, CommandPalette | gateway (diagnostics none yet; Git transcript) | diagnostics contract |
 | S8 | **Settings and language services** | Settings root, Appearance, Editor, Languages, LanguageDetail | `AndroidWorkspacePreferencesRepository`, `LanguageServiceStore` + gateway cluster → `LanguageServiceCoordinator` | settings, language-service contracts |
 | X | **Across scopes** — app shell, navigation, design system, logging, capture fixtures, repository | `IcodeApp` (321), `MainActivity` | `WorkbenchStateHolder`, `BackendLog`/`WorkbenchAudit`, shared helpers | `WorkbenchGateway`, snapshot/intents/effects files |
@@ -555,3 +555,13 @@ routine gate member: `tools/check-backend-consistency.sh` (file budget ratchet, 
 stderr file, no Git calls from `data/workspace`, no `data` imports in screens). Gate: 391 tests; lint
 0 errors / 14 warnings; both guards pass. Device matrix recorded there, with what needs the owner's
 credentials.
+
+**S6 plan — terminal and background (2026-09-28), ready for approval.**
+[terminal-separation-plan.md](./terminal-separation-plan.md): a close-out, since the terminal was
+verified in September. Moves: the gateway's terminal cluster into `TerminalCoordinator`; the
+over-budget service and manager split into `TerminalNotifications` and `TerminalLaunch`. Fixes found
+in code: one request can start two sessions (an open in flight is not covered — the likely cause of
+Todo's unreproduced double session); alerts outlive their session; `libtermux.so` alignment rests on
+merge order. Then the open device items and the older plans closed. Five owner decisions listed with
+recommendations. No S6 code has started.
+
