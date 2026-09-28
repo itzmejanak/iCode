@@ -97,6 +97,18 @@ class GitTransferCoordinatorTest {
         assertEquals(listOf("push $root upstream=false branch=feature"), harness.git.calls)
     }
 
+    @Test fun `a detached HEAD is not pushed`() = runBlocking {
+        val harness = Harness(FakeTransfers())
+        harness.workbench.update { it.copy(gitRepository = repository(upstream = null).copy(detached = true)) }
+        val message = async { harness.workbench.effects.first() }
+        yield()
+
+        harness.coordinator.push()
+
+        assertEquals(WorkbenchEffect.Message("HEAD is detached. Check out a branch before pushing"), withTimeout(2_000) { message.await() })
+        assertTrue(harness.git.calls.isEmpty())
+    }
+
     @Test fun `a sync without a workspace starts nothing`() = runBlocking {
         val harness = Harness(FakeTransfers(), root = null)
         val message = async { harness.workbench.effects.first() }

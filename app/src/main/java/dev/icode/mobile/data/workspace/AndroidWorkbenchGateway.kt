@@ -629,6 +629,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             documents.clear()
             recovery.workspaceClosing(closingDocuments)
             search.workspaceClosing()
+            gitWorkspace.workspaceClosing()
             if (openTerminal && runtimeLayout.isInstalled) {
                 runCatching { terminals.open(root.location, reuseExisting = true) }
                     .onSuccess { workbench.update { it.copy(terminal = terminals.snapshot.value) } }
