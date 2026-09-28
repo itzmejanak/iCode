@@ -49,7 +49,7 @@ device has one cause.
 | S2 | **Workspaces** — open folder, clone, create, recents, switch, storage | Launcher, OpenFolder, CreateFolder, CloneRepository, CloneProgress, StorageSettings, WorkspaceSettings | gateway workspace/browser/recents/storage clusters → `WorkspaceSessionCoordinator`, `WorkspaceLibraryCoordinator` | workspace models |
 | S3 | **Files and editing** — tree, open, edit, autosave, save, close, drafts, recovery, outside changes | WorkspaceExplorer, WorkspaceEditor, EditorEmpty, EditorFind, ExternalFileChange, DocumentRecovery, create-item dialog | gateway tree/documents/drafts clusters, `DirectFileWorkspaceSource` (245) → `DocumentSessionCoordinator`, `DocumentRecoveryCoordinator`, `WorkspaceItemsCoordinator` | document models |
 | S4 | **Search** — find in files, quick open | WorkspaceSearch (Files / In Files) | `WorkspaceIndexer` + gateway search cluster → `SearchCoordinator` | search models |
-| S5 | **Git** — status, diff, stage, commit, branches, conflicts, sync, credentials | SourceControl (299), DiffView, BranchSelector, ConflictResolution, CommitPush, PullProgress, GitAuth (275), DeleteConfirmation | gateway git clusters, `GitRepositoryClient` (353) → `GitWorkspaceCoordinator`, `GitTransferCoordinator`, `GitAuthCoordinator`, `GitInspectParser` | `GitContract` (all git models, D7) |
+| S5 | **Git** — status, diff, stage, commit, branches, conflicts, sync, credentials | SourceControl (299), DiffView, BranchSelector, ConflictResolution, CommitPush, PullProgress, GitAuth (275), DeleteConfirmation | gateway git clusters, `GitRepositoryClient` (353) → `GitWorkspaceCoordinator`, `GitTransferCoordinator`, `GitAuthCoordinator`, `GitInspectParser`; [detailed S5 plan](./git-separation-plan.md) | `GitContract` (all git models, D7) |
 | S6 | **Terminal and background** — sessions, background, alerts, lost sessions, notifications | Tools panel Terminal, TerminalSettings, Notifications | already separate: `TerminalSessionManager`, `RuntimeForegroundService`, `TerminalAlerts`, ledger, `NoticeStore`; the gateway only observes | terminal contracts |
 | S7 | **Tools panel and commands** — problems, output, command palette | ProblemsPanel, OutputPanel, CommandPalette | gateway (diagnostics none yet; Git transcript) | diagnostics contract |
 | S8 | **Settings and language services** | Settings root, Appearance, Editor, Languages, LanguageDetail | `AndroidWorkspacePreferencesRepository`, `LanguageServiceStore` + gateway cluster → `LanguageServiceCoordinator` | settings, language-service contracts |
@@ -537,3 +537,11 @@ no other workspace data was touched.
 Final gate after the UI-budget extraction: debug/release Kotlin compile, **295 unit tests** (0
 failures/errors), lint **0 errors / 16 warnings**, and UI consistency pass. A fresh APK from the
 same build step was installed for the preceding device checks; no routine 39-screen capture ran.
+
+**S5 plan — Git (2026-09-28), ready for approval.** [git-separation-plan.md](./git-separation-plan.md)
+maps every Git control and enter/load/act/react/interrupt/recover state, then separates the move from
+each behavior fix. It re-verifies the audit's C5 owners and adds current gaps found in code: unsafe
+inspect framing and repository mount cases; stale refresh; exact discard semantics; per-section
+conflict resolution through the document writer; clone branch/cancel; transfer identity and
+cancellation; one apt writer; exact safe-directory entries; one config path; command-scoped HTTPS
+credentials; and sanitized bounded transcripts. No S5 code has started.
