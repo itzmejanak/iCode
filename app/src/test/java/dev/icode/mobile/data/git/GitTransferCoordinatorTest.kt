@@ -15,6 +15,7 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -81,6 +82,23 @@ class GitTransferCoordinatorTest {
             harness.workbench.current.gitOperation,
         )
         assertEquals(listOf("credentials"), harness.events)
+    }
+
+    @Test fun `no token Git echoes reaches the screen, and no line runs on`() = runBlocking {
+        val harness = Harness(FakeTransfers())
+        harness.git.stderr = listOf(
+            "fatal: unable to access 'https://ada:ghp_secretValue123@github.com/ada/app.git/': 403\n",
+            "remote: " + "x".repeat(2_000) + "\n",
+        )
+        harness.git.failure = IOException("unable to access 'https://ada:ghp_secretValue123@github.com/ada/app.git/': 403")
+
+        harness.coordinator.fetch()
+
+        val failed = harness.workbench.current.gitOperation as GitOperationState.Failed
+        val shown = (failed.output + failed.reason).joinToString("\n")
+        assertFalse(shown.contains("ghp_secretValue123"))
+        assertTrue(shown.contains("https://***@github.com/ada/app.git/"))
+        assertTrue(failed.output.all { it.length <= 401 })
     }
 
     @Test fun `a push without an upstream sets one for the current branch`() = runBlocking {

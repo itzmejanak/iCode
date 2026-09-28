@@ -1,5 +1,6 @@
 package dev.icode.mobile.data.git
 
+import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.workspace.WorkbenchStateHolder
 import dev.icode.mobile.domain.GitAuthMethod
 import dev.icode.mobile.domain.GitAuthTestResult
@@ -99,7 +100,8 @@ internal class GitAuthCoordinator(
             it.copy(
                 gitAuth = it.gitAuth.copy(
                     busy = false,
-                    lastTest = GitAuthTestResult(outcome.succeeded, outcome.message),
+                    // Git's refusal can repeat the address it was given.
+                    lastTest = GitAuthTestResult(outcome.succeeded, BackendLog.credentialSafe(outcome.message)),
                 ),
             )
         }

@@ -64,7 +64,7 @@ internal class GitTransferCoordinator(
         runCatching {
             withCredentials { config ->
                 git.clone(url, destination, directoryName, config) { stderr ->
-                    transcript = GitProgressParser.outputLines(stderr)
+                    transcript = transcriptOf(stderr)
                     publishProgress(label, stderr, transcript)
                 }
             }
@@ -107,7 +107,7 @@ internal class GitTransferCoordinator(
         runCatching {
             withCredentials { config ->
                 operation(workspace, config) { stderr ->
-                    transcript = GitProgressParser.outputLines(stderr)
+                    transcript = transcriptOf(stderr)
                     publishProgress(label, stderr, transcript)
                 }
             }
@@ -153,11 +153,26 @@ internal class GitTransferCoordinator(
         }
     }
 
+    /**
+     * Git's output as the progress screen and Output show it. A remote's error
+     * can echo its address with an account and token in it, so every line is
+     * masked here, before it enters state; each is bounded as well.
+     */
+    private fun transcriptOf(stderr: String): List<String> =
+        GitProgressParser.outputLines(stderr).map { line ->
+            val safe = BackendLog.credentialSafe(line)
+            if (safe.length > MAX_LINE_CHARS) safe.take(MAX_LINE_CHARS) + "…" else safe
+        }
+
     /** Prefers Git's own last word, such as "Already up to date." */
     private fun completionMessage(label: String, transcript: List<String>): String {
         val summary = transcript.lastOrNull { line ->
             line.startsWith("Already up to date") || line.startsWith("Everything up-to-date")
         }
         return summary ?: "$label complete"
+    }
+
+    private companion object {
+        const val MAX_LINE_CHARS = 400
     }
 }

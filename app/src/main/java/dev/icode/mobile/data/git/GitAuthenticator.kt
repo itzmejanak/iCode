@@ -4,6 +4,7 @@ import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.runtime.RuntimePackageInstaller
 import dev.icode.mobile.domain.GitRemoteRules
+import dev.icode.mobile.domain.countOf
 import java.io.File
 
 /**
@@ -161,7 +162,7 @@ internal class GitAuthenticator(
             succeeded = result.succeeded,
             message = if (result.succeeded) {
                 val branches = result.stdout.lines().count { it.isNotBlank() }
-                "Connected — $branches branch(es) visible"
+                "Connected — ${countOf(branches, "branch", "branches")} visible"
             } else {
                 result.errorMessage
             },
