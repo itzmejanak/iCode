@@ -156,7 +156,7 @@ internal class GitAuthenticator(
     override suspend fun testConnection(url: String): GitOperationOutcome {
         GitRemoteRules.urlError(url.trim())?.let { return GitOperationOutcome(false, it) }
         val result = withHttpsCredentials { config ->
-            cli.run(workspaceHostPath = null, arguments = listOf("ls-remote", "--heads", url), config = config)
+            cli.run(workspaceHostPath = null, arguments = listOf("ls-remote", "--heads", "--", url), config = config)
         }
         return GitOperationOutcome(
             succeeded = result.succeeded,

@@ -109,7 +109,13 @@ sealed interface WorkbenchIntent {
     data class ResolveConflict(val path: String, val sectionStart: Int, val choice: GitConflictChoice) : WorkbenchIntent
     data class MarkConflictResolved(val path: String) : WorkbenchIntent
     data class UpdateCloneForm(val url: String, val branch: String) : WorkbenchIntent
-    data class CloneRepository(val url: String, val destination: String, val directoryName: String) : WorkbenchIntent
+    /** [branch] blank means the remote's default branch. */
+    data class CloneRepository(
+        val url: String,
+        val destination: String,
+        val directoryName: String,
+        val branch: String = "",
+    ) : WorkbenchIntent
 
     data class SelectGitProvider(val provider: GitProvider) : WorkbenchIntent
     data class SelectGitAuthMethod(val method: GitAuthMethod) : WorkbenchIntent

@@ -314,7 +314,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             return
         }
         if (intent is WorkbenchIntent.CloneRepository) {
-            gitTransfers.clone(intent.url, intent.destination, intent.directoryName)
+            gitTransfers.clone(intent.url, intent.destination, intent.directoryName, intent.branch)
             return
         }
         scope.launch {

@@ -36,6 +36,7 @@ import dev.icode.mobile.designsystem.IcodeTone
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.domain.FolderBrowserPurpose
 import dev.icode.mobile.domain.GitOperationState
+import dev.icode.mobile.domain.GitRemoteRules
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalWorkbenchGateway
@@ -56,6 +57,7 @@ fun CloneRepositoryScreen(actions: NavigationActions) {
     // Git derives the directory from the URL; showing it keeps the result
     // predictable before the clone runs.
     val directoryName = directoryNameFor(url)
+    val branchError = branch.trim().takeIf { it.isNotEmpty() }?.let(GitRemoteRules::branchError)
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Clone Repository", onBack = actions.back)
         Column(
@@ -106,6 +108,7 @@ fun CloneRepositoryScreen(actions: NavigationActions) {
                 },
                 literal = true,
             )
+            branchError?.let { Text(it, style = IcodeType.Caption, color = IcodeColors.Error) }
             (state.gitOperation as? GitOperationState.Failed)?.let { failure ->
                 NoticeCard(tone = IcodeTone.Error, modifier = Modifier.fillMaxWidth()) {
                     StatusLabel(failure.reason, IcodeColors.Error)
@@ -138,12 +141,13 @@ fun CloneRepositoryScreen(actions: NavigationActions) {
                         url = url.trim(),
                         destination = destination.orEmpty(),
                         directoryName = directoryName,
+                        branch = branch.trim(),
                     ),
                 )
                 actions.navigate(Route.CloneProgress)
             },
             Modifier.fillMaxWidth().padding(IcodeSpacing.Space5),
-            enabled = url.isNotBlank() && destination != null &&
+            enabled = url.isNotBlank() && destination != null && branchError == null &&
                 state.gitOperation !is GitOperationState.Running,
         )
     }

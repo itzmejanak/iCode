@@ -192,11 +192,24 @@ internal class GitRepositoryClient(private val cli: CliGitService) :
         url: String,
         destinationPath: String,
         directoryName: String,
+        branch: String?,
         config: List<String>,
         onStderr: ((String) -> Unit)?,
     ) {
         require(url.isNotBlank()) { "Enter a repository URL" }
-        val result = cli.runIn(destinationPath, listOf("clone", "--progress", url, directoryName), onStderr, config)
+        val arguments = buildList {
+            add("clone")
+            add("--progress")
+            if (branch != null) {
+                add("--branch")
+                add(branch)
+            }
+            // After `--` the address is an address, never an option such as --upload-pack.
+            add("--")
+            add(url)
+            add(directoryName)
+        }
+        val result = cli.runIn(destinationPath, arguments, onStderr, config)
         if (!result.succeeded) throw IOException(result.errorMessage)
     }
 
