@@ -124,9 +124,14 @@ fun IcodeApp(
         }
         val lifecycleOwner = LocalLifecycleOwner.current
         var resumeGeneration by remember { mutableIntStateOf(-1) }
-        DisposableEffect(lifecycleOwner) {
+        DisposableEffect(lifecycleOwner, gateway) {
             val observer = LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_RESUME) resumeGeneration++
+                when (event) {
+                    Lifecycle.Event.ON_RESUME -> resumeGeneration++
+                    Lifecycle.Event.ON_START -> gateway.dispatch(WorkbenchIntent.ScreenVisible(true))
+                    Lifecycle.Event.ON_STOP -> gateway.dispatch(WorkbenchIntent.ScreenVisible(false))
+                    else -> Unit
+                }
             }
             lifecycleOwner.lifecycle.addObserver(observer)
             onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }

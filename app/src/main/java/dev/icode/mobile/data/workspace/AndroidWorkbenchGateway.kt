@@ -54,6 +54,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.conflate
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
@@ -142,6 +144,11 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
 
     private val refreshRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
+    /** Quick Open's index is rebuilt only when entries may have come or gone, not after every save. */
+    @Volatile private var indexStale = false
+    @Volatile private var screenVisible = false
+    private val watcher = WorkspaceWatcher(scope) { structure -> requestRefresh(rebuildIndex = structure) }
+
     override val snapshot: StateFlow<WorkbenchSnapshot> = workbench.snapshot
     override val effects: SharedFlow<WorkbenchEffect> = workbench.effects
 
@@ -158,6 +165,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         scope.launch { observeTerminals() }
         scope.launch { refreshOnRequest() }
         scope.launch { refreshAfterCommands() }
+        scope.launch { followWatchedFolders() }
         scope.launch { observeNotices() }
         scope.launch { reportTerminalEndings() }
         scope.launch {
@@ -212,7 +220,12 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             return
         }
         if (intent == WorkbenchIntent.Refresh) {
-            refreshRequests.tryEmit(Unit)
+            requestRefresh(rebuildIndex = true)
+            return
+        }
+        if (intent is WorkbenchIntent.ScreenVisible) {
+            screenVisible = intent.visible
+            if (intent.visible) watcher.watch(watchedFolders(workbench.current)) else watcher.stop()
             return
         }
         if (intent == WorkbenchIntent.RefreshStorage) {
@@ -410,6 +423,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
      * itself when none runs.
      */
     override fun close() {
+        watcher.stop()
         languageProcesses.stopAll()
         scope.cancel()
     }
@@ -1076,11 +1090,23 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         }
     }
 
+    private fun requestRefresh(rebuildIndex: Boolean) {
+        if (rebuildIndex) indexStale = true
+        refreshRequests.tryEmit(Unit)
+    }
+
+    /** The folders shown and those of open files follow the state, while iCode is seen. */
+    private suspend fun followWatchedFolders() {
+        workbench.snapshot.map(::watchedFolders).distinctUntilChanged().collect { folders ->
+            if (screenVisible) watcher.watch(folders)
+        }
+    }
+
     /** A command that ran in the open workspace may have written to it. */
     private suspend fun refreshAfterCommands() {
         terminals.commandsFinished.collect { sessionId ->
             val workspace = workbench.onMain { terminals.workspaceOf(sessionId) }
-            if (workspace != null && workspace == activeRootLocation) refreshRequests.tryEmit(Unit)
+            if (workspace != null && workspace == activeRootLocation) requestRefresh(rebuildIndex = true)
         }
     }
 
@@ -1121,7 +1147,10 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             tree.reload(root)
             refreshWorkspaceState(root)
             // Files may have come and gone: Quick Open's index is rebuilt, not kept.
-            indexedWorkspace = null
+            if (indexStale) {
+                indexStale = false
+                indexedWorkspace = null
+            }
             ensureFileIndex(root)
             documents.reconcileWithDisk()
         }.onFailure { error ->
