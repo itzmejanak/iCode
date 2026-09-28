@@ -23,3 +23,17 @@ fun selectedAfterClose(
     if (index < 0) return selectedLocation
     return documents.getOrNull(index + 1)?.location ?: documents.getOrNull(index - 1)?.location
 }
+
+/**
+ * The snapshot with the open document at [location] replaced by [change] of
+ * it — in the tab list and, when it is the active one, as the active document
+ * too, so the two can never disagree. Unchanged when no such tab is open.
+ */
+fun WorkbenchSnapshot.withDocument(location: String, change: (OpenDocument) -> OpenDocument): WorkbenchSnapshot {
+    val current = openDocuments.firstOrNull { it.location == location } ?: return this
+    val changed = change(current)
+    return copy(
+        openDocuments = openDocuments.map { if (it.location == location) changed else it },
+        activeDocument = if (activeDocument?.location == location) changed else activeDocument,
+    )
+}
