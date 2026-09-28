@@ -103,6 +103,8 @@ sealed interface WorkbenchIntent {
     data object FetchRemote : WorkbenchIntent
     data object PullRemote : WorkbenchIntent
     data object PushRemote : WorkbenchIntent
+    /** Stops the running clone or sync: Git and everything it started are ended. */
+    data object CancelGitTransfer : WorkbenchIntent
     data class OpenConflict(val path: String) : WorkbenchIntent
     data object CloseConflict : WorkbenchIntent
     /** Resolves the one marker block that starts at line [sectionStart] (zero-based). */

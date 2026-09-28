@@ -10,6 +10,7 @@ import dev.icode.mobile.data.git.GitAuthenticator
 import dev.icode.mobile.data.git.GitCredentialStore
 import dev.icode.mobile.data.git.GitRepositoryClient
 import dev.icode.mobile.data.git.GitTransferCoordinator
+import dev.icode.mobile.data.git.GitTransferLedger
 import dev.icode.mobile.data.git.GitWorkspaceCoordinator
 import dev.icode.mobile.data.language.LanguageServiceProcessManager
 import dev.icode.mobile.data.language.LanguageServiceStore
@@ -121,6 +122,9 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         recentDocuments = library::recentDocuments,
         onInstalled = { gitAuth.refresh() },
     )
+    private val transferLedger = GitTransferLedger(appContext)
+    /** Read before any transfer can start, or it would report the one just started. */
+    private val interruptedTransfer = transferLedger.takeInterrupted()
     private val gitConflicts = GitConflictCoordinator(
         workbench,
         object : ConflictFiles {
@@ -144,6 +148,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         // A transfer runs outside the lock; what it changes afterwards takes it.
         refresh = { workspace -> workbench.mutations.withLock { gitWorkspace.refresh(workspace) } },
         openClone = { location -> workbench.mutations.withLock { openWorkspace(location, persist = true) } },
+        ledger = transferLedger,
     )
     private val gitAuth: GitAuthCoordinator = GitAuthCoordinator(
         workbench,
@@ -236,6 +241,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     /** The Notifications page; first, once per process, what the previous process's end took with it. */
     private suspend fun observeNotices() {
         terminals.ledger.takePrevious()?.let(notices::add)
+        interruptedTransfer?.let(notices::add)
         notices.notices.collect { list ->
             workbench.update { it.copy(notices = list) }
         }
@@ -311,6 +317,10 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         }
         if (intent == WorkbenchIntent.PushRemote) {
             gitTransfers.push()
+            return
+        }
+        if (intent == WorkbenchIntent.CancelGitTransfer) {
+            gitTransfers.cancel()
             return
         }
         if (intent is WorkbenchIntent.CloneRepository) {

@@ -51,6 +51,8 @@ fun OutputPanelContent(modifier: Modifier = Modifier) {
                             Text(failure.reason, style = IcodeType.Body)
                         } else if (operation is GitOperationState.Running) {
                             Text("Git is still running. New output appears as it arrives.", style = IcodeType.Caption)
+                        } else if (operation is GitOperationState.Cancelled) {
+                            Text("Stopped before Git finished. The lines below are what it printed.", style = IcodeType.Caption)
                         } else {
                             Text("Git finished. The lines below are its own output.", style = IcodeType.Caption)
                         }
@@ -91,6 +93,7 @@ internal fun operationLabel(operation: GitOperationState): String = when (operat
     is GitOperationState.Running -> operation.label
     is GitOperationState.Succeeded -> operation.label
     is GitOperationState.Failed -> operation.label
+    is GitOperationState.Cancelled -> operation.label
     GitOperationState.Idle -> "No operation"
 }
 
@@ -98,6 +101,7 @@ private fun outputStatus(operation: GitOperationState): String = when (operation
     is GitOperationState.Running -> "RUNNING"
     is GitOperationState.Succeeded -> "COMPLETE"
     is GitOperationState.Failed -> "FAILED"
+    is GitOperationState.Cancelled -> "CANCELLED"
     GitOperationState.Idle -> "IDLE"
 }
 
@@ -106,6 +110,7 @@ private fun outputStatusColor(operation: GitOperationState) = when (operation) {
     is GitOperationState.Running -> IcodeColors.Blue
     is GitOperationState.Succeeded -> IcodeColors.Green
     is GitOperationState.Failed -> IcodeColors.Error
+    is GitOperationState.Cancelled -> IcodeColors.Amber
     GitOperationState.Idle -> IcodeColors.TextMuted
 }
 

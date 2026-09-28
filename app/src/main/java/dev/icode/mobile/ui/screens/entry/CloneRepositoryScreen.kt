@@ -114,6 +114,15 @@ fun CloneRepositoryScreen(actions: NavigationActions) {
                     StatusLabel(failure.reason, IcodeColors.Error)
                 }
             }
+            (state.gitOperation as? GitOperationState.Cancelled)?.let { cancelled ->
+                NoticeCard(tone = IcodeTone.Warning, modifier = Modifier.fillMaxWidth()) {
+                    StatusLabel(
+                        cancelled.leftover?.let { "Clone cancelled. Git left $it part-written; remove it before cloning there again." }
+                            ?: "Clone cancelled.",
+                        IcodeColors.Amber,
+                    )
+                }
+            }
             IcodeListRow(
                 card = true,
                 title = "AUTHENTICATION",

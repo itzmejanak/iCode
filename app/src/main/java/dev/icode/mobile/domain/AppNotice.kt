@@ -19,8 +19,21 @@ sealed interface AppNotice {
         override val read: Boolean,
         val lost: LostTerminalSessions,
     ) : AppNotice
+
+    /** A clone or sync still running when iCode's process ended: Git never finished it. */
+    data class GitTransferInterrupted(
+        override val id: String,
+        /** When it started; the process's end left no time of its own. */
+        override val at: Long,
+        override val read: Boolean,
+        /** "Cloning", "Fetching", "Pulling" or "Pushing". */
+        val label: String,
+        /** The workspace it was for, or the folder a clone was writing. */
+        val target: String,
+    ) : AppNotice
 }
 
 fun AppNotice.markedRead(): AppNotice = when (this) {
     is AppNotice.TerminalSessionsEnded -> copy(read = true)
+    is AppNotice.GitTransferInterrupted -> copy(read = true)
 }

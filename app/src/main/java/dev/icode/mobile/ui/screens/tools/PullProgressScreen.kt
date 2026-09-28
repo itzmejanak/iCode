@@ -100,6 +100,7 @@ private fun headline(operation: GitOperationState, remote: String?, branch: Stri
         is GitOperationState.Running -> "${operation.label} $target".trim()
         is GitOperationState.Succeeded -> "${operation.label} complete"
         is GitOperationState.Failed -> "${operation.label} failed"
+        is GitOperationState.Cancelled -> "${operation.label} cancelled"
         GitOperationState.Idle -> "Nothing in progress"
     }
 }
@@ -108,7 +109,7 @@ private fun headline(operation: GitOperationState, remote: String?, branch: Stri
 private fun waitingLabel(operation: GitOperationState): String = when (operation) {
     is GitOperationState.Running -> "Contacting the remote…"
     is GitOperationState.Succeeded -> "Done"
-    is GitOperationState.Failed -> "Stopped"
+    is GitOperationState.Failed, is GitOperationState.Cancelled -> "Stopped"
     GitOperationState.Idle -> ""
 }
 

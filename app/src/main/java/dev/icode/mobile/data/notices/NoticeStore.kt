@@ -83,6 +83,15 @@ internal class NoticeStore private constructor(context: Context) {
                             },
                         ),
                 )
+                is AppNotice.GitTransferInterrupted -> put(
+                    JSONObject()
+                        .put(KEY_KIND, KIND_GIT_TRANSFER_INTERRUPTED)
+                        .put(KEY_ID, notice.id)
+                        .put(KEY_AT, notice.at)
+                        .put(KEY_READ, notice.read)
+                        .put(KEY_LABEL, notice.label)
+                        .put(KEY_TARGET, notice.target),
+                )
             }
         }
     }.toString()
@@ -107,6 +116,13 @@ internal class NoticeStore private constructor(context: Context) {
                 ),
             )
         }
+        KIND_GIT_TRANSFER_INTERRUPTED -> AppNotice.GitTransferInterrupted(
+            id = item.getString(KEY_ID),
+            at = item.getLong(KEY_AT),
+            read = item.getBoolean(KEY_READ),
+            label = item.getString(KEY_LABEL),
+            target = item.getString(KEY_TARGET),
+        )
         else -> null
     }
 
@@ -126,6 +142,9 @@ internal class NoticeStore private constructor(context: Context) {
         private const val KEY_SESSIONS = "sessions"
         private const val KEY_TITLE = "title"
         private const val KEY_WORKSPACE = "workspace"
+        private const val KIND_GIT_TRANSFER_INTERRUPTED = "git-transfer-interrupted"
+        private const val KEY_LABEL = "label"
+        private const val KEY_TARGET = "target"
 
         // Holds the application context only, which lives as long as the process.
         @SuppressLint("StaticFieldLeak")
