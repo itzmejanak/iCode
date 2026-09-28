@@ -204,27 +204,25 @@ fun SourceControlScreen(actions: NavigationActions) {
     }
 }
 
-/**
- * Selecting a change opens the surface that explains it: the conflict workflow,
- * the deletion confirmation, or the diff. Staging stays on the trailing action
- * so a review tap can never stage by accident.
- *
- * The diff is requested before navigating so the diff surface renders Git's own
- * patch rather than an empty frame.
- */
 /** Holds the change for confirmation; nothing is discarded until it is confirmed. */
 private fun requestDiscard(gateway: WorkbenchGateway, actions: NavigationActions, change: GitChange) {
     gateway.dispatch(WorkbenchIntent.RequestDiscardChanges(change.path))
     actions.navigate(Route.DeleteConfirmation)
 }
 
+/**
+ * Selecting a change opens the surface that explains it: the conflict workflow,
+ * the confirmation that restores a deleted file, or the diff. Staging stays on
+ * the trailing action so a review tap can never stage by accident. The diff is
+ * requested before navigating so the diff surface renders Git's own patch.
+ */
 private fun openChange(gateway: WorkbenchGateway, actions: NavigationActions, change: GitChange) {
-    when (change.status) {
-        GitStatusCodes.CONFLICTED -> {
+    when {
+        change.status == GitStatusCodes.CONFLICTED -> {
             gateway.dispatch(WorkbenchIntent.OpenConflict(change.path))
             actions.navigate(Route.ConflictResolution)
         }
-        GitStatusCodes.DELETED -> actions.navigate(Route.DeleteConfirmation)
+        change.status == GitStatusCodes.DELETED && change.discardable -> requestDiscard(gateway, actions, change)
         else -> {
             gateway.dispatch(WorkbenchIntent.OpenDiff(change.path, change.staged))
             actions.navigate(Route.DiffView)
@@ -280,18 +278,19 @@ private fun GitChangeRow(
             // confirmed, never one tap away from Stage.
             IcodeOverflowMenu(
                 contentDescription = "Actions for ${change.name}",
-                actions = listOf(
+                actions = listOfNotNull(
                     IcodeMenuAction(
                         label = if (change.staged) "Unstage" else "Stage",
                         icon = Icons.Outlined.Add,
                         onClick = onToggleStage,
                     ),
+                    // Staged work is unstaged first; a conflict is resolved, never discarded.
                     IcodeMenuAction(
                         label = "Discard changes",
                         icon = Icons.Outlined.DeleteOutline,
                         destructive = true,
                         onClick = onDiscard,
-                    ),
+                    ).takeIf { change.discardable },
                 ),
             )
         },

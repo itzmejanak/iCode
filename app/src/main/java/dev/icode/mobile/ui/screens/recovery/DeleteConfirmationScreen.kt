@@ -32,11 +32,11 @@ import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 
 /**
- * Confirms discarding one file's changes.
+ * Confirms discarding one unstaged change.
  *
- * Discard is `git checkout --` for a tracked file and a delete for an
- * untracked one — neither is recoverable, so the file, what will happen to it
- * and its irreversibility are all stated before the destructive button.
+ * An edit returns to its staged or committed version and a new file or folder
+ * is deleted — neither is recoverable, so the path, what will happen to it and
+ * its irreversibility are all stated before the destructive button.
  */
 @Composable
 fun DeleteConfirmationScreen(actions: NavigationActions) {
@@ -97,9 +97,13 @@ fun DeleteConfirmationScreen(actions: NavigationActions) {
                 textAlign = TextAlign.Center,
             )
             DangerButton(
-                if (change.status == GitStatusCodes.UNTRACKED) "DELETE FILE" else "DISCARD CHANGES",
+                when {
+                    change.status != GitStatusCodes.UNTRACKED -> "DISCARD CHANGES"
+                    change.isFolder -> "DELETE FOLDER"
+                    else -> "DELETE FILE"
+                },
                 {
-                    gateway.dispatch(WorkbenchIntent.DiscardChanges(change.path, change.status))
+                    gateway.dispatch(WorkbenchIntent.ConfirmDiscardChanges)
                     actions.back()
                 },
                 Modifier.fillMaxWidth(),
@@ -110,18 +114,24 @@ fun DeleteConfirmationScreen(actions: NavigationActions) {
     }
 }
 
-private fun headline(change: GitChange): String = when (change.status) {
-    GitStatusCodes.UNTRACKED -> "Delete File"
-    GitStatusCodes.DELETED -> "Restore File"
+/** Git reports an untracked folder with its trailing slash. */
+private val GitChange.isFolder: Boolean get() = path.endsWith('/')
+
+private fun headline(change: GitChange): String = when {
+    change.status == GitStatusCodes.UNTRACKED && change.isFolder -> "Delete Folder"
+    change.status == GitStatusCodes.UNTRACKED -> "Delete File"
+    change.status == GitStatusCodes.DELETED -> "Restore File"
     else -> "Discard Changes"
 }
 
 /** Says exactly what Git will do, because each status discards differently. */
-private fun consequence(change: GitChange): String = when (change.status) {
-    GitStatusCodes.UNTRACKED ->
+private fun consequence(change: GitChange): String = when {
+    change.status == GitStatusCodes.UNTRACKED && change.isFolder ->
+        "This folder is not tracked by Git, so there is no copy to restore it from. It will be deleted with everything in it that Git does not ignore."
+    change.status == GitStatusCodes.UNTRACKED ->
         "This file is not tracked by Git, so there is no copy to restore it from. It will be deleted."
-    GitStatusCodes.DELETED ->
-        "The file will be restored from the last commit, undoing the deletion."
+    change.status == GitStatusCodes.DELETED ->
+        "The file will be restored from its staged or last committed version, undoing the deletion."
     else ->
-        "The file will be restored to its last committed state. Your edits cannot be recovered."
+        "The file returns to its staged or last committed version. Edits you have not staged cannot be recovered."
 }

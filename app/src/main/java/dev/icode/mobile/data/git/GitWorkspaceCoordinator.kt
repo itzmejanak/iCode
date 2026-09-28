@@ -9,6 +9,7 @@ import dev.icode.mobile.domain.RecentDocument
 import dev.icode.mobile.domain.WorkbenchEffect
 import dev.icode.mobile.domain.WorkspaceSummary
 import java.io.File
+import java.io.IOException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -173,15 +174,38 @@ internal class GitWorkspaceCoordinator(
 
     fun closeDiff() = workbench.update { it.copy(activeDiff = null) }
 
+    /** Holds the one unstaged change at [path]; a file staged and edited again has a staged row too. */
     fun requestDiscard(path: String) = workbench.update { state ->
-        state.copy(pendingDiscard = state.gitChanges.firstOrNull { it.path == path })
+        state.copy(pendingDiscard = state.gitChanges.firstOrNull { it.path == path && it.discardable })
     }
 
     fun cancelDiscard() = workbench.update { it.copy(pendingDiscard = null) }
 
-    suspend fun discard(path: String, status: String) {
-        act(operation = { workspace -> git.discard(workspace, path, status) })
+    /**
+     * Discards exactly the change that was confirmed. Git is asked again
+     * first: if the file changed since the question was put, what the user
+     * agreed to is no longer what would be lost.
+     */
+    suspend fun confirmDiscard() {
+        val confirmed = workbench.current.pendingDiscard ?: return
         workbench.update { it.copy(pendingDiscard = null) }
+        if (!isDiscardablePath(confirmed.path)) {
+            workbench.message("${confirmed.path} is not a change iCode can discard")
+            return
+        }
+        act(operation = { workspace ->
+            refresh(workspace)
+            val current = workbench.current.gitChanges.firstOrNull { it.path == confirmed.path && it.discardable }
+            if (current != confirmed) throw IOException("${confirmed.name} changed after you confirmed. Review it again")
+            git.discard(workspace, confirmed.path, confirmed.status)
+        })
+    }
+
+    /** Relative to the repository's top, never above it, never into Git's own `.git`. */
+    private fun isDiscardablePath(path: String): Boolean {
+        val segments = path.removeSuffix("/").split('/')
+        return path.isNotBlank() && !path.startsWith('/') &&
+            segments.none { it.isEmpty() || it == "." || it == ".." || it == ".git" }
     }
 
     suspend fun abort() {

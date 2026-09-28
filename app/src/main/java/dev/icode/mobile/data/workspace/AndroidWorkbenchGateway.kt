@@ -352,7 +352,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     WorkbenchIntent.CloseDiff -> gitWorkspace.closeDiff()
                     is WorkbenchIntent.RequestDiscardChanges -> gitWorkspace.requestDiscard(intent.path)
                     WorkbenchIntent.CancelDiscardChanges -> gitWorkspace.cancelDiscard()
-                    is WorkbenchIntent.DiscardChanges -> gitWorkspace.discard(intent.path, intent.status)
+                    WorkbenchIntent.ConfirmDiscardChanges -> gitWorkspace.confirmDiscard()
                     WorkbenchIntent.AbortInProgress -> gitWorkspace.abort()
                     WorkbenchIntent.FetchRemote -> gitTransfers.fetch()
                     WorkbenchIntent.PullRemote -> gitTransfers.pull()

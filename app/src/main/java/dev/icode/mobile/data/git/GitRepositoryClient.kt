@@ -59,22 +59,19 @@ internal class GitRepositoryClient(private val cli: CliGitService) :
     }
 
     /**
-     * Throws away one file's changes, whatever state it is in.
+     * Throws away one unstaged change ([GitChange.discardable]).
      *
-     * The three cases genuinely differ: an untracked file has no committed
-     * version to restore so it is removed, a newly added file must leave the
-     * index as well, and a tracked file is restored from HEAD in both the
-     * index and the worktree — `checkout --` alone would only restore the
-     * worktree and silently leave a staged change behind.
+     * An edit or a deletion returns to the index — the staged version when
+     * there is one, else the last commit — so staged work survives. A new file
+     * or folder has no version to return to, so it is removed; `clean` keeps
+     * whatever inside it Git ignores.
      */
     override suspend fun discard(workspacePath: String, path: String, status: String) {
         when (status) {
-            GitStatusCodes.UNTRACKED -> expect(workspacePath, listOf("clean", "-fd", "--", path))
-            GitStatusCodes.ADDED -> expect(workspacePath, listOf("rm", "-f", "--", path))
-            else -> expect(
-                workspacePath,
-                listOf("restore", "--source=HEAD", "--staged", "--worktree", "--", path),
-            )
+            GitStatusCodes.UNTRACKED -> expect(workspacePath, listOf("clean", "-f", "-d", "--", path))
+            GitStatusCodes.MODIFIED, GitStatusCodes.DELETED ->
+                expect(workspacePath, listOf("restore", "--worktree", "--", path))
+            else -> throw IOException("Only unstaged changes can be discarded")
         }
     }
 

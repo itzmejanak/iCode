@@ -89,11 +89,11 @@ sealed interface WorkbenchIntent {
     /** [staged] selects the index-vs-HEAD comparison instead of worktree-vs-index. */
     data class OpenDiff(val path: String, val staged: Boolean) : WorkbenchIntent
     data object CloseDiff : WorkbenchIntent
-    /** Irreversible; the caller must have confirmed the exact path first. */
+    /** Holds the unstaged change at [path] for the confirmation screen; nothing is discarded yet. */
     data class RequestDiscardChanges(val path: String) : WorkbenchIntent
     data object CancelDiscardChanges : WorkbenchIntent
-    /** [status] is the porcelain code, because each one discards differently. */
-    data class DiscardChanges(val path: String, val status: String) : WorkbenchIntent
+    /** Irreversible: discards exactly the change that was held, if Git still reports it. */
+    data object ConfirmDiscardChanges : WorkbenchIntent
     /** Ends a half-finished merge, rebase, cherry-pick or revert. */
     data object AbortInProgress : WorkbenchIntent
     data object FetchRemote : WorkbenchIntent
