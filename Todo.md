@@ -41,7 +41,7 @@ before code, then one verifiable step at a time.
 | 0 | **Close the terminal/background cycle (S6)** | Finishes work already shipped | S0–S5 verified on device ([terminal-background-plan](./docs/terminal-background-plan.md) §6); `terminal-maturity-plan`, `terminal-background-plan` and `sudo-capability-plan` still say "plan" (the last is superseded by passthrough `sudo`) | Fresh-install acceptance matrix, then docs |
 | 1 | **Outside changes reach the UI — done (S3)** | Agents and commands in the terminal edit the workspace | Resume/terminal completion plus live `FileObserver` refresh; clean tabs reload, dirty tabs ask Reload/Compare/Overwrite, tree/Git/index refresh; device matrix passed | Process-death/permission-loss acceptance remains with session restore |
 | 2 | **Explorer rename / move / copy / delete — done (S3)** | Basic file management was missing | Real long-press Rename/Cut/Copy/Paste/Delete with path guards, confirmation, tab/tree/recent migration and 8 filesystem tests; device matrix passed | No remaining code step |
-| 3 | **Workspace search and Quick Open on ripgrep (frames 11/14) — done (S4)** | Search had silently missed files | Real first-use `ripgrep`; streaming, bounded, cancellable, ignore-aware; `WorkspaceIndexer` deleted; device matrix passed ([code-separation plan](./docs/code-separation-plan.md) S4) | Next: S5 Git separation ([plan](./docs/git-separation-plan.md)) |
+| 3 | **Workspace search and Quick Open on ripgrep (frames 11/14) — done (S4)** | Search had silently missed files | Real first-use `ripgrep`; streaming, bounded, cancellable, ignore-aware; `WorkspaceIndexer` deleted; device matrix passed ([code-separation plan](./docs/code-separation-plan.md) S4) | Done; S5 Git done too ([record](./docs/git-separation-plan.md)) |
 | 4 | **Honest About screen and licences** | Release blocker; licences unshown | About shows real build and runtime facts (2026-09-25); no licence notices for PRoot (GPL-2.0), talloc (LGPL-3.0), Sora (LGPL) or the Termux terminal libraries (Apache-2.0 inside a GPLv3 repository, [terminal-maturity-plan](./docs/terminal-maturity-plan.md) §3); iCode itself has no LICENSE | **Owner:** distribution and licence decision; then real build facts and a licences page |
 | 5 | **Developer tools at onboarding** | A new user reaches Source Control without `git`; search will need `rg` | Git: installed where it is first needed — Clone installs it first (S1, 2026-09-26); Source Control and credentials offer it. `rg` comes with S4 | Owner may still want an onboarding step; not added |
 | 6 | **Session restore device acceptance** | A killed process must reopen safe workspace/tab state without inventing terminals | Code now persists workspace, tab order and selected tab; missing files are skipped and drafts still ask (S3, 2026-09-28) | Kill the process on device, then verify permission-loss/missing-file fallbacks |
@@ -437,17 +437,18 @@ S4 — Search and Quick Open on real ripgrep (complete 2026-09-28):
       the known scratch paths.
 - [x] Final gate: debug/release compile, 295 unit tests, lint 0 errors / 16 warnings, UI guard.
 
-S5 — Git next:
+S5 — Git (complete 2026-09-28; record in [`docs/git-separation-plan.md`](./docs/git-separation-plan.md) §12):
 
-- [x] Current implementation, controls, ownership, duplicates and lifecycle gaps mapped in
-      [`docs/git-separation-plan.md`](./docs/git-separation-plan.md).
-- [ ] Await approval, then move only: `GitInspectParser`, `GitWorkspaceCoordinator`,
-      `GitTransferCoordinator`, `GitAuthCoordinator`.
-- [ ] Fix one gap per reviewable step: inspect framing/repository kinds/stale state; exact discard;
-      per-section safe conflict writes; one config/package path; command-scoped credentials and
-      transcript redaction; clone branch/cancel; transfer background/interruption/recovery.
-- [ ] Finish with the Git parser/coordinator gate and private-repository device matrix. No routine
-      39-screen capture; never record a token or delete pre-existing workspace/`.git` data.
+- [x] Moves: `GitInspectParser`, `GitWorkspaceCoordinator`, `GitTransferCoordinator`,
+      `GitAuthCoordinator`, `GitConflictCoordinator`; the gateway keeps no Git call (1227 → 831 lines).
+- [x] Fixes: one package installer; cancellable Git with its own stderr; NUL-framed inspect; parent
+      repository, submodule and worktree mounts; detached HEAD; stale refresh; exact discard; per-block
+      conflicts through the editor's writer; remote branch by full ref; Add Remote; token never in saved
+      state nor in plain text between commands; masked transcripts; transfers off the lock, one at a
+      time, cancellable; clone branch; `--` before addresses; interrupted transfers reported.
+- [x] `tools/check-backend-consistency.sh` joins the routine gate. 391 tests; lint 0 / 14.
+- [ ] Owner, with their credentials: HTTPS token and SSH on a private repository, push, and the
+      legacy-credential migration on a phone that had a saved token.
 
 Repository baseline:
 
@@ -636,6 +637,7 @@ Checked with unit tests, build, lint, the consistency guard, the 39-route captur
 - `./gradlew :app:assembleDebug`
 - `./gradlew :app:lintDebug`
 - `tools/check-ui-consistency.sh`
+- `tools/check-backend-consistency.sh`
 - `tools/capture-figma-screens.sh`
 - Install and test on a physical Android device.
 - Pass the five production flows: edit/commit, command-driven workspace changes, development-server URL, interruption/recovery, and unfamiliar language-server setup.
