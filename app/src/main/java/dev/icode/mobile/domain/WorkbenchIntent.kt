@@ -158,7 +158,10 @@ sealed interface WorkbenchIntent {
     data object RepairRuntime : WorkbenchIntent
     /** Rebuilds the base system and discards the guest home directory. */
     data object ResetRuntime : WorkbenchIntent
+    /** "+": always a new session. */
     data object OpenTerminalSession : WorkbenchIntent
+    /** The panel needs a session: the open workspace's running one, or a new one only when there is none. */
+    data object EnsureTerminalSession : WorkbenchIntent
     data class SelectTerminalSession(val id: String) : WorkbenchIntent
 
     /** Bring a session to the front: its workspace, the Terminal panel, that tab (from its notification). */

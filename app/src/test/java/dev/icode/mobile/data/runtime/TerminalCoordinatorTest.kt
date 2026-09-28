@@ -87,6 +87,13 @@ class TerminalCoordinatorTest {
         assertEquals(listOf("open $root reuse=false"), harness.sessions.calls)
     }
 
+    @Test fun `the panel's own open reuses the workspace's running session`() = runBlocking {
+        val harness = Harness()
+        harness.coordinator.ensure()
+        harness.coordinator.ensure()
+        assertEquals(listOf("open $root reuse=true", "open $root reuse=true"), harness.sessions.calls)
+    }
+
     @Test fun `without the runtime nothing is opened`() = runBlocking {
         val harness = Harness(installed = false)
         val effect = harness.nextEffect { harness.coordinator.open() }
