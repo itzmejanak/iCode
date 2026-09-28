@@ -74,19 +74,17 @@ internal object GitConflictParser {
     }
 
     /**
-     * Rebuilds the file with every conflict resolved the same way.
+     * Rebuilds the file with [section] resolved by [choice]; every other
+     * conflict keeps its markers for its own decision.
      *
      * [GitConflictChoice.Both] keeps the current side followed by the incoming
      * side, which is what "accept both" means in every editor that offers it.
      */
-    fun resolve(file: GitConflictFile, choice: GitConflictChoice): String {
-        if (file.sections.isEmpty()) return file.lines.joinToString("\n")
+    fun resolve(file: GitConflictFile, section: GitConflictSection, choice: GitConflictChoice): String {
         val resolved = mutableListOf<String>()
         var index = 0
-        val bySection = file.sections.associateBy { it.startLine }
         while (index < file.lines.size) {
-            val section = bySection[index]
-            if (section == null) {
+            if (index != section.startLine) {
                 resolved += file.lines[index]
                 index += 1
             } else {

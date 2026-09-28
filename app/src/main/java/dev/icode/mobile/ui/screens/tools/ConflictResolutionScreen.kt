@@ -72,8 +72,8 @@ fun ConflictResolutionScreen(actions: NavigationActions) {
                 modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
                 padding = PaddingValues(vertical = IcodeSpacing.Space3),
             ) {
-                ConflictedFile(conflict) { choice ->
-                    gateway.dispatch(WorkbenchIntent.ResolveConflict(conflict.path, choice))
+                ConflictedFile(conflict) { section, choice ->
+                    gateway.dispatch(WorkbenchIntent.ResolveConflict(conflict.path, section.startLine, choice))
                 }
             }
         }
@@ -95,7 +95,7 @@ fun ConflictResolutionScreen(actions: NavigationActions) {
  * bands with the choices attached, so the user acts where they are reading.
  */
 @Composable
-private fun ConflictedFile(conflict: GitConflictFile, onChoice: (GitConflictChoice) -> Unit) {
+private fun ConflictedFile(conflict: GitConflictFile, onChoice: (GitConflictSection, GitConflictChoice) -> Unit) {
     var line = 0
     while (line < conflict.lines.size) {
         val section = conflict.sections.firstOrNull { it.startLine == line }
@@ -110,7 +110,7 @@ private fun ConflictedFile(conflict: GitConflictFile, onChoice: (GitConflictChoi
             )
             line++
         } else {
-            ConflictSection(section, onChoice)
+            ConflictSection(section) { choice -> onChoice(section, choice) }
             line = section.endLine + 1
         }
     }

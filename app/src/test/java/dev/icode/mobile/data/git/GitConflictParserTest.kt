@@ -54,7 +54,7 @@ class GitConflictParserTest {
         val file = GitConflictParser.parse("f.txt", conflicted)
         assertEquals(
             "line one\nCURRENT\nline three",
-            GitConflictParser.resolve(file, GitConflictChoice.Current),
+            GitConflictParser.resolve(file, file.sections.single(), GitConflictChoice.Current),
         )
     }
 
@@ -63,7 +63,7 @@ class GitConflictParserTest {
         val file = GitConflictParser.parse("f.txt", conflicted)
         assertEquals(
             "line one\nINCOMING\nline three",
-            GitConflictParser.resolve(file, GitConflictChoice.Incoming),
+            GitConflictParser.resolve(file, file.sections.single(), GitConflictChoice.Incoming),
         )
     }
 
@@ -72,7 +72,7 @@ class GitConflictParserTest {
         val file = GitConflictParser.parse("f.txt", conflicted)
         assertEquals(
             "line one\nCURRENT\nINCOMING\nline three",
-            GitConflictParser.resolve(file, GitConflictChoice.Both),
+            GitConflictParser.resolve(file, file.sections.single(), GitConflictChoice.Both),
         )
     }
 
@@ -80,7 +80,7 @@ class GitConflictParserTest {
     fun `no marker survives a resolution`() {
         val file = GitConflictParser.parse("f.txt", conflicted)
         GitConflictChoice.entries.forEach { choice ->
-            val resolved = GitConflictParser.resolve(file, choice)
+            val resolved = GitConflictParser.resolve(file, file.sections.single(), choice)
             assertFalse(resolved.contains("<<<<<<<"))
             assertFalse(resolved.contains("======="))
             assertFalse(resolved.contains(">>>>>>>"))
@@ -100,13 +100,13 @@ class GitConflictParserTest {
     @Test
     fun `diff3 resolution drops the base block too`() {
         val file = GitConflictParser.parse("f.txt", diff3Conflicted)
-        val resolved = GitConflictParser.resolve(file, GitConflictChoice.Current)
+        val resolved = GitConflictParser.resolve(file, file.sections.single(), GitConflictChoice.Current)
         assertEquals("line one\nCURRENT\nline three", resolved)
         assertFalse(resolved.contains("|||||||"))
     }
 
     @Test
-    fun `several conflicts in one file are all found and resolved`() {
+    fun `several conflicts in one file are found and resolved one at a time`() {
         val text = listOf(
             "top",
             "<<<<<<< HEAD", "a1", "=======", "b1", ">>>>>>> other",
@@ -116,9 +116,14 @@ class GitConflictParserTest {
         ).joinToString("\n")
         val file = GitConflictParser.parse("f.txt", text)
         assertEquals(2, file.sections.size)
+        // Each block is its own decision: the other keeps its markers.
         assertEquals(
-            "top\na1\nmiddle\na2\nbottom",
-            GitConflictParser.resolve(file, GitConflictChoice.Current),
+            "top\na1\nmiddle\n<<<<<<< HEAD\na2\n=======\nb2\n>>>>>>> other\nbottom",
+            GitConflictParser.resolve(file, file.sections[0], GitConflictChoice.Current),
+        )
+        assertEquals(
+            "top\n<<<<<<< HEAD\na1\n=======\nb1\n>>>>>>> other\nmiddle\nb2\nbottom",
+            GitConflictParser.resolve(file, file.sections[1], GitConflictChoice.Incoming),
         )
     }
 
@@ -129,7 +134,7 @@ class GitConflictParserTest {
         ).joinToString("\n")
         val file = GitConflictParser.parse("f.txt", text)
         assertEquals(listOf("one", "two"), file.sections.single().current)
-        assertEquals("one\ntwo\nthree", GitConflictParser.resolve(file, GitConflictChoice.Both))
+        assertEquals("one\ntwo\nthree", GitConflictParser.resolve(file, file.sections.single(), GitConflictChoice.Both))
     }
 
     @Test
@@ -137,7 +142,7 @@ class GitConflictParserTest {
         val text = listOf("<<<<<<< HEAD", "=======", "only theirs", ">>>>>>> other").joinToString("\n")
         val file = GitConflictParser.parse("f.txt", text)
         assertTrue(file.sections.single().current.isEmpty())
-        assertEquals("", GitConflictParser.resolve(file, GitConflictChoice.Current))
+        assertEquals("", GitConflictParser.resolve(file, file.sections.single(), GitConflictChoice.Current))
     }
 
     @Test
@@ -145,7 +150,7 @@ class GitConflictParserTest {
         val text = "just\nnormal\nlines"
         val file = GitConflictParser.parse("f.txt", text)
         assertTrue(file.isResolved)
-        assertEquals(text, GitConflictParser.resolve(file, GitConflictChoice.Current))
+        assertTrue(file.sections.isEmpty())
     }
 
     @Test
@@ -153,6 +158,5 @@ class GitConflictParserTest {
         val text = "start\n<<<<<<< HEAD\nours\nno separator ever"
         val file = GitConflictParser.parse("f.txt", text)
         assertTrue(file.sections.isEmpty())
-        assertEquals(text, GitConflictParser.resolve(file, GitConflictChoice.Current))
     }
 }
