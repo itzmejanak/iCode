@@ -380,3 +380,14 @@ it is written once. The workspace switch in the gateway now calls `tree.reset`,
 the phone: a workspace opens with its tree, a folder expands, a file opens and closes, recents
 say "just now", no draft is written for an unedited file. Gate: 255 tests; lint 0 / 18; UI guard
 passes.
+
+**S3 fix — one way to change a tab; recovery pinned by tests (2026-09-28), done.** The block
+that replaced one open document in both the tab list and the active document was written five
+times; `WorkbenchSnapshot.withDocument(location) { … }` (domain, 2 tests) is now the one way, so
+the two can never disagree. `DocumentRecoveryCoordinator` runs on the JVM, so its lifecycle is now
+tested (9): an equal draft is dropped silently; a different one locks the tab and asks, saying
+whether the file changed since; "keep disk version" deletes and unlocks; restore makes the draft
+unsaved work, leaves the recovery list and requires consent to save over a changed file; close
+keeps a draft only while its question is unanswered and there are no new edits, for one tab or
+several; a save of an unanswered tab asks again; a workspace switch drops only the closing tabs'
+drafts; a draft follows the text. Gate: 266 tests; lint 0 / 18; UI guard passes.

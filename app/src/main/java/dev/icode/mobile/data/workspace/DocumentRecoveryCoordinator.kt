@@ -3,6 +3,7 @@ package dev.icode.mobile.data.workspace
 import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.domain.RecoverableDraft
 import dev.icode.mobile.domain.WorkbenchEffect
+import dev.icode.mobile.domain.withDocument
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -63,14 +64,7 @@ internal class DocumentRecoveryCoordinator(
             return
         }
         unresolved += document.location
-        workbench.update { state ->
-            val locked = state.openDocuments.firstOrNull { it.location == document.location }
-                ?.copy(readOnly = true) ?: return@update state
-            state.copy(
-                openDocuments = state.openDocuments.map { if (it.location == document.location) locked else it },
-                activeDocument = if (state.activeDocument?.location == document.location) locked else state.activeDocument,
-            )
-        }
+        workbench.update { state -> state.withDocument(document.location) { it.copy(readOnly = true) } }
         workbench.emit(WorkbenchEffect.ConfirmDraftRecovery(
             location = document.location,
             name = document.name,
@@ -118,14 +112,7 @@ internal class DocumentRecoveryCoordinator(
         unresolved.remove(location)
         // Back in the editor, the draft is this session's live work again.
         draftMutex.withLock { forgetRecoverable(listOf(location)) }
-        workbench.update { state ->
-            val restored = state.openDocuments.firstOrNull { it.location == location }
-                ?.copy(text = draft.text, dirty = true, readOnly = sourceDocument.readOnly) ?: return@update state
-            state.copy(
-                openDocuments = state.openDocuments.map { if (it.location == location) restored else it },
-                activeDocument = if (state.activeDocument?.location == location) restored else state.activeDocument,
-            )
-        }
+        workbench.update { state -> state.withDocument(location) { it.copy(text = draft.text, dirty = true, readOnly = sourceDocument.readOnly) } }
         sync(location)
     }
 
@@ -137,14 +124,7 @@ internal class DocumentRecoveryCoordinator(
         }
         discard(location)
         val sourceReadOnly = sourceOf(location)?.readOnly ?: false
-        workbench.update { state ->
-            val unlocked = state.openDocuments.firstOrNull { it.location == location }
-                ?.copy(readOnly = sourceReadOnly) ?: return@update state
-            state.copy(
-                openDocuments = state.openDocuments.map { if (it.location == location) unlocked else it },
-                activeDocument = if (state.activeDocument?.location == location) unlocked else state.activeDocument,
-            )
-        }
+        workbench.update { state -> state.withDocument(location) { it.copy(readOnly = sourceReadOnly) } }
     }
 
     suspend fun discard(location: String) {

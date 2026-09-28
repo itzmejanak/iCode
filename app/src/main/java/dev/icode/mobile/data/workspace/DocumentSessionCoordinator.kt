@@ -5,6 +5,7 @@ import dev.icode.mobile.domain.WorkbenchEffect
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.domain.reorderDocuments
 import dev.icode.mobile.domain.selectedAfterClose
+import dev.icode.mobile.domain.withDocument
 import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
@@ -71,17 +72,10 @@ internal class DocumentSessionCoordinator(
     /** Keystrokes: never behind the mutation lock. */
     fun updateText(intent: WorkbenchIntent.UpdateDocumentText) {
         workbench.update { state ->
-            val document = state.openDocuments.firstOrNull { it.location == intent.location }
-                ?: return@update state
-            if (document.readOnly) return@update state
-            val changed = document.copy(
-                text = intent.text,
-                dirty = intent.text != savedTexts[intent.location],
-            )
-            state.copy(
-                openDocuments = state.openDocuments.map { if (it.location == intent.location) changed else it },
-                activeDocument = if (state.activeDocument?.location == intent.location) changed else state.activeDocument,
-            )
+            state.withDocument(intent.location) { document ->
+                if (document.readOnly) document
+                else document.copy(text = intent.text, dirty = intent.text != savedTexts[intent.location])
+            }
         }
         recovery.sync(intent.location)
     }
@@ -110,14 +104,7 @@ internal class DocumentSessionCoordinator(
         val saved = runCatching {
             sources[location] = source.writeDocument(sourceDocument, textBeingSaved)
             savedTexts[location] = textBeingSaved
-            workbench.update { state ->
-                val current = state.openDocuments.firstOrNull { it.location == location } ?: return@update state
-                val saved = current.copy(dirty = current.text != textBeingSaved)
-                state.copy(
-                    openDocuments = state.openDocuments.map { if (it.location == location) saved else it },
-                    activeDocument = if (state.activeDocument?.location == location) saved else state.activeDocument,
-                )
-            }
+            workbench.update { state -> state.withDocument(location) { it.copy(dirty = it.text != textBeingSaved) } }
             // Saving changes the worktree, so Source Control and the Explorer
             // decorations are stale the moment the write lands.
             onSaved()
