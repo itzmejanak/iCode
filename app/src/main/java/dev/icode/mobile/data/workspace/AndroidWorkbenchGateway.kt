@@ -22,7 +22,6 @@ import dev.icode.mobile.data.runtime.RuntimeForegroundService
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.runtime.TerminalSessionManager
 import com.termux.terminal.TerminalSession
-import dev.icode.mobile.domain.FileEntry
 import dev.icode.mobile.domain.GitAuthTestResult
 import dev.icode.mobile.domain.GitConflictChoice
 import dev.icode.mobile.domain.GitOperationState
@@ -30,25 +29,18 @@ import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.IndexedFile
 import dev.icode.mobile.domain.RuntimeInstallReason
 import dev.icode.mobile.domain.ContentSearchState
-import dev.icode.mobile.domain.GitTreeStatus
 import dev.icode.mobile.domain.WorkbenchEffect
 import dev.icode.mobile.domain.WorkbenchGateway
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.domain.WorkbenchSnapshot
-import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.domain.LanguageService
 import dev.icode.mobile.domain.LanguageServiceConfiguration
 import dev.icode.mobile.domain.LanguageServiceRules
 import dev.icode.mobile.domain.LanguageServiceStatus
-import dev.icode.mobile.domain.RecoverableDraft
 import dev.icode.mobile.domain.SystemPermission
-import dev.icode.mobile.domain.reorderDocuments
-import dev.icode.mobile.domain.selectedAfterClose
-import dev.icode.mobile.domain.WorkspaceNameRules
 import java.io.IOException
 import java.util.regex.PatternSyntaxException
 import java.io.File
-import java.util.concurrent.ConcurrentHashMap
 import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -59,7 +51,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
 
@@ -100,16 +91,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         sessionsRunning = { terminals.hasRunningSessions() || languageProcesses.hasActiveProcesses() },
         onStorageAccessChanged = { library.refreshRecents() },
     )
-    private val draftMutex = Mutex()
-    private val draftStore = DocumentDraftStore(File(appContext.filesDir, "document-drafts"))
-    private val lastDraftText = mutableMapOf<String, String>()
-    private val recoveredExternalChanges = mutableSetOf<String>()
-    private val unresolvedRecoveryLocations = mutableSetOf<String>()
-    private val childrenByParent = mutableMapOf<String, List<DocumentNode>>()
-    private val expandedLocations = mutableSetOf<String>()
     private var activeRootLocation: String? = null
-    private val documentSources = ConcurrentHashMap<String, WorkspaceDocument>()
-    private val savedDocumentTexts = ConcurrentHashMap<String, String>()
     @Volatile private var indexedWorkspace: String? = null
     private var gitRefreshJob: Job? = null
 
@@ -127,6 +109,33 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     )
     private val folders: FolderBrowserCoordinator = FolderBrowserCoordinator(workbench, source) { location -> openWorkspace(location, persist = true) }
 
+    private val tree = WorkspaceTree(workbench, source)
+    private val recovery: DocumentRecoveryCoordinator = DocumentRecoveryCoordinator(
+        workbench,
+        scope,
+        DocumentDraftStore(File(appContext.filesDir, "document-drafts")),
+    ) { location -> documents.sourceOf(location) }
+    private val documents: DocumentSessionCoordinator = DocumentSessionCoordinator(
+        workbench,
+        source,
+        recovery,
+        library,
+        activeRoot = { activeRootLocation },
+        onSaved = { scheduleGitRefresh() },
+    )
+    private val items = WorkspaceItemsCoordinator(
+        workbench,
+        source,
+        tree,
+        documents,
+        activeRoot = { activeRootLocation },
+        refreshWorkspaceState = { root -> refreshWorkspaceState(root) },
+        reindex = { root ->
+            indexedWorkspace = null
+            ensureFileIndex(root)
+        },
+    )
+
     override val snapshot: StateFlow<WorkbenchSnapshot> = workbench.snapshot
     override val effects: SharedFlow<WorkbenchEffect> = workbench.effects
 
@@ -139,7 +148,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             scope.launch { workbench.report("language", "Unable to load language services", error) }
         }
         scope.launch { library.refreshRecents() }
-        scope.launch { loadRecoverableDrafts() }
+        scope.launch { recovery.loadRecoverable() }
         scope.launch { observeTerminals() }
         scope.launch { observeNotices() }
         scope.launch { reportTerminalEndings() }
@@ -205,7 +214,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             return
         }
         if (intent is WorkbenchIntent.UpdateDocumentText) {
-            updateDocumentText(intent)
+            documents.updateText(intent)
             return
         }
         scope.launch {
@@ -232,45 +241,30 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     is WorkbenchIntent.ResolveWorkspaceSwitch -> resolveWorkspaceSwitch(intent)
                     is WorkbenchIntent.RemoveRecentWorkspace -> library.removeRecent(intent.path)
                     is WorkbenchIntent.OpenFile -> {
-                        openDocument(intent.path, intent.lineNumber, intent.column)
+                        documents.open(intent.path, intent.lineNumber, intent.column)
                         ensureFileIndex(activeRootLocation ?: intent.path)
                     }
-                    is WorkbenchIntent.CreateFile -> createFile(intent)
-                    is WorkbenchIntent.CreateWorkspaceFolder -> createWorkspaceFolder(intent)
-                    is WorkbenchIntent.SaveDocument -> saveDocument(
+                    is WorkbenchIntent.CreateFile -> items.createFile(intent)
+                    is WorkbenchIntent.CreateWorkspaceFolder -> items.createFolder(intent)
+                    is WorkbenchIntent.SaveDocument -> documents.save(
                         intent.location,
                         intent.automatic,
                         intent.expectedText,
                         intent.expectedWorkspace,
                     )
-                    is WorkbenchIntent.RestoreDraft -> restoreDraft(intent.location)
-                    is WorkbenchIntent.DiscardDraft -> {
-                        if (workbench.current.openDocuments.firstOrNull { it.location == intent.location }?.dirty == true) {
-                            workbench.message("This document has new edits; close or save them before discarding recovery")
-                        } else {
-                            discardDraft(intent.location)
-                            val sourceReadOnly = documentSources[intent.location]?.readOnly ?: false
-                            workbench.update { state ->
-                                val unlocked = state.openDocuments.firstOrNull { it.location == intent.location }
-                                    ?.copy(readOnly = sourceReadOnly) ?: return@update state
-                                state.copy(
-                                    openDocuments = state.openDocuments.map { if (it.location == intent.location) unlocked else it },
-                                    activeDocument = if (state.activeDocument?.location == intent.location) unlocked else state.activeDocument,
-                                )
-                            }
-                        }
-                    }
-                    is WorkbenchIntent.ConfirmRecoveredOverwrite -> saveDocument(
+                    is WorkbenchIntent.RestoreDraft -> recovery.restore(intent.location)
+                    is WorkbenchIntent.DiscardDraft -> recovery.keepDiskVersion(intent.location)
+                    is WorkbenchIntent.ConfirmRecoveredOverwrite -> documents.save(
                         intent.location,
                         allowRecoveredOverwrite = true,
                     )
-                    is WorkbenchIntent.SelectDocument -> selectDocument(intent.location)
-                    is WorkbenchIntent.ReorderDocument -> reorderDocument(intent.movingLocation, intent.targetLocation)
-                    is WorkbenchIntent.CloseDocument -> closeDocument(intent.location, intent.saveChanges)
-                    is WorkbenchIntent.CloseOtherDocuments -> closeOtherDocuments(intent.keepLocation, intent.saveChanges)
-                    WorkbenchIntent.CloseSavedDocuments -> closeSavedDocuments()
+                    is WorkbenchIntent.SelectDocument -> documents.select(intent.location)
+                    is WorkbenchIntent.ReorderDocument -> documents.reorder(intent.movingLocation, intent.targetLocation)
+                    is WorkbenchIntent.CloseDocument -> documents.close(intent.location, intent.saveChanges)
+                    is WorkbenchIntent.CloseOtherDocuments -> documents.closeOthers(intent.keepLocation, intent.saveChanges)
+                    WorkbenchIntent.CloseSavedDocuments -> documents.closeSaved()
                     WorkbenchIntent.InitializeGit -> initializeGit()
-                    is WorkbenchIntent.ToggleFolder -> toggleFolder(intent.path)
+                    is WorkbenchIntent.ToggleFolder -> activeRootLocation?.let { tree.toggle(it, intent.path) }
                     is WorkbenchIntent.StageFile -> stageFile(intent.path)
                     is WorkbenchIntent.UnstageFile -> unstageFile(intent.path)
                     WorkbenchIntent.StageAllFiles -> stageAllFiles()
@@ -552,18 +546,16 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                 GitWorkspaceSnapshot(repository = null, changes = emptyList())
             }
             val closingDocuments = workbench.current.openDocuments
-                .filter { it.dirty || it.location !in unresolvedRecoveryLocations }
+                .filter { it.dirty || !recovery.isUnresolved(it.location) }
                 .map { it.location }
             languageProcesses.stopAll()
             activeRootLocation = root.location
-            childrenByParent.clear()
-            childrenByParent[root.location] = children
-            expandedLocations.clear()
+            tree.reset(root.location, children)
             if (persist) library.remember(root)
             val recents = library.recentWorkspaces()
             workbench.update { snapshot -> snapshot.copy(
                 workspaces = recents,
-                files = decorateFiles(projectVisibleFiles(root.location, childrenByParent, expandedLocations), gitState),
+                files = tree.rows(root.location, gitState),
                 gitChanges = gitState.changes,
                 gitRepository = gitState.repository,
                 localGitAuthorName = null,
@@ -582,17 +574,8 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                 fileIndexTruncated = false,
                 contentSearch = ContentSearchState.Empty,
             ) }
-            documentSources.clear()
-            savedDocumentTexts.clear()
-            recoveredExternalChanges.clear()
-            unresolvedRecoveryLocations.clear()
-            draftMutex.withLock {
-                closingDocuments.forEach { oldLocation ->
-                    draftStore.delete(oldLocation)
-                    lastDraftText.remove(oldLocation)
-                }
-                forgetRecoverableDrafts(closingDocuments)
-            }
+            documents.clear()
+            recovery.workspaceClosing(closingDocuments)
             indexedWorkspace = null
             if (openTerminal && runtimeLayout.isInstalled) {
                 runCatching { terminals.open(root.location, reuseExisting = true) }
@@ -615,7 +598,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     private suspend fun resolveWorkspaceSwitch(intent: WorkbenchIntent.ResolveWorkspaceSwitch) {
         if (intent.saveChanges) {
             val dirty = workbench.current.openDocuments.filter { it.dirty }
-            for (document in dirty) if (!saveDocument(document.location)) return
+            for (document in dirty) if (!documents.save(document.location)) return
         }
         openWorkspace(intent.path, persist = true, openTerminal = intent.openTerminal, dirtyChoiceResolved = true)
     }
@@ -1067,415 +1050,6 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         return index to truncated
     }
 
-    private suspend fun openDocument(location: String, lineNumber: Int? = null, column: Int? = null) {
-        val existing = workbench.current.openDocuments.firstOrNull { it.location == location }
-        if (existing != null) {
-            selectDocument(location)
-            activeRootLocation?.let { library.recordRecentDocument(it, location) }
-            workbench.emit(WorkbenchEffect.DocumentOpened(location, lineNumber, column))
-            return
-        }
-        val root = activeRootLocation
-        if (root == null || !runCatching {
-                File(location).canonicalFile.toPath().startsWith(File(root).canonicalFile.toPath())
-            }.getOrDefault(false)) {
-            workbench.message("The selected file is outside the active workspace")
-            return
-        }
-        runCatching {
-            val document = source.readDocument(location)
-            documentSources[document.location] = document
-            savedDocumentTexts[document.location] = document.text
-            val opened = OpenDocument(
-                name = document.name,
-                location = document.location,
-                text = document.text,
-                encoding = document.encoding,
-                lineEnding = document.lineEnding,
-                dirty = false,
-                readOnly = document.readOnly,
-            )
-            workbench.update { snapshot -> snapshot.copy(
-                openDocuments = snapshot.openDocuments + opened,
-                activeDocument = opened,
-            ) }
-            activeRootLocation?.let { library.recordRecentDocument(it, document.location) }
-            workbench.emit(WorkbenchEffect.DocumentOpened(location, lineNumber, column))
-            draftMutex.withLock { draftStore.read(document.location) }?.let { draft ->
-                if (draft.text == document.text) {
-                    discardDraft(document.location)
-                } else {
-                    unresolvedRecoveryLocations += document.location
-                    workbench.update { state ->
-                        val locked = state.openDocuments.firstOrNull { it.location == document.location }
-                            ?.copy(readOnly = true) ?: return@update state
-                        state.copy(
-                            openDocuments = state.openDocuments.map { if (it.location == document.location) locked else it },
-                            activeDocument = if (state.activeDocument?.location == document.location) locked else state.activeDocument,
-                        )
-                    }
-                    workbench.emit(WorkbenchEffect.ConfirmDraftRecovery(
-                        location = document.location,
-                        name = document.name,
-                        sourceChanged = draft.sourceFingerprint != document.fingerprint,
-                    ))
-                }
-            }
-        }.onFailure { error ->
-            workbench.report("documents", "Unable to open document", error)
-        }
-    }
-
-    private suspend fun createFile(intent: WorkbenchIntent.CreateFile) {
-        val root = activeRootLocation ?: run {
-            reportWorkspaceItemFailure(intent.requestId, "Open a workspace before creating a file")
-            return
-        }
-        if (intent.expectedWorkspace != null && intent.expectedWorkspace != root) {
-            reportWorkspaceItemFailure(intent.requestId, "The active workspace changed. Choose the destination again")
-            return
-        }
-        val name = intent.name.trim()
-        WorkspaceNameRules.fileValidationError(name)?.let { error ->
-            reportWorkspaceItemFailure(intent.requestId, error)
-            return
-        }
-        val parent = intent.parentLocation ?: root
-        if (!isWorkspaceCreationParent(root, parent)) {
-            reportWorkspaceItemFailure(intent.requestId, "Choose a folder inside the active workspace")
-            return
-        }
-        runCatching { source.createFile(parent, name) }.onSuccess { location ->
-            refreshCreatedWorkspaceItem(root, parent, "File", updateIndex = true)
-            if (intent.requestId != null) workbench.emit(WorkbenchEffect.WorkspaceItemCreated(intent.requestId, location))
-            openDocument(location)
-        }.onFailure { error -> reportWorkspaceItemFailure(intent.requestId, workbench.failureText("workspace", "Unable to create file", error)) }
-    }
-
-    private suspend fun createWorkspaceFolder(intent: WorkbenchIntent.CreateWorkspaceFolder) {
-        val root = activeRootLocation
-        if (root == null || root != intent.expectedWorkspace) {
-            reportWorkspaceItemFailure(intent.requestId, "The active workspace changed. Choose the destination again")
-            return
-        }
-        val name = intent.name.trim()
-        WorkspaceNameRules.workspaceFolderValidationError(name)?.let { error ->
-            reportWorkspaceItemFailure(intent.requestId, error)
-            return
-        }
-        if (!isWorkspaceCreationParent(root, intent.parentLocation)) {
-            reportWorkspaceItemFailure(intent.requestId, "Choose a folder inside the active workspace")
-            return
-        }
-        runCatching { source.createDirectory(intent.parentLocation, name) }.onSuccess { location ->
-            refreshCreatedWorkspaceItem(root, intent.parentLocation, "Folder", updateIndex = false)
-            workbench.emit(WorkbenchEffect.WorkspaceItemCreated(intent.requestId, location))
-        }.onFailure { error -> reportWorkspaceItemFailure(intent.requestId, workbench.failureText("workspace", "Unable to create folder", error)) }
-    }
-
-    private fun isWorkspaceCreationParent(root: String, parent: String): Boolean = runCatching {
-        val rootPath = File(root).canonicalFile.toPath()
-        val parentPath = File(parent).canonicalFile.toPath()
-        parentPath.startsWith(rootPath) && !rootPath.relativize(parentPath).any { it.toString() == ".git" }
-    }.getOrDefault(false)
-
-    private suspend fun refreshCreatedWorkspaceItem(root: String, parent: String, kind: String, updateIndex: Boolean) {
-        runCatching {
-            childrenByParent[parent] = source.listChildren(parent)
-            if (parent != root) expandedLocations += parent
-            refreshWorkspaceState(root)
-            if (updateIndex) {
-                indexedWorkspace = null
-                ensureFileIndex(root)
-            }
-        }.onFailure { error ->
-            workbench.report("workspace", "$kind created, but the workspace could not refresh", error)
-        }
-    }
-
-    private suspend fun reportWorkspaceItemFailure(requestId: String?, message: String) {
-        if (requestId == null) workbench.message(message)
-        else workbench.emit(WorkbenchEffect.WorkspaceItemCreationFailed(requestId, message))
-    }
-
-
-    private fun updateDocumentText(intent: WorkbenchIntent.UpdateDocumentText) {
-        workbench.update { state ->
-            val document = state.openDocuments.firstOrNull { it.location == intent.location }
-                ?: return@update state
-            if (document.readOnly) return@update state
-            val changed = document.copy(
-                text = intent.text,
-                dirty = intent.text != savedDocumentTexts[intent.location],
-            )
-            state.copy(
-                openDocuments = state.openDocuments.map { if (it.location == intent.location) changed else it },
-                activeDocument = if (state.activeDocument?.location == intent.location) changed else state.activeDocument,
-            )
-        }
-        queueDraftSync(intent.location)
-    }
-
-    private fun queueDraftSync(location: String) {
-        scope.launch {
-            runCatching {
-                draftMutex.withLock {
-                    val document = workbench.current.openDocuments.firstOrNull { it.location == location }
-                        ?: return@withLock
-                    val sourceDocument = documentSources[location] ?: return@withLock
-                    if (document.dirty) {
-                        if (lastDraftText[location] != document.text) {
-                            draftStore.write(location, document.name, document.text, sourceDocument.fingerprint)
-                            lastDraftText[location] = document.text
-                        }
-                    } else {
-                        draftStore.delete(location)
-                        lastDraftText.remove(location)
-                    }
-                }
-            }.onFailure { error ->
-                workbench.report("documents", "Unable to keep a recovery draft", error)
-            }
-        }
-    }
-
-    private suspend fun restoreDraft(location: String) {
-        val draft = draftMutex.withLock { draftStore.read(location) } ?: return
-        val document = workbench.current.openDocuments.firstOrNull { it.location == location } ?: return
-        if (document.dirty) {
-            workbench.message("This document has newer edits. Save or discard them before restoring a draft")
-            return
-        }
-        val sourceDocument = documentSources[location] ?: return
-        if (draft.text == document.text) {
-            discardDraft(location)
-            return
-        }
-        if (draft.sourceFingerprint != sourceDocument.fingerprint) recoveredExternalChanges += location
-        unresolvedRecoveryLocations.remove(location)
-        // Back in the editor, the draft is this session's live work again.
-        draftMutex.withLock { forgetRecoverableDrafts(listOf(location)) }
-        workbench.update { state ->
-            val restored = state.openDocuments.firstOrNull { it.location == location }
-                ?.copy(text = draft.text, dirty = true, readOnly = sourceDocument.readOnly) ?: return@update state
-            state.copy(
-                openDocuments = state.openDocuments.map { if (it.location == location) restored else it },
-                activeDocument = if (state.activeDocument?.location == location) restored else state.activeDocument,
-            )
-        }
-        queueDraftSync(location)
-    }
-
-    private suspend fun discardDraft(location: String) {
-        draftMutex.withLock {
-            draftStore.delete(location)
-            lastDraftText.remove(location)
-            forgetRecoverableDrafts(listOf(location))
-        }
-        unresolvedRecoveryLocations.remove(location)
-    }
-
-    /**
-     * Drafts present at start are the work the last session never saved — what
-     * Document Recovery offers. Drafts written from now on are this session's
-     * live work, so the list only shrinks. Held under [draftMutex] with every
-     * change to it, so a draft discarded meanwhile cannot come back.
-     */
-    private suspend fun loadRecoverableDrafts() {
-        runCatching {
-            draftMutex.withLock {
-                val drafts = draftStore.list().map { draft ->
-                    RecoverableDraft(draft.location, draft.name, draft.sizeBytes, draft.savedAtEpochMillis)
-                }
-                workbench.update { it.copy(recoverableDrafts = drafts) }
-            }
-        }.onFailure { error ->
-            workbench.report("documents", "Unable to read the recovery drafts", error)
-        }
-    }
-
-    /** Callers hold [draftMutex]. */
-    private fun forgetRecoverableDrafts(locations: Collection<String>) {
-        if (workbench.current.recoverableDrafts.none { it.location in locations }) return
-        workbench.update { state ->
-            state.copy(recoverableDrafts = state.recoverableDrafts.filterNot { it.location in locations })
-        }
-    }
-
-    private suspend fun saveDocument(
-        location: String,
-        automatic: Boolean = false,
-        expectedText: String? = null,
-        expectedWorkspace: String? = null,
-        allowRecoveredOverwrite: Boolean = false,
-    ): Boolean {
-        val sourceDocument = documentSources[location]
-        val openDocument = workbench.current.openDocuments.firstOrNull { it.location == location }
-        if (automatic && (expectedWorkspace != activeRootLocation ||
-                !workbench.current.isCurrentAutoSaveRequest(location, expectedWorkspace, expectedText))) return false
-        if (sourceDocument == null || openDocument == null) {
-            workbench.message("The document is no longer open")
-            return false
-        }
-        if (!openDocument.dirty && location in unresolvedRecoveryLocations) {
-            draftMutex.withLock { draftStore.read(location) }?.let { draft ->
-                workbench.emit(WorkbenchEffect.ConfirmDraftRecovery(
-                    location,
-                    openDocument.name,
-                    draft.sourceFingerprint != sourceDocument.fingerprint,
-                ))
-                return false
-            }
-            unresolvedRecoveryLocations.remove(location)
-        }
-        if (location in recoveredExternalChanges && !allowRecoveredOverwrite) {
-            if (!automatic) workbench.emit(WorkbenchEffect.ConfirmRecoveredOverwrite(location, openDocument.name))
-            return false
-        }
-        val textBeingSaved = openDocument.text
-        val saved = runCatching {
-            documentSources[location] = source.writeDocument(sourceDocument, textBeingSaved)
-            recoveredExternalChanges.remove(location)
-            savedDocumentTexts[location] = textBeingSaved
-            workbench.update { state ->
-                val current = state.openDocuments.firstOrNull { it.location == location } ?: return@update state
-                val saved = current.copy(dirty = current.text != textBeingSaved)
-                state.copy(
-                    openDocuments = state.openDocuments.map { if (it.location == location) saved else it },
-                    activeDocument = if (state.activeDocument?.location == location) saved else state.activeDocument,
-                )
-            }
-            // Saving changes the worktree, so Source Control and the Explorer
-            // decorations are stale the moment the write lands.
-            scheduleGitRefresh()
-            true
-        }.onFailure { error ->
-            workbench.report("documents", "Unable to save document", error)
-        }.getOrDefault(false)
-        if (!saved) return false
-        runCatching {
-            draftMutex.withLock {
-                val latest = workbench.current.openDocuments.firstOrNull { it.location == location }
-                if (latest?.dirty == true) {
-                    val refreshedSource = documentSources[location]
-                    if (refreshedSource != null) {
-                        draftStore.write(location, latest.name, latest.text, refreshedSource.fingerprint)
-                        lastDraftText[location] = latest.text
-                    }
-                } else {
-                    draftStore.delete(location)
-                    lastDraftText.remove(location)
-                }
-            }
-        }.onFailure { error ->
-            workbench.report("documents", "File saved, but recovery cache could not update", error)
-        }
-        workbench.emit(WorkbenchEffect.DocumentSaved(location, automatic))
-        return true
-    }
-
-    private fun selectDocument(location: String) {
-        workbench.update { state ->
-            val selected = state.openDocuments.firstOrNull { it.location == location }
-            if (selected == null) state else state.copy(activeDocument = selected)
-        }
-    }
-
-    private fun reorderDocument(movingLocation: String, targetLocation: String) {
-        workbench.update { state ->
-            state.copy(openDocuments = reorderDocuments(state.openDocuments, movingLocation, targetLocation))
-        }
-    }
-
-    private suspend fun closeDocument(location: String, saveChanges: Boolean?) {
-        val document = workbench.current.openDocuments.firstOrNull { it.location == location } ?: return
-        if (document.dirty && saveChanges == null) {
-            workbench.message("Choose Save, Discard or Cancel before closing ${document.name}")
-            return
-        }
-        if (document.dirty && saveChanges == true && !saveDocument(location)) return
-        workbench.update { state ->
-            val nextLocation = selectedAfterClose(state.openDocuments, state.activeDocument?.location, location)
-            val remaining = state.openDocuments.filterNot { it.location == location }
-            state.copy(openDocuments = remaining, activeDocument = remaining.firstOrNull { it.location == nextLocation })
-        }
-        documentSources.remove(location)
-        savedDocumentTexts.remove(location)
-        recoveredExternalChanges.remove(location)
-        if (location in unresolvedRecoveryLocations && !document.dirty) {
-            unresolvedRecoveryLocations.remove(location)
-        } else discardDraft(location)
-    }
-
-    private suspend fun closeOtherDocuments(keepLocation: String, saveChanges: Boolean?) {
-        val others = workbench.current.openDocuments.filterNot { it.location == keepLocation }
-        if (others.any { it.dirty } && saveChanges == null) {
-            workbench.message("Choose Save, Discard or Cancel before closing dirty tabs")
-            return
-        }
-        if (saveChanges == true) {
-            for (document in others.filter { it.dirty }) if (!saveDocument(document.location)) return
-        }
-        others.forEach { document ->
-            documentSources.remove(document.location)
-            savedDocumentTexts.remove(document.location)
-            recoveredExternalChanges.remove(document.location)
-        }
-        draftMutex.withLock {
-            others.forEach { document ->
-                if (document.location !in unresolvedRecoveryLocations || document.dirty) {
-                    draftStore.delete(document.location)
-                    lastDraftText.remove(document.location)
-                }
-            }
-        }
-        others.forEach { unresolvedRecoveryLocations.remove(it.location) }
-        workbench.update { state ->
-            val kept = state.openDocuments.firstOrNull { it.location == keepLocation }
-            state.copy(openDocuments = listOfNotNull(kept), activeDocument = kept)
-        }
-    }
-
-    private suspend fun closeSavedDocuments() {
-        val removed = workbench.current.openDocuments.filterNot { it.dirty }
-        removed.forEach { document ->
-            documentSources.remove(document.location)
-            savedDocumentTexts.remove(document.location)
-            recoveredExternalChanges.remove(document.location)
-        }
-        draftMutex.withLock {
-            removed.forEach { document ->
-                if (document.location !in unresolvedRecoveryLocations) {
-                    draftStore.delete(document.location)
-                    lastDraftText.remove(document.location)
-                }
-            }
-        }
-        removed.forEach { unresolvedRecoveryLocations.remove(it.location) }
-        workbench.update { state ->
-            val remaining = state.openDocuments.filter { it.dirty }
-            state.copy(openDocuments = remaining, activeDocument = remaining.firstOrNull { it.location == state.activeDocument?.location } ?: remaining.firstOrNull())
-        }
-    }
-
-    private suspend fun toggleFolder(location: String) {
-        val root = activeRootLocation ?: return
-        if (!expandedLocations.remove(location)) {
-            runCatching {
-                if (location !in childrenByParent) childrenByParent[location] = source.listChildren(location)
-                expandedLocations += location
-            }.onFailure { error ->
-                workbench.report("workspace", "Unable to read folder", error)
-            }
-        }
-        workbench.update { snapshot -> snapshot.copy(
-            files = decorateFiles(
-                projectVisibleFiles(root, childrenByParent, expandedLocations),
-                GitWorkspaceSnapshot(workbench.current.gitRepository, workbench.current.gitChanges),
-            ),
-        ) }
-    }
-
     private suspend fun refreshActiveWorkspace() {
         val root = activeRootLocation
         if (root == null) {
@@ -1483,10 +1057,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             return
         }
         runCatching {
-            childrenByParent[root] = source.listChildren(root)
-            expandedLocations.toList().forEach { location ->
-                childrenByParent[location] = source.listChildren(location)
-            }
+            tree.reload(root)
             refreshWorkspaceState(root)
             ensureFileIndex(root)
         }.onFailure { error ->
@@ -1521,7 +1092,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             GitWorkspaceSnapshot(repository = null, changes = emptyList())
         }
         val recents = library.recentWorkspaces()
-        val files = decorateFiles(projectVisibleFiles(root, childrenByParent, expandedLocations), gitState)
+        val files = tree.rows(root, gitState)
         workbench.update {
             it.copy(
                 workspaces = recents,
@@ -1535,14 +1106,6 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             )
         }
     }
-
-    private fun decorateFiles(files: List<FileEntry>, gitState: GitWorkspaceSnapshot) =
-        gitState.repository?.let { repository ->
-            val statuses = gitState.changes.associate { change ->
-                File(repository.workTreePath, change.path).canonicalPath to change.status
-            }
-            GitTreeStatus.decorate(files, statuses)
-        } ?: files
 
     private companion object {
         /** Long enough to absorb a burst of saves, short enough to feel immediate. */

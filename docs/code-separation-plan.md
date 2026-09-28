@@ -367,3 +367,16 @@ scopes — "file(s)", "branch(es)", inline if/else, or never ("1 files" in the f
 seen on the phone). `domain/countOf(count, one, many)` now says it everywhere: folder browser,
 workspace switch and close-others dialogs, lost sessions, diff summary, find results, conflict
 gate, commit screen, conflict file, runtime packages. 1 test. Gate: 255 tests; lint 0 / 18.
+
+**S3 move — tree, documents, recovery, new items (2026-09-28), done.** Out of the gateway:
+`WorkspaceTree` (65: folders read, expanded set, rows with Git status), `DocumentSessionCoordinator`
+(202: open, edit, save, select, reorder, close — and the read version a save must still find),
+`DocumentRecoveryCoordinator` (246: drafts under their own lock, the unanswered-recovery lock,
+the recovered-over-changes guard, the recoverable list), `WorkspaceItemsCoordinator` (91: new
+file / folder). The two close paths that kept a draft by slightly different rules turned out to
+be one rule (keep it while its recovery question is unanswered and there are no new edits), so
+it is written once. The workspace switch in the gateway now calls `tree.reset`,
+`documents.clear` and `recovery.workspaceClosing`. Gateway 1551 → 1114. Behaviour unchanged; on
+the phone: a workspace opens with its tree, a folder expands, a file opens and closes, recents
+say "just now", no draft is written for an unedited file. Gate: 255 tests; lint 0 / 18; UI guard
+passes.
