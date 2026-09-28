@@ -207,7 +207,7 @@ fun IcodeApp(
                     is WorkbenchEffect.WorkspaceOpened -> navigation.actions.navigate(Route.WorkspaceExplorer)
                     is WorkbenchEffect.WorkspaceTerminalOpened -> navigation.actions.navigate(Route.TerminalExpanded)
                     // The creation dialog consumes these request-scoped results.
-                    is WorkbenchEffect.WorkspaceItemCreated, is WorkbenchEffect.WorkspaceItemCreationFailed -> Unit
+                    is WorkbenchEffect.WorkspaceItemChanged, is WorkbenchEffect.WorkspaceItemFailed -> Unit
                     is WorkbenchEffect.ConfirmWorkspaceSwitch -> pendingWorkspaceSwitch = effect
                     is WorkbenchEffect.ConfirmDraftRecovery -> pendingDraftRecoveries =
                         pendingDraftRecoveries.filterNot { it.location == effect.location } + effect

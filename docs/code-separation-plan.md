@@ -453,3 +453,28 @@ interaction: a file created from outside appeared in the Explorer within 3 s, an
 file changed from outside showed its new text within 3 s. Gate: 275 tests; lint 0 / 18; UI guard
 passes. The scratch workspace stays on the phone for the Explorer file-operation checks; it is
 removed when S3 is done.
+
+**S3 gap plan — Explorer file operations (2026-09-28).** Todo #2: rename, move, copy, delete, with
+guarded paths, confirmation, and open tabs, recents and drafts following the change. As VS Code:
+long-press a row → the Explorer's action menu (the one "+" already uses) with Rename, Cut, Copy,
+Paste, Delete; Move is Cut then Paste, so no folder picker is needed. Rename uses the create
+dialog's form; Delete the standard destructive confirmation ("cannot be undone"; a folder says
+"and everything in it"). Guards: inside the open workspace, never the root, never `.git` or in it,
+no folder into itself, no overwrite (a copy that would collide becomes "name copy"). A file with
+unsaved edits or an unanswered draft question blocks the operation ("save or close it first");
+clean open tabs follow a rename or move, are closed by a delete; recents follow or are dropped.
+Found meanwhile: an expanded folder deleted outside iCode made every refresh fail — the tree now
+drops folders that are gone.
+
+**S3 gap — Explorer file operations (2026-09-28), done.** Long-press a row → Rename, Cut, Copy,
+Paste, Delete (Paste also in "+" once something is cut or copied; per workspace). `WorkspaceFiles`
+(8 tests on real folders) does the work with the plan's guards; `WorkspaceItemsCoordinator` blocks a
+change that would strand unsaved edits or an unanswered draft question, then lets open tabs, open
+folders and recent files follow a rename or move, closes the tabs a delete removed, and refreshes
+tree, Git and index. The create effects became `WorkspaceItemChanged` / `WorkspaceItemFailed`, so
+rename answers its dialog the same way. The tree no longer fails a refresh when an expanded folder
+is deleted outside iCode, and an empty workspace now says so. On the phone, scratch workspace: a
+file open in a tab renamed (one tab, new name, text kept); a folder created; Cut + Paste moved the
+file into it; Copy + Paste beside itself made "live-added copy.txt"; deleting the folder asked
+first ("…and everything in it… cannot be undone") and closed the moved file's tab. Gate: 283
+tests; lint 0 / 18; UI guard passes.

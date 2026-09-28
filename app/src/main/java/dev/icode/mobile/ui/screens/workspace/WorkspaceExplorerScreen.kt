@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountTree
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Code
+import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Folder
@@ -71,11 +72,29 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
     var selectedPath by rememberSaveable(state.activePath) { mutableStateOf(state.initialExplorerSelection.orEmpty()) }
     var createParent by rememberSaveable { mutableStateOf<String?>(null) }
     var createType by rememberSaveable { mutableStateOf<WorkspaceItemType?>(null) }
+    var menuFor by remember { mutableStateOf<String?>(null) }
+    var renaming by rememberSaveable { mutableStateOf<String?>(null) }
+    var deleting by rememberSaveable { mutableStateOf<String?>(null) }
+    // Cut or copied, per workspace: a path from another workspace cannot be pasted here.
+    var clipPath by rememberSaveable(state.activeWorkspaceLocation) { mutableStateOf<String?>(null) }
+    var clipCut by rememberSaveable(state.activeWorkspaceLocation) { mutableStateOf(false) }
+    val clipboard = clipPath?.let { ExplorerClipboard(it, clipCut) }
+    val pasteInto = { target: String? ->
+        if (clipboard != null && target != null) {
+            val left = paste(clipboard, target, gateway::dispatch)
+            clipPath = left?.path
+        }
+    }
     Column(Modifier.fillMaxSize()) {
-        WorkspaceHeader(onNewItem = { type ->
-            createParent = creationParentLocation(state.activeWorkspaceLocation, selectedPath, state.files)
-            createType = type
-        })
+        WorkspaceHeader(
+            onNewItem = { type ->
+                createParent = creationParentLocation(state.activeWorkspaceLocation, selectedPath, state.files)
+                createType = type
+            },
+            onPaste = if (clipboard == null) null else {
+                { pasteInto(creationParentLocation(state.activeWorkspaceLocation, selectedPath, state.files)) }
+            },
+        )
         Row(Modifier.weight(1f).background(IcodeColors.Surface)) {
             ActivityRail(
                 entries = listOf(
@@ -113,19 +132,52 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
             ) {
                 SectionLabel("Workspace Explorer", Modifier.padding(IcodeSpacing.Space3))
                 LazyColumn(Modifier.weight(1f)) {
+                    if (state.files.isEmpty() && state.activeWorkspaceLocation != null) {
+                        item {
+                            Text(
+                                "This folder is empty. Create a file or folder with +.",
+                                modifier = Modifier.padding(IcodeSpacing.Space3),
+                                style = IcodeType.Caption,
+                            )
+                        }
+                    }
                     items(state.files, key = { it.path }) { entry ->
-                        ExplorerRow(
-                            entry = entry,
-                            selected = entry.path == selectedPath,
-                            onClick = {
-                                selectedPath = entry.path
-                                if (entry.kind == FileKind.Folder) {
-                                    gateway.dispatch(WorkbenchIntent.ToggleFolder(entry.path))
-                                } else {
-                                    gateway.dispatch(WorkbenchIntent.OpenFile(entry.path))
-                                }
-                            },
-                        )
+                        // The menu anchors to its row, where the long press was.
+                        Box {
+                            ExplorerRow(
+                                entry = entry,
+                                selected = entry.path == selectedPath,
+                                onClick = {
+                                    selectedPath = entry.path
+                                    if (entry.kind == FileKind.Folder) {
+                                        gateway.dispatch(WorkbenchIntent.ToggleFolder(entry.path))
+                                    } else {
+                                        gateway.dispatch(WorkbenchIntent.OpenFile(entry.path))
+                                    }
+                                },
+                                onLongClick = {
+                                    selectedPath = entry.path
+                                    menuFor = entry.path
+                                },
+                            )
+                            ExplorerItemMenu(
+                                entry = entry,
+                                expanded = menuFor == entry.path,
+                                clipboard = clipboard,
+                                onDismiss = { menuFor = null },
+                                onRename = { menuFor = null; renaming = entry.path },
+                                onClipboard = { clip ->
+                                    menuFor = null
+                                    clipPath = clip.path
+                                    clipCut = clip.cut
+                                },
+                                onPaste = {
+                                    menuFor = null
+                                    pasteInto(pasteTarget(state.activeWorkspaceLocation, entry, state.files))
+                                },
+                                onDelete = { menuFor = null; deleting = entry.path },
+                            )
+                        }
                     }
                 }
             }
@@ -134,11 +186,17 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
     createType?.let { type ->
         CreateWorkspaceItemDialog(type, createParent, onDismiss = { createType = null })
     }
+    state.files.firstOrNull { it.path == renaming }?.let { entry ->
+        RenameWorkspaceItemDialog(entry, onDismiss = { renaming = null })
+    }
+    state.files.firstOrNull { it.path == deleting }?.let { entry ->
+        DeleteWorkspaceItemDialog(entry, onDismiss = { deleting = null })
+    }
 }
 
 /** Workspace header used by the explorer family. */
 @Composable
-private fun WorkspaceHeader(onNewItem: (WorkspaceItemType) -> Unit) {
+private fun WorkspaceHeader(onNewItem: (WorkspaceItemType) -> Unit, onPaste: (() -> Unit)?) {
     val state = LocalWorkbenchSnapshot.current
     var menuExpanded by remember { mutableStateOf(false) }
     IcodeTopBar(
@@ -152,9 +210,10 @@ private fun WorkspaceHeader(onNewItem: (WorkspaceItemType) -> Unit) {
                 IcodeActionMenu(
                     expanded = menuExpanded,
                     onDismiss = { menuExpanded = false },
-                    actions = listOf(
+                    actions = listOfNotNull(
                         IcodeMenuAction("New file", Icons.Outlined.Description, { onNewItem(WorkspaceItemType.File) }),
                         IcodeMenuAction("New folder", Icons.Outlined.CreateNewFolder, { onNewItem(WorkspaceItemType.Folder) }),
+                        onPaste?.let { IcodeMenuAction("Paste", Icons.Outlined.ContentPaste, { menuExpanded = false; it() }) },
                     ),
                 )
             }
@@ -172,7 +231,7 @@ internal fun creationParentLocation(root: String?, selectedPath: String, files: 
 }
 
 @Composable
-private fun ExplorerRow(entry: FileEntry, selected: Boolean, onClick: () -> Unit) {
+private fun ExplorerRow(entry: FileEntry, selected: Boolean, onClick: () -> Unit, onLongClick: () -> Unit) {
     val icon = when (entry.kind) {
         FileKind.Folder -> if (entry.expanded) Icons.Outlined.FolderOpen else Icons.Outlined.Folder
         FileKind.TypeScript -> Icons.Outlined.Code
@@ -192,6 +251,7 @@ private fun ExplorerRow(entry: FileEntry, selected: Boolean, onClick: () -> Unit
         rowShape = RectangleShape,
         indent = IcodeSpacing.IndentStep * entry.depth,
         onClick = onClick,
+        onLongClick = onLongClick,
         leading = {
             Row(
                 verticalAlignment = Alignment.CenterVertically,

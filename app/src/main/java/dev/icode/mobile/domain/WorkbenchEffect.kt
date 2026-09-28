@@ -9,8 +9,9 @@ sealed interface WorkbenchEffect {
 
     data class WorkspaceOpened(val location: String) : WorkbenchEffect
     data class WorkspaceTerminalOpened(val location: String) : WorkbenchEffect
-    data class WorkspaceItemCreated(val requestId: String, val location: String) : WorkbenchEffect
-    data class WorkspaceItemCreationFailed(val requestId: String, val message: String) : WorkbenchEffect
+    /** The answer to the dialog that asked, by request id: created or renamed, and where it is now. */
+    data class WorkspaceItemChanged(val requestId: String, val location: String) : WorkbenchEffect
+    data class WorkspaceItemFailed(val requestId: String, val message: String) : WorkbenchEffect
     data class ConfirmWorkspaceSwitch(val location: String, val openTerminal: Boolean, val dirtyCount: Int) : WorkbenchEffect
     data object GitInitialized : WorkbenchEffect
     data object GitCommitted : WorkbenchEffect

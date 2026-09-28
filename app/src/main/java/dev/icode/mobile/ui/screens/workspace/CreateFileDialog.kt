@@ -46,8 +46,8 @@ internal fun CreateWorkspaceItemDialog(type: WorkspaceItemType, parentLocation: 
         gateway.effects.collect { effect ->
             val requestId = pendingRequestId.value
             when {
-                effect is WorkbenchEffect.WorkspaceItemCreated && effect.requestId == requestId -> onDismiss()
-                effect is WorkbenchEffect.WorkspaceItemCreationFailed && effect.requestId == requestId -> {
+                effect is WorkbenchEffect.WorkspaceItemChanged && effect.requestId == requestId -> onDismiss()
+                effect is WorkbenchEffect.WorkspaceItemFailed && effect.requestId == requestId -> {
                     creationError = effect.message
                     pendingRequestId.value = null
                 }
