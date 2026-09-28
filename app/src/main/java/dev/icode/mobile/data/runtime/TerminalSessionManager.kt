@@ -52,7 +52,7 @@ internal data class TerminalEnding(val id: String, val title: String, val exitCo
 internal class TerminalSessionManager private constructor(
     private val context: Context,
     private val layout: RuntimeLayout,
-) {
+) : TerminalSessions {
     private val entries = linkedMapOf<String, Entry>()
     private val sessionNames = TerminalSessionNames()
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -64,10 +64,10 @@ internal class TerminalSessionManager private constructor(
         private set
 
     private val mutableSnapshot = MutableStateFlow(TerminalSnapshot())
-    val snapshot: StateFlow<TerminalSnapshot> = mutableSnapshot.asStateFlow()
+    override val snapshot: StateFlow<TerminalSnapshot> = mutableSnapshot.asStateFlow()
 
     private val mutableEndings = MutableSharedFlow<TerminalEnding>(extraBufferCapacity = ENDINGS_BUFFER)
-    val endings: SharedFlow<TerminalEnding> = mutableEndings.asSharedFlow()
+    override val endings: SharedFlow<TerminalEnding> = mutableEndings.asSharedFlow()
 
     /** What the running sessions are, kept for the next process should Android end this one. */
     val ledger = TerminalSessionLedger(context)
@@ -78,7 +78,7 @@ internal class TerminalSessionManager private constructor(
 
     private val mutableCommandsFinished = MutableSharedFlow<String>(extraBufferCapacity = ENDINGS_BUFFER)
     /** Sessions whose foreground command just ended: what it ran may have changed the workspace. */
-    val commandsFinished: SharedFlow<String> = mutableCommandsFinished.asSharedFlow()
+    override val commandsFinished: SharedFlow<String> = mutableCommandsFinished.asSharedFlow()
 
     /** Reported by the foreground service, which samples each session's program. */
     fun commandFinished(sessionId: String) {
@@ -102,7 +102,7 @@ internal class TerminalSessionManager private constructor(
      * Opens a session, or selects a running one for the same workspace when
      * [reuseExisting]. Returns null when the runtime is not installed.
      */
-    suspend fun open(workspaceHostPath: String?, reuseExisting: Boolean = false): String? {
+    override suspend fun open(workspaceHostPath: String?, reuseExisting: Boolean): String? {
         if (reuseExisting) {
             withContext(Dispatchers.Main.immediate) { selectRunning(workspaceHostPath) }?.let { return it }
         }
@@ -111,12 +111,12 @@ internal class TerminalSessionManager private constructor(
     }
 
     @MainThread
-    fun select(id: String) {
+    override fun select(id: String) {
         if (entries.containsKey(id)) publish(selectedId = id)
     }
 
     @MainThread
-    fun reorder(movingId: String, targetId: String) {
+    override fun reorder(movingId: String, targetId: String) {
         val original = entries.keys.toList()
         val reordered = reorderTerminalIds(original, movingId, targetId)
         if (reordered == original) return
@@ -127,7 +127,7 @@ internal class TerminalSessionManager private constructor(
     }
 
     @MainThread
-    fun applySettings(next: TerminalSettings) {
+    override fun applySettings(next: TerminalSettings) {
         val cursorChanged = next.cursorStyle != settings.cursorStyle
         settings = next
         if (cursorChanged) {
@@ -140,7 +140,7 @@ internal class TerminalSessionManager private constructor(
 
     /** Closes a tab the user dismissed, hanging up whatever still runs in it. */
     @MainThread
-    fun close(id: String) {
+    override fun close(id: String) {
         val entry = entries.remove(id) ?: return
         sessionNames.release(id)
         entry.session?.let(::hangUp)
@@ -153,7 +153,7 @@ internal class TerminalSessionManager private constructor(
 
     /** The workspace a session was opened in, or null when it has none or is gone. */
     @MainThread
-    fun workspaceOf(id: String): String? = entries[id]?.workspaceHostPath
+    override fun workspaceOf(id: String): String? = entries[id]?.workspaceHostPath
 
     /** The PRoot process a running session runs under, or null. */
     @MainThread
