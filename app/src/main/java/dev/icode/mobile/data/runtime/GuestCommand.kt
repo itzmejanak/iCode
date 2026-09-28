@@ -1,14 +1,17 @@
 package dev.icode.mobile.data.runtime
 
+import dev.icode.mobile.data.io.readAtMost
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
+import java.io.RandomAccessFile
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -19,10 +22,13 @@ internal fun shellQuote(value: String): String = "'" + value.replace("'", "'\\''
  * One non-interactive command in the guest, with bounded streaming output.
  *
  * The process bridge would mix stderr into stdout, so stderr goes to a private
- * guest `/tmp` file and is read afterwards. Cancelling the caller kills the
- * process; every process started here is reaped.
+ * guest `/tmp` file of its own and is read back, bounded. Cancelling the caller
+ * kills the process and every child it started; every process is reaped.
  */
 internal class GuestCommand(private val layout: RuntimeLayout) {
+    /** Output read whole; a command that printed more than its bound was stopped and throws instead. */
+    data class Captured(val exitCode: Int, val stdout: String, val stderr: String)
+
     data class Result(val exitCode: Int, val stderr: String, val stoppedEarly: Boolean) {
         /** The stderr line that explains a failure, bounded; null when there is none. */
         fun failureDetail(): String? {
@@ -67,14 +73,74 @@ internal class GuestCommand(private val layout: RuntimeLayout) {
         delimiter: Int,
         environment: Map<String, String> = emptyMap(),
         onRecord: (ByteArray) -> Boolean,
-    ): Result = withContext(Dispatchers.IO) {
+    ): Result {
         require(argv.isNotEmpty()) { "A guest command needs an executable" }
         require(delimiter in 0..255) { "Record delimiter must be one byte" }
+        return run(workspaceHostPath, argv.joinToString(" ", transform = ::shellQuote), stderrName, environment, null) { input ->
+            readRecords(input, delimiter, onRecord)
+        }
+    }
+
+    /**
+     * Runs [argv] and returns its whole output, refusing more than
+     * [maxStdoutBytes]. [onStderr] sees stderr as it grows — Git prints its
+     * progress there — and once more when the command has ended.
+     */
+    suspend fun capture(
+        workspaceHostPath: String?,
+        argv: List<String>,
+        stderrName: String,
+        environment: Map<String, String> = emptyMap(),
+        maxStdoutBytes: Int = MAX_CAPTURE_BYTES,
+        onStderr: ((String) -> Unit)? = null,
+    ): Captured {
+        require(argv.isNotEmpty()) { "A guest command needs an executable" }
+        val command = argv.joinToString(" ", transform = ::shellQuote)
+        return captureCommand(workspaceHostPath, command, stderrName, environment, maxStdoutBytes, onStderr)
+    }
+
+    /** [capture] for a constant multi-command [script]; the stderr of all its commands is collected together. */
+    suspend fun captureScript(
+        workspaceHostPath: String?,
+        script: String,
+        stderrName: String,
+        environment: Map<String, String> = emptyMap(),
+        maxStdoutBytes: Int = MAX_CAPTURE_BYTES,
+    ): Captured = captureCommand(workspaceHostPath, "{ $script\n}", stderrName, environment, maxStdoutBytes, null)
+
+    private suspend fun captureCommand(
+        workspaceHostPath: String?,
+        command: String,
+        stderrName: String,
+        environment: Map<String, String>,
+        maxStdoutBytes: Int,
+        onStderr: ((String) -> Unit)?,
+    ): Captured {
+        var stdout = ByteArray(0)
+        val result = run(workspaceHostPath, command, stderrName, environment, onStderr) { input ->
+            stdout = input.readAtMost(maxStdoutBytes, "The command printed more than ${maxStdoutBytes / (1024 * 1024)} MB and was stopped")
+            false
+        }
+        return Captured(result.exitCode, String(stdout, StandardCharsets.UTF_8), result.stderr)
+    }
+
+    /**
+     * Starts [command] with its stderr in a private guest `/tmp` file, hands
+     * stdout to [read], and always kills and reaps the process: on cancellation,
+     * on [read] stopping early (it returns true) and on [read] throwing.
+     */
+    private suspend fun run(
+        workspaceHostPath: String?,
+        command: String,
+        stderrName: String,
+        environment: Map<String, String>,
+        onStderr: ((String) -> Unit)?,
+        read: (InputStream) -> Boolean,
+    ): Result = withContext(Dispatchers.IO) {
         val temp = File(layout.rootfs, "tmp").apply { mkdirs() }
         val prefix = "icode-${stderrName.replace(Regex("[^A-Za-z0-9_.-]"), "-")}-"
         val stderrFile = File.createTempFile(prefix, ".err", temp)
-        val guestStderr = "/tmp/${stderrFile.name}"
-        val script = argv.joinToString(" ", transform = ::shellQuote) + " 2>" + shellQuote(guestStderr)
+        val script = command + " 2>" + shellQuote("/tmp/${stderrFile.name}")
         val process = RuntimeProcess.start(
             argv = layout.prootCommand(
                 guestCommand = listOf("/bin/sh", "-c", script),
@@ -98,16 +164,21 @@ internal class GuestCommand(private val layout: RuntimeLayout) {
                         if (!readingDone.get()) process.sendSignal(PosixSignal.KILL)
                     }
                 }
+                val tail = onStderr?.let { report -> launch { followStderr(stderrFile, report) } }
                 try {
-                    stopped = readRecords(process.output, delimiter, onRecord)
+                    stopped = read(process.output)
                 } finally {
                     readingDone.set(true)
                     watchdog.cancel()
+                    tail?.cancel()
                 }
             }
             if (stopped) process.sendSignal(PosixSignal.KILL)
             val exitCode = process.waitFor().also { reaped = true }
-            Result(exitCode, runCatching { stderrFile.readText() }.getOrDefault(""), stopped)
+            val stderr = readTail(stderrFile)
+            // The file is sampled, so its final state may never have been reported.
+            onStderr?.invoke(stderr)
+            Result(exitCode, stderr, stopped)
         } finally {
             if (!reaped) {
                 process.sendSignal(PosixSignal.KILL)
@@ -117,6 +188,30 @@ internal class GuestCommand(private val layout: RuntimeLayout) {
             stderrFile.delete()
         }
     }
+
+    /** Reports [file] whenever it has grown; a few samples a second match how often Git redraws. */
+    private suspend fun followStderr(file: File, report: (String) -> Unit) {
+        var reported = -1L
+        while (true) {
+            delay(STDERR_POLL_MILLIS)
+            val length = file.length()
+            if (length == reported) continue
+            reported = length
+            report(readTail(file))
+        }
+    }
+
+    /** The last [MAX_STDERR_BYTES] of [file]: the explanation and the latest progress are at the end. */
+    private fun readTail(file: File): String = runCatching {
+        RandomAccessFile(file, "r").use { handle ->
+            val length = handle.length()
+            val start = (length - MAX_STDERR_BYTES).coerceAtLeast(0L)
+            handle.seek(start)
+            val bytes = ByteArray((length - start).toInt())
+            handle.readFully(bytes)
+            String(bytes, StandardCharsets.UTF_8)
+        }
+    }.getOrDefault("")
 
     /** Returns true when the consumer stopped before EOF. */
     private fun readRecords(input: InputStream, delimiter: Int, onRecord: (ByteArray) -> Boolean): Boolean {
@@ -145,5 +240,8 @@ internal class GuestCommand(private val layout: RuntimeLayout) {
         const val BUFFER_BYTES = 8192
         const val MAX_RECORD_BYTES = 16 * 1024 * 1024
         const val MAX_ERROR_CHARS = 300
+        const val MAX_CAPTURE_BYTES = 8 * 1024 * 1024
+        const val MAX_STDERR_BYTES = 1024 * 1024
+        const val STDERR_POLL_MILLIS = 200L
     }
 }

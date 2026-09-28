@@ -32,23 +32,21 @@ class GitCommandLineTest {
     }
 
     @Test
-    fun `the script quotes every argument and redirects stderr`() {
-        val script = GitCommandLine.script(listOf("diff", "--", "my file.txt"))
-        assertTrue(script.contains("'diff'"))
-        assertTrue(script.contains("'my file.txt'"))
-        assertTrue(script.endsWith("2>'${GitCommandLine.GUEST_STDERR_PATH}'"))
+    fun `every argument stays one argument after the base options`() {
+        val argv = GitCommandLine.argv(listOf("diff", "--", "my file.txt"))
+        assertEquals("git", argv.first())
+        assertEquals(listOf("diff", "--", "my file.txt"), argv.takeLast(3))
     }
 
     @Test
     fun `quotepath is disabled so non-ascii paths come back as utf-8`() {
-        val script = GitCommandLine.script(listOf("status"))
-        assertTrue(script.contains("'core.quotepath=false'"))
+        val argv = GitCommandLine.argv(listOf("status"))
+        assertEquals("core.quotepath=false", argv[argv.indexOf("-c") + 1])
     }
 
     @Test
     fun `status never takes the index lock from the user's own shell`() {
-        val script = GitCommandLine.script(listOf("status"))
-        assertTrue(script.contains("'--no-optional-locks'"))
+        assertTrue("--no-optional-locks" in GitCommandLine.argv(listOf("status")))
     }
 
     @Test
@@ -56,13 +54,19 @@ class GitCommandLineTest {
         // Without this Git refuses every command with "detected dubious
         // ownership", because the workspace is an Android directory whose
         // owner can never match the guest's fake root.
-        val script = GitCommandLine.script(listOf("status"))
-        assertTrue(script.contains("'safe.directory=*'"))
+        assertTrue("safe.directory=*" in GitCommandLine.argv(listOf("status")))
     }
 
     @Test
     fun `a path that looks like an option is still passed after the separator`() {
-        val script = GitCommandLine.script(listOf("diff", "--", "--weird-name.txt"))
-        assertTrue(script.contains("'--' '--weird-name.txt'"))
+        val argv = GitCommandLine.argv(listOf("diff", "--", "--weird-name.txt"))
+        assertEquals(listOf("--", "--weird-name.txt"), argv.takeLast(2))
+    }
+
+    @Test
+    fun `the command bridge quotes each argument whole`() {
+        val argv = GitCommandLine.argv(listOf("commit", "-m", "it's \$HOME `x`"))
+        val command = argv.joinToString(" ", transform = GitCommandLine::quote)
+        assertTrue(command.endsWith("'commit' '-m' 'it'\\''s \$HOME `x`'"))
     }
 }
