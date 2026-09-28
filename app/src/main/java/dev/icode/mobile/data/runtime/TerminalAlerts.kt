@@ -80,7 +80,7 @@ internal class TerminalAlerts(private val context: Context, private val notifica
         post(sessionId, "${command.program} finished", "$where · after ${spokenDuration(command.durationMillis)}", open, alertAgain = true)
     }
 
-    /** The user is looking at the session: its alert has been answered. */
+    /** The user is looking at the session, or it has ended: its alert has nothing left to say. */
     fun clear(sessionId: String) {
         notifications.cancel(alertId(sessionId))
     }

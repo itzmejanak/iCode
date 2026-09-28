@@ -137,11 +137,7 @@ class RuntimeForegroundService : Service() {
 
     private fun showSessionRows() {
         val current = sessions.map { it.id }.toSet()
-        (postedRows.keys - current).forEach { gone ->
-            notifications.cancel(TerminalNotifications.rowId(gone))
-            postedRows.remove(gone)
-            commandRuns.forget(gone)
-        }
+        (postedRows.keys - current).forEach(::forget)
         val now = SystemClock.elapsedRealtime()
         sessions.forEachIndexed { index, session ->
             val foreground = terminals.pidOf(session.id)?.let(TerminalForeground::of) ?: TerminalForeground.Unknown
@@ -159,8 +155,16 @@ class RuntimeForegroundService : Service() {
     }
 
     private fun clearSessionRows() {
-        postedRows.keys.forEach { notifications.cancel(TerminalNotifications.rowId(it)) }
-        postedRows.clear()
+        postedRows.keys.toList().forEach(::forget)
+    }
+
+    /** A session that no longer runs: its row, its command timing and its alert go. */
+    private fun forget(sessionId: String) {
+        notifications.cancel(TerminalNotifications.rowId(sessionId))
+        postedRows.remove(sessionId)
+        commandRuns.forget(sessionId)
+        // Left behind, an alert would only open a session that has ended.
+        alerts.clear(sessionId)
     }
 
     /** "bash · superpowers": which tab, in which workspace. */
