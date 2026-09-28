@@ -5,13 +5,22 @@ import dev.icode.mobile.data.workspace.WorkbenchStateHolder
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.GitOutcome
 import java.io.File
+import java.util.concurrent.atomic.AtomicLong
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
 /**
  * Clone, fetch, pull and push (S5): each contacts a network the app does not
  * control, so each shows Git's own progress and reports only what Git returned.
+ *
+ * One runs at a time, as its own job: the screen that asked may close, and
+ * nothing else waits behind a slow remote. Each gets an operation number, and
+ * only the current one may change what the screens show.
  */
 internal class GitTransferCoordinator(
     private val workbench: WorkbenchStateHolder,
+    private val scope: CoroutineScope,
     private val git: GitTransferOperations,
     private val activeRoot: () -> String?,
     /** Runs one transfer with the saved token handed to Git for that command alone. */
@@ -21,18 +30,45 @@ internal class GitTransferCoordinator(
     /** A finished clone opens as the workspace. */
     private val openClone: suspend (location: String) -> Unit,
 ) {
-    suspend fun fetch() = runRemote("Fetching") { workspace, config, onStderr -> git.fetch(workspace, config, onStderr) }
+    private val operations = AtomicLong()
+    private var job: Job? = null
+    private var running = ""
 
-    suspend fun pull() = runRemote("Pulling") { workspace, config, onStderr -> git.pull(workspace, config, onStderr) }
+    fun fetch(): Job? = start("Fetching") { id ->
+        runRemote(id, "Fetching") { workspace, config, onStderr -> git.fetch(workspace, config, onStderr) }
+    }
 
-    suspend fun push() {
+    fun pull(): Job? = start("Pulling") { id ->
+        runRemote(id, "Pulling") { workspace, config, onStderr -> git.pull(workspace, config, onStderr) }
+    }
+
+    fun push(): Job? = start("Pushing") { id -> push(id) }
+
+    fun clone(url: String, destination: String, directoryName: String): Job? =
+        start("Cloning") { id -> clone(id, url, destination, directoryName) }
+
+    /** Starts [work] as the one transfer, or says which one is still running. */
+    private fun start(label: String, work: suspend (id: Long) -> Unit): Job? = synchronized(this) {
+        if (job?.isActive == true) {
+            val busy = running.lowercase()
+            scope.launch { workbench.message("Git is still $busy; try again when it finishes") }
+            return null
+        }
+        val id = operations.incrementAndGet()
+        running = label
+        scope.launch { work(id) }.also { job = it }
+    }
+
+    private fun isCurrent(id: Long) = id == operations.get()
+
+    private suspend fun push(id: Long) {
         val repository = workbench.current.gitRepository
         if (repository?.detached == true) {
             workbench.message("HEAD is detached. Check out a branch before pushing")
             return
         }
         val needsUpstream = repository?.upstream == null
-        runRemote("Pushing") { workspace, config, onStderr ->
+        runRemote(id, "Pushing") { workspace, config, onStderr ->
             git.push(
                 workspace,
                 setUpstream = needsUpstream,
@@ -43,7 +79,7 @@ internal class GitTransferCoordinator(
         }
     }
 
-    suspend fun clone(url: String, destination: String, directoryName: String) {
+    private suspend fun clone(id: Long, url: String, destination: String, directoryName: String) {
         val label = "Cloning"
         // A new install has no Git until something needs it, and a clone is
         // often the first thing that does: install it as part of this clone.
@@ -65,7 +101,7 @@ internal class GitTransferCoordinator(
             withCredentials { config ->
                 git.clone(url, destination, directoryName, config) { stderr ->
                     transcript = transcriptOf(stderr)
-                    publishProgress(label, stderr, transcript)
+                    publishProgress(id, label, stderr, transcript)
                 }
             }
         }
@@ -94,6 +130,7 @@ internal class GitTransferCoordinator(
      * The UI never claims success while offline: failure carries Git's message.
      */
     private suspend fun runRemote(
+        id: Long,
         label: String,
         operation: suspend (workspace: String, config: List<String>, onStderr: (String) -> Unit) -> Unit,
     ) {
@@ -108,7 +145,7 @@ internal class GitTransferCoordinator(
             withCredentials { config ->
                 operation(workspace, config) { stderr ->
                     transcript = transcriptOf(stderr)
-                    publishProgress(label, stderr, transcript)
+                    publishProgress(id, label, stderr, transcript)
                 }
             }
         }
@@ -137,10 +174,11 @@ internal class GitTransferCoordinator(
     /**
      * Publishes whatever Git has printed so far.
      *
-     * Only applied while the operation is still running, so a late poll cannot
-     * push a finished operation back into a running state.
+     * Only applied while this operation is the current one and still running,
+     * so a late poll cannot push a finished operation back into a running state.
      */
-    private fun publishProgress(label: String, stderr: String, transcript: List<String>) {
+    private fun publishProgress(id: Long, label: String, stderr: String, transcript: List<String>) {
+        if (!isCurrent(id)) return
         workbench.update { state ->
             val running = state.gitOperation as? GitOperationState.Running ?: return@update state
             if (running.label != label) return@update state
