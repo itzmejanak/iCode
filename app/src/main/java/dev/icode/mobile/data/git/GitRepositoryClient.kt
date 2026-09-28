@@ -4,7 +4,28 @@ import dev.icode.mobile.domain.GitStatusCodes
 import dev.icode.mobile.domain.GitInProgress
 import dev.icode.mobile.domain.GitConflictChoice
 import dev.icode.mobile.domain.GitFileDiff
+import dev.icode.mobile.domain.GitOutcome
 import java.io.IOException
+
+/** The local operations on the open workspace's repository; tests put a fake in their place. */
+internal interface GitWorkspaceOperations {
+    suspend fun isAvailable(): Boolean
+    suspend fun provision(): GitOutcome<Unit>
+    suspend fun inspect(workspacePath: String): GitWorkspaceSnapshot
+    suspend fun initialize(workspacePath: String)
+    suspend fun stage(workspacePath: String, path: String)
+    suspend fun unstage(workspacePath: String, path: String)
+    suspend fun stageAll(workspacePath: String)
+    suspend fun unstageAll(workspacePath: String)
+    suspend fun commit(workspacePath: String, message: String)
+    suspend fun switchBranch(workspacePath: String, branch: String)
+    suspend fun createBranch(workspacePath: String, branch: String)
+    suspend fun deleteBranch(workspacePath: String, branch: String)
+    suspend fun diff(workspacePath: String, path: String, staged: Boolean): GitFileDiff?
+    suspend fun discard(workspacePath: String, path: String, status: String)
+    suspend fun abortInProgress(workspacePath: String, inProgress: GitInProgress)
+    suspend fun markResolved(workspacePath: String, path: String)
+}
 
 /**
  * The repository operations the workbench needs, run through the real `git`.
@@ -13,35 +34,38 @@ import java.io.IOException
  * report the actionable command error rather than a rewritten one
  * (PR-GIT-12). Nothing here reimplements Git behaviour.
  */
-internal class GitRepositoryClient(private val cli: CliGitService) {
+internal class GitRepositoryClient(private val cli: CliGitService) : GitWorkspaceOperations {
 
-    suspend fun isAvailable(): Boolean = cli.isAvailable()
+    override suspend fun isAvailable(): Boolean = cli.isAvailable()
+
+    /** Installs Git into the runtime; Git's own output explains a failure. */
+    override suspend fun provision(): GitOutcome<Unit> = cli.provision()
 
     /** Reads the whole repository picture in one process ([GitInspectParser]). */
-    suspend fun inspect(workspacePath: String): GitWorkspaceSnapshot {
+    override suspend fun inspect(workspacePath: String): GitWorkspaceSnapshot {
         // Also makes `git` usable from the user's own terminal in this
         // workspace, not just from the commands this client runs.
         cli.ensureSafeDirectoryConfigured()
         return GitInspectParser.parse(workspacePath, cli.runScript(workspacePath, GitInspectParser.SCRIPT).stdout)
     }
 
-    suspend fun initialize(workspacePath: String) =
+    override suspend fun initialize(workspacePath: String) =
         expect(workspacePath, listOf("init", "--initial-branch=${GitInspectParser.DEFAULT_BRANCH}"))
 
-    suspend fun stage(workspacePath: String, path: String) =
+    override suspend fun stage(workspacePath: String, path: String) =
         // `add -A` on a path stages a deletion too, which plain `add` would skip.
         expect(workspacePath, listOf("add", "-A", "--", path))
 
-    suspend fun unstage(workspacePath: String, path: String) {
+    override suspend fun unstage(workspacePath: String, path: String) {
         // Before the first commit there is no HEAD to reset against.
         val hasHead = cli.run(workspacePath, listOf("rev-parse", "--verify", "HEAD")).succeeded
         val arguments = if (hasHead) listOf("reset", "--quiet", "HEAD", "--", path) else listOf("rm", "--cached", "-r", "--", path)
         expect(workspacePath, arguments)
     }
 
-    suspend fun stageAll(workspacePath: String) = expect(workspacePath, listOf("add", "-A"))
+    override suspend fun stageAll(workspacePath: String) = expect(workspacePath, listOf("add", "-A"))
 
-    suspend fun unstageAll(workspacePath: String) {
+    override suspend fun unstageAll(workspacePath: String) {
         val hasHead = cli.run(workspacePath, listOf("rev-parse", "--verify", "HEAD")).succeeded
         val arguments = if (hasHead) listOf("reset", "--quiet", "HEAD") else listOf("rm", "--cached", "-r", "--quiet", ".")
         expect(workspacePath, arguments)
@@ -63,7 +87,7 @@ internal class GitRepositoryClient(private val cli: CliGitService) {
      * index and the worktree — `checkout --` alone would only restore the
      * worktree and silently leave a staged change behind.
      */
-    suspend fun discard(workspacePath: String, path: String, status: String) {
+    override suspend fun discard(workspacePath: String, path: String, status: String) {
         when (status) {
             GitStatusCodes.UNTRACKED -> expect(workspacePath, listOf("clean", "-fd", "--", path))
             GitStatusCodes.ADDED -> expect(workspacePath, listOf("rm", "-f", "--", path))
@@ -74,7 +98,7 @@ internal class GitRepositoryClient(private val cli: CliGitService) {
         }
     }
 
-    suspend fun commit(workspacePath: String, message: String) {
+    override suspend fun commit(workspacePath: String, message: String) {
         require(message.isNotBlank()) { "Enter a commit message" }
         expect(workspacePath, listOf("commit", "-m", message))
     }
@@ -86,16 +110,16 @@ internal class GitRepositoryClient(private val cli: CliGitService) {
         expect(workspacePath, listOf("config", "user.email", email.trim()))
     }
 
-    suspend fun switchBranch(workspacePath: String, branch: String) =
+    override suspend fun switchBranch(workspacePath: String, branch: String) =
         expect(workspacePath, listOf("checkout", branch))
 
-    suspend fun createBranch(workspacePath: String, branch: String) =
+    override suspend fun createBranch(workspacePath: String, branch: String) =
         expect(workspacePath, listOf("checkout", "-b", branch))
 
-    suspend fun deleteBranch(workspacePath: String, branch: String) =
+    override suspend fun deleteBranch(workspacePath: String, branch: String) =
         expect(workspacePath, listOf("branch", "-d", branch))
 
-    suspend fun diff(workspacePath: String, path: String, staged: Boolean): GitFileDiff? {
+    override suspend fun diff(workspacePath: String, path: String, staged: Boolean): GitFileDiff? {
         val arguments = buildList {
             add("diff")
             if (staged) add("--cached")
@@ -137,7 +161,7 @@ internal class GitRepositoryClient(private val cli: CliGitService) {
      * Each operation has its own abort, and bisect uses `reset`; none of them
      * is a plain `git reset`, which would leave the merge state behind.
      */
-    suspend fun abortInProgress(workspacePath: String, inProgress: GitInProgress) {
+    override suspend fun abortInProgress(workspacePath: String, inProgress: GitInProgress) {
         val arguments = when (inProgress) {
             GitInProgress.Merge -> listOf("merge", "--abort")
             GitInProgress.Rebase -> listOf("rebase", "--abort")
@@ -149,7 +173,7 @@ internal class GitRepositoryClient(private val cli: CliGitService) {
         expect(workspacePath, arguments)
     }
 
-    suspend fun markResolved(workspacePath: String, path: String) =
+    override suspend fun markResolved(workspacePath: String, path: String) =
         expect(workspacePath, listOf("add", "--", path))
 
     /**

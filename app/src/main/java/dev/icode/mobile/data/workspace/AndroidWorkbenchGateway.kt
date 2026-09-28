@@ -3,14 +3,12 @@ package dev.icode.mobile.data.workspace
 import android.content.Context
 import android.os.Environment
 import dev.icode.mobile.data.git.CliGitService
-import dev.icode.mobile.data.git.GitHeadReader
 import dev.icode.mobile.data.git.GitAuthenticator
-import dev.icode.mobile.data.git.GitConflictParser
 import dev.icode.mobile.data.git.GitCredentialStore
 import dev.icode.mobile.data.git.GitProgressParser
 import dev.icode.mobile.data.git.GitOperationOutcome
 import dev.icode.mobile.data.git.GitRepositoryClient
-import dev.icode.mobile.data.git.GitWorkspaceSnapshot
+import dev.icode.mobile.data.git.GitWorkspaceCoordinator
 import dev.icode.mobile.data.language.LanguageServiceProcessManager
 import dev.icode.mobile.data.language.LanguageServiceStore
 import dev.icode.mobile.data.log.BackendLog
@@ -25,7 +23,6 @@ import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.runtime.TerminalSessionManager
 import com.termux.terminal.TerminalSession
 import dev.icode.mobile.domain.GitAuthTestResult
-import dev.icode.mobile.domain.GitConflictChoice
 import dev.icode.mobile.domain.GitFileDiff
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.GitOutcome
@@ -51,7 +48,6 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -98,7 +94,6 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         onStorageAccessChanged = { library.refreshRecents() },
     )
     private var activeRootLocation: String? = null
-    private var gitRefreshJob: Job? = null
 
     private val library: WorkspaceLibraryCoordinator = WorkspaceLibraryCoordinator(
         appContext,
@@ -115,6 +110,16 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     private val folders: FolderBrowserCoordinator = FolderBrowserCoordinator(workbench, source) { location -> openWorkspace(location, persist = true) }
 
     private val tree = WorkspaceTree(workbench, source)
+    private val gitWorkspace = GitWorkspaceCoordinator(
+        workbench,
+        scope,
+        git,
+        tree,
+        activeRoot = { activeRootLocation },
+        recentWorkspaces = library::recentWorkspaces,
+        recentDocuments = library::recentDocuments,
+        onInstalled = { refreshGitAuth() },
+    )
     private val search = SearchCoordinator(workbench, scope, RipgrepService(runtimeLayout, scope)) { activeRootLocation }
     private val recovery: DocumentRecoveryCoordinator = DocumentRecoveryCoordinator(
         workbench,
@@ -127,7 +132,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         recovery,
         library,
         activeRoot = { activeRootLocation },
-        onSaved = { scheduleGitRefresh() },
+        onSaved = { gitWorkspace.scheduleRefresh() },
     )
     private val items = WorkspaceItemsCoordinator(
         workbench,
@@ -136,7 +141,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         documents,
         library,
         activeRoot = { activeRootLocation },
-        refreshWorkspaceState = { root -> refreshWorkspaceState(root) },
+        refreshWorkspaceState = { root -> gitWorkspace.refresh(root) },
         reindex = { root -> search.workspaceChanged(root) },
     )
 
@@ -314,28 +319,26 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     is WorkbenchIntent.CloseDocument -> documents.close(intent.location, intent.saveChanges)
                     is WorkbenchIntent.CloseOtherDocuments -> documents.closeOthers(intent.keepLocation, intent.saveChanges)
                     WorkbenchIntent.CloseSavedDocuments -> documents.closeSaved()
-                    WorkbenchIntent.InitializeGit -> initializeGit()
-                    is WorkbenchIntent.StageFile -> stageFile(intent.path)
-                    is WorkbenchIntent.UnstageFile -> unstageFile(intent.path)
-                    WorkbenchIntent.StageAllFiles -> stageAllFiles()
-                    WorkbenchIntent.UnstageAllFiles -> unstageAllFiles()
-                    is WorkbenchIntent.CommitStaged -> commitStaged(intent.message)
+                    WorkbenchIntent.InitializeGit -> gitWorkspace.initialize()
+                    is WorkbenchIntent.StageFile -> gitWorkspace.stage(intent.path)
+                    is WorkbenchIntent.UnstageFile -> gitWorkspace.unstage(intent.path)
+                    WorkbenchIntent.StageAllFiles -> gitWorkspace.stageAll()
+                    WorkbenchIntent.UnstageAllFiles -> gitWorkspace.unstageAll()
+                    is WorkbenchIntent.CommitStaged -> gitWorkspace.commit(intent.message)
                     is WorkbenchIntent.ConfigureGitIdentity -> configureGitIdentity(intent.name, intent.email)
                     is WorkbenchIntent.ConfigureGlobalGitIdentity -> configureGlobalGitIdentity(intent.name, intent.email)
                     WorkbenchIntent.ClearRepositoryGitIdentity -> clearRepositoryGitIdentity()
-                    is WorkbenchIntent.SwitchBranch -> switchBranch(intent.branch)
-                    is WorkbenchIntent.CreateBranch -> createBranch(intent.branch)
-                    is WorkbenchIntent.DeleteBranch -> deleteBranch(intent.branch)
-                    WorkbenchIntent.ProvisionGit -> provisionGit()
-                    WorkbenchIntent.RefreshGit -> activeRootLocation?.let { refreshWorkspaceState(it) }
-                    is WorkbenchIntent.OpenDiff -> openDiff(intent.path, intent.staged)
-                    WorkbenchIntent.CloseDiff -> workbench.update { it.copy(activeDiff = null) }
-                    is WorkbenchIntent.RequestDiscardChanges -> workbench.update { state ->
-                        state.copy(pendingDiscard = state.gitChanges.firstOrNull { it.path == intent.path })
-                    }
-                    WorkbenchIntent.CancelDiscardChanges -> workbench.update { it.copy(pendingDiscard = null) }
-                    is WorkbenchIntent.DiscardChanges -> discardChanges(intent.path, intent.status)
-                    WorkbenchIntent.AbortInProgress -> abortInProgress()
+                    is WorkbenchIntent.SwitchBranch -> gitWorkspace.switchBranch(intent.branch)
+                    is WorkbenchIntent.CreateBranch -> gitWorkspace.createBranch(intent.branch)
+                    is WorkbenchIntent.DeleteBranch -> gitWorkspace.deleteBranch(intent.branch)
+                    WorkbenchIntent.ProvisionGit -> gitWorkspace.provision()
+                    WorkbenchIntent.RefreshGit -> gitWorkspace.refreshActive()
+                    is WorkbenchIntent.OpenDiff -> gitWorkspace.openDiff(intent.path, intent.staged)
+                    WorkbenchIntent.CloseDiff -> gitWorkspace.closeDiff()
+                    is WorkbenchIntent.RequestDiscardChanges -> gitWorkspace.requestDiscard(intent.path)
+                    WorkbenchIntent.CancelDiscardChanges -> gitWorkspace.cancelDiscard()
+                    is WorkbenchIntent.DiscardChanges -> gitWorkspace.discard(intent.path, intent.status)
+                    WorkbenchIntent.AbortInProgress -> gitWorkspace.abort()
                     WorkbenchIntent.FetchRemote -> runRemote("Fetching") { workspace, onStderr ->
                         git.fetch(workspace, onStderr)
                     }
@@ -343,12 +346,10 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                         git.pull(workspace, onStderr)
                     }
                     WorkbenchIntent.PushRemote -> pushRemote()
-                    is WorkbenchIntent.OpenConflict -> openConflict(intent.path)
-                    WorkbenchIntent.CloseConflict -> workbench.update { it.copy(activeConflict = null) }
-                    is WorkbenchIntent.ResolveConflict -> resolveConflict(intent.path, intent.choice)
-                    is WorkbenchIntent.MarkConflictResolved -> runGitAction(
-                        operation = { git.markResolved(it, intent.path) },
-                    )
+                    is WorkbenchIntent.OpenConflict -> gitWorkspace.openConflict(intent.path)
+                    WorkbenchIntent.CloseConflict -> gitWorkspace.closeConflict()
+                    is WorkbenchIntent.ResolveConflict -> gitWorkspace.resolveConflict(intent.path, intent.choice)
+                    is WorkbenchIntent.MarkConflictResolved -> gitWorkspace.markResolved(intent.path)
                     is WorkbenchIntent.UpdateCloneForm -> workbench.update {
                 it.copy(cloneUrl = intent.url, cloneBranch = intent.branch)
             }
@@ -591,12 +592,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         runCatching {
             val root = source.describeRoot(location)
             val children = source.listChildren(location)
-            val gitAvailable = git.isAvailable()
-            val gitState = if (gitAvailable) {
-                git.inspect(root.location)
-            } else {
-                GitWorkspaceSnapshot(repository = null, changes = emptyList())
-            }
+            val gitPicture = gitWorkspace.read(root.location)
             val closingDocuments = workbench.current.openDocuments
                 .filter { it.dirty || !recovery.isUnresolved(it.location) }
                 .map { it.location }
@@ -607,18 +603,17 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             val recents = library.recentWorkspaces()
             workbench.update { snapshot -> snapshot.copy(
                 workspaces = recents,
-                files = tree.rows(root.location, gitState),
-                gitChanges = gitState.changes,
-                gitRepository = gitState.repository,
+                files = tree.rows(root.location, gitPicture.state),
+                gitChanges = gitPicture.state.changes,
+                gitRepository = gitPicture.state.repository,
                 localGitAuthorName = null,
                 localGitAuthorEmail = null,
                 gitIdentityLoaded = false,
                 activeWorkspace = root.name,
                 activePath = root.displayPath,
                 activeWorkspaceLocation = root.location,
-                gitAvailable = gitAvailable,
-                activeBranch = gitState.repository?.branch
-                    ?: GitHeadReader.branchOf(root.location).orEmpty(),
+                gitAvailable = gitPicture.available,
+                activeBranch = gitPicture.branch,
                 activeDocument = null,
                 openDocuments = emptyList(),
                 recentDocuments = library.recentDocuments(root.location),
@@ -657,35 +652,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         openWorkspace(intent.path, persist = true, openTerminal = intent.openTerminal, dirtyChoiceResolved = true)
     }
 
-    private suspend fun initializeGit() {
-        val workspace = activeRootLocation
-        if (workspace == null) {
-            workbench.message("Open a workspace before initializing Git")
-            return
-        }
-        runCatching {
-            git.initialize(workspace)
-            refreshWorkspaceState(workspace)
-            workbench.emit(WorkbenchEffect.GitInitialized)
-        }.onFailure { error ->
-            workbench.report("git", "Unable to initialize Git", error)
-        }
-    }
-
-    private suspend fun stageFile(path: String) = runGitAction(operation = { workspace -> git.stage(workspace, path) })
-
-    private suspend fun unstageFile(path: String) = runGitAction(operation = { workspace -> git.unstage(workspace, path) })
-
-    private suspend fun stageAllFiles() = runGitAction(operation = { workspace -> git.stageAll(workspace) })
-
-    private suspend fun unstageAllFiles() = runGitAction(operation = { workspace -> git.unstageAll(workspace) })
-
-    private suspend fun commitStaged(message: String) = runGitAction(
-        operation = { workspace -> git.commit(workspace, message) },
-        onSuccess = { workbench.emit(WorkbenchEffect.GitCommitted) },
-    )
-
-    private suspend fun configureGitIdentity(name: String, email: String) = runGitAction(
+    private suspend fun configureGitIdentity(name: String, email: String) = gitWorkspace.act(
         operation = { workspace -> git.configureIdentity(workspace, name, email) },
         onSuccess = { refreshGitAuth() },
     )
@@ -707,7 +674,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                 val result = gitCli.run(null, arguments)
                 if (!result.succeeded) throw IOException(result.errorMessage)
             }
-            activeRootLocation?.let { refreshWorkspaceState(it) }
+            gitWorkspace.refreshActive()
             refreshGitAuth()
         }.onFailure { error ->
             workbench.report("git", "Could not save Git identity", error)
@@ -724,115 +691,12 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     if (!result.succeeded) throw IOException(result.errorMessage)
                 }
             }
-            refreshWorkspaceState(workspace)
+            gitWorkspace.refresh(workspace)
             refreshGitAuth()
         }.onFailure { error ->
             workbench.report("git", "Could not reset repository identity", error)
         }
     }
-
-    private suspend fun switchBranch(branch: String) = runGitAction(
-        operation = { workspace -> git.switchBranch(workspace, branch) },
-    )
-
-    private suspend fun createBranch(branch: String) = runGitAction(
-        operation = { workspace -> git.createBranch(workspace, branch) },
-    )
-
-    /** Git is absent from a fresh runtime; this installs it and reports honestly. */
-    private suspend fun provisionGit() {
-        if (git.isAvailable()) {
-            workbench.update { it.copy(gitAvailable = true) }
-            return
-        }
-        workbench.update { it.copy(gitOperation = GitOperationState.Running("Installing Git")) }
-        val installed = runCatching { CliGitService(runtimeLayout).provision() }.getOrNull()
-        val available = git.isAvailable()
-        workbench.update {
-            it.copy(
-                gitAvailable = available,
-                gitOperation = if (available) {
-                    GitOperationState.Succeeded("Git installed")
-                } else {
-                    GitOperationState.Failed("Installing Git", (installed as? GitOutcome.Failure)?.message ?: "Git could not be installed")
-                },
-            )
-        }
-        if (available) refreshGitAuth()
-        if (available) activeRootLocation?.let { refreshWorkspaceState(it) }
-    }
-
-    private suspend fun openDiff(path: String, staged: Boolean) {
-        val workspace = activeRootLocation ?: return
-        runCatching { git.diff(workspace, path, staged) }
-            .onSuccess { diff -> workbench.update { it.copy(activeDiff = diff) } }
-            .onFailure { error ->
-                workbench.update { it.copy(activeDiff = null) }
-                workbench.report("git", "Unable to read the diff", error)
-            }
-    }
-
-    /**
-     * Git reports change paths relative to the repository root, which is not
-     * the opened folder when a subdirectory of a repository is opened.
-     */
-    private fun conflictRoot(): String? =
-        workbench.current.gitRepository?.workTreePath ?: activeRootLocation
-
-    /** Loads the conflicted file straight from the worktree, markers and all. */
-    private suspend fun openConflict(path: String) {
-        val file = File(conflictRoot() ?: return, path)
-        runCatching { file.readText() }
-            .onSuccess { text ->
-                val parsed = GitConflictParser.parse(path, text)
-                workbench.update { it.copy(activeConflict = parsed) }
-            }
-            .onFailure { error ->
-                workbench.update { it.copy(activeConflict = null) }
-                workbench.report("git", "Unable to read the conflicted file", error)
-            }
-    }
-
-    /**
-     * Writes the resolved text back and refreshes.
-     *
-     * The file is rebuilt from the parsed sections rather than through
-     * `checkout --ours/--theirs`, because "accept both" has no Git equivalent
-     * and a single path keeps all three choices consistent with what the user
-     * is looking at. Marking resolved stays a separate explicit step.
-     */
-    private suspend fun resolveConflict(path: String, choice: GitConflictChoice) {
-        val root = conflictRoot() ?: return
-        val conflict = workbench.current.activeConflict
-            ?: run {
-                openConflict(path)
-                workbench.current.activeConflict
-            }
-            ?: return
-        val resolved = GitConflictParser.resolve(conflict, choice)
-        runCatching { File(root, path).writeText(resolved) }
-            .onSuccess {
-                openConflict(path)
-                activeRootLocation?.let { refreshWorkspaceState(it) }
-            }
-            .onFailure { error ->
-                workbench.report("git", "Unable to write the resolved file", error)
-            }
-    }
-
-    private suspend fun discardChanges(path: String, status: String) {
-        runGitAction(operation = { workspace -> git.discard(workspace, path, status) })
-        workbench.update { it.copy(pendingDiscard = null) }
-    }
-
-    private suspend fun abortInProgress() {
-        val inProgress = workbench.current.gitRepository?.inProgress ?: return
-        runGitAction(operation = { workspace -> git.abortInProgress(workspace, inProgress) })
-    }
-
-    private suspend fun deleteBranch(branch: String) = runGitAction(
-        operation = { workspace -> git.deleteBranch(workspace, branch) },
-    )
 
     /**
      * Runs a network operation, reporting only what Git actually returned.
@@ -863,7 +727,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                 workbench.update {
                     it.copy(gitOperation = GitOperationState.Succeeded(label, transcript))
                 }
-                refreshWorkspaceState(workspace)
+                gitWorkspace.refresh(workspace)
                 // The progress surface closes itself, so the outcome is
                 // reported here or it is never reported at all.
                 workbench.message(completionMessage(label, transcript))
@@ -1033,24 +897,6 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         }
     }
 
-    private suspend fun runGitAction(
-        operation: suspend (String) -> Unit,
-        onSuccess: suspend () -> Unit = {},
-    ) {
-        val workspace = activeRootLocation
-        if (workspace == null) {
-            workbench.message("Open a workspace first")
-            return
-        }
-        runCatching {
-            operation(workspace)
-            refreshWorkspaceState(workspace)
-            onSuccess()
-        }.onFailure { error ->
-            workbench.report("git", "Git operation failed", error)
-        }
-    }
-
     /**
      * Resume, leaving the terminal and a finished command often ask together;
      * one refresh answers every request made while the last one ran.
@@ -1163,7 +1009,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         }
         runCatching {
             tree.reload(root)
-            refreshWorkspaceState(root)
+            gitWorkspace.refresh(root)
             // Files may have come and gone: Quick Open's index is rebuilt, not kept.
             if (indexStale) {
                 indexStale = false
@@ -1175,52 +1021,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         }
     }
 
-    /**
-     * Refreshes Git state shortly after the worktree changes.
-     *
-     * Each refresh starts PRoot, which costs about a second, so saves are
-     * coalesced: a new request replaces the one still waiting rather than
-     * queueing another process behind it.
-     */
-    private fun scheduleGitRefresh() {
-        val root = activeRootLocation ?: return
-        gitRefreshJob?.cancel()
-        gitRefreshJob = scope.launch {
-            delay(GIT_REFRESH_DEBOUNCE_MILLIS)
-            workbench.mutations.withLock { refreshWorkspaceState(root) }
-        }
-    }
-
-    private suspend fun refreshWorkspaceState(root: String) {
-        val available = git.isAvailable()
-        // Without git the inspect script cannot run, but .git on disk still
-        // tells us this is a repository - so the UI can offer to install Git
-        // instead of wrongly offering to initialise a repo that already exists.
-        val gitState = if (available) {
-            git.inspect(root)
-        } else {
-            GitWorkspaceSnapshot(repository = null, changes = emptyList())
-        }
-        val recents = library.recentWorkspaces()
-        val files = tree.rows(root, gitState)
-        workbench.update {
-            it.copy(
-                workspaces = recents,
-                files = files,
-                gitChanges = gitState.changes,
-                gitRepository = gitState.repository,
-                gitAvailable = available,
-                activeBranch = gitState.repository?.branch
-                    ?: GitHeadReader.branchOf(root).orEmpty(),
-                recentDocuments = library.recentDocuments(root),
-            )
-        }
-    }
-
     private companion object {
-        /** Long enough to absorb a burst of saves, short enough to feel immediate. */
-        const val GIT_REFRESH_DEBOUNCE_MILLIS = 350L
-
         /** Lets requests that arrive together (resume and a panel change) become one refresh. */
         const val REFRESH_SETTLE_MILLIS = 300L
     }
