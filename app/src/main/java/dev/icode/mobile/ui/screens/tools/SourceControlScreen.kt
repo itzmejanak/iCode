@@ -279,7 +279,7 @@ private fun GitChangeRow(
             // Discard is destructive, so it lives behind a visible menu and is
             // confirmed, never one tap away from Stage.
             IcodeOverflowMenu(
-                contentDescription = "Actions for ${'$'}{change.name}",
+                contentDescription = "Actions for ${change.name}",
                 actions = listOf(
                     IcodeMenuAction(
                         label = if (change.staged) "Unstage" else "Stage",
