@@ -27,7 +27,12 @@ internal class GitRepositoryClient(private val cli: CliGitService) :
         // Also makes `git` usable from the user's own terminal in this
         // workspace, not just from the commands this client runs.
         cli.ensureSafeDirectoryConfigured()
-        return GitInspectParser.parse(workspacePath, cli.runScript(workspacePath, GitInspectParser.SCRIPT).stdout)
+        val result = cli.runScript(workspacePath, GitInspectParser.SCRIPT)
+        val snapshot = GitInspectParser.parse(workspacePath, result.stdout)
+        // Status failing inside a repository (a corrupt index, say) is a real
+        // failure: shown as "no changes" it would hide the user's work.
+        if (snapshot.repository != null && !result.succeeded) throw IOException(result.errorMessage)
+        return snapshot
     }
 
     override suspend fun initialize(workspacePath: String) =

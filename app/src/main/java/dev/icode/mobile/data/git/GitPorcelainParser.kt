@@ -141,10 +141,16 @@ internal object GitPorcelainParser {
 
     private fun change(status: String, path: String, staged: Boolean) = GitChange(
         status = status,
-        name = path.substringAfterLast('/'),
+        name = nameOf(path),
         path = path,
         staged = staged,
     )
+
+    /** The last segment; an untracked folder (`build/`) keeps its slash rather than naming nothing. */
+    private fun nameOf(path: String): String {
+        val folder = path.endsWith('/')
+        return path.removeSuffix("/").substringAfterLast('/') + if (folder) "/" else ""
+    }
 
     /** Conflicts first, then staged, then by path — matching Source Control. */
     private val CHANGE_ORDER = compareBy<GitChange> { it.status != GitStatusCodes.CONFLICTED }
