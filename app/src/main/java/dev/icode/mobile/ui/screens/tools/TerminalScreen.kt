@@ -64,7 +64,8 @@ fun TerminalScreen(actions: NavigationActions) {
         if (terminal.sessions.isNotEmpty()) attemptedFirstOpen = true
         else if (shouldAutoOpenTerminal(actions.panelTab, runtimeReady, attemptedFirstOpen)) {
             attemptedFirstOpen = true
-            gateway.dispatch(WorkbenchIntent.OpenTerminalSession)
+            // Not "+": a panel drawn again must find the session it asked for, not start another.
+            gateway.dispatch(WorkbenchIntent.EnsureTerminalSession)
         }
     }
     // Preserve the terminal's last-tab exit behavior only when the user is

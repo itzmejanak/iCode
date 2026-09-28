@@ -95,7 +95,6 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             ) else service
         }) }
     }
-    private val terminalPreferences = AndroidWorkspacePreferencesRepository(appContext)
     private val runtime: RuntimeCoordinator = RuntimeCoordinator(
         appContext,
         workbench,
@@ -219,7 +218,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         scope.launch { observeNotices() }
         terminal.follow(
             scope,
-            terminalPreferences.values(null).filter { it.loaded && it.loadError == null }.map { it.terminal },
+            AndroidWorkspacePreferencesRepository(appContext).values(null).filter { it.loaded && it.loadError == null }.map { it.terminal },
         )
         scope.launch { runtime.reportState() }
     }
@@ -422,6 +421,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                         }
                     }
                     WorkbenchIntent.OpenTerminalSession -> terminal.open()
+                    WorkbenchIntent.EnsureTerminalSession -> terminal.ensure()
                     is WorkbenchIntent.SelectTerminalSession -> terminal.select(intent.id)
                     is WorkbenchIntent.ShowTerminalSession -> terminal.show(intent.id)
                     is WorkbenchIntent.ReorderTerminalSession -> terminal.reorder(intent.movingId, intent.targetId)

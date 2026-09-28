@@ -83,6 +83,21 @@ internal class TerminalCoordinator(
         }
     }
 
+    /**
+     * The panel opened with no session to show. Requests reach here one at a
+     * time (the gateway's lock), so reusing a running session is enough to make
+     * a panel drawn twice, or drawn while "Open Terminal" runs, meet in one shell.
+     */
+    suspend fun ensure() {
+        if (!runtimeInstalled()) {
+            workbench.message("Install the Linux runtime before opening a terminal")
+            return
+        }
+        if (terminals.open(activeRoot(), reuseExisting = true) == null) {
+            workbench.message("Unable to start a terminal session")
+        }
+    }
+
     /** The workspace [location] was opened for its terminal: its running session, or a new one. */
     suspend fun openIn(location: String) {
         if (!runtimeInstalled()) return
