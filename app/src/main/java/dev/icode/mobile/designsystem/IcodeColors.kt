@@ -5,9 +5,13 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
+/** Which theme a palette is, however its accent was changed. */
+enum class PaletteKind { Dark, Light, Amoled }
+
 /** One complete semantic palette. Light and AMOLED remain review candidates. */
 @Immutable
 data class IcodePalette(
+    val kind: PaletteKind,
     val background: Color,
     val backgroundDeep: Color,
     val surface: Color,
@@ -32,6 +36,7 @@ data class IcodePalette(
 
     companion object {
         val Dark = IcodePalette(
+            kind = PaletteKind.Dark,
             background = Color(0xFF0A0D0B), backgroundDeep = Color(0xFF060807),
             surface = Color(0xFF131812), surfaceElevated = Color(0xFF1C231B),
             surfaceTrack = Color(0xFF232B22), outline = Color(0xFF2A332A),
@@ -45,6 +50,7 @@ data class IcodePalette(
 
         /** Proposed light palette; user review remains pending. */
         val Light = IcodePalette(
+            kind = PaletteKind.Light,
             background = Color(0xFFF5F7F3), backgroundDeep = Color(0xFFECEFE9),
             surface = Color.White, surfaceElevated = Color(0xFFE7EBE5),
             surfaceTrack = Color(0xFFDCE3DA), outline = Color(0xFF758575),
@@ -58,6 +64,7 @@ data class IcodePalette(
 
         /** Proposed OLED-black palette; user review remains pending. */
         val Amoled = IcodePalette(
+            kind = PaletteKind.Amoled,
             background = Color.Black, backgroundDeep = Color.Black,
             surface = Color(0xFF0B0B0B), surfaceElevated = Color(0xFF151915),
             surfaceTrack = Color(0xFF1E241D), outline = Color(0xFF647264),
@@ -104,7 +111,7 @@ object IcodeColors {
  * white text stays readable on the light background.
  */
 val IcodePalette.terminalAnsi: List<Color>
-    get() = if (this == IcodePalette.Light) LightTerminalAnsi else DarkTerminalAnsi
+    get() = if (kind == PaletteKind.Light) LightTerminalAnsi else DarkTerminalAnsi
 
 private val DarkTerminalAnsi = listOf(
     Color(0xFF1C231B), Color(0xFFFF5449), Color(0xFF43D9A3), Color(0xFFFFC24B),

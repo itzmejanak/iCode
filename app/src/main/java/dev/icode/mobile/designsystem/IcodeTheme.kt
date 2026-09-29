@@ -25,7 +25,7 @@ fun IcodeTheme(
         LocalIcodeUiTextScale provides uiTextScalePercent / 100f,
         LocalIcodeCompactLayout provides compactLayout,
     ) {
-        val scheme = if (palette == IcodePalette.Light) lightColorScheme(
+        val scheme = if (palette.kind == PaletteKind.Light) lightColorScheme(
             primary = palette.accent, onPrimary = palette.onAccent,
             secondary = palette.green, tertiary = palette.blue,
             background = palette.background, onBackground = palette.textPrimary,

@@ -32,6 +32,7 @@ import dev.icode.mobile.designsystem.IcodeScreen
 import dev.icode.mobile.designsystem.IcodeSaveDiscardDialog
 import dev.icode.mobile.designsystem.IcodeTheme
 import dev.icode.mobile.designsystem.IcodePalette
+import dev.icode.mobile.designsystem.PaletteKind
 import dev.icode.mobile.domain.AppTheme
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.RouteGroup
@@ -97,8 +98,8 @@ fun IcodeApp(
     SideEffect {
         (context as? Activity)?.window?.let { window ->
             WindowCompat.getInsetsController(window, window.decorView).apply {
-                isAppearanceLightStatusBars = palette == IcodePalette.Light
-                isAppearanceLightNavigationBars = palette == IcodePalette.Light
+                isAppearanceLightStatusBars = palette.kind == PaletteKind.Light
+                isAppearanceLightNavigationBars = palette.kind == PaletteKind.Light
             }
         }
     }

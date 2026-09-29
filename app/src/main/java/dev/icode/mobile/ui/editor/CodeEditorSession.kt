@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.graphics.toArgb
 import dev.icode.mobile.designsystem.IcodePalette
+import dev.icode.mobile.designsystem.PaletteKind
 import dev.icode.mobile.R
 import dev.icode.mobile.domain.EditorFontFamily
 import dev.icode.mobile.domain.EditorSettings
@@ -288,10 +289,10 @@ private object TextMateAssets {
 
     fun setTheme(context: Context, palette: IcodePalette) {
         ensureLoaded(context)
-        val name = when (palette) {
-            IcodePalette.Light -> "icode-light-preview"
-            IcodePalette.Amoled -> "icode-amoled-preview"
-            else -> "icode-dark"
+        val name = when (palette.kind) {
+            PaletteKind.Light -> "icode-light-preview"
+            PaletteKind.Amoled -> "icode-amoled-preview"
+            PaletteKind.Dark -> "icode-dark"
         }
         check(ThemeRegistry.getInstance().setTheme(name)) { "TextMate theme $name is unavailable" }
     }
