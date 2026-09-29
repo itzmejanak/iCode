@@ -16,7 +16,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.graphics.toArgb
 import dev.icode.mobile.designsystem.IcodePalette
-import dev.icode.mobile.designsystem.PaletteKind
 import dev.icode.mobile.R
 import dev.icode.mobile.domain.EditorFontFamily
 import dev.icode.mobile.domain.EditorSettings
@@ -28,14 +27,9 @@ import io.github.rosemoe.sora.event.ContentChangeEvent
 import io.github.rosemoe.sora.lang.EmptyLanguage
 import io.github.rosemoe.sora.langs.textmate.TextMateColorScheme
 import io.github.rosemoe.sora.langs.textmate.TextMateLanguage
-import io.github.rosemoe.sora.langs.textmate.registry.FileProviderRegistry
-import io.github.rosemoe.sora.langs.textmate.registry.GrammarRegistry
 import io.github.rosemoe.sora.langs.textmate.registry.ThemeRegistry
-import io.github.rosemoe.sora.langs.textmate.registry.model.ThemeModel
-import io.github.rosemoe.sora.langs.textmate.registry.provider.AssetsFileResolver
 import io.github.rosemoe.sora.widget.CodeEditor
 import io.github.rosemoe.sora.widget.schemes.EditorColorScheme
-import org.eclipse.tm4e.core.registry.IThemeSource
 
 /** One view/content/undo history shared by the Editor and Find routes. */
 class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePalette.Dark) {
@@ -166,6 +160,7 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
                 setColor(EditorColorScheme.SELECTION_INSERT, next.accent.toArgb())
                 setColor(EditorColorScheme.SELECTION_HANDLE, next.accent.toArgb())
                 setColor(EditorColorScheme.SELECTED_TEXT_BACKGROUND, next.accent.copy(alpha = 0.28f).toArgb())
+                setColor(EditorColorScheme.HIGHLIGHTED_DELIMITERS_FOREGROUND, next.accent.toArgb())
                 setColor(EditorColorScheme.PROBLEM_ERROR, next.error.toArgb())
                 setColor(EditorColorScheme.PROBLEM_WARNING, next.amber.toArgb())
                 setColor(EditorColorScheme.MINIMAP_BACKGROUND, next.surfaceElevated.toArgb())
@@ -266,39 +261,6 @@ fun EditorCanvas(
             },
             modifier = modifier.fillMaxSize(),
         )
-    }
-}
-
-private object TextMateAssets {
-    @Volatile private var loaded = false
-
-    @Synchronized fun ensureLoaded(context: Context) {
-        if (loaded) return
-        val providers = FileProviderRegistry.getInstance()
-        providers.addFileProvider(AssetsFileResolver(context.assets))
-        listOf(
-            Triple("textmate/darcula.json", "icode-dark", true),
-            Triple("textmate/icode-light-preview.json", "icode-light-preview", false),
-            Triple("textmate/icode-amoled-preview.json", "icode-amoled-preview", true),
-        ).forEachIndexed { index, (path, name, dark) ->
-            val model = ThemeModel(
-                IThemeSource.fromInputStream(providers.tryGetInputStream(path), path, null),
-                name,
-            ).apply { isDark = dark }
-            ThemeRegistry.getInstance().loadTheme(model, index == 0)
-        }
-        GrammarRegistry.getInstance().loadGrammars("textmate/languages.json")
-        loaded = true
-    }
-
-    fun setTheme(context: Context, palette: IcodePalette) {
-        ensureLoaded(context)
-        val name = when (palette.kind) {
-            PaletteKind.Light -> "icode-light-preview"
-            PaletteKind.Amoled -> "icode-amoled-preview"
-            PaletteKind.Dark -> "icode-dark"
-        }
-        check(ThemeRegistry.getInstance().setTheme(name)) { "TextMate theme $name is unavailable" }
     }
 }
 
