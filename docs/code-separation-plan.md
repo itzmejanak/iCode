@@ -738,3 +738,21 @@ developer-tools onboarding step (Todo 5).
   is `GitWorkspaceCoordinator`'s, through the Git seam — the gateway called the Git CLI directly
   for it. 2 tests for the Git half. Gate: 465 tests; lint 0 errors / 11 warnings; both guards
   pass. Phone check pending (the owner was using the phone).
+- X4, each file over 300 lines reviewed (2026-09-29):
+  - `IcodeApp` 361 → 279: `WorkbenchQuestions` (`ui`) holds what the backend asks the user —
+    switch away from unsaved files, a draft from the last session (in turn), a recovered draft
+    over a newer file, a file changed under edits — and draws the waiting one; the root collects
+    the effects into it. Same dialogs, moved.
+  - `RuntimeInstaller` 340 → 273: `RootfsDownloader` beside `RootfsExtractor` — the HTTP
+    download with its timeouts and progress, an external boundary; checksum and install stay.
+    A stale comment on `extract` ("extracts through PRoot") contradicted the one under it and
+    the code, and is gone.
+  - `DocumentSessionCoordinator` 314, one owner, recorded: opening, saving, closing tabs and
+    reconciling with disk all read and move the same baseline — each open file's disk version
+    and saved text; a split would make two owners of one fact. Held by the ratchet.
+  - `AndroidWorkbenchGateway` 410, one owner, recorded: it builds each feature once and routes
+    each intent once. Tried: the lock-free routes as one `when` — the compiler then no longer
+    proved the locked `when` covers every intent (the `if … return` chain before it is what
+    lets it), so a new intent could go unrouted; kept as it is.
+  Gate: 465 tests; lint 0 errors / 11 warnings; both guards pass (`RuntimeInstaller` leaves the
+  allowlist). Phone check pending with X3's.
