@@ -72,11 +72,7 @@ fun AppearanceScreen(actions: NavigationActions) {
     val accent = IcodeColors.Accent
     val accentArgb = accent.toArgb()
     var pickingAccent by remember { mutableStateOf(false) }
-    val themeAccent = when (appearance.theme) {
-        AppTheme.Dark -> IcodePalette.Dark
-        AppTheme.Light -> IcodePalette.Light
-        AppTheme.Amoled -> IcodePalette.Amoled
-    }.accent.toArgb()
+    val themeAccent = AccentColorRules.themeAccent(appearance.theme)
 
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Appearance", subtitle = "Theme, fonts, and display", onBack = actions.back)

@@ -1,6 +1,8 @@
 package dev.icode.mobile.designsystem
 
 import androidx.compose.ui.graphics.Color
+import dev.icode.mobile.domain.AccentColorRules
+import dev.icode.mobile.domain.AppTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
 import org.junit.Test
@@ -21,5 +23,11 @@ class IcodePaletteTest {
 
     @Test fun `a translucent choice is drawn opaque`() {
         assertEquals(Color(0xFF4FB3FF), IcodePalette.Dark.withAccent(0x404FB3FF).accent)
+    }
+
+    @Test fun `each palette draws its theme's own accent`() {
+        assertEquals(Color(AccentColorRules.themeAccent(AppTheme.Dark)), IcodePalette.Dark.accent)
+        assertEquals(Color(AccentColorRules.themeAccent(AppTheme.Light)), IcodePalette.Light.accent)
+        assertEquals(Color(AccentColorRules.themeAccent(AppTheme.Amoled)), IcodePalette.Amoled.accent)
     }
 }

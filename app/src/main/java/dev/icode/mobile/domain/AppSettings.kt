@@ -18,7 +18,10 @@ data class AppearanceSettings(
     val compactLayout: Boolean = true,
     /** Opaque ARGB chosen over the theme's own accent; null keeps the theme's. App-wide. */
     val accentColor: Int? = null,
-)
+) {
+    /** The accent the app draws with: the one chosen, or the theme's own. */
+    val effectiveAccent: Int get() = accentColor ?: AccentColorRules.themeAccent(theme)
+}
 
 /** The accent colours offered first, how a choice is written, and whether it reads on a background. */
 object AccentColorRules {
@@ -35,6 +38,11 @@ object AccentColorRules {
         Preset("Violet", 0xFFB67CFF.toInt()),
         Preset("Rose", 0xFFFF5C8A.toInt()),
     )
+
+    /** Each theme's own accent: Ember, deepened on Light so it still reads on a light background. */
+    fun themeAccent(theme: AppTheme): Int = if (theme == AppTheme.Light) LIGHT_EMBER else presets.first().argb
+
+    private val LIGHT_EMBER = 0xFFB4470C.toInt()
 
     /** Below this an accent used for text or icons is hard to read (WCAG, large text and UI parts). */
     const val MIN_CONTRAST = 3.0

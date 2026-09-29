@@ -72,3 +72,38 @@ Upgrading Kotlin is a separate, app-wide decision.
   terminal cursor were not re-driven on the device; they read the same `palette.accent`.
 - Gate: debug and release compile, 414 JVM tests, lint 0 errors / 12 warnings, UI and backend
   guards pass.
+
+## 6. The launcher icon — dropped
+
+Asked on 2026-09-29 ("if possible also make sure the icon of the app also adopt the accent"),
+then withdrawn by the owner after seeing the costs (Android can only switch between icons shipped
+as activity aliases, closes the window opened through the old alias, and some launchers drop the
+home-screen shortcut): "we dont need to work for logo". The launcher icon stays the brand art.
+
+## 7. The terminal prompt follows the accent
+
+Owner (2026-09-29): "see the terminal the repo name make sure it get accent color currently not".
+The prompt drew the project name in xterm colour 208, a fixed orange, whatever the accent.
+
+- **One owner of the accent in effect:** `AppearanceSettings.effectiveAccent` (the choice, else
+  `AccentColorRules.themeAccent(theme)`); the three palettes take their accent from the same rule,
+  and the picker's "Use theme default" reads it.
+- **`ShellPrompt`** (data/runtime, out of `RuntimeLayout`): writes the prompt script as before and
+  a second file, `~/.icode-accent`, holding `R;G;B`. The prompt reads it each time it is drawn and
+  uses a 24-bit colour, so a running shell follows a new accent or theme at its next prompt;
+  nothing is typed into it and no colour index other programs use is repurposed. Anything but
+  digits and semicolons in the file keeps the old orange. A runtime installed later gets the
+  accent with its first shell.
+- **Wiring:** `TerminalCoordinator.follow` takes the preferences and hands the terminal settings
+  and, once per change, the accent to `TerminalSessions.applyAccent`; `TerminalEnding` moved
+  beside that interface. Gateway (769) and session manager (300) did not grow.
+- **Found and fixed:** inside the guest home the prompt showed `/root/...`, not the `~/...` its
+  comment promised: bash expands a `~` given as a substitution's replacement back into the home
+  path, and the prefix match had no path boundary (`/rootx` read as `~x`). Now a `case` on whole
+  path segments.
+- **Tests:** `ShellPromptTest` (sourced once, accent written and followed, uninstalled runtime,
+  and the script run in a real bash for workspace, home, look-alike and invalid-file cases),
+  coordinator follows the accent once per change, effective accent, palettes. 421 JVM tests.
+- **Device** (2026-09-29): the project name in the owner's Violet; switching to Mint, the next
+  prompt of the same running shell was Mint while the earlier line stayed Violet. Owner's Violet
+  restored.

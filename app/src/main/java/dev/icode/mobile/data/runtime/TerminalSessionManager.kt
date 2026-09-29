@@ -25,9 +25,6 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 
-/** A tab removed because its shell exited by itself. */
-internal data class TerminalEnding(val id: String, val title: String, val exitCode: Int)
-
 /**
  * Owns every terminal session.
  *
@@ -55,6 +52,7 @@ internal class TerminalSessionManager private constructor(
     private val entries = linkedMapOf<String, Entry>()
     private val sessionNames = TerminalSessionNames()
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val prompt = ShellPrompt(layout.rootfs) { layout.isInstalled }
     private var nextId = 1
 
     /** Read on [open]'s background half, written on the main thread. */
@@ -105,7 +103,7 @@ internal class TerminalSessionManager private constructor(
         if (reuseExisting) {
             withContext(Dispatchers.Main.immediate) { selectRunning(workspaceHostPath) }?.let { return it }
         }
-        val launch = withContext(Dispatchers.IO) { TerminalLaunch.prepare(layout, settings, workspaceHostPath) } ?: return null
+        val launch = withContext(Dispatchers.IO) { TerminalLaunch.prepare(layout, prompt, settings, workspaceHostPath) } ?: return null
         return withContext(Dispatchers.Main.immediate) { start(launch) }
     }
 
@@ -124,6 +122,8 @@ internal class TerminalSessionManager private constructor(
         moved.forEach { (id, entry) -> entries[id] = entry }
         publish(selectedId = mutableSnapshot.value.selectedId)
     }
+
+    override suspend fun applyAccent(argb: Int) = withContext(Dispatchers.IO) { prompt.useAccent(argb) }
 
     @MainThread
     override fun applySettings(next: TerminalSettings) {

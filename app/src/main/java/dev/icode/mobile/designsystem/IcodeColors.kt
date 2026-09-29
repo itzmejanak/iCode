@@ -5,6 +5,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import dev.icode.mobile.domain.AccentColorRules
+import dev.icode.mobile.domain.AppTheme
 
 /** Which theme a palette is, however its accent was changed. */
 enum class PaletteKind { Dark, Light, Amoled }
@@ -41,7 +42,7 @@ data class IcodePalette(
             background = Color(0xFF0A0D0B), backgroundDeep = Color(0xFF060807),
             surface = Color(0xFF131812), surfaceElevated = Color(0xFF1C231B),
             surfaceTrack = Color(0xFF232B22), outline = Color(0xFF2A332A),
-            accent = Color(0xFFFF6B2C), amber = Color(0xFFFFC24B),
+            accent = Color(AccentColorRules.themeAccent(AppTheme.Dark)), amber = Color(0xFFFFC24B),
             green = Color(0xFF43D9A3), blue = Color(0xFF6AA9FF), error = Color(0xFFFF5449),
             textPrimary = Color(0xFFE9EFE7), textSecondary = Color(0xFF9AA69A),
             textMuted = Color(0xFF5F6C60), onAccent = Color.Black,
@@ -55,7 +56,7 @@ data class IcodePalette(
             background = Color(0xFFF5F7F3), backgroundDeep = Color(0xFFECEFE9),
             surface = Color.White, surfaceElevated = Color(0xFFE7EBE5),
             surfaceTrack = Color(0xFFDCE3DA), outline = Color(0xFF758575),
-            accent = Color(0xFFB4470C), amber = Color(0xFF7A5100),
+            accent = Color(AccentColorRules.themeAccent(AppTheme.Light)), amber = Color(0xFF7A5100),
             green = Color(0xFF106B4B), blue = Color(0xFF235B9B), error = Color(0xFFB42318),
             textPrimary = Color(0xFF172018), textSecondary = Color(0xFF425247),
             textMuted = Color(0xFF647467), onAccent = Color.White,
@@ -69,7 +70,7 @@ data class IcodePalette(
             background = Color.Black, backgroundDeep = Color.Black,
             surface = Color(0xFF0B0B0B), surfaceElevated = Color(0xFF151915),
             surfaceTrack = Color(0xFF1E241D), outline = Color(0xFF647264),
-            accent = Color(0xFFFF6B2C), amber = Color(0xFFFFC24B),
+            accent = Color(AccentColorRules.themeAccent(AppTheme.Amoled)), amber = Color(0xFFFFC24B),
             green = Color(0xFF43D9A3), blue = Color(0xFF6AA9FF), error = Color(0xFFFF5449),
             textPrimary = Color(0xFFF2F6F0), textSecondary = Color(0xFFAAB5A8),
             textMuted = Color(0xFF8B9B8B), onAccent = Color.Black,
