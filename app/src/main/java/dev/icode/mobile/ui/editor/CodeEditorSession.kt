@@ -88,7 +88,7 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
             acceptedText = document.text
             pendingLocalText = null
             editor.setText(document.text)
-            applyLanguage(document.name)
+            applyLanguage(document)
         } else {
             val viewText = editor.text.toString()
             when {
@@ -100,6 +100,7 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
                 document.text != acceptedText -> {
                     acceptedText = document.text
                     editor.setText(document.text)
+                    applyLanguage(document)
                 }
             }
         }
@@ -177,8 +178,10 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
         }
     }
 
-    private fun applyLanguage(name: String) {
-        val nextScope = FileTypes.of(name).grammar
+    /** By the file's name, or for a script without an extension, its `#!` line (read up to its end, at most 256 characters). */
+    private fun applyLanguage(document: OpenDocument) {
+        val name = document.name
+        val nextScope = FileTypes.of(name, document.text.substringBefore('\n').take(FIRST_LINE_CHARS)).grammar
         if (nextScope == scope) return
         scope = nextScope
         runCatching {
@@ -298,3 +301,6 @@ private object TextMateAssets {
         check(ThemeRegistry.getInstance().setTheme(name)) { "TextMate theme $name is unavailable" }
     }
 }
+
+/** A `#!` line longer than this is not one a script would start with. */
+private const val FIRST_LINE_CHARS = 256

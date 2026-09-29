@@ -36,6 +36,8 @@ class FileTypesTest {
         val names = FileTypes.rules.flatMap { it.names }
         assertEquals(extensions.groupBy { it }.filterValues { it.size > 1 }.keys, emptySet<String>())
         assertEquals(names.groupBy { it }.filterValues { it.size > 1 }.keys, emptySet<String>())
+        val interpreters = FileTypes.rules.flatMap { it.interpreters }
+        assertEquals(interpreters.groupBy { it }.filterValues { it.size > 1 }.keys, emptySet<String>())
         assertEquals(FileTypes.rules.map { it.type.id }.size, FileTypes.rules.map { it.type.id }.toSet().size)
     }
 
@@ -45,5 +47,26 @@ class FileTypesTest {
         val named = FileTypes.rules.mapNotNull { it.type.grammar }.toSet()
         assertEquals(shipped, named)
         assertTrue(shipped.isNotEmpty())
+    }
+
+    @Test fun `a script without an extension is known by its first line`() {
+        val shell = FileTypes.of("sh.sh")
+        listOf(
+            "#!/usr/bin/env bash",
+            "#!/bin/bash -e",
+            "#!/bin/sh",
+            "#! /usr/bin/env zsh",
+            "#!/usr/bin/env bash\r",
+        ).forEach { line -> assertEquals(line, shell, FileTypes.of("task-start", line)) }
+        assertEquals(FileTypes.of("a.py"), FileTypes.of("serve", "#!/usr/bin/env -S python3.12 -u"))
+        assertEquals(FileTypes.of("a.py"), FileTypes.of("serve", "#!/usr/bin/env PYTHONPATH=lib python3"))
+        assertEquals(FileTypes.of("a.js"), FileTypes.of("cli", "#!/usr/bin/env node"))
+    }
+
+    @Test fun `the name wins over the first line, and a line that runs nothing known is plain`() {
+        assertEquals(FileTypes.Markdown, FileTypes.of("notes.md", "#!/bin/bash"))
+        listOf("", "# a comment", "#!", "#!/usr/bin/env", "#!/usr/bin/env -S", "#!/usr/bin/awk -f").forEach { line ->
+            assertEquals(line, FileTypes.PlainText, FileTypes.of("run", line))
+        }
     }
 }
