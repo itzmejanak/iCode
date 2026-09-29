@@ -566,3 +566,56 @@ verified the terminal, asked to stop. Found for the owner: the landscape keyboar
 terminal rows; segmented controls do not report their selection to screen readers. The three older
 terminal plans are closed. Gate: 406 tests; lint 0 errors / 11 warnings; both guards pass.
 
+
+## 8. What remains — measured 2026-09-29
+
+Owner (2026-09-29): "what's remaining and what gaps and issues; let's complete the whole remaining
+one by one, no guess, no assumption, no duplication, no inconsistency". Every row below was
+re-measured in the code on 2026-09-29, not copied from the dated tables in §4 or in
+[backend-split-audit.md](./backend-split-audit.md); a suspicion that did not hold is listed as such.
+
+### Found
+
+| # | Finding | Evidence | Step |
+|---|---|---|---|
+| R1 | Whether a push, pull or fetch may start is decided in three places that disagree: the palette checks only for a remote; Commit & Push enables Push and Pull whenever a remote exists; `GitTransferCoordinator` refuses a detached HEAD. A refused push still opens "Syncing Repository", which then shows an older operation or "Nothing in progress". Pull is offered without an upstream, where `git pull --ff-only` must fail. Two wordings for one fact ("HEAD is detached…", "No branch checked out…") | `PaletteCommands.kt:37-38`, `CommitPushScreen.kt:47`, `GitTransferCoordinator.kt:86-90`, `PullProgressScreen.kt:97-105`, `GitRepositoryClient.kt:168-169` | S7.1 |
+| R2 | A sample value in the domain: `Diagnostic.source` defaults to `"TS"`; only the capture fixture builds diagnostics | `DiagnosticsContract.kt:10`, `CaptureFixtures.kt:92-94` | S7.2 |
+| R3 | Saving a new or a stopped language service rebuilds every row with `running = false`: another server still running reads Stopped until its process changes state | `AndroidWorkbenchGateway.kt:457-468, 507-510` | S8.2 |
+| R4 | One fact twice: `LanguageService.running` and `.status`; nothing reads `running` | `LanguageServiceContract.kt:9,14`; no reader in `app/src` | S8.2 |
+| R5 | The checked SharedPreferences write is written twice; `LanguageServiceStore` is the last `UseKtx` lint warning | `WorkspaceStore.kt:141-144`, `LanguageServiceStore.kt:40` | S8.3 |
+| R6 | The segmented control draws its selected label in `OnAccent` — the colour for text *on the accent* — over the grey `Outline`: on Dark it is near-black on dark grey, fainter than the unselected option. Neither it nor `ChoiceChip` tells a screen reader which option is selected | `IcodeControls.kt:52-66, 71-86`; `artifacts/screens/19-editor-settings.png` (Tab Size); S6 record | S8.4 |
+| R7 | Language services still live in the gateway (config, processes, view) | `AndroidWorkbenchGateway.kt:84-97, 206-212, 403-407, 457-557` | S8.1 |
+| R8 | The workspace session still lives in the gateway: open/switch, refresh loop, watcher, session restore, drafts of another workspace, compare with disk | `AndroidWorkbenchGateway.kt:559-769` | X3 |
+| R9 | Over the 300-line budget: gateway 769 (router ~200 of it), `RuntimeInstaller` 340, `DocumentSessionCoordinator` 314, `IcodeApp` 356. The UI guard checks `ui/screens` only, so `IcodeApp` is unguarded | `wc -l`; `tools/check-ui-consistency.sh` | X4, G1 |
+| R10 | Byte sizes formatted outside `ByteSize`: the terminal's download line; `GuestCommand`'s two limits say "MB" and "MiB" for the same unit | `TerminalControls.kt:73`, `GuestCommand.kt:122, 232` | X5 |
+| R11 | The persistence and lock maps in the audit are stale (no notices, ledgers or language store; "session restore: none yet"). Today each of the 9 stores is opened in exactly one file — nothing enforces it | `getSharedPreferences`/`preferencesDataStore` grep; audit §6 | G1, G2 |
+| — | *Did not hold:* language servers are stopped on a workspace switch (`AndroidWorkbenchGateway.kt:598`); restart is bounded (stop kills after 2 s, restart waits 3 s) | read | — |
+
+Owner decisions (2026-09-29): the selected option of a segmented control is an **accent pill**
+(as the filter chips); the Light and AMOLED palettes are **accepted** ("from review I have selected
+those, they are good"), so their review note goes.
+
+### Steps, in the user's lifecycle order (each: gate, commit; device where it touches a screen)
+
+| Step | What | Kind |
+|---|---|---|
+| S7.1 | One rule for fetch, pull and push (`GitSyncRules`, domain, tested): no workspace, Git missing, no repository, an operation running, no remote, detached HEAD, pull without upstream — one reason text each; the palette and Commit & Push disable with it; the coordinator keeps its guard with the same text | fix |
+| S7.2 | `Diagnostic.source` without a default; the fixture names its source | fix |
+| S7.3 | Device: palette (focus, search, empty, disabled reasons, touch and key selection, Back), Problems empty state, Output idle / failed | harden |
+| S8.1 | `LanguageServiceCoordinator` out of the gateway, behaviour unchanged | move |
+| S8.2 | Saving keeps every other service's live state; `running` removed (status is the one fact) | fix |
+| S8.3 | One checked-write helper for both SharedPreferences stores | fix |
+| S8.4 | Map every settings control (root search, Appearance, Editor, Terminal, Workspace, Languages, Language detail, Storage, Runtime, About) and fix what does not hold; R6 first | fix |
+| S8.5 | Device: settings persist across a restart; a language service saved while another runs | harden |
+| X3 | `WorkspaceSessionCoordinator` out of the gateway, behaviour unchanged | move |
+| X4 | Ownership review of each file over 300: split at a real boundary, or record why it is one owner | move / record |
+| X5 | R10 through `ByteSize` | fix |
+| G1 | Guard: each store opened in one file; SHA-256 only in `Sha256`; no byte formatting outside `ByteSize`; the line budget for every `ui/` file | guard |
+| G2 | Docs: the current persistence and lock map here; audit §6 marked superseded; Todo and README agree | docs |
+
+### Not in this programme (features or the owner's)
+
+Diagnostics need a language-server client first (Todo 8); Output channels beyond Git (Todo 9);
+licences and About (Todo 4); `PROOT_L2S_DIR` and `htop` (Todo 7); HTTPS/SSH push with the owner's
+credentials; terminal rows under the landscape keyboard (S6 finding, a layout decision); a
+developer-tools onboarding step (Todo 5).
