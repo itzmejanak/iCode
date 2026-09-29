@@ -652,3 +652,9 @@ developer-tools onboarding step (Todo 5).
   restart, stop all. The gateway routes the intents and stops the servers on a workspace switch
   and on close (769 → 638 lines; the guard's ratchet lowered with it). Code moved unchanged:
   `running` stays for S8.2. Gate: 449 tests; lint 0 errors / 12 warnings; both guards pass.
+- S8.2: `LanguageServiceRules.rows` builds the rows from the saved configuration and keeps the
+  process state shown for each — saving one service no longer shows another running server as
+  Stopped (R3); the service just saved starts from Stopped. `LanguageService.running` is gone:
+  `status` is the one fact (R4); the capture fixtures name their status. 4 tests (one fails on
+  the old code). Gate: 453 tests; lint 0 errors / 12 warnings; both guards pass. The phone check
+  is S8.5.
