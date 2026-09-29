@@ -66,6 +66,11 @@ object IcodeSizes {
     val BottomBar = 48.dp
     val LineNumberGutter = 32.dp
     val Swatch = 28.dp
+
+    /** The accent picker: its HSV wheel, brightness bar and preset chips. */
+    val ColorWheel = 200.dp
+    val ColorBar = 28.dp
+    val ColorChip = 32.dp
     val ContentMaxWidth = 600.dp
 
     /** Round status marks: empty states, dialogs and health banners. */

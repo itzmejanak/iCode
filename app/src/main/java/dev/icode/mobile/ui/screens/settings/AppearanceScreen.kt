@@ -37,6 +37,7 @@ import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.SettingRow
+import dev.icode.mobile.domain.AccentColorRules
 import dev.icode.mobile.domain.AppTheme
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.ui.LocalWorkspacePreferences
@@ -69,7 +70,13 @@ fun AppearanceScreen(actions: NavigationActions) {
         }
     }
     val accent = IcodeColors.Accent
-    val accentHex = "#%06X".format(accent.toArgb() and 0xFFFFFF)
+    val accentArgb = accent.toArgb()
+    var pickingAccent by remember { mutableStateOf(false) }
+    val themeAccent = when (appearance.theme) {
+        AppTheme.Dark -> IcodePalette.Dark
+        AppTheme.Light -> IcodePalette.Light
+        AppTheme.Amoled -> IcodePalette.Amoled
+    }.accent.toArgb()
 
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Appearance", subtitle = "Theme, fonts, and display", onBack = actions.back)
@@ -126,16 +133,31 @@ fun AppearanceScreen(actions: NavigationActions) {
                 }
             }
             SectionLabel("Accent Color")
-            SettingRow("Ember Accent", Modifier.fillMaxWidth()) {
+            SettingRow(
+                if (appearance.accentColor == null) "Theme accent" else "${AccentColorRules.nameOf(accentArgb)} accent",
+                Modifier.fillMaxWidth(),
+                onClick = { if (preferences.loaded && preferences.loadError == null) pickingAccent = true },
+            ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
                 ) {
                     Box(Modifier.size(IcodeSizes.IconSm).background(accent, IcodeShapes.Pill))
-                    MonoLine(accentHex, color = accent, style = IcodeType.MonoSmall)
+                    MonoLine(AccentColorRules.hex(accentArgb), color = accent, style = IcodeType.MonoSmall)
                 }
             }
         }
+    }
+    if (pickingAccent) {
+        AccentColorDialog(
+            current = accentArgb,
+            themeAccent = themeAccent,
+            onApply = { argb ->
+                pickingAccent = false
+                update { repository.setAccentColor(argb) }
+            },
+            onDismiss = { pickingAccent = false },
+        )
     }
 }
 

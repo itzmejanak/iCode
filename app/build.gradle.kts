@@ -102,6 +102,9 @@ dependencies {
     androidTestImplementation(composeBom)
 
     implementation("androidx.core:core-ktx:1.17.0")
+    // Accent colour picker. 1.1.4 is the newest release built for Kotlin 2.3 and
+    // Compose 1.10+; later ones need Kotlin 2.4 (docs/accent-color-plan.md).
+    implementation("com.github.skydoves:colorpicker-compose:1.1.4")
     implementation("org.apache.commons:commons-compress:1.27.1")
     // VT/xterm emulator, renderer and input view (brings terminal-emulator).
     // Apache-2.0 per termux-app LICENSE.md; see docs/terminal-maturity-plan.md §3.
