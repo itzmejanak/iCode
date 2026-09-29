@@ -9,14 +9,9 @@ import dev.icode.mobile.domain.RuntimeInstallReason
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.isActive
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
 import java.io.File
 import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.URL
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -116,7 +111,7 @@ internal class RuntimeInstaller(
         try {
             if (!archive.isFile || Sha256.hexOf(archive) != descriptor.sha256) {
                 archive.delete()
-                download(descriptor, archive) { received, total ->
+                RootfsDownloader().download(descriptor.url, archive) { received, total ->
                     emit(RuntimeState.Downloading(received, total, "Downloading ${descriptor.base}"))
                 }
                 emit(RuntimeState.Installing("Verifying download"))
@@ -174,61 +169,6 @@ internal class RuntimeInstaller(
         }
     }.flowOn(Dispatchers.IO)
 
-    private suspend fun download(
-        descriptor: RootfsDescriptor,
-        target: File,
-        onProgress: suspend (Long, Long) -> Unit,
-    ) {
-        val connection = (URL(descriptor.url).openConnection() as HttpURLConnection).apply {
-            connectTimeout = CONNECT_TIMEOUT_MILLIS
-            readTimeout = READ_TIMEOUT_MILLIS
-            instanceFollowRedirects = true
-        }
-        try {
-            if (connection.responseCode !in 200..299) {
-                throw IOException("Download failed with HTTP ${connection.responseCode}")
-            }
-            val total = connection.contentLengthLong
-            var received = 0L
-            var lastReported = 0L
-            var lastReportedAt = System.currentTimeMillis()
-            // Reported before the first byte arrives. Without this the caller
-            // stays in its previous state until a megabyte has landed, and on
-            // a slow connection the screen claims nothing is happening for
-            // minutes while the download is in fact running.
-            onProgress(0L, total)
-            connection.inputStream.use { input ->
-                target.outputStream().use { output ->
-                    val buffer = ByteArray(DOWNLOAD_BUFFER_BYTES)
-                    while (true) {
-                        val count = input.read(buffer)
-                        if (count < 0) break
-                        output.write(buffer, 0, count)
-                        received += count
-                        // Sparingly by volume, but also on a timer, so a slow
-                        // link still visibly moves instead of looking hung.
-                        val now = System.currentTimeMillis()
-                        if (received - lastReported >= PROGRESS_STEP_BYTES ||
-                            now - lastReportedAt >= PROGRESS_INTERVAL_MILLIS
-                        ) {
-                            lastReported = received
-                            lastReportedAt = now
-                            onProgress(received, total)
-                        }
-                    }
-                }
-            }
-            onProgress(received, total)
-        } finally {
-            connection.disconnect()
-        }
-    }
-
-    /**
-     * Extracts through PRoot so ownership and device nodes in the archive apply
-     * cleanly. Extracting directly would fail on every chown the tarball asks
-     * for, because the app is not root on Android.
-     */
     /**
      * Unpacks the base system directly rather than through PRoot.
      *
@@ -323,13 +263,6 @@ internal class RuntimeInstaller(
         const val DPKG_UNSAFE_IO_RELATIVE = "etc/dpkg/dpkg.cfg.d/icode-unsafe-io"
         const val SUPPORTED_SCHEMA = 1
         const val EXTRACT_REPORT_INTERVAL_MILLIS = 250L
-        const val CONNECT_TIMEOUT_MILLIS = 30_000
-        const val READ_TIMEOUT_MILLIS = 60_000
-        const val DOWNLOAD_BUFFER_BYTES = 128 * 1024
-        const val PROGRESS_STEP_BYTES = 1024L * 1024L
-
-        /** So a slow link still shows movement between megabytes. */
-        const val PROGRESS_INTERVAL_MILLIS = 700L
 
         /**
          * Proof that the archive landed: a shell to run commands with, and the

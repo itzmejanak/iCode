@@ -22,14 +22,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.core.view.WindowCompat
-import dev.icode.mobile.domain.countOf
 import dev.icode.mobile.navigation.ToolPanelTab
-import dev.icode.mobile.ui.screens.recovery.ExternalChangePrompt
 import dev.icode.mobile.ui.terminal.TerminalSessionSource
 import dev.icode.mobile.data.settings.AndroidWorkspacePreferencesRepository
 import dev.icode.mobile.data.workspace.DocumentAutoSaveCoordinator
 import dev.icode.mobile.designsystem.IcodeScreen
-import dev.icode.mobile.designsystem.IcodeSaveDiscardDialog
 import dev.icode.mobile.designsystem.IcodeTheme
 import dev.icode.mobile.designsystem.IcodePalette
 import dev.icode.mobile.designsystem.PaletteKind
@@ -48,18 +45,11 @@ import dev.icode.mobile.domain.GitActionRules
 import dev.icode.mobile.domain.GitSyncAction
 import dev.icode.mobile.ui.editor.CodeEditorSessions
 import androidx.compose.runtime.withFrameNanos
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.Text
-import androidx.compose.ui.Modifier
 import dev.icode.mobile.ui.screens.entry.EntryScreenHost
 import dev.icode.mobile.ui.screens.recovery.RecoveryScreenHost
 import dev.icode.mobile.ui.screens.settings.SettingsScreenHost
 import dev.icode.mobile.ui.screens.tools.ToolScreenHost
 import dev.icode.mobile.ui.screens.workspace.WorkspaceScreenHost
-import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeConfirmDialog
-import dev.icode.mobile.designsystem.IcodeType
-import dev.icode.mobile.designsystem.SecondaryButton
 
 @Composable
 fun IcodeApp(
@@ -115,11 +105,7 @@ fun IcodeApp(
                 DocumentAutoSaveCoordinator(gateway, preferences.editor.autoSave).run()
             }
         }
-        var pendingWorkspaceSwitch by remember { mutableStateOf<WorkbenchEffect.ConfirmWorkspaceSwitch?>(null) }
-        var externalChangeAsked by remember { mutableStateOf<String?>(null) }
-        // One question at a time: restoring several drafts asks about each in turn.
-        var pendingDraftRecoveries by remember { mutableStateOf<List<WorkbenchEffect.ConfirmDraftRecovery>>(emptyList()) }
-        var pendingRecoveredOverwrite by remember { mutableStateOf<WorkbenchEffect.ConfirmRecoveredOverwrite?>(null) }
+        val questions = rememberWorkbenchQuestions()
         val editorSessions = remember(context, gateway) { CodeEditorSessions(context) }
         // Until the settings load, the palette stands in; the editor's theme is built for the real one.
         LaunchedEffect(editorSessions, palette, preferences.loaded) {
@@ -220,11 +206,10 @@ fun IcodeApp(
                     is WorkbenchEffect.WorkspaceTerminalOpened -> navigation.actions.navigate(Route.TerminalExpanded)
                     // The creation dialog consumes these request-scoped results.
                     is WorkbenchEffect.WorkspaceItemChanged, is WorkbenchEffect.WorkspaceItemFailed -> Unit
-                    is WorkbenchEffect.ConfirmWorkspaceSwitch -> pendingWorkspaceSwitch = effect
-                    is WorkbenchEffect.ConfirmDraftRecovery -> pendingDraftRecoveries =
-                        pendingDraftRecoveries.filterNot { it.location == effect.location } + effect
-                    is WorkbenchEffect.ConfirmRecoveredOverwrite -> pendingRecoveredOverwrite = effect
-                    is WorkbenchEffect.ExternalChangeDetected -> externalChangeAsked = effect.location
+                    is WorkbenchEffect.ConfirmWorkspaceSwitch -> questions.ask(effect)
+                    is WorkbenchEffect.ConfirmDraftRecovery -> questions.ask(effect)
+                    is WorkbenchEffect.ConfirmRecoveredOverwrite -> questions.ask(effect)
+                    is WorkbenchEffect.ExternalChangeDetected -> questions.ask(effect)
                     WorkbenchEffect.RuntimeRebuildStarted -> navigation.actions.navigate(Route.RuntimeInstalling)
                     WorkbenchEffect.GitInitialized -> navigation.actions.navigate(Route.SourceControl)
                     WorkbenchEffect.GitCommitted -> Toast.makeText(context, "Commit created", Toast.LENGTH_SHORT).show()
@@ -258,74 +243,7 @@ fun IcodeApp(
             navigation.actions.back()
         }
 
-        pendingWorkspaceSwitch?.let { switch ->
-            IcodeSaveDiscardDialog(
-                title = "Switch workspace?",
-                description = "${countOf(switch.dirtyCount, "file has", "files have")} unsaved changes.",
-                onSave = {
-                    gateway.dispatch(WorkbenchIntent.ResolveWorkspaceSwitch(switch.location, switch.openTerminal, saveChanges = true))
-                    pendingWorkspaceSwitch = null
-                },
-                onDiscard = {
-                    gateway.dispatch(WorkbenchIntent.ResolveWorkspaceSwitch(switch.location, switch.openTerminal, saveChanges = false))
-                    pendingWorkspaceSwitch = null
-                },
-                onDismiss = { pendingWorkspaceSwitch = null },
-            )
-        }
-        pendingDraftRecoveries.firstOrNull()?.let { recovery ->
-            val answered = { pendingDraftRecoveries = pendingDraftRecoveries.drop(1) }
-            IcodeConfirmDialog(
-                title = "Recover ${recovery.name}?",
-                confirmLabel = "Restore draft",
-                onConfirm = {
-                    gateway.dispatch(WorkbenchIntent.RestoreDraft(recovery.location))
-                    answered()
-                },
-                onDismiss = answered,
-            ) {
-                Text(
-                    if (recovery.sourceChanged)
-                        "The file changed outside iCode. Restoring the draft will keep it in the editor, but saving over the newer file needs your confirmation."
-                    else "Unsaved text from the last session is available. Restore it into the editor or keep the version on disk.",
-                    style = IcodeType.Body,
-                )
-                SecondaryButton(
-                    "Keep disk version · discard draft",
-                    onClick = {
-                        gateway.dispatch(WorkbenchIntent.DiscardDraft(recovery.location))
-                        answered()
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                    color = IcodeColors.Error,
-                )
-            }
-        }
-        ExternalChangePrompt(
-            asked = externalChangeAsked,
-            onAskedChange = { externalChangeAsked = it },
-            snapshot = snapshot,
-            gateway = gateway,
-            current = navigation.current,
-            navigate = navigation.actions.navigate,
-        )
-        pendingRecoveredOverwrite?.let { overwrite ->
-            IcodeConfirmDialog(
-                title = "Overwrite newer file?",
-                confirmLabel = "Overwrite file",
-                destructive = true,
-                onConfirm = {
-                    gateway.dispatch(WorkbenchIntent.ConfirmRecoveredOverwrite(overwrite.location))
-                    pendingRecoveredOverwrite = null
-                },
-                onDismiss = { pendingRecoveredOverwrite = null },
-            ) {
-                Text(
-                    "${overwrite.name} changed outside iCode since the recovery draft was made. This saves the recovered text over the current disk version. Cancel to keep both unchanged.",
-                    style = IcodeType.Body,
-                )
-            }
-        }
+        WorkbenchQuestionDialogs(questions, snapshot, gateway, navigation.current, navigation.actions.navigate)
 
         CompositionLocalProvider(
             LocalWorkbenchSnapshot provides snapshot,
