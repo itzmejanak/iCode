@@ -644,3 +644,11 @@ developer-tools onboarding step (Todo 5).
   the palette; Problems said "No diagnostics reported" with 0/0/0; Output said "No Git output
   yet · IDLE". Commit & Push without a remote was not re-checked: the owner started using the
   phone. Gate: 424 tests; lint 0 errors / 12 warnings; both guards pass.
+
+**S8 — settings and language services (2026-09-29), in progress.**
+
+- S8.1: `LanguageServiceCoordinator` (`data/language`) owns the saved services, their server
+  processes and the rows the Languages settings show — select, save, remove, start, stop,
+  restart, stop all. The gateway routes the intents and stops the servers on a workspace switch
+  and on close (769 → 638 lines; the guard's ratchet lowered with it). Code moved unchanged:
+  `running` stays for S8.2. Gate: 449 tests; lint 0 errors / 12 warnings; both guards pass.
