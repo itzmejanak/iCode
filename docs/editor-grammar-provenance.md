@@ -73,3 +73,14 @@ One edit to a copied file: `make/language-configuration.json` writes `lineCommen
 rejects it (the configuration would be lost and an error logged). `GrammarAssetsTest` loads every
 configuration through that parser.
 
+## The first sixteen languages, aligned (2026-09-29, E4c)
+
+Their names, extensions, name patterns and first-line expressions in `domain/FileTypes.kt` are
+now also their VS Code extensions' own (`java`, `python`, `javascript`, `typescript-basics`,
+`json`, `html`, `xml`, `css`, `markdown-basics`, `shellscript`, `rust`, `go`, `yaml` at
+307b60e7); Kotlin keeps `kt`, `kts` (Sora's grammar; VS Code has none). JSON with comments
+(`.jsonc`, `.eslintrc`, `tsconfig.json`) uses the shipped `source.json`, whose grammar already
+colours comments. Added from the same commit: the language configurations JSON, TypeScript, CSS,
+shell, Rust, Go and YAML lacked; XSL (`xml/syntaxes/xsl.tmLanguage.json`) and JSON Lines
+(`json/syntaxes/JSONL.tmLanguage.json`), each with its configuration.
+

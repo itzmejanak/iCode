@@ -52,7 +52,7 @@ class GrammarAssetsTest {
             "source.objc", "source.perl", "source.perl.6", "source.powershell", "source.r",
             "source.regexp.python", "source.scala", "source.x86", "source.x86_64", "text.bibtex",
             "text.haml", "text.html.derivative", "text.html.handlebars", "text.html.javadoc", "text.html.php.blade",
-            "text.log", "text.pug", "text.slim", "text.tex.latex", "text.xml.xsl",
+            "text.log", "text.pug", "text.slim", "text.tex.latex",
         )
     }
 }
