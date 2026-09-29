@@ -1,52 +1,43 @@
 package dev.icode.mobile.data.workspace
 
 import android.content.Context
-import android.os.Environment
+import com.termux.terminal.TerminalSession
 import dev.icode.mobile.data.git.CliGitService
 import dev.icode.mobile.data.git.ConflictFiles
 import dev.icode.mobile.data.git.GitAuthCoordinator
-import dev.icode.mobile.data.git.GitConflictCoordinator
 import dev.icode.mobile.data.git.GitAuthenticator
+import dev.icode.mobile.data.git.GitConflictCoordinator
 import dev.icode.mobile.data.git.GitCredentialStore
 import dev.icode.mobile.data.git.GitRepositoryClient
 import dev.icode.mobile.data.git.GitTransferCoordinator
 import dev.icode.mobile.data.git.GitTransferLedger
 import dev.icode.mobile.data.git.GitWorkspaceCoordinator
 import dev.icode.mobile.data.language.LanguageServiceCoordinator
-import dev.icode.mobile.data.search.RipgrepService
-import dev.icode.mobile.data.search.SearchCoordinator
-import dev.icode.mobile.data.settings.AndroidWorkspacePreferencesRepository
 import dev.icode.mobile.data.notices.NoticeStore
-import dev.icode.mobile.data.system.AndroidSystemAccess
 import dev.icode.mobile.data.runtime.RuntimeCoordinator
 import dev.icode.mobile.data.runtime.RuntimeForegroundService
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.runtime.RuntimePackageInstaller
 import dev.icode.mobile.data.runtime.TerminalCoordinator
 import dev.icode.mobile.data.runtime.TerminalSessionManager
-import com.termux.terminal.TerminalSession
-import dev.icode.mobile.domain.GitFileDiff
+import dev.icode.mobile.data.search.RipgrepService
+import dev.icode.mobile.data.search.SearchCoordinator
+import dev.icode.mobile.data.settings.AndroidWorkspacePreferencesRepository
+import dev.icode.mobile.data.system.AndroidSystemAccess
 import dev.icode.mobile.domain.GitOperationState
-import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.RuntimeInstallReason
-import dev.icode.mobile.domain.ContentSearchState
+import dev.icode.mobile.domain.SystemPermission
 import dev.icode.mobile.domain.WorkbenchEffect
 import dev.icode.mobile.domain.WorkbenchGateway
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.domain.WorkbenchSnapshot
-import dev.icode.mobile.domain.SystemPermission
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.conflate
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -70,12 +61,12 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         workbench,
         terminals,
         runtimeInstalled = { runtimeLayout.isInstalled },
-        activeRoot = { activeRootLocation },
-        openWorkspaceTerminal = { location -> openWorkspace(location, persist = true, openTerminal = true) },
-        workspaceChanged = { requestRefresh(rebuildIndex = true) },
+        activeRoot = { session.activeRoot },
+        openWorkspaceTerminal = { location -> session.open(location, persist = true, openTerminal = true) },
+        workspaceChanged = { session.requestRefresh(rebuildIndex = true) },
     )
     private val notices = NoticeStore.get(appContext)
-    private val languages = LanguageServiceCoordinator(appContext, workbench, scope, runtimeLayout, activeRoot = { activeRootLocation })
+    private val languages: LanguageServiceCoordinator = LanguageServiceCoordinator(appContext, workbench, scope, runtimeLayout, activeRoot = { session.activeRoot })
     private val runtime: RuntimeCoordinator = RuntimeCoordinator(
         appContext,
         workbench,
@@ -85,8 +76,6 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         sessionsRunning = { terminals.hasRunningSessions() || languages.hasActiveProcesses() },
         onStorageAccessChanged = { library.refreshRecents() },
     )
-    private var activeRootLocation: String? = null
-
     private val library: WorkspaceLibraryCoordinator = WorkspaceLibraryCoordinator(
         appContext,
         workbench,
@@ -99,7 +88,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                 workbench.current.gitOperation is GitOperationState.Running
         },
     )
-    private val folders: FolderBrowserCoordinator = FolderBrowserCoordinator(workbench, source) { location -> openWorkspace(location, persist = true) }
+    private val folders: FolderBrowserCoordinator = FolderBrowserCoordinator(workbench, source) { location -> session.open(location, persist = true) }
 
     private val tree = WorkspaceTree(workbench, source)
     private val gitWorkspace: GitWorkspaceCoordinator = GitWorkspaceCoordinator(
@@ -107,7 +96,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         scope,
         git,
         tree,
-        activeRoot = { activeRootLocation },
+        activeRoot = { session.activeRoot },
         recentWorkspaces = library::recentWorkspaces,
         recentDocuments = library::recentDocuments,
         onInstalled = { gitAuth.refresh() },
@@ -115,7 +104,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     private val transferLedger = GitTransferLedger(appContext)
     /** Read before any transfer can start, or it would report the one just started. */
     private val interruptedTransfer = transferLedger.takeInterrupted()
-    private val gitConflicts = GitConflictCoordinator(
+    private val gitConflicts: GitConflictCoordinator = GitConflictCoordinator(
         workbench,
         object : ConflictFiles {
             override fun read(location: String) = source.readDocument(location)
@@ -124,31 +113,31 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                 workbench.current.openDocuments.any { it.location == location && it.dirty }
             override suspend fun written(location: String) = documents.reconcileWithDisk()
         },
-        activeRoot = { activeRootLocation },
+        activeRoot = { session.activeRoot },
         act = gitWorkspace::act,
         stage = { workspace, path -> git.markResolved(workspace, path) },
         refresh = { gitWorkspace.refreshActive() },
     )
-    private val gitTransfers = GitTransferCoordinator(
+    private val gitTransfers: GitTransferCoordinator = GitTransferCoordinator(
         workbench,
         scope,
         git,
-        activeRoot = { activeRootLocation },
+        activeRoot = { session.activeRoot },
         withCredentials = { block -> authenticator.withHttpsCredentials(block) },
         // A transfer runs outside the lock; what it changes afterwards takes it.
         refresh = { workspace -> workbench.mutations.withLock { gitWorkspace.refresh(workspace) } },
-        openClone = { location -> workbench.mutations.withLock { openWorkspace(location, persist = true) } },
+        openClone = { location -> workbench.mutations.withLock { session.open(location, persist = true) } },
         ledger = transferLedger,
     )
     private val gitAuth: GitAuthCoordinator = GitAuthCoordinator(
         workbench,
         git,
         authenticator,
-        activeRoot = { activeRootLocation },
+        activeRoot = { session.activeRoot },
         actInRepository = gitWorkspace::act,
         refreshRepository = { root -> gitWorkspace.refresh(root) },
     )
-    private val search = SearchCoordinator(workbench, scope, RipgrepService(runtimeLayout, packages)) { activeRootLocation }
+    private val search: SearchCoordinator = SearchCoordinator(workbench, scope, RipgrepService(runtimeLayout, packages)) { session.activeRoot }
     private val recovery: DocumentRecoveryCoordinator = DocumentRecoveryCoordinator(
         workbench,
         scope,
@@ -159,26 +148,23 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         source,
         recovery,
         library,
-        activeRoot = { activeRootLocation },
+        activeRoot = { session.activeRoot },
         onSaved = { gitWorkspace.scheduleRefresh() },
     )
-    private val items = WorkspaceItemsCoordinator(
+    private val items: WorkspaceItemsCoordinator = WorkspaceItemsCoordinator(
         workbench,
         source,
         tree,
         documents,
         library,
-        activeRoot = { activeRootLocation },
+        activeRoot = { session.activeRoot },
         refreshWorkspaceState = { root -> gitWorkspace.refresh(root) },
         reindex = { root -> search.workspaceChanged(root) },
     )
 
-    private val refreshRequests = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
-
-    /** Quick Open's index is rebuilt only when entries may have come or gone, not after every save. */
-    @Volatile private var indexStale = false
-    @Volatile private var screenVisible = false
-    private val watcher = WorkspaceWatcher(scope) { structure -> requestRefresh(rebuildIndex = structure) }
+    private val session: WorkspaceSessionCoordinator = WorkspaceSessionCoordinator(
+        workbench, scope, source, tree, library, documents, recovery, gitWorkspace, search, terminal, languages,
+    )
 
     override val snapshot: StateFlow<WorkbenchSnapshot> = workbench.snapshot
     override val effects: SharedFlow<WorkbenchEffect> = workbench.effects
@@ -187,9 +173,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         languages.publish()
         scope.launch { library.refreshRecents() }
         scope.launch { recovery.loadRecoverable() }
-        scope.launch { refreshOnRequest() }
-        scope.launch { followWatchedFolders() }
-        scope.launch { restoreThenKeepSession() }
+        session.start()
         scope.launch { observeNotices() }
         terminal.follow(
             scope,
@@ -219,12 +203,11 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             return
         }
         if (intent == WorkbenchIntent.Refresh) {
-            requestRefresh(rebuildIndex = true)
+            session.requestRefresh(rebuildIndex = true)
             return
         }
         if (intent is WorkbenchIntent.ScreenVisible) {
-            screenVisible = intent.visible
-            if (intent.visible) watcher.watch(watchedFolders(workbench.current)) else watcher.stop()
+            session.screenVisible(intent.visible)
             return
         }
         if (intent == WorkbenchIntent.RefreshStorage) {
@@ -244,14 +227,14 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         // Folder reads and expansion state belong to WorkspaceTree; they do
         // not wait behind an unrelated Git refresh on the mutation lock.
         if (intent is WorkbenchIntent.ToggleFolder) {
-            val root = activeRootLocation ?: return
+            val root = session.activeRoot ?: return
             scope.launch { tree.toggle(root, intent.path) }
             return
         }
         // Search owns cancellable jobs. It must never wait behind a workspace
         // mutation, and a new query must be able to cancel the old process.
         if (intent == WorkbenchIntent.PrepareWorkspaceSearch) {
-            activeRootLocation?.let(search::prepareIndex)
+            session.activeRoot?.let(search::prepareIndex)
             return
         }
         if (intent is WorkbenchIntent.RunContentSearch) {
@@ -302,9 +285,9 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     WorkbenchIntent.BrowseParentFolder -> folders.browseParent()
                     WorkbenchIntent.ConfirmFolderSelection -> folders.confirmSelection()
                     is WorkbenchIntent.RequestCreateFolder -> folders.requestCreateFolder(intent.name)
-                    is WorkbenchIntent.OpenWorkspace -> openWorkspace(intent.path, persist = true)
-                    is WorkbenchIntent.OpenWorkspaceTerminal -> openWorkspace(intent.path, persist = true, openTerminal = true)
-                    is WorkbenchIntent.ResolveWorkspaceSwitch -> resolveWorkspaceSwitch(intent)
+                    is WorkbenchIntent.OpenWorkspace -> session.open(intent.path, persist = true)
+                    is WorkbenchIntent.OpenWorkspaceTerminal -> session.open(intent.path, persist = true, openTerminal = true)
+                    is WorkbenchIntent.ResolveWorkspaceSwitch -> session.resolveSwitch(intent)
                     is WorkbenchIntent.RemoveRecentWorkspace -> library.removeRecent(intent.path)
                     is WorkbenchIntent.OpenFile ->
                         documents.open(intent.path, intent.lineNumber, intent.column)
@@ -321,7 +304,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                         intent.expectedWorkspace,
                     )
                     is WorkbenchIntent.RestoreDraft -> recovery.restore(intent.location)
-                    is WorkbenchIntent.OpenRecoverableDraft -> openRecoverableDraft(intent.location)
+                    is WorkbenchIntent.OpenRecoverableDraft -> session.openRecoverableDraft(intent.location)
                     is WorkbenchIntent.DiscardDraft -> recovery.keepDiskVersion(intent.location)
                     is WorkbenchIntent.ConfirmRecoveredOverwrite -> documents.save(
                         intent.location,
@@ -329,7 +312,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     )
                     is WorkbenchIntent.ReloadFromDisk -> documents.reloadFromDisk(intent.location)
                     is WorkbenchIntent.OverwriteDisk -> documents.overwriteDisk(intent.location)
-                    is WorkbenchIntent.CompareWithDisk -> compareWithDisk(intent.location)
+                    is WorkbenchIntent.CompareWithDisk -> session.compareWithDisk(intent.location)
                     is WorkbenchIntent.SelectDocument -> documents.select(intent.location)
                     is WorkbenchIntent.ReorderDocument -> documents.reorder(intent.movingLocation, intent.targetLocation)
                     is WorkbenchIntent.CloseDocument -> documents.close(intent.location, intent.saveChanges)
@@ -420,219 +403,8 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
      * itself when none runs.
      */
     override fun close() {
-        watcher.stop()
+        session.stopWatching()
         languages.stopAll()
         scope.cancel()
-    }
-
-    private suspend fun openWorkspace(
-        location: String,
-        persist: Boolean,
-        openTerminal: Boolean = false,
-        dirtyChoiceResolved: Boolean = false,
-        /** False when reopening the last session: nothing navigates. */
-        announce: Boolean = true,
-    ) {
-        if (!Environment.isExternalStorageManager()) {
-            workbench.message("All files access is needed to open this folder")
-            return
-        }
-        if (!source.isAvailable(location)) {
-            val reason = if (!File(location).exists()) "This folder no longer exists" else "This folder is not accessible"
-            workbench.message(reason)
-            return
-        }
-        if (location == activeRootLocation) {
-            if (openTerminal) terminal.openIn(location)
-            if (announce) {
-                workbench.emit(
-                    if (openTerminal) WorkbenchEffect.WorkspaceTerminalOpened(location)
-                    else WorkbenchEffect.WorkspaceOpened(location),
-                )
-            }
-            return
-        }
-        val dirtyCount = workbench.current.openDocuments.count { it.dirty }
-        if (dirtyCount > 0 && !dirtyChoiceResolved) {
-            workbench.emit(WorkbenchEffect.ConfirmWorkspaceSwitch(location, openTerminal, dirtyCount))
-            return
-        }
-        runCatching {
-            val root = source.describeRoot(location)
-            val children = source.listChildren(location)
-            val gitPicture = gitWorkspace.read(root.location)
-            val closingDocuments = workbench.current.openDocuments
-                .filter { it.dirty || !recovery.isUnresolved(it.location) }
-                .map { it.location }
-            languages.stopAll()
-            activeRootLocation = root.location
-            tree.reset(root.location, children)
-            if (persist) library.remember(root)
-            val recents = library.recentWorkspaces()
-            workbench.update { snapshot -> snapshot.copy(
-                workspaces = recents,
-                files = tree.rows(root.location, gitPicture.state),
-                gitChanges = gitPicture.state.changes,
-                gitRepository = gitPicture.state.repository,
-                localGitAuthorName = null,
-                localGitAuthorEmail = null,
-                gitIdentityLoaded = false,
-                activeWorkspace = root.name,
-                activePath = root.displayPath,
-                activeWorkspaceLocation = root.location,
-                gitAvailable = gitPicture.available,
-                activeBranch = gitPicture.branch,
-                activeDocument = null,
-                openDocuments = emptyList(),
-                recentDocuments = library.recentDocuments(root.location),
-                fileIndex = emptyList(),
-                fileIndexTruncated = false,
-                contentSearch = ContentSearchState.Empty,
-                externalChanges = emptyList(),
-            ) }
-            documents.clear()
-            recovery.workspaceClosing(closingDocuments)
-            search.workspaceClosing()
-            gitWorkspace.workspaceClosing()
-            if (openTerminal) terminal.openIn(root.location)
-            if (announce) {
-                workbench.emit(
-                    if (openTerminal) WorkbenchEffect.WorkspaceTerminalOpened(location)
-                    else WorkbenchEffect.WorkspaceOpened(location),
-                )
-            }
-        }.onFailure { error ->
-            library.refreshRecents()
-            workbench.report("workspace", "Unable to open folder", error)
-        }
-    }
-
-    private suspend fun resolveWorkspaceSwitch(intent: WorkbenchIntent.ResolveWorkspaceSwitch) {
-        if (intent.saveChanges) {
-            val dirty = workbench.current.openDocuments.filter { it.dirty }
-            for (document in dirty) if (!documents.save(document.location)) return
-        }
-        openWorkspace(intent.path, persist = true, openTerminal = intent.openTerminal, dirtyChoiceResolved = true)
-    }
-
-    /**
-     * Resume, leaving the terminal and a finished command often ask together;
-     * one refresh answers every request made while the last one ran.
-     */
-    private suspend fun refreshOnRequest() {
-        refreshRequests.conflate().collect {
-            delay(REFRESH_SETTLE_MILLIS)
-            workbench.mutations.withLock { refreshActiveWorkspace() }
-        }
-    }
-
-    private fun requestRefresh(rebuildIndex: Boolean) {
-        if (rebuildIndex) indexStale = true
-        refreshRequests.tryEmit(Unit)
-    }
-
-    /** The folders shown and those of open files follow the state, while iCode is seen. */
-    private suspend fun followWatchedFolders() {
-        workbench.snapshot.map(::watchedFolders).distinctUntilChanged().collect { folders ->
-            if (screenVisible) watcher.watch(folders)
-        }
-    }
-
-    /**
-     * Reopens what was open when iCode last ran — after Android ended the
-     * process in the background, the screens come back and so must their
-     * workspace and tabs — then keeps it as it changes. Quietly: nothing
-     * navigates, recents are not bumped, a file gone from disk is skipped, and
-     * a leftover draft still asks its question. Terminals are never reopened.
-     */
-    private suspend fun restoreThenKeepSession() {
-        library.lastSession()?.let { session ->
-            workbench.mutations.withLock {
-                if (activeRootLocation != null || !Environment.isExternalStorageManager()) return@withLock
-                if (!File(session.workspaceLocation).isDirectory) return@withLock
-                openWorkspace(session.workspaceLocation, persist = false, announce = false)
-                if (activeRootLocation != session.workspaceLocation) return@withLock
-                session.documents.filter { File(it).isFile }.forEach { documents.open(it, announce = false) }
-                session.activeDocument?.let(documents::select)
-            }
-        }
-        workbench.snapshot
-            .map { state ->
-                state.activeWorkspaceLocation?.let { root ->
-                    StoredSession(root, state.openDocuments.map { it.location }, state.activeDocument?.location)
-                }
-            }
-            .distinctUntilChanged()
-            .collect { session -> library.saveSession(session) }
-    }
-
-    /**
-     * Opens a draft's file for the recovery question, switching to its
-     * workspace first when it belongs to another one the user has opened.
-     */
-    private suspend fun openRecoverableDraft(location: String) {
-        val root = activeRootLocation
-        if (root == null || !location.isAtOrUnder(root)) {
-            val home = library.workspaceHolding(location) ?: run {
-                workbench.message("Open the folder that holds ${File(location).name} first; its draft is kept")
-                return
-            }
-            openWorkspace(home, persist = true)
-            // A switch that waits on unsaved edits, or failed, has said so already.
-            if (activeRootLocation != home) return
-        }
-        documents.open(location)
-    }
-
-    /**
-     * The disk version against the editor's text, as Git diffs two files, into
-     * the diff view (US-EDIT-009 "Compare shows both relevant versions").
-     */
-    private suspend fun compareWithDisk(location: String) {
-        val root = activeRootLocation ?: return
-        val change = workbench.current.externalChanges.firstOrNull { it.location == location } ?: return
-        val document = workbench.current.openDocuments.firstOrNull { it.location == location } ?: return
-        val read = documents.sourceOf(location) ?: return
-        if (!git.isAvailable()) {
-            workbench.message("Comparing uses Git, which is not installed yet. Install it from Source Control")
-            return
-        }
-        workbench.update { it.copy(activeDiff = null) }
-        val editorBytes = DocumentCodec.encode(document.text, read.encoding, read.hasByteOrderMark)
-        runCatching { gitCli.compareWithBytes(root, change.path, editorBytes) }
-            .onSuccess { outcome ->
-                when (outcome) {
-                    is GitOutcome.Success -> workbench.update {
-                        it.copy(activeDiff = outcome.value ?: GitFileDiff(path = change.path, hunks = emptyList()))
-                    }
-                    is GitOutcome.Failure -> workbench.message(outcome.message)
-                }
-            }
-            .onFailure { error -> workbench.report("git", "Unable to compare the two versions", error) }
-    }
-
-    private suspend fun refreshActiveWorkspace() {
-        val root = activeRootLocation
-        if (root == null) {
-            library.refreshRecents()
-            return
-        }
-        runCatching {
-            tree.reload(root)
-            gitWorkspace.refresh(root)
-            // Files may have come and gone: Quick Open's index is rebuilt, not kept.
-            if (indexStale) {
-                indexStale = false
-                search.workspaceChanged(root)
-            }
-            documents.reconcileWithDisk()
-        }.onFailure { error ->
-            workbench.report("workspace", "Unable to refresh workspace", error)
-        }
-    }
-
-    private companion object {
-        /** Lets requests that arrive together (resume and a panel change) become one refresh. */
-        const val REFRESH_SETTLE_MILLIS = 300L
     }
 }

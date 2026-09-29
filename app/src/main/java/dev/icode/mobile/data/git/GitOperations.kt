@@ -23,6 +23,8 @@ internal interface GitWorkspaceOperations {
     suspend fun checkoutRemote(workspacePath: String, remoteBranch: String)
     suspend fun addRemote(workspacePath: String, name: String, url: String)
     suspend fun diff(workspacePath: String, path: String, staged: Boolean): GitFileDiff?
+    /** [path] on disk against [editorBytes], as Git diffs two files; null when they are the same. */
+    suspend fun compareWithBytes(workspacePath: String, path: String, editorBytes: ByteArray): GitOutcome<GitFileDiff?>
     suspend fun discard(workspacePath: String, path: String, status: String)
     suspend fun abortInProgress(workspacePath: String, inProgress: GitInProgress)
 }

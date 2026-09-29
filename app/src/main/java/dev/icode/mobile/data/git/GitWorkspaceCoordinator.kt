@@ -2,6 +2,7 @@ package dev.icode.mobile.data.git
 
 import dev.icode.mobile.data.workspace.WorkbenchStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceTree
+import dev.icode.mobile.domain.GitFileDiff
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.GitRemoteRules
@@ -185,6 +186,30 @@ internal class GitWorkspaceCoordinator(
     }
 
     fun closeDiff() = workbench.update { it.copy(activeDiff = null) }
+
+    /**
+     * The disk version of [path] against the editor's unsaved text, [editorBytes]
+     * as a save would write them, into the diff view (US-EDIT-009 "Compare shows
+     * both relevant versions").
+     */
+    suspend fun compareWithEditor(path: String, editorBytes: ByteArray) {
+        val workspace = activeRoot() ?: return
+        if (!git.isAvailable()) {
+            workbench.message("Comparing uses Git, which is not installed yet. Install it from Source Control")
+            return
+        }
+        workbench.update { it.copy(activeDiff = null) }
+        runCatching { git.compareWithBytes(workspace, path, editorBytes) }
+            .onSuccess { outcome ->
+                when (outcome) {
+                    is GitOutcome.Success -> workbench.update {
+                        it.copy(activeDiff = outcome.value ?: GitFileDiff(path = path, hunks = emptyList()))
+                    }
+                    is GitOutcome.Failure -> workbench.message(outcome.message)
+                }
+            }
+            .onFailure { error -> workbench.report("git", "Unable to compare the two versions", error) }
+    }
 
     /** Holds the one unstaged change at [path]; a file staged and edited again has a staged row too. */
     fun requestDiscard(path: String) = workbench.update { state ->
