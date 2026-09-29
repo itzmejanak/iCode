@@ -27,19 +27,16 @@ data class PaletteCommand(
 object PaletteCommands {
     fun search(snapshot: WorkbenchSnapshot, query: String): List<PaletteCommand> {
         val workspace = snapshot.activeWorkspaceLocation != null
-        val repository = snapshot.gitRepository
-        val gitReason = when {
-            !workspace -> "Open a workspace first"
-            snapshot.gitAvailable == null -> "Checking Git availability"
-            snapshot.gitAvailable == false -> "Git is not installed"
-            repository == null -> "Initialize Git first"
-            snapshot.gitOperation is GitOperationState.Running -> "A Git operation is running"
-            else -> null
-        }
-        val remoteReason = gitReason ?: if (repository?.hasRemote == true) null else "Add a Git remote first"
+        val gitReason = GitActionRules.repositoryBlocked(snapshot)
         val commands = listOf(
-            PaletteCommand(PaletteCommandId.PushBranch, "Git commands", "Git: Push Branch", "upload remote sync", remoteReason),
-            PaletteCommand(PaletteCommandId.PullBranch, "Git commands", "Git: Pull (from remote)", "download remote sync", remoteReason),
+            PaletteCommand(
+                PaletteCommandId.PushBranch, "Git commands", "Git: Push Branch", "upload remote sync",
+                GitActionRules.syncBlocked(GitSyncAction.Push, snapshot),
+            ),
+            PaletteCommand(
+                PaletteCommandId.PullBranch, "Git commands", "Git: Pull (from remote)", "download remote sync",
+                GitActionRules.syncBlocked(GitSyncAction.Pull, snapshot),
+            ),
             PaletteCommand(
                 PaletteCommandId.CommitStaged,
                 "Git commands",

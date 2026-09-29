@@ -211,7 +211,7 @@ class GitTransferCoordinatorTest {
 
         harness.coordinator.push()?.join()
 
-        assertEquals(WorkbenchEffect.Message("HEAD is detached. Check out a branch before pushing"), withTimeout(2_000) { message.await() })
+        assertEquals(WorkbenchEffect.Message("Check out a branch first"), withTimeout(2_000) { message.await() })
         assertTrue(harness.git.calls.isEmpty())
     }
 
