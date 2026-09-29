@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import dev.icode.mobile.domain.AccentColorRules
 
 /** Which theme a palette is, however its accent was changed. */
 enum class PaletteKind { Dark, Light, Amoled }
@@ -77,6 +78,15 @@ data class IcodePalette(
         )
     }
 }
+
+/**
+ * This palette with the user's accent instead of its own; text and icons on
+ * the accent take black or white, whichever reads better. Null keeps it as is.
+ */
+fun IcodePalette.withAccent(argb: Int?): IcodePalette = if (argb == null) this else copy(
+    accent = Color(AccentColorRules.opaque(argb)),
+    onAccent = Color(AccentColorRules.onColor(argb)),
+)
 
 internal val LocalIcodePalette = staticCompositionLocalOf { IcodePalette.Dark }
 

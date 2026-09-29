@@ -136,6 +136,31 @@ class AndroidWorkspacePreferencesRepositoryTest {
         }
     }
 
+    @Test fun `an accent choice survives a restart, and resetting returns to the theme's`() = runBlocking {
+        val file = File(temporaryFolder.root, "accent.preferences_pb")
+        val firstScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val repository = AndroidWorkspacePreferencesRepository(
+                PreferenceDataStoreFactory.create(scope = firstScope, produceFile = { file }),
+            )
+            assertNull(repository.values(null).first().appearance.accentColor)
+            repository.setAccentColor(0xFF4FB3FF.toInt())
+        } finally {
+            firstScope.coroutineContext.job.cancelAndJoin()
+        }
+        val secondScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val reopened = AndroidWorkspacePreferencesRepository(
+                PreferenceDataStoreFactory.create(scope = secondScope, produceFile = { file }),
+            )
+            assertEquals(0xFF4FB3FF.toInt(), reopened.values(null).first().appearance.accentColor)
+            reopened.setAccentColor(null)
+            assertNull(reopened.values(null).first().appearance.accentColor)
+        } finally {
+            secondScope.cancel()
+        }
+    }
+
     @Test fun `terminal alerts are on until switched off, and the choice survives a restart`() = runBlocking {
         val file = File(temporaryFolder.root, "alerts.preferences_pb")
         val firstScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)

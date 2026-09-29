@@ -33,6 +33,7 @@ import dev.icode.mobile.designsystem.IcodeSaveDiscardDialog
 import dev.icode.mobile.designsystem.IcodeTheme
 import dev.icode.mobile.designsystem.IcodePalette
 import dev.icode.mobile.designsystem.PaletteKind
+import dev.icode.mobile.designsystem.withAccent
 import dev.icode.mobile.domain.AppTheme
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.RouteGroup
@@ -94,7 +95,7 @@ fun IcodeApp(
         AppTheme.Light -> IcodePalette.Light
         AppTheme.Amoled -> IcodePalette.Amoled
         else -> IcodePalette.Dark
-    }
+    }.withAccent(appearance?.accentColor)
     SideEffect {
         (context as? Activity)?.window?.let { window ->
             WindowCompat.getInsetsController(window, window.decorView).apply {
