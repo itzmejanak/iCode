@@ -1,7 +1,11 @@
 package dev.icode.mobile.ui.editor
 
 import dev.icode.mobile.domain.FileTypes
+import java.io.File
+import org.eclipse.tm4e.languageconfiguration.internal.model.LanguageConfiguration
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class GrammarAssetsTest {
@@ -24,18 +28,31 @@ class GrammarAssetsTest {
         assertEquals(emptySet<String>(), shipped - opened - included)
     }
 
+    /** Each language's brackets, comments and indent rules, read by the parser the editor itself uses. */
+    @Test fun `every language configuration loads in the editor's own parser`() {
+        val languages = JSONObject(File("src/main/assets/textmate/languages.json").readText()).getJSONArray("languages")
+        val configurations = (0 until languages.length()).map { languages.getJSONObject(it) }
+            .filter { it.has("languageConfiguration") }
+            .map { it.getString("name") to File("src/main/assets", it.getString("languageConfiguration")) }
+        assertTrue(configurations.size > 30)
+        // On the JVM an error the parser logs throws, so a configuration it only complains about fails too.
+        val unreadable = configurations.filter { (_, file) ->
+            val loaded = runCatching { LanguageConfiguration.load(file.reader()) }.getOrNull()
+            loaded == null || ("\"brackets\"" in file.readText() && loaded.brackets.isNullOrEmpty())
+        }.map { it.first }
+        assertEquals(emptyList<String>(), unreadable)
+    }
+
     private companion object {
         /** Languages other grammars can embed (a Markdown fence, an assembly block in C) that iCode does not ship. */
         val NOT_SHIPPED = sortedSetOf(
-            "source.asp.vb.net", "source.batchfile", "source.c", "source.clojure", "source.coffee",
-            "source.cpp", "source.cs", "source.css.less", "source.css.scss", "source.dart",
-            "source.diff", "source.dockerfile", "source.elixir", "source.erlang", "source.fsharp",
-            "source.groovy", "source.ini", "source.js.regexp", "source.json.comments", "source.julia",
-            "source.lua", "source.makefile", "source.objc", "source.perl", "source.perl.6",
-            "source.php", "source.powershell", "source.r", "source.regexp.python", "source.ruby",
-            "source.scala", "source.sql", "source.swift", "text.bibtex", "text.git-commit",
-            "text.git-rebase", "text.html.derivative", "text.html.handlebars", "text.log", "text.pug",
-            "text.tex.latex", "text.xml.xsl",
+            "source.arm", "source.asm", "source.asp.vb.net", "source.clojure", "source.coffee",
+            "source.elixir", "source.erlang", "source.fsharp", "source.glsl", "source.graphql",
+            "source.html", "source.js.jquery", "source.js.regexp", "source.json.comments", "source.julia",
+            "source.objc", "source.perl", "source.perl.6", "source.powershell", "source.r",
+            "source.regexp.python", "source.scala", "source.x86", "source.x86_64", "text.bibtex",
+            "text.haml", "text.html.derivative", "text.html.handlebars", "text.html.javadoc", "text.html.php.blade",
+            "text.log", "text.pug", "text.slim", "text.tex.latex", "text.xml.xsl",
         )
     }
 }

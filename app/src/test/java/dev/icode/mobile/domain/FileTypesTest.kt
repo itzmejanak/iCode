@@ -12,10 +12,25 @@ class FileTypesTest {
         assertEquals("source.js.jsx", FileTypes.of("View.jsx").grammar)
     }
 
-    @Test fun `unknown and misleading names are plain text`() {
-        listOf("Makefile", "Dockerfile", "notes.txt", "LICENSE", "archive.").forEach { name ->
+    @Test fun `unknown names are plain text`() {
+        listOf("notes.txt", "LICENSE", "archive.", "Makefile.txt.bak").forEach { name ->
             assertEquals(name, FileTypes.PlainText, FileTypes.of(name))
         }
+    }
+
+    @Test fun `whole names, name patterns and the longest extension`() {
+        val cases = mapOf(
+            "Makefile" to "makefile", "GNUmakefile" to "makefile", "Dockerfile" to "dockerfile",
+            "Dockerfile.dev" to "dockerfile", "Containerfile.ci" to "dockerfile", "Jenkinsfile" to "groovy",
+            "build.gradle" to "groovy", "Gemfile" to "ruby", "Berksfile.lock" to "ruby", ".env" to "dotenv",
+            ".env.local" to "dotenv", "prod.env" to "dotenv", ".gitignore" to "ignore", ".gitattributes" to "properties",
+            ".editorconfig" to "properties", "gradle.properties" to "properties", "COMMIT_EDITMSG" to "git-commit",
+            "git-rebase-todo" to "git-rebase", "run.cmd" to "bat", "fix.patch" to "diff", "query.sql" to "sql",
+            "main.c" to "c", "api.h" to "cpp", "vec.hpp.in" to "cpp", "a.c++" to "cpp", "App.cs" to "csharp",
+            "index.php" to "php", "View.swift" to "swift", "style.scss" to "scss", "theme.less" to "less",
+            "init.lua" to "lua", "main.dart" to "dart", "config.ini" to "ini",
+        )
+        cases.forEach { (name, id) -> assertEquals(name, id, FileTypes.of(name).id) }
     }
 
     @Test fun `case does not matter`() {
@@ -36,6 +51,8 @@ class FileTypesTest {
         val names = FileTypes.rules.flatMap { it.names }
         assertEquals(extensions.groupBy { it }.filterValues { it.size > 1 }.keys, emptySet<String>())
         assertEquals(names.groupBy { it }.filterValues { it.size > 1 }.keys, emptySet<String>())
+        val prefixes = FileTypes.rules.flatMap { it.prefixes }
+        assertEquals(prefixes.groupBy { it }.filterValues { it.size > 1 }.keys, emptySet<String>())
         val interpreters = FileTypes.rules.flatMap { it.interpreters }
         assertEquals(interpreters.groupBy { it }.filterValues { it.size > 1 }.keys, emptySet<String>())
         assertEquals(FileTypes.rules.map { it.type.id }.size, FileTypes.rules.map { it.type.id }.toSet().size)
@@ -61,6 +78,9 @@ class FileTypesTest {
         assertEquals(FileTypes.of("a.py"), FileTypes.of("serve", "#!/usr/bin/env -S python3.12 -u"))
         assertEquals(FileTypes.of("a.py"), FileTypes.of("serve", "#!/usr/bin/env PYTHONPATH=lib python3"))
         assertEquals(FileTypes.of("a.js"), FileTypes.of("cli", "#!/usr/bin/env node"))
+        assertEquals("ruby", FileTypes.of("setup", "#!/usr/bin/env ruby").id)
+        assertEquals("makefile", FileTypes.of("build", "#!/usr/bin/make -f").id)
+        assertEquals("groovy", FileTypes.of("deploy", "#!/usr/bin/env groovy").id)
     }
 
     @Test fun `the name wins over the first line, and a line that runs nothing known is plain`() {
