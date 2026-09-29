@@ -124,6 +124,26 @@ object IcodeColors {
 val IcodePalette.terminalAnsi: List<Color>
     get() = if (kind == PaletteKind.Light) LightTerminalAnsi else DarkTerminalAnsi
 
+/**
+ * The editor's syntax colours ([syntaxColor]). One hue per kind of token —
+ * keyword 45°, control 325°, string 155°, number 285°, function 90°, type 195°,
+ * attribute 240°, regex 0° — at one OKLCH lightness per theme, 0.78 for the
+ * dark themes and 0.47 for Light, with as much chroma, up to 0.14, as sRGB
+ * allows; comments a quiet grey at 0.68 and 0.52. So a theme's colours are
+ * equally readable and differ only in what they mean.
+ */
+internal val DarkSyntaxHues = SyntaxHues(
+    comment = Color(0xFF8F9D8F), keyword = Color(0xFFFF9A6B), control = Color(0xFFE497E8),
+    string = Color(0xFF63D18F), number = Color(0xFFB0ADFF), function = Color(0xFFDAB33A),
+    type = Color(0xFF0CD1D1), attribute = Color(0xFF65C1FE), regex = Color(0xFFFF8FB4),
+)
+
+internal val LightSyntaxHues = SyntaxHues(
+    comment = Color(0xFF606D60), keyword = Color(0xFF953B01), control = Color(0xFF803985),
+    string = Color(0xFF016D3C), number = Color(0xFF554BA5), function = Color(0xFF705800),
+    type = Color(0xFF016869), attribute = Color(0xFF056190), regex = Color(0xFF953058),
+)
+
 private val DarkTerminalAnsi = listOf(
     Color(0xFF1C231B), Color(0xFFFF5449), Color(0xFF43D9A3), Color(0xFFFFC24B),
     Color(0xFF6AA9FF), Color(0xFFD68CFF), Color(0xFF4FD6E0), Color(0xFFC9D2C7),
