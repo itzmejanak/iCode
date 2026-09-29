@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import dev.icode.mobile.domain.AccentColorRules
 import dev.icode.mobile.domain.AppTheme
 
@@ -35,6 +36,13 @@ data class IcodePalette(
     val conflictIncomingSurface: Color,
 ) {
     val scrim: Color get() = backgroundDeep.copy(alpha = 0.95f)
+
+    /**
+     * The editor's current line: halfway between the editor and the surfaces
+     * around it, so a highlighted first line never reads as part of the tab bar
+     * (which is [surface]).
+     */
+    val editorLineHighlight: Color get() = lerp(backgroundDeep, surface, 0.5f)
 
     companion object {
         val Dark = IcodePalette(

@@ -4,6 +4,8 @@ import androidx.compose.ui.graphics.toArgb
 import dev.icode.mobile.designsystem.IcodePalette
 import dev.icode.mobile.designsystem.SyntaxRole
 import dev.icode.mobile.designsystem.syntaxColor
+import dev.icode.mobile.domain.AccentColorRules
+import io.github.rosemoe.sora.widget.schemes.EditorColorScheme
 import io.github.rosemoe.sora.langs.textmate.registry.model.ThemeModel
 import org.eclipse.tm4e.core.registry.IThemeSource
 import org.json.JSONObject
@@ -20,8 +22,9 @@ class EditorThemeTest {
             val rules = theme.getJSONArray("settings")
             val editor = rules.getJSONObject(0).getJSONObject("settings")
             assertEquals(hex(palette.backgroundDeep.toArgb()), editor.getString("background"))
-            assertEquals(hex(palette.textPrimary.toArgb()), editor.getString("foreground"))
-            assertEquals(hex(palette.surface.toArgb()), editor.getString("lineHighlight"))
+            assertEquals(DEFAULT_COLOR_SENTINEL, editor.getString("foreground"))
+            assertTrue("no role draws with the sentinel", SyntaxRole.entries.none { hex(palette.syntaxColor(it).toArgb()) == DEFAULT_COLOR_SENTINEL })
+            assertEquals(hex(palette.editorLineHighlight.toArgb()), editor.getString("lineHighlight"))
             val byColour = (1 until rules.length()).map { rules.getJSONObject(it) }
             assertEquals(SyntaxRole.entries.size, byColour.size)
             SyntaxRole.entries.forEach { role ->
@@ -57,4 +60,19 @@ class EditorThemeTest {
     private fun hex(argb: Int) = "#%06X".format(argb and 0xFFFFFF)
 
     @Suppress("unused") private fun pretty(theme: JSONObject) = theme.toString(2)
+
+    @Test fun `the editor's own colours come from the palette and read`() {
+        palettes.forEach { palette ->
+            val colors = editorColors(palette)
+            assertEquals(palette.backgroundDeep.toArgb(), colors.getValue(EditorColorScheme.WHOLE_BACKGROUND))
+            assertEquals(palette.textPrimary.toArgb(), colors.getValue(DEFAULT_COLOR_ID))
+            // The current line is neither the editor nor the tab bar around it.
+            val line = colors.getValue(EditorColorScheme.CURRENT_LINE)
+            assertTrue(line != palette.surface.toArgb() && line != palette.backgroundDeep.toArgb())
+            listOf(EditorColorScheme.LINE_NUMBER, EditorColorScheme.LINE_NUMBER_CURRENT).forEach { id ->
+                val ratio = AccentColorRules.contrastRatio(colors.getValue(id), palette.backgroundDeep.toArgb())
+                assertTrue("${palette.kind} gutter $id %.2f".format(ratio), ratio >= 3.0)
+            }
+        }
+    }
 }

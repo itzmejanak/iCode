@@ -25,11 +25,9 @@ import dev.icode.mobile.domain.IndentType
 import dev.icode.mobile.domain.WorkspacePreferences
 import io.github.rosemoe.sora.event.ContentChangeEvent
 import io.github.rosemoe.sora.lang.EmptyLanguage
-import io.github.rosemoe.sora.langs.textmate.TextMateColorScheme
 import io.github.rosemoe.sora.langs.textmate.TextMateLanguage
 import io.github.rosemoe.sora.langs.textmate.registry.ThemeRegistry
 import io.github.rosemoe.sora.widget.CodeEditor
-import io.github.rosemoe.sora.widget.schemes.EditorColorScheme
 
 /** One view/content/undo history shared by the Editor and Find routes. */
 class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePalette.Dark) {
@@ -150,21 +148,7 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
         if (appliedPalette == next) return
         coloringError = runCatching {
             TextMateAssets.setTheme(editor.context.applicationContext, next)
-            editor.colorScheme = TextMateColorScheme.create(ThemeRegistry.getInstance()).apply {
-                setColor(EditorColorScheme.WHOLE_BACKGROUND, next.backgroundDeep.toArgb())
-                setColor(EditorColorScheme.LINE_NUMBER_BACKGROUND, next.backgroundDeep.toArgb())
-                setColor(EditorColorScheme.LINE_NUMBER, next.textMuted.toArgb())
-                setColor(EditorColorScheme.LINE_NUMBER_CURRENT, next.accent.toArgb())
-                setColor(EditorColorScheme.TEXT_NORMAL, next.textPrimary.toArgb())
-                setColor(EditorColorScheme.CURRENT_LINE, next.surface.toArgb())
-                setColor(EditorColorScheme.SELECTION_INSERT, next.accent.toArgb())
-                setColor(EditorColorScheme.SELECTION_HANDLE, next.accent.toArgb())
-                setColor(EditorColorScheme.SELECTED_TEXT_BACKGROUND, next.accent.copy(alpha = 0.28f).toArgb())
-                setColor(EditorColorScheme.HIGHLIGHTED_DELIMITERS_FOREGROUND, next.accent.toArgb())
-                setColor(EditorColorScheme.PROBLEM_ERROR, next.error.toArgb())
-                setColor(EditorColorScheme.PROBLEM_WARNING, next.amber.toArgb())
-                setColor(EditorColorScheme.MINIMAP_BACKGROUND, next.surfaceElevated.toArgb())
-            }
+            editor.colorScheme = PaletteColorScheme(ThemeRegistry.getInstance(), next)
             appliedPalette = next
             null
         }.getOrElse { error ->
