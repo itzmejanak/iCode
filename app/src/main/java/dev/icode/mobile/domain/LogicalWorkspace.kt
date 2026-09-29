@@ -57,12 +57,37 @@ class LogicalWorkspace(
         return PhysicalLocation(mount.storage, join(privatePath(mount), path.removePrefix(mount.path).trimStart('/')))
     }
 
+    /** The mounts directly inside [relativeFolder] ("" is the root): each shows there as a folder. */
+    fun mountsIn(relativeFolder: String): List<WorkspaceMount> {
+        val folder = relativeFolder.trim('/')
+        return mounts.filter { it.path.substringBeforeLast('/', "") == folder }
+    }
+
+    /** The mounts at or below [relativePath]: what renaming or moving that path would leave behind. */
+    fun mountsAtOrUnder(relativePath: String): List<WorkspaceMount> {
+        val path = relativePath.trim('/')
+        return mounts.filter { path.isEmpty() || it.path == path || it.path.startsWith("$path/") }
+    }
+
     /** The private folder behind [mount]: `<private root>/<class>/<path>`. */
     fun privatePath(mount: WorkspaceMount): String = join(join(privateRoot, mount.storage.directory), mount.path)
 
-    /** The whole tree at [guestRoot] in the runtime: the user's folder, then each mount over it. */
-    fun binds(guestRoot: String): List<ProjectionBind> =
-        listOf(ProjectionBind(userRoot, guestRoot)) + mounts.map { ProjectionBind(privatePath(it), join(guestRoot, it.path)) }
+    /**
+     * The whole tree at [guestRoot] in the runtime: the user's folder, then each mount over it. A
+     * mount whose parent folder is gone — [isFolder] false for where its bytes would be — is left
+     * out, with the mounts inside it: the runtime makes a missing mount point, so it would bring
+     * back folders the user deleted.
+     */
+    fun binds(guestRoot: String, isFolder: (String) -> Boolean = { true }): List<ProjectionBind> {
+        val unplaced = mutableListOf<WorkspaceMount>()
+        val placed = mounts.filter { mount ->
+            val parent = mount.path.substringBeforeLast('/', "")
+            val keep = unplaced.none { mount.path.startsWith(it.path + "/") } && isFolder(resolve(parent).path)
+            if (!keep) unplaced += mount
+            keep
+        }
+        return listOf(ProjectionBind(userRoot, guestRoot)) + placed.map { ProjectionBind(privatePath(it), join(guestRoot, it.path)) }
+    }
 
     private fun join(base: String, relative: String) = if (relative.isEmpty()) base else "${base.trimEnd('/')}/$relative"
 }

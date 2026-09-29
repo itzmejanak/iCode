@@ -181,8 +181,9 @@ internal class WorkspaceLibraryCoordinator(
     }
 
     /** Recent files of [root] only; an entry that has left the workspace is dropped. */
-    fun recentDocuments(root: String): List<RecentDocument> = store.loadRecentDocuments(root)
-        .mapNotNull { item ->
+    fun recentDocuments(root: String): List<RecentDocument> {
+        val tree = source.workspace(root)
+        return store.loadRecentDocuments(root).mapNotNull { item ->
             val relative = runCatching { File(root).canonicalFile.toPath().relativize(File(item.location).canonicalFile.toPath()) }.getOrNull()
                 ?: return@mapNotNull null
             if (relative.isAbsolute || relative.any { it.toString() == ".." || it.toString() == ".git" }) return@mapNotNull null
@@ -191,7 +192,8 @@ internal class WorkspaceLibraryCoordinator(
                 location = item.location,
                 path = relative.toString(),
                 lastOpenedAt = item.lastOpenedAt,
-                available = File(item.location).isFile,
+                available = tree.bytes(item.location).isFile,
             )
         }
+    }
 }
