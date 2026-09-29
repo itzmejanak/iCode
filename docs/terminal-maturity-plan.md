@@ -1,6 +1,6 @@
 # Mature terminal — root causes, target design, cycles
 
-Status: **plan** (2026-09-24). Follows [backend-split-rules.md](./backend-split-rules.md).
+Status: **done** (T1–T5 recorded in §6; closed by S6, [terminal-separation-plan.md](./terminal-separation-plan.md) §7, 2026-09-29). Earlier status: **plan** (2026-09-24). Follows [backend-split-rules.md](./backend-split-rules.md).
 Supersedes item 6 of [next-cycle-plan.md](./next-cycle-plan.md) and the bridge
 parts of [sudo-capability-plan.md](./sudo-capability-plan.md). Engine choice was
 already made in [integration-plan.md](./integration-plan.md) ("Termux

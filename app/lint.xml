@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <issue id="Aligned16KB">
+        <!-- Termux's prebuilt libtermux.so (4 KB) is never packaged: pickFirsts takes the one
+             CMake builds for 16 KB pages, and check<Variant>PageAlignment fails the build otherwise. -->
+        <ignore path="**/terminal-emulator-*/jni/**" />
+    </issue>
+</lint>

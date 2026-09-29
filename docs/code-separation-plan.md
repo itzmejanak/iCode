@@ -556,12 +556,13 @@ stderr file, no Git calls from `data/workspace`, no `data` imports in screens). 
 0 errors / 14 warnings; both guards pass. Device matrix recorded there, with what needs the owner's
 credentials.
 
-**S6 plan — terminal and background (2026-09-28), ready for approval.**
-[terminal-separation-plan.md](./terminal-separation-plan.md): a close-out, since the terminal was
-verified in September. Moves: the gateway's terminal cluster into `TerminalCoordinator`; the
-over-budget service and manager split into `TerminalNotifications` and `TerminalLaunch`. Fixes found
-in code: one request can start two sessions (an open in flight is not covered — the likely cause of
-Todo's unreproduced double session); alerts outlive their session; `libtermux.so` alignment rests on
-merge order. Then the open device items and the older plans closed. Five owner decisions listed with
-recommendations. No S6 code has started.
+**S6 — terminal and background (2026-09-29), done.** Record: [terminal-separation-plan.md](./terminal-separation-plan.md)
+§7. Moves: `TerminalCoordinator` out of the gateway (831 → 769); `TerminalNotifications` and
+`TerminalLaunch` out of the service and the manager, both now within budget. Fixes: the panel's
+automatic open reuses the running session (one request, one session — the likely cause of the
+double session seen on 2026-09-24); a session's alerts leave with it; the build fails if a shipped
+64-bit library is not 16 KB aligned. Checked on the device before the owner, who had already
+verified the terminal, asked to stop. Found for the owner: the landscape keyboard leaves no
+terminal rows; segmented controls do not report their selection to screen readers. The three older
+terminal plans are closed. Gate: 406 tests; lint 0 errors / 11 warnings; both guards pass.
 

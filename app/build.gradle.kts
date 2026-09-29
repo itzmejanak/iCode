@@ -1,3 +1,7 @@
+import java.io.File
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -129,4 +133,52 @@ dependencies {
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
+}
+
+/**
+ * Every native library that ships must be 16 KB page aligned, which recent
+ * Android requires. libtermux.so is the one at risk: ours is built so,
+ * Termux's prebuilt is not, and only pickFirsts decides which ships. Checked on
+ * what is merged for packaging, so the build fails instead of trusting order.
+ */
+abstract class CheckPageAlignment : DefaultTask() {
+    @get:InputDirectory
+    abstract val nativeLibs: DirectoryProperty
+
+    @get:Input
+    abstract val abis: ListProperty<String>
+
+    @TaskAction
+    fun check() {
+        val misaligned = abis.get().flatMap { abi ->
+            nativeLibs.get().asFile.resolve(abi).listFiles { file -> file.name.endsWith(".so") }.orEmpty().toList()
+        }.filter { lib -> loadAlignments(lib).any { it < 16_384L } }
+        if (misaligned.isNotEmpty()) {
+            throw GradleException("Not 16 KB aligned: ${misaligned.joinToString { it.path }}")
+        }
+    }
+
+    /** p_align of each PT_LOAD segment of a 64-bit little-endian ELF; none for a 32-bit one. */
+    private fun loadAlignments(lib: File): List<Long> {
+        val elf = ByteBuffer.wrap(lib.readBytes()).order(ByteOrder.LITTLE_ENDIAN)
+        if (elf.get(4).toInt() != 2) return emptyList()
+        val table = elf.getLong(0x20).toInt()
+        val entrySize = elf.getShort(0x36).toInt()
+        val entries = elf.getShort(0x38).toInt()
+        return (0 until entries).map { index -> table + index * entrySize }
+            .filter { offset -> elf.getInt(offset) == 1 }
+            .map { offset -> elf.getLong(offset + 48) }
+    }
+}
+
+androidComponents {
+    onVariants { variant ->
+        val name = variant.name.replaceFirstChar(Char::titlecase)
+        val check = tasks.register<CheckPageAlignment>("check${name}PageAlignment") {
+            nativeLibs.set(layout.buildDirectory.dir("intermediates/merged_native_libs/${variant.name}/merge${name}NativeLibs/out/lib"))
+            abis.set(android.defaultConfig.ndk.abiFilters.toList())
+            dependsOn("merge${name}NativeLibs")
+        }
+        tasks.matching { it.name == "package$name" }.configureEach { dependsOn(check) }
+    }
 }

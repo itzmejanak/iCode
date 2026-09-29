@@ -1,6 +1,6 @@
 # S6 Terminal and Background — Separation and Close-out Plan
 
-Status: **plan for approval** (2026-09-28). The S6 step of
+Status: **done** (2026-09-29; record in §7). The S6 step of
 [code-separation-plan.md](./code-separation-plan.md), which stays authoritative. Evidence and
 earlier records: [terminal-maturity-plan.md](./terminal-maturity-plan.md) (T1–T5, 2026-09-24),
 [terminal-background-plan.md](./terminal-background-plan.md) (S0–S5, 2026-09-24),
@@ -131,3 +131,41 @@ recommendation is what S6 does if the owner does not choose otherwise.
 - The build fails if a 4 KB `libtermux.so` would ship; lint 11 warnings.
 - The §4 S6.6 matrix is recorded, with what only the owner can try.
 - The three older plans are closed; Todo #0 is closed.
+
+## 7. Record (2026-09-28/29)
+
+Approved by the owner with the §5 recommendations ("lets do it"). One commit per step on
+`code-separation`, none pushed; every gate: debug and release compile, all unit tests, lint, both
+guards. Final: **406 unit tests**, lint **0 errors / 11 warnings** (14 before), both guards pass.
+
+| Step | Commit | Result |
+|---|---|---|
+| S6.1 | `afac841` | `TerminalCoordinator` (open, ensure, show, select, reorder, close, following sessions, settings, the refresh after a command) behind the `TerminalSessions` seam; 9 JVM tests. Gateway 831 → 769 |
+| S6.2 | `2c91f59` | `TerminalNotifications` (channel, parent, rows, intents) out of the service (354 → 238); `TerminalLaunch` (shell checks, prompt, PRoot command) out of the manager (341 → 300); both leave the backend allowlist; 6 tests |
+| S6.3 | `ad57a92` | the panel's automatic open is `EnsureTerminalSession` (reuse), "+" stays `OpenTerminalSession` (new) |
+| S6.4 | `dadfadf` | a session's bell or finish alert is removed with its row when the session stops running |
+| S6.5 | `b53927f` | `check<Variant>PageAlignment` fails the build if any shipped 64-bit library has a PT_LOAD below 16 KB; all eight pass; lint's `Aligned16KB` for Termux's unshipped prebuilt ignored by path |
+
+**Device (fresh APK, 2026-09-29).** One session from the panel, after re-entering it, and after
+"Open Terminal" from the recents menu (S6.3); `vim` and `nano` edit and save (Escape, Ctrl+O,
+Ctrl+X as key events); `git log` opens `less` with colours and `q` returns to the prompt; rotation
+keeps the session and scrollback and reflows the columns; Bar, Underline and Block cursors apply
+live to the running session; the Light palette repaints it readably; notification parent and row
+("superpowers · running sleep"), and a bell alert posted while iCode was away. The owner had
+already verified these on their own and asked to stop, so the rest (S6.4's removal on the device,
+wake lock, a force stop) is covered by the owner's use and by the September record.
+
+**Found, not changed (owner's design):**
+
+- In landscape the soft keyboard leaves no terminal rows below the panel header and tab strip;
+  typing works again after a tap once rotated back. Termux shows no header there; hiding ours
+  while the keyboard is up in landscape would be a UI decision.
+- The cursor-style and theme segmented controls do not tell a screen reader which segment is
+  selected.
+- XOS pauses a backgrounded iCode's processes (the September platform limit): a command started
+  and left paused until iCode came back, so alerts and exits wait for it too.
+
+**Left on the phone:** `nano` and `vim-tiny` (with `vim-common`, `xxd`) were installed into the
+runtime for the checks; the owner may keep or remove them (`apt-get remove nano vim-tiny`).
+The theme, cursor style and rotation settings were restored; test files were deleted.
+
