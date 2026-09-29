@@ -1,7 +1,8 @@
 package dev.icode.mobile.designsystem
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -15,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 
 /**
  * Single binary setting control.
@@ -42,7 +44,11 @@ fun IcodeToggle(
     )
 }
 
-/** Compact two-to-four option switch used inside settings rows. */
+/**
+ * Compact two-to-four option switch used inside settings rows. The chosen option
+ * is an accent pill with the text colour made for the accent (owner, 2026-09-29),
+ * and a screen reader hears the options as one group of radio buttons.
+ */
 @Composable
 fun SegmentedControl(
     values: List<String>,
@@ -50,13 +56,13 @@ fun SegmentedControl(
     modifier: Modifier = Modifier,
     onSelect: (String) -> Unit,
 ) {
-    Row(modifier = modifier.background(IcodeColors.SurfaceElevated, IcodeShapes.Small)) {
+    Row(modifier = modifier.background(IcodeColors.SurfaceElevated, IcodeShapes.Small).selectableGroup()) {
         values.forEach { value ->
             val selected = value == active
             Box(
                 modifier = Modifier
-                    .background(if (selected) IcodeColors.Outline else Color.Transparent, IcodeShapes.Chip)
-                    .clickable { onSelect(value) }
+                    .background(if (selected) IcodeColors.Accent else Color.Transparent, IcodeShapes.Chip)
+                    .selectable(selected = selected, role = Role.RadioButton) { onSelect(value) }
                     .padding(horizontal = IcodeSpacing.Space3, vertical = IcodeSpacing.Space1 + IcodeSpacing.Micro),
             ) {
                 Text(
@@ -65,27 +71,6 @@ fun SegmentedControl(
                 )
             }
         }
-    }
-}
-
-/** Inline filter/toggle chip (search filters, quick toggles). */
-@Composable
-fun ChoiceChip(
-    text: String,
-    active: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    Box(
-        modifier = modifier
-            .background(if (active) IcodeColors.Accent else IcodeColors.Background, IcodeShapes.Chip)
-            .clickable(onClick = onClick)
-            .padding(horizontal = IcodeSpacing.Space3, vertical = IcodeSpacing.Space2),
-    ) {
-        Text(
-            text,
-            style = IcodeType.Caption.copy(color = if (active) IcodeColors.OnAccent else IcodeColors.TextSecondary),
-        )
     }
 }
 

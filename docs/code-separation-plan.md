@@ -668,3 +668,24 @@ developer-tools onboarding step (Todo 5).
   `NoticeStore`, the permission-offered flags — records for later notices, never reported as
   saved. The last `UseKtx` warning is gone. 3 tests. Gate: 456 tests; lint 0 errors / 11
   warnings; both guards pass.
+- S8.4, the settings map (2026-09-29, read in the code, page by page):
+
+  | Page | Holds | Did not hold → fixed in |
+  |---|---|---|
+  | Root search | every row opens its page | subtitles promised what pages lack (formatting, diff display, syntax/highlighting, processes, updates/diagnostics); terms missed real controls (cursor, bell, shell…); Workspace settings not findable → S8.4c |
+  | Appearance | writes gated on loaded settings, saved, applied | theme swatches: the choice not told to a screen reader → S8.4a; "palette previews for review" → removed (owner accepted), S8.4a |
+  | Editor | every control saved and applied; Format On Save says Unavailable | Tab Size: R6 → S8.4a; font sizes 9–30 but pinch zoom 9–28 → S8.4b |
+  | Terminal | saved, applied live or on the next session as labelled; Android's own rows read Android | Font Size the one control not blocked while settings load or failed → S8.4b |
+  | Workspace | overrides saved and reset; auto-fetch as described | "Available when File Watcher is connected" (connected since S3) on a field nothing writes or reads; "Inherited: Spaces" typed twice; its save swallowed cancellation → S8.4b/d |
+  | Languages, detail | save, start, stop, restart, remove | a service without patterns is shown "All files", and saving from the form stored that label as its pattern; Failed drawn like Stopped → S8.4d |
+  | Storage | cleanup confirms; real sizes | two subtitles for one page → S8.4c |
+  | Runtime, About | honest states and "Not available yet" | Runtime does not scroll: Repair/Reset may be out of reach at large text → device, S8.5 |
+  | Four forms | — | four copies of the save-and-report function; bounds and defaults written 2–6 times → S8.4b |
+
+- S8.4a: the segmented control's choice is an accent pill with the accent's own text colour
+  (owner) and the options are one radio group to a screen reader (R6). `ChoiceChip` had no
+  caller — the search screens use `KeyChip` and the bottom bar — so it is deleted rather than
+  fixed. `KeyChip` toggles (Match case, a latched Ctrl), list rows (current branch, the
+  palette's highlighted command) and theme swatches now say they are selected, as the bottom
+  bar's toggles did. The palette-preview note is gone. Gate: 456 tests; lint 0 errors / 11
+  warnings; both guards pass.

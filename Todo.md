@@ -587,7 +587,8 @@ checkbox: existing process status and editor recovery do not imply LSP diagnosti
       [`docs/settings-backend-split-plan.md`](./docs/settings-backend-split-plan.md). Apply the
       rules to new work; defer splitting existing implementations until that scope is requested.
 - [x] Record scope decisions: Appearance scales UI text only; derive Light/AMOLED palette candidates
-      for review; guarded autosave defaults to After 1 second on fresh installs.
+      for review (accepted by the owner 2026-09-29); guarded autosave defaults to After 1 second on
+      fresh installs.
 - [x] Implement the Appearance/Editor typed settings and persistence seam on the existing
       DataStore; apply values to current/new editor sessions, Markdown, UI tokens and system bars.
 - [x] Connect guarded one-second autosave and real app-private recovery drafts, with a restore

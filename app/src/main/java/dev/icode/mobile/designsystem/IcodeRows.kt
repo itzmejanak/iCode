@@ -23,6 +23,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -59,6 +61,8 @@ fun IcodeListRow(
     trailing: (@Composable RowScope.() -> Unit)? = null,
     content: (@Composable RowScope.() -> Unit)? = null,
 ) {
+    // What the selection draws, a screen reader hears too.
+    val announced = modifier.then(if (selected) Modifier.semantics { this.selected = true } else Modifier)
     val rowContent: @Composable RowScope.() -> Unit = {
         leading?.invoke()
         if (content != null) {
@@ -80,9 +84,9 @@ fun IcodeListRow(
     if (card) {
         IcodeCard(
             modifier = if (onLongClick == null) {
-                modifier
+                announced
             } else {
-                modifier.combinedClickable(
+                announced.combinedClickable(
                     role = Role.Button,
                     onClick = onClick ?: {},
                     onLongClick = onLongClick,
@@ -103,7 +107,7 @@ fun IcodeListRow(
         }
     } else {
         Row(
-            modifier = modifier
+            modifier = announced
                 .fillMaxWidth()
                 .padding(start = indent)
                 .clip(rowShape)

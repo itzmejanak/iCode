@@ -28,6 +28,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
@@ -144,7 +146,8 @@ fun KeyChip(
     compact: Boolean = false,
     onClick: (() -> Unit)? = null,
 ) {
-    val clickableModifier = if (onClick == null) modifier else modifier.clickable(onClick = onClick)
+    // A key that toggles (Match case, a latched Ctrl) says whether it is on, as the bottom bar's toggles do.
+    val clickableModifier = if (onClick == null) modifier else modifier.clickable(onClick = onClick).semantics { selected = active }
     Box(
         modifier = clickableModifier
             .background(if (active) IcodeColors.Background else IcodeColors.SurfaceElevated, IcodeShapes.Small)
