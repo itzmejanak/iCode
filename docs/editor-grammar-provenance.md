@@ -84,3 +84,9 @@ colours comments. Added from the same commit: the language configurations JSON, 
 shell, Rust, Go and YAML lacked; XSL (`xml/syntaxes/xsl.tmLanguage.json`) and JSON Lines
 (`json/syntaxes/JSONL.tmLanguage.json`), each with its configuration.
 
+Second edit (2026-09-29): `yaml/syntaxes/yaml-1.1`, `yaml-1.2` and `yaml-embedded` each carried a
+note, `"comment": "https://yaml.org/…"`, inside a `beginCaptures` table. VS Code's engine skips
+such keys; the tm4e inside Sora reads every entry as a rule and threw, so YAML — and Markdown,
+which embeds YAML for front matter — stayed uncoloured on the phone. The three notes are removed;
+`GrammarAssetsTest` fails on any capture that is not a rule.
+
