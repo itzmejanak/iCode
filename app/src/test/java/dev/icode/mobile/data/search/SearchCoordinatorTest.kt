@@ -3,7 +3,6 @@ package dev.icode.mobile.data.search
 import dev.icode.mobile.data.workspace.WorkbenchStateHolder
 import dev.icode.mobile.domain.ContentMatch
 import dev.icode.mobile.domain.ContentSearchResult
-import dev.icode.mobile.domain.FileKind
 import dev.icode.mobile.domain.IndexedFile
 import dev.icode.mobile.domain.SearchEngineState
 import kotlinx.coroutines.CompletableDeferred
@@ -112,7 +111,7 @@ class SearchCoordinatorTest {
                 }
             }
             return RipgrepIndexOutcome(
-                files = listOf(IndexedFile("new.kt", "$rootLocation/new.kt", FileKind.Code)),
+                files = listOf(IndexedFile("new.kt", "$rootLocation/new.kt")),
                 truncated = false,
                 warning = null,
             )

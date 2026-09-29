@@ -30,7 +30,7 @@ class WorkspaceWatcherTest {
             files = listOf(
                 FileEntry("src", "/w/src", FileKind.Folder, expanded = true),
                 FileEntry("docs", "/w/docs", FileKind.Folder, expanded = false),
-                FileEntry("a.kt", "/w/src/a.kt", FileKind.Code, depth = 1),
+                FileEntry("a.kt", "/w/src/a.kt", FileKind.File, depth = 1),
             ),
             openDocuments = listOf(
                 OpenDocument("b.md", "/w/notes/b.md", "", TextEncoding.Utf8, LineEnding.Lf, dirty = false, readOnly = false),

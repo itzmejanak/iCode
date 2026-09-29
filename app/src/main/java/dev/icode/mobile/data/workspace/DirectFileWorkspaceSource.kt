@@ -84,7 +84,7 @@ internal class DirectFileWorkspaceSource {
                 DocumentNode(
                     name = child.name,
                     location = canonical.path,
-                    kind = fileKindFor(child.name, child.isDirectory),
+                    kind = if (child.isDirectory) FileKind.Folder else FileKind.File,
                 )
             }.getOrNull()
         }?.filterNotNull()?.toList().orEmpty().sortedWith(

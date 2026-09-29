@@ -11,7 +11,7 @@ import org.junit.Test
 class WorkspaceTreeTest {
     private val root = "/workspace"
     private val folder = DocumentNode("src", "$root/src", FileKind.Folder)
-    private val child = DocumentNode("Main.kt", "$root/src/Main.kt", FileKind.Code)
+    private val child = DocumentNode("Main.kt", "$root/src/Main.kt", FileKind.File)
 
     @Test fun `folder tap expands and next tap collapses without gateway state`() = runBlocking {
         val workbench = WorkbenchStateHolder()

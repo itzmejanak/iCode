@@ -1,6 +1,5 @@
 package dev.icode.mobile.data.search
 
-import dev.icode.mobile.data.workspace.fileKindFor
 import dev.icode.mobile.domain.IndexedFile
 import java.io.File
 import java.nio.ByteBuffer
@@ -26,7 +25,6 @@ internal class RipgrepFileParser(
         files += relative to IndexedFile(
             name = File(relative).name,
             path = File(rootLocation, relative).absolutePath,
-            kind = fileKindFor(relative, isDirectory = false),
         )
         return true
     }

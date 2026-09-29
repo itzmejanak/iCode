@@ -20,6 +20,7 @@ import dev.icode.mobile.designsystem.PaletteKind
 import dev.icode.mobile.R
 import dev.icode.mobile.domain.EditorFontFamily
 import dev.icode.mobile.domain.EditorSettings
+import dev.icode.mobile.domain.FileTypes
 import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.domain.IndentType
 import dev.icode.mobile.domain.WorkspacePreferences
@@ -177,7 +178,7 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
     }
 
     private fun applyLanguage(name: String) {
-        val nextScope = scopeForFile(name)
+        val nextScope = FileTypes.of(name).grammar
         if (nextScope == scope) return
         scope = nextScope
         runCatching {

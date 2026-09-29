@@ -35,16 +35,3 @@ internal fun projectVisibleFiles(
     appendChildren(rootLocation, depth = 0)
     return visible
 }
-
-internal fun fileKindFor(name: String, isDirectory: Boolean): FileKind {
-    if (isDirectory) return FileKind.Folder
-    return when (name.substringAfterLast('.', missingDelimiterValue = "").lowercase()) {
-        "ts", "tsx" -> FileKind.TypeScript
-        "json", "json5" -> FileKind.Json
-        "md", "markdown" -> FileKind.Markdown
-        "c", "cc", "cpp", "cs", "css", "go", "h", "hpp", "html", "java", "js", "jsx",
-        "kt", "kts", "php", "py", "rb", "rs", "sh", "swift", "xml", "yaml", "yml",
-        -> FileKind.Code
-        else -> FileKind.Other
-    }
-}

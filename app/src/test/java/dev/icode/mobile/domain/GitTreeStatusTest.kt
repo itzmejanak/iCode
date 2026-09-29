@@ -8,7 +8,7 @@ class GitTreeStatusTest {
 
     private val root = "/storage/emulated/0/project"
     private fun folder(path: String) = FileEntry(path.substringAfterLast('/'), "$root/$path", FileKind.Folder)
-    private fun file(path: String) = FileEntry(path.substringAfterLast('/'), "$root/$path", FileKind.TypeScript)
+    private fun file(path: String) = FileEntry(path.substringAfterLast('/'), "$root/$path", FileKind.File)
     private fun decorate(entries: List<FileEntry>, changes: Map<String, String>) =
         GitTreeStatus.decorate(entries, changes.mapKeys { "$root/${it.key}" }).associate { it.path.removePrefix("$root/") to it.gitStatus }
 

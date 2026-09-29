@@ -15,7 +15,6 @@ sealed interface SearchEngineState {
 data class IndexedFile(
     val name: String,
     val path: String,
-    val kind: FileKind,
 )
 
 /** One matching line inside a workspace content search result. */

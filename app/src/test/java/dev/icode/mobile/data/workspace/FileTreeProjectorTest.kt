@@ -10,9 +10,9 @@ class FileTreeProjectorTest {
     @Test
     fun `only expanded descendants are visible at the correct depth`() {
         val children = mapOf(
-            "root" to listOf(DocumentNode("src", "src", FileKind.Folder), DocumentNode("README.md", "readme", FileKind.Markdown)),
-            "src" to listOf(DocumentNode("main", "main", FileKind.Folder), DocumentNode("App.kt", "app", FileKind.Code)),
-            "main" to listOf(DocumentNode("Hidden.kt", "hidden", FileKind.Code)),
+            "root" to listOf(DocumentNode("src", "src", FileKind.Folder), DocumentNode("README.md", "readme", FileKind.File)),
+            "src" to listOf(DocumentNode("main", "main", FileKind.Folder), DocumentNode("App.kt", "app", FileKind.File)),
+            "main" to listOf(DocumentNode("Hidden.kt", "hidden", FileKind.File)),
         )
 
         val files = projectVisibleFiles("root", children, expandedLocations = setOf("src"))
@@ -33,13 +33,5 @@ class FileTreeProjectorTest {
         val files = projectVisibleFiles("root", children, expandedLocations = setOf("loop", "root"))
 
         assertEquals(2, files.size)
-    }
-
-    @Test
-    fun `file kinds cover known source and unknown files`() {
-        assertEquals(FileKind.Folder, fileKindFor("src", isDirectory = true))
-        assertEquals(FileKind.TypeScript, fileKindFor("screen.tsx", isDirectory = false))
-        assertEquals(FileKind.Code, fileKindFor("Main.kt", isDirectory = false))
-        assertEquals(FileKind.Other, fileKindFor("LICENSE", isDirectory = false))
     }
 }

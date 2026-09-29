@@ -11,7 +11,8 @@ data class FileEntry(
     val gitStatus: String? = null,
 )
 
-enum class FileKind { Folder, TypeScript, Code, Json, Markdown, Other }
+/** A folder or a file; what kind of file is [FileTypes]' answer, from its name. */
+enum class FileKind { Folder, File }
 
 enum class TextEncoding { Utf8, Utf16LittleEndian, Utf16BigEndian }
 

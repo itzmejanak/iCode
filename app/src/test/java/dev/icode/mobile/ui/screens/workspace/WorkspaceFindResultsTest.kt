@@ -1,6 +1,5 @@
 package dev.icode.mobile.ui.screens.workspace
 
-import dev.icode.mobile.domain.FileKind
 import dev.icode.mobile.domain.IndexedFile
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -31,5 +30,5 @@ class WorkspaceFindResultsTest {
         assertTrue(ranked.truncated)
     }
 
-    private fun file(path: String) = IndexedFile(path.substringAfterLast('/'), path, FileKind.Code)
+    private fun file(path: String) = IndexedFile(path.substringAfterLast('/'), path)
 }
