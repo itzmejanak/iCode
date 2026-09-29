@@ -104,3 +104,16 @@ deleted files close; a cancelled delete says how much is gone — deletion canno
   rest). 8 tests. Gate: 474 tests; lint 0 errors / 11 warnings; both guards pass. The dialog
   (T2) is next: until it lands, a delete runs with no dialog, as before, but no longer blocks
   the workspace.
+- **T2** (2026-09-29): `IcodeProgressDialog` (design system): the title with HIDE at its right
+  (and CANCEL where the task allows it), the item in hand on one line, cut at its end, and a bar
+  that sweeps while counting (a bar frozen at zero reads as a hang — the app's rule, where the
+  reference shows an empty bar) and fills after; a tap outside does nothing, Back hides.
+  `IcodeProgressFailedDialog`: why it stopped, and OK. `TaskDialogs` (ui) draws the oldest
+  visible task over any screen; `BackgroundTasks` shows each hidden one in the Explorer as a thin
+  row with its share, and a tap brings its dialog back. On the phone (fresh APK; a scratch
+  folder of 12,061 entries in the scratch workspace): the dialog within 0.8 s of Delete, "…"
+  while counting, then `delete-test/pkg-5/f151.js`…; HIDE → "Deleting delete-test 28%" in the
+  Explorer; a tap → the dialog again; the delete finished with iCode out of sight. It deletes
+  ~80 entries a second — the storage's own pace (1,000 deletes by the shell: 6.1 s on shared
+  storage, 0.04 s in app storage). Not checked: opening a file during the delete (the owner took
+  the phone). Gate: 474 tests; lint 0 errors / 11 warnings; both guards pass.
