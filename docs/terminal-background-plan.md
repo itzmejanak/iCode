@@ -1,6 +1,6 @@
 # Terminal sessions that outlive the screen
 
-Status: **plan** (2026-09-24). Follows [backend-split-rules.md](./backend-split-rules.md);
+Status: **done** (S0–S5 recorded in §6; closed by S6, [terminal-separation-plan.md](./terminal-separation-plan.md) §7, 2026-09-29). Earlier status: **plan** (2026-09-24). Follows [backend-split-rules.md](./backend-split-rules.md);
 builds on [terminal-maturity-plan.md](./terminal-maturity-plan.md).
 
 > **Note (2026-09-26).** Names in this record are as they were then. The demo layer (`DemoWorkbenchGateway`, `DemoContent`, `staticDemo`, `demo-fork`) was replaced by debug-only capture fixtures (`CaptureGateway`, `CaptureFixtures`, `captureMode`, `capture-fork`) — [code-separation-plan.md](./code-separation-plan.md) K1.

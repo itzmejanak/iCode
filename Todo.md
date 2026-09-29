@@ -38,7 +38,7 @@ before code, then one verifiable step at a time.
 
 | # | Work | Why it matters | Where it stands (evidence) | First step |
 |---|---|---|---|---|
-| 0 | **Close the terminal/background cycle (S6)** | Finishes work already shipped | S0–S5 verified on device ([terminal-background-plan](./docs/terminal-background-plan.md) §6); `terminal-maturity-plan`, `terminal-background-plan` and `sudo-capability-plan` still say "plan" (the last is superseded by passthrough `sudo`) | Fresh-install acceptance matrix, then docs |
+| 0 | **Close the terminal/background cycle (S6) — done (2026-09-29)** | Finished work shipped | Moves, fixes and device checks recorded in [terminal-separation-plan](./docs/terminal-separation-plan.md) §7; the three older terminal plans are closed | Owner decisions carried: `PROOT_L2S_DIR` as its own step; a side-by-side build for a fresh-install matrix |
 | 1 | **Outside changes reach the UI — done (S3)** | Agents and commands in the terminal edit the workspace | Resume/terminal completion plus live `FileObserver` refresh; clean tabs reload, dirty tabs ask Reload/Compare/Overwrite, tree/Git/index refresh; device matrix passed | Process-death/permission-loss acceptance remains with session restore |
 | 2 | **Explorer rename / move / copy / delete — done (S3)** | Basic file management was missing | Real long-press Rename/Cut/Copy/Paste/Delete with path guards, confirmation, tab/tree/recent migration and 8 filesystem tests; device matrix passed | No remaining code step |
 | 3 | **Workspace search and Quick Open on ripgrep (frames 11/14) — done (S4)** | Search had silently missed files | Real first-use `ripgrep`; streaming, bounded, cancellable, ignore-aware; `WorkspaceIndexer` deleted; device matrix passed ([code-separation plan](./docs/code-separation-plan.md) S4) | Done; S5 Git done too ([record](./docs/git-separation-plan.md)) |
@@ -61,9 +61,11 @@ before code, then one verifiable step at a time.
       push/pull on a real remote. The code is on the Git CLI and JGit is gone from build and code.
 - [ ] Command Palette (B-05/B-06 item 2); Problems/Output panel (item 4a).
 - [ ] Light/AMOLED palettes and 100–150 % UI scale.
-- [ ] Terminal: `vim`, `nano`, a `git log` pager, multi-line paste, rotation, pinch zoom, cursor
-      styles, Light palette — not recorded as verified in [terminal-maturity-plan](./docs/terminal-maturity-plan.md) §6.
-- [ ] Investigate: "Open Terminal" once produced two sessions (seen 2026-09-24, not reproduced).
+- [x] Terminal: `vim`, `nano`, a `git log` pager, rotation, cursor styles and the Light palette checked
+      on 2026-09-29 (S6 record); the owner had verified the terminal in daily use, including pinch zoom
+      and paste.
+- [x] "Open Terminal" once produced two sessions: the panel's automatic open used the "+" request;
+      fixed in S6.3.
 - [ ] Re-run the 40-frame capture before any fixture cleanup.
 
 Current production integration:
