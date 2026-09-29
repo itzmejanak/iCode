@@ -5,8 +5,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Add
@@ -15,6 +15,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import dev.icode.mobile.designsystem.IcodeColors
@@ -91,15 +92,21 @@ private fun LanguageServiceRow(service: LanguageService, onClick: () -> Unit) {
         content = {
             Column(Modifier.weight(1f)) {
                 Text(service.name, style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold))
-                MonoLine(service.patterns, style = IcodeType.MonoSmall)
+                MonoLine(service.patternsLabel, style = IcodeType.MonoSmall)
             }
         },
         trailing = {
-            StatusLabel(
-                service.status.name,
-                if (service.status == LanguageServiceStatus.Running) IcodeColors.Green else IcodeColors.TextSecondary,
-            )
+            StatusLabel(service.status.name, service.status.tone())
             Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = IcodeColors.TextSecondary)
         },
     )
+}
+
+/** One colour per process state, on the list and on a service's page. */
+@Composable
+internal fun LanguageServiceStatus.tone(): Color = when (this) {
+    LanguageServiceStatus.Running -> IcodeColors.Green
+    LanguageServiceStatus.Failed -> IcodeColors.Error
+    LanguageServiceStatus.Starting, LanguageServiceStatus.Stopping -> IcodeColors.Amber
+    LanguageServiceStatus.Stopped -> IcodeColors.TextSecondary
 }

@@ -13,6 +13,9 @@ data class LanguageService(
     val status: LanguageServiceStatus = LanguageServiceStatus.Stopped,
     val processId: Int? = null,
     val statusMessage: String? = null,
-)
+) {
+    /** What the list shows for [patterns]; the form edits [patterns] itself, so a label is never saved as one. */
+    val patternsLabel: String get() = patterns.ifBlank { "All files" }
+}
 
 enum class LanguageServiceStatus { Stopped, Starting, Running, Stopping, Failed }

@@ -29,7 +29,7 @@ object LanguageServiceRules {
         initials = config.name.split(Regex("\\s+")).take(2).mapNotNull { it.firstOrNull()?.uppercase() }
             .joinToString("").ifBlank { "LS" },
         name = config.name,
-        patterns = config.patterns.ifBlank { "All files" },
+        patterns = config.patterns,
         id = config.id,
         command = config.command,
         rootMarkers = config.rootMarkers,

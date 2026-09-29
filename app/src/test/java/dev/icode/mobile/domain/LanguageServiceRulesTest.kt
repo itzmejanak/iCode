@@ -49,11 +49,12 @@ class LanguageServiceRulesTest {
         assertEquals(listOf(LanguageServiceStatus.Starting, LanguageServiceStatus.Stopped), rows.map { it.status })
     }
 
-    @Test fun `a row shows initials and all files when no pattern is set`() {
+    @Test fun `a service without patterns keeps them empty and is labelled all files`() {
         val row = LanguageServiceRules.rows(
             listOf(LanguageServiceConfiguration("x", "rust  analyzer", "ra", "", "", "{}")), emptyList(), changed = null,
         ).single()
         assertEquals("RA", row.initials)
-        assertEquals("All files", row.patterns)
+        assertEquals("", row.patterns)
+        assertEquals("All files", row.patternsLabel)
     }
 }

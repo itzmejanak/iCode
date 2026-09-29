@@ -708,3 +708,9 @@ developer-tools onboarding step (Todo 5).
   that show a subtitle take it from the catalog, so Storage no longer has two. Search finds the
   open workspace's settings too ("auto fetch", "indent"), without adding them to the root list.
   2 tests. Gate: 463 tests; lint 0 errors / 11 warnings; both guards pass.
+- S8.4d: a language service keeps its file patterns as saved; "All files" is only the list's
+  label for none (`patternsLabel`), so the form no longer fills with the label and saves it as a
+  pattern. No saved service on the owner's phone carried it (read-only check), so nothing is
+  migrated. One status tone for the list and the service's page: Failed in the error colour,
+  Starting and Stopping in amber (Failed read like Stopped). Gate: 463 tests; lint 0 errors / 11
+  warnings; both guards pass.
