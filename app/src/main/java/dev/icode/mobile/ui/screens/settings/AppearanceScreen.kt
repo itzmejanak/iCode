@@ -23,6 +23,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import dev.icode.mobile.designsystem.CodeSurface
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
@@ -99,7 +101,6 @@ fun AppearanceScreen(actions: NavigationActions) {
                     )
                 }
             }
-            Text("Light and AMOLED are palette previews for review.", style = IcodeType.Caption)
             SectionLabel("Font Size & Scale")
             IcodeCard(Modifier.fillMaxWidth()) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -165,7 +166,7 @@ private fun ThemeSwatch(option: AppTheme, selected: Boolean, onClick: () -> Unit
         AppTheme.Amoled -> IcodePalette.Amoled
     }
     IcodeCard(
-        modifier = modifier,
+        modifier = modifier.semantics { this.selected = selected },
         borderColor = if (selected) IcodeColors.Accent else IcodeColors.Outline,
         onClick = onClick,
     ) {
