@@ -25,8 +25,17 @@ hours; median 67 s, worst 10,021,051 ms (2 h 47 min). While the launcher was in 
 was frozen (`State: D`, `wchan: __refrigerator`) — though iCode's foreground service was running,
 iCode was on the battery whitelist and background running was allowed. It never reached writing
 `node_modules`. Two causes, then: **the process is stopped while iCode is out of sight**, and, next,
-**phone storage makes the writing slow and refuses the links**. (The freeze is being observed
-further before anything is claimed about who does it.)
+**phone storage makes the writing slow and refuses the links**.
+
+**Who freezes it** (watched every 10 s, 2026-09-30 01:44–01:59): npm ran (`S`, CPU rising) while
+iCode was in front; at 01:51:19 — iCode still in front, screen still awake, then dozing 30 s later
+— npm, its shell, PRoot **and iCode's own process** were all `D` in `__refrigerator`. Android's
+own freezer is off on this phone (`use_freezer=false`); the maker's is on: Transsion's **Fast
+Freezer** (`mFastFreezerEnabled=true`, `FEATURE_FAST_FREEZER_SUPPORTED=true`, Infinix-X6881),
+with a package whitelist iCode is not on and a `noFreezeModeAppList` that is empty. It freezes
+iCode whatever its foreground service (`procState 4`) and battery exemption say. Not yet known:
+what it spares — a held wake lock (iCode's notification already offers one per session), audio,
+or only its lists — which W0 measures before anything is built on it.
 
 ## 2. Design — one rule: sources where the user wants them, everything a toolchain makes in fast storage
 
