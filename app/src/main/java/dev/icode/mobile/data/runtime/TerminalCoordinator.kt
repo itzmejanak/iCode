@@ -14,6 +14,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+/** A tab removed because its shell exited by itself. */
+internal data class TerminalEnding(val id: String, val title: String, val exitCode: Int)
+
 /** What the workbench asks of the process's terminal sessions; tests put a fake in their place. */
 internal interface TerminalSessions {
     val snapshot: StateFlow<TerminalSnapshot>

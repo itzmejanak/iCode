@@ -33,7 +33,8 @@ internal object TerminalPalette {
         }
     }
 
-    private fun schemeOf(palette: IcodePalette) = Properties().apply {
+    /** The cursor slot is also the shell prompt's colour (`ShellPrompt.ACCENT_COLOR_INDEX`): both are the accent. */
+    internal fun schemeOf(palette: IcodePalette) = Properties().apply {
         setProperty("background", hex(palette.backgroundDeep))
         setProperty("foreground", hex(palette.textPrimary))
         setProperty("cursor", hex(palette.accent))

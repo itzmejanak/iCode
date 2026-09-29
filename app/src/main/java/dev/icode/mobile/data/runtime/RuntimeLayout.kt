@@ -202,33 +202,6 @@ internal class RuntimeLayout(context: Context) {
         addAll(guestCommand)
     }
 
-    /**
-     * Installs the shell prompt the terminal shows.
-     *
-     * `root@localhost:/workspace` says nothing useful on a phone, where the
-     * line is short and there is only ever one host and one user. The prompt
-     * is the project name instead, plus any subdirectory the user has moved
-     * into, so it stays both clean and informative.
-     *
-     * Written as its own file and sourced, so a user's edits to `.bashrc` are
-     * never overwritten, and re-sourcing on every start keeps it current.
-     */
-    fun installShellPrompt() {
-        runCatching {
-            val home = File(rootfs, GUEST_HOME.removePrefix("/"))
-            home.mkdirs()
-            File(home, PROMPT_FILE).writeText(PROMPT_SCRIPT)
-            val sourceLine = ". $GUEST_HOME/$PROMPT_FILE"
-            listOf(".bashrc", ".profile").forEach { name ->
-                val file = File(home, name)
-                val existing = if (file.isFile) file.readText() else ""
-                if (!existing.contains(PROMPT_FILE)) {
-                    file.appendText("\n# iCode prompt\n$sourceLine\n")
-                }
-            }
-        }
-    }
-
     companion object {
         const val GUEST_WORKSPACE = "/workspace"
 
@@ -260,21 +233,5 @@ internal class RuntimeLayout(context: Context) {
         const val GUEST_PATH =
             "$GUEST_HOME/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
         private val HOST_BINDS = listOf("/system", "/apex", "/vendor", "/product")
-        private const val PROMPT_FILE = ".icode-prompt.sh"
-
-        /**
-         * Shows the path relative to the workspace root, so `/workspace/app/src`
-         * reads as `app/src`, and falls back to `~` inside the guest home.
-         */
-        private val PROMPT_SCRIPT = """
-            __icode_prompt() {
-              local shown="${'$'}{PWD#$GUEST_WORKSPACE/}"
-              if [ "${'$'}shown" = "${'$'}PWD" ]; then
-                shown="${'$'}{PWD/#${'$'}HOME/~}"
-              fi
-              PS1="\[\e[38;5;208m\]${'$'}{shown}\[\e[0m\] \[\e[32m\]${'$'}\[\e[0m\] "
-            }
-            PROMPT_COMMAND=__icode_prompt
-        """.trimIndent() + "\n"
     }
 }

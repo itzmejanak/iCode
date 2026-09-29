@@ -36,6 +36,11 @@ object AccentColorRules {
         Preset("Rose", 0xFFFF5C8A.toInt()),
     )
 
+    /** Each theme's own accent: Ember, deepened on Light so it still reads on a light background. */
+    fun themeAccent(theme: AppTheme): Int = if (theme == AppTheme.Light) LIGHT_EMBER else presets.first().argb
+
+    private val LIGHT_EMBER = 0xFFB4470C.toInt()
+
     /** Below this an accent used for text or icons is hard to read (WCAG, large text and UI parts). */
     const val MIN_CONTRAST = 3.0
 

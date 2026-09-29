@@ -34,4 +34,10 @@ class AccentColorRulesTest {
         assertEquals(0xFF000000.toInt(), AccentColorRules.onColor(0xFFFFB020.toInt()))
         assertEquals(0xFFFFFFFF.toInt(), AccentColorRules.onColor(0xFF1A237E.toInt()))
     }
+
+    @Test fun `each theme's own accent is Ember, deepened on Light`() {
+        assertEquals(0xFFFF6B2C.toInt(), AccentColorRules.themeAccent(AppTheme.Dark))
+        assertEquals(0xFFB4470C.toInt(), AccentColorRules.themeAccent(AppTheme.Light))
+        assertEquals(0xFFFF6B2C.toInt(), AccentColorRules.themeAccent(AppTheme.Amoled))
+    }
 }

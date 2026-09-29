@@ -19,7 +19,7 @@ internal class TerminalLaunch private constructor(
 ) {
     companion object {
         /** Null when the runtime is not installed. */
-        fun prepare(layout: RuntimeLayout, settings: TerminalSettings, workspaceHostPath: String?): TerminalLaunch? {
+        fun prepare(layout: RuntimeLayout, prompt: ShellPrompt, settings: TerminalSettings, workspaceHostPath: String?): TerminalLaunch? {
             if (!layout.isInstalled) return null
             // The ids can change when Android reassigns the app's gids.
             layout.ensureGuestGroups()
@@ -30,7 +30,7 @@ internal class TerminalLaunch private constructor(
                     failure = "The configured shell ${settings.shellPath} is unavailable in the runtime",
                 )
             }
-            layout.installShellPrompt()
+            prompt.install()
             val argv = layout.prootCommand(
                 guestCommand = shellCommand(settings.shellPath),
                 workspaceHostPath = workspaceHostPath,
