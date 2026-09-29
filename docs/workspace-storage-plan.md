@@ -128,3 +128,66 @@ guaranteed.
    symbolic links, executable bits a project needs — surfaced only when present; the exceptional
    fallback is a Linux-native workspace wholly in private storage, still exposed through the
    provider. No storage choices in ordinary project creation.
+
+## 5. S3 first measurement — PRoot projects a private folder into a project (2026-09-30)
+
+Through iCode's own PRoot (same binary, binds and environment as its terminal), from `run-as`: a
+project folder standing for the user's source, and a separate private folder bound at
+`/workspace/proj/node_modules`.
+
+| Check, inside the runtime | Result |
+|---|---|
+| `ls /workspace/proj` | `node_modules` beside `src`, `package.json`: one tree |
+| create in `node_modules` | lands in the private folder |
+| `mv src/move-me.txt node_modules/` | done |
+| `cd node_modules`, `cd ..`, `readlink -f node_modules/../package.json` | `/workspace/proj/…`, as one tree |
+| symbolic link in `node_modules` | made |
+| `git init`, `git status` | the project's files; `.git` in the project folder; `node_modules` ignored per `.gitignore` |
+| `npm install semver` | exit 0; the package in the private folder, `.bin/semver` linked; `package-lock.json` in the project folder |
+| the host's view of the project folder | no `node_modules` made on the user's side — PRoot needs no placeholder |
+
+Both folders were on ext4: `run-as` is refused on all shared storage (measured). Still to measure
+from iCode's own process, on real shared storage: the bind onto a shared path that does not exist
+there; a move across the boundary (two filesystems: the kernel answers `EXDEV`, and each tool must
+copy instead); file watchers on both backends. Also measured: shared storage is mounted
+**`noexec`** — nothing on it can be executed directly, whatever its bits (a compatibility fact for
+S6: `./gradlew` needs `sh`).
+
+## 6. S2 — the design (for the owner's review)
+
+**One model.** A `LogicalWorkspace`: its user root (the shared folder — canonical, never copied),
+its private root (`files/workspaces/<sha256 of the user root>/`, the key the settings already use),
+and its **mounts**: relative paths whose storage class is not USER.
+
+```text
+StorageClass  USER   the user's files — shared storage, the default for every path
+              LINUX  needs Linux semantics or heavy I/O — private, kept
+              CACHE  regenerable — private, may be cleared
+              TEMP   per session — private, cleared when the session ends
+Mount(path relative to the workspace, class)       e.g. ("node_modules", LINUX)
+```
+
+**One resolver.** `resolve(relativePath) → (backend, physical file)`: the longest mount that
+contains the path wins; otherwise USER. Pure and tested; everything else asks it.
+
+**One projection, three consumers.**
+
+| Consumer | What it gets from the same projection |
+|---|---|
+| The runtime — every PRoot launch (terminal, Git, ripgrep, apt, language services) | the user root at `/workspace/<name>`, then one bind per mount: `<private root>/<class>/<path>` → `/workspace/<name>/<path>` (measured above). `RuntimeLayout.prootCommand` takes the projection instead of a bare folder, so no launch sees a different tree |
+| iCode's Explorer, editor, search results, file operations | a merged listing — the user root's entries, with each mount appearing where it belongs; reads and writes go through `resolve`; a move across backends is a copy then a delete, as the kernel requires |
+| A `DocumentsProvider` (S5) | the same listing and `resolve` |
+
+**Where mounts come from.** The foundation has no stack knowledge. For the proof of concept a mount
+is a per-workspace setting (stored with the workspace's other settings); S7's profiles later only
+*declare* mounts ("a `package.json` beside → `node_modules` LINUX"). A mount whose path already
+exists on the user's side with content is not shadowed silently: it is reported (S6).
+
+**Lifetime.** Private data lives with the workspace: listed per workspace in Storage settings,
+cleared there (CACHE and TEMP freely; LINUX with confirmation), and removed with the workspace's
+last trace. Uninstalling iCode deletes it — acceptable, because it is regenerable by design.
+
+**Steps.** S3a the model and resolver, with tests. S3b `prootCommand` from the projection; one
+workspace with one mount; measure the three open questions above on the phone. S4 the Explorer on
+the merged listing. S5 the provider. S6 the compatibility detector (collisions, committed links,
+`noexec`) and the Linux-native fallback. S7 profiles.
