@@ -3,10 +3,8 @@ package dev.icode.mobile.data.language
 import android.content.Context
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.workspace.WorkbenchStateHolder
-import dev.icode.mobile.domain.LanguageService
 import dev.icode.mobile.domain.LanguageServiceConfiguration
 import dev.icode.mobile.domain.LanguageServiceRules
-import dev.icode.mobile.domain.LanguageServiceStatus
 import dev.icode.mobile.domain.WorkbenchIntent
 import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
@@ -33,7 +31,6 @@ internal class LanguageServiceCoordinator(
     private val processes = LanguageServiceProcessManager(runtimeLayout, scope) { id, status, pid, message ->
         workbench.update { state -> state.copy(languageServices = state.languageServices.map { service ->
             if (service.id == id) service.copy(
-                running = status == LanguageServiceStatus.Running,
                 status = status,
                 processId = pid,
                 statusMessage = message,
@@ -44,7 +41,7 @@ internal class LanguageServiceCoordinator(
     /** Shows the saved services, or why they could not be read. */
     fun publish() {
         workbench.update { it.copy(
-            languageServices = configs.map(::view),
+            languageServices = LanguageServiceRules.rows(configs, shown = emptyList(), changed = null),
             languageServicesLoadError = loaded.exceptionOrNull()?.let { workbench.failureText("language", "Unable to load saved services", it) },
         ) }
         loaded.exceptionOrNull()?.let { error ->
@@ -64,18 +61,6 @@ internal class LanguageServiceCoordinator(
             })
         }
     }
-
-    private fun view(config: LanguageServiceConfiguration): LanguageService = LanguageService(
-        initials = config.name.split(Regex("\\s+")).take(2).mapNotNull { it.firstOrNull()?.uppercase() }
-            .joinToString("").ifBlank { "LS" },
-        name = config.name,
-        patterns = config.patterns.ifBlank { "All files" },
-        running = false,
-        id = config.id,
-        command = config.command,
-        rootMarkers = config.rootMarkers,
-        initializationOptions = config.initializationOptions,
-    )
 
     suspend fun save(intent: WorkbenchIntent.SaveLanguageService) {
         if (workbench.current.languageServicesLoadError != null) {
@@ -116,7 +101,7 @@ internal class LanguageServiceCoordinator(
             store.save(updated)
             configs = updated
             workbench.update { state -> state.copy(
-                languageServices = updated.map(::view),
+                languageServices = LanguageServiceRules.rows(updated, state.languageServices, changed = id),
                 selectedLanguageServiceId = id,
             ) }
         } catch (failure: Exception) {

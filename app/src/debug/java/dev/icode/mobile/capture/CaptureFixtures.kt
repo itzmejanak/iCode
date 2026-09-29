@@ -19,6 +19,7 @@ import dev.icode.mobile.domain.GitRepositoryState
 import dev.icode.mobile.domain.GitStatusCodes
 import dev.icode.mobile.domain.IndexedFile
 import dev.icode.mobile.domain.LanguageService
+import dev.icode.mobile.domain.LanguageServiceStatus
 import dev.icode.mobile.domain.LineEnding
 import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.domain.RecentDocument
@@ -95,15 +96,16 @@ object CaptureFixtures {
         ),
         languageServices = listOf(
             LanguageService(
-                "TS", "TypeScript Language Server", "*.ts, *.tsx", running = true,
+                "TS", "TypeScript Language Server", "*.ts, *.tsx",
+                status = LanguageServiceStatus.Running,
                 id = TYPESCRIPT_SERVICE,
                 command = "typescript-language-server --stdio",
                 rootMarkers = "tsconfig.json, package.json",
                 initializationOptions = "{\"preferences\":{\"importModuleSpecifier\":\"non-relative\"}}",
                 processId = 24018,
             ),
-            LanguageService("PY", "Pylsp (Python)", "*.py", running = false),
-            LanguageService("RS", "Rust Analyzer", "*.rs", running = true),
+            LanguageService("PY", "Pylsp (Python)", "*.py"),
+            LanguageService("RS", "Rust Analyzer", "*.rs", status = LanguageServiceStatus.Running),
         ),
         selectedLanguageServiceId = TYPESCRIPT_SERVICE,
         activeWorkspace = "icode-subsystem",

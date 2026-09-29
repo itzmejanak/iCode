@@ -6,12 +6,11 @@ data class LanguageService(
     val initials: String,
     val name: String,
     val patterns: String,
-    val running: Boolean,
     val id: String = name,
     val command: String = "",
     val rootMarkers: String = "",
     val initializationOptions: String = "{}",
-    val status: LanguageServiceStatus = if (running) LanguageServiceStatus.Running else LanguageServiceStatus.Stopped,
+    val status: LanguageServiceStatus = LanguageServiceStatus.Stopped,
     val processId: Int? = null,
     val statusMessage: String? = null,
 )

@@ -13,6 +13,29 @@ data class LanguageServiceConfiguration(
 object LanguageServiceRules {
     const val MAX_SERVICES = 16
 
+    /**
+     * The rows for [configs], in their order. Each keeps the process state [shown] for it — a
+     * server keeps running while another service is saved — except [changed], whose
+     * configuration was just saved: it starts from Stopped, as a service that has not run yet.
+     */
+    fun rows(configs: List<LanguageServiceConfiguration>, shown: List<LanguageService>, changed: String?): List<LanguageService> =
+        configs.map { config ->
+            val row = row(config)
+            val live = shown.firstOrNull { it.id == config.id }?.takeIf { config.id != changed } ?: return@map row
+            row.copy(status = live.status, processId = live.processId, statusMessage = live.statusMessage)
+        }
+
+    private fun row(config: LanguageServiceConfiguration) = LanguageService(
+        initials = config.name.split(Regex("\\s+")).take(2).mapNotNull { it.firstOrNull()?.uppercase() }
+            .joinToString("").ifBlank { "LS" },
+        name = config.name,
+        patterns = config.patterns.ifBlank { "All files" },
+        id = config.id,
+        command = config.command,
+        rootMarkers = config.rootMarkers,
+        initializationOptions = config.initializationOptions,
+    )
+
     fun validate(name: String, command: String, patterns: String, options: String): String? = when {
         name.isBlank() -> "Enter a service name"
         name.length > 80 -> "Service name is too long"
