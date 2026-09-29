@@ -16,6 +16,7 @@ import dev.icode.mobile.domain.AppearanceSettings
 import dev.icode.mobile.domain.AutoSaveMode
 import dev.icode.mobile.domain.EditorFontFamily
 import dev.icode.mobile.domain.EditorSettings
+import dev.icode.mobile.domain.SettingLimits
 import dev.icode.mobile.domain.TerminalSettings
 import dev.icode.mobile.domain.TerminalCursorStyle
 import dev.icode.mobile.domain.TerminalExtraKey
@@ -34,6 +35,11 @@ class AndroidWorkspacePreferencesRepository internal constructor(
     private val store: DataStore<Preferences>,
 ) : WorkspacePreferencesRepository {
     constructor(context: Context) : this(context.applicationContext.workspacePreferencesDataStore)
+    // A value missing or out of range reads as the settings types' own default.
+    private val appearanceDefaults = AppearanceSettings()
+    private val editorDefaults = EditorSettings()
+    private val terminalDefaults = TerminalSettings()
+    private val preferenceDefaults = WorkspacePreferences()
     private val globalIndentKey = intPreferencesKey("editor_indent_size")
     private val themeKey = stringPreferencesKey("appearance_theme")
     private val uiScaleKey = intPreferencesKey("appearance_ui_text_scale_percent")
@@ -57,47 +63,44 @@ class AndroidWorkspacePreferencesRepository internal constructor(
 
     override fun values(workspaceLocation: String?): Flow<WorkspacePreferences> = store.data.map { prefs ->
         val prefix = workspaceLocation?.let(::workspaceKeyPrefix)
-        val indent = prefix?.let { prefs[intPreferencesKey("${it}_indent_size")] }?.takeIf { it in 1..8 }
+        val indent = prefix?.let { prefs[intPreferencesKey("${it}_indent_size")] }?.takeIf { it in SettingLimits.indentSizes }
         val type = prefix?.let { prefs[stringPreferencesKey("${it}_indent_type")] }
             ?.let { runCatching { IndentType.valueOf(it) }.getOrNull() }
         WorkspacePreferences(
             workspaceLocation = workspaceLocation,
             appearance = AppearanceSettings(
-                theme = prefs[themeKey]?.let { enumOrNull<AppTheme>(it) } ?: AppTheme.Dark,
-                uiTextScalePercent = prefs[uiScaleKey]?.takeIf { it in 100..150 } ?: 100,
-                compactLayout = prefs[compactKey] ?: true,
+                theme = prefs[themeKey]?.let { enumOrNull<AppTheme>(it) } ?: appearanceDefaults.theme,
+                uiTextScalePercent = prefs[uiScaleKey]?.takeIf { it in SettingLimits.uiTextScales } ?: appearanceDefaults.uiTextScalePercent,
+                compactLayout = prefs[compactKey] ?: appearanceDefaults.compactLayout,
                 accentColor = prefs[accentKey]?.let(AccentColorRules::opaque),
             ),
             editor = EditorSettings(
-                fontSizeSp = prefs[fontSizeKey]?.takeIf { it in 9..30 } ?: 14,
-                fontFamily = prefs[fontFamilyKey]?.let { enumOrNull<EditorFontFamily>(it) }
-                    ?: EditorFontFamily.PlexMono,
-                wordWrap = prefs[wordWrapKey] ?: true,
-                autoSave = prefs[autoSaveKey]?.let { enumOrNull<AutoSaveMode>(it) }
-                    ?: AutoSaveMode.AfterOneSecond,
-                lineNumbers = prefs[lineNumbersKey] ?: true,
-                minimap = prefs[minimapKey] ?: false,
-                bracketMatching = prefs[bracketKey] ?: true,
+                fontSizeSp = prefs[fontSizeKey]?.takeIf { it in SettingLimits.fontSizesSp } ?: editorDefaults.fontSizeSp,
+                fontFamily = prefs[fontFamilyKey]?.let { enumOrNull<EditorFontFamily>(it) } ?: editorDefaults.fontFamily,
+                wordWrap = prefs[wordWrapKey] ?: editorDefaults.wordWrap,
+                autoSave = prefs[autoSaveKey]?.let { enumOrNull<AutoSaveMode>(it) } ?: editorDefaults.autoSave,
+                lineNumbers = prefs[lineNumbersKey] ?: editorDefaults.lineNumbers,
+                minimap = prefs[minimapKey] ?: editorDefaults.minimap,
+                bracketMatching = prefs[bracketKey] ?: editorDefaults.bracketMatching,
             ),
             terminal = TerminalSettings(
-                shellPath = prefs[terminalShellKey]?.takeIf(TerminalSettingRules::validShellPath) ?: "/bin/bash",
-                fontSizeSp = prefs[terminalFontSizeKey]?.takeIf { it in 9..30 } ?: 13,
-                fontFamily = prefs[terminalFontFamilyKey]?.let { enumOrNull<EditorFontFamily>(it) }
-                    ?: EditorFontFamily.PlexMono,
+                shellPath = prefs[terminalShellKey]?.takeIf(TerminalSettingRules::validShellPath) ?: terminalDefaults.shellPath,
+                fontSizeSp = prefs[terminalFontSizeKey]?.takeIf { it in SettingLimits.fontSizesSp } ?: terminalDefaults.fontSizeSp,
+                fontFamily = prefs[terminalFontFamilyKey]?.let { enumOrNull<EditorFontFamily>(it) } ?: terminalDefaults.fontFamily,
                 scrollbackLines = prefs[terminalScrollbackKey]
-                    ?.takeIf { it in TerminalSettingRules.scrollbackChoices } ?: 10_000,
+                    ?.takeIf { it in TerminalSettingRules.scrollbackChoices } ?: terminalDefaults.scrollbackLines,
                 extraKeys = prefs[terminalExtraKeysKey]?.split(',')
                     ?.mapNotNull { enumOrNull<TerminalExtraKey>(it) }
-                    ?.distinct() ?: TerminalExtraKey.entries,
+                    ?.distinct() ?: terminalDefaults.extraKeys,
                 cursorStyle = prefs[terminalCursorStyleKey]?.let { enumOrNull<TerminalCursorStyle>(it) }
-                    ?: TerminalCursorStyle.Block,
-                bellAlerts = prefs[terminalBellAlertsKey] ?: true,
-                finishAlerts = prefs[terminalFinishAlertsKey] ?: true,
+                    ?: terminalDefaults.cursorStyle,
+                bellAlerts = prefs[terminalBellAlertsKey] ?: terminalDefaults.bellAlerts,
+                finishAlerts = prefs[terminalFinishAlertsKey] ?: terminalDefaults.finishAlerts,
             ),
-            globalIndentSize = prefs[globalIndentKey]?.takeIf { it in 1..8 } ?: 4,
+            globalIndentSize = prefs[globalIndentKey]?.takeIf { it in SettingLimits.indentSizes } ?: preferenceDefaults.globalIndentSize,
             indentSizeOverride = indent,
             indentTypeOverride = type,
-            autoFetch = prefix?.let { prefs[booleanPreferencesKey("${it}_auto_fetch")] } ?: false,
+            autoFetch = prefix?.let { prefs[booleanPreferencesKey("${it}_auto_fetch")] } ?: preferenceDefaults.autoFetch,
         )
     }.catch { error ->
         if (error is CancellationException) throw error
@@ -107,7 +110,7 @@ class AndroidWorkspacePreferencesRepository internal constructor(
     override suspend fun setTheme(theme: AppTheme) { store.edit { it[themeKey] = theme.name } }
 
     override suspend fun setUiTextScalePercent(percent: Int) {
-        require(percent in 100..150 && percent % 5 == 0)
+        require(percent in SettingLimits.uiTextScales)
         store.edit { it[uiScaleKey] = percent }
     }
 
@@ -118,7 +121,7 @@ class AndroidWorkspacePreferencesRepository internal constructor(
     }
 
     override suspend fun setEditorFontSize(sizeSp: Int) {
-        require(sizeSp in 9..30)
+        require(sizeSp in SettingLimits.fontSizesSp)
         store.edit { it[fontSizeKey] = sizeSp }
     }
 
@@ -142,7 +145,7 @@ class AndroidWorkspacePreferencesRepository internal constructor(
     }
 
     override suspend fun setTerminalFontSize(sizeSp: Int) {
-        require(sizeSp in 9..30)
+        require(sizeSp in SettingLimits.fontSizesSp)
         store.edit { it[terminalFontSizeKey] = sizeSp }
     }
 
@@ -173,12 +176,12 @@ class AndroidWorkspacePreferencesRepository internal constructor(
     }
 
     override suspend fun setGlobalIndentSize(size: Int) {
-        require(size in 1..8)
+        require(size in SettingLimits.indentSizes)
         store.edit { it[globalIndentKey] = size }
     }
 
     override suspend fun setIndentSizeOverride(workspaceLocation: String, size: Int?) {
-        require(size == null || size in 1..8)
+        require(size == null || size in SettingLimits.indentSizes)
         val key = intPreferencesKey("${workspaceKeyPrefix(workspaceLocation)}_indent_size")
         store.edit { if (size == null) it.remove(key) else it[key] = size }
     }

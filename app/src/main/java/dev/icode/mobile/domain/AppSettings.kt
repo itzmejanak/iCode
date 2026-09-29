@@ -11,6 +11,33 @@ enum class AutoSaveMode(val delayMillis: Long?) {
     AfterFiveSeconds(5_000),
 }
 
+/**
+ * The values each numeric setting may take: its control offers them, the store
+ * accepts and reads back only them, and pinch zoom stays within the font sizes.
+ */
+object SettingLimits {
+    /** Editor and terminal text, in sp. */
+    val fontSizesSp = 9..30
+    val indentSizes = 1..8
+    /** UI text, in percent. */
+    val uiTextScales = 100..150 step 5
+
+    /** Where [percent] sits on its slider, from 0 to 1. */
+    fun uiTextScalePosition(percent: Int): Float =
+        (percent.coerceIn(uiTextScales.first, uiTextScales.last) - uiTextScales.first).toFloat() /
+            (uiTextScales.last - uiTextScales.first)
+
+    /** The UI text scale at [position] (0 to 1) of its slider, on a step. */
+    fun uiTextScaleAt(position: Float): Int {
+        val steps = (uiTextScales.last - uiTextScales.first) / uiTextScales.step
+        return uiTextScales.first + Math.round(position.coerceIn(0f, 1f) * steps) * uiTextScales.step
+    }
+
+    /** A pinch [scale] of text set at [baseSp], kept within [fontSizesSp]. */
+    fun zoomScale(scale: Float, baseSp: Int): Float =
+        scale.coerceIn(fontSizesSp.first.toFloat() / baseSp, fontSizesSp.last.toFloat() / baseSp)
+}
+
 data class AppearanceSettings(
     val theme: AppTheme = AppTheme.Dark,
     /** 100 is the validated original UI; editor, Markdown and terminal sizes are independent. */

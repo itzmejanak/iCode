@@ -22,6 +22,7 @@ import dev.icode.mobile.domain.EditorFontFamily
 import dev.icode.mobile.domain.EditorSettings
 import dev.icode.mobile.domain.FileTypes
 import dev.icode.mobile.domain.OpenDocument
+import dev.icode.mobile.domain.SettingLimits
 import dev.icode.mobile.domain.IndentType
 import dev.icode.mobile.domain.WorkspacePreferences
 import io.github.rosemoe.sora.event.ContentChangeEvent
@@ -55,11 +56,12 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
         editor.typefaceText = plexTypeface
         editor.setTextSize(14f)
         // Sora's native scale detector handles two-finger pinches without
-        // competing with selection, caret dragging, or the IME.
+        // competing with selection, caret dragging, or the IME; it zooms
+        // within the sizes the Font Size setting offers.
         editor.setScalable(true)
         editor.setScaleTextSizes(
-            TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 9f, context.resources.displayMetrics),
-            TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 28f, context.resources.displayMetrics),
+            TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, SettingLimits.fontSizesSp.first.toFloat(), context.resources.displayMetrics),
+            TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, SettingLimits.fontSizesSp.last.toFloat(), context.resources.displayMetrics),
         )
         editor.setWordwrap(true)
         editor.setTabWidth(preferences.effectiveIndentSize)

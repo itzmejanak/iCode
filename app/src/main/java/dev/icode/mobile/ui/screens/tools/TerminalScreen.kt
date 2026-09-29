@@ -35,6 +35,7 @@ import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.domain.RuntimeState
+import dev.icode.mobile.domain.SettingLimits
 import dev.icode.mobile.domain.Severity
 import dev.icode.mobile.domain.TerminalStatus
 import dev.icode.mobile.domain.WorkbenchIntent
@@ -174,9 +175,10 @@ fun TerminalScreen(actions: NavigationActions) {
                     else -> TerminalHost(
                         sessionId = session.id,
                         settings = terminalSettings,
-                        fontScale = fontScale,
+                        fontScale = SettingLimits.zoomScale(fontScale, terminalSettings.fontSizeSp),
                         keys = keys,
-                        onScale = { fontScale = (fontScale * it).coerceIn(MIN_FONT_SCALE, MAX_FONT_SCALE) },
+                        // Pinch zoom stays within the sizes the Font Size setting offers, as the editor's does.
+                        onScale = { fontScale = SettingLimits.zoomScale(fontScale * it, terminalSettings.fontSizeSp) },
                         onUrl = { gateway.dispatch(WorkbenchIntent.OpenExternalUrl(it)) },
                         onEndedEnter = { gateway.dispatch(WorkbenchIntent.CloseTerminalSession(session.id)) },
                         modifier = Modifier.weight(1f),
@@ -196,8 +198,6 @@ fun TerminalScreen(actions: NavigationActions) {
     }
 }
 
-private const val MIN_FONT_SCALE = 0.6f
-private const val MAX_FONT_SCALE = 2.4f
 
 internal fun shouldAutoOpenTerminal(tab: ToolPanelTab, runtimeReady: Boolean, alreadyAttempted: Boolean): Boolean =
     tab == ToolPanelTab.Terminal && runtimeReady && !alreadyAttempted

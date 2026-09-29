@@ -14,7 +14,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -33,6 +32,7 @@ import dev.icode.mobile.designsystem.SegmentedControl
 import dev.icode.mobile.designsystem.SettingRow
 import dev.icode.mobile.designsystem.Stepper
 import dev.icode.mobile.domain.EditorFontFamily
+import dev.icode.mobile.domain.SettingLimits
 import dev.icode.mobile.domain.SystemPermission
 import dev.icode.mobile.domain.TerminalCursorStyle
 import dev.icode.mobile.domain.TerminalExtraKey
@@ -43,9 +43,6 @@ import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 import dev.icode.mobile.ui.LocalWorkspacePreferences
 import dev.icode.mobile.ui.LocalWorkspacePreferencesRepository
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.launch
-
 
 /** App-wide terminal preferences; shell changes apply when the next session starts. */
 @Composable
@@ -55,23 +52,9 @@ fun TerminalSettingsScreen(actions: NavigationActions) {
     val gateway = LocalWorkbenchGateway.current
     val access = LocalWorkbenchSnapshot.current.systemAccess
     val settings = preferences.terminal
-    val scope = rememberCoroutineScope()
-    var saveError by remember { mutableStateOf<String?>(null) }
+    val saver = rememberSettingSaver(preferences, "Could not save terminal setting")
     var editingShell by remember { mutableStateOf(false) }
     var shellDraft by rememberSaveable { mutableStateOf(settings.shellPath) }
-
-    fun update(block: suspend () -> Unit) {
-        scope.launch {
-            try {
-                block()
-                saveError = null
-            } catch (error: CancellationException) {
-                throw error
-            } catch (error: Exception) {
-                saveError = error.message ?: "Could not save terminal setting"
-            }
-        }
-    }
 
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Terminal Settings", subtitle = "Shell, extra keys, scrollback, background", onBack = actions.back)
@@ -83,14 +66,14 @@ fun TerminalSettingsScreen(actions: NavigationActions) {
             preferences.loadError?.let {
                 Text("Settings unavailable: $it", style = IcodeType.Caption.copy(color = IcodeColors.Error))
             }
-            saveError?.let { Text(it, style = IcodeType.Caption.copy(color = IcodeColors.Error)) }
+            saver.error?.let { Text(it, style = IcodeType.Caption.copy(color = IcodeColors.Error)) }
             SectionLabel("Shell Path")
             SettingRow(
                 settings.shellPath,
                 Modifier.fillMaxWidth(),
                 subtitle = "Used by new sessions; the executable must be installed in the runtime",
                 onClick = {
-                    if (preferences.loaded && preferences.loadError == null) {
+                    if (saver.ready) {
                         shellDraft = settings.shellPath
                         editingShell = true
                     }
@@ -103,13 +86,13 @@ fun TerminalSettingsScreen(actions: NavigationActions) {
                 options = EditorFontFamily.entries,
                 selected = settings.fontFamily,
                 optionLabel = { if (it == EditorFontFamily.PlexMono) "IBM Plex Mono" else "System Monospace" },
-                onSelect = { if (preferences.loaded && preferences.loadError == null) update { repository.setTerminalFontFamily(it) } },
+                onSelect = { saver.save { repository.setTerminalFontFamily(it) } },
             )
             SettingRow("Font Size", Modifier.fillMaxWidth()) {
                 Stepper(
                     settings.fontSizeSp,
-                    { if (settings.fontSizeSp > 9) update { repository.setTerminalFontSize(settings.fontSizeSp - 1) } },
-                    { if (settings.fontSizeSp < 30) update { repository.setTerminalFontSize(settings.fontSizeSp + 1) } },
+                    { if (settings.fontSizeSp > SettingLimits.fontSizesSp.first) saver.save { repository.setTerminalFontSize(settings.fontSizeSp - 1) } },
+                    { if (settings.fontSizeSp < SettingLimits.fontSizesSp.last) saver.save { repository.setTerminalFontSize(settings.fontSizeSp + 1) } },
                 )
             }
             IcodeDropdown(
@@ -117,7 +100,7 @@ fun TerminalSettingsScreen(actions: NavigationActions) {
                 options = TerminalSettingRules.scrollbackChoices,
                 selected = settings.scrollbackLines,
                 optionLabel = { "$it lines" },
-                onSelect = { if (preferences.loaded && preferences.loadError == null) update { repository.setTerminalScrollbackLimit(it) } },
+                onSelect = { saver.save { repository.setTerminalScrollbackLimit(it) } },
             )
             SectionLabel("Extra Keys Row")
             Text("Tap a key to show or hide it in the terminal.", style = IcodeType.Caption)
@@ -127,19 +110,17 @@ fun TerminalSettingsScreen(actions: NavigationActions) {
                 chipModifier = Modifier.heightIn(min = IcodeSizes.TouchTarget),
                 activeKeys = settings.extraKeys.map { it.label }.toSet(),
                 onKey = { label ->
-                    if (preferences.loaded && preferences.loadError == null) {
-                        val selected = TerminalExtraKey.entries.filter { key ->
-                            if (key.label == label) key !in settings.extraKeys else key in settings.extraKeys
-                        }
-                        update { repository.setTerminalExtraKeys(selected) }
+                    val selected = TerminalExtraKey.entries.filter { key ->
+                        if (key.label == label) key !in settings.extraKeys else key in settings.extraKeys
                     }
+                    saver.save { repository.setTerminalExtraKeys(selected) }
                 },
             )
             SectionLabel("Cursor Style")
             SettingRow("Cursor Type", Modifier.fillMaxWidth()) {
                 SegmentedControl(TerminalCursorStyle.entries.map { it.label }, settings.cursorStyle.label) { label ->
                     val style = TerminalCursorStyle.entries.first { it.label == label }
-                    if (preferences.loaded && preferences.loadError == null) update { repository.setTerminalCursorStyle(style) }
+                    saver.save { repository.setTerminalCursorStyle(style) }
                 }
             }
             // Android's own settings; iCode shows what it reads and opens the page to change it.
@@ -178,7 +159,7 @@ fun TerminalSettingsScreen(actions: NavigationActions) {
                 subtitle = "It rang the terminal bell, as Claude Code does when set to terminal_bell",
             ) {
                 IcodeToggle(settings.bellAlerts) { enabled ->
-                    if (preferences.loaded && preferences.loadError == null) update { repository.setTerminalBellAlerts(enabled) }
+                    saver.save { repository.setTerminalBellAlerts(enabled) }
                 }
             }
             SettingRow(
@@ -187,7 +168,7 @@ fun TerminalSettingsScreen(actions: NavigationActions) {
                 subtitle = "It ran ${TerminalSettingRules.FINISH_ALERT_MILLIS / 1_000} seconds or more",
             ) {
                 IcodeToggle(settings.finishAlerts) { enabled ->
-                    if (preferences.loaded && preferences.loadError == null) update { repository.setTerminalFinishAlerts(enabled) }
+                    saver.save { repository.setTerminalFinishAlerts(enabled) }
                 }
             }
         }
@@ -199,7 +180,7 @@ fun TerminalSettingsScreen(actions: NavigationActions) {
             confirmLabel = "Save path",
             confirmEnabled = TerminalSettingRules.validShellPath(shellDraft),
             onConfirm = {
-                update { repository.setTerminalShellPath(shellDraft) }
+                saver.save { repository.setTerminalShellPath(shellDraft) }
                 editingShell = false
             },
             onDismiss = { editingShell = false },
