@@ -191,3 +191,28 @@ last trace. Uninstalling iCode deletes it — acceptable, because it is regenera
 workspace with one mount; measure the three open questions above on the phone. S4 the Explorer on
 the merged listing. S5 the provider. S6 the compatibility detector (collisions, committed links,
 `noexec`) and the Linux-native fallback. S7 profiles.
+
+## 7. S3b — every launch binds the logical workspace; measured on real shared storage (2026-09-30)
+
+`WorkspaceStorage` (`data/storage`) owns each workspace's private root and its mount list;
+`RuntimeLayout.prootCommand` binds `LogicalWorkspace.binds()` for every launch with a workspace —
+the terminal, Git, ripgrep, apt and language services go through it, so none sees another tree.
+Measured with the scratch workspace (`s3b/node_modules`, `s3c/node_modules` LINUX), run in an iCode
+terminal in front of the owner:
+
+| Check | Result |
+|---|---|
+| the runtime's view | one tree: `node_modules` inside `s3b`, `s3c` |
+| create in the mount | lands in private storage |
+| `mv` shared → mount, and back | done both ways (`mv` copies across filesystems) |
+| raw `rename()` shared → mount | `EXDEV` — as between any two filesystems; a tool that only renames must copy (`mv` does) |
+| file watchers (`fs.watch`) | events on both sides: `change:w.txt` in `src`; `rename`/`change` in `node_modules` |
+| `npm install semver lodash`, mounted | exit 0 in 8 s; `.bin/semver` linked |
+| the same with no mount, on shared storage | **fails**: `EACCES … symlink '../semver/bin/semver.js' -> '…/.bin/semver'`; 0 files — the second cause of RevPlayer's failure, after the freezer |
+| a script on shared storage | `./run.sh` → "Permission denied" (`noexec`); `sh run.sh` runs |
+| the user's side of a mount | PRoot makes an **empty** folder at the mount path on shared storage when a session starts (even with the parent present); the contents stay private |
+| `rm -rf` through a mount | removes the private folder too; the next tool that makes the folder again (`npm`'s `mkdir`) gets a private one; `WorkspaceStorage.of` also remakes it at the next launch |
+
+Consequences for S4–S6: the Explorer must list a mount from its private folder (the shared side is
+an empty placeholder); iCode's own file operations across the boundary copy then delete; the
+compatibility detector reports `noexec` scripts (`sh gradlew`), committed links and case collisions.
