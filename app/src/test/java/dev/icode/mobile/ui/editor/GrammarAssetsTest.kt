@@ -1,7 +1,11 @@
 package dev.icode.mobile.ui.editor
 
 import dev.icode.mobile.domain.FileTypes
+import java.io.File
+import org.eclipse.tm4e.languageconfiguration.internal.model.LanguageConfiguration
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class GrammarAssetsTest {
@@ -22,6 +26,21 @@ class GrammarAssetsTest {
         val opened = FileTypes.rules.mapNotNull { it.type.grammar }.toSet()
         val included = ShippedGrammars.all.flatMap { it.includes }.toSet()
         assertEquals(emptySet<String>(), shipped - opened - included)
+    }
+
+    /** Each language's brackets, comments and indent rules, read by the parser the editor itself uses. */
+    @Test fun `every language configuration loads in the editor's own parser`() {
+        val languages = JSONObject(File("src/main/assets/textmate/languages.json").readText()).getJSONArray("languages")
+        val configurations = (0 until languages.length()).map { languages.getJSONObject(it) }
+            .filter { it.has("languageConfiguration") }
+            .map { it.getString("name") to File("src/main/assets", it.getString("languageConfiguration")) }
+        assertTrue(configurations.size > 30)
+        // On the JVM an error the parser logs throws, so a configuration it only complains about fails too.
+        val unreadable = configurations.filter { (_, file) ->
+            val loaded = runCatching { LanguageConfiguration.load(file.reader()) }.getOrNull()
+            loaded == null || ("\"brackets\"" in file.readText() && loaded.brackets.isNullOrEmpty())
+        }.map { it.first }
+        assertEquals(emptyList<String>(), unreadable)
     }
 
     private companion object {

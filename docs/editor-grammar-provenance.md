@@ -68,3 +68,8 @@ home configuration folder, which the Explorer never lists.
 YAML (fixed 2026-09-29): only the dispatcher `yaml.tmLanguage.json` had been copied; the YAML
 1.0–1.3 and embedded grammars it hands every document to are now shipped from the same commit.
 
+One edit to a copied file: `make/language-configuration.json` writes `lineComment` as the string
+`"#"`. VS Code's form, an object with `noIndent`, is newer than the parser in Sora's tm4e, which
+rejects it (the configuration would be lost and an error logged). `GrammarAssetsTest` loads every
+configuration through that parser.
+
