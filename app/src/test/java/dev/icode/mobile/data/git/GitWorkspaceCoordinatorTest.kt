@@ -295,6 +295,32 @@ class GitWorkspaceCoordinatorTest {
         assertEquals(listOf("remote $root origin git@github.com:ada/app.git", "inspect $root"), git.calls)
     }
 
+    @Test fun `the editor's text is compared with the disk in the open workspace`() = runBlocking {
+        val git = FakeGit()
+        val harness = Harness(git, root)
+
+        harness.coordinator.compareWithEditor("a.txt", "unsaved".toByteArray())
+
+        assertEquals(listOf("compare $root a.txt unsaved"), git.calls)
+        // Git found no difference: the diff view opens on the file, empty.
+        assertEquals(GitFileDiff(path = "a.txt", hunks = emptyList()), harness.workbench.current.activeDiff)
+    }
+
+    @Test fun `comparing without Git says how to get it`() = runBlocking {
+        val git = FakeGit().apply { available = false }
+        val harness = Harness(git, root)
+        val message = async { harness.workbench.effects.first() }
+        yield()
+
+        harness.coordinator.compareWithEditor("a.txt", "unsaved".toByteArray())
+
+        assertEquals(
+            WorkbenchEffect.Message("Comparing uses Git, which is not installed yet. Install it from Source Control"),
+            withTimeout(2_000) { message.await() },
+        )
+        assertTrue(git.calls.isEmpty())
+    }
+
     @Test fun `abort ends the operation Git reported`() = runBlocking {
         val git = FakeGit().apply { snapshot = GitWorkspaceSnapshot(repository(), emptyList()) }
         val harness = Harness(git, root)
@@ -335,6 +361,10 @@ class GitWorkspaceCoordinatorTest {
         override suspend fun diff(workspacePath: String, path: String, staged: Boolean): GitFileDiff? {
             record("diff $workspacePath $path $staged")
             return null
+        }
+        override suspend fun compareWithBytes(workspacePath: String, path: String, editorBytes: ByteArray): GitOutcome<GitFileDiff?> {
+            record("compare $workspacePath $path ${editorBytes.decodeToString()}")
+            return GitOutcome.Success(null)
         }
         override suspend fun discard(workspacePath: String, path: String, status: String) = record("discard $workspacePath $path $status")
         override suspend fun abortInProgress(workspacePath: String, inProgress: GitInProgress) = record("abort $workspacePath $inProgress")

@@ -725,3 +725,16 @@ developer-tools onboarding step (Todo 5).
   with room to spare (holds on this phone; not changed). Found and fixed: the UI-text slider's
   thumb covered its "Aa" labels (no spacing in the row). Gate: 463 tests; lint 0 errors / 11
   warnings; both guards pass.
+
+**X — the remaining moves (2026-09-29), in progress.**
+
+- X3: `WorkspaceSessionCoordinator` (`data/workspace`) owns the open workspace — the active
+  root every feature asks for, open and switch (and the unsaved-edits question), the settled
+  refresh loop, the watcher while iCode is seen, the restored last session, a draft of another
+  workspace. A switch reaches every feature that holds the old workspace, so it orchestrates
+  them; the gateway now builds the features and routes intents (638 → 410 lines; ratchet
+  lowered). Moved unchanged, except compare-with-disk, split at its two owners: the editor's
+  text as a save would write it stays with the session, and the Git half (`compareWithEditor`)
+  is `GitWorkspaceCoordinator`'s, through the Git seam — the gateway called the Git CLI directly
+  for it. 2 tests for the Git half. Gate: 465 tests; lint 0 errors / 11 warnings; both guards
+  pass. Phone check pending (the owner was using the phone).

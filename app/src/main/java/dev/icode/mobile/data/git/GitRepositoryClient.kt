@@ -123,6 +123,9 @@ internal class GitRepositoryClient(private val cli: CliGitService) :
     override suspend fun addRemote(workspacePath: String, name: String, url: String) =
         expect(workspacePath, listOf("remote", "add", "--", name, url))
 
+    override suspend fun compareWithBytes(workspacePath: String, path: String, editorBytes: ByteArray): GitOutcome<GitFileDiff?> =
+        cli.compareWithBytes(workspacePath, path, editorBytes)
+
     override suspend fun diff(workspacePath: String, path: String, staged: Boolean): GitFileDiff? {
         val arguments = buildList {
             add("diff")
