@@ -726,7 +726,7 @@ developer-tools onboarding step (Todo 5).
   thumb covered its "Aa" labels (no spacing in the row). Gate: 463 tests; lint 0 errors / 11
   warnings; both guards pass.
 
-**X — the remaining moves (2026-09-29), in progress.**
+**X and G — the remaining moves and the guards (2026-09-29), done; the phone check of X3/X4 is pending (the owner was using the phone).**
 
 - X3: `WorkspaceSessionCoordinator` (`data/workspace`) owns the open workspace — the active
   root every feature asks for, open and switch (and the unsaved-edits question), the settled
@@ -764,11 +764,49 @@ developer-tools onboarding step (Todo 5).
   tests; lint 0 errors / 11 warnings; both guards pass.
 - G1: the guards now hold what S8 and X fixed. Backend guard: `store-owner` — each
   SharedPreferences file or DataStore is opened in one file, and under a name the guard can read
-  (a literal or the file's own constant; today 8 stores, 8 files — R11 counted 9, the ninth
-  being the drafts folder, which is files, not a store); `sha256-owner` — SHA-256 only in
+  (a literal or the file's own constant; today 8 stores, 8 files — R11 said 9, but the same
+  grep at the commit that measured it, `d02973b`, finds these 8: 7 SharedPreferences, 1 DataStore); `sha256-owner` — SHA-256 only in
   `Sha256`; `byte-format` — no byte count formatted outside `ByteSize` (comments may quote an
   example). UI guard: `screen-lines` became `ui-lines`, the 300-line budget for every `ui/`
   file, so `IcodeApp` and the editor and terminal views are held too (R9). Each rule was run
   against a planted violation and fails it; the planted run found and fixed two faults of the
   new rule itself (only a file's first store was read; an unreadable name ended the script
   silently under `set -e`). All start at zero debt.
+- G2: the persistence and lock maps below replace
+  [backend-split-audit.md](./backend-split-audit.md) §6's (marked superseded); Todo and README
+  corrected where this programme changed what they say.
+
+## 9. Persistence and lock map — measured 2026-09-29
+
+Read from the code at G2 (`getSharedPreferences`/`preferencesDataStore`, `filesDir`/`cacheDir`,
+`Mutex`/`synchronized`); the backend guard holds the first table's one-owner rule (G1).
+
+**What is kept, by whom** — a checked write (`commitOrFail`) fails loudly and is used where the
+user is told something was saved; a background write (`apply()`) is for records kept for later.
+
+| Store | Owner (one file) | Holds | Write |
+|---|---|---|---|
+| DataStore `workspace_settings` | `AndroidWorkspacePreferencesRepository` | app settings; per workspace (keys prefixed by the SHA-256 of its path): indent size and type, auto-fetch | DataStore `edit` (transactional) |
+| `workspace_history` | `WorkspaceStore` | recent workspaces, recent files, the open workspace and its tabs (session restore) | checked; recents also in the background when not asked to be synchronous |
+| `icode.git.credentials` | `GitCredentialStore` | HTTPS host, account, token encrypted by an Android Keystore key | checked |
+| `language_services` | `LanguageServiceStore` | language-service configurations (never process state) | checked |
+| `notices` | `NoticeStore` | the Notifications page | background |
+| `terminal_sessions` | `TerminalSessionLedger` | the sessions a process was running, for the notice after process death | background |
+| `git_transfer` | `GitTransferLedger` | the transfer running, for the notice after process death | `commit = true`, answer not checked (a failed ledger write must not fail the transfer) |
+| `onboarding` | `AndroidSystemAccess` | which permissions onboarding has offered | background |
+| `files/document-drafts/` | `DocumentDraftStore` | unsaved text as the user types, beside the file's fingerprint | written beside the draft, then moved into place (a kill mid-write leaves the old draft) |
+| `files/runtime/` | `RuntimeLayout`, `RuntimeInstaller`, `RuntimeHomeBackup` | the Ubuntu root filesystem, `installed.json` (the verified install), `home-backup` during a repair | — |
+| `cache/` | `RuntimeInstaller`, `StorageInspector` | the downloaded archive until installed, `proot-tmp`; Clear Cache removes only `*.tar.gz` there and `proot-tmp`'s contents | — |
+
+**What waits for what**
+
+| Path | Serialised by | Why |
+|---|---|---|
+| every intent not listed next | `WorkbenchStateHolder.mutations` (the gateway's locked router) | one state transition at a time |
+| Refresh, screen shown/hidden, storage and runtime reads, keystrokes, folder toggles, search, fetch/pull/push/clone and their cancel, language-service selection | nothing — routed before the lock (`AndroidWorkbenchGateway.dispatch`) | never queue behind a workspace mutation: keystroke rate, read-only reads, cancellable jobs, a slow remote |
+| the settled refresh, the restored session | `mutations`, inside `WorkspaceSessionCoordinator`'s own coroutines | a refresh must not interleave with a switch |
+| a transfer's refresh afterwards, opening a finished clone, a language-service restart, Git's refresh after saves | `mutations`, taken when the work is done | the long part runs outside the lock |
+| package installs (git, openssh-client, ripgrep) | `RuntimePackageInstaller.dpkg` | dpkg has one database and one lock; concurrent requests for one package share its install |
+| drafts | `DocumentRecoveryCoordinator.draftMutex` | file I/O off the mutation lock |
+| transfers | `GitTransferCoordinator` (one job) | one network operation at a time, cancellable |
+| the file tree, watched folders, notices, language-service processes | `synchronized` in `WorkspaceTree`, `WorkspaceWatcher`, `NoticeStore`, `LanguageServiceProcessManager` | read from several threads |

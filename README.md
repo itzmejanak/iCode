@@ -45,7 +45,8 @@ contains no fixture.
 app/src/main/java/dev/icode/mobile/
 ├── designsystem/   # Semantic tokens (colors, type, metrics, tone, theme) + shared UI kit
 ├── domain/         # UI-facing immutable state and the intent/effect contract
-├── data/           # Android implementations: workspace, git, runtime, settings, language, notices, system
+├── data/           # Android implementations: workspace, git, runtime, search, settings, language,
+│                   #   notices, system, io (Sha256, checked writes), log
 ├── navigation/     # Routes and navigation actions
 └── ui/             # Composition root, editor, terminal, and one file per screen
     └── screens/{entry,workspace,tools,settings,recovery}/
@@ -53,12 +54,16 @@ app/src/debug/java/dev/icode/mobile/capture/   # Capture fixtures (debug builds 
 ```
 
 Each Figma frame lives in its own screen file with a small group host that dispatches it; the
-shared kit owns every reusable surface. Structural consistency is enforced by
-`tools/check-ui-consistency.sh` with the shrinking ratchet in `tools/ui-debt-allowlist.txt`.
+shared kit owns every reusable surface. Structural consistency is enforced by two guards with
+shrinking ratchets: `tools/check-ui-consistency.sh` (`tools/ui-debt-allowlist.txt`) for the UI,
+and `tools/check-backend-consistency.sh` (`tools/backend-debt-allowlist.txt`) for `data/` and
+`domain/` — among them the file budget, one owner per store, one package installer, one digest
+and one byte format.
 
 `WorkbenchGateway` is the only state/intent/effect seam between Compose and implementations.
-The app uses `AndroidWorkbenchGateway`; a capture launch uses `CaptureGateway`, which draws the
-fixtures and ignores every intent, so no fixture reaches real storage.
+The app uses `AndroidWorkbenchGateway`, which builds one coordinator per feature and routes each
+intent to it; a capture launch uses `CaptureGateway`, which draws the fixtures and ignores every
+intent, so no fixture reaches real storage.
 
 ## Project documents
 
@@ -69,3 +74,6 @@ fixtures and ignores every intent, so no fixture reaches real storage.
 - [Layout and interaction design](./docs/layout.md)
 - [User stories](./docs/user-stories.md)
 - [Implementation tracker](./Todo.md)
+- [Code separation plan and record](./docs/code-separation-plan.md) (ownership, persistence and lock maps)
+- [Backend splitting rules](./docs/backend-split-rules.md)
+- [Editor colours plan](./docs/editor-colors-plan.md) and [grammar provenance](./docs/editor-grammar-provenance.md)
