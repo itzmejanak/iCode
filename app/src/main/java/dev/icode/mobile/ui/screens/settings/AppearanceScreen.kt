@@ -88,7 +88,11 @@ fun AppearanceScreen(actions: NavigationActions) {
             }
             SectionLabel("Font Size & Scale")
             IcodeCard(Modifier.fillMaxWidth()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                // The slider's thumb sits on the ends of its track: without room it covered the labels.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
+                ) {
                     Text("Aa", style = IcodeType.Caption)
                     IcodeSlider(
                         value = pendingScale,

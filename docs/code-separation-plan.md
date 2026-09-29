@@ -618,7 +618,7 @@ those, they are good"), so their review note goes.
 | # | Request | Plan |
 |---|---|---|
 | E | "Colours for every file type in the editor, on every theme, nothing left over; redesign if it does not scale" | [editor-colors-plan.md](./editor-colors-plan.md): one file-type registry, one syntax palette per theme, one scope table, themes built in code, contrast and coverage proven by tests; 26 more file types |
-| L | "Open Workspace and other actions take time before the screen responds — design one loading behaviour for the whole app, backend and frontend aligned, for a smooth experience" | Measure first: for each action, the time from tap to first visible response and to done, and what runs in between (the mutation lock, disk, Git, the runtime). Then one design — an immediate acknowledgement on tap, one progress vocabulary in the design system, state the backend publishes as it starts rather than when it ends — applied action by action. Its own plan once measured. Measured so far (2026-09-29, cold start): a tap on a recent workspace in the first ~0.5 s after the home screen shows does nothing, with no sign it was lost; from ~1.5 s it opens. The first file's ~1.4 s freeze is gone (E6) |
+| L | "Open Workspace and other actions take time before the screen responds — design one loading behaviour for the whole app, backend and frontend aligned, for a smooth experience" | Measure first: for each action, the time from tap to first visible response and to done, and what runs in between (the mutation lock, disk, Git, the runtime). Then one design — an immediate acknowledgement on tap, one progress vocabulary in the design system, state the backend publishes as it starts rather than when it ends — applied action by action. Its own plan once measured. Measured so far (2026-09-29, cold start): a tap on a recent workspace in the first ~0.5 s after the home screen shows does nothing, with no sign it was lost; from ~1.5 s it opens (one tap on Settings 2.5 s after launch was lost too, S8.5). The first file's ~1.4 s freeze is gone (E6) |
 
 Order: E next (the owner's newest request), then S8, X, G, then L's measurement and plan.
 
@@ -645,20 +645,20 @@ developer-tools onboarding step (Todo 5).
   yet · IDLE". Commit & Push without a remote was not re-checked: the owner started using the
   phone. Gate: 424 tests; lint 0 errors / 12 warnings; both guards pass.
 
-**S8 — settings and language services (2026-09-29), in progress.**
+**S8 — settings and language services (2026-09-29), done.**
 
-- S8.1: `LanguageServiceCoordinator` (`data/language`) owns the saved services, their server
+- S8.1 (`71a7df5`): `LanguageServiceCoordinator` (`data/language`) owns the saved services, their server
   processes and the rows the Languages settings show — select, save, remove, start, stop,
   restart, stop all. The gateway routes the intents and stops the servers on a workspace switch
   and on close (769 → 638 lines; the guard's ratchet lowered with it). Code moved unchanged:
   `running` stays for S8.2. Gate: 449 tests; lint 0 errors / 12 warnings; both guards pass.
-- S8.2: `LanguageServiceRules.rows` builds the rows from the saved configuration and keeps the
+- S8.2 (`a28c0e5`): `LanguageServiceRules.rows` builds the rows from the saved configuration and keeps the
   process state shown for each — saving one service no longer shows another running server as
   Stopped (R3); the service just saved starts from Stopped. `LanguageService.running` is gone:
   `status` is the one fact (R4); the capture fixtures name their status. 4 tests (one fails on
   the old code). Gate: 453 tests; lint 0 errors / 12 warnings; both guards pass. The phone check
   is S8.5.
-- S8.3: `commitOrFail` (`data/io`) is the one checked write: `WorkspaceStore` (session, recent
+- S8.3 (`0172eb9`): `commitOrFail` (`data/io`) is the one checked write: `WorkspaceStore` (session, recent
   files, recents when asked to be synchronous) and `LanguageServiceStore` use it, and so does
   `GitCredentialStore` — found while measuring (R5 had only the first two): the token was saved
   and removed with the background `apply()`, so a failed write still read as saved. A failed
@@ -682,14 +682,14 @@ developer-tools onboarding step (Todo 5).
   | Runtime, About | honest states and "Not available yet" | Runtime does not scroll: Repair/Reset may be out of reach at large text → device, S8.5 |
   | Four forms | — | four copies of the save-and-report function; bounds and defaults written 2–6 times → S8.4b |
 
-- S8.4a: the segmented control's choice is an accent pill with the accent's own text colour
+- S8.4a (`744cf82`): the segmented control's choice is an accent pill with the accent's own text colour
   (owner) and the options are one radio group to a screen reader (R6). `ChoiceChip` had no
   caller — the search screens use `KeyChip` and the bottom bar — so it is deleted rather than
   fixed. `KeyChip` toggles (Match case, a latched Ctrl), list rows (current branch, the
   palette's highlighted command) and theme swatches now say they are selected, as the bottom
   bar's toggles did. The palette-preview note is gone. Gate: 456 tests; lint 0 errors / 11
   warnings; both guards pass.
-- S8.4b: `SettingLimits` (domain) is the one statement of the font sizes (9–30 sp), indent sizes
+- S8.4b (`c1345ae`): `SettingLimits` (domain) is the one statement of the font sizes (9–30 sp), indent sizes
   (1–8) and UI text scales (100–150 %, steps of 5), with the slider's mapping; the controls, the
   store (writes and read-back) and pinch zoom use it — the editor zoomed to 28 sp while its
   setting went to 30, and the terminal zoomed by a factor (×0.6–×2.4) to as much as 72 sp. The
@@ -702,15 +702,26 @@ developer-tools onboarding step (Todo 5).
   only the folders open in the Explorer and the folders of open files." Whether exclusions
   become a feature is the owner's. 5 tests. Gate: 461 tests; lint 0 errors / 11 warnings; both
   guards pass.
-- S8.4c: each catalog subtitle says only what its page holds ("Font, indentation, autosave,
+- S8.4c (`aa7072a`): each catalog subtitle says only what its page holds ("Font, indentation, autosave,
   display"; "Git identity, token, and SSH key"; "Language servers"; "Ubuntu environment, health,
   repair"; "Version, build, and runtime" …) and its terms name the page's controls; the pages
   that show a subtitle take it from the catalog, so Storage no longer has two. Search finds the
   open workspace's settings too ("auto fetch", "indent"), without adding them to the root list.
   2 tests. Gate: 463 tests; lint 0 errors / 11 warnings; both guards pass.
-- S8.4d: a language service keeps its file patterns as saved; "All files" is only the list's
+- S8.4d (`c417087`): a language service keeps its file patterns as saved; "All files" is only the list's
   label for none (`patternsLabel`), so the form no longer fills with the label and saves it as a
   pattern. No saved service on the owner's phone carried it (read-only check), so nothing is
   migrated. One status tone for the list and the service's page: Failed in the error colour,
   Starting and Stopping in amber (Failed read like Stopped). Gate: 463 tests; lint 0 errors / 11
+  warnings; both guards pass.
+- S8.5, on the phone (2026-09-29, fresh APK, `adb install -r`; every value put back after):
+  Tab Size 4 → 2 survived a force-stop and restart, then back to 4; the segmented options read
+  to accessibility as checkable, the chosen one checked, drawn as the accent pill; the theme
+  swatch reports its choice. Two throwaway services (`sleep 600`, `sleep 601`) in the scratch
+  workspace: with A running, saving B left A **Running** (R3); an empty pattern stayed empty in
+  the form and read "All files" in the list; both removed after (stored list `[]`, no process
+  left). Search: "cursor" → Terminal, "auto fetch" → Workspace. Workspace page: the watcher text
+  and "Inherited: Spaces" from the domain. Runtime at 150 % UI text: Repair and Reset on screen
+  with room to spare (holds on this phone; not changed). Found and fixed: the UI-text slider's
+  thumb covered its "Aa" labels (no spacing in the row). Gate: 463 tests; lint 0 errors / 11
   warnings; both guards pass.
