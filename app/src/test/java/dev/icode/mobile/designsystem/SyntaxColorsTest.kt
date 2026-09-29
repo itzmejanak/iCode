@@ -44,4 +44,20 @@ class SyntaxColorsTest {
         val violet = IcodePalette.Dark.withAccent(0xFFB67CFF.toInt())
         SyntaxRole.entries.forEach { role -> assertEquals(IcodePalette.Dark.syntaxColor(role), violet.syntaxColor(role)) }
     }
+
+    /** The values E3 shipped, derived by the same rule in Python; deriving them here must not move one. */
+    @Test fun `the rule gives exactly the colours it was chosen with`() {
+        val expected = mapOf(
+            SyntaxRole.Comment to (0x8F9D8F to 0x606D60), SyntaxRole.Keyword to (0xFF9A6B to 0x953B01),
+            SyntaxRole.Control to (0xE497E8 to 0x803985), SyntaxRole.String to (0x63D18F to 0x016D3C),
+            SyntaxRole.Number to (0xB0ADFF to 0x554BA5), SyntaxRole.Function to (0xDAB33A to 0x705800),
+            SyntaxRole.Type to (0x0CD1D1 to 0x016869), SyntaxRole.Attribute to (0x65C1FE to 0x056190),
+            SyntaxRole.Regex to (0xFF8FB4 to 0x953058),
+        )
+        expected.forEach { (role, pair) ->
+            assertEquals("Dark $role", pair.first, IcodePalette.Dark.syntaxColor(role).toArgb() and 0xFFFFFF)
+            assertEquals("Amoled $role", pair.first, IcodePalette.Amoled.syntaxColor(role).toArgb() and 0xFFFFFF)
+            assertEquals("Light $role", pair.second, IcodePalette.Light.syntaxColor(role).toArgb() and 0xFFFFFF)
+        }
+    }
 }
