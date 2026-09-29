@@ -8,9 +8,9 @@ import org.junit.Test
 
 class ProblemsFilterTest {
     private val diagnostics = listOf(
-        Diagnostic(Severity.Error, "a.kt", "error", "1:1"),
-        Diagnostic(Severity.Warning, "a.kt", "warning", "2:1"),
-        Diagnostic(Severity.Error, "b.kt", "second error", "3:1"),
+        Diagnostic(Severity.Error, "a.kt", "error", "1:1", "test"),
+        Diagnostic(Severity.Warning, "a.kt", "warning", "2:1", "test"),
+        Diagnostic(Severity.Error, "b.kt", "second error", "3:1", "test"),
     )
 
     @Test fun eachSeverityShowsOnlyItsOwnRows() {
