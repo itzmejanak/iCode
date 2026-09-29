@@ -36,6 +36,7 @@ import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 import dev.icode.mobile.ui.WorkspaceActionsMenu
@@ -54,7 +55,7 @@ fun StorageSettingsScreen(actions: NavigationActions) {
     LaunchedEffect(Unit) { gateway.dispatch(WorkbenchIntent.RefreshStorage) }
 
     Column(Modifier.fillMaxSize()) {
-        IcodeTopBar("Storage Settings", subtitle = "Disk usage and workspace folders", onBack = actions.back)
+        IcodeTopBar("Storage Settings", subtitle = settingsSubtitle(Route.StorageSettings), onBack = actions.back)
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(IcodeSpacing.Space4),
             verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2 + IcodeSpacing.Micro),

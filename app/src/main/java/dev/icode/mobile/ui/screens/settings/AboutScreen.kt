@@ -26,6 +26,7 @@ import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.BuildConfig
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 
@@ -56,7 +57,7 @@ fun AboutScreen(actions: NavigationActions) {
         "Min Android API" to "API ${BuildConfig.MIN_SDK}",
     )
     Column(Modifier.fillMaxSize()) {
-        IcodeTopBar("About iCode", subtitle = "Application specs & diagnostic details", onBack = actions.back)
+        IcodeTopBar("About iCode", subtitle = settingsSubtitle(Route.About), onBack = actions.back)
         LazyColumn(
             modifier = Modifier.padding(IcodeSpacing.Space4),
             verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
