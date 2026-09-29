@@ -12,8 +12,7 @@ import dev.icode.mobile.data.git.GitRepositoryClient
 import dev.icode.mobile.data.git.GitTransferCoordinator
 import dev.icode.mobile.data.git.GitTransferLedger
 import dev.icode.mobile.data.git.GitWorkspaceCoordinator
-import dev.icode.mobile.data.language.LanguageServiceProcessManager
-import dev.icode.mobile.data.language.LanguageServiceStore
+import dev.icode.mobile.data.language.LanguageServiceCoordinator
 import dev.icode.mobile.data.search.RipgrepService
 import dev.icode.mobile.data.search.SearchCoordinator
 import dev.icode.mobile.data.settings.AndroidWorkspacePreferencesRepository
@@ -35,13 +34,8 @@ import dev.icode.mobile.domain.WorkbenchEffect
 import dev.icode.mobile.domain.WorkbenchGateway
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.domain.WorkbenchSnapshot
-import dev.icode.mobile.domain.LanguageService
-import dev.icode.mobile.domain.LanguageServiceConfiguration
-import dev.icode.mobile.domain.LanguageServiceRules
-import dev.icode.mobile.domain.LanguageServiceStatus
 import dev.icode.mobile.domain.SystemPermission
 import java.io.File
-import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -57,7 +51,6 @@ import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
-import org.json.JSONObject
 
 class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     private val workbench = WorkbenchStateHolder()
@@ -81,27 +74,15 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         openWorkspaceTerminal = { location -> openWorkspace(location, persist = true, openTerminal = true) },
         workspaceChanged = { requestRefresh(rebuildIndex = true) },
     )
-    private val languageStore = LanguageServiceStore(appContext)
     private val notices = NoticeStore.get(appContext)
-    private val loadedLanguageConfigs = runCatching { languageStore.load() }
-    private var languageConfigs = loadedLanguageConfigs.getOrDefault(emptyList())
-    private val languageProcesses = LanguageServiceProcessManager(runtimeLayout, scope) { id, status, pid, message ->
-        workbench.update { state -> state.copy(languageServices = state.languageServices.map { service ->
-            if (service.id == id) service.copy(
-                running = status == LanguageServiceStatus.Running,
-                status = status,
-                processId = pid,
-                statusMessage = message,
-            ) else service
-        }) }
-    }
+    private val languages = LanguageServiceCoordinator(appContext, workbench, scope, runtimeLayout, activeRoot = { activeRootLocation })
     private val runtime: RuntimeCoordinator = RuntimeCoordinator(
         appContext,
         workbench,
         scope,
         runtimeLayout,
         AndroidSystemAccess(appContext),
-        sessionsRunning = { terminals.hasRunningSessions() || languageProcesses.hasActiveProcesses() },
+        sessionsRunning = { terminals.hasRunningSessions() || languages.hasActiveProcesses() },
         onStorageAccessChanged = { library.refreshRecents() },
     )
     private var activeRootLocation: String? = null
@@ -114,7 +95,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         store,
         runtimeLayout,
         tasksRunning = {
-            terminals.hasRunningSessions() || languageProcesses.hasActiveProcesses() || runtime.installing ||
+            terminals.hasRunningSessions() || languages.hasActiveProcesses() || runtime.installing ||
                 workbench.current.gitOperation is GitOperationState.Running
         },
     )
@@ -203,13 +184,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     override val effects: SharedFlow<WorkbenchEffect> = workbench.effects
 
     init {
-        workbench.update { it.copy(
-            languageServices = languageConfigs.map(::languageServiceView),
-            languageServicesLoadError = loadedLanguageConfigs.exceptionOrNull()?.let { workbench.failureText("language", "Unable to load saved services", it) },
-        ) }
-        loadedLanguageConfigs.exceptionOrNull()?.let { error ->
-            scope.launch { workbench.report("language", "Unable to load language services", error) }
-        }
+        languages.publish()
         scope.launch { library.refreshRecents() }
         scope.launch { recovery.loadRecoverable() }
         scope.launch { refreshOnRequest() }
@@ -240,11 +215,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
 
     override fun dispatch(intent: WorkbenchIntent) {
         if (intent is WorkbenchIntent.SelectLanguageService) {
-            workbench.update { state ->
-                state.copy(selectedLanguageServiceId = intent.id.takeIf { id ->
-                    state.languageServices.any { service -> service.id == id }
-                })
-            }
+            languages.select(intent.id)
             return
         }
         if (intent == WorkbenchIntent.Refresh) {
@@ -400,11 +371,11 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     WorkbenchIntent.GenerateSshKey -> gitAuth.generateSshKey()
                     is WorkbenchIntent.TestGitConnection -> gitAuth.testConnection(intent.url)
                     WorkbenchIntent.RefreshGitAuth -> gitAuth.refresh()
-                    is WorkbenchIntent.SaveLanguageService -> saveLanguageService(intent)
-                    is WorkbenchIntent.RemoveLanguageService -> removeLanguageService(intent.id)
-                    is WorkbenchIntent.StartLanguageService -> startLanguageService(intent.id)
-                    is WorkbenchIntent.StopLanguageService -> languageProcesses.stop(intent.id)
-                    is WorkbenchIntent.RestartLanguageService -> restartLanguageService(intent.id)
+                    is WorkbenchIntent.SaveLanguageService -> languages.save(intent)
+                    is WorkbenchIntent.RemoveLanguageService -> languages.remove(intent.id)
+                    is WorkbenchIntent.StartLanguageService -> languages.start(intent.id)
+                    is WorkbenchIntent.StopLanguageService -> languages.stop(intent.id)
+                    is WorkbenchIntent.RestartLanguageService -> languages.restart(intent.id)
                     WorkbenchIntent.InstallRuntime -> runtime.install(RuntimeInstallReason.Initial)
                     WorkbenchIntent.ClearAppCache -> library.clearCache()
                     WorkbenchIntent.RemoveStaleRecents -> library.removeStale()
@@ -450,110 +421,8 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
      */
     override fun close() {
         watcher.stop()
-        languageProcesses.stopAll()
+        languages.stopAll()
         scope.cancel()
-    }
-
-    private fun languageServiceView(config: LanguageServiceConfiguration): LanguageService = LanguageService(
-        initials = config.name.split(Regex("\\s+")).take(2).mapNotNull { it.firstOrNull()?.uppercase() }
-            .joinToString("").ifBlank { "LS" },
-        name = config.name,
-        patterns = config.patterns.ifBlank { "All files" },
-        running = false,
-        id = config.id,
-        command = config.command,
-        rootMarkers = config.rootMarkers,
-        initializationOptions = config.initializationOptions,
-    )
-
-    private suspend fun saveLanguageService(intent: WorkbenchIntent.SaveLanguageService) {
-        if (workbench.current.languageServicesLoadError != null) {
-            workbench.message("Saved services could not be read; configuration was not overwritten")
-            return
-        }
-        val name = intent.name.trim()
-        val command = intent.command.trim()
-        val options = intent.initializationOptions.trim().ifBlank { "{}" }
-        val error = LanguageServiceRules.validate(name, command, intent.patterns, options)
-            ?: runCatching { LanguageServiceRules.commandArguments(command); JSONObject(options) }
-                .exceptionOrNull()?.let { "Check command quoting and enter a JSON object for initialization options" }
-        if (error != null) {
-            workbench.message(error)
-            return
-        }
-        val existingId = intent.id
-        if (existingId != null && languageConfigs.none { it.id == existingId }) {
-            workbench.message("This language service no longer exists")
-            return
-        }
-        if (existingId != null && languageProcesses.isActive(existingId)) {
-            workbench.message("Stop this server before editing its configuration")
-            return
-        }
-        if (existingId == null && languageConfigs.size >= LanguageServiceRules.MAX_SERVICES) {
-            workbench.message("Maximum ${LanguageServiceRules.MAX_SERVICES} language services")
-            return
-        }
-        val id = existingId ?: UUID.randomUUID().toString()
-        val config = LanguageServiceConfiguration(
-            id, name, command, intent.patterns.trim(), intent.rootMarkers.trim(), options,
-        )
-        val updated = if (existingId == null) languageConfigs + config else languageConfigs.map {
-            if (it.id == existingId) config else it
-        }
-        try {
-            languageStore.save(updated)
-            languageConfigs = updated
-            workbench.update { state -> state.copy(
-                languageServices = updated.map(::languageServiceView),
-                selectedLanguageServiceId = id,
-            ) }
-        } catch (failure: Exception) {
-            workbench.report("language", "Unable to save language service", failure)
-        }
-    }
-
-    private suspend fun removeLanguageService(id: String) {
-        if (workbench.current.languageServicesLoadError != null) return
-        if (languageConfigs.none { it.id == id }) return
-        val updated = languageConfigs.filterNot { it.id == id }
-        try {
-            languageStore.save(updated)
-            languageConfigs = updated
-            languageProcesses.stop(id)
-            workbench.update { state -> state.copy(
-                languageServices = state.languageServices.filterNot { it.id == id },
-                selectedLanguageServiceId = null,
-            ) }
-        } catch (failure: Exception) {
-            workbench.report("language", "Unable to remove language service", failure)
-        }
-    }
-
-    private suspend fun startLanguageService(id: String) {
-        val config = languageConfigs.firstOrNull { it.id == id } ?: return
-        val workspace = activeRootLocation
-        if (workspace == null) {
-            workbench.message("Open a workspace before starting a language service")
-            return
-        }
-        languageProcesses.start(config, workspace)?.let { error ->
-            workbench.message(error)
-        }
-    }
-
-    private fun restartLanguageService(id: String) {
-        languageProcesses.stop(id)
-        scope.launch {
-            repeat(30) {
-                if (!languageProcesses.isActive(id)) {
-                    workbench.mutations.withLock { startLanguageService(id) }
-                    return@launch
-                }
-                delay(100)
-            }
-            workbench.message("Server did not stop; retry after it exits")
-        }
     }
 
     private suspend fun openWorkspace(
@@ -595,7 +464,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             val closingDocuments = workbench.current.openDocuments
                 .filter { it.dirty || !recovery.isUnresolved(it.location) }
                 .map { it.location }
-            languageProcesses.stopAll()
+            languages.stopAll()
             activeRootLocation = root.location
             tree.reset(root.location, children)
             if (persist) library.remember(root)

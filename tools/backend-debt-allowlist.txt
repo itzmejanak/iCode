@@ -2,5 +2,5 @@
 # Ratchet: cycles may only shrink these counts, never grow them.
 # Format: rule|path|max
 backend-lines|app/src/main/java/dev/icode/mobile/data/runtime/RuntimeInstaller.kt|340
-backend-lines|app/src/main/java/dev/icode/mobile/data/workspace/AndroidWorkbenchGateway.kt|769
+backend-lines|app/src/main/java/dev/icode/mobile/data/workspace/AndroidWorkbenchGateway.kt|638
 backend-lines|app/src/main/java/dev/icode/mobile/data/workspace/DocumentSessionCoordinator.kt|314
