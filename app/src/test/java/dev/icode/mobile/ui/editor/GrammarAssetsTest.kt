@@ -42,6 +42,28 @@ class GrammarAssetsTest {
         assertEquals(emptyList<String>(), notRules)
     }
 
+    /** VS Code's configuration files are JSON with comments and trailing commas; strings are left whole. */
+    private fun stripJsonc(text: String): String {
+        val out = StringBuilder()
+        var i = 0
+        var inString = false
+        while (i < text.length) {
+            val c = text[i]
+            when {
+                inString -> {
+                    out.append(c)
+                    if (c == '\\' && i + 1 < text.length) out.append(text[++i]) else if (c == '"') inString = false
+                }
+                c == '"' -> { inString = true; out.append(c) }
+                text.startsWith("//", i) -> { while (i < text.length && text[i] != '\n') i++; continue }
+                text.startsWith("/*", i) -> { i = text.indexOf("*/", i).let { if (it < 0) text.length else it + 2 }; continue }
+                else -> out.append(c)
+            }
+            i++
+        }
+        return out.toString().replace(Regex(",(\\s*[}\\]])"), "$1")
+    }
+
     private fun captureEntries(value: Any?): List<Pair<String, Any?>> = when (value) {
         is JSONObject -> value.keys().asSequence().toList().flatMap { key: String ->
             val child = value.get(key)
@@ -61,10 +83,15 @@ class GrammarAssetsTest {
             .filter { it.has("languageConfiguration") }
             .map { it.getString("name") to File("src/main/assets", it.getString("languageConfiguration")) }
         assertTrue(configurations.size > 30)
-        // On the JVM an error the parser logs throws, so a configuration it only complains about fails too.
+        // What the file declares must come back from the parser: a field it cannot read is dropped with only a log line.
         val unreadable = configurations.filter { (_, file) ->
+            val declared = JSONObject(stripJsonc(file.readText()))
+            val comments = declared.optJSONObject("comments")
             val loaded = runCatching { LanguageConfiguration.load(file.reader()) }.getOrNull()
-            loaded == null || ("\"brackets\"" in file.readText() && loaded.brackets.isNullOrEmpty())
+            loaded == null ||
+                (comments?.has("lineComment") == true && loaded.comments?.lineComment == null) ||
+                (comments?.has("blockComment") == true && loaded.comments?.blockComment == null) ||
+                (declared.has("brackets") && loaded.brackets.isNullOrEmpty())
         }.map { it.first }
         assertEquals(emptyList<String>(), unreadable)
     }

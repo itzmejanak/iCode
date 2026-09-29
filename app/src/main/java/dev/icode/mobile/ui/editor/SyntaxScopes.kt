@@ -142,6 +142,8 @@ internal val syntaxScopes: List<Pair<SyntaxRole, List<String>>> = listOf(
         "support.constant", "constant.codepoint-range", "support.unicode-range", "constant.enum", "constant.variable",
         "constant.other.symbol", "constant.other.variable.mac-classic", "entity.name.constant",
         "entity.name.other.preprocessor.macro.predefined", "entity.other.counter-name", "entity.other.counter-style-name",
+        // YAML's dates and times.
+        "constant.other.timestamp",
         // Groovy's UPPER_CASE names, PHP's constant names and `Foo::NAME`, SCSS's `n`, `even`, `odd`.
         "constant.other.groovy", "constant.other.php", "constant.other.class.php", "constant.other.scss",
     ),
@@ -162,17 +164,25 @@ internal val syntaxScopes: List<Pair<SyntaxRole, List<String>>> = listOf(
     SyntaxRole.Number to listOf("entity.other.keyframe-offset"),
     SyntaxRole.Attribute to listOf(
         "constant.other.key", "fenced_code.block.language",
+        // A key in a data file is one thing, as JSON's are: YAML's, INI's and .properties', .env's.
+        "entity.name.tag.yaml", "keyword.other.definition.ini", "variable.key",
         // A property read and a key written are one thing: one colour.
         "variable.other.property", "variable.other.object.property", "support.variable.property",
     ),
     SyntaxRole.Link to listOf("constant.other.reference.link"),
     // Kotlin's `$name` in a string, as VS Code colours `${` `}`; YAML's `---` and `...` between documents;
     // C++'s `[[nodiscard]]`; Less's repetition keywords.
-    SyntaxRole.Keyword to listOf("entity.string.template.element", "entity.other.document", "support.other.attribute", "support.keyword"),
+    SyntaxRole.Keyword to listOf(
+        "entity.string.template.element", "entity.other.document", "support.other.attribute", "support.keyword",
+        // A YAML `%` directive the specification reserves.
+        "support.other.directive.reserved",
+    ),
     SyntaxRole.Variable to listOf("support.other.variable"),
     // A `goto` label, as VS Code's `entity.name.label`.
     SyntaxRole.Plain to listOf("entity.name.goto-label", "support.other.php"),
     SyntaxRole.Quote to listOf("markup.quote"),
+    // A section's name: a Markdown heading's text, an INI `[section]`.
+    SyntaxRole.Heading to listOf("entity.name.section"),
 )
 
 /** Scope prefixes left, on purpose, to the colour of what encloses them. */
@@ -185,12 +195,12 @@ internal val inheritedScopes: List<String> = listOf(
     "source", "text",
     // TypeScript's structural scopes and Markdown's `heading.N` beside `markup.heading`.
     "case-clause", "cast", "new", "switch-block", "switch-expression", "switch-statement", "heading",
-    // A heading's text (inside `markup.heading`), a list item's text (its marker is a ListMarker).
-    "entity.name.section", "markup.list",
+    // A list item's text (its marker is a ListMarker).
+    "markup.list",
     // A fenced block: the grammar of its language colours it.
     "markup.fenced_code",
-    // A byte-order mark: nothing to see. Catch-all and bracket scopes (C's `everything.else`, Dart's `other.source`, C's `ellipses`).
-    "byte-order-mark", "everything", "other", "ellipses",
+    // Catch-all and bracket scopes (C's `everything.else`, Dart's `other.source`, C's `ellipses`).
+    "everything", "other", "ellipses",
     // Parts of a doc comment (JSDoc, SassDoc), which is a Comment.
     "constant.other.description", "constant.other.email.link.underline",
 )
