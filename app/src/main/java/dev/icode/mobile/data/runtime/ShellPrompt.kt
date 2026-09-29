@@ -12,19 +12,13 @@ import java.io.File
  *
  * The script is its own file, sourced from `.bashrc` and `.profile`, so a
  * user's edits there are never overwritten, and rewritten on every start so an
- * update reaches it. The accent is a second file the prompt reads each time it
- * is drawn: a running shell follows a new accent or theme at its next prompt,
- * and nothing is ever typed into it. Without that file the prompt keeps the
- * orange it always had.
+ * update reaches it.
  */
-internal class ShellPrompt(private val rootfs: File, private val installed: () -> Boolean) {
-    @Volatile private var accent: Int? = null
-
-    private val home: File get() = File(rootfs, RuntimeLayout.GUEST_HOME.removePrefix("/"))
-
+internal class ShellPrompt(private val rootfs: File) {
     /** Before a shell starts. */
     fun install() {
         runCatching {
+            val home = File(rootfs, RuntimeLayout.GUEST_HOME.removePrefix("/"))
             home.mkdirs()
             File(home, SCRIPT_FILE).writeText(SCRIPT)
             val sourceLine = ". ${RuntimeLayout.GUEST_HOME}/$SCRIPT_FILE"
@@ -35,32 +29,26 @@ internal class ShellPrompt(private val rootfs: File, private val installed: () -
                     file.appendText("\n# iCode prompt\n$sourceLine\n")
                 }
             }
-            accent?.let(::writeAccent)
         }
     }
 
-    /** Follows the app's accent; an uninstalled runtime gets it at its first shell. */
-    fun useAccent(argb: Int) {
-        accent = argb
-        if (installed()) runCatching { writeAccent(argb) }
-    }
-
-    private fun writeAccent(argb: Int) = File(home, ACCENT_FILE).writeText(rgb(argb) + "\n")
-
     companion object {
         private const val SCRIPT_FILE = ".icode-prompt.sh"
-        private const val ACCENT_FILE = ".icode-accent"
 
-        /** "255;107;44": red, green and blue as a 24-bit colour escape takes them. */
-        fun rgb(argb: Int): String = "${argb shr 16 and 0xFF};${argb shr 8 and 0xFF};${argb and 0xFF}"
+        /**
+         * Termux's colour slot for the cursor, which iCode fills with the accent
+         * (`TerminalPalette`). A slot, not a colour, is stored with each
+         * character and looked up when the screen is drawn, so every prompt on
+         * screen, earlier ones included, takes a new accent or theme at once.
+         * xterm programs never use it: their indexed colours end at 255.
+         */
+        const val ACCENT_COLOR_INDEX = 258
 
         /**
          * Shows the path relative to the workspace root, so `/workspace/app/src`
          * reads as `app/src`, and `~` inside the guest home. Matched on whole
          * path segments with `case`: bash expands a `~` written as a
-         * substitution's replacement back into the home path. The accent file
-         * must hold digits and semicolons only; anything else keeps the default
-         * colour rather than reaching the terminal.
+         * substitution's replacement back into the home path.
          */
         val SCRIPT = """
             __icode_prompt() {
@@ -70,13 +58,7 @@ internal class ShellPrompt(private val rootfs: File, private val installed: () -
                 "${'$'}HOME") shown="~" ;;
                 "${'$'}HOME"/*) shown="~${'$'}{PWD#"${'$'}HOME"}" ;;
               esac
-              local color="38;5;208" rgb=""
-              [ -r "${'$'}HOME/$ACCENT_FILE" ] && read -r rgb < "${'$'}HOME/$ACCENT_FILE"
-              case "${'$'}rgb" in
-                ""|*[!0-9\;]*) ;;
-                *) color="38;2;${'$'}rgb" ;;
-              esac
-              PS1="\[\e[${'$'}{color}m\]${'$'}{shown}\[\e[0m\] \[\e[32m\]${'$'}\[\e[0m\] "
+              PS1="\[\e[38;5;${ACCENT_COLOR_INDEX}m\]${'$'}{shown}\[\e[0m\] \[\e[32m\]${'$'}\[\e[0m\] "
             }
             PROMPT_COMMAND=__icode_prompt
         """.trimIndent() + "\n"

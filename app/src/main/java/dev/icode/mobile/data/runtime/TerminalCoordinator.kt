@@ -5,15 +5,12 @@ import dev.icode.mobile.data.workspace.WorkbenchStateHolder
 import dev.icode.mobile.domain.TerminalSettings
 import dev.icode.mobile.domain.TerminalSnapshot
 import dev.icode.mobile.domain.WorkbenchEffect
-import dev.icode.mobile.domain.WorkspacePreferences
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -33,8 +30,6 @@ internal interface TerminalSessions {
     @MainThread fun reorder(movingId: String, targetId: String)
     @MainThread fun close(id: String)
     @MainThread fun applySettings(next: TerminalSettings)
-    /** The prompt's colour: the app's accent in effect. File work, off the main thread. */
-    suspend fun applyAccent(argb: Int)
     @MainThread fun workspaceOf(id: String): String?
 }
 
@@ -57,8 +52,8 @@ internal class TerminalCoordinator(
     /** Sessions are confined to the main thread. */
     private val main: CoroutineContext = Dispatchers.Main.immediate,
 ) {
-    /** Follows the sessions, their endings, the terminal settings and the accent for as long as [scope] lives. */
-    fun follow(scope: CoroutineScope, preferences: Flow<WorkspacePreferences>) {
+    /** Follows the sessions, their endings and the terminal settings for as long as [scope] lives. */
+    fun follow(scope: CoroutineScope, settings: Flow<TerminalSettings>) {
         scope.launch {
             terminals.snapshot.collect { terminal -> workbench.update { it.copy(terminal = terminal) } }
         }
@@ -76,11 +71,7 @@ internal class TerminalCoordinator(
             }
         }
         scope.launch {
-            preferences.map { it.terminal }.distinctUntilChanged()
-                .collect { next -> withContext(main) { terminals.applySettings(next) } }
-        }
-        scope.launch {
-            preferences.map { it.appearance.effectiveAccent }.distinctUntilChanged().collect { terminals.applyAccent(it) }
+            settings.collect { next -> withContext(main) { terminals.applySettings(next) } }
         }
     }
 

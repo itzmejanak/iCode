@@ -82,28 +82,31 @@ home-screen shortcut): "we dont need to work for logo". The launcher icon stays 
 
 ## 7. The terminal prompt follows the accent
 
-Owner (2026-09-29): "see the terminal the repo name make sure it get accent color currently not".
-The prompt drew the project name in xterm colour 208, a fixed orange, whatever the accent.
+Owner (2026-09-29): "see the terminal the repo name make sure it get accent color currently not",
+then "after changing accent also see the current terminal until new like the name get it old state
+? is that hard to do ?". The prompt drew the project name in xterm colour 208, a fixed orange.
 
-- **One owner of the accent in effect:** `AppearanceSettings.effectiveAccent` (the choice, else
-  `AccentColorRules.themeAccent(theme)`); the three palettes take their accent from the same rule,
-  and the picker's "Use theme default" reads it.
-- **`ShellPrompt`** (data/runtime, out of `RuntimeLayout`): writes the prompt script as before and
-  a second file, `~/.icode-accent`, holding `R;G;B`. The prompt reads it each time it is drawn and
-  uses a 24-bit colour, so a running shell follows a new accent or theme at its next prompt;
-  nothing is typed into it and no colour index other programs use is repurposed. Anything but
-  digits and semicolons in the file keeps the old orange. A runtime installed later gets the
-  accent with its first shell.
-- **Wiring:** `TerminalCoordinator.follow` takes the preferences and hands the terminal settings
-  and, once per change, the accent to `TerminalSessions.applyAccent`; `TerminalEnding` moved
-  beside that interface. Gateway (769) and session manager (300) did not grow.
+- **First version** (`05c5989`): the prompt read the accent from `~/.icode-accent` each time it
+  was drawn and used a 24-bit colour. A running shell followed at its next prompt, but every
+  earlier line kept the colour it was drawn in: a 24-bit colour is stored with each character.
+- **Now:** the prompt uses colour slot 258 (`ShellPrompt.ACCENT_COLOR_INDEX`), Termux's cursor
+  slot, which `TerminalPalette` already fills with the accent. Characters store the slot and the
+  renderer looks it up when drawing, and `TerminalPalette` resets a session's colours when it is
+  shown under a new palette, so every prompt on screen, earlier lines included, takes a new
+  accent or theme at once. Checked in terminal-emulator v0.118.3: `38;5;n` accepts n below 259;
+  xterm programs stop at 255, so no program's colour is taken over. The file, its wiring through
+  the coordinator and `effectiveAccent` were removed; `AccentColorRules.themeAccent` remains the
+  one owner of each theme's accent (palettes, picker).
+- **Limits:** a program that sets its own cursor colour (OSC 12) tints the prompts until it resets
+  it; inside tmux, which rejects indices above 255, the prompt is plain text colour.
 - **Found and fixed:** inside the guest home the prompt showed `/root/...`, not the `~/...` its
   comment promised: bash expands a `~` given as a substitution's replacement back into the home
   path, and the prefix match had no path boundary (`/rootx` read as `~x`). Now a `case` on whole
   path segments.
-- **Tests:** `ShellPromptTest` (sourced once, accent written and followed, uninstalled runtime,
-  and the script run in a real bash for workspace, home, look-alike and invalid-file cases),
-  coordinator follows the accent once per change, effective accent, palettes. 421 JVM tests.
-- **Device** (2026-09-29): the project name in the owner's Violet; switching to Mint, the next
-  prompt of the same running shell was Mint while the earlier line stayed Violet. Owner's Violet
+- **Tests:** `ShellPromptTest` (sourced once; the slot is Termux's cursor slot; the script run in a
+  real bash for workspace, subdirectory, home, look-alike), `TerminalPaletteTest` (cursor slot is
+  the accent in effect, per theme and chosen), theme accents, palettes. 420 JVM tests.
+- **Device** (2026-09-29): in a running shell with four prompts in the owner's Rose, switching to
+  Sky recoloured all four, old lines included, without pressing Enter; `cd` home showed `~`. The
+  stale `.icode-accent` from the first version was removed from the owner's runtime; owner's Rose
   restored.

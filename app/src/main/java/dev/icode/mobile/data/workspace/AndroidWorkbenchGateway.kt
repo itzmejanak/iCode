@@ -218,7 +218,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         scope.launch { observeNotices() }
         terminal.follow(
             scope,
-            AndroidWorkspacePreferencesRepository(appContext).values(null).filter { it.loaded && it.loadError == null },
+            AndroidWorkspacePreferencesRepository(appContext).values(null).filter { it.loaded && it.loadError == null }.map { it.terminal },
         )
         scope.launch { runtime.reportState() }
     }

@@ -52,7 +52,7 @@ internal class TerminalSessionManager private constructor(
     private val entries = linkedMapOf<String, Entry>()
     private val sessionNames = TerminalSessionNames()
     private val mainHandler = Handler(Looper.getMainLooper())
-    private val prompt = ShellPrompt(layout.rootfs) { layout.isInstalled }
+    private val prompt = ShellPrompt(layout.rootfs)
     private var nextId = 1
 
     /** Read on [open]'s background half, written on the main thread. */
@@ -122,8 +122,6 @@ internal class TerminalSessionManager private constructor(
         moved.forEach { (id, entry) -> entries[id] = entry }
         publish(selectedId = mutableSnapshot.value.selectedId)
     }
-
-    override suspend fun applyAccent(argb: Int) = withContext(Dispatchers.IO) { prompt.useAccent(argb) }
 
     @MainThread
     override fun applySettings(next: TerminalSettings) {

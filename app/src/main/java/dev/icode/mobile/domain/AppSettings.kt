@@ -18,10 +18,7 @@ data class AppearanceSettings(
     val compactLayout: Boolean = true,
     /** Opaque ARGB chosen over the theme's own accent; null keeps the theme's. App-wide. */
     val accentColor: Int? = null,
-) {
-    /** The accent the app draws with: the one chosen, or the theme's own. */
-    val effectiveAccent: Int get() = accentColor ?: AccentColorRules.themeAccent(theme)
-}
+)
 
 /** The accent colours offered first, how a choice is written, and whether it reads on a background. */
 object AccentColorRules {

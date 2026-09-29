@@ -6,11 +6,7 @@ import dev.icode.mobile.domain.TerminalSessionState
 import dev.icode.mobile.domain.TerminalSettings
 import dev.icode.mobile.domain.TerminalSnapshot
 import dev.icode.mobile.domain.TerminalStatus
-import dev.icode.mobile.domain.AccentColorRules
-import dev.icode.mobile.domain.AppTheme
-import dev.icode.mobile.domain.AppearanceSettings
 import dev.icode.mobile.domain.WorkbenchEffect
-import dev.icode.mobile.domain.WorkspacePreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -48,7 +44,6 @@ class TerminalCoordinatorTest {
         val workspaces = mutableMapOf<String, String?>()
         var opened: String? = "session-1"
         var applied: TerminalSettings? = null
-        val accents = mutableListOf<Int>()
 
         override suspend fun open(workspaceHostPath: String?, reuseExisting: Boolean): String? {
             calls += "open $workspaceHostPath reuse=$reuseExisting"
@@ -58,7 +53,6 @@ class TerminalCoordinatorTest {
         override fun reorder(movingId: String, targetId: String) { calls += "reorder $movingId $targetId" }
         override fun close(id: String) { calls += "close $id" }
         override fun applySettings(next: TerminalSettings) { applied = next }
-        override suspend fun applyAccent(argb: Int) { accents += argb }
         override fun workspaceOf(id: String): String? = workspaces[id]
     }
 
@@ -153,7 +147,7 @@ class TerminalCoordinatorTest {
         val scope = CoroutineScope(Dispatchers.Unconfined)
         val settings = TerminalSettings(fontSizeSp = 15)
         try {
-            harness.coordinator.follow(scope, flowOf(WorkspacePreferences(terminal = settings)))
+            harness.coordinator.follow(scope, flowOf(settings))
             harness.sessions.snapshot.value = TerminalSnapshot(listOf(running("session-1")), "session-1")
             assertEquals("session-1", harness.workbench.current.terminal.selectedId)
             assertEquals(settings, harness.sessions.applied)
@@ -166,25 +160,6 @@ class TerminalCoordinatorTest {
             harness.sessions.commandsFinished.emit("session-2")
             harness.sessions.commandsFinished.emit("session-1")
             assertEquals(1, harness.changed)
-        } finally {
-            scope.cancel()
-        }
-    }
-
-    @Test fun `the prompt follows the accent in effect, once per change`() = runBlocking {
-        val harness = Harness()
-        val scope = CoroutineScope(Dispatchers.Unconfined)
-        val violet = 0xFFB67CFF.toInt()
-        try {
-            harness.coordinator.follow(
-                scope,
-                flowOf(
-                    WorkspacePreferences(appearance = AppearanceSettings(theme = AppTheme.Light)),
-                    WorkspacePreferences(appearance = AppearanceSettings(theme = AppTheme.Light, uiTextScalePercent = 110)),
-                    WorkspacePreferences(appearance = AppearanceSettings(theme = AppTheme.Light, accentColor = violet)),
-                ),
-            )
-            assertEquals(listOf(AccentColorRules.themeAccent(AppTheme.Light), violet), harness.sessions.accents)
         } finally {
             scope.cancel()
         }
