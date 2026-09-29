@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.language
 
 import android.content.Context
+import dev.icode.mobile.data.io.commitOrFail
 import dev.icode.mobile.domain.LanguageServiceConfiguration
 import org.json.JSONArray
 import org.json.JSONObject
@@ -37,9 +38,7 @@ internal class LanguageServiceStore(context: Context) {
                 put("initializationOptions", service.initializationOptions)
             })
         }
-        check(preferences.edit().putString(KEY, array.toString()).commit()) {
-            "Unable to save language services"
-        }
+        preferences.commitOrFail("Unable to save language services") { putString(KEY, array.toString()) }
     }
 
     private companion object { const val KEY = "configured_servers_v1" }

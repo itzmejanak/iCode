@@ -1,7 +1,8 @@
 package dev.icode.mobile.data.workspace
 
-import android.annotation.SuppressLint
 import android.content.Context
+import androidx.core.content.edit
+import dev.icode.mobile.data.io.commitOrFail
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -113,7 +114,7 @@ internal class SharedPreferencesWorkspaceStore(context: Context) : WorkspaceStor
                     .put("lastOpenedAt", item.lastOpenedAt),
             )
         }
-        commitString(KEY_RECENT_DOCUMENTS, array.toString(), "Unable to save recent files")
+        preferences.commitOrFail("Unable to save recent files") { putString(KEY_RECENT_DOCUMENTS, array.toString()) }
     }
 
     override fun loadSession(): StoredSession? = runCatching {
@@ -134,13 +135,7 @@ internal class SharedPreferencesWorkspaceStore(context: Context) : WorkspaceStor
                 .put("active", it.activeDocument ?: JSONObject.NULL)
                 .toString()
         }
-        commitString(KEY_SESSION, encoded, "Unable to save the open workspace")
-    }
-
-    /** Written now, and a failed write is an error: the KTX `edit {}` form would discard commit()'s answer. */
-    @SuppressLint("UseKtx")
-    private fun commitString(key: String, value: String?, failure: String) {
-        check(preferences.edit().putString(key, value).commit()) { failure }
+        preferences.commitOrFail("Unable to save the open workspace") { putString(KEY_SESSION, encoded) }
     }
 
     private fun loadAllRecentDocuments(): List<StoredRecentDocument> = runCatching {
@@ -171,11 +166,10 @@ internal class SharedPreferencesWorkspaceStore(context: Context) : WorkspaceStor
                     .put("lastOpenedAt", item.lastOpenedAt),
             )
         }
-        val edit = preferences.edit().putString(KEY_RECENTS, array.toString())
         if (synchronous) {
-            check(edit.commit()) { "Unable to save recent workspaces" }
+            preferences.commitOrFail("Unable to save recent workspaces") { putString(KEY_RECENTS, array.toString()) }
         } else {
-            edit.apply()
+            preferences.edit { putString(KEY_RECENTS, array.toString()) }
         }
     }
 

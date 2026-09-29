@@ -77,7 +77,11 @@ internal class GitAuthCoordinator(
     }
 
     suspend fun clearToken() {
-        credentials.clearHttpsCredentials()
+        runCatching {
+            credentials.clearHttpsCredentials()
+        }.onFailure { error ->
+            workbench.report("git", "Unable to remove the token", error)
+        }
         refresh()
     }
 
