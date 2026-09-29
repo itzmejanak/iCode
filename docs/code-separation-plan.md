@@ -702,3 +702,9 @@ developer-tools onboarding step (Todo 5).
   only the folders open in the Explorer and the folders of open files." Whether exclusions
   become a feature is the owner's. 5 tests. Gate: 461 tests; lint 0 errors / 11 warnings; both
   guards pass.
+- S8.4c: each catalog subtitle says only what its page holds ("Font, indentation, autosave,
+  display"; "Git identity, token, and SSH key"; "Language servers"; "Ubuntu environment, health,
+  repair"; "Version, build, and runtime" …) and its terms name the page's controls; the pages
+  that show a subtitle take it from the catalog, so Storage no longer has two. Search finds the
+  open workspace's settings too ("auto fetch", "indent"), without adding them to the root list.
+  2 tests. Gate: 463 tests; lint 0 errors / 11 warnings; both guards pass.

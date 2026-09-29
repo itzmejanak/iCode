@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountTree
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Public
@@ -22,30 +23,45 @@ internal data class SettingsCategory(
     val searchTerms: String = "",
 )
 
-/** One navigation/search catalog; every hit opens its existing settings page. */
+/**
+ * One navigation/search catalog; every hit opens its existing settings page. A
+ * subtitle says only what its page holds, and the search terms name its controls
+ * (checked against each page, S8.4); a page that shows a subtitle takes it from here.
+ */
 internal val settingsCategories = listOf(
-    SettingsCategory("Appearance", "Theme, fonts, and display", Icons.Outlined.Palette, Route.AppearanceSettings,
-        "dark light amoled color ui text scale compact layout accent ember"),
-    SettingsCategory("Editor", "Editing behavior, formatting, autosave", Icons.Outlined.Code, Route.SettingsEditor,
+    SettingsCategory("Appearance", "Theme, UI text size, density, accent", Icons.Outlined.Palette, Route.AppearanceSettings,
+        "dark light amoled color colour theme ui text scale size compact layout density accent ember"),
+    SettingsCategory("Editor", "Font, indentation, autosave, display", Icons.Outlined.Code, Route.SettingsEditor,
         "font family size tab indent word wrap auto save format on save line numbers minimap bracket matching"),
     SettingsCategory("Terminal", "Shell, extra keys, scrollback, background", Icons.Outlined.Terminal, Route.TerminalSettings,
-        "keyboard font size scrollback background notifications battery optimization"),
-    SettingsCategory("Source Control", "Git preferences and diff display", Icons.Outlined.AccountTree, Route.GitAuth,
-        "git credentials authentication ssh token"),
-    SettingsCategory("Languages", "Syntax, highlighting, language servers", Icons.Outlined.Public, Route.SettingsLanguages,
-        "grammar syntax highlighting"),
-    SettingsCategory("Runtime", "Ubuntu environment, processes, health", Icons.Outlined.Storage, Route.SettingsRuntime,
-        "linux repair reset"),
-    SettingsCategory("Storage", "Workspace paths and cleanup", Icons.Outlined.Folder, Route.StorageSettings,
-        "files paths cleanup"),
-    SettingsCategory("Application", "Updates, about, diagnostics", Icons.Outlined.Info, Route.About,
-        "version"),
+        "shell path font family size scrollback extra keys keyboard cursor block underline bar " +
+            "background notifications battery optimization bell alert long command"),
+    SettingsCategory("Source Control", "Git identity, token, and SSH key", Icons.Outlined.AccountTree, Route.GitAuth,
+        "git identity name email credentials authentication https token ssh key provider"),
+    SettingsCategory("Languages", "Language servers", Icons.Outlined.Public, Route.SettingsLanguages,
+        "language server lsp command start stop restart"),
+    SettingsCategory("Runtime", "Ubuntu environment, health, repair", Icons.Outlined.Storage, Route.SettingsRuntime,
+        "linux ubuntu proot packages architecture disk repair reset"),
+    SettingsCategory("Storage", "Disk usage, workspace folders, cleanup", Icons.Outlined.Folder, Route.StorageSettings,
+        "disk space usage files paths workspace folders cache cleanup stale recents"),
+    SettingsCategory("Application", "Version, build, and runtime", Icons.Outlined.Info, Route.About,
+        "about version build editor engine android licenses source documentation"),
 )
+
+/** The open workspace's own settings, reached from the scope bar; search finds them too. */
+internal val workspaceSettingsCategory = SettingsCategory(
+    "Workspace", "This workspace's indentation and Git fetch", Icons.Outlined.FolderOpen, Route.WorkspaceSettings,
+    "workspace indent size tab type spaces tabs override inherited git auto fetch identity file watcher exclude",
+)
+
+/** The subtitle a settings page shows: its catalog entry's. */
+internal fun settingsSubtitle(route: Route): String =
+    (settingsCategories + workspaceSettingsCategory).first { it.destination == route }.subtitle
 
 internal fun searchSettingsCategories(query: String): List<SettingsCategory> {
     val terms = query.trim().lowercase().split(Regex("\\s+")).filter { it.isNotEmpty() }
     if (terms.isEmpty()) return settingsCategories
-    return settingsCategories.filter { category ->
+    return (settingsCategories + workspaceSettingsCategory).filter { category ->
         val searchable = "${category.title} ${category.subtitle} ${category.searchTerms}".lowercase()
         terms.all(searchable::contains)
     }

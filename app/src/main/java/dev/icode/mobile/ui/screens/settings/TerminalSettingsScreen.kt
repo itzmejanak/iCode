@@ -39,6 +39,7 @@ import dev.icode.mobile.domain.TerminalExtraKey
 import dev.icode.mobile.domain.TerminalSettingRules
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 import dev.icode.mobile.ui.LocalWorkspacePreferences
@@ -57,7 +58,7 @@ fun TerminalSettingsScreen(actions: NavigationActions) {
     var shellDraft by rememberSaveable { mutableStateOf(settings.shellPath) }
 
     Column(Modifier.fillMaxSize()) {
-        IcodeTopBar("Terminal Settings", subtitle = "Shell, extra keys, scrollback, background", onBack = actions.back)
+        IcodeTopBar("Terminal Settings", subtitle = settingsSubtitle(Route.TerminalSettings), onBack = actions.back)
         Column(
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(IcodeSpacing.Space4),
             verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space4 + IcodeSpacing.Micro),

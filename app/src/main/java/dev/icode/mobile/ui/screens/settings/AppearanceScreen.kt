@@ -42,6 +42,7 @@ import dev.icode.mobile.domain.AccentColorRules
 import dev.icode.mobile.domain.AppTheme
 import dev.icode.mobile.domain.SettingLimits
 import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalWorkspacePreferences
 import dev.icode.mobile.ui.LocalWorkspacePreferencesRepository
 
@@ -61,7 +62,7 @@ fun AppearanceScreen(actions: NavigationActions) {
     val themeAccent = AccentColorRules.themeAccent(appearance.theme)
 
     Column(Modifier.fillMaxSize()) {
-        IcodeTopBar("Appearance", subtitle = "Theme, fonts, and display", onBack = actions.back)
+        IcodeTopBar("Appearance", subtitle = settingsSubtitle(Route.AppearanceSettings), onBack = actions.back)
         Column(
             modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(IcodeSpacing.Space4),
             verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space4 + IcodeSpacing.Micro),
