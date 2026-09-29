@@ -13,7 +13,6 @@ import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.DriveFileRenameOutline
 import androidx.compose.material.icons.outlined.Code
-import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
@@ -44,6 +43,7 @@ import dev.icode.mobile.designsystem.tint
 import dev.icode.mobile.designsystem.LabeledTextField
 import dev.icode.mobile.domain.FileEntry
 import dev.icode.mobile.domain.FileKind
+import dev.icode.mobile.domain.FileTypes
 import dev.icode.mobile.domain.WorkbenchEffect
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.domain.WorkspaceNameRules
@@ -161,18 +161,15 @@ internal fun DeleteWorkspaceItemDialog(entry: FileEntry, onDismiss: () -> Unit) 
 
 @Composable
 internal fun ExplorerRow(entry: FileEntry, selected: Boolean, onClick: () -> Unit, onLongClick: () -> Unit) {
-    val icon = when (entry.kind) {
-        FileKind.Folder -> if (entry.expanded) Icons.Outlined.FolderOpen else Icons.Outlined.Folder
-        FileKind.TypeScript -> Icons.Outlined.Code
-        FileKind.Code -> Icons.Outlined.Code
-        FileKind.Json, FileKind.Markdown, FileKind.Other -> Icons.Outlined.Description
+    val folder = entry.kind == FileKind.Folder
+    val type = FileTypes.of(entry.name)
+    val icon = when {
+        folder -> if (entry.expanded) Icons.Outlined.FolderOpen else Icons.Outlined.Folder
+        else -> fileTypeIcon(type)
     }
-    val iconTint = when (entry.kind) {
-        FileKind.TypeScript -> IcodeColors.Blue
-        FileKind.Code -> IcodeColors.Accent
-        FileKind.Json -> IcodeColors.Amber
-        FileKind.Markdown, FileKind.Other -> IcodeColors.TextSecondary
-        FileKind.Folder -> if (entry.expanded) IcodeColors.Accent else IcodeColors.TextSecondary
+    val iconTint = when {
+        folder -> if (entry.expanded) IcodeColors.Accent else IcodeColors.TextSecondary
+        else -> fileTypeTint(type)
     }
     IcodeListRow(
         selected = selected,
@@ -208,7 +205,7 @@ internal fun ExplorerRow(entry: FileEntry, selected: Boolean, onClick: () -> Uni
                 style = IcodeType.Body,
                 color = when {
                     entry.gitStatus != null -> gitStatusTone(entry.gitStatus).tint()
-                    entry.kind == FileKind.Markdown -> IcodeColors.TextSecondary
+                    !folder && type == FileTypes.Markdown -> IcodeColors.TextSecondary
                     else -> IcodeColors.TextPrimary
                 },
             )

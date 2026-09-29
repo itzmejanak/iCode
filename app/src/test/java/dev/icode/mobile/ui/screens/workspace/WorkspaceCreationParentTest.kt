@@ -9,8 +9,8 @@ class WorkspaceCreationParentTest {
     private val files = listOf(
         FileEntry("src", "/project/src", FileKind.Folder, depth = 0),
         FileEntry("components", "/project/src/components", FileKind.Folder, depth = 1),
-        FileEntry("App.kt", "/project/src/components/App.kt", FileKind.Code, depth = 2),
-        FileEntry("README.md", "/project/README.md", FileKind.Markdown, depth = 0),
+        FileEntry("App.kt", "/project/src/components/App.kt", FileKind.File, depth = 2),
+        FileEntry("README.md", "/project/README.md", FileKind.File, depth = 0),
     )
 
     @Test fun `selected folder receives new items inside itself`() {

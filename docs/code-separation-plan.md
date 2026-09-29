@@ -613,6 +613,15 @@ those, they are good"), so their review note goes.
 | G1 | Guard: each store opened in one file; SHA-256 only in `Sha256`; no byte formatting outside `ByteSize`; the line budget for every `ui/` file | guard |
 | G2 | Docs: the current persistence and lock map here; audit §6 marked superseded; Todo and README agree | docs |
 
+### Added by the owner (2026-09-29)
+
+| # | Request | Plan |
+|---|---|---|
+| E | "Colours for every file type in the editor, on every theme, nothing left over; redesign if it does not scale" | [editor-colors-plan.md](./editor-colors-plan.md): one file-type registry, one syntax palette per theme, one scope table, themes built in code, contrast and coverage proven by tests; 26 more file types |
+| L | "Open Workspace and other actions take time before the screen responds — design one loading behaviour for the whole app, backend and frontend aligned, for a smooth experience" | Measure first: for each action, the time from tap to first visible response and to done, and what runs in between (the mutation lock, disk, Git, the runtime). Then one design — an immediate acknowledgement on tap, one progress vocabulary in the design system, state the backend publishes as it starts rather than when it ends — applied action by action. Its own plan once measured |
+
+Order: E next (the owner's newest request), then S8, X, G, then L's measurement and plan.
+
 ### Not in this programme (features or the owner's)
 
 Diagnostics need a language-server client first (Todo 8); Output channels beyond Git (Todo 9);

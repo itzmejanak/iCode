@@ -53,11 +53,11 @@ object CaptureFixtures {
             FileEntry("src", "src", FileKind.Folder, expanded = true),
             FileEntry("components", "src/components", FileKind.Folder, depth = 1, gitStatus = GitStatusCodes.ADDED),
             FileEntry("utils", "src/utils", FileKind.Folder, depth = 1, expanded = true),
-            FileEntry("helpers.ts", "src/utils/helpers.ts", FileKind.TypeScript, depth = 2, gitStatus = GitStatusCodes.MODIFIED),
+            FileEntry("helpers.ts", "src/utils/helpers.ts", FileKind.File, depth = 2, gitStatus = GitStatusCodes.MODIFIED),
             FileEntry("tests", "tests", FileKind.Folder, expanded = false),
-            FileEntry("README.md", "README.md", FileKind.Markdown),
-            FileEntry("package.json", "package.json", FileKind.Json, gitStatus = "•"),
-            FileEntry("index.ts", "index.ts", FileKind.TypeScript),
+            FileEntry("README.md", "README.md", FileKind.File),
+            FileEntry("package.json", "package.json", FileKind.File, gitStatus = "•"),
+            FileEntry("index.ts", "index.ts", FileKind.File),
         ),
         gitChanges = listOf(
             GitChange(GitStatusCodes.ADDED, "auth-guard.tsx", "src/components/auth-guard.tsx", staged = true),
@@ -168,9 +168,9 @@ object CaptureFixtures {
             ),
         ),
         fileIndex = listOf(
-            IndexedFile("App.tsx", "src/App.tsx", FileKind.TypeScript),
-            IndexedFile("useAuth.ts", "src/hooks/useAuth.ts", FileKind.TypeScript),
-            IndexedFile("package.json", "package.json", FileKind.Json),
+            IndexedFile("App.tsx", "src/App.tsx"),
+            IndexedFile("useAuth.ts", "src/hooks/useAuth.ts"),
+            IndexedFile("package.json", "package.json"),
         ),
     )
 

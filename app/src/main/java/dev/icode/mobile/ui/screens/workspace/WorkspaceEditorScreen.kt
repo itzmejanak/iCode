@@ -40,6 +40,7 @@ import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.MonoLine
+import dev.icode.mobile.domain.FileTypes
 import dev.icode.mobile.domain.countOf
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
@@ -51,7 +52,6 @@ import dev.icode.mobile.ui.LocalCodeEditorSessions
 import dev.icode.mobile.ui.LocalWorkspacePreferences
 import dev.icode.mobile.ui.editor.EditorCanvas
 import dev.icode.mobile.ui.editor.MarkdownPreview
-import dev.icode.mobile.ui.editor.isMarkdownFile
 
 /** Editor with tab strip, syntax-highlighted document and panel bar. */
 @Composable
@@ -75,7 +75,7 @@ fun WorkspaceEditorScreen(actions: NavigationActions) {
     var pendingClose by rememberSaveable { mutableStateOf<String?>(null) }
     var closeOthers by rememberSaveable { mutableStateOf(false) }
     var showCreateFile by rememberSaveable { mutableStateOf(false) }
-    val isMarkdown = document != null && isMarkdownFile(document.name)
+    val isMarkdown = document != null && FileTypes.of(document.name) == FileTypes.Markdown
     val title = document?.let { "${it.name}${if (it.dirty) "  •" else ""}" } ?: "No document"
     val pendingDocument = state.openDocuments.firstOrNull { it.location == pendingClose }
     if (pendingDocument?.dirty == true) {

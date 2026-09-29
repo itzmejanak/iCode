@@ -14,8 +14,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
-import androidx.compose.material.icons.outlined.Code
-import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -33,12 +31,10 @@ import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
-import dev.icode.mobile.designsystem.IcodeTone
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.MonoLine
-import dev.icode.mobile.designsystem.tint
 import dev.icode.mobile.domain.ContentSearchState
-import dev.icode.mobile.domain.FileKind
+import dev.icode.mobile.domain.FileTypes
 import dev.icode.mobile.domain.IndexedFile
 import dev.icode.mobile.domain.SearchEngineState
 import dev.icode.mobile.domain.countOf
@@ -133,9 +129,9 @@ internal fun FileResults(
                             onClick = { onOpen(entry.path) },
                             leading = {
                                 Icon(
-                                    iconFor(entry.kind),
+                                    fileTypeIcon(FileTypes.of(entry.name)),
                                     contentDescription = null,
-                                    tint = toneFor(entry.kind).tint(),
+                                    tint = fileTypeTint(FileTypes.of(entry.name)),
                                     modifier = Modifier.size(IcodeSizes.IconXl),
                                 )
                             },
@@ -247,18 +243,6 @@ private fun SearchSummary(search: ContentSearchState, query: String, resultsAreC
             style = IcodeType.MonoSmall,
         )
     }
-}
-
-private fun iconFor(kind: FileKind) = when (kind) {
-    FileKind.TypeScript, FileKind.Code -> Icons.Outlined.Code
-    else -> Icons.Outlined.Description
-}
-
-private fun toneFor(kind: FileKind) = when (kind) {
-    FileKind.TypeScript -> IcodeTone.Info
-    FileKind.Code -> IcodeTone.Accent
-    FileKind.Json -> IcodeTone.Warning
-    else -> IcodeTone.Neutral
 }
 
 /** Match on file name first, then path; keep the workspace-relative order. */
