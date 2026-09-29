@@ -4,7 +4,7 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
-import androidx.core.content.edit
+import dev.icode.mobile.data.io.commitOrFail
 import dev.icode.mobile.domain.GitRemoteRules
 import java.security.KeyStore
 import javax.crypto.Cipher
@@ -34,7 +34,7 @@ internal class GitCredentialStore(context: Context) {
         GitRemoteRules.hostError(credential.host.trim())?.let { throw IllegalArgumentException(it) }
         require(credential.username.isNotBlank()) { "Enter the account name" }
         require(credential.token.isNotBlank()) { "Enter a personal access token" }
-        preferences.edit {
+        preferences.commitOrFail("Unable to save the token") {
             putString(KEY_HOST, credential.host.trim())
             putString(KEY_USERNAME, credential.username.trim())
             putString(KEY_TOKEN, encrypt(credential.token.trim()))
@@ -49,7 +49,7 @@ internal class GitCredentialStore(context: Context) {
     }
 
     fun clearHttps() {
-        preferences.edit {
+        preferences.commitOrFail("Unable to remove the token") {
             remove(KEY_HOST)
             remove(KEY_USERNAME)
             remove(KEY_TOKEN)

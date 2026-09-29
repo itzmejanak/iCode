@@ -43,8 +43,10 @@ internal class GitAuthenticator(
         val credential = credentials.loadHttps()
         if (credential == null) {
             // Encrypted with a key this device no longer has: unusable, so not kept.
-            BackendLog.w("git", "The saved token could not be decrypted and was removed")
-            credentials.clearHttps()
+            // Removing it is housekeeping: a failed write must not fail the command that found it.
+            runCatching { credentials.clearHttps() }
+                .onSuccess { BackendLog.w("git", "The saved token could not be decrypted and was removed") }
+                .onFailure { BackendLog.w("git", "The saved token could not be decrypted, nor removed", it) }
             return block(emptyList())
         }
         val file = GitCredentialFile.create(

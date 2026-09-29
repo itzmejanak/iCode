@@ -658,3 +658,13 @@ developer-tools onboarding step (Todo 5).
   `status` is the one fact (R4); the capture fixtures name their status. 4 tests (one fails on
   the old code). Gate: 453 tests; lint 0 errors / 12 warnings; both guards pass. The phone check
   is S8.5.
+- S8.3: `commitOrFail` (`data/io`) is the one checked write: `WorkspaceStore` (session, recent
+  files, recents when asked to be synchronous) and `LanguageServiceStore` use it, and so does
+  `GitCredentialStore` — found while measuring (R5 had only the first two): the token was saved
+  and removed with the background `apply()`, so a failed write still read as saved. A failed
+  removal is now said ("Unable to remove the token") instead of ending the process; a token that
+  cannot be decrypted is still removed best-effort, without failing the Git command that found
+  it. Best-effort by design, unchanged: `GitTransferLedger`, `TerminalSessionLedger`,
+  `NoticeStore`, the permission-offered flags — records for later notices, never reported as
+  saved. The last `UseKtx` warning is gone. 3 tests. Gate: 456 tests; lint 0 errors / 11
+  warnings; both guards pass.

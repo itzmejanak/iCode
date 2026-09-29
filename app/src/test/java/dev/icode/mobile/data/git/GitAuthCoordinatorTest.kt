@@ -148,6 +148,17 @@ class GitAuthCoordinatorTest {
         assertNull(harness.workbench.current.gitAuth.httpsAccount)
     }
 
+    @Test fun `a token that cannot be removed is said, and still shown`() = runBlocking {
+        val harness = Harness()
+        harness.coordinator.saveToken("github.com", "ada", "ghp_secretValue123")
+        harness.credentials.clearFails = true
+
+        val effect = harness.nextMessage { harness.coordinator.clearToken() }
+
+        assertEquals(WorkbenchEffect.Message("Unable to remove the token"), effect)
+        assertEquals("ada@github.com", harness.workbench.current.gitAuth.httpsAccount)
+    }
+
     @Test fun `an SSH key needs the OpenSSH client first`() = runBlocking {
         val harness = Harness().apply { credentials.sshInstallable = false }
 
@@ -190,6 +201,8 @@ class GitAuthCoordinatorTest {
     private class FakeCredentials : GitCredentialOperations {
         private var account: String? = null
         var sshInstallable = true
+        /** As the store does when its write fails. */
+        var clearFails = false
         private var key: String? = null
 
         override fun describeHttps() = account
@@ -199,6 +212,7 @@ class GitAuthCoordinatorTest {
         }
         override suspend fun <T> withHttpsCredentials(block: suspend (config: List<String>) -> T): T = block(emptyList())
         override suspend fun clearHttpsCredentials() {
+            check(!clearFails) { "Unable to remove the token" }
             account = null
         }
         override fun hasSshKey() = key != null
