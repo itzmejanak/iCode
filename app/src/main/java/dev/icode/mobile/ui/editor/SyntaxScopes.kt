@@ -153,8 +153,8 @@ internal val syntaxScopes: List<Pair<SyntaxRole, List<String>>> = listOf(
         "variable.other.property", "variable.other.object.property", "support.variable.property",
     ),
     SyntaxRole.Link to listOf("constant.other.reference.link"),
-    // Kotlin's `$name` in a string, as VS Code colours `${` `}`.
-    SyntaxRole.Keyword to listOf("entity.string.template.element"),
+    // Kotlin's `$name` in a string, as VS Code colours `${` `}`; YAML's `---` and `...` between documents.
+    SyntaxRole.Keyword to listOf("entity.string.template.element", "entity.other.document"),
     SyntaxRole.Quote to listOf("markup.quote"),
 )
 
@@ -172,6 +172,8 @@ internal val inheritedScopes: List<String> = listOf(
     "entity.name.section", "markup.list",
     // A fenced block: the grammar of its language colours it.
     "markup.fenced_code",
+    // A byte-order mark: nothing to see.
+    "byte-order-mark",
     // Parts of a doc comment, which is a Comment.
     "constant.other.description.jsdoc", "constant.other.email.link.underline.jsdoc",
 )

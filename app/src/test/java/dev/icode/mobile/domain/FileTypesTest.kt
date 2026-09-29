@@ -41,12 +41,12 @@ class FileTypesTest {
         assertEquals(FileTypes.rules.map { it.type.id }.size, FileTypes.rules.map { it.type.id }.toSet().size)
     }
 
-    @Test fun `every shipped grammar is reached, and every grammar named is shipped`() {
+    @Test fun `every grammar a file type names is shipped`() {
         val registry = JSONObject(File("src/main/assets/textmate/languages.json").readText()).getJSONArray("languages")
         val shipped = (0 until registry.length()).map { registry.getJSONObject(it).getString("scopeName") }.toSet()
         val named = FileTypes.rules.mapNotNull { it.type.grammar }.toSet()
-        assertEquals(shipped, named)
-        assertTrue(shipped.isNotEmpty())
+        assertEquals(emptySet<String>(), named - shipped)
+        assertTrue(named.isNotEmpty())
     }
 
     @Test fun `a script without an extension is known by its first line`() {

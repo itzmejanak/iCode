@@ -1,9 +1,6 @@
 package dev.icode.mobile.ui.editor
 
 import dev.icode.mobile.designsystem.SyntaxRole
-import java.io.File
-import org.json.JSONArray
-import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -41,32 +38,5 @@ class SyntaxScopesTest {
         return (parts.size downTo 1).map { parts.take(it).joinToString(".") }
     }
 
-    private fun grammarScopes(): Set<String> {
-        val assets = File("src/main/assets")
-        val languages = JSONObject(File(assets, "textmate/languages.json").readText()).getJSONArray("languages")
-        return (0 until languages.length()).flatMap { index ->
-            val file = File(assets, languages.getJSONObject(index).getString("grammar"))
-            val names = if (file.name.endsWith(".json")) {
-                val grammar = JSONObject(file.readText())
-                grammar.keys().asSequence().filter { it != "name" }.toList().flatMap { jsonNames(grammar.get(it)) }
-            } else {
-                // A plist: the grammar's own title is the first <key>name</key>, not a scope.
-                PLIST_NAME.findAll(file.readText()).map { it.groupValues[2] }.drop(1).toList()
-            }
-            names.flatMap { it.split(' ').filter(String::isNotEmpty) }
-        }.toSet()
-    }
-
-    private fun jsonNames(value: Any?): List<String> = when (value) {
-        is JSONObject -> value.keys().asSequence().toList().flatMap { key: String ->
-            val child = value.get(key)
-            if ((key == "name" || key == "contentName") && child is String) listOf(child) else jsonNames(child)
-        }
-        is JSONArray -> (0 until value.length()).flatMap { jsonNames(value.get(it)) }
-        else -> emptyList()
-    }
-
-    private companion object {
-        val PLIST_NAME = Regex("<key>(name|contentName)</key>\\s*<string>([^<]*)</string>")
-    }
+    private fun grammarScopes(): Set<String> = ShippedGrammars.all.flatMap { it.scopes }.toSet()
 }
