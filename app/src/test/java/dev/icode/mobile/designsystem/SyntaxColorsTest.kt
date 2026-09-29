@@ -15,11 +15,11 @@ class SyntaxColorsTest {
         SyntaxRole.Plain, SyntaxRole.Variable, SyntaxRole.Strong, SyntaxRole.Emphasis, SyntaxRole.Strikethrough,
     )
 
-    @Test fun `every role reads at 4 point 5 to 1 on the background and on the current line, on every theme`() {
+    @Test fun `every role reads at 4 point 5 to 1 on the editor and on its current line, on every theme`() {
         palettes.forEach { palette ->
             SyntaxRole.entries.forEach { role ->
                 val colour = palette.syntaxColor(role).toArgb()
-                listOf(palette.backgroundDeep, palette.surface).forEach { behind ->
+                listOf(palette.backgroundDeep, palette.editorLineHighlight).forEach { behind ->
                     val ratio = AccentColorRules.contrastRatio(colour, behind.toArgb())
                     assertTrue("${palette.kind} $role %.2f".format(ratio), ratio >= 4.5)
                 }

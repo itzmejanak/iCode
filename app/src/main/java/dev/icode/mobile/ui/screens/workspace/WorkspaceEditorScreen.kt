@@ -1,5 +1,6 @@
 package dev.icode.mobile.ui.screens.workspace
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -161,7 +162,9 @@ fun WorkspaceEditorScreen(actions: NavigationActions) {
                     session = requireNotNull(activeSession),
                     document = document,
                     onTextChanged = { gateway.dispatch(WorkbenchIntent.UpdateDocumentText(document.location, it)) },
-                    modifier = Modifier.weight(1f),
+                    // A little of the editor's own background above the first line: the selected
+                    // tab flows into the editor, and line 1 does not sit against the tab bar.
+                    modifier = Modifier.weight(1f).background(IcodeColors.BackgroundDeep).padding(top = IcodeSpacing.Space1),
                 )
             }
             activeSession?.coloringError?.let { error ->
