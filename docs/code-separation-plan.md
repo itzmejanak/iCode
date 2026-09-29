@@ -619,3 +619,19 @@ Diagnostics need a language-server client first (Todo 8); Output channels beyond
 licences and About (Todo 4); `PROOT_L2S_DIR` and `htop` (Todo 7); HTTPS/SSH push with the owner's
 credentials; terminal rows under the landscape keyboard (S6 finding, a layout decision); a
 developer-tools onboarding step (Todo 5).
+
+**S7 — tools and commands (2026-09-29), done.**
+
+- S7.1 (`1344622`): `GitActionRules` is the one rule for whether fetch, pull or push can start —
+  workspace, Git, repository, busy; then remote, branch, commits, upstream — used by the palette,
+  Commit & Push, the automatic fetch, and again by `GitTransferCoordinator` as the job starts. A
+  refused sync no longer opens the progress screen on an older operation; Pull without an upstream
+  and Push without a commit are no longer offered to fail. 6 tests (4 new for the rule).
+- S7.2 (`fa4a737`): `Diagnostic.source` has no sample default.
+- S7.3, device (2026-09-29, fresh APK): the palette opened with the field focused; "pull" filtered
+  to one command; "zzq" said "No matching commands"; disabled rows gave their reasons ("Stage
+  changes first", "No unsaved changes"; in a repository without a remote, "Add a Git remote
+  first" for Push and Pull); Enter ran the selected command and Back returned to the editor, not
+  the palette; Problems said "No diagnostics reported" with 0/0/0; Output said "No Git output
+  yet · IDLE". Commit & Push without a remote was not re-checked: the owner started using the
+  phone. Gate: 424 tests; lint 0 errors / 12 warnings; both guards pass.

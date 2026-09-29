@@ -7,7 +7,8 @@ data class Diagnostic(
     val file: String,
     val message: String,
     val location: String,
-    val source: String = "TS",
+    /** The tool that reported it, as it names itself. */
+    val source: String,
 )
 
 enum class Severity { Error, Warning, Info }

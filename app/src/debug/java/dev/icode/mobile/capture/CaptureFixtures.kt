@@ -89,9 +89,9 @@ object CaptureFixtures {
             behind = 1,
         ),
         diagnostics = listOf(
-            Diagnostic(Severity.Error, "src/App.tsx", "Type error: Property name does not exist on type User", "line 42:15"),
-            Diagnostic(Severity.Warning, "src/App.tsx", "Unused variable: tempData", "line 15:8"),
-            Diagnostic(Severity.Error, "src/utils/api.ts", "NetworkError: Call does not handle API timeout failures", "line 108:3"),
+            Diagnostic(Severity.Error, "src/App.tsx", "Type error: Property name does not exist on type User", "line 42:15", "TS"),
+            Diagnostic(Severity.Warning, "src/App.tsx", "Unused variable: tempData", "line 15:8", "TS"),
+            Diagnostic(Severity.Error, "src/utils/api.ts", "NetworkError: Call does not handle API timeout failures", "line 108:3", "TS"),
         ),
         languageServices = listOf(
             LanguageService(
