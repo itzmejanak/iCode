@@ -1,6 +1,6 @@
 # Editor colours for every file type — plan
 
-Status: **planned** (2026-09-29); scope decided by the owner (§5). Owner's request:
+Status: **in progress** (2026-09-29): E1–E5 done, device pass under way (§6). Owner's request:
 "make sure to [colour] all the file types for editors, nothing left over, and make sure colours
 work on all theme types, 100% accurate, no guess and no assumptions; if the design is wrong and
 hard to scale, change it — in a clean way, not just jumping into new code". Follows
@@ -73,3 +73,28 @@ separate renderer); the terminal's colours (already one palette, S6 / accent §7
   - web extras: SCSS, Less, Lua, Dart.
   Each comes unchanged from the pinned VS Code commit (MIT) with its language configuration where
   VS Code has one; the coverage test of §2.4 runs over all of them.
+
+## 6. Record
+
+- **E1** `06727a0` one file-type registry; **E2** `f1c567a` scripts known by their `#!` line;
+  **E3** `4e39b05` themes built from one scope table and one set of syntax colours;
+  **E4a** YAML; **E4b** `d190d10` 22 more file types; **E4c** `33e464c` the first sixteen aligned with
+  VS Code; **E5a** `467a73f` one hue rule; **E5b** `1219d05` Seti's icon colours.
+- **On the phone** (2026-09-29, a scratch workspace with one sample per type), found and fixed:
+  - Makefile configuration unreadable by the editor's parser; YAML and Markdown uncoloured (a
+    capture note); both fixed with tests.
+  - The first file opened freezes the screen ~1.4 s: `GrammarRegistry.loadGrammars` parses all
+    42 grammars on the main thread (measured). Colours of a large grammar arrive 2–3 s after the
+    text on first use (C++). **Open** — the next step (load the file's grammar only, off the main
+    thread).
+  - The engine test (EditorColours, run on the JVM and on the phone) found: plain-text rules never
+    winning (tm4e's colour 0), CSS selectors and three other constructs lost to joni (native
+    Oniguruma now), VS Code's new YAML grammar mis-tokenizing (long-standing grammar now),
+    Markdown `*` emphasis broken by a Sora bug (grammar split), keys drawn three ways across data
+    formats (all Attribute now), INI sections plain (Heading now).
+  - The editor lost every palette colour when Sora attached its scheme, and the current line was
+    the tab bar's colour (owner: "editor text goes into the tab bg colour"): `d3cecc8`.
+  - **Incident:** two instrumented runs uninstalled the debug app on the owner's phone, deleting
+    its runtime and data (AGP uninstalls after `connectedAndroidTest`). The app is reinstalled;
+    `gradle.properties` now keeps it installed after such a run, and such runs need the owner's OK.
+

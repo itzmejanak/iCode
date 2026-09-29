@@ -39,6 +39,19 @@ android {
         }
     }
 
+    // The editor's TextMate engine logs through android.util.Log while it loads grammars; the
+    // JVM tests that drive that engine need the stub to be quiet rather than throw. No test
+    // relies on a log call throwing (GrammarAssetsTest checks what the parser returns).
+    testOptions {
+        unitTests.isReturnDefaultValues = true
+    }
+
+    // EditorColours runs on the JVM and on the phone (native Oniguruma): one source for both.
+    sourceSets {
+        getByName("test").java.srcDir("src/sharedTest/java")
+        getByName("androidTest").java.srcDir("src/sharedTest/java")
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true
@@ -121,6 +134,10 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended:1.7.8")
     implementation("io.github.rosemoe:editor")
     implementation("io.github.rosemoe:language-textmate")
+    // The regex engine the TextMate grammars are written for (Oniguruma, as in VS Code).
+    // Without it tm4e falls back to joni, which rejects variable-length lookbehinds and
+    // dropped CSS selectors, TypeScript's `export default`, C#'s `await` (editor-colors-plan).
+    implementation("io.github.rosemoe:oniguruma-native")
     implementation("io.noties.markwon:core:4.6.2")
     implementation("io.noties.markwon:ext-tables:4.6.2")
     implementation("io.noties.markwon:ext-strikethrough:4.6.2")

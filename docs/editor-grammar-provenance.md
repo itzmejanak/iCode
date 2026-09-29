@@ -65,8 +65,11 @@ are listed, exactly, in `GrammarAssetsTest`; their text keeps its enclosing colo
 patterns (`**/.git/config`, `**/rebase-merge/done`) are not matched: they are inside `.git` or a
 home configuration folder, which the Explorer never lists.
 
-YAML (fixed 2026-09-29): only the dispatcher `yaml.tmLanguage.json` had been copied; the YAML
-1.0–1.3 and embedded grammars it hands every document to are now shipped from the same commit.
+YAML: VS Code's current grammar (RedCMD's YAML 1.2, adopted by VS Code in 2024) is not shipped. On the
+editor's engine it scopes `key: value` as one plain scalar and every `:` as
+`invalid.illegal.multiline-key` (EditorColoursTest). `yaml/syntaxes/yaml.tmLanguage.json` is instead
+VS Code's long-standing grammar from textmate/yaml.tmbundle (TextMate Bundle License), as VS Code
+itself shipped it until 2024, taken from VS Code commit 337cacaa (its October 2024 revert to it).
 
 One edit to a copied file: `make/language-configuration.json` writes `lineComment` as the string
 `"#"`. VS Code's form, an object with `noIndent`, is newer than the parser in Sora's tm4e, which
@@ -84,9 +87,22 @@ colours comments. Added from the same commit: the language configurations JSON, 
 shell, Rust, Go and YAML lacked; XSL (`xml/syntaxes/xsl.tmLanguage.json`) and JSON Lines
 (`json/syntaxes/JSONL.tmLanguage.json`), each with its configuration.
 
-Second edit (2026-09-29): `yaml/syntaxes/yaml-1.1`, `yaml-1.2` and `yaml-embedded` each carried a
-note, `"comment": "https://yaml.org/…"`, inside a `beginCaptures` table. VS Code's engine skips
-such keys; the tm4e inside Sora reads every entry as a rule and threw, so YAML — and Markdown,
-which embeds YAML for front matter — stayed uncoloured on the phone. The three notes are removed;
-`GrammarAssetsTest` fails on any capture that is not a rule.
+Second edit, withdrawn with those files: three notes inside YAML 1.x `beginCaptures`; the grammar
+now shipped has none. `GrammarAssetsTest` still fails on any capture that is not a rule.
+
+## The regex engine and one engine bug (2026-09-29)
+
+- **Native Oniguruma** (`io.github.rosemoe:oniguruma-native`, Sora 0.24.6; Oniguruma is BSD-2): the
+  engine the grammars are written for. Without it tm4e uses joni, which rejects 9 of the 9,649
+  regular expressions in the shipped grammars (variable-length lookbehinds) and drops their rules:
+  CSS selectors, TypeScript's `export default`, C#'s `await`, Ruby block parameters. The JVM tests
+  still run joni; `EditorColoursDeviceTest` runs the same check on the phone.
+- **Sora bug, back-references:** tm4e quotes a captured text for `Matcher.appendReplacement`, but
+  Sora's `MatcherUtils.replaceAll` appends it literally, so an `end` that refers to a capture
+  containing a regular-expression character becomes a different pattern: `(\1)` for `**` ends at
+  once. Third edit to a copied file: `markdown/syntaxes/markdown.tmLanguage.json` splits `bold` and
+  `italic` into an asterisk rule and an underscore rule (`bold_underscore`, `italic_underscore`)
+  with literal ends, same behaviour as VS Code. Still affected until Sora is fixed: Rust `r#"…"#`
+  and Swift `#"…"#` raw strings, Ruby `%w[…]`-style literals with a bracket or `|` delimiter,
+  heredoc names containing `-` or `.`.
 
