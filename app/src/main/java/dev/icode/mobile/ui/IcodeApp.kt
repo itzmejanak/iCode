@@ -244,6 +244,7 @@ fun IcodeApp(
         }
 
         WorkbenchQuestionDialogs(questions, snapshot, gateway, navigation.current, navigation.actions.navigate)
+        TaskDialogs(snapshot.tasks, gateway)
 
         CompositionLocalProvider(
             LocalWorkbenchSnapshot provides snapshot,
