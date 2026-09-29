@@ -121,7 +121,10 @@ fun IcodeApp(
         var pendingDraftRecoveries by remember { mutableStateOf<List<WorkbenchEffect.ConfirmDraftRecovery>>(emptyList()) }
         var pendingRecoveredOverwrite by remember { mutableStateOf<WorkbenchEffect.ConfirmRecoveredOverwrite?>(null) }
         val editorSessions = remember(context, gateway) { CodeEditorSessions(context) }
-        LaunchedEffect(editorSessions, palette) { editorSessions.applyPalette(palette) }
+        // Until the settings load, the palette stands in; the editor's theme is built for the real one.
+        LaunchedEffect(editorSessions, palette, preferences.loaded) {
+            if (preferences.loaded) editorSessions.applyPalette(palette)
+        }
         LaunchedEffect(editorSessions, preferences.editor, preferences.effectiveIndentSize, preferences.effectiveIndentType) {
             editorSessions.applyPreferences(preferences)
         }
