@@ -194,7 +194,7 @@ internal class RuntimeLayout(context: Context) {
             val guestWorkspace = guestWorkspace(workspaceHostPath)
             File(rootfs, guestWorkspace.removePrefix("/")).mkdirs()
             // The logical workspace: the user's folder, then each private mount over it.
-            workspaces.of(workspaceHostPath).binds(guestWorkspace).forEach { bind ->
+            workspaces.of(workspaceHostPath).binds(guestWorkspace) { File(it).isDirectory }.forEach { bind ->
                 add("-b")
                 add("${bind.host}:${bind.guest}")
             }

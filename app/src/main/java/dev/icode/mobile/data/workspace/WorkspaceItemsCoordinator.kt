@@ -75,11 +75,11 @@ internal class WorkspaceItemsCoordinator(
     suspend fun rename(intent: WorkbenchIntent.RenameWorkspaceItem) {
         val root = activeRoot() ?: return fail(intent.requestId, "Open a workspace first")
         val name = intent.newName.trim()
-        val nameError = if (File(intent.location).isDirectory) WorkspaceNameRules.workspaceFolderValidationError(name)
+        val nameError = if (source.physical(intent.location).isDirectory) WorkspaceNameRules.workspaceFolderValidationError(name)
         else WorkspaceNameRules.fileValidationError(name)
         nameError?.let { return fail(intent.requestId, it) }
         (blocked(intent.location) ?: busy(intent.location))?.let { return fail(intent.requestId, it) }
-        runCatching { WorkspaceFiles(File(root)).rename(intent.location, name) }
+        runCatching { WorkspaceFiles(source.workspace(root)).rename(intent.location, name) }
             .onSuccess { target ->
                 followMove(root, intent.location, target.path)
                 workbench.emit(WorkbenchEffect.WorkspaceItemChanged(intent.requestId, target.path))
@@ -91,16 +91,48 @@ internal class WorkspaceItemsCoordinator(
     suspend fun move(intent: WorkbenchIntent.MoveWorkspaceItem) {
         val root = activeRoot() ?: return
         (blocked(intent.location) ?: busy(intent.location) ?: busy(intent.destinationFolder))?.let { return workbench.message(it) }
-        runCatching { WorkspaceFiles(File(root)).move(intent.location, intent.destinationFolder) }
+        val files = WorkspaceFiles(source.workspace(root))
+        if (runCatching { files.crossesStorage(intent.location, intent.destinationFolder) }.getOrDefault(false)) {
+            return moveAcrossStorage(root, files, intent)
+        }
+        runCatching { files.move(intent.location, intent.destinationFolder) }
             .onSuccess { target -> if (target.path != intent.location) followMove(root, intent.location, target.path) }
             .onFailure { error -> workbench.report("workspace", "Unable to move", error) }
+    }
+
+    /**
+     * Between the user's folder and iCode's private storage a move is a copy then a delete, as long
+     * as both: a task. Not cancellable — stopped between the two, the item would be in both places.
+     */
+    private fun moveAcrossStorage(root: String, files: WorkspaceFiles, intent: WorkbenchIntent.MoveWorkspaceItem) {
+        var moved: String? = null
+        tasks.start(
+            title = "Moving…",
+            subject = File(intent.location).name,
+            paths = listOf(intent.location),
+            cancellable = false,
+            failure = "Unable to move",
+            work = { progress ->
+                progress.counted(2 * files.count(intent.location))
+                moved = files.move(intent.location, intent.destinationFolder, progress::item).path
+            },
+            finished = { failure ->
+                val target = moved
+                when {
+                    failure == null && target != null && activeRoot() == root -> followMove(root, intent.location, target)
+                    failure == null && target != null -> library.relocateRecentDocuments(root, intent.location, target)
+                    // Part of it may have been copied or removed: show what is there.
+                    activeRoot() == root -> refreshAfterChange(root)
+                }
+            },
+        )
     }
 
     /** Stopping a copy loses nothing but the partial copy, which goes: it can be cancelled. */
     suspend fun copy(intent: WorkbenchIntent.CopyWorkspaceItem) {
         val root = activeRoot() ?: return
         busy(intent.location)?.let { return workbench.message(it) }
-        val files = WorkspaceFiles(File(root))
+        val files = WorkspaceFiles(source.workspace(root))
         tasks.start(
             title = "Copying…",
             subject = File(intent.location).name,
@@ -123,7 +155,7 @@ internal class WorkspaceItemsCoordinator(
     suspend fun delete(intent: WorkbenchIntent.DeleteWorkspaceItem) {
         val root = activeRoot() ?: return
         (blocked(intent.location) ?: busy(intent.location))?.let { return workbench.message(it) }
-        val files = WorkspaceFiles(File(root))
+        val files = WorkspaceFiles(source.workspace(root))
         tasks.start(
             title = "Deleting…",
             subject = File(intent.location).name,

@@ -45,6 +45,38 @@ class LogicalWorkspaceTest {
         )
     }
 
+    @Test fun `a folder shows the mounts directly in it, and a move of it would leave those at or under it`() {
+        val workspace = workspace(
+            WorkspaceMount("node_modules", StorageClass.LINUX),
+            WorkspaceMount("packages/app/node_modules", StorageClass.LINUX),
+            WorkspaceMount(".next/cache", StorageClass.CACHE),
+        )
+        assertEquals(listOf("node_modules"), workspace.mountsIn("").map { it.path })
+        assertEquals(listOf("packages/app/node_modules"), workspace.mountsIn("packages/app/").map { it.path })
+        assertEquals(emptyList<WorkspaceMount>(), workspace.mountsIn("packages"))
+        assertEquals(listOf("packages/app/node_modules"), workspace.mountsAtOrUnder("packages").map { it.path })
+        assertEquals(listOf("node_modules"), workspace.mountsAtOrUnder("node_modules").map { it.path })
+        assertEquals(emptyList<WorkspaceMount>(), workspace.mountsAtOrUnder("node_modules/semver"))
+        assertEquals(emptyList<WorkspaceMount>(), workspace.mountsAtOrUnder("pack"))
+    }
+
+    @Test fun `a mount whose folder is gone is not bound, nor any mount inside it`() {
+        val workspace = workspace(
+            WorkspaceMount("node_modules", StorageClass.LINUX),
+            WorkspaceMount("packages/app/node_modules", StorageClass.LINUX),
+            WorkspaceMount("packages/app/node_modules/.cache", StorageClass.CACHE),
+        )
+        // packages/app was deleted; the private folder behind its mount is still there.
+        val folders = setOf(user, "$private/linux/packages/app/node_modules")
+        assertEquals(
+            listOf(
+                ProjectionBind(user, "/workspace/RevPlayer"),
+                ProjectionBind("$private/linux/node_modules", "/workspace/RevPlayer/node_modules"),
+            ),
+            workspace.binds("/workspace/RevPlayer") { it in folders },
+        )
+    }
+
     @Test fun `no mount is the user's class, Git's folder, or anything but a plain relative path`() {
         listOf(
             WorkspaceMount("src", StorageClass.USER),

@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.git
 
 import dev.icode.mobile.data.log.BackendLog
+import dev.icode.mobile.data.storage.WorkspaceStorage
 import dev.icode.mobile.data.workspace.DirectFileWorkspaceSource
 import dev.icode.mobile.data.workspace.WorkbenchStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceTree
@@ -66,7 +67,7 @@ class GitWorkspaceCoordinatorTest {
             workbench,
             scope,
             git,
-            WorkspaceTree(workbench, DirectFileWorkspaceSource()) { emptyList() },
+            WorkspaceTree(workbench, DirectFileWorkspaceSource(WorkspaceStorage(File("unused"))) { null }) { emptyList() },
             activeRoot = { root },
             recentWorkspaces = { emptyList() },
             recentDocuments = { emptyList() },

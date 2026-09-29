@@ -216,3 +216,40 @@ terminal in front of the owner:
 Consequences for S4–S6: the Explorer must list a mount from its private folder (the shared side is
 an empty placeholder); iCode's own file operations across the boundary copy then delete; the
 compatibility detector reports `noexec` scripts (`sh gradlew`), committed links and case collisions.
+
+## 8. S4 — the Explorer and editor read the same logical workspace (2026-09-30)
+
+iCode names a file as it always has — its path under the user's folder — so tabs, recents, drafts,
+Git's status, search results and the watcher's folders keep their locations; only where the bytes
+are is asked of the resolver. `LogicalFiles` (`data/storage`) is iCode's side of the projection:
+`bytes(location)`, and `list(folder)` — the folder's own entries plus each mount directly in it, a
+mount shown from its private folder, never from the runtime's empty placeholder.
+
+| Consumer | Through the logical tree |
+|---|---|
+| Explorer rows | `DirectFileWorkspaceSource.listChildren`; a workspace's first listing uses its own root, before it is the open one |
+| editor: open, save, reload, conflicts | read and written where the bytes are; the atomic save's temporary file beside them |
+| new file, new folder | made where the resolver puts the new path |
+| watcher | the shown folders' bytes: an expanded `node_modules` is watched in private storage |
+| changes on disk, restored tabs, recents | existence and times from the bytes |
+| rename, move, copy, delete (`WorkspaceFiles`) | walk the logical tree: a copy of a folder holding a mount copies its contents; a delete removes them, and the runtime's placeholder with its folder — a placeholder that holds something is the user's, and stops the delete |
+| a move across the boundary | a copy then a delete (the kernel's `EXDEV`), run as a task ("Moving…"), each entry counted twice, not cancellable |
+| a mount, or a folder holding one | stays where it is: rename and move are refused with the reason; copy and delete are allowed. Deleting a mount empties it; the folder comes back empty, as the runtime shows it |
+| the folder picker | the phone's storage as it is — no projection |
+| the runtime | as S3b, plus: a mount whose parent folder is gone is not bound, nor any mount inside it, so PRoot does not make folders the user deleted again |
+
+Unchanged by design: search, Quick Open, Git and language services run in the runtime, which
+already sees the same tree (S3b); their paths map back to the same locations.
+
+**Verified** in a cloud session without the phone or the Android SDK (its network denies
+`dl.google.com` and `jitpack.io`): all of `data/` and `domain/` type-checked against Robolectric's
+`android-all` (API 36), with stubs for Termux and androidx; 406 of 407 backend unit tests pass, 10 of
+them new; the one failure (`TreeSizeTest`, an unreadable folder) fails the same without S4 — the
+container runs as root. **Not run:** the Gradle gate (`compileReleaseKotlin`, `testDebugUnitTest`
+with the UI tests, `lintDebug`).
+
+**Owed on the phone, before S5**, in a workspace with a `node_modules` mount after `npm install`:
+the Explorer lists its packages and `.bin` links; a file inside opens, edits and saves; a new file
+there lands in private storage; a file the terminal makes inside appears; Cut from `src` into
+`node_modules` and back (a task, contents intact); rename and move of `node_modules` refused with
+the reason; delete of `node_modules` empties it.
