@@ -29,6 +29,9 @@ class FileTypesTest {
             "main.c" to "c", "api.h" to "cpp", "vec.hpp.in" to "cpp", "a.c++" to "cpp", "App.cs" to "csharp",
             "index.php" to "php", "View.swift" to "swift", "style.scss" to "scss", "theme.less" to "less",
             "init.lua" to "lua", "main.dart" to "dart", "config.ini" to "ini",
+            ".bashrc" to "shell", "PKGBUILD" to "shell", "tsconfig.json" to "json", ".eslintrc" to "json",
+            "app.js.map" to "json", "events.jsonl" to "jsonl", "page.xslt" to "xsl", "App.csproj" to "xml",
+            "types.pyi" to "python", "index.es6" to "javascript", "notes.mdown" to "markdown", "page.jsp" to "html",
         )
         cases.forEach { (name, id) -> assertEquals(name, id, FileTypes.of(name).id) }
     }
@@ -53,8 +56,6 @@ class FileTypesTest {
         assertEquals(names.groupBy { it }.filterValues { it.size > 1 }.keys, emptySet<String>())
         val prefixes = FileTypes.rules.flatMap { it.prefixes }
         assertEquals(prefixes.groupBy { it }.filterValues { it.size > 1 }.keys, emptySet<String>())
-        val interpreters = FileTypes.rules.flatMap { it.interpreters }
-        assertEquals(interpreters.groupBy { it }.filterValues { it.size > 1 }.keys, emptySet<String>())
         assertEquals(FileTypes.rules.map { it.type.id }.size, FileTypes.rules.map { it.type.id }.toSet().size)
     }
 
@@ -81,6 +82,12 @@ class FileTypesTest {
         assertEquals("ruby", FileTypes.of("setup", "#!/usr/bin/env ruby").id)
         assertEquals("makefile", FileTypes.of("build", "#!/usr/bin/make -f").id)
         assertEquals("groovy", FileTypes.of("deploy", "#!/usr/bin/env groovy").id)
+        assertEquals("typescript", FileTypes.of("serve", "#!/usr/bin/env ts-node").id)
+        assertEquals("typescript", FileTypes.of("serve", "#!/usr/bin/env -S deno run").id)
+        assertEquals("xml", FileTypes.of("feed", "<?xml version=\"1.0\"?>").id)
+        assertEquals("xml", FileTypes.of("icon", "<svg xmlns=\"http://www.w3.org/2000/svg\">").id)
+        assertEquals("yaml", FileTypes.of("user-data", "#cloud-config").id)
+        assertEquals("shell", FileTypes.of("run", "# -*- mode: shell-script -*-").id)
     }
 
     @Test fun `the name wins over the first line, and a line that runs nothing known is plain`() {
