@@ -44,7 +44,8 @@ import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.domain.SystemPermission
 import dev.icode.mobile.domain.WorkspacePreferences
 import dev.icode.mobile.domain.WorkspacePreferencesRepository
-import dev.icode.mobile.domain.GitOperationState
+import dev.icode.mobile.domain.GitActionRules
+import dev.icode.mobile.domain.GitSyncAction
 import dev.icode.mobile.ui.editor.CodeEditorSessions
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -139,15 +140,16 @@ fun IcodeApp(
             onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
         }
         var lastAutomaticFetch by remember { mutableStateOf<Pair<String, Int>?>(null) }
-        LaunchedEffect(root, resumeGeneration, preferences, snapshot.gitRepository?.hasRemote, snapshot.runtimeHealthy) {
+        val canFetch = GitActionRules.syncBlocked(GitSyncAction.Fetch, snapshot) == null
+        LaunchedEffect(root, resumeGeneration, preferences, canFetch, snapshot.runtimeHealthy) {
             val key = root?.let { it to resumeGeneration }
             if (!captureMode && resumeGeneration >= 0 && key != null && key != lastAutomaticFetch &&
                 preferences.loaded && preferences.loadError == null &&
                 preferences.workspaceLocation == root && preferences.autoFetch &&
-                snapshot.runtimeHealthy && snapshot.gitRepository?.hasRemote == true
+                snapshot.runtimeHealthy && canFetch
             ) {
                 lastAutomaticFetch = key
-                if (snapshot.gitOperation !is GitOperationState.Running) gateway.dispatch(WorkbenchIntent.FetchRemote)
+                gateway.dispatch(WorkbenchIntent.FetchRemote)
             }
         }
         val openDocumentLocations = snapshot.openDocuments.map { it.location }.toSet()

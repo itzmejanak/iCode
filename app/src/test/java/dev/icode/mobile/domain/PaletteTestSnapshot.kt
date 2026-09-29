@@ -2,7 +2,7 @@ package dev.icode.mobile.domain
 
 private const val ROOT = "/storage/emulated/0/projects/app"
 
-/** A workspace where every palette command can run: Git with a remote, a staged change, an unsaved file. */
+/** A workspace where every palette command can run: a branch tracking its remote, a staged change, an unsaved file. */
 internal val paletteReadySnapshot = WorkbenchSnapshot(
     workspaces = emptyList(),
     files = emptyList(),
@@ -16,6 +16,7 @@ internal val paletteReadySnapshot = WorkbenchSnapshot(
         authorEmail = null,
         branches = listOf("main"),
         lastCommit = null,
+        upstream = "origin/main",
     ),
     diagnostics = emptyList(),
     languageServices = emptyList(),

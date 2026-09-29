@@ -2,9 +2,11 @@ package dev.icode.mobile.data.git
 
 import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.workspace.WorkbenchStateHolder
+import dev.icode.mobile.domain.GitActionRules
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.GitRemoteRules
+import dev.icode.mobile.domain.GitSyncAction
 import java.io.File
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
@@ -38,10 +40,12 @@ internal class GitTransferCoordinator(
     private var running = ""
 
     fun fetch(): Job? = start("Fetching") { id ->
+        if (refused(GitSyncAction.Fetch)) return@start
         runRemote(id, "Fetching") { workspace, config, onStderr -> git.fetch(workspace, config, onStderr) }
     }
 
     fun pull(): Job? = start("Pulling") { id ->
+        if (refused(GitSyncAction.Pull)) return@start
         runRemote(id, "Pulling") { workspace, config, onStderr -> git.pull(workspace, config, onStderr) }
     }
 
@@ -83,12 +87,19 @@ internal class GitTransferCoordinator(
 
     private fun isCurrent(id: Long) = id == operations.get()
 
+    /**
+     * Checked again as the job starts: the screen offered the action by the same
+     * rule, but the repository may have changed since. Says why, in its words.
+     */
+    private suspend fun refused(action: GitSyncAction): Boolean {
+        val reason = workbench.current.gitRepository?.let { GitActionRules.syncBlocked(action, it) } ?: return false
+        workbench.message(reason)
+        return true
+    }
+
     private suspend fun push(id: Long) {
+        if (refused(GitSyncAction.Push)) return
         val repository = workbench.current.gitRepository
-        if (repository?.detached == true) {
-            workbench.message("HEAD is detached. Check out a branch before pushing")
-            return
-        }
         val needsUpstream = repository?.upstream == null
         runRemote(id, "Pushing") { workspace, config, onStderr ->
             git.push(
