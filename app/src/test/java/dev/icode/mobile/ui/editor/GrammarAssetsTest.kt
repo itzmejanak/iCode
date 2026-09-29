@@ -3,6 +3,7 @@ package dev.icode.mobile.ui.editor
 import dev.icode.mobile.domain.FileTypes
 import java.io.File
 import org.eclipse.tm4e.languageconfiguration.internal.model.LanguageConfiguration
+import org.json.JSONArray
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -26,6 +27,31 @@ class GrammarAssetsTest {
         val opened = FileTypes.rules.mapNotNull { it.type.grammar }.toSet()
         val included = ShippedGrammars.all.flatMap { it.includes }.toSet()
         assertEquals(emptySet<String>(), shipped - opened - included)
+    }
+
+    /**
+     * The engine in Sora reads every entry of a captures table as a rule; VS Code's
+     * skips the rest. A note such as YAML's `"comment": "https://…"` there made the
+     * editor's analysis fail for YAML and for Markdown, which embeds it.
+     */
+    @Test fun `every capture is a rule the editor's engine can read`() {
+        val languages = JSONObject(File("src/main/assets/textmate/languages.json").readText()).getJSONArray("languages")
+        val notRules = (0 until languages.length()).map { File("src/main/assets", languages.getJSONObject(it).getString("grammar")) }
+            .filter { it.name.endsWith(".json") }
+            .flatMap { file -> captureEntries(JSONObject(file.readText())).filter { it.second !is JSONObject }.map { "${file.name} ${it.first}" } }
+        assertEquals(emptyList<String>(), notRules)
+    }
+
+    private fun captureEntries(value: Any?): List<Pair<String, Any?>> = when (value) {
+        is JSONObject -> value.keys().asSequence().toList().flatMap { key: String ->
+            val child = value.get(key)
+            val own = if (key.endsWith("aptures") && child is JSONObject) {
+                child.keys().asSequence().toList().map { capture: String -> capture to child.get(capture) }
+            } else emptyList()
+            own + captureEntries(child)
+        }
+        is JSONArray -> (0 until value.length()).flatMap { captureEntries(value.get(it)) }
+        else -> emptyList()
     }
 
     /** Each language's brackets, comments and indent rules, read by the parser the editor itself uses. */
