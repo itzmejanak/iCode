@@ -88,6 +88,25 @@ from an iCode terminal (a process started from `adb` is not in iCode's cgroup an
 Nothing is claimed about the Fast Freezer until the matrix says it. If some scenario cannot be kept
 running on this phone, that is said to the user, as the session's state and in Settings.
 
+**Measured (2026-09-30, a heartbeat started in an iCode terminal, one line a second):**
+
+| Scenario | Ran | Freezer's own log (`Hiber/sceneManager`) |
+|---|---|---|
+| iCode in front | 90–95% | — |
+| launcher in front | 5–14% | `freeze uid 10889` ~4 s after Home; brief thaws for `bumpService`, `wakelock`, network `packet` |
+| another app (Settings) in front | 25% | frozen after ~25 s |
+| screen off | frozen until the user returned | `unfreeze … reason:activity` |
+| launcher, then screen off, **with a partial wake lock held** by the service | 5% | `freeze` 02:34:33 → `unfreeze reason:activity` 02:36:22 — the held lock did not prevent it |
+
+iCode's app-info Battery page reads Unrestricted. Phone Master's "Freezer" page is a manual list
+for unused apps, not this. [Mobile-Harness](https://github.com/techjarves/Mobile-Harness)'s
+`RuntimeExecutionService` does the same as iCode — a `specialUse` foreground service, a partial wake
+lock acquired automatically while a task runs, battery unrestricted — so it would be frozen alike
+on this phone. **Parked by the owner (2026-09-30)**: the core storage plan goes first; R1 resumes
+with the automatic wake lock (as Mobile-Harness), the runtime owned by the process rather than the
+Activity, and truthful session state, since on a Transsion phone continuation cannot be
+guaranteed.
+
 ## 4. The logical workspace (storage-logic.md)
 
 1. **One logical tree per workspace**, `/workspace/<name>` in the runtime and in iCode, whose
