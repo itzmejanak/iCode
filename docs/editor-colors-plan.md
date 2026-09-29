@@ -1,6 +1,6 @@
 # Editor colours for every file type — plan
 
-Status: **in progress** (2026-09-29): E1–E5 done, device pass under way (§6). Owner's request:
+Status: **done** (2026-09-29): E1–E6 done, checked on the phone (§6, §7). Owner's request:
 "make sure to [colour] all the file types for editors, nothing left over, and make sure colours
 work on all theme types, 100% accurate, no guess and no assumptions; if the design is wrong and
 hard to scale, change it — in a clean way, not just jumping into new code". Follows
@@ -83,10 +83,8 @@ separate renderer); the terminal's colours (already one palette, S6 / accent §7
 - **On the phone** (2026-09-29, a scratch workspace with one sample per type), found and fixed:
   - Makefile configuration unreadable by the editor's parser; YAML and Markdown uncoloured (a
     capture note); both fixed with tests.
-  - The first file opened freezes the screen ~1.4 s: `GrammarRegistry.loadGrammars` parses all
-    42 grammars on the main thread (measured). Colours of a large grammar arrive 2–3 s after the
-    text on first use (C++). **Open** — the next step (load the file's grammar only, off the main
-    thread).
+  - The first file opened froze the screen ~1.4 s: `GrammarRegistry.loadGrammars` parsed all
+    42 grammars on the main thread (measured). Fixed by **E6** (§7).
   - The engine test (EditorColours, run on the JVM and on the phone) found: plain-text rules never
     winning (tm4e's colour 0), CSS selectors and three other constructs lost to joni (native
     Oniguruma now), VS Code's new YAML grammar mis-tokenizing (long-standing grammar now),
@@ -98,3 +96,44 @@ separate renderer); the terminal's colours (already one palette, S6 / accent §7
     its runtime and data (AGP uninstalls after `connectedAndroidTest`). The app is reinstalled;
     `gradle.properties` now keeps it installed after such a run, and such runs need the owner's OK.
 
+## 7. E6 — no freeze on the first file (done 2026-09-29)
+
+Measured on the phone: the first file opened after start blocks the screen ~1.4 s —
+`GrammarRegistry.loadGrammars` parses all 42 grammars on the main thread when the first editor
+is made. Sora cannot load one grammar lazily: `findGrammar` returns only loaded grammars, and the
+definitions of all must be registered for embedded languages to resolve. So:
+
+- the grammars load once, **off the main thread**, starting as soon as the app knows its palette
+  (the theme must be current before grammars load, which stays on the main thread: ~56 ms);
+- a file opened before they are ready shows its text at once, uncoloured, and takes its grammar
+  when they are — no screen freeze; a failure is said as today ("Syntax coloring is unavailable");
+- the first use of a large grammar still colours a moment later (C++ ~2–3 s, measured): tm4e
+  compiles its rules on Sora's analysis thread, which does not block the screen.
+
+Check on the phone: time from tap to text and to colours, cold start, by screenshot timeline.
+
+**Done.** `TextMateAssets` loads the grammars once on a background thread, started when the app
+applies its palette; `CodeEditorSession` shows a file as plain text until they are ready, then gives
+it its grammar (unless another file has taken the view meanwhile); a failure falls back to plain
+text and says so, as before. Two faults found on the way, both fixed:
+
+- **Tokens drawn in the default colour when the grammars arrived after the file.** Sora gives tm4e
+  its theme only when the theme *changes* after the grammar registry exists; the old code happened
+  to re-set the same theme on every editor. The registry is now made on the main thread and handed
+  the current theme before loading starts; later changes reach it through Sora's listener.
+- **The theme was built twice at start** — for the stand-in Dark palette used until the settings
+  load, then for the owner's. The editor now takes the palette only once the settings have loaded.
+
+On the phone (clean build, cold start):
+
+| | Before | After |
+|---|---|---|
+| Main thread on the first file | ~1.4 s frozen (grammars) | no skipped frame (Choreographer) |
+| `box.cpp`: tap → text | after the freeze | ≤ 0.5 s |
+| `box.cpp`: tap → colours | 2–3 s | ~1.6 s |
+| Theme build at start | on the first file, per palette | once, ~55–110 ms, after settings load |
+| Grammars (background) | — | 1.2–2.2 s after start |
+
+A file opened before the grammars are ready was checked with a build that delayed them by 5 s
+(not committed): its text showed at once, uncoloured, and took its colours as soon as they
+loaded.

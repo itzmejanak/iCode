@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
@@ -32,7 +33,7 @@ import io.github.rosemoe.sora.widget.CodeEditor
 /** One view/content/undo history shared by the Editor and Find routes. */
 class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePalette.Dark) {
     val editor = CodeEditor(context)
-    var coloringError: String? = null
+    var coloringError: String? by mutableStateOf(null)
         private set
 
     private var location: String? = null
@@ -147,7 +148,7 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
     fun applyPalette(next: IcodePalette) {
         if (appliedPalette == next) return
         coloringError = runCatching {
-            TextMateAssets.setTheme(editor.context.applicationContext, next)
+            TextMateAssets.setTheme(next)
             editor.colorScheme = PaletteColorScheme(ThemeRegistry.getInstance(), next)
             appliedPalette = next
             null
@@ -163,23 +164,35 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
         val nextScope = FileTypes.of(name, document.text.substringBefore('\n').take(FIRST_LINE_CHARS)).grammar
         if (nextScope == scope) return
         scope = nextScope
-        runCatching {
-            editor.setEditorLanguage(if (nextScope == null || coloringError != null) {
-                plainTextLanguage
-            } else {
-                TextMateLanguage.create(nextScope, false).apply {
+        if (nextScope == null || coloringError != null) {
+            editor.setEditorLanguage(plainTextLanguage)
+            return
+        }
+        // The text shows at once; its colours follow when the grammars have loaded (TextMateAssets).
+        if (!TextMateAssets.grammarsReady) editor.setEditorLanguage(plainTextLanguage)
+        TextMateAssets.whenGrammarsLoaded(editor.context) { failure ->
+            // Another file, or none, since the request: its own request applies instead.
+            if (scope != nextScope || released) return@whenGrammarsLoaded
+            runCatching {
+                failure?.let { throw it }
+                editor.setEditorLanguage(TextMateLanguage.create(nextScope, false).apply {
                     setTabSize(preferences.effectiveIndentSize)
                     useTab(preferences.effectiveIndentType == IndentType.Tabs)
-                }
-            })
-        }.onFailure { error ->
-            Log.e("iCodeEditor", "Grammar load failed for $name", error)
-            coloringError = "Syntax coloring is unavailable for $name"
-            editor.setEditorLanguage(plainTextLanguage)
+                })
+            }.onFailure { error ->
+                Log.e("iCodeEditor", "Grammar load failed for $name", error)
+                coloringError = "Syntax coloring is unavailable for $name"
+                editor.setEditorLanguage(plainTextLanguage)
+            }
         }
     }
 
-    fun release() = editor.release()
+    private var released = false
+
+    fun release() {
+        released = true
+        editor.release()
+    }
 }
 
 private class ConfigurablePlainTextLanguage : EmptyLanguage() {
@@ -206,8 +219,13 @@ class CodeEditorSessions(private val context: Context) {
         sessions.values.forEach { it.applyPreferences(next) }
     }
 
+    /** Also starts the grammars loading, at app start, so the first file need not wait for them. */
     fun applyPalette(next: IcodePalette) {
         palette = next
+        runCatching {
+            TextMateAssets.setTheme(next)
+            TextMateAssets.preload(context)
+        }.onFailure { error -> Log.e("iCodeEditor", "TextMate theme setup failed", error) }
         sessions.values.forEach { it.applyPalette(next) }
     }
 

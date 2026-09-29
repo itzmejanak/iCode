@@ -1,6 +1,9 @@
 package dev.icode.mobile.ui.editor
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
+import androidx.annotation.MainThread
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import dev.icode.mobile.designsystem.IcodePalette
@@ -17,6 +20,7 @@ import io.github.rosemoe.sora.widget.schemes.EditorColorScheme
 import org.eclipse.tm4e.core.registry.IThemeSource
 import org.json.JSONArray
 import org.json.JSONObject
+import kotlin.concurrent.thread
 
 /**
  * The editor's TextMate theme for a palette, made from [syntaxScopes] and the
@@ -140,23 +144,68 @@ internal class PaletteColorScheme(registry: ThemeRegistry, private val palette: 
     private fun applyPaletteColors() = editorColors(palette).forEach { (id, color) -> setColor(id, color) }
 }
 
-/** The shipped grammars, loaded once, and each palette kind's theme, built the first time it is shown. */
+/**
+ * The shipped grammars and each palette kind's theme. Main thread, except the
+ * grammars' one load: parsing all 42 took ~1.4 s on the owner's phone, and done
+ * where the first editor was made it froze the screen. They load once in the
+ * background instead, after a theme is current (their colours resolve against
+ * one), and an editor that needs them first draws its text uncoloured.
+ */
 internal object TextMateAssets {
-    @Volatile private var grammarsLoaded = false
+    private sealed interface Grammars {
+        data object NotStarted : Grammars
+        data object Loading : Grammars
+        data object Ready : Grammars
+        data class Failed(val error: Throwable) : Grammars
+    }
 
-    @Synchronized fun setTheme(context: Context, palette: IcodePalette) {
+    private val main = Handler(Looper.getMainLooper())
+    private var grammars: Grammars = Grammars.NotStarted
+    private val waiting = mutableListOf<(Throwable?) -> Unit>()
+
+    val grammarsReady: Boolean @MainThread get() = grammars == Grammars.Ready
+
+    /** Makes [palette]'s theme current, building it the first time; every editor and the grammars take it, so only when it is not. */
+    @MainThread fun setTheme(palette: IcodePalette) {
         val registry = ThemeRegistry.getInstance()
         val name = themeName(palette.kind)
+        if (registry.currentThemeModel?.name == name) return
         if (registry.findThemeByThemeName(name) == null) {
             val source = IThemeSource.fromString(IThemeSource.ContentType.JSON, editorTheme(palette).toString())
             registry.loadTheme(ThemeModel(source, name).apply { isDark = palette.kind != PaletteKind.Light }, true)
         }
         check(registry.setTheme(name)) { "TextMate theme $name is unavailable" }
-        // Grammars resolve their colours against a current theme, so they come after one.
-        if (!grammarsLoaded) {
-            FileProviderRegistry.getInstance().addFileProvider(AssetsFileResolver(context.assets))
-            GrammarRegistry.getInstance().loadGrammars("textmate/languages.json")
-            grammarsLoaded = true
+    }
+
+    /** Starts the grammars loading, once; a theme must be current ([setTheme]). */
+    @MainThread fun preload(context: Context) = whenGrammarsLoaded(context) { }
+
+    /** Runs [onLoaded] on the main thread once the grammars are loaded, with the failure if they could not be. */
+    @MainThread fun whenGrammarsLoaded(context: Context, onLoaded: (failure: Throwable?) -> Unit) {
+        when (val state = grammars) {
+            Grammars.Ready -> return onLoaded(null)
+            is Grammars.Failed -> return onLoaded(state.error)
+            Grammars.Loading -> waiting += onLoaded
+            Grammars.NotStarted -> {
+                waiting += onLoaded
+                grammars = Grammars.Loading
+                // tm4e colours tokens by the theme its registry was handed, and Sora hands one over
+                // only on a later change: without this, every token was drawn in the default colour.
+                val registry = runCatching {
+                    FileProviderRegistry.getInstance().addFileProvider(AssetsFileResolver(context.applicationContext.assets))
+                    val theme = checkNotNull(ThemeRegistry.getInstance().currentThemeModel) { "No TextMate theme is current" }
+                    GrammarRegistry.getInstance().apply { setTheme(theme) }
+                }
+                thread(name = "textmate-grammars", priority = Thread.MIN_PRIORITY) {
+                    val result = registry.mapCatching { it.loadGrammars("textmate/languages.json") }
+                    main.post {
+                        grammars = result.exceptionOrNull()?.let(Grammars::Failed) ?: Grammars.Ready
+                        val loaded = waiting.toList()
+                        waiting.clear()
+                        loaded.forEach { it(result.exceptionOrNull()) }
+                    }
+                }
+            }
         }
     }
 }
