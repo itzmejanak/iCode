@@ -762,3 +762,13 @@ developer-tools onboarding step (Todo 5).
   "MiB" for the other, both binary) and — found while measuring — the editor's size limit,
   whose message typed "5 MB" beside its constant, now format the constant. 1 test. Gate: 466
   tests; lint 0 errors / 11 warnings; both guards pass.
+- G1: the guards now hold what S8 and X fixed. Backend guard: `store-owner` — each
+  SharedPreferences file or DataStore is opened in one file, and under a name the guard can read
+  (a literal or the file's own constant; today 8 stores, 8 files — R11 counted 9, the ninth
+  being the drafts folder, which is files, not a store); `sha256-owner` — SHA-256 only in
+  `Sha256`; `byte-format` — no byte count formatted outside `ByteSize` (comments may quote an
+  example). UI guard: `screen-lines` became `ui-lines`, the 300-line budget for every `ui/`
+  file, so `IcodeApp` and the editor and terminal views are held too (R9). Each rule was run
+  against a planted violation and fails it; the planted run found and fixed two faults of the
+  new rule itself (only a file's first store was read; an unreadable name ended the script
+  silently under `set -e`). All start at zero debt.

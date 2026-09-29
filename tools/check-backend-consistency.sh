@@ -14,6 +14,10 @@
 #   git-stderr-file    the old shared Git stderr file: every command has its own
 #   workspace-git-cli  Git commands issued from data/workspace instead of a Git owner
 #   screen-data-import screens or design system reaching into data/ past the gateway
+#   store-owner        a SharedPreferences file or DataStore opened in more than one file,
+#                      or under a name this guard cannot read (G1)
+#   sha256-owner       SHA-256 computed outside data/io/Sha256.kt (G1)
+#   byte-format        a byte count formatted outside domain/ByteSize.kt (G1)
 
 set -euo pipefail
 
@@ -58,6 +62,42 @@ count_matches 'gitCli\.(run|runIn|runScript)\(' "$src_root/data/workspace" | rep
 
 # 5. Screens and the design system see the gateway contract, not data/.
 count_matches '^import dev\.icode\.mobile\.data\.' "$src_root/ui/screens" "$src_root/designsystem" | report "screen-data-import"
+
+# 6. One owner per store: two files opening the same preferences would be two writers of one
+#    file. The name is the literal, or the file's own `const val NAME = "..."`.
+declare -A store_files=()
+while read -r file; do
+    [[ -z "$file" ]] && continue
+    while read -r arg; do
+        if [[ "$arg" == \"* ]]; then
+            name="${arg//\"/}"
+        else
+            name="$({ grep -oE "const val $arg = \"[^\"]+\"" "$file" || true; } | sed -E 's/.*= "(.*)"/\1/')"
+        fi
+        if [[ -z "$name" ]]; then
+            emit "store-owner" "${file#"$repo_root/"}" 1
+        else
+            store_files[$name]+="${file#"$repo_root/"} "
+        fi
+    done < <(grep -oE '(getSharedPreferences|preferencesDataStore)\((name = )?[^,)]+' "$file" | sed -E 's/.*\((name = )?//')
+done < <(grep -rlE 'getSharedPreferences\(|preferencesDataStore\(' "$src_root" --include='*.kt' | sort)
+for name in "${!store_files[@]}"; do
+    read -ra owners <<< "${store_files[$name]}"
+    if (( ${#owners[@]} > 1 )); then
+        for owner in "${owners[@]}"; do emit "store-owner" "$owner" "${#owners[@]}"; done
+    fi
+done
+
+# 7. One digest: every stored fingerprint and key is Sha256's lowercase hex.
+count_matches '"SHA-?256"|MessageDigest' "$src_root" | { grep -v '/data/io/Sha256\.kt ' || true; } | report "sha256-owner"
+
+# 8. One byte vocabulary: sizes people read go through ByteSize ("MB" and "MiB" for one unit,
+#    integer division, a limit typed beside its constant — all seen before G1).
+#    Comments may quote an example.
+{ grep -rEn '/ *\(?1024\b|"[^"]*([0-9]|\}) ?(KB|MB|GB|KiB|MiB|GiB)\b' "$src_root" --include='*.kt' 2>/dev/null || true; } \
+    | { grep -vE '^[^:]+:[0-9]+:[[:space:]]*(\*|//|/\*)' || true; } \
+    | { grep -v '/domain/ByteSize\.kt:' || true; } \
+    | awk -F: '{print $1}' | sort | uniq -c | awk '{print $2 " " $1}' | report "byte-format"
 
 if [[ "${1:-}" == "--update" ]]; then
     {
