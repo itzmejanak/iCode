@@ -55,10 +55,7 @@ fun LanguageDetailScreen(actions: NavigationActions) {
             service?.name ?: "Add Language Service",
             onBack = actions.back,
             actions = {
-                if (service != null) StatusLabel(
-                    status.name,
-                    if (status == LanguageServiceStatus.Running) IcodeColors.Green else IcodeColors.TextSecondary,
-                )
+                if (service != null) StatusLabel(status.name, status.tone())
             },
         )
         Column(
