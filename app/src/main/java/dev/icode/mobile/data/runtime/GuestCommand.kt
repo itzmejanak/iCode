@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.runtime
 
 import dev.icode.mobile.data.io.readAtMost
+import dev.icode.mobile.domain.ByteSize
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.IOException
@@ -119,7 +120,7 @@ internal class GuestCommand(private val layout: RuntimeLayout) {
     ): Captured {
         var stdout = ByteArray(0)
         val result = run(mount, command, stderrName, environment, onStderr) { input ->
-            stdout = input.readAtMost(maxStdoutBytes, "The command printed more than ${maxStdoutBytes / (1024 * 1024)} MB and was stopped")
+            stdout = input.readAtMost(maxStdoutBytes, "The command printed more than ${ByteSize.format(maxStdoutBytes.toLong())} and was stopped")
             false
         }
         return Captured(result.exitCode, String(stdout, StandardCharsets.UTF_8), result.stderr)
@@ -229,7 +230,7 @@ internal class GuestCommand(private val layout: RuntimeLayout) {
                     record.reset()
                 } else {
                     if (record.size() >= MAX_RECORD_BYTES) {
-                        throw IOException("Guest command output contained a record larger than ${MAX_RECORD_BYTES / (1024 * 1024)} MiB")
+                        throw IOException("Guest command output contained a record larger than ${ByteSize.format(MAX_RECORD_BYTES.toLong())}")
                     }
                     record.write(byte)
                 }

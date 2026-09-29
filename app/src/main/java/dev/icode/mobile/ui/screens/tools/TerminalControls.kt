@@ -70,8 +70,7 @@ internal fun RuntimeGate(runtime: RuntimeState, onInstall: () -> Unit) {
             is RuntimeState.Downloading -> {
                 MonoLine(runtime.label, color = IcodeColors.TextSecondary)
                 MonoLine(
-                    "${runtime.receivedBytes / (1024 * 1024)} MB" +
-                        (runtime.fraction?.let { " (${(it * 100).toInt()}%)" } ?: ""),
+                    runtime.transferred + (runtime.fraction?.let { " (${(it * 100).toInt()}%)" } ?: ""),
                     color = IcodeColors.Accent,
                 )
             }

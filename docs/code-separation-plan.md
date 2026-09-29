@@ -756,3 +756,9 @@ developer-tools onboarding step (Todo 5).
     lets it), so a new intent could go unrouted; kept as it is.
   Gate: 465 tests; lint 0 errors / 11 warnings; both guards pass (`RuntimeInstaller` leaves the
   allowlist). Phone check pending with X3's.
+- X5 (R10): every byte count people read goes through `ByteSize`. The terminal's runtime gate
+  said "N MB" by integer division while the install screen said "received / total": both now
+  read `RuntimeState.Downloading.transferred`. `GuestCommand`'s two limits ("MB" for one,
+  "MiB" for the other, both binary) and — found while measuring — the editor's size limit,
+  whose message typed "5 MB" beside its constant, now format the constant. 1 test. Gate: 466
+  tests; lint 0 errors / 11 warnings; both guards pass.

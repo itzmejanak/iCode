@@ -36,4 +36,9 @@ class ByteSizeTest {
         assertEquals("16.0 GB", ByteSize.format(16L * 1024 * 1024 * 1024))
         assertEquals("128.0 GB", ByteSize.format(137_438_953_472L))
     }
+
+    @Test fun `a download says what arrived of the whole, in the same units`() {
+        assertEquals("12 MB / 480 MB", RuntimeState.Downloading(12L * 1024 * 1024, 480L * 1024 * 1024, "").transferred)
+        assertEquals("3.5 MB", RuntimeState.Downloading(3_670_016L, totalBytes = -1, label = "").transferred)
+    }
 }
