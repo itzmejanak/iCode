@@ -689,3 +689,16 @@ developer-tools onboarding step (Todo 5).
   palette's highlighted command) and theme swatches now say they are selected, as the bottom
   bar's toggles did. The palette-preview note is gone. Gate: 456 tests; lint 0 errors / 11
   warnings; both guards pass.
+- S8.4b: `SettingLimits` (domain) is the one statement of the font sizes (9–30 sp), indent sizes
+  (1–8) and UI text scales (100–150 %, steps of 5), with the slider's mapping; the controls, the
+  store (writes and read-back) and pinch zoom use it — the editor zoomed to 28 sp while its
+  setting went to 30, and the terminal zoomed by a factor (×0.6–×2.4) to as much as 72 sp. The
+  store's read-back defaults are the settings types' own, not retyped. `SettingSaver` is the one
+  save-and-report path of the four forms: it saves nothing while the settings are loading or
+  unreadable (the Terminal font stepper was the one control that did), and a cancelled save is
+  not a failure (Workspace's copy said it was). Workspace: the inherited tab type comes from the
+  domain; `watcherExcludes` — written by nothing, read by nothing, three sample patterns in the
+  capture — is gone, and its section says what is true: "Not available yet. The watcher follows
+  only the folders open in the Explorer and the folders of open files." Whether exclusions
+  become a feature is the owner's. 5 tests. Gate: 461 tests; lint 0 errors / 11 warnings; both
+  guards pass.

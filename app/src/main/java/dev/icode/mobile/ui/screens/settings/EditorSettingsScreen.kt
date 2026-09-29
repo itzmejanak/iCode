@@ -9,11 +9,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeDropdown
@@ -28,31 +23,17 @@ import dev.icode.mobile.designsystem.SettingRow
 import dev.icode.mobile.designsystem.Stepper
 import dev.icode.mobile.domain.AutoSaveMode
 import dev.icode.mobile.domain.EditorFontFamily
+import dev.icode.mobile.domain.SettingLimits
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.ui.LocalWorkspacePreferences
 import dev.icode.mobile.ui.LocalWorkspacePreferencesRepository
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.launch
 
 /** Application editor preferences. Values come from the same store as workspace overrides. */
 @Composable
 fun EditorSettingsScreen(actions: NavigationActions) {
     val preferences = LocalWorkspacePreferences.current
     val repository = LocalWorkspacePreferencesRepository.current
-    val scope = rememberCoroutineScope()
-    var saveError by remember { mutableStateOf<String?>(null) }
-    fun update(block: suspend () -> Unit) {
-        scope.launch {
-            try {
-                block()
-                saveError = null
-            } catch (error: CancellationException) {
-                throw error
-            } catch (error: Exception) {
-                saveError = error.message ?: "Could not save setting"
-            }
-        }
-    }
+    val saver = rememberSettingSaver(preferences, "Could not save setting")
 
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Editor Settings", onBack = actions.back)
@@ -69,12 +50,16 @@ fun EditorSettingsScreen(actions: NavigationActions) {
                 else -> {
                     val editor = preferences.editor
                     SectionLabel("General")
-                    saveError?.let { Text(it, style = IcodeType.Caption.copy(color = IcodeColors.Error)) }
+                    saver.error?.let { Text(it, style = IcodeType.Caption.copy(color = IcodeColors.Error)) }
                     SettingRow("Font Size", Modifier.fillMaxWidth()) {
                         Stepper(
                             value = editor.fontSizeSp,
-                            onDecrement = { if (editor.fontSizeSp > 9) update { repository.setEditorFontSize(editor.fontSizeSp - 1) } },
-                            onIncrement = { if (editor.fontSizeSp < 30) update { repository.setEditorFontSize(editor.fontSizeSp + 1) } },
+                            onDecrement = {
+                                if (editor.fontSizeSp > SettingLimits.fontSizesSp.first) saver.save { repository.setEditorFontSize(editor.fontSizeSp - 1) }
+                            },
+                            onIncrement = {
+                                if (editor.fontSizeSp < SettingLimits.fontSizesSp.last) saver.save { repository.setEditorFontSize(editor.fontSizeSp + 1) }
+                            },
                         )
                     }
                     IcodeDropdown(
@@ -82,15 +67,15 @@ fun EditorSettingsScreen(actions: NavigationActions) {
                         options = EditorFontFamily.entries,
                         selected = editor.fontFamily,
                         optionLabel = { if (it == EditorFontFamily.PlexMono) "IBM Plex Mono" else "System Monospace" },
-                        onSelect = { family -> update { repository.setEditorFontFamily(family) } },
+                        onSelect = { family -> saver.save { repository.setEditorFontFamily(family) } },
                     )
                     SettingRow("Tab Size", Modifier.fillMaxWidth()) {
                         SegmentedControl(listOf("2", "4"), preferences.globalIndentSize.toString()) { selected ->
-                            update { repository.setGlobalIndentSize(selected.toInt()) }
+                            saver.save { repository.setGlobalIndentSize(selected.toInt()) }
                         }
                     }
                     SettingRow("Word Wrap", Modifier.fillMaxWidth()) {
-                        IcodeToggle(editor.wordWrap) { update { repository.setWordWrap(it) } }
+                        IcodeToggle(editor.wordWrap) { saver.save { repository.setWordWrap(it) } }
                     }
                     SectionLabel("Save", Modifier.padding(top = IcodeSpacing.Space2))
                     IcodeDropdown(
@@ -104,7 +89,7 @@ fun EditorSettingsScreen(actions: NavigationActions) {
                                 AutoSaveMode.AfterFiveSeconds -> "After 5 seconds"
                             }
                         },
-                        onSelect = { mode -> update { repository.setAutoSave(mode) } },
+                        onSelect = { mode -> saver.save { repository.setAutoSave(mode) } },
                     )
                     SettingRow(
                         title = "Format On Save",
@@ -115,13 +100,13 @@ fun EditorSettingsScreen(actions: NavigationActions) {
                     }
                     SectionLabel("Display", Modifier.padding(top = IcodeSpacing.Space2))
                     SettingRow("Line Numbers", Modifier.fillMaxWidth()) {
-                        IcodeToggle(editor.lineNumbers) { update { repository.setLineNumbers(it) } }
+                        IcodeToggle(editor.lineNumbers) { saver.save { repository.setLineNumbers(it) } }
                     }
                     SettingRow("Minimap", Modifier.fillMaxWidth(), subtitle = "Experimental editor feature") {
-                        IcodeToggle(editor.minimap) { update { repository.setMinimap(it) } }
+                        IcodeToggle(editor.minimap) { saver.save { repository.setMinimap(it) } }
                     }
                     SettingRow("Bracket Matching", Modifier.fillMaxWidth()) {
-                        IcodeToggle(editor.bracketMatching) { update { repository.setBracketMatching(it) } }
+                        IcodeToggle(editor.bracketMatching) { saver.save { repository.setBracketMatching(it) } }
                     }
                 }
             }

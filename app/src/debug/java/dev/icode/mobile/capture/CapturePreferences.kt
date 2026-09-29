@@ -21,7 +21,6 @@ class CapturePreferences : WorkspacePreferencesRepository {
                 workspaceLocation = workspaceLocation,
                 indentSizeOverride = 2,
                 autoFetch = true,
-                watcherExcludes = listOf("**/node_modules/**", "**/build/**", "**/.git/**"),
             )
         },
     )

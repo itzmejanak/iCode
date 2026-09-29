@@ -14,12 +14,13 @@ data class WorkspacePreferences(
     val indentSizeOverride: Int? = null,
     val indentTypeOverride: IndentType? = null,
     val autoFetch: Boolean = false,
-    val watcherExcludes: List<String> = emptyList(),
     val loaded: Boolean = true,
     val loadError: String? = null,
 ) {
     val effectiveIndentSize: Int get() = indentSizeOverride ?: globalIndentSize
-    val effectiveIndentType: IndentType get() = indentTypeOverride ?: IndentType.Spaces
+    /** There is no app-wide indent type: a workspace without an override indents with spaces. */
+    val inheritedIndentType: IndentType get() = IndentType.Spaces
+    val effectiveIndentType: IndentType get() = indentTypeOverride ?: inheritedIndentType
 }
 
 interface WorkspacePreferencesRepository {
