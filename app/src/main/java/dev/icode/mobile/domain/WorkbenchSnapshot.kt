@@ -52,6 +52,8 @@ data class WorkbenchSnapshot(
     val terminal: TerminalSnapshot = TerminalSnapshot(),
     /** The Notifications page, newest first. */
     val notices: List<AppNotice> = emptyList(),
+    /** Long operations running, or failed and not yet seen (docs/long-operations-plan.md). */
+    val tasks: List<WorkTask> = emptyList(),
     /**
      * Whether the `git` binary exists in the runtime; null until checked.
      *

@@ -45,6 +45,13 @@ sealed interface WorkbenchIntent {
     data class MoveWorkspaceItem(val location: String, val destinationFolder: String) : WorkbenchIntent
     data class CopyWorkspaceItem(val location: String, val destinationFolder: String) : WorkbenchIntent
     data class DeleteWorkspaceItem(val location: String) : WorkbenchIntent
+    /** A long operation's dialog: Hide sends it to the background, Show brings it back. */
+    sealed interface TaskIntent : WorkbenchIntent { val id: Long }
+    data class HideTask(override val id: Long) : TaskIntent
+    data class ShowTask(override val id: Long) : TaskIntent
+    data class CancelTask(override val id: Long) : TaskIntent
+    /** A failure, read. */
+    data class DismissTask(override val id: Long) : TaskIntent
     data class UpdateDocumentText(val location: String, val text: String) : WorkbenchIntent
     /** Automatic requests carry the revision they observed; a later edit must start its own timer. */
     data class SaveDocument(

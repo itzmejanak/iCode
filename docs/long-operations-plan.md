@@ -35,9 +35,13 @@ and each of the others has a part of it or none. Nothing is shared.
   importance), **"Task Progress Notification"** (minimum importance — silent, no sound or
   pop-up), **"Task Error Notification"** (high importance — pops up). File work runs as tasks of
   one service, with progress kept quiet and failures loud.
-- **Pending:** its delete dialog — the frames were missed on 2026-09-29 (the delete had ended);
-  a capture loop records the next demonstration. Nothing below copies its dialog until that is
-  seen.
+- Measured (the owner asked for `node_modules` in RevPlayer to be deleted with it, 2026-09-29,
+  recorded frame by frame, ~30 MB in ~5 s): a confirmation "Delete — Do you want to delete
+  node_modules? — CANCEL / OK"; then a dialog **"Deleting…"** with **HIDE** at its top right,
+  the item being deleted as a path from the chosen folder on one line, cut off at its end
+  (`node_modules/is-callable/.editorconfig`), and a determinate progress bar. Its first frame
+  shows "…" and an empty bar — it counts before it deletes. **No Cancel.** When it ends the
+  dialog closes and the list refreshes without the folder.
 
 ## 3. Design — one path for every long operation
 
@@ -76,9 +80,27 @@ deleted files close; a cancelled delete says how much is gone — deletion canno
 | T4 | Clear cache and package installs as tasks; Git transfers and runtime install listed as tasks |
 | T5 | Device: a large scratch folder (created for the test, in the scratch workspace) deleted and copied — progress, cancel, background, notification, iCode sent away and back |
 
-## 5. For the owner
+## 5. Decisions (2026-09-29), from the reference — the owner may overrule
 
-- Show MT Manager's delete once more (a large, disposable folder) while the capture runs, so its
-  dialog is seen before T2's design is fixed.
-- Cancel a delete midway — offered, as the reference's Cancel is? (What is gone stays gone.)
-- On success in the background: a short "done" notification, or only the ongoing one ending?
+- The dialog is the reference's: title, current item, progress bar, **Hide**. Delete offers no
+  Cancel, as the reference: a delete stopped midway leaves a half folder, worse than finishing.
+  Copy offers Cancel — stopping it loses nothing but the partial copy, which is removed.
+- On success nothing new is posted: the dialog (or the progress notification) ends and the list
+  refreshes; a failure is said in the dialog, or by the pop-up kind when hidden — the
+  reference's three channels have no "done" kind.
+
+## 6. Record
+
+- **T1** (2026-09-29): `WorkTask` (domain) and the task intents — Hide, Show, Cancel, Dismiss —
+  which the compiler made the router take (the locked `when` must cover every intent);
+  `TaskRunner` (`data/tasks`) runs each task on its own job outside the mutation lock, claims its
+  paths (a folder around them or inside them is refused, "Deleting node_modules — wait for it to
+  finish"), publishes progress at most every 150 ms, applies the result under the lock, keeps a
+  failure (with the error's words) until dismissed and brings a hidden one back to say it.
+  `WorkspaceFiles` counts, and its delete and copy report each entry as a path from the folder
+  the item is in; a copy that stops removes what it made. Explorer delete (no Cancel) and paste
+  (Cancel) run as tasks; rename and move wait on a claim. The gateway stays within its budget
+  (the clone-form branch on one line; two constructors' plain arguments on one line, as the
+  rest). 8 tests. Gate: 474 tests; lint 0 errors / 11 warnings; both guards pass. The dialog
+  (T2) is next: until it lands, a delete runs with no dialog, as before, but no longer blocks
+  the workspace.
