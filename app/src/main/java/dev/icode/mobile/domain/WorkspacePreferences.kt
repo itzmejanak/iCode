@@ -27,6 +27,8 @@ interface WorkspacePreferencesRepository {
     suspend fun setTheme(theme: AppTheme)
     suspend fun setUiTextScalePercent(percent: Int)
     suspend fun setCompactLayout(compact: Boolean)
+    /** Null returns to the theme's own accent. */
+    suspend fun setAccentColor(argb: Int?)
     suspend fun setEditorFontSize(sizeSp: Int)
     suspend fun setEditorFontFamily(family: EditorFontFamily)
     suspend fun setWordWrap(enabled: Boolean)

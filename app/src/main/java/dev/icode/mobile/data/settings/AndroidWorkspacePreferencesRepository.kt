@@ -11,6 +11,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import dev.icode.mobile.data.io.Sha256
 import dev.icode.mobile.domain.IndentType
 import dev.icode.mobile.domain.AppTheme
+import dev.icode.mobile.domain.AccentColorRules
 import dev.icode.mobile.domain.AppearanceSettings
 import dev.icode.mobile.domain.AutoSaveMode
 import dev.icode.mobile.domain.EditorFontFamily
@@ -37,6 +38,7 @@ class AndroidWorkspacePreferencesRepository internal constructor(
     private val themeKey = stringPreferencesKey("appearance_theme")
     private val uiScaleKey = intPreferencesKey("appearance_ui_text_scale_percent")
     private val compactKey = booleanPreferencesKey("appearance_compact_layout")
+    private val accentKey = intPreferencesKey("appearance_accent_color")
     private val fontSizeKey = intPreferencesKey("editor_font_size_sp")
     private val fontFamilyKey = stringPreferencesKey("editor_font_family")
     private val wordWrapKey = booleanPreferencesKey("editor_word_wrap")
@@ -64,6 +66,7 @@ class AndroidWorkspacePreferencesRepository internal constructor(
                 theme = prefs[themeKey]?.let { enumOrNull<AppTheme>(it) } ?: AppTheme.Dark,
                 uiTextScalePercent = prefs[uiScaleKey]?.takeIf { it in 100..150 } ?: 100,
                 compactLayout = prefs[compactKey] ?: true,
+                accentColor = prefs[accentKey]?.let(AccentColorRules::opaque),
             ),
             editor = EditorSettings(
                 fontSizeSp = prefs[fontSizeKey]?.takeIf { it in 9..30 } ?: 14,
@@ -109,6 +112,10 @@ class AndroidWorkspacePreferencesRepository internal constructor(
     }
 
     override suspend fun setCompactLayout(compact: Boolean) { store.edit { it[compactKey] = compact } }
+
+    override suspend fun setAccentColor(argb: Int?) {
+        store.edit { if (argb == null) it.remove(accentKey) else it[accentKey] = AccentColorRules.opaque(argb) }
+    }
 
     override suspend fun setEditorFontSize(sizeSp: Int) {
         require(sizeSp in 9..30)
