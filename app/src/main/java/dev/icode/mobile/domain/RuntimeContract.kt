@@ -24,6 +24,11 @@ sealed interface RuntimeState {
     ) : RuntimeState {
         /** Null when the server did not report a length. */
         val fraction: Float? = if (totalBytes > 0) (receivedBytes.toFloat() / totalBytes) else null
+
+        /** "12 MB / 480 MB", or what arrived when the length is unknown. */
+        val transferred: String get() =
+            if (totalBytes > 0) "${ByteSize.format(receivedBytes)} / ${ByteSize.format(totalBytes)}"
+            else ByteSize.format(receivedBytes)
     }
 
     data class Installing(val label: String) : RuntimeState

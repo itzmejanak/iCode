@@ -230,12 +230,7 @@ private fun percentLabel(runtime: RuntimeState): String = when (runtime) {
 }
 
 private fun transferLabel(runtime: RuntimeState): String = when (runtime) {
-    is RuntimeState.Downloading ->
-        if (runtime.totalBytes > 0) {
-            "${ByteSize.format(runtime.receivedBytes)} / ${ByteSize.format(runtime.totalBytes)}"
-        } else {
-            ByteSize.format(runtime.receivedBytes)
-        }
+    is RuntimeState.Downloading -> runtime.transferred
     else -> ""
 }
 

@@ -10,6 +10,7 @@ import dev.icode.mobile.domain.FolderBrowserPurpose
 import dev.icode.mobile.domain.FolderBrowserState
 import dev.icode.mobile.domain.LineEnding
 import dev.icode.mobile.domain.TextEncoding
+import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.StorageSummary
 import java.io.File
 import java.io.FileOutputStream
@@ -227,7 +228,7 @@ internal class DirectFileWorkspaceSource {
     }
 
     private fun readBounded(input: InputStream): ByteArray =
-        input.readAtMost(MAX_TEXT_BYTES, "Files larger than 5 MB are not supported yet")
+        input.readAtMost(MAX_TEXT_BYTES, "Files larger than ${ByteSize.format(MAX_TEXT_BYTES.toLong())} are not supported yet")
 
     private fun fingerprint(bytes: ByteArray): String = Sha256.hex(bytes)
 
