@@ -66,6 +66,9 @@ class EditorThemeTest {
             val colors = editorColors(palette)
             assertEquals(palette.backgroundDeep.toArgb(), colors.getValue(EditorColorScheme.WHOLE_BACKGROUND))
             assertEquals(palette.textPrimary.toArgb(), colors.getValue(DEFAULT_COLOR_ID))
+            // Gutter and minimap are the editor's own background, not a block beside it.
+            assertEquals(palette.backgroundDeep.toArgb(), colors.getValue(EditorColorScheme.LINE_NUMBER_BACKGROUND))
+            assertEquals(palette.backgroundDeep.toArgb(), colors.getValue(EditorColorScheme.MINIMAP_BACKGROUND))
             // The current line is neither the editor nor the tab bar around it.
             val line = colors.getValue(EditorColorScheme.CURRENT_LINE)
             assertTrue(line != palette.surface.toArgb() && line != palette.backgroundDeep.toArgb())

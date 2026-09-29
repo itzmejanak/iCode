@@ -111,7 +111,10 @@ internal fun editorColors(palette: IcodePalette): Map<Int, Int> = with(palette) 
         EditorColorScheme.PROBLEM_ERROR to error,
         EditorColorScheme.PROBLEM_WARNING to amber,
         EditorColorScheme.PROBLEM_TYPO to blue,
-        EditorColorScheme.MINIMAP_BACKGROUND to surfaceElevated,
+        // The minimap is part of the editor, as in VS Code: its background, and a quiet view window.
+        EditorColorScheme.MINIMAP_BACKGROUND to backgroundDeep,
+        EditorColorScheme.MINIMAP_VIEWPORT to textPrimary.copy(alpha = 0.08f),
+        EditorColorScheme.MINIMAP_VIEWPORT_BORDER to outline,
     ).mapValues { it.value.toArgb() }
 }
 
