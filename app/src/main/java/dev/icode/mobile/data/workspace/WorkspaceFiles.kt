@@ -39,42 +39,81 @@ internal class WorkspaceFiles(root: File) {
         return Files.move(source, target).toFile()
     }
 
-    /** Into [destinationFolder], as “name copy” (then “name copy 2”…) when the name is taken. */
-    fun copy(location: String, destinationFolder: String): File {
-        val source = item(location)
-        val destination = folder(destinationFolder)
-        if (destination.startsWith(source)) throw IOException("A folder cannot be copied into itself")
-        val target = freeName(destination, source.fileName.toString(), Files.isDirectory(source, LinkOption.NOFOLLOW_LINKS))
+    /** How many entries [location] holds, itself included: what a copy or delete of it touches. */
+    fun count(location: String): Long {
+        var entries = 0L
         Files.walkFileTree(
-            source,
+            item(location),
             object : SimpleFileVisitor<Path>() {
                 override fun preVisitDirectory(dir: Path, attributes: BasicFileAttributes): FileVisitResult {
-                    Files.createDirectory(target.resolve(source.relativize(dir).toString()))
+                    entries++
                     return FileVisitResult.CONTINUE
                 }
 
                 override fun visitFile(file: Path, attributes: BasicFileAttributes): FileVisitResult {
-                    Files.copy(file, target.resolve(source.relativize(file).toString()), StandardCopyOption.COPY_ATTRIBUTES, LinkOption.NOFOLLOW_LINKS)
+                    entries++
                     return FileVisitResult.CONTINUE
                 }
             },
         )
+        return entries
+    }
+
+    /**
+     * Into [destinationFolder], as “name copy” (then “name copy 2”…) when the name is taken,
+     * reporting each entry as a path from the folder the source is in. A copy that stops —
+     * failed, or cancelled from [onEntry] — removes what it made: nothing is left half-copied.
+     */
+    fun copy(location: String, destinationFolder: String, onEntry: (String) -> Unit = {}): File {
+        val source = item(location)
+        val destination = folder(destinationFolder)
+        if (destination.startsWith(source)) throw IOException("A folder cannot be copied into itself")
+        val target = freeName(destination, source.fileName.toString(), Files.isDirectory(source, LinkOption.NOFOLLOW_LINKS))
+        val shown = source.parent
+        try {
+            Files.walkFileTree(
+                source,
+                object : SimpleFileVisitor<Path>() {
+                    override fun preVisitDirectory(dir: Path, attributes: BasicFileAttributes): FileVisitResult {
+                        Files.createDirectory(target.resolve(source.relativize(dir).toString()))
+                        onEntry(shown.relativize(dir).toString())
+                        return FileVisitResult.CONTINUE
+                    }
+
+                    override fun visitFile(file: Path, attributes: BasicFileAttributes): FileVisitResult {
+                        Files.copy(file, target.resolve(source.relativize(file).toString()), StandardCopyOption.COPY_ATTRIBUTES, LinkOption.NOFOLLOW_LINKS)
+                        onEntry(shown.relativize(file).toString())
+                        return FileVisitResult.CONTINUE
+                    }
+                },
+            )
+        } catch (stopped: Throwable) {
+            if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) runCatching { removeTree(target) }
+            throw stopped
+        }
         return target.toFile()
     }
 
-    fun delete(location: String) {
+    /** Deletes [location] and everything in it, reporting each entry as a path from the folder it is in. */
+    fun delete(location: String, onEntry: (String) -> Unit = {}) {
         val source = item(location)
+        removeTree(source, onEntry = { onEntry(source.parent.relativize(it).toString()) })
+    }
+
+    private fun removeTree(top: Path, onEntry: (Path) -> Unit = {}) {
         Files.walkFileTree(
-            source,
+            top,
             object : SimpleFileVisitor<Path>() {
                 override fun visitFile(file: Path, attributes: BasicFileAttributes): FileVisitResult {
                     Files.delete(file)
+                    onEntry(file)
                     return FileVisitResult.CONTINUE
                 }
 
                 override fun postVisitDirectory(dir: Path, error: IOException?): FileVisitResult {
                     if (error != null) throw error
                     Files.delete(dir)
+                    onEntry(dir)
                     return FileVisitResult.CONTINUE
                 }
             },

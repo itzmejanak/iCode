@@ -1,5 +1,6 @@
 package dev.icode.mobile.data.workspace
 
+import dev.icode.mobile.data.tasks.TaskRunner
 import dev.icode.mobile.domain.WorkbenchEffect
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.domain.WorkspaceNameRules
@@ -7,10 +8,13 @@ import java.io.File
 
 /**
  * New files and folders inside the open workspace (S3), from the Explorer and
- * the editor's tab menu. The dialog that asked is answered by request id.
+ * the editor's tab menu, and the Explorer's rename, move, copy and delete. The
+ * dialog that asked is answered by request id. Copy and delete can take long:
+ * they run as tasks, with their own dialog, off the mutation lock.
  */
 internal class WorkspaceItemsCoordinator(
     private val workbench: WorkbenchStateHolder,
+    private val tasks: TaskRunner,
     private val source: DirectFileWorkspaceSource,
     private val tree: WorkspaceTree,
     private val documents: DocumentSessionCoordinator,
@@ -74,7 +78,7 @@ internal class WorkspaceItemsCoordinator(
         val nameError = if (File(intent.location).isDirectory) WorkspaceNameRules.workspaceFolderValidationError(name)
         else WorkspaceNameRules.fileValidationError(name)
         nameError?.let { return fail(intent.requestId, it) }
-        blocked(intent.location)?.let { return fail(intent.requestId, it) }
+        (blocked(intent.location) ?: busy(intent.location))?.let { return fail(intent.requestId, it) }
         runCatching { WorkspaceFiles(File(root)).rename(intent.location, name) }
             .onSuccess { target ->
                 followMove(root, intent.location, target.path)
@@ -86,38 +90,68 @@ internal class WorkspaceItemsCoordinator(
     /** The second half of Cut: into [WorkbenchIntent.MoveWorkspaceItem.destinationFolder]. */
     suspend fun move(intent: WorkbenchIntent.MoveWorkspaceItem) {
         val root = activeRoot() ?: return
-        blocked(intent.location)?.let { return workbench.message(it) }
+        (blocked(intent.location) ?: busy(intent.location) ?: busy(intent.destinationFolder))?.let { return workbench.message(it) }
         runCatching { WorkspaceFiles(File(root)).move(intent.location, intent.destinationFolder) }
             .onSuccess { target -> if (target.path != intent.location) followMove(root, intent.location, target.path) }
             .onFailure { error -> workbench.report("workspace", "Unable to move", error) }
     }
 
+    /** Stopping a copy loses nothing but the partial copy, which goes: it can be cancelled. */
     suspend fun copy(intent: WorkbenchIntent.CopyWorkspaceItem) {
         val root = activeRoot() ?: return
-        runCatching { WorkspaceFiles(File(root)).copy(intent.location, intent.destinationFolder) }
-            .onSuccess { refreshAfterChange(root) }
-            .onFailure { error -> workbench.report("workspace", "Unable to copy", error) }
+        busy(intent.location)?.let { return workbench.message(it) }
+        val files = WorkspaceFiles(File(root))
+        tasks.start(
+            title = "Copying…",
+            subject = File(intent.location).name,
+            paths = listOf(intent.location),
+            cancellable = true,
+            failure = "Unable to copy",
+            work = { progress ->
+                progress.counted(files.count(intent.location))
+                files.copy(intent.location, intent.destinationFolder, progress::item)
+            },
+            finished = { if (activeRoot() == root) refreshAfterChange(root) },
+        )
     }
 
     /** Asked and confirmed in the Explorer first: this cannot be undone. */
+    /**
+     * As the reference file manager: counted first, then deleted with the item in hand shown,
+     * and no Cancel — a delete stopped midway leaves half a folder.
+     */
     suspend fun delete(intent: WorkbenchIntent.DeleteWorkspaceItem) {
         val root = activeRoot() ?: return
-        blocked(intent.location)?.let { return workbench.message(it) }
-        runCatching { WorkspaceFiles(File(root)).delete(intent.location) }
-            .onSuccess {
-                documents.closeDeleted(intent.location)
-                library.forgetRecentDocumentsUnder(root, intent.location)
-                refreshAfterChange(root)
-            }
-            .onFailure { error ->
-                workbench.report("workspace", "Unable to delete", error)
-                // Part of a folder may be gone already: show what is left.
-                refreshAfterChange(root)
-            }
+        (blocked(intent.location) ?: busy(intent.location))?.let { return workbench.message(it) }
+        val files = WorkspaceFiles(File(root))
+        tasks.start(
+            title = "Deleting…",
+            subject = File(intent.location).name,
+            paths = listOf(intent.location),
+            cancellable = false,
+            failure = "Unable to delete",
+            work = { progress ->
+                progress.counted(files.count(intent.location))
+                files.delete(intent.location, progress::item)
+            },
+            finished = { failure ->
+                if (failure == null) library.forgetRecentDocumentsUnder(root, intent.location)
+                if (activeRoot() == root) {
+                    if (failure == null) documents.closeDeleted(intent.location)
+                    // Part of a folder may be gone after a failure: show what is left.
+                    refreshAfterChange(root)
+                }
+            },
+        )
     }
 
     private fun blocked(location: String): String? = documents.blockingEdits(location)?.let { document ->
         "${document.name} has unsaved edits. Save or close it first"
+    }
+
+    /** A task is still copying or deleting it, or a folder around it. */
+    private fun busy(location: String): String? = tasks.claimedBy(location)?.let { task ->
+        "${task.title.removeSuffix("…")} ${task.subject} — wait for it to finish"
     }
 
     private suspend fun followMove(root: String, from: String, to: String) {

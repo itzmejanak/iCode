@@ -99,4 +99,33 @@ class WorkspaceFilesTest {
         assertEquals("/w/lib/a.kt", "/w/src/a.kt".relocated("/w/src", "/w/lib"))
         assertEquals("/w/srcx/a.kt", "/w/srcx/a.kt".relocated("/w/src", "/w/lib"))
     }
+
+    @Test fun `a delete is counted first and reports each entry from the folder it is in`() {
+        File(root, "src/lib").mkdirs()
+        File(root, "src/lib/b.kt").writeText("b")
+        assertEquals(4, files.count(path("src")))
+        val reported = mutableListOf<String>()
+
+        files.delete(path("src")) { reported += it }
+
+        assertEquals(setOf("src/a.kt", "src/lib/b.kt", "src/lib", "src"), reported.toSet())
+        assertEquals(4, reported.size)
+        assertEquals("src", reported.last())
+        assertFalse(File(root, "src").exists())
+    }
+
+    @Test fun `a copy reports each entry, and one stopped midway leaves nothing half-made`() {
+        File(root, "src/b.kt").writeText("b")
+        val reported = mutableListOf<String>()
+        files.copy(path("src"), path("docs")) { reported += it }
+        assertEquals(setOf("src", "src/a.kt", "src/b.kt"), reported.toSet())
+        assertTrue(File(root, "docs/src/b.kt").isFile)
+
+        var entries = 0
+        assertThrows(IllegalStateException::class.java) {
+            files.copy(path("src"), path("docs")) { if (++entries == 2) throw IllegalStateException("Cancelled") }
+        }
+        assertFalse(File(root, "docs/src copy").exists())
+        assertEquals("a", File(root, "src/a.kt").readText())
+    }
 }

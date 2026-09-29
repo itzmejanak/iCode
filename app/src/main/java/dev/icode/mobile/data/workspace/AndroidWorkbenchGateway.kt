@@ -24,6 +24,7 @@ import dev.icode.mobile.data.search.RipgrepService
 import dev.icode.mobile.data.search.SearchCoordinator
 import dev.icode.mobile.data.settings.AndroidWorkspacePreferencesRepository
 import dev.icode.mobile.data.system.AndroidSystemAccess
+import dev.icode.mobile.data.tasks.TaskRunner
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.RuntimeInstallReason
 import dev.icode.mobile.domain.SystemPermission
@@ -68,21 +69,12 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     private val notices = NoticeStore.get(appContext)
     private val languages: LanguageServiceCoordinator = LanguageServiceCoordinator(appContext, workbench, scope, runtimeLayout, activeRoot = { session.activeRoot })
     private val runtime: RuntimeCoordinator = RuntimeCoordinator(
-        appContext,
-        workbench,
-        scope,
-        runtimeLayout,
-        AndroidSystemAccess(appContext),
+        appContext, workbench, scope, runtimeLayout, AndroidSystemAccess(appContext),
         sessionsRunning = { terminals.hasRunningSessions() || languages.hasActiveProcesses() },
         onStorageAccessChanged = { library.refreshRecents() },
     )
     private val library: WorkspaceLibraryCoordinator = WorkspaceLibraryCoordinator(
-        appContext,
-        workbench,
-        scope,
-        source,
-        store,
-        runtimeLayout,
+        appContext, workbench, scope, source, store, runtimeLayout,
         tasksRunning = {
             terminals.hasRunningSessions() || languages.hasActiveProcesses() || runtime.installing ||
                 workbench.current.gitOperation is GitOperationState.Running
@@ -137,6 +129,8 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         actInRepository = gitWorkspace::act,
         refreshRepository = { root -> gitWorkspace.refresh(root) },
     )
+    /** Long operations: their own jobs, off the mutation lock (docs/long-operations-plan.md). */
+    private val tasks = TaskRunner(workbench, scope)
     private val search: SearchCoordinator = SearchCoordinator(workbench, scope, RipgrepService(runtimeLayout, packages)) { session.activeRoot }
     private val recovery: DocumentRecoveryCoordinator = DocumentRecoveryCoordinator(
         workbench,
@@ -153,6 +147,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     )
     private val items: WorkspaceItemsCoordinator = WorkspaceItemsCoordinator(
         workbench,
+        tasks,
         source,
         tree,
         documents,
@@ -202,6 +197,8 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
             languages.select(intent.id)
             return
         }
+        // A task's dialog must answer while the task runs.
+        if (intent is WorkbenchIntent.TaskIntent) return tasks.handle(intent)
         if (intent == WorkbenchIntent.Refresh) {
             session.requestRefresh(rebuildIndex = true)
             return
@@ -344,9 +341,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
                     WorkbenchIntent.CloseConflict -> gitConflicts.close()
                     is WorkbenchIntent.ResolveConflict -> gitConflicts.resolve(intent.path, intent.sectionStart, intent.choice)
                     is WorkbenchIntent.MarkConflictResolved -> gitConflicts.markResolved(intent.path)
-                    is WorkbenchIntent.UpdateCloneForm -> workbench.update {
-                it.copy(cloneUrl = intent.url, cloneBranch = intent.branch)
-            }
+                    is WorkbenchIntent.UpdateCloneForm -> workbench.update { it.copy(cloneUrl = intent.url, cloneBranch = intent.branch) }
                     is WorkbenchIntent.SelectGitProvider -> gitAuth.selectProvider(intent.provider)
                     is WorkbenchIntent.SelectGitAuthMethod -> gitAuth.selectMethod(intent.method)
                     is WorkbenchIntent.SaveGitToken -> gitAuth.saveToken(intent.host, intent.username, intent.token)
