@@ -148,6 +148,11 @@ search + index · dispatch router.
 
 ## 6. Target design — balanced coordinator map (13 files + slim orchestrator)
 
+> **Superseded (2026-09-29).** The coordinators now in the code, and the current persistence and
+> lock maps, are in [code-separation-plan.md](./code-separation-plan.md) §7–§9. The maps below are
+> the plan as written on 2026-09-26: they miss the notices, both ledgers and the language store,
+> and say session restore does not exist.
+
 One state owner, one write path per resource, one owner per lifecycle. No new Gradle module, no DI
 framework, no service layer, no event bus, no repository wrappers around single calls.
 

@@ -49,18 +49,23 @@ before code, then one verifiable step at a time.
 | 8 | **LSP protocol, then diagnostics** | Completion, diagnostics, Problems navigation | Server configuration and process status exist; no JSON-RPC code | Plan per B-05/B-06 items 7 and 4 |
 | 9 | **Output channels; Command Palette acceptance** | Completes the tools panel | Output carries the Git transcript only; palette code slice done | Per B-05/B-06 items 5 and 2 |
 | 10 | **Device acceptance backlog** | Much finished code awaits a device pass | Consolidated below; the demo cleanup is done (K1) | One pass, then the 39-route capture |
+| 11 | **Code separation S7–S8, X, G and editor colours — done (2026-09-29)** | The owner's "complete the whole remaining, no guess, no duplication, no inconsistency" | Records: [code-separation plan](./docs/code-separation-plan.md) §8 (S7, S8, X3–X5, G1–G2) and §9 (persistence and lock maps); [editor-colors plan](./docs/editor-colors-plan.md) E1–E6 | Owner decisions open: File Watcher exclusions as a feature; the Sora bug report upstream |
+| 12 | **One loading behaviour for the whole app (owner, 2026-09-29)** | "Open workspace and other actions take time before the screen responds" | Measured so far: taps in the first seconds after launch are lost; the first file's freeze is gone (E6) — [code-separation plan](./docs/code-separation-plan.md) §8 item L | Measure each action (tap → first response → done), then its own plan |
 
 ### Device acceptance backlog (code complete, not yet accepted on device)
 
 - [ ] Explorer New File / New Folder at root and nested, duplicate-name feedback, selection surface.
-- [ ] Settings persistence, two dirty tabs, Git identity; the four settings surfaces including an
-      interrupted repair; runtime Repair and Reset run to completion ([next-cycle-plan](./docs/next-cycle-plan.md) "Not yet verified").
-- [ ] Editor frames 10/16: Find/Replace, syntax colouring, Markdown source/preview, tab
-      select/drag/close, pinch zoom, dirty-workspace switch.
+- [ ] Settings persistence and a language service saved while another runs — done on device
+      (S8.5, 2026-09-29). Still open: two dirty tabs, Git identity, an interrupted repair, runtime
+      Repair and Reset run to completion ([next-cycle-plan](./docs/next-cycle-plan.md) "Not yet verified").
+- [ ] Editor frames 10/16: Find/Replace, Markdown source/preview, tab select/drag/close, pinch
+      zoom, dirty-workspace switch. (Syntax colouring on every file type and theme was accepted on
+      the device, [editor-colors-plan](./docs/editor-colors-plan.md) §6.)
 - [ ] Git: frame 24 conflict resolution, frame 15 branch delete and remote branches, frames 30/31
       push/pull on a real remote. The code is on the Git CLI and JGit is gone from build and code.
 - [ ] Command Palette (B-05/B-06 item 2); Problems/Output panel (item 4a).
-- [ ] Light/AMOLED palettes and 100–150 % UI scale.
+- [ ] 100–150 % UI scale on every screen (Runtime settings checked at 150 %, S8.5). The Light
+      and AMOLED palettes were accepted by the owner on 2026-09-29.
 - [x] Terminal: `vim`, `nano`, a `git log` pager, rotation, cursor styles and the Light palette checked
       on 2026-09-29 (S6 record); the owner had verified the terminal in daily use, including pinch zoom
       and paste.
@@ -98,8 +103,9 @@ Workspace settings and Explorer follow-up (2026-09-23):
       DataStore. Reset removes only that workspace override; existing and future Sora sessions
       apply the effective value without replacing their document text or undo state.
 - [x] Git Auto-Fetch is off by default, opt-in on open/resume, gated by runtime/repository/remote,
-      and reuses real Fetch. File Watcher Excludes stay visibly unavailable until the watcher
-      consumes them; demo patterns remain in the demo fixture only.
+      and reuses real Fetch. File Watcher Excludes stay visibly unavailable: the watcher follows only
+      the folders open in the Explorer and those of open files (S8.4b removed the unused field and
+      the capture's sample patterns); making exclusions a feature is the owner's decision.
 - [x] Git author name/email start unset. The credentials flow now saves a guest-wide default
       or an explicit per-repository override, with reset to the inherited default; both settings
       and Source Control can reach it. A new repo inherits the global identity through Git.
@@ -569,7 +575,8 @@ checkbox: existing process status and editor recovery do not imply LSP diagnosti
    JSON-RPC initialize/shutdown, capabilities, document versions/changes and cancellation over
    the existing guest process contract. Expose completion, diagnostics, rename and formatting
    only when advertised and implemented; test absent/malformed servers and restart/backoff.
-8. [ ] **Session restore:** persist prior workspace identity, open file IDs/order/selection and
+8. [x] **Session restore — code done (S3, 2026-09-28; owned by `WorkspaceSessionCoordinator` since X3);
+   device acceptance is priority 6:** persist prior workspace identity, open file IDs/order/selection and
    supported editor/panel state in the existing session/settings owner; validate access and file
    existence on restart. Keep dirty text in the guarded draft owner, never silently reopen a
    terminal command or claim a dead PTY is running. Test process death, permission revocation,
@@ -607,10 +614,11 @@ checkbox: existing process status and editor recovery do not imply LSP diagnosti
 - [x] Runtime Settings repair/reset now enters the real progress/failure screen and retries the
       same operation. Repair preserves home across interrupted attempts; Reset requires confirmation.
 - [ ] Device acceptance remains for these four settings surfaces, including a deliberately
-      interrupted repair and a user-installed language server. Full LSP handshake/capabilities
+      interrupted repair and a user-installed language server (a service saved while another
+      runs was checked with throwaway `sleep` commands, S8.5). Full LSP handshake/capabilities
       and session restore remain future work (priorities 8 and 6).
-- [ ] Review Light/AMOLED preview palettes and the 100–150% UI scale/comfortable spacing on device;
-      accept or revise colors before considering them final. Format On Save remains unavailable
+- [ ] Review the 100–150% UI scale/comfortable spacing on device. (Light/AMOLED palettes: accepted
+      by the owner on 2026-09-29.) Format On Save remains unavailable
       until a real formatter exists; the separate recovery-center/session-restore cycles remain open.
 - Implement hierarchical categories and settings keys, types, defaults, validation, app/workspace scope, restarts, and migrations.
 - Support workspace overrides and reset-to-inherited behavior for the existing settings catalog.

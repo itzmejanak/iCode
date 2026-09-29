@@ -14,7 +14,8 @@
 #   fq-androidx  fully-qualified androidx.* references inside ui/
 #   dp-literal   hard-coded dp values inside ui/screens
 #   sp-literal   hard-coded sp values inside ui/screens
-#   screen-lines screen files larger than the 300-line budget
+#   ui-lines     ui/ files larger than the 300-line budget (screens, the app root,
+#                editor and terminal views alike; G1)
 #   capture-fork captureMode branches inside ui/screens (capture data belongs
 #                in the debug-only CaptureFixtures, not in product screens)
 #   orphan-route Route values with no navigate(...) entry point
@@ -98,14 +99,14 @@ while read -r route; do
     fi
 done < <(sed -n '/^enum class Route(/,/^}/p' "$route_file" | grep -oE '^    [A-Z][A-Za-z]*\(' | tr -d ' (')
 
-# 5. Screen files above the 300-line budget.
+# 5. ui/ files above the 300-line budget.
 while read -r file; do
     [[ -z "$file" ]] && continue
     lines="$(wc -l < "$file")"
     if (( lines > 300 )); then
-        emit "screen-lines" "${file#"$repo_root/"}" "$lines"
+        emit "ui-lines" "${file#"$repo_root/"}" "$lines"
     fi
-done < <(find "$ui_root/screens" -type f -name '*.kt' 2>/dev/null | sort)
+done < <(find "$ui_root" -type f -name '*.kt' 2>/dev/null | sort)
 
 if [[ "${1:-}" == "--update" ]]; then
     {
