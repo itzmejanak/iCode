@@ -29,3 +29,42 @@ table's selectors are VS Code's default Dark+ rules — `extensions/theme-defaul
 an iCode role, followed by iCode's own additions for scopes those rules leave uncoloured. The
 Sora sample theme `darcula.json` and the two preview themes are removed.
 
+## Grammars added 2026-09-29 (editor-colors-plan E4)
+
+Copied unchanged from VS Code at the same pinned commit 307b60e7 (the extension folder named),
+each with its `language-configuration.json`. Their file names, extensions, name patterns and `#!`
+programs in `domain/FileTypes.kt` are the extension's own `contributes.languages`. Upstream
+sources and licences are the extension's `cgmanifest.json`:
+
+| Assets | VS Code | Upstream (licence) |
+|---|---|---|
+| `bat/` | `extensions/bat` | https://github.com/mmims/language-batchfile (MIT) |
+| `cpp/` | `extensions/cpp` | https://github.com/jeff-hykin/better-cpp-syntax (MIT); https://github.com/jeff-hykin/better-c-syntax (MIT); https://github.com/textmate/c.tmbundle (TextMate Bundle License) |
+| `csharp/` | `extensions/csharp` | https://github.com/dotnet/csharp-tmLanguage (MIT) |
+| `dart/` | `extensions/dart` | https://github.com/dart-lang/dart-syntax-highlight (BSD) |
+| `diff/` | `extensions/diff` | https://github.com/textmate/diff.tmbundle (TextMate Bundle License) |
+| `docker/` | `extensions/docker` | https://github.com/moby/moby (Apache-2.0) |
+| `dotenv/` | `extensions/dotenv` | https://github.com/dotenv-org/dotenv-vscode (MIT License) |
+| `git-base/` | `extensions/git-base` | https://github.com/textmate/git.tmbundle (MIT); https://github.com/walles/git-commit-message-plus (MIT) |
+| `groovy/` | `extensions/groovy` | https://github.com/textmate/groovy.tmbundle (TextMate Bundle License) |
+| `ini/` | `extensions/ini` | https://github.com/textmate/ini.tmbundle (TextMate Bundle License) |
+| `less/` | `extensions/less` | https://github.com/radium-v/Better-Less (MIT) |
+| `lua/` | `extensions/lua` | https://github.com/sumneko/lua.tmbundle (TextMate Bundle License) |
+| `make/` | `extensions/make` | https://github.com/fadeevab/make.tmbundle (TextMate Bundle License) |
+| `php/` | `extensions/php` | https://github.com/KapitanOczywisty/language-php (MIT) |
+| `ruby/` | `extensions/ruby` | https://github.com/Shopify/ruby-lsp (MIT License) |
+| `scss/` | `extensions/scss` | https://github.com/atom/language-sass (MIT) |
+| `sql/` | `extensions/sql` | https://github.com/microsoft/vscode-mssql (MIT) |
+| `swift/` | `extensions/swift` | https://github.com/jtbandes/swift-tmlanguage (MIT); https://github.com/owensd/vscode-swift (MIT) |
+| `yaml/` | `extensions/yaml` | https://github.com/RedCMD/YAML-Syntax-Highlighter (MIT) |
+
+Not shipped: `cpp/syntaxes/platform.tmLanguage.json` (568 KB, included by no grammar) and CUDA.
+Languages the shipped grammars can embed but iCode does not ship (assembly and GLSL in C++, HAML,
+Slim and GraphQL in Ruby, Javadoc in Groovy, Blade in PHP, and a Markdown fence's many languages)
+are listed, exactly, in `GrammarAssetsTest`; their text keeps its enclosing colour. Path-only
+patterns (`**/.git/config`, `**/rebase-merge/done`) are not matched: they are inside `.git` or a
+home configuration folder, which the Explorer never lists.
+
+YAML (fixed 2026-09-29): only the dispatcher `yaml.tmLanguage.json` had been copied; the YAML
+1.0–1.3 and embedded grammars it hands every document to are now shipped from the same commit.
+

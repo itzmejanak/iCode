@@ -139,13 +139,26 @@ internal val syntaxScopes: List<Pair<SyntaxRole, List<String>>> = listOf(
     // iCode's additions, from the shipped grammars' own scope lists (2026-09-29).
     SyntaxRole.Constant to listOf(
         "constant.other.caps", "constant.other.enum", "constant.other.ellipsis", "constant.other.unicode-range",
-        "support.constant",
+        "support.constant", "constant.codepoint-range", "support.unicode-range", "constant.enum", "constant.variable",
+        "constant.other.symbol", "constant.other.variable.mac-classic", "entity.name.constant",
+        "entity.name.other.preprocessor.macro.predefined", "entity.other.counter-name", "entity.other.counter-style-name",
+        // Groovy's UPPER_CASE names, PHP's constant names and `Foo::NAME`, SCSS's `n`, `even`, `odd`.
+        "constant.other.groovy", "constant.other.php", "constant.other.class.php", "constant.other.scss",
     ),
-    SyntaxRole.String to listOf("constant.other.rune", "markup.raw.block"),
+    SyntaxRole.String to listOf(
+        "constant.other.rune", "markup.raw.block", "markup.raw.inline",
+        // A C/C++ header name in `#include <…>`; the value in a `.env` line.
+        "entity.name.other.preprocessor.macro.include", "property.value",
+    ),
     SyntaxRole.Regex to listOf("constant.other.character-class.range.regexp", "constant.other.set.regexp", "support.other.match"),
     SyntaxRole.Escape to listOf("support.other.escape.special.regexp"),
     SyntaxRole.Function to listOf("entity.name.command"),
-    SyntaxRole.Type to listOf("entity.name.import", "entity.name.module", "entity.name.package", "entity.other.namespace-prefix"),
+    SyntaxRole.Type to listOf(
+        "entity.name.import", "entity.name.module", "entity.name.package", "entity.other.namespace-prefix",
+        "entity.name.namespace-prefix", "entity.other.alias", "support.other.namespace",
+        // PHP attributes `#[Route]`; SQL's database and table names.
+        "support.attribute", "constant.other.database-name", "constant.other.table-name",
+    ),
     SyntaxRole.Number to listOf("entity.other.keyframe-offset"),
     SyntaxRole.Attribute to listOf(
         "constant.other.key", "fenced_code.block.language",
@@ -153,8 +166,12 @@ internal val syntaxScopes: List<Pair<SyntaxRole, List<String>>> = listOf(
         "variable.other.property", "variable.other.object.property", "support.variable.property",
     ),
     SyntaxRole.Link to listOf("constant.other.reference.link"),
-    // Kotlin's `$name` in a string, as VS Code colours `${` `}`; YAML's `---` and `...` between documents.
-    SyntaxRole.Keyword to listOf("entity.string.template.element", "entity.other.document"),
+    // Kotlin's `$name` in a string, as VS Code colours `${` `}`; YAML's `---` and `...` between documents;
+    // C++'s `[[nodiscard]]`; Less's repetition keywords.
+    SyntaxRole.Keyword to listOf("entity.string.template.element", "entity.other.document", "support.other.attribute", "support.keyword"),
+    SyntaxRole.Variable to listOf("support.other.variable"),
+    // A `goto` label, as VS Code's `entity.name.label`.
+    SyntaxRole.Plain to listOf("entity.name.goto-label", "support.other.php"),
     SyntaxRole.Quote to listOf("markup.quote"),
 )
 
@@ -172,8 +189,8 @@ internal val inheritedScopes: List<String> = listOf(
     "entity.name.section", "markup.list",
     // A fenced block: the grammar of its language colours it.
     "markup.fenced_code",
-    // A byte-order mark: nothing to see.
-    "byte-order-mark",
-    // Parts of a doc comment, which is a Comment.
-    "constant.other.description.jsdoc", "constant.other.email.link.underline.jsdoc",
+    // A byte-order mark: nothing to see. Catch-all and bracket scopes (C's `everything.else`, Dart's `other.source`, C's `ellipses`).
+    "byte-order-mark", "everything", "other", "ellipses",
+    // Parts of a doc comment (JSDoc, SassDoc), which is a Comment.
+    "constant.other.description", "constant.other.email.link.underline",
 )

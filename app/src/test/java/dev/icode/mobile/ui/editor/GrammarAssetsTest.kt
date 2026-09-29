@@ -27,15 +27,13 @@ class GrammarAssetsTest {
     private companion object {
         /** Languages other grammars can embed (a Markdown fence, an assembly block in C) that iCode does not ship. */
         val NOT_SHIPPED = sortedSetOf(
-            "source.asp.vb.net", "source.batchfile", "source.c", "source.clojure", "source.coffee",
-            "source.cpp", "source.cs", "source.css.less", "source.css.scss", "source.dart",
-            "source.diff", "source.dockerfile", "source.elixir", "source.erlang", "source.fsharp",
-            "source.groovy", "source.ini", "source.js.regexp", "source.json.comments", "source.julia",
-            "source.lua", "source.makefile", "source.objc", "source.perl", "source.perl.6",
-            "source.php", "source.powershell", "source.r", "source.regexp.python", "source.ruby",
-            "source.scala", "source.sql", "source.swift", "text.bibtex", "text.git-commit",
-            "text.git-rebase", "text.html.derivative", "text.html.handlebars", "text.log", "text.pug",
-            "text.tex.latex", "text.xml.xsl",
+            "source.arm", "source.asm", "source.asp.vb.net", "source.clojure", "source.coffee",
+            "source.elixir", "source.erlang", "source.fsharp", "source.glsl", "source.graphql",
+            "source.html", "source.js.jquery", "source.js.regexp", "source.json.comments", "source.julia",
+            "source.objc", "source.perl", "source.perl.6", "source.powershell", "source.r",
+            "source.regexp.python", "source.scala", "source.x86", "source.x86_64", "text.bibtex",
+            "text.haml", "text.html.derivative", "text.html.handlebars", "text.html.javadoc", "text.html.php.blade",
+            "text.log", "text.pug", "text.slim", "text.tex.latex", "text.xml.xsl",
         )
     }
 }
