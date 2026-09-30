@@ -25,13 +25,18 @@ internal fun CreateFileDialog(parentLocation: String?, onDismiss: () -> Unit) {
     CreateWorkspaceItemDialog(WorkspaceItemType.File, parentLocation, onDismiss)
 }
 
-/** One compact form for files and subfolders inside the active workspace. */
+/**
+ * One compact form for files and subfolders — in the open workspace (the Explorer, the editor), or
+ * in [workspace], the one the file explorer is in. Following the open workspace, it stops when that
+ * changes under it.
+ */
 @Composable
-internal fun CreateWorkspaceItemDialog(type: WorkspaceItemType, parentLocation: String?, onDismiss: () -> Unit) {
+internal fun CreateWorkspaceItemDialog(type: WorkspaceItemType, parentLocation: String?, onDismiss: () -> Unit, workspace: String? = null) {
     val gateway = LocalWorkbenchGateway.current
     val state = LocalWorkbenchSnapshot.current
-    val workspace = remember(type, parentLocation) { state.activeWorkspaceLocation }
-    val parent = parentLocation ?: workspace
+    val followsOpen = workspace == null
+    val intended = workspace ?: remember(type, parentLocation) { state.activeWorkspaceLocation }
+    val parent = parentLocation ?: intended
     var name by rememberSaveable(type, parent) { mutableStateOf("") }
     val request = rememberPendingRequest(type to parent, onDismiss)
     val validationError = when (type) {
@@ -41,13 +46,13 @@ internal fun CreateWorkspaceItemDialog(type: WorkspaceItemType, parentLocation: 
     IcodeConfirmDialog(
         title = if (type == WorkspaceItemType.File) "New file" else "New folder",
         confirmLabel = "Create",
-        confirmEnabled = validationError == null && parent != null && workspace != null &&
-            state.activeWorkspaceLocation == workspace && !request.waiting,
+        confirmEnabled = validationError == null && parent != null && intended != null &&
+            (!followsOpen || state.activeWorkspaceLocation == intended) && !request.waiting,
         dismissEnabled = !request.waiting,
         onDismiss = onDismiss,
         onConfirm = {
             val targetParent = parent ?: return@IcodeConfirmDialog
-            val targetWorkspace = workspace ?: return@IcodeConfirmDialog
+            val targetWorkspace = intended ?: return@IcodeConfirmDialog
             request.send { requestId ->
                 when (type) {
                     WorkspaceItemType.File -> gateway.dispatch(WorkbenchIntent.CreateFile(name.trim(), targetParent, targetWorkspace, requestId))
@@ -57,7 +62,7 @@ internal fun CreateWorkspaceItemDialog(type: WorkspaceItemType, parentLocation: 
         },
     ) {
         Text(
-            "In ${if (parent == workspace) state.activeWorkspace else parent?.removePrefix("$workspace/") ?: "No workspace"}",
+            "In ${if (parent == intended) intended?.substringAfterLast('/') ?: "No workspace" else parent?.removePrefix("$intended/")}",
             style = IcodeType.Body,
             color = IcodeColors.TextSecondary,
         )
@@ -70,7 +75,7 @@ internal fun CreateWorkspaceItemDialog(type: WorkspaceItemType, parentLocation: 
         if (validationError != null && name.isNotEmpty()) {
             Text(validationError, style = IcodeType.Caption, color = IcodeColors.Error)
         }
-        if (workspace != state.activeWorkspaceLocation) {
+        if (followsOpen && intended != state.activeWorkspaceLocation) {
             Text("The active workspace changed. Close and reopen this form.", style = IcodeType.Caption, color = IcodeColors.Error)
         }
         request.failure?.let { Text(it, style = IcodeType.Caption, color = IcodeColors.Error) }

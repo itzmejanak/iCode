@@ -18,19 +18,6 @@ class WorkspaceListRulesTest {
         assertEquals(listOf(bigBoy, revPlayer, notes), WorkspaceListRules.recent(all))
     }
 
-    @Test fun `search finds by name or path, ignoring case, and a blank one finds all`() {
-        assertEquals(listOf(revPlayer), WorkspaceListRules.matching(all, "revp"))
-        assertEquals(listOf(notes), WorkspaceListRules.matching(all, "/workspace/NOT"))
-        assertEquals(all, WorkspaceListRules.matching(all, "  "))
-    }
-
-    @Test fun `sorts by recent, by name ignoring case, and by size with the unmeasured last`() {
-        assertEquals(listOf(bigBoy, revPlayer, notes), WorkspaceListRules.sorted(all, WorkspaceSort.Recent, emptyMap()))
-        assertEquals(listOf(bigBoy, notes, revPlayer), WorkspaceListRules.sorted(all, WorkspaceSort.Name, emptyMap()))
-        val sizes = mapOf(notes.location to StorageMeasurement(3_000), revPlayer.location to StorageMeasurement(900_000_000))
-        assertEquals(listOf(revPlayer, notes, bigBoy), WorkspaceListRules.sorted(all, WorkspaceSort.Size, sizes))
-    }
-
     @Test fun `the summary totals only what is measured whole`() {
         val measured = mapOf(
             notes.location to StorageMeasurement(1_000_000),

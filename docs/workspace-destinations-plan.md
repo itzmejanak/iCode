@@ -125,4 +125,17 @@ several repositories is not yet a place to work on them.
   file in the editor with its workspace opened first; `OpenFile` goes through it (the same for
   anything in the open workspace). 4 tests. Gateway 363 (budget lowered). Gate: 573 tests; lint 0
   errors / 12 warnings; both guards pass.
+- **G3** (2026-10-01): the Workspaces page is the file explorer. The breadcrumb from `workspace`
+  (one component now, `FolderBreadcrumb`, which Import's browser uses too); Back — the system's and
+  the top bar's alike — goes up a folder and leaves only at the top; Name · Date · Size (Date first:
+  at the top it is when a workspace was last opened, as the old Recent) and search in the folder
+  shown; a tap goes into a folder — a workspace at the top too, as a file explorer does; its menu
+  has Open — or opens a file in the editor. **+** makes a New folder (at the top, a new workspace)
+  or, inside one, a New file. Each file and folder: its icon (the Explorer's file-type icons), name,
+  size or count and age, and one menu from ⋮ or a long press (Open, Rename…, Cut, Copy, Copy path,
+  Delete…); each workspace at the top keeps its own (Open, Open Terminal…). The clipboard bar pastes
+  into the folder shown, or as a workspace at the top. The Explorer's create, rename and delete
+  dialogs take a location, not a tree row, and serve both; Copy path is one action. The list rules
+  the file explorer replaced (search and sort of workspaces) are gone. Gate: 571 tests; lint 0
+  errors / 12 warnings; both guards pass.
 

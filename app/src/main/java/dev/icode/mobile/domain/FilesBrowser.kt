@@ -26,6 +26,15 @@ data class FilesBrowserState(val rootPath: String, val path: String, val items: 
     /** `workspace › tools › cli`: each step a tap back. */
     val crumbs: List<FolderCrumb> get() = FolderCrumbs.of(ROOT_NAME, rootPath, path)
 
+    /** The folder above, where Back goes; null at the top. */
+    val parent: String? get() = crumbs.dropLast(1).lastOrNull()?.path
+
+    /** The workspace it is in; null at the top. */
+    val workspace: String? get() = crumbs.getOrNull(1)?.path
+
+    /** [location] as the runtime names it: `/workspace/tools/cli/README.md`. */
+    fun runtimePathOf(location: String): String = WorkspaceRuntimePath.ROOT + location.removePrefix(rootPath)
+
     private companion object {
         /** The runtime's name for the workspaces folder: `/workspace`. */
         val ROOT_NAME = WorkspaceRuntimePath.ROOT.removePrefix("/")
