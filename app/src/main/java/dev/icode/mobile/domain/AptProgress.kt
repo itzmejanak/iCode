@@ -14,7 +14,7 @@ data class AptProgress(
     val total: Int? = null,
     /** Packages set up or removed so far. */
     val done: Int = 0,
-    /** What apt said it has to fetch: "1,238 kB". */
+    /** What apt said it has to fetch: "1455 kB". */
     val downloadSize: String? = null,
     /** The package or list in hand. */
     val item: String? = null,
@@ -28,10 +28,11 @@ data class AptProgress(
         NEED.find(text)?.let { return copy(downloadSize = it.groupValues[1].substringBefore('/')) }
         FETCH.find(text)?.let { fetch ->
             val words = fetch.groupValues[1].split(' ')
-            // A package: `<uri> noble/main arm64 git arm64 1:2.43.0-1ubuntu7.3 [3,774 kB]`;
-            // a list: `<uri> noble/main arm64 Packages [1,774 kB]` or `<uri> noble InRelease`.
+            // A package: `<uri> noble/universe arm64 ripgrep arm64 14.1.0-1 [1455 kB]`;
+            // a list: `<uri> noble/main arm64 Packages [1774 kB]` or `<uri> noble InRelease`.
             val isPackage = words.size >= 8 && '/' in words[1] && !words[5].startsWith("[")
-            return if (isPackage) copy(phase = AptPhase.Downloading, item = words[3])
+            // An archive fetched while dpkg works (one missing from the cache) does not undo its phase.
+            return if (isPackage) copy(phase = if (counting) phase else AptPhase.Downloading, item = words[3])
             else copy(phase = AptPhase.Updating, item = null)
         }
         if (text.startsWith("Hit:") || text.startsWith("Ign:")) return copy(phase = AptPhase.Updating)

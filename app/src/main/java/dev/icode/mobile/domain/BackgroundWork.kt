@@ -17,7 +17,7 @@ sealed interface BackgroundPlace {
     /** The runtime install, repair or reset. */
     data object Runtime : BackgroundPlace
 
-    /** iCode itself: the work has no page of its own (a runtime package install). */
+    /** iCode itself: the work has no page of its own. */
     data object App : BackgroundPlace
 
     /** As a notification carries it: `task:12`, `clone`, `sync`, `runtime`, `app`. */
@@ -47,7 +47,7 @@ sealed interface BackgroundPlace {
 
 /** One piece of background work, as its notification says it. */
 data class BackgroundItem(
-    /** Stable while the work lasts: `task:12`, `git`, `runtime`, `package`. */
+    /** Stable while the work lasts: `task:12`, `git`, `runtime`, `components`. */
     val key: String,
     /** "Deleting…", "Cloning…", "Installing the Linux runtime". */
     val title: String,
@@ -73,7 +73,7 @@ data class BackgroundItem(
     /**
      * Stable and small, for what the system keys by number (a notification's id): a task's id below
      * 900 — ids count up in a process, and 900 tasks never run at once — then 900 for the Git
-     * transfer, 901 for the runtime, 902 for a package install.
+     * transfer, 901 for the runtime, 902 for the components' apt run.
      */
     val number: Int get() = when (place) {
         is BackgroundPlace.Task -> (place.id % 900).toInt()
@@ -93,16 +93,27 @@ data class BackgroundItem(
 object BackgroundWorkRules {
     /**
      * Everything running in [snapshot], and what stopped short: each task, the Git transfer, the
-     * runtime install, and [installingPackage], a runtime package apt is installing.
+     * runtime install, and the components apt is installing or removing.
      */
-    fun of(snapshot: WorkbenchSnapshot, installingPackage: String?): List<BackgroundItem> = buildList {
+    fun of(snapshot: WorkbenchSnapshot): List<BackgroundItem> = buildList {
         snapshot.tasks.forEach { add(task(it)) }
         git(snapshot)?.let(::add)
         runtime(snapshot)?.let(::add)
-        installingPackage?.let { name ->
-            add(BackgroundItem("package", "Installing $name", "Runtime package", place = BackgroundPlace.App, watched = false))
-        }
+        snapshot.components.work?.let { add(components(it)) }
     }
+
+    /** Its progress shows where it was asked for — the Components page, or the button that needed it. */
+    private fun components(work: ComponentWork) = BackgroundItem(
+        key = "components",
+        title = work.title,
+        detail = listOfNotNull(work.progress.step, work.progress.item).joinToString(" · "),
+        counts = work.progress.counts,
+        fraction = work.progress.fraction,
+        cancel = WorkbenchIntent.CancelComponents.takeIf { work.cancellable },
+        place = BackgroundPlace.App,
+        watched = true,
+        failure = work.failure,
+    )
 
     private fun task(task: WorkTask) = BackgroundItem(
         key = "task:${task.id}",

@@ -193,3 +193,24 @@ cards, check rows, the progress track, the bottom action bar), as Import was.
   script's "Removing obsolete conffile …" is not counted. Tested on the dpkg lines recorded on the
   phone. The onboarding rule moved to C4, with the route it leads to. 16 tests. Gate: 539 tests;
   lint 0 errors / 12 warnings; both guards pass.
+- **C2** (2026-09-30): recorded on the phone first (read-only apt in the runtime): `--print-uris`
+  gives `'<uri>' <file> <size> MD5Sum:…` per archive; a simulation `Remv curl [8.5.0-…]`; a real
+  download `Get:1 http://ports.ubuntu.com/ubuntu-ports noble/universe arm64 ripgrep arm64
+  14.1.0-1 [1455 kB]` and `Need to get 1455 kB` (no thousands separator: C1's tests were corrected
+  to these lines). `DpkgStatus` reads dpkg's status file on the app's side, again only when it
+  changes. Installed means the state word is `installed` (`hold` and `deinstall ok installed` are
+  still on disk). `RuntimePackageInstaller` is by component: an install is `apt-get install -d`
+  (cancellable: nothing installed yet), then the install from the cache (never stopped). Missing or
+  old lists are read once, then it tries again. Progress and apt's last lines are published as
+  `ComponentWork`. A feature's failure is its to say; Apply's stays until read. Apply always runs
+  on its own, queued: it never takes over a feature's install. Removal marks the packages as no
+  longer wanted and removes what apt would now remove, less what it would have removed before
+  (another cause's leftovers). What another package needs is not removed and says so, and its mark
+  is put back. Measuring: each component alone, the lists read once when apt names nothing; one it
+  cannot find is left out with apt's reason. `RuntimeComponentsCoordinator` follows dpkg and the
+  run into the snapshot (sizes measured again once what is installed changes) and takes the
+  page's intents off the lock. The background item is the snapshot's run: step, package,
+  count, and Cancel while it is safe. Git, the SSH client and search ask by component; the three
+  binary-path checks are gone. The gateway stays at its budget (373). 18 installer and coordinator
+  tests (5 runs, no failure), 2 dpkg, 1 progress. Gate: 552 tests; lint 0 errors / 12 warnings;
+  both guards pass.

@@ -7,16 +7,26 @@ import org.junit.Test
 class AptProgressTest {
     private fun read(vararg lines: String): AptProgress = lines.fold(AptProgress()) { progress, line -> progress.next(line) }
 
-    /** `apt-get install -y --no-install-recommends openssh-client`, 2026-09-30; dpkg's part from term.log. */
-    private val sshInstall = listOf(
+    /** `apt-get install -d … ripgrep` on the phone, 2026-09-30: apt's plan and download, as printed. */
+    private val ripgrepDownload = listOf(
         "Reading package lists...",
         "Building dependency tree...",
         "Reading state information...",
+        "The following NEW packages will be installed:",
+        "  ripgrep",
+        "0 upgraded, 1 newly installed, 0 to remove and 4 not upgraded.",
+        "Need to get 1455 kB of archives.",
+        "After this operation, 4995 kB of additional disk space will be used.",
+        "Get:1 http://ports.ubuntu.com/ubuntu-ports noble/universe arm64 ripgrep arm64 14.1.0-1 [1455 kB]",
+        "Fetched 1455 kB in 15s (94.8 kB/s)",
+    )
+
+    /**
+     * The openssh-client install, 2026-09-30: its plan (six packages, `history.log`) and dpkg's
+     * lines as `term.log` recorded them.
+     */
+    private val sshInstall = listOf(
         "0 upgraded, 6 newly installed, 0 to remove and 12 not upgraded.",
-        "Need to get 1,238 kB of archives.",
-        "Get:1 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 adduser all 3.137ubuntu1 [100 kB]",
-        "Get:2 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 libcbor0.10 arm64 0.10.2-1.2ubuntu2 [26.0 kB]",
-        "Fetched 1,238 kB in 1min 58s (10.5 kB/s)",
         "Selecting previously unselected package adduser.",
         "(Reading database ... (Reading database ... 5%(Reading database ... 100%(Reading database ... 8053 files and directories currently installed.)",
         "Preparing to unpack .../adduser_3.137ubuntu1_all.deb ...",
@@ -44,11 +54,11 @@ class AptProgressTest {
     }
 
     @Test fun `the plan gives the total, and downloading says apt's size and the package in hand`() {
-        val progress = read(*sshInstall.take(7).toTypedArray())
-        assertEquals(6, progress.total)
+        val progress = read(*ripgrepDownload.toTypedArray())
+        assertEquals(1, progress.total)
         assertEquals(AptPhase.Downloading, progress.phase)
-        assertEquals("libcbor0.10", progress.item)
-        assertEquals("Downloading 1,238 kB", progress.step)
+        assertEquals("ripgrep", progress.item)
+        assertEquals("Downloading 1455 kB", progress.step)
         assertNull("a download has no fair share off a terminal", progress.fraction)
     }
 
@@ -84,7 +94,7 @@ class AptProgressTest {
     }
 
     @Test fun `already fetched archives download nothing`() {
-        assertEquals("0 B", read("Need to get 0 B/1,238 kB of archives.").downloadSize)
+        assertEquals("0 B", read("Need to get 0 B/1455 kB of archives.").downloadSize)
     }
 
     @Test fun `a removal counts dpkg's removing lines against the plan`() {
@@ -98,12 +108,13 @@ class AptProgressTest {
         assertEquals("Removing 1 of 2", progress.step)
     }
 
+    /** apt-get update's lines, in apt's format (integration-plan.md records the first). */
     @Test fun `reading the lists fetches lists, not packages`() {
         val progress = read(
             "Get:1 http://ports.ubuntu.com/ubuntu-ports noble InRelease [256 kB]",
             "Hit:2 http://ports.ubuntu.com/ubuntu-ports noble-updates InRelease",
-            "Get:5 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 Packages [1,774 kB]",
-            "Get:6 http://ports.ubuntu.com/ubuntu-ports noble/universe Translation-en [5,982 kB]",
+            "Get:5 http://ports.ubuntu.com/ubuntu-ports noble/main arm64 Packages [1774 kB]",
+            "Get:6 http://ports.ubuntu.com/ubuntu-ports noble/universe Translation-en [5982 kB]",
         )
         assertEquals(AptPhase.Updating, progress.phase)
         assertNull(progress.item)
@@ -118,5 +129,14 @@ class AptProgressTest {
         )
         assertEquals(AptPhase.Installing, progress.phase)
         assertEquals(1, progress.done)
+    }
+
+    @Test fun `an archive fetched while dpkg works leaves it installing`() {
+        val progress = read(
+            "0 upgraded, 1 newly installed, 0 to remove and 4 not upgraded.",
+            "Unpacking ripgrep (14.1.0-1) ...",
+            "Get:1 http://ports.ubuntu.com/ubuntu-ports noble/universe arm64 ripgrep arm64 14.1.0-1 [1455 kB]",
+        )
+        assertEquals(AptPhase.Installing, progress.phase)
     }
 }

@@ -94,6 +94,23 @@ object ComponentRules {
     }
 }
 
+/** The runtime's components, as the Components page and the features that need one see them. */
+data class RuntimeComponentsState(
+    /** What dpkg has installed; null until it has been read. */
+    val installedPackages: Set<String>? = null,
+    /** What each component not installed would download, by id, once measured. */
+    val downloads: Map<String, ComponentDownload> = emptyMap(),
+    /** apt is reading the lists or measuring. */
+    val measuring: Boolean = false,
+    /** Why a component could not be measured. */
+    val measureFailure: String? = null,
+    /** The apt run in hand, or the page's last failure until read. */
+    val work: ComponentWork? = null,
+) {
+    fun isInstalled(component: RuntimeComponent): Boolean =
+        installedPackages?.let { ComponentRules.isInstalled(component, it) } == true
+}
+
 enum class ComponentAction { Install, Remove }
 
 /** The one apt run for components: what the page, a button waiting on it and its notification show. */
