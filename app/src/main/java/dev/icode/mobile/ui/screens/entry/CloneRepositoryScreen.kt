@@ -51,7 +51,8 @@ fun CloneRepositoryScreen(actions: NavigationActions) {
     var name by remember { mutableStateOf(state.cloneName) }
     var branch by remember { mutableStateOf(state.cloneBranch) }
     fun keepForm() = gateway.dispatch(WorkbenchIntent.UpdateCloneForm(url, name, branch))
-    val nameProblem = newWorkspaceProblem(name)
+    val destination = state.projectDestination
+    val nameProblem = projectProblem(name, destination)
     val branchError = branch.trim().takeIf { it.isNotEmpty() }?.let(GitRemoteRules::branchError)
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Clone Repository", onBack = actions.back)
@@ -75,7 +76,8 @@ fun CloneRepositoryScreen(actions: NavigationActions) {
                 placeholder = "https://host/owner/repo.git or git@host:owner/repo.git",
                 literal = true,
             )
-            WorkspaceNameFields(name, { name = it; keepForm() }, nameProblem)
+            DestinationField(destination) { actions.navigate(Route.ChooseDestination) }
+            WorkspaceNameFields(name, { name = it; keepForm() }, nameProblem, destination)
             LabeledTextField(
                 label = "Checkout Branch (Optional)",
                 value = branch,
@@ -119,7 +121,7 @@ fun CloneRepositoryScreen(actions: NavigationActions) {
             if (state.gitOperation is GitOperationState.Running) "Cloning…" else "Clone Repository",
             {
                 gateway.dispatch(
-                    WorkbenchIntent.CloneRepository(url = url.trim(), directoryName = name.trim(), branch = branch.trim()),
+                    WorkbenchIntent.CloneRepository(url = url.trim(), directoryName = name.trim(), branch = branch.trim(), into = destination?.location),
                 )
                 actions.navigate(Route.CloneProgress)
             },
