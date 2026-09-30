@@ -229,4 +229,9 @@ open over the real Source Control, a little blurred, and be chosen from one bar 
   a folder, as in the Workspaces page's explorer; at sdcard it leaves. The folder above is one rule
   for both browsers (`FolderCrumbs.parentOf`). 1 test. Gate (G7–G13): 579 tests; lint 0 errors /
   12 warnings; both guards pass.
+- **G8, revised** (2026-10-01, owner: "branch as status and button both", ↑↓ on the right): the
+  repository and the branch are chips on the left of the bar — icon, name, ▾ — each saying which
+  it is and opening its sheet; ↑↓ sits at the bar's right end. The chip is the bar's own
+  (`BottomBarItem.choice`, one component for every bar). Gate: 579 tests; lint 0 errors / 12
+  warnings; both guards pass.
 

@@ -13,16 +13,24 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 /** One entry of an [IcodeBottomBar]: a destination, a mode, a scope, a filter or a toggle. */
@@ -41,6 +49,12 @@ data class BottomBarItem(
     val description: String? = null,
     /** False: shown muted and not tappable, as a step not reached yet or a Prev at the first change. */
     val enabled: Boolean = true,
+    /**
+     * What is chosen — a branch, a repository — drawn as the button that changes it: [icon], the
+     * name and ▾, on a chip, so it reads as both the state and the way to change it.
+     */
+    val choice: Boolean = false,
+    val icon: ImageVector? = null,
 )
 
 /**
@@ -89,6 +103,7 @@ fun BottomBarEntry(item: BottomBarItem, modifier: Modifier = Modifier) {
         else -> IcodeColors.TextSecondary
     }
     val click = item.onClick?.takeIf { item.enabled }
+    if (item.choice) return ChoiceEntry(item, click, modifier)
     Row(
         modifier = modifier
             .fillMaxHeight()
@@ -114,6 +129,32 @@ fun BottomBarEntry(item: BottomBarItem, modifier: Modifier = Modifier) {
                 Text(count.toString(), style = IcodeType.Label.copy(color = if (lit) IcodeColors.OnAccent else IcodeColors.TextMuted))
             }
         }
+    }
+}
+
+/** A [BottomBarItem.choice]: its icon, what is chosen and ▾, on a chip that opens the choice. */
+@Composable
+private fun ChoiceEntry(item: BottomBarItem, click: (() -> Unit)?, modifier: Modifier) {
+    Row(
+        modifier = modifier
+            .height(IcodeSizes.BarChoice)
+            .clip(IcodeShapes.Pill)
+            .background(IcodeColors.SurfaceElevated)
+            .then(if (click != null) Modifier.clickable(role = Role.Button, onClick = click) else Modifier)
+            .semantics { item.description?.let { contentDescription = it } }
+            .padding(horizontal = IcodeSpacing.Space3),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1 + IcodeSpacing.Micro),
+    ) {
+        item.icon?.let { Icon(it, contentDescription = null, tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconSm)) }
+        Text(
+            item.label,
+            modifier = Modifier.widthIn(max = IcodeSizes.BarChoiceLabel),
+            style = IcodeType.Mono.copy(color = if (item.enabled) IcodeColors.TextPrimary else IcodeColors.TextMuted),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = null, tint = IcodeColors.TextSecondary, modifier = Modifier.size(IcodeSizes.IconSm))
     }
 }
 

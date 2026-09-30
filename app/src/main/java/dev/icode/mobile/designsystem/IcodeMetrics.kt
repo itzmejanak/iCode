@@ -64,6 +64,9 @@ object IcodeSizes {
     /** Offscreen-sized input that only exists to receive keystrokes. */
     val HiddenInput = 1.dp
     val BottomBar = 48.dp
+    /** A choice's chip in a bottom bar (the branch, the repository), and how wide its name may run. */
+    val BarChoice = 32.dp
+    val BarChoiceLabel = 160.dp
     val LineNumberGutter = 32.dp
     val Swatch = 28.dp
 
