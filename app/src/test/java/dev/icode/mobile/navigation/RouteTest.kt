@@ -22,15 +22,10 @@ class RouteTest {
         "3:55" to "Runtime error — the Failed state of Runtime installing (3:27)",
     )
 
-    /** Frames whose page is gone from the app, each with the decision that retired it. */
-    private val retiredFrames = mapOf(
-        "2003:117" to "Open folder — workspaces live in iCode's storage (docs/workspace-storage-plan.md §4.4)",
-    )
-
     /** Pages the design does not have, each added at the owner's request. */
     private val routesWithoutFrame = setOf(
         Route.Notifications, // 2026-09-25: notices off the launcher
-        Route.ImportWorkspace, // 2026-09-30: Import, built from New Folder's parts (workspace-storage-plan.md §4.4)
+        Route.ImportWorkspace, // 2026-09-30: Import names the chosen folder, built from New Folder's parts (workspace-storage-plan.md §4.4)
     )
 
     private val framed = Route.entries.mapNotNull { it.figmaNode }
@@ -41,14 +36,14 @@ class RouteTest {
     }
 
     @Test
-    fun `every Figma frame is a route, a documented state or a retired page`() {
-        assertEquals(TOTAL_FIGMA_FRAMES, framed.size + framesRenderedAsStates.size + retiredFrames.size)
+    fun `every Figma frame is either a route or a documented state`() {
+        assertEquals(TOTAL_FIGMA_FRAMES, framed.size + framesRenderedAsStates.size)
     }
 
     @Test
-    fun `no frame is both a route and a state or retired`() {
-        (framesRenderedAsStates.keys + retiredFrames.keys).forEach { node ->
-            assertFalse("$node is listed as a state or retired but still has a route", node in framed)
+    fun `no frame is both a route and a state`() {
+        framesRenderedAsStates.keys.forEach { node ->
+            assertFalse("$node is listed as a state but still has a route", node in framed)
         }
     }
 
@@ -59,7 +54,7 @@ class RouteTest {
 
     @Test
     fun `every node id is a Figma node reference`() {
-        val nodes = framed + framesRenderedAsStates.keys + retiredFrames.keys
+        val nodes = framed + framesRenderedAsStates.keys
         assertTrue(nodes.all { it.matches(Regex("""\d+:\d+""")) })
     }
 

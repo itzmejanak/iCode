@@ -15,20 +15,18 @@ import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
-import dev.icode.mobile.ui.rememberImportPicker
 
 /**
- * Import (docs/workspace-storage-plan.md §4.5): the folder picked on phone storage is copied into a
- * new workspace, named after it unless the user names it otherwise. The copy runs as a task; the
- * folder on phone storage is only read.
+ * Import (docs/workspace-storage-plan.md §4.5): the folder chosen in the Import browser is copied into
+ * a new workspace, named after it unless the user names it otherwise. The copy runs as a task; the
+ * folder on phone storage is only read. Change goes back to the browser.
  */
 @Composable
 fun ImportScreen(actions: NavigationActions) {
     val gateway = LocalWorkbenchGateway.current
     val source = LocalWorkbenchSnapshot.current.importSource
-    val pick = rememberImportPicker()
-    // Another folder picked with Change proposes its own name.
-    var name by rememberSaveable(source?.uri) { mutableStateOf(source?.name.orEmpty()) }
+    // Another folder chosen after Change proposes its own name.
+    var name by rememberSaveable(source?.path) { mutableStateOf(source?.name.orEmpty()) }
     NewWorkspacePage(
         title = "Import",
         actions = actions,
@@ -38,10 +36,10 @@ fun ImportScreen(actions: NavigationActions) {
         onSubmit = { gateway.dispatch(WorkbenchIntent.ImportWorkspace(name)) },
         ready = source != null,
         above = {
-            LabeledField("From", source?.name ?: "Choose a folder on phone storage") {
+            LabeledField("From", source?.displayPath ?: "Choose a folder on phone storage") {
                 Text(
                     "Change",
-                    modifier = Modifier.clickable(onClick = pick),
+                    modifier = Modifier.clickable(onClick = actions.back),
                     style = IcodeType.Label.copy(color = IcodeColors.Accent),
                 )
             }

@@ -1,7 +1,7 @@
 package dev.icode.mobile.data.storage
 
 import java.io.File
-import java.io.InputStream
+import java.nio.file.Files
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -9,23 +9,9 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
-/** A folder on disk read as a provider lists it; [extra] adds entries a provider may list and disk cannot hold. */
-internal class DiskImportTree(private val root: File, private val extra: Map<String, List<ImportEntry>> = emptyMap()) : ImportTree {
-    override val top = entryOf(root)
-
-    override fun children(folder: ImportEntry): List<ImportEntry> =
-        File(folder.id).listFiles().orEmpty().map(::entryOf) + extra[folder.id].orEmpty()
-
-    override fun open(file: ImportEntry): InputStream = File(file.id).inputStream()
-
-    private fun entryOf(file: File) = ImportEntry(
-        id = file.path,
-        name = file.name,
-        folder = file.isDirectory,
-        size = if (file.isFile) file.length() else 0,
-        modified = file.lastModified(),
-        virtual = false,
-    )
+/** [base] with entries added to a folder's listing: names a folder on disk cannot hold, or a name twice. */
+private class ListedAlso(private val base: ImportTree, private val extra: Map<String, List<ImportEntry>>) : ImportTree by base {
+    override fun children(folder: ImportEntry): List<ImportEntry> = base.children(folder) + extra[folder.id].orEmpty()
 }
 
 class FolderImportTest {
@@ -40,7 +26,7 @@ class FolderImportTest {
     }
 
     @Test fun `the plan lists each folder before what it holds, with the bytes to copy`() {
-        val plan = FolderImport.plan(DiskImportTree(source()))
+        val plan = FolderImport.plan(FileImportTree(source()))
         val order = plan.entries.map { it.relative }
         assertEquals(setOf(".git", ".git/HEAD", "README.md", "src", "src/main", "src/main/App.kt"), order.toSet())
         order.forEach { path -> path.substringBeforeLast('/', "").takeIf { it.isNotEmpty() }?.let { assertTrue(order.indexOf(it) < order.indexOf(path)) } }
@@ -48,13 +34,23 @@ class FolderImportTest {
         assertTrue(plan.skipped.isEmpty())
     }
 
-    @Test fun `a cloud file, a name listed twice and a name no folder can hold are skipped and counted`() {
+    @Test fun `a name listed twice and a name no folder can hold are skipped and counted`() {
         val picked = source()
-        fun entry(name: String, virtual: Boolean = false) = ImportEntry("x-$name", name, folder = false, size = 5, modified = 0, virtual = virtual)
-        val tree = DiskImportTree(picked, mapOf(picked.path to listOf(entry("cloud.pdf", virtual = true), entry("README.md"), entry("a/b"), entry(".."))))
+        fun entry(name: String) = ImportEntry("x-$name", name, folder = false, size = 5, modified = 0)
+        val tree = ListedAlso(FileImportTree(picked), mapOf(picked.path to listOf(entry("README.md"), entry("a/b"), entry(".."))))
         val plan = FolderImport.plan(tree)
-        assertEquals(listOf("..", "README.md", "a/b", "cloud.pdf"), plan.skipped.sorted())
+        assertEquals(listOf("..", "README.md", "a/b"), plan.skipped.sorted())
         assertEquals(1, plan.entries.count { it.relative == "README.md" })
+    }
+
+    @Test fun `a link in the source is not followed, and is counted as not copied`() {
+        val picked = source()
+        val outside = temp.newFolder("outside").apply { File(this, "secret").writeText("not imported") }
+        Files.createSymbolicLink(File(picked, "elsewhere").toPath(), outside.toPath())
+        Files.createSymbolicLink(File(picked, "readme-link").toPath(), File(picked, "README.md").toPath())
+        val plan = FolderImport.plan(FileImportTree(picked))
+        assertEquals(listOf("elsewhere", "readme-link"), plan.skipped.sorted())
+        assertTrue(plan.entries.none { it.relative.startsWith("elsewhere") })
     }
 
     @Test fun `the copy is the plan, each time kept, and the source is only read`() {
@@ -62,7 +58,7 @@ class FolderImportTest {
         val stamp = 1_600_000_000_000L
         File(picked, "README.md").setLastModified(stamp)
         File(picked, "src").setLastModified(stamp)
-        val tree = DiskImportTree(picked)
+        val tree = FileImportTree(picked)
         val plan = FolderImport.plan(tree)
         val into = File(temp.root, ".import-1")
         val done = mutableListOf<String>()
@@ -76,7 +72,7 @@ class FolderImportTest {
     }
 
     @Test fun `a copy stopped from its progress stops there`() {
-        val tree = DiskImportTree(source())
+        val tree = FileImportTree(source())
         val plan = FolderImport.plan(tree)
         val into = File(temp.root, ".import-2")
         var copied = 0
@@ -86,7 +82,7 @@ class FolderImportTest {
     }
 
     @Test fun `the staging folder is never an existing one`() {
-        val tree = DiskImportTree(source())
+        val tree = FileImportTree(source())
         val into = temp.newFolder(".import-3")
         assertFalse(runCatching { FolderImport.copy(tree, FolderImport.plan(tree), into) {} }.isSuccess)
     }

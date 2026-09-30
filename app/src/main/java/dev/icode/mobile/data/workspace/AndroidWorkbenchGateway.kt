@@ -1,7 +1,6 @@
 package dev.icode.mobile.data.workspace
 
 import android.content.Context
-import androidx.core.net.toUri
 import com.termux.terminal.TerminalSession
 import dev.icode.mobile.data.git.CliGitService
 import dev.icode.mobile.data.git.ConflictFiles
@@ -24,7 +23,7 @@ import dev.icode.mobile.data.runtime.TerminalSessionManager
 import dev.icode.mobile.data.search.RipgrepService
 import dev.icode.mobile.data.search.SearchCoordinator
 import dev.icode.mobile.data.settings.AndroidWorkspacePreferencesRepository
-import dev.icode.mobile.data.storage.DocumentTreeImport
+import dev.icode.mobile.data.storage.PhoneStorage
 import dev.icode.mobile.data.storage.WorkspacesProvider
 import dev.icode.mobile.data.system.AndroidSystemAccess
 import dev.icode.mobile.data.tasks.BackgroundWork
@@ -32,7 +31,6 @@ import dev.icode.mobile.data.tasks.TaskRunner
 import dev.icode.mobile.domain.BackgroundWorkRules
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.RuntimeInstallReason
-import dev.icode.mobile.domain.SystemPermission
 import dev.icode.mobile.domain.WorkbenchEffect
 import dev.icode.mobile.domain.WorkbenchGateway
 import dev.icode.mobile.domain.WorkbenchIntent
@@ -172,8 +170,7 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
     )
     private val importer = WorkspaceImportCoordinator(
         workbench, tasks, runtimeLayout.workspaces, git,
-        openTree = { uri -> DocumentTreeImport(appContext.contentResolver, uri.toUri()) },
-        isOwnTree = { uri -> uri.toUri().authority == WorkspacesProvider.authorityOf(appContext) },
+        PhoneStorage.of(),
         reserveSpace = runtimeLayout::reserveSpace,
         freeBytes = runtimeLayout::allocatableBytes,
         open = { location -> session.open(location, persist = true) },
@@ -195,6 +192,7 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
         terminal.follow(scope, settings.values(null).filter { it.loaded && it.loadError == null }.map { it.terminal })
         scope.launch { runtime.reportState() }
         BackgroundWork.follow(appContext, scope, combine(workbench.snapshot, packages.installing, BackgroundWorkRules::of), ::dispatch)
+        importer.followAccess(scope)
     }
 
     /** The live session behind a terminal tab, for the view that draws it. Main thread. */
@@ -242,7 +240,9 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
                     when (intent) {
                         is WorkbenchIntent.RequestSystemPermission ->
                             workbench.emit(WorkbenchEffect.RequestSystemPermission(intent.permission))
-                        is WorkbenchIntent.SystemPermissionAnswered -> systemPermissionAnswered(intent.permission)
+                        // Android's prompt closed: whatever the answer, the permission has been offered.
+                        is WorkbenchIntent.SystemPermissionAnswered ->
+                            workbench.emit(WorkbenchEffect.SystemPermissionResolved(intent.permission, runtime.permissionAnswered(intent.permission)))
                         is WorkbenchIntent.DeclineSystemPermission -> runtime.declinePermission(intent.permission)
                         is WorkbenchIntent.OpenSystemSettings ->
                             workbench.emit(WorkbenchEffect.OpenSystemSettings(intent.permission))
@@ -253,7 +253,10 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
                         is WorkbenchIntent.CreateWorkspace -> lifecycle.create(intent.name)
                         is WorkbenchIntent.RenameWorkspace -> lifecycle.rename(intent)
                         is WorkbenchIntent.DeleteWorkspace -> lifecycle.delete(intent.location)
-                        is WorkbenchIntent.ChooseImportSource -> importer.choose(intent.uri)
+                        is WorkbenchIntent.OpenImportBrowser -> importer.openBrowser(intent.path)
+                        is WorkbenchIntent.BrowseImportFolder -> importer.browse(intent.path)
+                        WorkbenchIntent.BrowseImportParent -> importer.browseParent()
+                        is WorkbenchIntent.ChooseImportFolder -> importer.choose(intent.path)
                         is WorkbenchIntent.ImportWorkspace -> importer.import(intent.name)
                         is WorkbenchIntent.ShowWorkspaceInFiles ->
                             WorkspacesProvider.showInFiles(appContext, intent.location)?.let { workbench.emit(it) }
@@ -354,11 +357,6 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
                 }
             }
         }
-    }
-
-    /** Android's prompt closed. Whatever the answer, onboarding has now offered the permission. */
-    private suspend fun systemPermissionAnswered(permission: SystemPermission) {
-        workbench.emit(WorkbenchEffect.SystemPermissionResolved(permission, runtime.permissionAnswered(permission)))
     }
 
     /**

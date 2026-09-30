@@ -30,9 +30,11 @@ import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SectionLabel
+import dev.icode.mobile.designsystem.SettingRow
 import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.SystemPermission
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalWorkbenchGateway
@@ -113,6 +115,19 @@ fun StorageSettingsScreen(actions: NavigationActions) {
                     },
                     trailing = { WorkspaceActionsMenu(workspace) },
                 )
+            }
+            // Android's own setting; iCode shows what it reads and opens the page to change it.
+            item { SectionLabel("Phone Storage", Modifier.padding(top = IcodeSpacing.Space2)) }
+            item {
+                val allowed = state.systemAccess?.storage == true
+                SettingRow(
+                    "All Files Access",
+                    Modifier.fillMaxWidth(),
+                    subtitle = if (allowed) "Import can read folders on phone storage" else "Off: Import asks for it when you import",
+                    onClick = { gateway.dispatch(WorkbenchIntent.OpenSystemSettings(SystemPermission.Storage)) },
+                ) {
+                    AccessState(if (allowed) "ALLOWED" else "OFF", allowed = allowed)
+                }
             }
             item { SectionLabel("Cleanup Operations", Modifier.padding(top = IcodeSpacing.Space2)) }
             item { SecondaryButton("Clear Cache", { confirmClearCache = true }, Modifier.fillMaxWidth()) }

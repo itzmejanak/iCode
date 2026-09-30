@@ -14,11 +14,13 @@ import dev.icode.mobile.domain.GitDiffLineKind
 import dev.icode.mobile.domain.GitFileDiff
 import dev.icode.mobile.domain.GitRepositoryState
 import dev.icode.mobile.domain.GitStatusCodes
+import dev.icode.mobile.domain.ImportBrowserState
 import dev.icode.mobile.domain.IndexedFile
 import dev.icode.mobile.domain.LanguageService
 import dev.icode.mobile.domain.LanguageServiceStatus
 import dev.icode.mobile.domain.LineEnding
 import dev.icode.mobile.domain.OpenDocument
+import dev.icode.mobile.domain.PhoneFolder
 import dev.icode.mobile.domain.RecentDocument
 import dev.icode.mobile.domain.RecoverableDraft
 import dev.icode.mobile.domain.RuntimeDetails
@@ -124,7 +126,7 @@ object CaptureFixtures {
             availableBytes = 16_106_127_360L,
             prootVersion = "5.1.107.92",
         ),
-        systemAccess = SystemAccess(notifications = true, unrestrictedBattery = true),
+        systemAccess = SystemAccess(notifications = true, unrestrictedBattery = true, storage = true),
         activeDocument = document("App.tsx", "src/App.tsx", dirty = true),
         openDocuments = listOf(
             document("App.tsx", "src/App.tsx", dirty = true),
@@ -145,6 +147,17 @@ object CaptureFixtures {
         ),
         // Clone progress names the workspace the clone becomes.
         cloneName = "icode-subsystem",
+        importBrowser = ImportBrowserState(
+            access = true,
+            rootPath = PHONE_ROOT,
+            currentPath = "$PHONE_ROOT/Projects",
+            displayPath = "Internal storage / Projects",
+            folders = listOf(
+                PhoneFolder("RevPlayer", "$PHONE_ROOT/Projects/RevPlayer", directoryCount = 12, fileCount = 4),
+                PhoneFolder("site", "$PHONE_ROOT/Projects/site", directoryCount = 2, fileCount = 15),
+                PhoneFolder("notes", "$PHONE_ROOT/Projects/notes", directoryCount = 1, fileCount = 6),
+            ),
+        ),
         storage = StorageSummary(availableBytes = 13_314_398_617L, totalBytes = 137_438_953_472L),
         storageDetails = StorageDetails(
             device = StorageSummary(availableBytes = (14.2 * GIB).toLong(), totalBytes = 16 * GIB),
@@ -188,6 +201,7 @@ object CaptureFixtures {
 
     private const val ROOT = "/workspace/icode-subsystem"
     private const val STORAGE_DRIVER = "/workspace/storage-driver"
+    private const val PHONE_ROOT = "/storage/emulated/0"
 
     /** Drawn as text on the runtime screen; nothing opens it. */
     @SuppressLint("SdCardPath")

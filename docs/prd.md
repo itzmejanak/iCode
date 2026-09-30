@@ -223,8 +223,8 @@ The platform provides execution, files, processes, environment variables, packag
 
 | ID | Requirement |
 |---|---|
-| PR-WS-01 | Workspaces shall live in the application's own storage; the application shall request no broad storage permission. |
-| PR-WS-02 | A folder from phone storage shall come in only by the user's Import — a one-time copy through Android's folder picker that never writes the original — with a repository's executable bits and links restored from Git's own record. |
+| PR-WS-01 | Workspaces shall live in the application's own storage and need no storage permission; All Files Access is asked only where phone storage is read (Import), never at onboarding. |
+| PR-WS-02 | A folder from phone storage shall come in only by the user's Import — chosen in the application's own browser of phone storage, and copied once, never writing the original — with a repository's executable bits and links restored from Git's own record. |
 | PR-WS-03 | New Folder, Clone and Import shall name the workspace; it is created at `/workspace/<name>`, and a taken name is refused inline. |
 | PR-WS-04 | Rename and Delete shall act on a whole workspace, refused while a terminal session or task runs in it; Delete shall be confirmed and cannot be undone. |
 | PR-WS-05 | Other applications shall reach workspaces through the application's document provider (Android's Files app and pickers), never through a link that leads out of the workspaces. |
@@ -436,7 +436,7 @@ Empty states explain why no content exists and provide one relevant next action.
 - Workspaces live in app-private storage: other applications reach them only through the document provider, and they have no `/sdcard` path.
 - Uninstalling deletes app-private storage unless the user keeps the application's data when Android asks.
 - Protected Android directories and other applications' private data remain inaccessible without operating-system privileges.
-- No broad storage permission is requested, so no distribution policy for it applies.
+- All Files Access (`MANAGE_EXTERNAL_STORAGE`) is requested for Import alone; a store listing must declare that use.
 - Foreground processes require a visible Android notification.
 - Device vendors may terminate long-running processes despite application lifecycle handling.
 - Native dependencies and runtime binaries must support the device architecture.

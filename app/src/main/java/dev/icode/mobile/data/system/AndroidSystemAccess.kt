@@ -2,6 +2,7 @@ package dev.icode.mobile.data.system
 
 import android.app.NotificationManager
 import android.content.Context
+import android.os.Environment
 import android.os.PowerManager
 import androidx.core.content.edit
 import dev.icode.mobile.domain.SystemAccess
@@ -23,17 +24,25 @@ class AndroidSystemAccess(context: Context) {
         // permission and this reports whether the user switched them off.
         notifications = app.getSystemService(NotificationManager::class.java).areNotificationsEnabled(),
         unrestrictedBattery = app.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(app.packageName),
-        offered = SystemPermission.entries.filterTo(mutableSetOf()) { offered.getBoolean(offeredKey(it), false) },
+        storage = Environment.isExternalStorageManager(),
+        offered = SystemPermission.entries.filterTo(mutableSetOf()) { permission ->
+            offeredKey(permission)?.let { offered.getBoolean(it, false) } == true
+        },
     )
 
     fun markOffered(permission: SystemPermission) {
-        offered.edit { putBoolean(offeredKey(permission), true) }
+        val key = offeredKey(permission) ?: return
+        offered.edit { putBoolean(key, true) }
     }
 
-    /** Keys are stored; do not rename. */
-    private fun offeredKey(permission: SystemPermission): String = when (permission) {
+    /**
+     * Storage is asked where it is needed, each time it is missing, so it has no mark. Keys are
+     * stored; do not rename.
+     */
+    private fun offeredKey(permission: SystemPermission): String? = when (permission) {
         SystemPermission.Notifications -> "offered.notifications"
         SystemPermission.Battery -> "offered.battery"
+        SystemPermission.Storage -> null
     }
 
     private companion object {

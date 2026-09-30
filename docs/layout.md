@@ -334,7 +334,7 @@ iCode asks for no storage permission: workspaces live in its own storage ([works
 
 Each step states why, what the user keeps control of, and opens Android's own prompt. Returning rechecks what Android allows instead of assuming it. A declined step is not asked again; Terminal Settings is the way back.
 
-Folders come in by Import, through Android's own folder picker, and other applications reach workspaces through Android's Files app: neither needs a permission screen.
+All Files Access is not an onboarding step: Import asks for it where it is needed, with the same explanation a step would give (why, what the user keeps control of, Android's own page), and the listing follows once it is granted. Other applications reach workspaces through Android's Files app, which needs no permission.
 
 ## 11. Runtime Installation and Health
 

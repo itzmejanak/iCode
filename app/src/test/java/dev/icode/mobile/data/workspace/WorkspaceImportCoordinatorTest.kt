@@ -3,11 +3,12 @@ package dev.icode.mobile.data.workspace
 import dev.icode.mobile.data.git.GitCheckoutOperations
 import dev.icode.mobile.data.git.GitCheckoutRepair
 import dev.icode.mobile.data.log.BackendLog
-import dev.icode.mobile.data.storage.DiskImportTree
+import dev.icode.mobile.data.storage.PhoneStorage
 import dev.icode.mobile.data.storage.WorkspacePaths
 import dev.icode.mobile.data.tasks.TaskRunner
 import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.ImportSource
+import dev.icode.mobile.domain.SystemAccess
 import dev.icode.mobile.domain.WorkbenchEffect
 import dev.icode.mobile.domain.WorkbenchIntent
 import java.io.File
@@ -44,9 +45,11 @@ class WorkspaceImportCoordinatorTest {
     private var room = true
     private var copying: CountDownLatch? = null
 
+    private var access = true
     private val root by lazy { File(temp.root, "files/workspaces") }
+    private val phone by lazy { temp.newFolder("emulated", "0").canonicalFile }
     private val picked by lazy {
-        temp.newFolder("phone", "app").apply {
+        File(phone, "Projects/app").apply {
             File(this, "src").mkdirs()
             File(this, "src/App.kt").writeText("fun main() {}")
             File(this, "gradlew").writeText("#!/bin/sh")
@@ -58,12 +61,11 @@ class WorkspaceImportCoordinatorTest {
             tasks = tasks,
             paths = WorkspacePaths(root),
             git = git,
-            openTree = { uri ->
+            storage = PhoneStorage(phone) { access },
+            reserveSpace = {
                 copying?.await(5, TimeUnit.SECONDS)
-                DiskImportTree(File(uri))
+                room
             },
-            isOwnTree = { uri -> uri.startsWith("content://own") },
-            reserveSpace = { room },
             freeBytes = { 1024 },
             open = { location -> opened += location },
         )
@@ -105,13 +107,48 @@ class WorkspaceImportCoordinatorTest {
 
     private fun chosen() = runBlocking { coordinator.choose(picked.path) }
 
-    @Test fun `the picked folder's name is proposed, and a folder of iCode's own is refused`() = runBlocking {
-        coordinator.choose("content://own/tree/app")
+    @Test fun `the browser waits for access, then lists where it was asked to open`() = runBlocking {
+        assertTrue(picked.isDirectory)
+        access = false
+        coordinator.openBrowser(File(phone, "Projects").path)
+        val waiting = workbench.current.importBrowser!!
+        assertFalse(waiting.access)
+        assertEquals("Internal storage / Projects", waiting.displayPath)
+        access = true
+        val following = coordinator.followAccess(scope)
+        workbench.update { it.copy(systemAccess = SystemAccess(notifications = false, unrestrictedBattery = false, storage = true)) }
+        until { workbench.current.importBrowser?.access == true }
+        assertEquals(listOf("app"), workbench.current.importBrowser!!.folders.map { it.name })
+        following.cancel()
+    }
+
+    @Test fun `going up stops at internal storage, and a folder gone since falls back to it`() = runBlocking {
+        assertTrue(picked.isDirectory)
+        coordinator.openBrowser(File(phone, "Projects").path)
+        coordinator.browseParent()
+        assertTrue(workbench.current.importBrowser!!.atRoot)
+        coordinator.browseParent()
+        assertTrue(workbench.current.importBrowser!!.atRoot)
+        coordinator.browse(File(phone, "gone").path)
+        assertTrue(workbench.current.importBrowser!!.atRoot)
+        assertEquals(1, messages.size)
+    }
+
+    @Test fun `the chosen folder's name is proposed, and neither the root nor a folder elsewhere can be chosen`() = runBlocking {
+        coordinator.choose(phone.path)
+        coordinator.choose(temp.newFolder("elsewhere").path)
         assertNull(workbench.current.importSource)
-        assertEquals(listOf("This folder is already in iCode's workspaces"), messages.toList())
+        assertEquals(2, messages.size)
         chosen()
-        assertEquals(ImportSource(picked.path, "app"), workbench.current.importSource)
+        assertEquals(ImportSource(picked.path, "app", "Internal storage / Projects / app"), workbench.current.importSource)
         assertTrue(WorkbenchEffect.ImportSourceChosen in effects)
+    }
+
+    @Test fun `nothing is chosen without access`() = runBlocking {
+        access = false
+        chosen()
+        assertNull(workbench.current.importSource)
+        assertEquals(listOf("Allow access to phone storage first"), messages.toList())
     }
 
     @Test fun `an import becomes the workspace in one rename and opens`() = runBlocking {

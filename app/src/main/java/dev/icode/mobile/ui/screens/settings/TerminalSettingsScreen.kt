@@ -196,8 +196,3 @@ fun TerminalSettingsScreen(actions: NavigationActions) {
         }
     }
 }
-
-@Composable
-private fun AccessState(label: String, allowed: Boolean) {
-    Text(label, style = IcodeType.Label.copy(color = if (allowed) IcodeColors.Green else IcodeColors.Amber))
-}

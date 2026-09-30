@@ -1,15 +1,21 @@
 package dev.icode.mobile.domain
 
 /**
- * A permission iCode asks Android for, in the order onboarding asks. Both are optional: workspaces
- * live in iCode's own storage and need none (docs/workspace-storage-plan.md §4.8).
+ * A permission iCode asks Android for. None is needed for a workspace: they live in iCode's own
+ * storage (docs/workspace-storage-plan.md §4.8).
  */
 enum class SystemPermission {
-    /** Running terminal sessions are listed in the notification drawer. */
+    /** Running terminal sessions are listed in the notification drawer. Onboarding offers it once. */
     Notifications,
 
-    /** Battery optimisation leaves running sessions alone. */
+    /** Battery optimisation leaves running sessions alone. Onboarding offers it once. */
     Battery,
+
+    /**
+     * All Files Access: reading folders on phone storage — Import. Asked where it is needed, each
+     * time it is needed and missing; never in onboarding.
+     */
+    Storage,
 }
 
 /**
@@ -21,12 +27,14 @@ enum class SystemPermission {
 data class SystemAccess(
     val notifications: Boolean,
     val unrestrictedBattery: Boolean,
-    /** Optional permissions onboarding has already offered; each is offered once. */
+    val storage: Boolean = false,
+    /** Onboarding's permissions it has already offered; each is offered once. */
     val offered: Set<SystemPermission> = emptySet(),
 ) {
     fun granted(permission: SystemPermission): Boolean = when (permission) {
         SystemPermission.Notifications -> notifications
         SystemPermission.Battery -> unrestrictedBattery
+        SystemPermission.Storage -> storage
     }
 
     /**
@@ -35,5 +43,10 @@ data class SystemAccess(
      * Settings is the way back.
      */
     val onboardingSteps: List<SystemPermission>
-        get() = SystemPermission.entries.filter { permission -> !granted(permission) && permission !in offered }
+        get() = ONBOARDING.filter { permission -> !granted(permission) && permission !in offered }
+
+    private companion object {
+        /** Storage is not among them: Import asks for it where it is needed. */
+        val ONBOARDING = listOf(SystemPermission.Notifications, SystemPermission.Battery)
+    }
 }
