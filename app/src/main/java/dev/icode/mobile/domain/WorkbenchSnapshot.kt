@@ -25,18 +25,18 @@ data class WorkbenchSnapshot(
     val externalChanges: List<ExternalChange> = emptyList(),
     /** Optional initial selection for a captured Explorer frame; real selections remain local UI state. */
     val initialExplorerSelection: String? = null,
-    val folderBrowser: FolderBrowserState? = null,
-    val createFolderDestination: String? = null,
     /**
      * Clone form fields.
      *
-     * Held here, not in the screen, because choosing a destination navigates
-     * away and back — composition state would be lost and the user would have
-     * to retype the URL.
+     * Held here, not in the screen, because the credentials page is visited
+     * from the form and back — composition state would be lost and the user
+     * would have to retype the URL.
      */
     val cloneUrl: String = "",
+    val cloneName: String = "",
     val cloneBranch: String = "",
-    val createFolderDestinationDisplay: String? = null,
+    /** The folder picked for Import, until it is imported or another is picked. */
+    val importSource: ImportSource? = null,
     val storage: StorageSummary? = null,
     val storageDetails: StorageDetails? = null,
     val fileIndex: List<IndexedFile> = emptyList(),

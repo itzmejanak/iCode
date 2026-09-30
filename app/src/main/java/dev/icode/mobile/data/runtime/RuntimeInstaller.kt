@@ -3,6 +3,7 @@ package dev.icode.mobile.data.runtime
 import android.content.Context
 import android.os.Build
 import dev.icode.mobile.data.io.Sha256
+import dev.icode.mobile.data.io.deleteTree
 import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.RuntimeState
 import dev.icode.mobile.domain.RuntimeInstallReason
@@ -177,7 +178,7 @@ internal class RuntimeInstaller(
      * here needs the guest: it writes files into a directory this app owns.
      */
     private suspend fun extract(archive: File, onEntry: suspend (Long) -> Unit) {
-        if (layout.rootfs.exists()) layout.rootfs.deleteRecursively()
+        deleteTree(layout.rootfs)
         layout.rootfs.mkdirs()
         // The unpack runs on its own coroutine and records how far it has got;
         // the count is published from *this* one. A flow may only be emitted to
@@ -216,10 +217,9 @@ internal class RuntimeInstaller(
             "127.0.0.1 localhost\n::1 localhost ip6-localhost ip6-loopback\n",
         )
         File(layout.rootfs, RuntimeHomeBackup.HOME_RELATIVE).mkdirs()
-        File(layout.rootfs, LayoutConstants.GUEST_WORKSPACE_RELATIVE).mkdirs()
         layout.ensureGuestGroups()
         GuestSudo.install(layout.rootfs)
-        // dpkg syncs every file it unpacks, and on phone storage those syncs
+        // dpkg syncs every file it unpacks, and on the phone's flash those syncs
         // dominate an install (measured: git 152 s with them, 84 s without).
         // The package database is rebuildable — Repair Runtime exists for a
         // lost write — and container images drop the syncs the same way. The
@@ -253,10 +253,6 @@ internal class RuntimeInstaller(
     }
 
     internal data class CommandResult(val exitCode: Int, val output: String)
-
-    private object LayoutConstants {
-        const val GUEST_WORKSPACE_RELATIVE = "workspace"
-    }
 
     private companion object {
         const val MANIFEST_ASSET = "runtime/manifest.json"

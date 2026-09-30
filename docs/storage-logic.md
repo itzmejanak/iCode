@@ -1,3 +1,8 @@
+> **Status: superseded (2026-09-30).** The owner's decision moved every workspace into iCode's own
+> storage: [workspace-storage-plan.md](./workspace-storage-plan.md). This direction (sources on
+> shared storage, generated folders in private mounts) was built as S3–S4 and then retired; it is
+> kept as the dated record of what was asked.
+
 We have now finalized the direction. Do not continue with the previous storage plan as-is, because the architecture needs to be broader than “move node_modules to private storage.”
 
 Our target is:

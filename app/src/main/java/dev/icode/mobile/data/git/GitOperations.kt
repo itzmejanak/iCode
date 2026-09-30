@@ -9,6 +9,10 @@ import dev.icode.mobile.domain.GitOutcome
 /** The local operations on the open workspace's repository; tests put a fake in their place. */
 internal interface GitWorkspaceOperations {
     suspend fun isAvailable(): Boolean
+    /** The branch `HEAD` names, read from disk without Git: a repository names it before Git is installed. */
+    fun branchOf(workspacePath: String): String?
+    /** Whether [workspacePath] is in a repository, read from disk without Git. */
+    fun isRepository(workspacePath: String): Boolean
     suspend fun provision(): GitOutcome<Unit>
     suspend fun inspect(workspacePath: String): GitWorkspaceSnapshot
     suspend fun initialize(workspacePath: String)
@@ -48,6 +52,14 @@ internal interface GitTransferOperations {
         config: List<String>,
         onStderr: ((String) -> Unit)?,
     )
+}
+
+/** An imported repository's checkout brought back to what Git recorded; tests put a fake in its place. */
+internal interface GitCheckoutOperations {
+    suspend fun isAvailable(): Boolean
+    suspend fun provision(): GitOutcome<Unit>
+    /** Restores the executables and links of the repository at [top] ([GitCheckoutRepair]); Git's message on failure. */
+    suspend fun restoreCheckout(top: String): GitCheckoutRepair.Restored
 }
 
 /** Where a Git setting lives: the runtime-wide default or one repository's override. */

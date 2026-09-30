@@ -27,6 +27,7 @@ import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.WorkspaceRuntimePath
 import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 
@@ -37,7 +38,7 @@ fun CloneProgressScreen(actions: NavigationActions) {
     val gateway = LocalWorkbenchGateway.current
     val operation = state.gitOperation
     // The clone finishes when Git exits, not after a fixed delay. A failure
-    // returns to the form so the URL and destination can be corrected. Success
+    // returns to the form so the address or the name can be corrected. Success
     // takes this screen's place: stacked under the new workspace, Back would
     // show it again, still succeeded, and it would open the workspace again.
     LaunchedEffect(actions.captureMode, operation) {
@@ -52,12 +53,12 @@ fun CloneProgressScreen(actions: NavigationActions) {
     Column(Modifier.fillMaxSize().padding(IcodeSpacing.Space6)) {
         Text("GIT CLONE IN PROGRESS", style = IcodeType.Label.copy(color = IcodeColors.Accent))
         Text(
-            state.activeWorkspace,
+            state.cloneName,
             style = IcodeType.PageTitle,
             modifier = Modifier.padding(top = IcodeSpacing.Space2 + IcodeSpacing.Micro),
         )
         MonoLine(
-            text = "Dest: ${state.createFolderDestinationDisplay ?: state.activePath}",
+            text = "Dest: ${WorkspaceRuntimePath.of(state.cloneName)}",
             modifier = Modifier.padding(top = IcodeSpacing.Space1 + IcodeSpacing.Micro),
             style = IcodeType.MonoSmall,
         )

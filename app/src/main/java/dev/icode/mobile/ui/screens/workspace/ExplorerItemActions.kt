@@ -19,10 +19,8 @@ import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -44,12 +42,11 @@ import dev.icode.mobile.designsystem.LabeledTextField
 import dev.icode.mobile.domain.FileEntry
 import dev.icode.mobile.domain.FileKind
 import dev.icode.mobile.domain.FileTypes
-import dev.icode.mobile.domain.WorkbenchEffect
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.domain.WorkspaceNameRules
 import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
-import java.util.UUID
+import dev.icode.mobile.ui.rememberPendingRequest
 
 /** An item cut or copied in the Explorer, waiting for Paste (as VS Code: Move is Cut, then Paste). */
 internal data class ExplorerClipboard(val path: String, val cut: Boolean)
@@ -99,44 +96,26 @@ internal fun paste(clipboard: ExplorerClipboard, target: String, send: (Workbenc
 internal fun RenameWorkspaceItemDialog(entry: FileEntry, onDismiss: () -> Unit) {
     val gateway = LocalWorkbenchGateway.current
     var name by rememberSaveable(entry.path) { mutableStateOf(entry.name) }
-    val pendingRequestId = remember { mutableStateOf<String?>(null) }
-    var failure by remember(entry.path) { mutableStateOf<String?>(null) }
+    val request = rememberPendingRequest(entry.path, onDismiss)
     val folder = entry.kind == FileKind.Folder
     val validationError = if (folder) WorkspaceNameRules.workspaceFolderValidationError(name) else WorkspaceNameRules.fileValidationError(name)
-    LaunchedEffect(gateway) {
-        gateway.effects.collect { effect ->
-            val requestId = pendingRequestId.value
-            when {
-                effect is WorkbenchEffect.WorkspaceItemChanged && effect.requestId == requestId -> onDismiss()
-                effect is WorkbenchEffect.WorkspaceItemFailed && effect.requestId == requestId -> {
-                    failure = effect.message
-                    pendingRequestId.value = null
-                }
-            }
-        }
-    }
     IcodeConfirmDialog(
         title = if (folder) "Rename folder" else "Rename file",
         confirmLabel = "Rename",
-        confirmEnabled = validationError == null && name.trim() != entry.name && pendingRequestId.value == null,
-        dismissEnabled = pendingRequestId.value == null,
+        confirmEnabled = validationError == null && name.trim() != entry.name && !request.waiting,
+        dismissEnabled = !request.waiting,
         onDismiss = onDismiss,
-        onConfirm = {
-            val requestId = UUID.randomUUID().toString()
-            pendingRequestId.value = requestId
-            failure = null
-            gateway.dispatch(WorkbenchIntent.RenameWorkspaceItem(entry.path, name.trim(), requestId))
-        },
+        onConfirm = { request.send { requestId -> gateway.dispatch(WorkbenchIntent.RenameWorkspaceItem(entry.path, name.trim(), requestId)) } },
     ) {
-        LabeledTextField(if (folder) "Folder name" else "File name", name, { name = it; failure = null })
+        LabeledTextField(if (folder) "Folder name" else "File name", name, { name = it; request.failure = null })
         if (validationError != null && name.isNotEmpty()) {
             Text(validationError, style = IcodeType.Caption, color = IcodeColors.Error)
         }
-        failure?.let { Text(it, style = IcodeType.Caption, color = IcodeColors.Error) }
+        request.failure?.let { Text(it, style = IcodeType.Caption, color = IcodeColors.Error) }
     }
 }
 
-/** Delete is final on phone storage, so it is asked, and says what goes. */
+/** Delete is final — there is no trash — so it is asked, and says what goes. */
 @Composable
 internal fun DeleteWorkspaceItemDialog(entry: FileEntry, onDismiss: () -> Unit) {
     val gateway = LocalWorkbenchGateway.current
@@ -145,9 +124,9 @@ internal fun DeleteWorkspaceItemDialog(entry: FileEntry, onDismiss: () -> Unit) 
     IcodeConfirmDialog(
         title = "Delete ${entry.name}?",
         message = if (folder) {
-            "The folder and everything in it are deleted from the phone's storage. This cannot be undone."
+            "The folder and everything in it are deleted. This cannot be undone."
         } else {
-            "The file is deleted from the phone's storage. This cannot be undone."
+            "The file is deleted. This cannot be undone."
         },
         confirmLabel = "Delete",
         onConfirm = {

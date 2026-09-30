@@ -1,28 +1,25 @@
 package dev.icode.mobile.data.workspace
 
-import android.os.Environment
 import android.os.StatFs
 import dev.icode.mobile.data.io.Sha256
 import dev.icode.mobile.data.io.readAtMost
-import dev.icode.mobile.domain.FileKind
-import dev.icode.mobile.domain.FolderBrowserEntry
-import dev.icode.mobile.domain.FolderBrowserPurpose
-import dev.icode.mobile.domain.FolderBrowserState
-import dev.icode.mobile.domain.LineEnding
-import dev.icode.mobile.domain.TextEncoding
+import dev.icode.mobile.data.storage.WorkspacePaths
 import dev.icode.mobile.domain.ByteSize
+import dev.icode.mobile.domain.FileKind
+import dev.icode.mobile.domain.LineEnding
 import dev.icode.mobile.domain.StorageSummary
+import dev.icode.mobile.domain.TextEncoding
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
-import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 
 internal data class WorkspaceRoot(
     val name: String,
     val location: String,
+    /** Its path in the runtime, `/workspace/<name>`: the path people see. */
     val displayPath: String,
 )
 
@@ -40,63 +37,64 @@ internal data class WorkspaceDocument(
 /** A save found a different file on disk from the one that was read: nothing was written. */
 internal class ChangedOnDiskException : IOException("The file changed on disk since it was opened")
 
-internal class DirectFileWorkspaceSource {
-    private val storageRoot: File
-        get() = Environment.getExternalStorageDirectory().canonicalFile
+/**
+ * The files of the workspaces in iCode's storage (docs/workspace-storage-plan.md): the Explorer's
+ * listing, the editor's reading and saving, new files and folders. Nothing outside the workspaces
+ * is read or written, and a link leading out of them is not shown.
+ */
+internal class WorkspaceFileSource(private val paths: WorkspacePaths) {
+    /** The folder every workspace is in: watched, so one made from the terminal appears. */
+    val workspacesRoot: File get() = paths.root
 
-    fun initialBrowser(purpose: FolderBrowserPurpose): FolderBrowserState =
-        browserState(storageRoot.path, purpose)
-
+    /** Space on the volume the workspaces live on. */
     fun storageSummary(): StorageSummary {
-        val stats = StatFs(storageRoot.path)
+        paths.root.mkdirs()
+        val stats = StatFs(paths.root.path)
         return StorageSummary(
             availableBytes = stats.availableBytes,
             totalBytes = stats.totalBytes,
         )
     }
 
-    fun browse(path: String, purpose: FolderBrowserPurpose): FolderBrowserState =
-        browserState(path, purpose)
-
-    fun parent(path: String, purpose: FolderBrowserPurpose): FolderBrowserState {
-        val current = requireDirectory(path)
-        val parent = current.parentFile?.canonicalFile
-        val destination = if (parent != null && isInsideStorage(parent)) parent else storageRoot
-        return browserState(destination.path, purpose)
-    }
-
+    /** A workspace by its location: its name, and its path in the runtime. */
     fun describeRoot(location: String): WorkspaceRoot {
-        val directory = requireDirectory(location)
+        val directory = requireWorkspace(location)
         return WorkspaceRoot(
-            name = directory.name.ifBlank { "Internal storage" },
+            name = directory.name,
             location = directory.path,
-            displayPath = displayPath(directory),
+            displayPath = paths.guestOf(directory.path) ?: throw IOException("This workspace no longer exists"),
         )
     }
+
+    /** [location] is a workspace: a folder right under the workspaces, there now. */
+    fun isWorkspace(location: String): Boolean = runCatching { requireWorkspace(location) }.isSuccess
 
     fun listChildren(parentLocation: String): List<DocumentNode> {
         val parent = requireDirectory(parentLocation)
+        val workspace = paths.workspaceOf(parent.path)
         return parent.listFiles()?.asSequence()
             ?.filterNot { it.name == ".git" }
             ?.mapNotNull { child ->
-            runCatching {
-                val canonical = child.canonicalFile
-                if (!isInsideStorage(canonical)) return@runCatching null
-                DocumentNode(
-                    name = child.name,
-                    location = canonical.path,
-                    kind = if (child.isDirectory) FileKind.Folder else FileKind.File,
-                )
-            }.getOrNull()
-        }?.filterNotNull()?.toList().orEmpty().sortedWith(
-            compareBy<DocumentNode> { it.kind != FileKind.Folder }.thenBy { it.name.lowercase() },
-        )
+                runCatching {
+                    // A link (node_modules/.bin, a virtualenv's) is named where it is, so a rename,
+                    // move or delete acts on the link and never on what it points to; it is shown
+                    // only while that stays inside this workspace.
+                    if (paths.workspaceOf(child.canonicalPath) != workspace) return@runCatching null
+                    DocumentNode(
+                        name = child.name,
+                        location = child.path,
+                        kind = if (child.isDirectory) FileKind.Folder else FileKind.File,
+                    )
+                }.getOrNull()
+            }?.filterNotNull()?.toList().orEmpty().sortedWith(
+                compareBy<DocumentNode> { it.kind != FileKind.Folder }.thenBy { it.name.lowercase() },
+            )
     }
 
     fun createDirectory(parentLocation: String, name: String): String {
         val parent = requireDirectory(parentLocation)
         val target = File(parent, name).canonicalFile
-        if (!isInsideStorage(target) || target.parentFile?.canonicalFile != parent) {
+        if (!isInsideWorkspaces(target) || target.parentFile?.canonicalFile != parent) {
             throw IOException("Invalid folder destination")
         }
         if (target.exists()) throw IOException("A file or folder with this name already exists")
@@ -108,7 +106,7 @@ internal class DirectFileWorkspaceSource {
     fun createFile(parentLocation: String, name: String): String {
         val parent = requireDirectory(parentLocation)
         val target = File(parent, name).canonicalFile
-        if (!isInsideStorage(target) || target.parentFile?.canonicalFile != parent) {
+        if (!isInsideWorkspaces(target) || target.parentFile?.canonicalFile != parent) {
             throw IOException("Invalid file destination")
         }
         if (!target.createNewFile()) throw IOException("A file or folder with this name already exists")
@@ -131,6 +129,7 @@ internal class DirectFileWorkspaceSource {
         )
     }
 
+    /** Written beside the file and renamed over it: a save is whole or not at all. */
     fun writeDocument(document: WorkspaceDocument, text: String): WorkspaceDocument {
         if (document.readOnly) throw IOException("This document is read-only")
         val target = requireFile(document.location)
@@ -147,16 +146,7 @@ internal class DirectFileWorkspaceSource {
                 output.flush()
                 output.fd.sync()
             }
-            try {
-                Files.move(
-                    temporary.toPath(),
-                    target.toPath(),
-                    StandardCopyOption.ATOMIC_MOVE,
-                    StandardCopyOption.REPLACE_EXISTING,
-                )
-            } catch (_: AtomicMoveNotSupportedException) {
-                Files.move(temporary.toPath(), target.toPath(), StandardCopyOption.REPLACE_EXISTING)
-            }
+            Files.move(temporary.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
         } finally {
             temporary.delete()
         }
@@ -168,44 +158,17 @@ internal class DirectFileWorkspaceSource {
         )
     }
 
-    fun isAvailable(location: String): Boolean = runCatching {
-        val file = File(location).canonicalFile
-        isInsideStorage(file) && file.isDirectory && file.canRead()
-    }.getOrDefault(false)
-
-    private fun browserState(path: String, purpose: FolderBrowserPurpose): FolderBrowserState {
-        val directory = requireDirectory(path)
-        val folders = directory.listFiles()?.asSequence()
-            ?.filter { it.isDirectory && !it.isHidden && !it.name.startsWith('.') }
-            ?.mapNotNull { folder ->
-                runCatching {
-                    val canonical = folder.canonicalFile
-                    if (!isInsideStorage(canonical)) return@runCatching null
-                    val children = folder.listFiles()
-                    FolderBrowserEntry(
-                        name = folder.name,
-                        path = canonical.path,
-                        directoryCount = children?.count { it.isDirectory } ?: 0,
-                        fileCount = children?.count { it.isFile } ?: 0,
-                    )
-                }.getOrNull()
-            }
-            ?.filterNotNull()
-            ?.sortedBy { it.name.lowercase() }
-            ?.toList()
-            .orEmpty()
-        return FolderBrowserState(
-            purpose = purpose,
-            rootPath = storageRoot.path,
-            currentPath = directory.path,
-            displayPath = displayPath(directory),
-            folders = folders,
-        )
+    private fun requireWorkspace(location: String): File {
+        val directory = File(location).canonicalFile
+        if (paths.workspaceOf(directory.path) != directory.path || !directory.isDirectory) {
+            throw IOException("This workspace no longer exists")
+        }
+        return directory
     }
 
     private fun requireDirectory(path: String): File {
         val directory = File(path).canonicalFile
-        if (!isInsideStorage(directory) || !directory.isDirectory || !directory.canRead()) {
+        if (!isInsideWorkspaces(directory) || !directory.isDirectory || !directory.canRead()) {
             throw IOException("This directory is unavailable")
         }
         return directory
@@ -213,19 +176,14 @@ internal class DirectFileWorkspaceSource {
 
     private fun requireFile(path: String): File {
         val file = File(path).canonicalFile
-        if (!isInsideStorage(file) || !file.isFile || !file.canRead()) {
+        if (!isInsideWorkspaces(file) || !file.isFile || !file.canRead()) {
             throw IOException("This file is unavailable")
         }
         return file
     }
 
-    private fun isInsideStorage(file: File): Boolean =
-        file.toPath().startsWith(storageRoot.toPath())
-
-    private fun displayPath(file: File): String {
-        val relative = storageRoot.toPath().relativize(file.toPath()).toString()
-        return if (relative.isBlank()) "Internal storage" else "Internal storage/$relative"
-    }
+    /** Inside a workspace: under the workspaces' folder, never that folder itself. */
+    private fun isInsideWorkspaces(file: File): Boolean = paths.workspaceOf(file.path) != null
 
     private fun readBounded(input: InputStream): ByteArray =
         input.readAtMost(MAX_TEXT_BYTES, "Files larger than ${ByteSize.format(MAX_TEXT_BYTES.toLong())} are not supported yet")

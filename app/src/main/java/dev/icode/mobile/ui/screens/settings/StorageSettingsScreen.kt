@@ -20,7 +20,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import dev.icode.mobile.designsystem.DangerButton
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeConfirmDialog
@@ -31,7 +30,6 @@ import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SectionLabel
-import dev.icode.mobile.designsystem.TwoColumnActions
 import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.domain.WorkbenchIntent
@@ -41,8 +39,6 @@ import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 import dev.icode.mobile.ui.WorkspaceActionsMenu
 
-private enum class CleanupAction { Cache, StaleRecents }
-
 /** Device totals and bounded app/workspace measurements, never fabricated sizes. */
 @Composable
 fun StorageSettingsScreen(actions: NavigationActions) {
@@ -50,7 +46,7 @@ fun StorageSettingsScreen(actions: NavigationActions) {
     val gateway = LocalWorkbenchGateway.current
     val device = state.storageDetails?.device ?: state.storage
     val details = state.storageDetails
-    var pendingCleanup by remember { mutableStateOf<CleanupAction?>(null) }
+    var confirmClearCache by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) { gateway.dispatch(WorkbenchIntent.RefreshStorage) }
 
@@ -91,9 +87,15 @@ fun StorageSettingsScreen(actions: NavigationActions) {
                     )
                 }
             }
-            item { SectionLabel("Workspace Paths", Modifier.padding(top = IcodeSpacing.Space2)) }
+            item { SectionLabel("Workspaces", Modifier.padding(top = IcodeSpacing.Space2)) }
+            item {
+                Text(
+                    "Workspaces live in iCode's storage. Uninstalling iCode removes them unless you choose to keep its data.",
+                    style = IcodeType.Caption,
+                )
+            }
             if (state.workspaces.isEmpty()) item {
-                Text("No recent workspaces", style = IcodeType.Body)
+                Text("No workspaces yet", style = IcodeType.Body)
             }
             items(state.workspaces, key = { it.location }) { workspace ->
                 IcodeListRow(
@@ -113,30 +115,22 @@ fun StorageSettingsScreen(actions: NavigationActions) {
                 )
             }
             item { SectionLabel("Cleanup Operations", Modifier.padding(top = IcodeSpacing.Space2)) }
-            item {
-                TwoColumnActions(
-                    left = { SecondaryButton("Clear Cache", { pendingCleanup = CleanupAction.Cache }, Modifier.fillMaxWidth()) },
-                    right = { DangerButton("Remove Stale", { pendingCleanup = CleanupAction.StaleRecents }, Modifier.fillMaxWidth()) },
-                )
-            }
+            item { SecondaryButton("Clear Cache", { confirmClearCache = true }, Modifier.fillMaxWidth()) }
         }
     }
 
-    pendingCleanup?.let { action ->
+    if (confirmClearCache) {
         IcodeConfirmDialog(
-            title = if (action == CleanupAction.Cache) "Clear runtime cache?" else "Remove stale recents?",
-            confirmLabel = if (action == CleanupAction.Cache) "Clear cache" else "Remove shortcuts",
-            destructive = action == CleanupAction.StaleRecents,
+            title = "Clear runtime cache?",
+            confirmLabel = "Clear cache",
             onConfirm = {
-                gateway.dispatch(if (action == CleanupAction.Cache) WorkbenchIntent.ClearAppCache else WorkbenchIntent.RemoveStaleRecents)
-                pendingCleanup = null
+                gateway.dispatch(WorkbenchIntent.ClearAppCache)
+                confirmClearCache = false
             },
-            onDismiss = { pendingCleanup = null },
+            onDismiss = { confirmClearCache = false },
         ) {
             Text(
-                if (action == CleanupAction.Cache)
-                    "Removes cached runtime downloads and idle PRoot temporary files. Workspace files and recovery drafts stay untouched. Active runtime tasks must finish first."
-                else "Removes only shortcuts to missing workspace folders from Recents. No workspace files are deleted.",
+                "Removes cached runtime downloads and idle PRoot temporary files. Workspace files and recovery drafts stay untouched. Active runtime tasks must finish first.",
                 style = IcodeType.Body,
             )
         }

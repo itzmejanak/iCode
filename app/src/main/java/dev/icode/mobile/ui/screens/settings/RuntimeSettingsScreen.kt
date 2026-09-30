@@ -88,7 +88,7 @@ fun RuntimeSettingsScreen(actions: NavigationActions) {
                 Modifier.fillMaxWidth(),
             )
             Text(
-                "Reinstalls the base system and keeps your home directory. " +
+                "Reinstalls the base system and keeps your home directory and workspaces. " +
                     "Packages you installed are not kept.",
                 style = IcodeType.Caption,
             )
@@ -98,7 +98,7 @@ fun RuntimeSettingsScreen(actions: NavigationActions) {
                 Modifier.fillMaxWidth(),
             )
             Text(
-                "Removes everything, including your home directory and installed tools.",
+                "Removes everything in the runtime, including your home directory and installed tools. Workspaces are kept.",
                 style = IcodeType.Caption,
             )
         }
@@ -108,11 +108,11 @@ fun RuntimeSettingsScreen(actions: NavigationActions) {
         IcodeConfirmDialog(
             title = if (rebuild == RuntimeRebuild.Repair) "Repair runtime" else "Reset runtime",
             message = if (rebuild == RuntimeRebuild.Repair) {
-                "The base system is downloaded and rebuilt. Your home directory is kept; " +
+                "The base system is downloaded and rebuilt. Your home directory and workspaces are kept; " +
                     "packages you installed are not. This cannot be undone."
             } else {
                 "Everything in the runtime is removed and rebuilt, including your home " +
-                    "directory and installed tools. This cannot be undone."
+                    "directory and installed tools. Workspaces are kept. This cannot be undone."
             },
             detail = details.release,
             confirmLabel = if (rebuild == RuntimeRebuild.Repair) "REPAIR" else "RESET",

@@ -51,6 +51,7 @@ before code, then one verifiable step at a time.
 | 10 | **Device acceptance backlog** | Much finished code awaits a device pass | Consolidated below; the demo cleanup is done (K1) | One pass, then the 39-route capture |
 | 11 | **Code separation S7–S8, X, G and editor colours — done (2026-09-29)** | The owner's "complete the whole remaining, no guess, no duplication, no inconsistency" | Records: [code-separation plan](./docs/code-separation-plan.md) §8 (S7, S8, X3–X5, G1–G2) and §9 (persistence and lock maps); [editor-colors plan](./docs/editor-colors-plan.md) E1–E6 | Owner decisions open: File Watcher exclusions as a feature; the Sora bug report upstream |
 | 12 | **One loading behaviour for the whole app (owner, 2026-09-29)** | "Open workspace and other actions take time before the screen responds" | Measured so far: taps in the first seconds after launch are lost; the first file's freeze is gone (E6) — [code-separation plan](./docs/code-separation-plan.md) §8 item L | Measure each action (tap → first response → done), then its own plan |
+| 13 | **Workspaces in iCode's storage (owner, 2026-09-30)** | Shared storage cannot hold what toolchains need (links, `+x`, case, speed: npm fails there); the split design brought complexity to every consumer | [workspace-storage-plan](./docs/workspace-storage-plan.md): W1–W7 written — one path model and one bind; the list is the workspaces folder; New Folder, Clone, Import (with the Git repair, checked against real Git), Rename, Delete; the Files provider; Manage space; the migration. Backend type-checked and its tests pass here; screens written against the kit, not yet compiled | The owner's Gradle build, the capture and D1–D12 (W8) |
 
 ### Device acceptance backlog (code complete, not yet accepted on device)
 
@@ -117,14 +118,14 @@ Workspace settings and Explorer follow-up (2026-09-23):
       40-frame capture before fixture cleanup.
 
 - [x] Normal launches use `AndroidWorkbenchGateway`; static capture launches retain `DemoWorkbenchGateway` only for deterministic visual verification.
-- [x] All-files access opens the real per-app Android settings surface and verifies the result on return.
-- [x] The in-app folder browser lists and navigates real phone-storage directories without redirecting to Android's Files app or copying source files.
-- [x] Recent workspaces persist across launches, deduplicate by location, and report revoked or missing locations as unavailable.
+- [x] All-files access opens the real per-app Android settings surface and verifies the result on return. *(Retired by [workspace-storage-plan](./docs/workspace-storage-plan.md), W3–W4: workspaces live in iCode's storage.)*
+- [x] The in-app folder browser lists and navigates real phone-storage directories without redirecting to Android's Files app or copying source files. *(Retired by [workspace-storage-plan](./docs/workspace-storage-plan.md), W3–W4: workspaces live in iCode's storage.)*
+- [x] Recent workspaces persist across launches, deduplicate by location, and report revoked or missing locations as unavailable. *(Retired by [workspace-storage-plan](./docs/workspace-storage-plan.md), W3–W4: workspaces live in iCode's storage.)*
 - [x] Recent-workspace menus now open the project, open a path-bound terminal, locate its folder,
       copy its path, or remove only its history entry after confirmation. Launcher cards match the
-      74 dp home action-card height; the narrow menu and compact dialog are shared UI-kit components.
+      74 dp home action-card height; the narrow menu and compact dialog are shared UI-kit components. *(Retired by [workspace-storage-plan](./docs/workspace-storage-plan.md), W3–W4: workspaces live in iCode's storage.)*
 - [x] Explorer rows come from the selected provider, sort folders first, expand directories lazily, and guard cyclic provider results.
-- [x] Create Folder uses the same in-app browser for its destination, validates UTF-8 name limits and traversal/separator cases, creates at the selected path, then opens the new workspace.
+- [x] Create Folder uses the same in-app browser for its destination, validates UTF-8 name limits and traversal/separator cases, creates at the selected path, then opens the new workspace. *(Retired by [workspace-storage-plan](./docs/workspace-storage-plan.md), W3–W4: workspaces live in iCode's storage.)*
 - [x] Explorer opens real text documents; the editor tracks dirty/read-only state and saves to the original document.
 - [x] UTF-8/UTF-16, BOM, and existing line endings are preserved; malformed, binary, and oversized documents fail explicitly.
 - [x] Workspace/tree/name/codec behavior has unit coverage, and open/read/edit/save plus folder creation passed on the attached physical device.
@@ -491,8 +492,8 @@ Use the contract-freeze checklist above. B-01 owns domain value types, state/eff
 
 ### B-02 — Workspaces, files, storage, runtime bootstrap, and recovery storage
 
-- Implement workspace selection, registration, recents, stale/unavailable entries, and original-path edits.
-- Implement listing, metadata, creation, deletion, storage metrics, cleanup, and permission/storage errors.
+- Workspaces live in iCode's storage ([workspace-storage-plan](./docs/workspace-storage-plan.md)): the list is the workspaces folder; create, clone, import, rename and delete; last-opened times.
+- Implement listing, metadata, creation, deletion, storage metrics, cleanup, and storage errors.
 - Watch external changes with file identity, fingerprints, and stale-event suppression.
 - Store versioned recovery buffers and resolve safe destructive paths.
 - Implement runtime install/verify/health/start/stop/update/repair/reset and diagnostics.

@@ -9,10 +9,14 @@
 # orphan-route entries and why each is accepted:
 #   EditorEmpty         rendered by WorkspaceScreenHost for the editor route
 #                       while no document is open; no separate edge needed.
+#   LauncherEmpty       rendered by LauncherScreen whenever no workspace exists;
+#                       its only edge was onboarding without storage access,
+#                       which is gone (docs/workspace-storage-plan.md §4.8).
 #   ExternalFileChange  a dialog over the screen where the change is found
 #                       (ExternalChangePrompt); the route renders it for capture.
 capture-fork|app/src/main/java/dev/icode/mobile/ui/screens/entry/CloneProgressScreen.kt|2
 capture-fork|app/src/main/java/dev/icode/mobile/ui/screens/entry/RuntimeInstallingScreen.kt|2
 capture-fork|app/src/main/java/dev/icode/mobile/ui/screens/entry/SplashScreen.kt|2
 orphan-route|EditorEmpty|1
+orphan-route|LauncherEmpty|1
 orphan-route|ExternalFileChange|1

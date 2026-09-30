@@ -11,7 +11,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -41,17 +40,6 @@ private class PermissionStep(
 )
 
 private fun stepOf(permission: SystemPermission): PermissionStep = when (permission) {
-    SystemPermission.Storage -> PermissionStep(
-        title = "All Files Access",
-        description = "iCode is an on-device local development tool. To function correctly, Android requires the MANAGE_EXTERNAL_STORAGE permission.",
-        reasons = listOf(
-            "Allows you to read, edit, and compile repositories and source files in their original locations.",
-            "Permits opening any accessible storage directory as a workspace without file-picker restrictions.",
-            "Guarantees security. Private app spaces of other native tools remain entirely inaccessible.",
-            "You remain in control. This system-level developer permission is revocable at any time in Android settings.",
-        ),
-        allowLabel = "Open System Settings",
-    )
     SystemPermission.Notifications -> PermissionStep(
         title = "Notifications",
         description = "Terminal sessions keep running after you leave iCode. Android asks whether iCode may show them in the notification drawer.",
@@ -82,42 +70,30 @@ private val stepsSaver = listSaver<List<SystemPermission>, String>(
 )
 
 /**
- * The permissions onboarding asks for, one at a time on this one screen.
+ * The permissions onboarding asks for, one at a time on this one screen. Both are optional:
+ * workspaces live in iCode's own storage and need none.
  *
  * The steps are fixed when the screen opens, so answering one does not
  * reshuffle the rest, and the position survives the trip to Android's own
- * prompt. A step moves on when that prompt closes — storage only once
- * granted, since nothing that opens a folder works without it — or on
+ * prompt. A step moves on when that prompt closes, whatever the answer, or on
  * "Not Now".
  */
 @Composable
 fun PermissionScreen(actions: NavigationActions) {
     val gateway = LocalWorkbenchGateway.current
     val access = LocalWorkbenchSnapshot.current.systemAccess
-    val steps = rememberSaveable(saver = stepsSaver) {
-        access?.onboardingSteps.orEmpty().ifEmpty { listOf(SystemPermission.Storage) }
-    }
+    val steps = rememberSaveable(saver = stepsSaver) { access?.onboardingSteps.orEmpty() }
     var position by rememberSaveable { mutableIntStateOf(0) }
-    var storageSkipped by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(gateway) {
         gateway.effects.collect { effect ->
-            if (effect is WorkbenchEffect.SystemPermissionResolved &&
-                effect.permission == steps.getOrNull(position) &&
-                (effect.granted || effect.permission != SystemPermission.Storage)
-            ) {
-                position++
-            }
+            if (effect is WorkbenchEffect.SystemPermissionResolved && effect.permission == steps.getOrNull(position)) position++
         }
     }
 
     val current = steps.getOrNull(position)
     if (current == null) {
-        // Without storage the launcher opens empty, with the banner that leads back.
-        LaunchedEffect(Unit) {
-            val storage = access?.storage == true && !storageSkipped
-            actions.replace(if (storage) Route.LauncherHome else Route.LauncherEmpty)
-        }
+        LaunchedEffect(Unit) { actions.replace(Route.LauncherHome) }
         return
     }
     val step = stepOf(current)
@@ -155,8 +131,7 @@ fun PermissionScreen(actions: NavigationActions) {
         SecondaryButton(
             "Not Now",
             {
-                if (current == SystemPermission.Storage) storageSkipped = true
-                else gateway.dispatch(WorkbenchIntent.DeclineSystemPermission(current))
+                gateway.dispatch(WorkbenchIntent.DeclineSystemPermission(current))
                 position++
             },
             Modifier.fillMaxWidth().padding(top = IcodeSpacing.Space3),

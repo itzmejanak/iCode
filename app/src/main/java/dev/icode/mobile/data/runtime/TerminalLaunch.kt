@@ -33,8 +33,7 @@ internal class TerminalLaunch private constructor(
             prompt.install()
             val argv = layout.prootCommand(
                 guestCommand = shellCommand(settings.shellPath),
-                workspaceHostPath = workspaceHostPath,
-                guestWorkingDirectory = workspaceHostPath?.let(RuntimeLayout::guestWorkspace) ?: RuntimeLayout.GUEST_HOME,
+                guestWorkingDirectory = workspaceHostPath?.let(layout.workspaces::guestOf) ?: RuntimeLayout.GUEST_HOME,
                 killOnExit = true,
             )
             return TerminalLaunch(

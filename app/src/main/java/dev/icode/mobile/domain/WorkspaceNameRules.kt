@@ -8,6 +8,17 @@ object WorkspaceNameRules {
     fun workspaceFolderValidationError(rawName: String): String? =
         validationError(rawName) ?: if (rawName.trim() == ".git") "The .git path is reserved for Git metadata" else null
 
+    /**
+     * A whole workspace's name: a folder name that does not start with a dot — such names at the
+     * top of the workspaces are iCode's own staging (docs/workspace-storage-plan.md §4.2).
+     */
+    fun workspaceNameError(rawName: String): String? =
+        validationError(rawName) ?: if (rawName.trim().startsWith('.')) "A workspace name cannot start with a dot" else null
+
+    /** A new workspace's name: [workspaceNameError], or that [taken] says a workspace has it. */
+    fun newWorkspaceError(rawName: String, taken: (name: String) -> Boolean): String? =
+        workspaceNameError(rawName) ?: rawName.trim().takeIf(taken)?.let { "A workspace named $it already exists" }
+
     private fun nameError(rawName: String, kind: String): String? {
         val name = rawName.trim()
         val label = if (kind == "file") "File" else "Folder"

@@ -1,5 +1,6 @@
 package dev.icode.mobile.data.runtime
 
+import dev.icode.mobile.data.storage.WorkspacePaths
 import java.io.File
 
 /**
@@ -54,7 +55,7 @@ internal class ShellPrompt(private val rootfs: File) {
             __icode_prompt() {
               local shown="${'$'}PWD"
               case "${'$'}PWD" in
-                ${RuntimeLayout.GUEST_WORKSPACE}/*) shown="${'$'}{PWD#${RuntimeLayout.GUEST_WORKSPACE}/}" ;;
+                ${WorkspacePaths.GUEST_ROOT}/*) shown="${'$'}{PWD#${WorkspacePaths.GUEST_ROOT}/}" ;;
                 "${'$'}HOME") shown="~" ;;
                 "${'$'}HOME"/*) shown="~${'$'}{PWD#"${'$'}HOME"}" ;;
               esac

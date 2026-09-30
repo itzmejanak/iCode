@@ -1,12 +1,16 @@
 package dev.icode.mobile.data.git
 
 import dev.icode.mobile.data.log.BackendLog
+import dev.icode.mobile.data.storage.WorkspacePaths
+import dev.icode.mobile.data.storage.WorkspaceStaging
 import dev.icode.mobile.data.workspace.WorkbenchStateHolder
 import dev.icode.mobile.domain.GitActionRules
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.GitRemoteRules
 import dev.icode.mobile.domain.GitSyncAction
+import dev.icode.mobile.domain.WorkspaceNameRules
+import dev.icode.mobile.domain.WorkspaceRuntimePath
 import java.io.File
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
@@ -26,6 +30,8 @@ internal class GitTransferCoordinator(
     private val workbench: WorkbenchStateHolder,
     private val scope: CoroutineScope,
     private val git: GitTransferOperations,
+    /** A clone goes into the workspaces, through iCode's staging; transfers are recorded by their runtime path. */
+    private val workspaces: WorkspacePaths,
     private val activeRoot: () -> String?,
     /** Runs one transfer with the saved token handed to Git for that command alone. */
     private val withCredentials: suspend (block: suspend (config: List<String>) -> Unit) -> Unit,
@@ -38,6 +44,7 @@ internal class GitTransferCoordinator(
     private val operations = AtomicLong()
     private var job: Job? = null
     private var running = ""
+    private val staging = WorkspaceStaging(workspaces.root)
 
     fun fetch(): Job? = start("Fetching") { id ->
         if (refused(GitSyncAction.Fetch)) return@start
@@ -51,8 +58,9 @@ internal class GitTransferCoordinator(
 
     fun push(): Job? = start("Pushing") { id -> push(id) }
 
-    fun clone(url: String, destination: String, directoryName: String, branch: String = ""): Job? =
-        start("Cloning") { id -> clone(id, url.trim(), destination, directoryName.trim(), branch.trim()) }
+    /** Clones into the new workspace [directoryName]; [branch] blank means the remote's default. */
+    fun clone(url: String, directoryName: String, branch: String = ""): Job? =
+        start("Cloning") { id -> clone(id, url.trim(), directoryName.trim(), branch.trim()) }
 
     /** Starts [work] as the one transfer, or says which one is still running. */
     private fun start(label: String, work: suspend (id: Long) -> Unit): Job? = synchronized(this) {
@@ -112,10 +120,15 @@ internal class GitTransferCoordinator(
         }
     }
 
-    private suspend fun clone(id: Long, url: String, destination: String, directoryName: String, branch: String) {
+    /**
+     * Git writes into iCode's staging (docs/workspace-storage-plan.md §4.5), renamed to
+     * [directoryName] only when the clone is whole: a failed or cancelled one leaves nothing, and
+     * no half repository is ever listed as a workspace.
+     */
+    private suspend fun clone(id: Long, url: String, directoryName: String, branch: String) {
         val label = "Cloning"
         // Checked again here, just before Git runs: the form's view may be old.
-        cloneProblem(url, destination, directoryName, branch)?.let { problem ->
+        cloneProblem(url, directoryName, branch)?.let { problem ->
             workbench.update { it.copy(gitOperation = GitOperationState.Failed(label, problem)) }
             return
         }
@@ -134,22 +147,23 @@ internal class GitTransferCoordinator(
             workbench.update { it.copy(gitAvailable = true) }
         }
         workbench.update { it.copy(gitOperation = GitOperationState.Running(label)) }
-        val target = File(destination, directoryName)
-        ledger.started(label, target.path)
+        val folder = staging.reserve("clone")
+        ledger.started(label, WorkspaceRuntimePath.of(directoryName))
         var transcript = emptyList<String>()
-        try {
+        val target = try {
             withCredentials { config ->
-                git.clone(url, destination, directoryName, branch.ifEmpty { null }, config) { stderr ->
+                git.clone(url, workspaces.root.path, folder.name, branch.ifEmpty { null }, config) { stderr ->
                     transcript = transcriptOf(stderr)
                     publishProgress(id, label, stderr, transcript)
                 }
             }
+            staging.complete(folder, directoryName)
         } catch (cancelled: CancellationException) {
-            // Killed partway, Git cannot clean up: what it wrote is named, not deleted.
-            val leftover = target.takeIf { it.list()?.isNotEmpty() == true }?.path
-            workbench.update { it.copy(gitOperation = GitOperationState.Cancelled(label, transcript, leftover)) }
+            runCatching { staging.discard(folder) }
+            workbench.update { it.copy(gitOperation = GitOperationState.Cancelled(label, transcript)) }
             throw cancelled
         } catch (error: Exception) {
+            runCatching { staging.discard(folder) }
             workbench.update {
                 it.copy(gitOperation = GitOperationState.Failed(label, workbench.failureText("git", "Clone failed", error), transcript))
             }
@@ -159,19 +173,11 @@ internal class GitTransferCoordinator(
         openClone(target.path)
     }
 
-    private fun cloneProblem(url: String, destination: String, directoryName: String, branch: String): String? {
+    private fun cloneProblem(url: String, directoryName: String, branch: String): String? {
         GitRemoteRules.urlError(url)?.let { return it }
         if (branch.isNotEmpty()) GitRemoteRules.branchError(branch)?.let { return it }
-        if (!File(destination).isDirectory) return "Choose the folder to clone into"
-        if (directoryName.isEmpty() || directoryName == "." || directoryName == ".." || '/' in directoryName) {
-            return "The address does not name a repository folder"
-        }
-        // Git clones into an empty folder, and refuses anything else; say so first.
-        val target = File(destination, directoryName)
-        if (target.exists() && target.list()?.isNotEmpty() != false) {
-            return "$directoryName already exists there. Choose another folder or remove it first"
-        }
-        return null
+        if (directoryName.isEmpty()) return "The address does not name a repository folder"
+        return WorkspaceNameRules.newWorkspaceError(directoryName) { File(workspaces.root, it).exists() }
     }
 
     /**
@@ -190,7 +196,7 @@ internal class GitTransferCoordinator(
             return
         }
         workbench.update { it.copy(gitOperation = GitOperationState.Running(label)) }
-        ledger.started(label, workspace)
+        ledger.started(label, workspaces.guestOf(workspace) ?: workspace)
         var transcript = emptyList<String>()
         try {
             withCredentials { config ->

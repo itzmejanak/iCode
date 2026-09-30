@@ -2,7 +2,6 @@ package dev.icode.mobile.ui.screens.workspace
 
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -13,12 +12,10 @@ import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.LabeledTextField
 import dev.icode.mobile.domain.WorkbenchIntent
-import dev.icode.mobile.domain.WorkbenchEffect
 import dev.icode.mobile.domain.WorkspaceNameRules
 import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
-import java.util.UUID
-import kotlinx.coroutines.flow.collect
+import dev.icode.mobile.ui.rememberPendingRequest
 
 internal enum class WorkspaceItemType { File, Folder }
 
@@ -36,40 +33,26 @@ internal fun CreateWorkspaceItemDialog(type: WorkspaceItemType, parentLocation: 
     val workspace = remember(type, parentLocation) { state.activeWorkspaceLocation }
     val parent = parentLocation ?: workspace
     var name by rememberSaveable(type, parent) { mutableStateOf("") }
-    val pendingRequestId = remember { mutableStateOf<String?>(null) }
-    var creationError by remember(type, parent) { mutableStateOf<String?>(null) }
+    val request = rememberPendingRequest(type to parent, onDismiss)
     val validationError = when (type) {
         WorkspaceItemType.File -> WorkspaceNameRules.fileValidationError(name)
         WorkspaceItemType.Folder -> WorkspaceNameRules.workspaceFolderValidationError(name)
-    }
-    LaunchedEffect(gateway) {
-        gateway.effects.collect { effect ->
-            val requestId = pendingRequestId.value
-            when {
-                effect is WorkbenchEffect.WorkspaceItemChanged && effect.requestId == requestId -> onDismiss()
-                effect is WorkbenchEffect.WorkspaceItemFailed && effect.requestId == requestId -> {
-                    creationError = effect.message
-                    pendingRequestId.value = null
-                }
-            }
-        }
     }
     IcodeConfirmDialog(
         title = if (type == WorkspaceItemType.File) "New file" else "New folder",
         confirmLabel = "Create",
         confirmEnabled = validationError == null && parent != null && workspace != null &&
-            state.activeWorkspaceLocation == workspace && pendingRequestId.value == null,
-        dismissEnabled = pendingRequestId.value == null,
+            state.activeWorkspaceLocation == workspace && !request.waiting,
+        dismissEnabled = !request.waiting,
         onDismiss = onDismiss,
         onConfirm = {
             val targetParent = parent ?: return@IcodeConfirmDialog
             val targetWorkspace = workspace ?: return@IcodeConfirmDialog
-            val requestId = UUID.randomUUID().toString()
-            pendingRequestId.value = requestId
-            creationError = null
-            when (type) {
-                WorkspaceItemType.File -> gateway.dispatch(WorkbenchIntent.CreateFile(name.trim(), targetParent, targetWorkspace, requestId))
-                WorkspaceItemType.Folder -> gateway.dispatch(WorkbenchIntent.CreateWorkspaceFolder(name.trim(), targetParent, targetWorkspace, requestId))
+            request.send { requestId ->
+                when (type) {
+                    WorkspaceItemType.File -> gateway.dispatch(WorkbenchIntent.CreateFile(name.trim(), targetParent, targetWorkspace, requestId))
+                    WorkspaceItemType.Folder -> gateway.dispatch(WorkbenchIntent.CreateWorkspaceFolder(name.trim(), targetParent, targetWorkspace, requestId))
+                }
             }
         },
     ) {
@@ -81,7 +64,7 @@ internal fun CreateWorkspaceItemDialog(type: WorkspaceItemType, parentLocation: 
         LabeledTextField(
             if (type == WorkspaceItemType.File) "File name" else "Folder name",
             name,
-            { name = it; creationError = null },
+            { name = it; request.failure = null },
             placeholder = if (type == WorkspaceItemType.File) "example.ts" else "components",
         )
         if (validationError != null && name.isNotEmpty()) {
@@ -90,6 +73,6 @@ internal fun CreateWorkspaceItemDialog(type: WorkspaceItemType, parentLocation: 
         if (workspace != state.activeWorkspaceLocation) {
             Text("The active workspace changed. Close and reopen this form.", style = IcodeType.Caption, color = IcodeColors.Error)
         }
-        if (creationError != null) Text(creationError.orEmpty(), style = IcodeType.Caption, color = IcodeColors.Error)
+        request.failure?.let { Text(it, style = IcodeType.Caption, color = IcodeColors.Error) }
     }
 }

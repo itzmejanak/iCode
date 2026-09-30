@@ -1,5 +1,6 @@
 package dev.icode.mobile.domain
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -37,5 +38,14 @@ class WorkspaceNameRulesTest {
     fun `workspace subfolder cannot replace git metadata`() {
         assertNotNull(WorkspaceNameRules.workspaceFolderValidationError(".git"))
         assertNull(WorkspaceNameRules.workspaceFolderValidationError(".github"))
+    }
+
+    @Test
+    fun `a new workspace's name is a folder name, not iCode's staging, and not taken`() {
+        val taken = setOf("app")
+        assertNull(WorkspaceNameRules.newWorkspaceError(" site ") { it in taken })
+        assertEquals("A workspace named app already exists", WorkspaceNameRules.newWorkspaceError(" app ") { it in taken })
+        assertEquals("A workspace name cannot start with a dot", WorkspaceNameRules.newWorkspaceError(".clone-1") { false })
+        assertNotNull(WorkspaceNameRules.newWorkspaceError("a/b") { false })
     }
 }

@@ -10,10 +10,11 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * Live notice of changes in the open workspace while iCode is on screen (S3):
- * the folders the Explorer shows and the folders of open files, watched with
- * inotify. Measured on the phone (2026-09-28): files written by iCode's own
- * terminal under /storage/emulated arrive (create, modify, close-after-write).
+ * Live notice of changes in the workspaces while iCode is on screen (S3): the
+ * folder that holds them, the folders the Explorer shows and the folders of
+ * open files, watched with inotify — so a workspace, file or folder a terminal
+ * or an agent makes appears. Measured on the phone (2026-09-28): files a
+ * terminal writes arrive (create, modify, close-after-write).
  *
  * A burst of writes — an agent at work — becomes one notice: after a second of
  * quiet, or at most every five seconds while it goes on.
@@ -85,10 +86,14 @@ internal const val WATCH_MAX_WAIT_MILLIS = 5_000L
 internal fun settleDelay(first: Long, last: Long, now: Long): Long =
     minOf(last + WATCH_QUIET_MILLIS, first + WATCH_MAX_WAIT_MILLIS) - now
 
-/** The folders worth watching: the workspace root, every expanded folder, and each open file's folder. */
-internal fun watchedFolders(snapshot: WorkbenchSnapshot): Set<File> {
-    val root = snapshot.activeWorkspaceLocation ?: return emptySet()
+/**
+ * The folders worth watching: [workspacesRoot], where workspaces come and go, and in the open
+ * workspace its top, every expanded folder, and each open file's folder.
+ */
+internal fun watchedFolders(snapshot: WorkbenchSnapshot, workspacesRoot: File): Set<File> {
+    val root = snapshot.activeWorkspaceLocation ?: return setOf(workspacesRoot)
     return buildSet {
+        add(workspacesRoot)
         add(File(root))
         snapshot.files.filter { it.kind == FileKind.Folder && it.expanded }.forEach { add(File(it.path)) }
         snapshot.openDocuments.mapNotNull { File(it.location).parentFile }.forEach(::add)

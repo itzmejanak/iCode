@@ -5,7 +5,10 @@ import dev.icode.mobile.domain.GitInProgress
 import dev.icode.mobile.domain.GitFileDiff
 import dev.icode.mobile.domain.GitIdentityRules
 import dev.icode.mobile.domain.GitOutcome
+import java.io.File
 import java.io.IOException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * The repository operations the workbench needs, run through the real `git`.
@@ -15,25 +18,43 @@ import java.io.IOException
  * (PR-GIT-12). Nothing here reimplements Git behaviour.
  */
 internal class GitRepositoryClient(private val cli: CliGitService) :
-    GitWorkspaceOperations, GitTransferOperations, GitConfigOperations {
+    GitWorkspaceOperations, GitTransferOperations, GitConfigOperations, GitCheckoutOperations {
 
     override suspend fun isAvailable(): Boolean = cli.isAvailable()
 
     /** Installs Git into the runtime; Git's own output explains a failure. */
     override suspend fun provision(): GitOutcome<Unit> = cli.provision()
 
+    override fun branchOf(workspacePath: String): String? = cli.locator.branchOf(workspacePath)
+
+    override fun isRepository(workspacePath: String): Boolean = cli.locator.isRepository(workspacePath)
+
     /** Reads the whole repository picture in one process ([GitInspectParser]). */
     override suspend fun inspect(workspacePath: String): GitWorkspaceSnapshot {
         // Also makes `git` usable from the user's own terminal in this
         // workspace, not just from the commands this client runs.
         cli.ensureSafeDirectoryConfigured()
-        val mount = GitMountResolver.resolve(workspacePath)
-        val result = cli.runScript(mount, GitInspectParser.SCRIPT)
-        val snapshot = GitInspectParser.parse(mount.root, result.stdout)
+        val result = cli.runScript(cli.workingFolderOf(workspacePath), GitInspectParser.SCRIPT)
+        val snapshot = GitInspectParser.parse(result.stdout, cli::locationOf)
         // Status failing inside a repository (a corrupt index, say) is a real
         // failure: shown as "no changes" it would hide the user's work.
         if (snapshot.repository != null && !result.succeeded) throw IOException(result.errorMessage)
         return snapshot
+    }
+
+    /**
+     * Reads what Git recorded, restores it on disk, and only then tells Git the filesystem holds
+     * modes and links: stopped anywhere before, the repository reads as it did.
+     */
+    override suspend fun restoreCheckout(top: String): GitCheckoutRepair.Restored {
+        cli.ensureSafeDirectoryConfigured()
+        val reader = GitCheckoutRepair.Reader()
+        val read = cli.streamScript(top, GitCheckoutRepair.SCRIPT, reader::accept)
+        if (!read.succeeded) throw IOException(read.errorMessage)
+        val restored = withContext(Dispatchers.IO) { GitCheckoutRepair.restore(File(top), reader.recorded()) }
+        val settings = cli.runScript(top, GitCheckoutRepair.SETTINGS_SCRIPT)
+        if (!settings.succeeded) throw IOException(settings.errorMessage)
+        return restored
     }
 
     override suspend fun initialize(workspacePath: String) =

@@ -1,8 +1,8 @@
 package dev.icode.mobile.data.runtime
 
 import android.content.Context
-import dev.icode.mobile.data.storage.WorkspaceStorage
 import android.os.storage.StorageManager
+import dev.icode.mobile.data.storage.WorkspacePaths
 import java.io.File
 import org.json.JSONObject
 
@@ -27,8 +27,8 @@ internal class RuntimeLayout(context: Context) {
     val rootfs: File = File(runtimeRoot, "rootfs")
     val prootTemp: File = File(appContext.cacheDir, "proot-tmp")
 
-    /** Each workspace's private storage and mounts: every launch binds its logical workspace. */
-    val workspaces = WorkspaceStorage(appContext.filesDir)
+    /** Every workspace, bound whole at `/workspace` in every launch. */
+    val workspaces = WorkspacePaths.of(appContext)
 
     /** Marks a verified, fully extracted root filesystem. */
     val installMarker: File = File(runtimeRoot, "installed.json")
@@ -144,14 +144,11 @@ internal class RuntimeLayout(context: Context) {
     }
 
     /**
-     * Builds the PRoot command line.
-     *
-     * [workspaceHostPath] is the user's real directory. It is bound, never
-     * copied — the direct-path invariant in architecture.md section 26.
+     * Builds the PRoot command line. Every launch sees every workspace at `/workspace`
+     * (docs/workspace-storage-plan.md §4.2); only its working directory differs.
      */
     fun prootCommand(
         guestCommand: List<String>,
-        workspaceHostPath: String? = null,
         guestWorkingDirectory: String = GUEST_HOME,
         /**
          * Ends every process the command started when the command itself
@@ -160,16 +157,12 @@ internal class RuntimeLayout(context: Context) {
          * background job would keep an exited shell's session open.
          */
         killOnExit: Boolean = false,
-        /** Host folders bound at their own path, for programs that find them by it. */
-        samePathBinds: List<String> = emptyList(),
     ): List<String> = buildList {
         add(proot.absolutePath)
-        // Android refuses link(), and dpkg and friends need hard links inside
-        // the root filesystem, so they are emulated with symbolic links. On a
-        // bound Android directory, which refuses symbolic links too, a link
-        // fails exactly as the kernel's would and git falls back to rename:
-        // third_party/patches/proot/0001 makes that failure leave the file
-        // untouched, so one setting serves every launch.
+        // Android refuses link(), and dpkg, git and friends need hard links, so
+        // they are emulated with symbolic links — in the root filesystem and
+        // the workspaces alike, both in iCode's own storage. A link that still
+        // fails leaves the file untouched (third_party/patches/proot/0001).
         add("--link2symlink")
         if (killOnExit) add("--kill-on-exit")
         // Present as root inside the guest so package managers work.
@@ -190,42 +183,17 @@ internal class RuntimeLayout(context: Context) {
                 add(hostPath)
             }
         }
-        if (workspaceHostPath != null) {
-            val guestWorkspace = guestWorkspace(workspaceHostPath)
-            File(rootfs, guestWorkspace.removePrefix("/")).mkdirs()
-            // The logical workspace: the user's folder, then each private mount over it.
-            workspaces.of(workspaceHostPath).binds(guestWorkspace).forEach { bind ->
-                add("-b")
-                add("${bind.host}:${bind.guest}")
-            }
-        }
-        samePathBinds.forEach { hostPath ->
-            File(rootfs, hostPath.removePrefix("/")).mkdirs()
-            add("-b")
-            add(hostPath)
-        }
+        // A workspace's name never reaches this argument, so no name can split it.
+        workspaces.root.mkdirs()
+        File(rootfs, WorkspacePaths.GUEST_ROOT.removePrefix("/")).mkdirs()
+        add("-b")
+        add("${workspaces.root.path}:${WorkspacePaths.GUEST_ROOT}")
         add("-w")
         add(guestWorkingDirectory)
         addAll(guestCommand)
     }
 
     companion object {
-        const val GUEST_WORKSPACE = "/workspace"
-
-        /**
-         * Where a workspace is mounted inside the guest.
-         *
-         * The project's own folder name is kept, so the shell prompt reads
-         * `/workspace/my-project` rather than a bare `/workspace` that tells
-         * the user nothing about which project they are in. A colon would
-         * split PRoot's `host:guest` bind argument, so it cannot survive.
-         */
-        fun guestWorkspace(workspaceHostPath: String): String {
-            val name = File(workspaceHostPath).name
-                .replace(':', '-')
-                .ifBlank { "project" }
-            return "$GUEST_WORKSPACE/$name"
-        }
         const val GUEST_HOME = "/root"
         /**
          * The guest's search path, with the user's own bin directory first.

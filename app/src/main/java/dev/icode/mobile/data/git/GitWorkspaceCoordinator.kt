@@ -36,8 +36,8 @@ internal class GitWorkspaceCoordinator(
     private val git: GitWorkspaceOperations,
     private val tree: WorkspaceTree,
     private val activeRoot: () -> String?,
-    /** The launcher shows each recent workspace's branch, so recents are read again with Git. */
-    private val recentWorkspaces: () -> List<WorkspaceSummary>,
+    /** The launcher names each workspace's branch, which a Git operation may have just changed. */
+    private val workspaces: () -> List<WorkspaceSummary>,
     private val recentDocuments: (root: String) -> List<RecentDocument>,
     /** Git was just installed; the credentials surface depends on it. */
     private val onInstalled: suspend () -> Unit,
@@ -50,22 +50,22 @@ internal class GitWorkspaceCoordinator(
         // tells us this is a repository - so the UI can offer to install Git
         // instead of wrongly offering to initialise a repo that already exists.
         val state = if (available) git.inspect(root) else GitWorkspaceSnapshot(repository = null, changes = emptyList())
-        return GitPicture(available, state, state.repository?.branch ?: GitHeadReader.branchOf(root).orEmpty())
+        return GitPicture(available, state, state.repository?.branch ?: git.branchOf(root).orEmpty())
     }
 
     /**
-     * Tree decoration, Git state and recents, after the worktree changed. Git
+     * Tree decoration, Git state and the workspace list, after the worktree changed. Git
      * takes a second or more; if another workspace opened meanwhile, this one's
      * answer is dropped rather than painted over it.
      */
     suspend fun refresh(root: String) {
         val picture = read(root)
-        val recents = recentWorkspaces()
+        val workspaces = workspaces()
         val files = tree.rows(root, picture.state)
         workbench.update {
             if (it.activeWorkspaceLocation != root) return@update it
             it.copy(
-                workspaces = recents,
+                workspaces = workspaces,
                 files = files,
                 gitChanges = picture.state.changes,
                 gitRepository = picture.state.repository,
@@ -108,7 +108,7 @@ internal class GitWorkspaceCoordinator(
             workbench.message("Open a workspace before initializing Git")
             return
         }
-        if (GitHeadReader.isRepository(workspace)) {
+        if (git.isRepository(workspace)) {
             workbench.message("This folder is already inside a Git repository")
             return
         }

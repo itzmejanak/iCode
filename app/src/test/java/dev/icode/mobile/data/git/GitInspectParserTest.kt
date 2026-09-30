@@ -1,11 +1,13 @@
 package dev.icode.mobile.data.git
 
+import dev.icode.mobile.data.storage.WorkspacePaths
 import dev.icode.mobile.domain.GitInProgress
 import dev.icode.mobile.domain.GitStatusCodes
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import java.io.File
 import org.junit.Test
 
 /**
@@ -14,8 +16,12 @@ import org.junit.Test
  */
 class GitInspectParserTest {
 
-    private val workspace = "/storage/emulated/0/Projects/app"
+    private val root = "/data/data/dev.icode.mobile/files/workspaces"
+    private val workspace = "$root/app"
+    private val paths = WorkspacePaths(File(root))
     private val nul = "\u0000"
+
+    private fun parse(output: String) = GitInspectParser.parse(output, paths::locationOf)
 
     /** The script's sections in its order; status is last and runs to the end. */
     private fun output(
@@ -33,35 +39,34 @@ class GitInspectParserTest {
 
     @Test
     fun `no toplevel means no repository`() {
-        val empty = GitInspectParser.parse(workspace, "")
+        val empty = parse("")
         assertNull(empty.repository)
         assertTrue(empty.changes.isEmpty())
-        assertNull(GitInspectParser.parse(workspace, output(topLevel = "\n")).repository)
+        assertNull(parse(output(topLevel = "\n")).repository)
     }
 
     @Test
-    fun `a repository at the opened folder is reported at its host path`() {
-        val repository = GitInspectParser.parse(workspace, output()).repository!!
+    fun `a repository at the opened folder is reported at its location`() {
+        val repository = parse(output()).repository!!
         assertEquals(workspace, repository.workTreePath)
     }
 
     @Test
-    fun `a toplevel below the guest workspace is translated to the host`() {
-        val repository = GitInspectParser.parse(workspace, output(topLevel = "/workspace/app/inner\n")).repository!!
+    fun `a toplevel below the workspace is translated to its location`() {
+        val repository = parse(output(topLevel = "/workspace/app/inner\n")).repository!!
         assertEquals("$workspace/inner", repository.workTreePath)
     }
 
     @Test
-    fun `a toplevel outside the guest workspace is kept as Git reported it`() {
-        // S5.6b mounts the repository Git needs; today such a path cannot be mapped.
-        val repository = GitInspectParser.parse(workspace, output(topLevel = "/root/elsewhere\n")).repository!!
-        assertEquals("/root/elsewhere", repository.workTreePath)
+    fun `a toplevel outside the workspaces is not this workspace's repository`() {
+        // A repository made at the runtime's own `/` holds the workspace but none of its files.
+        assertNull(parse(output(topLevel = "/\n")).repository)
+        assertNull(parse(output(topLevel = "/root/elsewhere\n")).repository)
     }
 
     @Test
     fun `reads branch, upstream, refs, remote, identity and changes`() {
-        val snapshot = GitInspectParser.parse(
-            workspace,
+        val snapshot = parse(
             output(
                 status = status(
                     "# branch.oid 7d466e4c47d969352f2bc7f569d10ef8b72d2170",
@@ -97,7 +102,7 @@ class GitInspectParserTest {
 
     @Test
     fun `blank identity and no remote read as unset`() {
-        val repository = GitInspectParser.parse(workspace, output(name = "\n", email = "  \n", remotes = "\n")).repository!!
+        val repository = parse(output(name = "\n", email = "  \n", remotes = "\n")).repository!!
         assertNull(repository.authorName)
         assertNull(repository.authorEmail)
         assertNull(repository.remoteName)
@@ -106,8 +111,7 @@ class GitInspectParserTest {
 
     @Test
     fun `the last commit is shortened and timed in milliseconds`() {
-        val commit = GitInspectParser.parse(
-            workspace,
+        val commit = parse(
             output(lastCommit = "7d466e4c47d969352f2bc7f569d10ef8b72d2170\n1727500000\nAda <ada@example.com>\nFix: keep spaces here\n"),
         ).repository!!.lastCommit!!
         assertEquals("7d466e4c47d9", commit.id)
@@ -118,15 +122,14 @@ class GitInspectParserTest {
 
     @Test
     fun `an incomplete last commit is absent and an unreadable time is zero`() {
-        assertNull(GitInspectParser.parse(workspace, output(lastCommit = "abc\nonly two\n")).repository!!.lastCommit)
-        val commit = GitInspectParser.parse(workspace, output(lastCommit = "abc\nsoon\na\nm\n")).repository!!.lastCommit!!
+        assertNull(parse(output(lastCommit = "abc\nonly two\n")).repository!!.lastCommit)
+        val commit = parse(output(lastCommit = "abc\nsoon\na\nm\n")).repository!!.lastCommit!!
         assertEquals(0L, commit.authoredAtEpochMillis)
     }
 
     @Test
     fun `an unborn repository has no commits and its branch from the header`() {
-        val repository = GitInspectParser.parse(
-            workspace,
+        val repository = parse(
             output(status = status("# branch.oid (initial)", "# branch.head trunk")),
         ).repository!!
         assertFalse(repository.hasCommits)
@@ -139,20 +142,19 @@ class GitInspectParserTest {
     @Test
     fun `a detached HEAD is said the way Git says it, never as a branch`() {
         val detached = status("# branch.oid 7d466e4c47d969352f2bc7f569d10ef8b72d2170", "# branch.head (detached)")
-        val repository = GitInspectParser.parse(
-            workspace,
+        val repository = parse(
             output(status = detached, refs = "refs/heads/feature\nrefs/heads/main\n"),
         ).repository!!
         assertTrue(repository.detached)
         assertEquals("(HEAD detached at 7d466e4)", repository.branch)
         assertEquals(listOf("feature", "main"), repository.branches)
         // With no branch at all there is still none to list.
-        assertEquals(emptyList<String>(), GitInspectParser.parse(workspace, output(status = detached)).repository!!.branches)
+        assertEquals(emptyList<String>(), parse(output(status = detached)).repository!!.branches)
     }
 
     @Test
     fun `missing sections fall back to the default branch`() {
-        val repository = GitInspectParser.parse(workspace, "/workspace/app\n$nul").repository!!
+        val repository = parse("/workspace/app\n$nul").repository!!
         assertEquals(GitInspectParser.DEFAULT_BRANCH, repository.branch)
         assertEquals(listOf(GitInspectParser.DEFAULT_BRANCH), repository.branches)
         assertFalse(repository.hasCommits)
@@ -170,12 +172,12 @@ class GitInspectParserTest {
             "BISECT_LOG" to GitInProgress.Bisect,
         )
         expected.forEach { (marker, operation) ->
-            assertEquals(marker, operation, GitInspectParser.parse(workspace, output(markers = "$marker\n")).repository!!.inProgress)
+            assertEquals(marker, operation, parse(output(markers = "$marker\n")).repository!!.inProgress)
         }
         // A rebase stops on merges of its own; the rebase is what must be ended.
         assertEquals(
             GitInProgress.Rebase,
-            GitInspectParser.parse(workspace, output(markers = "MERGE_HEAD\nrebase-merge\n")).repository!!.inProgress,
+            parse(output(markers = "MERGE_HEAD\nrebase-merge\n")).repository!!.inProgress,
         )
     }
 
@@ -190,8 +192,7 @@ class GitInspectParserTest {
     fun `no byte of a path can move a section boundary`() {
         // Legal names on Linux: a record separator, a unit separator, a newline.
         val hostile = "odd\u001Ename\u001F\nwith lines.txt"
-        val snapshot = GitInspectParser.parse(
-            workspace,
+        val snapshot = parse(
             output(
                 status = status("# branch.oid (initial)", "# branch.head main", "? $hostile"),
                 name = "Ada\n",
@@ -203,8 +204,7 @@ class GitInspectParserTest {
 
     @Test
     fun `a subject is kept whole, whatever it contains`() {
-        val commit = GitInspectParser.parse(
-            workspace,
+        val commit = parse(
             output(lastCommit = "abc\n1727500000\nAda <a@b.c>\nfix: a\u001Fb \u001E c\n"),
         ).repository!!.lastCommit!!
         assertEquals("fix: a\u001Fb \u001E c", commit.message)
@@ -213,7 +213,7 @@ class GitInspectParserTest {
 
     @Test
     fun `a repository folder ending in a space keeps it`() {
-        val repository = GitInspectParser.parse("/storage/emulated/0/app ", output(topLevel = "/workspace/app \n")).repository!!
-        assertEquals("/storage/emulated/0/app ", repository.workTreePath)
+        val repository = parse(output(topLevel = "/workspace/app \n")).repository!!
+        assertEquals("$root/app ", repository.workTreePath)
     }
 }

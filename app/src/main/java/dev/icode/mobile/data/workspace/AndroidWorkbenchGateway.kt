@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.workspace
 
 import android.content.Context
+import android.net.Uri
 import com.termux.terminal.TerminalSession
 import dev.icode.mobile.data.git.CliGitService
 import dev.icode.mobile.data.git.ConflictFiles
@@ -23,6 +24,8 @@ import dev.icode.mobile.data.runtime.TerminalSessionManager
 import dev.icode.mobile.data.search.RipgrepService
 import dev.icode.mobile.data.search.SearchCoordinator
 import dev.icode.mobile.data.settings.AndroidWorkspacePreferencesRepository
+import dev.icode.mobile.data.storage.DocumentTreeImport
+import dev.icode.mobile.data.storage.WorkspacesProvider
 import dev.icode.mobile.data.system.AndroidSystemAccess
 import dev.icode.mobile.data.tasks.TaskRunner
 import dev.icode.mobile.domain.GitOperationState
@@ -47,10 +50,11 @@ import kotlinx.coroutines.sync.withLock
 class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     private val workbench = WorkbenchStateHolder()
     private val appContext = context.applicationContext
-    private val source = DirectFileWorkspaceSource()
     private val store: WorkspaceStore = SharedPreferencesWorkspaceStore(appContext)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val runtimeLayout = RuntimeLayout(appContext)
+    private val source = WorkspaceFileSource(runtimeLayout.workspaces)
+    private val settings = AndroidWorkspacePreferencesRepository(appContext)
     /** git, openssh-client and ripgrep install through it, one at a time. */
     private val packages = RuntimePackageInstaller(runtimeLayout, scope)
     private val gitCli = CliGitService(runtimeLayout, packages)
@@ -71,17 +75,15 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     private val runtime: RuntimeCoordinator = RuntimeCoordinator(
         appContext, workbench, scope, runtimeLayout, AndroidSystemAccess(appContext),
         sessionsRunning = { terminals.hasRunningSessions() || languages.hasActiveProcesses() },
-        onStorageAccessChanged = { library.refreshRecents() },
     )
     private val library: WorkspaceLibraryCoordinator = WorkspaceLibraryCoordinator(
         appContext, workbench, scope, source, store, runtimeLayout,
+        branchOf = git::branchOf,
         tasksRunning = {
             terminals.hasRunningSessions() || languages.hasActiveProcesses() || runtime.installing ||
                 workbench.current.gitOperation is GitOperationState.Running
         },
     )
-    private val folders: FolderBrowserCoordinator = FolderBrowserCoordinator(workbench, source) { location -> session.open(location, persist = true) }
-
     private val tree = WorkspaceTree(workbench, source)
     private val gitWorkspace: GitWorkspaceCoordinator = GitWorkspaceCoordinator(
         workbench,
@@ -89,7 +91,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         git,
         tree,
         activeRoot = { session.activeRoot },
-        recentWorkspaces = library::recentWorkspaces,
+        workspaces = library::workspaces,
         recentDocuments = library::recentDocuments,
         onInstalled = { gitAuth.refresh() },
     )
@@ -114,6 +116,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         workbench,
         scope,
         git,
+        runtimeLayout.workspaces,
         activeRoot = { session.activeRoot },
         withCredentials = { block -> authenticator.withHttpsCredentials(block) },
         // A transfer runs outside the lock; what it changes afterwards takes it.
@@ -160,20 +163,34 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     private val session: WorkspaceSessionCoordinator = WorkspaceSessionCoordinator(
         workbench, scope, source, tree, library, documents, recovery, gitWorkspace, search, terminal, languages,
     )
+    private val lifecycle = WorkspaceLifecycleCoordinator(
+        workbench, tasks, source, library, session, terminal,
+        moveSettings = settings::moveWorkspace,
+        forgetSettings = settings::forgetWorkspace,
+    )
+    private val importer = WorkspaceImportCoordinator(
+        workbench, tasks, runtimeLayout.workspaces, git,
+        openTree = { uri -> DocumentTreeImport(appContext.contentResolver, Uri.parse(uri)) },
+        isOwnTree = { uri -> Uri.parse(uri).authority == WorkspacesProvider.authorityOf(appContext) },
+        reserveSpace = runtimeLayout::reserveSpace,
+        freeBytes = runtimeLayout::allocatableBytes,
+        open = { location -> session.open(location, persist = true) },
+    )
 
     override val snapshot: StateFlow<WorkbenchSnapshot> = workbench.snapshot
     override val effects: SharedFlow<WorkbenchEffect> = workbench.effects
 
     init {
         languages.publish()
-        scope.launch { library.refreshRecents() }
+        scope.launch {
+            // The install is brought to this layout before anything reads a workspace.
+            WorkspaceStorageMigration(appContext, runtimeLayout.workspaces, runtimeLayout.rootfs, store, notices, settings::forgetWorkspace).run()
+            library.refresh()
+            session.start()
+        }
         scope.launch { recovery.loadRecoverable() }
-        session.start()
         scope.launch { observeNotices() }
-        terminal.follow(
-            scope,
-            AndroidWorkspacePreferencesRepository(appContext).values(null).filter { it.loaded && it.loadError == null }.map { it.terminal },
-        )
+        terminal.follow(scope, settings.values(null).filter { it.loaded && it.loadError == null }.map { it.terminal })
         scope.launch { runtime.reportState() }
     }
 
@@ -193,202 +210,154 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     }
 
     override fun dispatch(intent: WorkbenchIntent) {
-        if (intent is WorkbenchIntent.SelectLanguageService) {
-            languages.select(intent.id)
-            return
-        }
-        // A task's dialog must answer while the task runs.
-        if (intent is WorkbenchIntent.TaskIntent) return tasks.handle(intent)
-        if (intent == WorkbenchIntent.Refresh) {
-            session.requestRefresh(rebuildIndex = true)
-            return
-        }
-        if (intent is WorkbenchIntent.ScreenVisible) {
-            session.screenVisible(intent.visible)
-            return
-        }
-        if (intent == WorkbenchIntent.RefreshStorage) {
-            library.refreshStorage()
-            return
-        }
-        // Reading the runtime's own files changes nothing, so it does not wait
-        // on the mutation lock behind whatever the workspace is doing.
-        if (intent == WorkbenchIntent.RefreshRuntimeDetails) {
-            runtime.refreshDetails()
-            return
-        }
-        if (intent is WorkbenchIntent.UpdateDocumentText) {
-            documents.updateText(intent)
-            return
-        }
-        // Folder reads and expansion state belong to WorkspaceTree; they do
-        // not wait behind an unrelated Git refresh on the mutation lock.
-        if (intent is WorkbenchIntent.ToggleFolder) {
-            val root = session.activeRoot ?: return
-            scope.launch { tree.toggle(root, intent.path) }
-            return
-        }
-        // Search owns cancellable jobs. It must never wait behind a workspace
-        // mutation, and a new query must be able to cancel the old process.
-        if (intent == WorkbenchIntent.PrepareWorkspaceSearch) {
-            session.activeRoot?.let(search::prepareIndex)
-            return
-        }
-        if (intent is WorkbenchIntent.RunContentSearch) {
-            search.runContentSearch(intent.query, intent.matchCase, intent.wholeWord, intent.regex)
-            return
-        }
-        if (intent == WorkbenchIntent.ClearContentSearch) {
-            search.clear()
-            return
-        }
-        // A transfer is its own job: nothing waits behind a slow remote.
-        if (intent == WorkbenchIntent.FetchRemote) {
-            gitTransfers.fetch()
-            return
-        }
-        if (intent == WorkbenchIntent.PullRemote) {
-            gitTransfers.pull()
-            return
-        }
-        if (intent == WorkbenchIntent.PushRemote) {
-            gitTransfers.push()
-            return
-        }
-        if (intent == WorkbenchIntent.CancelGitTransfer) {
-            gitTransfers.cancel()
-            return
-        }
-        if (intent is WorkbenchIntent.CloneRepository) {
-            gitTransfers.clone(intent.url, intent.destination, intent.directoryName, intent.branch)
-            return
-        }
-        scope.launch {
-            workbench.mutations.withLock {
-                when (intent) {
-                    is WorkbenchIntent.RequestSystemPermission ->
-                        workbench.emit(WorkbenchEffect.RequestSystemPermission(intent.permission))
-                    is WorkbenchIntent.SystemPermissionAnswered -> systemPermissionAnswered(intent.permission)
-                    is WorkbenchIntent.DeclineSystemPermission -> runtime.declinePermission(intent.permission)
-                    is WorkbenchIntent.OpenSystemSettings ->
-                        workbench.emit(WorkbenchEffect.OpenSystemSettings(intent.permission))
-                    WorkbenchIntent.RefreshSystemAccess -> runtime.refreshSystemAccess()
-                    WorkbenchIntent.MarkNoticesRead -> notices.markAllRead()
-                    is WorkbenchIntent.DeleteNotice -> notices.delete(intent.id)
-                    WorkbenchIntent.ClearNotices -> notices.clear()
-                    is WorkbenchIntent.StartFolderBrowser -> folders.start(intent.purpose)
-                    is WorkbenchIntent.ShowWorkspaceLocation -> folders.showLocation(intent.path)
-                    is WorkbenchIntent.BrowseFolder -> folders.browse(intent.path)
-                    WorkbenchIntent.BrowseParentFolder -> folders.browseParent()
-                    WorkbenchIntent.ConfirmFolderSelection -> folders.confirmSelection()
-                    is WorkbenchIntent.RequestCreateFolder -> folders.requestCreateFolder(intent.name)
-                    is WorkbenchIntent.OpenWorkspace -> session.open(intent.path, persist = true)
-                    is WorkbenchIntent.OpenWorkspaceTerminal -> session.open(intent.path, persist = true, openTerminal = true)
-                    is WorkbenchIntent.ResolveWorkspaceSwitch -> session.resolveSwitch(intent)
-                    is WorkbenchIntent.RemoveRecentWorkspace -> library.removeRecent(intent.path)
-                    is WorkbenchIntent.OpenFile ->
-                        documents.open(intent.path, intent.lineNumber, intent.column)
-                    is WorkbenchIntent.CreateFile -> items.createFile(intent)
-                    is WorkbenchIntent.CreateWorkspaceFolder -> items.createFolder(intent)
-                    is WorkbenchIntent.RenameWorkspaceItem -> items.rename(intent)
-                    is WorkbenchIntent.MoveWorkspaceItem -> items.move(intent)
-                    is WorkbenchIntent.CopyWorkspaceItem -> items.copy(intent)
-                    is WorkbenchIntent.DeleteWorkspaceItem -> items.delete(intent)
-                    is WorkbenchIntent.SaveDocument -> documents.save(
-                        intent.location,
-                        intent.automatic,
-                        intent.expectedText,
-                        intent.expectedWorkspace,
-                    )
-                    is WorkbenchIntent.RestoreDraft -> recovery.restore(intent.location)
-                    is WorkbenchIntent.OpenRecoverableDraft -> session.openRecoverableDraft(intent.location)
-                    is WorkbenchIntent.DiscardDraft -> recovery.keepDiskVersion(intent.location)
-                    is WorkbenchIntent.ConfirmRecoveredOverwrite -> documents.save(
-                        intent.location,
-                        allowRecoveredOverwrite = true,
-                    )
-                    is WorkbenchIntent.ReloadFromDisk -> documents.reloadFromDisk(intent.location)
-                    is WorkbenchIntent.OverwriteDisk -> documents.overwriteDisk(intent.location)
-                    is WorkbenchIntent.CompareWithDisk -> session.compareWithDisk(intent.location)
-                    is WorkbenchIntent.SelectDocument -> documents.select(intent.location)
-                    is WorkbenchIntent.ReorderDocument -> documents.reorder(intent.movingLocation, intent.targetLocation)
-                    is WorkbenchIntent.CloseDocument -> documents.close(intent.location, intent.saveChanges)
-                    is WorkbenchIntent.CloseOtherDocuments -> documents.closeOthers(intent.keepLocation, intent.saveChanges)
-                    WorkbenchIntent.CloseSavedDocuments -> documents.closeSaved()
-                    WorkbenchIntent.InitializeGit -> gitWorkspace.initialize()
-                    is WorkbenchIntent.StageFile -> gitWorkspace.stage(intent.path)
-                    is WorkbenchIntent.UnstageFile -> gitWorkspace.unstage(intent.path)
-                    WorkbenchIntent.StageAllFiles -> gitWorkspace.stageAll()
-                    WorkbenchIntent.UnstageAllFiles -> gitWorkspace.unstageAll()
-                    is WorkbenchIntent.CommitStaged -> gitWorkspace.commit(intent.message)
-                    is WorkbenchIntent.ConfigureGitIdentity -> gitAuth.configureRepositoryIdentity(intent.name, intent.email)
-                    is WorkbenchIntent.ConfigureGlobalGitIdentity -> gitAuth.configureGlobalIdentity(intent.name, intent.email)
-                    WorkbenchIntent.ClearRepositoryGitIdentity -> gitAuth.clearRepositoryIdentity()
-                    is WorkbenchIntent.SwitchBranch -> gitWorkspace.switchBranch(intent.branch)
-                    is WorkbenchIntent.CreateBranch -> gitWorkspace.createBranch(intent.branch)
-                    is WorkbenchIntent.DeleteBranch -> gitWorkspace.deleteBranch(intent.branch)
-                    is WorkbenchIntent.CheckoutRemoteBranch -> gitWorkspace.checkoutRemote(intent.remoteBranch)
-                    WorkbenchIntent.ProvisionGit -> gitWorkspace.provision()
-                    WorkbenchIntent.RefreshGit -> gitWorkspace.refreshActive()
-                    is WorkbenchIntent.OpenDiff -> gitWorkspace.openDiff(intent.path, intent.staged)
-                    WorkbenchIntent.CloseDiff -> gitWorkspace.closeDiff()
-                    is WorkbenchIntent.RequestDiscardChanges -> gitWorkspace.requestDiscard(intent.path)
-                    WorkbenchIntent.CancelDiscardChanges -> gitWorkspace.cancelDiscard()
-                    WorkbenchIntent.ConfirmDiscardChanges -> gitWorkspace.confirmDiscard()
-                    WorkbenchIntent.AbortInProgress -> gitWorkspace.abort()
-                    is WorkbenchIntent.AddRemote -> gitWorkspace.addRemote(intent.name, intent.url)
-                    is WorkbenchIntent.OpenConflict -> gitConflicts.open(intent.path)
-                    WorkbenchIntent.CloseConflict -> gitConflicts.close()
-                    is WorkbenchIntent.ResolveConflict -> gitConflicts.resolve(intent.path, intent.sectionStart, intent.choice)
-                    is WorkbenchIntent.MarkConflictResolved -> gitConflicts.markResolved(intent.path)
-                    is WorkbenchIntent.UpdateCloneForm -> workbench.update { it.copy(cloneUrl = intent.url, cloneBranch = intent.branch) }
-                    is WorkbenchIntent.SelectGitProvider -> gitAuth.selectProvider(intent.provider)
-                    is WorkbenchIntent.SelectGitAuthMethod -> gitAuth.selectMethod(intent.method)
-                    is WorkbenchIntent.SaveGitToken -> gitAuth.saveToken(intent.host, intent.username, intent.token)
-                    WorkbenchIntent.ClearGitToken -> gitAuth.clearToken()
-                    WorkbenchIntent.GenerateSshKey -> gitAuth.generateSshKey()
-                    is WorkbenchIntent.TestGitConnection -> gitAuth.testConnection(intent.url)
-                    WorkbenchIntent.RefreshGitAuth -> gitAuth.refresh()
-                    is WorkbenchIntent.SaveLanguageService -> languages.save(intent)
-                    is WorkbenchIntent.RemoveLanguageService -> languages.remove(intent.id)
-                    is WorkbenchIntent.StartLanguageService -> languages.start(intent.id)
-                    is WorkbenchIntent.StopLanguageService -> languages.stop(intent.id)
-                    is WorkbenchIntent.RestartLanguageService -> languages.restart(intent.id)
-                    WorkbenchIntent.InstallRuntime -> runtime.install(RuntimeInstallReason.Initial)
-                    WorkbenchIntent.ClearAppCache -> library.clearCache()
-                    WorkbenchIntent.RemoveStaleRecents -> library.removeStale()
-                    // Repair keeps the home directory, reset does not; both go
-                    // through the one installer rather than a second path.
-                    WorkbenchIntent.RepairRuntime -> {
-                        if (runtime.install(RuntimeInstallReason.Repair)) {
-                            workbench.emit(WorkbenchEffect.RuntimeRebuildStarted)
+        when (intent) {
+            // What must not wait on the mutation lock.
+            is WorkbenchIntent.SelectLanguageService -> languages.select(intent.id)
+            // A task's dialog must answer while the task runs.
+            is WorkbenchIntent.TaskIntent -> tasks.handle(intent)
+            WorkbenchIntent.Refresh -> session.requestRefresh(rebuildIndex = true)
+            is WorkbenchIntent.ScreenVisible -> session.screenVisible(intent.visible)
+            WorkbenchIntent.RefreshStorage -> library.refreshStorage()
+            // Reading the runtime's own files changes nothing, so it does not wait
+            // on the mutation lock behind whatever the workspace is doing.
+            WorkbenchIntent.RefreshRuntimeDetails -> runtime.refreshDetails()
+            is WorkbenchIntent.UpdateDocumentText -> documents.updateText(intent)
+            // Folder reads and expansion state belong to WorkspaceTree; they do
+            // not wait behind an unrelated Git refresh on the mutation lock.
+            is WorkbenchIntent.ToggleFolder -> session.activeRoot?.let { root -> scope.launch { tree.toggle(root, intent.path) } }
+            // Search owns cancellable jobs. It must never wait behind a workspace
+            // mutation, and a new query must be able to cancel the old process.
+            WorkbenchIntent.PrepareWorkspaceSearch -> session.activeRoot?.let(search::prepareIndex)
+            is WorkbenchIntent.RunContentSearch -> search.runContentSearch(intent.query, intent.matchCase, intent.wholeWord, intent.regex)
+            WorkbenchIntent.ClearContentSearch -> search.clear()
+            // A transfer is its own job: nothing waits behind a slow remote.
+            WorkbenchIntent.FetchRemote -> gitTransfers.fetch()
+            WorkbenchIntent.PullRemote -> gitTransfers.pull()
+            WorkbenchIntent.PushRemote -> gitTransfers.push()
+            WorkbenchIntent.CancelGitTransfer -> gitTransfers.cancel()
+            is WorkbenchIntent.CloneRepository -> gitTransfers.clone(intent.url, intent.directoryName, intent.branch)
+            else -> scope.launch {
+                workbench.mutations.withLock {
+                    when (intent) {
+                        is WorkbenchIntent.RequestSystemPermission ->
+                            workbench.emit(WorkbenchEffect.RequestSystemPermission(intent.permission))
+                        is WorkbenchIntent.SystemPermissionAnswered -> systemPermissionAnswered(intent.permission)
+                        is WorkbenchIntent.DeclineSystemPermission -> runtime.declinePermission(intent.permission)
+                        is WorkbenchIntent.OpenSystemSettings ->
+                            workbench.emit(WorkbenchEffect.OpenSystemSettings(intent.permission))
+                        WorkbenchIntent.RefreshSystemAccess -> runtime.refreshSystemAccess()
+                        WorkbenchIntent.MarkNoticesRead -> notices.markAllRead()
+                        is WorkbenchIntent.DeleteNotice -> notices.delete(intent.id)
+                        WorkbenchIntent.ClearNotices -> notices.clear()
+                        is WorkbenchIntent.CreateWorkspace -> lifecycle.create(intent.name)
+                        is WorkbenchIntent.RenameWorkspace -> lifecycle.rename(intent)
+                        is WorkbenchIntent.DeleteWorkspace -> lifecycle.delete(intent.location)
+                        is WorkbenchIntent.ChooseImportSource -> importer.choose(intent.uri)
+                        is WorkbenchIntent.ImportWorkspace -> importer.import(intent.name)
+                        is WorkbenchIntent.ShowWorkspaceInFiles ->
+                            WorkspacesProvider.showInFiles(appContext, intent.location)?.let { workbench.emit(it) }
+                        is WorkbenchIntent.OpenWorkspace -> session.open(intent.path, persist = true)
+                        is WorkbenchIntent.OpenWorkspaceTerminal -> session.open(intent.path, persist = true, openTerminal = true)
+                        is WorkbenchIntent.ResolveWorkspaceSwitch -> session.resolveSwitch(intent)
+                        is WorkbenchIntent.OpenFile ->
+                            documents.open(intent.path, intent.lineNumber, intent.column)
+                        is WorkbenchIntent.CreateFile -> items.createFile(intent)
+                        is WorkbenchIntent.CreateWorkspaceFolder -> items.createFolder(intent)
+                        is WorkbenchIntent.RenameWorkspaceItem -> items.rename(intent)
+                        is WorkbenchIntent.MoveWorkspaceItem -> items.move(intent)
+                        is WorkbenchIntent.CopyWorkspaceItem -> items.copy(intent)
+                        is WorkbenchIntent.DeleteWorkspaceItem -> items.delete(intent)
+                        is WorkbenchIntent.SaveDocument -> documents.save(
+                            intent.location,
+                            intent.automatic,
+                            intent.expectedText,
+                            intent.expectedWorkspace,
+                        )
+                        is WorkbenchIntent.RestoreDraft -> recovery.restore(intent.location)
+                        is WorkbenchIntent.OpenRecoverableDraft -> session.openRecoverableDraft(intent.location)
+                        is WorkbenchIntent.DiscardDraft -> recovery.keepDiskVersion(intent.location)
+                        is WorkbenchIntent.ConfirmRecoveredOverwrite -> documents.save(
+                            intent.location,
+                            allowRecoveredOverwrite = true,
+                        )
+                        is WorkbenchIntent.ReloadFromDisk -> documents.reloadFromDisk(intent.location)
+                        is WorkbenchIntent.OverwriteDisk -> documents.overwriteDisk(intent.location)
+                        is WorkbenchIntent.CompareWithDisk -> session.compareWithDisk(intent.location)
+                        is WorkbenchIntent.SelectDocument -> documents.select(intent.location)
+                        is WorkbenchIntent.ReorderDocument -> documents.reorder(intent.movingLocation, intent.targetLocation)
+                        is WorkbenchIntent.CloseDocument -> documents.close(intent.location, intent.saveChanges)
+                        is WorkbenchIntent.CloseOtherDocuments -> documents.closeOthers(intent.keepLocation, intent.saveChanges)
+                        WorkbenchIntent.CloseSavedDocuments -> documents.closeSaved()
+                        WorkbenchIntent.InitializeGit -> gitWorkspace.initialize()
+                        is WorkbenchIntent.StageFile -> gitWorkspace.stage(intent.path)
+                        is WorkbenchIntent.UnstageFile -> gitWorkspace.unstage(intent.path)
+                        WorkbenchIntent.StageAllFiles -> gitWorkspace.stageAll()
+                        WorkbenchIntent.UnstageAllFiles -> gitWorkspace.unstageAll()
+                        is WorkbenchIntent.CommitStaged -> gitWorkspace.commit(intent.message)
+                        is WorkbenchIntent.ConfigureGitIdentity -> gitAuth.configureRepositoryIdentity(intent.name, intent.email)
+                        is WorkbenchIntent.ConfigureGlobalGitIdentity -> gitAuth.configureGlobalIdentity(intent.name, intent.email)
+                        WorkbenchIntent.ClearRepositoryGitIdentity -> gitAuth.clearRepositoryIdentity()
+                        is WorkbenchIntent.SwitchBranch -> gitWorkspace.switchBranch(intent.branch)
+                        is WorkbenchIntent.CreateBranch -> gitWorkspace.createBranch(intent.branch)
+                        is WorkbenchIntent.DeleteBranch -> gitWorkspace.deleteBranch(intent.branch)
+                        is WorkbenchIntent.CheckoutRemoteBranch -> gitWorkspace.checkoutRemote(intent.remoteBranch)
+                        WorkbenchIntent.ProvisionGit -> gitWorkspace.provision()
+                        WorkbenchIntent.RefreshGit -> gitWorkspace.refreshActive()
+                        is WorkbenchIntent.OpenDiff -> gitWorkspace.openDiff(intent.path, intent.staged)
+                        WorkbenchIntent.CloseDiff -> gitWorkspace.closeDiff()
+                        is WorkbenchIntent.RequestDiscardChanges -> gitWorkspace.requestDiscard(intent.path)
+                        WorkbenchIntent.CancelDiscardChanges -> gitWorkspace.cancelDiscard()
+                        WorkbenchIntent.ConfirmDiscardChanges -> gitWorkspace.confirmDiscard()
+                        WorkbenchIntent.AbortInProgress -> gitWorkspace.abort()
+                        is WorkbenchIntent.AddRemote -> gitWorkspace.addRemote(intent.name, intent.url)
+                        is WorkbenchIntent.OpenConflict -> gitConflicts.open(intent.path)
+                        WorkbenchIntent.CloseConflict -> gitConflicts.close()
+                        is WorkbenchIntent.ResolveConflict -> gitConflicts.resolve(intent.path, intent.sectionStart, intent.choice)
+                        is WorkbenchIntent.MarkConflictResolved -> gitConflicts.markResolved(intent.path)
+                        is WorkbenchIntent.UpdateCloneForm ->
+                            workbench.update { it.copy(cloneUrl = intent.url, cloneName = intent.name, cloneBranch = intent.branch) }
+                        is WorkbenchIntent.SelectGitProvider -> gitAuth.selectProvider(intent.provider)
+                        is WorkbenchIntent.SelectGitAuthMethod -> gitAuth.selectMethod(intent.method)
+                        is WorkbenchIntent.SaveGitToken -> gitAuth.saveToken(intent.host, intent.username, intent.token)
+                        WorkbenchIntent.ClearGitToken -> gitAuth.clearToken()
+                        WorkbenchIntent.GenerateSshKey -> gitAuth.generateSshKey()
+                        is WorkbenchIntent.TestGitConnection -> gitAuth.testConnection(intent.url)
+                        WorkbenchIntent.RefreshGitAuth -> gitAuth.refresh()
+                        is WorkbenchIntent.SaveLanguageService -> languages.save(intent)
+                        is WorkbenchIntent.RemoveLanguageService -> languages.remove(intent.id)
+                        is WorkbenchIntent.StartLanguageService -> languages.start(intent.id)
+                        is WorkbenchIntent.StopLanguageService -> languages.stop(intent.id)
+                        is WorkbenchIntent.RestartLanguageService -> languages.restart(intent.id)
+                        WorkbenchIntent.InstallRuntime -> runtime.install(RuntimeInstallReason.Initial)
+                        WorkbenchIntent.ClearAppCache -> library.clearCache()
+                        // Repair keeps the home directory, reset does not; both go
+                        // through the one installer rather than a second path.
+                        WorkbenchIntent.RepairRuntime -> {
+                            if (runtime.install(RuntimeInstallReason.Repair)) {
+                                workbench.emit(WorkbenchEffect.RuntimeRebuildStarted)
+                            }
                         }
-                    }
-                    WorkbenchIntent.ResetRuntime -> {
-                        if (runtime.install(RuntimeInstallReason.Reset)) {
-                            workbench.emit(WorkbenchEffect.RuntimeRebuildStarted)
+                        WorkbenchIntent.ResetRuntime -> {
+                            if (runtime.install(RuntimeInstallReason.Reset)) {
+                                workbench.emit(WorkbenchEffect.RuntimeRebuildStarted)
+                            }
                         }
+                        WorkbenchIntent.OpenTerminalSession -> terminal.open()
+                        WorkbenchIntent.EnsureTerminalSession -> terminal.ensure()
+                        is WorkbenchIntent.SelectTerminalSession -> terminal.select(intent.id)
+                        is WorkbenchIntent.ShowTerminalSession -> terminal.show(intent.id)
+                        is WorkbenchIntent.ReorderTerminalSession -> terminal.reorder(intent.movingId, intent.targetId)
+                        is WorkbenchIntent.CloseTerminalSession -> terminal.close(intent.id)
+                        is WorkbenchIntent.OpenExternalUrl -> workbench.emit(WorkbenchEffect.OpenExternalUrl(intent.url))
                     }
-                    WorkbenchIntent.OpenTerminalSession -> terminal.open()
-                    WorkbenchIntent.EnsureTerminalSession -> terminal.ensure()
-                    is WorkbenchIntent.SelectTerminalSession -> terminal.select(intent.id)
-                    is WorkbenchIntent.ShowTerminalSession -> terminal.show(intent.id)
-                    is WorkbenchIntent.ReorderTerminalSession -> terminal.reorder(intent.movingId, intent.targetId)
-                    is WorkbenchIntent.CloseTerminalSession -> terminal.close(intent.id)
-                    is WorkbenchIntent.OpenExternalUrl -> workbench.emit(WorkbenchEffect.OpenExternalUrl(intent.url))
                 }
             }
         }
     }
 
-    /**
-     * Android's prompt closed. Whatever the answer, onboarding has now offered
-     * the permission; a folder browser that was waiting for storage opens.
-     */
+    /** Android's prompt closed. Whatever the answer, onboarding has now offered the permission. */
     private suspend fun systemPermissionAnswered(permission: SystemPermission) {
-        val granted = runtime.permissionAnswered(permission)
-        if (permission == SystemPermission.Storage && folders.storageAnswered(granted)) return
-        workbench.emit(WorkbenchEffect.SystemPermissionResolved(permission, granted))
+        workbench.emit(WorkbenchEffect.SystemPermissionResolved(permission, runtime.permissionAnswered(permission)))
     }
 
     /**

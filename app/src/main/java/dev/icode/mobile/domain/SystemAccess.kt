@@ -1,10 +1,10 @@
 package dev.icode.mobile.domain
 
-/** A permission iCode asks Android for, in the order onboarding asks. */
+/**
+ * A permission iCode asks Android for, in the order onboarding asks. Both are optional: workspaces
+ * live in iCode's own storage and need none (docs/workspace-storage-plan.md §4.8).
+ */
 enum class SystemPermission {
-    /** All files access: workspaces are ordinary folders on shared storage. */
-    Storage,
-
     /** Running terminal sessions are listed in the notification drawer. */
     Notifications,
 
@@ -19,27 +19,21 @@ enum class SystemPermission {
  * can change any of it in Android's settings while iCode is away.
  */
 data class SystemAccess(
-    val storage: Boolean,
     val notifications: Boolean,
     val unrestrictedBattery: Boolean,
     /** Optional permissions onboarding has already offered; each is offered once. */
     val offered: Set<SystemPermission> = emptySet(),
 ) {
     fun granted(permission: SystemPermission): Boolean = when (permission) {
-        SystemPermission.Storage -> storage
         SystemPermission.Notifications -> notifications
         SystemPermission.Battery -> unrestrictedBattery
     }
 
     /**
-     * What onboarding still has to ask, in order.
-     *
-     * Storage is asked for while it is missing — nothing that opens a folder
-     * works without it. The others are optional, so a refusal is final: they
-     * are asked once, and Terminal Settings is the way back.
+     * What onboarding still has to ask, in order. Every permission is
+     * optional, so a refusal is final: each is asked once, and Terminal
+     * Settings is the way back.
      */
     val onboardingSteps: List<SystemPermission>
-        get() = SystemPermission.entries.filter { permission ->
-            !granted(permission) && (permission == SystemPermission.Storage || permission !in offered)
-        }
+        get() = SystemPermission.entries.filter { permission -> !granted(permission) && permission !in offered }
 }

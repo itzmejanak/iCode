@@ -132,13 +132,12 @@ sealed interface GitOperationState {
     ) : GitOperationState
 
     /**
-     * Stopped by the user before Git finished. [leftover] names a folder Git
-     * had started and left behind; nothing is deleted on the user's behalf.
+     * Stopped by the user before Git finished. A cancelled clone leaves
+     * nothing: it was writing iCode's own staging folder, which goes with it.
      */
     data class Cancelled(
         val label: String,
         val output: List<String> = emptyList(),
-        val leftover: String? = null,
     ) : GitOperationState
 
     /** Git's own output for whichever phase this operation is in. */
