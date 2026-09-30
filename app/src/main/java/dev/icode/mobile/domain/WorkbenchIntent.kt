@@ -179,7 +179,12 @@ sealed interface WorkbenchIntent {
 
     data object InstallRuntime : WorkbenchIntent
     data object RefreshRuntimeDetails : WorkbenchIntent
-    data object RefreshStorage : WorkbenchIntent
+    /** Measurements of what storage holds: they change nothing, so they never wait on the mutation lock. */
+    sealed interface StorageIntent : WorkbenchIntent
+    /** The device, the runtime and the cache. */
+    data object RefreshStorage : StorageIntent
+    /** Each workspace's size, without measuring the runtime and the cache. */
+    data object MeasureWorkspaces : StorageIntent
     data object ClearAppCache : WorkbenchIntent
     /** Rebuilds the base system, keeping the guest home directory. */
     data object RepairRuntime : WorkbenchIntent

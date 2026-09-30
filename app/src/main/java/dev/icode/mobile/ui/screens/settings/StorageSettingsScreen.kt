@@ -10,7 +10,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.FolderCopy
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -23,23 +24,21 @@ import androidx.compose.ui.text.font.FontWeight
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeConfirmDialog
-import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
-import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.SettingRow
 import dev.icode.mobile.domain.ByteSize
-import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.domain.SystemPermission
+import dev.icode.mobile.domain.WorkspaceListRules
+import dev.icode.mobile.domain.storageSizeLabel
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
-import dev.icode.mobile.ui.WorkspaceActionsMenu
 
 /** Device totals and bounded app/workspace measurements, never fabricated sizes. */
 @Composable
@@ -50,7 +49,10 @@ fun StorageSettingsScreen(actions: NavigationActions) {
     val details = state.storageDetails
     var confirmClearCache by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) { gateway.dispatch(WorkbenchIntent.RefreshStorage) }
+    LaunchedEffect(Unit) {
+        gateway.dispatch(WorkbenchIntent.RefreshStorage)
+        gateway.dispatch(WorkbenchIntent.MeasureWorkspaces)
+    }
 
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Storage Settings", subtitle = settingsSubtitle(Route.StorageSettings), onBack = actions.back)
@@ -96,24 +98,14 @@ fun StorageSettingsScreen(actions: NavigationActions) {
                     style = IcodeType.Caption,
                 )
             }
-            if (state.workspaces.isEmpty()) item {
-                Text("No workspaces yet", style = IcodeType.Body)
-            }
-            items(state.workspaces, key = { it.location }) { workspace ->
-                IcodeListRow(
-                    card = true,
-                    content = {
-                        Column(Modifier.weight(1f)) {
-                            Text(workspace.name, style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold))
-                            MonoLine(workspace.path, style = IcodeType.MonoSmall)
-                            MonoLine(
-                                "${storageSizeLabel(details?.workspaceSizes?.get(workspace.location))}  · ${RelativeTime.since(workspace.lastOpenedAt)}",
-                                color = IcodeColors.Accent,
-                                style = IcodeType.MonoSmall,
-                            )
-                        }
-                    },
-                    trailing = { WorkspaceActionsMenu(workspace) },
+            // The workspaces themselves are the Workspaces page's: one list, not two.
+            item {
+                SettingRow(
+                    "Workspaces",
+                    Modifier.fillMaxWidth(),
+                    subtitle = WorkspaceListRules.summary(state.workspaces, state.workspaceSizes),
+                    leadingIcon = Icons.Outlined.FolderCopy,
+                    onClick = { actions.navigate(Route.Workspaces) },
                 )
             }
             // Android's own setting; iCode shows what it reads and opens the page to change it.

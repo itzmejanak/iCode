@@ -83,5 +83,4 @@ data class StorageDetails(
     val device: StorageSummary,
     val runtime: StorageMeasurement,
     val cache: StorageMeasurement,
-    val workspaceSizes: Map<String, StorageMeasurement>,
 )

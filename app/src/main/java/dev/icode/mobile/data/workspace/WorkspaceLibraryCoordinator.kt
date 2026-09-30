@@ -6,6 +6,7 @@ import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.storage.WorkspacesProvider
 import dev.icode.mobile.domain.RecentDocument
 import dev.icode.mobile.domain.StorageDetails
+import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.domain.WorkspaceSummary
 import java.io.File
 import java.nio.file.Files
@@ -36,6 +37,7 @@ internal class WorkspaceLibraryCoordinator(
     private val tasksRunning: () -> Boolean,
 ) {
     private var storageJob: Job? = null
+    private var sizesJob: Job? = null
     private val paths get() = runtimeLayout.workspaces
 
     /**
@@ -91,22 +93,40 @@ internal class WorkspaceLibraryCoordinator(
         refresh()
     }
 
-    /** The newest measurement replaces one still running. */
-    fun refreshStorage() {
+    fun measure(intent: WorkbenchIntent.StorageIntent) = when (intent) {
+        WorkbenchIntent.RefreshStorage -> refreshStorage()
+        WorkbenchIntent.MeasureWorkspaces -> measureWorkspaces()
+    }
+
+    /** The device, the runtime and the cache; the newest measurement replaces one still running. */
+    private fun refreshStorage() {
         storageJob?.cancel()
         storageJob = scope.launch(Dispatchers.IO) {
             val device = runCatching(source::storageSummary).getOrNull()
-            val workspaces = workspaces()
             val details = device?.let { summary -> StorageDetails(
                 device = summary,
                 runtime = measureTree(runtimeLayout.runtimeRoot, maxEntries = 400_000),
                 cache = measureTree(appContext.cacheDir, maxEntries = 50_000),
-                workspaceSizes = workspaces.associate { item ->
-                    item.location to measureTree(File(item.location), maxEntries = 400_000)
-                },
             ) }
             currentCoroutineContext().ensureActive()
-            workbench.update { it.copy(workspaces = workspaces, storage = device, storageDetails = details) }
+            workbench.update { it.copy(workspaces = workspaces(), storage = device, storageDetails = details) }
+        }
+    }
+
+    /**
+     * Each workspace's size, one after another, each shown as it is measured; the newest request
+     * replaces one still running. A workspace gone meanwhile leaves the map.
+     */
+    private fun measureWorkspaces() {
+        sizesJob?.cancel()
+        sizesJob = scope.launch(Dispatchers.IO) {
+            val workspaces = workspaces()
+            workbench.update { snapshot -> snapshot.copy(workspaceSizes = snapshot.workspaceSizes.filterKeys { key -> workspaces.any { it.location == key } }) }
+            workspaces.forEach { item ->
+                val size = measureTree(File(item.location), maxEntries = WORKSPACE_ENTRIES)
+                currentCoroutineContext().ensureActive()
+                workbench.update { it.copy(workspaceSizes = it.workspaceSizes + (item.location to size)) }
+            }
         }
     }
 
@@ -184,4 +204,9 @@ internal class WorkspaceLibraryCoordinator(
                 available = File(item.location).isFile,
             )
         }
+
+    private companion object {
+        /** A workspace's measurement stops here and says so: node_modules alone can hold 50,000. */
+        const val WORKSPACE_ENTRIES = 400_000
+    }
 }

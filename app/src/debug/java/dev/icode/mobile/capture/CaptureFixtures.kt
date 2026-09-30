@@ -171,10 +171,10 @@ object CaptureFixtures {
             device = StorageSummary(availableBytes = (14.2 * GIB).toLong(), totalBytes = 16 * GIB),
             runtime = StorageMeasurement((1.1 * GIB).toLong()),
             cache = StorageMeasurement(220 * MIB),
-            workspaceSizes = mapOf(
-                ROOT to StorageMeasurement(244 * MIB),
-                STORAGE_DRIVER to StorageMeasurement((1.2 * GIB).toLong()),
-            ),
+        ),
+        workspaceSizes = mapOf(
+            ROOT to StorageMeasurement(244 * MIB),
+            STORAGE_DRIVER to StorageMeasurement((1.2 * GIB).toLong()),
         ),
         fileIndex = listOf(
             IndexedFile("App.tsx", "src/App.tsx"),

@@ -44,8 +44,8 @@ The following rules apply to every story:
 
 Acceptance criteria:
 
-- The Launcher shows Import, Clone Repository, and New Folder.
-- Every workspace in the application's storage appears below the primary actions, most recently opened first.
+- The Launcher shows Import, Clone Repository, and Workspaces.
+- The five most recently opened workspaces appear below the primary actions; the Workspaces page lists every one, with search, sort and sizes, and New Folder.
 - The screen does not require account, provider, language, or agent configuration.
 - Runtime attention appears only when installation, update, or repair affects the requested action.
 - Settings and About remain accessible without competing with workspace actions.
@@ -82,7 +82,7 @@ Acceptance criteria:
 
 Acceptance criteria:
 
-- Storage settings list every workspace with its size and say that workspaces live in the application's storage.
+- The Workspaces page lists every workspace with its size; Storage settings shows their count and total and says that workspaces live in the application's storage.
 - Uninstalling offers to keep the application's data.
 - App info offers Android's own Clear storage, which removes the workspaces with the rest of the application's data (owner, 2026-09-30).
 - Runtime Repair and Reset state that workspaces are kept, and keep them.
