@@ -9,6 +9,7 @@ import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.GitRemoteRules
 import dev.icode.mobile.domain.GitSyncAction
+import dev.icode.mobile.domain.GitTransferLabel
 import dev.icode.mobile.domain.WorkspaceNameRules
 import dev.icode.mobile.domain.WorkspaceRuntimePath
 import java.io.File
@@ -46,21 +47,21 @@ internal class GitTransferCoordinator(
     private var running = ""
     private val staging = WorkspaceStaging(workspaces.root)
 
-    fun fetch(): Job? = start("Fetching") { id ->
+    fun fetch(): Job? = start(GitTransferLabel.FETCHING) { id ->
         if (refused(GitSyncAction.Fetch)) return@start
-        runRemote(id, "Fetching") { workspace, config, onStderr -> git.fetch(workspace, config, onStderr) }
+        runRemote(id, GitTransferLabel.FETCHING) { workspace, config, onStderr -> git.fetch(workspace, config, onStderr) }
     }
 
-    fun pull(): Job? = start("Pulling") { id ->
+    fun pull(): Job? = start(GitTransferLabel.PULLING) { id ->
         if (refused(GitSyncAction.Pull)) return@start
-        runRemote(id, "Pulling") { workspace, config, onStderr -> git.pull(workspace, config, onStderr) }
+        runRemote(id, GitTransferLabel.PULLING) { workspace, config, onStderr -> git.pull(workspace, config, onStderr) }
     }
 
-    fun push(): Job? = start("Pushing") { id -> push(id) }
+    fun push(): Job? = start(GitTransferLabel.PUSHING) { id -> push(id) }
 
     /** Clones into the new workspace [directoryName]; [branch] blank means the remote's default. */
     fun clone(url: String, directoryName: String, branch: String = ""): Job? =
-        start("Cloning") { id -> clone(id, url.trim(), directoryName.trim(), branch.trim()) }
+        start(GitTransferLabel.CLONING) { id -> clone(id, url.trim(), directoryName.trim(), branch.trim()) }
 
     /** Starts [work] as the one transfer, or says which one is still running. */
     private fun start(label: String, work: suspend (id: Long) -> Unit): Job? = synchronized(this) {
@@ -109,7 +110,7 @@ internal class GitTransferCoordinator(
         if (refused(GitSyncAction.Push)) return
         val repository = workbench.current.gitRepository
         val needsUpstream = repository?.upstream == null
-        runRemote(id, "Pushing") { workspace, config, onStderr ->
+        runRemote(id, GitTransferLabel.PUSHING) { workspace, config, onStderr ->
             git.push(
                 workspace,
                 setUpstream = needsUpstream,
@@ -126,7 +127,7 @@ internal class GitTransferCoordinator(
      * no half repository is ever listed as a workspace.
      */
     private suspend fun clone(id: Long, url: String, directoryName: String, branch: String) {
-        val label = "Cloning"
+        val label = GitTransferLabel.CLONING
         // Checked again here, just before Git runs: the form's view may be old.
         cloneProblem(url, directoryName, branch)?.let { problem ->
             workbench.update { it.copy(gitOperation = GitOperationState.Failed(label, problem)) }

@@ -23,7 +23,7 @@ internal class TerminalNotifications(private val context: Context) {
     fun createChannel(notifications: NotificationManager) {
         notifications.createNotificationChannel(
             NotificationChannel(CHANNEL_ID, "Development runtime", NotificationManager.IMPORTANCE_LOW).apply {
-                description = "Shown while terminal sessions or runtime installation are active"
+                description = "Shown while terminal sessions or long operations run"
                 setShowBadge(false)
             },
         )
@@ -33,17 +33,21 @@ internal class TerminalNotifications(private val context: Context) {
      * The group's parent, and the service's foreground notification. With
      * session rows present Android shows it only as the group's header, and
      * shows no buttons on it (measured on this XOS phone, as on stock
-     * Android), so it has none; on its own — while the runtime installs — it
-     * is the whole notification.
+     * Android), so it has none; on its own — while only background work runs
+     * — it is the summary, as the reference's "1 task is running".
      */
-    fun parent(sessionCount: Int, installing: Boolean, openSessionId: String?): Notification {
+    fun parent(sessionCount: Int, runningWork: Int, openSessionId: String?): Notification {
         val text = listOfNotNull(
             when (sessionCount) {
                 0 -> null
                 1 -> "1 session"
                 else -> "$sessionCount sessions"
             },
-            "Installing the Linux runtime".takeIf { installing },
+            when (runningWork) {
+                0 -> null
+                1 -> "1 task running"
+                else -> "$runningWork tasks running"
+            },
         ).joinToString(" · ")
         return baseBuilder(ORDER_PARENT)
             .setContentTitle(context.getString(R.string.app_name))

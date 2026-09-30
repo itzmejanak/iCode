@@ -15,6 +15,4 @@ interface WorkbenchGateway {
         get() = emptyFlow()
 
     fun dispatch(intent: WorkbenchIntent)
-
-    fun close() = Unit
 }

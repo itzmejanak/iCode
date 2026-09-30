@@ -50,7 +50,6 @@ import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.navigation.ToolPanelTab
 import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.BackgroundTasks
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 
 /** File tree with the workspace activity rail. */
@@ -121,7 +120,6 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
                     .background(IcodeColors.Background),
             ) {
                 SectionLabel("Workspace Explorer", Modifier.padding(IcodeSpacing.Space3))
-                BackgroundTasks(state.tasks, gateway, Modifier.padding(bottom = IcodeSpacing.Space2))
                 LazyColumn(
                     Modifier
                         .weight(1f)

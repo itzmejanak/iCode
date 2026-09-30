@@ -11,6 +11,9 @@ import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import android.os.SystemClock
+import dev.icode.mobile.data.tasks.BackgroundWork
+import dev.icode.mobile.data.tasks.WorkNotifications
+import dev.icode.mobile.domain.BackgroundItem
 import dev.icode.mobile.domain.TerminalSessionState
 import dev.icode.mobile.domain.TerminalSettingRules
 import java.io.File
@@ -20,6 +23,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
@@ -28,14 +32,16 @@ import kotlinx.coroutines.launch
  *
  * Android reclaims a backgrounded app aggressively; a foreground service with a
  * visible notification is the supported way to continue (PR-TERM-07). It runs
- * while there is work — a running terminal session, or a runtime install — and
- * stops itself when there is none. It observes that work instead of being told
- * by a screen, because terminal sessions outlive every screen
- * (docs/terminal-background-plan.md).
+ * while there is work — a running terminal session, or background work: a task,
+ * a Git transfer, the runtime install, a package install
+ * (docs/long-operations-plan.md §6) — and stops itself when there is none. It
+ * observes that work instead of being told by a screen, because the work
+ * outlives every screen (docs/terminal-background-plan.md).
  *
- * The notification is a group: this service's own notification is the group's
- * parent, and each running session has a row with Exit and a wakelock toggle.
- * Tapping a session's row opens that session.
+ * Its own notification says what runs ("1 session · 1 task running") and is the
+ * parent of the session rows, each with Exit and a wakelock toggle; tapping a
+ * row opens that session. Background work has its own notifications
+ * ([WorkNotifications]): progress, with Cancel where allowed, and failures.
  */
 class RuntimeForegroundService : Service() {
 
@@ -45,7 +51,8 @@ class RuntimeForegroundService : Service() {
     private lateinit var shown: TerminalNotifications
     private var sessions: List<TerminalSessionState> = emptyList()
     private var selectedId: String? = null
-    private var installing = false
+    private var work: List<BackgroundItem> = emptyList()
+    private lateinit var workShown: WorkNotifications
 
     /** Nothing may stop the service before the start it was launched for is honoured. */
     private var started = false
@@ -71,13 +78,17 @@ class RuntimeForegroundService : Service() {
         notifications = getSystemService(NotificationManager::class.java)
         shown = TerminalNotifications(this)
         shown.createChannel(notifications)
+        workShown = WorkNotifications(this, notifications)
         scope.launch {
-            combine(terminals.snapshot, RuntimeWork.installing) { snapshot, installing -> snapshot to installing }
-                .collect { (snapshot, isInstalling) ->
+            combine(terminals.snapshot, BackgroundWork.items) { snapshot, items -> snapshot to items }
+                .conflate()
+                .collect { (snapshot, items) ->
                     sessions = snapshot.sessions.filter { it.isRunning }
                     selectedId = snapshot.selectedId
-                    installing = isInstalling
+                    work = items
                     if (started) show()
+                    // Android drops a notification updated faster than a few times a second.
+                    delay(NOTIFY_INTERVAL_MILLIS)
                 }
         }
         alerts = TerminalAlerts(this, notifications)
@@ -102,6 +113,7 @@ class RuntimeForegroundService : Service() {
         when (intent?.action) {
             ACTION_EXIT_SESSION -> session?.let(terminals::close)
             ACTION_TOGGLE_WAKE_LOCK -> session?.let { if (!keptAwake.remove(it)) keptAwake.add(it) }
+            ACTION_CANCEL_WORK -> intent.getStringExtra(EXTRA_WORK_KEY)?.let(BackgroundWork::cancel)
         }
         show()
         // Sessions cannot be recreated after the process is gone, so a restart
@@ -113,16 +125,19 @@ class RuntimeForegroundService : Service() {
         keptAwake.clear()
         applyWakeLock()
         clearSessionRows()
+        workShown.clear()
         scope.cancel()
         super.onDestroy()
     }
 
-    private val idle: Boolean get() = sessions.isEmpty() && !installing
+    private val idle: Boolean get() = sessions.isEmpty() && work.none { it.running }
 
     /** Shows the current work, or stops when there is none. */
     private fun show() {
         keptAwake.retainAll(sessions.map { it.id }.toSet())
         applyWakeLock()
+        // Before stopping: the last work may have just failed, and that is said once.
+        workShown.show(work, terminals.screenVisible.value)
         if (idle) {
             clearSessionRows()
             stopForeground(STOP_FOREGROUND_REMOVE)
@@ -187,7 +202,7 @@ class RuntimeForegroundService : Service() {
     }
 
     private fun parentNotification(): Notification =
-        shown.parent(sessions.size, installing, selectedId?.takeIf { id -> sessions.any { it.id == id } })
+        shown.parent(sessions.size, work.count { it.running }, selectedId?.takeIf { id -> sessions.any { it.id == id } })
 
     private fun startForegroundCompat(notification: Notification) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -225,6 +240,9 @@ class RuntimeForegroundService : Service() {
         internal const val ACTION_TOGGLE_WAKE_LOCK = "dev.icode.mobile.action.TOGGLE_WAKE_LOCK"
         internal const val ACTION_EXIT_SESSION = "dev.icode.mobile.action.EXIT_SESSION"
         internal const val EXTRA_SESSION_ID = "session"
+        internal const val ACTION_CANCEL_WORK = "dev.icode.mobile.action.CANCEL_WORK"
+        internal const val EXTRA_WORK_KEY = "work"
+        private const val NOTIFY_INTERVAL_MILLIS = 500L
         private const val WAKE_LOCK_TAG = "iCode:terminal-sessions"
         private const val FOREGROUND_REFRESH_MILLIS = 5_000L
 

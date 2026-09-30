@@ -106,6 +106,14 @@ data class GitProgress(
  * Clone, fetch, pull and push all contact a network the app does not control,
  * so none of them may be reported as finished until Git exits (PR-GIT-12).
  */
+/** What a Git transfer is called while it runs: its state's label, its notice's and its notification's. */
+object GitTransferLabel {
+    const val CLONING = "Cloning"
+    const val FETCHING = "Fetching"
+    const val PULLING = "Pulling"
+    const val PUSHING = "Pushing"
+}
+
 sealed interface GitOperationState {
     data object Idle : GitOperationState
 

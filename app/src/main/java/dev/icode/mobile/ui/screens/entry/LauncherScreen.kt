@@ -48,7 +48,6 @@ import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
-import dev.icode.mobile.ui.BackgroundTasks
 import dev.icode.mobile.ui.WorkspaceActionsMenu
 import dev.icode.mobile.ui.rememberImportPicker
 
@@ -92,8 +91,6 @@ fun LauncherScreen(actions: NavigationActions, empty: Boolean) {
             LauncherActionTile(Icons.Outlined.AccountTree, "Clone Repo", Modifier.weight(1f)) { actions.navigate(Route.CloneRepository) }
             LauncherActionTile(Icons.Outlined.CreateNewFolder, "New Folder", Modifier.weight(1f)) { actions.navigate(Route.CreateFolder) }
         }
-        // An import or a delete sent to the background.
-        BackgroundTasks(state.tasks, gateway, Modifier.padding(start = IcodeSpacing.Space4, end = IcodeSpacing.Space4, bottom = IcodeSpacing.Space2))
         if (showEmpty) {
             Column(
                 modifier = Modifier.fillMaxWidth().weight(1f),

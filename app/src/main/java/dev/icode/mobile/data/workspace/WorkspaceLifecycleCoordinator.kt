@@ -101,10 +101,9 @@ internal class WorkspaceLifecycleCoordinator(
     private suspend fun inUse(location: String): String? {
         val name = File(location).name
         val state = workbench.current
-        val task = tasks.claimedBy(location)
+        if (terminal.runsIn(location)) return "A terminal session is running in $name. End it first"
+        tasks.waitReason(location)?.let { return it }
         return when {
-            terminal.runsIn(location) -> "A terminal session is running in $name. End it first"
-            task != null -> "${task.title.removeSuffix("…")} ${task.subject} — wait for it to finish"
             state.gitOperation is GitOperationState.Running && session.activeRoot == location ->
                 "Git is working in $name — wait for it to finish"
             state.openDocuments.any { it.dirty && it.location.isAtOrUnder(location) } ->

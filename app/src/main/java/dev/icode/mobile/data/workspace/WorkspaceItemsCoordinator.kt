@@ -150,9 +150,7 @@ internal class WorkspaceItemsCoordinator(
     }
 
     /** A task is still copying or deleting it, or a folder around it. */
-    private fun busy(location: String): String? = tasks.claimedBy(location)?.let { task ->
-        "${task.title.removeSuffix("…")} ${task.subject} — wait for it to finish"
-    }
+    private fun busy(location: String): String? = tasks.waitReason(location)
 
     private suspend fun followMove(root: String, from: String, to: String) {
         documents.relocate(from, to)

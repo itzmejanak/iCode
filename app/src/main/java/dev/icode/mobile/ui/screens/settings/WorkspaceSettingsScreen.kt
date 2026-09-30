@@ -27,6 +27,7 @@ import dev.icode.mobile.designsystem.Stepper
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.IndentType
 import dev.icode.mobile.domain.SettingLimits
+import dev.icode.mobile.domain.GitTransferLabel
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
@@ -129,7 +130,7 @@ fun WorkspaceSettingsScreen(actions: NavigationActions) {
                 onClick = { actions.navigate(Route.GitAuth) },
             )
             val fetchFailure = state.gitOperation as? GitOperationState.Failed
-            if (fetchFailure?.label == "Fetching") {
+            if (fetchFailure?.label == GitTransferLabel.FETCHING) {
                 Text("Last fetch failed: ${fetchFailure.reason}", style = IcodeType.Caption.copy(color = IcodeColors.Error))
             }
             SectionLabel("File Watcher Excludes", Modifier.padding(top = IcodeSpacing.Space2))

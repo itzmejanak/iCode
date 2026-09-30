@@ -434,7 +434,9 @@ The runtime coordinator starts one application-owned runtime and exposes its rea
 
 ### 14.3 Background work
 
-Interactive or long-running processes that must continue when the UI is not visible are owned by a foreground service with an Android notification. Background execution remains subject to Android and device-vendor process management.
+Work belongs to the process, not to a screen ([long-operations-plan.md](./long-operations-plan.md) §6). The workbench's backend is one per process (`WorkbenchProcess`), as terminal sessions are: screens attach and detach, and when the last one leaves only what serves a screen stops (the folder watcher, language servers). Every long operation — a task (delete, copy, import, a workspace's delete), a Git transfer, the runtime install, a runtime package install — is named in one derived list of background work (`BackgroundWorkRules`, pure), which the backend publishes.
+
+One foreground service keeps the process while a terminal session or any of that work runs, and stops itself when none does. Its notification summarises what runs; each piece of work has a silent progress notification (the item in hand, counts, a bar, Cancel where the work allows it) that opens iCode on that work; a failure the user was not watching pops up on its own channel. Hiding a task's dialog hands it to its notification. Background execution remains subject to Android and device-vendor process management.
 
 ### 14.4 Stop and process death
 

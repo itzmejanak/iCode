@@ -27,7 +27,9 @@ import dev.icode.mobile.data.settings.AndroidWorkspacePreferencesRepository
 import dev.icode.mobile.data.storage.DocumentTreeImport
 import dev.icode.mobile.data.storage.WorkspacesProvider
 import dev.icode.mobile.data.system.AndroidSystemAccess
+import dev.icode.mobile.data.tasks.BackgroundWork
 import dev.icode.mobile.data.tasks.TaskRunner
+import dev.icode.mobile.domain.BackgroundWorkRules
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.RuntimeInstallReason
 import dev.icode.mobile.domain.SystemPermission
@@ -39,15 +41,16 @@ import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
 
-class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
+/** The workbench's backend: one per process ([WorkbenchProcess]), so its work outlives every screen. */
+class AndroidWorkbenchGateway internal constructor(context: Context) : WorkbenchGateway {
     private val workbench = WorkbenchStateHolder()
     private val appContext = context.applicationContext
     private val store: WorkspaceStore = SharedPreferencesWorkspaceStore(appContext)
@@ -60,7 +63,6 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     private val gitCli = CliGitService(runtimeLayout, packages)
     private val git = GitRepositoryClient(gitCli)
     private val authenticator = GitAuthenticator(runtimeLayout, gitCli, packages, GitCredentialStore(appContext))
-    /** Shared with every screen this process shows; see [close]. */
     private val terminals = TerminalSessionManager.get(appContext)
     private val terminal: TerminalCoordinator = TerminalCoordinator(
         workbench,
@@ -192,6 +194,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
         scope.launch { observeNotices() }
         terminal.follow(scope, settings.values(null).filter { it.loaded && it.loadError == null }.map { it.terminal })
         scope.launch { runtime.reportState() }
+        BackgroundWork.follow(appContext, scope, combine(workbench.snapshot, packages.installing, BackgroundWorkRules::of), ::dispatch)
     }
 
     /** The live session behind a terminal tab, for the view that draws it. Main thread. */
@@ -204,9 +207,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     private suspend fun observeNotices() {
         terminals.ledger.takePrevious()?.let(notices::add)
         interruptedTransfer?.let(notices::add)
-        notices.notices.collect { list ->
-            workbench.update { it.copy(notices = list) }
-        }
+        notices.notices.collect { list -> workbench.update { it.copy(notices = list) } }
     }
 
     override fun dispatch(intent: WorkbenchIntent) {
@@ -361,14 +362,12 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     }
 
     /**
-     * The screen is going away. Terminal sessions are the user's and outlive
-     * it: they end only when the user ends them, and the next screen adopts
-     * them. RuntimeForegroundService keeps them alive meanwhile, and stops by
-     * itself when none runs.
+     * No screen is left: what serves one stops — the folder watcher and language servers. Work
+     * goes on (terminal sessions, tasks, Git transfers, installs), kept alive by
+     * RuntimeForegroundService, and the next screen finds it as it is.
      */
-    override fun close() {
+    internal fun screensGone() {
         session.stopWatching()
         languages.stopAll()
-        scope.cancel()
     }
 }

@@ -82,7 +82,9 @@ internal class TerminalSessionManager private constructor(
         mutableCommandsFinished.tryEmit(sessionId)
     }
 
-    private var screenVisible = false
+    private val mutableScreenVisible = MutableStateFlow(false)
+    /** iCode's screen is in view: work the user was watching there needs no pop-up when it fails. */
+    val screenVisible: StateFlow<Boolean> = mutableScreenVisible.asStateFlow()
     private var viewedId: String? = null
     private val mutableLookingAt = MutableStateFlow<String?>(null)
     /** The session the user is looking at: iCode on screen and that session's view attached. */
@@ -91,8 +93,8 @@ internal class TerminalSessionManager private constructor(
     /** iCode's screen came into view or left it. */
     @MainThread
     fun setScreenVisible(visible: Boolean) {
-        screenVisible = visible
-        mutableLookingAt.value = viewedId.takeIf { screenVisible }
+        mutableScreenVisible.value = visible
+        mutableLookingAt.value = viewedId.takeIf { visible }
     }
 
     /**
@@ -173,7 +175,7 @@ internal class TerminalSessionManager private constructor(
 
     private fun viewed(id: String?) {
         viewedId = id
-        mutableLookingAt.value = id.takeIf { screenVisible }
+        mutableLookingAt.value = id.takeIf { screenVisible.value }
     }
 
     /**

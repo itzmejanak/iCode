@@ -123,6 +123,36 @@ class TaskRunnerTest {
         assertNull(runner.claimedBy("/w/src/lib"))
     }
 
+    @Test fun `a Cancel on the task's first frame stops it and frees its paths, whenever it lands`() {
+        repeat(50) {
+            val id = runner.start(
+                "Copying…", "big", listOf("/w/big"), cancellable = true, failure = "Unable to copy",
+                work = { progress -> while (true) progress.item("big/x") },
+                finished = {},
+            )
+            runner.handle(WorkbenchIntent.CancelTask(id))
+            until { workbench.current.tasks.isEmpty() }
+            assertNull(runner.claimedBy("/w/big"))
+        }
+    }
+
+    @Test fun `running into a hidden task brings its dialog back, with the reason to wait`() {
+        val release = CountDownLatch(1)
+        val id = runner.start(
+            "Deleting…", "lib", listOf("/w/src/lib"), cancellable = false, failure = "Unable to delete",
+            work = { release.await(5, TimeUnit.SECONDS) },
+            finished = {},
+        )
+        runner.handle(WorkbenchIntent.HideTask(id))
+        until { task()?.hidden == true }
+        assertNull(runner.waitReason("/w/docs"))
+        assertTrue(task()!!.hidden)
+        assertEquals("Deleting lib — wait for it to finish", runner.waitReason("/w/src"))
+        assertFalse(task()!!.hidden)
+        release.countDown()
+        until { task() == null }
+    }
+
     @Test fun `only a cancellable task stops when cancelled`() = runBlocking {
         val deleting = CountDownLatch(1)
         val deleteId = runner.start(

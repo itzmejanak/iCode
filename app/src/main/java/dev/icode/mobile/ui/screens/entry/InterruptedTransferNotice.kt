@@ -22,6 +22,7 @@ import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.StatusDot
 import dev.icode.mobile.domain.AppNotice
+import dev.icode.mobile.domain.GitTransferLabel
 
 /** A clone or sync that iCode's previous process never finished, instead of silence. */
 @Composable
@@ -42,7 +43,7 @@ fun InterruptedTransferNotice(
                     Text("${transferName(notice.label)} did not finish", style = IcodeType.Body)
                 }
                 Text(
-                    if (notice.label == "Cloning") {
+                    if (notice.label == GitTransferLabel.CLONING) {
                         "iCode's process ended while Git was cloning. Nothing of it was kept: clone again."
                     } else {
                         "iCode's process ended while Git was working. Run it again; Git carries on from what it has."
@@ -60,9 +61,9 @@ fun InterruptedTransferNotice(
 }
 
 private fun transferName(label: String): String = when (label) {
-    "Cloning" -> "A clone"
-    "Fetching" -> "A fetch"
-    "Pulling" -> "A pull"
-    "Pushing" -> "A push"
+    GitTransferLabel.CLONING -> "A clone"
+    GitTransferLabel.FETCHING -> "A fetch"
+    GitTransferLabel.PULLING -> "A pull"
+    GitTransferLabel.PUSHING -> "A push"
     else -> label
 }
