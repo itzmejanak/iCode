@@ -158,11 +158,13 @@ Frames are the Figma frames `Route.kt` names; changes use only the existing kit.
 4. **Git repair.** Git on phone storage recorded `core.fileMode=false` and `core.symlinks=false`, and
    checked out executables without `+x` and links as plain files. For an imported repository iCode
    restores what Git itself records: both settings to `true`; `+x` on the files the index lists as
-   `100755`; a link for each file it lists as `120000` — only where the working file still matches
-   the index, so nothing the user changed is touched. `git status` must read as it did before the
-   import (W5 proves this with real Git before relying on it). Git is installed for it as Clone
-   installs it; if the runtime or Git cannot be had, the import completes without the repair and
-   its result says so.
+   `100755`; a link for each file it lists as `120000` — only where the file's content is unchanged
+   (Git's own diff, taken with both settings `false`), so nothing the user changed is touched.
+   Measured with Git 2.43 on a checkout made as phone storage leaves it: `./gradlew` runs again,
+   links (one in a subfolder too) are links, every unchanged file reads clean, and a link file the
+   user had edited stays theirs — Git then names it a type change (`T`), which is what it is on a
+   filesystem that holds links. Git is installed for it as Clone installs it; if the runtime or
+   Git cannot be had, the import completes without the repair and its result says so.
 5. Android's picker does not offer the root of internal storage, `Download` itself, `Android/data` or
    `Android/obb` (device check D6).
 

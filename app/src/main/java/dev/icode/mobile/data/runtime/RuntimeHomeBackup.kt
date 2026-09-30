@@ -1,5 +1,6 @@
 package dev.icode.mobile.data.runtime
 
+import dev.icode.mobile.data.io.deleteTree
 import java.io.File
 import java.io.IOException
 
@@ -32,13 +33,13 @@ internal class RuntimeHomeBackup(rootfs: File, runtimeRoot: File) {
         if (saved.canonicalFile != backup.canonicalFile || !saved.isDirectory) {
             throw IOException("The preserved runtime home is unavailable")
         }
-        deleteRuntimeTree(home)
+        deleteTree(home)
         if (!saved.renameTo(home)) throw IOException("Unable to restore the preserved runtime home")
     }
 
     /** Reset explicitly discards an older repair backup, but only after the new runtime verifies. */
     fun discardAfterReset() {
-        deleteRuntimeTree(backup)
+        deleteTree(backup)
         if (repairMarker.exists() && !repairMarker.delete()) {
             throw IOException("The previous repair marker could not be removed")
         }

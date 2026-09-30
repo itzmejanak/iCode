@@ -1,5 +1,6 @@
 package dev.icode.mobile.data.storage
 
+import android.content.Context
 import java.io.File
 
 /**
@@ -36,5 +37,11 @@ internal class WorkspacePaths(val root: File) {
     companion object {
         /** Where the workspaces are in the runtime. */
         const val GUEST_ROOT = "/workspace"
+
+        /**
+         * The app's own: `files/workspaces`. Canonical, as every location is — Android's `files`
+         * path may lead through a link (`/data/user/0` → `/data/data`).
+         */
+        fun of(context: Context) = WorkspacePaths(File(context.filesDir, "workspaces").canonicalFile)
     }
 }

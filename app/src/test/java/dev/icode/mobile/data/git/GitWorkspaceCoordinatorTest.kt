@@ -2,8 +2,8 @@ package dev.icode.mobile.data.git
 
 import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.storage.WorkspacePaths
-import dev.icode.mobile.data.workspace.DirectFileWorkspaceSource
 import dev.icode.mobile.data.workspace.WorkbenchStateHolder
+import dev.icode.mobile.data.workspace.WorkspaceFileSource
 import dev.icode.mobile.data.workspace.WorkspaceTree
 import dev.icode.mobile.domain.GitChange
 import dev.icode.mobile.domain.GitFileDiff
@@ -67,9 +67,9 @@ class GitWorkspaceCoordinatorTest {
             workbench,
             scope,
             git,
-            WorkspaceTree(workbench, DirectFileWorkspaceSource()) { emptyList() },
+            WorkspaceTree(workbench, WorkspaceFileSource(WorkspacePaths(File("/workspaces")))) { emptyList() },
             activeRoot = { root },
-            recentWorkspaces = { emptyList() },
+            workspaces = { emptyList() },
             recentDocuments = { emptyList() },
             onInstalled = { installed++ },
         )

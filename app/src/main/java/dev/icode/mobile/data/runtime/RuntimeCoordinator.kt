@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 /**
  * Onboarding and the runtime (S1): whether the Linux runtime is there, its
  * install, repair and reset, what is measured about it, and what Android
- * allows iCode (storage, notifications, battery).
+ * allows iCode (notifications, battery).
  */
 internal class RuntimeCoordinator(
     private val appContext: Context,
@@ -27,8 +27,6 @@ internal class RuntimeCoordinator(
     private val systemAccess: AndroidSystemAccess,
     /** A rebuild would pull the runtime out from under a running terminal or language server. */
     private val sessionsRunning: () -> Boolean,
-    /** Whether a recent workspace can be opened follows storage access. */
-    private val onStorageAccessChanged: () -> Unit,
 ) {
     private val inspector = RuntimeInspector(layout, RuntimeInstaller(appContext, layout).prootVersion())
     private var installJob: Job? = null
@@ -123,9 +121,7 @@ internal class RuntimeCoordinator(
 
     fun refreshSystemAccess(): SystemAccess {
         val access = systemAccess.read()
-        val storageChanged = workbench.current.systemAccess?.storage != access.storage
         workbench.update { it.copy(systemAccess = access) }
-        if (storageChanged) onStorageAccessChanged()
         return access
     }
 

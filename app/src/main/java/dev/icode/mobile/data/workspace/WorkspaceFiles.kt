@@ -1,5 +1,6 @@
 package dev.icode.mobile.data.workspace
 
+import dev.icode.mobile.data.io.deleteTree
 import java.io.File
 import java.io.IOException
 import java.nio.file.FileVisitResult
@@ -100,25 +101,7 @@ internal class WorkspaceFiles(root: File) {
         removeTree(source, onEntry = { onEntry(source.parent.relativize(it).toString()) })
     }
 
-    private fun removeTree(top: Path, onEntry: (Path) -> Unit = {}) {
-        Files.walkFileTree(
-            top,
-            object : SimpleFileVisitor<Path>() {
-                override fun visitFile(file: Path, attributes: BasicFileAttributes): FileVisitResult {
-                    Files.delete(file)
-                    onEntry(file)
-                    return FileVisitResult.CONTINUE
-                }
-
-                override fun postVisitDirectory(dir: Path, error: IOException?): FileVisitResult {
-                    if (error != null) throw error
-                    Files.delete(dir)
-                    onEntry(dir)
-                    return FileVisitResult.CONTINUE
-                }
-            },
-        )
-    }
+    private fun removeTree(top: Path, onEntry: (Path) -> Unit = {}) = deleteTree(top, onEntry)
 
     /** An existing entry of the workspace that may be changed: not the root, not Git's. */
     private fun item(location: String): Path {

@@ -15,16 +15,21 @@ sealed interface WorkbenchIntent {
     data object MarkNoticesRead : WorkbenchIntent
     data class DeleteNotice(val id: String) : WorkbenchIntent
     data object ClearNotices : WorkbenchIntent
-    data class StartFolderBrowser(val purpose: FolderBrowserPurpose) : WorkbenchIntent
-    data class BrowseFolder(val path: String) : WorkbenchIntent
-    data object BrowseParentFolder : WorkbenchIntent
-    data object ConfirmFolderSelection : WorkbenchIntent
-    data class RequestCreateFolder(val name: String) : WorkbenchIntent
+    /** New Folder: a workspace named [name], made at `/workspace/<name>` and opened. */
+    data class CreateWorkspace(val name: String) : WorkbenchIntent
+    /** A whole workspace renamed; the dialog that asked is answered by [requestId]. */
+    data class RenameWorkspace(val location: String, val newName: String, val requestId: String) : WorkbenchIntent
+    /** A whole workspace deleted, once its menu confirmed it; runs as a task. */
+    data class DeleteWorkspace(val location: String) : WorkbenchIntent
+    /** Android's folder picker returned [uri] (a document tree) for Import. */
+    data class ChooseImportSource(val uri: String) : WorkbenchIntent
+    /** Copies the chosen [ImportSource] into a new workspace named [name]; runs as a task. */
+    data class ImportWorkspace(val name: String) : WorkbenchIntent
+    /** Android's Files app, at the workspace. */
+    data class ShowWorkspaceInFiles(val location: String) : WorkbenchIntent
     data class OpenWorkspace(val path: String) : WorkbenchIntent
     data class OpenWorkspaceTerminal(val path: String) : WorkbenchIntent
     data class ResolveWorkspaceSwitch(val path: String, val openTerminal: Boolean, val saveChanges: Boolean) : WorkbenchIntent
-    data class ShowWorkspaceLocation(val path: String) : WorkbenchIntent
-    data class RemoveRecentWorkspace(val path: String) : WorkbenchIntent
     /** [lineNumber] is one-based and [column] is zero-based, matching content-search results. */
     data class OpenFile(val path: String, val lineNumber: Int? = null, val column: Int? = null) : WorkbenchIntent
     data class CreateFile(
@@ -117,11 +122,10 @@ sealed interface WorkbenchIntent {
     /** Resolves the one marker block that starts at line [sectionStart] (zero-based). */
     data class ResolveConflict(val path: String, val sectionStart: Int, val choice: GitConflictChoice) : WorkbenchIntent
     data class MarkConflictResolved(val path: String) : WorkbenchIntent
-    data class UpdateCloneForm(val url: String, val branch: String) : WorkbenchIntent
-    /** [branch] blank means the remote's default branch. */
+    data class UpdateCloneForm(val url: String, val name: String, val branch: String) : WorkbenchIntent
+    /** Clones into `/workspace/<directoryName>`; [branch] blank means the remote's default branch. */
     data class CloneRepository(
         val url: String,
-        val destination: String,
         val directoryName: String,
         val branch: String = "",
     ) : WorkbenchIntent
@@ -160,7 +164,6 @@ sealed interface WorkbenchIntent {
     data object RefreshRuntimeDetails : WorkbenchIntent
     data object RefreshStorage : WorkbenchIntent
     data object ClearAppCache : WorkbenchIntent
-    data object RemoveStaleRecents : WorkbenchIntent
     /** Rebuilds the base system, keeping the guest home directory. */
     data object RepairRuntime : WorkbenchIntent
     /** Rebuilds the base system and discards the guest home directory. */

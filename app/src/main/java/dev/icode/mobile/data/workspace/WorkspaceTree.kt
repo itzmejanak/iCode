@@ -14,13 +14,20 @@ import java.io.File
  */
 internal class WorkspaceTree(
     private val workbench: WorkbenchStateHolder,
-    source: DirectFileWorkspaceSource,
+    source: WorkspaceFileSource,
     private val listChildren: (String) -> List<DocumentNode> = source::listChildren,
 ) {
     private val treeLock = Any()
     private val childrenByParent = mutableMapOf<String, List<DocumentNode>>()
     private val expanded = mutableSetOf<String>()
     private var currentRoot: String? = null
+
+    /** No workspace is open. */
+    fun clear() = synchronized(treeLock) {
+        currentRoot = null
+        childrenByParent.clear()
+        expanded.clear()
+    }
 
     /** A newly opened workspace: its top level only, nothing expanded. */
     fun reset(root: String, children: List<DocumentNode>) = synchronized(treeLock) {

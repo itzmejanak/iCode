@@ -51,6 +51,9 @@ internal class TaskRunner(
             publish(relative, force = false)
         }
 
+        /** Between items, what the work is doing: "Restoring Git's executables and links". */
+        fun stage(text: String) = publish(text, force = true)
+
         private fun publish(current: String?, force: Boolean) {
             val now = clock()
             if (!force && now - publishedAt < PUBLISH_INTERVAL_MILLIS) return
