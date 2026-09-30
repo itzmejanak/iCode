@@ -15,8 +15,8 @@ import dev.icode.mobile.navigation.Route
 /**
  * The bottom bar of Source Control and of its sync page, the same on both (workspace-destinations-
  * plan.md D7), as VS Code's status bar: on the left the repository — when the workspace holds more
- * than one — and the branch, each an accent button that says which it is and opens its sheet;
- * on the right ↑↓, what is to push and to pull, opening the sync page and lit while it is shown.
+ * than one — and the branch, each a button that says which it is and opens its sheet, its name cut
+ * short to fit; on the right ↑↓, what is to push and to pull, opening the sync page and lit there.
  */
 @Composable
 internal fun GitBottomBar(state: WorkbenchSnapshot, repository: GitRepositoryState, actions: NavigationActions, onSyncPage: Boolean) {

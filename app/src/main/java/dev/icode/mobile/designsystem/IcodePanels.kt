@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material3.Icon
@@ -51,7 +50,7 @@ data class BottomBarItem(
     val enabled: Boolean = true,
     /**
      * What is chosen — a branch, a repository — drawn as the button that changes it: [icon], the
-     * name and ▾, as an accent button, so it reads as both the state and the way to change it.
+     * name and ▾, as a button, so it reads as both the state and the way to change it.
      */
     val choice: Boolean = false,
     val icon: ImageVector? = null,
@@ -79,13 +78,15 @@ fun IcodeBottomBar(
         horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space5),
     ) {
         // The items scroll sideways when large text makes them wider than the
-        // screen; the trailing part stays put.
+        // screen; the trailing part stays put. Choices never scroll away: they
+        // share the width, each cutting its name short with "…" to fit.
+        val choices = items.any { it.choice }
         Row(
-            modifier = Modifier.weight(1f).fillMaxHeight().horizontalScroll(rememberScrollState()),
+            modifier = Modifier.weight(1f).fillMaxHeight().then(if (choices) Modifier else Modifier.horizontalScroll(rememberScrollState())),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space5),
+            horizontalArrangement = Arrangement.spacedBy(if (choices) IcodeSpacing.Space2 else IcodeSpacing.Space5),
         ) {
-            items.forEach { BottomBarEntry(it) }
+            items.forEach { item -> BottomBarEntry(item, if (item.choice) Modifier.weight(1f, fill = false) else Modifier) }
         }
         trailing?.invoke(this)
     }
@@ -133,32 +134,32 @@ fun BottomBarEntry(item: BottomBarItem, modifier: Modifier = Modifier) {
 }
 
 /**
- * A [BottomBarItem.choice]: its icon, what is chosen and ▾, on the accent, shaped as the app's
- * buttons are ([PrimaryButton]) — the state and the button that changes it, at a glance.
+ * A [BottomBarItem.choice]: its icon in the accent, what is chosen and ▾, on the raised surface
+ * with the app's button corner — the state and the button that changes it, at a glance. A long
+ * name is cut short with "…" so the bar keeps every choice in view.
  */
 @Composable
 private fun ChoiceEntry(item: BottomBarItem, click: (() -> Unit)?, modifier: Modifier) {
-    val content = if (item.enabled) IcodeColors.OnAccent else IcodeColors.TextMuted
     Row(
         modifier = modifier
             .height(IcodeSizes.BarChoice)
             .clip(IcodeShapes.Small)
-            .background(if (item.enabled) IcodeColors.Accent else IcodeColors.SurfaceElevated)
+            .background(IcodeColors.SurfaceElevated)
             .then(if (click != null) Modifier.clickable(role = Role.Button, onClick = click) else Modifier)
             .semantics { item.description?.let { contentDescription = it } }
             .padding(horizontal = IcodeSpacing.Space2 + IcodeSpacing.Micro),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1 + IcodeSpacing.Micro),
     ) {
-        item.icon?.let { Icon(it, contentDescription = null, tint = content, modifier = Modifier.size(IcodeSizes.IconSm)) }
+        item.icon?.let { Icon(it, contentDescription = null, tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconSm)) }
         Text(
             item.label,
-            modifier = Modifier.widthIn(max = IcodeSizes.BarChoiceLabel),
-            style = IcodeType.Mono.copy(color = content, fontWeight = FontWeight.SemiBold),
+            modifier = Modifier.weight(1f, fill = false),
+            style = IcodeType.Mono.copy(color = if (item.enabled) IcodeColors.TextPrimary else IcodeColors.TextMuted),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = null, tint = content, modifier = Modifier.size(IcodeSizes.IconSm))
+        Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = null, tint = IcodeColors.TextSecondary, modifier = Modifier.size(IcodeSizes.IconSm))
     }
 }
 
