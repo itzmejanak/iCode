@@ -4,8 +4,10 @@ import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.workspace.WorkbenchStateHolder
 import dev.icode.mobile.domain.GitAuthMethod
 import dev.icode.mobile.domain.GitAuthTestResult
+import dev.icode.mobile.domain.GitAuthWork
 import dev.icode.mobile.domain.GitIdentityRules
 import dev.icode.mobile.domain.GitProvider
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Who commits and how Git reaches a remote (S5): the author identity, the
@@ -22,6 +24,8 @@ internal class GitAuthCoordinator(
     /** The repository's identity shows in Source Control, so it is read again after a change. */
     private val refreshRepository: suspend (root: String) -> Unit,
 ) {
+    private val working = AtomicBoolean(false)
+
     fun selectProvider(provider: GitProvider) = workbench.update {
         it.copy(gitAuth = it.gitAuth.copy(provider = provider))
     }
@@ -85,29 +89,34 @@ internal class GitAuthCoordinator(
         refresh()
     }
 
-    suspend fun generateSshKey() {
-        workbench.update { it.copy(gitAuth = it.gitAuth.copy(busy = true)) }
-        val available = credentials.ensureSshAvailable()
-        val outcome = if (available) {
-            credentials.generateSshKey(credentials.describeHttps() ?: "icode")
-        } else {
-            GitOperationOutcome(false, "The OpenSSH client could not be installed")
-        }
+    /** The SSH client is installed first when it is missing; its install shows as its own. */
+    suspend fun generateSshKey() = alone(GitAuthWork.GeneratingKey) {
+        val client = credentials.ensureSshAvailable()
+        val outcome = if (client.succeeded) credentials.generateSshKey(credentials.describeHttps() ?: "icode") else client
         if (!outcome.succeeded) workbench.message(outcome.message)
         refresh()
     }
 
-    suspend fun testConnection(url: String) {
-        workbench.update { it.copy(gitAuth = it.gitAuth.copy(busy = true, lastTest = null)) }
+    suspend fun testConnection(url: String) = alone(GitAuthWork.Testing) {
+        workbench.update { it.copy(gitAuth = it.gitAuth.copy(lastTest = null)) }
         val outcome = credentials.testConnection(url)
-        workbench.update {
-            it.copy(
-                gitAuth = it.gitAuth.copy(
-                    busy = false,
-                    // Git's refusal can repeat the address it was given.
-                    lastTest = GitAuthTestResult(outcome.succeeded, BackendLog.credentialSafe(outcome.message)),
-                ),
-            )
+        // Git's refusal can repeat the address it was given.
+        val result = GitAuthTestResult(outcome.succeeded, BackendLog.credentialSafe(outcome.message))
+        workbench.update { it.copy(gitAuth = it.gitAuth.copy(lastTest = result)) }
+    }
+
+    /**
+     * apt, ssh-keygen and the network run here, off the mutation lock: nothing in the workspace
+     * waits behind them. One at a time; a second request while one runs is dropped.
+     */
+    private suspend fun alone(work: GitAuthWork, block: suspend () -> Unit) {
+        if (!working.compareAndSet(false, true)) return
+        workbench.update { it.copy(gitAuth = it.gitAuth.copy(work = work)) }
+        try {
+            block()
+        } finally {
+            workbench.update { it.copy(gitAuth = it.gitAuth.copy(work = null)) }
+            working.set(false)
         }
     }
 
@@ -134,7 +143,6 @@ internal class GitAuthCoordinator(
                     httpsAccount = account,
                     hasSshKey = hasSshKey,
                     sshPublicKey = publicKey,
-                    busy = false,
                 ),
             )
         }

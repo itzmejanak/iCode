@@ -133,6 +133,8 @@ object BackgroundWorkRules {
             is GitOperationState.Failed -> operation.label to operation.reason
             else -> return null
         }
+        // Installing Git is the components' run, carried as theirs.
+        if (label !in GitTransferLabel.ALL) return null
         val clone = label == GitTransferLabel.CLONING
         val subject = if (clone) snapshot.cloneName else snapshot.activeWorkspace
         val progress = (snapshot.gitOperation as? GitOperationState.Running)?.progress

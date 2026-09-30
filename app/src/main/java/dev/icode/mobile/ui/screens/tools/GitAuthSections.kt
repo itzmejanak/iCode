@@ -13,6 +13,7 @@ import dev.icode.mobile.designsystem.LabeledTextField
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.NoticeCard
 import dev.icode.mobile.designsystem.StatusLabel
+import dev.icode.mobile.domain.ComponentWork
 import dev.icode.mobile.domain.GitAuthMethod
 import dev.icode.mobile.domain.GitAuthState
 import dev.icode.mobile.domain.GitProvider
@@ -69,6 +70,8 @@ internal fun AuthenticationSection(
     onClearToken: () -> Unit,
     onGenerateSsh: () -> Unit,
     onOpenHost: (String) -> Unit,
+    /** The SSH client's install, while Generate waits on it. */
+    sshClientInstall: ComponentWork? = null,
 ) {
     IcodeDropdown(
         label = "Git Provider",
@@ -111,7 +114,7 @@ internal fun AuthenticationSection(
             onClear = onClearToken,
             onOpenHost = onOpenHost,
         )
-        GitAuthMethod.SshKey -> SshSection(auth, onGenerateSsh, onOpenHost)
+        GitAuthMethod.SshKey -> SshSection(auth, sshClientInstall, onGenerateSsh, onOpenHost)
     }
 }
 

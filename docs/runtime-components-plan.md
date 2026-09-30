@@ -214,3 +214,16 @@ cards, check rows, the progress track, the bottom action bar), as Import was.
   binary-path checks are gone. The gateway stays at its budget (373). 18 installer and coordinator
   tests (5 runs, no failure), 2 dpkg, 1 progress. Gate: 552 tests; lint 0 errors / 12 warnings;
   both guards pass.
+- **C3** (2026-09-30): Generate SSH Key, Test Connection and Install Git leave the mutation lock
+  (the gateway launches them; Install Git takes the lock only for the repository's refresh after
+  it). Generate and Test run one at a time (`GitAuthWork`: GeneratingKey, Testing — a second
+  request while one runs is dropped); `busy` and the never-read `sshAvailable` are gone. The
+  buttons read the component's install: "Installing SSH client · Downloading 1238 kB", then
+  "· Setting up 3 of 6" (dpkg's own word: the step says "Setting up k of N"), then "Generating…".
+  Install Git (credentials page) and Source Control's gate say the same for Git. A client that
+  could not come says apt's words, not "could not be installed". Found on the way: Install Git
+  also set a Git operation, which the background list carried as a second notification for the
+  same install; the Git item now carries transfers only (`GitTransferLabel.ALL`). Gate: 554 tests;
+  lint 0 errors / 12 warnings (checked against lint's fresh analysis: an unchanged report is not
+  rewritten); both guards pass.
+

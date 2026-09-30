@@ -3,10 +3,14 @@ package dev.icode.mobile.data.git
 import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.workspace.WorkbenchStateHolder
 import dev.icode.mobile.domain.GitAuthTestResult
+import dev.icode.mobile.domain.GitAuthWork
 import dev.icode.mobile.domain.GitIdentityRules
 import dev.icode.mobile.domain.GitRepositoryState
 import dev.icode.mobile.domain.WorkbenchEffect
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -139,12 +143,10 @@ class GitAuthCoordinatorTest {
 
     @Test fun `a refused token is said and the surface still refreshes`() = runBlocking {
         val harness = Harness()
-        harness.workbench.update { it.copy(gitAuth = it.gitAuth.copy(busy = true)) }
 
         val effect = harness.nextMessage { harness.coordinator.saveToken("github.com", "ada", "") }
 
         assertEquals(WorkbenchEffect.Message("Enter a personal access token"), effect)
-        assertFalse(harness.workbench.current.gitAuth.busy)
         assertNull(harness.workbench.current.gitAuth.httpsAccount)
     }
 
@@ -159,23 +161,40 @@ class GitAuthCoordinatorTest {
         assertEquals("ada@github.com", harness.workbench.current.gitAuth.httpsAccount)
     }
 
-    @Test fun `an SSH key needs the OpenSSH client first`() = runBlocking {
-        val harness = Harness().apply { credentials.sshInstallable = false }
+    @Test fun `an SSH key needs the SSH client first, and apt's words say why it could not come`() = runBlocking {
+        val harness = Harness().apply {
+            credentials.clientInstall = GitOperationOutcome(false, "Could not download SSH client: E: Unable to fetch some archives")
+        }
 
         val effect = harness.nextMessage { harness.coordinator.generateSshKey() }
 
-        assertEquals(WorkbenchEffect.Message("The OpenSSH client could not be installed"), effect)
-        assertFalse(harness.workbench.current.gitAuth.busy)
+        assertEquals(WorkbenchEffect.Message("Could not download SSH client: E: Unable to fetch some archives"), effect)
+        assertNull(harness.workbench.current.gitAuth.work)
         assertFalse(harness.workbench.current.gitAuth.hasSshKey)
     }
 
-    @Test fun `a connection test shows Git's answer and stops being busy`() = runBlocking {
+    @Test fun `a connection test shows Git's answer and ends`() = runBlocking {
         val harness = Harness()
 
         harness.coordinator.testConnection("git@github.com:ada/repo.git")
 
         assertEquals(GitAuthTestResult(true, "Connected — 2 branch(es) visible"), harness.workbench.current.gitAuth.lastTest)
-        assertFalse(harness.workbench.current.gitAuth.busy)
+        assertNull(harness.workbench.current.gitAuth.work)
+    }
+
+    @Test fun `one thing at a time — while a key is generated it says so, and a test asked meanwhile is dropped`() = runBlocking {
+        val harness = Harness().apply { credentials.clientGate = CompletableDeferred() }
+        val generating = async(Dispatchers.Default) { harness.coordinator.generateSshKey() }
+        withTimeout(2_000) { while (harness.workbench.current.gitAuth.work == null) delay(5) }
+        assertEquals(GitAuthWork.GeneratingKey, harness.workbench.current.gitAuth.work)
+
+        harness.coordinator.testConnection("git@github.com:ada/repo.git")
+        assertNull("dropped", harness.workbench.current.gitAuth.lastTest)
+
+        harness.credentials.clientGate!!.complete(Unit)
+        withTimeout(2_000) { generating.await() }
+        assertNull(harness.workbench.current.gitAuth.work)
+        assertTrue(harness.workbench.current.gitAuth.hasSshKey)
     }
 
     private class FakeConfig : GitConfigOperations {
@@ -200,7 +219,9 @@ class GitAuthCoordinatorTest {
 
     private class FakeCredentials : GitCredentialOperations {
         private var account: String? = null
-        var sshInstallable = true
+        var clientInstall = GitOperationOutcome(true, "The SSH client is installed")
+        /** Held while the SSH client "installs". */
+        var clientGate: CompletableDeferred<Unit>? = null
         /** As the store does when its write fails. */
         var clearFails = false
         private var key: String? = null
@@ -217,7 +238,7 @@ class GitAuthCoordinatorTest {
         }
         override fun hasSshKey() = key != null
         override fun readSshPublicKey() = key
-        override suspend fun ensureSshAvailable() = sshInstallable
+        override suspend fun ensureSshAvailable() = clientInstall.also { clientGate?.await() }
         override suspend fun generateSshKey(comment: String) = GitOperationOutcome(true, "SSH key created").also { key = "ssh-ed25519 AAAA $comment" }
         override suspend fun testConnection(url: String) = GitOperationOutcome(true, "Connected — 2 branch(es) visible")
     }

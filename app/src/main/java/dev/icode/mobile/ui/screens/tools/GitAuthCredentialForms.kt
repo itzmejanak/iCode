@@ -21,7 +21,9 @@ import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.designsystem.TwoColumnActions
+import dev.icode.mobile.domain.ComponentWork
 import dev.icode.mobile.domain.GitAuthState
+import dev.icode.mobile.domain.GitAuthWork
 import dev.icode.mobile.domain.GitRemoteRules
 
 @Composable
@@ -83,7 +85,13 @@ internal fun TokenSection(
 }
 
 @Composable
-internal fun SshSection(auth: GitAuthState, onGenerate: () -> Unit, onOpenHost: (String) -> Unit) {
+internal fun SshSection(
+    auth: GitAuthState,
+    /** The SSH client's install, while Generate waits on it. */
+    clientInstall: ComponentWork?,
+    onGenerate: () -> Unit,
+    onOpenHost: (String) -> Unit,
+) {
     val clipboard = LocalClipboardManager.current
     val publicKey = auth.sshPublicKey
     Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
@@ -135,10 +143,14 @@ internal fun SshSection(auth: GitAuthState, onGenerate: () -> Unit, onOpenHost: 
                 style = IcodeType.MonoSmall,
             )
             SecondaryButton(
-                if (auth.busy) "Generating…" else "Generate SSH Key",
+                when {
+                    clientInstall != null -> clientInstall.status
+                    auth.work == GitAuthWork.GeneratingKey -> "Generating…"
+                    else -> "Generate SSH Key"
+                },
                 onGenerate,
                 Modifier.fillMaxWidth(),
-                enabled = !auth.busy,
+                enabled = auth.work == null,
             )
         }
     }

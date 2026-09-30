@@ -25,7 +25,9 @@ import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SegmentedControl
 import dev.icode.mobile.designsystem.TwoColumnActions
 import dev.icode.mobile.domain.GitAuthState
+import dev.icode.mobile.domain.GitAuthWork
 import dev.icode.mobile.domain.GitIdentityRules
+import dev.icode.mobile.domain.RuntimeComponents
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
@@ -122,12 +124,18 @@ fun GitAuthScreen(actions: NavigationActions) {
                             else "Install the Linux runtime before setting Git identity.",
                             style = IcodeType.Caption.copy(color = IcodeColors.Amber),
                         )
+                        val gitInstall = state.components.installing(RuntimeComponents.Git)
                         SecondaryButton(
-                            if (state.runtimeHealthy) "Install Git" else "Runtime settings",
+                            when {
+                                gitInstall != null -> gitInstall.status
+                                state.runtimeHealthy -> "Install Git"
+                                else -> "Runtime settings"
+                            },
                             {
                                 if (state.runtimeHealthy) gateway.dispatch(WorkbenchIntent.ProvisionGit)
                                 else actions.navigate(Route.SettingsRuntime)
                             },
+                            enabled = gitInstall == null,
                         )
                     }
                     SegmentedControl(
@@ -178,6 +186,7 @@ fun GitAuthScreen(actions: NavigationActions) {
                     onClearToken = { gateway.dispatch(WorkbenchIntent.ClearGitToken) },
                     onGenerateSsh = { gateway.dispatch(WorkbenchIntent.GenerateSshKey) },
                     onOpenHost = { gateway.dispatch(WorkbenchIntent.OpenExternalUrl(it)) },
+                    sshClientInstall = state.components.installing(RuntimeComponents.SshClient),
                 )
                 GitAuthStep.Verify -> VerifySection(
                     auth = auth,
@@ -231,10 +240,10 @@ private fun StepActions(
                 left = { SecondaryButton("Back", onBack, Modifier.fillMaxWidth()) },
                 right = {
                     PrimaryButton(
-                        if (auth.busy) "Testing…" else "Test Connection",
+                        if (auth.work == GitAuthWork.Testing) "Testing…" else "Test Connection",
                         onTest,
                         Modifier.fillMaxWidth(),
-                        enabled = !auth.busy && testUrl.isNotBlank(),
+                        enabled = auth.work == null && testUrl.isNotBlank(),
                     )
                 },
             )

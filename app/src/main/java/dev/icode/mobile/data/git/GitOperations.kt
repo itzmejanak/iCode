@@ -89,7 +89,8 @@ internal interface GitCredentialOperations {
     suspend fun clearHttpsCredentials()
     fun hasSshKey(): Boolean
     fun readSshPublicKey(): String?
-    suspend fun ensureSshAvailable(): Boolean
+    /** Installs the SSH client when it is missing; apt's words say why it could not. */
+    suspend fun ensureSshAvailable(): GitOperationOutcome
     suspend fun generateSshKey(comment: String): GitOperationOutcome
     suspend fun testConnection(url: String): GitOperationOutcome
 }

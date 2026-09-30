@@ -112,6 +112,9 @@ object GitTransferLabel {
     const val FETCHING = "Fetching"
     const val PULLING = "Pulling"
     const val PUSHING = "Pushing"
+
+    /** What moves data to or from a remote: background work of its own. */
+    val ALL = setOf(CLONING, FETCHING, PULLING, PUSHING)
 }
 
 sealed interface GitOperationState {
@@ -216,13 +219,16 @@ data class GitAuthState(
     val httpsAccount: String? = null,
     val hasSshKey: Boolean = false,
     val sshPublicKey: String? = null,
-    val sshAvailable: Boolean = true,
     /** Result of the last connection test, or null when never tested. */
     val lastTest: GitAuthTestResult? = null,
-    val busy: Boolean = false,
+    /** What the page is doing, one thing at a time; each button says its own. */
+    val work: GitAuthWork? = null,
 ) {
     val hasHttpsCredential: Boolean get() = httpsAccount != null
 }
+
+/** Generating installs the SSH client first when it is missing: that shows as the client's install. */
+enum class GitAuthWork { GeneratingKey, Testing }
 
 data class GitAuthTestResult(val succeeded: Boolean, val message: String)
 

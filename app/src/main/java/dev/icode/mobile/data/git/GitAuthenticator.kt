@@ -115,12 +115,14 @@ internal class GitAuthenticator(
         )
     }
 
-    /** Installs the OpenSSH client, which the base image does not include. */
-    override suspend fun ensureSshAvailable(): Boolean {
-        if (packages.isInstalled(RuntimeComponents.SshClient)) return true
-        val installed = packages.ensure(RuntimeComponents.SshClient) == RuntimePackageInstaller.Outcome.Ready
-        if (installed) configureSshClient()
-        return installed
+    /** Installs the SSH client, which the base image does not include. */
+    override suspend fun ensureSshAvailable(): GitOperationOutcome {
+        if (packages.isInstalled(RuntimeComponents.SshClient)) return GitOperationOutcome(true, "The SSH client is installed")
+        return when (val outcome = packages.ensure(RuntimeComponents.SshClient)) {
+            RuntimePackageInstaller.Outcome.Ready -> GitOperationOutcome(true, "The SSH client is installed").also { configureSshClient() }
+            is RuntimePackageInstaller.Outcome.Failed -> GitOperationOutcome(false, outcome.reason)
+            RuntimePackageInstaller.Outcome.Cancelled -> GitOperationOutcome(false, "Installing the SSH client was cancelled")
+        }
     }
 
     /**
