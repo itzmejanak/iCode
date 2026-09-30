@@ -60,6 +60,9 @@ data class ImportBrowserState(
 
     /** The breadcrumb: sdcard, then each folder down to here. */
     val crumbs: List<FolderCrumb> get() = PhoneStoragePaths.crumbs(rootPath, currentPath)
+
+    /** The folder above, where Back goes; null at the root. */
+    val parent: String? get() = FolderCrumbs.parentOf(crumbs)
 }
 
 /** One step of a breadcrumb — Import's browser, the workspaces' file explorer: a folder's name, and where it is. */
@@ -75,6 +78,9 @@ object FolderCrumbs {
         }
         return listOf(FolderCrumb(rootName, rootPath)) + below
     }
+
+    /** The folder above the last of [crumbs], where Back goes in a file browser; null at the root. */
+    fun parentOf(crumbs: List<FolderCrumb>): String? = crumbs.dropLast(1).lastOrNull()?.path
 }
 
 /** How iCode names places on phone storage — the browser's breadcrumb and Import's "From" alike. */

@@ -1,5 +1,6 @@
 package dev.icode.mobile.ui.screens.entry
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -46,8 +47,12 @@ fun ImportBrowserScreen(actions: NavigationActions) {
     val browser = LocalWorkbenchSnapshot.current.importBrowser
     // Where it was last, or where the earlier workspaces' notice asked, read again.
     LaunchedEffect(Unit) { gateway.dispatch(WorkbenchIntent.OpenImportBrowser()) }
+    // Back goes up a folder, as in the Workspaces page's file explorer; at sdcard it leaves.
+    val up = browser?.takeIf { it.access }?.parent
+    val back = { if (up != null) gateway.dispatch(WorkbenchIntent.BrowseImportFolder(up)) else actions.back() }
+    BackHandler(enabled = up != null) { back() }
     Column(Modifier.fillMaxSize()) {
-        IcodeTopBar("Import", onBack = actions.back)
+        IcodeTopBar("Import", onBack = back)
         when {
             // The first read is on its way.
             browser == null -> Unit

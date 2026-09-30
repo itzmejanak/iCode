@@ -28,4 +28,12 @@ class FilesRulesTest {
         assertEquals(listOf("workspace", "tools", "cli"), state.crumbs.map { it.name })
         assertEquals("/data/w/tools", state.crumbs[1].path)
     }
+
+    @Test fun `Back goes up a folder in both browsers, and leaves only at their root`() {
+        assertEquals("/data/w/tools", FilesBrowserState("/data/w", "/data/w/tools/cli").parent)
+        assertEquals(null, FilesBrowserState("/data/w", "/data/w").parent)
+        val sdcard = "/storage/emulated/0"
+        assertEquals(sdcard, ImportBrowserState(access = true, rootPath = sdcard, currentPath = "$sdcard/Download").parent)
+        assertEquals(null, ImportBrowserState(access = true, rootPath = sdcard, currentPath = sdcard).parent)
+    }
 }
