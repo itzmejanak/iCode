@@ -42,6 +42,8 @@ data class WorkbenchSnapshot(
     val importSource: ImportSource? = null,
     val storage: StorageSummary? = null,
     val storageDetails: StorageDetails? = null,
+    /** The Workspaces page's file explorer: where it is and what is there; null until it is opened. */
+    val filesBrowser: FilesBrowserState? = null,
     /** Each workspace's size by location, once measured: measured on its own, apart from the runtime. */
     val workspaceSizes: Map<String, StorageMeasurement> = emptyMap(),
     val fileIndex: List<IndexedFile> = emptyList(),

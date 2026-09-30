@@ -22,6 +22,8 @@ internal class WorkspaceLifecycleCoordinator(
     private val library: WorkspaceLibraryCoordinator,
     private val session: WorkspaceSessionCoordinator,
     private val usage: WorkspaceUsage,
+    /** A file opened in the editor, in the open workspace. */
+    private val openFile: suspend (location: String, lineNumber: Int?, column: Int?) -> Unit,
     /** A workspace's own settings follow a rename, and go with a delete. */
     private val moveSettings: suspend (from: String, to: String) -> Unit,
     private val forgetSettings: suspend (location: String) -> Unit,
@@ -93,11 +95,18 @@ internal class WorkspaceLifecycleCoordinator(
     }
 
     /**
-     * What a clone or an import made, shown: a new workspace opens; a project made in a workspace's
-     * folder opens that workspace with it selected in the Explorer — or, the open one, shows it.
+     * What is at [location], shown, from wherever it was asked — Quick Open, search, the file
+     * explorer, a finished clone or import. A file opens in the editor, its workspace opened for it
+     * first; a folder opens its workspace with it selected in the Explorer — or, in the open one,
+     * shows it.
      */
-    suspend fun reveal(location: String) {
+    suspend fun reveal(location: String, lineNumber: Int? = null, column: Int? = null) {
         val workspace = source.workspaceOf(location) ?: return
+        val file = File(location).isFile
+        if (file) {
+            if (workspace != session.activeRoot) session.open(workspace, persist = true, announce = false)
+            return openFile(location, lineNumber, column)
+        }
         workbench.update { it.copy(initialExplorerSelection = location.takeIf { it != workspace }) }
         if (workspace != session.activeRoot) return session.open(workspace, persist = true)
         session.requestRefresh(rebuildIndex = true)

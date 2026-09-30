@@ -112,4 +112,17 @@ several repositories is not yet a place to work on them.
   destination)`. Owner (2026-10-01): no limits beyond those — folders and repositories side by side
   in one workspace, a clone anywhere in it; nothing over-built. 2 tests. Gate: 569 tests; lint 0
   errors / 12 warnings; both guards pass.
+- **G2** (2026-10-01): the file explorer's backend. `FilesBrowserState` (where it is, what is
+  there, the breadcrumb from `workspace`), `BrowsedItem` (folder or file, size or count, when it
+  changed, a workspace's branch), `FilesRules` (folders first; Name · Date · Size; search; what a
+  folder holds). The breadcrumb is one rule for any root (`FolderCrumbs`; Import's sdcard uses it).
+  The library lists a folder (`BrowseFiles`, with the storage reads, off the lock): the workspaces
+  at the top, else the folder's entries as the Explorer lists them; it lists again on every
+  refresh, and the watcher follows the folder shown, so a change from the terminal appears. Create
+  file and folder, rename and delete work in any workspace — the workspace the item is in, not
+  only the open one; a dialog that named a workspace still guards it — and each change re-reads
+  the explorer, and the open workspace's tree when touched. `reveal` opens what is anywhere: a
+  file in the editor with its workspace opened first; `OpenFile` goes through it (the same for
+  anything in the open workspace). 4 tests. Gateway 363 (budget lowered). Gate: 573 tests; lint 0
+  errors / 12 warnings; both guards pass.
 

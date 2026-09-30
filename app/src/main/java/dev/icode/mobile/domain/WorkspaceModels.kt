@@ -59,26 +59,30 @@ data class ImportBrowserState(
     val name: String get() = currentPath.substringAfterLast('/')
 
     /** The breadcrumb: sdcard, then each folder down to here. */
-    val crumbs: List<ImportCrumb> get() = PhoneStoragePaths.crumbs(rootPath, currentPath)
+    val crumbs: List<FolderCrumb> get() = PhoneStoragePaths.crumbs(rootPath, currentPath)
 }
 
-/** One step of Import's breadcrumb: a folder's name, and where it is. */
-data class ImportCrumb(val name: String, val path: String)
+/** One step of a breadcrumb — Import's browser, the workspaces' file explorer: a folder's name, and where it is. */
+data class FolderCrumb(val name: String, val path: String)
+
+object FolderCrumbs {
+    /** Each folder from [rootPath] — named [rootName] — down to [path], the root first. */
+    fun of(rootName: String, rootPath: String, path: String): List<FolderCrumb> {
+        var at = rootPath
+        val below = path.removePrefix(rootPath).split('/').filter(String::isNotEmpty).map { name ->
+            at = "$at/$name"
+            FolderCrumb(name, at)
+        }
+        return listOf(FolderCrumb(rootName, rootPath)) + below
+    }
+}
 
 /** How iCode names places on phone storage — the browser's breadcrumb and Import's "From" alike. */
 object PhoneStoragePaths {
     /** The root, by the name developers know it (owner, 2026-09-30). */
     const val ROOT_NAME = "sdcard"
 
-    /** Each folder from [rootPath] down to [path], the root first. */
-    fun crumbs(rootPath: String, path: String): List<ImportCrumb> {
-        var at = rootPath
-        val below = path.removePrefix(rootPath).split('/').filter(String::isNotEmpty).map { name ->
-            at = "$at/$name"
-            ImportCrumb(name, at)
-        }
-        return listOf(ImportCrumb(ROOT_NAME, rootPath)) + below
-    }
+    fun crumbs(rootPath: String, path: String): List<FolderCrumb> = FolderCrumbs.of(ROOT_NAME, rootPath, path)
 
     /** "sdcard / Projects / RevPlayer". */
     fun display(rootPath: String, path: String): String = crumbs(rootPath, path).joinToString(" / ") { it.name }

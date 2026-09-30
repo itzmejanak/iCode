@@ -5,6 +5,9 @@ import dev.icode.mobile.data.io.measureTree
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.storage.WorkspacesProvider
 import dev.icode.mobile.domain.RecentDocument
+import dev.icode.mobile.domain.BrowsedItem
+import dev.icode.mobile.domain.FileKind
+import dev.icode.mobile.domain.FilesBrowserState
 import dev.icode.mobile.domain.StorageDetails
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.domain.WorkspaceSummary
@@ -50,7 +53,13 @@ internal class WorkspaceLibraryCoordinator(
         val workspaces = workspaces()
         val storage = runCatching(source::storageSummary).getOrNull()
         workbench.update { it.copy(workspaces = workspaces, storage = storage) }
+        refreshFiles()
         runCatching { WorkspacesProvider.changed(appContext) }
+    }
+
+    /** The file explorer's folder, read again after a change — iCode's, or one the watcher saw. */
+    fun refreshFiles() {
+        workbench.current.filesBrowser?.let { browseFiles(it.path) }
     }
 
     /**
@@ -93,9 +102,35 @@ internal class WorkspaceLibraryCoordinator(
         refresh()
     }
 
-    fun measure(intent: WorkbenchIntent.StorageIntent) = when (intent) {
-        WorkbenchIntent.RefreshStorage -> refreshStorage()
-        WorkbenchIntent.MeasureWorkspaces -> measureWorkspaces()
+    fun read(intent: WorkbenchIntent.StorageIntent) {
+        when (intent) {
+            is WorkbenchIntent.BrowseFiles -> scope.launch(Dispatchers.IO) {
+                browseFiles(intent.path ?: workbench.current.filesBrowser?.path ?: paths.root.path)
+            }
+            WorkbenchIntent.RefreshStorage -> refreshStorage()
+            WorkbenchIntent.MeasureWorkspaces -> measureWorkspaces()
+        }
+    }
+
+    /**
+     * The file explorer at [path] (docs/workspace-destinations-plan.md §2.2): the workspaces at the
+     * top — the library's own list — and inside one, its folders and files as the Explorer lists
+     * them (not `.git`, no link that leads out), each with its size or count and when it changed.
+     * A folder gone meanwhile leaves it at the top.
+     */
+    private fun browseFiles(path: String) {
+        val root = paths.root.path
+        val at = path.takeIf { it == root || (paths.workspaceOf(it) != null && File(it).isDirectory) } ?: root
+        val items = if (at == root) {
+            workspaces().map { BrowsedItem(it.name, it.location, folder = true, changedAt = it.lastOpenedAt, entries = File(it.location).list()?.size, branch = it.branch) }
+        } else {
+            runCatching { source.listChildren(at) }.getOrDefault(emptyList()).map { node ->
+                val file = File(node.location)
+                val folder = node.kind == FileKind.Folder
+                BrowsedItem(node.name, node.location, folder, bytes = file.length().takeUnless { folder }, changedAt = file.lastModified(), entries = if (folder) file.list()?.size else null)
+            }
+        }
+        workbench.update { it.copy(filesBrowser = FilesBrowserState(root, at, items)) }
     }
 
     /** The device, the runtime and the cache; the newest measurement replaces one still running. */

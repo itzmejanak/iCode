@@ -1,6 +1,6 @@
 package dev.icode.mobile.data.storage
 
-import dev.icode.mobile.domain.ImportCrumb
+import dev.icode.mobile.domain.FolderCrumb
 import dev.icode.mobile.domain.PhoneFolder
 import java.io.File
 import java.nio.file.Files
@@ -33,7 +33,7 @@ class PhoneStorageTest {
         assertEquals(listOf("sdcard"), top.crumbs.map { it.name })
         val projects = storage.browse(File(root, "Projects").path)
         assertEquals(listOf(PhoneFolder("RevPlayer", File(root, "Projects/RevPlayer").path, 1, 1)), projects.folders)
-        assertEquals(listOf(ImportCrumb("sdcard", root.path), ImportCrumb("Projects", File(root, "Projects").path)), projects.crumbs)
+        assertEquals(listOf(FolderCrumb("sdcard", root.path), FolderCrumb("Projects", File(root, "Projects").path)), projects.crumbs)
         assertEquals("Projects", projects.name)
     }
 

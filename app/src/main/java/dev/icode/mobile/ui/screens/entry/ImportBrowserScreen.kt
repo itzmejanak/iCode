@@ -35,7 +35,7 @@ import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.domain.ImportBrowserState
-import dev.icode.mobile.domain.ImportCrumb
+import dev.icode.mobile.domain.FolderCrumb
 import dev.icode.mobile.domain.SystemPermission
 import dev.icode.mobile.domain.WorkbenchGateway
 import dev.icode.mobile.domain.WorkbenchIntent
@@ -114,7 +114,7 @@ private fun FolderListing(browser: ImportBrowserState, gateway: WorkbenchGateway
  * one here is in the accent. Deep down it scrolls sideways, starting at its end.
  */
 @Composable
-private fun Breadcrumb(crumbs: List<ImportCrumb>, onOpen: (String) -> Unit) {
+private fun Breadcrumb(crumbs: List<FolderCrumb>, onOpen: (String) -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
