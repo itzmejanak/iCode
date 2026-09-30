@@ -3,7 +3,10 @@
 Status: **plan** (2026-10-01). Owner's request: "on Clone Repository the user can select the
 workspace folder where they want to organize it — the vision is that a user can have multiple
 projects in the same workspace, as we now provide file operations too." Then: "New Folder — instead
-of a dedicated create-folder page, make it like a real file explorer: clean, the best UI/UX."
+of a dedicated create-folder page, make it like a real file explorer: clean, the best UI/UX", and:
+"the root of the workspaces, in private storage, is a real file explorer — it must feel as a file
+explorer does, with no gaps"; "no limits on folders and repositories side by side; do not
+over-engineer".
 
 ## 1. Measured (code, 2026-10-01)
 
@@ -23,11 +26,25 @@ several repositories is not yet a place to work on them.
 1. **A destination, chosen where the project is made.** Clone (and Import, §4 D1) gains
    **Where**: *New workspace* (as today, `/workspace/<name>`) or *In a workspace* — a folder
    chosen in the workspaces, shown as its path (`/workspace/tools/cli/<name>`), with Change.
-2. **One folder browser, two sources.** The Import browser's page — breadcrumb, folders with their
-   counts, the choose button at the foot — becomes a shared `FolderBrowser` (ui) over a small model
-   (the crumbs, the folders here, what choosing means). Phone storage (Import's source, rooted
-   "sdcard") and the workspaces (the destination, rooted "workspace") each fill it; the crumbs are
-   one rule (`PhoneStoragePaths.crumbs` generalised: a root's name and path).
+2. **The Workspaces page is the file explorer of the workspaces** (owner: "no gaps"). It opens at
+   `/workspace` and browses down, as MT Manager does:
+   - **Where it is:** the breadcrumb (`workspace › tools › cli`), each step a tap back; Back goes
+     up a folder, and leaves only at the top.
+   - **What is there:** folders, then files, each with its size or count and when it changed; a
+     workspace at the top shows its branch. Sort by Name · Date · Size, and search in the folder
+     shown. `.git` is Git's and not listed (as in the Explorer); iCode's staging never is.
+   - **Open:** a folder goes in; a file opens in the editor, its workspace opened for it (the
+     lifecycle's `reveal`); a workspace opens from its menu, or by a tap at the top.
+   - **Make:** New folder and New file where it is (at the top, New folder is a new workspace).
+   - **Long press, or ⋮:** Open, Rename…, Cut, Copy, Copy path, Delete…; on a workspace also Open
+     Terminal. Paste from the clipboard bar, into the folder shown. One action list, one clipboard.
+   - **Choose mode:** Clone's and Import's **Where** is this page with **Place here** at its foot
+     (**New workspace** at the top), not a second browser.
+   The home screen's recent five, and the Explorer inside a workspace (the tree for coding), stay
+   as they are; the file explorer is for organizing, the tree for working.
+   The backend closes one gap for it: create, rename and delete of an item work in any workspace,
+   not only the open one (the paste already does); the open workspace's tree reads again when a
+   change touched it. The listing is one read of a folder with each entry's size, date and kind.
 3. **One completion.** `WorkspaceStaging.complete(staged, name)` becomes
    `complete(staged, into, name)`: a staged folder becomes `into/name` in one rename — the
    workspaces folder by default. Clone and Import both pass the destination; nothing else learns
@@ -59,9 +76,9 @@ several repositories is not yet a place to work on them.
 |---|---|
 | G0 | New Folder as a dialog on the Workspaces page, answered by request id; the New Folder page and route go (its frame a state); capture count |
 | G1 | `WorkspaceStaging.complete(staged, into, name)`; Clone and Import pass their destination (default: the workspaces); tests on real folders |
-| G2 | `FolderBrowser` out of the Import browser (Import unchanged to the eye); the crumbs rule for any root; the workspaces as a second source |
-| G3 | Clone's **Where** (New workspace · In a workspace, with the browser to choose), the name checked where it will land; what follows (open, select, refresh) |
-| G4 | Import's **Where**, the same parts |
+| G2 | Backend: a folder's listing (entries with size, date, kind), items made, renamed and deleted in any workspace, a file opened from anywhere (`reveal`); tests on real folders |
+| G3 | The Workspaces page as the file explorer: breadcrumb, Back up, entries, sort and search, open, New folder / New file, the long-press and ⋮ menu, the clipboard bar |
+| G4 | Choose mode: Clone's and Import's **Where** (New workspace · a folder), **Place here**; the name checked where it lands |
 | G5 | Source Control over several repositories: the scan, the picker, every Git action on the chosen one; tests with nested repositories |
 | G6 | Device: clone two repositories into one workspace; stage, commit and push each from Source Control |
 
@@ -71,6 +88,8 @@ several repositories is not yet a place to work on them.
 - **D2** (owner, 2026-10-01): Source Control over several repositories is in this plan.
 - **D3** A new workspace made by New Folder appears in the list and is not opened — a file
   manager's behaviour; a tap opens it. Clone and Import still open what they made, as today.
+- **D4** One item at a time, as today's menus: no multi-select yet (a later step if wanted).
+- **D5** In the file explorer, Back goes up a folder, as in MT Manager; at the top it leaves.
 
 ## 5. Record
 
