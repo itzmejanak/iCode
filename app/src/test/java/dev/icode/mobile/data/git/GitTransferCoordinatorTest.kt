@@ -41,9 +41,17 @@ class GitTransferCoordinatorTest {
         files.deleteRecursively()
     }
 
-    private inner class Harness(scope: CoroutineScope, val git: FakeTransfers, root: String? = this@GitTransferCoordinatorTest.root) {
+    private inner class Harness(
+        scope: CoroutineScope,
+        val git: FakeTransfers,
+        root: String? = this@GitTransferCoordinatorTest.root,
+        /** Opening what was cloned waits for this, when given. */
+        opening: CompletableDeferred<Unit>? = null,
+    ) {
         val workbench = WorkbenchStateHolder()
         val events = mutableListOf<String>()
+        /** What the progress screen showed while the clone was being opened. */
+        val openedWhile = mutableListOf<GitOperationState?>()
         val ledger = mutableListOf<String>()
         val coordinator = GitTransferCoordinator(
             workbench,
@@ -56,7 +64,11 @@ class GitTransferCoordinatorTest {
                 block(listOf("credential.helper=store --file=/tmp/once"))
             },
             refresh = { events += "refresh $it" },
-            openClone = { events += "open $it" },
+            openClone = {
+                events += "open $it"
+                openedWhile += workbench.current.gitOperation
+                opening?.await()
+            },
             ledger = object : TransferLedger {
                 override fun started(label: String, target: String) {
                     ledger += "started $label $target"
@@ -274,10 +286,26 @@ class GitTransferCoordinatorTest {
         harness.coordinator.clone("git@host:me/repo.git", "repo")?.join()
 
         assertEquals(GitOperationState.Succeeded("Cloning", emptyList()), harness.workbench.current.gitOperation)
+        // Still running while it opens: the progress screen gives way to the clone, not to what was open.
+        assertTrue(harness.openedWhile.single() is GitOperationState.Running)
         // A private repository needs the saved token for its first clone too.
         assertEquals(listOf("credentials", "open ${workspaces.root.path}/repo"), harness.events)
         assertEquals(listOf("credential.helper=store --file=/tmp/once"), harness.git.config)
         assertEquals(listOf("repo"), workspaces.root.list()!!.toList())
+        assertTrue(File(workspaces.root, "repo/.git").isDirectory)
+    }
+
+    @Test fun `a clone already whole is not cancelled while it opens`() = runBlocking {
+        val opening = CompletableDeferred<Unit>()
+        val harness = Harness(this, FakeTransfers(), opening = opening)
+        val cloning = harness.coordinator.clone("git@host:me/repo.git", "repo")
+        while (harness.openedWhile.isEmpty()) yield()
+
+        harness.coordinator.cancel()
+        opening.complete(Unit)
+        cloning?.join()
+
+        assertEquals(GitOperationState.Succeeded("Cloning", emptyList()), harness.workbench.current.gitOperation)
         assertTrue(File(workspaces.root, "repo/.git").isDirectory)
     }
 

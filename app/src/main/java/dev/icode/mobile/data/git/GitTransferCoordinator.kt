@@ -16,7 +16,9 @@ import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Clone, fetch, pull and push (S5): each contacts a network the app does not
@@ -169,8 +171,10 @@ internal class GitTransferCoordinator(
             }
             return
         }
+        // The clone is whole: what it made is shown before it says so, so the progress screen gives
+        // way to it and never to the workspace open before; Cancel no longer applies.
+        withContext(NonCancellable) { openClone(target.path) }
         workbench.update { it.copy(gitOperation = GitOperationState.Succeeded(label, transcript), projectDestination = null) }
-        openClone(target.path)
     }
 
     private fun cloneProblem(url: String, directoryName: String, branch: String, into: File): String? {

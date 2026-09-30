@@ -163,3 +163,16 @@ several repositories is not yet a place to work on them.
   that lands after its failure no longer hides it — the failure stays until dismissed (a timing
   flake in `TaskRunnerTest`, now asserted). 2 tests. Gateway 361 (budget lowered). Gate: 573
   tests; lint 0 errors / 12 warnings; both guards pass.
+- **G6** (2026-10-01, device, fresh APK): a workspace `multi` made by New folder; `icodeTest` (SSH)
+  and `Extension-List` (HTTPS) cloned into it through Where → `multi` → Place here, side by side.
+  Source Control showed the picker ("2 repositories in this workspace"); each repository showed
+  only its own change, with its own paths; a commit in Extension-List made it ↑1 and left
+  icodeTest ↑0; switched to icodeTest, its commit was pushed and GitHub's `main` is that commit
+  (`d378e0b`); Extension-List kept its own ↑1. Found and fixed: when a clone finished, the progress
+  screen gave way before the clone was opened, so the workspace open before showed for a few
+  seconds — it is now opened first, then said to have succeeded, and Cancel no longer applies once
+  the clone is whole (1 test). Found, for G7: **Commit & Push** only opens the sync screen — it
+  commits nothing (a label from the demo frames); what is typed on a screen (the commit message) is
+  lost when another screen is opened on top and closed — the navigation keeps no screen's state;
+  the empty folder's words in choose mode speak of New file and Paste, which are not there. Gate:
+  574 tests; lint 0 errors / 12 warnings; both guards pass.
