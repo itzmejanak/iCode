@@ -181,7 +181,6 @@ fun IcodeApp(
                     WorkbenchEffect.ImportSourceChosen -> if (navigation.current != Route.ImportWorkspace) {
                         navigation.actions.navigate(Route.ImportWorkspace)
                     }
-                    is WorkbenchEffect.ShowInFiles -> systemPrompts.showInFiles(effect)
                     // What made the workspace gives way to it, so Back returns to the launcher.
                     is WorkbenchEffect.WorkspaceOpened -> if (navigation.current in MAKES_A_WORKSPACE) {
                         navigation.actions.replace(Route.WorkspaceExplorer)

@@ -322,7 +322,9 @@ Each row may show:
 - its `/workspace/<name>` path;
 - repository branch when cheaply available;
 - last-opened time;
-- overflow actions: Open, Open Terminal, Rename, Show in Files, Copy path, Delete.
+- its actions, from ⋮ or a long press, one list: Open, Open Terminal, Rename, Cut, Copy, Show in
+  Workspaces (from the home screen's recent rows), Copy path, Delete. Cut and Copy use iCode's one
+  clipboard; what waits on it shows as a bar with Paste on the Workspaces page and in the Explorer.
 
 The launcher does not display a dashboard of counts or unrelated product cards. Nothing on it can be stale: the list is the workspaces folder itself.
 

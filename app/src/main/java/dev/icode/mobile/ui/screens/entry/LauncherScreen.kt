@@ -101,7 +101,9 @@ fun LauncherScreen(actions: NavigationActions, empty: Boolean) {
                     verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
                 ) {
                     item { SectionLabel("Recent", Modifier.padding(bottom = IcodeSpacing.Space1)) }
-                    items(WorkspaceListRules.recent(workspaces), key = { it.location }) { workspace -> WorkspaceRow(workspace) }
+                    items(WorkspaceListRules.recent(workspaces), key = { it.location }) { workspace ->
+                        WorkspaceRow(workspace, onShowInList = { actions.navigate(Route.Workspaces) })
+                    }
                 }
             }
         }

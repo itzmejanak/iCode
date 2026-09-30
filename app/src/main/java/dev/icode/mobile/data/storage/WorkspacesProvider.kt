@@ -14,7 +14,6 @@ import android.provider.DocumentsContract.Root
 import android.provider.DocumentsProvider
 import android.webkit.MimeTypeMap
 import dev.icode.mobile.data.io.deleteTree
-import dev.icode.mobile.domain.WorkbenchEffect
 import dev.icode.mobile.domain.WorkspaceNameRules
 import java.io.File
 import java.io.FileNotFoundException
@@ -186,16 +185,6 @@ class WorkspacesProvider : DocumentsProvider() {
 
         /** `<applicationId>.workspaces`, as the manifest declares it. */
         fun authorityOf(context: Context) = "${context.packageName}.workspaces"
-
-        /** Show in Files: the workspace's folder, and the root for when that cannot be opened. */
-        fun showInFiles(context: Context, location: String): WorkbenchEffect.ShowInFiles? {
-            val id = WorkspacePaths.of(context).guestOf(location) ?: return null
-            val authority = authorityOf(context)
-            return WorkbenchEffect.ShowInFiles(
-                documentUri = DocumentsContract.buildDocumentUri(authority, id).toString(),
-                rootUri = DocumentsContract.buildRootUri(authority, ROOT_ID).toString(),
-            )
-        }
 
         /**
          * Something in the workspaces changed in iCode or its terminal: every listing the Files app

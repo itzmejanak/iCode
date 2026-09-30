@@ -59,7 +59,8 @@ Acceptance criteria:
 - Each row identifies the workspace by name and its `/workspace/<name>` path, with its branch when it is a repository.
 - Selecting a row opens the workspace.
 - The list is the application's workspaces folder itself: nothing in it can be stale, and a workspace made from the terminal in `/workspace` appears.
-- Each row's menu offers Open, Open Terminal, Rename, Show in Files, Copy path, and Delete.
+- Each row's menu, from ⋮ or a long press, offers Open, Open Terminal, Rename, Cut, Copy, Copy path and Delete, and on the home screen Show in Workspaces.
+- What is cut or copied pastes on the Workspaces page as a workspace, or in a workspace's Explorer inside the chosen folder, from a bar that names it.
 
 ### US-ENTRY-003 — Continue after runtime preparation
 
@@ -113,7 +114,6 @@ Acceptance criteria:
 - A workspace can be copied out to any folder.
 - A link inside a workspace never leads another application out of the workspaces.
 - Changes made there appear in iCode like any other outside change.
-- Show in Files opens the Files app at the workspace.
 
 ## 6. Workspace Management
 

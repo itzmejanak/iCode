@@ -10,6 +10,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -27,11 +31,17 @@ import dev.icode.mobile.domain.WorkspaceSummary
 /**
  * One workspace in a list — the home screen's recent ones and the Workspaces page alike: its name,
  * `/workspace/` path, branch, [size] where the list measures it, when it was last opened, and its
- * menu. A tap opens it.
+ * menu, from ⋮ or a long press. A tap opens it. [onShowInList] leads to the Workspaces page.
  */
 @Composable
-fun WorkspaceRow(item: WorkspaceSummary, modifier: Modifier = Modifier, size: String? = null) {
+fun WorkspaceRow(
+    item: WorkspaceSummary,
+    modifier: Modifier = Modifier,
+    size: String? = null,
+    onShowInList: (() -> Unit)? = null,
+) {
     val gateway = LocalWorkbenchGateway.current
+    var longPressed by remember(item.location) { mutableStateOf(false) }
     IcodeListRow(
         modifier = modifier,
         card = true,
@@ -40,6 +50,7 @@ fun WorkspaceRow(item: WorkspaceSummary, modifier: Modifier = Modifier, size: St
             vertical = (IcodeSizes.Tile - IcodeSizes.TouchTarget) / 2,
         ),
         onClick = { gateway.dispatch(WorkbenchIntent.OpenWorkspace(item.location)) },
+        onLongClick = { longPressed = true },
         leading = {
             IconBadge(
                 icon = Icons.Outlined.Folder,
@@ -65,7 +76,7 @@ fun WorkspaceRow(item: WorkspaceSummary, modifier: Modifier = Modifier, size: St
         },
         trailing = {
             Box {
-                WorkspaceActionsMenu(item)
+                WorkspaceActionsMenu(item, longPressed, onLongPressDismiss = { longPressed = false }, onShowInList = onShowInList)
                 Text(
                     RelativeTime.since(item.lastOpenedAt),
                     style = IcodeType.Caption,

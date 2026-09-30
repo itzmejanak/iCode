@@ -85,7 +85,7 @@ UI."
 | P3 | Home: Recent (five), the Workspaces tile, the empty state's words |
 | P4 | Storage settings: the summary row in place of the second list; docs (layout, user stories, architecture) |
 | P5 | One clipboard: `WorkspaceUsage` (both callers moved onto it), the lifecycle's retire step (Delete moved onto it), the clipboard in the snapshot and the paste (the Explorer moved onto it); tests on real folders |
-| P6 | The long-press menu on workspace rows (one action list for long press and ⋮: Open, Open Terminal, Rename…, Cut, Copy, Show in Files, Copy path, Delete…), Paste on the Workspaces page; device check |
+| P6 | The long-press menu on workspace rows (one action list for long press and ⋮: Open, Open Terminal, Rename…, Cut, Copy, Show in Workspaces on the home screen, Copy path, Delete…), the clipboard bar with Paste on the Workspaces page and the Explorer; Show in Files removed (owner); device check |
 
 ## 4. Decisions — the owner may overrule
 
@@ -117,4 +117,30 @@ UI."
   total" — opening the Workspaces page; it keeps what is its own (device, runtime, cache, All Files
   Access, Clear Cache) and its sentence on where workspaces live. The actions menu is now used by
   the two lists that remain. Layout §9 and US-ENTRY-001 / US-STORAGE-001 say so.
+- **P5** (2026-10-01): one clipboard, no second copy of anything. `WorkspaceUsage` answers "may this
+  change now?" for everyone: a task (its dialog shows), a file with unsaved edits or an unanswered
+  recovery question (the Explorer's own rule, which the lifecycle's plainer one gave way to),
+  recovery drafts, and for a whole workspace a terminal or Git in it. The lifecycle's `inUse` and
+  the Explorer's `blocked` / `busy` are gone. The lifecycle's **release** (close it if open) and
+  **retire** (settings and history go) are Delete's steps, and the paste uses them for a cut
+  workspace. The clipboard is the snapshot's (`ItemClipboard`); `CutItem`, `CopyItem`,
+  `PasteInto(folder)` and `PasteAsWorkspace` replace the Explorer's move and copy intents, routed in
+  one line. The paste reuses `WorkspaceFiles` rooted at the workspaces folder: a cut moves in one
+  step and leaves the clipboard; a copy is the cancellable task and stays for another paste. What
+  follows a move is one rule: inside one workspace tabs, tree and recents follow; out of it tabs
+  close and recents go (the paths' `workspaceOf` is `WorkspacePaths`' own). Refused with the
+  reason: gone, into itself, a file as a workspace, a workspace pasted as one, a name a workspace
+  cannot have, a cut onto a taken name, anything held. The Explorer shows the one clipboard and names what Paste brings
+  ("Paste RevPlayer"). The gateway came down to 367 (budget lowered). 4 usage tests, 1 file test on
+  real folders. Gate: 567 tests; lint 0 errors / 12 warnings; both guards pass.
+- **P6** (2026-10-01): one action list for a whole workspace, shown by ⋮ and by a long press on
+  the row alike (`IcodeOverflowMenu` and `IcodeActionMenu` with the same list, as the editor's tabs
+  do): Open, Open Terminal, Rename…, **Cut**, **Copy**, **Show in Workspaces** (the home screen's
+  recent rows: the Workspaces page), Copy path (its icon a link now: Copy is the clipboard's),
+  Delete…. **Show in Files** is gone at the owner's word — the intent, its effect, the prompt and
+  the provider's link builder with it; the Files app still lists the workspaces. `ClipboardBar`
+  (ui): what waits on the clipboard — its name, cut or copied, **Paste**, ✕ (`ClearClipboard`) —
+  at the foot of the Workspaces page (paste as a workspace) and of the Explorer (paste into the
+  selected folder); the Explorer's Paste items name what they bring. The gateway came down to 364
+  (budget lowered). Gate: 567 tests; lint 0 errors / 12 warnings; both guards pass.
 

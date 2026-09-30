@@ -25,7 +25,6 @@ import dev.icode.mobile.data.search.RipgrepService
 import dev.icode.mobile.data.search.SearchCoordinator
 import dev.icode.mobile.data.settings.AndroidWorkspacePreferencesRepository
 import dev.icode.mobile.data.storage.PhoneStorage
-import dev.icode.mobile.data.storage.WorkspacesProvider
 import dev.icode.mobile.data.system.AndroidSystemAccess
 import dev.icode.mobile.data.tasks.BackgroundWork
 import dev.icode.mobile.data.tasks.TaskRunner
@@ -148,25 +147,21 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
         activeRoot = { session.activeRoot },
         onSaved = { gitWorkspace.scheduleRefresh() },
     )
-    private val items: WorkspaceItemsCoordinator = WorkspaceItemsCoordinator(
-        workbench,
-        tasks,
-        source,
-        tree,
-        documents,
-        library,
-        activeRoot = { session.activeRoot },
-        refreshWorkspaceState = { root -> gitWorkspace.refresh(root) },
-        reindex = { root -> search.workspaceChanged(root) },
-    )
-
     private val session: WorkspaceSessionCoordinator = WorkspaceSessionCoordinator(
         workbench, scope, source, tree, library, documents, recovery, gitWorkspace, search, terminal, languages,
     )
+    /** What may change now, asked the same way by the lifecycle and the Explorer's items. */
+    private val usage = WorkspaceUsage(workbench, tasks, terminal::runsIn, documents::blockingEdits) { session.activeRoot }
     private val lifecycle = WorkspaceLifecycleCoordinator(
-        workbench, tasks, source, library, session, terminal,
+        workbench, tasks, source, library, session, usage,
         moveSettings = settings::moveWorkspace,
         forgetSettings = settings::forgetWorkspace,
+    )
+    private val items = WorkspaceItemsCoordinator(
+        workbench, tasks, source, tree, documents, library, usage, lifecycle,
+        activeRoot = { session.activeRoot },
+        refreshWorkspaceState = { root -> gitWorkspace.refresh(root) },
+        reindex = { root -> search.workspaceChanged(root) },
     )
     private val importer = WorkspaceImportCoordinator(
         workbench, tasks, runtimeLayout.workspaces, git,
@@ -262,8 +257,6 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
                         is WorkbenchIntent.BrowseImportFolder -> importer.browse(intent.path)
                         is WorkbenchIntent.ChooseImportFolder -> importer.choose(intent.path)
                         is WorkbenchIntent.ImportWorkspace -> importer.import(intent.name)
-                        is WorkbenchIntent.ShowWorkspaceInFiles ->
-                            WorkspacesProvider.showInFiles(appContext, intent.location)?.let { workbench.emit(it) }
                         is WorkbenchIntent.OpenWorkspace -> session.open(intent.path, persist = true)
                         is WorkbenchIntent.OpenWorkspaceTerminal -> session.open(intent.path, persist = true, openTerminal = true)
                         is WorkbenchIntent.ResolveWorkspaceSwitch -> session.resolveSwitch(intent)
@@ -272,8 +265,7 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
                         is WorkbenchIntent.CreateFile -> items.createFile(intent)
                         is WorkbenchIntent.CreateWorkspaceFolder -> items.createFolder(intent)
                         is WorkbenchIntent.RenameWorkspaceItem -> items.rename(intent)
-                        is WorkbenchIntent.MoveWorkspaceItem -> items.move(intent)
-                        is WorkbenchIntent.CopyWorkspaceItem -> items.copy(intent)
+                        is WorkbenchIntent.ClipboardIntent -> items.clipboard(intent)
                         is WorkbenchIntent.DeleteWorkspaceItem -> items.delete(intent)
                         is WorkbenchIntent.SaveDocument -> documents.save(
                             intent.location,

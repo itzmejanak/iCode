@@ -31,8 +31,6 @@ sealed interface WorkbenchIntent {
     data class ChooseImportFolder(val path: String) : WorkbenchIntent
     /** Copies the chosen [ImportSource] into a new workspace named [name]; runs as a task. */
     data class ImportWorkspace(val name: String) : WorkbenchIntent
-    /** Android's Files app, at the workspace. */
-    data class ShowWorkspaceInFiles(val location: String) : WorkbenchIntent
     data class OpenWorkspace(val path: String) : WorkbenchIntent
     data class OpenWorkspaceTerminal(val path: String) : WorkbenchIntent
     data class ResolveWorkspaceSwitch(val path: String, val openTerminal: Boolean, val saveChanges: Boolean) : WorkbenchIntent
@@ -51,11 +49,22 @@ sealed interface WorkbenchIntent {
         val expectedWorkspace: String,
         val requestId: String,
     ) : WorkbenchIntent
-    /** Explorer file operations, inside the open workspace (as VS Code: Move is Cut, then Paste). */
+    /** Explorer file operations, inside the open workspace. */
     data class RenameWorkspaceItem(val location: String, val newName: String, val requestId: String) : WorkbenchIntent
-    data class MoveWorkspaceItem(val location: String, val destinationFolder: String) : WorkbenchIntent
-    data class CopyWorkspaceItem(val location: String, val destinationFolder: String) : WorkbenchIntent
     data class DeleteWorkspaceItem(val location: String) : WorkbenchIntent
+    /**
+     * One clipboard across iCode (docs/workspaces-page-plan.md §2.7): a whole workspace, or a folder
+     * or file in one, cut or copied from any list, pasted wherever folders are.
+     */
+    sealed interface ClipboardIntent : WorkbenchIntent
+    data class CutItem(val location: String) : ClipboardIntent
+    data class CopyItem(val location: String) : ClipboardIntent
+    /** Into a folder of a workspace. */
+    data class PasteInto(val folder: String) : ClipboardIntent
+    /** Beside the workspaces, as one of them: a copy as "<name> copy", a cut folder as its own. */
+    data object PasteAsWorkspace : ClipboardIntent
+    /** Nothing is waiting to be pasted any more. */
+    data object ClearClipboard : ClipboardIntent
     /** A long operation's dialog: Hide sends it to the background, Show brings it back. */
     sealed interface TaskIntent : WorkbenchIntent { val id: Long }
     data class HideTask(override val id: Long) : TaskIntent

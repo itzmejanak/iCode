@@ -1,8 +1,6 @@
 package dev.icode.mobile.data.workspace
 
-import dev.icode.mobile.data.runtime.TerminalCoordinator
 import dev.icode.mobile.data.tasks.TaskRunner
-import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.WorkbenchEffect
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.domain.WorkspaceNameRules
@@ -12,10 +10,10 @@ import java.nio.file.Files
 
 /**
  * Whole workspaces made, renamed and deleted (docs/workspace-storage-plan.md §4.3): New Folder,
- * and the launcher's Rename and Delete. A workspace in use is not pulled from under what uses it:
- * a rename or a delete waits until no terminal session, task or Git operation runs in it and no
- * work in it is unsaved. The open workspace is closed first, and a renamed one opens again with
- * its tabs.
+ * and the Workspaces page's Rename and Delete. A workspace in use is not pulled from under what
+ * uses it ([WorkspaceUsage]). The open workspace is closed first, and a renamed one opens again
+ * with its tabs. A workspace that stops being one — deleted, or cut into another — is released
+ * before and retired after, the same two steps either way.
  */
 internal class WorkspaceLifecycleCoordinator(
     private val workbench: WorkbenchStateHolder,
@@ -23,7 +21,7 @@ internal class WorkspaceLifecycleCoordinator(
     private val source: WorkspaceFileSource,
     private val library: WorkspaceLibraryCoordinator,
     private val session: WorkspaceSessionCoordinator,
-    private val terminal: TerminalCoordinator,
+    private val usage: WorkspaceUsage,
     /** A workspace's own settings follow a rename, and go with a delete. */
     private val moveSettings: suspend (from: String, to: String) -> Unit,
     private val forgetSettings: suspend (location: String) -> Unit,
@@ -46,7 +44,7 @@ internal class WorkspaceLifecycleCoordinator(
         val to = File(source.workspacesRoot, name).path
         if (to == from) return workbench.emit(WorkbenchEffect.WorkspaceItemChanged(intent.requestId, from))
         WorkspaceNameRules.newWorkspaceError(name, ::exists)?.let { return fail(intent.requestId, it) }
-        inUse(from)?.let { return fail(intent.requestId, it) }
+        usage.holding(from, whole = true)?.let { return fail(intent.requestId, it) }
         val open = session.activeRoot == from
         val tabs = if (open) workbench.current.openDocuments.map { it.location } else emptyList()
         val selected = if (open) workbench.current.activeDocument?.location else null
@@ -71,8 +69,8 @@ internal class WorkspaceLifecycleCoordinator(
             library.refresh()
             return
         }
-        inUse(location)?.let { return workbench.message(it) }
-        if (session.activeRoot == location) session.close()
+        usage.holding(location, whole = true)?.let { return workbench.message(it) }
+        release(location)
         val files = WorkspaceFiles(source.workspacesRoot)
         tasks.start(
             title = "Deleting…",
@@ -85,33 +83,22 @@ internal class WorkspaceLifecycleCoordinator(
                 files.delete(location, progress::item)
             },
             finished = { failure ->
-                if (failure == null) {
-                    runCatching { forgetSettings(location) }
-                        .onFailure { error -> workbench.report("workspace", "The deleted workspace's settings could not be cleared", error) }
-                    library.forget(location)
-                } else {
-                    // Part of it may be gone: show what is left.
-                    library.refresh()
-                }
+                // Part of it may be gone after a failure: show what is left.
+                if (failure == null) retire(location) else library.refresh()
             },
         )
     }
 
-    /** Why [location] cannot be renamed or deleted now; null when nothing holds it. */
-    private suspend fun inUse(location: String): String? {
-        val name = File(location).name
-        val state = workbench.current
-        if (terminal.runsIn(location)) return "A terminal session is running in $name. End it first"
-        tasks.waitReason(location)?.let { return it }
-        return when {
-            state.gitOperation is GitOperationState.Running && session.activeRoot == location ->
-                "Git is working in $name — wait for it to finish"
-            state.openDocuments.any { it.dirty && it.location.isAtOrUnder(location) } ->
-                "A file in $name has unsaved edits. Save or close it first"
-            state.recoverableDrafts.any { it.location.isAtOrUnder(location) } ->
-                "$name has unsaved work waiting in Document Recovery. Restore or discard it first"
-            else -> null
-        }
+    /** Before [location] stops being a workspace: closed, if it is the open one. */
+    suspend fun release(location: String) {
+        if (session.activeRoot == location) session.close()
+    }
+
+    /** After [location] stopped being a workspace: its settings and its history go. */
+    suspend fun retire(location: String) {
+        runCatching { forgetSettings(location) }
+            .onFailure { error -> workbench.report("workspace", "The workspace's settings could not be cleared", error) }
+        library.forget(location)
     }
 
     private fun exists(name: String) = File(source.workspacesRoot, name).exists()

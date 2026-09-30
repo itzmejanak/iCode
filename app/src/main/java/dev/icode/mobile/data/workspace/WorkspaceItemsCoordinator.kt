@@ -1,16 +1,19 @@
 package dev.icode.mobile.data.workspace
 
 import dev.icode.mobile.data.tasks.TaskRunner
+import dev.icode.mobile.domain.ItemClipboard
 import dev.icode.mobile.domain.WorkbenchEffect
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.domain.WorkspaceNameRules
 import java.io.File
 
 /**
- * New files and folders inside the open workspace (S3), from the Explorer and
- * the editor's tab menu, and the Explorer's rename, move, copy and delete. The
- * dialog that asked is answered by request id. Copy and delete can take long:
- * they run as tasks, with their own dialog, off the mutation lock.
+ * New files and folders inside the open workspace (S3), from the Explorer and the editor's tab
+ * menu; the Explorer's rename and delete; and the one clipboard (docs/workspaces-page-plan.md
+ * §2.7) — cut or copy anywhere in the workspaces, paste into a folder or as a workspace. The dialog
+ * that asked is answered by request id. Copy and delete can take long: they run as tasks, with
+ * their own dialog, off the mutation lock. What may change now is [WorkspaceUsage]'s answer, and a
+ * workspace that stops being one is released and retired by the [lifecycle], as a delete is.
  */
 internal class WorkspaceItemsCoordinator(
     private val workbench: WorkbenchStateHolder,
@@ -19,6 +22,8 @@ internal class WorkspaceItemsCoordinator(
     private val tree: WorkspaceTree,
     private val documents: DocumentSessionCoordinator,
     private val library: WorkspaceLibraryCoordinator,
+    private val usage: WorkspaceUsage,
+    private val lifecycle: WorkspaceLifecycleCoordinator,
     private val activeRoot: () -> String?,
     /** Tree rows, Git status and recents after the worktree changed. */
     private val refreshWorkspaceState: suspend (root: String) -> Unit,
@@ -78,41 +83,86 @@ internal class WorkspaceItemsCoordinator(
         val nameError = if (File(intent.location).isDirectory) WorkspaceNameRules.workspaceFolderValidationError(name)
         else WorkspaceNameRules.fileValidationError(name)
         nameError?.let { return fail(intent.requestId, it) }
-        (blocked(intent.location) ?: busy(intent.location))?.let { return fail(intent.requestId, it) }
+        usage.holding(intent.location, whole = false)?.let { return fail(intent.requestId, it) }
         runCatching { WorkspaceFiles(File(root)).rename(intent.location, name) }
             .onSuccess { target ->
-                followMove(root, intent.location, target.path)
+                moved(intent.location, target.path)
                 workbench.emit(WorkbenchEffect.WorkspaceItemChanged(intent.requestId, target.path))
             }
             .onFailure { error -> fail(intent.requestId, workbench.failureText("workspace", "Unable to rename", error)) }
     }
 
-    /** The second half of Cut: into [WorkbenchIntent.MoveWorkspaceItem.destinationFolder]. */
-    suspend fun move(intent: WorkbenchIntent.MoveWorkspaceItem) {
-        val root = activeRoot() ?: return
-        (blocked(intent.location) ?: busy(intent.location) ?: busy(intent.destinationFolder))?.let { return workbench.message(it) }
-        runCatching { WorkspaceFiles(File(root)).move(intent.location, intent.destinationFolder) }
-            .onSuccess { target -> if (target.path != intent.location) followMove(root, intent.location, target.path) }
-            .onFailure { error -> workbench.report("workspace", "Unable to move", error) }
+    suspend fun clipboard(intent: WorkbenchIntent.ClipboardIntent) {
+        when (intent) {
+            is WorkbenchIntent.CutItem -> hold(intent.location, cut = true)
+            is WorkbenchIntent.CopyItem -> hold(intent.location, cut = false)
+            is WorkbenchIntent.PasteInto -> paste(intent.folder)
+            WorkbenchIntent.PasteAsWorkspace -> paste(source.workspacesRoot.path)
+            WorkbenchIntent.ClearClipboard -> workbench.update { it.copy(clipboard = null) }
+        }
     }
 
-    /** Stopping a copy loses nothing but the partial copy, which goes: it can be cancelled. */
-    suspend fun copy(intent: WorkbenchIntent.CopyWorkspaceItem) {
-        val root = activeRoot() ?: return
-        busy(intent.location)?.let { return workbench.message(it) }
-        val files = WorkspaceFiles(File(root))
+    /** Held for Paste; nothing moves yet. */
+    private suspend fun hold(location: String, cut: Boolean) {
+        val file = File(location)
+        if (!file.exists()) return workbench.message("${file.name} no longer exists")
+        val item = ItemClipboard(location, file.name, cut, folder = file.isDirectory, workspace = source.isWorkspace(location))
+        workbench.update { it.copy(clipboard = item) }
+    }
+
+    /**
+     * The clipboard's item into [destination]: a folder of a workspace, or the workspaces folder,
+     * where it becomes a workspace. A cut moves — one filesystem, one step — and leaves the
+     * clipboard; a copy is a task that may be cancelled, and stays on the clipboard to paste again.
+     */
+    private suspend fun paste(destination: String) {
+        val held = workbench.current.clipboard ?: return
+        val asWorkspace = destination == source.workspacesRoot.path
+        refusal(held, destination, asWorkspace)?.let { return workbench.message(it) }
+        val files = WorkspaceFiles(source.workspacesRoot)
+        if (held.cut) {
+            if (held.workspace) lifecycle.release(held.location)
+            runCatching { files.move(held.location, destination) }
+                .onSuccess { target ->
+                    workbench.update { it.copy(clipboard = null) }
+                    if (held.workspace) lifecycle.retire(held.location) else moved(held.location, target.path)
+                    if (asWorkspace) library.refresh()
+                    refreshOpen(target.path)
+                }
+                .onFailure { error -> workbench.report("workspace", "Unable to move", error) }
+            return
+        }
         tasks.start(
             title = "Copying…",
-            subject = File(intent.location).name,
-            paths = listOf(intent.location),
+            subject = held.name,
+            paths = listOf(held.location),
             cancellable = true,
             failure = "Unable to copy",
             work = { progress ->
-                progress.counted(files.count(intent.location))
-                files.copy(intent.location, intent.destinationFolder, progress::item)
+                progress.counted(files.count(held.location))
+                files.copy(held.location, destination, progress::item)
             },
-            finished = { if (activeRoot() == root) refreshAfterChange(root) },
+            // A copy that stopped removed what it made; the list and the tree show what is there.
+            finished = {
+                if (asWorkspace) library.refresh()
+                refreshOpen(destination)
+            },
         )
+    }
+
+    /** Why the clipboard's item cannot go into [destination] now; null when it can. */
+    private suspend fun refusal(held: ItemClipboard, destination: String, asWorkspace: Boolean): String? {
+        if (!File(held.location).exists()) return "${held.name} no longer exists"
+        if (destination.isAtOrUnder(held.location)) return "${held.name} cannot go inside itself"
+        if (asWorkspace) {
+            if (!held.folder) return "A workspace is a folder: paste ${held.name} inside one"
+            if (held.cut && held.workspace) return "${held.name} is a workspace already"
+            WorkspaceNameRules.newWorkspaceError(held.name) { held.cut && File(destination, it).exists() }?.let { return it }
+        } else if (held.cut && File(destination, held.name).exists()) {
+            return "“${held.name}” is already there"
+        }
+        if (held.cut) usage.holding(held.location, whole = held.workspace)?.let { return it }
+        return tasks.waitReason(held.location) ?: tasks.waitReason(destination)
     }
 
     /** Asked and confirmed in the Explorer first: this cannot be undone. */
@@ -122,7 +172,7 @@ internal class WorkspaceItemsCoordinator(
      */
     suspend fun delete(intent: WorkbenchIntent.DeleteWorkspaceItem) {
         val root = activeRoot() ?: return
-        (blocked(intent.location) ?: busy(intent.location))?.let { return workbench.message(it) }
+        usage.holding(intent.location, whole = false)?.let { return workbench.message(it) }
         val files = WorkspaceFiles(File(root))
         tasks.start(
             title = "Deleting…",
@@ -145,18 +195,27 @@ internal class WorkspaceItemsCoordinator(
         )
     }
 
-    private fun blocked(location: String): String? = documents.blockingEdits(location)?.let { document ->
-        "${document.name} has unsaved edits. Save or close it first"
+    /**
+     * What follows a move: inside one workspace, its tabs, tree and recent files follow it; out of
+     * a workspace, its tabs close and its recent files go. The open workspace shows either.
+     */
+    private suspend fun moved(from: String, to: String) {
+        val home = source.workspaceOf(from) ?: return
+        if (home == source.workspaceOf(to)) {
+            documents.relocate(from, to)
+            tree.relocate(from, to)
+            library.relocateRecentDocuments(home, from, to)
+        } else {
+            documents.closeDeleted(from)
+            library.forgetRecentDocumentsUnder(home, from)
+        }
+        refreshOpen(from, to)
     }
 
-    /** A task is still copying or deleting it, or a folder around it. */
-    private fun busy(location: String): String? = tasks.waitReason(location)
-
-    private suspend fun followMove(root: String, from: String, to: String) {
-        documents.relocate(from, to)
-        tree.relocate(from, to)
-        library.relocateRecentDocuments(root, from, to)
-        refreshAfterChange(root)
+    /** The open workspace reads its tree, Git and index again when a change touched it. */
+    private suspend fun refreshOpen(vararg touched: String) {
+        val active = activeRoot() ?: return
+        if (touched.any { it.isAtOrUnder(active) }) refreshAfterChange(active)
     }
 
     private suspend fun refreshAfterChange(root: String) {

@@ -57,6 +57,8 @@ data class WorkbenchSnapshot(
     val terminal: TerminalSnapshot = TerminalSnapshot(),
     /** The Notifications page, newest first. */
     val notices: List<AppNotice> = emptyList(),
+    /** What is cut or copied, waiting for Paste — the Explorer's and the Workspaces page's one clipboard. */
+    val clipboard: ItemClipboard? = null,
     /** Long operations running, or failed and not yet seen (docs/long-operations-plan.md). */
     val tasks: List<WorkTask> = emptyList(),
     /** The runtime's components: what dpkg has, what each would download, and the apt run in hand. */
