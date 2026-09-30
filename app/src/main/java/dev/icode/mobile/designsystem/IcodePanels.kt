@@ -51,7 +51,7 @@ data class BottomBarItem(
     val enabled: Boolean = true,
     /**
      * What is chosen — a branch, a repository — drawn as the button that changes it: [icon], the
-     * name and ▾, on a chip, so it reads as both the state and the way to change it.
+     * name and ▾, as an accent button, so it reads as both the state and the way to change it.
      */
     val choice: Boolean = false,
     val icon: ImageVector? = null,
@@ -132,29 +132,33 @@ fun BottomBarEntry(item: BottomBarItem, modifier: Modifier = Modifier) {
     }
 }
 
-/** A [BottomBarItem.choice]: its icon, what is chosen and ▾, on a chip that opens the choice. */
+/**
+ * A [BottomBarItem.choice]: its icon, what is chosen and ▾, on the accent, shaped as the app's
+ * buttons are ([PrimaryButton]) — the state and the button that changes it, at a glance.
+ */
 @Composable
 private fun ChoiceEntry(item: BottomBarItem, click: (() -> Unit)?, modifier: Modifier) {
+    val content = if (item.enabled) IcodeColors.OnAccent else IcodeColors.TextMuted
     Row(
         modifier = modifier
             .height(IcodeSizes.BarChoice)
-            .clip(IcodeShapes.Pill)
-            .background(IcodeColors.SurfaceElevated)
+            .clip(IcodeShapes.Small)
+            .background(if (item.enabled) IcodeColors.Accent else IcodeColors.SurfaceElevated)
             .then(if (click != null) Modifier.clickable(role = Role.Button, onClick = click) else Modifier)
             .semantics { item.description?.let { contentDescription = it } }
-            .padding(horizontal = IcodeSpacing.Space3),
+            .padding(horizontal = IcodeSpacing.Space2 + IcodeSpacing.Micro),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1 + IcodeSpacing.Micro),
     ) {
-        item.icon?.let { Icon(it, contentDescription = null, tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconSm)) }
+        item.icon?.let { Icon(it, contentDescription = null, tint = content, modifier = Modifier.size(IcodeSizes.IconSm)) }
         Text(
             item.label,
             modifier = Modifier.widthIn(max = IcodeSizes.BarChoiceLabel),
-            style = IcodeType.Mono.copy(color = if (item.enabled) IcodeColors.TextPrimary else IcodeColors.TextMuted),
+            style = IcodeType.Mono.copy(color = content, fontWeight = FontWeight.SemiBold),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = null, tint = IcodeColors.TextSecondary, modifier = Modifier.size(IcodeSizes.IconSm))
+        Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = null, tint = content, modifier = Modifier.size(IcodeSizes.IconSm))
     }
 }
 
