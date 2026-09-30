@@ -201,7 +201,9 @@ picks for it, through Android's grants. One root, **iCode**:
 - **Whole workspaces** are made there with New folder (the name rule of §4.3), but renamed, moved or
   deleted only in iCode, which follows their settings, history and sessions: the provider does not
   offer those actions on a workspace, and refuses a move into the root.
-- **Show in Files** opens Android's Files app at the workspace, else at the root (device check D8).
+- ~~**Show in Files**~~: removed at the owner's request (2026-10-01) — the home screen's recent
+  rows offer Show in Workspaces instead (docs/workspaces-page-plan.md). The Files app still lists
+  iCode's workspaces under **iCode**.
 
 ### 4.7 Data safety
 

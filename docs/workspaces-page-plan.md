@@ -85,7 +85,7 @@ UI."
 | P3 | Home: Recent (five), the Workspaces tile, the empty state's words |
 | P4 | Storage settings: the summary row in place of the second list; docs (layout, user stories, architecture) |
 | P5 | One clipboard: `WorkspaceUsage` (both callers moved onto it), the lifecycle's retire step (Delete moved onto it), the clipboard in the snapshot and the paste (the Explorer moved onto it); tests on real folders |
-| P6 | The long-press menu on workspace rows (one action list for long press and ⋮: Open, Open Terminal, Rename…, Cut, Copy, Show in Files, Copy path, Delete…), Paste on the Workspaces page; device check |
+| P6 | The long-press menu on workspace rows (one action list for long press and ⋮: Open, Open Terminal, Rename…, Cut, Copy, Show in Workspaces on the home screen, Copy path, Delete…), the clipboard bar with Paste on the Workspaces page and the Explorer; Show in Files removed (owner); device check |
 
 ## 4. Decisions — the owner may overrule
 
@@ -133,4 +133,14 @@ UI."
   cannot have, a cut onto a taken name, anything held. The Explorer shows the one clipboard and names what Paste brings
   ("Paste RevPlayer"). The gateway came down to 367 (budget lowered). 4 usage tests, 1 file test on
   real folders. Gate: 567 tests; lint 0 errors / 12 warnings; both guards pass.
+- **P6** (2026-10-01): one action list for a whole workspace, shown by ⋮ and by a long press on
+  the row alike (`IcodeOverflowMenu` and `IcodeActionMenu` with the same list, as the editor's tabs
+  do): Open, Open Terminal, Rename…, **Cut**, **Copy**, **Show in Workspaces** (the home screen's
+  recent rows: the Workspaces page), Copy path (its icon a link now: Copy is the clipboard's),
+  Delete…. **Show in Files** is gone at the owner's word — the intent, its effect, the prompt and
+  the provider's link builder with it; the Files app still lists the workspaces. `ClipboardBar`
+  (ui): what waits on the clipboard — its name, cut or copied, **Paste**, ✕ (`ClearClipboard`) —
+  at the foot of the Workspaces page (paste as a workspace) and of the Explorer (paste into the
+  selected folder); the Explorer's Paste items name what they bring. The gateway came down to 364
+  (budget lowered). Gate: 567 tests; lint 0 errors / 12 warnings; both guards pass.
 

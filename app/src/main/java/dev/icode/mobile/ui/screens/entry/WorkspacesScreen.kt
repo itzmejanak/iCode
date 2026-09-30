@@ -33,6 +33,7 @@ import dev.icode.mobile.domain.WorkspaceSort
 import dev.icode.mobile.domain.storageSizeLabel
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
+import dev.icode.mobile.ui.ClipboardBar
 import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 import dev.icode.mobile.ui.WorkspaceRow
@@ -80,12 +81,12 @@ fun WorkspacesScreen(actions: NavigationActions) {
                 title = "No workspaces yet",
                 description = "New Folder above makes one; Import and Clone are on the home screen.",
                 icon = Icons.Outlined.Folder,
-                modifier = Modifier.padding(top = IcodeSpacing.Space6),
+                modifier = Modifier.weight(1f).padding(top = IcodeSpacing.Space6),
             )
             shown.isEmpty() -> EmptyState(
                 title = "No workspace matches “${query.trim()}”",
                 icon = Icons.Outlined.Search,
-                modifier = Modifier.padding(top = IcodeSpacing.Space6),
+                modifier = Modifier.weight(1f).padding(top = IcodeSpacing.Space6),
             )
             else -> LazyColumn(
                 modifier = Modifier.weight(1f),
@@ -97,5 +98,7 @@ fun WorkspacesScreen(actions: NavigationActions) {
                 }
             }
         }
+        // Pasted here, it becomes a workspace: a copy beside its source, a folder cut from one as its own.
+        state.clipboard?.let { held -> ClipboardBar(held, onPaste = { gateway.dispatch(WorkbenchIntent.PasteAsWorkspace) }) }
     }
 }

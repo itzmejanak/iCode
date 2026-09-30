@@ -31,8 +31,6 @@ sealed interface WorkbenchIntent {
     data class ChooseImportFolder(val path: String) : WorkbenchIntent
     /** Copies the chosen [ImportSource] into a new workspace named [name]; runs as a task. */
     data class ImportWorkspace(val name: String) : WorkbenchIntent
-    /** Android's Files app, at the workspace. */
-    data class ShowWorkspaceInFiles(val location: String) : WorkbenchIntent
     data class OpenWorkspace(val path: String) : WorkbenchIntent
     data class OpenWorkspaceTerminal(val path: String) : WorkbenchIntent
     data class ResolveWorkspaceSwitch(val path: String, val openTerminal: Boolean, val saveChanges: Boolean) : WorkbenchIntent
@@ -65,6 +63,8 @@ sealed interface WorkbenchIntent {
     data class PasteInto(val folder: String) : ClipboardIntent
     /** Beside the workspaces, as one of them: a copy as "<name> copy", a cut folder as its own. */
     data object PasteAsWorkspace : ClipboardIntent
+    /** Nothing is waiting to be pasted any more. */
+    data object ClearClipboard : ClipboardIntent
     /** A long operation's dialog: Hide sends it to the background, Show brings it back. */
     sealed interface TaskIntent : WorkbenchIntent { val id: Long }
     data class HideTask(override val id: Long) : TaskIntent

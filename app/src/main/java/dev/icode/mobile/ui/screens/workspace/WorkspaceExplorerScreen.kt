@@ -49,6 +49,7 @@ import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.navigation.ToolPanelTab
+import dev.icode.mobile.ui.ClipboardBar
 import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 
@@ -166,6 +167,10 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
                     }
                 }
             }
+        }
+        // The Workspaces page's bar too: into the selected folder, as the header's Paste.
+        clipboard?.let { held ->
+            ClipboardBar(held, onPaste = { pasteInto(creationParentLocation(state.activeWorkspaceLocation, selectedPath, state.files)) })
         }
     }
     createType?.let { type ->

@@ -98,6 +98,7 @@ internal class WorkspaceItemsCoordinator(
             is WorkbenchIntent.CopyItem -> hold(intent.location, cut = false)
             is WorkbenchIntent.PasteInto -> paste(intent.folder)
             WorkbenchIntent.PasteAsWorkspace -> paste(source.workspacesRoot.path)
+            WorkbenchIntent.ClearClipboard -> workbench.update { it.copy(clipboard = null) }
         }
     }
 

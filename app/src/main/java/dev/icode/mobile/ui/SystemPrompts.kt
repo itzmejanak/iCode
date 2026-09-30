@@ -8,18 +8,14 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
-import android.provider.DocumentsContract
 import android.provider.Settings
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.net.toUri
 import dev.icode.mobile.domain.SystemPermission
-import dev.icode.mobile.domain.WorkbenchEffect
 import dev.icode.mobile.domain.WorkbenchGateway
 import dev.icode.mobile.domain.WorkbenchIntent
 
@@ -76,15 +72,6 @@ class SystemPrompts internal constructor(
             SystemPermission.Battery -> Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
         }
         startFirst(page, appPage(Settings.ACTION_APPLICATION_DETAILS_SETTINGS))
-    }
-
-    /** Android's Files app at the workspace's folder; at iCode's root there when that cannot be opened. */
-    fun showInFiles(effect: WorkbenchEffect.ShowInFiles) {
-        val opened = startFirst(
-            Intent(Intent.ACTION_VIEW).setDataAndType(effect.documentUri.toUri(), DocumentsContract.Document.MIME_TYPE_DIR),
-            Intent(Intent.ACTION_VIEW).setDataAndType(effect.rootUri.toUri(), DocumentsContract.Root.MIME_TYPE_ITEM),
-        )
-        if (!opened) Toast.makeText(context, "No Files app is available", Toast.LENGTH_LONG).show()
     }
 
     /** Starts the first of [pages] this phone has; false when it has none. */

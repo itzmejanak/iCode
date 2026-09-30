@@ -25,7 +25,6 @@ import dev.icode.mobile.data.search.RipgrepService
 import dev.icode.mobile.data.search.SearchCoordinator
 import dev.icode.mobile.data.settings.AndroidWorkspacePreferencesRepository
 import dev.icode.mobile.data.storage.PhoneStorage
-import dev.icode.mobile.data.storage.WorkspacesProvider
 import dev.icode.mobile.data.system.AndroidSystemAccess
 import dev.icode.mobile.data.tasks.BackgroundWork
 import dev.icode.mobile.data.tasks.TaskRunner
@@ -258,8 +257,6 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
                         is WorkbenchIntent.BrowseImportFolder -> importer.browse(intent.path)
                         is WorkbenchIntent.ChooseImportFolder -> importer.choose(intent.path)
                         is WorkbenchIntent.ImportWorkspace -> importer.import(intent.name)
-                        is WorkbenchIntent.ShowWorkspaceInFiles ->
-                            WorkspacesProvider.showInFiles(appContext, intent.location)?.let { workbench.emit(it) }
                         is WorkbenchIntent.OpenWorkspace -> session.open(intent.path, persist = true)
                         is WorkbenchIntent.OpenWorkspaceTerminal -> session.open(intent.path, persist = true, openTerminal = true)
                         is WorkbenchIntent.ResolveWorkspaceSwitch -> session.resolveSwitch(intent)
