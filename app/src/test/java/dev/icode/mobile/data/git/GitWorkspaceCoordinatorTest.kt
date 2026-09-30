@@ -6,6 +6,7 @@ import dev.icode.mobile.data.workspace.WorkbenchStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceFileSource
 import dev.icode.mobile.data.workspace.WorkspaceTree
 import dev.icode.mobile.domain.GitChange
+import dev.icode.mobile.domain.GitDiscard
 import dev.icode.mobile.domain.GitFileDiff
 import dev.icode.mobile.domain.GitInProgress
 import dev.icode.mobile.domain.GitOperationState
@@ -203,7 +204,7 @@ class GitWorkspaceCoordinatorTest {
         harness.workbench.update { it.copy(gitChanges = listOf(staged, change)) }
 
         harness.coordinator.requestDiscard("a.txt")
-        assertEquals(change, harness.workbench.current.pendingDiscard)
+        assertEquals(GitDiscard("a.txt", folder = false, listOf(change)), harness.workbench.current.pendingDiscard)
 
         harness.workbench.update { it.copy(gitChanges = listOf(staged)) }
         harness.coordinator.requestDiscard("a.txt")
@@ -237,11 +238,42 @@ class GitWorkspaceCoordinatorTest {
         assertEquals(listOf("inspect $root"), git.calls)
     }
 
+    @Test fun `a folder's discard holds what can be thrown away in it, and discards each kind at once`() = runBlocking {
+        val new = GitChange(GitStatusCodes.UNTRACKED, "red.txt", "colors/red.txt", staged = false)
+        val edited = GitChange(GitStatusCodes.MODIFIED, "blue.txt", "colors/blue.txt", staged = false)
+        val staged = GitChange(GitStatusCodes.ADDED, "green.txt", "colors/green.txt", staged = true)
+        val elsewhere = GitChange(GitStatusCodes.MODIFIED, "colorsheet.txt", "colorsheet.txt", staged = false)
+        val all = listOf(new, edited, staged, elsewhere)
+        val git = FakeGit().apply { snapshot = GitWorkspaceSnapshot(repository(), all) }
+        val harness = Harness(git, root)
+        harness.workbench.update { it.copy(gitChanges = all) }
+
+        harness.coordinator.requestDiscard("colors")
+        // Staged work is unstaged first, and a name that only begins the same is not in it.
+        assertEquals(GitDiscard("colors", folder = true, listOf(new, edited)), harness.workbench.current.pendingDiscard)
+
+        harness.coordinator.confirmDiscard()
+        assertEquals(listOf("inspect $root", "discard $root colors ?", "discard $root colors M", "inspect $root"), git.calls)
+    }
+
+    @Test fun `a folder that gained a change after confirming is not discarded`() = runBlocking {
+        val new = GitChange(GitStatusCodes.UNTRACKED, "red.txt", "colors/red.txt", staged = false)
+        val arrived = GitChange(GitStatusCodes.UNTRACKED, "pink.txt", "colors/pink.txt", staged = false)
+        val git = FakeGit().apply { snapshot = GitWorkspaceSnapshot(repository(), listOf(new, arrived)) }
+        val harness = Harness(git, root)
+        harness.workbench.update { it.copy(gitChanges = listOf(new)) }
+        harness.coordinator.requestDiscard("colors")
+
+        harness.coordinator.confirmDiscard()
+
+        assertEquals("pink.txt was not in what you confirmed", listOf("inspect $root"), git.calls)
+    }
+
     @Test fun `nothing outside the repository or inside dot-git is discarded`() = runBlocking {
         listOf(".git/config", "../elsewhere.txt", "sub/.git", "/etc/passwd", "a/./b").forEach { path ->
             val git = FakeGit()
             val harness = Harness(git, root)
-            harness.workbench.update { it.copy(pendingDiscard = GitChange(GitStatusCodes.MODIFIED, "x", path, staged = false)) }
+            harness.workbench.update { it.copy(pendingDiscard = GitDiscard(path, folder = false, listOf(GitChange(GitStatusCodes.MODIFIED, "x", path, staged = false)))) }
 
             harness.coordinator.confirmDiscard()
 

@@ -243,3 +243,20 @@ open over the real Source Control, a little blurred, and be chosen from one bar 
   buttons are back on the raised surface — accent icon, name, ▾ — keeping the button corner. A bar
   with choices no longer scrolls them away: they share its width, each name cut short with "…",
   so the repository, the branch and ↑↓ are always in view.
+- **G14** (2026-10-01, owner): Source Control's changes are a tree, as VS Code's "View as Tree".
+  Git lists every new file (`--untracked-files=all`, as VS Code asks), so a new folder is no
+  longer one row. `GitChangeTree` groups each change under its folders — folders first, each by
+  name; a chain of folders holding only the next is one row (`docs/guide`); a closed folder hides
+  what is in it and says how many. The rows are the Explorer's: flat and compact
+  (`IcodeListRow(compact)`: its own buttons are its height), chevron and folder icon, the file's
+  type icon, the name in its status colour with the letter at the end, no repeated path. A tap
+  opens a folder or closes it, and a file's diff — a new file, which has nothing to compare with,
+  opens itself, as in VS Code. + or − stages. A long press — no ⋮ — gives what fits the state: Open
+  file, Stage or Unstage, and Discard changes, Delete file or Restore file; on a folder, Stage or
+  Unstage and Discard changes for all it holds that can be (`GitDiscard`: nothing staged, no
+  conflict), discarded only while Git still reports exactly those — each kind at once. The
+  confirmation is the app's one dialog (`IcodeConfirmDialog`) over what asked for it, not a page:
+  the route is gone, its frame (2003:731) a documented state, the capture counts 37 routes — as
+  integration-plan.md had asked ("a destructive prompt should not be a back-stack entry"). 5 tests.
+  Gate: 584 tests; lint 0 errors / 12 warnings; both guards pass.
+

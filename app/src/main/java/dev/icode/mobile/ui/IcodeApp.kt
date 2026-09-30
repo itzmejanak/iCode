@@ -35,6 +35,7 @@ import dev.icode.mobile.domain.AppTheme
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.RouteGroup
 import dev.icode.mobile.navigation.Route
+import dev.icode.mobile.ui.screens.tools.DiscardChangesDialog
 import dev.icode.mobile.domain.WorkbenchEffect
 import dev.icode.mobile.domain.WorkbenchGateway
 import dev.icode.mobile.domain.WorkbenchIntent
@@ -229,6 +230,8 @@ fun IcodeApp(
 
         WorkbenchQuestionDialogs(questions, snapshot, gateway, navigation.current, navigation.actions.navigate)
         TaskDialogs(snapshot.tasks, gateway)
+        // A discard is confirmed over whatever asked for it, in the app's one confirmation dialog.
+        snapshot.pendingDiscard?.let { DiscardChangesDialog(it, gateway) }
 
         CompositionLocalProvider(
             LocalWorkbenchSnapshot provides snapshot,

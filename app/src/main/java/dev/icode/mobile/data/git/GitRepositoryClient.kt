@@ -84,7 +84,8 @@ internal class GitRepositoryClient(private val cli: CliGitService) :
     }
 
     /**
-     * Throws away one unstaged change ([GitChange.discardable]).
+     * Throws away the unstaged changes ([GitChange.discardable]) of one kind at
+     * [path]: a file's, or all a folder holds of that kind.
      *
      * An edit or a deletion returns to the index — the staged version when
      * there is one, else the last commit — so staged work survives. A new file

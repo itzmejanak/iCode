@@ -61,6 +61,11 @@ fun IcodeListRow(
     onLongClick: (() -> Unit)? = null,
     leading: (@Composable () -> Unit)? = null,
     trailing: (@Composable RowScope.() -> Unit)? = null,
+    /**
+     * A row in a dense list whose own buttons are its height (Source Control's tree): no padding
+     * above and below, so rows sit as tight as their touch targets allow.
+     */
+    compact: Boolean = false,
     content: (@Composable RowScope.() -> Unit)? = null,
 ) {
     // What the selection draws, a screen reader hears too.
@@ -125,7 +130,7 @@ fun IcodeListRow(
                         else -> Modifier
                     },
                 )
-                .padding(horizontal = IcodeSpacing.Space2, vertical = IcodeSpacing.Space3),
+                .padding(horizontal = IcodeSpacing.Space2, vertical = if (compact) 0.dp else IcodeSpacing.Space3),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
             content = rowContent,

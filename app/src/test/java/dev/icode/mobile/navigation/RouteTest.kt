@@ -21,6 +21,7 @@ class RouteTest {
     private val framesRenderedAsStates = mapOf(
         "3:55" to "Runtime error — the Failed state of Runtime installing (3:27)",
         "2003:77" to "Create folder — the Workspaces page's New Folder dialog (workspace-destinations-plan.md §2.5)",
+        "2003:731" to "Delete confirmation — the discard dialog over what asked for it (workspace-destinations-plan.md G14)",
     )
 
     /** Pages the design does not have, each added at the owner's request. */

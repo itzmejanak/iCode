@@ -27,12 +27,13 @@ mapfile -t screens < <(
     sed -nE 's/^    ([A-Za-z0-9]+)\("[^"]+", "([^"]+)",.*$/\1|\2/p' "$catalog_file"
 )
 
-# 40 Figma frames, 38 routes: frame 3:55 "Runtime error" is the failed state of
-# 3:27 "Runtime installing" and has no route of its own (docs/integration-plan.md), and
+# 40 Figma frames, 37 routes: frame 3:55 "Runtime error" is the failed state of
+# 3:27 "Runtime installing" and has no route of its own (docs/integration-plan.md),
 # frame 2003:77 "Create folder" is the Workspaces page's New Folder dialog
-# (docs/workspace-destinations-plan.md §2.5).
+# (docs/workspace-destinations-plan.md §2.5), and frame 2003:731 "Delete confirmation"
+# is the discard dialog over what asked for it (the same plan, G14).
 # Frame 2003:117 "Open folder" draws the Import browser (docs/workspace-storage-plan.md §4.4).
-expected_routes=38
+expected_routes=37
 if [[ "${#screens[@]}" -ne $expected_routes ]]; then
     echo "Expected $expected_routes registered routes, found ${#screens[@]}." >&2
     exit 1

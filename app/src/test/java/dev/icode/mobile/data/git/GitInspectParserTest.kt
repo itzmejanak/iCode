@@ -185,7 +185,7 @@ class GitInspectParserTest {
     fun `the script ends seven sections with NUL and finishes with status`() {
         assertEquals(7, "printf '\\0'".toRegex(RegexOption.LITERAL).findAll(GitInspectParser.SCRIPT).count())
         // Last, so the script's exit code is status's.
-        assertTrue(GitInspectParser.SCRIPT.endsWith("status --porcelain=v2 --branch -z"))
+        assertTrue(GitInspectParser.SCRIPT.endsWith("status --porcelain=v2 --branch --untracked-files=all -z"))
     }
 
     @Test

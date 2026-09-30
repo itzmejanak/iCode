@@ -164,6 +164,7 @@ internal object GitInspectParser {
         append("done; printf '\\0'; ")
         append("git -c core.quotepath=false ")
         append(SAFE_DIRECTORY)
-        append(" --no-optional-locks status --porcelain=v2 --branch -z")
+        // Every new file, not one entry per new folder — as VS Code asks — so each can be seen and staged.
+        append(" --no-optional-locks status --porcelain=v2 --branch --untracked-files=all -z")
     }
 }

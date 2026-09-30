@@ -1,7 +1,9 @@
 package dev.icode.mobile.ui.screens.tools
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
+import dev.icode.mobile.domain.GitChangeTree
+import androidx.compose.runtime.remember
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -9,11 +11,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountTree
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -25,14 +24,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDecoration
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeListRow
-import dev.icode.mobile.designsystem.IcodeMenuAction
-import dev.icode.mobile.designsystem.IcodeOverflowMenu
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTextField
 import dev.icode.mobile.designsystem.IcodeTopBar
@@ -40,12 +34,7 @@ import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SecondaryButton
-import dev.icode.mobile.designsystem.SectionHeader
-import dev.icode.mobile.designsystem.gitStatusTone
-import dev.icode.mobile.designsystem.tint
-import dev.icode.mobile.domain.GitChange
 import dev.icode.mobile.domain.GitInProgress
-import dev.icode.mobile.domain.WorkbenchGateway
 import dev.icode.mobile.domain.GitStatusCodes
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.navigation.NavigationActions
@@ -87,6 +76,11 @@ fun SourceControlScreen(actions: NavigationActions) {
 
     val staged = state.gitChanges.filter { it.staged }
     val changes = state.gitChanges.filterNot { it.staged }
+    // Folders closed in each section's tree, as the user left them.
+    var closedStaged by rememberSaveable(repository.workTreePath) { mutableStateOf(emptySet<String>()) }
+    var closedChanges by rememberSaveable(repository.workTreePath) { mutableStateOf(emptySet<String>()) }
+    val stagedRows = remember(staged, closedStaged) { GitChangeTree.rows(staged, closedStaged) }
+    val changeRows = remember(changes, closedChanges) { GitChangeTree.rows(changes, closedChanges) }
     val hasIdentity = !repository.authorName.isNullOrBlank() && !repository.authorEmail.isNullOrBlank()
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar(
@@ -97,17 +91,17 @@ fun SourceControlScreen(actions: NavigationActions) {
                 }
             },
         )
-        LazyColumn(
-            modifier = Modifier.weight(1f).fillMaxWidth().padding(IcodeSpacing.Space4),
-            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
-        ) {
+        // The tree's rows sit together, as the Explorer's; the parts above keep their space.
+        LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth().padding(IcodeSpacing.Space4)) {
             if (repository.inProgress != GitInProgress.None) {
                 item {
-                    InProgressBanner(
-                        inProgress = repository.inProgress,
-                        conflicts = state.gitChanges.count { it.status == GitStatusCodes.CONFLICTED },
-                        onAbort = { gateway.dispatch(WorkbenchIntent.AbortInProgress) },
-                    )
+                    Box(Modifier.padding(bottom = IcodeSpacing.Space3)) {
+                        InProgressBanner(
+                            inProgress = repository.inProgress,
+                            conflicts = state.gitChanges.count { it.status == GitStatusCodes.CONFLICTED },
+                            onAbort = { gateway.dispatch(WorkbenchIntent.AbortInProgress) },
+                        )
+                    }
                 }
             }
             item {
@@ -163,36 +157,12 @@ fun SourceControlScreen(actions: NavigationActions) {
                     }
                 }
             }
-            item {
-                SectionHeader(
-                    "Staged changes (${staged.size})",
-                    actionLabel = if (staged.isEmpty()) null else "UNSTAGE ALL",
-                    onAction = { gateway.dispatch(WorkbenchIntent.UnstageAllFiles) },
-                )
-            }
-            items(staged, key = { "staged:${it.path}" }) { change ->
-                GitChangeRow(
-                    change = change,
-                    onOpen = { openChange(gateway, actions, change) },
-                    onToggleStage = { gateway.dispatch(WorkbenchIntent.UnstageFile(change.path)) },
-                    onDiscard = { requestDiscard(gateway, actions, change) },
-                )
-            }
-            item {
-                SectionHeader(
-                    "Changes (${changes.size})",
-                    actionLabel = if (changes.isEmpty()) null else "STAGE ALL",
-                    onAction = { gateway.dispatch(WorkbenchIntent.StageAllFiles) },
-                )
-            }
-            items(changes, key = { "unstaged:${it.path}" }) { change ->
-                GitChangeRow(
-                    change = change,
-                    onOpen = { openChange(gateway, actions, change) },
-                    onToggleStage = { gateway.dispatch(WorkbenchIntent.StageFile(change.path)) },
-                    onDiscard = { requestDiscard(gateway, actions, change) },
-                )
-            }
+            gitChangeSection("Staged changes", staged, staged = true, stagedRows, repository.workTreePath, { path ->
+                closedStaged = closedStaged.toggled(path)
+            }, gateway, actions)
+            gitChangeSection("Changes", changes, staged = false, changeRows, repository.workTreePath, { path ->
+                closedChanges = closedChanges.toggled(path)
+            }, gateway, actions)
             if (staged.isEmpty() && changes.isEmpty()) {
                 item {
                     EmptyState(
@@ -208,88 +178,5 @@ fun SourceControlScreen(actions: NavigationActions) {
     }
 }
 
-/** Holds the change for confirmation; nothing is discarded until it is confirmed. */
-private fun requestDiscard(gateway: WorkbenchGateway, actions: NavigationActions, change: GitChange) {
-    gateway.dispatch(WorkbenchIntent.RequestDiscardChanges(change.path))
-    actions.navigate(Route.DeleteConfirmation)
-}
-
-/**
- * Selecting a change opens the surface that explains it: the conflict workflow,
- * the confirmation that restores a deleted file, or the diff. Staging stays on
- * the trailing action so a review tap can never stage by accident. The diff is
- * requested before navigating so the diff surface renders Git's own patch.
- */
-private fun openChange(gateway: WorkbenchGateway, actions: NavigationActions, change: GitChange) {
-    when {
-        change.status == GitStatusCodes.CONFLICTED -> {
-            gateway.dispatch(WorkbenchIntent.OpenConflict(change.path))
-            actions.navigate(Route.ConflictResolution)
-        }
-        change.status == GitStatusCodes.DELETED && change.discardable -> requestDiscard(gateway, actions, change)
-        else -> {
-            gateway.dispatch(WorkbenchIntent.OpenDiff(change.path, change.staged))
-            actions.navigate(Route.DiffView)
-        }
-    }
-}
-
-@Composable
-private fun GitChangeRow(
-    change: GitChange,
-    onOpen: () -> Unit,
-    onToggleStage: () -> Unit,
-    onDiscard: () -> Unit,
-) {
-    IcodeListRow(
-        card = true,
-        onClick = onOpen,
-        leading = {
-            MonoLine(
-                change.status,
-                color = gitStatusTone(change.status).tint(),
-                style = IcodeType.Mono.copy(fontWeight = FontWeight.Bold),
-            )
-        },
-        content = {
-            Column(Modifier.weight(1f).padding(start = IcodeSpacing.Space2)) {
-                Text(
-                    change.name,
-                    style = IcodeType.Body.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        textDecoration = if (change.status == GitStatusCodes.DELETED) TextDecoration.LineThrough else null,
-                    ),
-                )
-                MonoLine(change.path, color = IcodeColors.TextMuted, style = IcodeType.MonoSmall)
-            }
-        },
-        trailing = {
-            Text(
-                if (change.staged) "UNSTAGE" else "STAGE",
-                style = IcodeType.Label.copy(color = IcodeColors.Accent),
-                modifier = Modifier
-                    .clickable(onClick = onToggleStage)
-                    .padding(IcodeSpacing.Space2),
-            )
-            // Discard is destructive, so it lives behind a visible menu and is
-            // confirmed, never one tap away from Stage.
-            IcodeOverflowMenu(
-                contentDescription = "Actions for ${change.name}",
-                actions = listOfNotNull(
-                    IcodeMenuAction(
-                        label = if (change.staged) "Unstage" else "Stage",
-                        icon = Icons.Outlined.Add,
-                        onClick = onToggleStage,
-                    ),
-                    // Staged work is unstaged first; a conflict is resolved, never discarded.
-                    IcodeMenuAction(
-                        label = "Discard changes",
-                        icon = Icons.Outlined.DeleteOutline,
-                        destructive = true,
-                        onClick = onDiscard,
-                    ).takeIf { change.discardable },
-                ),
-            )
-        },
-    )
-}
+/** [path] closed if it was open, open if it was closed. */
+private fun Set<String>.toggled(path: String): Set<String> = if (path in this) this - path else this + path

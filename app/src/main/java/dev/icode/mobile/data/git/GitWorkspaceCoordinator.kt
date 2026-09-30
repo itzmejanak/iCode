@@ -3,9 +3,11 @@ package dev.icode.mobile.data.git
 import dev.icode.mobile.data.workspace.WorkbenchStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceTree
 import dev.icode.mobile.domain.GitFileDiff
+import dev.icode.mobile.domain.GitDiscard
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.GitRemoteRules
+import dev.icode.mobile.domain.GitStatusCodes
 import dev.icode.mobile.domain.RecentDocument
 import dev.icode.mobile.domain.WorkbenchEffect
 import dev.icode.mobile.domain.WorkspaceSummary
@@ -220,16 +222,15 @@ internal class GitWorkspaceCoordinator(
     }
 
     /** Holds the one unstaged change at [path]; a file staged and edited again has a staged row too. */
-    fun requestDiscard(path: String) = workbench.update { state ->
-        state.copy(pendingDiscard = state.gitChanges.firstOrNull { it.path == path && it.discardable })
-    }
+    /** Holds what discarding [path] — a file, or all a folder holds — would throw away, for its confirmation. */
+    fun requestDiscard(path: String) = workbench.update { it.copy(pendingDiscard = GitDiscard.of(it.gitChanges, path)) }
 
     fun cancelDiscard() = workbench.update { it.copy(pendingDiscard = null) }
 
     /**
-     * Discards exactly the change that was confirmed. Git is asked again
-     * first: if the file changed since the question was put, what the user
-     * agreed to is no longer what would be lost.
+     * Discards exactly the changes that were confirmed. Git is asked again
+     * first: if anything changed since the question was put — in the file, or
+     * in the folder — what the user agreed to is no longer what would be lost.
      */
     suspend fun confirmDiscard() {
         val confirmed = workbench.current.pendingDiscard ?: return
@@ -240,9 +241,11 @@ internal class GitWorkspaceCoordinator(
         }
         act(operation = { workspace ->
             refresh(workspace)
-            val current = workbench.current.gitChanges.firstOrNull { it.path == confirmed.path && it.discardable }
-            if (current != confirmed) throw IOException("${confirmed.name} changed after you confirmed. Review it again")
-            git.discard(workspace, confirmed.path, confirmed.status)
+            val current = GitDiscard.of(workbench.current.gitChanges, confirmed.path)
+            if (current?.changes?.toSet() != confirmed.changes.toSet()) throw IOException("${confirmed.name} changed after you confirmed. Review it again")
+            // Edits and deletions return from the index at once; what is new is removed at once.
+            confirmed.changes.map { if (it.status == GitStatusCodes.UNTRACKED) it.status else GitStatusCodes.MODIFIED }.distinct()
+                .forEach { kind -> git.discard(workspace, confirmed.path, kind) }
         })
     }
 

@@ -71,7 +71,6 @@ object CaptureFixtures {
         ),
         activeDiff = DIFF,
         activeConflict = CONFLICT,
-        pendingDiscard = DELETED_CHANGE,
         gitRepository = GitRepositoryState(
             workTreePath = ROOT,
             branch = BRANCH,
