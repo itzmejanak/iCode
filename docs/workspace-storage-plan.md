@@ -18,7 +18,7 @@ The owner's answers, the same day:
 | Question | Answer |
 |---|---|
 | Where the list of workspaces lives | **The launcher lists every workspace in iCode's storage**; the phone-storage folder browser (Open Folder) retires |
-| All Files Access | **Dropped.** Folders come in by Import, through Android's folder picker; other apps reach workspaces through Android's Files app |
+| All Files Access | First **dropped** (folders through Android's folder picker); then, the same day, **kept for Import** — "keep the previous storage permission implementation … for the import lifecycle instead of getting [an] intent from our app", and ready for whatever else comes to need phone storage. It is asked where it is needed, not in onboarding (§4.8). Other apps reach workspaces through Android's Files app |
 | Workspaces opened from phone storage before | **One notice lists them; each comes in by Import.** Their old shortcuts go; the folders on phone storage are never touched |
 | Data safety | **Keep data on uninstall** (`hasFragileUserData`) and **Manage space instead of Clear storage** (`manageSpaceActivity`). Not device-to-device transfer |
 
@@ -59,7 +59,7 @@ owner's decision; nothing here changes it.
 | 2 | Home | Tiles Open Folder, Clone Repo, New Folder; **Recent Workspaces**: up to 20 shortcuts to phone-storage paths, which can go stale or unavailable (Remove from recents, Remove Stale); a banner while storage access is off | Tiles **Import**, Clone Repo, New Folder; **Workspaces**: every folder in iCode's storage, most recently opened first. Nothing can be stale: the list is the folder. A workspace made in `/workspace` from the terminal appears in it |
 | 3 | New workspace | Choose a parent anywhere on phone storage through the folder browser, name it, open it | Name it; it is made at `/workspace/<name>` and opened |
 | 4 | Clone | Choose a destination through the folder browser; Git clones into it | Clones into `/workspace/<folder>`: Git's name for the address, editable; nothing to choose |
-| 5 | Open an existing folder | Open Folder: browse phone storage, open any folder in place | Open a workspace from the list. A folder elsewhere comes in by **Import** — a copy; the original is untouched |
+| 5 | Open an existing folder | Open Folder: browse phone storage, open any folder in place | Open a workspace from the list. A folder elsewhere comes in by **Import**: iCode's own browser of phone storage (All Files Access, asked there the first time), then a copy; the original is untouched |
 | 6 | Explorer, editor, file operations | `java.io` on phone storage (13 ms a file operation); S4's logical tree over two filesystems | `java.io` on ext4 in iCode's storage; one filesystem, no boundary rules |
 | 7 | Terminal, Git, search, language services | Each launch binds the open folder at `/workspace/<name>` (a `:` in the name becomes `-`); Git binds the repository top it finds itself (`GitMountResolver`, same-path binds); S3b adds each mount | **Every launch binds `files/workspaces` at `/workspace`**; a command runs in `/workspace/<name>`; the terminal sees every workspace |
 | 8 | Switch workspace | From the launcher; unsaved edits are asked about | Same |
@@ -137,29 +137,32 @@ Frames are the Figma frames `Route.kt` names; changes use only the existing kit.
 |---|---|
 | Launcher (3:124, empty 3:202) | Tiles **Import**, Clone Repo, New Folder. List **Workspaces**: name, `/workspace/<name>`, branch, last opened. Menu: Open, Open Terminal, Rename…, Show in Files, Copy path (the guest path), Delete…. Empty state: "Create a folder, clone a repository, or import one from phone storage". The storage banner goes. Hidden tasks (an import, a delete) show as in the Explorer |
 | New Folder (2003:77) | Folder Name; the path row reads `/workspace/<name>` as it is typed, with no Change; "already exists" is said inline; the storage card stays |
-| **Import** (new route; no frame yet) | Built from New Folder's parts: **From** (the picked folder's name; Change reopens the picker), Folder Name (prefilled), the path row, the storage card, **Import** |
+| **Import browser** (Open Folder's frame, 2003:117) | Phone storage from its root: the path, `..`, each folder with its counts; a tap goes in; **Import <folder>** at the foot (not at the root). Without All Files Access the page is the permission's explanation — the onboarding step's own words — with **Allow access** (Android's page) and **Not now**; granted, the listing follows |
+| **Import** (new route; no frame yet) | Built from New Folder's parts: **From** (the chosen folder's path on phone storage; Change goes back to the browser), Folder Name (prefilled), the path row, the storage card, **Import** |
 | Clone (3:239), Clone progress (3:278) | Folder Name (Git's name for the address, editable) and the path row replace Destination; progress reads `Dest: /workspace/<name>` |
-| Open Folder (2003:117) | **Retired**, with its route and the folder browser |
 | Permission (3:90) | Notifications and Battery only |
 | Explorer (3:456), Editor empty (2003:19) | Subtitle `/workspace/<name>` |
-| Storage settings (2003:575) | "Workspaces" with every workspace's size and menu; Clear Cache; Remove Stale goes; one line: workspaces live in iCode's storage — uninstalling removes them unless Android is told to keep iCode's data |
+| Storage settings (2003:575) | "Workspaces" with every workspace's size and menu; Clear Cache; Remove Stale goes; one line: workspaces live in iCode's storage — uninstalling removes them unless Android is told to keep iCode's data; a **Phone storage access** row (allowed or not; a tap opens Android's page) |
 | Notifications | The one-time migration notice (§5) |
 | Android's Files app | Root **iCode**, summary "Workspaces" (§4.6) |
 
 ### 4.5 Import
 
-1. **Import** opens Android's folder picker (`ACTION_OPEN_DOCUMENT_TREE`). The grant is used for this
-   import only; nothing is persisted.
-2. The Import screen proposes the folder's name; it must not exist yet. Picking a folder from
-   iCode's own provider is refused: it is already here.
-3. The import runs as a task: counted first (entries and bytes — an import that would not fit in
-   the free space is refused before anything is copied), then copied file by file through the
-   picked folder's provider into the staging folder `files/workspaces/.import-<n>`, with each file's
-   modification time kept, and renamed to `<name>` only when complete. A stopped or failed import
-   leaves nothing behind, and no half workspace ever appears in the list. Documents without bytes
-   (a cloud file) are skipped and counted in the result. The source is never written. On success
-   the workspace opens.
-4. **Git repair.** Git on phone storage recorded `core.fileMode=false` and `core.symlinks=false`, and
+1. **Import** opens iCode's browser of phone storage (the Import browser, §4.4) — iCode reads the
+   folder itself with All Files Access; no picker is handed the choice. The first time, the browser
+   explains the permission and asks for it (§4.8); a refusal leaves Import waiting on that page,
+   with the way to Android's page.
+2. The browser starts where it was last, or at the root of internal storage; a folder in it is
+   entered with a tap and chosen with **Import <folder>**. The earlier workspaces' notice (§5) opens
+   it at each one's folder.
+3. The Import screen proposes the folder's name; it must not exist yet (the one name rule, §4.3).
+4. The import runs as a task: counted first (entries and bytes — an import that would not fit in
+   the free space is refused before anything is copied), then copied file by file into the staging
+   folder `files/workspaces/.import-<n>`, with each file's modification time kept, and renamed to
+   `<name>` only when complete. A stopped or failed import leaves nothing behind, and no half
+   workspace ever appears in the list. A link in the source is not followed: it is skipped and
+   counted in the result. The source is only read. On success the workspace opens.
+5. **Git repair.** Git on phone storage recorded `core.fileMode=false` and `core.symlinks=false`, and
    checked out executables without `+x` and links as plain files. For an imported repository iCode
    restores what Git itself records: both settings to `true`; `+x` on the files the index lists as
    `100755`; a link for each file it lists as `120000` — only where the file's content is unchanged
@@ -169,8 +172,6 @@ Frames are the Figma frames `Route.kt` names; changes use only the existing kit.
    user had edited stays theirs — Git then names it a type change (`T`), which is what it is on a
    filesystem that holds links. Git is installed for it as Clone installs it; if the runtime or
    Git cannot be had, the import completes without the repair and its result says so.
-5. Android's picker does not offer the root of internal storage, `Download` itself, `Android/data` or
-   `Android/obb` (device check D6).
 
 **Clone** follows the same staging: Git clones into `/workspace/.clone-<n>`, renamed to the chosen
 name on success. A failed or cancelled clone's folder is iCode's own and is removed — the
@@ -215,9 +216,15 @@ picks for it, through Android's grants. One root, **iCode**:
 
 ### 4.8 Permissions and onboarding
 
-`MANAGE_EXTERNAL_STORAGE` leaves the manifest. `SystemPermission.Storage`, `SystemAccess.storage`,
-its prompt, its onboarding step, the launcher banner and every `isExternalStorageManager()` check
-go. Onboarding asks for notifications and battery, each once; the launcher follows.
+- **All Files Access** (`MANAGE_EXTERNAL_STORAGE`, `SystemPermission.Storage`) is kept — the owner's
+  second answer (§1) — for Import, and for whatever else comes to need phone storage. It is asked
+  **where it is needed**, never in onboarding: the Import browser shows the permission's explanation
+  (the same words onboarding would use) and **Allow access** opens Android's page; coming back, the
+  listing follows if it was granted. It has no "offered" mark: it is asked each time it is needed
+  and missing, never nagged about elsewhere, and no screen but Import depends on it.
+- Storage settings show whether it is allowed, and open Android's page to change it either way.
+- Onboarding asks for notifications and battery, each once; the launcher follows. No banner: a
+  workspace needs no permission.
 
 ### 4.9 Unchanged
 
@@ -235,8 +242,9 @@ start, and never blocks the launcher.
 1. `files/workspaces` holds only S3b's experimental mount folders at that moment — its only writer
    was `WorkspaceStorage` (`e7c5329`), deleted in W2 — so it is deleted and the new root made.
 2. The old recent workspaces (`recent_workspaces_v1`, all on phone storage) become **one notice**:
-   "Workspaces now live in iCode", each name with its path, and "Bring each in with Import. The
-   folders on phone storage are untouched." The key is removed.
+   "Workspaces now live in iCode", each name with its path and its own **Import** — the Import
+   browser opened at that folder — and "The folders on phone storage are untouched." The key is
+   removed.
 3. Recent files, the saved session and per-workspace settings keyed by those old locations are
    removed: iCode no longer opens those folders in place.
 4. Recovery drafts for files on phone storage stay in Document Recovery. Restore says the file is
@@ -263,12 +271,13 @@ named, and the guards' allowlists shrink with it.
 | `GitTransferCoordinator.clone`, `GitOperationState.Cancelled.leftover` | clone into staging; the leftover notice deleted | W3 |
 | `FolderBrowserCoordinator` | deleted | W3 |
 | `domain`: `FolderBrowserPurpose`, `FolderBrowserEntry`, `FolderBrowserState`; intents `StartFolderBrowser`, `BrowseFolder`, `BrowseParentFolder`, `ConfirmFolderSelection`, `RequestCreateFolder`, `ShowWorkspaceLocation`, `RemoveRecentWorkspace`, `RemoveStaleRecents`; effects `FolderBrowserOpened`, `FolderDestinationSelected`; snapshot `folderBrowser`, `createFolderDestination`, `createFolderDestinationDisplay` | deleted, replaced by `CreateWorkspace`, `RenameWorkspace`, `DeleteWorkspace`, `ShowWorkspaceInFiles`, the import intents, and `CloneRepository` without a destination | W3–W5 |
-| `SystemPermission.Storage`, `SystemAccess.storage`, `AndroidSystemAccess`, `SystemPrompts`, `PermissionScreen`'s storage step, `IcodeApp`'s storage branch, `OnboardingRoute` | storage removed | W4 |
-| `OpenFolderScreen.kt`, `Route.OpenFolderBrowser` | deleted | W4 |
+| `SystemPermission.Storage`, `SystemAccess.storage`, `AndroidSystemAccess`, `SystemPrompts`, `PermissionScreen`'s storage step, `IcodeApp`'s storage branch, `OnboardingRoute` | storage out of onboarding and the launcher; the permission itself kept for Import, asked there (§4.8) | W4, W5 |
+| `OpenFolderScreen.kt`, `Route.OpenFolderBrowser`, `FolderBrowserCoordinator` | rewritten as the Import browser: `ImportBrowserScreen`, `Route.ImportBrowser` (frame 2003:117), `PhoneStorage` | W4, W5 |
+| Android's folder picker (`DocumentTreeImport`, `rememberImportPicker`) | replaced by the Import browser and `FileImportTree` | W5 |
 | `LauncherScreen` (with the background-task row), `CreateFolderScreen`, `CloneRepositoryScreen`, `CloneProgressScreen`, `WorkspaceActionsMenu`, `StorageSettingsScreen`, `SettingsCatalog`, `EntryScreenHost` | changed as §4.4; New Folder, Import and Clone share one name form (`NewWorkspaceFields.kt`), and the dialogs that wait on a request share `PendingRequest` | W4 |
 | Capture fixtures (`app/src/debug`) | phone-storage paths, the folder browser and its destination replaced by `/workspace` workspaces and an import source | W4–W5 |
-| Manifest | `MANAGE_EXTERNAL_STORAGE` removed; provider, `ManageSpaceActivity`, `hasFragileUserData`, `manageSpaceActivity` added | W4, W6, W7 |
-| New: `WorkspacePaths`, the import copier and its picker source, the Git repair, the provider and its ID logic, the migration | tested where pure; each with its device check | W2–W7 |
+| Manifest | `MANAGE_EXTERNAL_STORAGE` kept, for Import; provider, `ManageSpaceActivity`, `hasFragileUserData`, `manageSpaceActivity` added | W4, W6, W7 |
+| New: `WorkspacePaths`, the import copier and its phone-storage source, the Git repair, the provider and its ID logic, the migration | tested where pure; each with its device check | W2–W7 |
 | architecture.md §2, §3, §4, §5.5, §6–8, §10.1, §10.2, §11, §12, §13, §21, §23–27 · prd.md §3, §4, §5.1, §9.2, §10.1, §10.2 (PR-WS-01–07), §12.1, §13, glossary · user-stories.md §3, US-ENTRY-001/002, §5 (US-STORAGE-001–003 rewritten), US-WS-001–004, new US-WS-006, US-EDIT-003 · layout.md §6, §9, §10 · README · Todo · plan.md · storage-logic.md (superseded) | rewritten to this plan | W1 |
 
 Dated records ([integration-plan](./integration-plan.md), [code-separation-plan](./code-separation-plan.md),
@@ -290,7 +299,7 @@ against the existing kit only and reviewed line by line; the owner's build is it
 | **W2** | One path model and one bind: `WorkspacePaths`; every PRoot launch binds the root; terminal, Git, ripgrep and language services through it; the mount model (S3–S4), the Git mount resolver and `GuestMount` deleted | Type-check and tests pass; D1, D2 |
 | **W3** | The workspace list and lifecycle: store and library rewritten; New Folder and Clone into the root; rename; delete as a task; open, switch, restore; the root watched; the migration (§5) | Tests pass; D3, D4, D11 |
 | **W4** | Screens (§4.4), onboarding and permission removal, Open Folder retired with the folder browser, the workspace file source rewritten for the root, capture fixtures, the UI guard | Gradle gate, capture; D5 |
-| **W5** | Import: picker, screen, the copier as a task, the Git repair measured with real Git first | Tests pass; D6, D7 |
+| **W5** | Import: the phone-storage browser and its permission, screen, the copier as a task, the Git repair measured with real Git first | Tests pass; D6, D7 |
 | **W6** | The Files provider, Show in Files, change notifications; the security tests | Tests pass; D8, D9 |
 | **W7** | Data safety (§4.7) and the Storage page's wording | D10, D12 |
 | **W8** | Device acceptance of the whole lifecycle (§3), the 40-frame capture, and the list of Figma frames to update | Every D passes or is written down with what it showed |
@@ -304,7 +313,7 @@ against the existing kit only and reviewed line by line; the owner's build is it
 | D3 | `mkdir /workspace/made-in-terminal`, then the launcher | Appears while the launcher is shown |
 | D4 | Rename and delete a workspace; both refused while a terminal session runs in it | As §4.3 |
 | D5 | Fresh install: onboarding | No storage step; notifications and battery once each; the launcher |
-| D6 | Import from `Internal storage/Projects/RevPlayer` and from a folder inside `Download`; cancel one midway | Progress; the workspace opens; a cancelled import leaves nothing; the picker's refusals as §4.5 |
+| D6 | Import with All Files Access off: the explanation, Allow access, back to the listing; then import `Internal storage/Projects/RevPlayer` and a folder inside `Download`; cancel one midway | The listing after the grant; progress; the workspace opens; a cancelled import leaves nothing |
 | D7 | An imported repository with `gradlew` and a committed link | `./gradlew` runs; the link is a link; `git status` as before the import |
 | D8 | Android's Files app | **iCode** listed; browse, open, edit and save a file in another editor; copy a workspace to `Download`; Show in Files lands on the workspace; a file made in iCode's terminal appears in an open Files listing; a workspace offers no Rename, Move or Delete there |
 | D9 | MT Manager | Whether it can add iCode's provider; written down either way |
@@ -317,7 +326,7 @@ build fixes):**
 
 - D5 — fresh install through onboarding to the launcher (owner).
 - D6 (import, first part) — `RevPlayer` imported from phone storage into `files/workspaces/RevPlayer`
-  (owner).
+  (owner), through Android's folder picker — since replaced by the Import browser (§4.5).
 - **D1** — in its terminal, with iCode in front: `npm install` finished — 530 packages, 48,675
   files, 832 MB in `node_modules`, 33 `.bin` links; then `npm run dev`: Next.js 16.3.0 (Turbopack)
   "Ready in 1792ms" on `localhost:3000`, and `GET / 200 in 8.2s`. On phone storage the same install

@@ -1,28 +1,56 @@
 package dev.icode.mobile.data.storage
 
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
 import java.io.InputStream
+import java.nio.file.Files
 
-/** One entry of a folder picked for Import, as its provider describes it. */
+/** One entry of a folder chosen for Import. */
 internal data class ImportEntry(
     val id: String,
     val name: String,
     val folder: Boolean,
-    /** Bytes; 0 when the provider does not say. */
+    /** Bytes; 0 for a folder. */
     val size: Long,
-    /** Milliseconds; 0 when the provider does not say. */
+    /** Milliseconds; 0 when it is not known. */
     val modified: Long,
-    /** A document with no bytes of its own on this phone — a cloud file — cannot be copied. */
-    val virtual: Boolean,
+    /** False for what is not a file or folder of its own — a link, which is not followed. */
+    val copyable: Boolean = true,
 )
 
-/** A folder picked in Android's folder picker, read through its provider; tests put a folder on disk in its place. */
+/** A folder chosen for Import, as its entries are read; tests put a folder of their own in its place. */
 internal interface ImportTree {
     val top: ImportEntry
     fun children(folder: ImportEntry): List<ImportEntry>
     fun open(file: ImportEntry): InputStream
+}
+
+/**
+ * A folder on phone storage, read directly with All Files Access. A link is not followed — its
+ * target may lie anywhere — so it is skipped and counted; a folder that cannot be listed fails the
+ * import rather than leaving it short.
+ */
+internal class FileImportTree(root: File) : ImportTree {
+    override val top: ImportEntry = entryOf(root)
+
+    override fun children(folder: ImportEntry): List<ImportEntry> =
+        File(folder.id).listFiles()?.map(::entryOf) ?: throw IOException("${folder.name} could not be read")
+
+    override fun open(file: ImportEntry): InputStream = FileInputStream(File(file.id))
+
+    private fun entryOf(file: File): ImportEntry {
+        val link = Files.isSymbolicLink(file.toPath())
+        return ImportEntry(
+            id = file.path,
+            name = file.name,
+            folder = !link && file.isDirectory,
+            size = if (!link && file.isFile) file.length() else 0,
+            modified = file.lastModified(),
+            copyable = !link,
+        )
+    }
 }
 
 /**
@@ -37,7 +65,7 @@ internal object FolderImport {
         /** Each folder before what it holds. */
         val entries: List<Planned>,
         val bytes: Long,
-        /** Paths not copied: a cloud file with no bytes here, or a name no folder can hold. */
+        /** Paths not copied: a link, or a name no folder can hold. */
         val skipped: List<String>,
     )
 
@@ -55,8 +83,8 @@ internal object FolderImport {
             tree.children(folder.entry).sortedBy { it.name }.forEach { child ->
                 onEntry()
                 val relative = if (folder.relative.isEmpty()) child.name else "${folder.relative}/${child.name}"
-                // A provider may list a name twice, or one a folder cannot hold: never a second write over the first.
-                if (!isPlainName(child.name) || !names.add(child.name) || child.virtual) {
+                // A name listed twice, or one a folder cannot hold, is never a second write over the first.
+                if (!isPlainName(child.name) || !names.add(child.name) || !child.copyable) {
                     skipped += relative
                     return@forEach
                 }

@@ -85,7 +85,7 @@ Acceptance criteria:
 - Uninstalling offers to keep the application's data.
 - App info offers Manage space, which opens Storage settings, instead of Clear storage.
 - Runtime Repair and Reset state that workspaces are kept, and keep them.
-- No broad storage permission is requested at any point.
+- Workspaces need no storage permission; All Files Access is asked only when I import from phone storage.
 
 ### US-STORAGE-002 — Bring a folder in from phone storage
 
@@ -93,7 +93,8 @@ Acceptance criteria:
 
 Acceptance criteria:
 
-- Import opens Android's folder picker; the chosen folder is used for this import only.
+- Import opens iCode's browser of phone storage. Without All Files Access it explains why it is needed and opens Android's page; once granted, the folders are listed.
+- I choose a folder by going into it and tapping Import; the folder is only read.
 - The workspace name is proposed from the folder and can be changed; a taken name is refused inline.
 - An import that would not fit in the free space is refused before anything is copied.
 - Progress is shown as a task that can be hidden; cancelling or a failure leaves nothing behind.

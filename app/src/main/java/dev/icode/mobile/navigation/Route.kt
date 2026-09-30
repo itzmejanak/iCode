@@ -21,7 +21,7 @@ enum class Route(
     LauncherEmpty("3:202", "Launcher empty", RouteGroup.ENTRY),
     // Owner's request (2026-09-25): notices move off the launcher onto their own page.
     Notifications(null, "Notifications", RouteGroup.ENTRY),
-    // Workspaces live in iCode's storage (2026-09-30): Import brings a folder in from phone storage.
+    // Workspaces live in iCode's storage (2026-09-30): Import names the folder chosen in its browser.
     ImportWorkspace(null, "Import", RouteGroup.ENTRY),
     CloneRepository("3:239", "Clone repository", RouteGroup.ENTRY),
     CloneProgress("3:278", "Clone progress", RouteGroup.ENTRY),
@@ -43,6 +43,8 @@ enum class Route(
     ConflictResolution("3:1509", "Conflict resolution", RouteGroup.TOOLS),
     EditorEmpty("2003:19", "Editor empty state", RouteGroup.WORKSPACE),
     CreateFolder("2003:77", "Create folder", RouteGroup.ENTRY),
+    // Open Folder's frame, now Import's browser of phone storage (docs/workspace-storage-plan.md §4.4).
+    ImportBrowser("2003:117", "Import browser", RouteGroup.ENTRY),
     CommandPalette("2003:166", "Command palette", RouteGroup.TOOLS),
     OutputPanel("2003:208", "Output panel", RouteGroup.TOOLS),
     CommitPush("2003:246", "Commit and push", RouteGroup.TOOLS),

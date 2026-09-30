@@ -49,7 +49,6 @@ import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 import dev.icode.mobile.ui.WorkspaceActionsMenu
-import dev.icode.mobile.ui.rememberImportPicker
 
 /**
  * The launcher: every workspace in iCode's storage, most recently opened first, and the three ways
@@ -59,7 +58,6 @@ import dev.icode.mobile.ui.rememberImportPicker
 fun LauncherScreen(actions: NavigationActions, empty: Boolean) {
     val state = LocalWorkbenchSnapshot.current
     val gateway = LocalWorkbenchGateway.current
-    val pickImport = rememberImportPicker()
     val workspaces = state.workspaces
     val showEmpty = empty || workspaces.isEmpty()
     Column(Modifier.fillMaxSize()) {
@@ -87,7 +85,7 @@ fun LauncherScreen(actions: NavigationActions, empty: Boolean) {
             modifier = Modifier.fillMaxWidth().padding(IcodeSpacing.Space4),
             horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
         ) {
-            LauncherActionTile(Icons.Outlined.FolderOpen, "Import", Modifier.weight(1f), pickImport)
+            LauncherActionTile(Icons.Outlined.FolderOpen, "Import", Modifier.weight(1f)) { actions.navigate(Route.ImportBrowser) }
             LauncherActionTile(Icons.Outlined.AccountTree, "Clone Repo", Modifier.weight(1f)) { actions.navigate(Route.CloneRepository) }
             LauncherActionTile(Icons.Outlined.CreateNewFolder, "New Folder", Modifier.weight(1f)) { actions.navigate(Route.CreateFolder) }
         }

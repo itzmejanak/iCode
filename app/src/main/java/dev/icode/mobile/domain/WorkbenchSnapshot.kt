@@ -36,6 +36,7 @@ data class WorkbenchSnapshot(
     val cloneName: String = "",
     val cloneBranch: String = "",
     /** The folder picked for Import, until it is imported or another is picked. */
+    val importBrowser: ImportBrowserState? = null,
     val importSource: ImportSource? = null,
     val storage: StorageSummary? = null,
     val storageDetails: StorageDetails? = null,

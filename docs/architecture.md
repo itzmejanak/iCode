@@ -352,7 +352,7 @@ Unknown future settings can be added under existing categories without adding a 
 ### 11.1 Open a workspace, or bring a folder in
 
 1. The user opens a workspace from the launcher's list, or makes one: New Folder, Clone, or Import.
-2. Import: Android's folder picker grants the chosen folder for this import only; it is copied into a staging folder as a task, then renamed into `files/workspaces/<name>`; a repository's executable bits and links are restored from Git's own record. The original is never written.
+2. Import: iCode's browser of phone storage — with All Files Access, asked there the first time — chooses a folder; it is copied into a staging folder as a task, then renamed into `files/workspaces/<name>`; a repository's executable bits and links are restored from Git's own record. The original is never written.
 3. Every runtime launch binds `files/workspaces` at `/workspace`; commands for a workspace run in `/workspace/<name>`.
 4. File, Git, search, and language services initialize lazily.
 5. The previous session for that workspace is restored when available.
@@ -412,11 +412,11 @@ Normal application updates do not reset the runtime. A repair or reset action mu
 
 ## 13. Android Filesystem Boundary
 
-The application requests no broad storage permission. Workspaces live in its own storage, where links, executable bits, case-sensitive names and many small files behave as Linux tools expect — which Android's shared storage does not (measured: [workspace-storage-plan.md](./workspace-storage-plan.md) §2).
+Workspaces need no storage permission: they live in the application's own storage, where links, executable bits, case-sensitive names and many small files behave as Linux tools expect — which Android's shared storage does not (measured: [workspace-storage-plan.md](./workspace-storage-plan.md) §2).
 
 Across the boundary:
 
-- **In:** a folder from phone storage is brought in by Import, through Android's folder picker (`ACTION_OPEN_DOCUMENT_TREE`); the grant is used for that import only.
+- **In:** a folder from phone storage is brought in by Import, through the application's own browser of phone storage. It reads with All Files Access (`MANAGE_EXTERNAL_STORAGE`), asked where it is needed — Import — never at onboarding, and only ever reads there.
 - **Out:** other applications reach workspaces through the application's `DocumentsProvider` — Android's Files app and every Open/Save picker — and only what the user picks for them. The provider never follows a link out of the workspaces into the runtime or the application's other data.
 - **Not:** the runtime has no view of `/sdcard`, and workspaces have no `/sdcard` path.
 
@@ -541,7 +541,7 @@ Long-running operations expose explicit states such as idle, queued, running, su
 
 Security remains small and practical:
 
-- no broad storage permission is requested; other applications reach workspaces only through the document provider and the user's picks;
+- All Files Access is asked only where phone storage is read (Import), and phone storage is only read; other applications reach workspaces only through the document provider and the user's picks;
 - workspace and runtime commands remain inside Android's application permissions;
 - application-owned credentials use Android-provided secure storage where the application controls them;
 - CLI credentials remain in the runtime locations expected by those tools;

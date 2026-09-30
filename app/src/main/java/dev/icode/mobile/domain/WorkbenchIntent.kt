@@ -21,8 +21,15 @@ sealed interface WorkbenchIntent {
     data class RenameWorkspace(val location: String, val newName: String, val requestId: String) : WorkbenchIntent
     /** A whole workspace deleted, once its menu confirmed it; runs as a task. */
     data class DeleteWorkspace(val location: String) : WorkbenchIntent
-    /** Android's folder picker returned [uri] (a document tree) for Import. */
-    data class ChooseImportSource(val uri: String) : WorkbenchIntent
+    /**
+     * The Import browser opens: at [path], or where it was last, or at the root of internal storage.
+     * Without All Files Access it waits for it (docs/workspace-storage-plan.md §4.5).
+     */
+    data class OpenImportBrowser(val path: String? = null) : WorkbenchIntent
+    data class BrowseImportFolder(val path: String) : WorkbenchIntent
+    data object BrowseImportParent : WorkbenchIntent
+    /** The folder at [path] on phone storage is the one to import: the Import screen names it. */
+    data class ChooseImportFolder(val path: String) : WorkbenchIntent
     /** Copies the chosen [ImportSource] into a new workspace named [name]; runs as a task. */
     data class ImportWorkspace(val name: String) : WorkbenchIntent
     /** Android's Files app, at the workspace. */

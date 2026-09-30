@@ -27,10 +27,10 @@ mapfile -t screens < <(
     sed -nE 's/^    ([A-Za-z0-9]+)\("[^"]+", "([^"]+)",.*$/\1|\2/p' "$catalog_file"
 )
 
-# 40 Figma frames, 38 routes: frame 3:55 "Runtime error" is the failed state of
-# 3:27 "Runtime installing" and has no route of its own (docs/integration-plan.md),
-# and frame 2003:117 "Open folder" is retired (docs/workspace-storage-plan.md §4.4).
-expected_routes=38
+# 40 Figma frames, 39 routes: frame 3:55 "Runtime error" is the failed state of
+# 3:27 "Runtime installing" and has no route of its own (docs/integration-plan.md).
+# Frame 2003:117 "Open folder" draws the Import browser (docs/workspace-storage-plan.md §4.4).
+expected_routes=39
 if [[ "${#screens[@]}" -ne $expected_routes ]]; then
     echo "Expected $expected_routes registered routes, found ${#screens[@]}." >&2
     exit 1
