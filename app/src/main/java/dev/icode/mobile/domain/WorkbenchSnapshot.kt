@@ -5,6 +5,8 @@ data class WorkbenchSnapshot(
     val files: List<FileEntry>,
     val gitChanges: List<GitChange>,
     val gitRepository: GitRepositoryState? = null,
+    /** Why Git could not read the open workspace's repository, in Git's words; its files open all the same. */
+    val gitFailure: String? = null,
     val diagnostics: List<Diagnostic>,
     val languageServices: List<LanguageService>,
     val languageServicesLoadError: String? = null,
