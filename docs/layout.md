@@ -331,7 +331,8 @@ The launcher does not display a dashboard of counts or unrelated product cards. 
 ### 9.3 Workspaces page
 
 Every workspace is managed in one place, reached by the Workspaces tile (where New Folder was) and
-from Storage settings: the count and total size under its title, **New Folder** in its top bar, a
+from Storage settings: the count and total size under its title, **New Folder** in its top bar (a
+dialog, as a file manager's: the new workspace appears in the list, unopened), a
 search by name or path, **Recent · Name · Size**, and each workspace in the same row as the
 launcher's, with its size once measured. The home screen shows the recent five of this same list;
 Storage settings shows its summary, not a second list.

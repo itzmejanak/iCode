@@ -25,7 +25,6 @@ fun EntryScreenHost(screen: Route, actions: NavigationActions) {
         Route.ImportWorkspace -> ImportScreen(actions)
         Route.CloneRepository -> CloneRepositoryScreen(actions)
         Route.CloneProgress -> CloneProgressScreen(actions)
-        Route.CreateFolder -> CreateFolderScreen(actions)
         else -> Unit
     }
 }

@@ -26,15 +26,18 @@ internal class WorkspaceLifecycleCoordinator(
     private val moveSettings: suspend (from: String, to: String) -> Unit,
     private val forgetSettings: suspend (location: String) -> Unit,
 ) {
-    suspend fun create(rawName: String) {
-        val name = rawName.trim()
-        WorkspaceNameRules.newWorkspaceError(name, ::exists)?.let { return workbench.message(it) }
+    /** New Folder: an empty workspace, which appears in the list as a file manager's new folder does. */
+    suspend fun create(intent: WorkbenchIntent.CreateWorkspace) {
+        val name = intent.name.trim()
+        WorkspaceNameRules.newWorkspaceError(name, ::exists)?.let { return fail(intent.requestId, it) }
         val target = File(source.workspacesRoot, name)
         runCatching {
             source.workspacesRoot.mkdirs()
             if (!target.mkdir()) throw IOException(WorkspaceNameRules.newWorkspaceError(name, ::exists) ?: "The workspace could not be created")
-        }.onSuccess { session.open(target.path, persist = true) }
-            .onFailure { error -> workbench.report("workspace", "Unable to create the workspace", error) }
+        }.onSuccess {
+            library.refresh()
+            workbench.emit(WorkbenchEffect.WorkspaceItemChanged(intent.requestId, target.path))
+        }.onFailure { error -> fail(intent.requestId, workbench.failureText("workspace", "Unable to create the workspace", error)) }
     }
 
     suspend fun rename(intent: WorkbenchIntent.RenameWorkspace) {

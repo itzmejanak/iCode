@@ -257,7 +257,7 @@ private fun ScreenHost(screen: Route, actions: NavigationActions) {
 }
 
 /** Screens that make a workspace: once it opens, it takes their place. */
-private val MAKES_A_WORKSPACE = setOf(Route.CreateFolder, Route.ImportWorkspace, Route.CloneProgress)
+private val MAKES_A_WORKSPACE = setOf(Route.ImportWorkspace, Route.CloneProgress)
 
 /** The first-run screens; each replaces the one before it. */
 private val ONBOARDING_SCREENS = setOf(

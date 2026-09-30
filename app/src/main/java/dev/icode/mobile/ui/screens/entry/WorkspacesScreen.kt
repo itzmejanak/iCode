@@ -32,10 +32,10 @@ import dev.icode.mobile.domain.WorkspaceListRules
 import dev.icode.mobile.domain.WorkspaceSort
 import dev.icode.mobile.domain.storageSizeLabel
 import dev.icode.mobile.navigation.NavigationActions
-import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.ClipboardBar
 import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.NewWorkspaceDialog
 import dev.icode.mobile.ui.WorkspaceRow
 
 /**
@@ -49,6 +49,7 @@ fun WorkspacesScreen(actions: NavigationActions) {
     val gateway = LocalWorkbenchGateway.current
     var query by rememberSaveable { mutableStateOf("") }
     var sort by rememberSaveable { mutableStateOf(WorkspaceSort.Recent) }
+    var creating by rememberSaveable { mutableStateOf(false) }
     // Measured on arrival, and again when the list itself changes (one made, renamed, deleted).
     LaunchedEffect(state.workspaces.map { it.location }) { gateway.dispatch(WorkbenchIntent.MeasureWorkspaces) }
     val shown = WorkspaceListRules.sorted(WorkspaceListRules.matching(state.workspaces, query), sort, state.workspaceSizes)
@@ -58,7 +59,7 @@ fun WorkspacesScreen(actions: NavigationActions) {
             subtitle = WorkspaceListRules.summary(state.workspaces, state.workspaceSizes),
             onBack = actions.back,
             actions = {
-                IconButton(onClick = { actions.navigate(Route.CreateFolder) }) {
+                IconButton(onClick = { creating = true }) {
                     Icon(Icons.Outlined.CreateNewFolder, contentDescription = "New Folder", tint = IcodeColors.TextPrimary)
                 }
             },
@@ -101,4 +102,5 @@ fun WorkspacesScreen(actions: NavigationActions) {
         // Pasted here, it becomes a workspace: a copy beside its source, a folder cut from one as its own.
         state.clipboard?.let { held -> ClipboardBar(held, onPaste = { gateway.dispatch(WorkbenchIntent.PasteAsWorkspace) }) }
     }
+    if (creating) NewWorkspaceDialog { creating = false }
 }

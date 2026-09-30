@@ -16,7 +16,8 @@ sealed interface WorkbenchIntent {
     data class DeleteNotice(val id: String) : WorkbenchIntent
     data object ClearNotices : WorkbenchIntent
     /** New Folder: a workspace named [name], made at `/workspace/<name>` and opened. */
-    data class CreateWorkspace(val name: String) : WorkbenchIntent
+    /** New Folder on the Workspaces page: answered by [requestId], and not opened — it appears in the list. */
+    data class CreateWorkspace(val name: String, val requestId: String) : WorkbenchIntent
     /** A whole workspace renamed; the dialog that asked is answered by [requestId]. */
     data class RenameWorkspace(val location: String, val newName: String, val requestId: String) : WorkbenchIntent
     /** A whole workspace deleted, once its menu confirmed it; runs as a task. */
