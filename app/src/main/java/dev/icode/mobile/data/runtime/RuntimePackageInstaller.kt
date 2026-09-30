@@ -6,6 +6,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
@@ -40,6 +43,10 @@ internal class RuntimePackageInstaller(
     private val dpkg = Mutex()
     private val inFlight = mutableMapOf<String, Deferred<Outcome>>()
 
+    private val mutableInstalling = MutableStateFlow<String?>(null)
+    /** The package apt is installing now: background work, never to be cut off half-way. */
+    val installing: StateFlow<String?> = mutableInstalling.asStateFlow()
+
     /** Installs [packageName] unless [installed] already holds. */
     suspend fun ensure(packageName: String, installed: () -> Boolean): Outcome {
         if (installed()) return Outcome.Ready
@@ -48,7 +55,14 @@ internal class RuntimePackageInstaller(
             inFlight[packageName]?.takeIf { it.isActive }
                 ?: scope.async(Dispatchers.IO) {
                     try {
-                        dpkg.withLock { install(packageName, installed) }
+                        dpkg.withLock {
+                            mutableInstalling.value = packageName
+                            try {
+                                install(packageName, installed)
+                            } finally {
+                                mutableInstalling.value = null
+                            }
+                        }
                     } catch (cancelled: CancellationException) {
                         throw cancelled
                     } catch (error: Throwable) {

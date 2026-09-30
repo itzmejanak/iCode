@@ -23,10 +23,11 @@ import androidx.compose.ui.window.DialogProperties
 
 /**
  * A long operation in hand, drawn as the reference file manager draws one: its
- * title with Hide at the right, the item in hand on one line, and a bar. While
- * the total is still being counted the bar sweeps — one frozen at zero reads as
- * a hang. A tap outside does nothing; Back and Hide send the work to the
- * background, where it goes on.
+ * title with Hide at the right, the item in hand on one line, a bar, and under it
+ * the counts and share its notification shows too. While the total is still
+ * being counted the bar sweeps — one frozen at zero reads as a hang. A tap
+ * outside does nothing; Back and Hide send the work to the background, where it
+ * goes on and its notification carries it.
  */
 @Composable
 fun IcodeProgressDialog(
@@ -35,6 +36,10 @@ fun IcodeProgressDialog(
     detail: String,
     /** Null while the total is not known. */
     progress: Float?,
+    /** "1207 / 11813" once counted; null while counting. */
+    counts: String?,
+    /** "10%" once counted. */
+    share: String?,
     onHide: () -> Unit,
     /** Offered only where stopping loses nothing that matters. */
     onCancel: (() -> Unit)? = null,
@@ -57,6 +62,12 @@ fun IcodeProgressDialog(
                     )
                     if (progress == null) IndeterminateProgressTrack(Modifier.fillMaxWidth())
                     else ProgressTrack(progress, Modifier.fillMaxWidth())
+                    if (counts != null || share != null) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(counts.orEmpty(), style = IcodeType.Caption)
+                            Text(share.orEmpty(), style = IcodeType.Caption)
+                        }
+                    }
                 }
             }
         }

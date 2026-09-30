@@ -11,7 +11,9 @@ import androidx.compose.runtime.setValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import dev.icode.mobile.capture.CaptureEnvironment
 import dev.icode.mobile.data.runtime.TerminalSessionManager
+import dev.icode.mobile.domain.BackgroundPlace
 import dev.icode.mobile.navigation.Route
+import dev.icode.mobile.ui.Arrival
 import dev.icode.mobile.ui.IcodeApp
 
 class MainActivity : ComponentActivity() {
@@ -24,11 +26,8 @@ class MainActivity : ComponentActivity() {
      */
     private var readyToRender by mutableStateOf(false)
 
-    /** A terminal session a notification asked to show; cleared once shown. */
-    private var terminalSessionToShow by mutableStateOf<String?>(null)
-
-    /** App info's Manage space asked for Storage settings; cleared once shown. */
-    private var storageSettingsToShow by mutableStateOf(false)
+    /** What a notification or App info asked to show; cleared once shown. */
+    private var arrival by mutableStateOf<Arrival?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
@@ -39,19 +38,14 @@ class MainActivity : ComponentActivity() {
         val requestedScreen = CaptureEnvironment.requestedRoute(intent) ?: Route.Splash
         val capture = CaptureEnvironment.state(intent)
         // A recreated activity has already acted on the intent it started with.
-        if (savedInstanceState == null) {
-            terminalSessionToShow = terminalSessionIn(intent)
-            storageSettingsToShow = intent?.action == ACTION_MANAGE_SPACE
-        }
+        if (savedInstanceState == null) arrival = arrivalIn(intent)
         setContent {
             IcodeApp(
                 initialScreen = requestedScreen,
                 capture = capture,
                 onReadyToRender = { readyToRender = true },
-                terminalSessionToShow = terminalSessionToShow,
-                onTerminalSessionShown = { terminalSessionToShow = null },
-                showStorageSettings = storageSettingsToShow,
-                onStorageSettingsShown = { storageSettingsToShow = false },
+                arrival = arrival,
+                onArrived = { arrival = null },
             )
         }
     }
@@ -71,12 +65,18 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        terminalSessionIn(intent)?.let { terminalSessionToShow = it }
-        if (intent.action == ACTION_MANAGE_SPACE) storageSettingsToShow = true
+        arrivalIn(intent)?.let { arrival = it }
     }
 
-    private fun terminalSessionIn(intent: Intent?): String? =
-        intent?.takeIf { it.action == ACTION_SHOW_TERMINAL_SESSION }?.getStringExtra(EXTRA_TERMINAL_SESSION_ID)
+    private fun arrivalIn(intent: Intent?): Arrival? {
+        val asked = intent ?: return null
+        return when (asked.action) {
+            ACTION_SHOW_TERMINAL_SESSION -> asked.getStringExtra(EXTRA_TERMINAL_SESSION_ID)?.let(Arrival::TerminalSession)
+            ACTION_MANAGE_SPACE -> Arrival.StorageSettings
+            ACTION_SHOW_WORK -> BackgroundPlace.decode(asked.getStringExtra(EXTRA_WORK_PLACE))?.let(Arrival::Work)
+            else -> null
+        }
+    }
 
     companion object {
         /** Opens iCode on one terminal session: its workspace, the Terminal panel, that tab. */
@@ -85,5 +85,9 @@ class MainActivity : ComponentActivity() {
 
         /** Opens iCode on Storage settings: App info's Manage space ([ManageSpaceActivity]). */
         const val ACTION_MANAGE_SPACE = "dev.icode.mobile.action.MANAGE_SPACE"
+
+        /** Opens iCode on a piece of background work, from its notification: [EXTRA_WORK_PLACE] says where. */
+        const val ACTION_SHOW_WORK = "dev.icode.mobile.action.SHOW_WORK"
+        const val EXTRA_WORK_PLACE = "work_place"
     }
 }

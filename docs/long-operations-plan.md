@@ -1,6 +1,6 @@
 # Long operations — one task model, dialog, background and notification — plan
 
-Status: **plan, for the owner's review** (2026-09-29). Owner's request, after deleting a large
+Status: T1–T2 done (2026-09-29); **§6, the background foundation, replaces T3–T4** (2026-09-30). Owner's request, after deleting a large
 folder: "the delete functionality lacks the proper real-time dialog and background notification
 process as the ref app [MT Manager]; make sure the design [is right] not just for this
 functionality — this kind of aspect needs better design". It is the long-running half of item L
@@ -89,7 +89,65 @@ deleted files close; a cancelled delete says how much is gone — deletion canno
   refreshes; a failure is said in the dialog, or by the pop-up kind when hidden — the
   reference's three channels have no "done" kind.
 
-## 6. Record
+## 6. Background — the foundation (owner, 2026-09-30)
+
+The owner's request, with MT Manager's notifications as the reference ("1 task is running";
+"Extracting…(1207/11813)" with the item in hand and a bar; "Deleting…"): a hidden dialog goes to
+the background as the reference does — carried by a notification, not by a row inside iCode —
+on a foundation with no gaps in how the features are wired.
+
+### 6.1 Measured (code, 2026-09-30)
+
+| Gap | Where |
+|---|---|
+| **The backend belongs to one screen.** `AndroidWorkbenchViewModel` builds its own `AndroidWorkbenchGateway` and `onCleared` calls `close()`, which cancels the gateway's scope. Leaving iCode with Back, or swiping it from Recents while work runs, cancels a running delete (half a folder left), an import, a clone or a sync, and the runtime install | `AndroidWorkbenchViewModel`, `AndroidWorkbenchGateway.close` |
+| **Nothing keeps the process for a task.** `RuntimeForegroundService` runs while a terminal session runs or the runtime installs (`RuntimeWork.installing`), nothing else: a task, a Git transfer or an apt install in the background dies with the process Android reclaims | `RuntimeForegroundService.idle` |
+| **A hidden task has no notification.** It shows as a row in the Explorer and the launcher (`BackgroundTasks`) — inside iCode only | `TaskDialogs.kt` |
+| **Two keep-alive signals.** Sessions, and `RuntimeWork` for the install alone | `RuntimeWork.kt` |
+| **A failure while away is silent** until iCode is opened again | — |
+
+### 6.2 Design
+
+1. **One backend per process.** `AndroidWorkbenchGateway.attach(context)` returns the process's
+   one gateway, as `TerminalSessionManager.get` does: work belongs to the process, screens attach
+   and detach. When the last screen detaches, only what serves a screen stops — the folder
+   watcher and language servers. Every long operation keeps running on the gateway's scope.
+2. **One list of background work, derived** (`domain/BackgroundWork.kt`, pure, tested):
+   `BackgroundWorkRules.of(snapshot, installingPackage)` names everything running — each task, the
+   Git transfer, the runtime install, a runtime package install — with a title, the item or step
+   in hand, its counts or share, whether it may be cancelled (the intent Cancel sends), where a
+   tap leads (the task's dialog, the clone or sync progress page, the runtime install page), and,
+   once it stops short, why. The gateway publishes it (`data/tasks/BackgroundWork`); it is the only
+   thing the service watches besides terminal sessions. `RuntimeWork` goes.
+3. **The service keeps the process while anything runs**, and shows the reference's three kinds:
+   - its own notification: "iCode — 1 task running", with sessions ("2 sessions · 1 task running");
+   - per item, a silent progress notification (its own channel, minimum importance, as the
+     reference's): "Deleting… (1207/11813)", the item in hand, a bar (sweeping while counting),
+     **Cancel** where the work allows it; a tap opens iCode on that work;
+   - a failure that pops up (its own channel, high importance) when the user was not watching:
+     the task was hidden, or iCode was not on screen. A tap opens iCode on it.
+   Progress notifications are posted at most twice a second: Android drops faster updates.
+4. **Hide = the notification carries it.** No row inside iCode. A hidden task comes back into
+   view when it fails, when its notification is tapped, or when the user runs into it — acting on
+   a path it holds shows its dialog with the reason.
+5. **The dialog**: title with CANCEL (where allowed) and HIDE; the item in hand on one line; the
+   bar; the counts and share under it ("1,207 / 11,813", "10%"), so the dialog says what the
+   notification says.
+
+On success nothing new is posted (§5): the dialog or notification ends and the list refreshes.
+
+### 6.3 Device checks (T5)
+
+| # | Check | Expected |
+|---|---|---|
+| B1 | Delete a folder of ~10,000 entries; HIDE; Home | "iCode — 1 task running"; "Deleting… (n/N)" with the item and a bar, updating; it finishes; the folder is gone |
+| B2 | As B1, then swipe iCode from Recents | The delete continues and finishes; reopening iCode shows the Explorer without the folder |
+| B3 | Import a large folder; HIDE; tap its notification | iCode opens with the Import dialog; Cancel in the notification stops it and leaves nothing |
+| B4 | Clone a repository; leave iCode | "Cloning…" with Git's phase and share; a tap opens Clone progress |
+| B5 | A failing task while iCode is away (delete a folder another app holds read-only) | A pop-up names the failure; a tap shows it in iCode |
+| B6 | Notifications refused | Work continues; a hidden task comes back when it fails or when the user acts on its folder |
+
+## 7. Record
 
 - **T1** (2026-09-29): `WorkTask` (domain) and the task intents — Hide, Show, Cancel, Dismiss —
   which the compiler made the router take (the locked `when` must cover every intent);
@@ -117,3 +175,24 @@ deleted files close; a cancelled delete says how much is gone — deletion canno
   ~80 entries a second — the storage's own pace (1,000 deletes by the shell: 6.1 s on shared
   storage, 0.04 s in app storage). Not checked: opening a file during the delete (the owner took
   the phone). Gate: 474 tests; lint 0 errors / 11 warnings; both guards pass.
+- **§6, the background foundation** (2026-09-30), replacing T3–T4. The backend is one per
+  process (`WorkbenchProcess`: screens attach and detach; the last to leave stops the watcher and
+  language servers only), so a delete, an import, a clone or the runtime install goes on when
+  iCode is left with Back or swiped from Recents. `BackgroundWorkRules` (domain, pure) names all
+  background work from the snapshot and the package installer's `installing`; the gateway
+  publishes it (`BackgroundWork`), and it is the one signal `RuntimeForegroundService` watches
+  besides sessions — `RuntimeWork` is gone. `WorkNotifications`: per item a silent progress
+  notification (minimum importance: "Deleting… (1207 / 11813)", the item, a bar, Cancel where
+  allowed; a tap opens iCode on the work — the task's dialog, Clone or Sync progress, the runtime
+  install) and a failure that pops up (high importance) when the user was not watching; posted at
+  most twice a second; a failure read, dismissed or run again leaves the drawer. The in-app
+  background rows are gone; a hidden task comes back when it fails, when its notification is
+  tapped, or when the user acts on a path it holds (`TaskRunner.waitReason`, one message for
+  Explorer and workspace actions). The dialog shows counts and share. Found and fixed on the way:
+  a task appeared before its job was registered, so a Cancel in that instant was lost, and a job
+  cancelled before its body ran never freed its paths — the job is now registered first and
+  settled on completion, however it ends (tested 50 times in a row). Transfer labels have one
+  source (`GitTransferLabel`); notification arrivals one model (`Arrival`). Gate here: `data/` and
+  `domain/` type-checked, 429 tests (the one failure is `TreeSizeTest`, which fails only as root),
+  both guards. Not compiled here: the screens, the service and the manifest — the owner's build
+  is their first compile; then B1–B6.

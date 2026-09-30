@@ -57,12 +57,9 @@ fun IcodeApp(
     capture: CaptureState? = null,
     /** Called once the first real screen can be drawn, releasing the system splash. */
     onReadyToRender: () -> Unit = {},
-    /** A terminal session to bring to the front, from its notification. */
-    terminalSessionToShow: String? = null,
-    onTerminalSessionShown: () -> Unit = {},
-    /** App info's Manage space: Storage settings, once onboarding is over. */
-    showStorageSettings: Boolean = false,
-    onStorageSettingsShown: () -> Unit = {},
+    /** What a notification or App info asked to show; [onArrived] once it is shown. */
+    arrival: Arrival? = null,
+    onArrived: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val captureMode = capture != null
@@ -170,20 +167,7 @@ fun IcodeApp(
             if (terminalWasShown && !terminalShown) gateway.dispatch(WorkbenchIntent.Refresh)
             terminalWasShown = terminalShown
         }
-        // Onboarding replaces the top screen as it advances, so a terminal
-        // opened during it would be replaced; wait until it is over.
-        val pastOnboarding = navigation.current !in ONBOARDING_SCREENS
-        LaunchedEffect(terminalSessionToShow, pastOnboarding) {
-            val id = terminalSessionToShow ?: return@LaunchedEffect
-            if (!pastOnboarding) return@LaunchedEffect
-            gateway.dispatch(WorkbenchIntent.ShowTerminalSession(id))
-            onTerminalSessionShown()
-        }
-        LaunchedEffect(showStorageSettings, pastOnboarding) {
-            if (!showStorageSettings || !pastOnboarding) return@LaunchedEffect
-            navigation.actions.navigate(Route.StorageSettings)
-            onStorageSettingsShown()
-        }
+        ArrivalEffect(arrival, navigation, pastOnboarding = navigation.current !in ONBOARDING_SCREENS, gateway, onArrived)
         val systemPrompts = rememberSystemPrompts(gateway)
 
         LaunchedEffect(gateway) {

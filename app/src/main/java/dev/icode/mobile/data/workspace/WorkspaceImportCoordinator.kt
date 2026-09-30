@@ -73,7 +73,8 @@ internal class WorkspaceImportCoordinator(
                     throw IOException("Not enough storage: ${ByteSize.format(plan.bytes)} required, ${ByteSize.format(freeBytes())} free")
                 }
                 progress.counted(plan.entries.size.toLong())
-                FolderImport.copy(tree, plan, folder, progress::item)
+                // Each item as a path from the folder it is in, as a copy or a delete says it.
+                FolderImport.copy(tree, plan, folder) { progress.item("$name/$it") }
                 val unrepaired = if (File(folder, ".git").isDirectory) restoreCheckout(folder, progress) else null
                 val workspace = staging.complete(folder, name)
                 imported = Imported(workspace.path, plan.entries.size, plan.skipped.size, unrepaired)

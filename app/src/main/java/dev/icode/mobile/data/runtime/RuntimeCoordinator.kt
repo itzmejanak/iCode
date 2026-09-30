@@ -94,11 +94,10 @@ internal class RuntimeCoordinator(
             runtimeHealthy = false,
             runtimeInstallReason = reason,
         ) }
+        // The Installing state above is background work: the foreground service keeps the
+        // process while it lasts (docs/long-operations-plan.md §6).
         installJob = scope.launch {
             try {
-                // Android kills a backgrounded app mid-install otherwise.
-                RuntimeWork.installStarted()
-                RuntimeForegroundService.ensureRunning(appContext)
                 RuntimeInstaller(appContext, layout).install(reason).collect { state ->
                     workbench.update { it.copy(runtime = state, runtimeHealthy = state is RuntimeState.Ready) }
                     if (state is RuntimeState.Failed) {
@@ -112,8 +111,6 @@ internal class RuntimeCoordinator(
                 val message = workbench.failureText("runtime", "Runtime installation failed", error)
                 workbench.update { it.copy(runtime = RuntimeState.Failed(message), runtimeHealthy = false) }
                 workbench.message(message)
-            } finally {
-                RuntimeWork.installEnded()
             }
         }
         return true

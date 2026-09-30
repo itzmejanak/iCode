@@ -26,7 +26,7 @@ sealed interface AppNotice {
         /** When it started; the process's end left no time of its own. */
         override val at: Long,
         override val read: Boolean,
-        /** "Cloning", "Fetching", "Pulling" or "Pushing". */
+        /** A [GitTransferLabel]. */
         val label: String,
         /** The workspace it was for, or the folder a clone was writing. */
         val target: String,

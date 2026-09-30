@@ -51,7 +51,7 @@ internal class LanguageServiceCoordinator(
 
     fun hasActiveProcesses(): Boolean = processes.hasActiveProcesses()
 
-    /** On a workspace switch and when the gateway closes: servers run in one workspace. */
+    /** On a workspace switch, and when no screen is left: servers run in one workspace, for the editor. */
     fun stopAll() = processes.stopAll()
 
     fun select(id: String) {

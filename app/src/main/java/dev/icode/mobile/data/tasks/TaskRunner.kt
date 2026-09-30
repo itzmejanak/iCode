@@ -14,7 +14,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
-import kotlinx.coroutines.withContext
 
 /**
  * Runs the user's long operations (docs/long-operations-plan.md): each on its
@@ -73,6 +72,17 @@ internal class TaskRunner(
     }
 
     /**
+     * Why [location] must wait: a running task holds it, or a folder above or below it. The user ran
+     * into that task, so a hidden one comes back into view to show what it is doing. Null when
+     * nothing holds it.
+     */
+    fun waitReason(location: String): String? {
+        val task = claimedBy(location) ?: return null
+        if (task.hidden) update(task.id) { it.copy(hidden = false) }
+        return "${task.title.removeSuffix("…")} ${task.subject} — wait for it to finish"
+    }
+
+    /**
      * Starts [work] as a task over [paths], and applies [finished] under the
      * mutation lock when it ends — with null, the cancellation, or the failure.
      * A failure stays shown, as [failure] or the error's own words, until dismissed.
@@ -88,32 +98,37 @@ internal class TaskRunner(
     ): Long {
         val id = ids.incrementAndGet()
         claims[id] = paths
-        workbench.update { it.copy(tasks = it.tasks + WorkTask(id, title, subject, cancellable = cancellable)) }
-        // Registered before it starts, so even an instant task finds itself to remove.
+        var failed: Throwable? = null
         val job = scope.launch(Dispatchers.IO, start = CoroutineStart.LAZY) {
-            val outcome = try {
+            try {
                 work(Progress(id))
-                null
             } catch (error: Throwable) {
-                error
-            }
-            withContext(NonCancellable) {
-                claims.remove(id)
-                jobs.remove(id)
-                when (outcome) {
-                    null, is CancellationException -> workbench.update { state -> state.copy(tasks = state.tasks.filterNot { it.id == id }) }
-                    else -> {
-                        val reason = workbench.failureText("tasks", failure, outcome)
-                        // Said in the dialog: a hidden task comes back to say why it stopped.
-                        update(id) { it.copy(failure = reason, hidden = false) }
-                    }
-                }
-                workbench.mutations.withLock { finished(outcome) }
+                if (error is CancellationException) throw error
+                failed = error
             }
         }
+        // However it ends — done, failed, or cancelled before its body ever ran — it is settled.
+        job.invokeOnCompletion { cause -> settle(id, failed ?: cause, failure, finished) }
+        // Registered before the task can be seen, so a Cancel on its first frame reaches it.
         jobs[id] = job
+        workbench.update { it.copy(tasks = it.tasks + WorkTask(id, title, subject, cancellable = cancellable)) }
         job.start()
         return id
+    }
+
+    /** Frees [id]'s paths and says how it ended; its result is applied under the mutation lock. */
+    private fun settle(id: Long, outcome: Throwable?, failure: String, finished: suspend (Throwable?) -> Unit) {
+        claims.remove(id)
+        jobs.remove(id)
+        when (outcome) {
+            null, is CancellationException -> workbench.update { state -> state.copy(tasks = state.tasks.filterNot { it.id == id }) }
+            else -> {
+                val reason = workbench.failureText("tasks", failure, outcome)
+                // Said in the dialog: a hidden task comes back to say why it stopped.
+                update(id) { it.copy(failure = reason, hidden = false) }
+            }
+        }
+        scope.launch(NonCancellable) { workbench.mutations.withLock { finished(outcome) } }
     }
 
     fun handle(intent: WorkbenchIntent.TaskIntent) {

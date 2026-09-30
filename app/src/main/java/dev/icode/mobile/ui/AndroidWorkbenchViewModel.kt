@@ -5,10 +5,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import com.termux.terminal.TerminalSession
 import dev.icode.mobile.data.workspace.AndroidWorkbenchGateway
+import dev.icode.mobile.data.workspace.WorkbenchProcess
 import dev.icode.mobile.ui.terminal.TerminalSessionSource
 
+/** A screen's hold on the process's one workbench ([WorkbenchProcess]); the work outlives the screen. */
 internal class AndroidWorkbenchViewModel(context: Context) : ViewModel() {
-    val gateway = AndroidWorkbenchGateway(context.applicationContext)
+    val gateway: AndroidWorkbenchGateway = WorkbenchProcess.attach(context)
 
     /** The gateway's terminal sessions, for the view that draws them. */
     val terminalSessions: TerminalSessionSource = object : TerminalSessionSource {
@@ -18,7 +20,7 @@ internal class AndroidWorkbenchViewModel(context: Context) : ViewModel() {
     }
 
     override fun onCleared() {
-        gateway.close()
+        WorkbenchProcess.detach()
     }
 }
 

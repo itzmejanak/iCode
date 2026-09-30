@@ -22,4 +22,10 @@ data class WorkTask(
     val failure: String? = null,
 ) {
     val fraction: Float? get() = total?.takeIf { it > 0 }?.let { (done.toFloat() / it).coerceIn(0f, 1f) }
+
+    /** "1207 / 11813" once counted: the dialog and the notification say the same. */
+    val counts: String? get() = total?.let { "$done / $it" }
 }
+
+/** "45%" for a share of the work; the one way a share is said. */
+fun percentOf(fraction: Float): String = "${(fraction.coerceIn(0f, 1f) * 100).toInt()}%"
