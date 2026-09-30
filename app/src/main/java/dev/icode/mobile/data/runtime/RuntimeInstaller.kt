@@ -161,6 +161,8 @@ internal class RuntimeInstaller(
             // sentinel is safe (a later restart still sees Ready), whereas
             // calling this a failed install after writing the marker is not.
             if (reason == RuntimeInstallReason.Repair) runCatching { homeBackup.completeRepair() }
+            // A rebuilt base system has none of the tools installed before: they are offered again.
+            runCatching { layout.componentsOffer.createNewFile() }
             archive.delete()
             emit(RuntimeState.Ready(release))
         } catch (error: CancellationException) {

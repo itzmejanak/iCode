@@ -226,4 +226,25 @@ cards, check rows, the progress track, the bottom action bar), as Import was.
   same install; the Git item now carries transfers only (`GitTransferLabel.ALL`). Gate: 554 tests;
   lint 0 errors / 12 warnings (checked against lint's fresh analysis: an unchanged report is not
   rewritten); both guards pass.
+- **C4** (2026-09-30): the Components page (`RuntimeComponentsScreen`, `RuntimeComponentsParts`;
+  route `RuntimeComponents`, no Figma frame, built from the design system's parts plus a new
+  `IcodeCheckbox`). A runtime build (install, repair, reset) leaves `components-offer` beside its
+  marker; `RuntimeCoordinator` publishes Ready and the offer in one update, so the screen that
+  routes on Ready sees both. The install screen then puts the page in its own place, and the
+  splash routes to it when a process ended before it was answered. Install, Continue, Skip or Apply
+  answers it once, and it is not offered again. A runtime built before this has no offer (the
+  owner's is untouched). Onboarding: Standard (preselected, fixed ticks) or Custom; Install or
+  Skip; the summary under the list: "Download … · … free", as apt measured it. Settings → Runtime
+  Environment → Components: installed ticked, "Removes" in amber when unticked, Apply. While apt
+  runs, the page is its progress: title, bar (sweeping, then filling by packages set up), step,
+  package, Details (apt's last lines), Cancel while it only downloads, Hide. A failure shows apt's
+  words, with Retry and Close. After an offered install ends well, onboarding moves on by itself.
+  Its notification opens the page (`BackgroundPlace.Components`, replacing the unused `App`).
+  `OnboardingRoute`: runtime → components (when offered) → permissions → launcher. Docs: layout
+  §11, US-ENTRY-003 and architecture §7.2 record the step and that it forces nothing (the PRD's
+  "no forced tool decisions" stands: Standard is preselected, Skip installs nothing). Found by the
+  gate: lint's MutableCollectionMutableState on the Custom choice (now an immutable set with a
+  saver), and a needless capture check (the UI guard). The capture script counts framed routes
+  only, so it stays at 39. 5 onboarding and coordinator tests added. Gate: 557 tests; lint 0 errors
+  / 12 warnings; both guards pass.
 

@@ -4,6 +4,7 @@ import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.workspace.WorkbenchStateHolder
 import dev.icode.mobile.domain.RuntimeComponentsState
 import dev.icode.mobile.domain.WorkbenchIntent
+import java.io.File
 import java.util.Collections
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -33,7 +34,8 @@ class RuntimeComponentsCoordinatorTest {
         }
         GuestCommand.Result(0, "", false)
     }
-    private val coordinator = RuntimeComponentsCoordinator(workbench, scope, installer)
+    private val offer: File = File.createTempFile("components-offer", "").apply { deleteOnExit() }
+    private val coordinator = RuntimeComponentsCoordinator(workbench, scope, installer, offer)
 
     @Before fun quietLog() {
         BackendLog.writer = { _, _, _ -> }
@@ -66,5 +68,19 @@ class RuntimeComponentsCoordinatorTest {
         coordinator.handle(WorkbenchIntent.ApplyComponents(setOf("git", "ripgrep")))
         until { "ripgrep" in components().installedPackages.orEmpty() && components().work == null }
         assertTrue("what is installed changed: the sizes are measured again", components().downloads.isEmpty())
+    }
+
+    @Test fun `the offer after a build is answered once, by Skip or by Apply`() {
+        coordinator.start()
+        workbench.update { it.copy(components = it.components.copy(offerPending = true)) }
+        coordinator.handle(WorkbenchIntent.SkipComponents)
+        assertFalse(components().offerPending)
+        assertFalse("not offered again", offer.exists())
+
+        offer.createNewFile()
+        workbench.update { it.copy(components = it.components.copy(offerPending = true)) }
+        coordinator.handle(WorkbenchIntent.ApplyComponents(setOf("git", "ripgrep")))
+        assertFalse(components().offerPending)
+        assertFalse(offer.exists())
     }
 }

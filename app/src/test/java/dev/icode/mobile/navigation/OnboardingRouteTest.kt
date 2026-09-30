@@ -15,41 +15,41 @@ class OnboardingRouteTest {
 
     @Test
     fun `nothing moves until what Android allows has been read`() {
-        assertNull(OnboardingRoute.next(ready, access = null))
-        assertNull(OnboardingRoute.next(RuntimeState.NotInstalled("missing"), access = null))
+        assertNull(OnboardingRoute.next(ready, access = null, componentsPending = false))
+        assertNull(OnboardingRoute.next(RuntimeState.NotInstalled("missing"), access = null, componentsPending = false))
     }
 
     @Test
     fun `a new install goes to the runtime step before anything else`() {
-        assertEquals(Route.RuntimeInstalling, OnboardingRoute.next(RuntimeState.NotInstalled("missing"), everything))
+        assertEquals(Route.RuntimeInstalling, OnboardingRoute.next(RuntimeState.NotInstalled("missing"), everything, componentsPending = false))
     }
 
     @Test
     fun `the runtime step comes first even when permission is still outstanding`() {
-        assertEquals(Route.RuntimeInstalling, OnboardingRoute.next(RuntimeState.NotInstalled("missing"), noNotifications))
+        assertEquals(Route.RuntimeInstalling, OnboardingRoute.next(RuntimeState.NotInstalled("missing"), noNotifications, componentsPending = false))
     }
 
     @Test
     fun `an install already under way is not restarted from the splash`() {
         val downloading = RuntimeState.Downloading(receivedBytes = 10, totalBytes = 100, label = "rootfs")
-        assertEquals(Route.RuntimeInstalling, OnboardingRoute.next(downloading, everything))
-        assertEquals(Route.RuntimeInstalling, OnboardingRoute.next(RuntimeState.Installing("extracting"), everything))
+        assertEquals(Route.RuntimeInstalling, OnboardingRoute.next(downloading, everything, componentsPending = false))
+        assertEquals(Route.RuntimeInstalling, OnboardingRoute.next(RuntimeState.Installing("extracting"), everything, componentsPending = false))
     }
 
     @Test
     fun `a failed runtime is shown, not skipped past to the launcher`() {
-        assertEquals(Route.RuntimeInstalling, OnboardingRoute.next(RuntimeState.Failed("no network"), everything))
+        assertEquals(Route.RuntimeInstalling, OnboardingRoute.next(RuntimeState.Failed("no network"), everything, componentsPending = false))
     }
 
     @Test
     fun `a ready runtime with everything allowed opens the launcher`() {
-        assertEquals(Route.LauncherHome, OnboardingRoute.next(ready, everything))
+        assertEquals(Route.LauncherHome, OnboardingRoute.next(ready, everything, componentsPending = false))
     }
 
     @Test
     fun `an optional permission not yet offered is asked for`() {
-        assertEquals(Route.PermissionExplanation, OnboardingRoute.next(ready, everything.copy(notifications = false)))
-        assertEquals(Route.PermissionExplanation, OnboardingRoute.next(ready, everything.copy(unrestrictedBattery = false)))
+        assertEquals(Route.PermissionExplanation, OnboardingRoute.next(ready, everything.copy(notifications = false), componentsPending = false))
+        assertEquals(Route.PermissionExplanation, OnboardingRoute.next(ready, everything.copy(unrestrictedBattery = false), componentsPending = false))
     }
 
     @Test
@@ -59,18 +59,32 @@ class OnboardingRouteTest {
             unrestrictedBattery = false,
             offered = setOf(SystemPermission.Notifications, SystemPermission.Battery),
         )
-        assertEquals(Route.LauncherHome, OnboardingRoute.next(ready, refused))
+        assertEquals(Route.LauncherHome, OnboardingRoute.next(ready, refused, componentsPending = false))
     }
 
     @Test
     fun `an unchecked runtime is not an install step`() {
-        assertEquals(Route.LauncherHome, OnboardingRoute.next(RuntimeState.Unknown, everything))
+        assertEquals(Route.LauncherHome, OnboardingRoute.next(RuntimeState.Unknown, everything, componentsPending = false))
     }
 
     @Test
     fun `after the runtime finishes it never routes back into itself`() {
-        assertEquals(Route.LauncherHome, OnboardingRoute.afterRuntime(everything))
-        assertEquals(Route.PermissionExplanation, OnboardingRoute.afterRuntime(noNotifications))
-        assertNull(OnboardingRoute.afterRuntime(null))
+        assertEquals(Route.LauncherHome, OnboardingRoute.afterRuntime(everything, componentsPending = false))
+        assertEquals(Route.PermissionExplanation, OnboardingRoute.afterRuntime(noNotifications, componentsPending = false))
+        assertNull(OnboardingRoute.afterRuntime(null, componentsPending = false))
+    }
+
+    @Test
+    fun `a runtime just built offers its components first, before any permission`() {
+        assertEquals(Route.RuntimeComponents, OnboardingRoute.next(ready, noNotifications, componentsPending = true))
+        assertEquals(Route.RuntimeComponents, OnboardingRoute.afterRuntime(everything, componentsPending = true))
+        assertEquals(Route.RuntimeInstalling, OnboardingRoute.next(RuntimeState.NotInstalled("missing"), everything, componentsPending = true))
+    }
+
+    @Test
+    fun `once the components are answered, what Android allows decides`() {
+        assertEquals(Route.PermissionExplanation, OnboardingRoute.afterComponents(noNotifications))
+        assertEquals(Route.LauncherHome, OnboardingRoute.afterComponents(everything))
+        assertNull(OnboardingRoute.afterComponents(null))
     }
 }

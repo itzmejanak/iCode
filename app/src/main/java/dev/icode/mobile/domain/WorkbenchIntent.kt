@@ -71,6 +71,8 @@ sealed interface WorkbenchIntent {
     /** Install what [chosen] adds, remove what it leaves out. */
     data class ApplyComponents(val chosen: Set<String>) : ComponentIntent
     data object CancelComponents : ComponentIntent
+    /** The page offered after a runtime build is answered without installing anything. */
+    data object SkipComponents : ComponentIntent
     /** A failure, read. */
     data object DismissComponents : ComponentIntent
     data class UpdateDocumentText(val location: String, val text: String) : WorkbenchIntent

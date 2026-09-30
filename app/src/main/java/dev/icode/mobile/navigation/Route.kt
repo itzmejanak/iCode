@@ -23,6 +23,9 @@ enum class Route(
     Notifications(null, "Notifications", RouteGroup.ENTRY),
     // Workspaces live in iCode's storage (2026-09-30): Import names the folder chosen in its browser.
     ImportWorkspace(null, "Import", RouteGroup.ENTRY),
+    // Owner's request (2026-09-30): choose the runtime's tools, as Android Studio's setup does
+    // (docs/runtime-components-plan.md §3.5).
+    RuntimeComponents(null, "Runtime components", RouteGroup.ENTRY),
     CloneRepository("3:239", "Clone repository", RouteGroup.ENTRY),
     CloneProgress("3:278", "Clone progress", RouteGroup.ENTRY),
     WorkspaceExplorer("3:456", "Workspace explorer", RouteGroup.WORKSPACE),

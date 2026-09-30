@@ -43,7 +43,7 @@ internal fun ArrivalEffect(arrival: Arrival?, navigation: NavigationState, pastO
                 BackgroundPlace.Clone -> show(Route.CloneProgress)
                 BackgroundPlace.Sync -> show(Route.PullFetchProgress)
                 BackgroundPlace.Runtime -> show(Route.RuntimeInstalling)
-                BackgroundPlace.App -> Unit
+                BackgroundPlace.Components -> show(Route.RuntimeComponents)
             }
         }
         onArrived()

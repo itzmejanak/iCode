@@ -72,6 +72,7 @@ Acceptance criteria:
 - Failure shows a reason and retry or diagnostic action.
 - Successful preparation continues the action the user originally requested.
 - No provider or agent selection follows automatically.
+- The runtime's tools are offered once after it is built, never forced: Standard preselected, Skip installs nothing, and a feature that needs a tool installs it when used, saying so (owner, 2026-09-30; [runtime-components-plan.md](./runtime-components-plan.md)).
 
 ## 5. Where Workspaces Live
 

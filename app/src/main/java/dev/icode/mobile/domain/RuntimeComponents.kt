@@ -106,6 +106,8 @@ data class RuntimeComponentsState(
     val measureFailure: String? = null,
     /** The apt run in hand, or the page's last failure until read. */
     val work: ComponentWork? = null,
+    /** The runtime was just built and the Components page has not been answered: onboarding offers it. */
+    val offerPending: Boolean = false,
 ) {
     fun isInstalled(component: RuntimeComponent): Boolean =
         installedPackages?.let { ComponentRules.isInstalled(component, it) } == true
