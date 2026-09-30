@@ -27,7 +27,7 @@ data class FilesBrowserState(val rootPath: String, val path: String, val items: 
     val crumbs: List<FolderCrumb> get() = FolderCrumbs.of(ROOT_NAME, rootPath, path)
 
     /** The folder above, where Back goes; null at the top. */
-    val parent: String? get() = crumbs.dropLast(1).lastOrNull()?.path
+    val parent: String? get() = FolderCrumbs.parentOf(crumbs)
 
     /** The workspace it is in; null at the top. */
     val workspace: String? get() = crumbs.getOrNull(1)?.path

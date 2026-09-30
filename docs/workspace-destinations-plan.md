@@ -221,4 +221,12 @@ open over the real Source Control, a little blurred, and be chosen from one bar 
 - **G10** (2026-10-01): choose mode's empty folder says what can be done there — Place here, or
   New folder; at the top, New workspace below — and goes by what it can list: a folder of files
   only is "No folders in …", not "Nothing here matches “”".
+- **G12** (2026-10-01, owner): the search keeps what was typed while the workspace is open, as
+  VS Code's search view — the page no longer clears it on leaving; it opens with the last query,
+  its options and results, and runs it again. The workspace's close resets it, as before. Quick
+  Open starts empty and no longer clears the text search.
+- **G13** (2026-10-01, owner): in Import's browser, Back — the system's and the top bar's — goes up
+  a folder, as in the Workspaces page's explorer; at sdcard it leaves. The folder above is one rule
+  for both browsers (`FolderCrumbs.parentOf`). 1 test. Gate (G7–G13): 579 tests; lint 0 errors /
+  12 warnings; both guards pass.
 

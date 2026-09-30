@@ -9,7 +9,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,7 +56,9 @@ fun WorkspaceFindScreen(actions: NavigationActions, initialMode: FindMode) {
     val search = state.contentSearch
 
     var mode by rememberSaveable { mutableStateOf(initialMode) }
-    var query by rememberSaveable { mutableStateOf("") }
+    // The search stays while the workspace is open, as VS Code's search view: come back and the last
+    // one is there (the workspace's close resets it). Quick Open starts empty, as VS Code's does.
+    var query by rememberSaveable { mutableStateOf(if (initialMode == FindMode.Text) search.query else "") }
     var matchCase by rememberSaveable { mutableStateOf(search.matchCase) }
     var wholeWord by rememberSaveable { mutableStateOf(search.wholeWord) }
     var regex by rememberSaveable { mutableStateOf(search.regex) }
@@ -65,10 +66,6 @@ fun WorkspaceFindScreen(actions: NavigationActions, initialMode: FindMode) {
     val rankedFiles = remember(state.fileIndex, query) { rankFiles(state.fileIndex, query) }
     val resultsAreCurrent = query.isNotBlank() && query.trim() == search.query &&
         matchCase == search.matchCase && wholeWord == search.wholeWord && regex == search.regex
-
-    DisposableEffect(gateway) {
-        onDispose { gateway.dispatch(WorkbenchIntent.ClearContentSearch) }
-    }
 
     // Quick Open asks for its index lazily: opening an ordinary workspace must
     // not install a package the user has not used yet.
@@ -78,9 +75,11 @@ fun WorkspaceFindScreen(actions: NavigationActions, initialMode: FindMode) {
         }
     }
 
-    // Only text mode runs a scan; ranking the file index is instant and local.
+    // Only text mode runs a scan; ranking the file index is instant and local, and leaves the text
+    // search as it was.
     LaunchedEffect(mode, query, matchCase, wholeWord, regex, state.activeWorkspaceLocation) {
-        if (mode != FindMode.Text || query.isBlank()) {
+        if (mode != FindMode.Text) return@LaunchedEffect
+        if (query.isBlank()) {
             gateway.dispatch(WorkbenchIntent.ClearContentSearch)
         } else {
             delay(SEARCH_DEBOUNCE_MILLIS)
