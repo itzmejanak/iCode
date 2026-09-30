@@ -86,4 +86,45 @@ class GitLocatorTest {
         assertNull(locator.topOf(plain.path))
         assertNull(locator.branchOf(plain.path))
     }
+
+    @Test fun `a workspace's repositories are the one it is in, then those in its folders, as far as three down`() {
+        val projects = folder("projects")
+        val api = repository("projects/api")
+        val cli = repository("projects/tools/cli")
+        val deep = repository("projects/a/b/c/too-deep")
+        repository("projects/node_modules/dep")
+        repository("projects/.cache/hidden")
+        File(folder("projects/vendor/sub"), ".git").writeText("gitdir: ../../.git/modules/sub\n")
+        assertEquals(
+            listOf(api.path, cli.path, File(projects, "vendor/sub").path),
+            locator.repositoriesIn(projects.path).sortedBy { it },
+        )
+        assertFalse(deep.path in locator.repositoriesIn(projects.path))
+
+        val app = repository("app")
+        val lib = repository("app/libs/core")
+        assertEquals(listOf(app.path, lib.path), locator.repositoriesIn(app.path))
+    }
+
+    @Test fun `Git runs in the chosen repository of a workspace, else the one it is in, else its first`() {
+        val projects = folder("projects")
+        val api = repository("projects/api")
+        val cli = repository("projects/cli")
+        assertEquals("before a scan, the workspace itself", projects.path, locator.workingFolderOf(projects.path))
+        locator.repositoriesIn(projects.path)
+        assertEquals(api.path, locator.workingFolderOf(projects.path))
+        locator.choose(projects.path, cli.path)
+        assertEquals(cli.path, locator.workingFolderOf(projects.path))
+        assertEquals("a folder inside one is its repository's, whatever is chosen", api.path, locator.workingFolderOf(File(api, "src").apply { mkdirs() }.path))
+
+        cli.deleteRecursively()
+        locator.repositoriesIn(projects.path)
+        assertEquals("a chosen one gone, the first again", api.path, locator.workingFolderOf(projects.path))
+
+        val app = repository("app")
+        repository("app/libs/core")
+        locator.repositoriesIn(app.path)
+        assertEquals("a workspace that is a repository, itself", app.path, locator.workingFolderOf(app.path))
+    }
 }
+

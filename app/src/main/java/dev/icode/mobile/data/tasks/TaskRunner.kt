@@ -133,7 +133,8 @@ internal class TaskRunner(
 
     fun handle(intent: WorkbenchIntent.TaskIntent) {
         when (intent) {
-            is WorkbenchIntent.HideTask -> update(intent.id) { it.copy(hidden = true) }
+            // A failure stays shown until dismissed, even when it landed before this Hide did.
+            is WorkbenchIntent.HideTask -> update(intent.id) { if (it.failure != null) it else it.copy(hidden = true) }
             is WorkbenchIntent.ShowTask -> update(intent.id) { it.copy(hidden = false) }
             is WorkbenchIntent.CancelTask ->
                 if (workbench.current.tasks.any { it.id == intent.id && it.cancellable }) jobs[intent.id]?.cancel()

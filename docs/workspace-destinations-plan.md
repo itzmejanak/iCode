@@ -66,9 +66,9 @@ several repositories is not yet a place to work on them.
 6. **Several repositories in one workspace (§4 D2).** Source Control finds the repositories in the
    open workspace — its own and those in its folders, a few levels down, as VS Code scans — and
    shows one at a time with a picker in its header ("RevPlayer ▾"), remembering the choice per
-   workspace. Status, diff, stage, commit, branch, pull and push work on the chosen repository; the
-   Explorer's badges come from each file's own repository; the launcher's branch stays the
-   workspace root's.
+   workspace while iCode runs. Status, diff, stage, commit, branch, pull and push work on the chosen
+   repository; the Explorer's badges are the chosen repository's (D6); the launcher's branch stays
+   the workspace root's.
 
 ## 3. Steps (each: gate, commit; device where it touches a screen)
 
@@ -90,6 +90,9 @@ several repositories is not yet a place to work on them.
   manager's behaviour; a tap opens it. Clone and Import still open what they made, as today.
 - **D4** One item at a time, as today's menus: no multi-select yet (a later step if wanted).
 - **D5** In the file explorer, Back goes up a folder, as in MT Manager; at the top it leaves.
+- **D6** The Explorer's badges come from the repository Source Control shows, not from every
+  repository in the workspace: each more would be one more Git process in the runtime at every
+  refresh. A later step if wanted.
 
 ## 5. Record
 
@@ -146,4 +149,17 @@ several repositories is not yet a place to work on them.
   the name's check and the path shown follow it (`/workspace/tools/<name>`, "already in
   /workspace/tools"); Clone and Import send it, and it is cleared once they finish. Gate: 571
   tests; lint 0 errors / 12 warnings; both guards pass.
-
+- **G5** (2026-10-01): Source Control over several repositories. `GitLocator` finds a workspace's
+  repositories on disk at each read — the one it is in, then each folder with a `.git` of its own,
+  three levels down, not in hidden folders, `node_modules` or through a link — and holds the one
+  chosen per workspace while iCode runs. Every Git command already asks it where to run
+  (`workingFolderOf`): for the workspace, the chosen repository while it is still there, else the
+  one the workspace is in, else the first found; for anything in it, the repository holding it —
+  so status, diff, stage, commit, branches, conflicts, pull and push are the chosen one's. What Git
+  says reaches the workbench by one copy (`withGit`, `GitPicture.kt`), for a workspace opened and
+  for one refreshed; the snapshot carries `gitRepositories`. Source Control shows the picker
+  (`RepositoryPicker`: each named by its folder in the workspace, the chosen one ticked) when there
+  is more than one; `ChooseGitRepository` chooses and refreshes. Found on the way: a task's Hide
+  that lands after its failure no longer hides it — the failure stays until dismissed (a timing
+  flake in `TaskRunnerTest`, now asserted). 2 tests. Gateway 361 (budget lowered). Gate: 573
+  tests; lint 0 errors / 12 warnings; both guards pass.

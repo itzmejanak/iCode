@@ -128,6 +128,8 @@ sealed interface WorkbenchIntent {
     /** Installs Git into the runtime when it is not present yet. */
     data object ProvisionGit : WorkbenchIntent
     data object RefreshGit : WorkbenchIntent
+    /** Source Control's picker: Git works in this repository of the open workspace. */
+    data class ChooseGitRepository(val location: String) : WorkbenchIntent
     /** [staged] selects the index-vs-HEAD comparison instead of worktree-vs-index. */
     data class OpenDiff(val path: String, val staged: Boolean) : WorkbenchIntent
     data object CloseDiff : WorkbenchIntent

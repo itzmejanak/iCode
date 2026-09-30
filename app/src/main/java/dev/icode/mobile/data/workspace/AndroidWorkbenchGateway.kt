@@ -275,10 +275,7 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
                         is WorkbenchIntent.RestoreDraft -> recovery.restore(intent.location)
                         is WorkbenchIntent.OpenRecoverableDraft -> session.openRecoverableDraft(intent.location)
                         is WorkbenchIntent.DiscardDraft -> recovery.keepDiskVersion(intent.location)
-                        is WorkbenchIntent.ConfirmRecoveredOverwrite -> documents.save(
-                            intent.location,
-                            allowRecoveredOverwrite = true,
-                        )
+                        is WorkbenchIntent.ConfirmRecoveredOverwrite -> documents.save(intent.location, allowRecoveredOverwrite = true)
                         is WorkbenchIntent.ReloadFromDisk -> documents.reloadFromDisk(intent.location)
                         is WorkbenchIntent.OverwriteDisk -> documents.overwriteDisk(intent.location)
                         is WorkbenchIntent.CompareWithDisk -> session.compareWithDisk(intent.location)
@@ -301,6 +298,7 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
                         is WorkbenchIntent.DeleteBranch -> gitWorkspace.deleteBranch(intent.branch)
                         is WorkbenchIntent.CheckoutRemoteBranch -> gitWorkspace.checkoutRemote(intent.remoteBranch)
                         WorkbenchIntent.RefreshGit -> gitWorkspace.refreshActive()
+                        is WorkbenchIntent.ChooseGitRepository -> gitWorkspace.choose(intent.location)
                         is WorkbenchIntent.OpenDiff -> gitWorkspace.openDiff(intent.path, intent.staged)
                         WorkbenchIntent.CloseDiff -> gitWorkspace.closeDiff()
                         is WorkbenchIntent.RequestDiscardChanges -> gitWorkspace.requestDiscard(intent.path)
