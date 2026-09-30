@@ -19,6 +19,15 @@ object WorkspaceNameRules {
     fun newWorkspaceError(rawName: String, taken: (name: String) -> Boolean): String? =
         workspaceNameError(rawName) ?: rawName.trim().takeIf(taken)?.let { "A workspace named $it already exists" }
 
+    /**
+     * A new project's name where it will land: a new workspace's when [destination] is none, else a
+     * folder's that [destination] does not hold yet.
+     */
+    fun projectNameError(rawName: String, destination: ProjectDestination?, workspaceTaken: (name: String) -> Boolean): String? =
+        if (destination == null) newWorkspaceError(rawName, workspaceTaken)
+        else workspaceFolderValidationError(rawName)
+            ?: rawName.trim().takeIf { it in destination.taken }?.let { "“$it” is already in ${destination.displayPath}" }
+
     private fun nameError(rawName: String, kind: String): String? {
         val name = rawName.trim()
         val label = if (kind == "file") "File" else "Folder"

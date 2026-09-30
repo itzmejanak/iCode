@@ -31,7 +31,8 @@ sealed interface WorkbenchIntent {
     /** The folder at [path] on phone storage is the one to import: the Import screen names it. */
     data class ChooseImportFolder(val path: String) : WorkbenchIntent
     /** Copies the chosen [ImportSource] into a new workspace named [name]; runs as a task. */
-    data class ImportWorkspace(val name: String) : WorkbenchIntent
+    /** As a new workspace, or as [name] inside the folder [into]. */
+    data class ImportWorkspace(val name: String, val into: String? = null) : WorkbenchIntent
     data class OpenWorkspace(val path: String) : WorkbenchIntent
     data class OpenWorkspaceTerminal(val path: String) : WorkbenchIntent
     data class ResolveWorkspaceSwitch(val path: String, val openTerminal: Boolean, val saveChanges: Boolean) : WorkbenchIntent
@@ -150,11 +151,15 @@ sealed interface WorkbenchIntent {
     data class ResolveConflict(val path: String, val sectionStart: Int, val choice: GitConflictChoice) : WorkbenchIntent
     data class MarkConflictResolved(val path: String) : WorkbenchIntent
     data class UpdateCloneForm(val url: String, val name: String, val branch: String) : WorkbenchIntent
-    /** Clones into `/workspace/<directoryName>`; [branch] blank means the remote's default branch. */
+    /**
+     * Clones into `/workspace/<directoryName>`, or into the folder [into] of a workspace; [branch]
+     * blank means the remote's default branch.
+     */
     data class CloneRepository(
         val url: String,
         val directoryName: String,
         val branch: String = "",
+        val into: String? = null,
     ) : WorkbenchIntent
 
     data class SelectGitProvider(val provider: GitProvider) : WorkbenchIntent

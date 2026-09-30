@@ -35,6 +35,27 @@ class WorkspaceStagingTest {
         assertEquals("kept", File(workspace, "notes.md").readText())
     }
 
+    @Test fun `a project can land in a workspace's folder, checked where it lands, never outside or in Git's`() {
+        val tools = File(root, "tools/cli").apply { mkdirs() }
+        File(tools, "taken").mkdir()
+        assertEquals(null, staging.nameProblem("api", tools))
+        assertEquals("“taken” is already in cli", staging.nameProblem("taken", tools))
+        assertEquals("A workspace named tools already exists", staging.nameProblem("tools"))
+
+        val folder = staging.reserve("clone").apply { mkdir() }
+        File(folder, "README.md").writeText("api")
+        val project = staging.complete(folder, "api", tools)
+        assertEquals(File(tools, "api"), project)
+        assertEquals("api", File(project, "README.md").readText())
+
+        val outside = temp.newFolder("elsewhere")
+        val stray = staging.reserve("clone").apply { mkdir() }
+        assertTrue(runCatching { staging.complete(stray, "x", outside) }.isFailure)
+        val git = File(root, "tools/.git").apply { mkdirs() }
+        assertTrue(runCatching { staging.complete(stray, "x", git) }.isFailure)
+        assertTrue("a refused one is left for the caller to discard", stray.exists())
+    }
+
     @Test fun `what an ended process left goes at the next start, and nothing else`() {
         val left = File(root, ".clone-17").apply { mkdirs() }
         File(left, "half").writeText("x")

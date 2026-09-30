@@ -57,6 +57,8 @@ data class WorkbenchSnapshot(
     val terminal: TerminalSnapshot = TerminalSnapshot(),
     /** The Notifications page, newest first. */
     val notices: List<AppNotice> = emptyList(),
+    /** Where the next clone or import goes; none, a new workspace (docs/workspace-destinations-plan.md). */
+    val projectDestination: ProjectDestination? = null,
     /** What is cut or copied, waiting for Paste — the Explorer's and the Workspaces page's one clipboard. */
     val clipboard: ItemClipboard? = null,
     /** Long operations running, or failed and not yet seen (docs/long-operations-plan.md). */

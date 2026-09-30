@@ -92,6 +92,18 @@ internal class WorkspaceLifecycleCoordinator(
         )
     }
 
+    /**
+     * What a clone or an import made, shown: a new workspace opens; a project made in a workspace's
+     * folder opens that workspace with it selected in the Explorer — or, the open one, shows it.
+     */
+    suspend fun reveal(location: String) {
+        val workspace = source.workspaceOf(location) ?: return
+        workbench.update { it.copy(initialExplorerSelection = location.takeIf { it != workspace }) }
+        if (workspace != session.activeRoot) return session.open(workspace, persist = true)
+        session.requestRefresh(rebuildIndex = true)
+        workbench.emit(WorkbenchEffect.WorkspaceOpened(workspace))
+    }
+
     /** Before [location] stops being a workspace: closed, if it is the open one. */
     suspend fun release(location: String) {
         if (session.activeRoot == location) session.close()

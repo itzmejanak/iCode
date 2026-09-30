@@ -120,7 +120,7 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
         withCredentials = { block -> authenticator.withHttpsCredentials(block) },
         // A transfer runs outside the lock; what it changes afterwards takes it.
         refresh = { workspace -> workbench.mutations.withLock { gitWorkspace.refresh(workspace) } },
-        openClone = { location -> workbench.mutations.withLock { session.open(location, persist = true) } },
+        openClone = { location -> workbench.mutations.withLock { lifecycle.reveal(location) } },
         ledger = transferLedger,
     )
     private val gitAuth: GitAuthCoordinator = GitAuthCoordinator(
@@ -168,7 +168,7 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
         PhoneStorage.of(),
         reserveSpace = runtimeLayout::reserveSpace,
         freeBytes = runtimeLayout::allocatableBytes,
-        open = { location -> session.open(location, persist = true) },
+        open = lifecycle::reveal,
     )
 
     override val snapshot: StateFlow<WorkbenchSnapshot> = workbench.snapshot
@@ -234,7 +234,7 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
             WorkbenchIntent.PullRemote -> gitTransfers.pull()
             WorkbenchIntent.PushRemote -> gitTransfers.push()
             WorkbenchIntent.CancelGitTransfer -> gitTransfers.cancel()
-            is WorkbenchIntent.CloneRepository -> gitTransfers.clone(intent.url, intent.directoryName, intent.branch)
+            is WorkbenchIntent.CloneRepository -> gitTransfers.clone(intent.url, intent.directoryName, intent.branch, intent.into)
             else -> scope.launch {
                 workbench.mutations.withLock {
                     when (intent) {
@@ -256,7 +256,7 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
                         is WorkbenchIntent.OpenImportBrowser -> importer.openBrowser(intent.path)
                         is WorkbenchIntent.BrowseImportFolder -> importer.browse(intent.path)
                         is WorkbenchIntent.ChooseImportFolder -> importer.choose(intent.path)
-                        is WorkbenchIntent.ImportWorkspace -> importer.import(intent.name)
+                        is WorkbenchIntent.ImportWorkspace -> importer.import(intent.name, intent.into)
                         is WorkbenchIntent.OpenWorkspace -> session.open(intent.path, persist = true)
                         is WorkbenchIntent.OpenWorkspaceTerminal -> session.open(intent.path, persist = true, openTerminal = true)
                         is WorkbenchIntent.ResolveWorkspaceSwitch -> session.resolveSwitch(intent)
