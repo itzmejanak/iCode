@@ -109,6 +109,10 @@ data class RuntimeComponentsState(
 ) {
     fun isInstalled(component: RuntimeComponent): Boolean =
         installedPackages?.let { ComponentRules.isInstalled(component, it) } == true
+
+    /** The run installing [component] now, for a button that waits on it; null when none does. */
+    fun installing(component: RuntimeComponent): ComponentWork? =
+        work?.takeIf { it.failure == null && it.action == ComponentAction.Install && it.includes(component) }
 }
 
 enum class ComponentAction { Install, Remove }
@@ -135,4 +139,7 @@ data class ComponentWork(
         get() = failure == null && (progress.phase == AptPhase.Preparing || progress.phase == AptPhase.Downloading)
 
     fun includes(component: RuntimeComponent): Boolean = components.any { it.id == component.id }
+
+    /** "Installing SSH client · Setting up 3 of 6": what a button waiting on it says. */
+    val status: String get() = "$title · ${progress.step}"
 }

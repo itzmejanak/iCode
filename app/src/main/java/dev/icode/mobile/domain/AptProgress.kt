@@ -62,7 +62,7 @@ data class AptProgress(
             AptPhase.Preparing -> "Reading package lists"
             AptPhase.Updating -> "Updating package lists"
             AptPhase.Downloading -> downloadSize?.let { "Downloading $it" } ?: "Downloading"
-            AptPhase.Installing -> total?.let { "Installing $done of $it" } ?: "Installing"
+            AptPhase.Installing -> total?.let { "Setting up $done of $it" } ?: "Setting up"
             AptPhase.Removing -> total?.let { "Removing $done of $it" } ?: "Removing"
         }
 

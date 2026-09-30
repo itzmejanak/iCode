@@ -69,7 +69,7 @@ class AptProgressTest {
         assertEquals("libfido2-1", halfway.item)
         assertEquals("3 / 6", halfway.counts)
         assertEquals(0.5f, halfway.fraction)
-        assertEquals("Installing 3 of 6", halfway.step)
+        assertEquals("Setting up 3 of 6", halfway.step)
 
         val finished = read(*sshInstall.toTypedArray())
         assertEquals(6, finished.done)

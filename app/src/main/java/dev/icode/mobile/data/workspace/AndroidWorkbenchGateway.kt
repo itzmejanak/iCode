@@ -211,8 +211,11 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
 
     override fun dispatch(intent: WorkbenchIntent) {
         when (intent) {
-            // What must not wait on the mutation lock.
+            // What must not wait on the mutation lock. apt, ssh-keygen and the network do not change the workspace.
             is WorkbenchIntent.SelectLanguageService -> languages.select(intent.id)
+            WorkbenchIntent.ProvisionGit -> scope.launch { gitWorkspace.provision() }
+            WorkbenchIntent.GenerateSshKey -> scope.launch { gitAuth.generateSshKey() }
+            is WorkbenchIntent.TestGitConnection -> scope.launch { gitAuth.testConnection(intent.url) }
             // A task's dialog must answer while the task runs.
             is WorkbenchIntent.TaskIntent -> tasks.handle(intent)
             is WorkbenchIntent.ComponentIntent -> components.handle(intent)
@@ -307,7 +310,6 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
                         is WorkbenchIntent.CreateBranch -> gitWorkspace.createBranch(intent.branch)
                         is WorkbenchIntent.DeleteBranch -> gitWorkspace.deleteBranch(intent.branch)
                         is WorkbenchIntent.CheckoutRemoteBranch -> gitWorkspace.checkoutRemote(intent.remoteBranch)
-                        WorkbenchIntent.ProvisionGit -> gitWorkspace.provision()
                         WorkbenchIntent.RefreshGit -> gitWorkspace.refreshActive()
                         is WorkbenchIntent.OpenDiff -> gitWorkspace.openDiff(intent.path, intent.staged)
                         WorkbenchIntent.CloseDiff -> gitWorkspace.closeDiff()
@@ -326,8 +328,6 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
                         is WorkbenchIntent.SelectGitAuthMethod -> gitAuth.selectMethod(intent.method)
                         is WorkbenchIntent.SaveGitToken -> gitAuth.saveToken(intent.host, intent.username, intent.token)
                         WorkbenchIntent.ClearGitToken -> gitAuth.clearToken()
-                        WorkbenchIntent.GenerateSshKey -> gitAuth.generateSshKey()
-                        is WorkbenchIntent.TestGitConnection -> gitAuth.testConnection(intent.url)
                         WorkbenchIntent.RefreshGitAuth -> gitAuth.refresh()
                         is WorkbenchIntent.SaveLanguageService -> languages.save(intent)
                         is WorkbenchIntent.RemoveLanguageService -> languages.remove(intent.id)

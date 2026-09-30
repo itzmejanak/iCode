@@ -61,6 +61,8 @@ class BackgroundWorkRulesTest {
         assertEquals(BackgroundPlace.Sync, BackgroundWorkRules.of(pulling).single().place)
         val done = empty.copy(gitOperation = GitOperationState.Succeeded(GitTransferLabel.PULLING))
         assertTrue(BackgroundWorkRules.of(done).isEmpty())
+        val installingGit = empty.copy(gitOperation = GitOperationState.Running("Installing Git"))
+        assertTrue("installing Git is the components' run, carried as theirs", BackgroundWorkRules.of(installingGit).isEmpty())
     }
 
     @Test fun `the runtime install is carried, not cancellable`() {

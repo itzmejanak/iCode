@@ -27,7 +27,12 @@ import dev.icode.mobile.domain.countOf
 
 /** Shown when the runtime has no `git` binary yet. */
 @Composable
-internal fun GitUnavailableGate(operation: GitOperationState, onInstall: () -> Unit) {
+internal fun GitUnavailableGate(
+    operation: GitOperationState,
+    /** apt's step while it installs Git: "Downloading 3774 kB", "Setting up 3 of 9". */
+    installStep: String?,
+    onInstall: () -> Unit,
+) {
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Source Control")
         Column(
@@ -37,7 +42,7 @@ internal fun GitUnavailableGate(operation: GitOperationState, onInstall: () -> U
             when (operation) {
                 is GitOperationState.Running -> {
                     EmptyState(title = operation.label, description = "This runs once, then Git is ready.")
-                    MonoLine("Working…", color = IcodeColors.Accent, style = IcodeType.MonoSmall)
+                    MonoLine(installStep ?: "Working…", color = IcodeColors.Accent, style = IcodeType.MonoSmall)
                 }
                 is GitOperationState.Failed -> {
                     EmptyState(title = "Git could not be installed", description = operation.reason)

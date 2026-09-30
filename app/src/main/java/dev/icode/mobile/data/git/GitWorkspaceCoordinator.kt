@@ -121,7 +121,10 @@ internal class GitWorkspaceCoordinator(
         }
     }
 
-    /** Git is absent from a fresh runtime; this installs it and reports honestly. */
+    /**
+     * Git is absent from a fresh runtime; this installs it and reports honestly. apt runs off the
+     * mutation lock; only the repository's refresh after it takes the lock.
+     */
     suspend fun provision() {
         if (git.isAvailable()) {
             workbench.update { it.copy(gitAvailable = true) }
@@ -141,7 +144,7 @@ internal class GitWorkspaceCoordinator(
             )
         }
         if (available) onInstalled()
-        if (available) activeRoot()?.let { refresh(it) }
+        if (available) workbench.mutations.withLock { refreshActive() }
     }
 
     suspend fun stage(path: String) = act(operation = { workspace -> git.stage(workspace, path) })

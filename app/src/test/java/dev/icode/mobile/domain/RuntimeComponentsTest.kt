@@ -65,4 +65,15 @@ class RuntimeComponentsTest {
         assertFalse(work.includes(python))
         assertEquals("Removing curl", ComponentWork(ComponentAction.Remove, listOf(curl)).title)
     }
+
+    @Test fun `a button waiting on a component sees its install, not a removal or a failure`() {
+        val installing = ComponentWork(
+            ComponentAction.Install, listOf(git, ssh), AptProgress(phase = AptPhase.Installing, total = 6, done = 3),
+        )
+        val state = RuntimeComponentsState(work = installing)
+        assertEquals("Installing Git, SSH client · Setting up 3 of 6", state.installing(ssh)?.status)
+        assertNull(state.installing(python))
+        assertNull(state.copy(work = installing.copy(failure = "E: no")).installing(ssh))
+        assertNull(state.copy(work = ComponentWork(ComponentAction.Remove, listOf(ssh))).installing(ssh))
+    }
 }
