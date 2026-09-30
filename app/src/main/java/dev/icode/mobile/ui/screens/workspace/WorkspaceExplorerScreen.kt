@@ -177,10 +177,11 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
         CreateWorkspaceItemDialog(type, createParent, onDismiss = { createType = null })
     }
     state.files.firstOrNull { it.path == renaming }?.let { entry ->
-        RenameWorkspaceItemDialog(entry, onDismiss = { renaming = null })
+        RenameWorkspaceItemDialog(entry.path, entry.name, entry.kind == FileKind.Folder, onDismiss = { renaming = null })
     }
     state.files.firstOrNull { it.path == deleting }?.let { entry ->
-        DeleteWorkspaceItemDialog(entry, onDismiss = { deleting = null })
+        val shown = state.activeWorkspaceLocation?.let { entry.path.removePrefix("$it/") } ?: entry.path
+        DeleteWorkspaceItemDialog(entry.path, entry.name, entry.kind == FileKind.Folder, shown, onDismiss = { deleting = null })
     }
 }
 

@@ -84,21 +84,23 @@ internal fun pasteLabel(clipboard: ItemClipboard?): String = clipboard?.let { "P
 internal fun pasteTarget(root: String?, entry: FileEntry, files: List<FileEntry>): String? =
     creationParentLocation(root, entry.path, files)
 
-/** The create form, for a new name: the same rules, the same answer by request id. */
+/**
+ * The create form, for a new name: the same rules, the same answer by request id — for an item of
+ * the Explorer's tree or of the workspaces' file explorer alike.
+ */
 @Composable
-internal fun RenameWorkspaceItemDialog(entry: FileEntry, onDismiss: () -> Unit) {
+internal fun RenameWorkspaceItemDialog(location: String, currentName: String, folder: Boolean, onDismiss: () -> Unit) {
     val gateway = LocalWorkbenchGateway.current
-    var name by rememberSaveable(entry.path) { mutableStateOf(entry.name) }
-    val request = rememberPendingRequest(entry.path, onDismiss)
-    val folder = entry.kind == FileKind.Folder
+    var name by rememberSaveable(location) { mutableStateOf(currentName) }
+    val request = rememberPendingRequest(location, onDismiss)
     val validationError = if (folder) WorkspaceNameRules.workspaceFolderValidationError(name) else WorkspaceNameRules.fileValidationError(name)
     IcodeConfirmDialog(
         title = if (folder) "Rename folder" else "Rename file",
         confirmLabel = "Rename",
-        confirmEnabled = validationError == null && name.trim() != entry.name && !request.waiting,
+        confirmEnabled = validationError == null && name.trim() != currentName && !request.waiting,
         dismissEnabled = !request.waiting,
         onDismiss = onDismiss,
-        onConfirm = { request.send { requestId -> gateway.dispatch(WorkbenchIntent.RenameWorkspaceItem(entry.path, name.trim(), requestId)) } },
+        onConfirm = { request.send { requestId -> gateway.dispatch(WorkbenchIntent.RenameWorkspaceItem(location, name.trim(), requestId)) } },
     ) {
         LabeledTextField(if (folder) "Folder name" else "File name", name, { name = it; request.failure = null })
         if (validationError != null && name.isNotEmpty()) {
@@ -108,14 +110,12 @@ internal fun RenameWorkspaceItemDialog(entry: FileEntry, onDismiss: () -> Unit) 
     }
 }
 
-/** Delete is final — there is no trash — so it is asked, and says what goes. */
+/** Delete is final — there is no trash — so it is asked, and says what goes: [detail], its path as shown. */
 @Composable
-internal fun DeleteWorkspaceItemDialog(entry: FileEntry, onDismiss: () -> Unit) {
+internal fun DeleteWorkspaceItemDialog(location: String, name: String, folder: Boolean, detail: String, onDismiss: () -> Unit) {
     val gateway = LocalWorkbenchGateway.current
-    val root = LocalWorkbenchSnapshot.current.activeWorkspaceLocation
-    val folder = entry.kind == FileKind.Folder
     IcodeConfirmDialog(
-        title = "Delete ${entry.name}?",
+        title = "Delete $name?",
         message = if (folder) {
             "The folder and everything in it are deleted. This cannot be undone."
         } else {
@@ -123,11 +123,11 @@ internal fun DeleteWorkspaceItemDialog(entry: FileEntry, onDismiss: () -> Unit) 
         },
         confirmLabel = "Delete",
         onConfirm = {
-            gateway.dispatch(WorkbenchIntent.DeleteWorkspaceItem(entry.path))
+            gateway.dispatch(WorkbenchIntent.DeleteWorkspaceItem(location))
             onDismiss()
         },
         onDismiss = onDismiss,
-        detail = root?.let { entry.path.removePrefix("$it/") } ?: entry.path,
+        detail = detail,
     )
 }
 

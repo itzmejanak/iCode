@@ -53,12 +53,7 @@ fun WorkspaceActionsMenu(
         IcodeMenuAction("Cut", Icons.Outlined.ContentCut, { gateway.dispatch(WorkbenchIntent.CutItem(item.location)) }),
         IcodeMenuAction("Copy", Icons.Outlined.ContentCopy, { gateway.dispatch(WorkbenchIntent.CopyItem(item.location)) }),
         onShowInList?.let { IcodeMenuAction("Show in Workspaces", Icons.Outlined.FolderCopy, it) },
-        // The runtime path: what a terminal, a script or another workspace's config names it by.
-        IcodeMenuAction("Copy path", Icons.Outlined.Link, {
-            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            clipboard.setPrimaryClip(ClipData.newPlainText("Workspace path", item.path))
-            Toast.makeText(context, "Path copied", Toast.LENGTH_SHORT).show()
-        }),
+        copyPathAction(context, item.path),
         IcodeMenuAction("Delete…", Icons.Outlined.DeleteOutline, { deleting = true }, destructive = true),
     )
     Box(modifier) {
@@ -80,3 +75,10 @@ fun WorkspaceActionsMenu(
         )
     }
 }
+
+/** Copy path: the runtime path — what a terminal, a script or another workspace's config names it by. */
+fun copyPathAction(context: Context, runtimePath: String) = IcodeMenuAction("Copy path", Icons.Outlined.Link, {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    clipboard.setPrimaryClip(ClipData.newPlainText("Path", runtimePath))
+    Toast.makeText(context, "Path copied", Toast.LENGTH_SHORT).show()
+})

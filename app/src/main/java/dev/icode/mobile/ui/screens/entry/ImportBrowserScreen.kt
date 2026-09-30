@@ -1,46 +1,35 @@
 package dev.icode.mobile.ui.screens.entry
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeListRow
-import dev.icode.mobile.designsystem.IcodeShapes
-import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.domain.ImportBrowserState
-import dev.icode.mobile.domain.FolderCrumb
 import dev.icode.mobile.domain.SystemPermission
 import dev.icode.mobile.domain.WorkbenchGateway
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.domain.countOf
 import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.ui.FolderBreadcrumb
 import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 
@@ -76,7 +65,7 @@ fun ImportBrowserScreen(actions: NavigationActions) {
 @Composable
 private fun FolderListing(browser: ImportBrowserState, gateway: WorkbenchGateway, modifier: Modifier) {
     Column(modifier) {
-        Breadcrumb(browser.crumbs) { path -> gateway.dispatch(WorkbenchIntent.BrowseImportFolder(path)) }
+        FolderBreadcrumb(browser.crumbs) { path -> gateway.dispatch(WorkbenchIntent.BrowseImportFolder(path)) }
         LazyColumn(
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(horizontal = IcodeSpacing.Space5),
@@ -106,40 +95,5 @@ private fun FolderListing(browser: ImportBrowserState, gateway: WorkbenchGateway
             Modifier.fillMaxWidth().padding(IcodeSpacing.Space5),
             enabled = !browser.atRoot,
         )
-    }
-}
-
-/**
- * Where the browser is, sdcard first — the way up: each folder above is a tap back to it, and the
- * one here is in the accent. Deep down it scrolls sideways, starting at its end.
- */
-@Composable
-private fun Breadcrumb(crumbs: List<FolderCrumb>, onOpen: (String) -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState(), reverseScrolling = true)
-            .padding(horizontal = IcodeSpacing.Space4, vertical = IcodeSpacing.Space1),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        crumbs.forEachIndexed { index, crumb ->
-            val here = index == crumbs.lastIndex
-            if (index > 0) {
-                Icon(
-                    Icons.AutoMirrored.Outlined.KeyboardArrowRight,
-                    contentDescription = null,
-                    tint = IcodeColors.TextMuted,
-                    modifier = Modifier.size(IcodeSizes.IconSm),
-                )
-            }
-            Text(
-                crumb.name,
-                style = IcodeType.Mono.copy(color = if (here) IcodeColors.Accent else IcodeColors.TextSecondary),
-                modifier = Modifier
-                    .clip(IcodeShapes.Small)
-                    .then(if (here) Modifier else Modifier.clickable(role = Role.Button) { onOpen(crumb.path) })
-                    .padding(horizontal = IcodeSpacing.Space1, vertical = IcodeSpacing.Space2),
-            )
-        }
     }
 }
