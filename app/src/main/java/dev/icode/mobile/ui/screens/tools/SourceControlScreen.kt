@@ -94,6 +94,11 @@ fun SourceControlScreen(actions: NavigationActions) {
                 }
             },
         )
+        if (state.gitRepositories.size > 1) {
+            RepositoryPicker(state.gitRepositories, repository.workTreePath, state.activeWorkspaceLocation) {
+                gateway.dispatch(WorkbenchIntent.ChooseGitRepository(it))
+            }
+        }
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(IcodeSpacing.Space4),
             verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),

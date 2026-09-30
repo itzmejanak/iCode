@@ -13,6 +13,9 @@ internal interface GitWorkspaceOperations {
     fun branchOf(workspacePath: String): String?
     /** Whether [workspacePath] is in a repository, read from disk without Git. */
     fun isRepository(workspacePath: String): Boolean
+    /** The repositories in [workspacePath], read from disk; Git works in the chosen one. */
+    fun repositoriesIn(workspacePath: String): List<String>
+    fun chooseRepository(workspacePath: String, repository: String)
     suspend fun provision(): GitOutcome<Unit>
     suspend fun inspect(workspacePath: String): GitWorkspaceSnapshot
     suspend fun initialize(workspacePath: String)

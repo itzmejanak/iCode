@@ -2,6 +2,8 @@ package dev.icode.mobile.data.git
 
 import dev.icode.mobile.data.storage.WorkspacePaths
 import java.io.File
+import java.nio.file.Files
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Finds a repository on the host the way Git does — the folder, then each parent, for a `.git`
@@ -12,6 +14,10 @@ import java.io.File
  */
 internal class GitLocator(private val paths: WorkspacePaths) {
 
+    /** Each workspace's repositories as last read, and the one Source Control's picker chose in it. */
+    private val found = ConcurrentHashMap<String, List<String>>()
+    private val chosen = ConcurrentHashMap<String, String>()
+
     /** The top of the repository holding [folder]: [folder] or a parent inside the workspaces; null when none does. */
     fun topOf(folder: String): File? {
         val root = paths.root.toPath()
@@ -21,6 +27,46 @@ internal class GitLocator(private val paths: WorkspacePaths) {
             directory = directory.parentFile
         }
         return null
+    }
+
+    /**
+     * Where Git runs for [path]. For a workspace itself, the repository chosen in it (Source
+     * Control's picker) while it is still there — else the one the workspace is in, else the first
+     * in its folders; for anything in a workspace, the repository holding it.
+     */
+    fun workingFolderOf(path: String): String {
+        if (paths.workspaceOf(path) == path) {
+            chosen[path]?.takeIf { it in found[path].orEmpty() }?.let { return it }
+            return topOf(path)?.path ?: found[path]?.firstOrNull() ?: path
+        }
+        return topOf(path)?.path ?: path
+    }
+
+    /** Git works in [repository] of [workspace] from now on. */
+    fun choose(workspace: String, repository: String) {
+        chosen[workspace] = repository
+    }
+
+    /**
+     * The repositories in [workspace] (docs/workspace-destinations-plan.md §2.6), read again from
+     * disk: the one it is in, if any, then each folder below it with a `.git` of its own, [depth]
+     * levels down — not in a hidden folder, `node_modules` or through a link. Where Git runs follows.
+     */
+    fun repositoriesIn(workspace: String, depth: Int = SCAN_DEPTH): List<String> = scan(workspace, depth).also { found[workspace] = it }
+
+    private fun scan(workspace: String, depth: Int): List<String> = buildList {
+        topOf(workspace)?.let { add(it.path) }
+        fun visit(folder: File, level: Int) {
+            if (level > depth) return
+            folder.listFiles().orEmpty()
+                .filter { it.isDirectory && !it.name.startsWith('.') && it.name != "node_modules" && !Files.isSymbolicLink(it.toPath()) }
+                .sortedBy { it.name.lowercase() }
+                .forEach { child ->
+                    if (File(child, ".git").exists()) add(child.path)
+                    visit(child, level + 1)
+                }
+        }
+        visit(File(workspace), 1)
     }
 
     /** The branch of the repository holding [folder], read from its `HEAD`; null when there is none or it is detached. */
@@ -57,5 +103,8 @@ internal class GitLocator(private val paths: WorkspacePaths) {
 
     private companion object {
         const val GITDIR = "gitdir:"
+
+        /** `workspace/group/team/repo`: deep enough for projects kept in folders, cheap enough to read at each refresh. */
+        const val SCAN_DEPTH = 3
     }
 }

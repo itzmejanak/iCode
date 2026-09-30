@@ -375,6 +375,8 @@ class GitWorkspaceCoordinatorTest {
         override suspend fun isAvailable() = available
         override fun branchOf(workspacePath: String) = locator?.branchOf(workspacePath)
         override fun isRepository(workspacePath: String) = locator?.isRepository(workspacePath) ?: false
+        override fun repositoriesIn(workspacePath: String) = locator?.repositoriesIn(workspacePath).orEmpty()
+        override fun chooseRepository(workspacePath: String, repository: String) = calls.plusAssign("choose $repository")
         override suspend fun provision(): GitOutcome<Unit> = provisionOutcome.also { calls += "provision"; onProvision() }
         override suspend fun inspect(workspacePath: String) = snapshot.also {
             calls += "inspect $workspacePath"

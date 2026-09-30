@@ -102,6 +102,9 @@ class TaskRunnerTest {
         assertFalse(task()!!.hidden)
         assertNull("its paths are free again", runner.claimedBy("/w/src"))
 
+        runner.handle(WorkbenchIntent.HideTask(id))
+        assertFalse("a Hide that comes after the failure does not hide it", task()!!.hidden)
+
         runner.handle(WorkbenchIntent.DismissTask(id))
         assertTrue(workbench.current.tasks.isEmpty())
     }

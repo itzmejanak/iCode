@@ -29,6 +29,10 @@ internal class GitRepositoryClient(private val cli: CliGitService) :
 
     override fun isRepository(workspacePath: String): Boolean = cli.locator.isRepository(workspacePath)
 
+    override fun repositoriesIn(workspacePath: String): List<String> = cli.locator.repositoriesIn(workspacePath)
+
+    override fun chooseRepository(workspacePath: String, repository: String) = cli.locator.choose(workspacePath, repository)
+
     /** Reads the whole repository picture in one process ([GitInspectParser]). */
     override suspend fun inspect(workspacePath: String): GitWorkspaceSnapshot {
         // Also makes `git` usable from the user's own terminal in this

@@ -18,16 +18,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
 
-/** What Git says about one workspace. */
-internal data class GitPicture(
-    val available: Boolean,
-    val state: GitWorkspaceSnapshot,
-    /** Git's branch, else `.git/HEAD`'s, so a repository names its branch before Git is installed. */
-    val branch: String,
-    /** Git could not read the repository: its words. The workspace still opens; Source Control says this. */
-    val failure: String? = null,
-)
-
 /**
  * The open workspace's repository (S5): what Git reports about it and the
  * local changes made to it — staging, commits, branches, diffs and discards.
@@ -53,16 +43,17 @@ internal class GitWorkspaceCoordinator(
         // Without git the inspect script cannot run, but .git on disk still
         // tells us this is a repository - so the UI can offer to install Git
         // instead of wrongly offering to initialise a repo that already exists.
-        if (!available) return GitPicture(false, none, git.branchOf(root).orEmpty())
+        val repositories = git.repositoriesIn(root)
+        if (!available) return GitPicture(false, none, git.branchOf(root).orEmpty(), repositories = repositories)
         // A repository Git cannot read is still the user's folder: its files open, and Source
         // Control says what Git said — neither "no changes" nor "not a repository".
         return try {
             val state = git.inspect(root)
-            GitPicture(true, state, state.repository?.branch ?: git.branchOf(root).orEmpty())
+            GitPicture(true, state, state.repository?.branch ?: git.branchOf(root).orEmpty(), repositories = repositories)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
-            GitPicture(true, none, git.branchOf(root).orEmpty(), workbench.failureText("git", "Git cannot read this repository", error))
+            GitPicture(true, none, git.branchOf(root).orEmpty(), workbench.failureText("git", "Git cannot read this repository", error), repositories)
         }
     }
 
@@ -77,16 +68,7 @@ internal class GitWorkspaceCoordinator(
         val files = tree.rows(root, picture.state)
         workbench.update {
             if (it.activeWorkspaceLocation != root) return@update it
-            it.copy(
-                workspaces = workspaces,
-                files = files,
-                gitChanges = picture.state.changes,
-                gitRepository = picture.state.repository,
-                gitFailure = picture.failure,
-                gitAvailable = picture.available,
-                activeBranch = picture.branch,
-                recentDocuments = recentDocuments(root),
-            )
+            it.copy(workspaces = workspaces, files = files, recentDocuments = recentDocuments(root)).withGit(picture)
         }
     }
 
@@ -98,6 +80,13 @@ internal class GitWorkspaceCoordinator(
 
     suspend fun refreshActive() {
         activeRoot()?.let { refresh(it) }
+    }
+
+    /** Source Control's picker: Git works in [repository] of the open workspace from now on. */
+    suspend fun choose(repository: String) {
+        val root = activeRoot() ?: return
+        git.chooseRepository(root, repository)
+        refresh(root)
     }
 
     /**

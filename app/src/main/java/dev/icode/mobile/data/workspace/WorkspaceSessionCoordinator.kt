@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.workspace
 
 import dev.icode.mobile.data.git.GitWorkspaceCoordinator
+import dev.icode.mobile.data.git.withGit
 import dev.icode.mobile.data.language.LanguageServiceCoordinator
 import dev.icode.mobile.data.runtime.TerminalCoordinator
 import dev.icode.mobile.data.search.SearchCoordinator
@@ -94,20 +95,15 @@ internal class WorkspaceSessionCoordinator(
             tree.reset(root.location, children)
             if (persist) library.remember(root.location)
             val workspaces = library.workspaces()
-            workbench.update { snapshot -> snapshot.copy(
+            workbench.update { snapshot -> snapshot.withGit(gitPicture).copy(
                 workspaces = workspaces,
                 files = tree.rows(root.location, gitPicture.state),
-                gitChanges = gitPicture.state.changes,
-                gitRepository = gitPicture.state.repository,
-                gitFailure = gitPicture.failure,
                 localGitAuthorName = null,
                 localGitAuthorEmail = null,
                 gitIdentityLoaded = false,
                 activeWorkspace = root.name,
                 activePath = root.displayPath,
                 activeWorkspaceLocation = root.location,
-                gitAvailable = gitPicture.available,
-                activeBranch = gitPicture.branch,
                 activeDocument = null,
                 openDocuments = emptyList(),
                 recentDocuments = library.recentDocuments(root.location),
@@ -145,6 +141,7 @@ internal class WorkspaceSessionCoordinator(
             files = empty.files,
             gitChanges = empty.gitChanges,
             gitRepository = null,
+            gitRepositories = emptyList(),
             gitFailure = null,
             activeWorkspace = empty.activeWorkspace,
             activePath = empty.activePath,
