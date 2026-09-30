@@ -26,6 +26,7 @@ class RouteTest {
     private val routesWithoutFrame = setOf(
         Route.Notifications, // 2026-09-25: notices off the launcher
         Route.ImportWorkspace, // 2026-09-30: Import names the chosen folder, built from New Folder's parts (workspace-storage-plan.md §4.4)
+        Route.RuntimeComponents, // 2026-09-30: choose the runtime's tools, as Android Studio's setup (runtime-components-plan.md §3.5)
     )
 
     private val framed = Route.entries.mapNotNull { it.figmaNode }

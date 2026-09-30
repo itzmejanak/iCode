@@ -57,7 +57,7 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
     private val source = WorkspaceFileSource(runtimeLayout.workspaces)
     private val settings = AndroidWorkspacePreferencesRepository(appContext)
     /** The runtime's components, one apt run at a time: Git, the SSH client and search install through it. */
-    private val components = RuntimeComponentsCoordinator(workbench, scope, RuntimePackageInstaller(runtimeLayout, scope))
+    private val components = RuntimeComponentsCoordinator(workbench, scope, RuntimePackageInstaller(runtimeLayout, scope), runtimeLayout.componentsOffer)
     private val gitCli = CliGitService(runtimeLayout, components.installer)
     private val git = GitRepositoryClient(gitCli)
     private val authenticator = GitAuthenticator(runtimeLayout, gitCli, components.installer, GitCredentialStore(appContext))

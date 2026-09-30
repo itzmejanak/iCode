@@ -52,6 +52,7 @@ internal class RuntimeCoordinator(
                 runtimeInstallReason = if (preservedHome && state !is RuntimeState.Ready)
                     RuntimeInstallReason.Repair else RuntimeInstallReason.Initial,
                 systemAccess = systemAccess.read(),
+                components = it.components.copy(offerPending = state is RuntimeState.Ready && layout.componentsOffer.exists()),
             )
         }
     }
@@ -99,7 +100,16 @@ internal class RuntimeCoordinator(
         installJob = scope.launch {
             try {
                 RuntimeInstaller(appContext, layout).install(reason).collect { state ->
-                    workbench.update { it.copy(runtime = state, runtimeHealthy = state is RuntimeState.Ready) }
+                    // Ready and its Components offer arrive together: the screen that routes on
+                    // Ready must see both.
+                    val built = state is RuntimeState.Ready
+                    workbench.update {
+                        it.copy(
+                            runtime = state,
+                            runtimeHealthy = built,
+                            components = it.components.copy(offerPending = built && layout.componentsOffer.exists()),
+                        )
+                    }
                     if (state is RuntimeState.Failed) {
                         workbench.message(state.reason)
                     }

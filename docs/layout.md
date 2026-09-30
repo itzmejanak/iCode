@@ -352,6 +352,8 @@ It contains:
 
 The user is taken to the requested workspace as soon as the runtime is ready. No provider or agent setup follows automatically.
 
+Once after a runtime is built (first install, repair or reset), the **Components** page is offered — the owner's decision of 2026-09-30, after Android Studio's setup ([runtime-components-plan.md](./runtime-components-plan.md)). It forces nothing: **Standard** (the tools iCode itself uses: Git, the SSH client, ripgrep) is preselected, **Custom** ticks from the list, and **Skip** installs nothing — a feature that needs a tool installs it when used, its button saying so. Each row shows what uses it and its download as apt measures it; the total and free space sit under the list. While apt runs, the page is its progress (bar, step, Details with apt's own lines, Hide, and Cancel while it only downloads). The same page, from Runtime settings, ticks what is installed: tick to add, untick to remove, Apply.
+
 ## 12. Explorer Layout
 
 ### 12.1 Tree row

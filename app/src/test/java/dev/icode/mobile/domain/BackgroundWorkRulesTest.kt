@@ -88,6 +88,7 @@ class BackgroundWorkRulesTest {
         assertEquals("Installing SSH client", item.heading)
         assertEquals("Downloading 1238 kB · libcbor0.10", item.detail)
         assertEquals(WorkbenchIntent.CancelComponents, item.cancel)
+        assertEquals(BackgroundPlace.Components, item.place)
 
         val installing = downloading.copy(progress = AptProgress(phase = AptPhase.Installing, total = 6, done = 3, item = "libfido2-1"))
         val counted = BackgroundWorkRules.of(empty.copy(components = RuntimeComponentsState(work = installing))).single()
@@ -100,7 +101,7 @@ class BackgroundWorkRulesTest {
     }
 
     @Test fun `a place survives the notification that carries it`() {
-        listOf(BackgroundPlace.Task(7), BackgroundPlace.Clone, BackgroundPlace.Sync, BackgroundPlace.Runtime, BackgroundPlace.App).forEach {
+        listOf(BackgroundPlace.Task(7), BackgroundPlace.Clone, BackgroundPlace.Sync, BackgroundPlace.Runtime, BackgroundPlace.Components).forEach {
             assertEquals(it, BackgroundPlace.decode(it.encoded()))
         }
         assertNull(BackgroundPlace.decode("task:x"))

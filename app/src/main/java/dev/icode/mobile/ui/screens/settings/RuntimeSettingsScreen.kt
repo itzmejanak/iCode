@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,13 +28,17 @@ import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.NoticeCard
 import dev.icode.mobile.designsystem.SecondaryButton
+import dev.icode.mobile.designsystem.SettingRow
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.domain.ByteSize
+import dev.icode.mobile.domain.RuntimeComponents
+import dev.icode.mobile.domain.RuntimeComponentsState
 import dev.icode.mobile.domain.RuntimeDetails
 import dev.icode.mobile.domain.RuntimeState
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.domain.countOf
 import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 
@@ -81,6 +86,13 @@ fun RuntimeSettingsScreen(actions: NavigationActions) {
                 DetailRow("Disk Usage", checking ?: diskUsage(details))
                 DetailRow("PRoot Version", checking ?: details.prootVersion ?: UNKNOWN)
             }
+            SettingRow(
+                "Components",
+                modifier = Modifier.fillMaxWidth(),
+                subtitle = componentsSummary(state.components),
+                leadingIcon = Icons.Outlined.Extension,
+                onClick = { actions.navigate(Route.RuntimeComponents) },
+            )
             Spacer(Modifier.weight(1f))
             SecondaryButton(
                 "Repair Runtime",
@@ -152,3 +164,11 @@ private fun runtimeSummary(runtime: RuntimeState): String = when (runtime) {
 
 private const val UNKNOWN = "Not measured"
 private const val CHECKING = "Checking…"
+
+/** "2 of 6 installed: Git, SSH client". */
+private fun componentsSummary(components: RuntimeComponentsState): String {
+    if (components.installedPackages == null) return CHECKING
+    val installed = RuntimeComponents.all.filter(components::isInstalled)
+    val count = "${installed.size} of ${RuntimeComponents.all.size} installed"
+    return if (installed.isEmpty()) count else "$count: ${installed.joinToString { it.name }}"
+}

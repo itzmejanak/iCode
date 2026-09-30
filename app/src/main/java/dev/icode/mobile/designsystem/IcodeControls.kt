@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
@@ -40,6 +42,32 @@ fun IcodeToggle(
             uncheckedThumbColor = IcodeColors.TextPrimary,
             uncheckedTrackColor = IcodeColors.SurfaceTrack,
             uncheckedBorderColor = IcodeColors.Outline,
+        ),
+    )
+}
+
+/**
+ * A tick for choosing items of a list — the runtime's components. [onCheckedChange] is null when
+ * the row around it takes the tap (and says it is a checkbox to a screen reader).
+ */
+@Composable
+fun IcodeCheckbox(
+    checked: Boolean,
+    onCheckedChange: ((Boolean) -> Unit)?,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    Checkbox(
+        checked = checked,
+        onCheckedChange = onCheckedChange,
+        modifier = modifier,
+        enabled = enabled,
+        colors = CheckboxDefaults.colors(
+            checkedColor = IcodeColors.Accent,
+            uncheckedColor = IcodeColors.Outline,
+            checkmarkColor = IcodeColors.OnAccent,
+            disabledCheckedColor = IcodeColors.TextMuted,
+            disabledUncheckedColor = IcodeColors.SurfaceTrack,
         ),
     )
 }

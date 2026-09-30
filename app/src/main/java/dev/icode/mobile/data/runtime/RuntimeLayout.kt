@@ -33,6 +33,13 @@ internal class RuntimeLayout(context: Context) {
     /** Marks a verified, fully extracted root filesystem. */
     val installMarker: File = File(runtimeRoot, "installed.json")
 
+    /**
+     * Written when a build of the runtime completes, and removed once its Components page is
+     * answered (docs/runtime-components-plan.md §3.5). A runtime built before the page existed has
+     * none, and is not offered it.
+     */
+    val componentsOffer: File = File(runtimeRoot, "components-offer")
+
     val isInstalled: Boolean
         get() = installMarker.isFile && File(rootfs, "bin/sh").exists()
 

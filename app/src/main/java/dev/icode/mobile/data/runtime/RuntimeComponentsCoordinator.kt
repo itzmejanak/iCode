@@ -3,11 +3,15 @@ package dev.icode.mobile.data.runtime
 import dev.icode.mobile.data.workspace.WorkbenchStateHolder
 import dev.icode.mobile.domain.ComponentRules
 import dev.icode.mobile.domain.RuntimeComponents
+import dev.icode.mobile.domain.RuntimeState
 import dev.icode.mobile.domain.WorkbenchIntent
+import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
@@ -20,12 +24,20 @@ internal class RuntimeComponentsCoordinator(
     private val scope: CoroutineScope,
     /** Also the features' way to a component they need: Git, the SSH client, search. */
     val installer: RuntimePackageInstaller,
+    /** [RuntimeLayout.componentsOffer]: the page offered after a build, until it is answered. */
+    private val offer: File,
 ) {
     private var measureJob: Job? = null
 
-    /** Follows dpkg and the apt run into the snapshot. What a component would download changes with what is installed. */
+    /**
+     * Follows dpkg and the apt run into the snapshot; dpkg is read again whenever the runtime
+     * becomes ready — a rebuilt one has other packages. What a component would download changes
+     * with what is installed.
+     */
     fun start() {
-        scope.launch { installer.refresh() }
+        scope.launch {
+            workbench.snapshot.map { it.runtime is RuntimeState.Ready }.distinctUntilChanged().collect { installer.refresh() }
+        }
         scope.launch {
             combine(installer.installed, installer.work, ::Pair).collect { (installed, work) ->
                 workbench.update { snapshot ->
@@ -47,7 +59,8 @@ internal class RuntimeComponentsCoordinator(
     fun handle(intent: WorkbenchIntent.ComponentIntent) {
         when (intent) {
             WorkbenchIntent.MeasureComponents -> measure()
-            is WorkbenchIntent.ApplyComponents -> apply(intent.chosen)
+            is WorkbenchIntent.ApplyComponents -> apply(intent.chosen).also { answered() }
+            WorkbenchIntent.SkipComponents -> answered()
             WorkbenchIntent.CancelComponents -> installer.cancel()
             WorkbenchIntent.DismissComponents -> installer.dismiss()
         }
@@ -75,6 +88,13 @@ internal class RuntimeComponentsCoordinator(
                 workbench.update { it.copy(components = it.components.copy(measuring = false)) }
             }
         }
+    }
+
+    /** The page offered after a build has been answered; it is not offered again. */
+    private fun answered() {
+        if (!workbench.current.components.offerPending) return
+        offer.delete()
+        workbench.update { it.copy(components = it.components.copy(offerPending = false)) }
     }
 
     /** A measure still reading the lists would hold up the install behind it; the install reads them itself. */

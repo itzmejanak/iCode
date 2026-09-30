@@ -17,16 +17,16 @@ sealed interface BackgroundPlace {
     /** The runtime install, repair or reset. */
     data object Runtime : BackgroundPlace
 
-    /** iCode itself: the work has no page of its own. */
-    data object App : BackgroundPlace
+    /** The Components page: a components install or removal, wherever it was asked for. */
+    data object Components : BackgroundPlace
 
-    /** As a notification carries it: `task:12`, `clone`, `sync`, `runtime`, `app`. */
+    /** As a notification carries it: `task:12`, `clone`, `sync`, `runtime`, `components`. */
     fun encoded(): String = when (this) {
         is Task -> "$TASK$id"
         Clone -> "clone"
         Sync -> "sync"
         Runtime -> "runtime"
-        App -> "app"
+        Components -> "components"
     }
 
     companion object {
@@ -39,7 +39,7 @@ sealed interface BackgroundPlace {
             value == "clone" -> Clone
             value == "sync" -> Sync
             value == "runtime" -> Runtime
-            value == "app" -> App
+            value == "components" -> Components
             else -> null
         }
     }
@@ -79,7 +79,7 @@ data class BackgroundItem(
         is BackgroundPlace.Task -> (place.id % 900).toInt()
         BackgroundPlace.Clone, BackgroundPlace.Sync -> 900
         BackgroundPlace.Runtime -> 901
-        BackgroundPlace.App -> 902
+        BackgroundPlace.Components -> 902
     }
 
     /** The notification's title: "Deleting… (1207 / 11813)", "Cloning… 45%", or the title alone. */
@@ -102,7 +102,7 @@ object BackgroundWorkRules {
         snapshot.components.work?.let { add(components(it)) }
     }
 
-    /** Its progress shows where it was asked for — the Components page, or the button that needed it. */
+    /** Its progress shows on the Components page, and on a button waiting for it. */
     private fun components(work: ComponentWork) = BackgroundItem(
         key = "components",
         title = work.title,
@@ -110,7 +110,7 @@ object BackgroundWorkRules {
         counts = work.progress.counts,
         fraction = work.progress.fraction,
         cancel = WorkbenchIntent.CancelComponents.takeIf { work.cancellable },
-        place = BackgroundPlace.App,
+        place = BackgroundPlace.Components,
         watched = true,
         failure = work.failure,
     )

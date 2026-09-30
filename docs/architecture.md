@@ -149,6 +149,8 @@ The runtime is an Ubuntu ARM64 root filesystem executed through PRoot. It owns:
 
 PRoot is not treated as a security boundary or virtual machine. It provides a compatible Linux userspace and path mapping within the Android application sandbox.
 
+The tools iCode's own features use — Git, the SSH client, `ripgrep` — and common toolchains are **runtime components** ([runtime-components-plan.md](./runtime-components-plan.md)): one catalog (`RuntimeComponents`, pure), installed and removed by apt through one installer (`RuntimePackageInstaller`, one run at a time). What is installed is read from dpkg's status file. An install downloads first — the only part that may be cancelled — then installs from what was downloaded. Its progress, read from apt's own lines, is background work with a notification. Features ask for a component by name; the Components page offers them after a runtime build and manages them from Runtime settings. None of it waits on the workbench's mutation lock.
+
 ### 7.3 Public website
 
 The Next.js application may provide:
