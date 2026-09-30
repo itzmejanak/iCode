@@ -1,7 +1,7 @@
 # Native Mobile Development Workbench — Architecture Design
 
-**Version:** 1.0  
-**Status:** Foundation contract  
+**Version:** 1.1  
+**Status:** Foundation contract — amended 2026-09-30: workspaces live in the application's own storage ([workspace-storage-plan.md](./workspace-storage-plan.md), §25–26)  
 **Product name:** iCode  
 **Platforms:** Android phones and tablets  
 
@@ -15,8 +15,8 @@ It intentionally does not define delivery order, milestones, or task groups. Tho
 
 The product is a native Android development environment that lets a developer:
 
-- open an existing directory without copying it;
-- edit the original files directly;
+- keep projects as workspaces in the application's own Linux storage — created, cloned, or imported once from phone storage;
+- edit workspace files in place, and reach them from other applications through Android's Files app and pickers;
 - inspect, stage, commit, pull, and push Git changes;
 - search and replace across a workspace;
 - use language intelligence through the Language Server Protocol;
@@ -30,7 +30,7 @@ The product is not a VS Code distribution, a browser-hosted IDE, an extension ma
 ## 3. Architectural Goals
 
 1. **Native ownership of the experience** — navigation, layout, editor surfaces, Git views, terminal panels, settings, touch behavior, and adaptive layouts are controlled by the Android application.
-2. **Original files as the source of truth** — an opened directory is never silently copied into application storage.
+2. **One copy of every workspace** — a workspace lives in the application's storage and nowhere else; nothing is mirrored or synchronised, and a folder from phone storage is copied in only by the user's explicit Import.
 3. **Tool neutrality** — the runtime executes user-selected tools without maintaining a catalogue of supported agents or providers.
 4. **Open protocol reuse** — language intelligence and debugging build on established protocols rather than editor-specific integrations.
 5. **Clear module boundaries** — features communicate through stable interfaces and do not reach into one another's storage or UI internals.
@@ -53,7 +53,7 @@ The architecture does not include:
 - a platform-specific package format for developer tools;
 - a per-command security broker or agent capability sandbox;
 - root access or access to other applications' private Android directories;
-- a copy-on-open project import flow;
+- opening phone-storage folders in place, per-folder mounts, or synchronisation between copies;
 - ForgeKit packages, runtime contracts, navigation, product modules, or branding.
 
 ForgeKit's color and typography choices may influence the default visual theme. That visual reuse does not create a code, runtime, data, or product dependency between the projects.
@@ -85,7 +85,7 @@ Generic protocols and process contracts take priority:
 
 ### 5.5 Direct data ownership
 
-The user owns workspace data. The application owns only its runtime, configuration, caches, indexes, session metadata, and recovery buffers.
+The user owns workspace data, though it lives in the application's storage: it is deleted only by the user's explicit Delete, and uninstalling asks whether to keep it. The application owns its runtime, configuration, caches, indexes, session metadata, and recovery buffers.
 
 ### 5.6 UI and domain separation
 
@@ -96,7 +96,7 @@ Compose screens render immutable view state and dispatch intents. Domain service
 ```mermaid
 flowchart TD
     U["Developer"] --> A["Native Android workbench"]
-    A --> D["Original workspace directory"]
+    A --> D["Workspaces in application storage"]
     A --> R["Linux runtime"]
     R --> T["Git, search, language tools and user commands"]
     T --> B["External Android browser"]
@@ -115,7 +115,7 @@ flowchart TD
     P --> L["Ubuntu ARM64 under PRoot"]
     L --> X["PTY and child processes"]
     F --> S["Room and DataStore"]
-    F --> O["Direct workspace paths"]
+    F --> O["Workspace folders (one path model)"]
 ```
 
 ### 7.1 Android process
@@ -124,12 +124,13 @@ The Android application owns:
 
 - Compose UI and navigation;
 - native editor hosting;
-- workspace discovery and direct file access;
+- the workspace list and direct file access to workspace folders;
+- the document provider through which other applications reach workspaces;
 - document models and recovery buffers;
 - runtime lifecycle and foreground-service integration;
 - terminal rendering and PTY session coordination;
 - Git, search, and language-service orchestration;
-- session, preference, and recent-workspace persistence;
+- session, preference, and workspace-history persistence;
 - Android permissions, notifications, and external-browser intents.
 
 ### 7.2 Linux runtime
@@ -168,8 +169,8 @@ apps/android/
 ├── app/                    # Composition root, activity, application lifecycle
 ├── design-system/          # Semantic colors, type, spacing, shapes, components
 ├── navigation/             # Route model, adaptive shell, back-stack ownership
-├── workspace/              # Open/create/clone, recents, workspace state
-├── files/                  # Direct-path access, tree model, file operations
+├── workspace/              # Workspace list, create/clone/import, rename/delete, workspace state
+├── files/                  # Workspace files, tree model, file operations, document provider
 ├── editor-api/             # Stable editor engine and document contracts
 ├── editor-native/          # Native editor engine implementation
 ├── search/                 # Quick open, content search, replacement
@@ -206,20 +207,19 @@ Modules may initially be Gradle source sets where separate Gradle modules would 
 
 ### 10.1 Workspace contract
 
-A workspace represents one user-selected root directory and contains:
+A workspace is one folder in the application's storage, `files/workspaces/<name>`, and has:
 
-- stable internal workspace identifier;
-- canonical Android path;
-- runtime-visible path, normally `/workspace`;
-- display name;
+- its name, which is the folder's name;
+- its location (the host path), the identity every store keys by;
+- its runtime-visible path, `/workspace/<name>`;
 - last-opened time;
 - Git repository discovery result;
 - active language-service configurations;
 - session reference.
 
-The workspace record does not contain a copy of project files.
+The folder is the record: the list of workspaces is the listing of `files/workspaces`, so no entry can go stale. One path model (`WorkspacePaths`) is the only code that turns a location into a runtime path or a document ID and back.
 
-Multiple roots are not assumed by the foundation. They can be introduced later without changing the direct-path ownership rule.
+One workspace is open at a time; several in one Explorer are not assumed.
 
 ### 10.2 File service contract
 
@@ -234,7 +234,7 @@ The file service provides:
 - binary and large-file detection;
 - encoding and line-ending preservation.
 
-All destructive operations resolve a concrete path before execution. The service never performs hidden workspace duplication.
+All workspace files are on one filesystem, the application's own. All destructive operations resolve a concrete path before execution. The service never performs hidden workspace duplication.
 
 ### 10.3 Document contract
 
@@ -251,7 +251,7 @@ An open document tracks:
 - recovery-buffer state;
 - external-change state.
 
-A save writes to the original file. If the on-disk revision changed after the document was opened, the user receives reload, compare, and overwrite choices.
+A save writes to the workspace file itself. If the on-disk revision changed after the document was opened, the user receives reload, compare, and overwrite choices.
 
 ### 10.4 Editor engine contract
 
@@ -349,26 +349,22 @@ Unknown future settings can be added under existing categories without adding a 
 
 ## 11. Primary Data Flows
 
-### 11.1 Open an existing directory
+### 11.1 Open a workspace, or bring a folder in
 
-1. The user selects Open Folder.
-2. Android requests All Files Access if it has not been granted.
-3. The application resolves and validates the selected direct path.
-4. A workspace record stores the path and display metadata.
-5. The runtime maps the directory to `/workspace`.
-6. File, Git, search, and language services initialize lazily.
-7. The previous session for that workspace is restored when available.
-
-No project files are copied.
+1. The user opens a workspace from the launcher's list, or makes one: New Folder, Clone, or Import.
+2. Import: Android's folder picker grants the chosen folder for this import only; it is copied into a staging folder as a task, then renamed into `files/workspaces/<name>`; a repository's executable bits and links are restored from Git's own record. The original is never written.
+3. Every runtime launch binds `files/workspaces` at `/workspace`; commands for a workspace run in `/workspace/<name>`.
+4. File, Git, search, and language services initialize lazily.
+5. The previous session for that workspace is restored when available.
 
 ### 11.2 Edit and save
 
-1. The file service reads the original file.
+1. The file service reads the workspace file.
 2. The document model records a saved revision fingerprint.
 3. The editor updates the in-memory revision.
 4. Recovery state is persisted while the document is dirty.
 5. Save verifies that the disk revision has not unexpectedly changed.
-6. The original path is written.
+6. The workspace file is written.
 7. Git, diagnostics, search indexes, and open views receive invalidation events.
 8. The recovery buffer is cleared after the saved state is durable.
 
@@ -402,7 +398,7 @@ The application does not render the destination internally.
 
 | Data | Location | Ownership | Persistence |
 |---|---|---|---|
-| Workspace files | User-selected shared-storage path | User | Survives application removal |
+| Workspace files | `files/workspaces/<name>` in app-private storage | User | Deleted only by the user's Delete, or by uninstalling without keeping the app's data |
 | Runtime root filesystem | App-private storage | Application/user runtime | Survives normal app updates |
 | Runtime home and installed tools | App-private runtime storage | User | Survives restart and normal updates |
 | Extensions | Not applicable | — | — |
@@ -410,22 +406,21 @@ The application does not render the destination internally.
 | Preferences | DataStore | Application/user | Removed with application data |
 | Dirty-document recovery | App-private recovery store | Application/user | Cleared after durable save or explicit discard |
 | Search and syntax caches | App-private cache | Application | Rebuildable |
-| Project Git data | Inside original repository | User | Follows workspace ownership |
+| Project Git data | Inside the workspace's repository | User | Follows workspace ownership |
 
 Normal application updates do not reset the runtime. A repair or reset action must state exactly which runtime data will be replaced or preserved before execution.
 
 ## 13. Android Filesystem Boundary
 
-The application requests `MANAGE_EXTERNAL_STORAGE` because broad direct-path access is a core function. The user grants this through Android system settings.
+The application requests no broad storage permission. Workspaces live in its own storage, where links, executable bits, case-sensitive names and many small files behave as Linux tools expect — which Android's shared storage does not (measured: [workspace-storage-plan.md](./workspace-storage-plan.md) §2).
 
-After approval, the application may access ordinary shared-storage paths, supported removable media, and USB storage exposed by Android. It still cannot access:
+Across the boundary:
 
-- another application's private internal data;
-- Android-protected application directories denied by the operating system;
-- the root-only Android filesystem on an unrooted device;
-- a filesystem that is read-only or unavailable.
+- **In:** a folder from phone storage is brought in by Import, through Android's folder picker (`ACTION_OPEN_DOCUMENT_TREE`); the grant is used for that import only.
+- **Out:** other applications reach workspaces through the application's `DocumentsProvider` — Android's Files app and every Open/Save picker — and only what the user picks for them. The provider never follows a link out of the workspaces into the runtime or the application's other data.
+- **Not:** the runtime has no view of `/sdcard`, and workspaces have no `/sdcard` path.
 
-The UI must describe these limits accurately. The architecture does not add Storage Access Framework trees as the primary workspace model.
+Application data needs protecting now that it holds the user's work: the manifest declares `hasFragileUserData` (uninstalling asks whether to keep the data) and a `manageSpaceActivity` (App info offers Manage space, which opens the application's storage settings, instead of Clear storage).
 
 ## 14. Runtime Lifecycle
 
@@ -544,7 +539,7 @@ Long-running operations expose explicit states such as idle, queued, running, su
 
 Security remains small and practical:
 
-- the user explicitly grants Android All Files Access;
+- no broad storage permission is requested; other applications reach workspaces only through the document provider and the user's picks;
 - workspace and runtime commands remain inside Android's application permissions;
 - application-owned credentials use Android-provided secure storage where the application controls them;
 - CLI credentials remain in the runtime locations expected by those tools;
@@ -587,7 +582,8 @@ Telemetry is not required for core operation. Any future telemetry must be separ
 ### 23.2 Integration tests
 
 - open, edit, save, and externally modify real files;
-- map an Android path into the runtime and verify bidirectional changes;
+- map a workspace into the runtime and verify bidirectional changes;
+- import a folder through a document tree, and read and write workspaces through the document provider;
 - start, interact with, resize, and terminate PTY processes;
 - exercise Git status, diff, stage, commit, branch, and conflict fixtures;
 - start a test language server and validate diagnostics and completion;
@@ -600,7 +596,7 @@ Telemetry is not required for core operation. Any future telemetry must be separ
 - phone, foldable, and tablet layouts;
 - rotation and multi-window state;
 - foreground service behavior;
-- removable-storage removal;
+- the Files app and other applications through the document provider;
 - external browser dispatch;
 - low-memory process recreation.
 
@@ -614,7 +610,7 @@ Community contributions are made to the product source tree rather than installe
 - avoid introducing a new top-level navigation destination when an existing hierarchy fits;
 - include unit or integration coverage for parsing and state transitions;
 - document any new runtime dependency and installation impact;
-- preserve direct workspace ownership and tool neutrality.
+- preserve the one-copy workspace rule and tool neutrality.
 
 This model keeps the application open to contributors without creating an unbounded executable extension system.
 
@@ -626,7 +622,7 @@ This model keeps the application open to contributors without creating an unboun
 | Editor | Replaceable native engine | Avoid WebView dependency and contain third-party editor risk |
 | Workbench | Product-owned native features | Avoid maintaining a desktop workbench fork |
 | Extensibility | CLI tools and open protocols | Preserve user capability without an extension runtime |
-| Workspace access | Direct filesystem paths | Edit original files and keep normal tool compatibility |
+| Workspace storage | The application's own storage, bound whole at `/workspace` for every tool; a document provider for other applications | Shared storage cannot hold what toolchains need (links, executable bits, case, many small files — measured); one filesystem keeps every tool on the same files |
 | Runtime | Ubuntu ARM64 under PRoot | Provide familiar Linux tooling without device root |
 | Source control | Git CLI with stable machine output | Preserve complete Git behavior and avoid reimplementation |
 | Search | `ripgrep` process | Reuse a proven fast search engine |
@@ -640,8 +636,8 @@ This model keeps the application open to contributors without creating an unboun
 
 The following rules may not be violated without a new architecture decision:
 
-1. Opening a directory does not copy it.
-2. Saving writes to the original selected path.
+1. A workspace exists in one place, the application's storage: nothing is mirrored or synchronised, and a folder is copied in only by the user's explicit Import.
+2. Saving writes to the workspace file itself.
 3. The native UI does not depend on a browser-rendered workbench.
 4. The product does not maintain a list of supported AI agents.
 5. User-installed commands execute through the same runtime contract as the terminal.
@@ -656,7 +652,7 @@ The following rules may not be violated without a new architecture decision:
 | Term | Meaning |
 |---|---|
 | Workbench | The complete native editing environment, including editor, files, Git, search, terminal, and diagnostics |
-| Workspace | One user-selected root directory opened directly from Android-accessible storage |
+| Workspace | One folder in the application's storage (`files/workspaces/<name>`), seen at `/workspace/<name>` in the runtime |
 | Runtime | The application-owned Ubuntu ARM64 environment executed through PRoot |
 | Editor engine | Replaceable native component responsible for text interaction and rendering |
 | Language service | A user-installed process communicating with the application through LSP |

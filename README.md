@@ -1,7 +1,8 @@
 # iCode
 
-iCode is a native Android mobile IDE built from the complete Figma user flow. It works on real
-phone storage and a real Linux runtime: workspaces, the file tree, the editor with autosave and
+iCode is a native Android mobile IDE built from the complete Figma user flow. Its workspaces live
+in its own Linux storage, which a real Linux runtime and every other part of iCode reach the same
+way: workspaces, the file tree, the editor with autosave and
 recovery drafts, Git (clone, status, diff, commit, push, pull, branches, credentials), the
 terminal with background sessions and alerts, language services, and settings.
 
@@ -20,9 +21,10 @@ Build:
 
 The APK is written to `app/build/outputs/apk/debug/app-debug.apk`.
 
-On first launch iCode installs its runtime, then asks for the permissions it needs, one at a
-time, with Android's own dialogs. iCode's folder screen browses phone storage itself; open or
-create a workspace, or clone a repository, and work on its real files.
+On first launch iCode installs its runtime, then offers its two optional permissions
+(notifications, battery), one at a time, with Android's own dialogs. Create a workspace, clone a
+repository, or import a folder from phone storage; other apps reach your workspaces through
+Android's Files app ([docs/workspace-storage-plan.md](./docs/workspace-storage-plan.md)).
 
 ## Capture all 39 screens
 

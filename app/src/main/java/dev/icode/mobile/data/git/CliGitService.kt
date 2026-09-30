@@ -1,7 +1,6 @@
 package dev.icode.mobile.data.git
 
 import dev.icode.mobile.data.runtime.GuestCommand
-import dev.icode.mobile.data.runtime.GuestMount
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.runtime.RuntimePackageInstaller
 import dev.icode.mobile.domain.GitFileDiff
@@ -21,6 +20,12 @@ internal class CliGitService(
 ) {
 
     private val guest = GuestCommand(layout)
+
+    /** Where a repository is on the host: its top, its branch (docs/workspace-storage-plan.md §4.2). */
+    val locator = GitLocator(layout.workspaces)
+
+    /** A location for a path Git reported inside the runtime; null when it is not in the workspaces. */
+    fun locationOf(guestPath: String): String? = layout.workspaces.locationOf(guestPath)
 
     @Volatile
     private var configuredSafeDirectory = false
@@ -85,18 +90,23 @@ internal class CliGitService(
     }
 
     /**
-     * Runs one Git command for [workspaceHostPath]: at the top of the
-     * repository that holds it ([GitMountResolver]), or in the folder itself
-     * when none does. The folder is bound into the guest rather than copied, so
-     * Git operates on the user's real repository. Cancelling the caller stops
-     * Git and every process it started; [onStderr] sees Git's progress as it is printed.
+     * The folder Git runs in for [workspacePath]: the top of the repository
+     * holding it, so the root-relative paths Git reports can be handed back to
+     * it; the folder itself when no repository does.
+     */
+    fun workingFolderOf(workspacePath: String): String = locator.topOf(workspacePath)?.path ?: workspacePath
+
+    /**
+     * Runs one Git command for [workspaceHostPath], in [workingFolderOf] it, or
+     * in the guest home when null. Cancelling the caller stops Git and every
+     * process it started; [onStderr] sees Git's progress as it is printed.
      */
     suspend fun run(
         workspaceHostPath: String?,
         arguments: List<String>,
         onStderr: ((String) -> Unit)? = null,
         config: List<String> = emptyList(),
-    ): CommandResult = capture(workspaceHostPath?.let(GitMountResolver::resolve), arguments, onStderr, config)
+    ): CommandResult = capture(workspaceHostPath?.let(::workingFolderOf), arguments, onStderr, config)
 
     /** Runs Git in exactly [directoryHostPath], whatever repository holds it: a clone into it, two files compared. */
     suspend fun runIn(
@@ -104,27 +114,27 @@ internal class CliGitService(
         arguments: List<String>,
         onStderr: ((String) -> Unit)? = null,
         config: List<String> = emptyList(),
-    ): CommandResult = capture(GuestMount(directoryHostPath), arguments, onStderr, config)
+    ): CommandResult = capture(directoryHostPath, arguments, onStderr, config)
 
     private suspend fun capture(
-        mount: GuestMount?,
+        location: String?,
         arguments: List<String>,
         onStderr: ((String) -> Unit)?,
         config: List<String>,
     ): CommandResult {
-        val result = guest.capture(mount, GitCommandLine.argv(arguments, config), "git", onStderr = onStderr)
+        val result = guest.capture(location, GitCommandLine.argv(arguments, config), "git", onStderr = onStderr)
         return CommandResult(result.exitCode, result.stdout, result.stderr)
     }
 
     /**
-     * Runs a constant shell script, with stderr captured, in [mount] (a
+     * Runs a constant shell script, with stderr captured, in [location] (a
      * repository's top) or the guest home.
      *
      * Starting PRoot costs roughly a second, so a refresh that needs eight Git
      * facts runs one script that prints them all rather than eight processes.
      */
-    suspend fun runScript(mount: GuestMount?, script: String): CommandResult {
-        val result = guest.captureScript(mount, script, "git-script")
+    suspend fun runScript(location: String?, script: String): CommandResult {
+        val result = guest.captureScript(location, script, "git-script")
         return CommandResult(result.exitCode, result.stdout, result.stderr)
     }
 

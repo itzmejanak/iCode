@@ -25,8 +25,8 @@ Task decomposition, dependency ordering, progress tracking, and release grouping
 
 The following rules apply to every story:
 
-1. Opening an existing directory never creates a hidden project copy.
-2. File writes target the original selected directory.
+1. A workspace exists in one place, the application's storage: nothing makes a hidden copy, mirror or synchronisation of it.
+2. File writes target the workspace file itself.
 3. No account, provider, extension, or agent setup is required for local editing.
 4. User-installed processes are not limited to a platform-maintained allowlist.
 5. The interface is native Android and does not depend on a browser-rendered IDE.
@@ -40,26 +40,26 @@ The following rules apply to every story:
 
 ### US-ENTRY-001 — See useful entry actions
 
-**As a developer, I want to see my recent workspaces and the main workspace actions when the application opens, so that I can start work without navigating a dashboard.**
+**As a developer, I want to see my workspaces and the main workspace actions when the application opens, so that I can start work without navigating a dashboard.**
 
 Acceptance criteria:
 
-- The Launcher shows Open Folder, Clone Repository, and Create Folder.
-- Recent workspaces appear below the primary actions.
+- The Launcher shows Import, Clone Repository, and New Folder.
+- Every workspace in the application's storage appears below the primary actions, most recently opened first.
 - The screen does not require account, provider, language, or agent configuration.
 - Runtime attention appears only when installation, update, or repair affects the requested action.
 - Settings and About remain accessible without competing with workspace actions.
 
-### US-ENTRY-002 — Reopen a recent workspace
+### US-ENTRY-002 — Reopen a workspace
 
-**As a returning developer, I want to reopen a recent workspace, so that I can resume quickly.**
+**As a returning developer, I want to reopen a workspace, so that I can resume quickly.**
 
 Acceptance criteria:
 
-- Each recent row identifies the workspace by name and shortened path.
-- Selecting an available row opens the original directory.
-- An unavailable row explains whether the storage is missing, permission is revoked, or the path no longer exists.
-- The user can remove a stale entry without deleting workspace files.
+- Each row identifies the workspace by name and its `/workspace/<name>` path, with its branch when it is a repository.
+- Selecting a row opens the workspace.
+- The list is the application's workspaces folder itself: nothing in it can be stale, and a workspace made from the terminal in `/workspace` appears.
+- Each row's menu offers Open, Open Terminal, Rename, Show in Files, Copy path, and Delete.
 
 ### US-ENTRY-003 — Continue after runtime preparation
 
@@ -73,90 +73,88 @@ Acceptance criteria:
 - Successful preparation continues the action the user originally requested.
 - No provider or agent selection follows automatically.
 
-## 5. Permissions and Storage
+## 5. Where Workspaces Live
 
-### US-STORAGE-001 — Understand broad file access
+### US-STORAGE-001 — Know where my work is
 
-**As a developer, I want a clear explanation before granting broad file access, so that I understand why the application needs it.**
-
-Acceptance criteria:
-
-- The explanation states that existing directories are edited in place.
-- It states that Android still protects other applications' private data and restricted locations.
-- It identifies the user action that requires permission.
-- Continuing opens the correct Android system settings surface.
-- Returning to the application rechecks permission instead of assuming approval.
-
-### US-STORAGE-002 — Recover from denied permission
-
-**As a developer who denied or revoked access, I want the application to remain understandable, so that I can grant access later or leave safely.**
+**As a developer, I want to know that my workspaces live in the application's storage and what protects them, so that I never lose work by surprise.**
 
 Acceptance criteria:
 
-- The blocked action does not partially create or copy a workspace.
-- The application states which capability is unavailable.
-- The user can retry, open Android settings, or cancel.
-- Features that do not require the blocked path remain usable where safe.
+- Storage settings list every workspace with its size and say that workspaces live in the application's storage.
+- Uninstalling offers to keep the application's data.
+- App info offers Manage space, which opens Storage settings, instead of Clear storage.
+- Runtime Repair and Reset state that workspaces are kept, and keep them.
+- No broad storage permission is requested at any point.
 
-### US-STORAGE-003 — Handle removed storage
+### US-STORAGE-002 — Bring a folder in from phone storage
 
-**As a developer using removable storage, I want an open workspace to react safely when the storage disappears, so that the application does not corrupt files.**
+**As a developer with a project on phone storage, I want to import it, so that I can work on it with every tool.**
 
 Acceptance criteria:
 
-- Writes stop after the location becomes unavailable.
-- Open documents clearly show that their source is unavailable.
-- Dirty in-memory text remains recoverable.
-- The user can retry after reconnecting storage or close the workspace.
-- The application does not silently redirect writes to a different location.
+- Import opens Android's folder picker; the chosen folder is used for this import only.
+- The workspace name is proposed from the folder and can be changed; a taken name is refused inline.
+- An import that would not fit in the free space is refused before anything is copied.
+- Progress is shown as a task that can be hidden; cancelling or a failure leaves nothing behind.
+- The original folder is never written.
+- A repository's executable bits and links are restored from Git's own record, and its status reads as before the import; when Git cannot be had, the result says what was not restored.
+
+### US-STORAGE-003 — Reach my workspaces from other applications
+
+**As a developer who also uses other apps, I want my workspaces in Android's Files app and pickers, so that I can open, edit, share, or copy their files elsewhere.**
+
+Acceptance criteria:
+
+- Android's Files app shows iCode, with every workspace as a folder.
+- Files can be opened, edited, saved, created, renamed, moved, and deleted there.
+- A workspace can be copied out to any folder.
+- A link inside a workspace never leads another application out of the workspaces.
+- Changes made there appear in iCode like any other outside change.
+- Show in Files opens the Files app at the workspace.
 
 ## 6. Workspace Management
 
-### US-WS-001 — Open an existing folder
+### US-WS-001 — Open a workspace
 
-**As a developer, I want to open any Android-accessible folder, so that I can work on the files already stored there.**
+**As a developer, I want to open a workspace, so that I can work on its files with every tool.**
 
 Acceptance criteria:
 
-- The folder is validated before becoming a workspace.
-- The application records its direct canonical path.
-- The Explorer shows files from the selected original location.
-- Terminal, Git, search, and language services resolve the same content.
-- No archive, mirror, or application-private project copy is created.
+- The Explorer shows the workspace's files.
+- Terminal, Git, search, and language services resolve the same content at `/workspace/<name>`.
+- No mirror or synchronised copy is created.
 
 ### US-WS-002 — Create a workspace folder
 
-**As a developer, I want to create a folder at a location I choose, so that new work remains under my ownership.**
+**As a developer, I want to create a new workspace by naming it, so that I can start fresh work.**
 
 Acceptance criteria:
 
-- The user chooses a parent location and valid folder name.
-- Invalid or conflicting names receive inline feedback.
+- The user enters a valid folder name; it is created at `/workspace/<name>`, shown as it is typed.
+- Invalid or taken names receive inline feedback.
 - The created folder becomes the active workspace.
-- The actual path is visible in workspace details.
 
 ### US-WS-003 — Clone a repository
 
-**As a developer, I want to clone a Git repository into a destination I choose, so that I control where the working copy lives.**
+**As a developer, I want to clone a Git repository into a new workspace, so that I can work on it.**
 
 Acceptance criteria:
 
-- The user supplies a repository URL and destination.
+- The user supplies a repository URL; the folder name follows Git's rule for the address and can be changed.
 - Clone progress and command failure are visible.
 - Authentication is handled through the user's Git/runtime configuration.
-- A successful clone opens the created working directory.
-- A failed clone does not report the workspace as ready.
+- A successful clone opens the created workspace.
+- A failed or cancelled clone leaves nothing behind and does not report the workspace as ready.
 
 ### US-WS-004 — View workspace identity
 
-**As a developer, I want to inspect the active workspace's path and state, so that I always know which files I am modifying.**
+**As a developer, I want to see the active workspace's name and path, so that I always know which files I am modifying.**
 
 Acceptance criteria:
 
-- Workspace details show display name and canonical Android path.
-- The runtime-visible workspace path is available in technical details.
+- The workspace's name and `/workspace/<name>` path are shown.
 - Git repository and branch appear when detected.
-- Read-only, missing, and permission-blocked states are visible.
 
 ### US-WS-005 — Switch workspaces safely
 
@@ -168,6 +166,17 @@ Acceptance criteria:
 - The current workspace session is persisted.
 - The selected target opens using its own document, panel, Git, and language state.
 - Returning restores the previous workspace session where possible.
+
+### US-WS-006 — Rename or delete a workspace
+
+**As a developer, I want to rename or delete a whole workspace, so that my list stays the way I want it.**
+
+Acceptance criteria:
+
+- Rename and Delete are refused, with the reason, while a terminal session or a task runs in the workspace, or a file in it has unsaved edits.
+- A renamed workspace keeps its settings, recent files, and — when open — its tabs and tree.
+- Delete names the workspace and its path, says it cannot be undone, and runs as a task.
+- A deleted workspace's settings and recent files are forgotten.
 
 ## 7. Explorer and File Operations
 
@@ -264,9 +273,9 @@ Acceptance criteria:
 - Closing a dirty document requires save, discard, or cancel.
 - Close Others and Close Saved are available through contextual actions.
 
-### US-EDIT-003 — Save to the original file
+### US-EDIT-003 — Save to the workspace file
 
-**As a developer, I want Save to update the original selected file, so that other tools see the same content.**
+**As a developer, I want Save to update the workspace file itself, so that other tools see the same content.**
 
 Acceptance criteria:
 
@@ -405,7 +414,7 @@ Acceptance criteria:
 - The interface previews affected files and match count.
 - Individual matches or files can be excluded when supported.
 - Replace All requires explicit confirmation.
-- Modified files become normal original-file and Git changes.
+- Modified files become normal workspace-file and Git changes.
 - Failure reports affected and unaffected paths without claiming complete success.
 
 ## 11. Source Control
@@ -682,7 +691,7 @@ Acceptance criteria:
 
 - The server validates the position and new name.
 - A multi-file edit identifies affected files before application.
-- Applying edits updates original files and normal Git state.
+- Applying edits updates workspace files and normal Git state.
 - Partial failure is reported and never represented as complete success.
 
 ### US-LANG-006 — Format code
@@ -983,7 +992,7 @@ Acceptance criteria:
 
 - Machine-output parsers include fixtures for edge cases and unusual paths.
 - State transitions have deterministic tests.
-- File-writing changes prove original-path behavior.
+- File-writing changes prove that writes land in the workspace file itself.
 - Runtime-facing features test success, failure, cancellation, and process death.
 - Responsive UI changes validate compact and expanded layouts.
 
@@ -1002,7 +1011,7 @@ Acceptance criteria:
 
 ### Scenario A — Edit and commit an existing repository
 
-1. Developer opens an existing directory.
+1. Developer opens a workspace — cloned, or imported from phone storage.
 2. Explorer reveals the repository tree and Git branch.
 3. Developer opens and edits files.
 4. Saved files receive Git decorations.
@@ -1010,7 +1019,7 @@ Acceptance criteria:
 6. Developer reviews diffs, stages selected files, writes a message, and commits.
 7. Repository state refreshes from Git.
 
-Expected outcome: the original repository contains the edit and commit; no project copy exists.
+Expected outcome: the workspace's repository contains the edit and commit; no other copy of it exists.
 
 ### Scenario B — Agent modifies the project
 
@@ -1061,7 +1070,7 @@ A story is behaviorally complete only when:
 - all acceptance criteria are demonstrable;
 - compact and applicable expanded layouts are verified;
 - success, empty, loading, failure, and recovery behavior are defined;
-- original-file ownership is preserved;
+- the one-copy workspace rule is preserved;
 - accessibility labels and focus behavior are present;
 - process and Git results are based on actual exit/state evidence;
 - relevant persistence and process-recreation behavior is tested;

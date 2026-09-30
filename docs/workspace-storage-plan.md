@@ -1,255 +1,308 @@
-# One logical workspace on several storage backends, and a runtime that keeps working — plan
+# Workspaces live in iCode's storage — master plan
 
-Status: **plan** (2026-09-30), following the owner's direction in
-[storage-logic.md](./storage-logic.md), which governs where the two differ. Replaces the earlier
-version of this plan (iCode Projects in private storage; generated folders "kept fast") — that was
-narrower than the direction: it was shaped around dependencies rather than a workspace
-abstraction.
+Status: **plan, decided by the owner** (2026-09-30). Replaces every earlier version of this document —
+the shared-source design with private mounts (S1–S4, commits `8228056` → `b0c585d`) — and the
+direction of [storage-logic.md](./storage-logic.md). It is an architecture decision: it changes
+[architecture.md](./architecture.md) §26 invariants 1–2, which W1 rewrites.
 
-The rule, in the owner's words: **shared storage is the user's project space; private Linux storage
-is iCode's invisible execution infrastructure; physical storage may differ, but iCode presents one
-logical workspace.** One canonical copy of the user's source, no mirror, no synchronisation, no
-stack-specific logic in the foundation. The runtime must not depend on the screen.
+## 1. The decision
 
-## 1. Measured (owner's phone, Infinix-X6881, 2026-09-29/30)
+The owner (2026-09-30): the split between shared and private storage "is mismatching and bringing
+complexity"; **private storage is the best solution**; the launcher shows the list of workspaces in
+private storage, so that one backend serves everything "from the terminal to other areas"; plan so
+that no gap remains, then migrate in one clean sweep — rewrite rather than align the current code,
+harden it, no duplication, no leftovers, no assumptions.
 
-**Storage.**
+The owner's answers, the same day:
 
-| | Shared storage (`/storage/emulated/0`) | iCode's private storage (`files/`, ext4) |
+| Question | Answer |
+|---|---|
+| Where the list of workspaces lives | **The launcher lists every workspace in iCode's storage**; the phone-storage folder browser (Open Folder) retires |
+| All Files Access | **Dropped.** Folders come in by Import, through Android's folder picker; other apps reach workspaces through Android's Files app |
+| Workspaces opened from phone storage before | **One notice lists them; each comes in by Import.** Their old shortcuts go; the folders on phone storage are never touched |
+| Data safety | **Keep data on uninstall** (`hasFragileUserData`) and **Manage space instead of Clear storage** (`manageSpaceActivity`). Not device-to-device transfer |
+
+**The rule.** A workspace is a folder in iCode's storage, `files/workspaces/<name>`. Every part of
+iCode — launcher, Explorer, editor, file operations, terminal, Git, search, language services and
+the Files provider — reaches it through one path model (§4.2). Nothing is mounted, mirrored or
+synchronised. A folder from phone storage comes in once, by an explicit Import, as a copy; the
+original is never written.
+
+## 2. Why — measured on the owner's phone (Infinix-X6881, 2026-09-29/30)
+
+| | Shared storage (`/storage/emulated/0`, FUSE) | iCode's storage (`files/`, ext4) |
 |---|---|---|
 | 1,000 small files created / deleted | 13.0 s / 6.1 s | 0.07 s / 0.04 s |
 | symbolic link | refused ("Permission denied") | works |
-| `chmod 755` | ignored (`-rw-rw----`) | kept (`-rwxr-xr-x`) |
-| `A.txt` beside `a.txt` | one file: the second write replaced the first, silently | two files |
-| a real `npm install` (1,116 files, cold) through iCode's PRoot | not measured: `run-as` cannot reach shared storage; to measure from iCode itself | 17 s, `.bin` link made |
+| `chmod 755` | ignored (`-rw-rw----`) | kept |
+| `A.txt` beside `a.txt` | one file: the second write silently replaced the first | two files |
+| running a script (`./run.sh`) | refused: the volume is `noexec` | runs |
+| `npm install semver lodash` through iCode's PRoot | **fails**: `EACCES … symlink … .bin/semver`, 0 files | exit 0 in 8 s, `.bin/semver` linked |
+| `git clone` with PRoot's `--link2symlink` | cannot finalise a pack ([sudo-capability-plan](./sudo-capability-plan.md) §1) | works |
 
-Network inside the runtime: DNS 160 ms; a registry request 356 ms, then 46–56 ms.
+The split design (S3–S4) made the second column usable for generated folders, at a price paid by
+every consumer: two filesystems under one workspace, a mount list per workspace, empty placeholder
+folders PRoot leaves in the user's folder, moves that must copy then delete (`EXDEV`), rename and
+move refused for mounts and the folders holding them, a compatibility detector still to build for
+the source side (links, executable bits, case) — and the source side itself still slow, `noexec`
+and case-insensitive. Keeping everything in iCode's storage removes all of it at once.
 
-**The owner's `npm install` in RevPlayer never ended** — npm's log: 30 requests in hours, median
-67 s, worst 2 h 47 min; it never reached writing `node_modules`. Watched every 10 s (01:44–01:59):
-npm ran while iCode was in front; at 01:51:19, iCode still in front and the screen still awake,
-npm, its shell, PRoot **and iCode's own process** were all `D` in `__refrigerator`, and stayed so
-through doze. Android's own freezer is off (`use_freezer=false`); the maker's is on — Transsion's
-**Fast Freezer** (`mFastFreezerEnabled=true`, `FEATURE_FAST_FREEZER_SUPPORTED=true`), with a
-package whitelist iCode is not on and an empty `noFreezeModeAppList`. It froze iCode although its
-foreground service ran (`procState 4`), iCode was on the battery whitelist, and background running
-was allowed.
+The background freeze measured on the same phone (Transsion's Fast Freezer; R1 in the record of
+this plan's previous version, commit `b0c585d`) is independent of storage and stays parked by the
+owner's decision; nothing here changes it.
 
-**Who owns the work today** (code, 2026-09-30):
+## 3. The whole lifecycle — today, and after this plan
 
-| Work | Owner | Lifetime |
+| # | Step | Today (code as of `b0c585d`) | After |
+|---|---|---|---|
+| 1 | First launch | Splash → runtime install → **All Files Access (required)** → notifications → battery → launcher | Splash → runtime install → notifications → battery (both optional, each offered once) → launcher |
+| 2 | Home | Tiles Open Folder, Clone Repo, New Folder; **Recent Workspaces**: up to 20 shortcuts to phone-storage paths, which can go stale or unavailable (Remove from recents, Remove Stale); a banner while storage access is off | Tiles **Import**, Clone Repo, New Folder; **Workspaces**: every folder in iCode's storage, most recently opened first. Nothing can be stale: the list is the folder. A workspace made in `/workspace` from the terminal appears in it |
+| 3 | New workspace | Choose a parent anywhere on phone storage through the folder browser, name it, open it | Name it; it is made at `/workspace/<name>` and opened |
+| 4 | Clone | Choose a destination through the folder browser; Git clones into it | Clones into `/workspace/<folder>`: Git's name for the address, editable; nothing to choose |
+| 5 | Open an existing folder | Open Folder: browse phone storage, open any folder in place | Open a workspace from the list. A folder elsewhere comes in by **Import** — a copy; the original is untouched |
+| 6 | Explorer, editor, file operations | `java.io` on phone storage (13 ms a file operation); S4's logical tree over two filesystems | `java.io` on ext4 in iCode's storage; one filesystem, no boundary rules |
+| 7 | Terminal, Git, search, language services | Each launch binds the open folder at `/workspace/<name>` (a `:` in the name becomes `-`); Git binds the repository top it finds itself (`GitMountResolver`, same-path binds); S3b adds each mount | **Every launch binds `files/workspaces` at `/workspace`**; a command runs in `/workspace/<name>`; the terminal sees every workspace |
+| 8 | Switch workspace | From the launcher; unsaved edits are asked about | Same |
+| 9 | Leave iCode, process death, restore | Sessions under the foreground service; the freeze (R1, parked); the session restored by location | Same |
+| 10 | Other apps | See the folder by its `/sdcard` path (MT Manager, Files) | Android's Files app and every app's Open/Save picker show **iCode → workspaces**, read and write. Not by `/sdcard` path |
+| 11 | Taking work out | It was already on phone storage | Copy from **iCode** in the Files app to any folder; open or share a file from there |
+| 12 | Rename or delete a workspace | Only "Remove from recents" (files untouched) | **Rename…** and **Delete…** on the workspace's menu; a delete is confirmed and runs as a task |
+| 13 | Storage management | Settings → Storage: device usage, runtime and cache sizes, recent workspaces' sizes, Clear Cache, Remove Stale | Same page: every workspace's size, Clear Cache; Remove Stale goes. App info's **Manage space** opens this page |
+| 14 | Runtime Repair, Reset | Touch `files/runtime` only (rootfs, home backup) | Same; the confirmations say workspaces are kept |
+| 15 | App update | Stores carry over | This version migrates once (§5) |
+| 16 | Uninstall, Clear storage | Workspaces on phone storage survive both | Android asks whether to keep iCode's data on uninstall; App info offers Manage space instead of Clear storage |
+
+## 4. Design
+
+### 4.1 What lives where (replaces architecture.md §12)
+
+| Data | Location | Lifetime |
 |---|---|---|
-| Terminal sessions (and what runs in them) | `TerminalSessionManager`, one per process; `RuntimeForegroundService` keeps the process in the foreground while any runs | the process; a killed process's sessions are reported, never resumed (`TerminalSessionLedger`) |
-| Git transfers, file tasks, package installs, language servers, the workspace refresh and watcher | `AndroidWorkbenchGateway`'s scope — **owned by the Activity's ViewModel**: `onCleared()` → `gateway.close()` cancels it | **the Activity**: backing out of iCode, or the system discarding the Activity, stops them |
-| Runtime install | `RuntimeCoordinator` + the service (`RuntimeWork.installing`) | the gateway, kept alive by the service while it installs |
+| Workspaces | `files/workspaces/<name>/` | Until the user deletes the workspace, or uninstalls iCode without keeping its data |
+| Runtime root filesystem and home | `files/runtime/` | Across app updates; replaced only by Repair or Reset |
+| Settings, workspace history, recent files, session | DataStore and SharedPreferences | Removed with the app's data |
+| Recovery drafts | `files/document-drafts/` | Until saved or discarded |
+| Downloads, PRoot temporary files | `cache/` | Rebuildable; Clear Cache |
 
-## 2. Order (storage-logic.md "Order of work")
+### 4.2 One path model
 
-| Step | What | Done when |
+`WorkspacePaths` (`data/storage`, pure, tested) is the only code that knows how a workspace is
+reached:
+
+| Form | Example | Used by |
 |---|---|---|
-| **R1** | The runtime owns the work, not the screen: one process-scoped runtime host (sessions, commands, servers, tasks, transfers, language services, future agents) started by and kept with the foreground service; the UI connects and reconnects to it. The Fast Freezer measured and answered. Every session's state is true: running, exited, interrupted (paused by the system, and for how long), killed | §3's matrix measured on the phone, each row either continuing or reported truthfully |
-| **R2** | Verify long-running commands (an install, a build, a localhost server) through the matrix | recorded |
-| S1 | This plan, rewritten around the logical workspace (§4) — before any storage code | this document |
-| S2 | Design the generic `WorkspaceManager`, its backends and storage classes | reviewed with the owner |
-| S3 | Proof of concept on the phone: a source file on shared storage and one private Linux-backed directory, seen as one tree at one runtime path | §4.4's assumptions measured |
-| S4 | The Explorer and editor read the same logical workspace | one view, not two |
-| S5 | A `DocumentsProvider` over the same logical tree | read, write, rename, delete measured from Files and a SAF app |
-| S6 | Compatibility detection, and the Linux-native workspace as the exceptional fallback | detector tested on real collisions, links, exec bits |
-| S7 | Stack/toolchain profiles, declarative, on top | only after S3–S6 hold |
+| host path — the **location**, the identity every store already keys by | `<files>/workspaces/RevPlayer/src/App.tsx` | Explorer, editor, file operations, stores, watcher |
+| guest path | `/workspace/RevPlayer/src/App.tsx` | terminal, Git, ripgrep, language services; **also the path people see** (launcher, Explorer header, Copy path) |
+| document ID | `RevPlayer/src/App.tsx` | the Files provider |
 
-## 3. R1 — the runtime keeps working
+- `guestOf(location)` / `locationOf(guestPath)`: prefix exchange, both ways, null outside the root.
+- `workspaceOf(location)`: the workspace holding a location — its first path segment under the root.
+- Every PRoot launch binds `files/workspaces:/workspace` once. The only per-launch fact is the
+  working directory. So: no per-launch mount decision, no name mangling (a `:` never reaches PRoot's
+  `host:guest` argument), no Git mount resolver — every repository's top is inside `/workspace` and
+  Git finds it itself, linked worktrees included, since Git writes guest paths and every launch
+  sees the same `/workspace`.
+- Names: `WorkspaceNameRules` (no `/`, `\`, NUL, `.`, `..`; at most 255 bytes), and a workspace's
+  name cannot start with `.`: at the top of the root such names are **iCode's staging** — an import
+  or a clone in progress (§4.5). Staging is never listed, never offered by the provider, and what a
+  stopped process left of it is removed at the next start.
+- The launcher's branch comes from `.git/HEAD` read on the host; a linked worktree's `.git` file
+  names its Git directory by guest path, which `locationOf` turns back into a location.
 
-**Architecture.** A `RuntimeHost` owns everything that runs: terminal sessions, the commands in
-them, development servers, file tasks, Git transfers, package installs, language services — and is
-where future toolchains and agents attach. It lives for the process, is started when the user starts
-work, and is held by `RuntimeForegroundService`, which already keeps the process in the foreground
-while sessions run. The gateway becomes the UI's connection to it: the Activity and its ViewModel
-can come and go without stopping anything. No second process until a measurement shows it is needed
-(one uid is frozen whole, so a second process would not escape the freezer).
+### 4.3 The workspace list and identity
 
-**Truthful state.** A session reports one of: running; exited (with status); **interrupted** — the
-system stopped the process for a time (a heartbeat inside the host notices a wall-clock gap and
-says "paused by the system for 46 min"); killed (the ledger, as today). A frozen command never
-shows as quietly running.
+- **The directory is the registry.** The launcher lists the folders in `files/workspaces`; there is
+  no separate list to go stale. The store keeps only when each was last opened (keyed by location);
+  a folder never opened in iCode sorts by its modification time.
+- iCode watches `files/workspaces` while the launcher is shown: a workspace made, renamed or removed
+  from the terminal appears or goes.
+- **Rename** is refused while a terminal session or a task runs in the workspace, or a file in it
+  has unsaved edits; its language services are stopped first. The folder is renamed; its settings,
+  last-opened time and recent files follow; if it is the open workspace, its tabs, tree, session
+  and search index follow, as for a folder renamed in the Explorer.
+- **Delete** is confirmed (the name, its path, "this cannot be undone") and runs as the existing
+  delete task. It is refused while a terminal session runs in the workspace or its recovery drafts
+  wait; the open workspace is closed first, asking about unsaved edits as a switch does. Its
+  settings, last-opened time and recent files are forgotten.
 
-**The matrix** (storage-logic.md "Test scenarios"), each measured with a heartbeat command started
-from an iCode terminal (a process started from `adb` is not in iCode's cgroup and proves nothing):
+### 4.4 Screens
 
-| Scenario | Levers to measure |
+Frames are the Figma frames `Route.kt` names; changes use only the existing kit.
+
+| Screen | Change |
 |---|---|
-| iCode in front; screen on, then dimming | none (baseline) |
-| launcher in front | none; a held partial wake lock (the notification already offers one per session) |
-| another app in front | same |
-| screen off / locked, 3 min and 30 min | none; wake lock; the service's foreground type; the maker's own exemption, if the phone offers one to users |
-| Activity recreated (rotation, theme); Activity finished (Back out) | before and after the host moves out of the ViewModel |
-| UI process killed by the system | the ledger's report on the next start |
-| a long install, a long build, a localhost server | the levers that held above |
+| Launcher (3:124, empty 3:202) | Tiles **Import**, Clone Repo, New Folder. List **Workspaces**: name, `/workspace/<name>`, branch, last opened. Menu: Open, Open Terminal, Rename…, Show in Files, Copy path (the guest path), Delete…. Empty state: "Create a folder, clone a repository, or import one from phone storage". The storage banner goes. Hidden tasks (an import, a delete) show as in the Explorer |
+| New Folder (2003:77) | Folder Name; the path row reads `/workspace/<name>` as it is typed, with no Change; "already exists" is said inline; the storage card stays |
+| **Import** (new route; no frame yet) | Built from New Folder's parts: **From** (the picked folder's name; Change reopens the picker), Folder Name (prefilled), the path row, the storage card, **Import** |
+| Clone (3:239), Clone progress (3:278) | Folder Name (Git's name for the address, editable) and the path row replace Destination; progress reads `Dest: /workspace/<name>` |
+| Open Folder (2003:117) | **Retired**, with its route and the folder browser |
+| Permission (3:90) | Notifications and Battery only |
+| Explorer (3:456), Editor empty (2003:19) | Subtitle `/workspace/<name>` |
+| Storage settings (2003:575) | "Workspaces" with every workspace's size and menu; Clear Cache; Remove Stale goes; one line: workspaces live in iCode's storage — uninstalling removes them unless Android is told to keep iCode's data |
+| Notifications | The one-time migration notice (§5) |
+| Android's Files app | Root **iCode**, summary "Workspaces" (§4.6) |
 
-Nothing is claimed about the Fast Freezer until the matrix says it. If some scenario cannot be kept
-running on this phone, that is said to the user, as the session's state and in Settings.
+### 4.5 Import
 
-**Measured (2026-09-30, a heartbeat started in an iCode terminal, one line a second):**
+1. **Import** opens Android's folder picker (`ACTION_OPEN_DOCUMENT_TREE`). The grant is used for this
+   import only; nothing is persisted.
+2. The Import screen proposes the folder's name; it must not exist yet. Picking a folder from
+   iCode's own provider is refused: it is already here.
+3. The import runs as a task: counted first (entries and bytes — an import that would not fit in
+   the free space is refused before anything is copied), then copied file by file through the
+   picked folder's provider into the staging folder `files/workspaces/.import-<n>`, with each file's
+   modification time kept, and renamed to `<name>` only when complete. A stopped or failed import
+   leaves nothing behind, and no half workspace ever appears in the list. Documents without bytes
+   (a cloud file) are skipped and counted in the result. The source is never written. On success
+   the workspace opens.
+4. **Git repair.** Git on phone storage recorded `core.fileMode=false` and `core.symlinks=false`, and
+   checked out executables without `+x` and links as plain files. For an imported repository iCode
+   restores what Git itself records: both settings to `true`; `+x` on the files the index lists as
+   `100755`; a link for each file it lists as `120000` — only where the working file still matches
+   the index, so nothing the user changed is touched. `git status` must read as it did before the
+   import (W5 proves this with real Git before relying on it). Git is installed for it as Clone
+   installs it; if the runtime or Git cannot be had, the import completes without the repair and
+   its result says so.
+5. Android's picker does not offer the root of internal storage, `Download` itself, `Android/data` or
+   `Android/obb` (device check D6).
 
-| Scenario | Ran | Freezer's own log (`Hiber/sceneManager`) |
+**Clone** follows the same staging: Git clones into `/workspace/.clone-<n>`, renamed to the chosen
+name on success. A failed or cancelled clone's folder is iCode's own and is removed — the
+"Git left … part-written" notice (`GitOperationState.Cancelled.leftover`) goes.
+
+### 4.6 The Files provider
+
+A `DocumentsProvider`, authority `<applicationId>.workspaces`, exported only to the system's
+documents UI (`android.permission.MANAGE_DOCUMENTS`): another app reaches exactly what the user
+picks for it, through Android's grants. One root, **iCode**:
+
+- Document ID = the path relative to `files/workspaces`; the root is `/`.
+- Operations: roots, a document, children; open for read, write and truncate; create a file or
+  folder (a taken name becomes "name (1)", as Android does); rename; delete (a folder with
+  everything in it); move within the root; `isChildDocument`, so an app can be given one workspace
+  as a tree.
+- **Security.** An ID is normalised and must stay inside the root; the canonical path must stay
+  inside the canonical root. A link can therefore never lead another app out of the workspaces into
+  the runtime (its home holds SSH keys) or iCode's other data: such links are neither listed nor
+  opened. Nothing else of iCode's storage is exposed.
+- **Changes.** Cursors carry notification URIs; the provider notifies after its own writes; iCode's
+  own file operations notify their folder. iCode's watcher sees writes made through the provider
+  as any other write, so an open file changed by another app follows the existing
+  external-change flow.
+- **Show in Files** opens Android's Files app at the workspace, else at the root (device check D8).
+
+### 4.7 Data safety
+
+- `android:hasFragileUserData="true"`: uninstalling asks whether to keep iCode's data.
+- `android:manageSpaceActivity`: a non-exported alias of the main activity that opens Settings →
+  Storage. App info then shows **Manage space** instead of **Clear storage** (device check D10).
+- Backups stay off (cloud and device transfer exclude everything) — the owner's answer.
+- A workspace is deleted only by its confirmed Delete…; the runtime's Repair and Reset say that
+  workspaces are kept.
+
+### 4.8 Permissions and onboarding
+
+`MANAGE_EXTERNAL_STORAGE` leaves the manifest. `SystemPermission.Storage`, `SystemAccess.storage`,
+its prompt, its onboarding step, the launcher banner and every `isExternalStorageManager()` check
+go. Onboarding asks for notifications and battery, each once; the launcher follows.
+
+### 4.9 Unchanged
+
+Per-workspace settings (keyed by location), recovery drafts, the atomic save and changed-on-disk
+checks, the task model (dialog, Hide, background row), terminal sessions and their notifications,
+Git credentials, the capture pipeline (fixtures updated), the background freeze (R1, parked), and
+PRoot's patches (0001 keeps a failed link from losing the file on any filesystem).
+
+## 5. Migration of the current install (once)
+
+At the first start of this version, before the launcher reads the list; marked done in its own
+preferences file (`storage_layout = 2`); idempotent; a failure is logged, retried at the next
+start, and never blocks the launcher.
+
+1. `files/workspaces` holds only S3b's experimental mount folders at that moment — its only writer
+   was `WorkspaceStorage` (`e7c5329`), deleted in W2 — so it is deleted and the new root made.
+2. The old recent workspaces (`recent_workspaces_v1`, all on phone storage) become **one notice**:
+   "Workspaces now live in iCode", each name with its path, and "Bring each in with Import. The
+   folders on phone storage are untouched." The key is removed.
+3. Recent files, the saved session and per-workspace settings keyed by those old locations are
+   removed: iCode no longer opens those folders in place.
+4. Recovery drafts for files on phone storage stay in Document Recovery. Restore says the file is
+   outside iCode's workspaces (import its folder, or Discard). No draft is deleted by the migration.
+5. The empty mount points old launches made in the runtime (`rootfs/workspace/<name>`) are removed;
+   `/workspace` is the root's bind point from now on.
+
+## 6. Ledger — deleted, rewritten, changed
+
+Nothing of the shared-storage model survives: every item is removed or rewritten in the cycle
+named, and the guards' allowlists shrink with it.
+
+| Item | Fate | Cycle |
 |---|---|---|
-| iCode in front | 90–95% | — |
-| launcher in front | 5–14% | `freeze uid 10889` ~4 s after Home; brief thaws for `bumpService`, `wakelock`, network `packet` |
-| another app (Settings) in front | 25% | frozen after ~25 s |
-| screen off | frozen until the user returned | `unfreeze … reason:activity` |
-| launcher, then screen off, **with a partial wake lock held** by the service | 5% | `freeze` 02:34:33 → `unfreeze reason:activity` 02:36:22 — the held lock did not prevent it |
+| `domain/LogicalWorkspace.kt`, `data/storage/WorkspaceStorage.kt`, `data/storage/LogicalFiles.kt` and their tests | deleted: the mount model | W2 |
+| `data/git/GitMountResolver.kt`, `data/git/GitHeadReader.kt`, `data/runtime/GuestMount.kt` | deleted: the root is bound whole. `GitLocator` finds a repository's top (never above the workspaces) and reads its branch; commands take a location, which `WorkspacePaths` turns into the guest working directory | W2 |
+| `RuntimeLayout.prootCommand` (`workspaceHostPath`, `samePathBinds`), `RuntimeLayout.guestWorkspace` | rewritten: one bind of the root, a guest working directory | W2 |
+| `TerminalLaunch`, `GuestCommand`, `CliGitService`, `GitInspectParser`, `RipgrepService`, `LanguageServiceProcessManager` | changed: paths through `WorkspacePaths` | W2 |
+| S4's logical tree in `DirectFileWorkspaceSource`, `WorkspaceFiles`, `WorkspaceTree`, `WorkspaceWatcher` and the coordinators | removed: back to one filesystem | W2 |
+| `DirectFileWorkspaceSource` | rewritten as the workspace file source: listing, reading, saving and creating under the root; the phone-storage root and the folder browser go with the screen that uses them | W4 |
+| `WorkspaceStore`, `WorkspaceLibraryCoordinator` | rewritten: the list from the root, last-opened times, create, rename, delete, sizes | W3 |
+| `WorkspaceSummary.available` and the launcher's UNAVAILABLE state | deleted: a folder in iCode's storage cannot be unavailable | W3–W4 |
+| `AndroidWorkspacePreferencesRepository` | gains move (rename) and forget (delete, migration) of one workspace's overrides | W3 |
+| `GitTransferCoordinator.clone`, `GitOperationState.Cancelled.leftover` | clone into staging; the leftover notice deleted | W3 |
+| `FolderBrowserCoordinator` | deleted | W3 |
+| `domain`: `FolderBrowserPurpose`, `FolderBrowserEntry`, `FolderBrowserState`; intents `StartFolderBrowser`, `BrowseFolder`, `BrowseParentFolder`, `ConfirmFolderSelection`, `RequestCreateFolder`, `ShowWorkspaceLocation`, `RemoveRecentWorkspace`, `RemoveStaleRecents`; effects `FolderBrowserOpened`, `FolderDestinationSelected`; snapshot `folderBrowser`, `createFolderDestination`, `createFolderDestinationDisplay` | deleted, replaced by `CreateWorkspace`, `RenameWorkspace`, `DeleteWorkspace`, `ShowWorkspaceInFiles`, the import intents, and `CloneRepository` without a destination | W3–W5 |
+| `SystemPermission.Storage`, `SystemAccess.storage`, `AndroidSystemAccess`, `SystemPrompts`, `PermissionScreen`'s storage step, `IcodeApp`'s storage branch, `OnboardingRoute` | storage removed | W4 |
+| `OpenFolderScreen.kt`, `Route.OpenFolderBrowser` | deleted | W4 |
+| `LauncherScreen` (with the background-task row), `CreateFolderScreen`, `CloneRepositoryScreen`, `CloneProgressScreen`, `WorkspaceActionsMenu`, `StorageSettingsScreen`, `SettingsCatalog`, `EntryScreenHost` | changed as §4.4 | W4 |
+| Capture fixtures (`app/src/debug`) | phone-storage paths, the folder browser and its destination replaced by `/workspace` workspaces and an import source | W4–W5 |
+| Manifest | `MANAGE_EXTERNAL_STORAGE` removed; provider, alias, `hasFragileUserData`, `manageSpaceActivity` added | W4, W6, W7 |
+| New: `WorkspacePaths`, the import copier and its picker source, the Git repair, the provider and its ID logic, the migration | tested where pure; each with its device check | W2–W7 |
+| architecture.md §2, §3, §4, §5.5, §6–8, §10.1, §10.2, §11, §12, §13, §21, §23–27 · prd.md §3, §4, §5.1, §9.2, §10.1, §10.2 (PR-WS-01–07), §12.1, §13, glossary · user-stories.md §3, US-ENTRY-001/002, §5 (US-STORAGE-001–003 rewritten), US-WS-001–004, new US-WS-006, US-EDIT-003 · layout.md §6, §9, §10 · README · Todo · plan.md · storage-logic.md (superseded) | rewritten to this plan | W1 |
 
-iCode's app-info Battery page reads Unrestricted. Phone Master's "Freezer" page is a manual list
-for unused apps, not this. [Mobile-Harness](https://github.com/techjarves/Mobile-Harness)'s
-`RuntimeExecutionService` does the same as iCode — a `specialUse` foreground service, a partial wake
-lock acquired automatically while a task runs, battery unrestricted — so it would be frozen alike
-on this phone. **Parked by the owner (2026-09-30)**: the core storage plan goes first; R1 resumes
-with the automatic wake lock (as Mobile-Harness), the runtime owned by the process rather than the
-Activity, and truthful session state, since on a Transsion phone continuation cannot be
-guaranteed.
+Dated records ([integration-plan](./integration-plan.md), [code-separation-plan](./code-separation-plan.md),
+[sudo-capability-plan](./sudo-capability-plan.md), [terminal-background-plan](./terminal-background-plan.md))
+keep describing what was true when they were written, as their convention is.
 
-## 4. The logical workspace (storage-logic.md)
+## 7. Cycles
 
-1. **One logical tree per workspace**, `/workspace/<name>` in the runtime and in iCode, whose
-   entries are physically on a **backend**: `SharedBackend` (the user's folder on shared storage —
-   the canonical source) or `LinuxBackend` (iCode's private storage). One copy of each file.
-2. **Storage classes, not stacks**: USER (the user's files, shared), LINUX (needs Linux semantics or
-   heavy I/O), CACHE (regenerable), TEMP (per session). The foundation maps paths to classes; later
-   profiles only *declare* such mappings (`node_modules` → LINUX, …). No `if Node` in the core.
-3. **Every consumer reads the same projection**: the PRoot runtime (first try: its existing bind
-   options), iCode's Explorer and editor, and a `DocumentsProvider`. Direct-path apps (MT Manager)
-   see the USER part at its shared path — which is the part that must stay visible.
-4. **Assumptions to prove on the phone before building on them**: PRoot projecting a private
-   directory into a project on shared storage (create, rename, delete across the boundary; cwd and
-   path resolution; `..`); file watchers inside the runtime on both backends; Git across the
-   boundary; a build tool; process lifetime; `DocumentsProvider` read/write/rename/delete; the
-   Explorer seeing external changes to shared files. Only if PRoot's binds cannot do it: document
-   the exact limitation, then consider an iCode path-routing extension.
-5. **Compatibility**: a detector for what shared storage cannot hold — case collisions, committed
-   symbolic links, executable bits a project needs — surfaced only when present; the exceptional
-   fallback is a Linux-native workspace wholly in private storage, still exposed through the
-   provider. No storage choices in ordinary project creation.
+Each cycle is one commit, or a few, and passes its gate before the next begins. **Here** (a cloud
+session without the Android SDK or the phone): `data/` and `domain/` type-checked against
+Robolectric's `android-all`, the backend unit tests, both guards. **On the owner's machine and
+phone**: `./gradlew :app:compileReleaseKotlin :app:testDebugUnitTest :app:lintDebug`, the capture,
+and the device checks the cycle names. A screen cycle cannot be compiled here, so it is written
+against the existing kit only and reviewed line by line; the owner's build is its first compile.
 
-## 5. S3 first measurement — PRoot projects a private folder into a project (2026-09-30)
+| Cycle | What | Done when |
+|---|---|---|
+| **W1** | This plan; the architecture decision and every stale document rewritten (§6) | Documents agree with each other and with this plan |
+| **W2** | One path model and one bind: `WorkspacePaths`; every PRoot launch binds the root; terminal, Git, ripgrep and language services through it; the mount model (S3–S4), the Git mount resolver and `GuestMount` deleted | Type-check and tests pass; D1, D2 |
+| **W3** | The workspace list and lifecycle: store and library rewritten; New Folder and Clone into the root; rename; delete as a task; open, switch, restore; the root watched; the migration (§5) | Tests pass; D3, D4, D11 |
+| **W4** | Screens (§4.4), onboarding and permission removal, Open Folder retired with the folder browser, the workspace file source rewritten for the root, capture fixtures, the UI guard | Gradle gate, capture; D5 |
+| **W5** | Import: picker, screen, the copier as a task, the Git repair measured with real Git first | Tests pass; D6, D7 |
+| **W6** | The Files provider, Show in Files, change notifications; the security tests | Tests pass; D8, D9 |
+| **W7** | Data safety (§4.7) and the Storage page's wording | D10, D12 |
+| **W8** | Device acceptance of the whole lifecycle (§3), the 40-frame capture, and the list of Figma frames to update | Every D passes or is written down with what it showed |
 
-Through iCode's own PRoot (same binary, binds and environment as its terminal), from `run-as`: a
-project folder standing for the user's source, and a separate private folder bound at
-`/workspace/proj/node_modules`.
+## 8. Device checks — measured, not assumed
 
-| Check, inside the runtime | Result |
-|---|---|
-| `ls /workspace/proj` | `node_modules` beside `src`, `package.json`: one tree |
-| create in `node_modules` | lands in the private folder |
-| `mv src/move-me.txt node_modules/` | done |
-| `cd node_modules`, `cd ..`, `readlink -f node_modules/../package.json` | `/workspace/proj/…`, as one tree |
-| symbolic link in `node_modules` | made |
-| `git init`, `git status` | the project's files; `.git` in the project folder; `node_modules` ignored per `.gitignore` |
-| `npm install semver` | exit 0; the package in the private folder, `.bin/semver` linked; `package-lock.json` in the project folder |
-| the host's view of the project folder | no `node_modules` made on the user's side — PRoot needs no placeholder |
+| # | Check | Expected |
+|---|---|---|
+| D1 | Terminal in a workspace: `pwd`, `ls /workspace`, `npm install` in a Node project with the screen on | `/workspace/<name>`; every workspace listed; the install finishes, `.bin` links made |
+| D2 | Git: status, commit, a linked worktree made from the terminal (`git worktree add ../x-feature`) | Status and decorations right; the worktree appears as a workspace and Git works in it |
+| D3 | `mkdir /workspace/made-in-terminal`, then the launcher | Appears while the launcher is shown |
+| D4 | Rename and delete a workspace; both refused while a terminal session runs in it | As §4.3 |
+| D5 | Fresh install: onboarding | No storage step; notifications and battery once each; the launcher |
+| D6 | Import from `Internal storage/Projects/RevPlayer` and from a folder inside `Download`; cancel one midway | Progress; the workspace opens; a cancelled import leaves nothing; the picker's refusals as §4.5 |
+| D7 | An imported repository with `gradlew` and a committed link | `./gradlew` runs; the link is a link; `git status` as before the import |
+| D8 | Android's Files app | **iCode** listed; browse, open, edit and save a file in another editor; copy a workspace to `Download`; Show in Files lands on the workspace |
+| D9 | MT Manager | Whether it can add iCode's provider; written down either way |
+| D10 | Uninstall dialog; App info → Storage | "Keep app data" offered; Manage space opens Storage settings (XOS may differ: written down) |
+| D11 | The upgrade from `b0c585d` on the owner's phone | One notice naming the old workspaces; no shortcut to phone storage left; `files/workspaces` holds only real workspaces |
+| D12 | Runtime Repair, then Reset | Workspaces untouched |
 
-Both folders were on ext4: `run-as` is refused on all shared storage (measured). Still to measure
-from iCode's own process, on real shared storage: the bind onto a shared path that does not exist
-there; a move across the boundary (two filesystems: the kernel answers `EXDEV`, and each tool must
-copy instead); file watchers on both backends. Also measured: shared storage is mounted
-**`noexec`** — nothing on it can be executed directly, whatever its bits (a compatibility fact for
-S6: `./gradlew` needs `sh`).
+## 9. Not built
 
-## 6. S2 — the design (for the owner's review)
-
-**One model.** A `LogicalWorkspace`: its user root (the shared folder — canonical, never copied),
-its private root (`files/workspaces/<sha256 of the user root>/`, the key the settings already use),
-and its **mounts**: relative paths whose storage class is not USER.
-
-```text
-StorageClass  USER   the user's files — shared storage, the default for every path
-              LINUX  needs Linux semantics or heavy I/O — private, kept
-              CACHE  regenerable — private, may be cleared
-              TEMP   per session — private, cleared when the session ends
-Mount(path relative to the workspace, class)       e.g. ("node_modules", LINUX)
-```
-
-**One resolver.** `resolve(relativePath) → (backend, physical file)`: the longest mount that
-contains the path wins; otherwise USER. Pure and tested; everything else asks it.
-
-**One projection, three consumers.**
-
-| Consumer | What it gets from the same projection |
-|---|---|
-| The runtime — every PRoot launch (terminal, Git, ripgrep, apt, language services) | the user root at `/workspace/<name>`, then one bind per mount: `<private root>/<class>/<path>` → `/workspace/<name>/<path>` (measured above). `RuntimeLayout.prootCommand` takes the projection instead of a bare folder, so no launch sees a different tree |
-| iCode's Explorer, editor, search results, file operations | a merged listing — the user root's entries, with each mount appearing where it belongs; reads and writes go through `resolve`; a move across backends is a copy then a delete, as the kernel requires |
-| A `DocumentsProvider` (S5) | the same listing and `resolve` |
-
-**Where mounts come from.** The foundation has no stack knowledge. For the proof of concept a mount
-is a per-workspace setting (stored with the workspace's other settings); S7's profiles later only
-*declare* mounts ("a `package.json` beside → `node_modules` LINUX"). A mount whose path already
-exists on the user's side with content is not shadowed silently: it is reported (S6).
-
-**Lifetime.** Private data lives with the workspace: listed per workspace in Storage settings,
-cleared there (CACHE and TEMP freely; LINUX with confirmation), and removed with the workspace's
-last trace. Uninstalling iCode deletes it — acceptable, because it is regenerable by design.
-
-**Steps.** S3a the model and resolver, with tests. S3b `prootCommand` from the projection; one
-workspace with one mount; measure the three open questions above on the phone. S4 the Explorer on
-the merged listing. S5 the provider. S6 the compatibility detector (collisions, committed links,
-`noexec`) and the Linux-native fallback. S7 profiles.
-
-## 7. S3b — every launch binds the logical workspace; measured on real shared storage (2026-09-30)
-
-`WorkspaceStorage` (`data/storage`) owns each workspace's private root and its mount list;
-`RuntimeLayout.prootCommand` binds `LogicalWorkspace.binds()` for every launch with a workspace —
-the terminal, Git, ripgrep, apt and language services go through it, so none sees another tree.
-Measured with the scratch workspace (`s3b/node_modules`, `s3c/node_modules` LINUX), run in an iCode
-terminal in front of the owner:
-
-| Check | Result |
-|---|---|
-| the runtime's view | one tree: `node_modules` inside `s3b`, `s3c` |
-| create in the mount | lands in private storage |
-| `mv` shared → mount, and back | done both ways (`mv` copies across filesystems) |
-| raw `rename()` shared → mount | `EXDEV` — as between any two filesystems; a tool that only renames must copy (`mv` does) |
-| file watchers (`fs.watch`) | events on both sides: `change:w.txt` in `src`; `rename`/`change` in `node_modules` |
-| `npm install semver lodash`, mounted | exit 0 in 8 s; `.bin/semver` linked |
-| the same with no mount, on shared storage | **fails**: `EACCES … symlink '../semver/bin/semver.js' -> '…/.bin/semver'`; 0 files — the second cause of RevPlayer's failure, after the freezer |
-| a script on shared storage | `./run.sh` → "Permission denied" (`noexec`); `sh run.sh` runs |
-| the user's side of a mount | PRoot makes an **empty** folder at the mount path on shared storage when a session starts (even with the parent present); the contents stay private |
-| `rm -rf` through a mount | removes the private folder too; the next tool that makes the folder again (`npm`'s `mkdir`) gets a private one; `WorkspaceStorage.of` also remakes it at the next launch |
-
-Consequences for S4–S6: the Explorer must list a mount from its private folder (the shared side is
-an empty placeholder); iCode's own file operations across the boundary copy then delete; the
-compatibility detector reports `noexec` scripts (`sh gradlew`), committed links and case collisions.
-
-## 8. S4 — the Explorer and editor read the same logical workspace (2026-09-30)
-
-iCode names a file as it always has — its path under the user's folder — so tabs, recents, drafts,
-Git's status, search results and the watcher's folders keep their locations; only where the bytes
-are is asked of the resolver. `LogicalFiles` (`data/storage`) is iCode's side of the projection:
-`bytes(location)`, and `list(folder)` — the folder's own entries plus each mount directly in it, a
-mount shown from its private folder, never from the runtime's empty placeholder.
-
-| Consumer | Through the logical tree |
-|---|---|
-| Explorer rows | `DirectFileWorkspaceSource.listChildren`; a workspace's first listing uses its own root, before it is the open one |
-| editor: open, save, reload, conflicts | read and written where the bytes are; the atomic save's temporary file beside them |
-| new file, new folder | made where the resolver puts the new path |
-| watcher | the shown folders' bytes: an expanded `node_modules` is watched in private storage |
-| changes on disk, restored tabs, recents | existence and times from the bytes |
-| rename, move, copy, delete (`WorkspaceFiles`) | walk the logical tree: a copy of a folder holding a mount copies its contents; a delete removes them, and the runtime's placeholder with its folder — a placeholder that holds something is the user's, and stops the delete |
-| a move across the boundary | a copy then a delete (the kernel's `EXDEV`), run as a task ("Moving…"), each entry counted twice, not cancellable |
-| a mount, or a folder holding one | stays where it is: rename and move are refused with the reason; copy and delete are allowed. Deleting a mount empties it; the folder comes back empty, as the runtime shows it |
-| the folder picker | the phone's storage as it is — no projection |
-| the runtime | as S3b, plus: a mount whose parent folder is gone is not bound, nor any mount inside it, so PRoot does not make folders the user deleted again |
-
-Unchanged by design: search, Quick Open, Git and language services run in the runtime, which
-already sees the same tree (S3b); their paths map back to the same locations.
-
-**Verified** in a cloud session without the phone or the Android SDK (its network denies
-`dl.google.com` and `jitpack.io`): all of `data/` and `domain/` type-checked against Robolectric's
-`android-all` (API 36), with stubs for Termux and androidx; 406 of 407 backend unit tests pass, 10 of
-them new; the one failure (`TreeSizeTest`, an unreadable folder) fails the same without S4 — the
-container runs as root. **Not run:** the Gradle gate (`compileReleaseKotlin`, `testDebugUnitTest`
-with the UI tests, `lintDebug`).
-
-**Owed on the phone, before S5**, in a workspace with a `node_modules` mount after `npm install`:
-the Explorer lists its packages and `.bin` links; a file inside opens, edits and saves; a new file
-there lands in private storage; a file the terminal makes inside appears; Cut from `src` into
-`node_modules` and back (a task, contents intact); rename and move of `node_modules` refused with
-the reason; delete of `node_modules` empties it.
+Synchronisation of any kind; mounts; a compatibility detector (ext4 holds whatever a repository
+holds; Import repairs from Git's own record); opening a phone-storage folder in place; several
+workspaces in one Explorer; an in-app Export (the Files app copies out); device-to-device transfer;
+a terminal view of `/sdcard`; opening a single file from another app ("Open with iCode"). The
+background freeze (R1) stays parked as the owner decided.

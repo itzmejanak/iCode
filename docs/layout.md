@@ -173,9 +173,9 @@ Width-class changes preserve selected routes, open documents, editor state, and 
 ```text
 Application
 ├── Launcher
-│   ├── Recent workspaces
-│   ├── Open folder
-│   ├── Create folder
+│   ├── Workspaces (every workspace in iCode's storage)
+│   ├── Import (from phone storage)
+│   ├── New folder
 │   ├── Clone repository
 │   └── Application settings
 ├── Workspace
@@ -308,37 +308,33 @@ The bottom panel owns Terminal, Problems, and Output. It supports collapsed, rem
 ### 9.1 Content order
 
 1. Product identity and concise purpose.
-2. Primary actions: Open Folder, Clone Repository, Create Folder.
-3. Recent workspaces.
+2. Primary actions: Import, Clone Repository, New Folder.
+3. Workspaces: every workspace in iCode's storage, most recently opened first.
 4. Runtime notice only when installation, repair, or update needs attention.
 5. Settings and About access.
 
-### 9.2 Recent workspace row
+### 9.2 Workspace row
 
 Each row may show:
 
 - workspace name;
-- shortened path;
+- its `/workspace/<name>` path;
 - repository branch when cheaply available;
 - last-opened time;
-- unavailable-storage indicator;
-- overflow actions for remove from recents and path details.
+- overflow actions: Open, Open Terminal, Rename, Show in Files, Copy path, Delete.
 
-The launcher does not display a dashboard of counts or unrelated product cards.
+The launcher does not display a dashboard of counts or unrelated product cards. Nothing on it can be stale: the list is the workspaces folder itself.
 
 ## 10. Permission Experience
 
-All Files Access is requested when the user first attempts an action requiring direct workspace paths.
+iCode asks for no storage permission: workspaces live in its own storage ([workspace-storage-plan.md](./workspace-storage-plan.md)). Onboarding offers the two optional permissions once each, on one screen, one step at a time:
 
-The explanation screen states:
+- **Notifications** — running terminal sessions are listed in the notification drawer;
+- **Battery** — long commands keep running while the phone is idle.
 
-- why broad access is required;
-- that selected folders are edited in place;
-- that other applications' protected private directories remain unavailable;
-- that the permission can be revoked in Android settings;
-- which action will continue after approval.
+Each step states why, what the user keeps control of, and opens Android's own prompt. Returning rechecks what Android allows instead of assuming it. A declined step is not asked again; Terminal Settings is the way back.
 
-The application then opens the Android system settings page. Returning from settings rechecks permission and continues or displays a clear blocked state.
+Folders come in by Import, through Android's own folder picker, and other applications reach workspaces through Android's Files app: neither needs a permission screen.
 
 ## 11. Runtime Installation and Health
 

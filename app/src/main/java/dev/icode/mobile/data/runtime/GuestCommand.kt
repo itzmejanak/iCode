@@ -47,13 +47,13 @@ internal class GuestCommand(private val layout: RuntimeLayout) {
 
     /** Streams newline-delimited UTF-8 output. [onLine] returns false when enough was read. */
     suspend fun stream(
-        workspaceHostPath: String?,
+        location: String?,
         argv: List<String>,
         stderrName: String,
         environment: Map<String, String> = emptyMap(),
         onLine: (String) -> Boolean,
     ): Result = streamRecords(
-        workspaceHostPath = workspaceHostPath,
+        location = location,
         argv = argv,
         stderrName = stderrName,
         delimiter = '\n'.code,
@@ -68,7 +68,7 @@ internal class GuestCommand(private val layout: RuntimeLayout) {
      * survive spaces, quotes and embedded newlines without reparsing text.
      */
     suspend fun streamRecords(
-        workspaceHostPath: String?,
+        location: String?,
         argv: List<String>,
         stderrName: String,
         delimiter: Int,
@@ -77,8 +77,7 @@ internal class GuestCommand(private val layout: RuntimeLayout) {
     ): Result {
         require(argv.isNotEmpty()) { "A guest command needs an executable" }
         require(delimiter in 0..255) { "Record delimiter must be one byte" }
-        val mount = workspaceHostPath?.let(::GuestMount)
-        return run(mount, argv.joinToString(" ", transform = ::shellQuote), stderrName, environment, null) { input ->
+        return run(location, argv.joinToString(" ", transform = ::shellQuote), stderrName, environment, null) { input ->
             readRecords(input, delimiter, onRecord)
         }
     }
@@ -89,7 +88,7 @@ internal class GuestCommand(private val layout: RuntimeLayout) {
      * progress there — and once more when the command has ended.
      */
     suspend fun capture(
-        mount: GuestMount?,
+        location: String?,
         argv: List<String>,
         stderrName: String,
         environment: Map<String, String> = emptyMap(),
@@ -98,20 +97,20 @@ internal class GuestCommand(private val layout: RuntimeLayout) {
     ): Captured {
         require(argv.isNotEmpty()) { "A guest command needs an executable" }
         val command = argv.joinToString(" ", transform = ::shellQuote)
-        return captureCommand(mount, command, stderrName, environment, maxStdoutBytes, onStderr)
+        return captureCommand(location, command, stderrName, environment, maxStdoutBytes, onStderr)
     }
 
     /** [capture] for a constant multi-command [script]; the stderr of all its commands is collected together. */
     suspend fun captureScript(
-        mount: GuestMount?,
+        location: String?,
         script: String,
         stderrName: String,
         environment: Map<String, String> = emptyMap(),
         maxStdoutBytes: Int = MAX_CAPTURE_BYTES,
-    ): Captured = captureCommand(mount, "{ $script\n}", stderrName, environment, maxStdoutBytes, null)
+    ): Captured = captureCommand(location, "{ $script\n}", stderrName, environment, maxStdoutBytes, null)
 
     private suspend fun captureCommand(
-        mount: GuestMount?,
+        location: String?,
         command: String,
         stderrName: String,
         environment: Map<String, String>,
@@ -119,7 +118,7 @@ internal class GuestCommand(private val layout: RuntimeLayout) {
         onStderr: ((String) -> Unit)?,
     ): Captured {
         var stdout = ByteArray(0)
-        val result = run(mount, command, stderrName, environment, onStderr) { input ->
+        val result = run(location, command, stderrName, environment, onStderr) { input ->
             stdout = input.readAtMost(maxStdoutBytes, "The command printed more than ${ByteSize.format(maxStdoutBytes.toLong())} and was stopped")
             false
         }
@@ -127,18 +126,21 @@ internal class GuestCommand(private val layout: RuntimeLayout) {
     }
 
     /**
-     * Starts [command] with its stderr in a private guest `/tmp` file, hands
+     * Starts [command] in [location] — a folder in the workspaces, or the guest
+     * home when null — with its stderr in a private guest `/tmp` file, hands
      * stdout to [read], and always kills and reaps the process: on cancellation,
      * on [read] stopping early (it returns true) and on [read] throwing.
      */
     private suspend fun run(
-        mount: GuestMount?,
+        location: String?,
         command: String,
         stderrName: String,
         environment: Map<String, String>,
         onStderr: ((String) -> Unit)?,
         read: (InputStream) -> Boolean,
     ): Result = withContext(Dispatchers.IO) {
+        val workingDirectory = location?.let { layout.workspaces.guestOf(it) ?: throw IOException("$it is not in iCode's workspaces") }
+            ?: RuntimeLayout.GUEST_HOME
         val temp = File(layout.rootfs, "tmp").apply { mkdirs() }
         val prefix = "icode-${stderrName.replace(Regex("[^A-Za-z0-9_.-]"), "-")}-"
         val stderrFile = File.createTempFile(prefix, ".err", temp)
@@ -146,10 +148,8 @@ internal class GuestCommand(private val layout: RuntimeLayout) {
         val process = RuntimeProcess.start(
             argv = layout.prootCommand(
                 guestCommand = listOf("/bin/sh", "-c", script),
-                workspaceHostPath = mount?.root,
-                guestWorkingDirectory = mount?.let { it.guestPathOf(it.workingDirectory) } ?: RuntimeLayout.GUEST_HOME,
+                guestWorkingDirectory = workingDirectory,
                 killOnExit = true,
-                samePathBinds = mount?.samePath.orEmpty(),
             ),
             environment = layout.prootEnvironment(environment),
             workingDirectory = layout.runtimeRoot.absolutePath,

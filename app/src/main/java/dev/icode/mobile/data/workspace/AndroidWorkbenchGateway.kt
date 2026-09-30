@@ -47,10 +47,10 @@ import kotlinx.coroutines.sync.withLock
 class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     private val workbench = WorkbenchStateHolder()
     private val appContext = context.applicationContext
+    private val source = DirectFileWorkspaceSource()
     private val store: WorkspaceStore = SharedPreferencesWorkspaceStore(appContext)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val runtimeLayout = RuntimeLayout(appContext)
-    private val source = DirectFileWorkspaceSource(runtimeLayout.workspaces) { session.activeRoot }
     /** git, openssh-client and ripgrep install through it, one at a time. */
     private val packages = RuntimePackageInstaller(runtimeLayout, scope)
     private val gitCli = CliGitService(runtimeLayout, packages)
@@ -75,6 +75,7 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     )
     private val library: WorkspaceLibraryCoordinator = WorkspaceLibraryCoordinator(
         appContext, workbench, scope, source, store, runtimeLayout,
+        branchOf = git::branchOf,
         tasksRunning = {
             terminals.hasRunningSessions() || languages.hasActiveProcesses() || runtime.installing ||
                 workbench.current.gitOperation is GitOperationState.Running

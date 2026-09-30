@@ -252,3 +252,13 @@ split existing implementations only in a separately requested scoped cycle. The 
 feature plan and implementation ledger are [`docs/settings-backend-split-plan.md`](./docs/settings-backend-split-plan.md)
 for Appearance and Editor Settings. The typed settings and guarded save path are wired; palette
 approval, physical-device acceptance, formatter integration and broader session restore are still open.
+
+---
+
+# Workspaces in iCode's storage
+
+**Master plan (owner's decision, 2026-09-30): [`docs/workspace-storage-plan.md`](./docs/workspace-storage-plan.md)** —
+every workspace lives in iCode's own storage and every part of iCode reaches it through one path
+model; Import brings folders in from phone storage, and Android's Files app reaches workspaces from
+other apps. It replaces the shared-source direction of `docs/storage-logic.md`, amends
+`docs/architecture.md` §26, and runs as cycles W1–W8, each with its gate and device checks.

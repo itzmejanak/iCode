@@ -103,7 +103,7 @@ internal class FolderBrowserCoordinator(
             error != null -> workbench.message(error)
             parentLocation == null -> workbench.message("Choose a destination first")
             else -> runCatching {
-                openWorkspace(source.createDirectory(parentLocation, name, root = null))
+                openWorkspace(source.createDirectory(parentLocation, name))
             }.onFailure { failure ->
                 workbench.report("workspace", "Unable to create folder", failure)
             }

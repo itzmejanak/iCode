@@ -2,7 +2,6 @@ package dev.icode.mobile.data.workspace
 
 import android.content.Context
 import android.os.Environment
-import dev.icode.mobile.data.git.GitHeadReader
 import dev.icode.mobile.data.io.measureTree
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.domain.RecentDocument
@@ -28,6 +27,8 @@ internal class WorkspaceLibraryCoordinator(
     private val source: DirectFileWorkspaceSource,
     private val store: WorkspaceStore,
     private val runtimeLayout: RuntimeLayout,
+    /** The branch `HEAD` names, read from disk: the launcher names it without starting Git. */
+    private val branchOf: (location: String) -> String?,
     /** Clearing the cache under a running task would pull files out from under it. */
     private val tasksRunning: () -> Boolean,
 ) {
@@ -60,7 +61,7 @@ internal class WorkspaceLibraryCoordinator(
             path = workspace.displayPath,
             // Reading .git/HEAD keeps the launcher instant; starting a Git
             // process for every recent workspace would cost a PRoot launch each.
-            branch = if (available) runCatching { GitHeadReader.branchOf(workspace.location) }.getOrNull() else null,
+            branch = if (available) runCatching { branchOf(workspace.location) }.getOrNull() else null,
             lastOpenedAt = workspace.lastOpenedAt,
             available = available,
             location = workspace.location,
@@ -181,9 +182,8 @@ internal class WorkspaceLibraryCoordinator(
     }
 
     /** Recent files of [root] only; an entry that has left the workspace is dropped. */
-    fun recentDocuments(root: String): List<RecentDocument> {
-        val tree = source.workspace(root)
-        return store.loadRecentDocuments(root).mapNotNull { item ->
+    fun recentDocuments(root: String): List<RecentDocument> = store.loadRecentDocuments(root)
+        .mapNotNull { item ->
             val relative = runCatching { File(root).canonicalFile.toPath().relativize(File(item.location).canonicalFile.toPath()) }.getOrNull()
                 ?: return@mapNotNull null
             if (relative.isAbsolute || relative.any { it.toString() == ".." || it.toString() == ".git" }) return@mapNotNull null
@@ -192,8 +192,7 @@ internal class WorkspaceLibraryCoordinator(
                 location = item.location,
                 path = relative.toString(),
                 lastOpenedAt = item.lastOpenedAt,
-                available = tree.bytes(item.location).isFile,
+                available = File(item.location).isFile,
             )
         }
-    }
 }
