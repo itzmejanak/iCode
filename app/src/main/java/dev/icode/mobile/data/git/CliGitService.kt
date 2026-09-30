@@ -138,6 +138,18 @@ internal class CliGitService(
         return CommandResult(result.exitCode, result.stdout, result.stderr)
     }
 
+    /**
+     * [runScript] for a script that prints NUL-terminated records, each handed to [onRecord] as it
+     * arrives: a whole index is never held as one string.
+     */
+    suspend fun streamScript(location: String, script: String, onRecord: (ByteArray) -> Unit): CommandResult {
+        val result = guest.streamRecords(location, listOf("/bin/sh", "-c", script), "git-script", delimiter = 0) { record ->
+            onRecord(record)
+            true
+        }
+        return CommandResult(result.exitCode, "", result.stderr)
+    }
+
     /** Installs git through the runtime's one package installer; apt's own words explain a failure. */
     suspend fun provision(): GitOutcome<Unit> =
         when (val outcome = packages.ensure(PACKAGE) { File(layout.rootfs, GIT_RELATIVE_PATH).exists() }) {

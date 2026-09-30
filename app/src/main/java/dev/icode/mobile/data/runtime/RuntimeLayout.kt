@@ -27,11 +27,8 @@ internal class RuntimeLayout(context: Context) {
     val rootfs: File = File(runtimeRoot, "rootfs")
     val prootTemp: File = File(appContext.cacheDir, "proot-tmp")
 
-    /**
-     * Every workspace, bound whole at `/workspace` in every launch. Canonical, as every location
-     * is: Android's `files` path may lead through a link (`/data/user/0` → `/data/data`).
-     */
-    val workspaces = WorkspacePaths(File(appContext.filesDir, "workspaces").canonicalFile)
+    /** Every workspace, bound whole at `/workspace` in every launch. */
+    val workspaces = WorkspacePaths.of(appContext)
 
     /** Marks a verified, fully extracted root filesystem. */
     val installMarker: File = File(runtimeRoot, "installed.json")

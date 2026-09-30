@@ -1,6 +1,5 @@
 package dev.icode.mobile.data.workspace
 
-import android.os.Environment
 import dev.icode.mobile.data.git.GitWorkspaceCoordinator
 import dev.icode.mobile.data.language.LanguageServiceCoordinator
 import dev.icode.mobile.data.runtime.TerminalCoordinator
@@ -30,7 +29,7 @@ import kotlinx.coroutines.sync.withLock
 internal class WorkspaceSessionCoordinator(
     private val workbench: WorkbenchStateHolder,
     private val scope: CoroutineScope,
-    private val source: DirectFileWorkspaceSource,
+    private val source: WorkspaceFileSource,
     private val tree: WorkspaceTree,
     private val library: WorkspaceLibraryCoordinator,
     private val documents: DocumentSessionCoordinator,
@@ -65,13 +64,9 @@ internal class WorkspaceSessionCoordinator(
         /** False when reopening the last session: nothing navigates. */
         announce: Boolean = true,
     ) {
-        if (!Environment.isExternalStorageManager()) {
-            workbench.message("All files access is needed to open this folder")
-            return
-        }
-        if (!source.isAvailable(location)) {
-            val reason = if (!File(location).exists()) "This folder no longer exists" else "This folder is not accessible"
-            workbench.message(reason)
+        if (!source.isWorkspace(location)) {
+            workbench.message("This workspace no longer exists")
+            library.refresh()
             return
         }
         if (location == activeRoot) {
@@ -93,16 +88,14 @@ internal class WorkspaceSessionCoordinator(
             val root = source.describeRoot(location)
             val children = source.listChildren(location)
             val gitPicture = gitWorkspace.read(root.location)
-            val closingDocuments = workbench.current.openDocuments
-                .filter { it.dirty || !recovery.isUnresolved(it.location) }
-                .map { it.location }
+            val closing = closingDocuments()
             languages.stopAll()
             activeRoot = root.location
             tree.reset(root.location, children)
-            if (persist) library.remember(root)
-            val recents = library.recentWorkspaces()
+            if (persist) library.remember(root.location)
+            val workspaces = library.workspaces()
             workbench.update { snapshot -> snapshot.copy(
-                workspaces = recents,
+                workspaces = workspaces,
                 files = tree.rows(root.location, gitPicture.state),
                 gitChanges = gitPicture.state.changes,
                 gitRepository = gitPicture.state.repository,
@@ -122,10 +115,7 @@ internal class WorkspaceSessionCoordinator(
                 contentSearch = ContentSearchState.Empty,
                 externalChanges = emptyList(),
             ) }
-            documents.clear()
-            recovery.workspaceClosing(closingDocuments)
-            search.workspaceClosing()
-            gitWorkspace.workspaceClosing()
+            leftBehind(closing)
             if (openTerminal) terminal.openIn(root.location)
             if (announce) {
                 workbench.emit(
@@ -134,9 +124,45 @@ internal class WorkspaceSessionCoordinator(
                 )
             }
         }.onFailure { error ->
-            library.refreshRecents()
-            workbench.report("workspace", "Unable to open folder", error)
+            library.refresh()
+            workbench.report("workspace", "Unable to open the workspace", error)
         }
+    }
+
+    /**
+     * Closes the open workspace, before it is deleted or renamed. Its tabs close — one with unsaved
+     * edits was refused before this — its services stop, and the workbench shows no workspace.
+     */
+    suspend fun close() {
+        if (activeRoot == null) return
+        val closing = closingDocuments()
+        languages.stopAll()
+        activeRoot = null
+        tree.clear()
+        val empty = WorkbenchStateHolder.emptySnapshot()
+        workbench.update { snapshot -> snapshot.copy(
+            files = empty.files,
+            gitChanges = empty.gitChanges,
+            gitRepository = null,
+            activeWorkspace = empty.activeWorkspace,
+            activePath = empty.activePath,
+            activeWorkspaceLocation = null,
+            activeBranch = empty.activeBranch,
+            activeDocument = null,
+            openDocuments = emptyList(),
+            recentDocuments = emptyList(),
+            fileIndex = emptyList(),
+            fileIndexTruncated = false,
+            contentSearch = ContentSearchState.Empty,
+            externalChanges = emptyList(),
+        ) }
+        leftBehind(closing)
+    }
+
+    /** Opens [location] with [tabs] as a restored session does: quietly, a file gone from disk skipped. */
+    suspend fun openWithTabs(location: String, tabs: List<String>, active: String?) {
+        open(location, persist = true, announce = false)
+        if (activeRoot == location) reopenTabs(tabs, active)
     }
 
     suspend fun resolveSwitch(intent: WorkbenchIntent.ResolveWorkspaceSwitch) {
@@ -155,7 +181,7 @@ internal class WorkspaceSessionCoordinator(
     /** The watcher runs only while iCode is seen. */
     fun screenVisible(visible: Boolean) {
         screenVisible = visible
-        if (visible) watcher.watch(watchedFolders(workbench.current)) else watcher.stop()
+        if (visible) watcher.watch(watchedFolders(workbench.current, source.workspacesRoot)) else watcher.stop()
     }
 
     fun stopWatching() = watcher.stop()
@@ -168,7 +194,7 @@ internal class WorkspaceSessionCoordinator(
         val root = activeRoot
         if (root == null || !location.isAtOrUnder(root)) {
             val home = library.workspaceHolding(location) ?: run {
-                workbench.message("Open the folder that holds ${File(location).name} first; its draft is kept")
+                workbench.message("${File(location).name} is outside iCode's workspaces: import its folder, or discard the draft")
                 return
             }
             open(home, persist = true)
@@ -199,7 +225,7 @@ internal class WorkspaceSessionCoordinator(
 
     /** The folders shown and those of open files follow the state, while iCode is seen. */
     private suspend fun followWatchedFolders() {
-        workbench.snapshot.map(::watchedFolders).distinctUntilChanged().collect { folders ->
+        workbench.snapshot.map { watchedFolders(it, source.workspacesRoot) }.distinctUntilChanged().collect { folders ->
             if (screenVisible) watcher.watch(folders)
         }
     }
@@ -214,12 +240,10 @@ internal class WorkspaceSessionCoordinator(
     private suspend fun restoreThenKeepSession() {
         library.lastSession()?.let { session ->
             workbench.mutations.withLock {
-                if (activeRoot != null || !Environment.isExternalStorageManager()) return@withLock
-                if (!File(session.workspaceLocation).isDirectory) return@withLock
+                if (activeRoot != null || !source.isWorkspace(session.workspaceLocation)) return@withLock
                 open(session.workspaceLocation, persist = false, announce = false)
                 if (activeRoot != session.workspaceLocation) return@withLock
-                session.documents.filter { File(it).isFile }.forEach { documents.open(it, announce = false) }
-                session.activeDocument?.let(documents::select)
+                reopenTabs(session.documents, session.activeDocument)
             }
         }
         workbench.snapshot
@@ -232,12 +256,27 @@ internal class WorkspaceSessionCoordinator(
             .collect { session -> library.saveSession(session) }
     }
 
+    private suspend fun reopenTabs(tabs: List<String>, active: String?) {
+        tabs.filter { File(it).isFile }.forEach { documents.open(it, announce = false) }
+        active?.let(documents::select)
+    }
+
+    /** What a workspace being left keeps as drafts: unsaved edits, and drafts not yet answered. */
+    private fun closingDocuments() = workbench.current.openDocuments
+        .filter { it.dirty || !recovery.isUnresolved(it.location) }
+        .map { it.location }
+
+    private suspend fun leftBehind(closing: List<String>) {
+        documents.clear()
+        recovery.workspaceClosing(closing)
+        search.workspaceClosing()
+        gitWorkspace.workspaceClosing()
+    }
+
     private suspend fun refreshActive() {
-        val root = activeRoot
-        if (root == null) {
-            library.refreshRecents()
-            return
-        }
+        // A workspace made or removed from the terminal appears or goes, whatever is open.
+        library.refresh()
+        val root = activeRoot ?: return
         runCatching {
             tree.reload(root)
             gitWorkspace.refresh(root)

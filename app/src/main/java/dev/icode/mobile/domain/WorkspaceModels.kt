@@ -1,34 +1,20 @@
 package dev.icode.mobile.domain
 
-// Workspaces (S2): the folders a user works in, the browser that finds them, and storage.
+// Workspaces: the folders in iCode's storage a user works in (docs/workspace-storage-plan.md), and storage.
 
 data class WorkspaceSummary(
     val name: String,
+    /** Where it is in the runtime, `/workspace/<name>`: the path people see. */
     val path: String,
     val branch: String?,
     /** When it was last opened; screens say how long ago, so it never goes stale in the snapshot. */
     val lastOpenedAt: Long,
-    val available: Boolean = true,
     /** Stable adapter-owned location. [path] remains presentation-safe. */
     val location: String = path,
 )
 
-enum class FolderBrowserPurpose { OpenWorkspace, CreateFolderDestination }
-
-data class FolderBrowserEntry(
-    val name: String,
-    val path: String,
-    val directoryCount: Int,
-    val fileCount: Int,
-)
-
-data class FolderBrowserState(
-    val purpose: FolderBrowserPurpose,
-    val rootPath: String,
-    val currentPath: String,
-    val displayPath: String,
-    val folders: List<FolderBrowserEntry>,
-)
+/** A folder picked in Android's folder picker for Import: its grant, and the name it proposes. */
+data class ImportSource(val uri: String, val name: String)
 
 data class StorageSummary(
     val availableBytes: Long,

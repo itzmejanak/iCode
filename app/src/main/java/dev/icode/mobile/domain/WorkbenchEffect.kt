@@ -4,8 +4,10 @@ sealed interface WorkbenchEffect {
     data class RequestSystemPermission(val permission: SystemPermission) : WorkbenchEffect
     data class SystemPermissionResolved(val permission: SystemPermission, val granted: Boolean) : WorkbenchEffect
     data class OpenSystemSettings(val permission: SystemPermission) : WorkbenchEffect
-    data object FolderBrowserOpened : WorkbenchEffect
-    data class FolderDestinationSelected(val path: String) : WorkbenchEffect
+    /** A folder was picked for Import: the Import screen names the new workspace. */
+    data object ImportSourceChosen : WorkbenchEffect
+    /** Opens Android's Files app at [documentUri] — a workspace's folder in iCode's provider — else at its root. */
+    data class ShowInFiles(val documentUri: String, val rootUri: String) : WorkbenchEffect
 
     data class WorkspaceOpened(val location: String) : WorkbenchEffect
     data class WorkspaceTerminalOpened(val location: String) : WorkbenchEffect

@@ -1,13 +1,15 @@
 package dev.icode.mobile.data.workspace
 
 import android.content.Context
-import android.os.Environment
 import dev.icode.mobile.data.io.measureTree
 import dev.icode.mobile.data.runtime.RuntimeLayout
+import dev.icode.mobile.data.storage.WorkspacesProvider
 import dev.icode.mobile.domain.RecentDocument
 import dev.icode.mobile.domain.StorageDetails
 import dev.icode.mobile.domain.WorkspaceSummary
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.LinkOption
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -16,15 +18,16 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 
 /**
- * The user's library of workspaces (S2): recent workspaces and recent files —
- * the one writer of the workspace store — and what they and the runtime take
- * up in storage.
+ * The user's library of workspaces (docs/workspace-storage-plan.md §4.3): every folder in iCode's
+ * workspaces, most recently opened first — the folder is the registry, so nothing in the list can
+ * go stale — their recent files, as the one writer of the workspace store, and what they and the
+ * runtime take up in storage.
  */
 internal class WorkspaceLibraryCoordinator(
     private val appContext: Context,
     private val workbench: WorkbenchStateHolder,
     private val scope: CoroutineScope,
-    private val source: DirectFileWorkspaceSource,
+    private val source: WorkspaceFileSource,
     private val store: WorkspaceStore,
     private val runtimeLayout: RuntimeLayout,
     /** The branch `HEAD` names, read from disk: the launcher names it without starting Git. */
@@ -33,70 +36,59 @@ internal class WorkspaceLibraryCoordinator(
     private val tasksRunning: () -> Boolean,
 ) {
     private var storageJob: Job? = null
+    private val paths get() = runtimeLayout.workspaces
 
-    fun refreshRecents() {
+    /**
+     * After a workspace was made, renamed or deleted, and whenever iCode refreshes after a change —
+     * its own, or one its watcher saw — so Android's Files app reads its listings again too.
+     */
+    fun refresh() {
         // Computed before the update so the atomic section stays short and no
         // concurrent writer's fields are lost.
-        val recents = recentWorkspaces()
+        val workspaces = workspaces()
         val storage = runCatching(source::storageSummary).getOrNull()
-        workbench.update { it.copy(workspaces = recents, storage = storage) }
+        workbench.update { it.copy(workspaces = workspaces, storage = storage) }
+        runCatching { WorkspacesProvider.changed(appContext) }
     }
 
-    /** Puts [root] at the top of the recent workspaces. */
-    fun remember(root: WorkspaceRoot) {
-        store.touch(
-            StoredWorkspace(
-                name = root.name,
-                location = root.location,
-                displayPath = root.displayPath,
-                lastOpenedAt = System.currentTimeMillis(),
-            ),
-        )
-    }
-
-    fun recentWorkspaces(): List<WorkspaceSummary> = store.load().map { workspace ->
-        val available = Environment.isExternalStorageManager() && source.isAvailable(workspace.location)
-        WorkspaceSummary(
-            name = workspace.name,
-            path = workspace.displayPath,
-            // Reading .git/HEAD keeps the launcher instant; starting a Git
-            // process for every recent workspace would cost a PRoot launch each.
-            branch = if (available) runCatching { branchOf(workspace.location) }.getOrNull() else null,
-            lastOpenedAt = workspace.lastOpenedAt,
-            available = available,
-            location = workspace.location,
-        )
-    }
-
-    suspend fun removeRecent(location: String) {
-        runCatching { store.remove(location) }
-            .onSuccess { workbench.update { state ->
-                state.copy(workspaces = state.workspaces.filterNot { it.location == location })
-            } }
-            .onFailure { error ->
-                workbench.report("workspace", "Unable to remove recent workspace", error)
+    /**
+     * Every workspace, most recently opened first; one never opened in iCode — made in the
+     * terminal, say — by its folder's time. Names starting with a dot are iCode's staging, and a
+     * link is not a workspace.
+     */
+    fun workspaces(): List<WorkspaceSummary> {
+        val opened = store.lastOpened()
+        return paths.root.listFiles().orEmpty()
+            .filter { !it.name.startsWith('.') && Files.isDirectory(it.toPath(), LinkOption.NOFOLLOW_LINKS) }
+            .map { folder ->
+                WorkspaceSummary(
+                    name = folder.name,
+                    path = paths.guestOf(folder.path) ?: folder.path,
+                    // Reading .git/HEAD keeps the launcher instant; starting a Git
+                    // process for every workspace would cost a PRoot launch each.
+                    branch = runCatching { branchOf(folder.path) }.getOrNull(),
+                    lastOpenedAt = opened[folder.path] ?: folder.lastModified(),
+                    location = folder.path,
+                )
             }
+            .sortedByDescending { it.lastOpenedAt }
     }
 
-    suspend fun removeStale() {
-        if (!Environment.isExternalStorageManager() || Environment.getExternalStorageState() != Environment.MEDIA_MOUNTED) {
-            workbench.message("Storage access is needed before checking recent workspace paths")
-            return
-        }
-        runCatching {
-            val missing = store.load().filter { !File(it.location).exists() }
-            missing.forEach { store.remove(it.location) }
-            refreshRecents()
-            refreshStorage()
-            missing.size
-        }.onSuccess { removed ->
-            workbench.message(
-                if (removed == 0) "No stale recent workspaces found"
-                else "Removed $removed stale recent shortcuts; no workspace files were deleted",
-            )
-        }.onFailure { error ->
-            workbench.report("workspace", "Unable to remove stale recents", error)
-        }
+    /** [location] was opened: it moves to the top of the list. */
+    fun remember(location: String) = store.touch(location, System.currentTimeMillis())
+
+    /** A workspace renamed: its place in the list, recent files and saved session follow. */
+    suspend fun relocate(from: String, to: String) {
+        runCatching { store.relocate(from, to) }
+            .onFailure { error -> workbench.report("workspace", "The workspace's history could not follow the rename", error) }
+        refresh()
+    }
+
+    /** A workspace deleted: what was kept about it goes. */
+    suspend fun forget(location: String) {
+        runCatching { store.forget(location) }
+            .onFailure { error -> workbench.report("workspace", "The deleted workspace's history could not be cleared", error) }
+        refresh()
     }
 
     /** The newest measurement replaces one still running. */
@@ -104,17 +96,17 @@ internal class WorkspaceLibraryCoordinator(
         storageJob?.cancel()
         storageJob = scope.launch(Dispatchers.IO) {
             val device = runCatching(source::storageSummary).getOrNull()
-            val workspaces = store.load()
+            val workspaces = workspaces()
             val details = device?.let { summary -> StorageDetails(
                 device = summary,
                 runtime = measureTree(runtimeLayout.runtimeRoot, maxEntries = 400_000),
                 cache = measureTree(appContext.cacheDir, maxEntries = 50_000),
                 workspaceSizes = workspaces.associate { item ->
-                    item.location to measureTree(File(item.location), maxEntries = 25_000)
+                    item.location to measureTree(File(item.location), maxEntries = 400_000)
                 },
             ) }
             currentCoroutineContext().ensureActive()
-            workbench.update { it.copy(storage = device, storageDetails = details) }
+            workbench.update { it.copy(workspaces = workspaces, storage = device, storageDetails = details) }
         }
     }
 
@@ -154,11 +146,8 @@ internal class WorkspaceLibraryCoordinator(
             .onFailure { error -> workbench.report("workspace", "The open workspace could not be remembered", error) }
     }
 
-    /** The recent workspace [location] lies in, the innermost when they nest; null when none does. */
-    fun workspaceHolding(location: String): String? = store.load()
-        .map { it.location }
-        .filter { location.isAtOrUnder(it) && location != it }
-        .maxByOrNull { it.length }
+    /** The workspace [location] lies in, when it is there; null for anything outside the workspaces. */
+    fun workspaceHolding(location: String): String? = paths.workspaceOf(location)?.takeIf { File(it).isDirectory }
 
     /** Recent files follow a rename or move of the file or of a folder above it. */
     suspend fun relocateRecentDocuments(root: String, from: String, to: String) = updateRecentDocuments(root) { all ->

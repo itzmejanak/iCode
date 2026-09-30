@@ -54,6 +54,14 @@ internal interface GitTransferOperations {
     )
 }
 
+/** An imported repository's checkout brought back to what Git recorded; tests put a fake in its place. */
+internal interface GitCheckoutOperations {
+    suspend fun isAvailable(): Boolean
+    suspend fun provision(): GitOutcome<Unit>
+    /** Restores the executables and links of the repository at [top] ([GitCheckoutRepair]); Git's message on failure. */
+    suspend fun restoreCheckout(top: String): GitCheckoutRepair.Restored
+}
+
 /** Where a Git setting lives: the runtime-wide default or one repository's override. */
 internal enum class GitConfigScope(val option: String) { Global("--global"), Local("--local") }
 

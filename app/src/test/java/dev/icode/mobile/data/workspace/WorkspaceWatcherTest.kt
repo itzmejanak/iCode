@@ -23,7 +23,9 @@ class WorkspaceWatcherTest {
         assertTrue(settleDelay(first = 0, last = 4_990, now = 5_000) <= 0)
     }
 
-    @Test fun `the root, expanded folders and the folders of open files are watched`() {
+    private val workspaces = File("/files/workspaces")
+
+    @Test fun `the workspaces, and in the open one its top, expanded folders and open files' folders, are watched`() {
         val root = "/w"
         val snapshot = paletteReadySnapshot.copy(
             activeWorkspaceLocation = root,
@@ -36,10 +38,10 @@ class WorkspaceWatcherTest {
                 OpenDocument("b.md", "/w/notes/b.md", "", TextEncoding.Utf8, LineEnding.Lf, dirty = false, readOnly = false),
             ),
         )
-        assertEquals(setOf(File("/w"), File("/w/src"), File("/w/notes")), watchedFolders(snapshot))
+        assertEquals(setOf(workspaces, File("/w"), File("/w/src"), File("/w/notes")), watchedFolders(snapshot, workspaces))
     }
 
-    @Test fun `without a workspace nothing is watched`() {
-        assertEquals(emptySet<File>(), watchedFolders(paletteReadySnapshot.copy(activeWorkspaceLocation = null)))
+    @Test fun `without an open workspace only the workspaces' folder is watched`() {
+        assertEquals(setOf(workspaces), watchedFolders(paletteReadySnapshot.copy(activeWorkspaceLocation = null), workspaces))
     }
 }

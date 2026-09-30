@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap
  */
 internal class DocumentSessionCoordinator(
     private val workbench: WorkbenchStateHolder,
-    private val source: DirectFileWorkspaceSource,
+    private val source: WorkspaceFileSource,
     private val recovery: DocumentRecoveryCoordinator,
     private val library: WorkspaceLibraryCoordinator,
     private val activeRoot: () -> String?,

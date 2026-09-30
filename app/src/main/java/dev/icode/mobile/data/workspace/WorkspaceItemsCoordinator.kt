@@ -15,7 +15,7 @@ import java.io.File
 internal class WorkspaceItemsCoordinator(
     private val workbench: WorkbenchStateHolder,
     private val tasks: TaskRunner,
-    private val source: DirectFileWorkspaceSource,
+    private val source: WorkspaceFileSource,
     private val tree: WorkspaceTree,
     private val documents: DocumentSessionCoordinator,
     private val library: WorkspaceLibraryCoordinator,

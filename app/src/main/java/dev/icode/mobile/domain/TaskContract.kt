@@ -10,7 +10,7 @@ data class WorkTask(
     val title: String,
     /** What it works on, by the name the user chose it by: "node_modules". */
     val subject: String,
-    /** The item in hand, as a path from the folder [subject] is in; null while it counts. */
+    /** The item in hand, as a path from the folder [subject] is in, or the step between items; null while it counts. */
     val currentItem: String? = null,
     val done: Long = 0,
     /** Null while it counts. */

@@ -2,6 +2,7 @@ package dev.icode.mobile.data.settings
 
 import android.content.Context
 import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -62,9 +63,8 @@ class AndroidWorkspacePreferencesRepository internal constructor(
     private val terminalFinishAlertsKey = booleanPreferencesKey("terminal_finish_alerts")
 
     override fun values(workspaceLocation: String?): Flow<WorkspacePreferences> = store.data.map { prefs ->
-        val prefix = workspaceLocation?.let(::workspaceKeyPrefix)
-        val indent = prefix?.let { prefs[intPreferencesKey("${it}_indent_size")] }?.takeIf { it in SettingLimits.indentSizes }
-        val type = prefix?.let { prefs[stringPreferencesKey("${it}_indent_type")] }
+        val indent = workspaceLocation?.let { prefs[indentSizeKey(it)] }?.takeIf { it in SettingLimits.indentSizes }
+        val type = workspaceLocation?.let { prefs[indentTypeKey(it)] }
             ?.let { runCatching { IndentType.valueOf(it) }.getOrNull() }
         WorkspacePreferences(
             workspaceLocation = workspaceLocation,
@@ -100,7 +100,7 @@ class AndroidWorkspacePreferencesRepository internal constructor(
             globalIndentSize = prefs[globalIndentKey]?.takeIf { it in SettingLimits.indentSizes } ?: preferenceDefaults.globalIndentSize,
             indentSizeOverride = indent,
             indentTypeOverride = type,
-            autoFetch = prefix?.let { prefs[booleanPreferencesKey("${it}_auto_fetch")] } ?: preferenceDefaults.autoFetch,
+            autoFetch = workspaceLocation?.let { prefs[autoFetchKey(it)] } ?: preferenceDefaults.autoFetch,
         )
     }.catch { error ->
         if (error is CancellationException) throw error
@@ -182,19 +182,47 @@ class AndroidWorkspacePreferencesRepository internal constructor(
 
     override suspend fun setIndentSizeOverride(workspaceLocation: String, size: Int?) {
         require(size == null || size in SettingLimits.indentSizes)
-        val key = intPreferencesKey("${workspaceKeyPrefix(workspaceLocation)}_indent_size")
+        val key = indentSizeKey(workspaceLocation)
         store.edit { if (size == null) it.remove(key) else it[key] = size }
     }
 
     override suspend fun setIndentTypeOverride(workspaceLocation: String, type: IndentType?) {
-        val key = stringPreferencesKey("${workspaceKeyPrefix(workspaceLocation)}_indent_type")
+        val key = indentTypeKey(workspaceLocation)
         store.edit { if (type == null) it.remove(key) else it[key] = type.name }
     }
 
     override suspend fun setAutoFetch(workspaceLocation: String, enabled: Boolean) {
-        val key = booleanPreferencesKey("${workspaceKeyPrefix(workspaceLocation)}_auto_fetch")
-        store.edit { it[key] = enabled }
+        store.edit { it[autoFetchKey(workspaceLocation)] = enabled }
     }
+
+    /** A workspace renamed: its overrides follow it to [to] (docs/workspace-storage-plan.md §4.3). */
+    suspend fun moveWorkspace(from: String, to: String) {
+        store.edit { prefs ->
+            prefs.move(indentSizeKey(from), indentSizeKey(to))
+            prefs.move(indentTypeKey(from), indentTypeKey(to))
+            prefs.move(autoFetchKey(from), autoFetchKey(to))
+        }
+    }
+
+    /** A workspace deleted, or one iCode no longer opens: its overrides go. */
+    suspend fun forgetWorkspace(location: String) {
+        store.edit { prefs ->
+            prefs.remove(indentSizeKey(location))
+            prefs.remove(indentTypeKey(location))
+            prefs.remove(autoFetchKey(location))
+        }
+    }
+
+    private fun <T> MutablePreferences.move(from: Preferences.Key<T>, to: Preferences.Key<T>) {
+        val value = this[from] ?: return
+        this[to] = value
+        remove(from)
+    }
+
+    // A workspace's own keys; stored, do not rename.
+    private fun indentSizeKey(location: String) = intPreferencesKey("${workspaceKeyPrefix(location)}_indent_size")
+    private fun indentTypeKey(location: String) = stringPreferencesKey("${workspaceKeyPrefix(location)}_indent_type")
+    private fun autoFetchKey(location: String) = booleanPreferencesKey("${workspaceKeyPrefix(location)}_auto_fetch")
 
     private fun workspaceKeyPrefix(location: String): String {
         require(location.isNotBlank())

@@ -2,6 +2,7 @@ package dev.icode.mobile.data.runtime
 
 import androidx.annotation.MainThread
 import dev.icode.mobile.data.workspace.WorkbenchStateHolder
+import dev.icode.mobile.data.workspace.isAtOrUnder
 import dev.icode.mobile.domain.TerminalSettings
 import dev.icode.mobile.domain.TerminalSnapshot
 import dev.icode.mobile.domain.WorkbenchEffect
@@ -107,6 +108,11 @@ internal class TerminalCoordinator(
         runCatching { terminals.open(location, reuseExisting = true) }
             .onSuccess { workbench.update { it.copy(terminal = terminals.snapshot.value) } }
             .onFailure { error -> workbench.report("terminal", "Unable to start terminal", error) }
+    }
+
+    /** Whether a session opened in [location], or in a folder inside it, still runs. */
+    suspend fun runsIn(location: String): Boolean = withContext(main) {
+        terminals.snapshot.value.sessions.any { it.isRunning && terminals.workspaceOf(it.id)?.isAtOrUnder(location) == true }
     }
 
     suspend fun select(id: String) = withContext(main) { terminals.select(id) }

@@ -3,6 +3,7 @@ package dev.icode.mobile.data.runtime
 import android.content.Context
 import android.os.Build
 import dev.icode.mobile.data.io.Sha256
+import dev.icode.mobile.data.io.deleteTree
 import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.RuntimeState
 import dev.icode.mobile.domain.RuntimeInstallReason
@@ -177,7 +178,7 @@ internal class RuntimeInstaller(
      * here needs the guest: it writes files into a directory this app owns.
      */
     private suspend fun extract(archive: File, onEntry: suspend (Long) -> Unit) {
-        if (layout.rootfs.exists()) layout.rootfs.deleteRecursively()
+        deleteTree(layout.rootfs)
         layout.rootfs.mkdirs()
         // The unpack runs on its own coroutine and records how far it has got;
         // the count is published from *this* one. A flow may only be emitted to

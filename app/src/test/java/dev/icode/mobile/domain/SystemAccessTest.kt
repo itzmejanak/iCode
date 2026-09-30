@@ -5,42 +5,28 @@ import org.junit.Test
 
 class SystemAccessTest {
 
-    private val nothing = SystemAccess(storage = false, notifications = false, unrestrictedBattery = false)
+    private val nothing = SystemAccess(notifications = false, unrestrictedBattery = false)
 
     @Test
-    fun `a fresh install is asked for everything, storage first`() {
-        assertEquals(
-            listOf(SystemPermission.Storage, SystemPermission.Notifications, SystemPermission.Battery),
-            nothing.onboardingSteps,
-        )
+    fun `a fresh install is asked for each permission, notifications first`() {
+        assertEquals(listOf(SystemPermission.Notifications, SystemPermission.Battery), nothing.onboardingSteps)
     }
 
     @Test
     fun `what is already allowed is not asked for`() {
-        assertEquals(
-            listOf(SystemPermission.Battery),
-            nothing.copy(storage = true, notifications = true).onboardingSteps,
-        )
+        assertEquals(listOf(SystemPermission.Battery), nothing.copy(notifications = true).onboardingSteps)
     }
 
     @Test
-    fun `an optional permission is offered once`() {
-        val offered = nothing.copy(offered = setOf(SystemPermission.Notifications, SystemPermission.Battery))
-        assertEquals(listOf(SystemPermission.Storage), offered.onboardingSteps)
-    }
-
-    @Test
-    fun `storage is asked for while missing, whatever was offered before`() {
-        val offered = nothing.copy(notifications = true, unrestrictedBattery = true, offered = SystemPermission.entries.toSet())
-        assertEquals(listOf(SystemPermission.Storage), offered.onboardingSteps)
+    fun `each permission is offered once`() {
+        val offered = nothing.copy(offered = setOf(SystemPermission.Notifications))
+        assertEquals(listOf(SystemPermission.Battery), offered.onboardingSteps)
+        assertEquals(emptyList<SystemPermission>(), offered.copy(offered = SystemPermission.entries.toSet()).onboardingSteps)
     }
 
     @Test
     fun `granted answers each permission`() {
-        val access = SystemAccess(storage = true, notifications = false, unrestrictedBattery = true)
-        assertEquals(
-            listOf(true, false, true),
-            SystemPermission.entries.map(access::granted),
-        )
+        val access = SystemAccess(notifications = false, unrestrictedBattery = true)
+        assertEquals(listOf(false, true), SystemPermission.entries.map(access::granted))
     }
 }
