@@ -85,10 +85,7 @@ internal const val WATCH_MAX_WAIT_MILLIS = 5_000L
 internal fun settleDelay(first: Long, last: Long, now: Long): Long =
     minOf(last + WATCH_QUIET_MILLIS, first + WATCH_MAX_WAIT_MILLIS) - now
 
-/**
- * The folders worth watching: the workspace root, every expanded folder, and each open file's
- * folder — as the workspace names them; what is watched is where their bytes are.
- */
+/** The folders worth watching: the workspace root, every expanded folder, and each open file's folder. */
 internal fun watchedFolders(snapshot: WorkbenchSnapshot): Set<File> {
     val root = snapshot.activeWorkspaceLocation ?: return emptySet()
     return buildSet {

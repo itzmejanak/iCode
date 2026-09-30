@@ -29,6 +29,7 @@ internal class LanguageServiceProcessManager(
         if (!layout.isInstalled) return "Install the Linux runtime first"
         val folder = File(workspace)
         if (!folder.isDirectory) return "Open an available workspace first"
+        val guestFolder = layout.workspaces.guestOf(folder.path) ?: return "Open a workspace in iCode's storage first"
         val arguments = try {
             LanguageServiceRules.commandArguments(config.command)
         } catch (error: IllegalArgumentException) {
@@ -42,8 +43,7 @@ internal class LanguageServiceProcessManager(
             RuntimeProcess.start(
                 argv = layout.prootCommand(
                     guestCommand = listOf("/usr/bin/env") + arguments,
-                    workspaceHostPath = folder.canonicalPath,
-                    guestWorkingDirectory = RuntimeLayout.guestWorkspace(folder.canonicalPath),
+                    guestWorkingDirectory = guestFolder,
                 ),
                 environment = layout.prootEnvironment(),
                 workingDirectory = layout.runtimeRoot.absolutePath,

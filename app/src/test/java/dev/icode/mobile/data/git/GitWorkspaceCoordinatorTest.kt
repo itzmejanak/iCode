@@ -1,7 +1,7 @@
 package dev.icode.mobile.data.git
 
 import dev.icode.mobile.data.log.BackendLog
-import dev.icode.mobile.data.storage.WorkspaceStorage
+import dev.icode.mobile.data.storage.WorkspacePaths
 import dev.icode.mobile.data.workspace.DirectFileWorkspaceSource
 import dev.icode.mobile.data.workspace.WorkbenchStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceTree
@@ -67,7 +67,7 @@ class GitWorkspaceCoordinatorTest {
             workbench,
             scope,
             git,
-            WorkspaceTree(workbench, DirectFileWorkspaceSource(WorkspaceStorage(File("unused"))) { null }) { emptyList() },
+            WorkspaceTree(workbench, DirectFileWorkspaceSource()) { emptyList() },
             activeRoot = { root },
             recentWorkspaces = { emptyList() },
             recentDocuments = { emptyList() },
@@ -129,7 +129,10 @@ class GitWorkspaceCoordinatorTest {
         try {
             File(folder, ".git").mkdirs()
             File(folder, ".git/HEAD").writeText("ref: refs/heads/dev\n")
-            val git = FakeGit().apply { available = false }
+            val git = FakeGit().apply {
+                available = false
+                locator = GitLocator(WorkspacePaths(folder.parentFile))
+            }
 
             val picture = Harness(git, folder.path).coordinator.read(folder.path)
 
@@ -339,6 +342,8 @@ class GitWorkspaceCoordinatorTest {
         var failure: Exception? = null
         var provisionOutcome: GitOutcome<Unit> = GitOutcome.Success(Unit)
         var onProvision: () -> Unit = {}
+        /** Reads `.git/HEAD` from disk, as the real client does; null reads nothing. */
+        var locator: GitLocator? = null
 
         private fun record(call: String) {
             calls += call
@@ -346,6 +351,8 @@ class GitWorkspaceCoordinatorTest {
         }
 
         override suspend fun isAvailable() = available
+        override fun branchOf(workspacePath: String) = locator?.branchOf(workspacePath)
+        override fun isRepository(workspacePath: String) = locator?.isRepository(workspacePath) ?: false
         override suspend fun provision(): GitOutcome<Unit> = provisionOutcome.also { calls += "provision"; onProvision() }
         override suspend fun inspect(workspacePath: String) = snapshot.also { calls += "inspect $workspacePath" }
         override suspend fun initialize(workspacePath: String) = record("init $workspacePath")

@@ -14,8 +14,8 @@ import java.io.File
  */
 internal class WorkspaceTree(
     private val workbench: WorkbenchStateHolder,
-    private val source: DirectFileWorkspaceSource,
-    private val listChildren: (String) -> List<DocumentNode> = { source.listChildren(it) },
+    source: DirectFileWorkspaceSource,
+    private val listChildren: (String) -> List<DocumentNode> = source::listChildren,
 ) {
     private val treeLock = Any()
     private val childrenByParent = mutableMapOf<String, List<DocumentNode>>()
@@ -65,8 +65,7 @@ internal class WorkspaceTree(
      */
     fun reload(root: String) = synchronized(treeLock) {
         if (root != currentRoot) return@synchronized
-        val tree = source.workspace(root)
-        expanded.removeAll { !tree.bytes(it).isDirectory }
+        expanded.removeAll { !File(it).isDirectory }
         childrenByParent.keys.retainAll { it == root || it in expanded }
         childrenByParent[root] = listChildren(root)
         expanded.toList().forEach { location ->

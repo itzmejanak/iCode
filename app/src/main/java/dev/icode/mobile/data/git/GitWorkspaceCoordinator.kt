@@ -50,7 +50,7 @@ internal class GitWorkspaceCoordinator(
         // tells us this is a repository - so the UI can offer to install Git
         // instead of wrongly offering to initialise a repo that already exists.
         val state = if (available) git.inspect(root) else GitWorkspaceSnapshot(repository = null, changes = emptyList())
-        return GitPicture(available, state, state.repository?.branch ?: GitHeadReader.branchOf(root).orEmpty())
+        return GitPicture(available, state, state.repository?.branch ?: git.branchOf(root).orEmpty())
     }
 
     /**
@@ -108,7 +108,7 @@ internal class GitWorkspaceCoordinator(
             workbench.message("Open a workspace before initializing Git")
             return
         }
-        if (GitHeadReader.isRepository(workspace)) {
+        if (git.isRepository(workspace)) {
             workbench.message("This folder is already inside a Git repository")
             return
         }

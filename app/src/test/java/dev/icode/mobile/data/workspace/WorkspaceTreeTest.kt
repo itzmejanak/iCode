@@ -1,9 +1,7 @@
 package dev.icode.mobile.data.workspace
 
 import dev.icode.mobile.data.git.GitWorkspaceSnapshot
-import dev.icode.mobile.data.storage.WorkspaceStorage
 import dev.icode.mobile.domain.FileKind
-import java.io.File
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -14,12 +12,11 @@ class WorkspaceTreeTest {
     private val root = "/workspace"
     private val folder = DocumentNode("src", "$root/src", FileKind.Folder)
     private val child = DocumentNode("Main.kt", "$root/src/Main.kt", FileKind.File)
-    private val source = DirectFileWorkspaceSource(WorkspaceStorage(File("unused"))) { null }
 
     @Test fun `folder tap expands and next tap collapses without gateway state`() = runBlocking {
         val workbench = WorkbenchStateHolder()
         workbench.update { it.copy(activeWorkspaceLocation = root) }
-        val tree = WorkspaceTree(workbench, source) { location ->
+        val tree = WorkspaceTree(workbench, DirectFileWorkspaceSource()) { location ->
             if (location == folder.location) listOf(child) else emptyList()
         }
         tree.reset(root, listOf(folder))
@@ -36,7 +33,7 @@ class WorkspaceTreeTest {
     @Test fun `late tap from previous workspace cannot replace current rows`() = runBlocking {
         val workbench = WorkbenchStateHolder()
         workbench.update { it.copy(activeWorkspaceLocation = "/new") }
-        val tree = WorkspaceTree(workbench, source) { listOf(child) }
+        val tree = WorkspaceTree(workbench, DirectFileWorkspaceSource()) { listOf(child) }
         tree.reset("/new", emptyList())
 
         tree.toggle(root, folder.location)

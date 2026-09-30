@@ -54,7 +54,7 @@ internal class RipgrepService(
     override suspend fun index(rootLocation: String): RipgrepIndexOutcome {
         val parser = RipgrepFileParser(rootLocation, MAX_INDEX_FILES)
         val result = guest.streamRecords(
-            workspaceHostPath = rootLocation,
+            location = rootLocation,
             argv = RipgrepCommand.files(),
             stderrName = "rg-files",
             delimiter = 0,
@@ -77,7 +77,7 @@ internal class RipgrepService(
     ): RipgrepSearchOutcome {
         val parser = RipgrepJsonParser(rootLocation, MAX_MATCHES_PER_FILE, MAX_TOTAL_MATCHES)
         val result = guest.stream(
-            workspaceHostPath = rootLocation,
+            location = rootLocation,
             argv = RipgrepCommand.content(
                 query = query,
                 matchCase = matchCase,

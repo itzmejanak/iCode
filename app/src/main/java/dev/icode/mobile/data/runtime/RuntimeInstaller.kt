@@ -216,10 +216,9 @@ internal class RuntimeInstaller(
             "127.0.0.1 localhost\n::1 localhost ip6-localhost ip6-loopback\n",
         )
         File(layout.rootfs, RuntimeHomeBackup.HOME_RELATIVE).mkdirs()
-        File(layout.rootfs, LayoutConstants.GUEST_WORKSPACE_RELATIVE).mkdirs()
         layout.ensureGuestGroups()
         GuestSudo.install(layout.rootfs)
-        // dpkg syncs every file it unpacks, and on phone storage those syncs
+        // dpkg syncs every file it unpacks, and on the phone's flash those syncs
         // dominate an install (measured: git 152 s with them, 84 s without).
         // The package database is rebuildable — Repair Runtime exists for a
         // lost write — and container images drop the syncs the same way. The
@@ -253,10 +252,6 @@ internal class RuntimeInstaller(
     }
 
     internal data class CommandResult(val exitCode: Int, val output: String)
-
-    private object LayoutConstants {
-        const val GUEST_WORKSPACE_RELATIVE = "workspace"
-    }
 
     private companion object {
         const val MANIFEST_ASSET = "runtime/manifest.json"

@@ -22,14 +22,17 @@ internal class GitRepositoryClient(private val cli: CliGitService) :
     /** Installs Git into the runtime; Git's own output explains a failure. */
     override suspend fun provision(): GitOutcome<Unit> = cli.provision()
 
+    override fun branchOf(workspacePath: String): String? = cli.locator.branchOf(workspacePath)
+
+    override fun isRepository(workspacePath: String): Boolean = cli.locator.isRepository(workspacePath)
+
     /** Reads the whole repository picture in one process ([GitInspectParser]). */
     override suspend fun inspect(workspacePath: String): GitWorkspaceSnapshot {
         // Also makes `git` usable from the user's own terminal in this
         // workspace, not just from the commands this client runs.
         cli.ensureSafeDirectoryConfigured()
-        val mount = GitMountResolver.resolve(workspacePath)
-        val result = cli.runScript(mount, GitInspectParser.SCRIPT)
-        val snapshot = GitInspectParser.parse(mount.root, result.stdout)
+        val result = cli.runScript(cli.workingFolderOf(workspacePath), GitInspectParser.SCRIPT)
+        val snapshot = GitInspectParser.parse(result.stdout, cli::locationOf)
         // Status failing inside a repository (a corrupt index, say) is a real
         // failure: shown as "no changes" it would hide the user's work.
         if (snapshot.repository != null && !result.succeeded) throw IOException(result.errorMessage)

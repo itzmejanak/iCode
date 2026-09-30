@@ -91,7 +91,7 @@ internal class WorkspaceSessionCoordinator(
         }
         runCatching {
             val root = source.describeRoot(location)
-            val children = source.listChildren(root.location, root = root.location)
+            val children = source.listChildren(location)
             val gitPicture = gitWorkspace.read(root.location)
             val closingDocuments = workbench.current.openDocuments
                 .filter { it.dirty || !recovery.isUnresolved(it.location) }
@@ -155,16 +155,10 @@ internal class WorkspaceSessionCoordinator(
     /** The watcher runs only while iCode is seen. */
     fun screenVisible(visible: Boolean) {
         screenVisible = visible
-        if (visible) watcher.watch(physical(watchedFolders(workbench.current))) else watcher.stop()
+        if (visible) watcher.watch(watchedFolders(workbench.current)) else watcher.stop()
     }
 
     fun stopWatching() = watcher.stop()
-
-    /** Watched where their bytes are: a mount's own folder, not the empty placeholder in the user's. */
-    private fun physical(folders: Set<File>): Set<File> {
-        val tree = activeRoot?.let(source::workspace) ?: return folders
-        return folders.mapTo(mutableSetOf()) { tree.bytes(it.path) }
-    }
 
     /**
      * Opens a draft's file for the recovery question, switching to its
@@ -206,7 +200,7 @@ internal class WorkspaceSessionCoordinator(
     /** The folders shown and those of open files follow the state, while iCode is seen. */
     private suspend fun followWatchedFolders() {
         workbench.snapshot.map(::watchedFolders).distinctUntilChanged().collect { folders ->
-            if (screenVisible) watcher.watch(physical(folders))
+            if (screenVisible) watcher.watch(folders)
         }
     }
 
@@ -224,7 +218,7 @@ internal class WorkspaceSessionCoordinator(
                 if (!File(session.workspaceLocation).isDirectory) return@withLock
                 open(session.workspaceLocation, persist = false, announce = false)
                 if (activeRoot != session.workspaceLocation) return@withLock
-                session.documents.filter { source.physical(it).isFile }.forEach { documents.open(it, announce = false) }
+                session.documents.filter { File(it).isFile }.forEach { documents.open(it, announce = false) }
                 session.activeDocument?.let(documents::select)
             }
         }

@@ -243,7 +243,7 @@ internal class DocumentSessionCoordinator(
     suspend fun reconcileWithDisk() {
         for (document in workbench.current.openDocuments) {
             val read = sources[document.location] ?: continue
-            val file = source.physical(document.location)
+            val file = File(document.location)
             val disk = if (file.isFile) runCatching { source.readDocument(document.location) }.getOrNull() else null
             // Present but unreadable now (grown too large, say): nothing is claimed about it.
             val diskFingerprint = if (!file.exists()) null else disk?.fingerprint ?: read.fingerprint
@@ -297,7 +297,7 @@ internal class DocumentSessionCoordinator(
         if (workbench.current.externalChanges.any { it.location == location }) return
         val root = activeRoot()
         val path = root?.let { runCatching { File(it).toPath().relativize(File(location).toPath()).toString() }.getOrNull() } ?: name
-        val change = ExternalChange(location, name, path, source.physical(location).lastModified())
+        val change = ExternalChange(location, name, path, File(location).lastModified())
         workbench.update { it.copy(externalChanges = it.externalChanges + change) }
         workbench.emit(WorkbenchEffect.ExternalChangeDetected(location))
     }

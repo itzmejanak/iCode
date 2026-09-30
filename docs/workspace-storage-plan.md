@@ -239,16 +239,15 @@ named, and the guards' allowlists shrink with it.
 | Item | Fate | Cycle |
 |---|---|---|
 | `domain/LogicalWorkspace.kt`, `data/storage/WorkspaceStorage.kt`, `data/storage/LogicalFiles.kt` and their tests | deleted: the mount model | W2 |
-| `data/git/GitMountResolver.kt`, `data/runtime/GuestMount.kt` | deleted: the root is bound whole; a guest working directory from `WorkspacePaths` replaces them | W2 |
+| `data/git/GitMountResolver.kt`, `data/git/GitHeadReader.kt`, `data/runtime/GuestMount.kt` | deleted: the root is bound whole. `GitLocator` finds a repository's top (never above the workspaces) and reads its branch; commands take a location, which `WorkspacePaths` turns into the guest working directory | W2 |
 | `RuntimeLayout.prootCommand` (`workspaceHostPath`, `samePathBinds`), `RuntimeLayout.guestWorkspace` | rewritten: one bind of the root, a guest working directory | W2 |
 | `TerminalLaunch`, `GuestCommand`, `CliGitService`, `GitInspectParser`, `RipgrepService`, `LanguageServiceProcessManager` | changed: paths through `WorkspacePaths` | W2 |
-| `DirectFileWorkspaceSource` | rewritten as the workspace file source: listing, reading, saving and creating under the root; the phone-storage root, the folder browser and the logical/physical split go | W2 |
-| `WorkspaceFiles` | rewritten for one filesystem (S4's boundary rules go) | W2 |
+| S4's logical tree in `DirectFileWorkspaceSource`, `WorkspaceFiles`, `WorkspaceTree`, `WorkspaceWatcher` and the coordinators | removed: back to one filesystem | W2 |
+| `DirectFileWorkspaceSource` | rewritten as the workspace file source: listing, reading, saving and creating under the root; the phone-storage root and the folder browser go with the screen that uses them | W4 |
 | `WorkspaceStore`, `WorkspaceLibraryCoordinator` | rewritten: the list from the root, last-opened times, create, rename, delete, sizes | W3 |
 | `WorkspaceSummary.available` and the launcher's UNAVAILABLE state | deleted: a folder in iCode's storage cannot be unavailable | W3–W4 |
 | `AndroidWorkspacePreferencesRepository` | gains move (rename) and forget (delete, migration) of one workspace's overrides | W3 |
 | `GitTransferCoordinator.clone`, `GitOperationState.Cancelled.leftover` | clone into staging; the leftover notice deleted | W3 |
-| `GitHeadReader` | a worktree's guest `gitdir` mapped through `WorkspacePaths` | W2 |
 | `FolderBrowserCoordinator` | deleted | W3 |
 | `domain`: `FolderBrowserPurpose`, `FolderBrowserEntry`, `FolderBrowserState`; intents `StartFolderBrowser`, `BrowseFolder`, `BrowseParentFolder`, `ConfirmFolderSelection`, `RequestCreateFolder`, `ShowWorkspaceLocation`, `RemoveRecentWorkspace`, `RemoveStaleRecents`; effects `FolderBrowserOpened`, `FolderDestinationSelected`; snapshot `folderBrowser`, `createFolderDestination`, `createFolderDestinationDisplay` | deleted, replaced by `CreateWorkspace`, `RenameWorkspace`, `DeleteWorkspace`, `ShowWorkspaceInFiles`, the import intents, and `CloneRepository` without a destination | W3–W5 |
 | `SystemPermission.Storage`, `SystemAccess.storage`, `AndroidSystemAccess`, `SystemPrompts`, `PermissionScreen`'s storage step, `IcodeApp`'s storage branch, `OnboardingRoute` | storage removed | W4 |
@@ -275,9 +274,9 @@ against the existing kit only and reviewed line by line; the owner's build is it
 | Cycle | What | Done when |
 |---|---|---|
 | **W1** | This plan; the architecture decision and every stale document rewritten (§6) | Documents agree with each other and with this plan |
-| **W2** | One path model and one bind: `WorkspacePaths`; every PRoot launch binds the root; terminal, Git, ripgrep and language services through it; the mount model, the Git mount resolver and `GuestMount` deleted; the file source and `WorkspaceFiles` rewritten for one filesystem | Type-check and tests pass; D1, D2 |
+| **W2** | One path model and one bind: `WorkspacePaths`; every PRoot launch binds the root; terminal, Git, ripgrep and language services through it; the mount model (S3–S4), the Git mount resolver and `GuestMount` deleted | Type-check and tests pass; D1, D2 |
 | **W3** | The workspace list and lifecycle: store and library rewritten; New Folder and Clone into the root; rename; delete as a task; open, switch, restore; the root watched; the migration (§5) | Tests pass; D3, D4, D11 |
-| **W4** | Screens (§4.4), onboarding and permission removal, Open Folder retired, capture fixtures, the UI guard | Gradle gate, capture; D5 |
+| **W4** | Screens (§4.4), onboarding and permission removal, Open Folder retired with the folder browser, the workspace file source rewritten for the root, capture fixtures, the UI guard | Gradle gate, capture; D5 |
 | **W5** | Import: picker, screen, the copier as a task, the Git repair measured with real Git first | Tests pass; D6, D7 |
 | **W6** | The Files provider, Show in Files, change notifications; the security tests | Tests pass; D8, D9 |
 | **W7** | Data safety (§4.7) and the Storage page's wording | D10, D12 |
