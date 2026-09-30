@@ -92,6 +92,12 @@ fun NotificationsScreen(actions: NavigationActions) {
                         onDelete = { gateway.dispatch(WorkbenchIntent.DeleteNotice(notice.id)) },
                         modifier = Modifier.fillMaxWidth(),
                     )
+                    is AppNotice.WorkspacesMovedIn -> WorkspacesMovedInNotice(
+                        notice,
+                        new = notice.id in newIds,
+                        onDelete = { gateway.dispatch(WorkbenchIntent.DeleteNotice(notice.id)) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             }
         }

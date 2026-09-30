@@ -56,8 +56,7 @@ internal class WorkspaceImportCoordinator(
     suspend fun import(rawName: String) {
         val source = workbench.current.importSource ?: return workbench.message("Choose a folder to import first")
         val name = rawName.trim()
-        WorkspaceNameRules.workspaceNameError(name)?.let { return workbench.message(it) }
-        if (File(paths.root, name).exists()) return workbench.message("A workspace named $name already exists. Choose another name")
+        WorkspaceNameRules.newWorkspaceError(name) { File(paths.root, it).exists() }?.let { return workbench.message(it) }
         val folder = staging.reserve("import")
         var imported: Imported? = null
         tasks.start(

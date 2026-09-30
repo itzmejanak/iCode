@@ -49,8 +49,8 @@ internal fun TaskDialogs(tasks: List<WorkTask>, gateway: WorkbenchGateway) {
 
 /**
  * Tasks sent to the background, each a thin row with its bar; a tap brings its
- * dialog back. Shown where file work starts, the Explorer; the notification
- * carries them everywhere else.
+ * dialog back. Shown where file work starts, the Explorer and the launcher;
+ * the notification carries them everywhere else.
  */
 @Composable
 internal fun BackgroundTasks(tasks: List<WorkTask>, gateway: WorkbenchGateway, modifier: Modifier = Modifier) {

@@ -19,7 +19,6 @@ import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -31,9 +30,6 @@ import androidx.compose.ui.text.font.FontWeight
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeCard
 import androidx.compose.foundation.clickable
-import dev.icode.mobile.designsystem.IcodeTone
-import dev.icode.mobile.designsystem.NoticeCard
-import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodeSizes
@@ -45,22 +41,26 @@ import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.StatusDot
 import dev.icode.mobile.designsystem.StatusLabel
-import dev.icode.mobile.domain.FolderBrowserPurpose
 import dev.icode.mobile.domain.RelativeTime
-import dev.icode.mobile.domain.SystemPermission
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.domain.WorkspaceSummary
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.BackgroundTasks
 import dev.icode.mobile.ui.WorkspaceActionsMenu
+import dev.icode.mobile.ui.rememberImportPicker
 
-/** Launcher with recent workspaces; [empty] renders the first-run empty state. */
+/**
+ * The launcher: every workspace in iCode's storage, most recently opened first, and the three ways
+ * to make one. [empty] renders the first-run empty state.
+ */
 @Composable
 fun LauncherScreen(actions: NavigationActions, empty: Boolean) {
     val state = LocalWorkbenchSnapshot.current
     val gateway = LocalWorkbenchGateway.current
+    val pickImport = rememberImportPicker()
     val workspaces = state.workspaces
     val showEmpty = empty || workspaces.isEmpty()
     Column(Modifier.fillMaxSize()) {
@@ -84,51 +84,24 @@ fun LauncherScreen(actions: NavigationActions, empty: Boolean) {
                 }
             },
         )
-        // Declining the permission during onboarding used to be a one-way
-        // door: the launcher looked identical, every action failed, and no
-        // screen led back. The way back lives here now.
-        if (state.systemAccess?.storage == false) {
-            NoticeCard(
-                tone = IcodeTone.Warning,
-                modifier = Modifier.fillMaxWidth().padding(
-                    start = IcodeSpacing.Space4,
-                    end = IcodeSpacing.Space4,
-                    top = IcodeSpacing.Space4,
-                ),
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
-                    StatusLabel("Storage access is off", IcodeColors.Amber)
-                    MonoLine(
-                        "iCode cannot open folders or clone repositories until Android grants it.",
-                        color = IcodeColors.TextSecondary,
-                        style = IcodeType.MonoSmall,
-                    )
-                    SecondaryButton(
-                        "Grant access",
-                        { gateway.dispatch(WorkbenchIntent.RequestSystemPermission(SystemPermission.Storage)) },
-                        Modifier.fillMaxWidth(),
-                    )
-                }
-            }
-        }
         Row(
             modifier = Modifier.fillMaxWidth().padding(IcodeSpacing.Space4),
             horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
         ) {
-            LauncherActionTile(Icons.Outlined.FolderOpen, "Open Folder", Modifier.weight(1f)) {
-                gateway.dispatch(WorkbenchIntent.StartFolderBrowser(FolderBrowserPurpose.OpenWorkspace))
-            }
+            LauncherActionTile(Icons.Outlined.FolderOpen, "Import", Modifier.weight(1f), pickImport)
             LauncherActionTile(Icons.Outlined.AccountTree, "Clone Repo", Modifier.weight(1f)) { actions.navigate(Route.CloneRepository) }
             LauncherActionTile(Icons.Outlined.CreateNewFolder, "New Folder", Modifier.weight(1f)) { actions.navigate(Route.CreateFolder) }
         }
+        // An import or a delete sent to the background.
+        BackgroundTasks(state.tasks, gateway, Modifier.padding(start = IcodeSpacing.Space4, end = IcodeSpacing.Space4, bottom = IcodeSpacing.Space2))
         if (showEmpty) {
             Column(
                 modifier = Modifier.fillMaxWidth().weight(1f),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 EmptyState(
-                    title = "No recent workspaces",
-                    description = "Open a folder, clone a repository, or create a new project\nto get started.",
+                    title = "No workspaces yet",
+                    description = "Create a folder, clone a repository, or import one\nfrom phone storage.",
                     icon = Icons.Outlined.Folder,
                     modifier = Modifier.padding(top = IcodeSpacing.Space6 + IcodeSpacing.Space2),
                 )
@@ -138,7 +111,7 @@ fun LauncherScreen(actions: NavigationActions, empty: Boolean) {
                 modifier = Modifier.padding(horizontal = IcodeSpacing.Space4).weight(1f),
                 verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
             ) {
-                item { SectionLabel("Recent Workspaces", Modifier.padding(bottom = IcodeSpacing.Space1)) }
+                item { SectionLabel("Workspaces", Modifier.padding(bottom = IcodeSpacing.Space1)) }
                 items(workspaces, key = { it.location }) { workspace ->
                     WorkspaceRow(
                         item = workspace,
@@ -190,21 +163,15 @@ private fun WorkspaceRow(
         onClick = onOpen,
         leading = {
             IconBadge(
-                icon = if (item.available) Icons.Outlined.Folder else Icons.Outlined.WarningAmber,
-                tint = if (item.available) IcodeColors.Accent else IcodeColors.Amber,
+                icon = Icons.Outlined.Folder,
+                tint = IcodeColors.Accent,
                 size = IcodeSizes.BadgeMd,
                 iconSize = IcodeSizes.IconMd,
             )
         },
         content = {
             Column(Modifier.weight(1f)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1 + IcodeSpacing.Micro),
-                ) {
-                    Text(item.name, style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold), maxLines = 1)
-                    if (!item.available) Text("• UNAVAILABLE", style = IcodeType.Micro.copy(color = IcodeColors.Amber))
-                }
+                Text(item.name, style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold), maxLines = 1)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),

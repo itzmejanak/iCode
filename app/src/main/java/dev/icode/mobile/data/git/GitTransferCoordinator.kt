@@ -10,6 +10,7 @@ import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.GitRemoteRules
 import dev.icode.mobile.domain.GitSyncAction
 import dev.icode.mobile.domain.WorkspaceNameRules
+import dev.icode.mobile.domain.WorkspaceRuntimePath
 import java.io.File
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
@@ -147,7 +148,7 @@ internal class GitTransferCoordinator(
         }
         workbench.update { it.copy(gitOperation = GitOperationState.Running(label)) }
         val folder = staging.reserve("clone")
-        ledger.started(label, "${WorkspacePaths.GUEST_ROOT}/$directoryName")
+        ledger.started(label, WorkspaceRuntimePath.of(directoryName))
         var transcript = emptyList<String>()
         val target = try {
             withCredentials { config ->
@@ -176,9 +177,7 @@ internal class GitTransferCoordinator(
         GitRemoteRules.urlError(url)?.let { return it }
         if (branch.isNotEmpty()) GitRemoteRules.branchError(branch)?.let { return it }
         if (directoryName.isEmpty()) return "The address does not name a repository folder"
-        WorkspaceNameRules.workspaceNameError(directoryName)?.let { return it }
-        if (File(workspaces.root, directoryName).exists()) return "A workspace named $directoryName already exists. Choose another name"
-        return null
+        return WorkspaceNameRules.newWorkspaceError(directoryName) { File(workspaces.root, it).exists() }
     }
 
     /**

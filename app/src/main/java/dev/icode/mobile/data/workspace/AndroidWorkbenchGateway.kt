@@ -1,7 +1,7 @@
 package dev.icode.mobile.data.workspace
 
 import android.content.Context
-import android.net.Uri
+import androidx.core.net.toUri
 import com.termux.terminal.TerminalSession
 import dev.icode.mobile.data.git.CliGitService
 import dev.icode.mobile.data.git.ConflictFiles
@@ -170,8 +170,8 @@ class AndroidWorkbenchGateway(context: Context) : WorkbenchGateway {
     )
     private val importer = WorkspaceImportCoordinator(
         workbench, tasks, runtimeLayout.workspaces, git,
-        openTree = { uri -> DocumentTreeImport(appContext.contentResolver, Uri.parse(uri)) },
-        isOwnTree = { uri -> Uri.parse(uri).authority == WorkspacesProvider.authorityOf(appContext) },
+        openTree = { uri -> DocumentTreeImport(appContext.contentResolver, uri.toUri()) },
+        isOwnTree = { uri -> uri.toUri().authority == WorkspacesProvider.authorityOf(appContext) },
         reserveSpace = runtimeLayout::reserveSpace,
         freeBytes = runtimeLayout::allocatableBytes,
         open = { location -> session.open(location, persist = true) },

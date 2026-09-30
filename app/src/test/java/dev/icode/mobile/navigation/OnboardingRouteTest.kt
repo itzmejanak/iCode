@@ -10,8 +10,8 @@ import org.junit.Test
 class OnboardingRouteTest {
 
     private val ready = RuntimeState.Ready("Ubuntu 24.04.5 LTS")
-    private val everything = SystemAccess(storage = true, notifications = true, unrestrictedBattery = true)
-    private val noStorage = everything.copy(storage = false)
+    private val everything = SystemAccess(notifications = true, unrestrictedBattery = true)
+    private val noNotifications = everything.copy(notifications = false)
 
     @Test
     fun `nothing moves until what Android allows has been read`() {
@@ -26,7 +26,7 @@ class OnboardingRouteTest {
 
     @Test
     fun `the runtime step comes first even when permission is still outstanding`() {
-        assertEquals(Route.RuntimeInstalling, OnboardingRoute.next(RuntimeState.NotInstalled("missing"), noStorage))
+        assertEquals(Route.RuntimeInstalling, OnboardingRoute.next(RuntimeState.NotInstalled("missing"), noNotifications))
     }
 
     @Test
@@ -47,11 +47,6 @@ class OnboardingRouteTest {
     }
 
     @Test
-    fun `a ready runtime without storage asks for permission`() {
-        assertEquals(Route.PermissionExplanation, OnboardingRoute.next(ready, noStorage))
-    }
-
-    @Test
     fun `an optional permission not yet offered is asked for`() {
         assertEquals(Route.PermissionExplanation, OnboardingRoute.next(ready, everything.copy(notifications = false)))
         assertEquals(Route.PermissionExplanation, OnboardingRoute.next(ready, everything.copy(unrestrictedBattery = false)))
@@ -60,7 +55,6 @@ class OnboardingRouteTest {
     @Test
     fun `an optional permission already offered does not hold up the launcher`() {
         val refused = SystemAccess(
-            storage = true,
             notifications = false,
             unrestrictedBattery = false,
             offered = setOf(SystemPermission.Notifications, SystemPermission.Battery),
@@ -76,7 +70,7 @@ class OnboardingRouteTest {
     @Test
     fun `after the runtime finishes it never routes back into itself`() {
         assertEquals(Route.LauncherHome, OnboardingRoute.afterRuntime(everything))
-        assertEquals(Route.PermissionExplanation, OnboardingRoute.afterRuntime(noStorage))
+        assertEquals(Route.PermissionExplanation, OnboardingRoute.afterRuntime(noNotifications))
         assertNull(OnboardingRoute.afterRuntime(null))
     }
 }

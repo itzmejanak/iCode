@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <!-- Downloading the runtime root filesystem. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -18,8 +17,13 @@
          docs/terminal-background-plan.md §7. -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
+    <!-- Every workspace lives in iCode's own storage (docs/workspace-storage-plan.md §4.7):
+         uninstalling asks whether to keep that data, and App info offers Manage space,
+         which opens Storage settings, instead of Clear storage. -->
     <application
         android:allowBackup="false"
+        android:hasFragileUserData="true"
+        android:manageSpaceActivity=".ManageSpaceActivity"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="false"
         android:icon="@mipmap/ic_launcher"
@@ -37,6 +41,26 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <activity
+            android:name=".ManageSpaceActivity"
+            android:exported="false"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.NoDisplay" />
+
+        <!-- The workspaces in Android's Files app, and to any app the user picks them for;
+             only the system's documents UI binds it (docs/workspace-storage-plan.md §4.6). -->
+        <provider
+            android:name="dev.icode.mobile.data.storage.WorkspacesProvider"
+            android:authorities="${applicationId}.workspaces"
+            android:exported="true"
+            android:grantUriPermissions="true"
+            android:permission="android.permission.MANAGE_DOCUMENTS">
+            <intent-filter>
+                <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
+            </intent-filter>
+        </provider>
 
         <service
             android:name="dev.icode.mobile.data.runtime.RuntimeForegroundService"

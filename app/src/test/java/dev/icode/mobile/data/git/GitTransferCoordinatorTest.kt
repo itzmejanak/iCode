@@ -256,7 +256,7 @@ class GitTransferCoordinatorTest {
         File(workspaces.root, "taken").mkdirs()
         val cases = listOf(
             ("--upload-pack=evil" to "repo") to "An address cannot start with a dash",
-            ("https://host/me/taken.git" to "taken") to "A workspace named taken already exists. Choose another name",
+            ("https://host/me/taken.git" to "taken") to "A workspace named taken already exists",
             ("https://host/me/.hidden.git" to ".hidden") to "A workspace name cannot start with a dot",
             ("https://host/" to "") to "The address does not name a repository folder",
         )
