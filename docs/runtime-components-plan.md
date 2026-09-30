@@ -149,10 +149,10 @@ cards, check rows, the progress track, the bottom action bar), as Import was.
 
 | Step | What |
 |---|---|
-| C1 | Domain: the catalog, `AptProgress` (the recorded lines as tests), selection rules (Standard, Custom, what to install and remove), the onboarding rule with the Components step |
+| C1 | Domain: the catalog, `AptProgress` (the recorded lines as tests), selection rules (Standard, Custom, what to install and remove), the published install state |
 | C2 | Data: `DpkgStatus`; the installer for several packages with published progress, cancel while downloading, removal; sizes by `--print-uris` (the output recorded on the device first); Git, SSH and search ask through the catalog; background item from `ComponentInstall`. JVM tests with a scripted apt |
 | C3 | A: Generate SSH Key, Test Connection and Install Git off the lock; the buttons read the install; `GitAuthWork`; `sshAvailable` removed |
-| C4 | UI: the Components page, onboarding step and Settings entry, capture fixture and route tests |
+| C4 | UI: the Components page, the onboarding rule with its step (with the route it leads to), the Settings entry, capture fixture and route tests |
 | C5 | Device: §6 |
 
 ## 5. Decisions — the owner may overrule
@@ -182,4 +182,14 @@ cards, check rows, the progress track, the bottom action bar), as Import was.
 
 ## 7. Record
 
-(empty — nothing implemented yet)
+- **C1** (2026-09-30): `RuntimeComponents` (domain): the catalog of §3.1, Standard = the three
+  iCode uses. `ComponentRules`: installed when dpkg has every package; the page opens on Standard
+  plus what is installed; a plan installs what is chosen and missing, and removes what is unticked
+  and installed, keeping any package a component that stays lists; the download counts each archive
+  once, and is unknown until each part is measured. `ComponentWork`: the one published install,
+  with its title and whether Cancel is safe (before dpkg only). `AptProgress`: apt's plan gives the
+  total, `Get:` lines the package being downloaded (a list's `Get:` is updating, not a package), and
+  dpkg's `Setting up` / `Removing` lines, which always name a version, the count. A maintainer
+  script's "Removing obsolete conffile …" is not counted. Tested on the dpkg lines recorded on the
+  phone. The onboarding rule moved to C4, with the route it leads to. 16 tests. Gate: 539 tests;
+  lint 0 errors / 12 warnings; both guards pass.
