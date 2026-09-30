@@ -86,7 +86,7 @@ data class WorkbenchSnapshot(
      * Discarding cannot be undone, so the change is held here until the user
      * confirms it on the confirmation surface.
      */
-    val pendingDiscard: GitChange? = null,
+    val pendingDiscard: GitDiscard? = null,
     /** Progress of a running Git operation such as clone, fetch, pull or push. */
     val gitOperation: GitOperationState = GitOperationState.Idle,
     /** Remote authentication state; never carries the secret itself. */

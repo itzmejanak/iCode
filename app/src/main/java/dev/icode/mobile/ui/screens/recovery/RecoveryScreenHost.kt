@@ -13,7 +13,6 @@ import dev.icode.mobile.navigation.Route
 @Composable
 fun RecoveryScreenHost(screen: Route, actions: NavigationActions) {
     when (screen) {
-        Route.DeleteConfirmation -> DeleteConfirmationScreen(actions)
         Route.ExternalFileChange -> ExternalChangeScreen(actions)
         Route.DocumentRecovery -> DocumentRecoveryScreen(actions)
         else -> Unit

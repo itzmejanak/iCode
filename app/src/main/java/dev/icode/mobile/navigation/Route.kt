@@ -65,7 +65,6 @@ enum class Route(
     TerminalSettings("2003:500", "Terminal settings", RouteGroup.SETTINGS),
     StorageSettings("2003:575", "Storage settings", RouteGroup.SETTINGS),
     About("2003:656", "About iCode", RouteGroup.SETTINGS),
-    DeleteConfirmation("2003:731", "Delete confirmation", RouteGroup.RECOVERY),
     ExternalFileChange("2003:770", "External file change", RouteGroup.RECOVERY),
     DocumentRecovery("2003:813", "Document recovery", RouteGroup.RECOVERY),
     WorkspaceSettings("2003:886", "Workspace settings", RouteGroup.SETTINGS),
