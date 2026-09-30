@@ -121,6 +121,7 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
         // A transfer runs outside the lock; what it changes afterwards takes it.
         refresh = { workspace -> workbench.mutations.withLock { gitWorkspace.refresh(workspace) } },
         openClone = { location -> workbench.mutations.withLock { lifecycle.reveal(location) } },
+        commit = { message -> workbench.mutations.withLock { gitWorkspace.commit(message, quiet = true) } },
         ledger = transferLedger,
     )
     private val gitAuth: GitAuthCoordinator = GitAuthCoordinator(
@@ -230,11 +231,7 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
             is WorkbenchIntent.RunContentSearch -> search.runContentSearch(intent.query, intent.matchCase, intent.wholeWord, intent.regex)
             WorkbenchIntent.ClearContentSearch -> search.clear()
             // A transfer is its own job: nothing waits behind a slow remote.
-            WorkbenchIntent.FetchRemote -> gitTransfers.fetch()
-            WorkbenchIntent.PullRemote -> gitTransfers.pull()
-            WorkbenchIntent.PushRemote -> gitTransfers.push()
-            WorkbenchIntent.CancelGitTransfer -> gitTransfers.cancel()
-            is WorkbenchIntent.CloneRepository -> gitTransfers.clone(intent.url, intent.directoryName, intent.branch, intent.into)
+            is WorkbenchIntent.TransferIntent -> gitTransfers.handle(intent)
             else -> scope.launch {
                 workbench.mutations.withLock {
                     when (intent) {

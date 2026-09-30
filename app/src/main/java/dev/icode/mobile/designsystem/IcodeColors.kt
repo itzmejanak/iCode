@@ -37,6 +37,9 @@ data class IcodePalette(
 ) {
     val scrim: Color get() = backgroundDeep.copy(alpha = 0.95f)
 
+    /** Behind a sheet: the screen it opened over stays in sight, dimmed. */
+    val sheetScrim: Color get() = backgroundDeep.copy(alpha = 0.5f)
+
     /**
      * The editor's current line: halfway between the editor and the surfaces
      * around it, so a highlighted first line never reads as part of the tab bar
@@ -121,6 +124,7 @@ object IcodeColors {
     val ConflictCurrentSurface: Color @Composable get() = LocalIcodePalette.current.conflictCurrentSurface
     val ConflictIncomingSurface: Color @Composable get() = LocalIcodePalette.current.conflictIncomingSurface
     val Scrim: Color @Composable get() = LocalIcodePalette.current.scrim
+    val SheetScrim: Color @Composable get() = LocalIcodePalette.current.sheetScrim
 }
 
 /**

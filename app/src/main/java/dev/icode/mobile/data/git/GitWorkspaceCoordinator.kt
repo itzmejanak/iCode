@@ -158,9 +158,11 @@ internal class GitWorkspaceCoordinator(
 
     suspend fun unstageAll() = act(operation = { workspace -> git.unstageAll(workspace) })
 
-    suspend fun commit(message: String) = act(
+    /** Null once committed, else Git's words — said as a message too, unless [quiet] (Commit & Push shows them). */
+    suspend fun commit(message: String, quiet: Boolean = false): String? = act(
         operation = { workspace -> git.commit(workspace, message) },
         onSuccess = { workbench.emit(WorkbenchEffect.GitCommitted) },
+        quiet = quiet,
     )
 
     suspend fun switchBranch(branch: String) = act(operation = { workspace -> git.switchBranch(workspace, branch) })
@@ -257,22 +259,27 @@ internal class GitWorkspaceCoordinator(
     }
 
     /** Runs one local Git change in the open workspace, then shows what Git now says. */
+    /**
+     * Runs [operation] on the open workspace's repository and reads it again. Returns null when it
+     * was done, else what went wrong in Git's words — said as a message too, unless [quiet].
+     */
     suspend fun act(
         operation: suspend (String) -> Unit,
         onSuccess: suspend () -> Unit = {},
-    ) {
+        quiet: Boolean = false,
+    ): String? {
         val workspace = activeRoot()
-        if (workspace == null) {
-            workbench.message("Open a workspace first")
-            return
+        val failure = if (workspace == null) {
+            "Open a workspace first"
+        } else {
+            runCatching {
+                operation(workspace)
+                refresh(workspace)
+                onSuccess()
+            }.exceptionOrNull()?.let { error -> workbench.failureText("git", "Git operation failed", error) }
         }
-        runCatching {
-            operation(workspace)
-            refresh(workspace)
-            onSuccess()
-        }.onFailure { error ->
-            workbench.report("git", "Git operation failed", error)
-        }
+        if (failure != null && !quiet) workbench.message(failure)
+        return failure
     }
 
     private companion object {

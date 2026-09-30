@@ -10,6 +10,7 @@ import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.GitRemoteRules
 import dev.icode.mobile.domain.GitSyncAction
 import dev.icode.mobile.domain.GitTransferLabel
+import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.domain.WorkspaceRuntimePath
 import java.io.File
 import java.util.concurrent.atomic.AtomicLong
@@ -26,7 +27,9 @@ import kotlinx.coroutines.withContext
  *
  * One runs at a time, as its own job: the screen that asked may close, and
  * nothing else waits behind a slow remote. Each gets an operation number, and
- * only the current one may change what the screens show.
+ * only the current one may change what the screens show. Each is running from
+ * the moment it is accepted and ends succeeded, failed or cancelled — so the
+ * page opened with it never shows the one before.
  */
 internal class GitTransferCoordinator(
     private val workbench: WorkbenchStateHolder,
@@ -41,6 +44,8 @@ internal class GitTransferCoordinator(
     private val refresh: suspend (workspace: String) -> Unit,
     /** A finished clone opens as the workspace. */
     private val openClone: suspend (location: String) -> Unit,
+    /** Commit & Push's commit: null once made, else Git's words. */
+    private val commit: suspend (message: String) -> String?,
     private val ledger: TransferLedger,
 ) {
     private val operations = AtomicLong()
@@ -48,17 +53,33 @@ internal class GitTransferCoordinator(
     private var running = ""
     private val staging = WorkspaceStaging(workspaces.root)
 
+    /** The transfer [intent] asks for; its job, when one started. */
+    fun handle(intent: WorkbenchIntent.TransferIntent): Job? = when (intent) {
+        WorkbenchIntent.FetchRemote -> fetch()
+        WorkbenchIntent.PullRemote -> pull()
+        WorkbenchIntent.PushRemote -> push()
+        is WorkbenchIntent.CommitAndPush -> commitAndPush(intent.message)
+        is WorkbenchIntent.CloneRepository -> clone(intent.url, intent.directoryName, intent.branch, intent.into)
+        WorkbenchIntent.CancelGitTransfer -> cancel().let { null }
+    }
+
     fun fetch(): Job? = start(GitTransferLabel.FETCHING) { id ->
-        if (refused(GitSyncAction.Fetch)) return@start
+        if (refused(GitTransferLabel.FETCHING, GitSyncAction.Fetch)) return@start
         runRemote(id, GitTransferLabel.FETCHING) { workspace, config, onStderr -> git.fetch(workspace, config, onStderr) }
     }
 
     fun pull(): Job? = start(GitTransferLabel.PULLING) { id ->
-        if (refused(GitSyncAction.Pull)) return@start
+        if (refused(GitTransferLabel.PULLING, GitSyncAction.Pull)) return@start
         runRemote(id, GitTransferLabel.PULLING) { workspace, config, onStderr -> git.pull(workspace, config, onStderr) }
     }
 
     fun push(): Job? = start(GitTransferLabel.PUSHING) { id -> push(id) }
+
+    /** Commits what is staged, then pushes it — one transfer; a commit Git refuses is not pushed. */
+    fun commitAndPush(message: String): Job? = start(GitTransferLabel.COMMITTING) { id ->
+        commit(message)?.let { failure -> return@start finish(GitOperationState.Failed(GitTransferLabel.COMMITTING, failure)) }
+        push(id)
+    }
 
     /** Clones into the new workspace [directoryName]; [branch] blank means the remote's default. */
     fun clone(url: String, directoryName: String, branch: String = "", into: String? = null): Job? =
@@ -73,6 +94,7 @@ internal class GitTransferCoordinator(
         }
         val id = operations.incrementAndGet()
         running = label
+        workbench.update { it.copy(gitOperation = GitOperationState.Running(label)) }
         scope.launch {
             try {
                 work(id)
@@ -99,16 +121,18 @@ internal class GitTransferCoordinator(
 
     /**
      * Checked again as the job starts: the screen offered the action by the same
-     * rule, but the repository may have changed since. Says why, in its words.
+     * rule, but the repository may have changed since. Ends it failed, in its words.
      */
-    private suspend fun refused(action: GitSyncAction): Boolean {
+    private fun refused(label: String, action: GitSyncAction): Boolean {
         val reason = workbench.current.gitRepository?.let { GitActionRules.syncBlocked(action, it) } ?: return false
-        workbench.message(reason)
+        finish(GitOperationState.Failed(label, reason))
         return true
     }
 
+    private fun finish(state: GitOperationState) = workbench.update { it.copy(gitOperation = state) }
+
     private suspend fun push(id: Long) {
-        if (refused(GitSyncAction.Push)) return
+        if (refused(GitTransferLabel.PUSHING, GitSyncAction.Push)) return
         val repository = workbench.current.gitRepository
         val needsUpstream = repository?.upstream == null
         runRemote(id, GitTransferLabel.PUSHING) { workspace, config, onStderr ->
@@ -194,11 +218,8 @@ internal class GitTransferCoordinator(
         label: String,
         operation: suspend (workspace: String, config: List<String>, onStderr: (String) -> Unit) -> Unit,
     ) {
-        val workspace = activeRoot()
-        if (workspace == null) {
-            workbench.message("Open a workspace first")
-            return
-        }
+        val workspace = activeRoot() ?: return finish(GitOperationState.Failed(label, "Open a workspace first"))
+        synchronized(this) { running = label }
         workbench.update { it.copy(gitOperation = GitOperationState.Running(label)) }
         ledger.started(label, workspaces.guestOf(workspace) ?: workspace)
         var transcript = emptyList<String>()

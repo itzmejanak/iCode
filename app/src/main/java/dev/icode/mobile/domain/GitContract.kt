@@ -112,6 +112,8 @@ object GitTransferLabel {
     const val FETCHING = "Fetching"
     const val PULLING = "Pulling"
     const val PUSHING = "Pushing"
+    /** Commit & Push's first step: local, so not in [ALL]; it moves on to [PUSHING]. */
+    const val COMMITTING = "Committing"
 
     /** What moves data to or from a remote: background work of its own. */
     val ALL = setOf(CLONING, FETCHING, PULLING, PUSHING)

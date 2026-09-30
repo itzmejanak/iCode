@@ -8,6 +8,7 @@ import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.GitProgress
 import dev.icode.mobile.domain.GitRepositoryState
 import dev.icode.mobile.domain.WorkbenchEffect
+import dev.icode.mobile.domain.WorkbenchIntent
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
@@ -52,6 +53,8 @@ class GitTransferCoordinatorTest {
         val events = mutableListOf<String>()
         /** What the progress screen showed while the clone was being opened. */
         val openedWhile = mutableListOf<GitOperationState?>()
+        /** Commit & Push's commit: Git's refusal, or null to commit. */
+        var commitFailure: String? = null
         val ledger = mutableListOf<String>()
         val coordinator = GitTransferCoordinator(
             workbench,
@@ -68,6 +71,10 @@ class GitTransferCoordinatorTest {
                 events += "open $it"
                 openedWhile += workbench.current.gitOperation
                 opening?.await()
+            },
+            commit = { message ->
+                events += "commit $message while ${workbench.current.gitOperation}"
+                commitFailure
             },
             ledger = object : TransferLedger {
                 override fun started(label: String, target: String) {
@@ -218,25 +225,54 @@ class GitTransferCoordinatorTest {
     @Test fun `a detached HEAD is not pushed`() = runBlocking {
         val harness = Harness(this, FakeTransfers())
         harness.workbench.update { it.copy(gitRepository = repository(upstream = null).copy(detached = true)) }
-        val message = async { harness.workbench.effects.first() }
-        yield()
 
         harness.coordinator.push()?.join()
 
-        assertEquals(WorkbenchEffect.Message("Check out a branch first"), withTimeout(2_000) { message.await() })
+        // Said where the push is followed: its page shows why it stopped.
+        assertEquals(GitOperationState.Failed("Pushing", "Check out a branch first"), harness.workbench.current.gitOperation)
         assertTrue(harness.git.calls.isEmpty())
     }
 
     @Test fun `a sync without a workspace starts nothing`() = runBlocking {
         val harness = Harness(this, FakeTransfers(), root = null)
-        val message = async { harness.workbench.effects.first() }
-        yield()
 
         harness.coordinator.fetch()?.join()
 
-        assertEquals(WorkbenchEffect.Message("Open a workspace first"), withTimeout(2_000) { message.await() })
         assertTrue(harness.git.calls.isEmpty())
-        assertEquals(GitOperationState.Idle, harness.workbench.current.gitOperation)
+        assertEquals(GitOperationState.Failed("Fetching", "Open a workspace first"), harness.workbench.current.gitOperation)
+    }
+
+    @Test fun `a transfer is running from the moment it is accepted, not after the one before`() = runBlocking<Unit> {
+        val harness = Harness(this, FakeTransfers())
+        harness.workbench.update { it.copy(gitOperation = GitOperationState.Succeeded("Pushing", listOf("main -> main"))) }
+
+        val fetching = harness.coordinator.fetch()
+
+        // Before its job has run at all: the page opened with it follows this one.
+        assertEquals(GitOperationState.Running("Fetching"), harness.workbench.current.gitOperation)
+        fetching?.join()
+    }
+
+    @Test fun `commit and push commits what is staged, then pushes it, as one transfer`() = runBlocking {
+        val harness = Harness(this, FakeTransfers())
+        harness.workbench.update { it.copy(gitRepository = repository(upstream = "origin/feature")) }
+
+        harness.coordinator.handle(WorkbenchIntent.CommitAndPush("Fix the build"))?.join()
+
+        assertEquals("commit Fix the build while ${GitOperationState.Running("Committing")}", harness.events.first())
+        assertEquals(listOf("push $root upstream=false branch=feature"), harness.git.calls)
+        assertTrue(harness.workbench.current.gitOperation is GitOperationState.Succeeded)
+    }
+
+    @Test fun `a commit Git refuses is not pushed`() = runBlocking {
+        val harness = Harness(this, FakeTransfers())
+        harness.workbench.update { it.copy(gitRepository = repository(upstream = "origin/feature")) }
+        harness.commitFailure = "nothing added to commit"
+
+        harness.coordinator.commitAndPush("Fix the build")?.join()
+
+        assertEquals(GitOperationState.Failed("Committing", "nothing added to commit"), harness.workbench.current.gitOperation)
+        assertTrue(harness.git.calls.isEmpty())
     }
 
     @Test fun `a clone installs Git first and stops when that fails`() = runBlocking {

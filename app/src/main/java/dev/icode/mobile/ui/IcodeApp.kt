@@ -239,7 +239,7 @@ fun IcodeApp(
             LocalWorkspacePreferences provides preferences,
         ) {
             IcodeScreen {
-                ScreenHost(screen = navigation.current, actions = navigation.actions)
+                NavigationHost(navigation) { route -> ScreenHost(screen = route, actions = navigation.actions) }
             }
         }
     }

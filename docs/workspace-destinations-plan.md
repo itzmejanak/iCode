@@ -82,6 +82,22 @@ several repositories is not yet a place to work on them.
 | G5 | Source Control over several repositories: the scan, the picker, every Git action on the chosen one; tests with nested repositories |
 | G6 | Device: clone two repositories into one workspace; stage, commit and push each from Source Control |
 
+## 3b. After the device check (G6, owner 2026-10-01)
+
+What the phone showed, and the owner's asks: the branch selector is a page of its own that paints
+a copy of Source Control behind its sheet, and the repository picker is a dropdown — both should
+open over the real Source Control, a little blurred, and be chosen from one bar at the bottom.
+
+| Step | What |
+|---|---|
+| G7 | Navigation: each screen keeps what it holds (a typed commit message, a search) while another is opened over it, and forgets it when it leaves the history. A route can be a **sheet**: drawn over the live screen below it, blurred and dimmed; a tap outside or Back closes it. The branch selector becomes one; its painted backdrop goes |
+| G8 | Source Control's **bottom bar**, as VS Code's status bar: the repository (when there are several) and the branch, each opening its sheet, and ↑↓ opening the sync screen; the top bar says Source Control. The repository chooser is a sheet like the branch selector (search, rows, the chosen one ticked); the dropdown goes |
+| G9 | **Commit & Push** commits what is staged with the message, then pushes — one transfer, which the sync screen follows (Committing, then Pushing); the sync screen follows only the transfer it was opened for, never the one before; the transfer intents are one group |
+| G10 | Choose mode's empty folder says what can be done there (New folder), not New file and Paste |
+| G11 | Device: the sheets over Source Control and the sync screen; a typed message kept across the sync screen; Commit & Push on icodeTest |
+| G12 | (owner) The search keeps what was typed — its query, options and results — while the workspace is open, as VS Code's search view: leave it and come back, and it is there; the workspace's close resets it. Quick Open starts empty and no longer wipes it |
+| G13 | (owner) In Import's browser, Back goes up a folder, as in the Workspaces page's explorer; at sdcard it leaves. One rule for the folder above, for both |
+
 ## 4. Decisions
 
 - **D1** (owner, 2026-10-01): Import gets the same **Where** as Clone.
@@ -93,6 +109,8 @@ several repositories is not yet a place to work on them.
 - **D6** The Explorer's badges come from the repository Source Control shows, not from every
   repository in the workspace: each more would be one more Git process in the runtime at every
   refresh. A later step if wanted.
+- **D7** (owner, 2026-10-01): the branch and repository are chosen from a bar at the bottom of
+  Source Control, as VS Code's status bar; each opens its sheet from the bottom.
 
 ## 5. Record
 
@@ -176,3 +194,28 @@ several repositories is not yet a place to work on them.
   lost when another screen is opened on top and closed — the navigation keeps no screen's state;
   the empty folder's words in choose mode speak of New file and Paste, which are not there. Gate:
   574 tests; lint 0 errors / 12 warnings; both guards pass.
+- **G7** (2026-10-01): `NavigationHost` draws the history. Each entry keeps what its screen holds
+  (`SaveableStateHolder`, keyed by place and route) while another is opened over it, and forgets it
+  once it leaves the history — a typed commit message survives the sync page (device). A route can
+  be a sheet (`Route.sheet`): drawn over the live screen below it, which stays composed as it was,
+  blurred (`IcodeSizes.SheetBackdropBlur`, Android 12+) and dimmed (`IcodeColors.SheetScrim`);
+  a tap outside or Back closes it; a tap on the sheet stays on it. The branch selector is one; its
+  painted copy of Source Control is gone (device: opens over the real Source Control). 1 test.
+- **G8** (2026-10-01): `GitBottomBar`, the same on Source Control and its sync page, in the
+  editor's bottom-bar style (`IcodeBottomBar`): the repository when there are several, the branch,
+  each opening its sheet, and ↑↓ — the sync page, lit on it. Source Control's top bar says Source
+  Control, with Refresh; the sync page's "Open Branch Selector" button is the bar's branch now, and
+  it scrolls above the bar. The repository chooser is a sheet as the branch selector is
+  (`RepositorySelectorScreen`, route `RepositorySelector`, owner-asked, frameless): search, rows,
+  the chosen one ticked; one row for both sheets (`IcodeChoiceRow`); the dropdown is gone.
+- **G9** (2026-10-01): **Commit & Push** commits what is staged with the message, then pushes —
+  one transfer (`CommitAndPush`), followed on the sync page (Committing, then Pushing); a commit Git
+  refuses is not pushed and the page says why. A transfer is running from the moment it is
+  accepted and always ends succeeded, failed or cancelled — a refusal ("Check out a branch first")
+  or no workspace ends it failed, in its words, where it is followed — so the page opened with it
+  never shows the one before. The transfer intents are one group (`TransferIntent`, one gateway
+  line). `act` returns what went wrong, so Commit & Push shows the commit's failure itself. Source
+  Control clears a message once the commit it was sent for exists — found on return too, as the
+  "commit created" event is not heard while the sync page covers it. 3 tests, 2 changed.
+  Gateway 358 (budget lowered).
+

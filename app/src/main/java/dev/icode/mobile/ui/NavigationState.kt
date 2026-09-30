@@ -33,6 +33,9 @@ class NavigationState private constructor(
 
     val current: Route get() = Route.valueOf(historyNames.last())
 
+    /** Each entry of the history by its place and route: the key of what its screen keeps. */
+    val entryKeys: List<String> get() = historyNames.mapIndexed { place, name -> "$place:$name" }
+
     val canGoBack: Boolean get() = historyNames.size > 1
 
     val actions: NavigationActions get() = NavigationActions(
