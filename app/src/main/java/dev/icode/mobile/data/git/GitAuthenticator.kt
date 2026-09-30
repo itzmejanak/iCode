@@ -4,6 +4,7 @@ import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.runtime.RuntimePackageInstaller
 import dev.icode.mobile.domain.GitRemoteRules
+import dev.icode.mobile.domain.RuntimeComponents
 import dev.icode.mobile.domain.countOf
 import java.io.File
 
@@ -116,9 +117,8 @@ internal class GitAuthenticator(
 
     /** Installs the OpenSSH client, which the base image does not include. */
     override suspend fun ensureSshAvailable(): Boolean {
-        if (File(layout.rootfs, SSH_KEYGEN_RELATIVE).exists()) return true
-        val installed = packages.ensure("openssh-client") { File(layout.rootfs, SSH_KEYGEN_RELATIVE).exists() } ==
-            RuntimePackageInstaller.Outcome.Ready
+        if (packages.isInstalled(RuntimeComponents.SshClient)) return true
+        val installed = packages.ensure(RuntimeComponents.SshClient) == RuntimePackageInstaller.Outcome.Ready
         if (installed) configureSshClient()
         return installed
     }
@@ -175,7 +175,6 @@ internal class GitAuthenticator(
         const val LEGACY_CREDENTIALS_RELATIVE = "root/.icode-git-credentials"
         const val GUEST_SSH_KEY_PATH = "/root/.ssh/id_ed25519"
         const val SSH_PUBLIC_RELATIVE = "root/.ssh/id_ed25519.pub"
-        const val SSH_KEYGEN_RELATIVE = "usr/bin/ssh-keygen"
     }
 }
 

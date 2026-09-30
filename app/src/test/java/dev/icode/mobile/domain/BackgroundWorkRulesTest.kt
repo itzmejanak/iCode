@@ -14,11 +14,11 @@ class BackgroundWorkRulesTest {
         WorkTask(id, "Deleting…", "node_modules", item, done, total, cancellable, hidden, failure)
 
     @Test fun `nothing running is nothing to carry`() {
-        assertTrue(BackgroundWorkRules.of(empty, installingPackage = null).isEmpty())
+        assertTrue(BackgroundWorkRules.of(empty).isEmpty())
     }
 
     @Test fun `a task says its counts, its item, and the Cancel it allows`() {
-        val item = BackgroundWorkRules.of(empty.copy(tasks = listOf(task(12, 1207, 11813, "node_modules/a/b.js", cancellable = true))), null).single()
+        val item = BackgroundWorkRules.of(empty.copy(tasks = listOf(task(12, 1207, 11813, "node_modules/a/b.js", cancellable = true)))).single()
         assertEquals("task:12", item.key)
         assertEquals("Deleting… (1207 / 11813)", item.heading)
         assertEquals("node_modules/a/b.js", item.detail)
@@ -29,7 +29,7 @@ class BackgroundWorkRulesTest {
     }
 
     @Test fun `while counting it says so, a delete has no Cancel, and a hidden task is out of view`() {
-        val item = BackgroundWorkRules.of(empty.copy(tasks = listOf(task(3, hidden = true))), null).single()
+        val item = BackgroundWorkRules.of(empty.copy(tasks = listOf(task(3, hidden = true)))).single()
         assertEquals("Deleting…", item.heading)
         assertEquals("Counting node_modules", item.detail)
         assertNull(item.fraction)
@@ -38,7 +38,7 @@ class BackgroundWorkRulesTest {
     }
 
     @Test fun `a failed task stops running and says why`() {
-        val item = BackgroundWorkRules.of(empty.copy(tasks = listOf(task(4, failure = "Permission denied"))), null).single()
+        val item = BackgroundWorkRules.of(empty.copy(tasks = listOf(task(4, failure = "Permission denied")))).single()
         assertFalse(item.running)
         assertEquals("Permission denied", item.failure)
     }
@@ -48,7 +48,7 @@ class BackgroundWorkRulesTest {
             cloneName = "icode",
             gitOperation = GitOperationState.Running(GitTransferLabel.CLONING, GitProgress("Receiving objects", 0.45f)),
         )
-        val item = BackgroundWorkRules.of(snapshot, null).single()
+        val item = BackgroundWorkRules.of(snapshot).single()
         assertEquals("Cloning… 45%", item.heading)
         assertEquals("icode · Receiving objects", item.detail)
         assertEquals(WorkbenchIntent.CancelGitTransfer, item.cancel)
@@ -58,22 +58,43 @@ class BackgroundWorkRulesTest {
 
     @Test fun `a pull opens the sync page, and a finished transfer is not carried`() {
         val pulling = empty.copy(activeWorkspace = "app", gitOperation = GitOperationState.Running(GitTransferLabel.PULLING))
-        assertEquals(BackgroundPlace.Sync, BackgroundWorkRules.of(pulling, null).single().place)
+        assertEquals(BackgroundPlace.Sync, BackgroundWorkRules.of(pulling).single().place)
         val done = empty.copy(gitOperation = GitOperationState.Succeeded(GitTransferLabel.PULLING))
-        assertTrue(BackgroundWorkRules.of(done, null).isEmpty())
+        assertTrue(BackgroundWorkRules.of(done).isEmpty())
     }
 
-    @Test fun `the runtime install and a package install are carried, neither cancellable`() {
+    @Test fun `the runtime install is carried, not cancellable`() {
         val snapshot = empty.copy(
             runtime = RuntimeState.Downloading(50, 100, "Ubuntu base"),
             runtimeInstallReason = RuntimeInstallReason.Repair,
         )
-        val items = BackgroundWorkRules.of(snapshot, installingPackage = "git")
-        assertEquals(listOf("runtime", "package"), items.map { it.key })
-        assertEquals("Repairing the Linux runtime 50%", items[0].heading)
-        assertEquals(BackgroundPlace.Runtime, items[0].place)
-        assertEquals("Installing git", items[1].title)
-        assertTrue(items.all { it.cancel == null && it.running })
+        val item = BackgroundWorkRules.of(snapshot).single()
+        assertEquals("runtime", item.key)
+        assertEquals("Repairing the Linux runtime 50%", item.heading)
+        assertEquals(BackgroundPlace.Runtime, item.place)
+        assertTrue(item.cancel == null && item.running)
+    }
+
+    @Test fun `a components install is carried with apt's step and count, cancellable only while downloading`() {
+        val downloading = ComponentWork(
+            ComponentAction.Install,
+            listOf(RuntimeComponents.SshClient),
+            AptProgress(phase = AptPhase.Downloading, total = 6, downloadSize = "1238 kB", item = "libcbor0.10"),
+        )
+        val item = BackgroundWorkRules.of(empty.copy(components = RuntimeComponentsState(work = downloading))).single()
+        assertEquals("components", item.key)
+        assertEquals("Installing SSH client", item.heading)
+        assertEquals("Downloading 1238 kB · libcbor0.10", item.detail)
+        assertEquals(WorkbenchIntent.CancelComponents, item.cancel)
+
+        val installing = downloading.copy(progress = AptProgress(phase = AptPhase.Installing, total = 6, done = 3, item = "libfido2-1"))
+        val counted = BackgroundWorkRules.of(empty.copy(components = RuntimeComponentsState(work = installing))).single()
+        assertEquals("Installing SSH client (3 / 6)", counted.heading)
+        assertEquals(0.5f, counted.fraction)
+        assertEquals(null, counted.cancel)
+
+        val failed = installing.copy(failure = "Could not install SSH client: E: Unable to fetch")
+        assertEquals(false, BackgroundWorkRules.of(empty.copy(components = RuntimeComponentsState(work = failed))).single().running)
     }
 
     @Test fun `a place survives the notification that carries it`() {

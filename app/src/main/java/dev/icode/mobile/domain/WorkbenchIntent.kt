@@ -64,6 +64,15 @@ sealed interface WorkbenchIntent {
     data class CancelTask(override val id: Long) : TaskIntent
     /** A failure, read. */
     data class DismissTask(override val id: Long) : TaskIntent
+    /** The Components page (docs/runtime-components-plan.md): it never waits on the mutation lock. */
+    sealed interface ComponentIntent : WorkbenchIntent
+    /** What each component not installed would download; the lists are read first when needed. */
+    data object MeasureComponents : ComponentIntent
+    /** Install what [chosen] adds, remove what it leaves out. */
+    data class ApplyComponents(val chosen: Set<String>) : ComponentIntent
+    data object CancelComponents : ComponentIntent
+    /** A failure, read. */
+    data object DismissComponents : ComponentIntent
     data class UpdateDocumentText(val location: String, val text: String) : WorkbenchIntent
     /** Automatic requests carry the revision they observed; a later edit must start its own timer. */
     data class SaveDocument(

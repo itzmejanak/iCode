@@ -3,7 +3,7 @@ package dev.icode.mobile.data.search
 import dev.icode.mobile.data.runtime.GuestCommand
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.runtime.RuntimePackageInstaller
-import java.io.File
+import dev.icode.mobile.domain.RuntimeComponents
 
 internal interface WorkspaceSearchEngine {
     fun isAvailable(): Boolean
@@ -28,7 +28,7 @@ internal class RipgrepService(
     /** When the last install failed, and why: typing must not start apt again on every key. */
     @Volatile private var lastFailure: Pair<Long, String>? = null
 
-    override fun isAvailable(): Boolean = layout.isInstalled && File(layout.rootfs, RG_RELATIVE_PATH).isFile
+    override fun isAvailable(): Boolean = layout.isInstalled && packages.isInstalled(RuntimeComponents.Ripgrep)
 
     /** Installs ripgrep when search is first used, through the runtime's one package installer. */
     override suspend fun ensureAvailable(): RipgrepAvailability {
@@ -39,7 +39,7 @@ internal class RipgrepService(
         lastFailure?.let { (failedAt, reason) ->
             if (System.nanoTime() - failedAt < RETRY_COOLDOWN_NANOS) return RipgrepAvailability.Failed(reason)
         }
-        return when (val outcome = packages.ensure(PACKAGE, ::isAvailable)) {
+        return when (val outcome = packages.ensure(RuntimeComponents.Ripgrep)) {
             RuntimePackageInstaller.Outcome.Ready -> {
                 lastFailure = null
                 RipgrepAvailability.Ready
@@ -48,6 +48,8 @@ internal class RipgrepService(
                 lastFailure = System.nanoTime() to outcome.reason
                 RipgrepAvailability.Failed(outcome.reason)
             }
+            // Stopped by the user: asked again at the next index, without the cooldown.
+            RuntimePackageInstaller.Outcome.Cancelled -> RipgrepAvailability.Failed("Installing ripgrep was cancelled")
         }
     }
 
@@ -110,8 +112,6 @@ internal class RipgrepService(
     }
 
     private companion object {
-        const val RG_RELATIVE_PATH = "usr/bin/rg"
-        const val PACKAGE = "ripgrep"
         const val MAX_INDEX_FILES = 5_000
         const val MAX_MATCHES_PER_FILE = 200
         const val MAX_TOTAL_MATCHES = 1_000

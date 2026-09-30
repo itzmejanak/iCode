@@ -17,6 +17,7 @@ import dev.icode.mobile.data.notices.NoticeStore
 import dev.icode.mobile.data.runtime.RuntimeCoordinator
 import dev.icode.mobile.data.runtime.RuntimeForegroundService
 import dev.icode.mobile.data.runtime.RuntimeLayout
+import dev.icode.mobile.data.runtime.RuntimeComponentsCoordinator
 import dev.icode.mobile.data.runtime.RuntimePackageInstaller
 import dev.icode.mobile.data.runtime.TerminalCoordinator
 import dev.icode.mobile.data.runtime.TerminalSessionManager
@@ -41,7 +42,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -56,11 +56,11 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
     private val runtimeLayout = RuntimeLayout(appContext)
     private val source = WorkspaceFileSource(runtimeLayout.workspaces)
     private val settings = AndroidWorkspacePreferencesRepository(appContext)
-    /** git, openssh-client and ripgrep install through it, one at a time. */
-    private val packages = RuntimePackageInstaller(runtimeLayout, scope)
-    private val gitCli = CliGitService(runtimeLayout, packages)
+    /** The runtime's components, one apt run at a time: Git, the SSH client and search install through it. */
+    private val components = RuntimeComponentsCoordinator(workbench, scope, RuntimePackageInstaller(runtimeLayout, scope))
+    private val gitCli = CliGitService(runtimeLayout, components.installer)
     private val git = GitRepositoryClient(gitCli)
-    private val authenticator = GitAuthenticator(runtimeLayout, gitCli, packages, GitCredentialStore(appContext))
+    private val authenticator = GitAuthenticator(runtimeLayout, gitCli, components.installer, GitCredentialStore(appContext))
     private val terminals = TerminalSessionManager.get(appContext)
     private val terminal: TerminalCoordinator = TerminalCoordinator(
         workbench,
@@ -134,7 +134,7 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
     )
     /** Long operations: their own jobs, off the mutation lock (docs/long-operations-plan.md). */
     private val tasks = TaskRunner(workbench, scope)
-    private val search: SearchCoordinator = SearchCoordinator(workbench, scope, RipgrepService(runtimeLayout, packages)) { session.activeRoot }
+    private val search: SearchCoordinator = SearchCoordinator(workbench, scope, RipgrepService(runtimeLayout, components.installer)) { session.activeRoot }
     private val recovery: DocumentRecoveryCoordinator = DocumentRecoveryCoordinator(
         workbench,
         scope,
@@ -191,7 +191,8 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
         scope.launch { observeNotices() }
         terminal.follow(scope, settings.values(null).filter { it.loaded && it.loadError == null }.map { it.terminal })
         scope.launch { runtime.reportState() }
-        BackgroundWork.follow(appContext, scope, combine(workbench.snapshot, packages.installing, BackgroundWorkRules::of), ::dispatch)
+        components.start()
+        BackgroundWork.follow(appContext, scope, workbench.snapshot.map(BackgroundWorkRules::of), ::dispatch)
         importer.followAccess(scope)
     }
 
@@ -214,6 +215,7 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
             is WorkbenchIntent.SelectLanguageService -> languages.select(intent.id)
             // A task's dialog must answer while the task runs.
             is WorkbenchIntent.TaskIntent -> tasks.handle(intent)
+            is WorkbenchIntent.ComponentIntent -> components.handle(intent)
             WorkbenchIntent.Refresh -> session.requestRefresh(rebuildIndex = true)
             is WorkbenchIntent.ScreenVisible -> session.screenVisible(intent.visible)
             WorkbenchIntent.RefreshStorage -> library.refreshStorage()
