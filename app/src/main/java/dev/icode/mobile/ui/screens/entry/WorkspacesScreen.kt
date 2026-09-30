@@ -158,12 +158,18 @@ private fun Listing(
     val here = if (foldersOnly) browser.items.filter { it.folder } else browser.items
     val shown = FilesRules.sorted(FilesRules.matching(here, query), sort, state.workspaceSizes)
     when {
-        browser.items.isEmpty() -> EmptyState(
-            title = if (browser.atRoot) "No workspaces yet" else "${browser.name} is empty",
-            description = if (browser.atRoot) {
-                "New folder above makes one; Import and Clone are on the home screen."
-            } else {
-                "New folder or New file above; Paste puts what you cut or copied here."
+        // Empty as far as this list goes: choosing, a folder of files has no place to offer.
+        here.isEmpty() -> EmptyState(
+            title = when {
+                browser.atRoot -> "No workspaces yet"
+                browser.items.isEmpty() -> "${browser.name} is empty"
+                else -> "No folders in ${browser.name}"
+            },
+            description = when {
+                browser.atRoot && foldersOnly -> "New workspace below gives it a workspace of its own."
+                browser.atRoot -> "New folder above makes one; Import and Clone are on the home screen."
+                foldersOnly -> "Place here puts it in this folder; New folder above makes one in it."
+                else -> "New folder or New file above; Paste puts what you cut or copied here."
             },
             icon = if (browser.atRoot) Icons.Outlined.Folder else Icons.Outlined.FolderOpen,
             modifier = Modifier.fillMaxWidth().padding(top = IcodeSpacing.Space6),

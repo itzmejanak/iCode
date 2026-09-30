@@ -218,4 +218,7 @@ open over the real Source Control, a little blurred, and be chosen from one bar 
   Control clears a message once the commit it was sent for exists — found on return too, as the
   "commit created" event is not heard while the sync page covers it. 3 tests, 2 changed.
   Gateway 358 (budget lowered).
+- **G10** (2026-10-01): choose mode's empty folder says what can be done there — Place here, or
+  New folder; at the top, New workspace below — and goes by what it can list: a folder of files
+  only is "No folders in …", not "Nothing here matches “”".
 
