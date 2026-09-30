@@ -312,6 +312,23 @@ against the existing kit only and reviewed line by line; the owner's build is it
 | D11 | The upgrade from `b0c585d` on the owner's phone | One notice naming the old workspaces; no shortcut to phone storage left; `files/workspaces` holds only real workspaces |
 | D12 | Runtime Repair, then Reset | Workspaces untouched |
 
+**Results (2026-09-30, the owner's phone, clean install of `36003c0` — `main` plus its first Android
+build fixes):**
+
+- D5 — fresh install through onboarding to the launcher (owner).
+- D6 (import, first part) — `RevPlayer` imported from phone storage into `files/workspaces/RevPlayer`
+  (owner).
+- **D1** — in its terminal, with iCode in front: `npm install` finished — 530 packages, 48,675
+  files, 832 MB in `node_modules`, 33 `.bin` links; then `npm run dev`: Next.js 16.3.0 (Turbopack)
+  "Ready in 1792ms" on `localhost:3000`, and `GET / 200 in 8.2s`. On phone storage the same install
+  had never ended: frozen out of sight, and it could not have finished — 48,675 creates at the
+  13 ms measured there are ~10.5 min, and its links are refused (`EACCES`, §7 of the earlier
+  record).
+- Seen but not iCode's: npm 11 did not run `unrs-resolver`'s `postinstall` ("install scripts not yet
+  covered by allowScripts") — `npm install-scripts approve unrs-resolver` if ESLint needs it.
+
+D2–D4, D6 (the rest), D7–D10 and D12 are still to do; D11 does not apply to a clean install.
+
 ## 9. Not built
 
 Synchronisation of any kind; mounts; a compatibility detector (ext4 holds whatever a repository
