@@ -48,4 +48,16 @@ class WorkspaceNameRulesTest {
         assertEquals("A workspace name cannot start with a dot", WorkspaceNameRules.newWorkspaceError(".clone-1") { false })
         assertNotNull(WorkspaceNameRules.newWorkspaceError("a/b") { false })
     }
+
+    @Test
+    fun `a project's name is checked where it will land, and its path says where`() {
+        val tools = ProjectDestination("/data/w/tools", "/workspace/tools", taken = setOf("cli"))
+        val workspaces = setOf("tools")
+        assertEquals("A workspace named tools already exists", WorkspaceNameRules.projectNameError("tools", null) { it in workspaces })
+        assertEquals(null, WorkspaceNameRules.projectNameError("tools", tools) { it in workspaces })
+        assertEquals("“cli” is already in /workspace/tools", WorkspaceNameRules.projectNameError("cli", tools) { false })
+        assertEquals(null, WorkspaceNameRules.projectNameError(".config", tools) { false })
+        assertEquals("/workspace/tools/api", WorkspaceRuntimePath.of("api", tools))
+        assertEquals("/workspace/api", WorkspaceRuntimePath.of("api", null))
+    }
 }

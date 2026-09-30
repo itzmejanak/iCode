@@ -81,3 +81,16 @@ several repositories is not yet a place to work on them.
   WorkspaceDialogs.kt`). The New Folder page and route are gone; its frame (2003:77) is a documented
   state of the Workspaces page (RouteTest), and the capture counts 38 routes. PR-ENTRY-01 and the
   layout say so. Gate: 567 tests; lint 0 errors / 12 warnings; both guards pass.
+- **G1** (2026-10-01): `WorkspaceStaging` owns the one name check (`nameProblem`: a new
+  workspace's name, or a folder's name not yet in the chosen folder) and completes into any folder
+  of the workspaces — a workspace's own top or anything in it; refused only outside the workspaces
+  or inside `.git`. Clone and Import take `into` (none: a new workspace, as ever) and ask the same
+  check; both clear the chosen destination when done. What they made is shown by one step
+  (`WorkspaceLifecycleCoordinator.reveal`: a new workspace opens; a project in a workspace opens it
+  with the project selected, or refreshes the open one) — in the lifecycle, since the session
+  coordinator is at its 300-line budget. Domain: `ProjectDestination` (location, `/workspace/…`
+  path, the names it held), `WorkspaceNameRules.projectNameError`, `WorkspaceRuntimePath.of(name,
+  destination)`. Owner (2026-10-01): no limits beyond those — folders and repositories side by side
+  in one workspace, a clone anywhere in it; nothing over-built. 2 tests. Gate: 569 tests; lint 0
+  errors / 12 warnings; both guards pass.
+

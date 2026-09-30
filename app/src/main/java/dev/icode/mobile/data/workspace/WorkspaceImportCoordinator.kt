@@ -11,7 +11,6 @@ import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.ImportSource
 import dev.icode.mobile.domain.WorkbenchEffect
-import dev.icode.mobile.domain.WorkspaceNameRules
 import java.io.File
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
@@ -81,10 +80,12 @@ internal class WorkspaceImportCoordinator(
         workbench.emit(WorkbenchEffect.ImportSourceChosen)
     }
 
-    suspend fun import(rawName: String) {
+    /** As a new workspace, or into the folder [into] of one. */
+    suspend fun import(rawName: String, into: String? = null) {
         val source = workbench.current.importSource ?: return workbench.message("Choose a folder to import first")
         val name = rawName.trim()
-        WorkspaceNameRules.newWorkspaceError(name) { File(paths.root, it).exists() }?.let { return workbench.message(it) }
+        val destination = into?.let(::File) ?: paths.root
+        staging.nameProblem(name, destination)?.let { return workbench.message(it) }
         val folder = staging.reserve("import")
         var imported: Imported? = null
         tasks.start(
@@ -106,7 +107,7 @@ internal class WorkspaceImportCoordinator(
                 // Each item as a path from the folder it is in, as a copy or a delete says it.
                 FolderImport.copy(tree, plan, folder) { progress.item("$name/$it") }
                 val unrepaired = if (File(folder, ".git").isDirectory) restoreCheckout(folder, progress) else null
-                val workspace = staging.complete(folder, name)
+                val workspace = staging.complete(folder, name, destination)
                 imported = Imported(workspace.path, plan.entries.size, plan.skipped.size, unrepaired)
             },
             finished = { failure ->
@@ -114,7 +115,7 @@ internal class WorkspaceImportCoordinator(
                 if (failure != null || result == null) {
                     runCatching { staging.discard(folder) }
                 } else {
-                    workbench.update { it.copy(importSource = null) }
+                    workbench.update { it.copy(importSource = null, projectDestination = null) }
                     open(result.location)
                     workbench.message(result.summary(name))
                 }
