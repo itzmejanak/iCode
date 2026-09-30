@@ -250,7 +250,7 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
                         WorkbenchIntent.MarkNoticesRead -> notices.markAllRead()
                         is WorkbenchIntent.DeleteNotice -> notices.delete(intent.id)
                         WorkbenchIntent.ClearNotices -> notices.clear()
-                        is WorkbenchIntent.CreateWorkspace -> lifecycle.create(intent.name)
+                        is WorkbenchIntent.CreateWorkspace -> lifecycle.create(intent)
                         is WorkbenchIntent.RenameWorkspace -> lifecycle.rename(intent)
                         is WorkbenchIntent.DeleteWorkspace -> lifecycle.delete(intent.location)
                         is WorkbenchIntent.OpenImportBrowser -> importer.openBrowser(intent.path)

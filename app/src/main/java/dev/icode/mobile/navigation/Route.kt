@@ -47,7 +47,6 @@ enum class Route(
     SettingsRuntime("3:1455", "Runtime environment", RouteGroup.SETTINGS),
     ConflictResolution("3:1509", "Conflict resolution", RouteGroup.TOOLS),
     EditorEmpty("2003:19", "Editor empty state", RouteGroup.WORKSPACE),
-    CreateFolder("2003:77", "Create folder", RouteGroup.ENTRY),
     // Open Folder's frame, now Import's browser of phone storage (docs/workspace-storage-plan.md §4.4).
     ImportBrowser("2003:117", "Import browser", RouteGroup.ENTRY),
     CommandPalette("2003:166", "Command palette", RouteGroup.TOOLS),

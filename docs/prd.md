@@ -214,7 +214,7 @@ The platform provides execution, files, processes, environment variables, packag
 
 | ID | Requirement |
 |---|---|
-| PR-ENTRY-01 | The application shall present every workspace in its storage, most recently opened first, and Import, Clone Repository, and New Folder actions. |
+| PR-ENTRY-01 | The application shall open on the recently opened workspaces with Import, Clone Repository and Workspaces; the Workspaces page shall present every workspace in its storage, with New Folder. |
 | PR-ENTRY-02 | The application shall not require account, provider, agent, or language configuration before a workspace can be opened. |
 | PR-ENTRY-03 | Initial runtime installation shall show truthful progress, failure, retry, and storage information. |
 | PR-ENTRY-04 | Returning users shall be able to reopen the last or a recent workspace. |

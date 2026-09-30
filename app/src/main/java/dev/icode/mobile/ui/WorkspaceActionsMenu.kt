@@ -14,26 +14,18 @@ import androidx.compose.material.icons.outlined.FolderCopy
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Terminal
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import dev.icode.mobile.designsystem.IcodeActionMenu
-import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeConfirmDialog
 import dev.icode.mobile.designsystem.IcodeMenuAction
 import dev.icode.mobile.designsystem.IcodeOverflowMenu
-import dev.icode.mobile.designsystem.IcodeType
-import dev.icode.mobile.designsystem.LabeledTextField
-import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.domain.WorkbenchIntent
-import dev.icode.mobile.domain.WorkspaceNameRules
-import dev.icode.mobile.domain.WorkspaceRuntimePath
 import dev.icode.mobile.domain.WorkspaceSummary
 
 /**
@@ -86,29 +78,5 @@ fun WorkspaceActionsMenu(
             onDismiss = { deleting = false },
             detail = item.path,
         )
-    }
-}
-
-/** A whole workspace's new name; its settings, history and open tabs follow it. */
-@Composable
-private fun RenameWorkspaceDialog(item: WorkspaceSummary, onDismiss: () -> Unit) {
-    val gateway = LocalWorkbenchGateway.current
-    val workspaces = LocalWorkbenchSnapshot.current.workspaces
-    var name by rememberSaveable(item.location) { mutableStateOf(item.name) }
-    val request = rememberPendingRequest(item.location, onDismiss)
-    val problem = WorkspaceNameRules.newWorkspaceError(name) { taken -> taken != item.name && workspaces.any { it.name == taken } }
-    IcodeConfirmDialog(
-        title = "Rename workspace",
-        confirmLabel = "Rename",
-        confirmEnabled = problem == null && name.trim() != item.name && !request.waiting,
-        dismissEnabled = !request.waiting,
-        onDismiss = onDismiss,
-        onConfirm = { request.send { requestId -> gateway.dispatch(WorkbenchIntent.RenameWorkspace(item.location, name.trim(), requestId)) } },
-    ) {
-        LabeledTextField("Folder name", name, { name = it; request.failure = null }, literal = true)
-        MonoLine(WorkspaceRuntimePath.of(name.trim()), style = IcodeType.MonoSmall)
-        (problem?.takeIf { name.isNotEmpty() } ?: request.failure)?.let {
-            Text(it, style = IcodeType.Caption, color = IcodeColors.Error)
-        }
     }
 }

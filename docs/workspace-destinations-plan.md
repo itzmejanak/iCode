@@ -74,4 +74,10 @@ several repositories is not yet a place to work on them.
 
 ## 5. Record
 
-(empty)
+- **G0** (2026-10-01): New Folder is a dialog on the Workspaces page, as a file manager makes a
+  folder: the name, its `/workspace/<name>`, whether it can be used as it is typed, and the
+  backend's answer by request id (a refusal said in the dialog). The new workspace appears in the
+  list, unopened (D3). Rename's dialog and New Folder's are one (`WorkspaceNameDialog`, `ui/
+  WorkspaceDialogs.kt`). The New Folder page and route are gone; its frame (2003:77) is a documented
+  state of the Workspaces page (RouteTest), and the capture counts 38 routes. PR-ENTRY-01 and the
+  layout say so. Gate: 567 tests; lint 0 errors / 12 warnings; both guards pass.
