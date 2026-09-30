@@ -142,11 +142,15 @@ sealed interface WorkbenchIntent {
     data object AbortInProgress : WorkbenchIntent
     /** Adds a remote; one that already exists is Git's refusal to report, never replaced. */
     data class AddRemote(val name: String, val url: String) : WorkbenchIntent
-    data object FetchRemote : WorkbenchIntent
-    data object PullRemote : WorkbenchIntent
-    data object PushRemote : WorkbenchIntent
+    /** What talks to a remote: each its own job, one at a time, followed on the sync page or Clone's. */
+    sealed interface TransferIntent : WorkbenchIntent
+    data object FetchRemote : TransferIntent
+    data object PullRemote : TransferIntent
+    data object PushRemote : TransferIntent
+    /** Commits what is staged with [message], then pushes it: one transfer. */
+    data class CommitAndPush(val message: String) : TransferIntent
     /** Stops the running clone or sync: Git and everything it started are ended. */
-    data object CancelGitTransfer : WorkbenchIntent
+    data object CancelGitTransfer : TransferIntent
     data class OpenConflict(val path: String) : WorkbenchIntent
     data object CloseConflict : WorkbenchIntent
     /** Resolves the one marker block that starts at line [sectionStart] (zero-based). */
@@ -162,7 +166,7 @@ sealed interface WorkbenchIntent {
         val directoryName: String,
         val branch: String = "",
         val into: String? = null,
-    ) : WorkbenchIntent
+    ) : TransferIntent
 
     data class SelectGitProvider(val provider: GitProvider) : WorkbenchIntent
     data class SelectGitAuthMethod(val method: GitAuthMethod) : WorkbenchIntent

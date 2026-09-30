@@ -1,6 +1,8 @@
 package dev.icode.mobile.ui.screens.tools
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -74,7 +76,7 @@ fun CommitPushScreen(actions: NavigationActions) {
             },
         )
         Column(
-            modifier = Modifier.padding(IcodeSpacing.Space4),
+            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(IcodeSpacing.Space4),
             verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space4),
         ) {
             IcodeCard(Modifier.fillMaxWidth()) {
@@ -146,12 +148,8 @@ fun CommitPushScreen(actions: NavigationActions) {
                     )
                 },
             )
-            SecondaryButton(
-                "Open Branch Selector",
-                { actions.navigate(Route.BranchSelector) },
-                Modifier.fillMaxWidth(),
-            )
         }
+        repository?.let { GitBottomBar(state, it, actions, onSyncPage = true) }
     }
 }
 

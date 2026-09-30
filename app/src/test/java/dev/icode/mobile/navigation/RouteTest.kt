@@ -30,6 +30,7 @@ class RouteTest {
         Route.RuntimeComponents, // 2026-09-30: choose the runtime's tools, as Android Studio's setup (runtime-components-plan.md §3.5)
         Route.Workspaces, // 2026-10-01: every workspace managed in one place (workspaces-page-plan.md)
         Route.ChooseDestination, // 2026-10-01: the file explorer choosing where a project goes (workspace-destinations-plan.md)
+        Route.RepositorySelector, // 2026-10-01: the repository chosen as the branch is (workspace-destinations-plan.md D7)
     )
 
     private val framed = Route.entries.mapNotNull { it.figmaNode }

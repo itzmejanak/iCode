@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -215,4 +217,31 @@ fun IconBadge(
     ) {
         Text(text, style = style.copy(color = tint))
     }
+}
+
+/**
+ * One choice in a sheet — a branch, a repository: its name in mono, the chosen one in the accent
+ * with a tick. [otherwise] is what an unchosen one carries at its end (the branch's Delete), if anything.
+ */
+@Composable
+fun IcodeChoiceRow(
+    title: String,
+    chosen: Boolean,
+    onChoose: () -> Unit,
+    otherwise: (@Composable RowScope.() -> Unit)? = null,
+) {
+    IcodeListRow(
+        title = title,
+        selected = chosen,
+        onClick = onChoose,
+        titleStyle = IcodeType.Mono,
+        titleColor = if (chosen) IcodeColors.Accent else IcodeColors.TextPrimary,
+        trailing = {
+            if (chosen) {
+                Icon(Icons.Outlined.CheckCircle, contentDescription = null, tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconMd))
+            } else {
+                otherwise?.invoke(this)
+            }
+        },
+    )
 }

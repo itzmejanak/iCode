@@ -13,6 +13,8 @@ enum class Route(
     val figmaNode: String?,
     val title: String,
     val group: RouteGroup,
+    /** Drawn as a sheet over the live screen below it, not as a page of its own. */
+    val sheet: Boolean = false,
 ) {
     Splash("3:11", "Splash", RouteGroup.ENTRY),
     RuntimeInstalling("3:27", "Runtime installing", RouteGroup.ENTRY),
@@ -38,7 +40,10 @@ enum class Route(
     SourceControl("3:641", "Source control", RouteGroup.TOOLS),
     DiffView("3:706", "Diff view", RouteGroup.TOOLS),
     QuickOpen("3:760", "Quick open", RouteGroup.TOOLS),
-    BranchSelector("3:796", "Branch selector", RouteGroup.TOOLS),
+    BranchSelector("3:796", "Branch selector", RouteGroup.TOOLS, sheet = true),
+    // Owner's request (2026-10-01): the repository is chosen as the branch is, from Source Control's
+    // bottom bar (workspace-destinations-plan.md D7).
+    RepositorySelector(null, "Repository selector", RouteGroup.TOOLS, sheet = true),
     EditorFind("3:835", "Editor find", RouteGroup.TOOLS),
     TerminalExpanded("3:1070", "Terminal expanded", RouteGroup.TOOLS),
     ProblemsPanel("3:1127", "Problems panel", RouteGroup.TOOLS),

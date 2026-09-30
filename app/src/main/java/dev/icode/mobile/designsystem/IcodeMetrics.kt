@@ -73,6 +73,9 @@ object IcodeSizes {
     val ColorChip = 32.dp
     val ContentMaxWidth = 600.dp
 
+    /** How much the screen under a sheet is blurred (Android 12 and later; below, it is only dimmed). */
+    val SheetBackdropBlur = 6.dp
+
     /**
      * The watermark's canvas: the themed icon's 108-unit square, whose silhouette stands in its
      * middle 44 units — at this size the logo itself is about 160 dp tall.

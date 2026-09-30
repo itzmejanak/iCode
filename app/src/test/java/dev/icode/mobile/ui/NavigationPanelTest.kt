@@ -32,4 +32,21 @@ class NavigationPanelTest {
         assertEquals(Route.ProblemsPanel, capture.current)
         assertEquals(ToolPanelTab.Problems, capture.panelTab)
     }
+
+    @Test fun eachEntryIsKeyedByItsPlaceSoWhatItKeepsIsItsOwn() {
+        val navigation = NavigationState.create(Route.SourceControl, captureMode = false)
+        navigation.actions.navigate(Route.CommitPush)
+        navigation.actions.navigate(Route.BranchSelector)
+        assertEquals(listOf("0:SourceControl", "1:CommitPush", "2:BranchSelector"), navigation.entryKeys)
+
+        // Closed, the entry left the history — the host forgets what it kept — so opened again it starts afresh.
+        navigation.actions.back()
+        navigation.actions.back()
+        navigation.actions.navigate(Route.CommitPush)
+        assertEquals(listOf("0:SourceControl", "1:CommitPush"), navigation.entryKeys)
+
+        // A replaced entry is a new one.
+        navigation.actions.replace(Route.DiffView)
+        assertEquals(listOf("0:SourceControl", "1:DiffView"), navigation.entryKeys)
+    }
 }

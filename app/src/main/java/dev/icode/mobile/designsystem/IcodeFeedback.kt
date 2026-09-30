@@ -27,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
@@ -215,6 +216,8 @@ fun IcodeBottomSheet(
         modifier = modifier
             .fillMaxWidth()
             .background(IcodeColors.Surface, IcodeShapes.Sheet)
+            // A tap on the sheet stays on it, never reaching the screen it is over.
+            .pointerInput(Unit) {}
             .padding(IcodeSpacing.Space4),
     ) {
         Box(

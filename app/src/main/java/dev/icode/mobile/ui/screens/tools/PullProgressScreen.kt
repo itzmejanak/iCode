@@ -25,11 +25,12 @@ import dev.icode.mobile.designsystem.ProgressTrack
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.domain.GitOperationState
+import dev.icode.mobile.domain.GitTransferLabel
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 
 /**
- * Live progress for fetch, pull and push.
+ * Live progress for fetch, pull and push, and Commit & Push's commit before its push.
  *
  * Everything shown is Git's own reporting: the bar only carries a percentage
  * once Git prints one, and the transcript is its stderr. A finished operation
@@ -97,7 +98,8 @@ fun PullProgressScreen(actions: NavigationActions) {
 private fun headline(operation: GitOperationState, remote: String?, branch: String): String {
     val target = listOfNotNull(remote, branch.ifBlank { null }).joinToString(" ")
     return when (operation) {
-        is GitOperationState.Running -> "${operation.label} $target".trim()
+        // Committing is local: it names no remote.
+        is GitOperationState.Running -> if (operation.label == GitTransferLabel.COMMITTING) operation.label else "${operation.label} $target".trim()
         is GitOperationState.Succeeded -> "${operation.label} complete"
         is GitOperationState.Failed -> "${operation.label} failed"
         is GitOperationState.Cancelled -> "${operation.label} cancelled"
@@ -107,7 +109,7 @@ private fun headline(operation: GitOperationState, remote: String?, branch: Stri
 
 /** What is happening before Git has printed anything of its own. */
 private fun waitingLabel(operation: GitOperationState): String = when (operation) {
-    is GitOperationState.Running -> "Contacting the remote…"
+    is GitOperationState.Running -> if (operation.label == GitTransferLabel.COMMITTING) "Writing the commit…" else "Contacting the remote…"
     is GitOperationState.Succeeded -> "Done"
     is GitOperationState.Failed, is GitOperationState.Cancelled -> "Stopped"
     GitOperationState.Idle -> ""

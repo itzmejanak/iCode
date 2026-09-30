@@ -47,7 +47,6 @@ import dev.icode.mobile.domain.GitChange
 import dev.icode.mobile.domain.GitInProgress
 import dev.icode.mobile.domain.WorkbenchGateway
 import dev.icode.mobile.domain.GitStatusCodes
-import dev.icode.mobile.domain.WorkbenchEffect
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
@@ -66,14 +65,23 @@ fun SourceControlScreen(actions: NavigationActions) {
     }
 
     var commitMessage by rememberSaveable(repository.workTreePath) { mutableStateOf("") }
+    // The message sent to be committed, and the commit it was to follow.
+    var sent by rememberSaveable(repository.workTreePath) { mutableStateOf<String?>(null) }
+    var sentAfter by rememberSaveable(repository.workTreePath) { mutableStateOf<String?>(null) }
+    val send = { then: WorkbenchIntent ->
+        sent = commitMessage
+        sentAfter = repository.lastCommit?.id
+        gateway.dispatch(then)
+    }
 
     // Returning from the editor or the terminal must not show stale changes.
     LaunchedEffect(repository.workTreePath) { gateway.dispatch(WorkbenchIntent.RefreshGit) }
-    // A message that stays after its commit is created gets reused by accident
-    // on the next one.
-    LaunchedEffect(Unit) {
-        gateway.effects.collect { effect ->
-            if (effect is WorkbenchEffect.GitCommitted) commitMessage = ""
+    // Once a newer commit is there, the message sent became it: kept, it would be reused by
+    // accident — found on return too, when Commit & Push's sync page was over this one.
+    LaunchedEffect(repository.lastCommit?.id) {
+        if (sent != null && repository.lastCommit?.id != sentAfter) {
+            if (commitMessage == sent) commitMessage = ""
+            sent = null
         }
     }
 
@@ -82,25 +90,15 @@ fun SourceControlScreen(actions: NavigationActions) {
     val hasIdentity = !repository.authorName.isNullOrBlank() && !repository.authorEmail.isNullOrBlank()
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar(
-            title = repository.branch.ifBlank { state.activeBranch },
+            title = "Source Control",
             actions = {
-                Text(
-                    syncLabel(repository.upstream, repository.ahead, repository.behind, repository.remoteName),
-                    style = IcodeType.MonoSmall,
-                    modifier = Modifier.clickable { actions.navigate(Route.BranchSelector) },
-                )
                 IconButton(onClick = { gateway.dispatch(WorkbenchIntent.RefreshGit) }) {
                     Icon(Icons.Outlined.Refresh, contentDescription = "Refresh", tint = IcodeColors.TextPrimary)
                 }
             },
         )
-        if (state.gitRepositories.size > 1) {
-            RepositoryPicker(state.gitRepositories, repository.workTreePath, state.activeWorkspaceLocation) {
-                gateway.dispatch(WorkbenchIntent.ChooseGitRepository(it))
-            }
-        }
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(IcodeSpacing.Space4),
+            modifier = Modifier.weight(1f).fillMaxWidth().padding(IcodeSpacing.Space4),
             verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
         ) {
             if (repository.inProgress != GitInProgress.None) {
@@ -139,11 +137,12 @@ fun SourceControlScreen(actions: NavigationActions) {
                             Modifier.fillMaxWidth().padding(top = IcodeSpacing.Space2),
                         )
                     } else {
+                        val committable = staged.isNotEmpty() && commitMessage.isNotBlank()
                         PrimaryButton(
                             "Commit",
-                            { gateway.dispatch(WorkbenchIntent.CommitStaged(commitMessage)) },
+                            { send(WorkbenchIntent.CommitStaged(commitMessage)) },
                             Modifier.fillMaxWidth(),
-                            enabled = staged.isNotEmpty() && commitMessage.isNotBlank(),
+                            enabled = committable,
                         )
                         Text(
                             "Author: ${repository.authorName} <${repository.authorEmail}> · Edit",
@@ -151,10 +150,15 @@ fun SourceControlScreen(actions: NavigationActions) {
                                 .padding(top = IcodeSpacing.Space2),
                             style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary),
                         )
+                        // One transfer — commit, then push — which the sync progress follows.
                         SecondaryButton(
                             "Commit & Push",
-                            { actions.navigate(Route.CommitPush) },
+                            {
+                                send(WorkbenchIntent.CommitAndPush(commitMessage))
+                                actions.navigate(Route.PullFetchProgress)
+                            },
                             Modifier.fillMaxWidth().padding(top = IcodeSpacing.Space2),
+                            enabled = committable,
                         )
                     }
                 }
@@ -200,6 +204,7 @@ fun SourceControlScreen(actions: NavigationActions) {
                 }
             }
         }
+        GitBottomBar(state, repository, actions, onSyncPage = false)
     }
 }
 
@@ -227,13 +232,6 @@ private fun openChange(gateway: WorkbenchGateway, actions: NavigationActions, ch
             actions.navigate(Route.DiffView)
         }
     }
-}
-
-/** `↑ahead ↓behind` once an upstream exists; otherwise the honest remote state. */
-private fun syncLabel(upstream: String?, ahead: Int, behind: Int, remoteName: String?): String = when {
-    upstream != null -> "↑$ahead ↓$behind"
-    remoteName != null -> remoteName
-    else -> "No remote"
 }
 
 @Composable
