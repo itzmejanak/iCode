@@ -138,4 +138,12 @@ several repositories is not yet a place to work on them.
   dialogs take a location, not a tree row, and serve both; Copy path is one action. The list rules
   the file explorer replaced (search and sort of workspaces) are gone. Gate: 571 tests; lint 0
   errors / 12 warnings; both guards pass.
+- **G4** (2026-10-01): Clone and Import have **Where** — "New workspace", or the path of the folder
+  chosen — with Change, which opens the same file explorer in choose mode (route
+  `ChooseDestination`, the same screen): folders only, New folder still there, and at its foot the
+  place it will be with **Place here**, or at the top **New workspace**. The choice is the
+  snapshot's `projectDestination` (the library reads the folder's names for the live check);
+  the name's check and the path shown follow it (`/workspace/tools/<name>`, "already in
+  /workspace/tools"); Clone and Import send it, and it is cleared once they finish. Gate: 571
+  tests; lint 0 errors / 12 warnings; both guards pass.
 

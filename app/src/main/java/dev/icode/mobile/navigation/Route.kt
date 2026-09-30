@@ -28,6 +28,8 @@ enum class Route(
     RuntimeComponents(null, "Runtime components", RouteGroup.ENTRY),
     // Owner's request (2026-10-01): every workspace, managed in one place (docs/workspaces-page-plan.md).
     Workspaces(null, "Workspaces", RouteGroup.ENTRY),
+    // The same file explorer, choosing where a clone or an import goes (workspace-destinations-plan.md §2.2).
+    ChooseDestination(null, "Choose where", RouteGroup.ENTRY),
     CloneRepository("3:239", "Clone repository", RouteGroup.ENTRY),
     CloneProgress("3:278", "Clone progress", RouteGroup.ENTRY),
     WorkspaceExplorer("3:456", "Workspace explorer", RouteGroup.WORKSPACE),

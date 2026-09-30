@@ -8,6 +8,7 @@ import dev.icode.mobile.domain.RecentDocument
 import dev.icode.mobile.domain.BrowsedItem
 import dev.icode.mobile.domain.FileKind
 import dev.icode.mobile.domain.FilesBrowserState
+import dev.icode.mobile.domain.ProjectDestination
 import dev.icode.mobile.domain.StorageDetails
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.domain.WorkspaceSummary
@@ -107,9 +108,19 @@ internal class WorkspaceLibraryCoordinator(
             is WorkbenchIntent.BrowseFiles -> scope.launch(Dispatchers.IO) {
                 browseFiles(intent.path ?: workbench.current.filesBrowser?.path ?: paths.root.path)
             }
+            is WorkbenchIntent.ChooseDestination -> scope.launch(Dispatchers.IO) { chooseDestination(intent.path) }
             WorkbenchIntent.RefreshStorage -> refreshStorage()
             WorkbenchIntent.MeasureWorkspaces -> measureWorkspaces()
         }
+    }
+
+    /** A folder of a workspace as the next project's place, with what it holds for the name's check; none, a new workspace. */
+    private fun chooseDestination(path: String?) {
+        val destination = path?.let { location ->
+            val shown = paths.guestOf(location)?.takeIf { paths.workspaceOf(location) != null && File(location).isDirectory } ?: return
+            ProjectDestination(location, shown, File(location).list()?.toSet().orEmpty())
+        }
+        workbench.update { it.copy(projectDestination = destination) }
     }
 
     /**

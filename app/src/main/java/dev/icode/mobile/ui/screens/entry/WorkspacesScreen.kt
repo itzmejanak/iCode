@@ -1,10 +1,12 @@
 package dev.icode.mobile.ui.screens.entry
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -19,6 +21,7 @@ import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -26,7 +29,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import dev.icode.mobile.designsystem.Divider
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeActionMenu
 import dev.icode.mobile.designsystem.IcodeColors
@@ -34,6 +39,9 @@ import dev.icode.mobile.designsystem.IcodeMenuAction
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTextField
 import dev.icode.mobile.designsystem.IcodeTopBar
+import dev.icode.mobile.designsystem.IcodeType
+import dev.icode.mobile.designsystem.MonoLine
+import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SegmentedControl
 import dev.icode.mobile.domain.FilesBrowserState
 import dev.icode.mobile.domain.FilesRules
@@ -58,10 +66,12 @@ import dev.icode.mobile.ui.screens.workspace.WorkspaceItemType
  * the breadcrumb from `workspace`, Back up a folder, folders then files with their size or count
  * and date, Name · Date · Size and search in the folder shown, New folder and New file where it is,
  * each entry's one menu from ⋮ or a long press, and the clipboard bar to paste here. At the top its
- * folders are the workspaces, each with its own menu (Open, Open Terminal…).
+ * folders are the workspaces, each with its own menu (Open, Open Terminal…). [choosing]: the same
+ * explorer, folders only, choosing where a clone or an import goes — Place here, or at the top a new
+ * workspace.
  */
 @Composable
-fun WorkspacesScreen(actions: NavigationActions) {
+fun WorkspacesScreen(actions: NavigationActions, choosing: Boolean = false) {
     val state = LocalWorkbenchSnapshot.current
     val gateway = LocalWorkbenchGateway.current
     val browser = state.filesBrowser
@@ -71,8 +81,8 @@ fun WorkspacesScreen(actions: NavigationActions) {
     var renaming by rememberSaveable { mutableStateOf<String?>(null) }
     var deleting by rememberSaveable { mutableStateOf<String?>(null) }
     val browse = { path: String -> gateway.dispatch(WorkbenchIntent.BrowseFiles(path)) }
-    // Where it was when it was last shown; the workspaces folder the first time.
-    LaunchedEffect(Unit) { gateway.dispatch(WorkbenchIntent.BrowseFiles()) }
+    // Where it was when it was last shown — choosing, at the place chosen before; the workspaces folder the first time.
+    LaunchedEffect(Unit) { gateway.dispatch(WorkbenchIntent.BrowseFiles(state.projectDestination?.location?.takeIf { choosing })) }
     // A workspace's size is measured on arrival, and again when the list of them changes.
     LaunchedEffect(state.workspaces.map { it.location }) { gateway.dispatch(WorkbenchIntent.MeasureWorkspaces) }
     // Back goes up a folder, as in a file manager; at the top it leaves.
@@ -82,14 +92,14 @@ fun WorkspacesScreen(actions: NavigationActions) {
 
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar(
-            "Workspaces",
+            if (choosing) "Choose Where" else "Workspaces",
             subtitle = if (browser == null || browser.atRoot) {
                 WorkspaceListRules.summary(state.workspaces, state.workspaceSizes)
             } else {
                 FilesRules.contents(browser.items)
             },
             onBack = back,
-            actions = { NewItemMenu(atRoot = browser?.atRoot != false) { creating = it } },
+            actions = { NewItemMenu(foldersOnly = choosing || browser?.atRoot != false) { creating = it } },
         )
         browser?.let { FolderBreadcrumb(it.crumbs, browse) }
         Column(
@@ -106,9 +116,14 @@ fun WorkspacesScreen(actions: NavigationActions) {
             SegmentedControl(FilesSort.entries.map { it.name }, sort.name) { sort = FilesSort.valueOf(it) }
         }
         Box(Modifier.weight(1f)) {
-            if (browser != null) Listing(browser, query, sort, browse, { renaming = it }, { deleting = it })
+            if (browser != null) Listing(browser, query, sort, choosing, browse, { renaming = it }, { deleting = it })
         }
-        state.clipboard?.let { held ->
+        if (choosing) {
+            ChooseBar(browser) { path ->
+                gateway.dispatch(WorkbenchIntent.ChooseDestination(path))
+                actions.back()
+            }
+        } else state.clipboard?.let { held ->
             ClipboardBar(held, onPaste = {
                 val here = browser
                 gateway.dispatch(if (here == null || here.atRoot) WorkbenchIntent.PasteAsWorkspace else WorkbenchIntent.PasteInto(here.path))
@@ -134,12 +149,14 @@ private fun Listing(
     browser: FilesBrowserState,
     query: String,
     sort: FilesSort,
+    foldersOnly: Boolean,
     browse: (String) -> Unit,
     onRename: (String) -> Unit,
     onDelete: (String) -> Unit,
 ) {
     val state = LocalWorkbenchSnapshot.current
-    val shown = FilesRules.sorted(FilesRules.matching(browser.items, query), sort, state.workspaceSizes)
+    val here = if (foldersOnly) browser.items.filter { it.folder } else browser.items
+    val shown = FilesRules.sorted(FilesRules.matching(here, query), sort, state.workspaceSizes)
     when {
         browser.items.isEmpty() -> EmptyState(
             title = if (browser.atRoot) "No workspaces yet" else "${browser.name} is empty",
@@ -174,7 +191,7 @@ private fun Listing(
 
 /** + in the top bar: New folder — a new workspace at the top — and, inside one, New file. */
 @Composable
-private fun NewItemMenu(atRoot: Boolean, onCreate: (WorkspaceItemType) -> Unit) {
+private fun NewItemMenu(foldersOnly: Boolean, onCreate: (WorkspaceItemType) -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { open = true }) {
@@ -185,8 +202,30 @@ private fun NewItemMenu(atRoot: Boolean, onCreate: (WorkspaceItemType) -> Unit) 
             onDismiss = { open = false },
             actions = listOfNotNull(
                 IcodeMenuAction("New folder", Icons.Outlined.CreateNewFolder, { onCreate(WorkspaceItemType.Folder) }),
-                IcodeMenuAction("New file", Icons.Outlined.Description, { onCreate(WorkspaceItemType.File) }).takeUnless { atRoot },
+                IcodeMenuAction("New file", Icons.Outlined.Description, { onCreate(WorkspaceItemType.File) }).takeUnless { foldersOnly },
             ),
         )
     }
 }
+
+/** Choosing where a project goes: the place it will be, and the button that says so. */
+@Composable
+private fun ChooseBar(browser: FilesBrowserState?, onChoose: (String?) -> Unit) {
+    // A folder inside a workspace; at the top, none: a new workspace.
+    val place = browser?.takeUnless { it.atRoot }
+    Column(Modifier.fillMaxWidth().background(IcodeColors.SurfaceElevated)) {
+        Divider()
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = IcodeSpacing.Space4, vertical = IcodeSpacing.Space2),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
+        ) {
+            Column(Modifier.weight(1f)) {
+                MonoLine(place?.runtimePathOf(place.path) ?: "/workspace/<name>", maxLines = 1)
+                Text(if (place == null) "It becomes a workspace of its own" else "It goes in this folder", style = IcodeType.Caption)
+            }
+            PrimaryButton(if (place == null) "New workspace" else "Place here", { onChoose(place?.path) })
+        }
+    }
+}
+

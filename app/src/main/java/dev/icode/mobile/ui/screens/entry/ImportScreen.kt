@@ -13,6 +13,7 @@ import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.LabeledField
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 
@@ -24,7 +25,8 @@ import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 @Composable
 fun ImportScreen(actions: NavigationActions) {
     val gateway = LocalWorkbenchGateway.current
-    val source = LocalWorkbenchSnapshot.current.importSource
+    val state = LocalWorkbenchSnapshot.current
+    val source = state.importSource
     // Another folder chosen after Change proposes its own name.
     var name by rememberSaveable(source?.path) { mutableStateOf(source?.name.orEmpty()) }
     NewWorkspacePage(
@@ -33,7 +35,7 @@ fun ImportScreen(actions: NavigationActions) {
         name = name,
         onNameChange = { name = it },
         actionLabel = "Import",
-        onSubmit = { gateway.dispatch(WorkbenchIntent.ImportWorkspace(name)) },
+        onSubmit = { gateway.dispatch(WorkbenchIntent.ImportWorkspace(name, into = state.projectDestination?.location)) },
         ready = source != null,
         above = {
             LabeledField("From", source?.displayPath ?: "Choose a folder on phone storage") {
@@ -43,6 +45,7 @@ fun ImportScreen(actions: NavigationActions) {
                     style = IcodeType.Label.copy(color = IcodeColors.Accent),
                 )
             }
+            DestinationField(state.projectDestination) { actions.navigate(Route.ChooseDestination) }
         },
     )
 }

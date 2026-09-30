@@ -198,6 +198,8 @@ sealed interface WorkbenchIntent {
     sealed interface StorageIntent : WorkbenchIntent
     /** The file explorer at [path] — where it was when none, the workspaces folder at first. */
     data class BrowseFiles(val path: String? = null) : StorageIntent
+    /** Where the next clone or import goes: the folder [path] of a workspace, or none — a new workspace. */
+    data class ChooseDestination(val path: String?) : StorageIntent
     /** The device, the runtime and the cache. */
     data object RefreshStorage : StorageIntent
     /** Each workspace's size, without measuring the runtime and the cache. */
