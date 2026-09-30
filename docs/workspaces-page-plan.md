@@ -113,4 +113,8 @@ UI."
   `ui/WorkspaceRow` — one row for the home screen and the page, the size shown where a list
   measures it. Home: **Recent** lists the five; the tiles are Import · Clone Repo · **Workspaces**;
   the empty state names them. Gate: 562 tests; lint 0 errors / 12 warnings; both guards pass.
+- **P4** (2026-10-01): Storage settings' second list of workspaces became one row — "N workspaces ·
+  total" — opening the Workspaces page; it keeps what is its own (device, runtime, cache, All Files
+  Access, Clear Cache) and its sentence on where workspaces live. The actions menu is now used by
+  the two lists that remain. Layout §9 and US-ENTRY-001 / US-STORAGE-001 say so.
 

@@ -308,8 +308,9 @@ The bottom panel owns Terminal, Problems, and Output. It supports collapsed, rem
 ### 9.1 Content order
 
 1. Product identity and concise purpose.
-2. Primary actions: Import, Clone Repository, New Folder.
-3. Workspaces: every workspace in iCode's storage, most recently opened first.
+2. Primary actions: Import, Clone Repository, Workspaces.
+3. Recent: the five most recently opened workspaces, with the logo as a letterpress behind
+   ([workspaces-page-plan.md](./workspaces-page-plan.md)).
 4. Runtime notice only when installation, repair, or update needs attention.
 5. Settings and About access.
 
@@ -324,6 +325,14 @@ Each row may show:
 - overflow actions: Open, Open Terminal, Rename, Show in Files, Copy path, Delete.
 
 The launcher does not display a dashboard of counts or unrelated product cards. Nothing on it can be stale: the list is the workspaces folder itself.
+
+### 9.3 Workspaces page
+
+Every workspace is managed in one place, reached by the Workspaces tile (where New Folder was) and
+from Storage settings: the count and total size under its title, **New Folder** in its top bar, a
+search by name or path, **Recent · Name · Size**, and each workspace in the same row as the
+launcher's, with its size once measured. The home screen shows the recent five of this same list;
+Storage settings shows its summary, not a second list.
 
 ## 10. Permission Experience
 

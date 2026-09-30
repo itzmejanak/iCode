@@ -32,7 +32,7 @@ import dev.icode.mobile.domain.WorkspaceNameRules
 import dev.icode.mobile.domain.WorkspaceRuntimePath
 import dev.icode.mobile.domain.WorkspaceSummary
 
-/** One set of actions for a whole workspace, wherever one is listed: the launcher and Storage settings. */
+/** One set of actions for a whole workspace, wherever one is listed: the home screen and the Workspaces page. */
 @Composable
 fun WorkspaceActionsMenu(item: WorkspaceSummary, modifier: Modifier = Modifier) {
     val gateway = LocalWorkbenchGateway.current
