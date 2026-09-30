@@ -69,6 +69,19 @@ object PhoneStoragePaths {
     fun display(rootPath: String, path: String): String = crumbs(rootPath, path).joinToString(" / ") { it.name }
 }
 
+/**
+ * What is cut or copied, anywhere in iCode's workspaces, waiting for Paste
+ * (docs/workspaces-page-plan.md §2.7). A cut item moves once; a copied one pastes again.
+ */
+data class ItemClipboard(
+    val location: String,
+    val name: String,
+    val cut: Boolean,
+    val folder: Boolean,
+    /** A whole workspace, not something in one. */
+    val workspace: Boolean,
+)
+
 /** A folder chosen on phone storage for Import: where it is, and the name it proposes. */
 data class ImportSource(val path: String, val name: String, val displayPath: String)
 

@@ -60,6 +60,29 @@ class WorkspaceFilesTest {
         assertTrue(File(root, "src/a.kt").isFile)
     }
 
+    /** The one clipboard's paste: rooted at the workspaces folder, between workspaces and out to it. */
+    @Test fun `rooted at the workspaces, a folder moves between workspaces and a workspace copies beside itself`() {
+        val workspaces = temporaryFolder.newFolder("workspaces")
+        val app = File(workspaces, "app").apply { mkdirs() }
+        File(app, "lib").mkdirs()
+        File(app, "lib/x.kt").writeText("x")
+        File(workspaces, "other").mkdirs()
+        val all = WorkspaceFiles(workspaces)
+
+        val moved = all.move(File(app, "lib").path, File(workspaces, "other").path)
+        assertEquals("x", File(moved, "x.kt").readText())
+        assertFalse(File(app, "lib").exists())
+
+        val promoted = all.move(moved.path, workspaces.path)
+        assertEquals(File(workspaces, "lib").canonicalPath, promoted.canonicalPath)
+
+        assertEquals("app copy", all.copy(app.path, workspaces.path).name)
+        assertThrows(IOException::class.java) { all.move(app.path, File(app, "inner").apply { mkdirs() }.path) }
+        File(app, ".git").mkdirs()
+        assertThrows(IOException::class.java) { all.copy(File(app, "lib2").apply { mkdirs() }.path, File(app, ".git").path) }
+        assertThrows(IOException::class.java) { all.move(workspaces.path, File(workspaces, "other").path) }
+    }
+
     @Test fun `a folder cannot be copied into itself`() {
         assertThrows(IOException::class.java) { files.copy(path("src"), path("src")) }
     }

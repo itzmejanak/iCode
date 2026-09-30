@@ -66,6 +66,9 @@ internal class WorkspaceFileSource(private val paths: WorkspacePaths) {
         )
     }
 
+    /** The workspace [location] lies in; null for the workspaces folder itself or outside it. */
+    fun workspaceOf(location: String): String? = paths.workspaceOf(location)
+
     /** [location] is a workspace: a folder right under the workspaces, there now. */
     fun isWorkspace(location: String): Boolean = runCatching { requireWorkspace(location) }.isSuccess
 

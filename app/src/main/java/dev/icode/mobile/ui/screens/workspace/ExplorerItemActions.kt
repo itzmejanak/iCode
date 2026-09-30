@@ -42,54 +42,47 @@ import dev.icode.mobile.designsystem.LabeledTextField
 import dev.icode.mobile.domain.FileEntry
 import dev.icode.mobile.domain.FileKind
 import dev.icode.mobile.domain.FileTypes
+import dev.icode.mobile.domain.ItemClipboard
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.domain.WorkspaceNameRules
 import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 import dev.icode.mobile.ui.rememberPendingRequest
 
-/** An item cut or copied in the Explorer, waiting for Paste (as VS Code: Move is Cut, then Paste). */
-internal data class ExplorerClipboard(val path: String, val cut: Boolean)
-
-/** The long-press menu of one Explorer row. */
+/**
+ * The long-press menu of one Explorer row. Cut and Copy put it on iCode's one clipboard — the
+ * Workspaces page's too — and Paste takes whatever is there, from this workspace or another.
+ */
 @Composable
 internal fun ExplorerItemMenu(
     entry: FileEntry,
     expanded: Boolean,
-    clipboard: ExplorerClipboard?,
+    clipboard: ItemClipboard?,
     onDismiss: () -> Unit,
     onRename: () -> Unit,
-    onClipboard: (ExplorerClipboard) -> Unit,
     onPaste: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    val gateway = LocalWorkbenchGateway.current
     IcodeActionMenu(
         expanded = expanded,
         onDismiss = onDismiss,
         actions = listOf(
             IcodeMenuAction("Rename", Icons.Outlined.DriveFileRenameOutline, onRename),
-            IcodeMenuAction("Cut", Icons.Outlined.ContentCut, { onClipboard(ExplorerClipboard(entry.path, cut = true)) }),
-            IcodeMenuAction("Copy", Icons.Outlined.ContentCopy, { onClipboard(ExplorerClipboard(entry.path, cut = false)) }),
-            IcodeMenuAction("Paste", Icons.Outlined.ContentPaste, onPaste, enabled = clipboard != null),
+            IcodeMenuAction("Cut", Icons.Outlined.ContentCut, { gateway.dispatch(WorkbenchIntent.CutItem(entry.path)) }),
+            IcodeMenuAction("Copy", Icons.Outlined.ContentCopy, { gateway.dispatch(WorkbenchIntent.CopyItem(entry.path)) }),
+            IcodeMenuAction(pasteLabel(clipboard), Icons.Outlined.ContentPaste, onPaste, enabled = clipboard != null),
             IcodeMenuAction("Delete", Icons.Outlined.DeleteOutline, onDelete, destructive = true),
         ),
     )
 }
 
+/** "Paste RevPlayer": what Paste would bring, named, so a clipboard from another page is never a surprise. */
+internal fun pasteLabel(clipboard: ItemClipboard?): String = clipboard?.let { "Paste ${it.name}" } ?: "Paste"
+
 /** Paste goes into a folder row itself, or into the folder a file row sits in. */
 internal fun pasteTarget(root: String?, entry: FileEntry, files: List<FileEntry>): String? =
     creationParentLocation(root, entry.path, files)
-
-/** Sends the Paste the clipboard asks for; a cut item moves once, a copied one can be pasted again. */
-internal fun paste(clipboard: ExplorerClipboard, target: String, send: (WorkbenchIntent) -> Unit): ExplorerClipboard? {
-    return if (clipboard.cut) {
-        send(WorkbenchIntent.MoveWorkspaceItem(clipboard.path, target))
-        null
-    } else {
-        send(WorkbenchIntent.CopyWorkspaceItem(clipboard.path, target))
-        clipboard
-    }
-}
 
 /** The create form, for a new name: the same rules, the same answer by request id. */
 @Composable

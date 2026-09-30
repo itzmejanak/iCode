@@ -117,4 +117,20 @@ UI."
   total" — opening the Workspaces page; it keeps what is its own (device, runtime, cache, All Files
   Access, Clear Cache) and its sentence on where workspaces live. The actions menu is now used by
   the two lists that remain. Layout §9 and US-ENTRY-001 / US-STORAGE-001 say so.
+- **P5** (2026-10-01): one clipboard, no second copy of anything. `WorkspaceUsage` answers "may this
+  change now?" for everyone: a task (its dialog shows), a file with unsaved edits or an unanswered
+  recovery question (the Explorer's own rule, which the lifecycle's plainer one gave way to),
+  recovery drafts, and for a whole workspace a terminal or Git in it. The lifecycle's `inUse` and
+  the Explorer's `blocked` / `busy` are gone. The lifecycle's **release** (close it if open) and
+  **retire** (settings and history go) are Delete's steps, and the paste uses them for a cut
+  workspace. The clipboard is the snapshot's (`ItemClipboard`); `CutItem`, `CopyItem`,
+  `PasteInto(folder)` and `PasteAsWorkspace` replace the Explorer's move and copy intents, routed in
+  one line. The paste reuses `WorkspaceFiles` rooted at the workspaces folder: a cut moves in one
+  step and leaves the clipboard; a copy is the cancellable task and stays for another paste. What
+  follows a move is one rule: inside one workspace tabs, tree and recents follow; out of it tabs
+  close and recents go (the paths' `workspaceOf` is `WorkspacePaths`' own). Refused with the
+  reason: gone, into itself, a file as a workspace, a workspace pasted as one, a name a workspace
+  cannot have, a cut onto a taken name, anything held. The Explorer shows the one clipboard and names what Paste brings
+  ("Paste RevPlayer"). The gateway came down to 367 (budget lowered). 4 usage tests, 1 file test on
+  real folders. Gate: 567 tests; lint 0 errors / 12 warnings; both guards pass.
 

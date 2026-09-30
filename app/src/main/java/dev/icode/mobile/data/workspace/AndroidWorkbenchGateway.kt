@@ -148,25 +148,21 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
         activeRoot = { session.activeRoot },
         onSaved = { gitWorkspace.scheduleRefresh() },
     )
-    private val items: WorkspaceItemsCoordinator = WorkspaceItemsCoordinator(
-        workbench,
-        tasks,
-        source,
-        tree,
-        documents,
-        library,
-        activeRoot = { session.activeRoot },
-        refreshWorkspaceState = { root -> gitWorkspace.refresh(root) },
-        reindex = { root -> search.workspaceChanged(root) },
-    )
-
     private val session: WorkspaceSessionCoordinator = WorkspaceSessionCoordinator(
         workbench, scope, source, tree, library, documents, recovery, gitWorkspace, search, terminal, languages,
     )
+    /** What may change now, asked the same way by the lifecycle and the Explorer's items. */
+    private val usage = WorkspaceUsage(workbench, tasks, terminal::runsIn, documents::blockingEdits) { session.activeRoot }
     private val lifecycle = WorkspaceLifecycleCoordinator(
-        workbench, tasks, source, library, session, terminal,
+        workbench, tasks, source, library, session, usage,
         moveSettings = settings::moveWorkspace,
         forgetSettings = settings::forgetWorkspace,
+    )
+    private val items = WorkspaceItemsCoordinator(
+        workbench, tasks, source, tree, documents, library, usage, lifecycle,
+        activeRoot = { session.activeRoot },
+        refreshWorkspaceState = { root -> gitWorkspace.refresh(root) },
+        reindex = { root -> search.workspaceChanged(root) },
     )
     private val importer = WorkspaceImportCoordinator(
         workbench, tasks, runtimeLayout.workspaces, git,
@@ -272,8 +268,7 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
                         is WorkbenchIntent.CreateFile -> items.createFile(intent)
                         is WorkbenchIntent.CreateWorkspaceFolder -> items.createFolder(intent)
                         is WorkbenchIntent.RenameWorkspaceItem -> items.rename(intent)
-                        is WorkbenchIntent.MoveWorkspaceItem -> items.move(intent)
-                        is WorkbenchIntent.CopyWorkspaceItem -> items.copy(intent)
+                        is WorkbenchIntent.ClipboardIntent -> items.clipboard(intent)
                         is WorkbenchIntent.DeleteWorkspaceItem -> items.delete(intent)
                         is WorkbenchIntent.SaveDocument -> documents.save(
                             intent.location,

@@ -63,26 +63,18 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
     var menuFor by remember { mutableStateOf<String?>(null) }
     var renaming by rememberSaveable { mutableStateOf<String?>(null) }
     var deleting by rememberSaveable { mutableStateOf<String?>(null) }
-    // Cut or copied, per workspace: a path from another workspace cannot be pasted here.
-    var clipPath by rememberSaveable(state.activeWorkspaceLocation) { mutableStateOf<String?>(null) }
-    var clipCut by rememberSaveable(state.activeWorkspaceLocation) { mutableStateOf(false) }
-    val clipboard = clipPath?.let { ExplorerClipboard(it, clipCut) }
+    // iCode's one clipboard: cut or copied here, in another workspace, or on the Workspaces page.
+    val clipboard = state.clipboard
     val rootSelectionInteraction = remember { MutableInteractionSource() }
-    val pasteInto = { target: String? ->
-        if (clipboard != null && target != null) {
-            val left = paste(clipboard, target, gateway::dispatch)
-            clipPath = left?.path
-        }
-    }
+    val pasteInto = { target: String? -> target?.let { gateway.dispatch(WorkbenchIntent.PasteInto(it)) } }
     Column(Modifier.fillMaxSize()) {
         WorkspaceHeader(
             onNewItem = { type ->
                 createParent = creationParentLocation(state.activeWorkspaceLocation, selectedPath, state.files)
                 createType = type
             },
-            onPaste = if (clipboard == null) null else {
-                { pasteInto(creationParentLocation(state.activeWorkspaceLocation, selectedPath, state.files)) }
-            },
+            pasteLabel = clipboard?.let { pasteLabel(it) },
+            onPaste = { pasteInto(creationParentLocation(state.activeWorkspaceLocation, selectedPath, state.files)) },
         )
         Row(Modifier.weight(1f).background(IcodeColors.Surface)) {
             ActivityRail(
@@ -164,11 +156,6 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
                                 clipboard = clipboard,
                                 onDismiss = { menuFor = null },
                                 onRename = { menuFor = null; renaming = entry.path },
-                                onClipboard = { clip ->
-                                    menuFor = null
-                                    clipPath = clip.path
-                                    clipCut = clip.cut
-                                },
                                 onPaste = {
                                     menuFor = null
                                     pasteInto(pasteTarget(state.activeWorkspaceLocation, entry, state.files))
@@ -194,7 +181,7 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
 
 /** Workspace header used by the explorer family. */
 @Composable
-private fun WorkspaceHeader(onNewItem: (WorkspaceItemType) -> Unit, onPaste: (() -> Unit)?) {
+private fun WorkspaceHeader(onNewItem: (WorkspaceItemType) -> Unit, pasteLabel: String?, onPaste: () -> Unit) {
     val state = LocalWorkbenchSnapshot.current
     var menuExpanded by remember { mutableStateOf(false) }
     IcodeTopBar(
@@ -211,7 +198,7 @@ private fun WorkspaceHeader(onNewItem: (WorkspaceItemType) -> Unit, onPaste: (()
                     actions = listOfNotNull(
                         IcodeMenuAction("New file", Icons.Outlined.Description, { onNewItem(WorkspaceItemType.File) }),
                         IcodeMenuAction("New folder", Icons.Outlined.CreateNewFolder, { onNewItem(WorkspaceItemType.Folder) }),
-                        onPaste?.let { IcodeMenuAction("Paste", Icons.Outlined.ContentPaste, { menuExpanded = false; it() }) },
+                        pasteLabel?.let { IcodeMenuAction(it, Icons.Outlined.ContentPaste, { menuExpanded = false; onPaste() }) },
                     ),
                 )
             }
