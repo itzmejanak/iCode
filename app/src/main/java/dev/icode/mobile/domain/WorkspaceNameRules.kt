@@ -15,6 +15,10 @@ object WorkspaceNameRules {
     fun workspaceNameError(rawName: String): String? =
         validationError(rawName) ?: if (rawName.trim().startsWith('.')) "A workspace name cannot start with a dot" else null
 
+    /** A new workspace's name: [workspaceNameError], or that [taken] says a workspace has it. */
+    fun newWorkspaceError(rawName: String, taken: (name: String) -> Boolean): String? =
+        workspaceNameError(rawName) ?: rawName.trim().takeIf(taken)?.let { "A workspace named $it already exists" }
+
     private fun nameError(rawName: String, kind: String): String? {
         val name = rawName.trim()
         val label = if (kind == "file") "File" else "Folder"

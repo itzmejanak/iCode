@@ -43,7 +43,7 @@ fun InterruptedTransferNotice(
                 }
                 Text(
                     if (notice.label == "Cloning") {
-                        "iCode's process ended while Git was cloning. Git may have left the folder part-written: remove it, then clone again."
+                        "iCode's process ended while Git was cloning. Nothing of it was kept: clone again."
                     } else {
                         "iCode's process ended while Git was working. Run it again; Git carries on from what it has."
                     },

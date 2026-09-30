@@ -27,6 +27,9 @@ class MainActivity : ComponentActivity() {
     /** A terminal session a notification asked to show; cleared once shown. */
     private var terminalSessionToShow by mutableStateOf<String?>(null)
 
+    /** App info's Manage space asked for Storage settings; cleared once shown. */
+    private var storageSettingsToShow by mutableStateOf(false)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         val splashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -36,7 +39,10 @@ class MainActivity : ComponentActivity() {
         val requestedScreen = CaptureEnvironment.requestedRoute(intent) ?: Route.Splash
         val capture = CaptureEnvironment.state(intent)
         // A recreated activity has already acted on the intent it started with.
-        if (savedInstanceState == null) terminalSessionToShow = terminalSessionIn(intent)
+        if (savedInstanceState == null) {
+            terminalSessionToShow = terminalSessionIn(intent)
+            storageSettingsToShow = intent?.action == ACTION_MANAGE_SPACE
+        }
         setContent {
             IcodeApp(
                 initialScreen = requestedScreen,
@@ -44,6 +50,8 @@ class MainActivity : ComponentActivity() {
                 onReadyToRender = { readyToRender = true },
                 terminalSessionToShow = terminalSessionToShow,
                 onTerminalSessionShown = { terminalSessionToShow = null },
+                showStorageSettings = storageSettingsToShow,
+                onStorageSettingsShown = { storageSettingsToShow = false },
             )
         }
     }
@@ -59,11 +67,12 @@ class MainActivity : ComponentActivity() {
         super.onStop()
     }
 
-    /** A notification tapped while this screen already exists. */
+    /** A notification tapped, or Manage space chosen, while this screen already exists. */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         terminalSessionIn(intent)?.let { terminalSessionToShow = it }
+        if (intent.action == ACTION_MANAGE_SPACE) storageSettingsToShow = true
     }
 
     private fun terminalSessionIn(intent: Intent?): String? =
@@ -73,5 +82,8 @@ class MainActivity : ComponentActivity() {
         /** Opens iCode on one terminal session: its workspace, the Terminal panel, that tab. */
         const val ACTION_SHOW_TERMINAL_SESSION = "dev.icode.mobile.action.SHOW_TERMINAL_SESSION"
         const val EXTRA_TERMINAL_SESSION_ID = "terminal_session"
+
+        /** Opens iCode on Storage settings: App info's Manage space ([ManageSpaceActivity]). */
+        const val ACTION_MANAGE_SPACE = "dev.icode.mobile.action.MANAGE_SPACE"
     }
 }

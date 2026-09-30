@@ -176,7 +176,7 @@ class WorkspaceImportCoordinatorTest {
         coordinator.import(".hidden")
         assertTrue(workbench.current.tasks.isEmpty())
         assertEquals(2, messages.size)
-        assertEquals("A workspace named app already exists. Choose another name", messages[0])
+        assertEquals("A workspace named app already exists", messages[0])
         assertFalse(File(root, ".hidden").exists())
     }
 }

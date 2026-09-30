@@ -93,7 +93,7 @@ reached:
 |---|---|---|
 | host path — the **location**, the identity every store already keys by | `<files>/workspaces/RevPlayer/src/App.tsx` | Explorer, editor, file operations, stores, watcher |
 | guest path | `/workspace/RevPlayer/src/App.tsx` | terminal, Git, ripgrep, language services; **also the path people see** (launcher, Explorer header, Copy path) |
-| document ID | `RevPlayer/src/App.tsx` | the Files provider |
+| document ID | `/workspace/RevPlayer/src/App.tsx` — the guest path; the root's is `/workspace` | the Files provider |
 
 - `guestOf(location)` / `locationOf(guestPath)`: prefix exchange, both ways, null outside the root.
 - `workspaceOf(location)`: the workspace holding a location — its first path segment under the root.
@@ -116,14 +116,18 @@ reached:
   a folder never opened in iCode sorts by its modification time.
 - iCode watches `files/workspaces` while the launcher is shown: a workspace made, renamed or removed
   from the terminal appears or goes.
-- **Rename** is refused while a terminal session or a task runs in the workspace, or a file in it
-  has unsaved edits; its language services are stopped first. The folder is renamed; its settings,
-  last-opened time and recent files follow; if it is the open workspace, its tabs, tree, session
-  and search index follow, as for a folder renamed in the Explorer.
+- **Rename** and **Delete** are refused, saying why, while a terminal session, a task or a Git
+  operation runs in the workspace, a file in it has unsaved edits, or its recovery drafts wait
+  (`WorkspaceLifecycleCoordinator`). Nothing is pulled from under what uses it.
+- **Rename**: the open workspace closes first (its language services stop), the folder is renamed
+  in one step, its settings, last-opened time, recent files and saved session follow, and an open
+  workspace opens again with its tabs.
 - **Delete** is confirmed (the name, its path, "this cannot be undone") and runs as the existing
-  delete task. It is refused while a terminal session runs in the workspace or its recovery drafts
-  wait; the open workspace is closed first, asking about unsaved edits as a switch does. Its
-  settings, last-opened time and recent files are forgotten.
+  delete task, without Cancel; the open workspace closes first. Its settings, last-opened time and
+  recent files are forgotten.
+- One rule names a new workspace for New Folder, Import, Clone and Rename, on the screen and in the
+  backend alike: a folder name, not starting with `.`, not taken
+  (`WorkspaceNameRules.newWorkspaceError`).
 
 ### 4.4 Screens
 
@@ -178,7 +182,8 @@ A `DocumentsProvider`, authority `<applicationId>.workspaces`, exported only to 
 documents UI (`android.permission.MANAGE_DOCUMENTS`): another app reaches exactly what the user
 picks for it, through Android's grants. One root, **iCode**:
 
-- Document ID = the path relative to `files/workspaces`; the root is `/`.
+- Document ID = the guest path (`/workspace/RevPlayer/src`), the path iCode shows everywhere,
+  exchanged through `WorkspacePaths`; the root's is `/workspace`.
 - Operations: roots, a document, children; open for read, write and truncate; create a file or
   folder (a taken name becomes "name (1)", as Android does); rename; delete (a folder with
   everything in it); move within the root; `isChildDocument`, so an app can be given one workspace
@@ -187,17 +192,23 @@ picks for it, through Android's grants. One root, **iCode**:
   inside the canonical root. A link can therefore never lead another app out of the workspaces into
   the runtime (its home holds SSH keys) or iCode's other data: such links are neither listed nor
   opened. Nothing else of iCode's storage is exposed.
-- **Changes.** Cursors carry notification URIs; the provider notifies after its own writes; iCode's
-  own file operations notify their folder. iCode's watcher sees writes made through the provider
-  as any other write, so an open file changed by another app follows the existing
-  external-change flow.
+- **Changes.** Cursors carry notification URIs; the provider notifies after its own writes. Every
+  refresh iCode makes after a change — its own, or one its watcher saw (the terminal's included) —
+  notifies the provider's whole address space, so every listing the Files app shows reads again.
+  iCode's watcher sees writes made through the provider as any other write, so an open file changed
+  by another app follows the existing external-change flow.
+- **Whole workspaces** are made there with New folder (the name rule of §4.3), but renamed, moved or
+  deleted only in iCode, which follows their settings, history and sessions: the provider does not
+  offer those actions on a workspace, and refuses a move into the root.
 - **Show in Files** opens Android's Files app at the workspace, else at the root (device check D8).
 
 ### 4.7 Data safety
 
 - `android:hasFragileUserData="true"`: uninstalling asks whether to keep iCode's data.
-- `android:manageSpaceActivity`: a non-exported alias of the main activity that opens Settings →
-  Storage. App info then shows **Manage space** instead of **Clear storage** (device check D10).
+- `android:manageSpaceActivity`: `ManageSpaceActivity`, not exported, hands the request to iCode's
+  own screen in iCode's own task, which opens Settings → Storage. App info then shows **Manage
+  space** instead of **Clear storage** (device check D10). An alias of the main activity would
+  have started a second iCode screen, with its own workbench, inside Settings.
 - Backups stay off (cloud and device transfer exclude everything) — the owner's answer.
 - A workspace is deleted only by its confirmed Delete…; the runtime's Repair and Reset say that
   workspaces are kept.
@@ -254,9 +265,9 @@ named, and the guards' allowlists shrink with it.
 | `domain`: `FolderBrowserPurpose`, `FolderBrowserEntry`, `FolderBrowserState`; intents `StartFolderBrowser`, `BrowseFolder`, `BrowseParentFolder`, `ConfirmFolderSelection`, `RequestCreateFolder`, `ShowWorkspaceLocation`, `RemoveRecentWorkspace`, `RemoveStaleRecents`; effects `FolderBrowserOpened`, `FolderDestinationSelected`; snapshot `folderBrowser`, `createFolderDestination`, `createFolderDestinationDisplay` | deleted, replaced by `CreateWorkspace`, `RenameWorkspace`, `DeleteWorkspace`, `ShowWorkspaceInFiles`, the import intents, and `CloneRepository` without a destination | W3–W5 |
 | `SystemPermission.Storage`, `SystemAccess.storage`, `AndroidSystemAccess`, `SystemPrompts`, `PermissionScreen`'s storage step, `IcodeApp`'s storage branch, `OnboardingRoute` | storage removed | W4 |
 | `OpenFolderScreen.kt`, `Route.OpenFolderBrowser` | deleted | W4 |
-| `LauncherScreen` (with the background-task row), `CreateFolderScreen`, `CloneRepositoryScreen`, `CloneProgressScreen`, `WorkspaceActionsMenu`, `StorageSettingsScreen`, `SettingsCatalog`, `EntryScreenHost` | changed as §4.4 | W4 |
+| `LauncherScreen` (with the background-task row), `CreateFolderScreen`, `CloneRepositoryScreen`, `CloneProgressScreen`, `WorkspaceActionsMenu`, `StorageSettingsScreen`, `SettingsCatalog`, `EntryScreenHost` | changed as §4.4; New Folder, Import and Clone share one name form (`NewWorkspaceFields.kt`), and the dialogs that wait on a request share `PendingRequest` | W4 |
 | Capture fixtures (`app/src/debug`) | phone-storage paths, the folder browser and its destination replaced by `/workspace` workspaces and an import source | W4–W5 |
-| Manifest | `MANAGE_EXTERNAL_STORAGE` removed; provider, alias, `hasFragileUserData`, `manageSpaceActivity` added | W4, W6, W7 |
+| Manifest | `MANAGE_EXTERNAL_STORAGE` removed; provider, `ManageSpaceActivity`, `hasFragileUserData`, `manageSpaceActivity` added | W4, W6, W7 |
 | New: `WorkspacePaths`, the import copier and its picker source, the Git repair, the provider and its ID logic, the migration | tested where pure; each with its device check | W2–W7 |
 | architecture.md §2, §3, §4, §5.5, §6–8, §10.1, §10.2, §11, §12, §13, §21, §23–27 · prd.md §3, §4, §5.1, §9.2, §10.1, §10.2 (PR-WS-01–07), §12.1, §13, glossary · user-stories.md §3, US-ENTRY-001/002, §5 (US-STORAGE-001–003 rewritten), US-WS-001–004, new US-WS-006, US-EDIT-003 · layout.md §6, §9, §10 · README · Todo · plan.md · storage-logic.md (superseded) | rewritten to this plan | W1 |
 
@@ -295,9 +306,9 @@ against the existing kit only and reviewed line by line; the owner's build is it
 | D5 | Fresh install: onboarding | No storage step; notifications and battery once each; the launcher |
 | D6 | Import from `Internal storage/Projects/RevPlayer` and from a folder inside `Download`; cancel one midway | Progress; the workspace opens; a cancelled import leaves nothing; the picker's refusals as §4.5 |
 | D7 | An imported repository with `gradlew` and a committed link | `./gradlew` runs; the link is a link; `git status` as before the import |
-| D8 | Android's Files app | **iCode** listed; browse, open, edit and save a file in another editor; copy a workspace to `Download`; Show in Files lands on the workspace |
+| D8 | Android's Files app | **iCode** listed; browse, open, edit and save a file in another editor; copy a workspace to `Download`; Show in Files lands on the workspace; a file made in iCode's terminal appears in an open Files listing; a workspace offers no Rename, Move or Delete there |
 | D9 | MT Manager | Whether it can add iCode's provider; written down either way |
-| D10 | Uninstall dialog; App info → Storage | "Keep app data" offered; Manage space opens Storage settings (XOS may differ: written down) |
+| D10 | Uninstall dialog; App info → Storage | "Keep app data" offered; Manage space opens Storage settings in iCode's own task, one iCode screen (XOS may differ: written down) |
 | D11 | The upgrade from `b0c585d` on the owner's phone | One notice naming the old workspaces; no shortcut to phone storage left; `files/workspaces` holds only real workspaces |
 | D12 | Runtime Repair, then Reset | Workspaces untouched |
 

@@ -42,8 +42,8 @@ internal val settingsCategories = listOf(
         "language server lsp command start stop restart"),
     SettingsCategory("Runtime", "Ubuntu environment, health, repair", Icons.Outlined.Storage, Route.SettingsRuntime,
         "linux ubuntu proot packages architecture disk repair reset"),
-    SettingsCategory("Storage", "Disk usage, workspace folders, cleanup", Icons.Outlined.Folder, Route.StorageSettings,
-        "disk space usage files paths workspace folders cache cleanup stale recents"),
+    SettingsCategory("Storage", "Disk usage, workspaces, cleanup", Icons.Outlined.Folder, Route.StorageSettings,
+        "disk space usage files paths workspace workspaces folders size cache cleanup manage space uninstall keep data"),
     SettingsCategory("Application", "Version, build, and runtime", Icons.Outlined.Info, Route.About,
         "about version build editor engine android licenses source documentation"),
 )

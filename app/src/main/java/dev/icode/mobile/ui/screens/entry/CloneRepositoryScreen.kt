@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -27,14 +28,9 @@ import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.LabeledTextField
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.navigation.NavigationActions
-import androidx.compose.foundation.clickable
-import androidx.compose.material3.Text
-import dev.icode.mobile.designsystem.LabeledField
-import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.NoticeCard
 import dev.icode.mobile.designsystem.IcodeTone
 import dev.icode.mobile.designsystem.StatusLabel
-import dev.icode.mobile.domain.FolderBrowserPurpose
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.GitRemoteRules
 import dev.icode.mobile.domain.WorkbenchIntent
@@ -49,14 +45,13 @@ fun CloneRepositoryScreen(actions: NavigationActions) {
     val state = LocalWorkbenchSnapshot.current
     // Typing drives local state so every keystroke lands immediately; routing
     // each one through the gateway made the field lag and drop characters.
-    // The snapshot copy is what survives navigating away to pick a destination,
+    // The snapshot copy is what survives navigating away (to Git credentials),
     // and seeds this state when the screen is entered again.
     var url by remember { mutableStateOf(state.cloneUrl) }
+    var name by remember { mutableStateOf(state.cloneName) }
     var branch by remember { mutableStateOf(state.cloneBranch) }
-    val destination = state.createFolderDestination
-    // Git derives the directory from the URL; showing it keeps the result
-    // predictable before the clone runs.
-    val directoryName = directoryNameFor(url)
+    fun keepForm() = gateway.dispatch(WorkbenchIntent.UpdateCloneForm(url, name, branch))
+    val nameProblem = newWorkspaceProblem(name)
     val branchError = branch.trim().takeIf { it.isNotEmpty() }?.let(GitRemoteRules::branchError)
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Clone Repository", onBack = actions.back)
@@ -72,39 +67,21 @@ fun CloneRepositoryScreen(actions: NavigationActions) {
                 label = "Repository URL",
                 value = url,
                 onValueChange = {
+                    // The name is Git's for the address until the user gives their own.
+                    if (name.isEmpty() || name == directoryNameFor(url)) name = directoryNameFor(it)
                     url = it
-                    gateway.dispatch(WorkbenchIntent.UpdateCloneForm(it, branch))
+                    keepForm()
                 },
                 placeholder = "https://host/owner/repo.git or git@host:owner/repo.git",
                 literal = true,
             )
-            LabeledField(
-                "Destination Directory",
-                state.createFolderDestinationDisplay ?: "Choose where to clone",
-            ) {
-                Text(
-                    "Change",
-                    modifier = Modifier.clickable {
-                        gateway.dispatch(
-                            WorkbenchIntent.StartFolderBrowser(FolderBrowserPurpose.CreateFolderDestination),
-                        )
-                    },
-                    style = IcodeType.Label.copy(color = IcodeColors.Accent),
-                )
-            }
-            if (directoryName.isNotEmpty()) {
-                MonoLine(
-                    "Clones into $directoryName",
-                    color = IcodeColors.TextMuted,
-                    style = IcodeType.MonoSmall,
-                )
-            }
+            WorkspaceNameFields(name, { name = it; keepForm() }, nameProblem)
             LabeledTextField(
                 label = "Checkout Branch (Optional)",
                 value = branch,
                 onValueChange = {
                     branch = it
-                    gateway.dispatch(WorkbenchIntent.UpdateCloneForm(url, it))
+                    keepForm()
                 },
                 literal = true,
             )
@@ -114,13 +91,9 @@ fun CloneRepositoryScreen(actions: NavigationActions) {
                     StatusLabel(failure.reason, IcodeColors.Error)
                 }
             }
-            (state.gitOperation as? GitOperationState.Cancelled)?.let { cancelled ->
+            if (state.gitOperation is GitOperationState.Cancelled) {
                 NoticeCard(tone = IcodeTone.Warning, modifier = Modifier.fillMaxWidth()) {
-                    StatusLabel(
-                        cancelled.leftover?.let { "Clone cancelled. Git left $it part-written; remove it before cloning there again." }
-                            ?: "Clone cancelled.",
-                        IcodeColors.Amber,
-                    )
+                    StatusLabel("Clone cancelled. Nothing was kept.", IcodeColors.Amber)
                 }
             }
             IcodeListRow(
@@ -146,27 +119,21 @@ fun CloneRepositoryScreen(actions: NavigationActions) {
             if (state.gitOperation is GitOperationState.Running) "Cloning…" else "Clone Repository",
             {
                 gateway.dispatch(
-                    WorkbenchIntent.CloneRepository(
-                        url = url.trim(),
-                        destination = destination.orEmpty(),
-                        directoryName = directoryName,
-                        branch = branch.trim(),
-                    ),
+                    WorkbenchIntent.CloneRepository(url = url.trim(), directoryName = name.trim(), branch = branch.trim()),
                 )
                 actions.navigate(Route.CloneProgress)
             },
             Modifier.fillMaxWidth().padding(IcodeSpacing.Space5),
-            enabled = url.isNotBlank() && destination != null && branchError == null &&
+            enabled = url.isNotBlank() && nameProblem == null && branchError == null &&
                 state.gitOperation !is GitOperationState.Running,
         )
     }
 }
 
 /**
- * The directory Git would create for [url].
+ * The name Git would give the folder for [url], proposed as the workspace's name.
  *
- * Mirrors Git's own rule — the last path segment without a trailing `.git` —
- * so the destination shown matches what actually appears on disk.
+ * Mirrors Git's own rule — the last path segment without a trailing `.git`.
  */
 internal fun directoryNameFor(url: String): String {
     val trimmed = url.trim().trimEnd('/')

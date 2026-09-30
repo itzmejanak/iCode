@@ -19,10 +19,10 @@ fun EntryScreenHost(screen: Route, actions: NavigationActions) {
         Route.LauncherHome -> LauncherScreen(actions, empty = false)
         Route.LauncherEmpty -> LauncherScreen(actions, empty = true)
         Route.Notifications -> NotificationsScreen(actions)
+        Route.ImportWorkspace -> ImportScreen(actions)
         Route.CloneRepository -> CloneRepositoryScreen(actions)
         Route.CloneProgress -> CloneProgressScreen(actions)
         Route.CreateFolder -> CreateFolderScreen(actions)
-        Route.OpenFolderBrowser -> OpenFolderScreen(actions)
         else -> Unit
     }
 }

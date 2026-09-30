@@ -38,7 +38,6 @@ import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.domain.WorkbenchEffect
 import dev.icode.mobile.domain.WorkbenchGateway
 import dev.icode.mobile.domain.WorkbenchIntent
-import dev.icode.mobile.domain.SystemPermission
 import dev.icode.mobile.domain.WorkspacePreferences
 import dev.icode.mobile.domain.WorkspacePreferencesRepository
 import dev.icode.mobile.domain.GitActionRules
@@ -61,6 +60,9 @@ fun IcodeApp(
     /** A terminal session to bring to the front, from its notification. */
     terminalSessionToShow: String? = null,
     onTerminalSessionShown: () -> Unit = {},
+    /** App info's Manage space: Storage settings, once onboarding is over. */
+    showStorageSettings: Boolean = false,
+    onStorageSettingsShown: () -> Unit = {},
 ) {
     val context = LocalContext.current
     val captureMode = capture != null
@@ -146,7 +148,7 @@ fun IcodeApp(
             withFrameNanos { }
             editorSessions.releaseClosed(openDocumentLocations)
         }
-        // Storage access decides whether onboarding or the launcher comes
+        // What Android allows decides whether onboarding or the launcher comes
         // first, so there is nothing honest to draw until it is known.
         LaunchedEffect(captureMode, snapshot.systemAccess) {
             if (captureMode || snapshot.systemAccess != null) onReadyToRender()
@@ -177,6 +179,11 @@ fun IcodeApp(
             gateway.dispatch(WorkbenchIntent.ShowTerminalSession(id))
             onTerminalSessionShown()
         }
+        LaunchedEffect(showStorageSettings, pastOnboarding) {
+            if (!showStorageSettings || !pastOnboarding) return@LaunchedEffect
+            navigation.actions.navigate(Route.StorageSettings)
+            onStorageSettingsShown()
+        }
         val systemPrompts = rememberSystemPrompts(gateway)
 
         LaunchedEffect(gateway) {
@@ -184,21 +191,15 @@ fun IcodeApp(
                 when (effect) {
                     is WorkbenchEffect.RequestSystemPermission -> systemPrompts.request(effect.permission)
                     is WorkbenchEffect.OpenSystemSettings -> systemPrompts.openSettings(effect.permission)
-                    is WorkbenchEffect.SystemPermissionResolved -> if (effect.permission == SystemPermission.Storage) {
-                        // The permission screen walks on to its next step by
-                        // itself. Elsewhere a grant replaces, so granting from
-                        // the launcher's banner leaves one launcher behind,
-                        // not a stack of them.
-                        if (!effect.granted) {
-                            Toast.makeText(context, "All files access was not granted", Toast.LENGTH_LONG).show()
-                        } else if (navigation.current != Route.PermissionExplanation) {
-                            navigation.actions.replace(Route.LauncherHome)
-                        }
+                    // The permission screen walks on to its next step by itself.
+                    is WorkbenchEffect.SystemPermissionResolved -> Unit
+                    // Change on the Import screen picks again; it stays, showing the new folder.
+                    WorkbenchEffect.ImportSourceChosen -> if (navigation.current != Route.ImportWorkspace) {
+                        navigation.actions.navigate(Route.ImportWorkspace)
                     }
-                    WorkbenchEffect.FolderBrowserOpened -> navigation.actions.navigate(Route.OpenFolderBrowser)
-                    is WorkbenchEffect.FolderDestinationSelected -> navigation.actions.back()
-                    // A finished clone's progress gives way to its workspace, so Back returns to the form.
-                    is WorkbenchEffect.WorkspaceOpened -> if (navigation.current == Route.CloneProgress) {
+                    is WorkbenchEffect.ShowInFiles -> systemPrompts.showInFiles(effect)
+                    // What made the workspace gives way to it, so Back returns to the launcher.
+                    is WorkbenchEffect.WorkspaceOpened -> if (navigation.current in MAKES_A_WORKSPACE) {
                         navigation.actions.replace(Route.WorkspaceExplorer)
                     } else {
                         navigation.actions.navigate(Route.WorkspaceExplorer)
@@ -271,6 +272,9 @@ private fun ScreenHost(screen: Route, actions: NavigationActions) {
         RouteGroup.RECOVERY -> RecoveryScreenHost(screen, actions)
     }
 }
+
+/** Screens that make a workspace: once it opens, it takes their place. */
+private val MAKES_A_WORKSPACE = setOf(Route.CreateFolder, Route.ImportWorkspace, Route.CloneProgress)
 
 /** The first-run screens; each replaces the one before it. */
 private val ONBOARDING_SCREENS = setOf(

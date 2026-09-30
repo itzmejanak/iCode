@@ -30,13 +30,11 @@ internal class WorkspaceLifecycleCoordinator(
 ) {
     suspend fun create(rawName: String) {
         val name = rawName.trim()
-        WorkspaceNameRules.workspaceNameError(name)?.let { return workbench.message(it) }
+        WorkspaceNameRules.newWorkspaceError(name, ::exists)?.let { return workbench.message(it) }
         val target = File(source.workspacesRoot, name)
         runCatching {
             source.workspacesRoot.mkdirs()
-            if (!target.mkdir()) {
-                throw IOException(if (target.exists()) "A workspace named $name already exists" else "The workspace could not be created")
-            }
+            if (!target.mkdir()) throw IOException(WorkspaceNameRules.newWorkspaceError(name, ::exists) ?: "The workspace could not be created")
         }.onSuccess { session.open(target.path, persist = true) }
             .onFailure { error -> workbench.report("workspace", "Unable to create the workspace", error) }
     }
@@ -44,11 +42,10 @@ internal class WorkspaceLifecycleCoordinator(
     suspend fun rename(intent: WorkbenchIntent.RenameWorkspace) {
         val from = intent.location
         val name = intent.newName.trim()
-        WorkspaceNameRules.workspaceNameError(name)?.let { return fail(intent.requestId, it) }
         if (!source.isWorkspace(from)) return fail(intent.requestId, "This workspace no longer exists")
         val to = File(source.workspacesRoot, name).path
         if (to == from) return workbench.emit(WorkbenchEffect.WorkspaceItemChanged(intent.requestId, from))
-        if (File(to).exists()) return fail(intent.requestId, "A workspace named $name already exists")
+        WorkspaceNameRules.newWorkspaceError(name, ::exists)?.let { return fail(intent.requestId, it) }
         inUse(from)?.let { return fail(intent.requestId, it) }
         val open = session.activeRoot == from
         val tabs = if (open) workbench.current.openDocuments.map { it.location } else emptyList()
@@ -117,6 +114,8 @@ internal class WorkspaceLifecycleCoordinator(
             else -> null
         }
     }
+
+    private fun exists(name: String) = File(source.workspacesRoot, name).exists()
 
     private suspend fun fail(requestId: String, message: String) =
         workbench.emit(WorkbenchEffect.WorkspaceItemFailed(requestId, message))

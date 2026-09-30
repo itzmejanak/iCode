@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.storage
 
 import android.content.Context
+import dev.icode.mobile.domain.WorkspaceRuntimePath
 import java.io.File
 
 /**
@@ -36,7 +37,7 @@ internal class WorkspacePaths(val root: File) {
 
     companion object {
         /** Where the workspaces are in the runtime. */
-        const val GUEST_ROOT = "/workspace"
+        const val GUEST_ROOT = WorkspaceRuntimePath.ROOT
 
         /**
          * The app's own: `files/workspaces`. Canonical, as every location is — Android's `files`

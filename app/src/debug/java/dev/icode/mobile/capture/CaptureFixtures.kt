@@ -6,9 +6,6 @@ import dev.icode.mobile.domain.Diagnostic
 import dev.icode.mobile.domain.ExternalChange
 import dev.icode.mobile.domain.FileEntry
 import dev.icode.mobile.domain.FileKind
-import dev.icode.mobile.domain.FolderBrowserEntry
-import dev.icode.mobile.domain.FolderBrowserPurpose
-import dev.icode.mobile.domain.FolderBrowserState
 import dev.icode.mobile.domain.GitChange
 import dev.icode.mobile.domain.GitCommitSummary
 import dev.icode.mobile.domain.GitDiffHunk
@@ -47,8 +44,8 @@ object CaptureFixtures {
     fun snapshot() = WorkbenchSnapshot(
         workspaces = listOf(
             WorkspaceSummary("icode-subsystem", ROOT, "main", ago(hours = 2)),
-            WorkspaceSummary("external-storage-driver", "~/sdcard/dev/storage-driver", "dev-v2", ago(hours = 5)),
-            WorkspaceSummary("legacy-compiler-plugin", "~/storage/shared/legacy-plugin", null, ago(hours = 24), available = false),
+            WorkspaceSummary("storage-driver", STORAGE_DRIVER, "dev-v2", ago(hours = 5)),
+            WorkspaceSummary("legacy-compiler-plugin", "/workspace/legacy-compiler-plugin", null, ago(hours = 24)),
         ),
         files = listOf(
             FileEntry("src", "src", FileKind.Folder, expanded = true),
@@ -127,7 +124,7 @@ object CaptureFixtures {
             availableBytes = 16_106_127_360L,
             prootVersion = "5.1.107.92",
         ),
-        systemAccess = SystemAccess(storage = true, notifications = true, unrestrictedBattery = true),
+        systemAccess = SystemAccess(notifications = true, unrestrictedBattery = true),
         activeDocument = document("App.tsx", "src/App.tsx", dirty = true),
         openDocuments = listOf(
             document("App.tsx", "src/App.tsx", dirty = true),
@@ -146,19 +143,8 @@ object CaptureFixtures {
             draft("src/utils/token-utils.ts", sizeBytes = 1_843, minutesAgo = 5),
             draft("package.json", sizeBytes = 12_288, minutesAgo = 15),
         ),
-        folderBrowser = FolderBrowserState(
-            purpose = FolderBrowserPurpose.OpenWorkspace,
-            rootPath = ROOT,
-            currentPath = ROOT,
-            displayPath = "root / projects / icode-subsystem",
-            folders = listOf(
-                FolderBrowserEntry("src", "$ROOT/src", directoryCount = 12, fileCount = 4),
-                FolderBrowserEntry("public", "$ROOT/public", directoryCount = 2, fileCount = 15),
-                FolderBrowserEntry("tests", "$ROOT/tests", directoryCount = 1, fileCount = 6),
-            ),
-        ),
-        createFolderDestination = "$ROOT/src",
-        createFolderDestinationDisplay = "$ROOT/src",
+        // Clone progress names the workspace the clone becomes.
+        cloneName = "icode-subsystem",
         storage = StorageSummary(availableBytes = 13_314_398_617L, totalBytes = 137_438_953_472L),
         storageDetails = StorageDetails(
             device = StorageSummary(availableBytes = (14.2 * GIB).toLong(), totalBytes = 16 * GIB),
@@ -166,7 +152,7 @@ object CaptureFixtures {
             cache = StorageMeasurement(220 * MIB),
             workspaceSizes = mapOf(
                 ROOT to StorageMeasurement(244 * MIB),
-                "~/sdcard/dev/storage-driver" to StorageMeasurement((1.2 * GIB).toLong()),
+                STORAGE_DRIVER to StorageMeasurement((1.2 * GIB).toLong()),
             ),
         ),
         fileIndex = listOf(
@@ -200,7 +186,8 @@ object CaptureFixtures {
         readOnly = false,
     )
 
-    private const val ROOT = "~/projects/icode-subsystem"
+    private const val ROOT = "/workspace/icode-subsystem"
+    private const val STORAGE_DRIVER = "/workspace/storage-driver"
 
     /** Drawn as text on the runtime screen; nothing opens it. */
     @SuppressLint("SdCardPath")
