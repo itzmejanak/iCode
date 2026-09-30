@@ -221,7 +221,7 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
             is WorkbenchIntent.ComponentIntent -> components.handle(intent)
             WorkbenchIntent.Refresh -> session.requestRefresh(rebuildIndex = true)
             is WorkbenchIntent.ScreenVisible -> session.screenVisible(intent.visible)
-            WorkbenchIntent.RefreshStorage -> library.refreshStorage()
+            is WorkbenchIntent.StorageIntent -> library.measure(intent)
             // Reading the runtime's own files changes nothing, so it does not wait
             // on the mutation lock behind whatever the workspace is doing.
             WorkbenchIntent.RefreshRuntimeDetails -> runtime.refreshDetails()

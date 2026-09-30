@@ -97,4 +97,12 @@ UI."
 
 ## 5. Record
 
-(empty)
+- **P1** (2026-10-01): `WorkspaceListRules` (domain): the recent five, search by name or path, sort
+  by Recent · Name · Size (the unmeasured last), and the summary, which totals only when every
+  workspace is measured whole. The size label ("Measuring…", "Size exceeds scan limit") moved from
+  the Settings screens into the domain: one wording for every page. Workspace sizes left
+  `StorageDetails` for their own snapshot field (`workspaceSizes`), measured one workspace after
+  another by their own intent (`MeasureWorkspaces`), each shown as it lands; the device, runtime
+  and cache stay with `RefreshStorage`. The two measurements are one intent family
+  (`StorageIntent`, routed to the library off the lock as tasks and components are), which keeps
+  the gateway at 372. 5 tests. Gate: 562 tests; lint 0 errors / 12 warnings; both guards pass.

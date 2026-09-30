@@ -35,6 +35,7 @@ import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.domain.SystemPermission
+import dev.icode.mobile.domain.storageSizeLabel
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalWorkbenchGateway
@@ -50,7 +51,10 @@ fun StorageSettingsScreen(actions: NavigationActions) {
     val details = state.storageDetails
     var confirmClearCache by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) { gateway.dispatch(WorkbenchIntent.RefreshStorage) }
+    LaunchedEffect(Unit) {
+        gateway.dispatch(WorkbenchIntent.RefreshStorage)
+        gateway.dispatch(WorkbenchIntent.MeasureWorkspaces)
+    }
 
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Storage Settings", subtitle = settingsSubtitle(Route.StorageSettings), onBack = actions.back)
@@ -107,7 +111,7 @@ fun StorageSettingsScreen(actions: NavigationActions) {
                             Text(workspace.name, style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold))
                             MonoLine(workspace.path, style = IcodeType.MonoSmall)
                             MonoLine(
-                                "${storageSizeLabel(details?.workspaceSizes?.get(workspace.location))}  · ${RelativeTime.since(workspace.lastOpenedAt)}",
+                                "${storageSizeLabel(state.workspaceSizes[workspace.location])}  · ${RelativeTime.since(workspace.lastOpenedAt)}",
                                 color = IcodeColors.Accent,
                                 style = IcodeType.MonoSmall,
                             )
