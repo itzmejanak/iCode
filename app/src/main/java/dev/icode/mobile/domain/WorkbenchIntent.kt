@@ -194,8 +194,10 @@ sealed interface WorkbenchIntent {
 
     data object InstallRuntime : WorkbenchIntent
     data object RefreshRuntimeDetails : WorkbenchIntent
-    /** Measurements of what storage holds: they change nothing, so they never wait on the mutation lock. */
+    /** Reading what storage holds: it changes nothing, so it never waits on the mutation lock. */
     sealed interface StorageIntent : WorkbenchIntent
+    /** The file explorer at [path] — where it was when none, the workspaces folder at first. */
+    data class BrowseFiles(val path: String? = null) : StorageIntent
     /** The device, the runtime and the cache. */
     data object RefreshStorage : StorageIntent
     /** Each workspace's size, without measuring the runtime and the cache. */

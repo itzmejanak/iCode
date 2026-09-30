@@ -30,55 +30,48 @@ internal class WorkspaceItemsCoordinator(
     /** Quick Open's index is out of date once a file is added. */
     private val reindex: suspend (root: String) -> Unit,
 ) {
+    /**
+     * A new file in any workspace's folder — the Explorer's, the editor's tab menu's, the file
+     * explorer's. Made in the open workspace, it opens in the editor, as the Explorer's always has.
+     */
     suspend fun createFile(intent: WorkbenchIntent.CreateFile) {
-        val root = activeRoot() ?: run {
-            fail(intent.requestId, "Open a workspace before creating a file")
-            return
-        }
-        if (intent.expectedWorkspace != null && intent.expectedWorkspace != root) {
-            fail(intent.requestId, "The active workspace changed. Choose the destination again")
-            return
-        }
+        val parent = intent.parentLocation ?: activeRoot() ?: return fail(intent.requestId, "Open a workspace before creating a file")
+        val root = creationRoot(parent, intent.expectedWorkspace, intent.requestId) ?: return
         val name = intent.name.trim()
-        WorkspaceNameRules.fileValidationError(name)?.let { error ->
-            fail(intent.requestId, error)
-            return
-        }
-        val parent = intent.parentLocation ?: root
-        if (!isCreationParent(root, parent)) {
-            fail(intent.requestId, "Choose a folder inside the active workspace")
-            return
-        }
+        WorkspaceNameRules.fileValidationError(name)?.let { return fail(intent.requestId, it) }
         runCatching { source.createFile(parent, name) }.onSuccess { location ->
             refreshAfterCreate(root, parent, "File", updateIndex = true)
             if (intent.requestId != null) workbench.emit(WorkbenchEffect.WorkspaceItemChanged(intent.requestId, location))
-            documents.open(location)
+            if (root == activeRoot()) documents.open(location)
         }.onFailure { error -> fail(intent.requestId, workbench.failureText("workspace", "Unable to create file", error)) }
     }
 
+    /** A new folder in any workspace's folder. */
     suspend fun createFolder(intent: WorkbenchIntent.CreateWorkspaceFolder) {
-        val root = activeRoot()
-        if (root == null || root != intent.expectedWorkspace) {
-            fail(intent.requestId, "The active workspace changed. Choose the destination again")
-            return
-        }
+        val root = creationRoot(intent.parentLocation, intent.expectedWorkspace, intent.requestId) ?: return
         val name = intent.name.trim()
-        WorkspaceNameRules.workspaceFolderValidationError(name)?.let { error ->
-            fail(intent.requestId, error)
-            return
-        }
-        if (!isCreationParent(root, intent.parentLocation)) {
-            fail(intent.requestId, "Choose a folder inside the active workspace")
-            return
-        }
+        WorkspaceNameRules.workspaceFolderValidationError(name)?.let { return fail(intent.requestId, it) }
         runCatching { source.createDirectory(intent.parentLocation, name) }.onSuccess { location ->
             refreshAfterCreate(root, intent.parentLocation, "Folder", updateIndex = false)
             workbench.emit(WorkbenchEffect.WorkspaceItemChanged(intent.requestId, location))
         }.onFailure { error -> fail(intent.requestId, workbench.failureText("workspace", "Unable to create folder", error)) }
     }
 
+    /**
+     * The workspace [parent] is in, when something may be made there: inside a workspace, outside
+     * `.git`, and — when the dialog named one — in the workspace it was opened for.
+     */
+    private suspend fun creationRoot(parent: String, expectedWorkspace: String?, requestId: String?): String? {
+        val root = source.workspaceOf(parent)
+        return when {
+            root == null || !isCreationParent(root, parent) -> null.also { fail(requestId, "Choose a folder inside a workspace") }
+            expectedWorkspace != null && expectedWorkspace != root -> null.also { fail(requestId, "The workspace changed. Choose the folder again") }
+            else -> root
+        }
+    }
+
     suspend fun rename(intent: WorkbenchIntent.RenameWorkspaceItem) {
-        val root = activeRoot() ?: return fail(intent.requestId, "Open a workspace first")
+        val root = source.workspaceOf(intent.location) ?: return fail(intent.requestId, "It is not in a workspace")
         val name = intent.newName.trim()
         val nameError = if (File(intent.location).isDirectory) WorkspaceNameRules.workspaceFolderValidationError(name)
         else WorkspaceNameRules.fileValidationError(name)
@@ -171,7 +164,7 @@ internal class WorkspaceItemsCoordinator(
      * and no Cancel — a delete stopped midway leaves half a folder.
      */
     suspend fun delete(intent: WorkbenchIntent.DeleteWorkspaceItem) {
-        val root = activeRoot() ?: return
+        val root = source.workspaceOf(intent.location) ?: return
         usage.holding(intent.location, whole = false)?.let { return workbench.message(it) }
         val files = WorkspaceFiles(File(root))
         tasks.start(
@@ -185,12 +178,12 @@ internal class WorkspaceItemsCoordinator(
                 files.delete(intent.location, progress::item)
             },
             finished = { failure ->
-                if (failure == null) library.forgetRecentDocumentsUnder(root, intent.location)
-                if (activeRoot() == root) {
-                    if (failure == null) documents.closeDeleted(intent.location)
-                    // Part of a folder may be gone after a failure: show what is left.
-                    refreshAfterChange(root)
+                if (failure == null) {
+                    library.forgetRecentDocumentsUnder(root, intent.location)
+                    documents.closeDeleted(intent.location)
                 }
+                // Part of a folder may be gone after a failure: show what is left.
+                refreshOpen(intent.location)
             },
         )
     }
@@ -212,8 +205,12 @@ internal class WorkspaceItemsCoordinator(
         refreshOpen(from, to)
     }
 
-    /** The open workspace reads its tree, Git and index again when a change touched it. */
+    /**
+     * After a change: the file explorer reads its folder again, and the open workspace its tree,
+     * Git and index when the change touched it.
+     */
     private suspend fun refreshOpen(vararg touched: String) {
+        library.refreshFiles()
         val active = activeRoot() ?: return
         if (touched.any { it.isAtOrUnder(active) }) refreshAfterChange(active)
     }
@@ -236,6 +233,8 @@ internal class WorkspaceItemsCoordinator(
     }.getOrDefault(false)
 
     private suspend fun refreshAfterCreate(root: String, parent: String, kind: String, updateIndex: Boolean) {
+        library.refreshFiles()
+        if (root != activeRoot()) return
         runCatching {
             tree.reloadFolder(root, parent)
             refreshWorkspaceState(root)

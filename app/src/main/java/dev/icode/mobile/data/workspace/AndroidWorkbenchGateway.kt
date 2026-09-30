@@ -153,7 +153,7 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
     /** What may change now, asked the same way by the lifecycle and the Explorer's items. */
     private val usage = WorkspaceUsage(workbench, tasks, terminal::runsIn, documents::blockingEdits) { session.activeRoot }
     private val lifecycle = WorkspaceLifecycleCoordinator(
-        workbench, tasks, source, library, session, usage,
+        workbench, tasks, source, library, session, usage, documents::open,
         moveSettings = settings::moveWorkspace,
         forgetSettings = settings::forgetWorkspace,
     )
@@ -216,7 +216,7 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
             is WorkbenchIntent.ComponentIntent -> components.handle(intent)
             WorkbenchIntent.Refresh -> session.requestRefresh(rebuildIndex = true)
             is WorkbenchIntent.ScreenVisible -> session.screenVisible(intent.visible)
-            is WorkbenchIntent.StorageIntent -> library.measure(intent)
+            is WorkbenchIntent.StorageIntent -> library.read(intent)
             // Reading the runtime's own files changes nothing, so it does not wait
             // on the mutation lock behind whatever the workspace is doing.
             WorkbenchIntent.RefreshRuntimeDetails -> runtime.refreshDetails()
@@ -260,8 +260,7 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
                         is WorkbenchIntent.OpenWorkspace -> session.open(intent.path, persist = true)
                         is WorkbenchIntent.OpenWorkspaceTerminal -> session.open(intent.path, persist = true, openTerminal = true)
                         is WorkbenchIntent.ResolveWorkspaceSwitch -> session.resolveSwitch(intent)
-                        is WorkbenchIntent.OpenFile ->
-                            documents.open(intent.path, intent.lineNumber, intent.column)
+                        is WorkbenchIntent.OpenFile -> lifecycle.reveal(intent.path, intent.lineNumber, intent.column)
                         is WorkbenchIntent.CreateFile -> items.createFile(intent)
                         is WorkbenchIntent.CreateWorkspaceFolder -> items.createFolder(intent)
                         is WorkbenchIntent.RenameWorkspaceItem -> items.rename(intent)

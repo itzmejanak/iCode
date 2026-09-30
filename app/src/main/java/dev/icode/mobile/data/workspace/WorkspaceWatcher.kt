@@ -91,9 +91,11 @@ internal fun settleDelay(first: Long, last: Long, now: Long): Long =
  * workspace its top, every expanded folder, and each open file's folder.
  */
 internal fun watchedFolders(snapshot: WorkbenchSnapshot, workspacesRoot: File): Set<File> {
-    val root = snapshot.activeWorkspaceLocation ?: return setOf(workspacesRoot)
+    val browsed = snapshot.filesBrowser?.path?.let(::File)
+    val root = snapshot.activeWorkspaceLocation ?: return setOfNotNull(workspacesRoot, browsed)
     return buildSet {
         add(workspacesRoot)
+        browsed?.let(::add)
         add(File(root))
         snapshot.files.filter { it.kind == FileKind.Folder && it.expanded }.forEach { add(File(it.path)) }
         snapshot.openDocuments.mapNotNull { File(it.location).parentFile }.forEach(::add)
