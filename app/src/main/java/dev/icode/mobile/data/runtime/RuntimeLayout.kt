@@ -166,10 +166,12 @@ internal class RuntimeLayout(context: Context) {
         killOnExit: Boolean = false,
     ): List<String> = buildList {
         add(proot.absolutePath)
-        // Android refuses link(), and dpkg, git and friends need hard links, so
-        // they are emulated with symbolic links — in the root filesystem and
-        // the workspaces alike, both in iCode's own storage. A link that still
+        // Android refuses link(), and dpkg needs hard links, so they are
+        // emulated with symbolic links — in the root filesystem and the
+        // workspaces alike, both in iCode's own storage. A link that still
         // fails leaves the file untouched (third_party/patches/proot/0001).
+        // An emulated link names an absolute path and breaks when its folder
+        // is renamed, so Git is set not to ask for one (RuntimeInstaller).
         add("--link2symlink")
         if (killOnExit) add("--kill-on-exit")
         // Present as root inside the guest so package managers work.

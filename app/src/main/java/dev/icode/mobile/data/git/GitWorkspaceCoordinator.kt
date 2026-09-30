@@ -11,6 +11,7 @@ import dev.icode.mobile.domain.WorkbenchEffect
 import dev.icode.mobile.domain.WorkspaceSummary
 import java.io.File
 import java.io.IOException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -23,6 +24,8 @@ internal data class GitPicture(
     val state: GitWorkspaceSnapshot,
     /** Git's branch, else `.git/HEAD`'s, so a repository names its branch before Git is installed. */
     val branch: String,
+    /** Git could not read the repository: its words. The workspace still opens; Source Control says this. */
+    val failure: String? = null,
 )
 
 /**
@@ -46,11 +49,21 @@ internal class GitWorkspaceCoordinator(
 
     suspend fun read(root: String): GitPicture {
         val available = git.isAvailable()
+        val none = GitWorkspaceSnapshot(repository = null, changes = emptyList())
         // Without git the inspect script cannot run, but .git on disk still
         // tells us this is a repository - so the UI can offer to install Git
         // instead of wrongly offering to initialise a repo that already exists.
-        val state = if (available) git.inspect(root) else GitWorkspaceSnapshot(repository = null, changes = emptyList())
-        return GitPicture(available, state, state.repository?.branch ?: git.branchOf(root).orEmpty())
+        if (!available) return GitPicture(false, none, git.branchOf(root).orEmpty())
+        // A repository Git cannot read is still the user's folder: its files open, and Source
+        // Control says what Git said — neither "no changes" nor "not a repository".
+        return try {
+            val state = git.inspect(root)
+            GitPicture(true, state, state.repository?.branch ?: git.branchOf(root).orEmpty())
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            GitPicture(true, none, git.branchOf(root).orEmpty(), workbench.failureText("git", "Git cannot read this repository", error))
+        }
     }
 
     /**
@@ -69,6 +82,7 @@ internal class GitWorkspaceCoordinator(
                 files = files,
                 gitChanges = picture.state.changes,
                 gitRepository = picture.state.repository,
+                gitFailure = picture.failure,
                 gitAvailable = picture.available,
                 activeBranch = picture.branch,
                 recentDocuments = recentDocuments(root),

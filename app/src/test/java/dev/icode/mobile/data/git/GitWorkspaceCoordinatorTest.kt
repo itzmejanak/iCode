@@ -87,6 +87,26 @@ class GitWorkspaceCoordinatorTest {
         assertTrue(harness.workbench.current.gitAvailable == true)
     }
 
+    @Test fun `a repository Git cannot read still opens, and says Git's words until Git can read it`() = runBlocking {
+        val git = FakeGit().apply { inspectFailure = IOException("bad object HEAD") }
+        val harness = Harness(git, root)
+
+        val picture = harness.coordinator.read(root)
+        assertEquals("bad object HEAD", picture.failure)
+        assertNull("neither a repository nor its changes are claimed", picture.state.repository)
+        assertTrue(picture.available)
+
+        harness.coordinator.refresh(root)
+        assertEquals("bad object HEAD", harness.workbench.current.gitFailure)
+        assertTrue(harness.workbench.current.gitChanges.isEmpty())
+
+        git.inspectFailure = null
+        git.snapshot = GitWorkspaceSnapshot(repository(), listOf(change))
+        harness.coordinator.refresh(root)
+        assertNull(harness.workbench.current.gitFailure)
+        assertEquals(listOf(change), harness.workbench.current.gitChanges)
+    }
+
     @Test fun `a failed action is said once in Git's words and nothing is refreshed`() = runBlocking {
         val git = FakeGit().apply { failure = IOException("pathspec 'x' did not match any files") }
         val harness = Harness(git, root)
@@ -340,6 +360,8 @@ class GitWorkspaceCoordinatorTest {
         var available = true
         var snapshot = GitWorkspaceSnapshot(null, emptyList())
         var failure: Exception? = null
+        /** What Git says when it cannot read the repository at all. */
+        var inspectFailure: Exception? = null
         var provisionOutcome: GitOutcome<Unit> = GitOutcome.Success(Unit)
         var onProvision: () -> Unit = {}
         /** Reads `.git/HEAD` from disk, as the real client does; null reads nothing. */
@@ -354,7 +376,10 @@ class GitWorkspaceCoordinatorTest {
         override fun branchOf(workspacePath: String) = locator?.branchOf(workspacePath)
         override fun isRepository(workspacePath: String) = locator?.isRepository(workspacePath) ?: false
         override suspend fun provision(): GitOutcome<Unit> = provisionOutcome.also { calls += "provision"; onProvision() }
-        override suspend fun inspect(workspacePath: String) = snapshot.also { calls += "inspect $workspacePath" }
+        override suspend fun inspect(workspacePath: String) = snapshot.also {
+            calls += "inspect $workspacePath"
+            inspectFailure?.let { throw it }
+        }
         override suspend fun initialize(workspacePath: String) = record("init $workspacePath")
         override suspend fun stage(workspacePath: String, path: String) = record("stage $workspacePath $path")
         override suspend fun unstage(workspacePath: String, path: String) = record("unstage $workspacePath $path")

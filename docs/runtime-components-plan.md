@@ -247,4 +247,24 @@ cards, check rows, the progress track, the bottom action bar), as Import was.
   saver), and a needless capture check (the UI guard). The capture script counts framed routes
   only, so it stays at 39. 5 onboarding and coordinator tests added. Gate: 557 tests; lint 0 errors
   / 12 warnings; both guards pass.
+- **Found on the phone** (2026-09-30, the owner's first run after C4): a clone over SSH opened
+  blank, then "Bad object HEAD". The cause is not left-over data: it recurs after a clean install.
+  Git finishes a pack by hard-linking it into place. Android refuses link(), and PRoot's stand-in
+  is a symbolic link naming an absolute path; iCode clones into a staging folder and renames it,
+  and every such link breaks. Reproduced in the runtime with a second repository
+  (Tom60chat/Extension-List): cloned as before and renamed as iCode renames, `git cat-file` said
+  "bad object HEAD" and fsck exited 10. With `core.createObject = rename` the same clone and rename
+  read clean (status clean, fsck 0). Even a `mv` inside the runtime breaks an emulated link,
+  both names at once. Fixed at the source: the runtime's `/etc/gitconfig` sets
+  `core.createObject = rename`, written when the runtime is built, beside dpkg's setting. Git then
+  renames its finished objects and packs into place, as it does wherever link() fails, so a
+  repository holds no emulated links to break. Second: opening a workspace ran `git inspect`, and
+  its failure failed the whole open (the blank Explorer). Now a repository Git cannot read still
+  opens with its files; Source Control shows "Git cannot read this repository" and Git's words,
+  with Check again — neither "no changes" nor "Initialize Git" (`gitFailure`). Source Control's
+  gate choice moved into its gates file (the screen stays under 300 lines). A runtime built before
+  this has no `/etc/gitconfig` until it is rebuilt (Repair keeps the home, with its SSH key, and
+  the workspaces). Other tools that hard-link inside a workspace (cargo's incremental cache, pnpm)
+  still get PRoot's emulated links, which a rename breaks — PRoot's own limit, not addressed here.
+  Gate: 558 tests; lint 0 errors / 12 warnings; both guards pass.
 

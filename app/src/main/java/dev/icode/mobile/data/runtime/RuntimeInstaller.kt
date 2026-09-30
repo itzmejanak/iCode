@@ -230,6 +230,13 @@ internal class RuntimeInstaller(
             parentFile?.mkdirs()
             writeText("force-unsafe-io\n")
         }
+        // Android refuses link(), and PRoot's stand-in for a hard link is a symbolic link naming an
+        // absolute path: renaming the folder that holds one breaks it, both names at once
+        // (measured: a clone moved out of its staging folder read "bad object HEAD"). Git needs no
+        // hard link: told to, it renames its finished objects and packs into place — what it does
+        // anyway where link() fails. Its system file reaches every repository, iCode's commands and
+        // the terminal's alike.
+        File(layout.rootfs, GIT_SYSTEM_CONFIG_RELATIVE).writeText("[core]\n\tcreateObject = rename\n")
     }
 
     /** Runs a command in the guest and returns its release string, or null. */
@@ -259,6 +266,7 @@ internal class RuntimeInstaller(
     private companion object {
         const val MANIFEST_ASSET = "runtime/manifest.json"
         const val DPKG_UNSAFE_IO_RELATIVE = "etc/dpkg/dpkg.cfg.d/icode-unsafe-io"
+        const val GIT_SYSTEM_CONFIG_RELATIVE = "etc/gitconfig"
         const val SUPPORTED_SCHEMA = 1
         const val EXTRACT_REPORT_INTERVAL_MILLIS = 250L
 

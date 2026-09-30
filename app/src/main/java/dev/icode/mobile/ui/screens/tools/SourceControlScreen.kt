@@ -45,7 +45,6 @@ import dev.icode.mobile.designsystem.gitStatusTone
 import dev.icode.mobile.designsystem.tint
 import dev.icode.mobile.domain.GitChange
 import dev.icode.mobile.domain.GitInProgress
-import dev.icode.mobile.domain.RuntimeComponents
 import dev.icode.mobile.domain.WorkbenchGateway
 import dev.icode.mobile.domain.GitStatusCodes
 import dev.icode.mobile.domain.WorkbenchEffect
@@ -61,15 +60,8 @@ fun SourceControlScreen(actions: NavigationActions) {
     val state = LocalWorkbenchSnapshot.current
     val gateway = LocalWorkbenchGateway.current
     val repository = state.gitRepository
-    if (state.gitAvailable == false) {
-        // A repository may well exist on disk; Git simply cannot run yet, so
-        // offering "Initialize Git" here would be wrong.
-        val installStep = state.components.installing(RuntimeComponents.Git)?.progress?.step
-        GitUnavailableGate(state.gitOperation, installStep) { gateway.dispatch(WorkbenchIntent.ProvisionGit) }
-        return
-    }
-    if (repository == null) {
-        GitInitializationGate { gateway.dispatch(WorkbenchIntent.InitializeGit) }
+    if (repository == null || state.gitAvailable == false || state.gitFailure != null) {
+        SourceControlGate(state, gateway::dispatch)
         return
     }
 

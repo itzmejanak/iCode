@@ -23,11 +23,14 @@ import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.domain.GitInProgress
 import dev.icode.mobile.domain.GitOperationState
+import dev.icode.mobile.domain.RuntimeComponents
+import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.WorkbenchSnapshot
 import dev.icode.mobile.domain.countOf
 
 /** Shown when the runtime has no `git` binary yet. */
 @Composable
-internal fun GitUnavailableGate(
+private fun GitUnavailableGate(
     operation: GitOperationState,
     /** apt's step while it installs Git: "Downloading 3774 kB", "Setting up 3 of 9". */
     installStep: String?,
@@ -57,6 +60,44 @@ internal fun GitUnavailableGate(
                     PrimaryButton("Install Git", onInstall, Modifier.fillMaxWidth())
                 }
             }
+        }
+    }
+}
+
+/**
+ * What Source Control shows before a repository Git can read: Git missing (a repository may well
+ * exist on disk, so offering "Initialize Git" would be wrong), a repository Git cannot read
+ * (neither "not a repository" nor "no changes"), or no repository at all.
+ */
+@Composable
+internal fun SourceControlGate(state: WorkbenchSnapshot, dispatch: (WorkbenchIntent) -> Unit) {
+    val failure = state.gitFailure
+    when {
+        state.gitAvailable == false -> GitUnavailableGate(
+            state.gitOperation,
+            state.components.installing(RuntimeComponents.Git)?.progress?.step,
+        ) { dispatch(WorkbenchIntent.ProvisionGit) }
+        failure != null -> GitUnreadableGate(failure) { dispatch(WorkbenchIntent.RefreshGit) }
+        else -> GitInitializationGate { dispatch(WorkbenchIntent.InitializeGit) }
+    }
+}
+
+/** Git ran and could not read the repository: its words, and a way to ask again once it is fixed. */
+@Composable
+private fun GitUnreadableGate(failure: String, onRetry: () -> Unit) {
+    Column(Modifier.fillMaxSize()) {
+        IcodeTopBar("Source Control")
+        Column(
+            modifier = Modifier.fillMaxSize().padding(IcodeSpacing.Space5),
+            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space4),
+        ) {
+            EmptyState(
+                title = "Git cannot read this repository",
+                description = "The files are untouched. Git said:",
+                icon = Icons.Outlined.AccountTree,
+            )
+            MonoLine(failure, color = IcodeColors.Error, style = IcodeType.MonoSmall, maxLines = 6)
+            PrimaryButton("Check again", onRetry, Modifier.fillMaxWidth())
         }
     }
 }
