@@ -36,6 +36,7 @@ import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
+import dev.icode.mobile.designsystem.IcodeWatermark
 import dev.icode.mobile.designsystem.IconBadge
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.SectionLabel
@@ -89,37 +90,40 @@ fun LauncherScreen(actions: NavigationActions, empty: Boolean) {
             LauncherActionTile(Icons.Outlined.AccountTree, "Clone Repo", Modifier.weight(1f)) { actions.navigate(Route.CloneRepository) }
             LauncherActionTile(Icons.Outlined.CreateNewFolder, "New Folder", Modifier.weight(1f)) { actions.navigate(Route.CreateFolder) }
         }
-        if (showEmpty) {
-            Column(
-                modifier = Modifier.fillMaxWidth().weight(1f),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                EmptyState(
-                    title = "No workspaces yet",
-                    description = "Create a folder, clone a repository, or import one\nfrom phone storage.",
-                    icon = Icons.Outlined.Folder,
-                    modifier = Modifier.padding(top = IcodeSpacing.Space6 + IcodeSpacing.Space2),
-                )
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.padding(horizontal = IcodeSpacing.Space4).weight(1f),
-                verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
-            ) {
-                item { SectionLabel("Workspaces", Modifier.padding(bottom = IcodeSpacing.Space1)) }
-                items(workspaces, key = { it.location }) { workspace ->
-                    WorkspaceRow(
-                        item = workspace,
-                        onOpen = { gateway.dispatch(WorkbenchIntent.OpenWorkspace(workspace.location)) },
+        // The logo as a letterpress in the free space, as VS Code's empty editor: workspaces
+        // cover it as they fill the page.
+        Box(Modifier.fillMaxWidth().weight(1f)) {
+            IcodeWatermark(Modifier.align(Alignment.Center))
+            if (showEmpty) {
+                Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+                    EmptyState(
+                        title = "No workspaces yet",
+                        description = "Create a folder, clone a repository, or import one\nfrom phone storage.",
+                        icon = Icons.Outlined.Folder,
+                        modifier = Modifier.padding(top = IcodeSpacing.Space6 + IcodeSpacing.Space2),
                     )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = IcodeSpacing.Space4),
+                    verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
+                ) {
+                    item { SectionLabel("Workspaces", Modifier.padding(bottom = IcodeSpacing.Space1)) }
+                    items(workspaces, key = { it.location }) { workspace ->
+                        WorkspaceRow(
+                            item = workspace,
+                            onOpen = { gateway.dispatch(WorkbenchIntent.OpenWorkspace(workspace.location)) },
+                        )
+                    }
                 }
             }
         }
         // An unavailable runtime is something the user can act on, so the
-        // status is the way in rather than a label reporting a dead end.
+        // status is the way in rather than a label reporting a dead end. Healthy
+        // wears the accent the user chose (owner, 2026-09-30); unavailable stays a warning.
         StatusLabel(
             if (state.runtimeHealthy) "RUNTIME HEALTHY" else "RUNTIME UNAVAILABLE — INSTALL",
-            if (state.runtimeHealthy) IcodeColors.Green else IcodeColors.Amber,
+            if (state.runtimeHealthy) IcodeColors.Accent else IcodeColors.Amber,
             Modifier
                 .align(Alignment.CenterHorizontally)
                 .then(

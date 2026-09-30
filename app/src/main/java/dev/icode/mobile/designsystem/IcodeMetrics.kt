@@ -73,6 +73,12 @@ object IcodeSizes {
     val ColorChip = 32.dp
     val ContentMaxWidth = 600.dp
 
+    /**
+     * The watermark's canvas: the themed icon's 108-unit square, whose silhouette stands in its
+     * middle 44 units — at this size the logo itself is about 160 dp tall.
+     */
+    val Watermark = 400.dp
+
     /** Round status marks: empty states, dialogs and health banners. */
     val MarkSm = 36.dp
     val MarkMd = 42.dp
