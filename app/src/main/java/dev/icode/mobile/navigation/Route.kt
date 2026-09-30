@@ -26,6 +26,8 @@ enum class Route(
     // Owner's request (2026-09-30): choose the runtime's tools, as Android Studio's setup does
     // (docs/runtime-components-plan.md §3.5).
     RuntimeComponents(null, "Runtime components", RouteGroup.ENTRY),
+    // Owner's request (2026-10-01): every workspace, managed in one place (docs/workspaces-page-plan.md).
+    Workspaces(null, "Workspaces", RouteGroup.ENTRY),
     CloneRepository("3:239", "Clone repository", RouteGroup.ENTRY),
     CloneProgress("3:278", "Clone progress", RouteGroup.ENTRY),
     WorkspaceExplorer("3:456", "Workspace explorer", RouteGroup.WORKSPACE),

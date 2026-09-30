@@ -3,7 +3,6 @@ package dev.icode.mobile.ui.screens.entry
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,8 +13,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountTree
-import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Folder
+import androidx.compose.material.icons.outlined.FolderCopy
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Settings
@@ -26,39 +25,32 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeCard
 import androidx.compose.foundation.clickable
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.IcodeWatermark
-import dev.icode.mobile.designsystem.IconBadge
-import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.StatusDot
 import dev.icode.mobile.designsystem.StatusLabel
-import dev.icode.mobile.domain.RelativeTime
-import dev.icode.mobile.domain.WorkbenchIntent
-import dev.icode.mobile.domain.WorkspaceSummary
+import dev.icode.mobile.domain.WorkspaceListRules
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
-import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
-import dev.icode.mobile.ui.WorkspaceActionsMenu
+import dev.icode.mobile.ui.WorkspaceRow
 
 /**
- * The launcher: every workspace in iCode's storage, most recently opened first, and the three ways
- * to make one. [empty] renders the first-run empty state.
+ * The launcher: the recently opened workspaces (docs/workspaces-page-plan.md §2.1), Import and
+ * Clone, and the way to the Workspaces page, where every workspace is managed and New Folder lives.
+ * [empty] renders the first-run empty state.
  */
 @Composable
 fun LauncherScreen(actions: NavigationActions, empty: Boolean) {
     val state = LocalWorkbenchSnapshot.current
-    val gateway = LocalWorkbenchGateway.current
     val workspaces = state.workspaces
     val showEmpty = empty || workspaces.isEmpty()
     Column(Modifier.fillMaxSize()) {
@@ -88,7 +80,7 @@ fun LauncherScreen(actions: NavigationActions, empty: Boolean) {
         ) {
             LauncherActionTile(Icons.Outlined.FolderOpen, "Import", Modifier.weight(1f)) { actions.navigate(Route.ImportBrowser) }
             LauncherActionTile(Icons.Outlined.AccountTree, "Clone Repo", Modifier.weight(1f)) { actions.navigate(Route.CloneRepository) }
-            LauncherActionTile(Icons.Outlined.CreateNewFolder, "New Folder", Modifier.weight(1f)) { actions.navigate(Route.CreateFolder) }
+            LauncherActionTile(Icons.Outlined.FolderCopy, "Workspaces", Modifier.weight(1f)) { actions.navigate(Route.Workspaces) }
         }
         // The logo as a letterpress in the free space, as VS Code's empty editor: workspaces
         // cover it as they fill the page.
@@ -98,7 +90,7 @@ fun LauncherScreen(actions: NavigationActions, empty: Boolean) {
                 Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
                     EmptyState(
                         title = "No workspaces yet",
-                        description = "Create a folder, clone a repository, or import one\nfrom phone storage.",
+                        description = "Import a folder from phone storage, clone a repository,\nor make a new one in Workspaces.",
                         icon = Icons.Outlined.Folder,
                         modifier = Modifier.padding(top = IcodeSpacing.Space6 + IcodeSpacing.Space2),
                     )
@@ -108,13 +100,8 @@ fun LauncherScreen(actions: NavigationActions, empty: Boolean) {
                     modifier = Modifier.fillMaxSize().padding(horizontal = IcodeSpacing.Space4),
                     verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
                 ) {
-                    item { SectionLabel("Workspaces", Modifier.padding(bottom = IcodeSpacing.Space1)) }
-                    items(workspaces, key = { it.location }) { workspace ->
-                        WorkspaceRow(
-                            item = workspace,
-                            onOpen = { gateway.dispatch(WorkbenchIntent.OpenWorkspace(workspace.location)) },
-                        )
-                    }
+                    item { SectionLabel("Recent", Modifier.padding(bottom = IcodeSpacing.Space1)) }
+                    items(WorkspaceListRules.recent(workspaces), key = { it.location }) { workspace -> WorkspaceRow(workspace) }
                 }
             }
         }
@@ -146,51 +133,4 @@ private fun LauncherActionTile(icon: ImageVector, label: String, modifier: Modif
             Text(label, style = IcodeType.Label.copy(color = IcodeColors.TextPrimary))
         }
     }
-}
-
-@Composable
-private fun WorkspaceRow(
-    item: WorkspaceSummary,
-    onOpen: () -> Unit,
-) {
-    IcodeListRow(
-        card = true,
-        cardPadding = PaddingValues(
-            horizontal = IcodeSpacing.Space3,
-            vertical = (IcodeSizes.Tile - IcodeSizes.TouchTarget) / 2,
-        ),
-        onClick = onOpen,
-        leading = {
-            IconBadge(
-                icon = Icons.Outlined.Folder,
-                tint = IcodeColors.Accent,
-                size = IcodeSizes.BadgeMd,
-                iconSize = IcodeSizes.IconMd,
-            )
-        },
-        content = {
-            Column(Modifier.weight(1f)) {
-                Text(item.name, style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold), maxLines = 1)
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
-                ) {
-                    MonoLine(item.path, modifier = Modifier.weight(1f), style = IcodeType.MonoSmall)
-                    if (item.branch != null) {
-                        Text(item.branch, style = IcodeType.MonoMicro.copy(color = IcodeColors.Accent))
-                    }
-                }
-            }
-        },
-        trailing = {
-            Box {
-                WorkspaceActionsMenu(item)
-                Text(
-                    RelativeTime.since(item.lastOpenedAt),
-                    style = IcodeType.Caption,
-                    modifier = Modifier.align(Alignment.BottomEnd).padding(end = IcodeSpacing.Space1),
-                )
-            }
-        },
-    )
 }

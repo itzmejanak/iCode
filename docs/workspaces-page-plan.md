@@ -106,3 +106,11 @@ UI."
   and cache stay with `RefreshStorage`. The two measurements are one intent family
   (`StorageIntent`, routed to the library off the lock as tasks and components are), which keeps
   the gateway at 372. 5 tests. Gate: 562 tests; lint 0 errors / 12 warnings; both guards pass.
+- **P2 + P3** (2026-10-01), together: the route needs its way in. The Workspaces page
+  (`WorkspacesScreen`, route `Workspaces`, no frame): the summary under its title, New Folder in its
+  top bar, search, Recent · Name · Size, and every workspace with its size once measured (measured
+  on arrival and whenever the list changes). The home screen's row moved out of the launcher into
+  `ui/WorkspaceRow` — one row for the home screen and the page, the size shown where a list
+  measures it. Home: **Recent** lists the five; the tiles are Import · Clone Repo · **Workspaces**;
+  the empty state names them. Gate: 562 tests; lint 0 errors / 12 warnings; both guards pass.
+
