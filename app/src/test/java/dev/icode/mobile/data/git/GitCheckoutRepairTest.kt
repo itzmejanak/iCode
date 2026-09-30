@@ -112,7 +112,14 @@ class GitCheckoutRepairTest {
 
     private fun run(directory: File, command: List<String>): String {
         // Unit tests compile against android.jar, which has no Redirect.DISCARD (Java 9).
-        val process = ProcessBuilder(command).directory(directory).redirectError(File("/dev/null")).start()
+        val builder = ProcessBuilder(command).directory(directory).redirectError(File("/dev/null"))
+        // The machine's own Git settings stay out: a developer's commit signing waited on a
+        // locked GPG agent and failed the commit here.
+        builder.environment().apply {
+            put("GIT_CONFIG_GLOBAL", "/dev/null")
+            put("GIT_CONFIG_NOSYSTEM", "1")
+        }
+        val process = builder.start()
         val output = process.inputStream.readBytes().toString(Charsets.UTF_8)
         check(process.waitFor(30, TimeUnit.SECONDS) && process.exitValue() == 0) { "$command failed" }
         return output

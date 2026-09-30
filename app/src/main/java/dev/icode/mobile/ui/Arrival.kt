@@ -12,9 +12,6 @@ sealed interface Arrival {
     /** A terminal session's notification: that session. */
     data class TerminalSession(val id: String) : Arrival
 
-    /** App info's Manage space: Storage settings. */
-    data object StorageSettings : Arrival
-
     /** Background work's notification: where iCode shows that work (docs/long-operations-plan.md §6). */
     data class Work(val place: BackgroundPlace) : Arrival
 }
@@ -37,7 +34,6 @@ internal fun ArrivalEffect(arrival: Arrival?, navigation: NavigationState, pastO
         }
         when (asked) {
             is Arrival.TerminalSession -> gateway.dispatch(WorkbenchIntent.ShowTerminalSession(asked.id))
-            Arrival.StorageSettings -> show(Route.StorageSettings)
             is Arrival.Work -> when (val place = asked.place) {
                 is BackgroundPlace.Task -> gateway.dispatch(WorkbenchIntent.ShowTask(place.id))
                 BackgroundPlace.Clone -> show(Route.CloneProgress)

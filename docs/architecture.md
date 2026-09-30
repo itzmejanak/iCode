@@ -422,7 +422,7 @@ Across the boundary:
 - **Out:** other applications reach workspaces through the application's `DocumentsProvider` — Android's Files app and every Open/Save picker — and only what the user picks for them. The provider never follows a link out of the workspaces into the runtime or the application's other data.
 - **Not:** the runtime has no view of `/sdcard`, and workspaces have no `/sdcard` path.
 
-Application data needs protecting now that it holds the user's work: the manifest declares `hasFragileUserData` (uninstalling asks whether to keep the data) and a `manageSpaceActivity` (App info offers Manage space, which opens the application's storage settings, instead of Clear storage).
+Application data needs protecting now that it holds the user's work: the manifest declares `hasFragileUserData` (uninstalling asks whether to keep the data). App info keeps Android's own Clear storage, which removes the workspaces with the rest of the data (owner's decision, 2026-09-30; the Manage space page that replaced it is gone).
 
 ## 14. Runtime Lifecycle
 

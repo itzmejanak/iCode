@@ -27,7 +27,6 @@ sealed interface WorkbenchIntent {
      */
     data class OpenImportBrowser(val path: String? = null) : WorkbenchIntent
     data class BrowseImportFolder(val path: String) : WorkbenchIntent
-    data object BrowseImportParent : WorkbenchIntent
     /** The folder at [path] on phone storage is the one to import: the Import screen names it. */
     data class ChooseImportFolder(val path: String) : WorkbenchIntent
     /** Copies the chosen [ImportSource] into a new workspace named [name]; runs as a task. */

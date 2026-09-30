@@ -46,7 +46,7 @@ internal class WorkspaceImportCoordinator(
 ) {
     private val staging = WorkspaceStaging(paths.root)
 
-    /** The browser opens at [path], or where it was last, or at the root of internal storage. */
+    /** The browser opens at [path], or where it was last, or at the root of phone storage. */
     suspend fun openBrowser(path: String?) = browse(path ?: workbench.current.importBrowser?.currentPath ?: storage.root.path)
 
     suspend fun browse(path: String) {
@@ -57,11 +57,6 @@ internal class WorkspaceImportCoordinator(
                 workbench.report("import", "Unable to read this folder", error)
                 if (path != storage.root.path) browse(storage.root.path)
             }
-    }
-
-    suspend fun browseParent() {
-        val browser = workbench.current.importBrowser ?: return
-        browse(storage.parentOf(browser.currentPath))
     }
 
     /**

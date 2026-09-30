@@ -37,13 +37,36 @@ data class ImportBrowserState(
     val access: Boolean,
     val rootPath: String,
     val currentPath: String,
-    /** "Internal storage / Projects / RevPlayer". */
-    val displayPath: String,
     val folders: List<PhoneFolder> = emptyList(),
 ) {
-    /** The root of internal storage is where folders are, not a folder to import. */
+    /** The root of phone storage is where folders are, not a folder to import. */
     val atRoot: Boolean get() = currentPath == rootPath
     val name: String get() = currentPath.substringAfterLast('/')
+
+    /** The breadcrumb: sdcard, then each folder down to here. */
+    val crumbs: List<ImportCrumb> get() = PhoneStoragePaths.crumbs(rootPath, currentPath)
+}
+
+/** One step of Import's breadcrumb: a folder's name, and where it is. */
+data class ImportCrumb(val name: String, val path: String)
+
+/** How iCode names places on phone storage — the browser's breadcrumb and Import's "From" alike. */
+object PhoneStoragePaths {
+    /** The root, by the name developers know it (owner, 2026-09-30). */
+    const val ROOT_NAME = "sdcard"
+
+    /** Each folder from [rootPath] down to [path], the root first. */
+    fun crumbs(rootPath: String, path: String): List<ImportCrumb> {
+        var at = rootPath
+        val below = path.removePrefix(rootPath).split('/').filter(String::isNotEmpty).map { name ->
+            at = "$at/$name"
+            ImportCrumb(name, at)
+        }
+        return listOf(ImportCrumb(ROOT_NAME, rootPath)) + below
+    }
+
+    /** "sdcard / Projects / RevPlayer". */
+    fun display(rootPath: String, path: String): String = crumbs(rootPath, path).joinToString(" / ") { it.name }
 }
 
 /** A folder chosen on phone storage for Import: where it is, and the name it proposes. */

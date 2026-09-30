@@ -1,5 +1,6 @@
 package dev.icode.mobile.data.storage
 
+import dev.icode.mobile.domain.ImportCrumb
 import dev.icode.mobile.domain.PhoneFolder
 import java.io.File
 import java.nio.file.Files
@@ -29,10 +30,10 @@ class PhoneStorageTest {
         val top = storage.browse(root.path)
         assertTrue(top.access && top.atRoot)
         assertEquals(listOf("Download", "Projects"), top.folders.map { it.name })
-        assertEquals("Internal storage", top.displayPath)
+        assertEquals(listOf("sdcard"), top.crumbs.map { it.name })
         val projects = storage.browse(File(root, "Projects").path)
         assertEquals(listOf(PhoneFolder("RevPlayer", File(root, "Projects/RevPlayer").path, 1, 1)), projects.folders)
-        assertEquals("Internal storage / Projects", projects.displayPath)
+        assertEquals(listOf(ImportCrumb("sdcard", root.path), ImportCrumb("Projects", File(root, "Projects").path)), projects.crumbs)
         assertEquals("Projects", projects.name)
     }
 
@@ -41,7 +42,7 @@ class PhoneStorageTest {
         val waiting = storage.browse(File(root, "Projects/RevPlayer").path)
         assertFalse(waiting.access)
         assertEquals(File(root, "Projects/RevPlayer").path, waiting.currentPath)
-        assertEquals("Internal storage / Projects / RevPlayer", waiting.displayPath)
+        assertEquals("sdcard / Projects / RevPlayer", storage.displayPath(File(waiting.currentPath)))
         assertTrue(waiting.folders.isEmpty())
         assertEquals(root.path, storage.browse("/data/data/other.app").currentPath)
     }
@@ -54,11 +55,6 @@ class PhoneStorageTest {
         assertNull(storage.folder(File(root, "../outside").path))
         assertEquals(root, storage.folder(root.path))
         assertTrue(storage.browse(root.path).folders.none { it.name == "escape" })
-    }
-
-    @Test fun `the parent is never above internal storage`() {
-        assertEquals(File(root, "Projects").path, storage.parentOf(File(root, "Projects/RevPlayer").path))
-        assertEquals(root.path, storage.parentOf(root.path))
     }
 
     @Test fun `a folder gone since is said, not listed`() {

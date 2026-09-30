@@ -20,7 +20,7 @@ The owner's answers, the same day:
 | Where the list of workspaces lives | **The launcher lists every workspace in iCode's storage**; the phone-storage folder browser (Open Folder) retires |
 | All Files Access | First **dropped** (folders through Android's folder picker); then, the same day, **kept for Import** — "keep the previous storage permission implementation … for the import lifecycle instead of getting [an] intent from our app", and ready for whatever else comes to need phone storage. It is asked where it is needed, not in onboarding (§4.8). Other apps reach workspaces through Android's Files app |
 | Workspaces opened from phone storage before | **One notice lists them; each comes in by Import.** Their old shortcuts go; the folders on phone storage are never touched |
-| Data safety | **Keep data on uninstall** (`hasFragileUserData`) and **Manage space instead of Clear storage** (`manageSpaceActivity`). Not device-to-device transfer |
+| Data safety | **Keep data on uninstall** (`hasFragileUserData`). App info keeps **Clear storage** (owner, 2026-09-30: the Manage space page is removed). Not device-to-device transfer |
 
 **The rule.** A workspace is a folder in iCode's storage, `files/workspaces/<name>`. Every part of
 iCode — launcher, Explorer, editor, file operations, terminal, Git, search, language services and
@@ -70,7 +70,7 @@ owner's decision; nothing here changes it.
 | 13 | Storage management | Settings → Storage: device usage, runtime and cache sizes, recent workspaces' sizes, Clear Cache, Remove Stale | Same page: every workspace's size, Clear Cache; Remove Stale goes. App info's **Manage space** opens this page |
 | 14 | Runtime Repair, Reset | Touch `files/runtime` only (rootfs, home backup) | Same; the confirmations say workspaces are kept |
 | 15 | App update | Stores carry over | This version migrates once (§5) |
-| 16 | Uninstall, Clear storage | Workspaces on phone storage survive both | Android asks whether to keep iCode's data on uninstall; App info offers Manage space instead of Clear storage |
+| 16 | Uninstall, Clear storage | Workspaces on phone storage survive both | Android asks whether to keep iCode's data on uninstall; App info's Clear storage removes them, as Android says |
 
 ## 4. Design
 
@@ -137,7 +137,7 @@ Frames are the Figma frames `Route.kt` names; changes use only the existing kit.
 |---|---|
 | Launcher (3:124, empty 3:202) | Tiles **Import**, Clone Repo, New Folder. List **Workspaces**: name, `/workspace/<name>`, branch, last opened. Menu: Open, Open Terminal, Rename…, Show in Files, Copy path (the guest path), Delete…. Empty state: "Create a folder, clone a repository, or import one from phone storage". The storage banner goes. Hidden tasks (an import, a delete) show as in the Explorer |
 | New Folder (2003:77) | Folder Name; the path row reads `/workspace/<name>` as it is typed, with no Change; "already exists" is said inline; the storage card stays |
-| **Import browser** (Open Folder's frame, 2003:117) | Phone storage from its root: the path, `..`, each folder with its counts; a tap goes in; **Import <folder>** at the foot (not at the root). Without All Files Access the page is the permission's explanation — the onboarding step's own words — with **Allow access** (Android's page) and **Not now**; granted, the listing follows |
+| **Import browser** (Open Folder's frame, 2003:117) | Phone storage from its root, named **sdcard**: a breadcrumb (sdcard › Projects › RevPlayer, each folder above a tap back to it; owner, 2026-09-30, in place of the path and `..`), each folder with its counts; a tap goes in; **Import <folder>** at the foot (not at the root). Without All Files Access the page is the permission's explanation — the onboarding step's own words — with **Allow access** (Android's page) and **Not now**; granted, the listing follows |
 | **Import** (new route; no frame yet) | Built from New Folder's parts: **From** (the chosen folder's path on phone storage; Change goes back to the browser), Folder Name (prefilled), the path row, the storage card, **Import** |
 | Clone (3:239), Clone progress (3:278) | Folder Name (Git's name for the address, editable) and the path row replace Destination; progress reads `Dest: /workspace/<name>` |
 | Permission (3:90) | Notifications and Battery only |
@@ -206,10 +206,8 @@ picks for it, through Android's grants. One root, **iCode**:
 ### 4.7 Data safety
 
 - `android:hasFragileUserData="true"`: uninstalling asks whether to keep iCode's data.
-- `android:manageSpaceActivity`: `ManageSpaceActivity`, not exported, hands the request to iCode's
-  own screen in iCode's own task, which opens Settings → Storage. App info then shows **Manage
-  space** instead of **Clear storage** (device check D10). An alias of the main activity would
-  have started a second iCode screen, with its own workbench, inside Settings.
+- ~~`android:manageSpaceActivity`~~: removed at the owner's request (2026-09-30) — App info
+  shows Android's own **Clear storage** again, which removes the workspaces with the rest.
 - Backups stay off (cloud and device transfer exclude everything) — the owner's answer.
 - A workspace is deleted only by its confirmed Delete…; the runtime's Repair and Reset say that
   workspaces are kept.
@@ -313,11 +311,11 @@ against the existing kit only and reviewed line by line; the owner's build is it
 | D3 | `mkdir /workspace/made-in-terminal`, then the launcher | Appears while the launcher is shown |
 | D4 | Rename and delete a workspace; both refused while a terminal session runs in it | As §4.3 |
 | D5 | Fresh install: onboarding | No storage step; notifications and battery once each; the launcher |
-| D6 | Import with All Files Access off: the explanation, Allow access, back to the listing; then import `Internal storage/Projects/RevPlayer` and a folder inside `Download`; cancel one midway | The listing after the grant; progress; the workspace opens; a cancelled import leaves nothing |
+| D6 | Import with All Files Access off: the explanation, Allow access, back to the listing; then import `sdcard/Projects/RevPlayer` and a folder inside `Download`; cancel one midway | The listing after the grant; progress; the workspace opens; a cancelled import leaves nothing |
 | D7 | An imported repository with `gradlew` and a committed link | `./gradlew` runs; the link is a link; `git status` as before the import |
 | D8 | Android's Files app | **iCode** listed; browse, open, edit and save a file in another editor; copy a workspace to `Download`; Show in Files lands on the workspace; a file made in iCode's terminal appears in an open Files listing; a workspace offers no Rename, Move or Delete there |
 | D9 | MT Manager | Whether it can add iCode's provider; written down either way |
-| D10 | Uninstall dialog; App info → Storage | "Keep app data" offered; Manage space opens Storage settings in iCode's own task, one iCode screen (XOS may differ: written down) |
+| D10 | Uninstall dialog; App info → Storage | "Keep app data" offered; App info shows Clear storage (the Manage space page is removed, 2026-09-30) |
 | D11 | The upgrade from `b0c585d` on the owner's phone | One notice naming the old workspaces; no shortcut to phone storage left; `files/workspaces` holds only real workspaces |
 | D12 | Runtime Repair, then Reset | Workspaces untouched |
 

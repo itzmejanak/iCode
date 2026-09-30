@@ -84,7 +84,7 @@ Acceptance criteria:
 
 - Storage settings list every workspace with its size and say that workspaces live in the application's storage.
 - Uninstalling offers to keep the application's data.
-- App info offers Manage space, which opens Storage settings, instead of Clear storage.
+- App info offers Android's own Clear storage, which removes the workspaces with the rest of the application's data (owner, 2026-09-30).
 - Runtime Repair and Reset state that workspaces are kept, and keep them.
 - Workspaces need no storage permission; All Files Access is asked only when I import from phone storage.
 

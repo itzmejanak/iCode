@@ -23,7 +23,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.unit.dp
 
 /**
  * Card-wrapped text input used by every form and search surface.
@@ -138,13 +137,13 @@ fun LabeledField(
     modifier: Modifier = Modifier,
     trailing: (@Composable () -> Unit)? = null,
 ) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
         SectionLabel(label)
-        IcodeCard(modifier = Modifier.fillMaxWidth(), padding = PaddingValues(horizontal = IcodeSpacing.Space3, vertical = 11.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(value, modifier = Modifier.weight(1f), style = IcodeType.Mono)
-                trailing?.invoke()
-            }
+        // Plain text, no field around it (owner, 2026-09-30): a value the user reads never looks
+        // like one to type into.
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(value, modifier = Modifier.weight(1f), style = IcodeType.Mono)
+            trailing?.invoke()
         }
     }
 }
