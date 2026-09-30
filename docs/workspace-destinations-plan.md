@@ -97,6 +97,7 @@ open over the real Source Control, a little blurred, and be chosen from one bar 
 | G11 | Device: the sheets over Source Control and the sync screen; a typed message kept across the sync screen; Commit & Push on icodeTest |
 | G12 | (owner) The search keeps what was typed — its query, options and results — while the workspace is open, as VS Code's search view: leave it and come back, and it is there; the workspace's close resets it. Quick Open starts empty and no longer wipes it |
 | G13 | (owner) In Import's browser, Back goes up a folder, as in the Workspaces page's explorer; at sdcard it leaves. One rule for the folder above, for both |
+| G14 | (owner) Source Control's changes as a tree, as VS Code's "View as Tree": Git lists every new file (`--untracked-files=all`, as VS Code asks), not one row per new folder; changes grouped under their folders, each folder expanding and collapsing, with its count, its STAGE / UNSTAGE for all in it; a chain of folders holding only the next is one row (`src/main`); files by name with their status, no repeated path |
 
 ## 4. Decisions
 
@@ -229,4 +230,16 @@ open over the real Source Control, a little blurred, and be chosen from one bar 
   a folder, as in the Workspaces page's explorer; at sdcard it leaves. The folder above is one rule
   for both browsers (`FolderCrumbs.parentOf`). 1 test. Gate (G7–G13): 579 tests; lint 0 errors /
   12 warnings; both guards pass.
-
+- **G8, revised** (2026-10-01, owner: "branch as status and button both", ↑↓ on the right): the
+  repository and the branch are chips on the left of the bar — icon, name, ▾ — each saying which
+  it is and opening its sheet; ↑↓ sits at the bar's right end. The chip is the bar's own
+  (`BottomBarItem.choice`, one component for every bar). Gate: 579 tests; lint 0 errors / 12
+  warnings; both guards pass.
+- **G8, revised again** (2026-10-01, owner: "too rounded; keep the accent as their background"):
+  the repository and branch are accent buttons with the app's button corner (`IcodeShapes.Small`,
+  as `PrimaryButton`) and on-accent icon, name and ▾. Gate: 579 tests; lint 0 errors / 12
+  warnings; both guards pass.
+- **G8, third look** (2026-10-01, owner: "needs truncation; keep the background as before"): the
+  buttons are back on the raised surface — accent icon, name, ▾ — keeping the button corner. A bar
+  with choices no longer scrolls them away: they share its width, each name cut short with "…",
+  so the repository, the branch and ↑↓ are always in view.
