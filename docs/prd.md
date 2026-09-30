@@ -229,7 +229,7 @@ The platform provides execution, files, processes, environment variables, packag
 | PR-WS-04 | Rename and Delete shall act on a whole workspace, refused while a terminal session or task runs in it; Delete shall be confirmed and cannot be undone. |
 | PR-WS-05 | Other applications shall reach workspaces through the application's document provider (Android's Files app and pickers), never through a link that leads out of the workspaces. |
 | PR-WS-06 | The runtime, editor, Git service, search service, language services and document provider shall resolve the same workspace contents through one path model. |
-| PR-WS-07 | Uninstalling shall offer to keep the application's data, and App info shall offer Manage space instead of Clear storage. |
+| PR-WS-07 | Uninstalling shall offer to keep the application's data. App info keeps Android's Clear storage (owner, 2026-09-30). |
 
 ### 10.3 Files and Explorer
 

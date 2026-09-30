@@ -21,12 +21,11 @@
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
     <!-- Every workspace lives in iCode's own storage (docs/workspace-storage-plan.md §4.7):
-         uninstalling asks whether to keep that data, and App info offers Manage space,
-         which opens Storage settings, instead of Clear storage. -->
+         uninstalling asks whether to keep that data. App info keeps Android's own Clear
+         storage (owner, 2026-09-30). -->
     <application
         android:allowBackup="false"
         android:hasFragileUserData="true"
-        android:manageSpaceActivity=".ManageSpaceActivity"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="false"
         android:icon="@mipmap/ic_launcher"
@@ -44,13 +43,6 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <activity
-            android:name=".ManageSpaceActivity"
-            android:exported="false"
-            android:excludeFromRecents="true"
-            android:noHistory="true"
-            android:theme="@android:style/Theme.NoDisplay" />
 
         <!-- The workspaces in Android's Files app, and to any app the user picks them for;
              only the system's documents UI binds it (docs/workspace-storage-plan.md §4.6). -->

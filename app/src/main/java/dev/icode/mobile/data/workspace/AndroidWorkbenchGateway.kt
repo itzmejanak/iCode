@@ -260,7 +260,6 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
                         is WorkbenchIntent.DeleteWorkspace -> lifecycle.delete(intent.location)
                         is WorkbenchIntent.OpenImportBrowser -> importer.openBrowser(intent.path)
                         is WorkbenchIntent.BrowseImportFolder -> importer.browse(intent.path)
-                        WorkbenchIntent.BrowseImportParent -> importer.browseParent()
                         is WorkbenchIntent.ChooseImportFolder -> importer.choose(intent.path)
                         is WorkbenchIntent.ImportWorkspace -> importer.import(intent.name)
                         is WorkbenchIntent.ShowWorkspaceInFiles ->

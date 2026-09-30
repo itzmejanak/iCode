@@ -61,7 +61,7 @@ class MainActivity : ComponentActivity() {
         super.onStop()
     }
 
-    /** A notification tapped, or Manage space chosen, while this screen already exists. */
+    /** A notification tapped while this screen already exists. */
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
@@ -72,7 +72,6 @@ class MainActivity : ComponentActivity() {
         val asked = intent ?: return null
         return when (asked.action) {
             ACTION_SHOW_TERMINAL_SESSION -> asked.getStringExtra(EXTRA_TERMINAL_SESSION_ID)?.let(Arrival::TerminalSession)
-            ACTION_MANAGE_SPACE -> Arrival.StorageSettings
             ACTION_SHOW_WORK -> BackgroundPlace.decode(asked.getStringExtra(EXTRA_WORK_PLACE))?.let(Arrival::Work)
             else -> null
         }
@@ -82,9 +81,6 @@ class MainActivity : ComponentActivity() {
         /** Opens iCode on one terminal session: its workspace, the Terminal panel, that tab. */
         const val ACTION_SHOW_TERMINAL_SESSION = "dev.icode.mobile.action.SHOW_TERMINAL_SESSION"
         const val EXTRA_TERMINAL_SESSION_ID = "terminal_session"
-
-        /** Opens iCode on Storage settings: App info's Manage space ([ManageSpaceActivity]). */
-        const val ACTION_MANAGE_SPACE = "dev.icode.mobile.action.MANAGE_SPACE"
 
         /** Opens iCode on a piece of background work, from its notification: [EXTRA_WORK_PLACE] says where. */
         const val ACTION_SHOW_WORK = "dev.icode.mobile.action.SHOW_WORK"

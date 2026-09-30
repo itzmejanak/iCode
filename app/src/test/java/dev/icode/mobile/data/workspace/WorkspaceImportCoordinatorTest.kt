@@ -113,7 +113,7 @@ class WorkspaceImportCoordinatorTest {
         coordinator.openBrowser(File(phone, "Projects").path)
         val waiting = workbench.current.importBrowser!!
         assertFalse(waiting.access)
-        assertEquals("Internal storage / Projects", waiting.displayPath)
+        assertEquals(listOf("sdcard", "Projects"), waiting.crumbs.map { it.name })
         access = true
         val following = coordinator.followAccess(scope)
         workbench.update { it.copy(systemAccess = SystemAccess(notifications = false, unrestrictedBattery = false, storage = true)) }
@@ -122,12 +122,14 @@ class WorkspaceImportCoordinatorTest {
         following.cancel()
     }
 
-    @Test fun `going up stops at internal storage, and a folder gone since falls back to it`() = runBlocking {
+    @Test fun `a breadcrumb step goes back up, and a folder gone since falls back to sdcard`() = runBlocking {
         assertTrue(picked.isDirectory)
-        coordinator.openBrowser(File(phone, "Projects").path)
-        coordinator.browseParent()
-        assertTrue(workbench.current.importBrowser!!.atRoot)
-        coordinator.browseParent()
+        coordinator.openBrowser(picked.path)
+        val crumbs = workbench.current.importBrowser!!.crumbs
+        assertEquals(listOf("sdcard", "Projects", "app"), crumbs.map { it.name })
+        coordinator.browse(crumbs[1].path)
+        assertEquals(File(phone, "Projects").path, workbench.current.importBrowser!!.currentPath)
+        coordinator.browse(crumbs[0].path)
         assertTrue(workbench.current.importBrowser!!.atRoot)
         coordinator.browse(File(phone, "gone").path)
         assertTrue(workbench.current.importBrowser!!.atRoot)
@@ -140,7 +142,7 @@ class WorkspaceImportCoordinatorTest {
         assertNull(workbench.current.importSource)
         assertEquals(2, messages.size)
         chosen()
-        assertEquals(ImportSource(picked.path, "app", "Internal storage / Projects / app"), workbench.current.importSource)
+        assertEquals(ImportSource(picked.path, "app", "sdcard / Projects / app"), workbench.current.importSource)
         assertTrue(WorkbenchEffect.ImportSourceChosen in effects)
     }
 

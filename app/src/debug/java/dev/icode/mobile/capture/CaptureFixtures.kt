@@ -160,7 +160,6 @@ object CaptureFixtures {
             access = true,
             rootPath = PHONE_ROOT,
             currentPath = "$PHONE_ROOT/Projects",
-            displayPath = "Internal storage / Projects",
             folders = listOf(
                 PhoneFolder("RevPlayer", "$PHONE_ROOT/Projects/RevPlayer", directoryCount = 12, fileCount = 4),
                 PhoneFolder("site", "$PHONE_ROOT/Projects/site", directoryCount = 2, fileCount = 15),
