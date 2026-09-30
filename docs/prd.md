@@ -24,7 +24,7 @@ The application is designed as a mobile product rather than a desktop interface 
 Existing mobile development environments commonly suffer from one or more of the following limitations:
 
 - desktop-oriented interfaces are embedded inside WebViews and remain difficult to use with touch;
-- projects are imported or copied instead of edited in their original location;
+- projects sit where Linux tools cannot work on them — shared storage refuses links and executable bits, folds letter case, and runs many-file operations more than a hundred times slower — or are silently mirrored and synchronised, so two copies drift;
 - editor, terminal, Git, preview, and agent functions are fragmented into unrelated screens;
 - the application restricts users to a curated list of languages, tools, agents, or providers;
 - language intelligence and source control are incomplete;
@@ -38,7 +38,7 @@ The product must remove these restrictions without replacing them with an overly
 
 ## 4. Vision
 
-> Give developers a capable, native, local-first workbench on Android where they can open their own directories, edit original files, understand and control Git changes, run any compatible tool, and shape the environment to their workflow.
+> Give developers a capable, native, local-first workbench on Android where their projects live in a real Linux workspace that every tool reaches the same way, where they edit files in place, understand and control Git changes, run any compatible tool, and shape the environment to their workflow.
 
 The product should feel intentionally designed for phones and tablets while preserving familiar development concepts such as workspaces, editor tabs, diagnostics, source control, terminals, language services, and project search.
 
@@ -46,7 +46,7 @@ The product should feel intentionally designed for phones and tablets while pres
 
 ### 5.1 Direct workspace ownership
 
-The user can open an Android-accessible directory and work on its original files. The application must not silently import, duplicate, or relocate the workspace.
+A workspace is one folder in the application's storage, and the only copy of it. The user creates, clones or imports it, edits it in place, and reaches it from other applications through Android's Files app. The application never mirrors or synchronises it, never copies a folder in without the user's Import, and never deletes a workspace without the user's confirmed Delete.
 
 ### 5.2 Complete everyday development loop
 
@@ -150,7 +150,7 @@ A developer who installs an AI agent as a CLI or uses scripts that modify the wo
 
 Needs:
 
-- the agent and editor to operate on the same original files;
+- the agent and editor to operate on the same workspace files;
 - external modifications to appear reliably;
 - Git changes to reveal agent edits;
 - freedom to choose and configure the agent independently.
@@ -214,7 +214,7 @@ The platform provides execution, files, processes, environment variables, packag
 
 | ID | Requirement |
 |---|---|
-| PR-ENTRY-01 | The application shall present recent workspaces and Open Folder, Create Folder, and Clone Repository actions. |
+| PR-ENTRY-01 | The application shall present every workspace in its storage, most recently opened first, and Import, Clone Repository, and New Folder actions. |
 | PR-ENTRY-02 | The application shall not require account, provider, agent, or language configuration before a workspace can be opened. |
 | PR-ENTRY-03 | Initial runtime installation shall show truthful progress, failure, retry, and storage information. |
 | PR-ENTRY-04 | Returning users shall be able to reopen the last or a recent workspace. |
@@ -223,12 +223,13 @@ The platform provides execution, files, processes, environment variables, packag
 
 | ID | Requirement |
 |---|---|
-| PR-WS-01 | The application shall request Android All Files Access when broad direct-path access is first required. |
-| PR-WS-02 | Opening an existing directory shall operate on that original directory without copying it. |
-| PR-WS-03 | The user shall choose the destination for a created or cloned workspace. |
-| PR-WS-04 | The application shall expose clear errors for inaccessible, removed, read-only, or protected locations. |
-| PR-WS-05 | The application shall remember recent workspace paths and remove stale entries on user request. |
-| PR-WS-06 | The runtime, editor, Git service, search service, and language services shall resolve the same workspace contents. |
+| PR-WS-01 | Workspaces shall live in the application's own storage; the application shall request no broad storage permission. |
+| PR-WS-02 | A folder from phone storage shall come in only by the user's Import — a one-time copy through Android's folder picker that never writes the original — with a repository's executable bits and links restored from Git's own record. |
+| PR-WS-03 | New Folder, Clone and Import shall name the workspace; it is created at `/workspace/<name>`, and a taken name is refused inline. |
+| PR-WS-04 | Rename and Delete shall act on a whole workspace, refused while a terminal session or task runs in it; Delete shall be confirmed and cannot be undone. |
+| PR-WS-05 | Other applications shall reach workspaces through the application's document provider (Android's Files app and pickers), never through a link that leads out of the workspaces. |
+| PR-WS-06 | The runtime, editor, Git service, search service, language services and document provider shall resolve the same workspace contents through one path model. |
+| PR-WS-07 | Uninstalling shall offer to keep the application's data, and App info shall offer Manage space instead of Clear storage. |
 
 ### 10.3 Files and Explorer
 
@@ -335,7 +336,7 @@ The platform provides execution, files, processes, environment variables, packag
 |---|---|
 | PR-STATE-01 | Normal application updates shall preserve settings, runtime home, installed tools, and workspace metadata. |
 | PR-STATE-02 | Application restart shall restore the previous workspace and document session when possible. |
-| PR-STATE-03 | Dirty-document recovery shall not silently overwrite a newer original file. |
+| PR-STATE-03 | Dirty-document recovery shall not silently overwrite a newer file on disk. |
 | PR-STATE-04 | Runtime repair and reset shall be distinct operations with explicit consequences. |
 | PR-STATE-05 | Removing the application shall not delete workspaces stored outside application-private storage. |
 
@@ -391,7 +392,7 @@ Empty states explain why no content exists and provide one relevant next action.
 
 ### 12.1 Reliability
 
-- Original files must never be silently replaced by stale in-memory content.
+- Workspace files must never be silently replaced by stale in-memory content.
 - A reported Git operation success must correspond to a successful Git exit.
 - Dirty text must be recoverable after normal process recreation.
 - Partial runtime installation must not be treated as healthy.
@@ -432,9 +433,10 @@ Empty states explain why no content exists and provide one relevant next action.
 
 ## 13. Android and Distribution Constraints
 
-- Broad direct-path behavior depends on Android All Files Access.
+- Workspaces live in app-private storage: other applications reach them only through the document provider, and they have no `/sdcard` path.
+- Uninstalling deletes app-private storage unless the user keeps the application's data when Android asks.
 - Protected Android directories and other applications' private data remain inaccessible without operating-system privileges.
-- Distribution channels may apply policy restrictions to broad storage permission.
+- No broad storage permission is requested, so no distribution policy for it applies.
 - Foreground processes require a visible Android notification.
 - Device vendors may terminate long-running processes despite application lifecycle handling.
 - Native dependencies and runtime binaries must support the device architecture.
@@ -515,10 +517,10 @@ Implementation phases, task steps, dependency groups, effort, and completion tra
 | Term | Product meaning |
 |---|---|
 | Workbench | Native environment combining editor, files, Git, search, terminal, and diagnostics |
-| Workspace | User-selected original directory opened as the active project root |
+| Workspace | One folder in the application's storage, opened as the active project root |
 | Runtime | Ubuntu ARM64 userspace in which commands and developer tools execute |
 | Language service | User-installed LSP-compatible process providing code intelligence |
 | Source Control | Native presentation and control of Git repository state |
 | Recovery buffer | App-private protection for unsaved document content |
-| Direct path | Filesystem path accessed without importing the workspace into application storage |
+| Import | The user's one-time copy of a phone-storage folder into a new workspace; the original is never written |
 | External browser | Browser selected by Android to open an activated HTTP or HTTPS link |
