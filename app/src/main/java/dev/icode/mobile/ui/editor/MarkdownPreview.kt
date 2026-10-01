@@ -34,16 +34,9 @@ fun MarkdownPreview(
     onScale: (Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val context = LocalContext.current
     val textColor = IcodeColors.TextPrimary.toArgb()
     val linkColor = IcodeColors.Blue.toArgb()
-    val markwon = remember(context) {
-        Markwon.builder(context)
-            .usePlugin(TablePlugin.create(context))
-            .usePlugin(StrikethroughPlugin.create())
-            .usePlugin(TaskListPlugin.create(context))
-            .build()
-    }
+    val markwon = rememberMarkwon()
     Box(modifier.fillMaxSize().background(IcodeColors.BackgroundDeep).verticalScroll(rememberScrollState())) {
         AndroidView(
             factory = {
@@ -66,6 +59,43 @@ fun MarkdownPreview(
             },
             modifier = Modifier.fillMaxWidth(),
         )
+    }
+}
+
+/**
+ * Markdown as running text in a page that scrolls by itself — the assistant's answers: the same
+ * renderer as the preview, selectable, links followed, without the preview's own scroll and zoom.
+ */
+@Composable
+fun MarkdownText(text: String, fontSizeSp: Float, modifier: Modifier = Modifier) {
+    val textColor = IcodeColors.TextPrimary.toArgb()
+    val linkColor = IcodeColors.Blue.toArgb()
+    val markwon = rememberMarkwon()
+    AndroidView(
+        factory = { ScalableMarkdownTextView(it) },
+        update = {
+            it.setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSizeSp)
+            it.setTextColor(textColor)
+            it.setLinkTextColor(linkColor)
+            if (it.renderedMarkdown != text) {
+                markwon.setMarkdown(it, text)
+                it.renderedMarkdown = text
+            }
+        },
+        modifier = modifier.fillMaxWidth(),
+    )
+}
+
+/** One Markdown renderer per context: CommonMark with tables, strikethrough and task lists. */
+@Composable
+private fun rememberMarkwon(): Markwon {
+    val context = LocalContext.current
+    return remember(context) {
+        Markwon.builder(context)
+            .usePlugin(TablePlugin.create(context))
+            .usePlugin(StrikethroughPlugin.create())
+            .usePlugin(TaskListPlugin.create(context))
+            .build()
     }
 }
 

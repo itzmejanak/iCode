@@ -32,6 +32,8 @@ class RouteTest {
         Route.Workspaces, // 2026-10-01: every workspace managed in one place (workspaces-page-plan.md)
         Route.ChooseDestination, // 2026-10-01: the file explorer choosing where a project goes (workspace-destinations-plan.md)
         Route.RepositorySelector, // 2026-10-01: the repository chosen as the branch is (workspace-destinations-plan.md D7)
+        Route.Assistant, // 2026-10-01: iCode's own assistant, on Koog (assistant-koog-plan.md §3)
+        Route.AssistantSettings, // 2026-10-01: the assistant's provider, model and key (assistant-koog-plan.md §3)
     )
 
     private val framed = Route.entries.mapNotNull { it.figmaNode }

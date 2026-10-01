@@ -10,7 +10,7 @@ import java.io.File
  * renames, moves or deletes a workspace or an item in one — the Workspaces page, the Explorer and
  * the clipboard alike. What holds it: a task (whose dialog then shows), a file at or under it with
  * unsaved edits or an unanswered recovery question, work waiting in Document Recovery under it,
- * and — for a whole workspace — a terminal session or Git working in it.
+ * and — for a whole workspace — a terminal session, Git or the assistant working in it.
  */
 internal class WorkspaceUsage(
     private val workbench: WorkbenchStateHolder,
@@ -28,6 +28,7 @@ internal class WorkspaceUsage(
         if (whole && state.gitOperation is GitOperationState.Running && activeRoot() == location) {
             return "Git is working in $name — wait for it to finish"
         }
+        if (whole && state.assistant.turn?.workspace == location) return "The assistant is working in $name. Stop it first"
         blockingEdits(location)?.let { return "${it.name} has unsaved edits. Save or close it first" }
         if (state.recoverableDrafts.any { it.location.isAtOrUnder(location) }) {
             return "$name has unsaved work waiting in Document Recovery. Restore or discard it first"

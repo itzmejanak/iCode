@@ -27,6 +27,8 @@ class PaletteCommandsTest {
         assertFalse(commands.first { it.id == PaletteCommandId.SaveCurrent }.available)
         assertFalse(commands.first { it.id == PaletteCommandId.QuickOpen }.available)
         assertTrue(commands.first { it.id == PaletteCommandId.OpenTerminal }.available)
+        assertEquals("Open a workspace first", commands.first { it.id == PaletteCommandId.OpenAssistant }.unavailableReason)
+        assertEquals(PaletteCommandId.OpenAssistant, PaletteCommands.search(snapshot, "assistant").single().id)
     }
 
     @Test fun remoteAndStagedChangesAreRequiredForGitMutations() {

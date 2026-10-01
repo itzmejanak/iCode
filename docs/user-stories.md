@@ -930,7 +930,72 @@ Acceptance criteria:
 - Lost processes are marked stopped or lost.
 - Git and language state refresh from their real sources.
 
-## 18. Public Website and Distribution
+## 18. Assistant
+
+Owner's decision, 2026-10-01 ([assistant-koog-plan.md](./assistant-koog-plan.md); PR-ASSIST-01–11).
+
+### US-ASSIST-001 — Set up the assistant
+
+**As a developer, I want to choose the assistant's provider and model once, so that I can ask it about any workspace.**
+
+Acceptance criteria:
+
+- Until a provider is set, the Assistant page explains what the assistant does and what it sends, and offers its settings; nothing else asks.
+- The form offers OpenAI, Anthropic, Google Gemini, OpenRouter, Ollama and OpenAI-compatible servers; a server's address is asked only where it is needed.
+- The model is typed; Koog's models for that provider are offered as suggestions.
+- The API key is masked, never shown again once saved, and goes with its provider when the provider changes.
+- Save checks the form; the first message checks the connection and says why it failed.
+
+### US-ASSIST-002 — Ask about the workspace
+
+**As a developer, I want to ask the assistant to explain, find or change something in the open workspace, so that I can work on a phone without doing every step by hand.**
+
+Acceptance criteria:
+
+- The page shows the open workspace's chat; the reply streams in as Markdown.
+- Each step shows what it did ("Read src/App.kt", "Ran `npm test`") and how it went; its output is a tap away.
+- Edits reach the Explorer, Source Control and clean open tabs as a terminal's edits do.
+- A file with unsaved edits is never written; the assistant is told to ask for a save.
+
+### US-ASSIST-003 — Approve a change or a command
+
+**As a developer, I want to see each change and command before it happens, so that the assistant never surprises me.**
+
+Acceptance criteria:
+
+- A change shows its file and the text it replaces; a command shows its command line.
+- Allow runs it; Deny tells the assistant it was refused; Allow All stops this chat's questions.
+- Ask before changes can be turned off in the assistant's settings; reads never ask.
+
+### US-ASSIST-004 — Stop the assistant
+
+**As a developer, I want to stop a turn at any point, so that a wrong direction costs nothing more.**
+
+Acceptance criteria:
+
+- Stop ends the stream and a running command with everything it started.
+- What was said and done stays; steps that had not run are marked stopped, and the next message continues the chat.
+
+### US-ASSIST-005 — Leave while it works
+
+**As a developer, I want the assistant to keep working when I switch apps, so that a long turn is not lost.**
+
+Acceptance criteria:
+
+- The turn continues with a notification naming its step, with Cancel.
+- A question it waits on pops up while iCode is out of view; a tap opens the Assistant.
+- A workspace the assistant is working in cannot be renamed or deleted until it stops.
+
+### US-ASSIST-006 — Keep a chat per workspace
+
+**As a developer, I want each workspace to keep its own chat, so that I can come back to it.**
+
+Acceptance criteria:
+
+- Each workspace's chat survives the app being closed or killed, as last saved.
+- It follows a rename and goes with a delete; New Chat clears it after a confirmation.
+
+## 19. Public Website and Distribution
 
 ### US-WEB-001 — Learn about the product
 
@@ -962,7 +1027,7 @@ Acceptance criteria:
 - Editing, search, Git local operations, terminal, and installed language services continue.
 - Network-dependent update checks fail non-destructively.
 
-## 19. Community Contribution
+## 20. Community Contribution
 
 ### US-COMM-001 — Locate feature ownership
 
@@ -1009,7 +1074,7 @@ Acceptance criteria:
 - Checksums and supported signing information are published.
 - Release notes distinguish application, runtime, migration, and known-limit changes.
 
-## 20. Cross-Capability Scenarios
+## 21. Cross-Capability Scenarios
 
 ### Scenario A — Edit and commit an existing repository
 
@@ -1065,7 +1130,7 @@ Expected outcome: user work is protected and process state remains truthful.
 
 Expected outcome: a new language workflow is possible without an application-specific extension or adapter.
 
-## 21. Story Completion Standard
+## 22. Story Completion Standard
 
 A story is behaviorally complete only when:
 

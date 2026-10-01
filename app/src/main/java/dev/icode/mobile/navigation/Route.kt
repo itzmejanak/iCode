@@ -68,4 +68,7 @@ enum class Route(
     ExternalFileChange("2003:770", "External file change", RouteGroup.RECOVERY),
     DocumentRecovery("2003:813", "Document recovery", RouteGroup.RECOVERY),
     WorkspaceSettings("2003:886", "Workspace settings", RouteGroup.SETTINGS),
+    // Owner's request (2026-10-01): iCode's own assistant, on Koog (docs/assistant-koog-plan.md).
+    Assistant(null, "Assistant", RouteGroup.TOOLS),
+    AssistantSettings(null, "Assistant settings", RouteGroup.SETTINGS),
 }

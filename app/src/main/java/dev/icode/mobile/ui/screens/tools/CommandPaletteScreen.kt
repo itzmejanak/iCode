@@ -155,5 +155,6 @@ internal fun runPaletteCommand(
         PaletteCommandId.SearchWorkspace -> replace(Route.WorkspaceSearch)
         PaletteCommandId.OpenTerminal -> replace(Route.TerminalExpanded)
         PaletteCommandId.OpenSourceControl -> replace(Route.SourceControl)
+        PaletteCommandId.OpenAssistant -> replace(Route.Assistant)
     }
 }

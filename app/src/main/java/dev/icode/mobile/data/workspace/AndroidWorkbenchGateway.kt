@@ -2,6 +2,8 @@ package dev.icode.mobile.data.workspace
 
 import android.content.Context
 import com.termux.terminal.TerminalSession
+import dev.icode.mobile.data.assistant.AssistantCoordinator
+import dev.icode.mobile.data.assistant.tools.AssistantToolbox
 import dev.icode.mobile.data.git.CliGitService
 import dev.icode.mobile.data.git.ConflictFiles
 import dev.icode.mobile.data.git.GitAuthCoordinator
@@ -15,6 +17,7 @@ import dev.icode.mobile.data.git.GitWorkspaceCoordinator
 import dev.icode.mobile.data.language.LanguageServiceCoordinator
 import dev.icode.mobile.data.notices.NoticeStore
 import dev.icode.mobile.data.runtime.RuntimeCoordinator
+import dev.icode.mobile.data.runtime.GuestCommand
 import dev.icode.mobile.data.runtime.RuntimeForegroundService
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.runtime.RuntimeComponentsCoordinator
@@ -134,19 +137,13 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
     )
     /** Long operations: their own jobs, off the mutation lock (docs/long-operations-plan.md). */
     private val tasks = TaskRunner(workbench, scope)
-    private val search: SearchCoordinator = SearchCoordinator(workbench, scope, RipgrepService(runtimeLayout, components.installer)) { session.activeRoot }
-    private val recovery: DocumentRecoveryCoordinator = DocumentRecoveryCoordinator(
-        workbench,
-        scope,
-        DocumentDraftStore(File(appContext.filesDir, "document-drafts")),
-    ) { location -> documents.sourceOf(location) }
+    /** One ripgrep, for Search and the assistant: one install, one cooldown after a failed one. */
+    private val ripgrep = RipgrepService(runtimeLayout, components.installer)
+    private val search: SearchCoordinator = SearchCoordinator(workbench, scope, ripgrep) { session.activeRoot }
+    private val recovery: DocumentRecoveryCoordinator =
+        DocumentRecoveryCoordinator(workbench, scope, DocumentDraftStore(File(appContext.filesDir, "document-drafts"))) { location -> documents.sourceOf(location) }
     private val documents: DocumentSessionCoordinator = DocumentSessionCoordinator(
-        workbench,
-        source,
-        recovery,
-        library,
-        activeRoot = { session.activeRoot },
-        onSaved = { gitWorkspace.scheduleRefresh() },
+        workbench, source, recovery, library, activeRoot = { session.activeRoot }, onSaved = { gitWorkspace.scheduleRefresh() },
     )
     private val session: WorkspaceSessionCoordinator = WorkspaceSessionCoordinator(
         workbench, scope, source, tree, library, documents, recovery, gitWorkspace, search, terminal, languages,
@@ -155,8 +152,8 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
     private val usage = WorkspaceUsage(workbench, tasks, terminal::runsIn, documents::blockingEdits) { session.activeRoot }
     private val lifecycle = WorkspaceLifecycleCoordinator(
         workbench, tasks, source, library, session, usage, documents::open,
-        moveSettings = settings::moveWorkspace,
-        forgetSettings = settings::forgetWorkspace,
+        moveSettings = { from, to -> settings.moveWorkspace(from, to).also { assistant.workspaceMoved(from, to) } },
+        forgetSettings = { location -> settings.forgetWorkspace(location).also { assistant.workspaceForgotten(location) } },
     )
     private val items = WorkspaceItemsCoordinator(
         workbench, tasks, source, tree, documents, library, usage, lifecycle,
@@ -170,6 +167,15 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
         reserveSpace = runtimeLayout::reserveSpace,
         freeBytes = runtimeLayout::allocatableBytes,
         open = lifecycle::reveal,
+    )
+    /** iCode's assistant (docs/assistant-koog-plan.md): its turns are its own jobs, its tools iCode's owners. */
+    private val assistant = AssistantCoordinator.create(
+        appContext, workbench, scope,
+        AssistantToolbox(source, ripgrep, gitCli, GuestCommand(runtimeLayout), runtimeLayout::isInstalled, { documents.blockingEdits(it) != null }) {
+            session.requestRefresh(rebuildIndex = true)
+        },
+        activeRoot = { session.activeRoot },
+        describe = source::describeRoot,
     )
 
     override val snapshot: StateFlow<WorkbenchSnapshot> = workbench.snapshot
@@ -190,6 +196,7 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
         components.start()
         BackgroundWork.follow(appContext, scope, workbench.snapshot.map(BackgroundWorkRules::of), ::dispatch)
         importer.followAccess(scope)
+        assistant.start()
     }
 
     /** The live session behind a terminal tab, for the view that draws it. Main thread. */
@@ -232,6 +239,7 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
             WorkbenchIntent.ClearContentSearch -> search.clear()
             // A transfer is its own job: nothing waits behind a slow remote.
             is WorkbenchIntent.TransferIntent -> gitTransfers.handle(intent)
+            is WorkbenchIntent.AssistantIntent -> assistant.handle(intent)
             else -> scope.launch {
                 workbench.mutations.withLock {
                     when (intent) {
@@ -263,12 +271,8 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
                         is WorkbenchIntent.RenameWorkspaceItem -> items.rename(intent)
                         is WorkbenchIntent.ClipboardIntent -> items.clipboard(intent)
                         is WorkbenchIntent.DeleteWorkspaceItem -> items.delete(intent)
-                        is WorkbenchIntent.SaveDocument -> documents.save(
-                            intent.location,
-                            intent.automatic,
-                            intent.expectedText,
-                            intent.expectedWorkspace,
-                        )
+                        is WorkbenchIntent.SaveDocument ->
+                            documents.save(intent.location, intent.automatic, intent.expectedText, intent.expectedWorkspace)
                         is WorkbenchIntent.RestoreDraft -> recovery.restore(intent.location)
                         is WorkbenchIntent.OpenRecoverableDraft -> session.openRecoverableDraft(intent.location)
                         is WorkbenchIntent.DiscardDraft -> recovery.keepDiskVersion(intent.location)
@@ -323,16 +327,10 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
                         WorkbenchIntent.ClearAppCache -> library.clearCache()
                         // Repair keeps the home directory, reset does not; both go
                         // through the one installer rather than a second path.
-                        WorkbenchIntent.RepairRuntime -> {
-                            if (runtime.install(RuntimeInstallReason.Repair)) {
-                                workbench.emit(WorkbenchEffect.RuntimeRebuildStarted)
-                            }
-                        }
-                        WorkbenchIntent.ResetRuntime -> {
-                            if (runtime.install(RuntimeInstallReason.Reset)) {
-                                workbench.emit(WorkbenchEffect.RuntimeRebuildStarted)
-                            }
-                        }
+                        WorkbenchIntent.RepairRuntime ->
+                            if (runtime.install(RuntimeInstallReason.Repair)) workbench.emit(WorkbenchEffect.RuntimeRebuildStarted)
+                        WorkbenchIntent.ResetRuntime ->
+                            if (runtime.install(RuntimeInstallReason.Reset)) workbench.emit(WorkbenchEffect.RuntimeRebuildStarted)
                         WorkbenchIntent.OpenTerminalSession -> terminal.open()
                         WorkbenchIntent.EnsureTerminalSession -> terminal.ensure()
                         is WorkbenchIntent.SelectTerminalSession -> terminal.select(intent.id)

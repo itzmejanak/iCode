@@ -80,7 +80,8 @@ class RuntimeForegroundService : Service() {
         shown.createChannel(notifications)
         workShown = WorkNotifications(this, notifications)
         scope.launch {
-            combine(terminals.snapshot, BackgroundWork.items) { snapshot, items -> snapshot to items }
+            // Leaving iCode is followed too: a question asked while it was in view pops up when it goes.
+            combine(terminals.snapshot, BackgroundWork.items, terminals.screenVisible) { snapshot, items, _ -> snapshot to items }
                 .conflate()
                 .collect { (snapshot, items) ->
                     sessions = snapshot.sessions.filter { it.isRunning }

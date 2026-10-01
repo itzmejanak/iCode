@@ -227,6 +227,31 @@ sealed interface WorkbenchIntent {
     data class CloseTerminalSession(val id: String) : WorkbenchIntent
     data class OpenExternalUrl(val url: String) : WorkbenchIntent
 
+    /** The assistant (docs/assistant-koog-plan.md): its turns are their own job, never behind the mutation lock. */
+    sealed interface AssistantIntent : WorkbenchIntent
+    /** The Assistant page opened, or the workspace under it changed: that workspace's chat is shown. */
+    data object OpenAssistant : AssistantIntent
+    data class SendAssistantMessage(val text: String) : AssistantIntent
+    /** Stops the turn in hand: the stream, and a running command with everything it started. */
+    data object StopAssistant : AssistantIntent
+    data class AnswerAssistant(val callId: String, val answer: AssistantAnswer) : AssistantIntent
+    /** Clears the shown workspace's chat. */
+    data object NewAssistantChat : AssistantIntent
+    /** [key] null keeps the saved one; [baseUrl] is read only where the provider asks for it. */
+    data class SaveAssistantSettings(
+        val kind: AssistantProviderKind,
+        val baseUrl: String,
+        val model: String,
+        val key: String?,
+        val askBeforeChanges: Boolean,
+    ) : AssistantIntent {
+        /** The key is never written out, should an intent ever be. */
+        override fun toString(): String =
+            "SaveAssistantSettings($kind, $baseUrl, $model, key=${if (key == null) "kept" else "***"}, $askBeforeChanges)"
+    }
+    /** Forgets the provider and its key. */
+    data object RemoveAssistantSettings : AssistantIntent
+
     data object Refresh : WorkbenchIntent
 
     /** iCode came on screen or left it: the open workspace is watched only while it is seen. */

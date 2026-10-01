@@ -17,12 +17,16 @@ import dev.icode.mobile.domain.BackgroundPlace
  * Background work in the notification drawer (docs/long-operations-plan.md §6), as the reference
  * shows it: per piece of work a silent progress notification — "Deleting… (1207 / 11813)", the item
  * in hand, a bar, Cancel where the work allows it — and a failure that pops up when the user was
- * not watching. A tap opens iCode on the work. [RuntimeForegroundService] posts them; the running
- * summary is its own notification.
+ * not watching. Work that waits on the user (the assistant asking before a change) pops its
+ * question up while iCode is out of view. A tap opens iCode on the work. [RuntimeForegroundService]
+ * posts them; the running summary is its own notification.
  */
 internal class WorkNotifications(private val context: Context, private val notifications: NotificationManager) {
     /** What each progress notification shows now, so an unchanged one is not posted again. */
     private val posted = mutableMapOf<String, BackgroundItem>()
+
+    /** The question each piece of work has popped up, so one is posted once and withdrawn once answered. */
+    private val asked = mutableMapOf<String, Pair<Int, String>>()
 
     init {
         notifications.createNotificationChannel(
@@ -35,6 +39,11 @@ internal class WorkNotifications(private val context: Context, private val notif
         notifications.createNotificationChannel(
             NotificationChannel(FAILURE_CHANNEL, "Task failures", NotificationManager.IMPORTANCE_HIGH).apply {
                 description = "A long operation stopped short while you were elsewhere"
+            },
+        )
+        notifications.createNotificationChannel(
+            NotificationChannel(QUESTION_CHANNEL, "Needs your answer", NotificationManager.IMPORTANCE_HIGH).apply {
+                description = "Work waiting for you, such as the assistant asking before a change or a command"
             },
         )
     }
@@ -58,12 +67,27 @@ internal class WorkNotifications(private val context: Context, private val notif
                 posted[item.key] = item
             }
         }
+        ask(running.values, screenVisible)
     }
 
-    /** The service stops: nothing runs any more. A failure stays until it is read. */
+    /** A question pops up while iCode is out of view; in view, iCode shows it, and answered, it goes. */
+    private fun ask(running: Collection<BackgroundItem>, screenVisible: Boolean) {
+        val now = running.mapNotNull { item -> item.question?.takeIf { !screenVisible }?.let { item.key to (item.number to it) } }.toMap()
+        (asked.keys - now.keys).toList().forEach { key -> asked.remove(key)?.let { (number, _) -> notifications.cancel(QUESTION_BASE + number) } }
+        now.forEach { (key, question) ->
+            if (asked[key] == question) return@forEach
+            val item = running.first { it.key == key }
+            notifications.notify(QUESTION_BASE + item.number, question(item, question.second))
+            asked[key] = question
+        }
+    }
+
+    /** The service stops: nothing runs any more. A failure stays until it is read; a question goes with its work. */
     fun clear() {
         posted.values.forEach { notifications.cancel(PROGRESS_BASE + it.number) }
         posted.clear()
+        asked.values.forEach { (number, _) -> notifications.cancel(QUESTION_BASE + number) }
+        asked.clear()
     }
 
     private fun progress(item: BackgroundItem): Notification {
@@ -96,6 +120,18 @@ internal class WorkNotifications(private val context: Context, private val notif
             .setContentIntent(open(context, item.place))
             .build()
 
+    private fun question(item: BackgroundItem, question: String): Notification =
+        Notification.Builder(context, QUESTION_CHANNEL)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setColor(context.getColor(R.color.notification_accent))
+            .setContentTitle("Waiting for your answer")
+            .setContentText(question)
+            .setStyle(Notification.BigTextStyle().bigText("$question\n${item.detail}"))
+            .setCategory(Notification.CATEGORY_REMINDER)
+            .setAutoCancel(true)
+            .setContentIntent(open(context, item.place))
+            .build()
+
     private fun cancel(item: BackgroundItem): PendingIntent {
         val intent = Intent(context, RuntimeForegroundService::class.java)
             .setAction(RuntimeForegroundService.ACTION_CANCEL_WORK)
@@ -108,8 +144,10 @@ internal class WorkNotifications(private val context: Context, private val notif
     companion object {
         private const val PROGRESS_CHANNEL = "icode.work-progress"
         private const val FAILURE_CHANNEL = "icode.work-failures"
+        private const val QUESTION_CHANNEL = "icode.work-questions"
         private const val PROGRESS_BASE = 7000
         private const val FAILURE_BASE = 8000
+        private const val QUESTION_BASE = 9000
         private const val PROGRESS_MAX = 1000
         private const val REQUEST_OPEN = 20_000
 
