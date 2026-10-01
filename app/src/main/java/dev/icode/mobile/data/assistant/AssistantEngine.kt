@@ -4,6 +4,7 @@ import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantEffort
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantModel
+import dev.icode.mobile.domain.AssistantModelSpec
 import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.domain.AssistantResult
 import dev.icode.mobile.domain.AssistantToolKind
@@ -19,8 +20,14 @@ internal interface AssistantEngine {
     /** The models this engine knows per provider — those that chat and call tools — with their limits. */
     val catalogue: Map<AssistantProviderKind, List<AssistantModel>>
 
-    /** [id] as this engine knows it with [kind]: the catalogue's limits, or the user's where set. */
-    fun model(kind: AssistantProviderKind, id: String, contextWindow: Long?, maxOutput: Long?): AssistantModel
+    /** [spec] as this engine knows it with [kind]: the catalogue's facts, or what the user said of it. */
+    fun model(kind: AssistantProviderKind, spec: AssistantModelSpec): AssistantModel
+
+    /**
+     * The models [connection]'s server offers, as it lists them (§13 P2): the engine's facts where it
+     * knows a model, the server's where it says (Ollama). Asking proves the address and the key.
+     */
+    suspend fun available(connection: AssistantConnection): List<AssistantModel>
 
     /**
      * Answers [turn]'s input: the model is asked, the tools it calls are run (one at a time, in
@@ -33,19 +40,18 @@ internal interface AssistantEngine {
     suspend fun compact(connection: AssistantConnection, model: AssistantModel, instructions: String, history: List<AssistantMessage>): String
 }
 
-/** Where the model is: the user's settings with the key, decrypted only for the turn. */
+/** Where a provider's server is, with its key, decrypted only for the request. */
 internal data class AssistantConnection(
     val kind: AssistantProviderKind,
     val baseUrl: String?,
-    val model: String,
     val apiKey: String?,
 ) {
-    override fun toString(): String = "AssistantConnection($kind, $baseUrl, $model)"
+    override fun toString(): String = "AssistantConnection($kind, $baseUrl)"
 }
 
 internal data class AssistantTurnRequest(
     val connection: AssistantConnection,
-    /** The model with its limits: an Anthropic request, or a typed model's, carries its output limit. */
+    /** The model, with its limits and what it reads: an Anthropic request, or a typed model's, carries its output limit. */
     val model: AssistantModel,
     /** Null: the provider's default. */
     val effort: AssistantEffort?,

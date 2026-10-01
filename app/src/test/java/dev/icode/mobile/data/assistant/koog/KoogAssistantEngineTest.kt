@@ -8,6 +8,8 @@ import ai.koog.prompt.executor.clients.LLMClient
 import ai.koog.prompt.executor.clients.anthropic.AnthropicParams
 import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.llm.LLModel
+import ai.koog.prompt.message.AttachmentContent
+import ai.koog.prompt.message.AttachmentSource
 import ai.koog.prompt.message.Message
 import ai.koog.prompt.message.MessagePart
 import ai.koog.prompt.message.ResponseMetaInfo
@@ -21,9 +23,10 @@ import dev.icode.mobile.data.assistant.AssistantToolException
 import dev.icode.mobile.data.assistant.AssistantTurnException
 import dev.icode.mobile.data.assistant.AssistantTurnRequest
 import dev.icode.mobile.domain.AssistantAttachment
+import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantMessage
-import dev.icode.mobile.domain.AssistantModel
+import dev.icode.mobile.domain.AssistantModelSpec
 import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.domain.AssistantResult
 import dev.icode.mobile.domain.AssistantToolKind
@@ -41,12 +44,13 @@ import org.junit.Test
 
 /** Koog's real standard agent runs here; only the provider is scripted. */
 class KoogAssistantEngineTest {
-    private val connection = AssistantConnection(AssistantProviderKind.OpenAI, null, "gpt-5", "sk-test")
-    private val model = AssistantModel("gpt-5")
+    private val connection = AssistantConnection(AssistantProviderKind.OpenAI, null, "sk-test")
+    private val model = KoogModels.model(AssistantProviderKind.OpenAI, AssistantModelSpec("gpt-5"))
 
     private class ScriptedClient(
         private val replies: List<Message.Assistant>,
         private val provider: LLMProvider = LLMProvider.OpenAI,
+        private val listed: List<LLModel> = emptyList(),
     ) : LLMClient() {
         val prompts = mutableListOf<Prompt>()
         val tools = mutableListOf<List<ToolDescriptor>>()
@@ -67,6 +71,7 @@ class KoogAssistantEngineTest {
         }
         override fun executeStreaming(prompt: Prompt, model: LLModel, tools: List<ToolDescriptor>): Flow<StreamFrame> = error("whole replies only")
         override suspend fun moderate(prompt: Prompt, model: LLModel): ModerationResult = error("no moderation")
+        override suspend fun models(): List<LLModel> = listed
         override fun close() {
             closed = true
         }
@@ -227,7 +232,7 @@ class KoogAssistantEngineTest {
             AssistantMessage.Reply("", listOf(AssistantCall("w1", "write_file", """{"path":"a.kt"}""", "Write a.kt", AssistantToolKind.Change))),
             AssistantMessage.Results(listOf(AssistantResult("w1", "write_file", "Wrote a.kt", failed = false))),
         )
-        val input = AssistantMessage.User("Why?", listOf(AssistantAttachment("a.kt", "fun main() {}")))
+        val input = AssistantMessage.User("Why?", listOf(AssistantAttachment("a.kt", text = "fun main() {}")))
         KoogAssistantEngine { client }.run(turn(ReadTool(), earlier, input), Recorder())
         val sent = client.prompts.single().messages
         // write_file is not among this turn's tools (Ask): Koog sends its call and result as text.
@@ -251,7 +256,7 @@ class KoogAssistantEngineTest {
 
     @Test fun `every request carries the model's output limit and the chosen effort`() = runBlocking {
         val opus = KoogModels.catalogue.getValue(AssistantProviderKind.Anthropic).first()
-        val anthropic = AssistantConnection(AssistantProviderKind.Anthropic, null, opus.id, "sk-ant")
+        val anthropic = AssistantConnection(AssistantProviderKind.Anthropic, null, "sk-ant")
         val client = ScriptedClient(listOf(done), LLMProvider.Anthropic)
         val request = turn(ReadTool()).copy(connection = anthropic, model = opus, effort = opus.efforts.first())
         KoogAssistantEngine { client }.run(request, Recorder())
@@ -268,7 +273,7 @@ class KoogAssistantEngineTest {
             KoogAssistantEngine { client }.run(turn(ReadTool()), Recorder())
             fail("expected a failure")
         } catch (refused: AssistantTurnException) {
-            assertEquals("The provider refused the API key — check it in Assistant settings", refused.message)
+            assertEquals("The provider refused the API key — check it in the provider's settings", refused.message)
         }
     }
 
@@ -282,14 +287,62 @@ class KoogAssistantEngineTest {
         assertTrue("$outcome", outcome is kotlinx.coroutines.CancellationException)
     }
 
-    @Test fun `the client is kept between turns and replaced when the settings change`() = runBlocking {
+    @Test fun `a server's client is kept between turns, whichever of its models, and one in use is never closed`() = runBlocking {
         val made = mutableListOf<ScriptedClient>()
         val engine = KoogAssistantEngine { ScriptedClient(listOf(done)).also(made::add) }
         engine.run(turn(ReadTool()), Recorder())
-        engine.run(turn(ReadTool()), Recorder())
+        engine.run(turn(ReadTool()).copy(model = KoogModels.model(AssistantProviderKind.OpenAI, AssistantModelSpec("gpt-5-mini"))), Recorder())
         assertEquals(1, made.size)
-        engine.run(turn(ReadTool()).copy(connection = connection.copy(model = "gpt-5-mini")), Recorder())
-        assertEquals(2, made.size)
-        assertTrue(made[0].closed)
+        // Other servers, one after another: the eldest go, never the one just used.
+        (1..9).forEach { engine.run(turn(ReadTool()).copy(connection = connection.copy(apiKey = "sk-$it")), Recorder()) }
+        assertTrue(made.first().closed)
+        assertTrue(!made.last().closed)
+    }
+
+    @Test fun `an image goes as itself to a model that sees, and as a line of text to one that does not`() = runBlocking {
+        val photo = java.io.File.createTempFile("photo", ".jpg").apply { writeBytes(byteArrayOf(1, 2, 3)) }
+        val input = AssistantMessage.User("What is this?", listOf(AssistantAttachment("photo.jpg", AssistantAttachmentKind.Image, file = photo.path, mimeType = "image/jpeg")))
+        val seeing = KoogModels.catalogue.getValue(AssistantProviderKind.OpenAI).first { it.images }
+        val client = ScriptedClient(listOf(done))
+        KoogAssistantEngine { client }.run(turn(ReadTool(), input = input).copy(model = seeing), Recorder())
+        val sent = client.prompts.single().messages.last().parts
+        val image = sent.filterIsInstance<MessagePart.Attachment>().single().source as AttachmentSource.Image
+        assertEquals(listOf<Byte>(1, 2, 3), (image.content as AttachmentContent.Binary).asBytes().toList())
+        assertTrue(sent.filterIsInstance<MessagePart.Text>().single().text.endsWith("Also attached: photo.jpg (image)"))
+
+        val blind = ScriptedClient(listOf(done))
+        val typed = KoogModels.model(AssistantProviderKind.OpenAICompatible, AssistantModelSpec("local"))
+        KoogAssistantEngine { blind }.run(turn(ReadTool(), input = input).copy(model = typed), Recorder())
+        val told = blind.prompts.single().messages.last().parts
+        assertTrue(told.none { it is MessagePart.Attachment })
+        assertTrue(told.any { it is MessagePart.Text && "photo.jpg, not sent: this model cannot see images" in it.text })
+    }
+
+    @Test fun `a server's models are listed, Koog's facts where it knows them, and nothing that cannot chat`() = runBlocking {
+        val known = KoogModels.catalogue.getValue(AssistantProviderKind.OpenAI).first()
+        val embedding = ai.koog.prompt.executor.clients.openai.OpenAIModels.Embeddings.TextEmbedding3Small
+        val listed = listOf(LLModel(LLMProvider.OpenAI, "zz-new"), known.let { m -> LLModel(LLMProvider.OpenAI, m.id) }, embedding, LLModel(LLMProvider.OpenAI, "aa-new"))
+        val client = ScriptedClient(emptyList(), listed = listed)
+        val models = KoogAssistantEngine { client }.available(connection)
+        assertEquals(listOf(known.id, "aa-new", "zz-new"), models.map { it.id })
+        assertTrue(models.first().known && models.drop(1).none { it.known })
+        assertTrue("a listing's client is closed after", client.closed)
+    }
+
+    @Test fun `a wrong address while listing says so, not that a model is missing`() = runBlocking {
+        val wrong = object : LLMClient() {
+            override fun llmProvider(): LLMProvider = LLMProvider.OpenAI
+            override suspend fun execute(prompt: Prompt, model: LLModel, tools: List<ToolDescriptor>): Message.Assistant = error("")
+            override fun executeStreaming(prompt: Prompt, model: LLModel, tools: List<ToolDescriptor>): Flow<StreamFrame> = error("")
+            override suspend fun moderate(prompt: Prompt, model: LLModel): ModerationResult = error("")
+            override suspend fun models(): List<LLModel> = throw KoogHttpClientException("OpenAI", 404, "")
+            override fun close() {}
+        }
+        try {
+            KoogAssistantEngine { wrong }.available(AssistantConnection(AssistantProviderKind.OpenAICompatible, "https://example.com/v2", null))
+            fail("expected a failure")
+        } catch (refused: AssistantTurnException) {
+            assertEquals("example.com has no such API — check the address in the provider's settings", refused.message)
+        }
     }
 }

@@ -932,19 +932,20 @@ Acceptance criteria:
 
 ## 18. Assistant
 
-Owner's decision, 2026-10-01 ([assistant-koog-plan.md](./assistant-koog-plan.md); PR-ASSIST-01–15).
+Owner's decision, 2026-10-01 ([assistant-koog-plan.md](./assistant-koog-plan.md); PR-ASSIST-01–17).
 
 ### US-ASSIST-001 — Set up the assistant
 
-**As a developer, I want to choose the assistant's provider and model once, so that I can ask it about any workspace.**
+**As a developer, I want to add my providers and their models once, so that I can ask any of them about any workspace.**
 
 Acceptance criteria:
 
-- Until a provider is set, the Assistant page explains what the assistant does and what it sends, and offers its settings; nothing else asks.
-- The form offers OpenAI, Anthropic, Google Gemini, OpenRouter, Ollama and OpenAI-compatible servers; a server's address is asked only where it is needed.
-- The model is typed, or chosen from Koog's models for that provider; for a model Koog does not know, its context window and output limit can be set.
-- The API key is masked, never shown again once saved, and goes with its provider when the provider changes.
-- Save checks the form; the first message checks the connection and says why it failed.
+- Until a provider has a model, the Assistant page explains what the assistant does and what it sends, and offers its settings; nothing else asks.
+- **Assistant** settings list the providers — kind, models, which one the chat uses, a missing key — and **+** adds one; each opens its own page.
+- A provider's page offers OpenAI, Anthropic, Google Gemini, OpenRouter, Ollama and OpenAI-compatible servers when it is added; it has a name, a server's address only where it is needed, its own API key, and its models.
+- **Add Models** lists the server's real models with the address and key as typed — or says why it could not — then the models iCode knows for that kind; any ID can be typed. A model iCode does not know can be given its context window, output limit, whether it reads images and whether it reasons.
+- The API key is masked and never shown again once saved; Replace changes it.
+- Save checks the form; Back with unsaved changes asks first; Remove asks first.
 
 ### US-ASSIST-002 — Ask about the workspace
 
@@ -954,8 +955,9 @@ Acceptance criteria:
 
 - An empty chat shows the iCode mark over its letterpress, as the home screen does, with a few things to ask.
 - Each reply shows as Markdown when it comes; each step shows what it did ("Read src/App.kt", "Ran `npm test`") and how it went; its output is a tap away.
-- The composer chooses the mode (Agent, or Ask: it reads and changes nothing), the model, and its reasoning effort where the model has one ("Auto" sends the provider's default).
-- **+** attaches up to five of the workspace's files, the open one offered first; each goes with the message as its text then.
+- The composer chooses the mode (Agent, or Ask: it reads and changes nothing), the model — every provider's, listed under its name — and its reasoning effort where the model has one ("Auto" sends the provider's default).
+- **+** opens **Attach**: Camera, Photos and Files (the phone's own pickers, no permission asked), then the workspace's files, the open one first; up to five in all. Text goes as its text then; a photo or a PDF goes to a model that reads it, and the composer says when the chosen model cannot. Photos show as thumbnails; a photo alone can be sent.
+- The answer a turn ends on can be copied; a message that failed before any reply can be sent again with **Try Again**.
 - Two fingers pinch the chat's text larger or smaller.
 - Edits reach the Explorer, Source Control and clean open tabs as a terminal's edits do.
 - A file with unsaved edits is never written; the assistant is told to ask for a save.
@@ -1005,7 +1007,7 @@ Acceptance criteria:
 
 Acceptance criteria:
 
-- The composer shows how full the model's context is after the last request, and its tokens a tap away.
+- Under the message box, at the right, the page always shows how full the model's context is after the last request ("84k / 200k", "0 / 200k" before the first), moving with every step; **Compact Chat** is a tap away.
 - Near the limit (80 %), the chat is compacted before the next message: the model writes a summary, and later turns send the summary and what came after it; the page shows where, and keeps everything.
 - **Compact Chat** does the same on request.
 

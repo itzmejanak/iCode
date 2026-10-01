@@ -23,6 +23,7 @@ fun SettingsScreenHost(screen: Route, actions: NavigationActions) {
         Route.About -> AboutScreen(actions)
         Route.WorkspaceSettings -> WorkspaceSettingsScreen(actions)
         Route.AssistantSettings -> AssistantSettingsScreen(actions)
+        Route.AssistantProvider -> AssistantProviderScreen(actions)
         else -> Unit
     }
 }

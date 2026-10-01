@@ -5,7 +5,7 @@ sealed interface AssistantEntry {
     val key: String
 
     /** What the user wrote, and the files sent with it. */
-    data class Said(override val key: String, val text: String, val attachments: List<String> = emptyList()) : AssistantEntry
+    data class Said(override val key: String, val text: String, val attachments: List<AssistantAttachment> = emptyList()) : AssistantEntry
 
     /** What the assistant answered, Markdown. */
     data class Answer(override val key: String, val text: String) : AssistantEntry
@@ -43,7 +43,7 @@ object AssistantRules {
         var firstOpen = true
         state.messages.forEachIndexed { index, message ->
             when (message) {
-                is AssistantMessage.User -> add(AssistantEntry.Said("m$index", message.text, message.attachments.map { it.path }))
+                is AssistantMessage.User -> add(AssistantEntry.Said("m$index", message.text, message.attachments))
                 is AssistantMessage.Reply -> {
                     if (message.text.isNotBlank()) add(AssistantEntry.Answer("m$index", message.text))
                     val results = resultsOf(state.messages, index).associateBy { it.callId }
@@ -94,6 +94,28 @@ object AssistantRules {
     fun contextShare(tokens: Long?, window: Long?): Float? =
         if (tokens == null || window == null || window <= 0) null else (tokens.toFloat() / window).coerceIn(0f, 1f)
 
+    /**
+     * What the meter says (§13), always: "84k / 200k" — the tokens of the chat's last request, of
+     * the model's window — or "84k tokens" where the window is unknown; 0 before the first request.
+     */
+    fun contextLabel(tokens: Long?, window: Long?): String =
+        if (window != null) "${tokenCount(tokens ?: 0)} / ${tokenCount(window)}" else "${tokenCount(tokens ?: 0)} tokens"
+
+    /** "200k context · reasons · images · PDFs": what the model pickers say of a model; "" when nothing is known. */
+    fun modelSummary(model: AssistantModel): String = listOfNotNull(
+        model.contextWindow?.let { "${tokenCount(it)} context" },
+        "reasons".takeIf { model.efforts.isNotEmpty() },
+        "images".takeIf { model.images },
+        "PDFs".takeIf { model.documents },
+    ).joinToString(" · ")
+
+    /** The same of a model Koog does not know, from what the user said of it. */
+    fun modelSummary(spec: AssistantModelSpec): String = listOfNotNull(
+        spec.contextWindow?.let { "${tokenCount(it)} context" },
+        "reasons".takeIf { spec.reasoning },
+        "images".takeIf { spec.images },
+    ).joinToString(" · ")
+
     /** A chat's title: its first message's first line, cut short. */
     fun sessionTitle(firstMessage: String): String {
         val line = firstMessage.trim().lineSequence().firstOrNull().orEmpty().trim()
@@ -108,23 +130,48 @@ object AssistantRules {
     fun effortFor(effort: AssistantEffort?, model: AssistantModel?): AssistantEffort? =
         effort?.takeIf { model != null && it in model.efforts }
 
-    /** What is wrong with the settings form, in the words the form shows; null when it can be saved. */
-    fun settingsProblem(
+    /** What is wrong with a provider's form, in the words the form shows; null when it can be saved (§13 P1–P3). */
+    fun providerProblem(
         kind: AssistantProviderKind,
+        name: String,
         baseUrl: String,
-        model: String,
         keyTyped: Boolean,
         keySaved: Boolean,
-        contextWindow: String = "",
-        maxOutput: String = "",
+        models: List<AssistantModelSpec>,
     ): String? = when {
+        name.isBlank() -> "Enter a name"
         kind.asksBaseUrl && baseUrl.isBlank() -> "Enter the server's address"
         kind.asksBaseUrl && !HTTP_URL.matches(baseUrl.trim()) -> "Enter an address that starts with https:// or http://"
-        model.isBlank() -> "Enter a model"
-        model.trim().any(Char::isWhitespace) -> "A model ID has no spaces"
         kind.needsKey && !keyTyped && !keySaved -> "Enter the API key"
+        models.isEmpty() -> "Add at least one model"
+        else -> models.firstOrNull { it.id.isBlank() || it.id.trim().any(Char::isWhitespace) }?.let { "A model ID has no spaces" }
+            ?: models.groupBy { it.id.trim() }.entries.firstOrNull { it.value.size > 1 }?.let { "${it.key} is listed twice" }
+    }
+
+    /** What is wrong with a model's options as typed; null when they can be kept. */
+    fun modelOptionsProblem(contextWindow: String, maxOutput: String): String? = when {
         contextWindow.isNotBlank() && tokens(contextWindow) == null -> "The context window is a number of tokens"
         maxOutput.isNotBlank() && tokens(maxOutput) == null -> "The output limit is a number of tokens"
+        else -> null
+    }
+
+    /** What a file is to the model, by its type, or its name's extension when the type is unknown. */
+    fun attachmentKind(name: String, mimeType: String?): AssistantAttachmentKind {
+        val type = mimeType?.lowercase().orEmpty()
+        val extension = name.substringAfterLast('.', "").lowercase()
+        return when {
+            // Sent as JPEG whatever it was, so any image Android decodes — a camera's HEIC too.
+            type.startsWith("image/") || (type.isEmpty() && extension in IMAGE_EXTENSIONS) -> AssistantAttachmentKind.Image
+            type == PDF || (type.isEmpty() && extension == "pdf") -> AssistantAttachmentKind.Document
+            else -> AssistantAttachmentKind.Text
+        }
+    }
+
+    /** Why [model] cannot take files of these [kinds], in the words the composer shows; null when it can. */
+    fun attachmentProblem(kinds: Collection<AssistantAttachmentKind>, model: AssistantModel?): String? = when {
+        model == null -> null
+        AssistantAttachmentKind.Image in kinds && !model.images -> "${model.id} does not read images — choose a model that does"
+        AssistantAttachmentKind.Document in kinds && !model.documents -> "${model.id} does not read PDFs — choose a model that does"
         else -> null
     }
 
@@ -164,6 +211,10 @@ object AssistantRules {
 
     private fun trimmed(value: Double): String =
         ((value * 10).toLong() / 10.0).toString().removeSuffix(".0")
+
+    private const val PDF = "application/pdf"
+
+    private val IMAGE_EXTENSIONS = setOf("jpg", "jpeg", "png", "webp", "gif", "heic", "heif", "bmp")
 
     private const val TITLE_LENGTH = 60
     private const val MAX_TOKENS = 100_000_000L

@@ -7,6 +7,8 @@ import dev.icode.mobile.data.assistant.tools.AssistantWorkspace
 import dev.icode.mobile.data.workspace.WorkbenchStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceFileSource
 import dev.icode.mobile.data.workspace.WorkspaceRoot
+import dev.icode.mobile.domain.AssistantChoice
+import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.WorkbenchIntent
 import java.io.File
@@ -31,13 +33,14 @@ internal class AssistantCoordinator(
     private val activeRoot: () -> String?,
     /** A workspace by its location: its name and runtime path. Throws when it is gone. */
     describe: (String) -> WorkspaceRoot,
-    /** A file's text as saved. */
-    readText: (String) -> String,
+    /** The files of a message: the workspace's and the phone's ([AssistantAttachments]). */
+    attachments: (openText: (String) -> String?) -> AssistantAttachments,
 ) {
     private val page = AssistantPage(workbench, scope, chats)
+    private val settings = AssistantProviders(workbench, scope, engine, providers, page)
     private val turns = AssistantTurns(
-        page, scope, engine, providers, chats, tools, describe, readText,
-        openText = { location -> workbench.current.openDocuments.firstOrNull { it.location == location }?.text },
+        page, scope, engine, providers, settings::settings, chats, tools, describe,
+        attachments { location -> workbench.current.openDocuments.firstOrNull { it.location == location }?.text },
     )
 
     /**
@@ -50,7 +53,7 @@ internal class AssistantCoordinator(
     fun start() {
         scope.launch {
             val catalogue = engine.catalogue
-            settingsChanged()
+            settings.shown()
             page.state { it.copy(catalogue = catalogue) }
             for (intent in intents) apply(intent)
         }
@@ -70,12 +73,15 @@ internal class AssistantCoordinator(
             WorkbenchIntent.StopAssistant -> turns.stop()
             is WorkbenchIntent.AnswerAssistant -> turns.answer(intent.callId, intent.answer)
             WorkbenchIntent.CompactAssistantChat -> compact()
-            is WorkbenchIntent.ChooseAssistantModel -> remember { providers.chooseModel(intent.model) }
-            is WorkbenchIntent.ChooseAssistantEffort -> remember { providers.chooseEffort(intent.effort) }
-            is WorkbenchIntent.ChooseAssistantMode -> remember { providers.chooseMode(intent.mode) }
-            is WorkbenchIntent.SetAssistantAskFirst -> remember { providers.setAskFirst(intent.ask) }
-            is WorkbenchIntent.SaveAssistantSettings -> save(intent)
-            WorkbenchIntent.RemoveAssistantSettings -> remember { providers.clear() }
+            WorkbenchIntent.RetryAssistantMessage -> retry()
+            is WorkbenchIntent.ChooseAssistantModel -> settings.choose(AssistantChoice(intent.provider, intent.model))
+            is WorkbenchIntent.ChooseAssistantEffort -> settings.remember { providers.chooseEffort(intent.effort) }
+            is WorkbenchIntent.ChooseAssistantMode -> settings.remember { providers.chooseMode(intent.mode) }
+            is WorkbenchIntent.SetAssistantAskFirst -> settings.remember { providers.setAskFirst(intent.ask) }
+            is WorkbenchIntent.EditAssistantProvider -> settings.edit(intent.id)
+            is WorkbenchIntent.SaveAssistantProvider -> settings.save(intent)
+            is WorkbenchIntent.RemoveAssistantProvider -> settings.remove(intent.id)
+            is WorkbenchIntent.ListAssistantModels -> settings.list(intent)
         }
     }
 
@@ -98,11 +104,20 @@ internal class AssistantCoordinator(
     }
 
     private fun send(text: String, attachments: List<String>) {
-        val input = text.trim().ifEmpty { return }
+        // A photo alone is a message, as it is in any chat; nothing at all is not.
+        val input = text.trim()
+        if (input.isEmpty() && attachments.isEmpty()) return
         val shown = page.current
         val workspace = shown.workspace ?: activeRoot() ?: return page.say("Open a workspace to ask the assistant")
         val session = shown.session?.takeIf { shown.workspace == workspace } ?: chats.newSession()
         turns.send(workspace, session, input, attachments)
+    }
+
+    private fun retry() {
+        val workspace = page.current.workspace ?: return
+        val session = page.current.session ?: return
+        if (chats.of(workspace, session).messages.lastOrNull() !is AssistantMessage.User) return page.say("Nothing to send again")
+        turns.retry(workspace, session)
     }
 
     private fun compact() {
@@ -119,39 +134,11 @@ internal class AssistantCoordinator(
         if (page.current.session == session) page.display(workspace, null) else page.listed(workspace)
     }
 
-    private suspend fun save(intent: WorkbenchIntent.SaveAssistantSettings) {
-        val saved = providers.settings()
-        val keySaved = saved?.hasKey == true && saved.kind == intent.kind
-        AssistantRules.settingsProblem(
-            intent.kind, intent.baseUrl, intent.model, !intent.key.isNullOrBlank(), keySaved, intent.contextWindow, intent.maxOutput,
-        )?.let { return workbench.message(it) }
-        val stored = runCatching {
-            providers.save(
-                intent.kind, AssistantRules.storedBaseUrl(intent.kind, intent.baseUrl), intent.model, intent.key,
-                AssistantRules.tokens(intent.contextWindow), AssistantRules.tokens(intent.maxOutput),
-            )
-        }
-        stored.exceptionOrNull()?.let { return workbench.message(it.message ?: "Unable to save the assistant's settings") }
-        settingsChanged()
-        workbench.message("Assistant settings saved")
-    }
-
-    /** A choice made on the chat page: kept, then shown. */
-    private suspend fun remember(change: () -> Unit) {
-        runCatching(change).exceptionOrNull()?.let { return workbench.message(it.message ?: "Unable to save the assistant's settings") }
-        settingsChanged()
-    }
-
-    /** The settings as stored, and the chosen model as the engine knows it, with the user's limits. */
-    private fun settingsChanged() {
-        val settings = providers.settings()
-        val model = settings?.let { engine.model(it.kind, it.model, it.contextWindow, it.maxOutput) }
-        val recent = providers.recentModels()
-        page.state { it.copy(settings = settings, model = model, recentModels = recent) }
-    }
-
     companion object {
-        /** The assistant on Koog, its settings in preferences, its chats in iCode's storage, its files [source]'s. */
+        /**
+         * The assistant on Koog, its settings in preferences, its chats in iCode's storage, its files
+         * [source]'s and the phone's.
+         */
         fun create(
             context: Context,
             workbench: WorkbenchStateHolder,
@@ -162,7 +149,14 @@ internal class AssistantCoordinator(
         ) = AssistantCoordinator(
             workbench, scope, KoogAssistantEngine.create(), SharedPreferencesAssistantProviderStore(context),
             AssistantChats(AssistantChatStore(File(context.applicationContext.filesDir, "assistant/chats"))),
-            toolbox::forWorkspace, activeRoot, source::describeRoot, readText = { location -> source.readDocument(location).text },
-        )
+            toolbox::forWorkspace, activeRoot, source::describeRoot,
+        ) { openText ->
+            AssistantAttachments(
+                ContentResolverPhoneFiles(context.applicationContext.contentResolver),
+                AssistantImages::prepare,
+                openText,
+                readText = { location -> source.readDocument(location).text },
+            )
+        }
     }
 }

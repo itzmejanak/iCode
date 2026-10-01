@@ -35,6 +35,21 @@ internal class AssistantChats(
     fun append(workspace: String, session: String, message: AssistantMessage) =
         change(workspace, session) { it.copy(messages = it.messages + message) }
 
+    /** Keeps an image's or a PDF's bytes in [session]'s folder; returns where (§13 P7). */
+    fun keep(workspace: String, session: String, bytes: ByteArray, extension: String): String =
+        store.keep(workspace, session, bytes, extension)
+
+    /**
+     * Takes back [session]'s last message when nothing answered it — a turn that failed before any
+     * reply — to send again (§13 P9); null when there is none.
+     */
+    fun withdraw(workspace: String, session: String): AssistantMessage.User? = synchronized(lock) {
+        val chat = of(workspace, session)
+        val last = chat.messages.lastOrNull() as? AssistantMessage.User ?: return@synchronized null
+        loaded[Key(workspace, session)] = chat.copy(messages = chat.messages.dropLast(1))
+        last
+    }
+
     /** One call's result: with the others of its reply, which are right after it. */
     fun answer(workspace: String, session: String, result: AssistantResult) = change(workspace, session) { chat ->
         val last = chat.messages.lastOrNull()

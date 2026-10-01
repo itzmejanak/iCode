@@ -39,7 +39,7 @@ internal val settingsCategories = listOf(
             "background notifications battery optimization bell alert long command"),
     SettingsCategory("Source Control", "Git identity, token, and SSH key", Icons.Outlined.AccountTree, Route.GitAuth,
         "git identity name email credentials authentication https token ssh key provider"),
-    SettingsCategory("Assistant", "Provider, model, API key", Icons.Outlined.AutoAwesome, Route.AssistantSettings,
+    SettingsCategory("Assistant", "Providers, models, API keys", Icons.Outlined.AutoAwesome, Route.AssistantSettings,
         "ai agent assistant koog provider model api key openai anthropic claude gemini google openrouter ollama deepseek approval"),
     SettingsCategory("Languages", "Language servers", Icons.Outlined.Public, Route.SettingsLanguages,
         "language server lsp command start stop restart"),

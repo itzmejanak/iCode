@@ -19,14 +19,15 @@ import org.json.JSONObject
  * when nothing plainer fits; a key is never part of one.
  */
 internal object KoogFailures {
-    fun explain(failure: Throwable, connection: AssistantConnection): AssistantTurnException {
+    /** [model]: what was asked of the server; null when its models were listed. */
+    fun explain(failure: Throwable, connection: AssistantConnection, model: String?): AssistantTurnException {
         val chain = generateSequence(failure) { it.cause }.take(MAX_DEPTH).toList()
         // iCode's own reason, however deep Koog's runner wrapped it.
         chain.firstNotNullOfOrNull { it as? AssistantTurnException }?.let { return it }
         val host = host(connection)
         val message = chain.firstNotNullOfOrNull { cause ->
             when (cause) {
-                is KoogHttpClientException -> http(cause, connection)
+                is KoogHttpClientException -> http(cause, connection, model)
                 // The standard agent's own limit (§12 R1).
                 is AIAgentMaxNumberOfIterationsReachedException -> "Stopped at the step limit — send a message to continue"
                 // Its only way to stick: a reply with neither text nor a tool call.
@@ -43,13 +44,14 @@ internal object KoogFailures {
         return AssistantTurnException(message, failure)
     }
 
-    private fun http(failure: KoogHttpClientException, connection: AssistantConnection): String {
+    private fun http(failure: KoogHttpClientException, connection: AssistantConnection, model: String?): String {
         val said = providerMessage(failure.errorBody)
         val lower = (said ?: failure.errorBody ?: "").lowercase()
         return when {
-            failure.statusCode == 401 || failure.statusCode == 403 -> "The provider refused the API key — check it in Assistant settings"
-            failure.statusCode == 404 || ("model" in lower && ("not found" in lower || "does not exist" in lower)) ->
-                "The provider has no model “${connection.model}”"
+            failure.statusCode == 401 || failure.statusCode == 403 -> "The provider refused the API key — check it in the provider's settings"
+            model != null && (failure.statusCode == 404 || ("model" in lower && ("not found" in lower || "does not exist" in lower))) ->
+                "The provider has no model “$model”"
+            failure.statusCode == 404 -> "${host(connection)} has no such API — check the address in the provider's settings"
             failure.statusCode == 429 -> "The provider is limiting requests — try again shortly" + (said?.let { ": $it" } ?: "")
             CONTEXT_WORDS.any { it in lower } -> "This chat is longer than the model accepts — compact it or start a new chat"
             said != null -> "The provider answered ${failure.statusCode ?: "an error"}: $said"

@@ -69,16 +69,21 @@ behaviour iCode relies on was run (§11).
 ## 3. The user's lifecycle
 
 1. **Finding it.** The workspace rail has **Assistant** (after Source Control), accented while it
-   works. Settings have an **Assistant** category: "Provider, model, API key".
+   works. Settings have an **Assistant** category: "Providers, models, API keys".
 2. **First open, nothing set.** The iCode mark, what the assistant does (it reads and changes this
    workspace and runs commands, asking first), what it needs and that what it reads is sent to the
    provider. One button: **Set Up Assistant**. Nothing else in iCode asks.
-3. **Set up** (Assistant settings): provider; the server's address where one is asked; the model —
-   typed, or a tap on one of Koog's for that provider, whose limits are then said ("200k tokens of
-   context, up to 64k in a reply"); for a model Koog does not know, its **Context Window** and
-   **Output Limit**, optional ("128k"); the API key (masked; "Saved" once stored, never shown
-   again; Replace). **Save** checks the form, not the network; the first message proves the
-   connection, and a refusal says why (§6).
+3. **Set up** (§13): **Assistant** settings list the providers — each with its kind, its models'
+   count, "In use" for the chat's, "No key" where one is missing — and **+** adds one; with none,
+   the iCode mark and **Add Provider**. A **provider's page**: its kind (chosen when it is added),
+   its name (the kind's label unless typed: "DeepSeek"), the server's address where one is asked,
+   the API key (masked; "Saved, never shown again" once stored; Replace), and its **Models** —
+   each with what is known of it ("200k context · reasons · images"), × to take it off, a tap for
+   its options. **Add Models** asks the server for its real list with the address and key as typed
+   (proving them, or saying why not), then shows the models iCode knows for the kind, ticked to
+   add; any ID can be typed. A model iCode does not know has options: **Context Window**, **Output
+   Limit**, **Reads Images**, **Reasons**. **Save** checks the form; Back with changes asks
+   before discarding them; **Remove Provider** confirms.
 4. **The page**, as VS Code's Chat view. The top bar names the chat ("New chat" until something is
    said) over the workspace's name, with **Chats**, **New chat** and ⋮ (**Compact Chat**,
    **Assistant Settings**). An empty chat is the home screen's: the mark over its letterpress,
@@ -86,18 +91,24 @@ behaviour iCode relies on was run (§11).
 5. **The composer**: the files going with the message (each with ×), the message ("Describe what
    to build", or in Ask "Ask about RevPlayer"), and a toolbar — **+** (attach), the mode
    (**Agent**, or **Ask**: it reads and changes nothing), the model with its effort ("o3 · High",
-   "Auto" for the provider's own), the context meter, Send or Stop. Under it: the workspace, and
-   the permissions — **Ask before changes** (default) or **Allow all changes**.
+   "Auto" for the provider's own), Send or Stop. Under it: the workspace, the permissions — **Ask
+   before changes** (default) or **Allow all changes** — and, at the right, always, the context
+   meter ("0 / 200k" before the first message). A photo alone can be sent.
 6. **Choosing.** The model chip opens **Model**: the reasoning levels where the model has them
    (Auto, then the provider's: Minimal–High for OpenAI, Low–Max for Anthropic, Low/High or
-   Low/Medium/High for Gemini, On for Ollama), the models chosen before, the provider's catalogue
-   with each one's context, "Use “x”" for a typed ID, and the provider's settings.
-7. **Attaching.** **+** opens **Attach Files**: the open file first, then the workspace's files as
-   Quick Open ranks them; up to five. Each goes with the message as its text then — an open tab's
-   as shown, unsaved edits and all — at most 64 000 characters (its start and end), and stays with
-   the message in the chat.
+   Low/Medium/High for Gemini, On for Ollama), then every provider's models under its name, each
+   with what it reads and whether it reasons, the chosen one ticked; searchable past eight;
+   **Manage Providers** opens the settings.
+7. **Attaching.** **+** opens **Attach**: **Camera**, **Photos** (the system Photo Picker) and
+   **Files** (the system document picker: the phone's storage, Drive, Downloads…) across the top —
+   no permission asked; no Camera tile on a phone without one — then the workspace's files, the
+   open one first, searchable; up to five in all, picks past five said. A text file goes as its
+   text then (an open tab's as shown, at most 64 000 characters); a photo as a JPEG and a PDF as
+   itself, to a model that reads them — the composer says otherwise, and Send waits. Photos show
+   as thumbnails in the composer and in the chat.
 8. **Chatting.** Each reply shows as Markdown when it comes; each step as a row with its verb and
-   object ("Read src/App.kt", "Ran `npm test`"), its output a tap away. Two fingers pinch the
+   object ("Read src/App.kt", "Ran `npm test`"), its output a tap away; the answer a turn ends on
+   has **Copy**. A turn that failed before any reply offers **Try Again**. Two fingers pinch the
    chat's text larger or smaller, as in the editor.
 9. **Approvals.** A change or a command waits on a card: the file and the text replaced, or the
    command, with **Deny**, **Allow All** (this chat) and **Allow**. Deny tells the model it was
@@ -122,8 +133,8 @@ behaviour iCode relies on was run (§11).
     assistant works in is not renamed or deleted until it stops (`WorkspaceUsage`); its chats
     follow a rename and go with a delete.
 15. **Privacy.** The set-up and the settings say plainly that what the assistant reads — attached
-    files included — is sent to the chosen provider. Keys are encrypted by the Android Keystore and
-    never leave the device except to that provider.
+    files included — is sent to the provider of the chat's model. Keys are encrypted by the Android
+    Keystore, one per provider, and never leave the device except to that provider.
 
 ## 4. Architecture
 
@@ -262,12 +273,16 @@ sealed interface AssistantMessage {
 
 ### 4.7 Provider settings and keys
 
-`AssistantProviderStore` owns the preferences `icode.assistant`: provider, address, model, the
-permissions (`ask_before_changes`), effort, mode, each model's limits (`limits.<PROVIDER>.<model>`)
-and the models chosen before per provider (`recent_models.<PROVIDER>`, eight). The key is stored
-encrypted (AES/GCM, a Keystore key of its own, alias `icode.assistant.key`, through
+`AssistantProviderStore` owns the preferences `icode.assistant`: `providers` (JSON: each one's ID,
+kind, name, address and models — an ID, and for a model Koog does not know what the user said of
+it), each provider's key (`key.<id>`), the chat's choice (`choice.provider`, `choice.model`, kept
+on a listed model: the chosen provider's first, else the first provider's), the permissions
+(`ask_before_changes`), effort and mode. Round 2's keys become the first provider once (§13 P11).
+Keys are stored encrypted (AES/GCM, a Keystore key of its own, alias `icode.assistant.key`, through
 `data/io/KeystoreCipher`, shared with `GitCredentialStore`). The snapshot carries only `hasKey`. A
 key this device can no longer decrypt reads as missing, and the page asks for it again.
+`AssistantProviders` applies the settings' intents: saving (checked by `AssistantRules.providerProblem`
+first), removing, choosing, and listing a server's models with a throwaway client.
 
 ### 4.8 Background work and notifications
 
@@ -301,9 +316,16 @@ lifecycle's check, and waits for its chat to be saved, before the chats move.
 
 ### 4.11 The screens
 
-- `AssistantScreen`: the page; its sheets (**Chats**, **Model**, **Attach Files**) are the page's
-  own, since **Attach Files** edits the composer's draft, and are drawn as sheet routes are —
+- `AssistantScreen`: the page; its sheets (**Chats**, **Model**, **Attach**) are the page's own,
+  since **Attach** edits the composer's draft, and are drawn as sheet routes are —
   `IcodeSheetOverlay` (dimmed, a tap outside or Back closes), the page blurred under it.
+- `AssistantPickers`: the Photo Picker, the document picker and the camera (`TakePicture` into
+  iCode's cache through the `FileProvider` `${applicationId}.assistant.camera`, a day's photos
+  kept), each picked file described by Android; `AssistantThumbnail` decodes an image off the main
+  thread with `ImageDecoder`. `AssistantAttachSheet`: the tiles and the workspace's files.
+- Settings: `AssistantSettingsScreen` lists the providers; `AssistantProviderScreen` is one
+  provider's page (route `AssistantProvider`, the provider in `AssistantState.editing`, as Language
+  Services keep theirs); `AssistantModelSheets` holds **Add Models** and a model's options.
 - `AssistantChatView`: the chat inside `PinchToScaleText`, every row's text scaled by
   `LocalCodeTextScale`; the branded welcome (`IcodeWatermark`, `IcodeBrandMark`); the step line;
   the approval card.
@@ -316,33 +338,42 @@ lifecycle's check, and waits for its chat to be saved, before the chats move.
 
 - `AssistantProviderKind` — OpenAI, Anthropic, Google, OpenRouter, Ollama, OpenAICompatible.
 - `AssistantEffort` (Minimal, Low, Medium, High, Max, On), `AssistantMode` (Agent, Ask),
-  `AssistantModel` (id, context window, output limit, efforts).
-- `AssistantSettings` — provider, address, model, `hasKey`, `askBeforeChanges`, effort, mode, the
-  model's limits as the user set them.
-- `AssistantState` — settings, catalogue, the model as known now, recent models, the workspace, its
-  sessions, the open session and its messages, the last request's tokens, the turn (workspace,
-  name, session, step), the approval, Allow All, the last failure.
+  `AssistantModel` (id, context window, output limit, efforts, images, documents, known),
+  `AssistantModelSpec` (what a provider keeps of one), `AssistantProvider` (id, kind, name,
+  address, `hasKey`, models), `AssistantChoice` (provider, model), `AssistantAvailable` (a
+  server's models as listed, or why not), `AssistantAttachment` (name, kind — Text, Image,
+  Document — text, or the kept file and its type).
+- `AssistantSettings` — the providers, the choice, `askBeforeChanges`, effort, mode; the chosen
+  provider and model derived.
+- `AssistantState` — settings, catalogue, the provider being edited and its server's models, the
+  workspace, its sessions, the open session and its messages, the last request's tokens, the turn
+  (workspace, name, session, step), the approval, Allow All, the last failure.
 - Intents (`AssistantIntent`, lock-free, in order): `OpenAssistant`, `OpenAssistantSession`,
   `DeleteAssistantSession`, `NewAssistantChat`, `SendAssistantMessage(text, attachments)`,
   `StopAssistant`, `AnswerAssistant`, `CompactAssistantChat`, `ChooseAssistantModel`,
   `ChooseAssistantEffort`, `ChooseAssistantMode`, `SetAssistantAskFirst`,
-  `SaveAssistantSettings(kind, baseUrl, model, key?, contextWindow, maxOutput)` (the key masked in
-  its `toString`), `RemoveAssistantSettings`.
-- `AssistantRules` (pure): the page's entries, `closed`, `forModel`, the meter's share, a chat's
-  title, the effort sent, the form's problems, token counts typed ("200k") and shown.
+  `RetryAssistantMessage`, `EditAssistantProvider(id)`,
+  `SaveAssistantProvider(id, kind, name, baseUrl, key?, models)` and
+  `ListAssistantModels(provider, kind, baseUrl, key?)` (each key masked in its `toString`),
+  `RemoveAssistantProvider(id)`.
+- `AssistantRules` (pure): the page's entries, `closed`, `forModel`, the meter's share and label,
+  a chat's title, the effort sent, a model's summary, the provider form's problems, a file's kind
+  and what a model cannot read, token counts typed ("200k") and shown.
 
 ## 6. Failure handling
 
 | What | What the user reads |
 |---|---|
-| No provider set | The page's set-up explanation; a message sent anyway: "Set up the assistant first: its settings name a provider and a model" |
-| 401/403 from the provider | "The provider refused the API key — check it in Assistant settings" |
+| No provider set | The page's set-up explanation; a message sent anyway: "Set up the assistant first: add a provider and choose a model" |
+| 401/403 from the provider | "The provider refused the API key — check it in the provider's settings" |
+| 404 when listing models | "api.example.com has no such API — check the address in the provider's settings" |
 | 404, unknown model | "The provider has no model “x”" |
 | 429 | "The provider is limiting requests — try again shortly" |
 | Context too long | "This chat is longer than the model accepts — compact it or start a new chat" |
 | No network / DNS / TLS | "Unable to reach api.example.com", and the like |
 | Clear text refused (LAN `http://`) | "Android blocks plain http:// to 192.168.1.5 — use https://, or a server on this phone (127.0.0.1)" |
-| A file that cannot be attached | "secret.txt is not in this workspace", "x is not a file", "x is a binary file", "Unable to read x" — nothing is sent |
+| A file that cannot be attached | "secret.txt is not in this workspace", "x is not a file", "x is not text — only text, images and PDFs can be sent", "x is larger than 10 MB", "x is not a PDF", "x is not an image this phone can read", "A file from the phone can no longer be read — attach it again" — nothing is sent, and nothing is kept |
+| A file the model cannot read | "gpt-5 does not read images — choose a model that does" (or PDFs): beside the files, before anything is sent |
 | Tool error (missing file, ambiguous edit, unsaved edits, command timeout, no runtime) | To the model as a failed result (it can recover); on the step's row for the user |
 | Step limit (40 requests) | "Stopped at the step limit — send a message to continue" |
 | A reply with nothing in it | "The model sent an empty reply — send a message to continue" |
@@ -446,3 +477,65 @@ check uses what Maven Central offers.
 | R12 | Times read "60d ago" | `RelativeTime` gains weeks, months and years everywhere |
 | R13 | Permissions were in the settings (owner, mid-round) | On the chat page's footer: "Ask before changes" / "Allow all changes"; gone from the settings form |
 | R14 | Found while building: Ollama's call IDs repeat across replies; a "New chat" then Send could be applied out of order | Results matched within their reply; the coordinator applies intents in order |
+
+## 13. Round 3 — providers and models, settings as pages, attachments from the phone (2026-10-01)
+
+The owner, after round 2: "user can add providers but there is no way to add multiple models from
+the same provider, so the chat can show the real list"; "reorganize the assistant settings according
+to the layout — not everything on one page"; "the attach (+) button should offer, as ChatGPT does,
+files, photos and others, from shared storage or from internal"; "fill all such gaps".
+
+### 13.1 Facts it rests on (checked in Koog 1.3.0's sources)
+
+| Fact | Evidence | Consequence |
+|---|---|---|
+| Every client lists its server's models: `models()` (OpenAI `v1/models`, Anthropic `v1/models`, Google — names as `models/<id>`, OpenRouter `api/v1/models`, an OpenAI-compatible server through OpenAI's client); a known ID comes back as Koog's model | `OpenAILLMClient.kt:634`, `AnthropicLLMClient.kt:794`, `GoogleLLMClient.kt:815`, `OpenRouterLLMClient.kt:220` | A provider's page lists the server's real models, Koog's knowledge where it has it; listing proves the key and address |
+| Ollama lists **model cards** (`getModels()`, `/api/tags` + `/api/show`): tools, vision and context length per model | `OllamaClient.kt:430`, `OllamaManagementConverters.kt` | An Ollama's models are offered with what they can do; one that cannot call tools is not offered |
+| A user message carries attachments: `MessagePart.Attachment(AttachmentSource.Image / File)` with bytes; every client sends images when the model has `Vision.Image`, and OpenAI, Anthropic and Google send documents (PDF) when it has `Document`; a client refuses one the model cannot read | `Attachment.kt`; `AbstractOpenAILLMClient.kt:357`, `AnthropicLLMClient.kt:550`, `GoogleLLMClient.kt:498`, `OllamaConverters.kt:83` | Photos go as images, PDFs as documents, text files as text (every model reads text); a model that cannot read one is said before anything is sent, and a chat's earlier image reaches such a model as a line of text |
+| `nodeLLMRequest(text)` appends a text-only user message; `requestLLM()` sends the prompt as it is (Koog's `reActStrategy` uses a node that does only that) | `AIAgentNodes.kt:96`, `AIAgentStrategies.kt` | `TURN`'s first node only requests: the message, with its attachments, is already the prompt's last |
+| The Photo Picker, the document picker and the camera are Activity results (`PickMultipleVisualMedia`, `OpenMultipleDocuments`, `TakePicture`) in `activity-compose` 1.12.4; none needs a permission; the camera needs a `FileProvider` URI (`androidx.core`) | the app's dependencies; `SystemPrompts.kt` hosts launchers already | No new permission; one `FileProvider` for the camera's photo |
+
+### 13.2 Every gap, its decision
+
+| # | Gap | Decision |
+|---|---|---|
+| P1 | One provider at a time | **Providers**: any number, each with its kind, a name (its label by default, "DeepSeek" for a compatible server), its address where asked, its own key |
+| P2 | No way to choose a provider's models; the chat listed Koog's whole catalogue | Each provider has **its models**, in the user's order: added from the server's real list, Koog's catalogue, or a typed ID. The chat's model sheet lists exactly these, by provider |
+| P3 | Everything on one settings page | Category → list → detail (layout §3.3, §19): **Assistant** lists the providers and adds one; a **provider's page** holds its identity, key, models and removal; a model Koog does not know has its **options** (context window, output limit, reads images, reasons) |
+| P4 | A typed model could not reason or read images | Its options say so: efforts and images follow |
+| P5 | Nothing checked a key until a message | Listing a provider's models checks its address and key, and says why it failed |
+| P6 | **+** attached workspace files only | **Attach**: Camera, Photos (the system Photo Picker), Files (the system document picker), then the workspace's files, searchable — up to five in all |
+| P7 | Only text could be sent | Images (to a model that reads them: downscaled to 1 568 px, JPEG, EXIF orientation applied), PDFs (to one that reads documents, up to 10 MB), text files from anywhere (64 000 characters); anything else is refused by name. An image or PDF is kept in its chat's folder, never inside the chat's file |
+| P8 | A model that cannot read an attachment failed at the provider | The composer says so beside the files and Send waits; a chat's earlier images reach such a model as a line of text |
+| P9 | A failed message could only be retyped | **Try Again** on a failure before any reply: the message is sent again, its files as they were |
+| P10 | Replies could only be selected | **Copy** under the answer each turn ends on |
+| P11 | Round 2's single-provider settings | Become the first provider, with its model and the models chosen before |
+| P12 | The context meter showed only once a request had been made (owner: "show the current context size below the input box, bottom right, in real time") | Always shown under the composer, at the right: "0 / 200k" before the first request, then the last request's tokens after every step; "12k tokens" where the window is unknown |
+| P13 | A message needed words | A photo or a file alone is a message; its chat is named after it |
+| P14 | Back on a provider's page lost what was typed | Back with changes asks: **Discard**, or stay |
+| P15 | Picks past five were dropped without a word; a phone without a camera offered one | Said ("2 not attached"); the Camera tile shows only where there is a camera |
+
+### 13.3 Cycles
+
+| # | Step | Verified by |
+|---|---|---|
+| C1 | Contract and provider store: providers, models (specs), the choice, migration | Type-check; store and rules tests |
+| C2 | Engine: a model from its spec, a provider's model list, `TURN` requesting the prompt as built, attachments as Koog parts, what a model cannot read | Engine and model tests against Koog |
+| C3 | Attachments: sources (workspace, `content://`), kinds, images prepared, kept per chat; Try Again | Store and coordinator tests |
+| C4 | Coordinator: provider intents, model listing, the choice kept valid | Coordinator tests |
+| C5 | Screens: Assistant settings as pages, the model sheet by provider, Attach with the pickers and the camera, thumbnails, warnings, Copy, Try Again | Compose type-check; UI guard; RouteTest |
+| C6 | This plan as built; PRD, user stories; guards; commit | Review |
+
+### 13.4 Record (2026-10-01)
+
+- Built as decided. The assistant's eight test classes pass, 93 tests — among them the provider
+  store (five), the attachments (five), the coordinator's providers, phone photo, photo alone and
+  Try Again, the meter's label and a model's summary; of the 591 `data/` and `domain/` tests, only
+  `TreeSizeTest`'s unreadable-directory case fails, as before, because the container runs as root.
+- The screens type-check against Compose's desktop jars with the Activity-result, `FileProvider`
+  and `Bitmap` stand-ins; RouteTest and SettingsCatalogTest pass; the UI and backend guards pass;
+  every class, backend and UI, is checked against Android 11's API (minSdk 30) — none reaches past
+  it (`InputStream.readNBytes`, Android 13's, was replaced).
+- Not seen on a device: Google's Maven is closed to this environment, so no APK is built and no
+  screenshot is taken. The device pass of §9 covers the pickers, the camera, thumbnails and each
+  provider's model list.

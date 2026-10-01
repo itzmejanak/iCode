@@ -71,4 +71,5 @@ enum class Route(
     // Owner's request (2026-10-01): iCode's own assistant, on Koog (docs/assistant-koog-plan.md).
     Assistant(null, "Assistant", RouteGroup.TOOLS),
     AssistantSettings(null, "Assistant settings", RouteGroup.SETTINGS),
+    AssistantProvider(null, "Assistant provider", RouteGroup.SETTINGS),
 }

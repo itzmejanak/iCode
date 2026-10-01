@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ErrorOutline
@@ -33,7 +33,10 @@ import dev.icode.mobile.designsystem.IndeterminateProgressTrack
 import dev.icode.mobile.designsystem.LocalCodeTextScale
 import dev.icode.mobile.designsystem.NoticeCard
 import dev.icode.mobile.designsystem.PinchToScaleText
+import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.scaledBy
+import dev.icode.mobile.domain.AssistantEntry
+import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantMode
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantState
@@ -65,11 +68,19 @@ internal fun AssistantChatView(state: AssistantState, modifier: Modifier, onSugg
                     contentPadding = PaddingValues(IcodeSpacing.Space3),
                     verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
                 ) {
-                    items(entries, key = { it.key }) { entry -> AssistantEntryRow(entry) }
+                    itemsIndexed(entries, key = { _, entry -> entry.key }) { index, entry ->
+                        // The answer a turn ends on; one still being worked on may yet go on to a step.
+                        val ends = entries.getOrNull(index + 1) !is AssistantEntry.Step && !(index == entries.lastIndex && state.runningHere)
+                        AssistantEntryRow(entry, copyable = ends)
+                    }
                     state.failure?.let { failure ->
                         item(key = "failure") {
                             NoticeCard(IcodeTone.Error, Modifier.fillMaxWidth(), title = "The assistant stopped", icon = Icons.Outlined.ErrorOutline) {
                                 Text(failure, style = IcodeType.Caption.scaledBy(LocalCodeTextScale.current))
+                                // A message no reply came to: sent again, its files with it, once the cause is fixed.
+                                if (!state.running && state.messages.lastOrNull() is AssistantMessage.User) {
+                                    SecondaryButton("Try Again", { gateway.dispatch(WorkbenchIntent.RetryAssistantMessage) })
+                                }
                             }
                         }
                     }
@@ -101,7 +112,7 @@ internal fun AssistantChatView(state: AssistantState, modifier: Modifier, onSugg
 @Composable
 private fun AssistantWelcome(state: AssistantState, modifier: Modifier, onSuggestion: (String) -> Unit) {
     val workspace = AssistantRules.workspaceName(state.workspace.orEmpty())
-    val asking = state.settings?.mode == AssistantMode.Ask
+    val asking = state.settings.mode == AssistantMode.Ask
     Box(modifier.fillMaxWidth()) {
         IcodeWatermark(Modifier.align(Alignment.Center))
         Column(
@@ -114,7 +125,7 @@ private fun AssistantWelcome(state: AssistantState, modifier: Modifier, onSugges
                 description = if (asking) {
                     "It reads this workspace to answer, and changes nothing."
                 } else {
-                    "It reads and changes $workspace's files and runs commands in its terminal${if (state.settings?.askBeforeChanges != false) ", asking first" else ""}."
+                    "It reads and changes $workspace's files and runs commands in its terminal${if (state.settings.askBeforeChanges) ", asking first" else ""}."
                 },
                 mark = { IcodeBrandMark(Modifier.size(IcodeSizes.MarkLg)) },
             )

@@ -9,6 +9,7 @@ import ai.koog.prompt.executor.clients.openai.OpenAIClientSettings
 import ai.koog.prompt.executor.clients.openai.OpenAILLMClient
 import ai.koog.prompt.executor.clients.openrouter.OpenRouterLLMClient
 import ai.koog.prompt.executor.ollama.client.OllamaClient
+import ai.koog.prompt.llm.LLModel
 import dev.icode.mobile.data.assistant.AssistantConnection
 import dev.icode.mobile.data.assistant.AssistantTurnException
 import dev.icode.mobile.domain.AssistantProviderKind
@@ -29,12 +30,11 @@ internal object KoogClients {
                 OpenAIClientSettings(baseUrl = address(connection), chatCompletionsPath = "chat/completions"),
                 http,
             )
-            AssistantProviderKind.Anthropic -> {
-                // Anthropic's client refuses a model missing from its map; a typed one maps to itself.
-                val model = KoogModels.llModel(connection.kind, connection.model)
-                val versions = AnthropicClientSettings().modelVersionsMap
-                AnthropicLLMClient(required(), AnthropicClientSettings(modelVersionsMap = versions + (model to (versions[model] ?: model.id))), http)
-            }
+            AssistantProviderKind.Anthropic -> AnthropicLLMClient(
+                required(),
+                AnthropicClientSettings(modelVersionsMap = VersionsOrId(AnthropicClientSettings().modelVersionsMap)),
+                http,
+            )
             AssistantProviderKind.Google -> GoogleLLMClient(required(), httpClientFactory = http)
             AssistantProviderKind.OpenRouter -> OpenRouterLLMClient(required(), httpClientFactory = http)
             AssistantProviderKind.Ollama -> OllamaClient(
@@ -44,6 +44,14 @@ internal object KoogClients {
                 headers = key?.let { mapOf("Authorization" to "Bearer $it") }.orEmpty(),
             )
         }
+    }
+
+    /**
+     * Anthropic's client refuses a model missing from its map of versions; here a model Koog does
+     * not know is named by its own ID, so one client serves every model of the provider.
+     */
+    private class VersionsOrId(private val versions: Map<LLModel, String>) : Map<LLModel, String> by versions {
+        override fun get(key: LLModel): String = versions[key] ?: key.id
     }
 
     private fun address(connection: AssistantConnection): String =

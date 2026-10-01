@@ -72,9 +72,9 @@ class AssistantRulesTest {
     }
 
     @Test fun `files sent with a message show by their paths, and a compaction as its own row`() {
-        val withFiles = AssistantMessage.User("Why?", listOf(AssistantAttachment("src/a.kt", "x")))
+        val withFiles = AssistantMessage.User("Why?", listOf(AssistantAttachment("src/a.kt", text = "x")))
         val entries = AssistantRules.entries(AssistantState(messages = listOf(withFiles, AssistantMessage.Compacted("Summary"))))
-        assertEquals(listOf("src/a.kt"), (entries[0] as AssistantEntry.Said).attachments)
+        assertEquals(listOf("src/a.kt"), (entries[0] as AssistantEntry.Said).attachments.map { it.name })
         assertEquals("Summary", (entries[1] as AssistantEntry.Compacted).summary)
     }
 
@@ -94,6 +94,22 @@ class AssistantRulesTest {
         assertEquals(1f, AssistantRules.contextShare(300_000, 200_000))
         assertNull(AssistantRules.contextShare(null, 200_000))
         assertNull(AssistantRules.contextShare(100, null))
+    }
+
+    @Test fun `the meter always says something, from the first message on`() {
+        assertEquals("84k / 200k", AssistantRules.contextLabel(84_000, 200_000))
+        assertEquals("0 / 200k", AssistantRules.contextLabel(null, 200_000))
+        assertEquals("12k tokens", AssistantRules.contextLabel(12_000, null))
+        assertEquals("0 tokens", AssistantRules.contextLabel(null, null))
+    }
+
+    @Test fun `a model is summed up by what is known of it`() {
+        assertEquals(
+            "200k context · reasons · images · PDFs",
+            AssistantRules.modelSummary(AssistantModel("claude", 200_000, efforts = listOf(AssistantEffort.High), images = true, documents = true)),
+        )
+        assertEquals("", AssistantRules.modelSummary(AssistantModel("custom")))
+        assertEquals("128k context · reasons · images", AssistantRules.modelSummary(AssistantModelSpec("qwen", 128_000, reasoning = true, images = true)))
     }
 
     @Test fun `a chat is titled by its first line, cut short`() {
@@ -127,25 +143,43 @@ class AssistantRulesTest {
         assertEquals("950", AssistantRules.tokenCount(950))
     }
 
-    @Test fun `the settings form says what is missing, in order`() {
-        val problem = { kind: AssistantProviderKind, url: String, model: String, typed: Boolean, saved: Boolean ->
-            AssistantRules.settingsProblem(kind, url, model, typed, saved)
-        }
-        assertEquals("Enter the server's address", problem(AssistantProviderKind.OpenAICompatible, " ", "m", false, false))
-        assertEquals("Enter an address that starts with https:// or http://", problem(AssistantProviderKind.Ollama, "localhost:11434", "m", false, false))
-        assertEquals("Enter a model", problem(AssistantProviderKind.Anthropic, "", "", true, false))
-        assertEquals("A model ID has no spaces", problem(AssistantProviderKind.OpenAI, "", "gpt 5", true, false))
-        assertEquals("Enter the API key", problem(AssistantProviderKind.OpenAI, "", "gpt-5", false, false))
-        assertNull(problem(AssistantProviderKind.OpenAI, "", "gpt-5", false, true))
-        assertNull(problem(AssistantProviderKind.Ollama, "http://127.0.0.1:11434", "qwen3:0.6b", false, false))
-        assertNull(problem(AssistantProviderKind.OpenAICompatible, "https://api.deepseek.com/v1", "deepseek-chat", true, false))
+    @Test fun `a provider's form says what is missing, in order`() {
+        val one = listOf(AssistantModelSpec("m"))
+        fun problem(kind: AssistantProviderKind, name: String = "P", url: String = "", typed: Boolean = false, saved: Boolean = false, models: List<AssistantModelSpec> = one) =
+            AssistantRules.providerProblem(kind, name, url, typed, saved, models)
+        assertEquals("Enter a name", problem(AssistantProviderKind.OpenAI, name = " "))
+        assertEquals("Enter the server's address", problem(AssistantProviderKind.OpenAICompatible, url = " "))
+        assertEquals("Enter an address that starts with https:// or http://", problem(AssistantProviderKind.Ollama, url = "localhost:11434"))
+        assertEquals("Enter the API key", problem(AssistantProviderKind.OpenAI))
+        assertEquals("Add at least one model", problem(AssistantProviderKind.OpenAI, saved = true, models = emptyList()))
+        assertEquals("A model ID has no spaces", problem(AssistantProviderKind.OpenAI, typed = true, models = listOf(AssistantModelSpec("gpt 5"))))
+        assertEquals("gpt-5 is listed twice", problem(AssistantProviderKind.OpenAI, typed = true, models = listOf(AssistantModelSpec("gpt-5"), AssistantModelSpec(" gpt-5"))))
+        assertNull(problem(AssistantProviderKind.OpenAI, saved = true))
+        assertNull(problem(AssistantProviderKind.Ollama, url = "http://127.0.0.1:11434"))
+        assertNull(problem(AssistantProviderKind.OpenAICompatible, url = "https://api.deepseek.com/v1", typed = true))
+        assertEquals("The context window is a number of tokens", AssistantRules.modelOptionsProblem("big", ""))
+        assertEquals("The output limit is a number of tokens", AssistantRules.modelOptionsProblem("", "-1"))
+        assertNull(AssistantRules.modelOptionsProblem("128k", ""))
+    }
+
+    @Test fun `a file's kind is read from its type, or its name when the type is unknown`() {
+        assertEquals(AssistantAttachmentKind.Image, AssistantRules.attachmentKind("IMG.HEIC", "image/heic"))
+        assertEquals(AssistantAttachmentKind.Image, AssistantRules.attachmentKind("photo.jpeg", null))
+        assertEquals(AssistantAttachmentKind.Document, AssistantRules.attachmentKind("x", "application/pdf"))
+        assertEquals(AssistantAttachmentKind.Document, AssistantRules.attachmentKind("spec.PDF", null))
+        assertEquals(AssistantAttachmentKind.Text, AssistantRules.attachmentKind("App.kt", null))
+        assertEquals(AssistantAttachmentKind.Text, AssistantRules.attachmentKind("data.json", "application/json"))
+        val text = AssistantModel("t")
+        assertEquals("t does not read images — choose a model that does", AssistantRules.attachmentProblem(listOf(AssistantAttachmentKind.Image), text))
+        assertNull(AssistantRules.attachmentProblem(listOf(AssistantAttachmentKind.Text), text))
+        assertNull(AssistantRules.attachmentProblem(listOf(AssistantAttachmentKind.Image), AssistantModel("v", images = true)))
+    }
+
+    @Test fun `a model's spec keeps only its ID when Koog knows it`() {
+        assertEquals(AssistantModelSpec("gpt-5"), AssistantModel("gpt-5", 400_000, 128_000, known = true).spec)
         assertEquals(
-            "The context window is a number of tokens",
-            AssistantRules.settingsProblem(AssistantProviderKind.OpenAICompatible, "https://x/v1", "m", true, false, contextWindow = "big"),
-        )
-        assertEquals(
-            "The output limit is a number of tokens",
-            AssistantRules.settingsProblem(AssistantProviderKind.OpenAICompatible, "https://x/v1", "m", true, false, maxOutput = "-1"),
+            AssistantModelSpec("local", 32_000, 4_000, images = true, reasoning = true),
+            AssistantModel("local", 32_000, 4_000, listOf(AssistantEffort.On), images = true).spec,
         )
     }
 
@@ -156,7 +190,8 @@ class AssistantRulesTest {
     }
 
     @Test fun `a key never shows in an intent's text`() {
-        val save = WorkbenchIntent.SaveAssistantSettings(AssistantProviderKind.OpenAI, "", "gpt-5", "sk-secret")
+        val save = WorkbenchIntent.SaveAssistantProvider("", AssistantProviderKind.OpenAI, "OpenAI", "", "sk-secret", listOf(AssistantModelSpec("gpt-5")))
         assertTrue("sk-secret" !in save.toString())
+        assertTrue("sk-secret" !in WorkbenchIntent.ListAssistantModels("", AssistantProviderKind.OpenAI, "", "sk-secret").toString())
     }
 }

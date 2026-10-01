@@ -58,6 +58,18 @@
             </intent-filter>
         </provider>
 
+        <!-- The camera's photo for the assistant: the camera app writes it to iCode's cache through
+             this, for the one capture it is granted (docs/assistant-koog-plan.md §13 P6). -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.assistant.camera"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/assistant_camera_paths" />
+        </provider>
+
         <service
             android:name="dev.icode.mobile.data.runtime.RuntimeForegroundService"
             android:exported="false"

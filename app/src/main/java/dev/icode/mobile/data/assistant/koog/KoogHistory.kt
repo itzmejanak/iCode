@@ -2,15 +2,22 @@ package dev.icode.mobile.data.assistant.koog
 
 import ai.koog.prompt.Prompt
 import ai.koog.prompt.dsl.prompt
+import ai.koog.prompt.llm.LLMCapability
+import ai.koog.prompt.llm.LLModel
+import ai.koog.prompt.message.AttachmentContent
+import ai.koog.prompt.message.AttachmentSource
 import ai.koog.prompt.message.Message
 import ai.koog.prompt.message.MessagePart
 import ai.koog.prompt.message.ResponseMetaInfo
 import ai.koog.prompt.params.LLMParams
 import dev.icode.mobile.data.assistant.AssistantInstructions
 import dev.icode.mobile.data.assistant.AssistantTool
+import dev.icode.mobile.domain.AssistantAttachment
+import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantToolKind
+import java.io.File
 import org.json.JSONObject
 
 /**
@@ -18,12 +25,16 @@ import org.json.JSONObject
  * matches a result to its call by ID. Reasoning stays within the turn it was given in.
  */
 internal object KoogHistory {
-    /** The prompt a turn starts from: the system instructions, then [history] (every call answered). */
-    fun prompt(instructions: String, history: List<AssistantMessage>, params: LLMParams): Prompt = prompt(PROMPT_ID, params) {
+    /**
+     * The prompt a request starts from: the system instructions, then [messages] — every call
+     * answered, the new message last — for [model]: an image or a PDF goes as itself to a model
+     * that reads it, and as a line of text to one that does not (§13 P8).
+     */
+    fun prompt(instructions: String, messages: List<AssistantMessage>, params: LLMParams, model: LLModel): Prompt = prompt(PROMPT_ID, params) {
         system(instructions)
-        history.forEach { message ->
+        messages.forEach { message ->
             when (message) {
-                is AssistantMessage.User -> user(AssistantInstructions.message(message))
+                is AssistantMessage.User -> user(listOf(MessagePart.Text(AssistantInstructions.message(message))) + message.attachments.mapNotNull { attachment(it, model) })
                 is AssistantMessage.Reply -> if (message.text.isNotBlank() || message.calls.isNotEmpty()) {
                     message(
                         Message.Assistant(
@@ -43,6 +54,34 @@ internal object KoogHistory {
             }
         }
     }
+
+    /**
+     * [attachment] as a part of its message: an image or a PDF as itself where [model] reads it,
+     * else as a line saying it is there; a text file is already in the message's text.
+     */
+    private fun attachment(attachment: AssistantAttachment, model: LLModel): MessagePart.RequestPart? {
+        val kept = attachment.file?.let(::File)?.takeIf { it.isFile }
+        return when (attachment.kind) {
+            AssistantAttachmentKind.Text -> null
+            AssistantAttachmentKind.Image -> when {
+                !model.supports(LLMCapability.Vision.Image) -> note(attachment, "this model cannot see images")
+                kept == null -> note(attachment, "it is no longer kept")
+                else -> MessagePart.Attachment(
+                    AttachmentSource.Image(AttachmentContent.Binary.Bytes(kept.readBytes()), FORMAT_JPEG, attachment.mimeType, attachment.name),
+                )
+            }
+            AssistantAttachmentKind.Document -> when {
+                !model.supports(LLMCapability.Document) -> note(attachment, "this model cannot read PDFs")
+                kept == null -> note(attachment, "it is no longer kept")
+                else -> MessagePart.Attachment(
+                    AttachmentSource.File(AttachmentContent.Binary.Bytes(kept.readBytes()), FORMAT_PDF, attachment.mimeType, attachment.name),
+                )
+            }
+        }
+    }
+
+    private fun note(attachment: AssistantAttachment, why: String) =
+        MessagePart.Text("[The user attached ${attachment.name}, not sent: $why.]")
 
     /**
      * [reply] as iCode keeps it: its text, and each call described by the tool it calls, with an ID
@@ -71,4 +110,8 @@ internal object KoogHistory {
     }
 
     private const val PROMPT_ID = "icode-assistant"
+
+    /** Every image is sent as JPEG ([dev.icode.mobile.data.assistant.AssistantImages]). */
+    private const val FORMAT_JPEG = "jpeg"
+    private const val FORMAT_PDF = "pdf"
 }

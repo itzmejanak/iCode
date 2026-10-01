@@ -4,15 +4,18 @@ import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.workspace.WorkbenchStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceRoot
 import dev.icode.mobile.domain.AssistantAnswer
+import dev.icode.mobile.domain.AssistantAttachment
+import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantCall
+import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantEffort
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantMode
 import dev.icode.mobile.domain.AssistantModel
+import dev.icode.mobile.domain.AssistantModelSpec
 import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.domain.AssistantResult
 import dev.icode.mobile.domain.AssistantRules
-import dev.icode.mobile.domain.AssistantSettings
 import dev.icode.mobile.domain.AssistantState
 import dev.icode.mobile.domain.AssistantToolKind
 import dev.icode.mobile.domain.LineEnding
@@ -49,7 +52,13 @@ class AssistantCoordinatorTest {
     private val workbench = WorkbenchStateHolder()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val effects = Collections.synchronizedList(mutableListOf<WorkbenchEffect>())
-    private val providers = FakeProviders()
+    /** The real store, over preferences in memory; a key "encrypted" as itself, marked. */
+    private val providers = SharedPreferencesAssistantProviderStore(InMemoryPreferences(), { "enc:$it" }, { it.removePrefix("enc:") })
+    private val openAI by lazy {
+        providers.saveProvider("", AssistantProviderKind.OpenAI, "OpenAI", null, "sk-test", listOf(AssistantModelSpec("gpt-5"), AssistantModelSpec("o3")))
+    }
+    private val phoneFiles = mutableMapOf<String, PhoneFile>()
+    private var listed: List<AssistantModel> = emptyList()
     private val chatsFolder by lazy { temp.newFolder("chats") }
     private val chats by lazy { AssistantChats(AssistantChatStore(chatsFolder)) }
     private val app by lazy { temp.newFolder("app").path }
@@ -59,11 +68,16 @@ class AssistantCoordinatorTest {
     private val ran = Collections.synchronizedList(mutableListOf<String>())
 
     private val engine = object : AssistantEngine {
-        override val catalogue = mapOf(AssistantProviderKind.OpenAI to listOf(AssistantModel("gpt-5", 400_000)))
-        override fun model(kind: AssistantProviderKind, id: String, contextWindow: Long?, maxOutput: Long?) = AssistantModel(
-            id, contextWindow ?: 1_000, maxOutput,
-            efforts = if (id.startsWith("o")) listOf(AssistantEffort.Low, AssistantEffort.High) else emptyList(),
+        override val catalogue = mapOf(AssistantProviderKind.OpenAI to listOf(AssistantModel("gpt-5", 400_000, known = true)))
+        override fun model(kind: AssistantProviderKind, spec: AssistantModelSpec) = AssistantModel(
+            spec.id, spec.contextWindow ?: 1_000, spec.maxOutput,
+            efforts = if (spec.id.startsWith("o") || spec.reasoning) listOf(AssistantEffort.Low, AssistantEffort.High) else emptyList(),
+            images = spec.images || spec.id.endsWith("-vision"),
         )
+        override suspend fun available(connection: AssistantConnection): List<AssistantModel> {
+            if (connection.apiKey != "sk-test") throw AssistantTurnException("The provider refused the API key — check it in the provider's settings")
+            return listed
+        }
         override suspend fun run(turn: AssistantTurnRequest, events: AssistantEvents) {
             requests += turn
             script(turn, events)
@@ -80,15 +94,18 @@ class AssistantCoordinatorTest {
             tools = { listOf(FakeTool("read_file", AssistantToolKind.Read), FakeTool("edit_file", AssistantToolKind.Change)) },
             activeRoot = { app },
             describe = { WorkspaceRoot("app", it, "/workspace/app") },
-            readText = { File(it).readText() },
-        )
+        ) { openText ->
+            // Images pass as they are: Android's decoding is not on a JVM.
+            AssistantAttachments({ phoneFiles[it] }, { bytes -> bytes }, openText, readText = { File(it).readText() })
+        }
     }
 
     @Before fun start() {
         BackendLog.writer = { _, _, _ -> }
         scope.launch { workbench.effects.collect { effects += it } }
+        openAI
         coordinator.start()
-        until { state().settings != null && state().catalogue.isNotEmpty() }
+        until { state().settings.ready && state().catalogue.isNotEmpty() }
         coordinator.handle(WorkbenchIntent.OpenAssistant)
         until { state().workspace == app }
     }
@@ -184,7 +201,7 @@ class AssistantCoordinatorTest {
         until { state().session == null && state().messages.isEmpty() }
         assertFalse(state().allowAll)
         coordinator.handle(WorkbenchIntent.SetAssistantAskFirst(false))
-        until { state().settings?.askBeforeChanges == false }
+        until { !state().settings.askBeforeChanges }
         coordinator.handle(WorkbenchIntent.SendAssistantMessage("three"))
         until { requests.size == 3 && state().turn == null }
         assertEquals(3, ran.size)
@@ -225,8 +242,8 @@ class AssistantCoordinatorTest {
         coordinator.handle(WorkbenchIntent.StopAssistant)
         until { state().turn == null }
 
-        coordinator.handle(WorkbenchIntent.RemoveAssistantSettings)
-        until { state().settings == null }
+        coordinator.handle(WorkbenchIntent.RemoveAssistantProvider(openAI))
+        until { !state().settings.ready }
         coordinator.handle(WorkbenchIntent.NewAssistantChat)
         coordinator.handle(WorkbenchIntent.SendAssistantMessage("third"))
         until { state().failure != null }
@@ -280,7 +297,7 @@ class AssistantCoordinatorTest {
         coordinator.handle(WorkbenchIntent.SendAssistantMessage("Compare", listOf(File(app, "a.kt").path, b)))
         until { requests.size == 2 && state().turn == null }
         assertEquals(
-            listOf(dev.icode.mobile.domain.AssistantAttachment("a.kt", "val a = 1"), dev.icode.mobile.domain.AssistantAttachment("b.kt", "val b = 2 // unsaved")),
+            listOf(AssistantAttachment("a.kt", text = "val a = 1"), AssistantAttachment("b.kt", text = "val b = 2 // unsaved")),
             requests.last().input.attachments,
         )
 
@@ -293,25 +310,31 @@ class AssistantCoordinatorTest {
 
     @Test fun `Ask offers only the tools that read`() {
         coordinator.handle(WorkbenchIntent.ChooseAssistantMode(AssistantMode.Ask))
-        until { state().settings?.mode == AssistantMode.Ask }
+        until { state().settings.mode == AssistantMode.Ask }
         said("Explain")
         assertEquals(listOf("read_file"), requests.single().tools.map { it.name })
         assertTrue("Ask" in requests.single().instructions || "read the workspace" in requests.single().instructions)
     }
 
-    @Test fun `the model chosen on the page is used, kept first among the recent ones, and its effort sent only where offered`() {
+    @Test fun `the model chosen on the page is one of a provider's, and its effort is sent only where offered`() {
         coordinator.handle(WorkbenchIntent.ChooseAssistantEffort(AssistantEffort.High))
-        until { state().settings?.effort == AssistantEffort.High }
+        until { state().settings.effort == AssistantEffort.High }
         said("plain")
         assertNull("gpt-5 here offers no effort", requests.last().effort)
 
-        coordinator.handle(WorkbenchIntent.ChooseAssistantModel("o3"))
-        until { state().settings?.model == "o3" }
-        assertEquals(listOf("o3", "gpt-5"), state().recentModels)
-        assertEquals(listOf(AssistantEffort.Low, AssistantEffort.High), state().model?.efforts)
+        coordinator.handle(WorkbenchIntent.ChooseAssistantModel(openAI, "o3"))
+        until { state().settings.model?.id == "o3" }
+        assertEquals(listOf(AssistantEffort.Low, AssistantEffort.High), state().settings.model?.efforts)
         said("reasoned")
         assertEquals("o3", requests.last().model.id)
         assertEquals(AssistantEffort.High, requests.last().effort)
+        assertEquals("sk-test", requests.last().connection.apiKey)
+
+        // A model the provider does not list is not chosen.
+        coordinator.handle(WorkbenchIntent.ChooseAssistantModel(openAI, "gpt-9"))
+        coordinator.handle(WorkbenchIntent.ChooseAssistantMode(AssistantMode.Agent))
+        Thread.sleep(50)
+        assertEquals("o3", state().settings.model?.id)
     }
 
     @Test fun `Compact summarizes the chat, and later turns send the summary and what came after`() {
@@ -365,15 +388,97 @@ class AssistantCoordinatorTest {
         assertTrue(chats.sessions("$app-renamed").isEmpty())
     }
 
-    @Test fun `settings are checked before they are saved, limits with them`() {
-        coordinator.handle(WorkbenchIntent.SaveAssistantSettings(AssistantProviderKind.Anthropic, "", "claude-sonnet-4-5", null))
+    @Test fun `a provider is checked, saved with its models and its own key, and its server asked for its models`() {
+        coordinator.handle(WorkbenchIntent.SaveAssistantProvider("", AssistantProviderKind.Anthropic, "Anthropic", "", null, listOf(AssistantModelSpec("claude-sonnet-4-5"))))
         until { effects.any { it is WorkbenchEffect.Message && it.text == "Enter the API key" } }
-        assertEquals(AssistantProviderKind.OpenAI, state().settings!!.kind)
-        coordinator.handle(WorkbenchIntent.SaveAssistantSettings(AssistantProviderKind.OpenAICompatible, "https://x/v1", "local", null, contextWindow = "lots"))
-        until { effects.any { it is WorkbenchEffect.Message && it.text == "The context window is a number of tokens" } }
-        coordinator.handle(WorkbenchIntent.SaveAssistantSettings(AssistantProviderKind.OpenAICompatible, "https://x/v1", "local", null, contextWindow = "32k", maxOutput = "4k"))
-        until { state().settings!!.kind == AssistantProviderKind.OpenAICompatible }
-        assertEquals(AssistantModel("local", 32_000, 4_000), state().model)
+        coordinator.handle(WorkbenchIntent.SaveAssistantProvider("", AssistantProviderKind.OpenAICompatible, "DeepSeek", "https://api.deepseek.com/v1", null, emptyList()))
+        until { effects.any { it is WorkbenchEffect.Message && it.text == "Add at least one model" } }
+        coordinator.handle(
+            WorkbenchIntent.SaveAssistantProvider(
+                "", AssistantProviderKind.OpenAICompatible, "DeepSeek", "https://api.deepseek.com/v1/", "sk-deep",
+                listOf(AssistantModelSpec("deepseek-chat", 128_000, 8_000), AssistantModelSpec("deepseek-reasoner", reasoning = true)),
+            ),
+        )
+        until { state().settings.providers.size == 2 }
+        val deepSeek = state().settings.providers.last()
+        assertEquals("https://api.deepseek.com/v1", deepSeek.baseUrl)
+        assertEquals(listOf(AssistantModel("deepseek-chat", 128_000, 8_000), AssistantModel("deepseek-reasoner", 1_000, efforts = listOf(AssistantEffort.Low, AssistantEffort.High))), deepSeek.models)
+        assertTrue(deepSeek.hasKey)
+        assertEquals("the chat keeps its model", "gpt-5", state().settings.model?.id)
+
+        coordinator.handle(WorkbenchIntent.ChooseAssistantModel(deepSeek.id, "deepseek-chat"))
+        until { state().settings.provider?.id == deepSeek.id }
+        said("hello")
+        assertEquals(AssistantConnection(AssistantProviderKind.OpenAICompatible, "https://api.deepseek.com/v1", "sk-deep"), requests.last().connection)
+
+        // Its server's models: with the saved key of the provider, or the one typed.
+        listed = listOf(AssistantModel("gpt-5", known = true), AssistantModel("gpt-6-preview"))
+        coordinator.handle(WorkbenchIntent.EditAssistantProvider(openAI))
+        coordinator.handle(WorkbenchIntent.ListAssistantModels(openAI, AssistantProviderKind.OpenAI, "", null))
+        until { state().available?.loading == false }
+        assertEquals(listed, state().available?.models)
+        coordinator.handle(WorkbenchIntent.ListAssistantModels(openAI, AssistantProviderKind.OpenAI, "", "sk-wrong"))
+        until { state().available?.failure != null }
+        assertEquals("The provider refused the API key — check it in the provider's settings", state().available?.failure)
+
+        // Removing the chosen provider moves the chat to the first model left.
+        coordinator.handle(WorkbenchIntent.RemoveAssistantProvider(deepSeek.id))
+        until { state().settings.providers.size == 1 }
+        assertEquals(AssistantChoice(openAI, "gpt-5"), state().settings.choice)
+    }
+
+    @Test fun `a photo from the phone goes to a model that sees, kept in its chat, and is refused by one that does not`() {
+        phoneFiles["content://photos/1"] = PhoneFile("IMG_1.jpg", "image/jpeg") { byteArrayOf(9, 9, 9).inputStream() }
+        coordinator.handle(WorkbenchIntent.SendAssistantMessage("What is this?", listOf("content://photos/1")))
+        until { state().failure != null }
+        assertEquals("gpt-5 does not read images — choose a model that does", state().failure)
+        assertTrue("nothing was sent", requests.isEmpty())
+
+        providers.saveProvider(openAI, AssistantProviderKind.OpenAI, "OpenAI", null, null, listOf(AssistantModelSpec("gpt-5"), AssistantModelSpec("gpt-5-vision")))
+        coordinator.handle(WorkbenchIntent.ChooseAssistantModel(openAI, "gpt-5-vision"))
+        until { state().settings.model?.id == "gpt-5-vision" }
+        said("ok")
+        script = { _, events -> events.replied(AssistantMessage.Reply("A cat.")) }
+        coordinator.handle(WorkbenchIntent.SendAssistantMessage("What is this?", listOf("content://photos/1")))
+        until { requests.size == 2 && state().turn == null }
+        val photo = requests.last().input.attachments.single()
+        assertEquals("IMG_1.jpg", photo.name)
+        assertEquals(AssistantAttachmentKind.Image, photo.kind)
+        assertEquals(listOf<Byte>(9, 9, 9), File(photo.file!!).readBytes().toList())
+        assertTrue("kept in the chat's own folder", File(photo.file!!).parentFile!!.name == "${state().session}.files")
+
+        // A grant gone with the process: said, nothing sent.
+        coordinator.handle(WorkbenchIntent.SendAssistantMessage("Again", listOf("content://photos/gone")))
+        until { state().failure != null }
+        assertEquals("A file from the phone can no longer be read — attach it again", state().failure)
+    }
+
+    @Test fun `a photo alone is a message and names its chat, while nothing at all is not sent`() {
+        coordinator.handle(WorkbenchIntent.SendAssistantMessage("  "))
+        phoneFiles["content://photos/2"] = PhoneFile("IMG_2.jpg", "image/jpeg") { byteArrayOf(7).inputStream() }
+        providers.saveProvider(openAI, AssistantProviderKind.OpenAI, "OpenAI", null, null, listOf(AssistantModelSpec("gpt-5-vision")))
+        coordinator.handle(WorkbenchIntent.ChooseAssistantModel(openAI, "gpt-5-vision"))
+        until { state().settings.model?.id == "gpt-5-vision" }
+        script = { _, events -> events.replied(AssistantMessage.Reply("A receipt.")) }
+        coordinator.handle(WorkbenchIntent.SendAssistantMessage("", listOf("content://photos/2")))
+        until { requests.size == 1 && state().turn == null }
+        assertEquals("", requests.single().input.text)
+        assertEquals("IMG_2.jpg", requests.single().input.attachments.single().name)
+        assertEquals("IMG_2.jpg", state().sessions.single().title)
+    }
+
+    @Test fun `Try Again sends a message that failed before any reply once more, not twice`() {
+        script = { _, _ -> throw AssistantTurnException("The provider is limiting requests — try again shortly") }
+        coordinator.handle(WorkbenchIntent.SendAssistantMessage("Hello"))
+        until { state().failure != null }
+        script = { _, events -> events.replied(AssistantMessage.Reply("Hi.")) }
+        coordinator.handle(WorkbenchIntent.RetryAssistantMessage)
+        until { requests.size == 2 && state().turn == null }
+        assertNull(state().failure)
+        assertEquals(listOf(AssistantMessage.User("Hello"), AssistantMessage.Reply("Hi.")), state().messages)
+        assertEquals(AssistantMessage.User("Hello"), requests.last().input)
+        coordinator.handle(WorkbenchIntent.RetryAssistantMessage)
+        until { effects.any { it is WorkbenchEffect.Message && it.text == "Nothing to send again" } }
     }
 
     private inner class FakeTool(override val name: String, override val kind: AssistantToolKind) : AssistantTool {
@@ -386,35 +491,4 @@ class AssistantCoordinatorTest {
         }
     }
 
-    private class FakeProviders : AssistantProviderStore {
-        var saved: AssistantSettings? = AssistantSettings(AssistantProviderKind.OpenAI, null, "gpt-5", hasKey = true)
-        var key: String? = "sk-test"
-        val recent = mutableListOf("gpt-5")
-        override fun settings() = saved
-        override fun save(kind: AssistantProviderKind, baseUrl: String?, model: String, key: String?, contextWindow: Long?, maxOutput: Long?) {
-            if (key != null) this.key = key
-            saved = (saved ?: AssistantSettings(kind, baseUrl, model, false))
-                .copy(kind = kind, baseUrl = baseUrl, model = model, hasKey = this.key != null, contextWindow = contextWindow, maxOutput = maxOutput)
-        }
-        override fun chooseModel(model: String) {
-            saved = saved?.copy(model = model)
-            recent.remove(model)
-            recent.add(0, model)
-        }
-        override fun chooseEffort(effort: AssistantEffort?) {
-            saved = saved?.copy(effort = effort)
-        }
-        override fun chooseMode(mode: AssistantMode) {
-            saved = saved?.copy(mode = mode)
-        }
-        override fun setAskFirst(ask: Boolean) {
-            saved = saved?.copy(askBeforeChanges = ask)
-        }
-        override fun recentModels() = recent.toList()
-        override fun clear() {
-            saved = null
-            key = null
-        }
-        override fun connection() = saved?.let { AssistantConnection(it.kind, it.baseUrl, it.model, key) }
-    }
 }
