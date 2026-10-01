@@ -85,6 +85,8 @@ internal class KoogAssistantEngine(
 
     override suspend fun run(turn: AssistantTurnRequest, events: AssistantEvents) = explained(turn.connection, turn.model.id) {
         val tools = turn.tools.associateBy { it.name }
+        // Whether the last reply ended at the output limit: then the turn says so under it.
+        var cutShort = false
         val agent = agent(
             connection = turn.connection,
             model = turn.model,
@@ -95,8 +97,9 @@ internal class KoogAssistantEngine(
             // Koog counts each node it runs: the start, a request, then a run of the tools and a
             // request per step, and the finish — so this allows exactly maxSteps requests.
             maxIterations = 2 * turn.maxSteps + 1,
-        ) { report(tools, events) }
+        ) { report(tools, events) { cutShort = it } }
         agent.use { it.run(START) }
+        if (cutShort) throw AssistantTurnException(KoogFailures.cutShort(turn.model))
         Unit
     }
 
@@ -108,9 +111,13 @@ internal class KoogAssistantEngine(
     ): String = explained(connection, model.id) {
         // No tools: Koog writes the chat's calls and results into it as text (its MissingToolsConversionStrategy).
         val messages = history + AssistantMessage.User(AssistantInstructions.COMPACT_REQUEST)
-        val agent = agent(connection, model, effort = null, instructions, messages, tools = emptyList(), maxIterations = 3)
-        agent.use { it.run(START) }.trim()
-            .ifEmpty { throw AssistantTurnException("The model sent an empty summary — try again") }
+        var cutShort = false
+        val agent = agent(connection, model, effort = null, instructions, messages, tools = emptyList(), maxIterations = 3) {
+            handleEvents { onLLMCallCompleted { event -> event.response?.let { cutShort = KoogHistory.cutShort(it) } } }
+        }
+        val summary = agent.use { it.run(START) }.trim()
+        if (cutShort) throw AssistantTurnException(KoogFailures.SUMMARY_CUT_SHORT)
+        summary.ifEmpty { throw AssistantTurnException("The model sent an empty summary — try again") }
     }
 
     private suspend fun agent(
@@ -139,9 +146,10 @@ internal class KoogAssistantEngine(
 
     /**
      * Koog's events in iCode's words. Koog runs a reply's calls one at a time, in order; each event
-     * names its call by ID, and one the provider gave no ID is the first still open.
+     * names its call by ID, and one the provider gave no ID is the first still open. [ended] hears,
+     * for each reply, whether it stopped at the output limit.
      */
-    private fun GraphAIAgent.FeatureContext.report(tools: Map<String, AssistantTool>, events: AssistantEvents) {
+    private fun GraphAIAgent.FeatureContext.report(tools: Map<String, AssistantTool>, events: AssistantEvents, ended: (cutShort: Boolean) -> Unit) {
         val open = ArrayDeque<AssistantCall>()
         fun callOf(id: String?): AssistantCall? = open.firstOrNull { it.id == id } ?: open.firstOrNull()
         fun answer(id: String?, output: String, failed: Boolean) {
@@ -152,6 +160,7 @@ internal class KoogAssistantEngine(
         handleEvents {
             onLLMCallCompleted { event ->
                 val response = event.response ?: return@onLLMCallCompleted
+                ended(KoogHistory.cutShort(response))
                 KoogHistory.tokens(response)?.let(events::used)
                 val reply = KoogHistory.reply(response, tools) { "icode-" + UUID.randomUUID() }
                 open.clear()

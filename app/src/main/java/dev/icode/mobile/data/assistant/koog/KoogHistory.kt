@@ -109,7 +109,15 @@ internal object KoogHistory {
         inputTokensCount?.let { it.toLong() + (outputTokensCount ?: 0) } ?: totalTokensCount?.toLong()
     }
 
+    /**
+     * [reply] ended at its request's output limit, as its provider said: `length` for OpenAI,
+     * OpenRouter and OpenAI-compatible servers, `max_tokens` for Anthropic, `MAX_TOKENS` for Gemini.
+     * Koog's Ollama client gives no reason, so a cut-short Ollama reply is not recognized.
+     */
+    fun cutShort(reply: Message.Assistant): Boolean = reply.finishReason?.lowercase() in OUTPUT_LIMIT_REASONS
+
     private const val PROMPT_ID = "icode-assistant"
+    private val OUTPUT_LIMIT_REASONS = setOf("length", "max_tokens")
 
     /** Every image is sent as JPEG ([dev.icode.mobile.data.assistant.AssistantImages]). */
     private const val FORMAT_JPEG = "jpeg"

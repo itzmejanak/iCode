@@ -225,6 +225,50 @@ class KoogAssistantEngineTest {
         }
     }
 
+    @Test fun `a reply cut short at the output limit is kept, and the turn says so under it`() = runBlocking {
+        val cut = Message.Assistant(listOf(MessagePart.Text("Three tiers. Tier A: start it, get an ID. Tools")), ResponseMetaInfo.Empty, finishReason = "length")
+        val recorder = Recorder()
+        try {
+            KoogAssistantEngine { ScriptedClient(listOf(cut)) }.run(turn(ReadTool()), recorder)
+            fail("expected the turn to say it was cut short")
+        } catch (cutShort: AssistantTurnException) {
+            assertEquals("The reply was cut short at the model's output limit — ask it to continue", cutShort.message)
+        }
+        assertEquals(listOf(AssistantMessage.Reply("Three tiers. Tier A: start it, get an ID. Tools")), recorder.events.filterIsInstance<AssistantMessage.Reply>())
+
+        // A model iCode does not know: its output limit is the user's to raise.
+        val custom = KoogModels.model(AssistantProviderKind.OpenAI, AssistantModelSpec("custom-model"))
+        try {
+            KoogAssistantEngine { ScriptedClient(listOf(cut)) }.run(turn(ReadTool()).copy(model = custom), Recorder())
+            fail("expected the turn to say it was cut short")
+        } catch (cutShort: AssistantTurnException) {
+            assertEquals(
+                "The reply was cut short at the model's output limit — ask it to continue, or set a higher Output Limit for custom-model in its provider's settings",
+                cutShort.message,
+            )
+        }
+
+        // Only the last reply counts: one cut short whose call ran, then a finished one, ends well.
+        val cutCall = Message.Assistant(listOf(call("call_1")), ResponseMetaInfo.Empty, finishReason = "length")
+        KoogAssistantEngine { ScriptedClient(listOf(cutCall, done)) }.run(turn(ReadTool()), Recorder())
+    }
+
+    @Test fun `each provider's word for the output limit is recognized, and no other reason`() {
+        fun ended(reason: String?) = KoogHistory.cutShort(Message.Assistant(listOf(MessagePart.Text("x")), ResponseMetaInfo.Empty, finishReason = reason))
+        assertTrue(ended("length") && ended("max_tokens") && ended("MAX_TOKENS"))
+        assertTrue(listOf("stop", "tool_calls", "end_turn", "STOP", null).none { ended(it) })
+    }
+
+    @Test fun `a summary cut short at the output limit leaves the chat uncompacted`() = runBlocking {
+        val client = ScriptedClient(listOf(Message.Assistant(listOf(MessagePart.Text("The user wants")), ResponseMetaInfo.Empty, finishReason = "max_tokens")))
+        try {
+            KoogAssistantEngine { client }.compact(connection, model, "You are iCode's assistant.", listOf(AssistantMessage.User("Fix a.kt")))
+            fail("expected the summary to be refused")
+        } catch (cutShort: AssistantTurnException) {
+            assertEquals("The model's summary was cut short at its output limit, so the chat was not compacted", cutShort.message)
+        }
+    }
+
     @Test fun `attached files reach the model with the message, and calls of tools not offered as text`() = runBlocking {
         val client = ScriptedClient(listOf(done))
         val earlier = listOf(
