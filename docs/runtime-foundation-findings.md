@@ -15,14 +15,14 @@ phone before any of them.
 
 | # | Finding | Cause, as the code shows it | Layer | Confidence |
 |---|---|---|---|---|
-| 1 | Background processes die between commands | Each command is its own PRoot, run with `--kill-on-exit`; no tracee can outlive its PRoot | iCode's process model | Confirmed in code |
+| 1 | Background processes die between commands | Each command is its own PRoot, run with `--kill-on-exit`; no tracee can outlive its PRoot | iCode's process model | Confirmed in code and on a phone (§7) |
 | 2 | Commands are not interactive | `run_command` closes stdin (`</dev/null`), has no PTY, and keeps no shell between calls | iCode's process model | Confirmed in code |
 | 3 | PATH, directory and environment do not carry over | Each command is a fresh, non-login `/bin/sh` (dash) at the workspace's top; the terminal is a login bash | iCode's execution context | Confirmed in code |
 | 4 | Exit codes such as 127 and 143 explain little | The tool returns the raw status and stderr; it never names a signal, the directory or the PATH it ran with | iCode's tool contract | Confirmed in code |
 | 5 | PRoot is not native Linux | Fake root (`-0`), no init, ptrace-based path translation, emulated hard links | PRoot, Android | Known; details to measure |
 | 6 | Filesystem rules differ between operations | File tools are confined to the workspace; a command can write anywhere in the guest, other workspaces included | iCode's boundary model | Confirmed in code |
-| 7 | `ss` and `netstat` missing | Not in `ubuntu-base`; and Android may deny what they read even once installed | Runtime image, Android | Absence confirmed; denial to measure |
-| 8 | A running server is not reachable as a preview | Finding 1 ends it; nothing in iCode knows a port is listening; no preview exists | iCode (lifetime, discovery, UI) | Confirmed in code; loopback to measure |
+| 7 | `ss` and `netstat` missing | Not in `ubuntu-base`; and Android may deny what they read even once installed | Runtime image, Android | Absence confirmed on a phone; denial to measure |
+| 8 | A running server is not reachable as a preview | Finding 1 ends it; nothing in iCode knows a port is listening; no preview exists | iCode (lifetime, discovery, UI) | Confirmed in code; loopback confirmed inside the runtime, another app's view to measure |
 | 9 | The project needed its own setup | Newer Python, `uv`, dependencies, variables, one dependency left out | The project | Not a platform problem (§4) |
 
 ## 2. The findings
@@ -239,3 +239,18 @@ These need a device: this environment cannot run iCode. Each says what the resul
 | P4 | `ln a b` in `/tmp`, in `/root`, in `/workspace/<w>`, and from `/root/.cache` to `/workspace/<w>`; `uv -v pip install <pkg>` with `UV_LINK_MODE=hardlink`, reading which file and call fail | Which link forms the emulation refuses (§2.5) |
 | P5 | The Android version; with `adb`, `logcat` for "PhantomProcessRecord" while many processes run and while iCode is in the background | Whether Android's child-process limits end runtime processes in practice (D1) |
 | P6 | `bash -lc 'echo $PATH'` against `sh -c 'echo $PATH'` in the assistant, after installing a tool that edits `~/.bashrc` | The size of the context gap (D2) |
+
+## 7. Results (2026-10-01)
+
+Taken by the owner on a phone, through the assistant.
+
+| # | Result | What it settles | What it leaves open |
+|---|---|---|---|
+| P1 | uvicorn, started in one command, answered 200 in that command. In the next command, `curl` got no connection (`000`) and `ps` showed no uvicorn. `nohup`, `setsid` and `&` made no difference | §2.1 exactly as the code says: a process ends with the command that started it, and nothing inside the guest can escape that | The terminal-tab half: a process there is expected to last as long as the tab |
+| P4 | `os.link` works in the guest — cache to virtual environment, and in `/tmp` — on one filesystem (same `st_dev` and `f_fsid`). `uv` failed with `Operation not permitted (os error 1)` on a hard link | Plain hard links work as the guest sees them. A `link()` succeeding in the guest shows that iCode's emulation (`--link2symlink`) handles it, not that Android accepts real hard links — it does not, which is why the emulation exists. The failure belongs to the particular call or sequence `uv` makes | Which call that is: `uv -v`, or `RUST_LOG=uv=trace`, names the failing file and operation. Until it is known, it counts as a gap in the emulation rather than in `uv` alone, since other tools that link out of a cache (pnpm's store, for one) may make the same call. Meanwhile `UV_LINK_MODE=copy` is the project's workaround, and needs nothing from iCode |
+| P2, in part | `ss`, `netstat` and `lsof` are not in the image | §2.7's absence | Whether they could work once installed. `cat /proc/net/tcp` decides that, and it also shapes D6: if it is readable, iCode can tell which of its processes holds which port; if not, iCode knows only what it started and has to find ports another way |
+| P3, in part | Inside the runtime, `curl http://127.0.0.1:8000/v1/health` answered 200 while the server ran | The server serves on loopback. A preview inside iCode — its own process, its own network stack — reaches it with no forwarding. Once processes can outlive a command (D1), that preview needs no tunnel | Another app — the phone's browser — reaching it: expected, since Android apps share loopback, but not yet measured |
+| P5 | Not measurable without a device running iCode with many processes, and `adb` | — | Still open; it bears on D1 |
+| P6 | Not run | — | — |
+
+The decisions in §5 are still open.
