@@ -26,6 +26,7 @@ fun ToolScreenHost(screen: Route, actions: NavigationActions) {
         Route.CommitPush -> CommitPushScreen(actions)
         Route.PullFetchProgress -> PullProgressScreen(actions)
         Route.GitAuth -> GitAuthScreen(actions)
+        Route.Assistant -> AssistantScreen(actions)
         else -> Unit
     }
 }

@@ -20,13 +20,17 @@ sealed interface BackgroundPlace {
     /** The Components page: a components install or removal, wherever it was asked for. */
     data object Components : BackgroundPlace
 
-    /** As a notification carries it: `task:12`, `clone`, `sync`, `runtime`, `components`. */
+    /** The Assistant page: its turn in hand. */
+    data object Assistant : BackgroundPlace
+
+    /** As a notification carries it: `task:12`, `clone`, `sync`, `runtime`, `components`, `assistant`. */
     fun encoded(): String = when (this) {
         is Task -> "$TASK$id"
         Clone -> "clone"
         Sync -> "sync"
         Runtime -> "runtime"
         Components -> "components"
+        Assistant -> "assistant"
     }
 
     companion object {
@@ -40,6 +44,7 @@ sealed interface BackgroundPlace {
             value == "sync" -> Sync
             value == "runtime" -> Runtime
             value == "components" -> Components
+            value == "assistant" -> Assistant
             else -> null
         }
     }
@@ -67,19 +72,22 @@ data class BackgroundItem(
     val watched: Boolean,
     /** Why it stopped short; null while it runs. */
     val failure: String? = null,
+    /** What it waits on the user for ("Run `npm test`?"); it pops up while iCode is out of view. */
+    val question: String? = null,
 ) {
     val running: Boolean get() = failure == null
 
     /**
      * Stable and small, for what the system keys by number (a notification's id): a task's id below
      * 900 — ids count up in a process, and 900 tasks never run at once — then 900 for the Git
-     * transfer, 901 for the runtime, 902 for the components' apt run.
+     * transfer, 901 for the runtime, 902 for the components' apt run, 903 for the assistant's turn.
      */
     val number: Int get() = when (place) {
         is BackgroundPlace.Task -> (place.id % 900).toInt()
         BackgroundPlace.Clone, BackgroundPlace.Sync -> 900
         BackgroundPlace.Runtime -> 901
         BackgroundPlace.Components -> 902
+        BackgroundPlace.Assistant -> 903
     }
 
     /** The notification's title: "Deleting… (1207 / 11813)", "Cloning… 45%", or the title alone. */
@@ -93,14 +101,29 @@ data class BackgroundItem(
 object BackgroundWorkRules {
     /**
      * Everything running in [snapshot], and what stopped short: each task, the Git transfer, the
-     * runtime install, and the components apt is installing or removing.
+     * runtime install, the components apt is installing or removing, and the assistant's turn.
      */
     fun of(snapshot: WorkbenchSnapshot): List<BackgroundItem> = buildList {
         snapshot.tasks.forEach { add(task(it)) }
         git(snapshot)?.let(::add)
         runtime(snapshot)?.let(::add)
         snapshot.components.work?.let { add(components(it)) }
+        snapshot.assistant.turn?.let { add(assistant(it, snapshot.assistant.approval)) }
     }
+
+    /**
+     * Its progress shows on the Assistant page. A failure is said on the page, where the chat is,
+     * so it is not carried here; a question is, as it stops the turn until it is answered.
+     */
+    private fun assistant(turn: AssistantTurn, approval: AssistantApproval?) = BackgroundItem(
+        key = "assistant",
+        title = "Assistant is working…",
+        detail = "${turn.workspaceName} · ${turn.step}",
+        cancel = WorkbenchIntent.StopAssistant,
+        place = BackgroundPlace.Assistant,
+        watched = true,
+        question = approval?.let { "${it.call.summary}?" },
+    )
 
     /** Its progress shows on the Components page, and on a button waiting for it. */
     private fun components(work: ComponentWork) = BackgroundItem(

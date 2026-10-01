@@ -10,6 +10,7 @@ enum class PaletteCommandId {
     SearchWorkspace,
     OpenTerminal,
     OpenSourceControl,
+    OpenAssistant,
 }
 
 data class PaletteCommand(
@@ -60,6 +61,7 @@ object PaletteCommands {
             PaletteCommand(PaletteCommandId.SearchWorkspace, "File commands", "Search: Workspace", "find text content", if (workspace) null else "Open a workspace first"),
             PaletteCommand(PaletteCommandId.OpenTerminal, "Tools", "Terminal: Open", "shell command line"),
             PaletteCommand(PaletteCommandId.OpenSourceControl, "Tools", "Git: Source Control", "status changes", if (workspace) null else "Open a workspace first"),
+            PaletteCommand(PaletteCommandId.OpenAssistant, "Tools", "Assistant: Ask", "ai agent chat model koog", if (workspace) null else "Open a workspace first"),
         )
         val terms = query.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
         if (terms.isEmpty()) return commands

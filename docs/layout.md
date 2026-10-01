@@ -279,7 +279,8 @@ The stable workspace activities are:
 
 - Explorer;
 - Search;
-- Source Control.
+- Source Control;
+- Assistant (owner, 2026-10-01: [assistant-koog-plan.md](./assistant-koog-plan.md)), accented while it works.
 
 Terminal and Problems primarily belong to the bottom panel. Settings is reached from the workspace overflow or Launcher rather than consuming a permanent coding activity.
 

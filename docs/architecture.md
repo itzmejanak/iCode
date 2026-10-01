@@ -1,7 +1,7 @@
 # Native Mobile Development Workbench — Architecture Design
 
 **Version:** 1.1  
-**Status:** Foundation contract — amended 2026-09-30: workspaces live in the application's own storage ([workspace-storage-plan.md](./workspace-storage-plan.md), §25–26)  
+**Status:** Foundation contract — amended 2026-09-30: workspaces live in the application's own storage ([workspace-storage-plan.md](./workspace-storage-plan.md), §25–26); amended 2026-10-01: iCode's own assistant on Koog ([assistant-koog-plan.md](./assistant-koog-plan.md), §25–26)  
 **Product name:** iCode  
 **Platforms:** Android phones and tablets  
 
@@ -22,16 +22,17 @@ The product is a native Android development environment that lets a developer:
 - use language intelligence through the Language Server Protocol;
 - run arbitrary commands in a persistent Linux environment;
 - install any compatible CLI, compiler, language server, or AI agent;
+- ask iCode's own assistant to read and change a workspace and run commands in it, through a model provider the user chooses;
 - run local development servers and open their URLs in the device browser;
 - continue eligible processes while the application is backgrounded.
 
-The product is not a VS Code distribution, a browser-hosted IDE, an extension marketplace, or an agent-specific client.
+The product is not a VS Code distribution, a browser-hosted IDE, an extension marketplace, or a client for someone else's agent: its one assistant is its own (§25).
 
 ## 3. Architectural Goals
 
 1. **Native ownership of the experience** — navigation, layout, editor surfaces, Git views, terminal panels, settings, touch behavior, and adaptive layouts are controlled by the Android application.
 2. **One copy of every workspace** — a workspace lives in the application's storage and nowhere else; nothing is mirrored or synchronised, and a folder from phone storage is copied in only by the user's explicit Import.
-3. **Tool neutrality** — the runtime executes user-selected tools without maintaining a catalogue of supported agents or providers.
+3. **Tool neutrality** — the runtime executes user-selected tools without maintaining a catalogue of supported agents. The built-in assistant reaches any model through its provider's API; Koog's list of models only suggests (§25).
 4. **Open protocol reuse** — language intelligence and debugging build on established protocols rather than editor-specific integrations.
 5. **Clear module boundaries** — features communicate through stable interfaces and do not reach into one another's storage or UI internals.
 6. **Local-first operation** — editing, Git, search, terminal, and runtime execution do not require an account or hosted backend.
@@ -51,7 +52,7 @@ The architecture does not include:
 - an internal web browser, preview panel, port dashboard, or preview proxy;
 - mandatory accounts, cloud workspaces, or remote execution;
 - a platform-specific package format for developer tools;
-- a per-command security broker or agent capability sandbox;
+- a per-command security broker or agent capability sandbox (the built-in assistant's questions before a change are its own interface, not a policy on the user's processes);
 - root access or access to other applications' private Android directories;
 - opening phone-storage folders in place, per-folder mounts, or synchronisation between copies;
 - ForgeKit packages, runtime contracts, navigation, product modules, or branding.
@@ -180,6 +181,7 @@ apps/android/
 ├── terminal/               # Terminal renderer, sessions, extra keys
 ├── language/               # LSP client, language-service lifecycle, diagnostics
 ├── problems/               # Aggregated diagnostics and navigation
+├── assistant/              # iCode's assistant: chats, tools over the owners, the Koog engine behind its boundary
 ├── runtime/                # Bootstrap, PRoot lifecycle, processes, PTY bridge
 ├── settings/               # Hierarchical settings and validation
 ├── sessions/               # Restore, recovery, editor and panel state
@@ -204,6 +206,7 @@ Modules may initially be Gradle source sets where separate Gradle modules would 
 6. The design system depends on no feature module.
 7. The application composition root is the only location allowed to wire concrete implementations together.
 8. The public website shares release schemas through generated or explicitly versioned contracts, not by importing Android feature code.
+9. Only the assistant's engine adapter (`data/assistant/koog`) imports Koog; the assistant's screens and the rest of the application see its domain contract.
 
 ## 10. Core Contracts
 
@@ -438,7 +441,7 @@ The runtime coordinator starts one application-owned runtime and exposes its rea
 
 Work belongs to the process, not to a screen ([long-operations-plan.md](./long-operations-plan.md) §6). The workbench's backend is one per process (`WorkbenchProcess`), as terminal sessions are: screens attach and detach, and when the last one leaves only what serves a screen stops (the folder watcher, language servers). Every long operation — a task (delete, copy, import, a workspace's delete), a Git transfer, the runtime install, a runtime package install — is named in one derived list of background work (`BackgroundWorkRules`, pure), which the backend publishes.
 
-One foreground service keeps the process while a terminal session or any of that work runs, and stops itself when none does. Its notification summarises what runs; each piece of work has a silent progress notification (the item in hand, counts, a bar, Cancel where the work allows it) that opens iCode on that work; a failure the user was not watching pops up on its own channel. Hiding a task's dialog hands it to its notification. Background execution remains subject to Android and device-vendor process management.
+One foreground service keeps the process while a terminal session or any of that work runs, and stops itself when none does. Its notification summarises what runs; each piece of work has a silent progress notification (the item in hand, counts, a bar, Cancel where the work allows it) that opens iCode on that work; a failure the user was not watching pops up on its own channel. Hiding a task's dialog hands it to its notification. The assistant's turn is background work too: its notification names the step in hand, Cancel stops it, and a question it waits on pops up while iCode is out of view ([assistant-koog-plan.md](./assistant-koog-plan.md) §4.8). Background execution remains subject to Android and device-vendor process management.
 
 ### 14.4 Stop and process death
 
@@ -550,7 +553,10 @@ Security remains small and practical:
 - runtime archives and release metadata are checksum-verified and signed where distribution supports signing;
 - application-internal services do not listen on the LAN;
 - project development servers are started only by user commands and follow their own bind configuration;
-- logs avoid exposing secrets where the platform itself formats structured data.
+- logs avoid exposing secrets where the platform itself formats structured data;
+- the assistant's API key is encrypted by the Android Keystore and leaves the device only to the provider the user chose; what the assistant reads is sent to that provider, as its set-up says; chats and keys never reach the log;
+- plain `http://` is allowed only to the device itself (a model server in the runtime);
+- the assistant stays inside the open workspace, asks before a change or a command unless the user turns that off, and never writes under unsaved edits.
 
 The platform does not inspect or approve each shell command. User-installed processes have the same runtime and accessible-filesystem capability as the terminal session that launches them.
 
@@ -635,6 +641,7 @@ This model keeps the application open to contributors without creating an unboun
 | Browser output | Android external browser | Avoid duplicating an existing device capability |
 | Hosted surface | Independent Next.js website | Keep distribution and documentation outside the local execution path |
 | Internal structure | Modular monolith | Balance clear ownership with operational simplicity |
+| Assistant | iCode's own, on JetBrains Koog behind an engine boundary of iCode's; its tools are iCode's file, search, Git and runtime owners | One native agent that edits through the same contracts as everything else; Koog runs on Android and covers the providers (owner, 2026-10-01; [assistant-koog-plan.md](./assistant-koog-plan.md)) |
 
 ## 26. Invariants
 
@@ -643,7 +650,7 @@ The following rules may not be violated without a new architecture decision:
 1. A workspace exists in one place, the application's storage: nothing is mirrored or synchronised, and a folder is copied in only by the user's explicit Import.
 2. Saving writes to the workspace file itself.
 3. The native UI does not depend on a browser-rendered workbench.
-4. The product does not maintain a list of supported AI agents.
+4. The product does not maintain a list of supported AI agents: a CLI agent is never detected or special-cased, and the one assistant is iCode's own.
 5. User-installed commands execute through the same runtime contract as the terminal.
 6. Core editing and source-control workflows do not require a hosted account.
 7. Git remains repository authority.
@@ -658,6 +665,7 @@ The following rules may not be violated without a new architecture decision:
 | Workbench | The complete native editing environment, including editor, files, Git, search, terminal, and diagnostics |
 | Workspace | One folder in the application's storage (`files/workspaces/<name>`), seen at `/workspace/<name>` in the runtime |
 | Runtime | The application-owned Ubuntu ARM64 environment executed through PRoot |
+| Assistant | iCode's built-in agent: a chat per workspace that reads, changes and runs commands through iCode's own owners, with a model provider the user configures |
 | Editor engine | Replaceable native component responsible for text interaction and rendering |
 | Language service | A user-installed process communicating with the application through LSP |
 | Recovery buffer | App-private copy of unsaved document text used only for interruption recovery |

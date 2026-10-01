@@ -18,6 +18,9 @@ class SettingsCatalogTest {
         assertEquals(Route.TerminalSettings, searchSettingsCategories("bell").single().destination)
         assertEquals(Route.GitAuth, searchSettingsCategories("token").single().destination)
         assertEquals(Route.WorkspaceSettings, searchSettingsCategories("auto fetch").single().destination)
+        assertEquals(Route.AssistantSettings, searchSettingsCategories("api key").single().destination)
+        assertEquals(Route.AssistantSettings, searchSettingsCategories("ollama").single().destination)
+        assertEquals("Provider, model, API key", settingsSubtitle(Route.AssistantSettings))
         assertEquals(
             listOf(Route.SettingsEditor, Route.WorkspaceSettings),
             searchSettingsCategories("indent").map { it.destination },

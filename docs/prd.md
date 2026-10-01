@@ -15,7 +15,7 @@ It defines what the product must accomplish without prescribing delivery order. 
 
 The product is a native Android development environment for working directly with real directories and repositories on a mobile device. It combines a native code editor, filesystem explorer, Git workflow, workspace search, language intelligence, terminal, and persistent Linux userspace.
 
-Developers retain control of their tools. They may install any compatible compiler, interpreter, language server, CLI, automation tool, or AI agent inside the Linux runtime. The platform does not maintain a provider catalogue or require tool-specific integrations.
+Developers retain control of their tools. They may install any compatible compiler, interpreter, language server, CLI, automation tool, or AI agent inside the Linux runtime. The platform does not maintain a provider catalogue or require tool-specific integrations. Its one built-in assistant (§10.14) reaches any model through its provider's API, and nothing requires it.
 
 The application is designed as a mobile product rather than a desktop interface reduced to fit a phone.
 
@@ -94,13 +94,13 @@ The product is not intended to provide:
 - a browser-hosted workbench;
 - an internal project-preview browser;
 - a curated AI-agent marketplace;
-- a provider-specific agent configuration system;
+- a provider-specific agent configuration system (the built-in assistant has one generic provider form, §10.14);
 - a new package manager for developer tools;
 - a cloud workspace requirement;
 - a mandatory account system;
 - access to root-only Android paths on unrooted devices;
 - access to other applications' protected private data;
-- a per-command approval workflow;
+- a per-command approval workflow for the user's own processes (the built-in assistant asks before its own changes, §10.14);
 - a replacement for the user's external Android browser;
 - ForgeKit product architecture, packages, or domain concepts.
 
@@ -153,7 +153,8 @@ Needs:
 - the agent and editor to operate on the same workspace files;
 - external modifications to appear reliably;
 - Git changes to reveal agent edits;
-- freedom to choose and configure the agent independently.
+- freedom to choose and configure the agent independently;
+- or a built-in assistant that edits the same files through the same file, Git and runtime paths, and asks first.
 
 ### 7.5 Open-source contributor
 
@@ -359,6 +360,24 @@ The platform provides execution, files, processes, environment variables, packag
 | PR-WEB-02 | The website may publish signed application and runtime release metadata. |
 | PR-WEB-03 | Local editing and execution shall not require website availability. |
 | PR-WEB-04 | Hosted account, synchronization, and remote execution capabilities shall not be assumed by the native foundation. |
+
+### 10.14 Assistant
+
+Owner's decision, 2026-10-01 ([assistant-koog-plan.md](./assistant-koog-plan.md)).
+
+| ID | Requirement |
+|---|---|
+| PR-ASSIST-01 | The application shall offer one built-in assistant, off until the user sets a provider; no entry or workspace flow shall ask for one. |
+| PR-ASSIST-02 | The provider form shall accept OpenAI, Anthropic, Google, OpenRouter, Ollama and any OpenAI-compatible server, with a typed model ID; suggestions shall never limit it. |
+| PR-ASSIST-03 | API keys shall be encrypted with Android-provided secure storage, never shown again once saved, and never logged. |
+| PR-ASSIST-04 | The assistant shall work only inside the open workspace; no path, link or command argument shall lead its file tools out of it. |
+| PR-ASSIST-05 | Changes to files and commands shall ask first (Allow, Allow All in This Chat, Deny) unless the user turns asking off; reads shall never ask. |
+| PR-ASSIST-06 | The assistant shall never write a file that has unsaved edits in the editor. |
+| PR-ASSIST-07 | A turn shall stream its reply, show each step and its output, and stop on Stop, keeping what was said and done. |
+| PR-ASSIST-08 | A turn shall continue in the background with a notification; a question shall pop up while the application is out of view. |
+| PR-ASSIST-09 | Each workspace's chat shall survive process death, follow a rename, and go with a delete. |
+| PR-ASSIST-10 | A refused key, an unknown model, no connection and blocked plain `http://` shall each be explained in plain words. |
+| PR-ASSIST-11 | The agent engine shall sit behind an application-owned boundary, replaceable without changing tools, storage or screens. |
 
 ## 11. User Experience Requirements
 

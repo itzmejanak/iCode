@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountTree
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.ContentPaste
 import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Description
@@ -97,6 +98,10 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
                         } else {
                             actions.navigate(Route.SourceControl)
                         }
+                    },
+                    // Accented while it works, wherever the user went meanwhile.
+                    ActivityRailEntry(Icons.Outlined.AutoAwesome, "Assistant", accented = state.assistant.running) {
+                        actions.navigate(Route.Assistant)
                     },
                 ),
                 bottomEntries = listOf(

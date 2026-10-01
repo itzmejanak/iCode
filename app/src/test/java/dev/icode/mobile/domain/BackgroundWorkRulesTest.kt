@@ -101,10 +101,31 @@ class BackgroundWorkRulesTest {
     }
 
     @Test fun `a place survives the notification that carries it`() {
-        listOf(BackgroundPlace.Task(7), BackgroundPlace.Clone, BackgroundPlace.Sync, BackgroundPlace.Runtime, BackgroundPlace.Components).forEach {
+        listOf(
+            BackgroundPlace.Task(7), BackgroundPlace.Clone, BackgroundPlace.Sync, BackgroundPlace.Runtime, BackgroundPlace.Components,
+            BackgroundPlace.Assistant,
+        ).forEach {
             assertEquals(it, BackgroundPlace.decode(it.encoded()))
         }
         assertNull(BackgroundPlace.decode("task:x"))
         assertNull(BackgroundPlace.decode(null))
+    }
+
+    @Test fun `the assistant's turn says its step, stops on Cancel, and carries the question it waits on`() {
+        val turn = AssistantTurn("/w/app", "app", "Run `npm test`")
+        val working = empty.copy(assistant = AssistantState(turn = turn))
+        val item = BackgroundWorkRules.of(working).single()
+        assertEquals("assistant", item.key)
+        assertEquals("Assistant is working…", item.heading)
+        assertEquals("app · Run `npm test`", item.detail)
+        assertEquals(WorkbenchIntent.StopAssistant, item.cancel)
+        assertEquals(BackgroundPlace.Assistant, item.place)
+        assertEquals(903, item.number)
+        assertNull(item.question)
+
+        val call = AssistantCall("c1", "run_command", """{"command":"npm test"}""", "Run `npm test`", AssistantToolKind.Command)
+        val asking = working.copy(assistant = working.assistant.copy(approval = AssistantApproval(call, "npm test")))
+        assertEquals("Run `npm test`?", BackgroundWorkRules.of(asking).single().question)
+        assertTrue(BackgroundWorkRules.of(empty.copy(assistant = AssistantState())).isEmpty())
     }
 }

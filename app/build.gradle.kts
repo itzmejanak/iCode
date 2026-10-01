@@ -10,6 +10,8 @@ plugins {
 
 // One version for the editor engine: the dependency, and what About reports.
 val soraEditorVersion = "0.24.6"
+// One version for the assistant's Koog modules; an upgrade repeats docs/assistant-koog-plan.md §9 D1 and D9.
+val koogVersion = "1.3.0"
 
 android {
     namespace = "dev.icode.mobile"
@@ -84,6 +86,9 @@ android {
             "/META-INF/{AL2.0,LGPL2.1}",
             "/META-INF/LICENSE*",
             "/META-INF/NOTICE*",
+            // Seventeen of the assistant's libraries (Koog, Ktor, kotlinx, Jackson) carry one each;
+            // an Android app has no Java module path (docs/assistant-koog-plan.md §4.9).
+            "/META-INF/versions/9/module-info.class",
         )
         jniLibs {
             // Android forbids executing binaries from the app data directory
@@ -142,6 +147,20 @@ dependencies {
     implementation("io.noties.markwon:ext-tables:4.6.2")
     implementation("io.noties.markwon:ext-strikethrough:4.6.2")
     implementation("io.noties.markwon:ext-tasklist:4.6.2")
+    // The assistant's agent runtime (docs/assistant-koog-plan.md §2, §4.9): the modules it uses,
+    // not the koog-agents umbrella (Bedrock's AWS SDK, OpenTelemetry…). Not the DeepSeek client:
+    // its Android build calls List.removeLast(), which Android 11–14 lack; DeepSeek is reached as
+    // an OpenAI-compatible server instead.
+    implementation("ai.koog:agents-core:$koogVersion")
+    implementation("ai.koog:agents-tools:$koogVersion")
+    implementation("ai.koog:prompt-executor-openai-client:$koogVersion")
+    implementation("ai.koog:prompt-executor-anthropic-client:$koogVersion")
+    implementation("ai.koog:prompt-executor-google-client:$koogVersion-beta")
+    implementation("ai.koog:prompt-executor-openrouter-client:$koogVersion")
+    implementation("ai.koog:prompt-executor-ollama-client:$koogVersion")
+    implementation("ai.koog:http-client-ktor:$koogVersion")
+    // The HTTP engine Koog's clients run on, handed to them explicitly; the Ktor Koog is built with.
+    implementation("io.ktor:ktor-client-okhttp:3.3.3")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
