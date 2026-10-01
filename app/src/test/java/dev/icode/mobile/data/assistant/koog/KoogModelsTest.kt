@@ -114,6 +114,8 @@ class KoogModelsTest {
         val gemini2 = catalogue.getValue(AssistantProviderKind.Google).first { it.efforts.isNotEmpty() && it.id.startsWith("gemini-2") }
         val budget = KoogParams.of(AssistantProviderKind.Google, KoogModels.llModel(AssistantProviderKind.Google, AssistantModelSpec(gemini2.id)), gemini2, AssistantEffort.Medium) as GoogleParams
         assertEquals(8_192, budget.thinkingConfig?.thinkingBudget)
+        // Its thoughts come back, to be shown.
+        assertEquals(true, budget.thinkingConfig?.includeThoughts)
         val ollama = KoogModels.llModel(AssistantProviderKind.Ollama, AssistantModelSpec("qwen3"))
         assertEquals(true, (KoogParams.of(AssistantProviderKind.Ollama, ollama, AssistantModel("qwen3"), AssistantEffort.On) as OllamaParams).think)
         assertNull((KoogParams.of(AssistantProviderKind.Ollama, ollama, AssistantModel("qwen3"), null) as OllamaParams).think)

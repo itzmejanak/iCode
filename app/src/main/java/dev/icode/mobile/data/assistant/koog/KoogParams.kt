@@ -63,10 +63,11 @@ internal object KoogParams {
         AssistantEffort.High, AssistantEffort.Max, AssistantEffort.On -> ReasoningEffort.HIGH
     }
 
-    /** Gemini 2.x: a budget of tokens; Gemini 3: a level. */
+    /** Gemini 2.x: a budget of tokens; Gemini 3: a level. Either way its thoughts come back, to be shown. */
     private fun google(effort: AssistantEffort, model: LLModel): GoogleThinkingConfig =
         if (KoogModels.usesThinkingBudget(model)) {
             GoogleThinkingConfig(
+                includeThoughts = true,
                 thinkingBudget = when (effort) {
                     AssistantEffort.Minimal, AssistantEffort.Low -> 1_024
                     AssistantEffort.Medium -> 8_192
@@ -74,7 +75,7 @@ internal object KoogParams {
                 },
             )
         } else {
-            GoogleThinkingConfig(thinkingLevel = if (effort == AssistantEffort.Low || effort == AssistantEffort.Minimal) GoogleThinkingLevel.LOW else GoogleThinkingLevel.HIGH)
+            GoogleThinkingConfig(includeThoughts = true, thinkingLevel = if (effort == AssistantEffort.Low || effort == AssistantEffort.Minimal) GoogleThinkingLevel.LOW else GoogleThinkingLevel.HIGH)
         }
 
     /** Every Claude model writes at least this much; one Koog does not know gets it unless the user set more. */

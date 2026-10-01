@@ -165,7 +165,7 @@ internal class KoogAssistantEngine(
                 val reply = KoogHistory.reply(response, tools) { "icode-" + UUID.randomUUID() }
                 open.clear()
                 open.addAll(reply.calls)
-                if (reply.text.isNotEmpty() || reply.calls.isNotEmpty()) events.replied(reply)
+                if (reply.text.isNotEmpty() || reply.calls.isNotEmpty() || reply.reasoning.isNotEmpty()) events.replied(reply)
             }
             onToolCallStarting { event -> callOf(event.toolCallId)?.let(events::calling) }
             onToolCallCompleted { event ->

@@ -229,8 +229,8 @@ only an order to take them in: measure first (§6), then D1 and D2, then the res
 
 ### 5.1 Proposals from iCode's assistant (2026-10-01) — not decisions
 
-The owner forwarded proposals for D1–D4. They were written by iCode's own assistant (MiniMax M3,
-through OpenRouter) on the owner's phone, not by the owner. The reply stopped in the middle of
+The owner forwarded proposals for D1–D4. They were written by iCode's own assistant (`minimax/minimax-m3:free`,
+through an OpenAI-compatible provider) on the owner's phone, not by the owner. The reply stopped in the middle of
 D3 (§7.1). They are input to the owner's decisions; **D1–D6 remain open**.
 
 - **D1 — one process service, shared by everyone.** Build architecture §10.5's single process
@@ -274,8 +274,8 @@ These need a device: this environment cannot run iCode. Each says what the resul
 
 ## 7. Results (2026-10-01)
 
-Run and reported by iCode's assistant (MiniMax M3, through OpenRouter) on the owner's phone,
-and forwarded by the owner. They are the model's own account of commands it ran; none was
+Run and reported by iCode's assistant (`minimax/minimax-m3:free`, through an OpenAI-compatible
+provider) on the owner's phone, and forwarded by the owner. They are the model's own account of commands it ran; none was
 checked independently. Each agrees with what the code predicts.
 
 | # | Result | What it settles | What it leaves open |
@@ -297,9 +297,13 @@ read why a reply ended. Koog passes each provider's own reason through (`finishR
 `length` (OpenAI, OpenRouter, OpenAI-compatible servers), `max_tokens` (Anthropic), `MAX_TOKENS`
 (Gemini); Koog's Ollama client gives none.
 
-The model, `minimax/minimax-m3:free`, is not in Koog's catalogue and had no Output Limit set, so
-iCode sent no `max_tokens`, and the provider's own default applied. That the reply ended at
-that default is the likely reading, not a measured one.
+The model, `minimax/minimax-m3:free`, reached through an OpenAI-compatible provider, is not in
+Koog's catalogue and had no Output Limit set. So iCode sent no limit, and the server's own
+default applied. That the reply ended at that default is the likely reading, not a measured one.
+
+An Output Limit set for such a model goes out as `max_completion_tokens`: Koog's OpenAI client,
+which serves OpenAI-compatible servers, sends OpenAI's current name for it. A server that reads
+only the older `max_tokens` ignores it, so on such a server the setting changes nothing.
 
 Fixed (2026-10-01):
 - A turn whose last reply ended at the output limit keeps the reply and says under it: "The reply

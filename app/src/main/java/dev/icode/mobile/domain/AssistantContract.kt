@@ -156,8 +156,11 @@ data class AssistantAttachment(
 sealed interface AssistantMessage {
     data class User(val text: String, val attachments: List<AssistantAttachment> = emptyList()) : AssistantMessage
 
-    /** What the model said, and the tools it asked for. */
-    data class Reply(val text: String, val calls: List<AssistantCall> = emptyList()) : AssistantMessage
+    /**
+     * What the model said, and the tools it asked for. [reasoning] is what it thought first, where
+     * its provider sends that: shown on the page, never sent back to the model.
+     */
+    data class Reply(val text: String, val calls: List<AssistantCall> = emptyList(), val reasoning: String = "") : AssistantMessage
 
     /** The answers to the calls of the reply right before it. */
     data class Results(val results: List<AssistantResult>) : AssistantMessage

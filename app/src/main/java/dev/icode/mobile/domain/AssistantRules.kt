@@ -10,6 +10,9 @@ sealed interface AssistantEntry {
     /** What the assistant answered, Markdown. */
     data class Answer(override val key: String, val text: String) : AssistantEntry
 
+    /** What the model thought before it answered, as its provider sent it. */
+    data class Reasoning(override val key: String, val text: String) : AssistantEntry
+
     /** A tool the assistant used, and what came of it. */
     data class Step(
         override val key: String,
@@ -45,6 +48,7 @@ object AssistantRules {
             when (message) {
                 is AssistantMessage.User -> add(AssistantEntry.Said("m$index", message.text, message.attachments))
                 is AssistantMessage.Reply -> {
+                    if (message.reasoning.isNotBlank()) add(AssistantEntry.Reasoning("m${index}r", message.reasoning))
                     if (message.text.isNotBlank()) add(AssistantEntry.Answer("m$index", message.text))
                     val results = resultsOf(state.messages, index).associateBy { it.callId }
                     message.calls.forEachIndexed { position, call ->

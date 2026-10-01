@@ -88,6 +88,7 @@ internal fun AssistantEntryRow(entry: AssistantEntry, copyable: Boolean) {
             MarkdownText(entry.text, IcodeType.Body.fontSize.value * scale)
             if (copyable) CopyAnswer(entry.text)
         }
+        is AssistantEntry.Reasoning -> AssistantReasoningRow(entry)
         is AssistantEntry.Step -> AssistantStepRow(entry)
         is AssistantEntry.Compacted -> Disclosure(
             key = entry.key,

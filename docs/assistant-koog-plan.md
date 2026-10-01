@@ -528,7 +528,36 @@ files, photos and others, from shared storage or from internal"; "fill all such 
 | C5 | Screens: Assistant settings as pages, the model sheet by provider, Attach with the pickers and the camera, thumbnails, warnings, Copy, Try Again | Compose type-check; UI guard; RouteTest |
 | C6 | This plan as built; PRD, user stories; guards; commit | Review |
 
-### 13.4 Record (2026-10-01)
+### 13.4 Reasoning on the page (2026-10-01)
+
+The owner: "we can't see the real reasoning on our UI". iCode dropped every reply's reasoning.
+Koog had handed it over (`MessagePart.Reasoning`), but iCode kept only text and calls.
+
+- **Kept and shown.** A reply keeps its reasoning (`AssistantMessage.Reply.reasoning`, at most
+  32 000 characters, its start and end), saved with the chat. The page shows it above the reply's
+  answer and steps as one quiet line, "Reasoning · 1.2k words", that opens on the thinking in
+  muted text beside a rule.
+- **Never sent back.** Later turns send the answer and the calls alone.
+- **Where it comes from.** It is what the provider sends as reasoning:
+  - Anthropic's thinking, with a reasoning level chosen;
+  - Gemini's thoughts, now asked for (`includeThoughts`) whenever a level is chosen;
+  - Ollama's thinking, with reasoning on;
+  - an OpenAI-compatible server's `reasoning_content` (DeepSeek, vLLM and the like);
+  - a leading `<think>…</think>` that some models write into their text instead, taken out of
+    the answer — an unclosed one, as in a reply cut short, is all reasoning.
+
+  Encrypted reasoning has no text and is not shown.
+- **Not reached, by any setting.** OpenRouter sends reasoning in a field named `reasoning`. Koog
+  1.3.0 reads that field only while streaming (`OpenRouterStreamDelta`). iCode asks for whole
+  replies, and both of Koog's clients that could serve OpenRouter read only `reasoning_content`
+  from those. OpenAI's own Chat Completions sends no reasoning text at all. Showing these needs
+  streaming replies, which would also let reasoning and answers appear as they are written.
+  That is a larger change to the turn: its requests and the events the page reads. It is
+  proposed, not decided.
+- **The output limit's name.** Koog's OpenAI client sends a user's Output Limit as
+  `max_completion_tokens`. A compatible server that reads only `max_tokens` ignores it.
+
+### 13.5 Record (2026-10-01)
 
 - Built as decided. The assistant's eight test classes pass, 93 tests — among them the provider
   store (five), the attachments (five), the coordinator's providers, phone photo, photo alone and

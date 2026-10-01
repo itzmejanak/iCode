@@ -196,7 +196,9 @@ internal class AssistantChatStore(private val folder: File) {
                 }
             },
         )
-        is AssistantMessage.Reply -> JSONObject().put("role", "reply").put("text", message.text).put(
+        is AssistantMessage.Reply -> JSONObject().put("role", "reply").put("text", message.text).apply {
+            if (message.reasoning.isNotBlank()) put("reasoning", message.reasoning)
+        }.put(
             "calls",
             JSONArray().apply {
                 message.calls.forEach { call ->
@@ -234,6 +236,7 @@ internal class AssistantChatStore(private val folder: File) {
                     kind = AssistantToolKind.valueOf(call.getString("kind")),
                 )
             },
+            json.optString("reasoning"),
         )
         "results" -> AssistantMessage.Results(
             json.getJSONArray("results").objects().map { result ->
