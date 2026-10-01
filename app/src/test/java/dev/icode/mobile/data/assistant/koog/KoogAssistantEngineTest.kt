@@ -5,20 +5,25 @@ import ai.koog.http.client.KoogHttpClientException
 import ai.koog.prompt.Prompt
 import ai.koog.prompt.dsl.ModerationResult
 import ai.koog.prompt.executor.clients.LLMClient
+import ai.koog.prompt.executor.clients.anthropic.AnthropicParams
 import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.message.Message
 import ai.koog.prompt.message.MessagePart
+import ai.koog.prompt.message.ResponseMetaInfo
 import ai.koog.prompt.streaming.StreamFrame
 import dev.icode.mobile.data.assistant.AssistantConnection
 import dev.icode.mobile.data.assistant.AssistantEvents
+import dev.icode.mobile.data.assistant.AssistantInstructions
 import dev.icode.mobile.data.assistant.AssistantParameter
 import dev.icode.mobile.data.assistant.AssistantTool
 import dev.icode.mobile.data.assistant.AssistantToolException
 import dev.icode.mobile.data.assistant.AssistantTurnException
 import dev.icode.mobile.data.assistant.AssistantTurnRequest
+import dev.icode.mobile.domain.AssistantAttachment
 import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantMessage
+import dev.icode.mobile.domain.AssistantModel
 import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.domain.AssistantResult
 import dev.icode.mobile.domain.AssistantToolKind
@@ -26,7 +31,6 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
@@ -35,49 +39,52 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 
-/** The real Koog agent runs iCode's loop here; only the provider is scripted. */
+/** Koog's real standard agent runs here; only the provider is scripted. */
 class KoogAssistantEngineTest {
     private val connection = AssistantConnection(AssistantProviderKind.OpenAI, null, "gpt-5", "sk-test")
+    private val model = AssistantModel("gpt-5")
 
-    private class ScriptedClient(private val replies: List<List<StreamFrame>>) : LLMClient() {
+    private class ScriptedClient(
+        private val replies: List<Message.Assistant>,
+        private val provider: LLMProvider = LLMProvider.OpenAI,
+    ) : LLMClient() {
         val prompts = mutableListOf<Prompt>()
         val tools = mutableListOf<List<ToolDescriptor>>()
         var closed = false
         var hang: CompletableDeferred<Unit>? = null
         var failWith: Throwable? = null
 
-        override fun llmProvider(): LLMProvider = LLMProvider.OpenAI
-        override suspend fun execute(prompt: Prompt, model: LLModel, tools: List<ToolDescriptor>): Message.Assistant = error("streaming only")
-        override suspend fun moderate(prompt: Prompt, model: LLModel): ModerationResult = error("no moderation")
-        override fun close() {
-            closed = true
-        }
-
-        override fun executeStreaming(prompt: Prompt, model: LLModel, tools: List<ToolDescriptor>): Flow<StreamFrame> = flow {
+        override fun llmProvider(): LLMProvider = provider
+        override suspend fun execute(prompt: Prompt, model: LLModel, tools: List<ToolDescriptor>): Message.Assistant {
             prompts += prompt
-            this@ScriptedClient.tools += tools
+            this.tools += tools
             failWith?.let { throw it }
             hang?.let {
                 it.complete(Unit)
                 awaitCancellation()
             }
-            replies[minOf(prompts.size, replies.size) - 1].forEach { emit(it) }
+            return replies[minOf(prompts.size, replies.size) - 1]
+        }
+        override fun executeStreaming(prompt: Prompt, model: LLModel, tools: List<ToolDescriptor>): Flow<StreamFrame> = error("whole replies only")
+        override suspend fun moderate(prompt: Prompt, model: LLModel): ModerationResult = error("no moderation")
+        override fun close() {
+            closed = true
         }
     }
 
     private class Recorder : AssistantEvents {
         val events = mutableListOf<Any>()
-        override fun text(delta: String) {
-            events += "text:$delta"
-        }
         override fun replied(reply: AssistantMessage.Reply) {
             events += reply
         }
         override fun calling(call: AssistantCall) {
             events += "calling:${call.id}"
         }
-        override fun answered(results: AssistantMessage.Results) {
-            events += results
+        override fun answered(result: AssistantResult) {
+            events += result
+        }
+        override fun used(tokens: Long) {
+            events += "used:$tokens"
         }
     }
 
@@ -95,16 +102,20 @@ class KoogAssistantEngineTest {
         }
     }
 
-    private val callingRead = listOf(
-        StreamFrame.TextDelta("Reading"),
-        StreamFrame.TextComplete("Reading"),
-        StreamFrame.ToolCallComplete("call_1", "read_file", """{"path":"a.kt"}"""),
-        StreamFrame.End("tool_calls"),
-    )
-    private val done = listOf(StreamFrame.TextDelta("Do"), StreamFrame.TextDelta("ne"), StreamFrame.TextComplete("Done"), StreamFrame.End("stop"))
+    private fun reply(vararg parts: MessagePart.ResponsePart, input: Int? = null, output: Int? = null) =
+        Message.Assistant(parts.toList(), ResponseMetaInfo.Empty.copy(inputTokensCount = input, outputTokensCount = output))
 
-    private fun turn(tool: AssistantTool, history: List<AssistantMessage> = emptyList(), maxSteps: Int = 40) =
-        AssistantTurnRequest(connection, "You are iCode's assistant.", history, "What does a.kt do?", listOf(tool), maxSteps)
+    private fun call(id: String?, args: String = """{"path":"a.kt"}""", tool: String = "read_file") = MessagePart.Tool.Call(id = id, tool = tool, args = args)
+
+    private val callingRead = reply(MessagePart.Text("Reading"), call("call_1"), input = 1_200, output = 40)
+    private val done = reply(MessagePart.Text("Done"), input = 1_300, output = 20)
+
+    private fun turn(
+        tool: AssistantTool,
+        history: List<AssistantMessage> = emptyList(),
+        input: AssistantMessage.User = AssistantMessage.User("What does a.kt do?"),
+        maxSteps: Int = 40,
+    ) = AssistantTurnRequest(connection, model, null, "You are iCode's assistant.", history, input, listOf(tool), maxSteps)
 
     @Test fun `a reply's tool call runs, its result goes back, and the next reply ends the turn`() = runBlocking {
         val client = ScriptedClient(listOf(callingRead, done))
@@ -116,11 +127,11 @@ class KoogAssistantEngineTest {
         val call = AssistantCall("call_1", "read_file", """{"path":"a.kt"}""", "Read a.kt", AssistantToolKind.Read)
         assertEquals(
             listOf(
-                "text:Reading",
+                "used:1240",
                 AssistantMessage.Reply("Reading", listOf(call)),
                 "calling:call_1",
-                AssistantMessage.Results(listOf(AssistantResult("call_1", "read_file", "fun main() {}", failed = false))),
-                "text:Do", "text:ne",
+                AssistantResult("call_1", "read_file", "fun main() {}", failed = false),
+                "used:1320",
                 AssistantMessage.Reply("Done"),
             ),
             events.events,
@@ -141,32 +152,112 @@ class KoogAssistantEngineTest {
         assertEquals("fun main() {}", sentResult.output)
     }
 
-    @Test fun `a tool's refusal reaches the model as a failed result, and the turn goes on`() = runBlocking {
+    @Test fun `a reply after results that both says something and calls a tool has its call run`() = runBlocking {
+        val client = ScriptedClient(listOf(callingRead, reply(MessagePart.Text("Now b.kt"), call("call_2", """{"path":"b.kt"}""")), done))
+        val tool = ReadTool()
         val events = Recorder()
-        KoogAssistantEngine { ScriptedClient(listOf(callingRead, done)) }.run(turn(ReadTool("a.kt is outside this workspace")), events)
-        val results = events.events.filterIsInstance<AssistantMessage.Results>().single().results.single()
-        assertTrue(results.failed)
-        assertEquals("a.kt is outside this workspace", results.output)
+        KoogAssistantEngine { client }.run(turn(tool), events)
+        assertEquals(listOf("a.kt", "b.kt"), tool.seen)
+        assertEquals(3, client.prompts.size)
         assertEquals(AssistantMessage.Reply("Done"), events.events.last())
     }
 
-    @Test fun `a reply streamed without a complete frame keeps its text, and a call without an ID gets one`() = runBlocking {
+    @Test fun `a tool's refusal reaches the model as a failed result, and the turn goes on`() = runBlocking {
         val events = Recorder()
-        val noId = listOf(StreamFrame.ToolCallComplete(null, "read_file", "{\"path\":\"b.kt\"}"), StreamFrame.End())
-        KoogAssistantEngine { ScriptedClient(listOf(noId, listOf(StreamFrame.TextDelta("Only deltas"), StreamFrame.End()))) }.run(turn(ReadTool()), events)
-        val replies = events.events.filterIsInstance<AssistantMessage.Reply>()
-        assertTrue(replies[0].calls.single().id.startsWith("icode-"))
-        assertEquals(replies[0].calls.single().id, events.events.filterIsInstance<AssistantMessage.Results>().single().results.single().callId)
-        assertEquals("Only deltas", replies[1].text)
+        KoogAssistantEngine { ScriptedClient(listOf(callingRead, done)) }.run(turn(ReadTool("a.kt is outside this workspace")), events)
+        val result = events.events.filterIsInstance<AssistantResult>().single()
+        assertTrue(result.failed)
+        assertEquals("a.kt is outside this workspace", result.output)
+        assertEquals(AssistantMessage.Reply("Done"), events.events.last())
+    }
+
+    @Test fun `calls without IDs get iCode's, in order, and each result names its own`() = runBlocking {
+        val events = Recorder()
+        val two = reply(call(null, """{"path":"a.kt"}"""), call(null, """{"path":"b.kt"}"""))
+        val tool = ReadTool()
+        KoogAssistantEngine { ScriptedClient(listOf(two, done)) }.run(turn(tool), events)
+        val calls = events.events.filterIsInstance<AssistantMessage.Reply>().first().calls
+        assertTrue(calls.all { it.id.startsWith("icode-") })
+        assertEquals(listOf("Read a.kt", "Read b.kt"), calls.map { it.summary })
+        assertEquals(calls.map { "calling:${it.id}" }, events.events.filterIsInstance<String>().filter { it.startsWith("calling:") })
+        assertEquals(calls.map { it.id }, events.events.filterIsInstance<AssistantResult>().map { it.callId })
+        assertEquals(listOf("a.kt", "b.kt"), tool.seen)
+    }
+
+    @Test fun `an unknown tool and arguments that are not JSON are answered as failures without running anything`() = runBlocking {
+        val events = Recorder()
+        val tool = ReadTool()
+        val wrong = reply(call("c1", tool = "delete_everything", args = "{}"), call("c2", args = "{not json"))
+        KoogAssistantEngine { ScriptedClient(listOf(wrong, done)) }.run(turn(tool), events)
+        val results = events.events.filterIsInstance<AssistantResult>()
+        assertEquals(listOf("c1", "c2"), results.map { it.callId })
+        assertTrue(results.all { it.failed })
+        assertTrue(results[0].output, "delete_everything" in results[0].output)
+        assertTrue(tool.seen.isEmpty())
+        // The malformed call keeps its words on the page: the tool's name, its arguments unparsed.
+        val reported = events.events.filterIsInstance<AssistantMessage.Reply>().first().calls[1]
+        assertEquals("read_file", reported.summary)
+        assertEquals(AssistantMessage.Reply("Done"), events.events.last())
     }
 
     @Test fun `a model that never stops calling tools is stopped at the step limit`() = runBlocking {
+        val client = ScriptedClient(listOf(callingRead))
         try {
-            KoogAssistantEngine { ScriptedClient(listOf(callingRead)) }.run(turn(ReadTool(), maxSteps = 2), Recorder())
+            KoogAssistantEngine { client }.run(turn(ReadTool(), maxSteps = 2), Recorder())
             fail("expected the step limit")
         } catch (stopped: AssistantTurnException) {
-            assertEquals("Stopped after 2 steps — send a message to continue", stopped.message)
+            assertEquals("Stopped at the step limit — send a message to continue", stopped.message)
         }
+        assertEquals(2, client.prompts.size)
+    }
+
+    @Test fun `a reply with nothing in it ends the turn with a reason`() = runBlocking {
+        try {
+            KoogAssistantEngine { ScriptedClient(listOf(reply())) }.run(turn(ReadTool()), Recorder())
+            fail("expected a failure")
+        } catch (empty: AssistantTurnException) {
+            assertEquals("The model sent an empty reply — send a message to continue", empty.message)
+        }
+    }
+
+    @Test fun `attached files reach the model with the message, and calls of tools not offered as text`() = runBlocking {
+        val client = ScriptedClient(listOf(done))
+        val earlier = listOf(
+            AssistantMessage.User("Fix it"),
+            AssistantMessage.Reply("", listOf(AssistantCall("w1", "write_file", """{"path":"a.kt"}""", "Write a.kt", AssistantToolKind.Change))),
+            AssistantMessage.Results(listOf(AssistantResult("w1", "write_file", "Wrote a.kt", failed = false))),
+        )
+        val input = AssistantMessage.User("Why?", listOf(AssistantAttachment("a.kt", "fun main() {}")))
+        KoogAssistantEngine { client }.run(turn(ReadTool(), earlier, input), Recorder())
+        val sent = client.prompts.single().messages
+        // write_file is not among this turn's tools (Ask): Koog sends its call and result as text.
+        assertTrue(sent.none { message -> message.parts.any { it is MessagePart.Tool.Call || it is MessagePart.Tool.Result } })
+        assertTrue(sent[2].textContent(), "write_file" in sent[2].textContent())
+        assertEquals(AssistantInstructions.message(input), sent.last().textContent())
+        assertTrue("<file path=\"a.kt\">\nfun main() {}\n</file>" in sent.last().textContent())
+    }
+
+    @Test fun `compacting asks for a summary of the chat, with no tools`() = runBlocking {
+        val client = ScriptedClient(listOf(reply(MessagePart.Text("  The user wants a.kt fixed.  "))))
+        val chat = listOf(AssistantMessage.User("Fix a.kt"), AssistantMessage.Reply("On it."))
+        val summary = KoogAssistantEngine { client }.compact(connection, model, "You are iCode's assistant.", chat)
+        assertEquals("The user wants a.kt fixed.", summary)
+        assertEquals(emptyList<ToolDescriptor>(), client.tools.single())
+        assertEquals(
+            listOf("You are iCode's assistant.", "Fix a.kt", "On it.", AssistantInstructions.COMPACT_REQUEST),
+            client.prompts.single().messages.map { it.textContent() },
+        )
+    }
+
+    @Test fun `every request carries the model's output limit and the chosen effort`() = runBlocking {
+        val opus = KoogModels.catalogue.getValue(AssistantProviderKind.Anthropic).first()
+        val anthropic = AssistantConnection(AssistantProviderKind.Anthropic, null, opus.id, "sk-ant")
+        val client = ScriptedClient(listOf(done), LLMProvider.Anthropic)
+        val request = turn(ReadTool()).copy(connection = anthropic, model = opus, effort = opus.efforts.first())
+        KoogAssistantEngine { client }.run(request, Recorder())
+        val params = client.prompts.single().params as AnthropicParams
+        assertTrue("${params.maxTokens}", (params.maxTokens ?: 0) > 2_048)
+        assertTrue("${params.thinking}", params.thinking != null)
     }
 
     @Test fun `a refused key is said plainly`() = runBlocking {
@@ -182,10 +273,10 @@ class KoogAssistantEngineTest {
     }
 
     @Test fun `cancelling stops the turn as a cancellation, not as a failure`() = runBlocking {
-        val streaming = CompletableDeferred<Unit>()
-        val client = ScriptedClient(emptyList()).apply { hang = streaming }
+        val asked = CompletableDeferred<Unit>()
+        val client = ScriptedClient(emptyList()).apply { hang = asked }
         val running = async { KoogAssistantEngine { client }.run(turn(ReadTool()), Recorder()) }
-        withTimeout(5_000) { streaming.await() }
+        withTimeout(5_000) { asked.await() }
         running.cancel()
         val outcome = runCatching { running.await() }.exceptionOrNull()
         assertTrue("$outcome", outcome is kotlinx.coroutines.CancellationException)
@@ -200,17 +291,5 @@ class KoogAssistantEngineTest {
         engine.run(turn(ReadTool()).copy(connection = connection.copy(model = "gpt-5-mini")), Recorder())
         assertEquals(2, made.size)
         assertTrue(made[0].closed)
-    }
-
-    @Test fun `typed models chat and call tools, and catalogued ones keep Koog's capabilities`() {
-        val typed = KoogModels.resolve(AssistantProviderKind.OpenAICompatible, "deepseek-chat")
-        assertEquals(LLMProvider.OpenAI, typed.provider)
-        assertTrue(typed.supports(ai.koog.prompt.llm.LLMCapability.Tools))
-        assertTrue(typed.supports(ai.koog.prompt.llm.LLMCapability.OpenAIEndpoint.Completions))
-        val suggested = KoogModels.suggestions()
-        assertTrue(suggested.getValue(AssistantProviderKind.Anthropic).isNotEmpty())
-        assertTrue(suggested.getValue(AssistantProviderKind.OpenAICompatible).isEmpty())
-        val catalogued = KoogModels.resolve(AssistantProviderKind.Anthropic, suggested.getValue(AssistantProviderKind.Anthropic).first())
-        assertTrue(catalogued in ai.koog.prompt.executor.clients.anthropic.AnthropicModels.models)
     }
 }

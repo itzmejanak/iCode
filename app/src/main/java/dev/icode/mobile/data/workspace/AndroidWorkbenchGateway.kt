@@ -175,7 +175,7 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
             session.requestRefresh(rebuildIndex = true)
         },
         activeRoot = { session.activeRoot },
-        describe = source::describeRoot,
+        source = source,
     )
 
     override val snapshot: StateFlow<WorkbenchSnapshot> = workbench.snapshot

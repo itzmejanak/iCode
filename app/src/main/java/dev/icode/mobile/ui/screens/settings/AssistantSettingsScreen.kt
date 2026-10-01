@@ -23,7 +23,6 @@ import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeConfirmDialog
 import dev.icode.mobile.designsystem.IcodeDropdown
 import dev.icode.mobile.designsystem.IcodeSpacing
-import dev.icode.mobile.designsystem.IcodeToggle
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.KeyChipRow
@@ -31,7 +30,6 @@ import dev.icode.mobile.designsystem.LabeledTextField
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SectionLabel
-import dev.icode.mobile.designsystem.SettingRow
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.domain.AssistantRules
@@ -42,9 +40,10 @@ import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 
 /**
- * The assistant's provider (docs/assistant-koog-plan.md §3): which one, where for a server of the
- * user's own, the model — Koog's suggestions a tap away, any ID typed — and the API key, masked and
- * never shown again once saved. Save checks the form; the first message checks the connection.
+ * The assistant's provider (docs/assistant-koog-plan.md §3, §12): which one, where for a server of
+ * the user's own, the model — Koog's catalogue a tap away, any ID typed, with its limits for one Koog
+ * does not know — and the API key, masked and never shown again once saved. Save checks the form;
+ * the first message checks the connection. Mode, effort and permissions are the chat page's.
  */
 @Composable
 fun AssistantSettingsScreen(actions: NavigationActions) {
@@ -56,16 +55,22 @@ fun AssistantSettingsScreen(actions: NavigationActions) {
         mutableStateOf(saved?.takeIf { it.kind == kind }?.baseUrl ?: kind.defaultBaseUrl.orEmpty())
     }
     var model by rememberSaveable(saved, kind) {
-        mutableStateOf(saved?.takeIf { it.kind == kind }?.model ?: state.suggestions[kind]?.firstOrNull().orEmpty())
+        mutableStateOf(saved?.takeIf { it.kind == kind }?.model ?: state.catalogue[kind]?.firstOrNull()?.id.orEmpty())
     }
-    var ask by rememberSaveable(saved) { mutableStateOf(saved?.askBeforeChanges ?: true) }
+    // The limits saved for this provider's model, exactly as saved.
+    var contextWindow by rememberSaveable(saved, kind) { mutableStateOf(saved?.takeIf { it.kind == kind }?.contextWindow?.toString().orEmpty()) }
+    var maxOutput by rememberSaveable(saved, kind) { mutableStateOf(saved?.takeIf { it.kind == kind }?.maxOutput?.toString().orEmpty()) }
     // Never saveable: saved state leaves the process in a Bundle, and a key must not.
     var key by remember(kind) { mutableStateOf("") }
     // A key belongs to the provider it was made for: another provider's is not offered.
     val keySaved = saved?.hasKey == true && saved.kind == kind
     var replacingKey by remember(saved, kind) { mutableStateOf(false) }
     var removing by remember { mutableStateOf(false) }
-    val problem = AssistantRules.settingsProblem(kind, baseUrl, model, keyTyped = key.isNotBlank(), keySaved = keySaved)
+    val catalogue = state.catalogue[kind].orEmpty()
+    // A model Koog knows comes with its limits; one it does not know gets the user's.
+    val known = catalogue.firstOrNull { it.id == model.trim() }
+    val limits = if (known == null) contextWindow to maxOutput else "" to ""
+    val problem = AssistantRules.settingsProblem(kind, baseUrl, model, key.isNotBlank(), keySaved, limits.first, limits.second)
 
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Assistant", subtitle = settingsSubtitle(Route.AssistantSettings), onBack = actions.back)
@@ -101,7 +106,7 @@ fun AssistantSettingsScreen(actions: NavigationActions) {
             LabeledTextField("Model", model, { model = it }, placeholder = "The model's ID", literal = true)
             // Koog's catalogue for this provider, narrowed to what is typed: a tap fills the field.
             val typed = model.trim()
-            val suggested = state.suggestions[kind].orEmpty()
+            val suggested = catalogue.map { it.id }
             val shown = suggested.filter { typed.isEmpty() || it.contains(typed, ignoreCase = true) }.ifEmpty { suggested }.take(MAX_SUGGESTIONS)
             if (shown.isNotEmpty()) {
                 KeyChipRow(
@@ -124,18 +129,24 @@ fun AssistantSettingsScreen(actions: NavigationActions) {
                     secret = true,
                 )
             }
-            SettingRow(
-                "Ask before changes",
-                Modifier.fillMaxWidth(),
-                subtitle = if (ask) "Each change to a file, and each command, waits for Allow" else "Changes and commands run without asking",
-            ) {
-                IcodeToggle(ask) { ask = it }
+            if (known != null) {
+                Text(
+                    listOfNotNull(
+                        known.contextWindow?.let { "${AssistantRules.tokenCount(it)} tokens of context" },
+                        known.maxOutput?.let { "up to ${AssistantRules.tokenCount(it)} in a reply" },
+                    ).joinToString(", ").ifEmpty { "Koog knows this model" },
+                    style = IcodeType.Caption.copy(color = IcodeColors.TextMuted),
+                )
+            } else if (typed.isNotEmpty()) {
+                // The meter, compaction and Anthropic's reply limit need these for a model Koog does not know.
+                LabeledTextField("Context Window", contextWindow, { contextWindow = it }, placeholder = "Tokens it reads, as 128k — optional", literal = true)
+                LabeledTextField("Output Limit", maxOutput, { maxOutput = it }, placeholder = "Tokens in one reply, as 8k — optional", literal = true)
             }
             problem?.let { Text(it, style = IcodeType.Caption.copy(color = IcodeColors.TextMuted)) }
             PrimaryButton(
                 "Save",
                 {
-                    gateway.dispatch(WorkbenchIntent.SaveAssistantSettings(kind, baseUrl, model, key.takeIf { it.isNotBlank() }, ask))
+                    gateway.dispatch(WorkbenchIntent.SaveAssistantSettings(kind, baseUrl, model, key.takeIf { it.isNotBlank() }, limits.first, limits.second))
                     actions.back()
                 },
                 Modifier.fillMaxWidth(),

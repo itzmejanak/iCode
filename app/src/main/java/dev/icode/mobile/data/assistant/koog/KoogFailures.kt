@@ -1,5 +1,7 @@
 package dev.icode.mobile.data.assistant.koog
 
+import ai.koog.agents.core.agent.exception.AIAgentMaxNumberOfIterationsReachedException
+import ai.koog.agents.core.agent.exception.AIAgentStuckInTheNodeException
 import ai.koog.http.client.KoogHttpClientException
 import dev.icode.mobile.data.assistant.AssistantConnection
 import dev.icode.mobile.data.assistant.AssistantTurnException
@@ -25,6 +27,10 @@ internal object KoogFailures {
         val message = chain.firstNotNullOfOrNull { cause ->
             when (cause) {
                 is KoogHttpClientException -> http(cause, connection)
+                // The standard agent's own limit (§12 R1).
+                is AIAgentMaxNumberOfIterationsReachedException -> "Stopped at the step limit — send a message to continue"
+                // Its only way to stick: a reply with neither text nor a tool call.
+                is AIAgentStuckInTheNodeException -> "The model sent an empty reply — send a message to continue"
                 // OkHttp's refusal of plain http:// under Android's network security config.
                 is UnknownServiceException -> "Android blocks plain http:// to $host — use https://, or a server on this phone (127.0.0.1)"
                 is UnknownHostException -> "Unable to reach $host — check the address and the connection"
@@ -45,7 +51,7 @@ internal object KoogFailures {
             failure.statusCode == 404 || ("model" in lower && ("not found" in lower || "does not exist" in lower)) ->
                 "The provider has no model “${connection.model}”"
             failure.statusCode == 429 -> "The provider is limiting requests — try again shortly" + (said?.let { ": $it" } ?: "")
-            CONTEXT_WORDS.any { it in lower } -> "This chat is longer than the model accepts — start a New Chat"
+            CONTEXT_WORDS.any { it in lower } -> "This chat is longer than the model accepts — compact it or start a new chat"
             said != null -> "The provider answered ${failure.statusCode ?: "an error"}: $said"
             else -> "The provider answered ${failure.statusCode ?: "an error"}"
         }

@@ -932,7 +932,7 @@ Acceptance criteria:
 
 ## 18. Assistant
 
-Owner's decision, 2026-10-01 ([assistant-koog-plan.md](./assistant-koog-plan.md); PR-ASSIST-01–11).
+Owner's decision, 2026-10-01 ([assistant-koog-plan.md](./assistant-koog-plan.md); PR-ASSIST-01–15).
 
 ### US-ASSIST-001 — Set up the assistant
 
@@ -942,7 +942,7 @@ Acceptance criteria:
 
 - Until a provider is set, the Assistant page explains what the assistant does and what it sends, and offers its settings; nothing else asks.
 - The form offers OpenAI, Anthropic, Google Gemini, OpenRouter, Ollama and OpenAI-compatible servers; a server's address is asked only where it is needed.
-- The model is typed; Koog's models for that provider are offered as suggestions.
+- The model is typed, or chosen from Koog's models for that provider; for a model Koog does not know, its context window and output limit can be set.
 - The API key is masked, never shown again once saved, and goes with its provider when the provider changes.
 - Save checks the form; the first message checks the connection and says why it failed.
 
@@ -952,8 +952,11 @@ Acceptance criteria:
 
 Acceptance criteria:
 
-- The page shows the open workspace's chat; the reply streams in as Markdown.
-- Each step shows what it did ("Read src/App.kt", "Ran `npm test`") and how it went; its output is a tap away.
+- An empty chat shows the iCode mark over its letterpress, as the home screen does, with a few things to ask.
+- Each reply shows as Markdown when it comes; each step shows what it did ("Read src/App.kt", "Ran `npm test`") and how it went; its output is a tap away.
+- The composer chooses the mode (Agent, or Ask: it reads and changes nothing), the model, and its reasoning effort where the model has one ("Auto" sends the provider's default).
+- **+** attaches up to five of the workspace's files, the open one offered first; each goes with the message as its text then.
+- Two fingers pinch the chat's text larger or smaller.
 - Edits reach the Explorer, Source Control and clean open tabs as a terminal's edits do.
 - A file with unsaved edits is never written; the assistant is told to ask for a save.
 
@@ -965,7 +968,7 @@ Acceptance criteria:
 
 - A change shows its file and the text it replaces; a command shows its command line.
 - Allow runs it; Deny tells the assistant it was refused; Allow All stops this chat's questions.
-- Ask before changes can be turned off in the assistant's settings; reads never ask.
+- The permissions are chosen on the chat page: "Ask before changes" (the default) or "Allow all changes"; reads never ask.
 
 ### US-ASSIST-004 — Stop the assistant
 
@@ -986,14 +989,25 @@ Acceptance criteria:
 - A question it waits on pops up while iCode is out of view; a tap opens the Assistant.
 - A workspace the assistant is working in cannot be renamed or deleted until it stops.
 
-### US-ASSIST-006 — Keep a chat per workspace
+### US-ASSIST-006 — Keep a workspace's chats
 
-**As a developer, I want each workspace to keep its own chat, so that I can come back to it.**
+**As a developer, I want each workspace to keep its chats, so that I can come back to any of them.**
 
 Acceptance criteria:
 
-- Each workspace's chat survives the app being closed or killed, as last saved.
-- It follows a rename and goes with a delete; New Chat clears it after a confirmation.
+- **Chats** lists the workspace's chats newest first, each titled by its first message with when it was last used; a tap opens one, and one can be deleted after a confirmation.
+- **New chat** starts an empty chat; it is listed once something is said in it.
+- Each chat survives the app being closed or killed, as last saved; all of them follow a rename and go with a delete.
+
+### US-ASSIST-007 — A long chat
+
+**As a developer, I want a long chat to go on within the model's limits, so that I never have to start again to continue.**
+
+Acceptance criteria:
+
+- The composer shows how full the model's context is after the last request, and its tokens a tap away.
+- Near the limit (80 %), the chat is compacted before the next message: the model writes a summary, and later turns send the summary and what came after it; the page shows where, and keeps everything.
+- **Compact Chat** does the same on request.
 
 ## 19. Public Website and Distribution
 

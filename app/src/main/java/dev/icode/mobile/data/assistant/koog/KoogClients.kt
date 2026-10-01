@@ -31,7 +31,7 @@ internal object KoogClients {
             )
             AssistantProviderKind.Anthropic -> {
                 // Anthropic's client refuses a model missing from its map; a typed one maps to itself.
-                val model = KoogModels.resolve(connection.kind, connection.model)
+                val model = KoogModels.llModel(connection.kind, connection.model)
                 val versions = AnthropicClientSettings().modelVersionsMap
                 AnthropicLLMClient(required(), AnthropicClientSettings(modelVersionsMap = versions + (model to (versions[model] ?: model.id))), http)
             }

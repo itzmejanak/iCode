@@ -1,8 +1,11 @@
 package dev.icode.mobile.data.assistant
 
 import dev.icode.mobile.domain.AssistantCall
+import dev.icode.mobile.domain.AssistantEffort
 import dev.icode.mobile.domain.AssistantMessage
+import dev.icode.mobile.domain.AssistantModel
 import dev.icode.mobile.domain.AssistantProviderKind
+import dev.icode.mobile.domain.AssistantResult
 import dev.icode.mobile.domain.AssistantToolKind
 import org.json.JSONObject
 
@@ -13,15 +16,21 @@ import org.json.JSONObject
  * the tools, the stores and the screens never change with the engine.
  */
 internal interface AssistantEngine {
-    /** Model IDs this engine knows per provider: suggestions for the settings form, never a limit. */
-    val suggestions: Map<AssistantProviderKind, List<String>>
+    /** The models this engine knows per provider — those that chat and call tools — with their limits. */
+    val catalogue: Map<AssistantProviderKind, List<AssistantModel>>
+
+    /** [id] as this engine knows it with [kind]: the catalogue's limits, or the user's where set. */
+    fun model(kind: AssistantProviderKind, id: String, contextWindow: Long?, maxOutput: Long?): AssistantModel
 
     /**
      * Answers [turn]'s input: the model is asked, the tools it calls are run (one at a time, in
-     * order), and it is asked again with their results, until a reply calls none or
-     * [AssistantTurnRequest.maxSteps] replies have. Cancelling the caller stops it.
+     * order), and it is asked again with their results, until a reply calls none or the step limit is
+     * reached. Cancelling the caller stops it.
      */
     suspend fun run(turn: AssistantTurnRequest, events: AssistantEvents)
+
+    /** A summary of [history] by the model, for the chat to go on from in fewer tokens (§12 R4). */
+    suspend fun compact(connection: AssistantConnection, model: AssistantModel, instructions: String, history: List<AssistantMessage>): String
 }
 
 /** Where the model is: the user's settings with the key, decrypted only for the turn. */
@@ -36,28 +45,32 @@ internal data class AssistantConnection(
 
 internal data class AssistantTurnRequest(
     val connection: AssistantConnection,
-    /** The system prompt: who the assistant is and where it works ([AssistantInstructions]). */
+    /** The model with its limits: an Anthropic request, or a typed model's, carries its output limit. */
+    val model: AssistantModel,
+    /** Null: the provider's default. */
+    val effort: AssistantEffort?,
+    /** The system prompt: who the assistant is, where it works, and a compacted chat's summary. */
     val instructions: String,
-    /** The chat so far, every call answered ([dev.icode.mobile.domain.AssistantRules.closed]). */
+    /** The chat since its last compaction, every call answered ([dev.icode.mobile.domain.AssistantRules.forModel]). */
     val history: List<AssistantMessage>,
-    val input: String,
+    val input: AssistantMessage.User,
     val tools: List<AssistantTool>,
     val maxSteps: Int,
 )
 
 /** What a turn reports as it goes; called on the turn's coroutine, in order. */
 internal interface AssistantEvents {
-    /** More of the reply being written. */
-    fun text(delta: String)
-
-    /** A reply is complete: its text, and the calls about to run. */
+    /** A reply: its text, and the calls about to run. */
     fun replied(reply: AssistantMessage.Reply)
 
     /** [call] of the last reply runs now; its tool learns which call it serves from this. */
     fun calling(call: AssistantCall)
 
-    /** The calls of the last reply have their results. */
-    fun answered(results: AssistantMessage.Results)
+    /** One call of the last reply has its result. */
+    fun answered(result: AssistantResult)
+
+    /** The tokens the last request used, read and written: how full the context is. */
+    fun used(tokens: Long)
 }
 
 /** A refusal the model reads as the tool's result: it can correct itself, ask, or explain. */

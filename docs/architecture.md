@@ -665,7 +665,7 @@ The following rules may not be violated without a new architecture decision:
 | Workbench | The complete native editing environment, including editor, files, Git, search, terminal, and diagnostics |
 | Workspace | One folder in the application's storage (`files/workspaces/<name>`), seen at `/workspace/<name>` in the runtime |
 | Runtime | The application-owned Ubuntu ARM64 environment executed through PRoot |
-| Assistant | iCode's built-in agent: a chat per workspace that reads, changes and runs commands through iCode's own owners, with a model provider the user configures |
+| Assistant | iCode's built-in agent: each workspace's chats, which read, change and run commands through iCode's own owners, with a model provider the user configures |
 | Editor engine | Replaceable native component responsible for text interaction and rendering |
 | Language service | A user-installed process communicating with the application through LSP |
 | Recovery buffer | App-private copy of unsaved document text used only for interruption recovery |
