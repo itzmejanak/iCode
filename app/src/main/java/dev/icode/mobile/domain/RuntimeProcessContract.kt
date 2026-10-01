@@ -63,6 +63,16 @@ object ProcessRules {
         }
     }
 
+    /** What the Assistant page's row says of [processes]: "2 running", "1 running · 1 ended", "1 ended". */
+    fun summary(processes: List<ManagedProcess>): String {
+        val running = processes.count { it.running }
+        val ended = processes.size - running
+        return listOfNotNull("$running running".takeIf { running > 0 }, "$ended ended".takeIf { ended > 0 }).joinToString(" · ")
+    }
+
+    /** Where a port opens in the phone's browser: apps share the phone's loopback. */
+    fun address(port: Int): String = "http://127.0.0.1:$port"
+
     /**
      * The ports [text] names on this phone — `localhost:5173`, `http://127.0.0.1:8000`,
      * `0.0.0.0:8000`, `[::1]:3000` — that a server could listen on, in order, each once.

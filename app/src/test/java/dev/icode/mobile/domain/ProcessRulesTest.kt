@@ -34,6 +34,15 @@ class ProcessRulesTest {
         assertEquals("Ended by SIGKILL", ProcessRules.stateLabel(ManagedProcessState.Ended(137, start, stopped = false), start, start))
     }
 
+    @Test fun `the page's row counts what runs and what ended, and a port opens on this phone`() {
+        fun process(id: String, state: ManagedProcessState) = ManagedProcess(id, "/w/app", "vite", "vite", "/workspace/app", 0, state)
+        val ended = ManagedProcessState.Ended(0, 0, stopped = false)
+        assertEquals("2 running", ProcessRules.summary(listOf(process("p1", ManagedProcessState.Running), process("p2", ManagedProcessState.Running))))
+        assertEquals("1 running · 1 ended", ProcessRules.summary(listOf(process("p1", ManagedProcessState.Running), process("p2", ended))))
+        assertEquals("1 ended", ProcessRules.summary(listOf(process("p1", ended))))
+        assertEquals("http://127.0.0.1:8000", ProcessRules.address(8000))
+    }
+
     @Test fun `a span is said in two units at most`() {
         assertEquals("12s", RelativeTime.span(12_400))
         assertEquals("4m", RelativeTime.span(4 * 60_000 + 59_000))

@@ -42,8 +42,8 @@ import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 
-/** What is drawn over the chat: its history, the model picker, or what to attach. */
-internal enum class AssistantSheet { Chats, Models, Attach }
+/** What is drawn over the chat: its history, the model picker, what to attach, or the processes it started. */
+internal enum class AssistantSheet { Chats, Models, Attach, Processes }
 
 /**
  * The assistant (docs/assistant-koog-plan.md §3, §12): a chat of the open workspace — VS Code's
@@ -118,23 +118,25 @@ fun AssistantScreen(actions: NavigationActions) {
                         modifier = Modifier.padding(IcodeSpacing.Space6),
                     )
                 }
-                else -> {
-                    AssistantChatView(state, Modifier.weight(1f), onSuggestion = { draft = it })
-                    AssistantComposer(
-                        state = state,
-                        draft = draft,
-                        onDraft = { draft = it },
-                        attached = attached,
-                        onDetach = { file -> attached = attached - file },
-                        onAttach = { sheet = AssistantSheet.Attach },
-                        onModels = { sheet = AssistantSheet.Models },
-                        onSend = {
-                            gateway.dispatch(WorkbenchIntent.SendAssistantMessage(draft, attached.map { it.location }))
-                            draft = ""
-                            attached = emptyList()
-                        },
-                    )
-                }
+                else -> AssistantChatView(state, Modifier.weight(1f), onSuggestion = { draft = it })
+            }
+            // Above the composer on every state of the page: a process outlives the chat that started it.
+            if (snapshot.processes.isNotEmpty()) AssistantProcessesRow(snapshot.processes) { sheet = AssistantSheet.Processes }
+            if (ready) {
+                AssistantComposer(
+                    state = state,
+                    draft = draft,
+                    onDraft = { draft = it },
+                    attached = attached,
+                    onDetach = { file -> attached = attached - file },
+                    onAttach = { sheet = AssistantSheet.Attach },
+                    onModels = { sheet = AssistantSheet.Models },
+                    onSend = {
+                        gateway.dispatch(WorkbenchIntent.SendAssistantMessage(draft, attached.map { it.location }))
+                        draft = ""
+                        attached = emptyList()
+                    },
+                )
             }
         }
         sheet?.let { open ->
@@ -145,6 +147,7 @@ fun AssistantScreen(actions: NavigationActions) {
                     AssistantSheet.Chats -> AssistantChatsSheet(state, modifier, close)
                     AssistantSheet.Models -> AssistantModelsSheet(state, modifier, close, onProviders = { actions.navigate(Route.AssistantSettings) })
                     AssistantSheet.Attach -> AssistantAttachSheet(snapshot, attached, pickers, modifier, close, onAttached = { attached = it })
+                    AssistantSheet.Processes -> AssistantProcessesSheet(snapshot.processes, state.workspace, modifier, close)
                 }
             }
         }
