@@ -23,9 +23,6 @@ internal class GitAuthenticator(
     private val credentials: GitCredentialStore,
 ) : GitCredentialOperations {
 
-    @Volatile
-    private var legacyForgotten = false
-
     override fun describeHttps(): String? = credentials.describeHttps()
 
     override fun saveHttps(host: String, username: String, token: String) =
@@ -39,7 +36,6 @@ internal class GitAuthenticator(
      * credentials itself.
      */
     override suspend fun <T> withHttpsCredentials(block: suspend (config: List<String>) -> T): T {
-        forgetLegacyHelper()
         if (!credentials.hasHttps) return block(emptyList())
         val credential = credentials.loadHttps()
         if (credential == null) {
@@ -65,22 +61,6 @@ internal class GitAuthenticator(
     /** Removes the saved token from the app; the guest never keeps one. */
     override suspend fun clearHttpsCredentials() {
         credentials.clearHttps()
-        forgetLegacyHelper()
-    }
-
-    /**
-     * Earlier versions kept the token in plain text in the guest home behind a
-     * global `store` helper. That file goes, and the helper line iCode wrote
-     * with it — only that line; a helper the user configured stays.
-     */
-    private suspend fun forgetLegacyHelper() {
-        if (legacyForgotten) return
-        legacyForgotten = true
-        File(layout.rootfs, LEGACY_CREDENTIALS_RELATIVE).delete()
-        cli.runScript(
-            null,
-            "git config --global --unset-all credential.helper '^store --file=/root/\\.icode-git-credentials\$' 2>/dev/null; true",
-        )
     }
 
     /** True once an SSH key pair exists in the guest. */
@@ -174,7 +154,6 @@ internal class GitAuthenticator(
     }
 
     private companion object {
-        const val LEGACY_CREDENTIALS_RELATIVE = "root/.icode-git-credentials"
         const val GUEST_SSH_KEY_PATH = "/root/.ssh/id_ed25519"
         const val SSH_PUBLIC_RELATIVE = "root/.ssh/id_ed25519.pub"
     }

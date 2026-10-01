@@ -231,7 +231,8 @@ only an order to take them in: measure first (§6), then D1 and D2, then the res
 
 The owner forwarded proposals for D1–D4. They were written by iCode's own assistant (`minimax/minimax-m3:free`,
 through an OpenAI-compatible provider) on the owner's phone, not by the owner. The reply stopped in the middle of
-D3 (§7.1). They are input to the owner's decisions; **D1–D6 remain open**.
+D3 (§7.1). They were input only. **The decisions are taken in
+[runtime-foundation-plan.md](./runtime-foundation-plan.md)**, on researched facts.
 
 - **D1 — one process service, shared by everyone.** Build architecture §10.5's single process
   API: stable IDs, lifecycle events, a stop API, and one place that records processes and applies
@@ -287,7 +288,7 @@ checked independently. Each agrees with what the code predicts.
 | P5 | Not measurable without a device running iCode with many processes, and `adb` | — | Still open; it bears on D1 |
 | P6 | Not run | — | — |
 
-No decision is taken yet: §5.1 holds the assistant's proposals.
+The decisions are in [runtime-foundation-plan.md](./runtime-foundation-plan.md).
 
 ### 7.1 A finding of its own: a reply cut short looked finished
 

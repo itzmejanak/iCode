@@ -16,11 +16,11 @@ import dev.icode.mobile.data.git.GitTransferLedger
 import dev.icode.mobile.data.git.GitWorkspaceCoordinator
 import dev.icode.mobile.data.language.LanguageServiceCoordinator
 import dev.icode.mobile.data.notices.NoticeStore
-import dev.icode.mobile.data.runtime.RuntimeCoordinator
 import dev.icode.mobile.data.runtime.GuestCommand
+import dev.icode.mobile.data.runtime.RuntimeComponentsCoordinator
+import dev.icode.mobile.data.runtime.RuntimeCoordinator
 import dev.icode.mobile.data.runtime.RuntimeForegroundService
 import dev.icode.mobile.data.runtime.RuntimeLayout
-import dev.icode.mobile.data.runtime.RuntimeComponentsCoordinator
 import dev.icode.mobile.data.runtime.RuntimePackageInstaller
 import dev.icode.mobile.data.runtime.TerminalCoordinator
 import dev.icode.mobile.data.runtime.TerminalSessionManager
@@ -28,6 +28,7 @@ import dev.icode.mobile.data.search.RipgrepService
 import dev.icode.mobile.data.search.SearchCoordinator
 import dev.icode.mobile.data.settings.AndroidWorkspacePreferencesRepository
 import dev.icode.mobile.data.storage.PhoneStorage
+import dev.icode.mobile.data.storage.WorkspaceStaging
 import dev.icode.mobile.data.system.AndroidSystemAccess
 import dev.icode.mobile.data.tasks.BackgroundWork
 import dev.icode.mobile.data.tasks.TaskRunner
@@ -184,8 +185,7 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
     init {
         languages.publish()
         scope.launch {
-            // The install is brought to this layout before anything reads a workspace.
-            WorkspaceStorageMigration(appContext, runtimeLayout.workspaces, runtimeLayout.rootfs, store, notices, settings::forgetWorkspace).run()
+            WorkspaceStaging(runtimeLayout.workspaces.root).sweep()
             library.refresh()
             session.start()
         }

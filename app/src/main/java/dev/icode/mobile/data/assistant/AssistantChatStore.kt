@@ -15,7 +15,6 @@ import java.io.File
 import java.io.FileOutputStream
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
-import java.util.UUID
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -31,14 +30,10 @@ internal data class AssistantChat(val messages: List<AssistantMessage> = emptyLi
  */
 internal class AssistantChatStore(private val folder: File) {
     /** [workspace]'s chats, newest first. */
-    fun sessions(workspace: String): List<AssistantSession> {
-        migrate(workspace)
-        return listed(workspace)
-    }
+    fun sessions(workspace: String): List<AssistantSession> = listed(workspace)
 
     /** [session] of [workspace], every call answered; empty when it is not there or cannot be read. */
     fun load(workspace: String, session: String): AssistantChat {
-        migrate(workspace)
         val file = chatFile(workspace, session).takeIf { it.isFile } ?: return AssistantChat()
         return runCatching {
             val json = JSONObject(file.readText())
@@ -54,58 +49,6 @@ internal class AssistantChatStore(private val folder: File) {
      * something the user said, each output bounded. Its title, once given, stays.
      */
     fun save(workspace: String, session: String, chat: AssistantChat, now: Long) {
-        migrate(workspace)
-        persist(workspace, session, chat, now)
-    }
-
-    /**
-     * Keeps [bytes] — an image or a PDF sent with a message — in [session]'s folder, named by its
-     * content, and returns where. They go with the chat: deleted with it, moved with its workspace.
-     */
-    fun keep(workspace: String, session: String, bytes: ByteArray, extension: String): String {
-        val folder = filesOf(workspace, session).apply { mkdirs() }
-        val file = File(folder, Sha256.hex(bytes).take(NAME_LENGTH) + "." + extension)
-        if (!file.isFile) write(file, bytes)
-        return file.path
-    }
-
-    fun delete(workspace: String, session: String) {
-        migrate(workspace)
-        chatFile(workspace, session).delete()
-        filesOf(workspace, session).deleteRecursively()
-        writeIndex(workspace, listed(workspace).filter { it.id != session })
-    }
-
-    /** The workspace was renamed or moved: its chats go with it. */
-    fun move(from: String, to: String) {
-        migrate(from)
-        val source = folderOf(from).takeIf { it.isDirectory } ?: return
-        val target = folderOf(to)
-        // A folder already there belongs to no workspace: one at that location could not be moved onto.
-        target.deleteRecursively()
-        Files.move(source.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE)
-    }
-
-    /** The workspace was deleted: its chats go with it. */
-    fun forget(workspace: String) {
-        legacyFile(workspace).delete()
-        folderOf(workspace).deleteRecursively()
-    }
-
-    /** The one chat per workspace of before (`<sha>.json`) becomes its first session. */
-    private fun migrate(workspace: String) {
-        val legacy = legacyFile(workspace).takeIf { it.isFile } ?: return
-        runCatching {
-            val messages = JSONObject(legacy.readText()).getJSONArray("messages").objects().map { decode(workspace, it) }
-            if (messages.isNotEmpty()) persist(workspace, UUID.randomUUID().toString(), AssistantChat(messages), legacy.lastModified())
-        }.onFailure { warn("read a chat", it) }
-        legacy.delete()
-    }
-
-    /** What a chat is named by: its first message's text, or the files it sent alone. */
-    private fun titled(first: AssistantMessage.User): String = first.text.ifBlank { first.attachments.joinToString(", ") { it.name } }
-
-    private fun persist(workspace: String, session: String, chat: AssistantChat, now: Long) {
         val kept = chat.messages.takeLast(MAX_MESSAGES).dropWhile { it !is AssistantMessage.User }
         val others = listed(workspace)
         val title = others.firstOrNull { it.id == session }?.title
@@ -121,6 +64,40 @@ internal class AssistantChatStore(private val folder: File) {
         write(chatFile(workspace, session), json.toString())
         writeIndex(workspace, listOf(entry) + others.filter { it.id != session })
     }
+
+    /**
+     * Keeps [bytes] — an image or a PDF sent with a message — in [session]'s folder, named by its
+     * content, and returns where. They go with the chat: deleted with it, moved with its workspace.
+     */
+    fun keep(workspace: String, session: String, bytes: ByteArray, extension: String): String {
+        val folder = filesOf(workspace, session).apply { mkdirs() }
+        val file = File(folder, Sha256.hex(bytes).take(NAME_LENGTH) + "." + extension)
+        if (!file.isFile) write(file, bytes)
+        return file.path
+    }
+
+    fun delete(workspace: String, session: String) {
+        chatFile(workspace, session).delete()
+        filesOf(workspace, session).deleteRecursively()
+        writeIndex(workspace, listed(workspace).filter { it.id != session })
+    }
+
+    /** The workspace was renamed or moved: its chats go with it. */
+    fun move(from: String, to: String) {
+        val source = folderOf(from).takeIf { it.isDirectory } ?: return
+        val target = folderOf(to)
+        // A folder already there belongs to no workspace: one at that location could not be moved onto.
+        target.deleteRecursively()
+        Files.move(source.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE)
+    }
+
+    /** The workspace was deleted: its chats go with it. */
+    fun forget(workspace: String) {
+        folderOf(workspace).deleteRecursively()
+    }
+
+    /** What a chat is named by: its first message's text, or the files it sent alone. */
+    private fun titled(first: AssistantMessage.User): String = first.text.ifBlank { first.attachments.joinToString(", ") { it.name } }
 
     /** The list as saved, newest first; made again from the chats' files when it cannot be read. */
     private fun listed(workspace: String): List<AssistantSession> {
@@ -165,7 +142,6 @@ internal class AssistantChatStore(private val folder: File) {
     }
 
     private fun folderOf(workspace: String) = File(folder, Sha256.hex(workspace))
-    private fun legacyFile(workspace: String) = File(folder, Sha256.hex(workspace) + ".json")
 
     /** Where [session]'s images and PDFs are kept. */
     private fun filesOf(workspace: String, session: String): File {
@@ -247,17 +223,15 @@ internal class AssistantChatStore(private val folder: File) {
         else -> throw IllegalArgumentException("Unknown role $role")
     }
 
-    /** An attachment as kept; round 2's were a workspace file's path and text. */
-    private fun attachment(workspace: String, json: JSONObject): AssistantAttachment {
-        if (!json.has("kind")) return AssistantAttachment(json.getString("path"), text = json.getString("content"))
-        return AssistantAttachment(
+    /** An attachment as kept: its file, where it has one, relative to the workspace's folder. */
+    private fun attachment(workspace: String, json: JSONObject): AssistantAttachment =
+        AssistantAttachment(
             name = json.getString("name"),
             kind = AssistantAttachmentKind.valueOf(json.getString("kind")),
             text = json.optString("text"),
             file = json.optString("file").ifEmpty { null }?.let { File(folderOf(workspace), it).path },
             mimeType = json.optString("mimeType", "text/plain"),
         )
-    }
 
     private fun JSONArray.objects(): List<JSONObject> = (0 until length()).map { getJSONObject(it) }
 

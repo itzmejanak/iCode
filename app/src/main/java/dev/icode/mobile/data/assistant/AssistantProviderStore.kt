@@ -77,7 +77,6 @@ internal class SharedPreferencesAssistantProviderStore(
     private val lock = Any()
 
     override fun settings(): StoredSettings = synchronized(lock) {
-        migrate()
         StoredSettings(
             providers = providers(),
             choice = preferences.getString(KEY_CHOICE_PROVIDER, null)?.let { provider ->
@@ -97,7 +96,6 @@ internal class SharedPreferencesAssistantProviderStore(
         key: String?,
         models: List<AssistantModelSpec>,
     ): String = synchronized(lock) {
-        migrate()
         val existing = providers()
         val saved = existing.firstOrNull { it.id == id }
         val providerId = saved?.id ?: newId()
@@ -117,7 +115,6 @@ internal class SharedPreferencesAssistantProviderStore(
     }
 
     override fun removeProvider(id: String) = synchronized(lock) {
-        migrate()
         val left = providers().filter { it.id != id }
         preferences.commitOrFail("Unable to remove the assistant's provider") {
             putString(KEY_PROVIDERS, encode(left))
@@ -186,44 +183,6 @@ internal class SharedPreferencesAssistantProviderStore(
         return providers.firstOrNull { it.models.isNotEmpty() }?.let { AssistantChoice(it.id, it.models.first().id) }
     }
 
-    /**
-     * Round 2 kept one provider (`provider`, `base_url`, `model`, `api_key`, `limits.*`,
-     * `recent_models.*`): it becomes the first provider, its models the one chosen and those chosen
-     * before, each with its limits; its key moves with it, encrypted as it was.
-     */
-    private fun migrate() {
-        val kind = preferences.getString(LEGACY_KIND, null)?.let { name -> AssistantProviderKind.entries.firstOrNull { it.name == name } } ?: return
-        if (preferences.contains(KEY_PROVIDERS)) return clearLegacy()
-        val model = preferences.getString(LEGACY_MODEL, null)
-        val recent = preferences.getString("$LEGACY_RECENT${kind.name}", null)
-            ?.let { text -> runCatching { JSONArray(text).let { array -> (0 until array.length()).map(array::getString) } }.getOrNull() }
-            .orEmpty()
-        val models = (listOfNotNull(model) + recent).distinct().map { id ->
-            val limits = preferences.getString("$LEGACY_LIMITS${kind.name}.$id", null)?.let { runCatching { JSONObject(it) }.getOrNull() }
-            AssistantModelSpec(
-                id = id,
-                contextWindow = limits?.optLong("context")?.takeIf { it > 0 },
-                maxOutput = limits?.optLong("output")?.takeIf { it > 0 },
-            )
-        }
-        val id = newId()
-        val provider = StoredProvider(id, kind, kind.label, preferences.getString(LEGACY_BASE_URL, null), hasKey = false, models)
-        val secret = preferences.getString(LEGACY_SECRET, null)
-        preferences.commitOrFail("Unable to update the assistant's settings") {
-            putString(KEY_PROVIDERS, encode(listOf(provider)))
-            secret?.let { putString(keyOf(id), it) }
-            models.firstOrNull()?.let { putChoice(AssistantChoice(id, it.id)) }
-        }
-        clearLegacy()
-    }
-
-    private fun clearLegacy() {
-        val legacy = preferences.all.keys.filter {
-            it in LEGACY_KEYS || it.startsWith(LEGACY_LIMITS) || it.startsWith(LEGACY_RECENT)
-        }
-        if (legacy.isNotEmpty()) preferences.commitOrFail("Unable to update the assistant's settings") { legacy.forEach(::remove) }
-    }
-
     private fun SharedPreferences.Editor.putChoice(choice: AssistantChoice) {
         putString(KEY_CHOICE_PROVIDER, choice.provider)
         putString(KEY_CHOICE_MODEL, choice.model)
@@ -274,12 +233,5 @@ internal class SharedPreferencesAssistantProviderStore(
         const val KEY_ASK = "ask_before_changes"
         const val KEY_EFFORT = "effort"
         const val KEY_MODE = "mode"
-        const val LEGACY_KIND = "provider"
-        const val LEGACY_BASE_URL = "base_url"
-        const val LEGACY_MODEL = "model"
-        const val LEGACY_SECRET = "api_key"
-        const val LEGACY_LIMITS = "limits."
-        const val LEGACY_RECENT = "recent_models."
-        val LEGACY_KEYS = setOf(LEGACY_KIND, LEGACY_BASE_URL, LEGACY_MODEL, LEGACY_SECRET)
     }
 }

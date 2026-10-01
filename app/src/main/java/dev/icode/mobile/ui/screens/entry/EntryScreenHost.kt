@@ -7,8 +7,8 @@ import dev.icode.mobile.navigation.Route
 /**
  * Entry, setup, permission and launcher frames.
  *
- * `LauncherHome` and `LauncherEmpty` share [LauncherScreen]; the `else` branch
- * stays until every frame in the group has migrated.
+ * `LauncherHome` and `LauncherEmpty` share [LauncherScreen]; `else`: the routes of the other
+ * groups, which their own hosts draw.
  */
 @Composable
 fun EntryScreenHost(screen: Route, actions: NavigationActions) {
