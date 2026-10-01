@@ -227,6 +227,15 @@ sealed interface WorkbenchIntent {
     data class CloseTerminalSession(val id: String) : WorkbenchIntent
     data class OpenExternalUrl(val url: String) : WorkbenchIntent
 
+    /** Managed processes (docs/runtime-foundation-plan.md §3.4): each its own job, never behind the mutation lock. */
+    sealed interface ProcessIntent : WorkbenchIntent
+    /** Ends a running process: SIGTERM, then SIGKILL if it is still there. */
+    data class StopProcess(val id: String) : ProcessIntent
+    /** The notification's Cancel: every running process ends. */
+    data object StopAllProcesses : ProcessIntent
+    /** An ended process leaves the list. */
+    data class ForgetProcess(val id: String) : ProcessIntent
+
     /** The assistant (docs/assistant-koog-plan.md): its turns are their own job, never behind the mutation lock. */
     sealed interface AssistantIntent : WorkbenchIntent
     /** The Assistant page opened, or the workspace under it changed: that workspace's chats are shown. */

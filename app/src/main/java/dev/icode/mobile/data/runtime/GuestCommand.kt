@@ -51,6 +51,8 @@ internal class GuestCommand(private val layout: RuntimeLayout) {
         argv: List<String>,
         stderrName: String,
         environment: Map<String, String> = emptyMap(),
+        /** A workspace's location: the command sees only it ([RuntimeLayout.prootCommand]). */
+        workspace: String? = null,
         onLine: (String) -> Boolean,
     ): Result = streamRecords(
         location = location,
@@ -58,6 +60,7 @@ internal class GuestCommand(private val layout: RuntimeLayout) {
         stderrName = stderrName,
         delimiter = '\n'.code,
         environment = environment,
+        workspace = workspace,
     ) { bytes ->
         val line = String(bytes, StandardCharsets.UTF_8).removeSuffix("\r")
         onLine(line)
@@ -73,11 +76,12 @@ internal class GuestCommand(private val layout: RuntimeLayout) {
         stderrName: String,
         delimiter: Int,
         environment: Map<String, String> = emptyMap(),
+        workspace: String? = null,
         onRecord: (ByteArray) -> Boolean,
     ): Result {
         require(argv.isNotEmpty()) { "A guest command needs an executable" }
         require(delimiter in 0..255) { "Record delimiter must be one byte" }
-        return run(location, argv.joinToString(" ", transform = ::shellQuote), stderrName, environment, null) { input ->
+        return run(location, argv.joinToString(" ", transform = ::shellQuote), stderrName, environment, null, workspace) { input ->
             readRecords(input, delimiter, onRecord)
         }
     }
@@ -137,6 +141,7 @@ internal class GuestCommand(private val layout: RuntimeLayout) {
         stderrName: String,
         environment: Map<String, String>,
         onStderr: ((String) -> Unit)?,
+        workspace: String? = null,
         read: (InputStream) -> Boolean,
     ): Result = withContext(Dispatchers.IO) {
         val workingDirectory = location?.let { layout.workspaces.guestOf(it) ?: throw IOException("$it is not in iCode's workspaces") }
@@ -150,6 +155,7 @@ internal class GuestCommand(private val layout: RuntimeLayout) {
                 guestCommand = listOf("/bin/sh", "-c", script),
                 guestWorkingDirectory = workingDirectory,
                 killOnExit = true,
+                workspace = workspace,
             ),
             environment = layout.prootEnvironment(environment),
             workingDirectory = layout.runtimeRoot.absolutePath,

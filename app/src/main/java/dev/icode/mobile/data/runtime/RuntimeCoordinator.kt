@@ -82,7 +82,7 @@ internal class RuntimeCoordinator(
             return false
         }
         if (reason != RuntimeInstallReason.Initial && sessionsRunning()) {
-            workbench.message("Close running terminal and language service sessions before rebuilding the runtime")
+            workbench.message("Close running terminal sessions, language services and processes before rebuilding the runtime")
             return false
         }
         val label = when (reason) {

@@ -39,7 +39,7 @@ internal class AssistantTurns(
     /** The settings as saved, each provider's models as the engine knows them. */
     private val settings: () -> AssistantSettings,
     private val chats: AssistantChats,
-    private val tools: (AssistantWorkspace) -> List<AssistantTool>,
+    private val tools: (AssistantWorkspace, chat: String) -> List<AssistantTool>,
     private val describe: (String) -> WorkspaceRoot,
     private val attachments: AssistantAttachments,
 ) {
@@ -160,7 +160,7 @@ internal class AssistantTurns(
             }
             val history = AssistantRules.forModel(chats.of(workspace, session).messages.dropLast(1))
             // Ask reads only: the tools that change or run are not offered (§12 R8).
-            val offered = tools(setup.place).filter { setup.settings.mode == AssistantMode.Agent || it.kind == AssistantToolKind.Read }
+            val offered = tools(setup.place, session).filter { setup.settings.mode == AssistantMode.Agent || it.kind == AssistantToolKind.Read }
             step(THINKING)
             engine.run(
                 AssistantTurnRequest(

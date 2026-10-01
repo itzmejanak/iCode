@@ -128,4 +128,19 @@ class BackgroundWorkRulesTest {
         assertEquals("Run `npm test`?", BackgroundWorkRules.of(asking).single().question)
         assertTrue(BackgroundWorkRules.of(empty.copy(assistant = AssistantState())).isEmpty())
     }
+
+    @Test fun `running processes are one item that keeps them, whose Cancel stops them all`() {
+        fun process(id: String, name: String, state: ManagedProcessState, ports: List<Int> = emptyList()) =
+            ManagedProcess(id, "/w/app", name, "$name serve", "/workspace/app", 1L, state, ports)
+        val ended = process("p1", "pytest", ManagedProcessState.Ended(0, 2L, stopped = false))
+        assertTrue(BackgroundWorkRules.of(empty.copy(processes = listOf(ended))).isEmpty())
+        val running = empty.copy(processes = listOf(ended, process("p2", "uvicorn", ManagedProcessState.Running, listOf(8000)), process("p3", "vite", ManagedProcessState.Running)))
+        val item = BackgroundWorkRules.of(running).single()
+        assertEquals("2 processes running", item.title)
+        assertEquals("uvicorn :8000 · vite", item.detail)
+        assertEquals(WorkbenchIntent.StopAllProcesses, item.cancel)
+        assertEquals(BackgroundPlace.Processes, item.place)
+        assertEquals(904, item.number)
+        assertEquals(BackgroundPlace.Processes, BackgroundPlace.decode(item.place.encoded()))
+    }
 }

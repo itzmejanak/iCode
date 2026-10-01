@@ -2,8 +2,11 @@ package dev.icode.mobile.data.runtime
 
 import android.content.Context
 import android.os.storage.StorageManager
+import dev.icode.mobile.data.io.Sha256
 import dev.icode.mobile.data.storage.WorkspacePaths
 import java.io.File
+import java.nio.file.FileAlreadyExistsException
+import java.nio.file.Files
 import org.json.JSONObject
 
 /**
@@ -151,8 +154,9 @@ internal class RuntimeLayout(context: Context) {
     }
 
     /**
-     * Builds the PRoot command line. Every launch sees every workspace at `/workspace`
-     * (docs/workspace-storage-plan.md §4.2); only its working directory differs.
+     * Builds the PRoot command line. A launch sees every workspace at `/workspace`
+     * (docs/workspace-storage-plan.md §4.2) — or, given [workspace], that one alone at its own
+     * path there: what the assistant runs reaches no other (docs/runtime-foundation-plan.md §3.2).
      */
     fun prootCommand(
         guestCommand: List<String>,
@@ -164,6 +168,8 @@ internal class RuntimeLayout(context: Context) {
          * background job would keep an exited shell's session open.
          */
         killOnExit: Boolean = false,
+        /** A workspace's location: only it is bound. */
+        workspace: String? = null,
     ): List<String> = buildList {
         add(proot.absolutePath)
         // Android refuses link(), and dpkg needs hard links, so they are
@@ -192,17 +198,43 @@ internal class RuntimeLayout(context: Context) {
                 add(hostPath)
             }
         }
-        // A workspace's name never reaches this argument, so no name can split it.
         workspaces.root.mkdirs()
         File(rootfs, WorkspacePaths.GUEST_ROOT.removePrefix("/")).mkdirs()
         add("-b")
-        add("${workspaces.root.path}:${WorkspacePaths.GUEST_ROOT}")
+        if (workspace == null) {
+            // A workspace's name never reaches this argument, so no name can split it.
+            add("${workspaces.root.path}:${WorkspacePaths.GUEST_ROOT}")
+        } else {
+            val guestPath = requireNotNull(workspaces.guestOf(workspace)) { "$workspace is not in iCode's workspaces" }
+            add("${bindable(workspace)}:$guestPath")
+        }
         add("-w")
         add(guestWorkingDirectory)
         addAll(guestCommand)
     }
 
+    /**
+     * [workspace] as the host side of a bind. PRoot splits `-b` at its first colon and resolves
+     * links in the host side, so a location with a colon in its name is bound through a link to it,
+     * named by the location's hash; the guest side may hold colons.
+     */
+    private fun bindable(workspace: String): String {
+        if (':' !in workspace) return workspace
+        val target = File(workspace).toPath()
+        val link = File(File(runtimeRoot, BIND_LINKS).apply { mkdirs() }, Sha256.hex(workspace).take(LINK_NAME_LENGTH)).toPath()
+        if (Files.isSymbolicLink(link) && Files.readSymbolicLink(link) == target) return link.toString()
+        Files.deleteIfExists(link)
+        try {
+            Files.createSymbolicLink(link, target)
+        } catch (made: FileAlreadyExistsException) {
+            // Another launch made it at the same moment, to the same place.
+        }
+        return link.toString()
+    }
+
     companion object {
+        private const val BIND_LINKS = "binds"
+        private const val LINK_NAME_LENGTH = 32
         const val GUEST_HOME = "/root"
         /**
          * The guest's search path, with the user's own bin directory first.

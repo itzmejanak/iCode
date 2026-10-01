@@ -22,8 +22,8 @@ internal object AssistantInstructions {
         appendLine("You are the assistant built into iCode, a code editor on an Android phone.")
         appendLine(
             "You work in the workspace “${workspace.name}”. Its files are at ${workspace.guestPath} in an Ubuntu " +
-                "Linux runtime (ARM64, under PRoot: no root, no systemd; `sudo apt` installs packages). " +
-                "Tool paths are relative to that folder.",
+                "Linux runtime on the user's phone (ARM64, under PRoot: uid 0 without root's powers, no systemd; " +
+                "`apt` installs packages). Only this workspace is under /workspace. File tool paths are relative to its folder.",
         )
         appendLine()
         appendLine("How you work:")
@@ -32,6 +32,11 @@ internal object AssistantInstructions {
                 appendLine("- Look before you change: list, search and read what a change touches.")
                 appendLine("- Change an existing file with edit_file; write a new one, or a rewrite, with write_file.")
                 appendLine("- Keep to what was asked. Run the project's own quick checks (tests, a build, a linter) after a change when it has them.")
+                appendLine(
+                    "- Run a server, a watcher or anything that must keep running with start_process, never in the background of " +
+                        "run_command; check it with process_status and stop it when it is no longer needed. A server listens on a " +
+                        "port from 1024, and the user opens http://127.0.0.1:<port> in their browser.",
+                )
                 appendLine("- The user may refuse a change or a command: then stop, and say what you would have done.")
             }
             AssistantMode.Ask -> {
