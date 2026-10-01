@@ -5,6 +5,7 @@ import ai.koog.agents.core.agent.exception.AIAgentStuckInTheNodeException
 import ai.koog.http.client.KoogHttpClientException
 import dev.icode.mobile.data.assistant.AssistantConnection
 import dev.icode.mobile.data.assistant.AssistantTurnException
+import dev.icode.mobile.domain.AssistantModel
 import dev.icode.mobile.domain.AssistantProviderKind
 import java.net.ConnectException
 import java.net.SocketTimeoutException
@@ -43,6 +44,17 @@ internal object KoogFailures {
         } ?: "The assistant stopped: ${failure.message?.lineSequence()?.firstOrNull { it.isNotBlank() } ?: failure.javaClass.simpleName}"
         return AssistantTurnException(message, failure)
     }
+
+    /**
+     * Said under a reply that ended at [model]'s output limit, so that it does not pass for a
+     * finished one. The limit of a model iCode does not know is the user's to raise.
+     */
+    fun cutShort(model: AssistantModel): String =
+        "The reply was cut short at the model's output limit — ask it to continue" +
+            if (model.known) "" else ", or set a higher Output Limit for ${model.id} in its provider's settings"
+
+    /** A summary cut short would replace the chat with part of one: the chat stays as it is. */
+    const val SUMMARY_CUT_SHORT = "The model's summary was cut short at its output limit, so the chat was not compacted"
 
     private fun http(failure: KoogHttpClientException, connection: AssistantConnection, model: String?): String {
         val said = providerMessage(failure.errorBody)

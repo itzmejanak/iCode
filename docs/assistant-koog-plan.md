@@ -377,6 +377,8 @@ lifecycle's check, and waits for its chat to be saved, before the chats move.
 | Tool error (missing file, ambiguous edit, unsaved edits, command timeout, no runtime) | To the model as a failed result (it can recover); on the step's row for the user |
 | Step limit (40 requests) | "Stopped at the step limit — send a message to continue" |
 | A reply with nothing in it | "The model sent an empty reply — send a message to continue" |
+| A reply that ended at the output limit (`length`, `max_tokens`, `MAX_TOKENS`; Ollama gives no reason) | Kept, and under it: "The reply was cut short at the model's output limit — ask it to continue", adding "or set a higher Output Limit for x in its provider's settings" for a model Koog does not know |
+| A summary that ended at the output limit | "The model's summary was cut short at its output limit, so the chat was not compacted" |
 | A compaction without a summary | "The model sent an empty summary — try again" |
 | Process killed mid-turn | The chat as last saved; open calls closed as stopped |
 

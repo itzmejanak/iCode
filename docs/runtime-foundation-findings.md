@@ -1,9 +1,9 @@
 # Runtime foundation — findings from a real project (2026-10-01)
 
-The owner cloned, configured, tested and ran a real project ("fastapi-demo") through iCode's
-assistant, to find where the development environment is too weak for normal work. It ran in the
-end; along the way it hit eight problems. This document records them, and for each says what
-iCode's code shows about its cause, which layer owns it, and what is still unmeasured.
+A real project ("fastapi-demo") was cloned, configured, tested and run through iCode's assistant
+on the owner's phone, to find where the development environment is too weak for normal work. It
+ran in the end; along the way it hit eight problems. This document records them, and for each
+says what iCode's code shows about its cause, which layer owns it, and what is still unmeasured.
 
 It **decides no implementation**. iCode must not grow support for FastAPI, Python, `uv` or any one
 project: what a developer or an agent can configure stays theirs. Only limits that sit below
@@ -15,14 +15,14 @@ phone before any of them.
 
 | # | Finding | Cause, as the code shows it | Layer | Confidence |
 |---|---|---|---|---|
-| 1 | Background processes die between commands | Each command is its own PRoot, run with `--kill-on-exit`; no tracee can outlive its PRoot | iCode's process model | Confirmed in code and on a phone (§7) |
+| 1 | Background processes die between commands | Each command is its own PRoot, run with `--kill-on-exit`; no tracee can outlive its PRoot | iCode's process model | Confirmed in code; reported from a phone (§7) |
 | 2 | Commands are not interactive | `run_command` closes stdin (`</dev/null`), has no PTY, and keeps no shell between calls | iCode's process model | Confirmed in code |
 | 3 | PATH, directory and environment do not carry over | Each command is a fresh, non-login `/bin/sh` (dash) at the workspace's top; the terminal is a login bash | iCode's execution context | Confirmed in code |
 | 4 | Exit codes such as 127 and 143 explain little | The tool returns the raw status and stderr; it never names a signal, the directory or the PATH it ran with | iCode's tool contract | Confirmed in code |
 | 5 | PRoot is not native Linux | Fake root (`-0`), no init, ptrace-based path translation, emulated hard links | PRoot, Android | Known; details to measure |
 | 6 | Filesystem rules differ between operations | File tools are confined to the workspace; a command can write anywhere in the guest, other workspaces included | iCode's boundary model | Confirmed in code |
-| 7 | `ss` and `netstat` missing | Not in `ubuntu-base`; and Android may deny what they read even once installed | Runtime image, Android | Absence confirmed on a phone; denial to measure |
-| 8 | A running server is not reachable as a preview | Finding 1 ends it; nothing in iCode knows a port is listening; no preview exists | iCode (lifetime, discovery, UI) | Confirmed in code; loopback confirmed inside the runtime, another app's view to measure |
+| 7 | `ss` and `netstat` missing | Not in `ubuntu-base`; and Android may deny what they read even once installed | Runtime image, Android | Absence reported from a phone; denial to measure |
+| 8 | A running server is not reachable as a preview | Finding 1 ends it; nothing in iCode knows a port is listening; no preview exists | iCode (lifetime, discovery, UI) | Confirmed in code; loopback reported inside the runtime, another app's view to measure |
 | 9 | The project needed its own setup | Newer Python, `uv`, dependencies, variables, one dependency left out | The project | Not a platform problem (§4) |
 
 ## 2. The findings
@@ -227,36 +227,37 @@ only an order to take them in: measure first (§6), then D1 and D2, then the res
 | D5 | Which diagnostic tools belong to the runtime? | Image, a component, or the user's own apt. Only after P2 says whether they can work at all |
 | D6 | What does "preview" mean? | Discovery (from the processes iCode started, or a probe of a port), then the external browser, an in-app view, or both |
 
-### 5.1 Decided (owner, 2026-10-01)
+### 5.1 Proposals from iCode's assistant (2026-10-01) — not decisions
 
-- **D1 — one process service, shared by everyone.** A long-running development server is a
-  first-class runtime thing: not a terminal tab, not a one-shot command, not a language server.
-  Architecture §10.5's single process API is built — stable IDs, lifecycle events, a stop API —
-  and it is the one place that records processes and applies one set of lifetime rules. Its
-  consumers:
+The owner forwarded proposals for D1–D4. They were written by iCode's own assistant (MiniMax M3,
+through OpenRouter) on the owner's phone, not by the owner. The reply stopped in the middle of
+D3 (§7.1). They are input to the owner's decisions; **D1–D6 remain open**.
+
+- **D1 — one process service, shared by everyone.** Build architecture §10.5's single process
+  API: stable IDs, lifecycle events, a stop API, and one place that records processes and applies
+  one set of lifetime rules. Its consumers would be:
   - terminal tabs, with a PTY, hung up when the tab closes;
   - the assistant's tools, which start a process, read its output, write to it and stop it, all
     by ID, without attaching to a shell;
   - the language-server manager, folded in.
-
-  The agent asks the service whether a process is still running, rather than guessing from `ps`.
 - **D2 — the terminal's login shell, plus a per-workspace environment file.**
   - The terminal is the source of truth for shell state: its directory, its exported variables,
     its activated virtual environment. Assistant commands and language servers start from a
-    snapshot of it, not from a fresh, unrelated `/bin/sh`.
-  - What must be deterministic and reproducible (`TESTING=yes`, a token, `PYTHONPATH`) goes in a
-    per-workspace environment file (`.icode/workspace.env` or similar), written by the user and
-    never by the agent, and layered on top of the snapshot. It is the project's configuration,
-    not the runtime's.
-  - The intended effect: a `cd` or an activation in the terminal is visible to the next command,
-    and the agent cannot `export` itself into a state the user cannot see.
-  - Open points, for the plan: which terminal, when a workspace has several tabs or none; how
-    the state is captured; whether the agent's own `cd` lasts between its commands; which
-    variables reach the agent.
-- **D3 — reading output and writing to stdin, by process ID; no attaching to a shell.** The
-  owner described tiers, a tier per tool, with "start, get back a process ID" as the default.
-  The rest of the message did not arrive.
-- **D4 — not yet received.** D5 and D6 follow from D1 and the measurements.
+    snapshot of it.
+  - What must be reproducible goes in a per-workspace environment file, written by the user and
+    never by the agent, layered on top of that snapshot.
+  - Questions any plan must answer first:
+    - Which terminal, when a workspace has several tabs or none?
+    - How is the state captured? Variables exported after a shell starts cannot be read from
+      outside it (`/proc/<pid>/environ` holds the environment it started with), so the shell has
+      to record them itself — iCode's prompt script could, for bash.
+    - Does the agent's own `cd` last between its commands? The relative-path failures came from
+      its own `cd` being lost.
+    - Which variables reach the agent? A token exported in the terminal would reach the model's
+      provider through command output.
+- **D3 — reading output and writing to stdin, by process ID; no attaching to a shell.** It began
+  "three tiers, one per tool, with start-and-get-an-ID as the default", and was cut off there.
+- **D4** — the reply ended before it.
 
 ## 6. Measurements to take on a phone
 
@@ -273,7 +274,9 @@ These need a device: this environment cannot run iCode. Each says what the resul
 
 ## 7. Results (2026-10-01)
 
-Taken by the owner on a phone, through the assistant.
+Run and reported by iCode's assistant (MiniMax M3, through OpenRouter) on the owner's phone,
+and forwarded by the owner. They are the model's own account of commands it ran; none was
+checked independently. Each agrees with what the code predicts.
 
 | # | Result | What it settles | What it leaves open |
 |---|---|---|---|
@@ -284,4 +287,22 @@ Taken by the owner on a phone, through the assistant.
 | P5 | Not measurable without a device running iCode with many processes, and `adb` | — | Still open; it bears on D1 |
 | P6 | Not run | — | — |
 
-The decisions taken so far are in §5.1.
+No decision is taken yet: §5.1 holds the assistant's proposals.
+
+### 7.1 A finding of its own: a reply cut short looked finished
+
+The assistant's reply carrying the proposals stopped mid-sentence ("…get back a `process_id`.
+Tools"), and iCode showed it as a finished answer, with Copy under it and no notice. iCode never
+read why a reply ended. Koog passes each provider's own reason through (`finishReason`):
+`length` (OpenAI, OpenRouter, OpenAI-compatible servers), `max_tokens` (Anthropic), `MAX_TOKENS`
+(Gemini); Koog's Ollama client gives none.
+
+The model, `minimax/minimax-m3:free`, is not in Koog's catalogue and had no Output Limit set, so
+iCode sent no `max_tokens`, and the provider's own default applied. That the reply ended at
+that default is the likely reading, not a measured one.
+
+Fixed (2026-10-01):
+- A turn whose last reply ended at the output limit keeps the reply and says under it: "The reply
+  was cut short at the model's output limit — ask it to continue". For a model iCode does not
+  know, it adds "or set a higher Output Limit for <model> in its provider's settings".
+- A summary cut short no longer compacts the chat. A part summary would have replaced it.
