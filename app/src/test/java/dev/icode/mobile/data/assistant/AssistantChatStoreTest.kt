@@ -12,7 +12,6 @@ import dev.icode.mobile.domain.AssistantSession
 import dev.icode.mobile.domain.AssistantToolKind
 import java.io.File
 import org.json.JSONArray
-import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -110,27 +109,6 @@ class AssistantChatStoreTest {
         assertEquals(2, JSONArray(File(folder, Sha256.hex("/w/app") + "/index.json").readText()).length())
     }
 
-    @Test fun `the one chat of before becomes the workspace's first session`() {
-        folder.mkdirs()
-        val legacy = File(folder, Sha256.hex("/w/app") + ".json")
-        legacy.writeText(
-            JSONObject().put("workspace", "/w/app").put(
-                "messages",
-                JSONArray().put(JSONObject().put("role", "user").put("text", "Old question"))
-                    .put(JSONObject().put("role", "reply").put("text", "Old answer").put("calls", JSONArray())),
-            ).toString(),
-        )
-        legacy.setLastModified(5_000)
-        val sessions = store.sessions("/w/app")
-        assertEquals("Old question", sessions.single().title)
-        assertEquals(5_000L, sessions.single().updatedAt)
-        assertEquals(
-            listOf(AssistantMessage.User("Old question"), AssistantMessage.Reply("Old answer")),
-            store.load("/w/app", sessions.single().id).messages,
-        )
-        assertTrue(!legacy.exists())
-    }
-
     @Test fun `a chat that cannot be read starts again, and nothing of it reaches the log`() {
         store.save("/w/app", "s1", chat, now = 1)
         File(folder, Sha256.hex("/w/app") + "/s1.json").writeText("""{"messages":[{"role":"user","text":"secret-token-123"}, {"role":"x""")
@@ -159,24 +137,5 @@ class AssistantChatStoreTest {
 
         store.delete("/w/renamed", "s1")
         assertTrue(!File(moved.file!!).exists())
-    }
-
-    @Test fun `round 2's attachments — a workspace file's path and text — still read`() {
-        val workspaceFolder = File(folder, Sha256.hex("/w/app")).apply { mkdirs() }
-        File(workspaceFolder, "s1.json").writeText(
-            JSONObject().put("id", "s1").put("title", "Old").put("updatedAt", 1).put(
-                "messages",
-                JSONArray().put(
-                    JSONObject().put("role", "user").put("text", "Why?").put(
-                        "attachments",
-                        JSONArray().put(JSONObject().put("path", "src/a.kt").put("content", "val a = 1")),
-                    ),
-                ),
-            ).toString(),
-        )
-        assertEquals(
-            listOf(AssistantMessage.User("Why?", listOf(AssistantAttachment("src/a.kt", text = "val a = 1")))),
-            store.load("/w/app", "s1").messages,
-        )
     }
 }

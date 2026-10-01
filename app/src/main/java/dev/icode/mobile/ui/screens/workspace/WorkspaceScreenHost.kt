@@ -8,7 +8,7 @@ import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 /**
  * Workspace shell frames: explorer, editor, search and the empty editor.
  *
- * `else` stays until every frame in the group has migrated.
+ * `else`: the routes of the other groups, which their own hosts draw.
  */
 @Composable
 fun WorkspaceScreenHost(screen: Route, actions: NavigationActions) {

@@ -3,8 +3,6 @@ package dev.icode.mobile.data.assistant
 import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantModelSpec
 import dev.icode.mobile.domain.AssistantProviderKind
-import org.json.JSONArray
-import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -54,28 +52,6 @@ class AssistantProviderStoreTest {
         assertNull(store.connection(openAI))
         store.removeProvider(anthropic)
         assertNull(store.settings().choice)
-    }
-
-    @Test fun `round 2's one provider becomes the first, its models and limits with it, its key moved as it was`() {
-        preferences.edit().apply {
-            putString("provider", "OpenAICompatible")
-            putString("base_url", "https://api.deepseek.com/v1")
-            putString("model", "deepseek-chat")
-            putString("api_key", "enc:sk-deep")
-            putString("limits.OpenAICompatible.deepseek-chat", JSONObject().put("context", 128_000).put("output", 0).toString())
-            putString("recent_models.OpenAICompatible", JSONArray(listOf("deepseek-chat", "deepseek-reasoner")).toString())
-            putBoolean("ask_before_changes", false)
-        }.commit()
-        val settings = store.settings()
-        val provider = settings.providers.single()
-        assertEquals(AssistantProviderKind.OpenAICompatible, provider.kind)
-        assertEquals("OpenAI-compatible", provider.name)
-        assertEquals(listOf(AssistantModelSpec("deepseek-chat", 128_000), AssistantModelSpec("deepseek-reasoner")), provider.models)
-        assertEquals(AssistantChoice(provider.id, "deepseek-chat"), settings.choice)
-        assertEquals("sk-deep", store.connection(provider.id)?.apiKey)
-        assertFalse(settings.askBeforeChanges)
-        assertTrue("nothing of round 2's keys is left", preferences.all.keys.none { it in setOf("provider", "base_url", "model", "api_key") || it.startsWith("limits.") || it.startsWith("recent_models.") })
-        assertEquals("it migrates once", settings, store.settings())
     }
 
     @Test fun `a key this device can no longer decrypt reads as missing, and is removed`() {

@@ -277,7 +277,7 @@ sealed interface AssistantMessage {
 kind, name, address and models — an ID, and for a model Koog does not know what the user said of
 it), each provider's key (`key.<id>`), the chat's choice (`choice.provider`, `choice.model`, kept
 on a listed model: the chosen provider's first, else the first provider's), the permissions
-(`ask_before_changes`), effort and mode. Round 2's keys become the first provider once (§13 P11).
+(`ask_before_changes`), effort and mode. Nothing reads round 2's keys (§13 P11).
 Keys are stored encrypted (AES/GCM, a Keystore key of its own, alias `icode.assistant.key`, through
 `data/io/KeystoreCipher`, shared with `GitCredentialStore`). The snapshot carries only `hasKey`. A
 key this device can no longer decrypt reads as missing, and the page asks for it again.
@@ -511,7 +511,7 @@ files, photos and others, from shared storage or from internal"; "fill all such 
 | P8 | A model that cannot read an attachment failed at the provider | The composer says so beside the files and Send waits; a chat's earlier images reach such a model as a line of text |
 | P9 | A failed message could only be retyped | **Try Again** on a failure before any reply: the message is sent again, its files as they were |
 | P10 | Replies could only be selected | **Copy** under the answer each turn ends on |
-| P11 | Round 2's single-provider settings | Become the first provider, with its model and the models chosen before |
+| P11 | Round 2's single-provider settings | Became the first provider, until the owner's rule of 2026-10-01 — no compatibility before the first release — removed the migration, and with it round 1's chat file and round 2's attachments |
 | P12 | The context meter showed only once a request had been made (owner: "show the current context size below the input box, bottom right, in real time") | Always shown under the composer, at the right: "0 / 200k" before the first request, then the last request's tokens after every step; "12k tokens" where the window is unknown |
 | P13 | A message needed words | A photo or a file alone is a message; its chat is named after it |
 | P14 | Back on a provider's page lost what was typed | Back with changes asks: **Discard**, or stay |

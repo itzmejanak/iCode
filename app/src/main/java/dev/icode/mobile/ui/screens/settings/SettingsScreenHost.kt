@@ -7,7 +7,7 @@ import dev.icode.mobile.navigation.Route
 /**
  * Settings frames.
  *
- * `else` stays until every frame in the group has migrated.
+ * `else`: the routes of the other groups, which their own hosts draw.
  */
 @Composable
 fun SettingsScreenHost(screen: Route, actions: NavigationActions) {

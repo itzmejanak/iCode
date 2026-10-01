@@ -7,8 +7,8 @@ import dev.icode.mobile.navigation.Route
 /**
  * Recovery and dialog frames.
  *
- * Each branch renders one screen file; `else` stays until every frame in the
- * group has migrated.
+ * Each branch renders one screen file; `else`: the routes of the other groups, which their own
+ * hosts draw.
  */
 @Composable
 fun RecoveryScreenHost(screen: Route, actions: NavigationActions) {

@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import androidx.core.content.edit
 import dev.icode.mobile.domain.AppNotice
-import dev.icode.mobile.domain.EarlierWorkspace
 import dev.icode.mobile.domain.LostTerminalSession
 import dev.icode.mobile.domain.LostTerminalSessions
 import dev.icode.mobile.domain.ProcessEndCause
@@ -93,19 +92,6 @@ internal class NoticeStore private constructor(context: Context) {
                         .put(KEY_LABEL, notice.label)
                         .put(KEY_TARGET, notice.target),
                 )
-                is AppNotice.WorkspacesMovedIn -> put(
-                    JSONObject()
-                        .put(KEY_KIND, KIND_WORKSPACES_MOVED_IN)
-                        .put(KEY_ID, notice.id)
-                        .put(KEY_AT, notice.at)
-                        .put(KEY_READ, notice.read)
-                        .put(
-                            KEY_EARLIER,
-                            JSONArray().apply {
-                                notice.earlier.forEach { put(JSONObject().put(KEY_NAME, it.name).put(KEY_PATH, it.path)) }
-                            },
-                        ),
-                )
             }
         }
     }.toString()
@@ -137,17 +123,6 @@ internal class NoticeStore private constructor(context: Context) {
             label = item.getString(KEY_LABEL),
             target = item.getString(KEY_TARGET),
         )
-        KIND_WORKSPACES_MOVED_IN -> {
-            val earlier = item.getJSONArray(KEY_EARLIER)
-            AppNotice.WorkspacesMovedIn(
-                id = item.getString(KEY_ID),
-                at = item.getLong(KEY_AT),
-                read = item.getBoolean(KEY_READ),
-                earlier = (0 until earlier.length()).map { index ->
-                    earlier.getJSONObject(index).let { EarlierWorkspace(it.getString(KEY_NAME), it.getString(KEY_PATH)) }
-                },
-            )
-        }
         else -> null
     }
 
@@ -170,10 +145,6 @@ internal class NoticeStore private constructor(context: Context) {
         private const val KIND_GIT_TRANSFER_INTERRUPTED = "git-transfer-interrupted"
         private const val KEY_LABEL = "label"
         private const val KEY_TARGET = "target"
-        private const val KIND_WORKSPACES_MOVED_IN = "workspaces-moved-in"
-        private const val KEY_EARLIER = "earlier"
-        private const val KEY_NAME = "name"
-        private const val KEY_PATH = "path"
 
         // Holds the application context only, which lives as long as the process.
         @SuppressLint("StaticFieldLeak")

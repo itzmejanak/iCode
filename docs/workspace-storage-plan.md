@@ -235,6 +235,12 @@ PRoot's patches (0001 keeps a failed link from losing the file on any filesystem
 
 ## 5. Migration of the current install (once)
 
+**Removed (owner, 2026-10-01: no compatibility before the first release).** Nothing below runs
+any more: `WorkspaceStorageMigration`, its notice (`AppNotice.WorkspacesMovedIn`) and the earlier
+recents are gone. What remains of it is the staging sweep at every start, which clears what a
+process that ended mid-clone or mid-import left — recovery from a crash, not from a version. The
+section is kept as the record of what it did.
+
 At the first start of this version, before the launcher reads the list; marked done in its own
 preferences file (`storage_layout = 2`); idempotent; a failure is logged, retried at the next
 start, and never blocks the launcher.

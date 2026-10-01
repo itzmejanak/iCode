@@ -548,7 +548,7 @@ command, credential or config call (1227 → 831 lines; the rest is S2/S3/S8 wor
 | S5.7b | one block's choice resolved every block; the file was written as UTF-8 around the editor | `GitConflictCoordinator`: one block at a time, through the document source (encoding, BOM, line endings; changed-on-disk re-read; unsaved tab blocks) |
 | S5.7c/d | remote branch checked out by a guessed short name; "Add one" remote with no way to | `checkout --track refs/remotes/…`; an Add Remote form with `GitRemoteRules` |
 | S5.8a | the typed token was `rememberSaveable` (saved state leaves the process); describing the account decrypted the token | plain `remember`; metadata read without decrypting; host and test address validated |
-| S5.8b | the token sat in plain text in `/root/.icode-git-credentials` behind a permanent global helper | an owner-only file per command, deleted when it ends; the legacy file and iCode's helper line removed |
+| S5.8b | the token sat in plain text in `/root/.icode-git-credentials` behind a permanent global helper | an owner-only file per command, deleted when it ends. The cleanup of the earlier file and helper line was itself removed on 2026-10-01 (no compatibility before the first release) |
 | S5.8c | transcripts unmasked and unbounded | every line masked and cut at 400 characters before state |
 | S5.9a | transfers held the workbench lock for their whole network time | one job, one at a time, operation numbers, off the lock |
 | S5.9b | the clone branch never reached Git; the address could be read as an option (`--upload-pack`) | `--branch`, `--` before addresses, a dash-led address refused, destination checked |

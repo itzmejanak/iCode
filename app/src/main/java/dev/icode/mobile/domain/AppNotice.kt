@@ -31,25 +31,9 @@ sealed interface AppNotice {
         /** The workspace it was for, or the folder a clone was writing. */
         val target: String,
     ) : AppNotice
-
-    /**
-     * Once, at the first start of the version that moved workspaces into iCode's own storage: the
-     * folders opened from phone storage before, to bring in with Import (docs/workspace-storage-plan.md §5).
-     */
-    data class WorkspacesMovedIn(
-        override val id: String,
-        override val at: Long,
-        override val read: Boolean,
-        /** Each earlier workspace: its name and its path on phone storage. */
-        val earlier: List<EarlierWorkspace>,
-    ) : AppNotice
 }
-
-/** A workspace opened in place on phone storage before workspaces moved into iCode's storage. */
-data class EarlierWorkspace(val name: String, val path: String)
 
 fun AppNotice.markedRead(): AppNotice = when (this) {
     is AppNotice.TerminalSessionsEnded -> copy(read = true)
     is AppNotice.GitTransferInterrupted -> copy(read = true)
-    is AppNotice.WorkspacesMovedIn -> copy(read = true)
 }

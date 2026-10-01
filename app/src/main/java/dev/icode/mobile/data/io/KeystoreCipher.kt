@@ -14,8 +14,7 @@ import javax.crypto.spec.GCMParameterSpec
  * Keystore named [alias] (architecture.md §21). The key material never leaves the Keystore, so a
  * dump of the app's preferences yields ciphertext only.
  *
- * The stored form is Base64 of the IV followed by the AES/GCM payload — the form Git tokens were
- * saved in before this was shared, so they still decrypt.
+ * The stored form is Base64 of the IV followed by the AES/GCM payload.
  */
 internal class KeystoreCipher(private val alias: String) {
     fun encrypt(value: String): String {

@@ -9,7 +9,7 @@ import dev.icode.mobile.ui.screens.workspace.WorkspaceFindScreen
 /**
  * Source control, editor tooling and panel frames.
  *
- * `else` stays until every frame in the group has migrated.
+ * `else`: the routes of the other groups, which their own hosts draw.
  */
 @Composable
 fun ToolScreenHost(screen: Route, actions: NavigationActions) {

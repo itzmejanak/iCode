@@ -45,7 +45,7 @@ For a requested split, use this sequence:
 1. Baseline reachable UI/actions, real/device behavior, tests, data/schema, the capture set, and concurrent edits. Mark confirmed facts separately from assumptions and decisions.
 2. Identify the existing public contract and one source of truth. Extract **pure** model/validation/parser first; add characterization tests before changing behavior.
 3. Extract a narrow adapter/coordinator behind that contract while old callers still compile. Move one operation at a time; route every caller through the shared path.
-4. Remove the old implementation only after parity on success, error, cancellation, restart, multi-workspace and capture scenarios. Preserve file formats/storage keys or provide tested migration.
+4. Remove the old implementation only after parity on success, error, cancellation, restart, multi-workspace and capture scenarios. Before the first release, stored formats change freely (§6).
 5. Run proportionate checks after every step and record remaining gaps. Do not mark a feature complete because compilation passes alone.
 
 Do not create package-per-class hierarchies, `Util`/`Manager` dumping grounds, giant “common” modules, interface+implementation pairs with only one conceivable consumer, or generic frameworks around a single setting/operation. Avoid broad constructor graphs to make a small feature work. External library/protocol reuse wins when it supports the required lifecycle; pin the version, verify actual APIs, document limitations/licensing, and wrap only the product-specific seam. Do not hand-build a second editor, shell, Git parser, formatter, or search engine to make a visual control appear active.
@@ -69,7 +69,8 @@ Define an explicit result/state type when a boolean would hide meaningful cases.
 ## 6. Persistence and migration rules
 
 - App-private preferences, workspace-scoped overrides, recents/session state, Git config/credentials and project files are **different owners**; choose the existing owner appropriate to the fact. Do not save app settings into a workspace directory or put Git author identity in a fixture default.
-- Stable key/schema, type, validator, default, scope, migration and reset behavior belong together. Reads and writes use one repository. Existing stored keys remain readable; change them only with an explicit, testable migration. Unknown future keys are not wiped casually.
+- Stable key/schema, type, validator, default, scope and reset behavior belong together. Reads and writes use one repository. Unknown future keys are not wiped casually.
+- **Before the first release, no compatibility** (owner, 2026-10-01): iCode is not in production, so a stored format or key may change freely, and nothing reads, migrates or cleans up what an earlier build wrote. From the first release on, a change to a stored format comes with an explicit, tested migration.
 - Store canonical workspace identity once; use it consistently for keys and stale-result guards. Derived values are recomputed, not saved. A reset removes an override, not writes today's inherited value.
 - On read corruption, permission loss, full storage or write failure, report an actionable state and preserve the last confirmed value/data. No silent reset, fake success or “saved” UI before the actual write commits.
 - Credentials and tokens use the security owner of the relevant feature, never a general settings snapshot, screenshot fixture or log. External project files are edited only through the guarded document/file lifecycle.
