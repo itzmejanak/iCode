@@ -8,18 +8,18 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Compress
-import androidx.compose.material.icons.outlined.DataUsage
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.StopCircle
@@ -53,7 +53,6 @@ import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantState
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.ui.LocalWorkbenchGateway
-import java.io.File
 
 /**
  * The composer, as VS Code's: the files going with the message, the message, and a toolbar — attach,
@@ -65,15 +64,18 @@ internal fun AssistantComposer(
     state: AssistantState,
     draft: String,
     onDraft: (String) -> Unit,
-    attached: List<String>,
-    onDetach: (String) -> Unit,
+    attached: List<DraftFile>,
+    onDetach: (DraftFile) -> Unit,
     onAttach: () -> Unit,
     onModels: () -> Unit,
     onSend: () -> Unit,
 ) {
     val gateway = LocalWorkbenchGateway.current
-    val settings = state.settings ?: return
-    val canSend = draft.isNotBlank() && !state.running
+    val settings = state.settings
+    // A file the chosen model cannot read waits for another model; nothing is sent to fail.
+    val unreadable = AssistantRules.attachmentProblem(attached.map { it.kind }, settings.model)
+    // Words, files or both: a photo alone is a question too.
+    val canSend = (draft.isNotBlank() || attached.isNotEmpty()) && !state.running && unreadable == null
     Column(
         Modifier.fillMaxWidth().padding(horizontal = IcodeSpacing.Space3, vertical = IcodeSpacing.Space2),
         verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
@@ -81,8 +83,9 @@ internal fun AssistantComposer(
         IcodeCard(Modifier.fillMaxWidth(), padding = PaddingValues(IcodeSpacing.Space2)) {
             if (attached.isNotEmpty()) {
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
-                    attached.forEach { location -> AttachedFile(File(location).name) { onDetach(location) } }
+                    attached.forEach { file -> AttachedFile(file) { onDetach(file) } }
                 }
+                unreadable?.let { Text(it, style = IcodeType.Caption.copy(color = IcodeColors.Amber), modifier = Modifier.padding(top = IcodeSpacing.Space1)) }
             }
             Box(Modifier.fillMaxWidth().padding(IcodeSpacing.Space1)) {
                 if (draft.isEmpty()) {
@@ -112,7 +115,6 @@ internal fun AssistantComposer(
                     // The model and, where it has one, its reasoning effort: both chosen in the model sheet.
                     IcodeChoiceChip(modelLabel(state), onModels, Modifier.weight(1f, fill = false), role = "Model")
                 }
-                ContextMeter(state)
                 if (state.runningHere) {
                     IconButton(onClick = { gateway.dispatch(WorkbenchIntent.StopAssistant) }) {
                         Icon(Icons.Outlined.StopCircle, contentDescription = "Stop", tint = IcodeColors.Error)
@@ -124,6 +126,7 @@ internal fun AssistantComposer(
                 }
             }
         }
+        // Under the box: where it works and what it may do unasked; how full the context is, at the right.
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
             Icon(Icons.Outlined.FolderOpen, contentDescription = null, tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconSm))
             Text(
@@ -140,15 +143,18 @@ internal fun AssistantComposer(
                 { if (it) "Each file change and command waits for Allow" else "Changes and commands run without asking" },
                 icon = true,
             ) { gateway.dispatch(WorkbenchIntent.SetAssistantAskFirst(it)) }
+            Spacer(Modifier.weight(1f))
+            ContextMeter(state)
         }
     }
 }
 
 /** "o3 · High": the model, and its effort ("Auto" for the provider's own) where it offers one. */
 internal fun modelLabel(state: AssistantState): String {
-    val settings = state.settings ?: return ""
-    val model = state.model?.takeIf { it.efforts.isNotEmpty() } ?: return settings.model
-    return "${settings.model} · ${AssistantRules.effortFor(settings.effort, model)?.label ?: AUTO}"
+    val settings = state.settings
+    val model = settings.model ?: return ""
+    if (model.efforts.isEmpty()) return model.id
+    return "${model.id} · ${AssistantRules.effortFor(settings.effort, model)?.label ?: AUTO}"
 }
 
 /** A toolbar choice and its menu, anchored to it. */
@@ -170,12 +176,16 @@ private fun <T> Choice(
     }
 }
 
-/** How full the model's context is after the last request; Compact a tap away. */
+/**
+ * How full the model's context is — "84k / 200k" — as of the chat's last request, so it moves with
+ * every step of a turn; always shown, its ring amber where compaction begins. Compact is a tap away.
+ */
 @Composable
 private fun ContextMeter(state: AssistantState) {
     val gateway = LocalWorkbenchGateway.current
-    val window = state.model?.contextWindow ?: return
-    val share = AssistantRules.contextShare(state.contextTokens, window)
+    val window = state.settings.model?.contextWindow
+    val label = AssistantRules.contextLabel(state.contextTokens, window)
+    val share = AssistantRules.contextShare(state.contextTokens, window) ?: 0f
     var open by remember { mutableStateOf(false) }
     Box {
         Row(
@@ -184,24 +194,26 @@ private fun ContextMeter(state: AssistantState) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
         ) {
-            CircularProgressIndicator(
-                progress = { share ?: 0f },
-                modifier = Modifier.size(IcodeSizes.IconSm),
-                color = if ((share ?: 0f) >= AssistantRules.COMPACT_AT) IcodeColors.Amber else IcodeColors.Accent,
-                trackColor = IcodeColors.SurfaceTrack,
-                strokeWidth = IcodeSpacing.Micro,
+            // A share of a window only where the window is known; the count alone otherwise.
+            if (window != null) {
+                CircularProgressIndicator(
+                    progress = { share },
+                    modifier = Modifier.size(IcodeSizes.IconSm),
+                    color = if (share >= AssistantRules.COMPACT_AT) IcodeColors.Amber else IcodeColors.Accent,
+                    trackColor = IcodeColors.SurfaceTrack,
+                    strokeWidth = IcodeSpacing.Micro,
+                )
+            }
+            Text(
+                label,
+                style = IcodeType.Caption.copy(color = IcodeColors.TextMuted),
+                maxLines = 1,
             )
-            if (share != null) Text("${(share * 100).toInt()}%", style = IcodeType.Caption.copy(color = IcodeColors.TextMuted))
         }
         IcodeActionMenu(
             expanded = open,
             onDismiss = { open = false },
             actions = listOf(
-                IcodeMenuAction(
-                    state.contextTokens?.let { "${AssistantRules.tokenCount(it)} of ${AssistantRules.tokenCount(window)} tokens" }
-                        ?: "${AssistantRules.tokenCount(window)} tokens of context",
-                    Icons.Outlined.DataUsage, {}, enabled = false,
-                ),
                 IcodeMenuAction(
                     "Compact Chat", Icons.Outlined.Compress, { gateway.dispatch(WorkbenchIntent.CompactAssistantChat) },
                     enabled = state.messages.isNotEmpty() && !state.running,
@@ -211,18 +223,18 @@ private fun ContextMeter(state: AssistantState) {
     }
 }
 
-/** A file going with the message; × takes it off. */
+/** A file going with the message — a photo as its thumbnail — and × to take it off. */
 @Composable
-private fun AttachedFile(name: String, onRemove: () -> Unit) {
+private fun AttachedFile(file: DraftFile, onRemove: () -> Unit) {
     Row(
-        Modifier.background(IcodeColors.SurfaceElevated, IcodeShapes.Small).padding(start = IcodeSpacing.Space2),
+        Modifier.background(IcodeColors.SurfaceElevated, IcodeShapes.Small),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
     ) {
-        Icon(Icons.AutoMirrored.Outlined.InsertDriveFile, contentDescription = null, tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconSm))
-        Text(name, style = IcodeType.MonoSmall, maxLines = 1)
+        AssistantThumbnail(file.location, file.kind, Modifier.size(DRAFT_THUMBNAIL))
+        Text(file.name, style = IcodeType.MonoSmall, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = IcodeSizes.MenuWidth))
         IconButton(onClick = onRemove, modifier = Modifier.size(IcodeSizes.BadgeSm)) {
-            Icon(Icons.Outlined.Close, contentDescription = "Remove $name", tint = IcodeColors.TextSecondary, modifier = Modifier.size(IcodeSizes.IconSm))
+            Icon(Icons.Outlined.Close, contentDescription = "Remove ${file.name}", tint = IcodeColors.TextSecondary, modifier = Modifier.size(IcodeSizes.IconSm))
         }
     }
 }

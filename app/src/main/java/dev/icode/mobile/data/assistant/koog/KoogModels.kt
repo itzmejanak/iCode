@@ -10,38 +10,63 @@ import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.llm.LLModel
 import dev.icode.mobile.domain.AssistantEffort
 import dev.icode.mobile.domain.AssistantModel
+import dev.icode.mobile.domain.AssistantModelSpec
 import dev.icode.mobile.domain.AssistantProviderKind
 
 /**
- * Koog's models in iCode's words (§2, §12 R3–R4): Koog's own when its catalogue has one, so its
- * capabilities and limits are Koog's; otherwise a model that chats and calls tools — every client
- * checks that before it sends a tool — with the limits the user set.
+ * Koog's models in iCode's words (§2, §12 R3–R4, §13 P2–P4): Koog's own when its catalogue has one,
+ * so its capabilities and limits are Koog's; otherwise a model that chats and calls tools, with
+ * what the user — or its server — says of it.
  */
 internal object KoogModels {
     /** Per provider, the catalogue's models that chat and call tools, with their limits and efforts. */
     val catalogue: Map<AssistantProviderKind, List<AssistantModel>> by lazy {
         AssistantProviderKind.entries.associateWith { kind ->
-            models(kind).filter(::chats).distinctBy { it.id }.map { assistantModel(kind, it, null, null) }
+            models(kind).filter(::chats).distinctBy { it.id }.map { assistantModel(kind, it, known = true) }
         }
     }
 
-    /** [id] with [kind]: the catalogue's model, the user's limits over its own where set. */
-    fun model(kind: AssistantProviderKind, id: String, contextWindow: Long?, maxOutput: Long?): AssistantModel =
-        assistantModel(kind, llModel(kind, id), contextWindow, maxOutput)
+    /** [spec] with [kind]: the catalogue's model, or one with what the user said of it. */
+    fun model(kind: AssistantProviderKind, spec: AssistantModelSpec): AssistantModel {
+        known(kind, spec.id)?.let { return assistantModel(kind, it, known = true) }
+        // A typed model's limits are the user's: its LLModel carries none.
+        return assistantModel(kind, llModel(kind, spec), known = false).copy(contextWindow = spec.contextWindow, maxOutput = spec.maxOutput)
+    }
 
     /**
-     * Koog's `LLModel` for [id]: the catalogue's instance itself, or a typed one. It carries no
-     * limits of the user's — no client reads them, they go in each request's parameters — so it is
-     * equal wherever it is made: the Anthropic client finds its model by equality.
+     * A model its server listed: the catalogue's when Koog knows it; else what the server said — an
+     * Ollama's card names its context and whether it sees images — as a model iCode can use. Null
+     * for one Koog knows cannot chat and call tools, or one the server says calls none.
      */
-    fun llModel(kind: AssistantProviderKind, id: String): LLModel =
-        models(kind).firstOrNull { it.id == id } ?: LLModel(
-            provider = provider(kind),
+    fun listed(kind: AssistantProviderKind, server: LLModel): AssistantModel? {
+        val id = server.id.removePrefix(GOOGLE_PREFIX)
+        known(kind, id)?.let { return if (chats(it)) assistantModel(kind, it, known = true) else null }
+        val capabilities = server.capabilities.orEmpty()
+        // Only Ollama's cards say what a model does; a list of IDs says nothing either way.
+        if (kind == AssistantProviderKind.Ollama && LLMCapability.Tools !in capabilities) return null
+        val spec = AssistantModelSpec(
             id = id,
+            contextWindow = server.contextLength.takeIf { kind == AssistantProviderKind.Ollama },
+            images = LLMCapability.Vision.Image in capabilities,
+        )
+        return model(kind, spec)
+    }
+
+    /**
+     * Koog's `LLModel` for [spec]: the catalogue's instance itself, or a typed one with the
+     * capabilities the user gave it. Its limits stay out of it — they go in each request's
+     * parameters ([KoogParams]) — so it is the same model wherever it is made.
+     */
+    fun llModel(kind: AssistantProviderKind, spec: AssistantModelSpec): LLModel =
+        known(kind, spec.id) ?: LLModel(
+            provider = provider(kind),
+            id = spec.id,
             capabilities = TYPED + listOfNotNull(
                 // OpenAI's client asks which endpoint a model speaks; a typed one gets Chat Completions,
                 // the one every OpenAI-compatible server has.
                 LLMCapability.OpenAIEndpoint.Completions.takeIf { provider(kind) == LLMProvider.OpenAI },
+                LLMCapability.Vision.Image.takeIf { spec.images },
+                LLMCapability.Thinking.takeIf { spec.reasoning },
             ),
         )
 
@@ -74,11 +99,16 @@ internal object KoogModels {
     /** Gemini 2.x takes a thinking budget, Gemini 3 a thinking level; Koog refuses both at once. */
     fun usesThinkingBudget(model: LLModel): Boolean = model.id.startsWith("gemini-2")
 
-    private fun assistantModel(kind: AssistantProviderKind, model: LLModel, contextWindow: Long?, maxOutput: Long?) = AssistantModel(
+    private fun known(kind: AssistantProviderKind, id: String): LLModel? = models(kind).firstOrNull { it.id == id }
+
+    private fun assistantModel(kind: AssistantProviderKind, model: LLModel, known: Boolean) = AssistantModel(
         id = model.id,
-        contextWindow = contextWindow ?: model.contextLength,
-        maxOutput = maxOutput ?: model.maxOutputTokens,
+        contextWindow = model.contextLength,
+        maxOutput = model.maxOutputTokens,
         efforts = efforts(kind, model),
+        images = model.supports(LLMCapability.Vision.Image),
+        documents = model.supports(LLMCapability.Document),
+        known = known,
     )
 
     private fun chats(model: LLModel): Boolean = model.supports(LLMCapability.Completion) && model.supports(LLMCapability.Tools)
@@ -92,6 +122,9 @@ internal object KoogModels {
         // A server of the user's own: Koog knows nothing of what it serves.
         AssistantProviderKind.OpenAICompatible -> emptyList()
     }
+
+    /** Google lists its models as `models/<id>`; requests name them by the ID alone. */
+    private const val GOOGLE_PREFIX = "models/"
 
     private val TYPED = listOf(LLMCapability.Completion, LLMCapability.Tools, LLMCapability.ToolChoice, LLMCapability.Temperature)
 }

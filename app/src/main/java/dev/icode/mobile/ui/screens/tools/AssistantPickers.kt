@@ -1,0 +1,167 @@
+package dev.icode.mobile.ui.screens.tools
+
+import android.content.ActivityNotFoundException
+import android.content.Context
+import android.content.pm.PackageManager
+import android.graphics.ImageDecoder
+import android.net.Uri
+import android.provider.OpenableColumns
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
+import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.PictureAsPdf
+import androidx.compose.material3.Icon
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.content.FileProvider
+import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodeShapes
+import dev.icode.mobile.designsystem.IcodeSizes
+import dev.icode.mobile.domain.AssistantAttachmentKind
+import dev.icode.mobile.domain.AssistantRules
+import java.io.File
+import kotlin.math.max
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+/** A file going with the message: a workspace file's location, or a phone file's `content://` URI. */
+internal data class DraftFile(val location: String, val name: String, val kind: AssistantAttachmentKind)
+
+/** What Attach opens on the phone (§13 P6): no permission is asked for any of them; [camera] is null on a phone without one. */
+internal class AssistantPickers(val photos: () -> Unit, val files: () -> Unit, val camera: (() -> Unit)?)
+
+/**
+ * The phone's own pickers — the Photo Picker, the document picker, the camera — handing back the
+ * files chosen, described ([describe]). A device with no camera app says so.
+ */
+@Composable
+internal fun rememberAssistantPickers(onPicked: (List<DraftFile>) -> Unit): AssistantPickers {
+    val context = LocalContext.current
+    var shot by rememberSaveable { mutableStateOf<String?>(null) }
+    val photos = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(AssistantRules.MAX_ATTACHMENTS)) { uris ->
+        onPicked(uris.mapNotNull { describe(context, it) })
+    }
+    val files = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        onPicked(uris.mapNotNull { describe(context, it) })
+    }
+    val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { taken ->
+        val uri = shot?.let(Uri::parse)
+        if (taken && uri != null) onPicked(listOfNotNull(describe(context, uri)))
+        shot = null
+    }
+    return remember(context) {
+        val hasCamera = context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)
+        AssistantPickers(
+            photos = { photos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+            files = { launch(context) { files.launch(arrayOf("*/*")) } },
+            camera = {
+                launch(context) {
+                    val uri = cameraFile(context)
+                    shot = uri.toString()
+                    camera.launch(uri)
+                }
+            }.takeIf { hasCamera },
+        )
+    }
+}
+
+private fun launch(context: Context, start: () -> Unit) {
+    try {
+        start()
+    } catch (missing: ActivityNotFoundException) {
+        Toast.makeText(context, "No app on this phone can do that", Toast.LENGTH_LONG).show()
+    }
+}
+
+/** A new photo's place in iCode's cache, shared with the camera app for this capture alone; older ones are cleared. */
+private fun cameraFile(context: Context): Uri {
+    val folder = File(context.cacheDir, CAMERA_FOLDER).apply { mkdirs() }
+    val dayAgo = System.currentTimeMillis() - DAY_MILLIS
+    folder.listFiles()?.filter { it.lastModified() < dayAgo }?.forEach(File::delete)
+    val photo = File(folder, "photo-${System.currentTimeMillis()}.jpg")
+    return FileProvider.getUriForFile(context, "${context.packageName}.assistant.camera", photo)
+}
+
+/** A picked file's name and kind, as Android describes it; null when it cannot be read already. */
+private fun describe(context: Context, uri: Uri): DraftFile? = runCatching {
+    val resolver = context.contentResolver
+    val name = resolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use { cursor ->
+        if (cursor.moveToFirst()) cursor.getString(0) else null
+    } ?: uri.lastPathSegment ?: return@runCatching null
+    DraftFile(uri.toString(), name, AssistantRules.attachmentKind(name, resolver.getType(uri)))
+}.getOrNull()
+
+/**
+ * An image file — kept with a message, or picked — drawn small, the way the camera held it
+ * (`ImageDecoder` turns it), decoded off the main thread; its kind's icon until then, or if it
+ * cannot be read.
+ */
+@Composable
+internal fun AssistantThumbnail(location: String, kind: AssistantAttachmentKind, modifier: Modifier) {
+    val context = LocalContext.current
+    val image by produceState<ImageBitmap?>(null, location, kind) {
+        if (kind == AssistantAttachmentKind.Image) value = withContext(Dispatchers.IO) { runCatching { thumbnail(context, location) }.getOrNull() }
+    }
+    Box(modifier.clip(IcodeShapes.Small).background(IcodeColors.SurfaceElevated), contentAlignment = Alignment.Center) {
+        val shown = image
+        if (shown != null) {
+            Image(shown, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.matchParentSize())
+        } else {
+            Icon(
+                kind.icon,
+                contentDescription = null,
+                tint = IcodeColors.TextMuted,
+                modifier = Modifier.size(IcodeSizes.IconMd),
+            )
+        }
+    }
+}
+
+/** A file's kind, as its icon says it. */
+internal val AssistantAttachmentKind.icon: ImageVector
+    get() = when (this) {
+        AssistantAttachmentKind.Image -> Icons.Outlined.Image
+        AssistantAttachmentKind.Document -> Icons.Outlined.PictureAsPdf
+        AssistantAttachmentKind.Text -> Icons.AutoMirrored.Outlined.InsertDriveFile
+    }
+
+private fun thumbnail(context: Context, location: String): ImageBitmap {
+    val source = if (location.startsWith("content://")) {
+        ImageDecoder.createSource(context.contentResolver, Uri.parse(location))
+    } else {
+        ImageDecoder.createSource(File(location))
+    }
+    return ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+        val scale = THUMBNAIL_PX.toFloat() / max(info.size.width, info.size.height)
+        if (scale < 1f) decoder.setTargetSize((info.size.width * scale).toInt().coerceAtLeast(1), (info.size.height * scale).toInt().coerceAtLeast(1))
+    }.asImageBitmap()
+}
+
+/** Thumbnail sides are at most this many pixels: sharp at the sizes the chat draws them. */
+private const val THUMBNAIL_PX = 384
+private const val CAMERA_FOLDER = "assistant-camera"
+private const val DAY_MILLIS = 24L * 60 * 60 * 1000
+
+/** The size a file going with the message is drawn at in the composer. */
+internal val DRAFT_THUMBNAIL = IcodeSizes.BadgeMd

@@ -236,37 +236,51 @@ sealed interface WorkbenchIntent {
     data class DeleteAssistantSession(val id: String) : AssistantIntent
     /** A new, empty chat; it is kept once something is said in it. */
     data object NewAssistantChat : AssistantIntent
-    /** [attachments]: locations of the workspace's files sent with the message. */
+    /** [attachments]: the files sent with it — a workspace file's location, or a phone file's `content://` URI. */
     data class SendAssistantMessage(val text: String, val attachments: List<String> = emptyList()) : AssistantIntent
     /** Stops the turn in hand: the request, and a running command with everything it started. */
     data object StopAssistant : AssistantIntent
     data class AnswerAssistant(val callId: String, val answer: AssistantAnswer) : AssistantIntent
     /** Summarizes the shown chat so later turns send less (§12 R4). */
     data object CompactAssistantChat : AssistantIntent
-    data class ChooseAssistantModel(val model: String) : AssistantIntent
+    /** The chat's model: one of [provider]'s. */
+    data class ChooseAssistantModel(val provider: String, val model: String) : AssistantIntent
     /** Null: the provider's default. */
     data class ChooseAssistantEffort(val effort: AssistantEffort?) : AssistantIntent
     data class ChooseAssistantMode(val mode: AssistantMode) : AssistantIntent
     /** Changes and commands ask first, or run without asking. */
     data class SetAssistantAskFirst(val ask: Boolean) : AssistantIntent
+    /** The last message failed before any reply: it is sent again, its files as they were. */
+    data object RetryAssistantMessage : AssistantIntent
+    /** A provider's settings page opens on [id]; "" for one being added. */
+    data class EditAssistantProvider(val id: String) : AssistantIntent
     /**
-     * [key] null keeps the saved one; [baseUrl] is read only where the provider asks for it;
-     * [contextWindow] and [maxOutput] as typed ("200k"), blank for what Koog knows.
+     * Saves a provider: [id] "" adds one. [key] null keeps the saved one; [baseUrl] is read only
+     * where the kind asks for it; [models] in the user's order.
      */
-    data class SaveAssistantSettings(
+    data class SaveAssistantProvider(
+        val id: String,
         val kind: AssistantProviderKind,
+        val name: String,
         val baseUrl: String,
-        val model: String,
         val key: String?,
-        val contextWindow: String = "",
-        val maxOutput: String = "",
+        val models: List<AssistantModelSpec>,
     ) : AssistantIntent {
         /** The key is never written out, should an intent ever be. */
         override fun toString(): String =
-            "SaveAssistantSettings($kind, $baseUrl, $model, key=${if (key == null) "kept" else "***"}, $contextWindow, $maxOutput)"
+            "SaveAssistantProvider($id, $kind, $name, $baseUrl, key=${if (key == null) "kept" else "***"}, ${models.map { it.id }})"
     }
-    /** Forgets the provider and its key. */
-    data object RemoveAssistantSettings : AssistantIntent
+    /** Forgets a provider, its key and its models. */
+    data class RemoveAssistantProvider(val id: String) : AssistantIntent
+    /** Asks a provider's server for its models, with the address and key as typed ([key] null: the saved one of [provider]). */
+    data class ListAssistantModels(
+        val provider: String,
+        val kind: AssistantProviderKind,
+        val baseUrl: String,
+        val key: String?,
+    ) : AssistantIntent {
+        override fun toString(): String = "ListAssistantModels($provider, $kind, $baseUrl, key=${if (key == null) "kept" else "***"})"
+    }
 
     data object Refresh : WorkbenchIntent
 

@@ -4,13 +4,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -18,7 +18,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.IcodeBottomSheet
-import dev.icode.mobile.designsystem.IcodeCheckbox
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeConfirmDialog
 import dev.icode.mobile.designsystem.IcodeListRow
@@ -30,17 +29,15 @@ import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.SegmentedControl
+import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantEffort
 import dev.icode.mobile.domain.AssistantModel
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantSession
 import dev.icode.mobile.domain.AssistantState
 import dev.icode.mobile.domain.RelativeTime
-import dev.icode.mobile.domain.SearchEngineState
 import dev.icode.mobile.domain.WorkbenchIntent
-import dev.icode.mobile.domain.WorkbenchSnapshot
 import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.screens.workspace.rankFiles
 
 /** The workspace's chats, newest first: open one, delete one, or start another. */
 @Composable
@@ -105,39 +102,35 @@ internal fun AssistantChatsSheet(state: AssistantState, modifier: Modifier, onCl
 }
 
 /**
- * The model's reasoning effort, where it has one; then the provider's models — the ones used before
- * first — or any ID typed; the provider's settings a tap away.
+ * The chat's model, from every provider's (§13 P1): grouped by provider, each said with what it
+ * reads and whether it reasons; the chosen one's reasoning effort above them; the providers a tap away.
  */
 @Composable
-internal fun AssistantModelsSheet(state: AssistantState, modifier: Modifier, onClose: () -> Unit, onProvider: () -> Unit) {
+internal fun AssistantModelsSheet(state: AssistantState, modifier: Modifier, onClose: () -> Unit, onProviders: () -> Unit) {
     val gateway = LocalWorkbenchGateway.current
-    val settings = state.settings ?: return
+    val settings = state.settings
     var query by rememberSaveable { mutableStateOf("") }
     val typed = query.trim()
-    val catalogue = state.catalogue[settings.kind].orEmpty()
-    fun matches(id: String) = typed.isEmpty() || id.contains(typed, ignoreCase = true)
-    val recent = state.recentModels.filter(::matches)
-    val listed = catalogue.filter { it.id !in state.recentModels && matches(it.id) }
-    fun choose(id: String) {
-        gateway.dispatch(WorkbenchIntent.ChooseAssistantModel(id))
-        onClose()
-    }
+    val count = settings.providers.sumOf { it.models.size }
+    val groups = settings.providers
+        .map { provider -> provider to provider.models.filter { typed.isEmpty() || it.id.contains(typed, ignoreCase = true) } }
+        .filter { (_, models) -> models.isNotEmpty() }
     IcodeBottomSheet(
         title = "Model",
         onClose = onClose,
         modifier = modifier,
         footer = {
             SecondaryButton(
-                "${settings.kind.label} Settings",
+                "Manage Providers",
                 {
                     onClose()
-                    onProvider()
+                    onProviders()
                 },
                 Modifier.fillMaxWidth(),
             )
         },
     ) {
-        state.model?.takeIf { it.efforts.isNotEmpty() }?.let { model ->
+        settings.model?.takeIf { it.efforts.isNotEmpty() }?.let { model ->
             // How much it reasons before answering: the provider's levels for this model, or its default.
             SectionLabel("Reasoning")
             val choices = listOf<AssistantEffort?>(null) + model.efforts
@@ -147,98 +140,46 @@ internal fun AssistantModelsSheet(state: AssistantState, modifier: Modifier, onC
                 modifier = Modifier.fillMaxWidth(),
             ) { label -> gateway.dispatch(WorkbenchIntent.ChooseAssistantEffort(choices.first { (it?.label ?: AUTO) == label })) }
         }
-        Search(query, "Search, or type a model ID", literal = true) { query = it }
-        if (typed.isNotEmpty() && typed.none(Char::isWhitespace) && catalogue.none { it.id == typed } && typed !in state.recentModels) {
-            IcodeListRow(title = "Use “$typed”", subtitle = "A model ${settings.kind.label} serves", subtitleStyle = IcodeType.Caption, onClick = { choose(typed) })
+        if (count > SEARCH_FROM) Search(query, "Search models", literal = true) { query = it }
+        groups.forEachIndexed { index, (provider, models) ->
+            SectionLabel(provider.name, if (index > 0 || settings.model?.efforts?.isNotEmpty() == true) Modifier.padding(top = IcodeSpacing.Space2) else Modifier)
+            models.forEach { model ->
+                ModelRow(model, settings.choice == AssistantChoice(provider.id, model.id)) {
+                    gateway.dispatch(WorkbenchIntent.ChooseAssistantModel(provider.id, model.id))
+                    onClose()
+                }
+            }
         }
-        if (recent.isNotEmpty()) {
-            SectionLabel("Recent")
-            recent.forEach { id -> ModelRow(id, catalogue.firstOrNull { it.id == id }, id == settings.model) { choose(id) } }
-        }
-        if (listed.isNotEmpty()) {
-            SectionLabel("${settings.kind.label} models", Modifier.padding(top = IcodeSpacing.Space2))
-            listed.forEach { model -> ModelRow(model.id, model, model.id == settings.model) { choose(model.id) } }
-        }
-        if (catalogue.isEmpty() && recent.isEmpty()) Hint("Type the ID of a model your server serves")
+        if (groups.isEmpty()) Hint(if (count == 0) "No models yet: add one to a provider" else "No model matches")
     }
 }
 
+/** A model to choose: its ID, what is known of it, a tick on the chosen one. */
 @Composable
-private fun ModelRow(id: String, known: AssistantModel?, selected: Boolean, onClick: () -> Unit) {
-    val detail = listOfNotNull(
-        known?.contextWindow?.let { "${AssistantRules.tokenCount(it)} context" },
-        "reasons".takeIf { known?.efforts?.isNotEmpty() == true },
-    ).joinToString(" · ").ifEmpty { null }
-    IcodeListRow(title = id, titleStyle = IcodeType.Mono, subtitle = detail, subtitleStyle = IcodeType.Caption, selected = selected, onClick = onClick)
-}
-
-/** The workspace's files, as Quick Open finds them, the open one first: up to five go with the message. */
-@Composable
-internal fun AssistantFilesSheet(
-    snapshot: WorkbenchSnapshot,
-    attached: List<String>,
-    modifier: Modifier,
-    onClose: () -> Unit,
-    onAttached: (List<String>) -> Unit,
-) {
-    val gateway = LocalWorkbenchGateway.current
-    val root = snapshot.activeWorkspaceLocation
-    // As Quick Open does: the index is asked for when it is needed, not before.
-    LaunchedEffect(root) { if (root != null) gateway.dispatch(WorkbenchIntent.PrepareWorkspaceSearch) }
-    var query by rememberSaveable { mutableStateOf("") }
-    val ranked = remember(snapshot.fileIndex, query) { rankFiles(snapshot.fileIndex, query) }
-    val full = attached.size >= AssistantRules.MAX_ATTACHMENTS
-    val open = snapshot.activeDocument?.takeIf { query.isBlank() && root != null && it.location.startsWith("$root/") }
-    fun pathOf(location: String) = if (root != null) location.removePrefix("$root/") else location
-    @Composable
-    fun FileRow(name: String, location: String) {
-        val chosen = location in attached
-        IcodeListRow(
-            title = name,
-            subtitle = pathOf(location),
-            onClick = { if (chosen) onAttached(attached - location) else if (!full) onAttached(attached + location) },
-            leading = { IcodeCheckbox(chosen, onCheckedChange = null, enabled = chosen || !full) },
-        )
-    }
-    IcodeBottomSheet(
-        title = "Attach Files",
-        onClose = onClose,
-        modifier = modifier,
-        footer = {
-            PrimaryButton(if (attached.isEmpty()) "Done" else "Done · ${attached.size} of ${AssistantRules.MAX_ATTACHMENTS}", onClose, Modifier.fillMaxWidth())
+private fun ModelRow(model: AssistantModel, chosen: Boolean, onChoose: () -> Unit) {
+    IcodeListRow(
+        title = model.id,
+        titleStyle = IcodeType.Mono,
+        titleColor = if (chosen) IcodeColors.Accent else IcodeColors.TextPrimary,
+        subtitle = AssistantRules.modelSummary(model).ifEmpty { null },
+        subtitleStyle = IcodeType.Caption,
+        selected = chosen,
+        onClick = onChoose,
+        trailing = {
+            if (chosen) Icon(Icons.Outlined.CheckCircle, contentDescription = null, tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconMd))
         },
-    ) {
-        Search(query, "Search files", literal = true) { query = it }
-        open?.let { document ->
-            SectionLabel("Open file")
-            FileRow(document.name, document.location)
-        }
-        if (ranked.entries.isNotEmpty()) SectionLabel(if (query.isBlank()) "Files" else "Matching files", Modifier.padding(top = IcodeSpacing.Space2))
-        ranked.entries.forEach { file -> FileRow(file.name, file.path) }
-        when {
-            ranked.truncated -> Hint("More files match: narrow the search")
-            ranked.entries.isNotEmpty() -> Unit
-            else -> Hint(
-                when (val engine = snapshot.searchEngine) {
-                    SearchEngineState.Installing -> "Installing the file index…"
-                    SearchEngineState.Indexing, SearchEngineState.Unknown -> "Indexing the workspace…"
-                    is SearchEngineState.Failed -> engine.reason
-                    is SearchEngineState.Ready -> if (query.isBlank()) "This workspace has no files" else "No file matches"
-                },
-            )
-        }
-    }
+    )
 }
 
 @Composable
-private fun Search(query: String, placeholder: String, literal: Boolean = false, onQuery: (String) -> Unit) {
+internal fun Search(query: String, placeholder: String, literal: Boolean = false, onQuery: (String) -> Unit) {
     IcodeTextField(query, onQuery, Modifier.fillMaxWidth(), placeholder = placeholder, leadingIcon = Icons.Outlined.Search, literal = literal)
 }
 
 @Composable
-private fun Hint(text: String) {
+internal fun Hint(text: String) {
     Text(text, style = IcodeType.Caption.copy(color = IcodeColors.TextMuted), modifier = Modifier.padding(vertical = IcodeSpacing.Space2))
 }
 
-/** Chats are searched once there are more than fit a sheet. */
+/** Chats and models are searched once there are more than fit a sheet. */
 private const val SEARCH_FROM = 8

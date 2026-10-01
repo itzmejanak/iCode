@@ -33,7 +33,8 @@ class RouteTest {
         Route.ChooseDestination, // 2026-10-01: the file explorer choosing where a project goes (workspace-destinations-plan.md)
         Route.RepositorySelector, // 2026-10-01: the repository chosen as the branch is (workspace-destinations-plan.md D7)
         Route.Assistant, // 2026-10-01: iCode's own assistant, on Koog (assistant-koog-plan.md §3)
-        Route.AssistantSettings, // 2026-10-01: the assistant's provider, model and key (assistant-koog-plan.md §3)
+        Route.AssistantSettings, // 2026-10-01: the assistant's providers (assistant-koog-plan.md §13 P3)
+        Route.AssistantProvider, // 2026-10-01: one provider — its key, address and models (assistant-koog-plan.md §13 P3)
     )
 
     private val framed = Route.entries.mapNotNull { it.figmaNode }

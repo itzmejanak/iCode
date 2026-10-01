@@ -1,5 +1,6 @@
 package dev.icode.mobile.ui.screens.tools
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.platform.LocalContext
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeBrandMark
 import dev.icode.mobile.designsystem.IcodeColors
@@ -32,6 +34,7 @@ import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeWatermark
+import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.WorkbenchIntent
 import dev.icode.mobile.navigation.NavigationActions
@@ -39,8 +42,8 @@ import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalWorkbenchGateway
 import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 
-/** What is drawn over the chat: its history, the model picker, or the files to attach. */
-internal enum class AssistantSheet { Chats, Models, Files }
+/** What is drawn over the chat: its history, the model picker, or what to attach. */
+internal enum class AssistantSheet { Chats, Models, Attach }
 
 /**
  * The assistant (docs/assistant-koog-plan.md §3, §12): a chat of the open workspace — VS Code's
@@ -58,10 +61,18 @@ fun AssistantScreen(actions: NavigationActions) {
     var sheet by rememberSaveable { mutableStateOf<AssistantSheet?>(null) }
     // The message being written and the files going with it: this page's own until sent.
     var draft by rememberSaveable(state.workspace) { mutableStateOf("") }
-    var attached by rememberSaveable(state.workspace, stateSaver = listSaver<List<String>, String>({ it }, { it })) {
-        mutableStateOf(emptyList())
+    var attached by rememberSaveable(state.workspace, stateSaver = DRAFT_SAVER) { mutableStateOf(emptyList<DraftFile>()) }
+    // Up to five, each once, in the order chosen; any past five are said to stay behind.
+    val context = LocalContext.current
+    val attach = { files: List<DraftFile> ->
+        val all = (attached + files).distinctBy { it.location }
+        if (all.size > AssistantRules.MAX_ATTACHMENTS) {
+            Toast.makeText(context, "Five files go with a message at most: ${all.size - AssistantRules.MAX_ATTACHMENTS} not attached", Toast.LENGTH_LONG).show()
+        }
+        attached = all.take(AssistantRules.MAX_ATTACHMENTS)
     }
-    val ready = state.settings != null && state.workspace != null
+    val pickers = rememberAssistantPickers(onPicked = attach)
+    val ready = state.settings.ready && state.workspace != null
     val title = state.sessions.firstOrNull { it.id == state.session }?.title ?: "New chat"
 
     Box(Modifier.fillMaxSize()) {
@@ -97,7 +108,7 @@ fun AssistantScreen(actions: NavigationActions) {
                 },
             )
             when {
-                state.settings == null -> AssistantSetUp(Modifier.weight(1f)) { actions.navigate(Route.AssistantSettings) }
+                !state.settings.ready -> AssistantSetUp(Modifier.weight(1f)) { actions.navigate(Route.AssistantSettings) }
                 state.workspace == null -> Box(Modifier.weight(1f)) {
                     IcodeWatermark(Modifier.align(Alignment.Center))
                     EmptyState(
@@ -114,11 +125,11 @@ fun AssistantScreen(actions: NavigationActions) {
                         draft = draft,
                         onDraft = { draft = it },
                         attached = attached,
-                        onDetach = { location -> attached = attached - location },
-                        onAttach = { sheet = AssistantSheet.Files },
+                        onDetach = { file -> attached = attached - file },
+                        onAttach = { sheet = AssistantSheet.Attach },
                         onModels = { sheet = AssistantSheet.Models },
                         onSend = {
-                            gateway.dispatch(WorkbenchIntent.SendAssistantMessage(draft, attached))
+                            gateway.dispatch(WorkbenchIntent.SendAssistantMessage(draft, attached.map { it.location }))
                             draft = ""
                             attached = emptyList()
                         },
@@ -132,10 +143,16 @@ fun AssistantScreen(actions: NavigationActions) {
                 val modifier = Modifier.align(Alignment.BottomCenter)
                 when (open) {
                     AssistantSheet.Chats -> AssistantChatsSheet(state, modifier, close)
-                    AssistantSheet.Models -> AssistantModelsSheet(state, modifier, close) { actions.navigate(Route.AssistantSettings) }
-                    AssistantSheet.Files -> AssistantFilesSheet(snapshot, attached, modifier, close) { attached = it }
+                    AssistantSheet.Models -> AssistantModelsSheet(state, modifier, close, onProviders = { actions.navigate(Route.AssistantSettings) })
+                    AssistantSheet.Attach -> AssistantAttachSheet(snapshot, attached, pickers, modifier, close, onAttached = { attached = it })
                 }
             }
         }
     }
 }
+
+/** The files going with a draft, through a configuration change: three strings each. */
+private val DRAFT_SAVER = listSaver<List<DraftFile>, String>(
+    save = { files -> files.flatMap { listOf(it.location, it.name, it.kind.name) } },
+    restore = { saved -> saved.chunked(3).map { (location, name, kind) -> DraftFile(location, name, AssistantAttachmentKind.valueOf(kind)) } },
+)

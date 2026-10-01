@@ -3,6 +3,7 @@ package dev.icode.mobile.data.assistant
 import dev.icode.mobile.data.io.Sha256
 import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.domain.AssistantAttachment
+import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantResult
@@ -39,7 +40,7 @@ class AssistantChatStoreTest {
     private val call = AssistantCall("call_1", "edit_file", """{"path":"a.kt","old_text":"\"x\"\n","new_text":"y"}""", "Edit a.kt", AssistantToolKind.Change)
     private val chat = AssistantChat(
         messages = listOf(
-            AssistantMessage.User("Rename x — “quotes” and\nlines", listOf(AssistantAttachment("src/a.kt", "val x = 1\n"))),
+            AssistantMessage.User("Rename x — “quotes” and\nlines", listOf(AssistantAttachment("src/a.kt", text = "val x = 1\n"))),
             AssistantMessage.Reply("On it.", listOf(call)),
             AssistantMessage.Results(listOf(AssistantResult("call_1", "edit_file", "Edited a.kt", failed = false))),
             AssistantMessage.Compacted("The user renamed x."),
@@ -141,5 +142,41 @@ class AssistantChatStoreTest {
     @Test fun `a chat ID is never a path`() {
         val refused = runCatching { store.load("/w/app", "../../escape") }.exceptionOrNull()
         assertTrue("$refused", refused is IllegalArgumentException)
+    }
+
+    @Test fun `an image kept with a message goes with its chat, back with it, moved with its workspace, deleted with it`() {
+        val kept = store.keep("/w/app", "s1", byteArrayOf(1, 2, 3), "jpg")
+        assertEquals(kept, store.keep("/w/app", "s1", byteArrayOf(1, 2, 3), "jpg"))
+        val photo = AssistantAttachment("IMG_1.jpg", AssistantAttachmentKind.Image, file = kept, mimeType = "image/jpeg")
+        val withPhoto = AssistantChat(listOf(AssistantMessage.User("What is this?", listOf(photo))))
+        store.save("/w/app", "s1", withPhoto, now = 1)
+        assertEquals(withPhoto, store.load("/w/app", "s1"))
+
+        store.move("/w/app", "/w/renamed")
+        val moved = (store.load("/w/renamed", "s1").messages.single() as AssistantMessage.User).attachments.single()
+        assertTrue(moved.file!!.startsWith(File(folder, Sha256.hex("/w/renamed")).path))
+        assertEquals(listOf<Byte>(1, 2, 3), File(moved.file!!).readBytes().toList())
+
+        store.delete("/w/renamed", "s1")
+        assertTrue(!File(moved.file!!).exists())
+    }
+
+    @Test fun `round 2's attachments — a workspace file's path and text — still read`() {
+        val workspaceFolder = File(folder, Sha256.hex("/w/app")).apply { mkdirs() }
+        File(workspaceFolder, "s1.json").writeText(
+            JSONObject().put("id", "s1").put("title", "Old").put("updatedAt", 1).put(
+                "messages",
+                JSONArray().put(
+                    JSONObject().put("role", "user").put("text", "Why?").put(
+                        "attachments",
+                        JSONArray().put(JSONObject().put("path", "src/a.kt").put("content", "val a = 1")),
+                    ),
+                ),
+            ).toString(),
+        )
+        assertEquals(
+            listOf(AssistantMessage.User("Why?", listOf(AssistantAttachment("src/a.kt", text = "val a = 1")))),
+            store.load("/w/app", "s1").messages,
+        )
     }
 }

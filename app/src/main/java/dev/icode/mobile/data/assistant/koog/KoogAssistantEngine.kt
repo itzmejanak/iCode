@@ -4,9 +4,9 @@ import ai.koog.agents.core.agent.AIAgent
 import ai.koog.agents.core.agent.GraphAIAgent
 import ai.koog.agents.core.agent.config.AIAgentConfig
 import ai.koog.agents.core.agent.entity.AIAgentGraphStrategy
+import ai.koog.agents.core.dsl.builder.node
 import ai.koog.agents.core.dsl.builder.strategy
 import ai.koog.agents.core.dsl.extension.nodeExecuteTools
-import ai.koog.agents.core.dsl.extension.nodeLLMRequest
 import ai.koog.agents.core.dsl.extension.nodeLLMSendToolResults
 import ai.koog.agents.core.dsl.extension.onTextMessage
 import ai.koog.agents.core.dsl.extension.onToolCalls
@@ -15,6 +15,10 @@ import ai.koog.agents.features.eventHandler.feature.handleEvents
 import ai.koog.http.client.ktor.KtorKoogHttpClient
 import ai.koog.prompt.executor.clients.LLMClient
 import ai.koog.prompt.executor.llms.MultiLLMPromptExecutor
+import ai.koog.prompt.executor.ollama.client.OllamaClient
+import ai.koog.prompt.llm.LLMProvider
+import ai.koog.prompt.llm.LLModel
+import ai.koog.prompt.message.Message
 import ai.koog.serialization.JSONPrimitive
 import ai.koog.utils.io.use
 import dev.icode.mobile.data.assistant.AssistantConnection
@@ -28,6 +32,7 @@ import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantEffort
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantModel
+import dev.icode.mobile.domain.AssistantModelSpec
 import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.domain.AssistantResult
 import io.ktor.client.HttpClient
@@ -48,27 +53,50 @@ internal class KoogAssistantEngine(
 ) : AssistantEngine {
     override val catalogue: Map<AssistantProviderKind, List<AssistantModel>> get() = KoogModels.catalogue
 
-    override fun model(kind: AssistantProviderKind, id: String, contextWindow: Long?, maxOutput: Long?): AssistantModel =
-        KoogModels.model(kind, id, contextWindow, maxOutput)
+    override fun model(kind: AssistantProviderKind, spec: AssistantModelSpec): AssistantModel = KoogModels.model(kind, spec)
 
-    /** The last connection's client, kept between turns and replaced when the settings change. */
+    /** A server's models: an Ollama's cards, which say what each model does; any other's list of IDs. */
+    override suspend fun available(connection: AssistantConnection): List<AssistantModel> = explained(connection, model = null) {
+        // A client of its own, closed after: never one a turn may be using.
+        val client = clients(connection)
+        try {
+            val listed = if (client is OllamaClient) {
+                client.getModels().map { LLModel(LLMProvider.Ollama, it.name, it.capabilities, it.contextLength) }
+            } else {
+                client.models()
+            }
+            val models = listed.mapNotNull { KoogModels.listed(connection.kind, it) }.distinctBy { it.id }
+            models.filter { it.known } + models.filterNot { it.known }.sortedBy { it.id }
+        } finally {
+            client.close()
+        }
+    }
+
+    /**
+     * The clients of the servers used lately, by connection: kept between turns, so a provider's
+     * client is made once. The eldest is closed past [MAX_CLIENTS] — never the one in use, which is
+     * the newest.
+     */
     private val clientLock = Mutex()
-    private var client: Pair<AssistantConnection, LLMClient>? = null
+    private val cached = object : LinkedHashMap<AssistantConnection, LLMClient>(MAX_CLIENTS, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<AssistantConnection, LLMClient>): Boolean =
+            (size > MAX_CLIENTS).also { if (it) eldest.value.close() }
+    }
 
-    override suspend fun run(turn: AssistantTurnRequest, events: AssistantEvents) = explained(turn.connection) {
+    override suspend fun run(turn: AssistantTurnRequest, events: AssistantEvents) = explained(turn.connection, turn.model.id) {
         val tools = turn.tools.associateBy { it.name }
         val agent = agent(
             connection = turn.connection,
             model = turn.model,
             effort = turn.effort,
             instructions = turn.instructions,
-            history = turn.history,
+            messages = turn.history + turn.input,
             tools = turn.tools,
             // Koog counts each node it runs: the start, a request, then a run of the tools and a
             // request per step, and the finish — so this allows exactly maxSteps requests.
             maxIterations = 2 * turn.maxSteps + 1,
         ) { report(tools, events) }
-        agent.use { it.run(AssistantInstructions.message(turn.input)) }
+        agent.use { it.run(START) }
         Unit
     }
 
@@ -77,10 +105,11 @@ internal class KoogAssistantEngine(
         model: AssistantModel,
         instructions: String,
         history: List<AssistantMessage>,
-    ): String = explained(connection) {
+    ): String = explained(connection, model.id) {
         // No tools: Koog writes the chat's calls and results into it as text (its MissingToolsConversionStrategy).
-        val agent = agent(connection, model, effort = null, instructions, history, tools = emptyList(), maxIterations = 3)
-        agent.use { it.run(AssistantInstructions.COMPACT_REQUEST) }.trim()
+        val messages = history + AssistantMessage.User(AssistantInstructions.COMPACT_REQUEST)
+        val agent = agent(connection, model, effort = null, instructions, messages, tools = emptyList(), maxIterations = 3)
+        agent.use { it.run(START) }.trim()
             .ifEmpty { throw AssistantTurnException("The model sent an empty summary — try again") }
     }
 
@@ -89,16 +118,16 @@ internal class KoogAssistantEngine(
         model: AssistantModel,
         effort: AssistantEffort?,
         instructions: String,
-        history: List<AssistantMessage>,
+        messages: List<AssistantMessage>,
         tools: List<AssistantTool>,
         maxIterations: Int,
         features: GraphAIAgent.FeatureContext.() -> Unit = {},
     ): GraphAIAgent<String, String> {
-        val llModel = KoogModels.llModel(connection.kind, connection.model)
+        val llModel = KoogModels.llModel(connection.kind, model.spec)
         return AIAgent(
             promptExecutor = MultiLLMPromptExecutor(clientFor(connection)),
             agentConfig = AIAgentConfig(
-                prompt = KoogHistory.prompt(instructions, history, KoogParams.of(connection.kind, llModel, model, effort)),
+                prompt = KoogHistory.prompt(instructions, messages, KoogParams.of(connection.kind, llModel, model, effort), llModel),
                 model = llModel,
                 maxAgentIterations = maxIterations,
             ),
@@ -140,28 +169,28 @@ internal class KoogAssistantEngine(
     }
 
     private suspend fun clientFor(connection: AssistantConnection): LLMClient = clientLock.withLock {
-        client?.takeIf { it.first == connection }?.let { return@withLock it.second }
-        client?.second?.close()
-        clients(connection).also { client = connection to it }
+        cached.getOrPut(connection) { clients(connection) }
     }
 
-    private suspend fun <T> explained(connection: AssistantConnection, block: suspend () -> T): T = try {
+    private suspend fun <T> explained(connection: AssistantConnection, model: String?, block: suspend () -> T): T = try {
         block()
     } catch (stopped: CancellationException) {
         throw stopped
     } catch (failure: Exception) {
-        throw KoogFailures.explain(failure, connection)
+        throw KoogFailures.explain(failure, connection, model)
     }
 
     companion object {
         /**
-         * Koog's `singleRunStrategy()`, its own nodes and edges, with one pair in the other order:
-         * after tool results, Koog's checks the reply's text first and finishes, leaving the calls of
-         * a reply with both ("Now the tests:" and a call — how models work) unrun. Here calls are
-         * checked first after every request, as Koog's already does after the first.
+         * Koog's `singleRunStrategy()`, its own nodes and edges, with two changes. It opens with a node
+         * that only requests — Koog's `reActStrategy` has one — since the message, with its images
+         * and files, is already the prompt's last (`nodeLLMRequest` would add a text-only one). And
+         * after tool results it checks a reply's calls before its text: Koog's checks the text first
+         * and finishes, leaving the calls of a reply with both ("Now the tests:" and a call — how
+         * models work) unrun, as it already does after the first request.
          */
         private val TURN: AIAgentGraphStrategy<String, String> = strategy("icode-turn") {
-            val request by nodeLLMRequest()
+            val request by node<String, Message.Assistant> { llm.writeSession { requestLLM() } }
             val runTools by nodeExecuteTools()
             val sendResults by nodeLLMSendToolResults()
             edge(nodeStart forwardTo request)
@@ -171,6 +200,11 @@ internal class KoogAssistantEngine(
             edge(sendResults forwardTo runTools onToolCalls { true })
             edge(sendResults forwardTo nodeFinish onTextMessage { true })
         }
+
+        /** The agent's input: [TURN] reads none, the prompt being whole. */
+        private const val START = ""
+
+        private const val MAX_CLIENTS = 8
 
         /**
          * On OkHttp, handed to Koog explicitly: nothing is found through `ServiceLoader`. One per

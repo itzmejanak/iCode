@@ -20,7 +20,7 @@ class SettingsCatalogTest {
         assertEquals(Route.WorkspaceSettings, searchSettingsCategories("auto fetch").single().destination)
         assertEquals(Route.AssistantSettings, searchSettingsCategories("api key").single().destination)
         assertEquals(Route.AssistantSettings, searchSettingsCategories("ollama").single().destination)
-        assertEquals("Provider, model, API key", settingsSubtitle(Route.AssistantSettings))
+        assertEquals("Providers, models, API keys", settingsSubtitle(Route.AssistantSettings))
         assertEquals(
             listOf(Route.SettingsEditor, Route.WorkspaceSettings),
             searchSettingsCategories("indent").map { it.destination },

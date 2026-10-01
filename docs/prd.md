@@ -94,7 +94,7 @@ The product is not intended to provide:
 - a browser-hosted workbench;
 - an internal project-preview browser;
 - a curated AI-agent marketplace;
-- a provider-specific agent configuration system (the built-in assistant has one generic provider form, §10.14);
+- a provider-specific agent configuration system (the built-in assistant has one generic provider page, §10.14);
 - a new package manager for developer tools;
 - a cloud workspace requirement;
 - a mandatory account system;
@@ -368,7 +368,7 @@ Owner's decision, 2026-10-01 ([assistant-koog-plan.md](./assistant-koog-plan.md)
 | ID | Requirement |
 |---|---|
 | PR-ASSIST-01 | The application shall offer one built-in assistant, off until the user sets a provider; no entry or workspace flow shall ask for one. |
-| PR-ASSIST-02 | The provider form shall accept OpenAI, Anthropic, Google, OpenRouter, Ollama and any OpenAI-compatible server, with a typed model ID; the catalogue shall never limit it, and a model it does not know shall take its context window and output limit from the user. |
+| PR-ASSIST-02 | The user shall add any number of providers — OpenAI, Anthropic, Google, OpenRouter, Ollama, any OpenAI-compatible server — each with its own key and its own models, added from the server's real list, the catalogue or a typed ID; the catalogue shall never limit them, and a model it does not know shall take its context window, output limit, image reading and reasoning from the user. The chat shall list exactly these models, by provider. |
 | PR-ASSIST-03 | API keys shall be encrypted with Android-provided secure storage, never shown again once saved, and never logged. |
 | PR-ASSIST-04 | The assistant shall work only inside the open workspace; no path, link or command argument shall lead its file tools out of it. |
 | PR-ASSIST-05 | Changes to files and commands shall ask first (Allow, Allow All in This Chat, Deny) unless the user chooses otherwise on the chat page; reads shall never ask. |
@@ -379,9 +379,11 @@ Owner's decision, 2026-10-01 ([assistant-koog-plan.md](./assistant-koog-plan.md)
 | PR-ASSIST-10 | A refused key, an unknown model, no connection and blocked plain `http://` shall each be explained in plain words. |
 | PR-ASSIST-11 | The agent engine shall sit behind an application-owned boundary, replaceable without changing tools, storage or screens. |
 | PR-ASSIST-12 | The chat page shall choose the model, its reasoning effort where the model offers one, the mode (Agent, or Ask: reading only) and the permissions. |
-| PR-ASSIST-13 | Up to five of the workspace's text files shall go with a message, the open tab's text as it is shown. |
-| PR-ASSIST-14 | The chat page shall show how full the model's context is; a chat near its limit shall be compacted to a summary by the model before the next message, and on request; the page shall still show everything. |
+| PR-ASSIST-13 | Up to five files shall go with a message — the workspace's, the open tab's text as it is shown, and the phone's through the system's photo picker, document picker and camera, with no permission asked; images and PDFs only to a model that reads them, said before anything is sent. |
+| PR-ASSIST-14 | The chat page shall always show, under the message box at the right, how full the model's context is; a chat near its limit shall be compacted to a summary by the model before the next message, and on request; the page shall still show everything. |
 | PR-ASSIST-15 | The chat's text shall scale with a two-finger pinch, as the editor's does. |
+| PR-ASSIST-16 | Assistant settings shall be pages: a list of providers, each provider's own page, a model's options; not one form. |
+| PR-ASSIST-17 | A message that failed before any reply shall be sent again on Try Again, its files with it; an answer shall be copyable. |
 
 ## 11. User Experience Requirements
 

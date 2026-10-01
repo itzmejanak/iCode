@@ -36,13 +36,12 @@ internal class AssistantTurns(
     private val scope: CoroutineScope,
     private val engine: AssistantEngine,
     private val providers: AssistantProviderStore,
+    /** The settings as saved, each provider's models as the engine knows them. */
+    private val settings: () -> AssistantSettings,
     private val chats: AssistantChats,
     private val tools: (AssistantWorkspace) -> List<AssistantTool>,
     private val describe: (String) -> WorkspaceRoot,
-    /** A file's text as saved. */
-    private val readText: (String) -> String,
-    /** An open tab's text, unsaved edits and all; null when the file is not open. */
-    private val openText: (String) -> String?,
+    private val attachments: AssistantAttachments,
 ) {
     private val lock = Any()
     private var job: Job? = null
@@ -57,6 +56,17 @@ internal class AssistantTurns(
 
     fun send(workspace: String, session: String, input: String, attachments: List<String>) =
         launch(workspace, session) { converse(input, attachments) }
+
+    /** The last message, unanswered, sent again with its files as they were (§13 P9). */
+    fun retry(workspace: String, session: String) = launch(workspace, session) {
+        val setup = setup()
+        val message = chats.withdraw(workspace, session) ?: return@launch
+        AssistantRules.attachmentProblem(message.attachments.map { it.kind }, setup.model)?.let {
+            chats.append(workspace, session, message)
+            throw AssistantTurnException(it)
+        }
+        talk(setup, message)
+    }
 
     fun compact(workspace: String, session: String) = launch(workspace, session) {
         compact(setup(), AssistantRules.forModel(chats.of(workspace, session).messages))
@@ -131,13 +141,15 @@ internal class AssistantTurns(
             }
         }
 
-        suspend fun converse(input: String, attachments: List<String>) {
+        suspend fun converse(input: String, locations: List<String>) {
             val setup = setup()
-            val files = attachments.distinct().take(AssistantRules.MAX_ATTACHMENTS).map { location ->
-                AssistantAttachments.of(setup.place, location) { file -> openText(file.path) ?: readText(file.path) }
-            }
+            val files = attachments.read(setup.place, locations, setup.model) { bytes, extension -> chats.keep(workspace, session, bytes, extension) }
+            talk(setup, AssistantMessage.User(input, files))
+        }
+
+        /** [message] added to the chat, and answered. */
+        suspend fun talk(setup: Setup, message: AssistantMessage.User) {
             val before = chats.of(workspace, session)
-            val message = AssistantMessage.User(input, files)
             chats.append(workspace, session, message)
             // A new chat is listed from its first message.
             page.listed(workspace)
@@ -174,16 +186,13 @@ internal class AssistantTurns(
         }
 
         fun setup(): Setup {
-            val settings = providers.settings()
-            val connection = providers.connection()
-            if (settings == null || connection == null) throw AssistantTurnException("Set up the assistant first: its settings name a provider and a model")
+            val settings = settings()
+            val provider = settings.provider
+            val model = settings.model
+            val connection = provider?.let { providers.connection(it.id) }
+            if (model == null || connection == null) throw AssistantTurnException(NOT_SET_UP)
             val root = runCatching { describe(workspace) }.getOrElse { throw AssistantTurnException("This workspace no longer exists") }
-            return Setup(
-                settings = settings,
-                connection = connection,
-                model = engine.model(settings.kind, settings.model, settings.contextWindow, settings.maxOutput),
-                place = AssistantWorkspace(File(root.location), root.displayPath),
-            )
+            return Setup(settings, connection, model, AssistantWorkspace(File(root.location), root.displayPath))
         }
 
         override fun replied(reply: AssistantMessage.Reply) {
@@ -217,7 +226,7 @@ internal class AssistantTurns(
     private inner class Asking(private val tool: AssistantTool, private val turn: Turn) : AssistantTool by tool {
         override suspend fun run(arguments: JSONObject): String {
             val asks = tool.kind != AssistantToolKind.Read &&
-                page.current.settings?.askBeforeChanges != false && !chats.allowsAll(turn.workspace, turn.session)
+                page.current.settings.askBeforeChanges && !chats.allowsAll(turn.workspace, turn.session)
             if (asks) {
                 val call = synchronized(lock) { calling } ?: throw AssistantToolException("Nothing to ask about")
                 when (ask(call, tool.detail(arguments))) {
@@ -253,5 +262,6 @@ internal class AssistantTurns(
         const val THINKING = "Thinking…"
         const val WAITING = "Waiting for your answer"
         const val COMPACTING = "Compacting the chat…"
+        const val NOT_SET_UP = "Set up the assistant first: add a provider and choose a model"
     }
 }

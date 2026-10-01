@@ -4,6 +4,7 @@ import dev.icode.mobile.data.assistant.tools.bounded
 import dev.icode.mobile.data.io.Sha256
 import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.domain.AssistantAttachment
+import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantResult
@@ -42,7 +43,7 @@ internal class AssistantChatStore(private val folder: File) {
         return runCatching {
             val json = JSONObject(file.readText())
             AssistantChat(
-                messages = AssistantRules.closed(json.getJSONArray("messages").objects().map(::decode)),
+                messages = AssistantRules.closed(json.getJSONArray("messages").objects().map { decode(workspace, it) }),
                 contextTokens = json.optLong("contextTokens", -1).takeIf { it >= 0 },
             )
         }.onFailure { warn("read a chat", it) }.getOrDefault(AssistantChat())
@@ -54,12 +55,24 @@ internal class AssistantChatStore(private val folder: File) {
      */
     fun save(workspace: String, session: String, chat: AssistantChat, now: Long) {
         migrate(workspace)
-        keep(workspace, session, chat, now)
+        persist(workspace, session, chat, now)
+    }
+
+    /**
+     * Keeps [bytes] — an image or a PDF sent with a message — in [session]'s folder, named by its
+     * content, and returns where. They go with the chat: deleted with it, moved with its workspace.
+     */
+    fun keep(workspace: String, session: String, bytes: ByteArray, extension: String): String {
+        val folder = filesOf(workspace, session).apply { mkdirs() }
+        val file = File(folder, Sha256.hex(bytes).take(NAME_LENGTH) + "." + extension)
+        if (!file.isFile) write(file, bytes)
+        return file.path
     }
 
     fun delete(workspace: String, session: String) {
         migrate(workspace)
         chatFile(workspace, session).delete()
+        filesOf(workspace, session).deleteRecursively()
         writeIndex(workspace, listed(workspace).filter { it.id != session })
     }
 
@@ -83,24 +96,27 @@ internal class AssistantChatStore(private val folder: File) {
     private fun migrate(workspace: String) {
         val legacy = legacyFile(workspace).takeIf { it.isFile } ?: return
         runCatching {
-            val messages = JSONObject(legacy.readText()).getJSONArray("messages").objects().map(::decode)
-            if (messages.isNotEmpty()) keep(workspace, UUID.randomUUID().toString(), AssistantChat(messages), legacy.lastModified())
+            val messages = JSONObject(legacy.readText()).getJSONArray("messages").objects().map { decode(workspace, it) }
+            if (messages.isNotEmpty()) persist(workspace, UUID.randomUUID().toString(), AssistantChat(messages), legacy.lastModified())
         }.onFailure { warn("read a chat", it) }
         legacy.delete()
     }
 
-    private fun keep(workspace: String, session: String, chat: AssistantChat, now: Long) {
+    /** What a chat is named by: its first message's text, or the files it sent alone. */
+    private fun titled(first: AssistantMessage.User): String = first.text.ifBlank { first.attachments.joinToString(", ") { it.name } }
+
+    private fun persist(workspace: String, session: String, chat: AssistantChat, now: Long) {
         val kept = chat.messages.takeLast(MAX_MESSAGES).dropWhile { it !is AssistantMessage.User }
         val others = listed(workspace)
         val title = others.firstOrNull { it.id == session }?.title
-            ?: AssistantRules.sessionTitle(chat.messages.firstNotNullOfOrNull { it as? AssistantMessage.User }?.text.orEmpty())
+            ?: AssistantRules.sessionTitle(chat.messages.firstNotNullOfOrNull { it as? AssistantMessage.User }?.let(::titled).orEmpty())
         val entry = AssistantSession(session, title, now)
         val json = JSONObject()
             .put("id", entry.id)
             .put("title", entry.title)
             .put("updatedAt", entry.updatedAt)
             .put("workspace", workspace)
-            .put("messages", JSONArray().apply { kept.forEach { put(encode(it)) } })
+            .put("messages", JSONArray().apply { kept.forEach { put(encode(workspace, it)) } })
         chat.contextTokens?.let { json.put("contextTokens", it) }
         write(chatFile(workspace, session), json.toString())
         writeIndex(workspace, listOf(entry) + others.filter { it.id != session })
@@ -132,12 +148,14 @@ internal class AssistantChatStore(private val folder: File) {
         write(File(folderOf(workspace), INDEX), json.toString())
     }
 
-    private fun write(target: File, text: String) {
+    private fun write(target: File, text: String) = write(target, text.toByteArray(Charsets.UTF_8))
+
+    private fun write(target: File, bytes: ByteArray) {
         target.parentFile?.mkdirs()
         val temporary = File.createTempFile(".chat-", ".tmp", target.parentFile)
         try {
             FileOutputStream(temporary).use { output ->
-                output.write(text.toByteArray(Charsets.UTF_8))
+                output.write(bytes)
                 output.fd.sync()
             }
             Files.move(temporary.toPath(), target.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
@@ -149,6 +167,12 @@ internal class AssistantChatStore(private val folder: File) {
     private fun folderOf(workspace: String) = File(folder, Sha256.hex(workspace))
     private fun legacyFile(workspace: String) = File(folder, Sha256.hex(workspace) + ".json")
 
+    /** Where [session]'s images and PDFs are kept. */
+    private fun filesOf(workspace: String, session: String): File {
+        require(SESSION_ID.matches(session)) { "Not a chat ID" }
+        return File(folderOf(workspace), "$session.files")
+    }
+
     /** A session's file; its ID is iCode's own (a UUID), never a path. */
     private fun chatFile(workspace: String, session: String): File {
         require(SESSION_ID.matches(session)) { "Not a chat ID" }
@@ -157,10 +181,20 @@ internal class AssistantChatStore(private val folder: File) {
 
     private fun session(json: JSONObject) = AssistantSession(json.getString("id"), json.getString("title"), json.getLong("updatedAt"))
 
-    private fun encode(message: AssistantMessage): JSONObject = when (message) {
+    private fun encode(workspace: String, message: AssistantMessage): JSONObject = when (message) {
         is AssistantMessage.User -> JSONObject().put("role", "user").put("text", message.text).put(
             "attachments",
-            JSONArray().apply { message.attachments.forEach { put(JSONObject().put("path", it.path).put("content", it.content)) } },
+            JSONArray().apply {
+                message.attachments.forEach { attachment ->
+                    put(
+                        JSONObject().put("name", attachment.name).put("kind", attachment.kind.name).put("mimeType", attachment.mimeType).apply {
+                            if (attachment.kind == AssistantAttachmentKind.Text) put("text", attachment.text)
+                            // Kept by its place in the workspace's folder, which a rename moves whole.
+                            attachment.file?.let { put("file", File(it).relativeTo(folderOf(workspace)).path) }
+                        },
+                    )
+                }
+            },
         )
         is AssistantMessage.Reply -> JSONObject().put("role", "reply").put("text", message.text).put(
             "calls",
@@ -187,11 +221,8 @@ internal class AssistantChatStore(private val folder: File) {
         is AssistantMessage.Compacted -> JSONObject().put("role", "compacted").put("summary", message.summary)
     }
 
-    private fun decode(json: JSONObject): AssistantMessage = when (val role = json.getString("role")) {
-        "user" -> AssistantMessage.User(
-            json.getString("text"),
-            json.optJSONArray("attachments")?.objects().orEmpty().map { AssistantAttachment(it.getString("path"), it.getString("content")) },
-        )
+    private fun decode(workspace: String, json: JSONObject): AssistantMessage = when (val role = json.getString("role")) {
+        "user" -> AssistantMessage.User(json.getString("text"), json.optJSONArray("attachments")?.objects().orEmpty().map { attachment(workspace, it) })
         "reply" -> AssistantMessage.Reply(
             json.getString("text"),
             json.getJSONArray("calls").objects().map { call ->
@@ -213,6 +244,18 @@ internal class AssistantChatStore(private val folder: File) {
         else -> throw IllegalArgumentException("Unknown role $role")
     }
 
+    /** An attachment as kept; round 2's were a workspace file's path and text. */
+    private fun attachment(workspace: String, json: JSONObject): AssistantAttachment {
+        if (!json.has("kind")) return AssistantAttachment(json.getString("path"), text = json.getString("content"))
+        return AssistantAttachment(
+            name = json.getString("name"),
+            kind = AssistantAttachmentKind.valueOf(json.getString("kind")),
+            text = json.optString("text"),
+            file = json.optString("file").ifEmpty { null }?.let { File(folderOf(workspace), it).path },
+            mimeType = json.optString("mimeType", "text/plain"),
+        )
+    }
+
     private fun JSONArray.objects(): List<JSONObject> = (0 until length()).map { getJSONObject(it) }
 
     /** Its type only: a parser's message can quote the chat, and a chat never reaches the log. */
@@ -223,6 +266,7 @@ internal class AssistantChatStore(private val folder: File) {
         const val INDEX = "index.json"
         const val MAX_MESSAGES = 400
         const val MAX_OUTPUT = 16_000
+        const val NAME_LENGTH = 24
         val SESSION_ID = Regex("^[A-Za-z0-9-]{1,64}$")
     }
 }

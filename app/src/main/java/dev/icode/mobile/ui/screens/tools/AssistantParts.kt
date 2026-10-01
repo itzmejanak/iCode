@@ -1,6 +1,11 @@
 package dev.icode.mobile.ui.screens.tools
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.os.Build
+import android.widget.Toast
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,9 +17,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
-import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Compress
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.ExpandLess
@@ -24,6 +29,7 @@ import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,8 +37,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import dev.icode.mobile.designsystem.CodeSurface
 import dev.icode.mobile.designsystem.Divider
@@ -40,6 +50,7 @@ import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeBrandMark
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodeShapes
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTone
@@ -52,32 +63,31 @@ import dev.icode.mobile.designsystem.ThreeColumnActions
 import dev.icode.mobile.designsystem.scaledBy
 import dev.icode.mobile.domain.AssistantAnswer
 import dev.icode.mobile.domain.AssistantApproval
+import dev.icode.mobile.domain.AssistantAttachment
+import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantEntry
 import dev.icode.mobile.domain.AssistantStepStatus
 import dev.icode.mobile.domain.AssistantToolKind
 import dev.icode.mobile.ui.editor.MarkdownText
 
-/** One row of the chat — what the user wrote, an answer, a step, a compaction — at the pinched size. */
+/**
+ * One row of the chat — what the user wrote, an answer, a step, a compaction — at the pinched size.
+ * An answer that ends its turn ([copyable]) can be copied.
+ */
 @Composable
-internal fun AssistantEntryRow(entry: AssistantEntry) {
+internal fun AssistantEntryRow(entry: AssistantEntry, copyable: Boolean) {
     val scale = LocalCodeTextScale.current
     when (entry) {
         is AssistantEntry.Said -> Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
             IcodeCard(Modifier.fillMaxWidth(SAID_WIDTH), elevated = true) {
-                Text(entry.text, style = IcodeType.Body.scaledBy(scale))
-                entry.attachments.forEach { path ->
-                    Row(
-                        Modifier.padding(top = IcodeSpacing.Space1),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
-                    ) {
-                        Icon(Icons.Outlined.AttachFile, contentDescription = "Attached", tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconSm))
-                        Text(path, style = IcodeType.MonoSmall.scaledBy(scale), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                }
+                SaidFiles(entry.attachments)
+                if (entry.text.isNotBlank()) Text(entry.text, style = IcodeType.Body.scaledBy(scale))
             }
         }
-        is AssistantEntry.Answer -> MarkdownText(entry.text, IcodeType.Body.fontSize.value * scale)
+        is AssistantEntry.Answer -> Column {
+            MarkdownText(entry.text, IcodeType.Body.fontSize.value * scale)
+            if (copyable) CopyAnswer(entry.text)
+        }
         is AssistantEntry.Step -> AssistantStepRow(entry)
         is AssistantEntry.Compacted -> Disclosure(
             key = entry.key,
@@ -87,6 +97,50 @@ internal fun AssistantEntryRow(entry: AssistantEntry) {
             detail = entry.summary,
             divided = true,
         )
+    }
+}
+
+/** What went with a message: its photos drawn small, its other files by name and kind. */
+@Composable
+private fun SaidFiles(files: List<AssistantAttachment>) {
+    val scale = LocalCodeTextScale.current
+    val photos = files.filter { it.kind == AssistantAttachmentKind.Image }.mapNotNull { photo -> photo.file?.let { photo.name to it } }
+    if (photos.isNotEmpty()) {
+        Row(
+            Modifier.horizontalScroll(rememberScrollState()).padding(bottom = IcodeSpacing.Space2),
+            horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
+        ) {
+            photos.forEach { (name, file) ->
+                AssistantThumbnail(file, AssistantAttachmentKind.Image, Modifier.size(IcodeSizes.Tile).semantics { contentDescription = name })
+            }
+        }
+    }
+    files.filter { it.kind != AssistantAttachmentKind.Image || it.file == null }.forEach { file ->
+        Row(
+            Modifier.padding(bottom = IcodeSpacing.Space1),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
+        ) {
+            Icon(file.kind.icon, contentDescription = null, tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconSm))
+            Text(file.name, style = IcodeType.MonoSmall.scaledBy(scale), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+/** Copy, under an answer: its Markdown as written. Android 13 and later show the copy themselves. */
+@Composable
+private fun CopyAnswer(text: String) {
+    val context = LocalContext.current
+    Row(
+        Modifier.minimumInteractiveComponentSize().clip(IcodeShapes.Small).clickable(onClickLabel = "Copy the answer") {
+            context.getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText("Answer", text))
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) Toast.makeText(context, "Answer copied", Toast.LENGTH_SHORT).show()
+        }.padding(horizontal = IcodeSpacing.Space1),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
+    ) {
+        Icon(Icons.Outlined.ContentCopy, contentDescription = null, tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconSm))
+        Text("Copy", style = IcodeType.Caption.copy(color = IcodeColors.TextMuted))
     }
 }
 

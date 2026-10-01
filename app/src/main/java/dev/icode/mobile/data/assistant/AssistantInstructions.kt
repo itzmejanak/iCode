@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.assistant
 
 import dev.icode.mobile.data.assistant.tools.AssistantWorkspace
+import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantMode
 import java.io.File
@@ -52,20 +53,32 @@ internal object AssistantInstructions {
         }
     }
 
-    /** [message] as the model reads it: the files the user attached, then what they wrote. */
+    /**
+     * [message]'s text as the model reads it: the text files the user attached, then what they
+     * wrote, then the names of the images and PDFs that go with it as attachments of their own.
+     */
     fun message(message: AssistantMessage.User): String {
-        if (message.attachments.isEmpty()) return message.text
+        val texts = message.attachments.filter { it.kind == AssistantAttachmentKind.Text }
+        val others = message.attachments.filter { it.kind != AssistantAttachmentKind.Text }
+        if (texts.isEmpty() && others.isEmpty()) return message.text
         return buildString {
-            appendLine("Files the user attached, as they were when sent:")
-            message.attachments.forEach { file ->
+            if (texts.isNotEmpty()) {
+                appendLine("Files the user attached, as they were when sent:")
+                texts.forEach { file ->
+                    appendLine()
+                    appendLine("<file path=\"${file.name}\">")
+                    appendLine(file.text.trimEnd())
+                    appendLine("</file>")
+                }
                 appendLine()
-                appendLine("<file path=\"${file.path}\">")
-                appendLine(file.content.trimEnd())
-                appendLine("</file>")
             }
-            appendLine()
             append(message.text)
-        }
+            if (others.isNotEmpty()) {
+                appendLine()
+                appendLine()
+                append("Also attached: " + others.joinToString(", ") { "${it.name} (${if (it.kind == AssistantAttachmentKind.Image) "image" else "PDF"})" })
+            }
+        }.trim()
     }
 
     /** AGENTS.md at the workspace's top — the convention agents read — up to [MAX_NOTES] characters. */
