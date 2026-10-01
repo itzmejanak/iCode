@@ -28,7 +28,7 @@ internal class AssistantCoordinator(
     private val providers: AssistantProviderStore,
     private val chats: AssistantChats,
     /** The tools a turn may use, made for the workspace it works in ([AssistantToolbox.forWorkspace]). */
-    tools: (AssistantWorkspace) -> List<AssistantTool>,
+    tools: (AssistantWorkspace, chat: String) -> List<AssistantTool>,
     /** The open workspace's location; null on the home screen. */
     private val activeRoot: () -> String?,
     /** A workspace by its location: its name and runtime path. Throws when it is gone. */

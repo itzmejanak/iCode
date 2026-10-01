@@ -25,7 +25,7 @@ internal class LanguageServiceProcessManager(
     fun isActive(id: String): Boolean = synchronized(sessions) { sessions.containsKey(id) }
     fun hasActiveProcesses(): Boolean = synchronized(sessions) { sessions.isNotEmpty() }
 
-    fun start(config: LanguageServiceConfiguration, workspace: String): String? {
+    fun start(config: LanguageServiceConfiguration, workspace: String, environment: Map<String, String>): String? {
         if (!layout.isInstalled) return "Install the Linux runtime first"
         val folder = File(workspace)
         if (!folder.isDirectory) return "Open an available workspace first"
@@ -45,7 +45,7 @@ internal class LanguageServiceProcessManager(
                     guestCommand = listOf("/usr/bin/env") + arguments,
                     guestWorkingDirectory = guestFolder,
                 ),
-                environment = layout.prootEnvironment(),
+                environment = layout.prootEnvironment(environment),
                 workingDirectory = layout.runtimeRoot.absolutePath,
             )
         } catch (error: Exception) {

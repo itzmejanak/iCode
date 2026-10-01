@@ -40,7 +40,7 @@ internal fun ArrivalEffect(arrival: Arrival?, navigation: NavigationState, pastO
                 BackgroundPlace.Sync -> show(Route.PullFetchProgress)
                 BackgroundPlace.Runtime -> show(Route.RuntimeInstalling)
                 BackgroundPlace.Components -> show(Route.RuntimeComponents)
-                BackgroundPlace.Assistant -> show(Route.Assistant)
+                BackgroundPlace.Assistant, BackgroundPlace.Processes -> show(Route.Assistant)
             }
         }
         onArrived()

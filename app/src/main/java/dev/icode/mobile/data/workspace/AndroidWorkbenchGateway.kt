@@ -16,9 +16,9 @@ import dev.icode.mobile.data.git.GitTransferLedger
 import dev.icode.mobile.data.git.GitWorkspaceCoordinator
 import dev.icode.mobile.data.language.LanguageServiceCoordinator
 import dev.icode.mobile.data.notices.NoticeStore
-import dev.icode.mobile.data.runtime.GuestCommand
 import dev.icode.mobile.data.runtime.RuntimeComponentsCoordinator
 import dev.icode.mobile.data.runtime.RuntimeCoordinator
+import dev.icode.mobile.data.runtime.RuntimeExecution
 import dev.icode.mobile.data.runtime.RuntimeForegroundService
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.runtime.RuntimePackageInstaller
@@ -57,6 +57,7 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
     private val store: WorkspaceStore = SharedPreferencesWorkspaceStore(appContext)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val runtimeLayout = RuntimeLayout(appContext)
+    private val execution = RuntimeExecution(runtimeLayout, scope) { list -> workbench.update { it.copy(processes = list) } }
     private val source = WorkspaceFileSource(runtimeLayout.workspaces)
     private val settings = AndroidWorkspacePreferencesRepository(appContext)
     /** The runtime's components, one apt run at a time: Git, the SSH client and search install through it. */
@@ -74,18 +75,17 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
         workspaceChanged = { session.requestRefresh(rebuildIndex = true) },
     )
     private val notices = NoticeStore.get(appContext)
-    private val languages: LanguageServiceCoordinator = LanguageServiceCoordinator(appContext, workbench, scope, runtimeLayout, activeRoot = { session.activeRoot })
+    /** Something runs in the runtime that rebuilding it, or clearing the cache PRoot works in, would break. */
+    private val runtimeBusy = { terminals.hasRunningSessions() || languages.hasActiveProcesses() || execution.processes.anyRunning() }
+    private val languages: LanguageServiceCoordinator = LanguageServiceCoordinator(appContext, workbench, scope, runtimeLayout, { session.activeRoot }) { execution.environment.current().variables }
     private val runtime: RuntimeCoordinator = RuntimeCoordinator(
         appContext, workbench, scope, runtimeLayout, AndroidSystemAccess(appContext),
-        sessionsRunning = { terminals.hasRunningSessions() || languages.hasActiveProcesses() },
+        sessionsRunning = runtimeBusy,
     )
     private val library: WorkspaceLibraryCoordinator = WorkspaceLibraryCoordinator(
         appContext, workbench, scope, source, store, runtimeLayout,
         branchOf = git::branchOf,
-        tasksRunning = {
-            terminals.hasRunningSessions() || languages.hasActiveProcesses() || runtime.installing ||
-                workbench.current.gitOperation is GitOperationState.Running
-        },
+        tasksRunning = { runtimeBusy() || runtime.installing || workbench.current.gitOperation is GitOperationState.Running },
     )
     private val tree = WorkspaceTree(workbench, source)
     private val gitWorkspace: GitWorkspaceCoordinator = GitWorkspaceCoordinator(
@@ -150,11 +150,11 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
         workbench, scope, source, tree, library, documents, recovery, gitWorkspace, search, terminal, languages,
     )
     /** What may change now, asked the same way by the lifecycle and the Explorer's items. */
-    private val usage = WorkspaceUsage(workbench, tasks, terminal::runsIn, documents::blockingEdits) { session.activeRoot }
+    private val usage = WorkspaceUsage(workbench, tasks, terminal::runsIn, execution.processes::runsIn, documents::blockingEdits) { session.activeRoot }
     private val lifecycle = WorkspaceLifecycleCoordinator(
         workbench, tasks, source, library, session, usage, documents::open,
-        moveSettings = { from, to -> settings.moveWorkspace(from, to).also { assistant.workspaceMoved(from, to) } },
-        forgetSettings = { location -> settings.forgetWorkspace(location).also { assistant.workspaceForgotten(location) } },
+        moveSettings = { from, to -> settings.moveWorkspace(from, to).also { assistant.workspaceMoved(from, to); execution.processes.workspaceMoved(from, to) } },
+        forgetSettings = { location -> settings.forgetWorkspace(location).also { assistant.workspaceForgotten(location); execution.processes.workspaceForgotten(location) } },
     )
     private val items = WorkspaceItemsCoordinator(
         workbench, tasks, source, tree, documents, library, usage, lifecycle,
@@ -172,9 +172,7 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
     /** iCode's assistant (docs/assistant-koog-plan.md): its turns are its own jobs, its tools iCode's owners. */
     private val assistant = AssistantCoordinator.create(
         appContext, workbench, scope,
-        AssistantToolbox(source, ripgrep, gitCli, GuestCommand(runtimeLayout), runtimeLayout::isInstalled, { documents.blockingEdits(it) != null }) {
-            session.requestRefresh(rebuildIndex = true)
-        },
+        AssistantToolbox(source, ripgrep, gitCli, execution, runtimeLayout::isInstalled, { documents.blockingEdits(it) != null }) { session.requestRefresh(rebuildIndex = true) },
         activeRoot = { session.activeRoot },
         source = source,
     )
@@ -240,6 +238,7 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
             // A transfer is its own job: nothing waits behind a slow remote.
             is WorkbenchIntent.TransferIntent -> gitTransfers.handle(intent)
             is WorkbenchIntent.AssistantIntent -> assistant.handle(intent)
+            is WorkbenchIntent.ProcessIntent -> execution.processes.handle(intent)
             else -> scope.launch {
                 workbench.mutations.withLock {
                     when (intent) {

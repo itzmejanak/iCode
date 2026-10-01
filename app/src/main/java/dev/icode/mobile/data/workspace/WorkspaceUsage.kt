@@ -16,6 +16,7 @@ internal class WorkspaceUsage(
     private val workbench: WorkbenchStateHolder,
     private val tasks: TaskRunner,
     private val terminalRunsIn: suspend (location: String) -> Boolean,
+    private val processesRunIn: (location: String) -> Boolean,
     private val blockingEdits: (location: String) -> OpenDocument?,
     private val activeRoot: () -> String?,
 ) {
@@ -23,6 +24,7 @@ internal class WorkspaceUsage(
     suspend fun holding(location: String, whole: Boolean): String? {
         val name = File(location).name
         if (whole && terminalRunsIn(location)) return "A terminal session is running in $name. End it first"
+        if (whole && processesRunIn(location)) return "A process is running in $name. Stop it first"
         tasks.waitReason(location)?.let { return it }
         val state = workbench.current
         if (whole && state.gitOperation is GitOperationState.Running && activeRoot() == location) {

@@ -29,11 +29,13 @@ class WorkspaceUsageTest {
     private val tasks = TaskRunner(workbench, scope)
     private val app = "/w/app"
     private var terminals = setOf<String>()
+    private var processes = setOf<String>()
     private var unsaved: String? = null
     private val usage = WorkspaceUsage(
         workbench,
         tasks,
         terminalRunsIn = { it in terminals },
+        processesRunIn = { it in processes },
         blockingEdits = { location -> unsaved?.takeIf { it.isAtOrUnder(location) }?.let { document(it) } },
         activeRoot = { app },
     )
@@ -62,11 +64,15 @@ class WorkspaceUsageTest {
         assertNull(usage.holding("$app/src", whole = false))
     }
 
-    @Test fun `a terminal and Git hold a whole workspace, not an item in it`() = runBlocking {
+    @Test fun `a terminal, a process and Git hold a whole workspace, not an item in it`() = runBlocking {
         terminals = setOf(app)
         assertEquals("A terminal session is running in app. End it first", usage.holding(app, whole = true))
         assertNull(usage.holding("$app/src", whole = false))
         terminals = emptySet()
+        processes = setOf(app)
+        assertEquals("A process is running in app. Stop it first", usage.holding(app, whole = true))
+        assertNull(usage.holding("$app/src", whole = false))
+        processes = emptySet()
         workbench.update { it.copy(gitOperation = GitOperationState.Running(GitTransferLabel.PULLING)) }
         assertEquals("Git is working in app — wait for it to finish", usage.holding(app, whole = true))
         assertNull(usage.holding("$app/src", whole = false))

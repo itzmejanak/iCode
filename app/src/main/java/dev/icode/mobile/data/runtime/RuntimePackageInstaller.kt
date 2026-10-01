@@ -47,7 +47,7 @@ internal class RuntimePackageInstaller(
         runtimeReady = { layout.isInstalled },
         readInstalled = DpkgStatus(layout.rootfs)::installed,
         apt = GuestCommand(layout).let { guest ->
-            { argv, onLine -> guest.stream(null, argv, "apt", mapOf("DEBIAN_FRONTEND" to "noninteractive"), onLine) }
+            { argv, onLine -> guest.stream(null, argv, "apt", mapOf("DEBIAN_FRONTEND" to "noninteractive"), onLine = onLine) }
         },
     )
 

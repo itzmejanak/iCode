@@ -5,13 +5,12 @@ import dev.icode.mobile.data.assistant.AssistantParameterType
 import dev.icode.mobile.data.assistant.AssistantTool
 import dev.icode.mobile.data.assistant.AssistantToolException
 import dev.icode.mobile.data.git.CliGitService
-import dev.icode.mobile.data.runtime.GuestCommand
 import dev.icode.mobile.domain.AssistantToolKind
-import kotlinx.coroutines.withTimeoutOrNull
+import dev.icode.mobile.domain.ProcessRules
 import org.json.JSONObject
 
 // What runs in the Linux runtime for the assistant (§4.3): Git's read-only views without asking,
-// and any command — asked about first — in the workspace, as the terminal would run it.
+// and any command — asked about first — in its workspace (docs/runtime-foundation-plan.md §3.3).
 
 /** `git status` or `git diff`, in the repository that holds the path: read-only, so never asked about. */
 internal class GitReadTool(
@@ -54,18 +53,26 @@ internal class GitReadTool(
     }
 }
 
-/** A shell command in the workspace, as the terminal runs one: asked about first, stopped with the turn. */
+/**
+ * A command in bash in the workspace's runtime (docs/runtime-foundation-plan.md §3.3): asked about
+ * first, stopped with the turn or at its time limit, in the directory its chat's last command
+ * ended in, answered with its exit status in words.
+ */
 internal class RunCommandTool(
     private val workspace: AssistantWorkspace,
-    private val guest: GuestCommand,
+    private val chat: String,
+    private val shell: AssistantShell,
     private val runtimeInstalled: () -> Boolean,
     /** The command may have changed files: the workspace refreshes as after a terminal command. */
     private val changed: () -> Unit,
 ) : AssistantTool {
     override val name = "run_command"
-    override val description = "Runs a shell command (/bin/sh) in the workspace's top folder, in the Ubuntu runtime " +
-        "(ARM64, no root, no systemd; apt via sudo). Nothing is typed into it, and it is stopped after " +
-        "timeout_seconds. Answers its exit code and output."
+    override val description = "Runs a command in bash in the Ubuntu runtime (ARM64, under PRoot: uid 0 without root's powers, " +
+        "no systemd) with the user's login environment, and answers its exit code, the directory it ended in and its output. " +
+        "It starts where the last command ended — the workspace's top at first — so `cd` carries over; `export` and `source` " +
+        "do not, so set what a command needs in that command. Its input is closed. It is stopped after timeout_seconds, with " +
+        "everything it started: run a server, a watcher or anything that must keep running with start_process. It reaches " +
+        "the whole runtime, but only this workspace under /workspace; the file tools stay inside the workspace."
     override val parameters = listOf(
         AssistantParameter("command", "The command line, as typed in a terminal"),
         AssistantParameter(
@@ -85,16 +92,19 @@ internal class RunCommandTool(
         val seconds = arguments.intOr("timeout_seconds", DEFAULT_TIMEOUT).coerceIn(1, MAX_TIMEOUT)
         val output = Output(MAX_CHARACTERS)
         try {
-            val result = withTimeoutOrNull(seconds * 1_000L) {
-                // Nothing is typed into it: a command that reads its input ends instead of waiting.
-                guest.stream(workspace.root.path, listOf("/bin/sh", "-c", "{ $command\n} </dev/null"), "assistant", ENVIRONMENT) { line ->
-                    output.add(line)
-                    true
-                }
-            }
-            val stderr = result?.stderr?.trim().orEmpty()
+            val ran = shell.run(workspace, chat, command, seconds, output::add)
+            val stderr = ran.stderr.trim()
             return buildString {
-                append(if (result == null) "Stopped after $seconds s" else "Exit code ${result.exitCode}")
+                val code = ran.exitCode
+                if (code == null) {
+                    append("Stopped after $seconds s, still running: it ended with everything it started. ")
+                    append("Run a server, a watcher or anything that must keep running with start_process.")
+                } else {
+                    append("Exit code $code (${ProcessRules.exitMeaning(code)})")
+                }
+                append("\nin ").append(ran.directory)
+                ran.notes.forEach { append("\n").append(it) }
+                if (code == 127) append("\nPATH: ").append(ran.path)
                 output.text().takeIf { it.isNotBlank() }?.let { append("\n\n").append(it) }
                 if (stderr.isNotEmpty()) append("\n\nstderr:\n").append(bounded(stderr, MAX_CHARACTERS / 4))
             }
@@ -134,15 +144,5 @@ internal class RunCommandTool(
         const val DEFAULT_TIMEOUT = 120
         const val MAX_TIMEOUT = 600
         const val MAX_CHARACTERS = 32_000
-
-        /** No pager, prompt or colour codes: the output is read, not watched. */
-        val ENVIRONMENT = mapOf(
-            "PAGER" to "cat",
-            "GIT_PAGER" to "cat",
-            "GIT_TERMINAL_PROMPT" to "0",
-            "DEBIAN_FRONTEND" to "noninteractive",
-            "NO_COLOR" to "1",
-            "TERM" to "dumb",
-        )
     }
 }

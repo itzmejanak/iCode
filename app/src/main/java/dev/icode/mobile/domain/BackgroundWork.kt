@@ -23,7 +23,10 @@ sealed interface BackgroundPlace {
     /** The Assistant page: its turn in hand. */
     data object Assistant : BackgroundPlace
 
-    /** As a notification carries it: `task:12`, `clone`, `sync`, `runtime`, `components`, `assistant`. */
+    /** The Assistant page, where a workspace's managed processes are listed. */
+    data object Processes : BackgroundPlace
+
+    /** As a notification carries it: `task:12`, `clone`, `sync`, `runtime`, `components`, `assistant`, `processes`. */
     fun encoded(): String = when (this) {
         is Task -> "$TASK$id"
         Clone -> "clone"
@@ -31,6 +34,7 @@ sealed interface BackgroundPlace {
         Runtime -> "runtime"
         Components -> "components"
         Assistant -> "assistant"
+        Processes -> "processes"
     }
 
     companion object {
@@ -45,6 +49,7 @@ sealed interface BackgroundPlace {
             value == "runtime" -> Runtime
             value == "components" -> Components
             value == "assistant" -> Assistant
+            value == "processes" -> Processes
             else -> null
         }
     }
@@ -80,7 +85,8 @@ data class BackgroundItem(
     /**
      * Stable and small, for what the system keys by number (a notification's id): a task's id below
      * 900 — ids count up in a process, and 900 tasks never run at once — then 900 for the Git
-     * transfer, 901 for the runtime, 902 for the components' apt run, 903 for the assistant's turn.
+     * transfer, 901 for the runtime, 902 for the components' apt run, 903 for the assistant's turn,
+     * 904 for the managed processes.
      */
     val number: Int get() = when (place) {
         is BackgroundPlace.Task -> (place.id % 900).toInt()
@@ -88,6 +94,7 @@ data class BackgroundItem(
         BackgroundPlace.Runtime -> 901
         BackgroundPlace.Components -> 902
         BackgroundPlace.Assistant -> 903
+        BackgroundPlace.Processes -> 904
     }
 
     /** The notification's title: "Deleting… (1207 / 11813)", "Cloning… 45%", or the title alone. */
@@ -101,7 +108,8 @@ data class BackgroundItem(
 object BackgroundWorkRules {
     /**
      * Everything running in [snapshot], and what stopped short: each task, the Git transfer, the
-     * runtime install, the components apt is installing or removing, and the assistant's turn.
+     * runtime install, the components apt is installing or removing, the assistant's turn, and the
+     * managed processes that run.
      */
     fun of(snapshot: WorkbenchSnapshot): List<BackgroundItem> = buildList {
         snapshot.tasks.forEach { add(task(it)) }
@@ -109,6 +117,23 @@ object BackgroundWorkRules {
         runtime(snapshot)?.let(::add)
         snapshot.components.work?.let { add(components(it)) }
         snapshot.assistant.turn?.let { add(assistant(it, snapshot.assistant.approval)) }
+        processes(snapshot.processes.filter { it.running })?.let(::add)
+    }
+
+    /**
+     * What runs beyond the command that started it — a server, a watcher — kept by the foreground
+     * service until it is stopped; Cancel stops them all. They show on the Assistant page.
+     */
+    private fun processes(running: List<ManagedProcess>): BackgroundItem? {
+        if (running.isEmpty()) return null
+        return BackgroundItem(
+            key = "processes",
+            title = if (running.size == 1) "1 process running" else "${running.size} processes running",
+            detail = running.joinToString(" · ") { process -> process.name + process.ports.firstOrNull()?.let { " :$it" }.orEmpty() },
+            cancel = WorkbenchIntent.StopAllProcesses,
+            place = BackgroundPlace.Processes,
+            watched = true,
+        )
     }
 
     /**
