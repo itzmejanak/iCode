@@ -44,7 +44,7 @@ class AssistantChatStoreTest {
             AssistantMessage.Reply("On it.", listOf(call)),
             AssistantMessage.Results(listOf(AssistantResult("call_1", "edit_file", "Edited a.kt", failed = false))),
             AssistantMessage.Compacted("The user renamed x."),
-            AssistantMessage.Reply("Done."),
+            AssistantMessage.Reply("Done.", reasoning = "The rename touched one file."),
         ),
         contextTokens = 12_345,
     )

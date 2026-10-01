@@ -253,6 +253,32 @@ class KoogAssistantEngineTest {
         KoogAssistantEngine { ScriptedClient(listOf(cutCall, done)) }.run(turn(ReadTool()), Recorder())
     }
 
+    @Test fun `a reply's reasoning is kept apart from its answer, and never sent back to the model`() = runBlocking {
+        val recorder = Recorder()
+        val thinking = reply(MessagePart.Reasoning("a.kt defines main."), MessagePart.Text("It starts the app."))
+        KoogAssistantEngine { ScriptedClient(listOf(thinking)) }.run(turn(ReadTool()), recorder)
+        assertEquals(AssistantMessage.Reply("It starts the app.", reasoning = "a.kt defines main."), recorder.events.filterIsInstance<AssistantMessage.Reply>().single())
+
+        // Written into the text by the model itself, as some do.
+        val inline = Recorder()
+        KoogAssistantEngine { ScriptedClient(listOf(reply(MessagePart.Text("<think>\nCheck a.kt first.\n</think>\n\nIt starts the app.")))) }.run(turn(ReadTool()), inline)
+        assertEquals(AssistantMessage.Reply("It starts the app.", reasoning = "Check a.kt first."), inline.events.filterIsInstance<AssistantMessage.Reply>().single())
+
+        // A later turn sends the answer alone.
+        val client = ScriptedClient(listOf(done))
+        val earlier = listOf(AssistantMessage.User("What does a.kt do?"), AssistantMessage.Reply("It starts the app.", reasoning = "a.kt defines main."))
+        KoogAssistantEngine { client }.run(turn(ReadTool(), earlier), Recorder())
+        val sent = client.prompts.single().messages
+        assertTrue(sent.none { message -> message.parts.any { it is MessagePart.Reasoning } || "a.kt defines main." in message.textContent() })
+        assertEquals("It starts the app.", sent[2].textContent())
+    }
+
+    @Test fun `a think block is reasoning, an unclosed one all of it, and text without one is left alone`() {
+        assertEquals("plan" to "answer", KoogHistory.thinking("<think>plan</think>answer"))
+        assertEquals("plan, cut" to "", KoogHistory.thinking("<think>plan, cut"))
+        assertEquals("" to "No <think> here", KoogHistory.thinking("No <think> here"))
+    }
+
     @Test fun `each provider's word for the output limit is recognized, and no other reason`() {
         fun ended(reason: String?) = KoogHistory.cutShort(Message.Assistant(listOf(MessagePart.Text("x")), ResponseMetaInfo.Empty, finishReason = reason))
         assertTrue(ended("length") && ended("max_tokens") && ended("MAX_TOKENS"))

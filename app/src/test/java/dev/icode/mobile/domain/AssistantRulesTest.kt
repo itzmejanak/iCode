@@ -96,6 +96,17 @@ class AssistantRulesTest {
         assertNull(AssistantRules.contextShare(100, null))
     }
 
+    @Test fun `a reply's reasoning comes before its answer and its steps, and only where there is some`() {
+        val thought = AssistantMessage.Reply("Looking.", listOf(call("1")), reasoning = "The build fails in a.kt.")
+        val entries = AssistantRules.entries(AssistantState(messages = AssistantRules.closed(listOf(asked, thought))))
+        assertEquals(
+            listOf(AssistantEntry.Said::class, AssistantEntry.Reasoning::class, AssistantEntry.Answer::class, AssistantEntry.Step::class),
+            entries.map { it::class },
+        )
+        assertEquals("The build fails in a.kt.", (entries[1] as AssistantEntry.Reasoning).text)
+        assertTrue(AssistantRules.entries(AssistantState(messages = listOf(asked, AssistantMessage.Reply("Done.")))).none { it is AssistantEntry.Reasoning })
+    }
+
     @Test fun `the meter always says something, from the first message on`() {
         assertEquals("84k / 200k", AssistantRules.contextLabel(84_000, 200_000))
         assertEquals("0 / 200k", AssistantRules.contextLabel(null, 200_000))
