@@ -227,6 +227,37 @@ only an order to take them in: measure first (§6), then D1 and D2, then the res
 | D5 | Which diagnostic tools belong to the runtime? | Image, a component, or the user's own apt. Only after P2 says whether they can work at all |
 | D6 | What does "preview" mean? | Discovery (from the processes iCode started, or a probe of a port), then the external browser, an in-app view, or both |
 
+### 5.1 Decided (owner, 2026-10-01)
+
+- **D1 — one process service, shared by everyone.** A long-running development server is a
+  first-class runtime thing: not a terminal tab, not a one-shot command, not a language server.
+  Architecture §10.5's single process API is built — stable IDs, lifecycle events, a stop API —
+  and it is the one place that records processes and applies one set of lifetime rules. Its
+  consumers:
+  - terminal tabs, with a PTY, hung up when the tab closes;
+  - the assistant's tools, which start a process, read its output, write to it and stop it, all
+    by ID, without attaching to a shell;
+  - the language-server manager, folded in.
+
+  The agent asks the service whether a process is still running, rather than guessing from `ps`.
+- **D2 — the terminal's login shell, plus a per-workspace environment file.**
+  - The terminal is the source of truth for shell state: its directory, its exported variables,
+    its activated virtual environment. Assistant commands and language servers start from a
+    snapshot of it, not from a fresh, unrelated `/bin/sh`.
+  - What must be deterministic and reproducible (`TESTING=yes`, a token, `PYTHONPATH`) goes in a
+    per-workspace environment file (`.icode/workspace.env` or similar), written by the user and
+    never by the agent, and layered on top of the snapshot. It is the project's configuration,
+    not the runtime's.
+  - The intended effect: a `cd` or an activation in the terminal is visible to the next command,
+    and the agent cannot `export` itself into a state the user cannot see.
+  - Open points, for the plan: which terminal, when a workspace has several tabs or none; how
+    the state is captured; whether the agent's own `cd` lasts between its commands; which
+    variables reach the agent.
+- **D3 — reading output and writing to stdin, by process ID; no attaching to a shell.** The
+  owner described tiers, a tier per tool, with "start, get back a process ID" as the default.
+  The rest of the message did not arrive.
+- **D4 — not yet received.** D5 and D6 follow from D1 and the measurements.
+
 ## 6. Measurements to take on a phone
 
 These need a device: this environment cannot run iCode. Each says what the result decides.
@@ -253,4 +284,4 @@ Taken by the owner on a phone, through the assistant.
 | P5 | Not measurable without a device running iCode with many processes, and `adb` | — | Still open; it bears on D1 |
 | P6 | Not run | — | — |
 
-The decisions in §5 are still open.
+The decisions taken so far are in §5.1.
