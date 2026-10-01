@@ -1,20 +1,15 @@
 package dev.icode.mobile.ui
 
-import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.key
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.SaveableStateHolder
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
-import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodeSheetOverlay
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.navigation.Route
 
@@ -40,16 +35,9 @@ internal fun NavigationHost(navigation: NavigationState, screen: @Composable (Ro
             }
         }
         if (top.sheet) {
-            Box(
-                Modifier.fillMaxSize().background(IcodeColors.SheetScrim).clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = navigation.actions.back,
-                ),
-            )
-            key(keys.last()) { Entry(kept, keys.last(), navigation) { screen(top) } }
-            // Composed last, so Back closes the sheet before any handler of the screen below.
-            BackHandler { navigation.actions.back() }
+            IcodeSheetOverlay(onClose = navigation.actions.back) {
+                key(keys.last()) { Entry(kept, keys.last(), navigation) { screen(top) } }
+            }
         }
     }
 }

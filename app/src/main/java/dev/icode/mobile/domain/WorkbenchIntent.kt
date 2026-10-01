@@ -229,25 +229,41 @@ sealed interface WorkbenchIntent {
 
     /** The assistant (docs/assistant-koog-plan.md): its turns are their own job, never behind the mutation lock. */
     sealed interface AssistantIntent : WorkbenchIntent
-    /** The Assistant page opened, or the workspace under it changed: that workspace's chat is shown. */
+    /** The Assistant page opened, or the workspace under it changed: that workspace's chats are shown. */
     data object OpenAssistant : AssistantIntent
-    data class SendAssistantMessage(val text: String) : AssistantIntent
-    /** Stops the turn in hand: the stream, and a running command with everything it started. */
+    /** One of the shown workspace's chats, from its history. */
+    data class OpenAssistantSession(val id: String) : AssistantIntent
+    data class DeleteAssistantSession(val id: String) : AssistantIntent
+    /** A new, empty chat; it is kept once something is said in it. */
+    data object NewAssistantChat : AssistantIntent
+    /** [attachments]: locations of the workspace's files sent with the message. */
+    data class SendAssistantMessage(val text: String, val attachments: List<String> = emptyList()) : AssistantIntent
+    /** Stops the turn in hand: the request, and a running command with everything it started. */
     data object StopAssistant : AssistantIntent
     data class AnswerAssistant(val callId: String, val answer: AssistantAnswer) : AssistantIntent
-    /** Clears the shown workspace's chat. */
-    data object NewAssistantChat : AssistantIntent
-    /** [key] null keeps the saved one; [baseUrl] is read only where the provider asks for it. */
+    /** Summarizes the shown chat so later turns send less (§12 R4). */
+    data object CompactAssistantChat : AssistantIntent
+    data class ChooseAssistantModel(val model: String) : AssistantIntent
+    /** Null: the provider's default. */
+    data class ChooseAssistantEffort(val effort: AssistantEffort?) : AssistantIntent
+    data class ChooseAssistantMode(val mode: AssistantMode) : AssistantIntent
+    /** Changes and commands ask first, or run without asking. */
+    data class SetAssistantAskFirst(val ask: Boolean) : AssistantIntent
+    /**
+     * [key] null keeps the saved one; [baseUrl] is read only where the provider asks for it;
+     * [contextWindow] and [maxOutput] as typed ("200k"), blank for what Koog knows.
+     */
     data class SaveAssistantSettings(
         val kind: AssistantProviderKind,
         val baseUrl: String,
         val model: String,
         val key: String?,
-        val askBeforeChanges: Boolean,
+        val contextWindow: String = "",
+        val maxOutput: String = "",
     ) : AssistantIntent {
         /** The key is never written out, should an intent ever be. */
         override fun toString(): String =
-            "SaveAssistantSettings($kind, $baseUrl, $model, key=${if (key == null) "kept" else "***"}, $askBeforeChanges)"
+            "SaveAssistantSettings($kind, $baseUrl, $model, key=${if (key == null) "kept" else "***"}, $contextWindow, $maxOutput)"
     }
     /** Forgets the provider and its key. */
     data object RemoveAssistantSettings : AssistantIntent

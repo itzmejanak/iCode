@@ -153,6 +153,8 @@ dependencies {
     // an OpenAI-compatible server instead.
     implementation("ai.koog:agents-core:$koogVersion")
     implementation("ai.koog:agents-tools:$koogVersion")
+    // The standard agent's events: each reply, tool call and result as it happens (§12 R1).
+    implementation("ai.koog:agents-features-event-handler:$koogVersion")
     implementation("ai.koog:prompt-executor-openai-client:$koogVersion")
     implementation("ai.koog:prompt-executor-anthropic-client:$koogVersion")
     implementation("ai.koog:prompt-executor-google-client:$koogVersion-beta")

@@ -368,16 +368,20 @@ Owner's decision, 2026-10-01 ([assistant-koog-plan.md](./assistant-koog-plan.md)
 | ID | Requirement |
 |---|---|
 | PR-ASSIST-01 | The application shall offer one built-in assistant, off until the user sets a provider; no entry or workspace flow shall ask for one. |
-| PR-ASSIST-02 | The provider form shall accept OpenAI, Anthropic, Google, OpenRouter, Ollama and any OpenAI-compatible server, with a typed model ID; suggestions shall never limit it. |
+| PR-ASSIST-02 | The provider form shall accept OpenAI, Anthropic, Google, OpenRouter, Ollama and any OpenAI-compatible server, with a typed model ID; the catalogue shall never limit it, and a model it does not know shall take its context window and output limit from the user. |
 | PR-ASSIST-03 | API keys shall be encrypted with Android-provided secure storage, never shown again once saved, and never logged. |
 | PR-ASSIST-04 | The assistant shall work only inside the open workspace; no path, link or command argument shall lead its file tools out of it. |
-| PR-ASSIST-05 | Changes to files and commands shall ask first (Allow, Allow All in This Chat, Deny) unless the user turns asking off; reads shall never ask. |
+| PR-ASSIST-05 | Changes to files and commands shall ask first (Allow, Allow All in This Chat, Deny) unless the user chooses otherwise on the chat page; reads shall never ask. |
 | PR-ASSIST-06 | The assistant shall never write a file that has unsaved edits in the editor. |
-| PR-ASSIST-07 | A turn shall stream its reply, show each step and its output, and stop on Stop, keeping what was said and done. |
+| PR-ASSIST-07 | A turn shall show each reply and each step with its output as they come, and stop on Stop, keeping what was said and done. |
 | PR-ASSIST-08 | A turn shall continue in the background with a notification; a question shall pop up while the application is out of view. |
-| PR-ASSIST-09 | Each workspace's chat shall survive process death, follow a rename, and go with a delete. |
+| PR-ASSIST-09 | Each workspace shall keep its chats, listed newest first; each shall survive process death, and all shall follow a rename and go with a delete. |
 | PR-ASSIST-10 | A refused key, an unknown model, no connection and blocked plain `http://` shall each be explained in plain words. |
 | PR-ASSIST-11 | The agent engine shall sit behind an application-owned boundary, replaceable without changing tools, storage or screens. |
+| PR-ASSIST-12 | The chat page shall choose the model, its reasoning effort where the model offers one, the mode (Agent, or Ask: reading only) and the permissions. |
+| PR-ASSIST-13 | Up to five of the workspace's text files shall go with a message, the open tab's text as it is shown. |
+| PR-ASSIST-14 | The chat page shall show how full the model's context is; a chat near its limit shall be compacted to a summary by the model before the next message, and on request; the page shall still show everything. |
+| PR-ASSIST-15 | The chat's text shall scale with a two-finger pinch, as the editor's does. |
 
 ## 11. User Experience Requirements
 

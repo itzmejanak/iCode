@@ -12,8 +12,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
-import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.AttachFile
 import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Compress
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.ExpandLess
@@ -30,19 +31,25 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import dev.icode.mobile.designsystem.CodeSurface
+import dev.icode.mobile.designsystem.Divider
 import dev.icode.mobile.designsystem.EmptyState
+import dev.icode.mobile.designsystem.IcodeBrandMark
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTone
 import dev.icode.mobile.designsystem.IcodeType
+import dev.icode.mobile.designsystem.LocalCodeTextScale
 import dev.icode.mobile.designsystem.NoticeCard
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.ThreeColumnActions
+import dev.icode.mobile.designsystem.scaledBy
 import dev.icode.mobile.domain.AssistantAnswer
 import dev.icode.mobile.domain.AssistantApproval
 import dev.icode.mobile.domain.AssistantEntry
@@ -50,61 +57,104 @@ import dev.icode.mobile.domain.AssistantStepStatus
 import dev.icode.mobile.domain.AssistantToolKind
 import dev.icode.mobile.ui.editor.MarkdownText
 
-/** One row of the chat: what the user wrote, an answer, or a step with what came of it. */
+/** One row of the chat — what the user wrote, an answer, a step, a compaction — at the pinched size. */
 @Composable
 internal fun AssistantEntryRow(entry: AssistantEntry) {
+    val scale = LocalCodeTextScale.current
     when (entry) {
         is AssistantEntry.Said -> Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
             IcodeCard(Modifier.fillMaxWidth(SAID_WIDTH), elevated = true) {
-                Text(entry.text, style = IcodeType.Body)
+                Text(entry.text, style = IcodeType.Body.scaledBy(scale))
+                entry.attachments.forEach { path ->
+                    Row(
+                        Modifier.padding(top = IcodeSpacing.Space1),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
+                    ) {
+                        Icon(Icons.Outlined.AttachFile, contentDescription = "Attached", tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconSm))
+                        Text(path, style = IcodeType.MonoSmall.scaledBy(scale), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
             }
         }
-        is AssistantEntry.Answer -> MarkdownText(entry.text, IcodeType.Body.fontSize.value)
+        is AssistantEntry.Answer -> MarkdownText(entry.text, IcodeType.Body.fontSize.value * scale)
         is AssistantEntry.Step -> AssistantStepRow(entry)
+        is AssistantEntry.Compacted -> Disclosure(
+            key = entry.key,
+            icon = Icons.Outlined.Compress,
+            tint = IcodeColors.TextMuted,
+            label = "Chat compacted — the model goes on from this summary",
+            detail = entry.summary,
+            divided = true,
+        )
     }
 }
 
 /** A step: what it did, how it went, and its output a tap away. */
 @Composable
 private fun AssistantStepRow(step: AssistantEntry.Step) {
-    var open by rememberSaveable(step.key) { mutableStateOf(false) }
-    val output = step.output
+    val (icon, tint) = when (step.status) {
+        AssistantStepStatus.Running -> Icons.Outlined.Sync to IcodeColors.Accent
+        AssistantStepStatus.Queued -> Icons.Outlined.Schedule to IcodeColors.TextMuted
+        AssistantStepStatus.Asking -> Icons.AutoMirrored.Outlined.HelpOutline to IcodeColors.Amber
+        AssistantStepStatus.Done -> Icons.Outlined.Check to IcodeColors.Green
+        AssistantStepStatus.Failed -> Icons.Outlined.ErrorOutline to IcodeColors.Error
+    }
+    Disclosure(
+        key = step.key,
+        icon = icon,
+        tint = tint,
+        label = step.call.summary,
+        detail = step.output?.take(SHOWN_OUTPUT),
+        status = STATUS_WORDS.getValue(step.status),
+        mono = step.call.kind == AssistantToolKind.Command,
+    )
+}
+
+/** A line of the chat with more under it: a step and its output, or a compaction and its summary. */
+@Composable
+private fun Disclosure(
+    key: String,
+    icon: ImageVector,
+    tint: Color,
+    label: String,
+    detail: String?,
+    status: String? = null,
+    mono: Boolean = false,
+    divided: Boolean = false,
+) {
+    val scale = LocalCodeTextScale.current
+    var open by rememberSaveable(key) { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
+        if (divided) Divider()
         Row(
-            Modifier.fillMaxWidth().clickable(enabled = output != null) { open = !open }.padding(vertical = IcodeSpacing.Space1),
+            Modifier.fillMaxWidth().clickable(enabled = detail != null) { open = !open }.padding(vertical = IcodeSpacing.Space1),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
         ) {
-            val (icon, tint, said) = when (step.status) {
-                AssistantStepStatus.Running -> Triple(Icons.Outlined.Sync, IcodeColors.Accent, "Running")
-                AssistantStepStatus.Queued -> Triple(Icons.Outlined.Schedule, IcodeColors.TextMuted, "Next")
-                AssistantStepStatus.Asking -> Triple(Icons.AutoMirrored.Outlined.HelpOutline, IcodeColors.Amber, "Waiting for your answer")
-                AssistantStepStatus.Done -> Triple(Icons.Outlined.Check, IcodeColors.Green, "Done")
-                AssistantStepStatus.Failed -> Triple(Icons.Outlined.ErrorOutline, IcodeColors.Error, "Failed")
-            }
-            Icon(icon, contentDescription = said, tint = tint, modifier = Modifier.size(IcodeSizes.IconSm))
+            Icon(icon, contentDescription = status, tint = tint, modifier = Modifier.size(IcodeSizes.IconSm))
             Text(
-                step.call.summary,
+                label,
                 modifier = Modifier.weight(1f),
-                style = (if (step.call.kind == AssistantToolKind.Command) IcodeType.MonoSmall else IcodeType.Caption)
-                    .copy(color = IcodeColors.TextSecondary),
+                style = (if (mono) IcodeType.MonoSmall else IcodeType.Caption).scaledBy(scale).copy(color = IcodeColors.TextSecondary),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
-            if (output != null) {
+            if (detail != null) {
                 Icon(
                     if (open) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
-                    contentDescription = if (open) "Hide output" else "Show output",
+                    contentDescription = if (open) "Hide" else "Show",
                     tint = IcodeColors.TextMuted,
                     modifier = Modifier.size(IcodeSizes.IconSm),
                 )
             }
         }
-        if (open && output != null) {
+        if (open && detail != null) {
             CodeSurface(Modifier.fillMaxWidth()) {
-                Text(output.take(SHOWN_OUTPUT), style = IcodeType.MonoSmall)
+                Text(detail, style = IcodeType.MonoSmall.scaledBy(scale))
             }
         }
+        if (divided) Divider()
     }
 }
 
@@ -143,7 +193,7 @@ internal fun AssistantSetUp(modifier: Modifier, onSetUp: () -> Unit) {
             description = "It reads and changes this workspace's files and runs commands in its runtime, " +
                 "asking before each change. It needs a model provider: OpenAI, Anthropic, Google, OpenRouter, " +
                 "Ollama, or any OpenAI-compatible server.",
-            icon = Icons.Outlined.AutoAwesome,
+            mark = { IcodeBrandMark(Modifier.size(IcodeSizes.MarkLg)) },
         )
         Text(
             "What it reads — files, search results, command output — is sent to the provider you choose.",
@@ -153,16 +203,13 @@ internal fun AssistantSetUp(modifier: Modifier, onSetUp: () -> Unit) {
     }
 }
 
-/** A chat with nothing in it yet: what to ask. */
-@Composable
-internal fun AssistantIntro(workspaceName: String) {
-    EmptyState(
-        title = "Ask about $workspaceName",
-        description = "“Explain how the app starts”, “Fix the failing test”, “Add a README”. Changes and commands ask first.",
-        icon = Icons.Outlined.AutoAwesome,
-        modifier = Modifier.padding(top = IcodeSpacing.Space6),
-    )
-}
+private val STATUS_WORDS = mapOf(
+    AssistantStepStatus.Running to "Running",
+    AssistantStepStatus.Queued to "Next",
+    AssistantStepStatus.Asking to "Waiting for your answer",
+    AssistantStepStatus.Done to "Done",
+    AssistantStepStatus.Failed to "Failed",
+)
 
 /** A user's message takes most of the width, at the end, as chats show it. */
 private const val SAID_WIDTH = 0.85f
