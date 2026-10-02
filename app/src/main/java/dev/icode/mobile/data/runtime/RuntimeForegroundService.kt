@@ -84,7 +84,8 @@ class RuntimeForegroundService : Service() {
             combine(terminals.snapshot, BackgroundWork.items, terminals.screenVisible) { snapshot, items, _ -> snapshot to items }
                 .conflate()
                 .collect { (snapshot, items) ->
-                    sessions = snapshot.sessions.filter { it.isRunning }
+                    // A process's output tab is no session: its process is the work's own row.
+                    sessions = snapshot.sessions.filter { it.isRunning && it.follows == null }
                     selectedId = snapshot.selectedId
                     work = items
                     if (started) show()
@@ -203,7 +204,7 @@ class RuntimeForegroundService : Service() {
     }
 
     private fun parentNotification(): Notification =
-        shown.parent(sessions.size, work.count { it.running }, selectedId?.takeIf { id -> sessions.any { it.id == id } })
+        shown.parent(sessions.size, work.filter { it.running }.map { it.title }, selectedId?.takeIf { id -> sessions.any { it.id == id } })
 
     private fun startForegroundCompat(notification: Notification) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {

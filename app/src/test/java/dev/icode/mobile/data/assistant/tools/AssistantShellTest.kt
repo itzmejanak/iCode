@@ -4,6 +4,7 @@ import dev.icode.mobile.data.assistant.AssistantToolException
 import dev.icode.mobile.data.runtime.GuestCommand
 import dev.icode.mobile.data.runtime.GuestEnvironment
 import dev.icode.mobile.data.runtime.PosixSignal
+import dev.icode.mobile.data.runtime.ProcessLogs
 import dev.icode.mobile.data.runtime.RuntimeProcesses
 import dev.icode.mobile.data.runtime.SpawnedProcess
 import java.io.ByteArrayOutputStream
@@ -41,7 +42,7 @@ class AssistantShellTest {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val spawned = mutableListOf<FakeProcess>()
-    private val processes = RuntimeProcesses(scope, { FakeProcess().also { spawned += it } }, { }, grace = 200)
+    private val processes by lazy { RuntimeProcesses(scope, { FakeProcess().also { spawned += it } }, { }, ProcessLogs.of(rootfs), grace = 200) }
     private val shell by lazy {
         AssistantShell(
             rootfs,

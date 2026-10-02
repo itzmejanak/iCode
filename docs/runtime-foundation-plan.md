@@ -114,8 +114,8 @@ is bound through a link to it in the runtime's `binds/`, named by the location's
   killing those still running two seconds later (patch 0002); then SIGKILL after 3 s if PRoot is
   still running, which ends it and, through `PTRACE_O_EXITKILL`, everything it runs.
   `write(id, text)` writes to its stdin. An ended process stays listed until forgotten.
-- State reaches the snapshot as `WorkbenchSnapshot.processes`, at most four times a second while
-  output flows.
+- State reaches the snapshot as `WorkbenchSnapshot.processes` when it changes — started, a port
+  found, ended — not its output (§6 P2).
 - `BackgroundWorkRules` adds one item while any run ("2 processes running" · their names), so
   the foreground service keeps them; its Cancel stops them all, and its tap opens the Assistant.
 - `WorkspaceUsage` holds a workspace's rename and delete while a process runs in it ("A process
@@ -148,7 +148,8 @@ workspace, each with:
 - its last output, in mono;
 - Stop while it runs, Remove once it has ended.
 
-The sheet says that Android may end background processes when many run.
+The sheet says that Android may end background processes when many run. *Reworked in §6: the
+sheet lists processes; their output is in the terminal.*
 
 ### 3.8 Streaming for OpenRouter
 
@@ -285,3 +286,50 @@ it sends a limit. On the wire, against a local server: `"max_completion_tokens":
 3. OpenRouter with a reasoning model: the reasoning and the answer appear as written; the
    recorded reply folds its reasoning.
 4. A compatible server with an Output Limit: the limit holds.
+
+## 6. The Processes sheet lists processes; their output is in the terminal (owner, 2026-10-02)
+
+The owner, on the phone: the sheet should show the processes, not their logs; to see what one
+prints, go to the terminal — a clean separation of the two. Found with it: uvicorn's sheet named
+three ports, `8000` and two of its *clients'* (`INFO: 127.0.0.1:50744 - "GET …"`): §3.4's rule took
+every `host:port` in the output.
+
+| Step | What |
+|---|---|
+| P1 | A port is a server's only where its output names it as one: a URL (`http://0.0.0.0:8000`, `ws://…`), or a bare address on a line that says it listens (`Listening on 0.0.0.0:8000`). An access log's client address is neither |
+| P2 | Each process's output, as it came — colours and all — is written to a log in the runtime, `/tmp/icode/processes/<id>.log`, which every terminal sees (§3.2 binds no `/tmp`); past 2 MB it moves to `<id>.log.1` and a new one starts. Deleted when the process leaves the list, and all of them when iCode starts (IDs start again at `p1`). The in-memory output stays: it is what the assistant reads. The snapshot no longer carries output, so it is published when a process's state or ports change, not four times a second while a server logs |
+| P3 | **Output in the terminal**: a tab of its own per process, named after it, whose program is `tail -F` of its log — the last screenfuls (the terminal's scrollback) and everything after, as printed, with the terminal's scrollback, selection and copy. It opens where the process runs, in its workspace (a switch asks as any does). A second open selects the same tab while it follows. Ctrl-C or × closes the view, never the process; its ending is not announced, and it is not a "lost session" should Android end iCode. What a session is looking at (`TerminalAttention`) leaves `TerminalSessionManager` to make room |
+| P4 | **The sheet**: each process one compact row — its state's dot, its name, "Running · 5m"; its command on one line; its ports, each opening the browser; Stop (or Remove, once ended) at its end. A tap on the row is its output in the terminal. This workspace's first, then another's, named by it. No output, no hint paragraph: the limit Android sets is said in one line under the list |
+| P5 | Gate, device: uvicorn's sheet names only `8000`; its row opens a tab that follows its log; Ctrl-C closes it and the server runs on |
+
+### 6.1 Record (2026-10-02)
+
+- P1: `ProcessRules.ports` reads whole lines — a URL anywhere, a bare address only where the line
+  says it listens; `RuntimeProcesses` scans the lines that ended, so an address cut between two
+  reads is found once its line ends. Tests: the phone's uvicorn request log names no port; a URL cut
+  across two reads is found.
+- P2: `ProcessLogs` (`/tmp/icode/processes/<id>.log`, 2 MB, then `.1`); created as the process
+  starts, removed when it leaves the list or its workspace is deleted, all cleared when iCode starts
+  — creating nothing, as the runtime may not be installed. `ManagedProcess.tail` is gone and output
+  alone publishes nothing (a test holds it).
+- P3: `TerminalLaunch.following` — `/usr/bin/tail -n <scrollback> -F <log>` (present in the phone's
+  runtime) — and `TerminalSessions.follow`, which selects the tab already following a process or
+  opens one titled by its name. Such a tab closes quietly on its program's end and is not recorded
+  as a lost session. `TerminalCoordinator.showOutput` opens it, then shows it as a notification's
+  tap does (its workspace, the panel, that tab); `ShowProcessOutput` is the intent.
+  `TerminalAttention` holds what the user is looking at, out of `TerminalSessionManager` (298 lines).
+- P4: `AssistantProcessesSheet` — one compact row per process (dot, name, state; command; ports;
+  Stop or Remove); a tap shows its output and closes the sheet; one line on Android's limit.
+- Gate: 736 tests; lint 0 errors / 18 warnings; both guards pass. Device: P5, below.
+- P4, redrawn (owner: "the list design is not good", then "no transparent design"): the rows are
+  one raised group, divided within, as a settings group — the dot on the name's line, the state at the row's end, the command and the ports from
+  where the name starts, Stop or Remove at the end; a port link starts where the text does.
+- Found on the phone (owner, the notification drawer): each output tab was a "terminal session"
+  row — "fastapi-uvicorn · Tests · running libproot.so", Exit, Acquire wakelock — beside "2
+  processes running", whose bar swept and whose button said Cancel; and iCode was two cards. Now a
+  session's state says what it follows (`TerminalSessionState.follows`), and the foreground service
+  counts only shells: the process is its work's row already. The processes' row has no bar
+  (`BackgroundItem.progresses`) and says Stop All (`cancelLabel`). The work's progress rows join the
+  service's group under its summary — one iCode card — and the summary names the work by its own
+  words ("1 session · 2 processes running"), not "tasks". Failures and questions still pop up alone.
+

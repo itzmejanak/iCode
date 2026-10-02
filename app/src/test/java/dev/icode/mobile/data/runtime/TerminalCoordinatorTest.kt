@@ -2,6 +2,8 @@ package dev.icode.mobile.data.runtime
 
 import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.workspace.WorkbenchStateHolder
+import dev.icode.mobile.domain.ManagedProcess
+import dev.icode.mobile.domain.ManagedProcessState
 import dev.icode.mobile.domain.TerminalSessionState
 import dev.icode.mobile.domain.TerminalSettings
 import dev.icode.mobile.domain.TerminalSnapshot
@@ -47,6 +49,10 @@ class TerminalCoordinatorTest {
 
         override suspend fun open(workspaceHostPath: String?, reuseExisting: Boolean): String? {
             calls += "open $workspaceHostPath reuse=$reuseExisting"
+            return opened
+        }
+        override suspend fun follow(output: FollowedOutput): String? {
+            calls += "follow $output"
             return opened
         }
         override fun select(id: String) { calls += "select $id" }
@@ -126,6 +132,19 @@ class TerminalCoordinatorTest {
 
         assertEquals(listOf("select session-2"), harness.sessions.calls)
         assertEquals(listOf("/storage/emulated/0/other"), harness.opened)
+    }
+
+    @Test fun `a process's output opens in a tab of its own, in the workspace it runs in`() = runBlocking {
+        val harness = Harness()
+        val process = ManagedProcess("p1", "/storage/emulated/0/other", "uvicorn", "uvicorn app:app", "/workspace/other", 0L, ManagedProcessState.Running)
+        harness.sessions.snapshot.value = TerminalSnapshot(listOf(running("session-1")))
+        harness.sessions.workspaces["session-1"] = process.workspace
+
+        harness.coordinator.showOutput(process, "/tmp/icode/processes/p1.log")
+
+        val followed = FollowedOutput("p1", "uvicorn", "/storage/emulated/0/other", "/tmp/icode/processes/p1.log")
+        assertEquals(listOf("follow $followed", "select session-1"), harness.sessions.calls)
+        assertEquals(listOf(process.workspace), harness.opened)
     }
 
     @Test fun `a session with no workspace opens the panel where it is`() = runBlocking {

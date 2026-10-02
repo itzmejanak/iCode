@@ -8,7 +8,6 @@ import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
 import java.io.OutputStream
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -27,13 +26,15 @@ internal interface SpawnedProcess {
 /**
  * Managed processes (docs/runtime-foundation-plan.md §3.4): what must run beyond the command that
  * started it — a development server, a watcher, a worker — each in a PRoot of its own, kept until
- * it is stopped, until it ends, or until iCode's process does. Their state reaches [publish], at
- * most four times a second while output flows.
+ * it is stopped, until it ends, or until iCode's process does. Their state reaches [publish] as it
+ * changes — started, a port found, ended — never their output: that is in [logs], for the terminal
+ * (§6), and here, for the assistant.
  */
 internal class RuntimeProcesses(
     private val scope: CoroutineScope,
     private val launch: (Launch) -> SpawnedProcess,
     private val publish: (List<ManagedProcess>) -> Unit,
+    private val logs: ProcessLogs,
     private val clock: () -> Long = System::currentTimeMillis,
     /** How long a stopped process has between SIGTERM and SIGKILL. */
     private val grace: Long = GRACE_MILLIS,
@@ -48,13 +49,19 @@ internal class RuntimeProcesses(
         val output = ProcessOutput()
         var stopRequested = false
         var agentOffset = 0L
-        var portScan = ""
+
+        /** The line being written, until it ends: a port is read from whole lines. */
+        var portLine = ""
     }
 
     private val lock = Any()
     private val entries = linkedMapOf<String, Entry>()
     private var counter = 0
-    private val publishing = AtomicBoolean(false)
+
+    // An earlier iCode's processes ended with it; their logs would be shown under their IDs again.
+    init {
+        logs.clear()
+    }
 
     /** Starts [command]; the process, or why it was not started. */
     fun start(workspace: String, directory: String, command: String, name: String?, environment: Map<String, String>): Result<ManagedProcess> {
@@ -81,6 +88,8 @@ internal class RuntimeProcesses(
             )
             Entry(info, spawned).also { entries[info.id] = it }
         }
+        // There from the start, so the tab that follows it never opens on a missing file.
+        logs.append(entry.info.id, "")
         follow(entry)
         publishNow()
         return Result.success(entry.info)
@@ -104,11 +113,15 @@ internal class RuntimeProcesses(
 
     fun stopAll() = synchronized(lock) { entries.keys.toList() }.forEach(::stop)
 
-    /** An ended process leaves the list. */
+    /** An ended process leaves the list, and its log goes. */
     fun forget(id: String) {
-        synchronized(lock) { if (entries[id]?.info?.running == false) entries.remove(id) }
+        val forgotten = synchronized(lock) { entries[id]?.takeIf { !it.info.running }?.also { entries.remove(id) } }
+        forgotten?.let { logs.remove(id) }
         publishNow()
     }
+
+    /** Where [id]'s output is written, in the runtime: what its terminal tab follows. */
+    fun logOf(id: String): String = logs.guestPath(id)
 
     /** Writes [text] to [id]'s input; null, or why it could not. */
     fun write(id: String, text: String): String? {
@@ -157,9 +170,12 @@ internal class RuntimeProcesses(
         publishNow()
     }
 
-    /** A workspace deleted: what ran there leaves the list. */
+    /** A workspace deleted: what ran there leaves the list, and its logs go. */
     fun workspaceForgotten(location: String) {
-        synchronized(lock) { entries.values.removeAll { it.info.workspace == location && !it.info.running } }
+        val gone = synchronized(lock) {
+            entries.values.filter { it.info.workspace == location && !it.info.running }.map { it.info.id }.onEach(entries::remove)
+        }
+        gone.forEach(logs::remove)
         publishNow()
     }
 
@@ -172,15 +188,17 @@ internal class RuntimeProcesses(
                     val count = reader.read(buffer)
                     if (count < 0) break
                     val chunk = String(buffer, 0, count)
-                    synchronized(lock) {
+                    val portsChanged = synchronized(lock) {
                         entry.output.append(chunk)
-                        // An address cut between two reads is found with the next.
-                        val scan = entry.portScan + chunk
-                        entry.portScan = scan.takeLast(PORT_CARRY)
-                        val ports = (entry.info.ports + ProcessRules.ports(scan)).distinct().take(MAX_PORTS)
-                        if (ports != entry.info.ports) entry.info = entry.info.copy(ports = ports)
+                        // Whole lines only: a line says whether its address is one the server listens on.
+                        val text = entry.portLine + chunk
+                        val ended = text.substringBeforeLast('\n', missingDelimiterValue = "")
+                        entry.portLine = text.substringAfterLast('\n').takeLast(PORT_LINE)
+                        val ports = (entry.info.ports + ProcessRules.ports(ended)).distinct().take(MAX_PORTS)
+                        (ports != entry.info.ports).also { if (it) entry.info = entry.info.copy(ports = ports) }
                     }
-                    publishSoon()
+                    logs.append(entry.info.id, chunk)
+                    if (portsChanged) publishNow()
                 }
             }
         }
@@ -190,27 +208,17 @@ internal class RuntimeProcesses(
         publishNow()
     }
 
-    private fun publishSoon() {
-        if (!publishing.compareAndSet(false, true)) return
-        scope.launch {
-            delay(PUBLISH_MILLIS)
-            publishing.set(false)
-            publishNow()
-        }
-    }
-
     private fun publishNow() {
-        val list = synchronized(lock) { entries.values.map { it.info.copy(tail = it.output.tail(TAIL_CHARACTERS)) } }
-        publish(list)
+        publish(synchronized(lock) { entries.values.map { it.info } })
     }
 
     companion object {
         const val GRACE_MILLIS = 3_000L
-        private const val PUBLISH_MILLIS = 250L
         private const val BUFFER = 8 * 1024
         private const val MAX_PORTS = 5
-        private const val PORT_CARRY = 64
-        private const val TAIL_CHARACTERS = 8_000
+
+        /** How much of a line still being written is kept to find a port in, once it ends. */
+        private const val PORT_LINE = 1_024
 
         /** The code a process whose end could not be read is given: the shell's "failed". */
         private const val EXIT_UNKNOWN = 1

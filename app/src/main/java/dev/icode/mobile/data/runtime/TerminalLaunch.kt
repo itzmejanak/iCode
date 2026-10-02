@@ -16,6 +16,10 @@ internal class TerminalLaunch private constructor(
     val environment: List<String> = emptyList(),
     /** Set when no session can start; the tab shows it instead of a shell. */
     val failure: String? = null,
+    /** The tab's name, where it is not a shell's ("bash 2"). */
+    val title: String? = null,
+    /** The process whose output the tab shows; null for a shell. */
+    val follows: String? = null,
 ) {
     companion object {
         /** Null when the runtime is not installed. */
@@ -43,6 +47,29 @@ internal class TerminalLaunch private constructor(
                 environment = layout.prootEnvironment().map { "${it.key}=${it.value}" },
             )
         }
+
+        /**
+         * A tab of [output]'s own (docs/runtime-foundation-plan.md §6 P3): `tail -F` of its log, from
+         * as many lines back as the terminal keeps, then everything it prints. Null when the runtime
+         * is not installed.
+         */
+        fun following(layout: RuntimeLayout, settings: TerminalSettings, output: FollowedOutput): TerminalLaunch? {
+            if (!layout.isInstalled) return null
+            val argv = layout.prootCommand(
+                guestCommand = listOf(TAIL, "-n", settings.scrollbackLines.toString(), "-F", output.log),
+                killOnExit = true,
+            )
+            return TerminalLaunch(
+                workspaceHostPath = output.workspaceHostPath,
+                transcriptRows = settings.scrollbackLines,
+                argv = argv,
+                environment = layout.prootEnvironment().map { "${it.key}=${it.value}" },
+                title = output.title,
+                follows = output.key,
+            )
+        }
+
+        private const val TAIL = "/usr/bin/tail"
 
         /** A shell the settings allow, inside the runtime and not out of it through a link. */
         fun shellAvailable(rootfs: File, shellPath: String): Boolean {

@@ -10,6 +10,7 @@ import androidx.core.net.toUri
 import dev.icode.mobile.MainActivity
 import dev.icode.mobile.R
 import dev.icode.mobile.data.runtime.RuntimeForegroundService
+import dev.icode.mobile.data.runtime.TerminalNotifications
 import dev.icode.mobile.domain.BackgroundItem
 import dev.icode.mobile.domain.BackgroundPlace
 
@@ -19,7 +20,7 @@ import dev.icode.mobile.domain.BackgroundPlace
  * in hand, a bar, Cancel where the work allows it — and a failure that pops up when the user was
  * not watching. Work that waits on the user (the assistant asking before a change) pops its
  * question up while iCode is out of view. A tap opens iCode on the work. [RuntimeForegroundService]
- * posts them; the running summary is its own notification.
+ * posts them; progress rows sit in its group, under its summary, with the terminal sessions.
  */
 internal class WorkNotifications(private val context: Context, private val notifications: NotificationManager) {
     /** What each progress notification shows now, so an unchanged one is not posted again. */
@@ -101,10 +102,12 @@ internal class WorkNotifications(private val context: Context, private val notif
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setShowWhen(false)
-            // Counting, or a step with no measure: the bar sweeps, as the dialog's does.
-            .setProgress(PROGRESS_MAX, ((fraction ?: 0f) * PROGRESS_MAX).toInt(), fraction == null)
+            // In the service's group, under its summary, with the sessions: one iCode card.
+            .setGroup(TerminalNotifications.GROUP)
             .setContentIntent(open(context, item.place))
-        if (item.cancel != null) builder.addAction(Notification.Action.Builder(null, "Cancel", cancel(item)).build())
+        // Counting, or a step with no measure: the bar sweeps, as the dialog's does. What runs until stopped has none.
+        if (item.progresses) builder.setProgress(PROGRESS_MAX, ((fraction ?: 0f) * PROGRESS_MAX).toInt(), fraction == null)
+        if (item.cancel != null) builder.addAction(Notification.Action.Builder(null, item.cancelLabel, cancel(item)).build())
         return builder.build()
     }
 
