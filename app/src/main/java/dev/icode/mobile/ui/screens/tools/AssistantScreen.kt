@@ -136,6 +136,8 @@ fun AssistantScreen(actions: NavigationActions) {
                         draft = ""
                         attached = emptyList()
                     },
+                    // The open workspace's tree, a step forward: Back is the chat again.
+                    onWorkspace = { actions.navigate(Route.WorkspaceExplorer) },
                 )
             }
         }

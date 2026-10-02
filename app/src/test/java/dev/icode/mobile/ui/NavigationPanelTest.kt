@@ -49,4 +49,14 @@ class NavigationPanelTest {
         navigation.actions.replace(Route.DiffView)
         assertEquals(listOf("0:SourceControl", "1:DiffView"), navigation.entryKeys)
     }
+
+    @Test fun aStepToTheScreenBelowIsAStepForwardAndBackReturns() {
+        // The owner, on the phone: the chat's workspace opens its tree, and Back is the chat again.
+        val navigation = NavigationState.create(Route.WorkspaceExplorer, captureMode = false)
+        navigation.actions.navigate(Route.Assistant)
+        navigation.actions.navigate(Route.WorkspaceExplorer)
+        assertEquals(listOf("0:WorkspaceExplorer", "1:Assistant", "2:WorkspaceExplorer"), navigation.entryKeys)
+        navigation.actions.back()
+        assertEquals(Route.Assistant, navigation.current)
+    }
 }

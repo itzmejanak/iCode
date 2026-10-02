@@ -615,3 +615,29 @@ Koog had handed it over (`MessagePart.Reasoning`), but iCode kept only text and 
     JDK's `com.sun.net.httpserver`, which Android's unit tests do not have, so under Gradle it did
     not compile and no unit test ran.
 
+## 15. The approval, redrawn (owner, 2026-10-02)
+
+The owner, on the phone: the approval card was too big, not aligned, its box and colour heavy —
+"collapsed by default, clean, aligned to the input box, no background". `AssistantApprovalCard`
+(its own file now) is a box as the composer's — its surface, outline and corner, its text where
+the composer's is — above it, at its edges, one gap between them (owner: no transparent design): an amber icon and
+"Run this command?" or "Make this change?", a chevron, the command's — or the file's — first line,
+and Deny, Allow All and Allow as compact buttons at the end (`PrimaryButton`/`SecondaryButton`
+`compact`: a bar choice's height, Material keeping the touch target whole). Each new question
+starts closed; a tap on it opens all it will do, scrolling past a few lines
+(`IcodeSizes.ApprovalDetail`), with what Allow All means.
+
+## 16. Found on the phone (2026-10-02, the owner)
+
+- **The workspace under the composer opens its files.** "Tests" (its folder icon and name) is a
+  tap away from the open workspace's tree — the Explorer, the workspace the assistant works in — a
+  step forward: Back is the chat again. (A first version made a step to the screen just below a step
+  back to it; from a chat the Explorer had opened, Back then went past the chat to the home screen.
+  The owner found it on the phone; navigation is again as it was.)
+- **A Markdown table follows a pinch.** Text, headings and lists read their size as they are drawn;
+  Markwon's `TableRowSpan` (4.6.2) lays its cells out once, again only when the width it is drawn at
+  changes — so a pinch, which changes the size and not the width, left tables as they were, on the
+  assistant's page and in the editor's preview alike. `ScalableMarkdownTextView.show` sets the size,
+  and where the Markdown holds a table and the size changed, renders it anew: new rows, laid out at
+  the new size. One method for both renderers.
+
