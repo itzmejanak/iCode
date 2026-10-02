@@ -9,8 +9,10 @@ import dev.icode.mobile.data.assistant.AssistantConnection
 import dev.icode.mobile.data.assistant.AssistantTurnException
 import dev.icode.mobile.domain.AssistantModel
 import dev.icode.mobile.domain.AssistantProviderKind
+import io.ktor.client.call.NoTransformationFoundException
 import io.ktor.client.network.sockets.ConnectTimeoutException
 import io.ktor.client.plugins.HttpRequestTimeoutException
+import io.ktor.serialization.ContentConvertException
 import java.io.IOException
 import java.net.ConnectException
 import java.net.SocketTimeoutException
@@ -39,6 +41,8 @@ internal object KoogFailures {
                 // Without a status the server never answered: what failed is the cause, deeper in the chain.
                 is KoogHttpClientException -> cause.statusCode?.let { http(cause, connection, model) }
                 is IncompleteStreamException -> CONNECTION_ENDED
+                // An answer Ktor could not read as the API's: a page, or JSON of another shape.
+                is NoTransformationFoundException, is ContentConvertException -> notTheApi(connection)
                 // The standard agent's own limit (§12 R1).
                 is AIAgentMaxNumberOfIterationsReachedException -> "Stopped at the step limit — send a message to continue"
                 // Its only way to stick: a reply with neither text nor a tool call.
@@ -56,7 +60,11 @@ internal object KoogFailures {
                 is IOException -> CONNECTION_ENDED.takeIf { fromServer }
                 else -> null
             }
-        } ?: "The assistant stopped: ${failure.message?.lineSequence()?.firstOrNull { it.isNotBlank() } ?: failure.javaClass.simpleName}"
+        } ?: run {
+            val said = failure.message?.lineSequence()?.firstOrNull { it.isNotBlank() } ?: failure.javaClass.simpleName
+            // Listing a server's models is no turn: nothing was running to stop.
+            if (model == null) "Unable to list the models: $said" else "The assistant stopped: $said"
+        }
         return AssistantTurnException(message, failure)
     }
 
@@ -79,10 +87,25 @@ internal object KoogFailures {
     /** OpenRouter's word for a provider that failed after the reply began (`finish_reason: "error"`). */
     const val PROVIDER_FAILED = "The model's provider failed while writing the reply — try again"
 
+    /**
+     * The server answered, but not as this API: a web page, or another service's JSON — as a server
+     * does for a path it does not know. Nearly always the address, where one is asked for.
+     */
+    fun notTheApi(connection: AssistantConnection): String {
+        val host = host(connection)
+        return if (connection.kind.asksBaseUrl) {
+            "$host did not answer as this API does — check the server address in the provider's settings"
+        } else {
+            "$host did not answer as its API does — try again shortly"
+        }
+    }
+
     private fun http(failure: KoogHttpClientException, connection: AssistantConnection, model: String?): String {
         val said = providerMessage(failure.errorBody)
         val lower = (said ?: failure.errorBody ?: "").lowercase()
         return when {
+            // Koog's failure with a success status: the stream was not the API's (a page, sent with 200).
+            failure.statusCode in SUCCESS -> notTheApi(connection)
             failure.statusCode == 401 || failure.statusCode == 403 -> "The provider refused the API key — check it in the provider's settings"
             model != null && (failure.statusCode == 404 || ("model" in lower && ("not found" in lower || "does not exist" in lower))) ->
                 "The provider has no model “$model”"
@@ -117,6 +140,7 @@ internal object KoogFailures {
 
     private const val CONNECTION_ENDED = "The connection ended before the reply was complete — try again"
     private const val UNREADABLE = "The provider's reply could not be read — try again"
+    private val SUCCESS = 200..299
     private const val MAX_DEPTH = 8
     private const val MAX_MESSAGE = 300
     private val CONTEXT_WORDS = listOf("context length", "context_length", "maximum context", "prompt is too long", "too many tokens")

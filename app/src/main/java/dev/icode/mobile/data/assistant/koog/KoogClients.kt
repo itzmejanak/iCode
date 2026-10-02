@@ -7,13 +7,16 @@ import ai.koog.prompt.executor.clients.anthropic.AnthropicLLMClient
 import ai.koog.prompt.executor.clients.google.GoogleLLMClient
 import ai.koog.prompt.executor.clients.openai.OpenAIClientSettings
 import ai.koog.prompt.executor.clients.openai.OpenAILLMClient
+import ai.koog.prompt.executor.clients.openai.OpenAIModels
 import ai.koog.prompt.executor.clients.openai.models.OpenAIChatCompletionResponse
 import ai.koog.prompt.executor.clients.openrouter.OpenRouterLLMClient
 import ai.koog.prompt.executor.ollama.client.OllamaClient
+import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.llm.LLModel
 import dev.icode.mobile.data.assistant.AssistantConnection
 import dev.icode.mobile.data.assistant.AssistantTurnException
 import dev.icode.mobile.domain.AssistantProviderKind
+import org.json.JSONObject
 
 /**
  * One of Koog's clients for a connection (§4.2), on the HTTP stack iCode hands it: never one Koog
@@ -25,12 +28,7 @@ internal object KoogClients {
         fun required(): String = key ?: throw AssistantTurnException("Enter the API key in Assistant settings")
         return when (connection.kind) {
             AssistantProviderKind.OpenAI -> ReadingOpenAIClient(required(), OpenAIClientSettings(), http)
-            // The address the user gave ends where the API's paths begin (…/v1).
-            AssistantProviderKind.OpenAICompatible -> ReadingOpenAIClient(
-                key.orEmpty(),
-                OpenAIClientSettings(baseUrl = address(connection), chatCompletionsPath = "chat/completions"),
-                http,
-            )
+            AssistantProviderKind.OpenAICompatible -> CompatibleClient(connection, key.orEmpty(), http)
             AssistantProviderKind.Anthropic -> AnthropicLLMClient(
                 required(),
                 AnthropicClientSettings(modelVersionsMap = VersionsOrId(AnthropicClientSettings().modelVersionsMap)),
@@ -48,6 +46,41 @@ internal object KoogClients {
     }
 
     /**
+     * An OpenAI-compatible server's client. The address the user gave ends where the API's paths
+     * begin (…/v1), so every path is under it: Koog's defaults each start with `v1/`, which asked
+     * `…/v1/v1/models` — a path such servers answer with their website's page, and 200. Its models
+     * are read by their IDs alone: Koog's reading wants each to carry `object`, `created` and
+     * `owned_by`, which a server that is not OpenAI need not send. Its whole replies are read as
+     * OpenAI's are ([ReadingOpenAIClient]).
+     */
+    private class CompatibleClient(private val connection: AssistantConnection, key: String, http: KoogHttpClient.Factory) : ReadingOpenAIClient(
+        key,
+        OpenAIClientSettings(
+            baseUrl = address(connection),
+            chatCompletionsPath = "chat/completions",
+            responsesAPIPath = "responses",
+            embeddingsPath = "embeddings",
+            moderationsPath = "moderations",
+            modelsPath = MODELS,
+        ),
+        http,
+    ) {
+        override suspend fun models(): List<LLModel> {
+            val answer = httpClient.get(MODELS, String::class)
+            // `{"data": [{"id": …}, …]}`; anything else — a page, another service's JSON — is not this API.
+            val listed = runCatching { JSONObject(answer).getJSONArray("data") }.getOrNull()
+                ?: throw AssistantTurnException(KoogFailures.notTheApi(connection))
+            // As Koog's own listing: a model of OpenAI's that it knows comes with what it can do.
+            val known = OpenAIModels.models.associateBy { it.id }
+            return (0 until listed.length())
+                .mapNotNull { listed.optJSONObject(it)?.optString("id")?.takeIf(String::isNotBlank) }
+                .map { id -> known[id] ?: LLModel(LLMProvider.OpenAI, id) }
+        }
+    }
+
+    private const val MODELS = "models"
+
+    /**
      * Anthropic's client refuses a model missing from its map of versions; here a model Koog does
      * not know is named by its own ID, so one client serves every model of the provider.
      */
@@ -63,7 +96,7 @@ internal object KoogClients {
  * Koog's OpenAI client, each whole reply's call arguments made [KoogArguments.readable] before Koog
  * reads them: Koog's reader throws on arguments that are not a JSON object, and the reply is lost.
  */
-private class ReadingOpenAIClient(apiKey: String, settings: OpenAIClientSettings, http: KoogHttpClient.Factory) :
+private open class ReadingOpenAIClient(apiKey: String, settings: OpenAIClientSettings, http: KoogHttpClient.Factory) :
     OpenAILLMClient(apiKey, settings, http) {
     override fun decodeResponse(data: String): OpenAIChatCompletionResponse = super.decodeResponse(KoogArguments.readableResponse(data))
 }

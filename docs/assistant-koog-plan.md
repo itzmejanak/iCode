@@ -581,3 +581,37 @@ Koog had handed it over (`MessagePart.Reasoning`), but iCode kept only text and 
 - Not seen on a device: Google's Maven is closed to this environment, so no APK is built and no
   screenshot is taken. The device pass of §9 covers the pickers, the camera, thumbnails and each
   provider's model list.
+
+## 14. Found on the phone (2026-10-02)
+
+- **Add Models on an OpenAI-compatible server failed** with "The assistant stopped: Expected
+  response body of the type '…OpenAIModelsResponse' but was '…SourceByteReadChannel'" (the owner's
+  provider at `https://inference.dahl.global/v1`). Measured: `GET …/v1/models` answers the list as
+  JSON; `GET …/v1/v1/models` answers the website's page, 200, `text/html`. iCode had put only the
+  chat path under the address given; Koog's other paths kept their defaults, each starting with
+  `v1/`, so the list was asked at `…/v1/v1/models`, and Ktor cannot read a page as the list.
+  - **Every path is under the address given** (`KoogClients.CompatibleClient`: chat, responses,
+    embeddings, moderations, models).
+  - **Its models are read by their IDs alone** (`{"data": [{"id": …}]}`): Koog's own reading
+    requires `object`, `created` and `owned_by` of each, which a server that is not OpenAI need not
+    send — one missing would have failed the whole list. A model of OpenAI's that Koog knows still
+    comes with what it can do, as before.
+  - **An answer that is not the API's is said so**: "<host> did not answer as this API does — check
+    the server address in the provider's settings" — for a page or another service's JSON on
+    listing, for Ktor's own refusals to read one, and for a stream refused with a success status
+    (which had read "The provider answered 200").
+  - **A failed listing no longer says "The assistant stopped"** — no turn was running: "Unable to
+    list the models: …".
+  - A server's models not known to iCode are listed by name whatever their case
+    (`MiniMaxAI/…` no longer before `deepseek-ai/…`).
+  - `KoogServerTest`, 6 tests: the real stack (Koog's client on Ktor and OkHttp) against a server
+    on the machine that answers as the owner's does — the path asked, a list of IDs only, a web
+    page, other JSON, a refused key, an address ending in a slash.
+  - With §3.12's fix of a call cut inside its arguments (`1ef68f6`): the compatible server's client
+    is `ReadingOpenAIClient`'s, so it gets both — its paths and listing here, its whole replies'
+    arguments made readable there. A reply the API's reader cannot read at all stays "could not be
+    read"; only Ktor's refusals of a page or another shape say to check the address.
+  - The tests' local server is one, on plain sockets (`LocalHttpServer`): `KoogClientsTest` used the
+    JDK's `com.sun.net.httpserver`, which Android's unit tests do not have, so under Gradle it did
+    not compile and no unit test ran.
+

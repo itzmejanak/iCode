@@ -58,7 +58,8 @@ internal class KoogAssistantEngine(
                 client.models()
             }
             val models = listed.mapNotNull { KoogModels.listed(connection.kind, it) }.distinctBy { it.id }
-            models.filter { it.known } + models.filterNot { it.known }.sortedBy { it.id }
+            // Those iCode knows first, in its order; then the rest by name, whatever their case.
+            models.filter { it.known } + models.filterNot { it.known }.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.id })
         } finally {
             client.close()
         }
