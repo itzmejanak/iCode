@@ -932,7 +932,7 @@ Acceptance criteria:
 
 ## 18. Assistant
 
-Owner's decision, 2026-10-01 ([assistant-koog-plan.md](./assistant-koog-plan.md); PR-ASSIST-01–17).
+Owner's decision, 2026-10-01 ([assistant-koog-plan.md](./assistant-koog-plan.md); PR-ASSIST-01–17); its runtime foundation, 2026-10-02 ([runtime-foundation-plan.md](./runtime-foundation-plan.md); PR-ASSIST-18–21).
 
 ### US-ASSIST-001 — Set up the assistant
 
@@ -1010,6 +1010,38 @@ Acceptance criteria:
 - Under the message box, at the right, the page always shows how full the model's context is after the last request ("84k / 200k", "0 / 200k" before the first), moving with every step; **Compact Chat** is a tap away.
 - Near the limit (80 %), the chat is compacted before the next message: the model writes a summary, and later turns send the summary and what came after it; the page shows where, and keeps everything.
 - **Compact Chat** does the same on request.
+
+### US-ASSIST-008 — Run a project's server
+
+**As a developer, I want the assistant to start my project's server and leave it running, so that I can open it in my browser and keep working.**
+
+Acceptance criteria:
+
+- The assistant starts a server, a watcher or a worker as a process that keeps running; its answer names the process, the ports its output named and whether they answer.
+- A row above the message box says what runs ("1 running"); it opens **Processes**: each process's name, command, state ("Running · 4m", "Exited 1", "Stopped"), its last output, and its ports — a tap opens `http://127.0.0.1:<port>` in the browser. Stop ends one; Remove clears one that ended.
+- Processes keep running while iCode is out of view, with a notification whose Cancel stops them all; Android may still end them when many processes run on the phone, and the sheet says so.
+- A workspace with a running process cannot be renamed or deleted until it is stopped.
+
+### US-ASSIST-009 — Commands that behave as in my terminal
+
+**As a developer, I want the assistant's commands to find what my terminal finds and remember where they ran, so that a setup I did once works for it too.**
+
+Acceptance criteria:
+
+- Tools installed through the profile (nvm, a conda init, `~/.local/bin`) are found without setting anything by hand.
+- A `cd` carries to the chat's next command; an `export` does not, and the assistant is told so.
+- A failed command says why in words — "command not found" with the path searched, "ended by SIGTERM" — and where it ran.
+- The assistant's commands see this workspace alone under `/workspace`.
+
+### US-ASSIST-010 — Know how a reply ended
+
+**As a developer, I want to know when a reply did not finish, so that I never act on half an answer.**
+
+Acceptance criteria:
+
+- A reply cut short at the output limit, or stopped by the provider's content filter, is kept, and the page says so under it.
+- A reply whose connection broke, or whose provider failed while writing it, ends the turn with those words; **Try Again** is offered where nothing was answered.
+- The model's reasoning shows above its answer, folded; with OpenRouter, the reasoning and the answer appear as they are written.
 
 ## 19. Public Website and Distribution
 
