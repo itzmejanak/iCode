@@ -32,6 +32,7 @@ Two rules hold throughout:
 | F10 | OpenRouter ends every reply with one of five finish reasons — `tool_calls`, `stop`, `length`, `content_filter`, `error` — and reports a provider that fails after the reply began as a chunk with an `error` and `finish_reason: "error"` | [Standardized finish reasons](https://openrouter.ai/announcements/standardized-finish-reasons), [streaming](https://openrouter.ai/docs/api_reference/streaming), [LangChain.js issue 11699](https://github.com/langchain-ai/langchainjs/issues/11699) | A stream with no finish reason closed early; one ending in `error` failed. Neither is a finished reply |
 | F11 | Koog's OpenRouter client emits its `End` frame whenever the stream's body ends, closed early or not, and keeps a chunk's `finish_reason` but not its `error`; Koog's SSE client wraps every failure without a status in `KoogHttpClientException`, its other clients wrap theirs in `LLMClientException` | `OpenRouterLLMClient.processStreamingResponse`, `KtorKoogHttpClient.sse`, `AbstractOpenAILLMClient.getResponse` | iCode reads the finish reason itself (F10), and explains a failure without a status by its cause |
 | F12 | Providers say when their content rules stopped a reply: `content_filter` (OpenAI, OpenRouter, compatible servers), `refusal` (Anthropic), `SAFETY`, `RECITATION`, `BLOCKLIST`, `PROHIBITED_CONTENT`, `SPII`, `IMAGE_SAFETY` (Gemini); Koog passes each through as the reply's finish reason | Each client's response mapping, as for the output limit's reasons | Such a reply passed for a finished one, as one cut short did |
+| F13 | Koog's OpenAI client, reading a whole reply, parses each call's `arguments` with `Json.parseToJsonElement` outside any error handling, and throws on arguments that are not a JSON object — losing the whole reply. A long call cut at the output limit is one: on a phone, a `run_command` script cut inside its string ended the turn with "Unexpected EOF at path: $", again after "continue". Koog's Anthropic, Google and Ollama clients parse a call's arguments the same way when they send it back | `AbstractOpenAILLMClient.toolCallPartsOrNull`; `AnthropicLLMClient`, `GoogleLLMClient`, `OllamaConverters`; reproduced against Koog's real client (§5.1) | Arguments that are not an object are carried in one before Koog reads them, and never sent back as they were (§3.12) |
 
 ### 1.1 Koog 1.3.0's streams, client by client
 
@@ -208,6 +209,24 @@ it sends a limit. On the wire, against a local server: `"max_completion_tokens":
 | A timeout (OkHttp's, Ktor's request or connect timeout) | "api.example.com did not answer in time" |
 | A connection that broke under a whole reply | "The connection ended before the reply was complete — try again" — only for a failure Koog's client wrapped, never a file read |
 
+### 3.12 Arguments that are not an object (F13)
+
+- **Read whole:** iCode's OpenAI client (`KoogClients`' `ReadingOpenAIClient`, for OpenAI and
+  OpenAI-compatible servers) passes each whole reply through `KoogArguments.readableResponse`
+  before Koog reads it: a call whose arguments are not a JSON object gets an object that carries
+  them, `{"icode_unreadable_arguments": "…"}`. Nothing else in the reply changes; a reply with
+  nothing to change is read as it came. A streamed call's arguments go the same way (`KoogStream`).
+- **Refused:** `KoogTool` refuses such a call before it runs or asks the user: "The call did not
+  run: its arguments were not a complete JSON object (N characters, ending “…”). A long call is
+  cut at the output limit: write long content in parts — a file with write_file, then a short
+  command that runs it." The turn goes on, the reply's text and other calls kept.
+- **Kept and sent:** the page and the chat keep what the model wrote; the step is named by its
+  tool. Every request — within the turn and in later ones — sends such a call as the carrying
+  object, so no provider is sent broken JSON, and Koog's Anthropic, Google and Ollama clients,
+  which parse a call's arguments to send it, never throw on one.
+- **A reply that cannot be read at all** says "The provider's reply could not be read — try
+  again", never a parser's words.
+
 ## 4. Cycles
 
 | # | Step | Verified by | Done |
@@ -218,13 +237,14 @@ it sends a limit. On the wire, against a local server: `"max_completion_tokens":
 | F3 | `RuntimeProcesses`, the tools, background work, workspace usage, language servers (D1, D3, D5) | Unit tests over a fake spawner: output ring, offsets, ports, limits, stop | `25bdf78` |
 | F4 | The Processes sheet (D6) | Compose type-check, UI guard | `75df794` |
 | F5 | Streaming for OpenRouter, live page, OpenRouter hint, output limit, why a turn stopped (D8, D9, D12) | Engine tests with a streaming fake client; params test; Koog's real clients against a local server | `800f661` |
-| F6 | Architecture, PRD, user stories, plans as built; guards; API-30 check; commit | Review | this commit |
+| F6 | Architecture, PRD, user stories, plans as built; guards; API-30 check; commit | Review | `bfec8c8` |
+| F7 | Arguments that are not an object (F13, §3.12), from the phone's "Unexpected EOF at path: $" | The failure reproduced against Koog's real client; unit tests; the real client over HTTP with the phone's cut reply | this commit |
 
 ## 5. Record (2026-10-02)
 
 ### 5.1 Checked here
 
-- **Tests.** 633 `data/` and `domain/` tests run; one fails, `TreeSizeTest`'s unreadable
+- **Tests.** 638 `data/` and `domain/` tests run (after F7); one fails, `TreeSizeTest`'s unreadable
   directory, as before every cycle: the container runs as root, which reads any directory. The
   new ones cover the profile's parser, cache and failures; the output ring (escapes cut across
   writes, carriage returns, offsets, the line cap); the processes over a fake spawner (ports, the
@@ -240,6 +260,10 @@ it sends a limit. On the wire, against a local server: `"max_completion_tokens":
   three chunks runs, the usage comes from the last chunk, the next request carries the reply
   without its reasoning and the call's result; OpenRouter's in-band error chunk and a stream
   closed without a finish reason each end the turn with their words, nothing recorded.
+- **The phone's failure.** Koog's own OpenAI client, given a whole reply whose `run_command`
+  arguments were cut inside their string, threw `JsonDecodingException: Unexpected EOF at path: $`
+  — the phone's words. Through iCode's client the same reply is read: the call is refused with
+  why, the reply kept, the next request sent the call as an object, and the turn finished.
 - **Builds and guards.** The backend and the Assistant's screens type-check (the screens against
   Compose's desktop jars); the backend and UI guards pass; every class, backend and UI, is checked
   against Android 11's API (minSdk 30) — none reaches past it.

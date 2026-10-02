@@ -32,6 +32,7 @@ import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantModelSpec
 import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.domain.AssistantResult
+import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantToolKind
 import io.ktor.client.plugins.HttpRequestTimeoutException
 import kotlinx.coroutines.CompletableDeferred
@@ -233,6 +234,36 @@ class KoogAssistantEngineTest {
         val reported = events.events.filterIsInstance<AssistantMessage.Reply>().first().calls[1]
         assertEquals("read_file", reported.summary)
         assertEquals(AssistantMessage.Reply("Done"), events.events.last())
+    }
+
+    @Test fun `a call whose arguments were not an object is refused without running or asking, and its reply is kept`() = runBlocking {
+        // As a long script cut at the output limit arrives, carried by iCode's reading client.
+        val cut = "{\"path\":\"a.kt\",\"note\":\"line one\\nline"
+        val cutReply = Message.Assistant(listOf(MessagePart.Text("Next:"), call("c1", args = KoogArguments.readable(cut))), ResponseMetaInfo.Empty, finishReason = "length")
+        val client = ScriptedClient(listOf(cutReply, done))
+        val tool = ReadTool()
+        val events = Recorder()
+        KoogAssistantEngine { client }.run(turn(tool), events)
+
+        assertTrue(tool.seen.isEmpty())
+        val reply = events.events.filterIsInstance<AssistantMessage.Reply>().first()
+        // The page keeps what the model wrote.
+        assertEquals(cut, reply.calls.single().arguments)
+        assertEquals("read_file", reply.calls.single().summary)
+        val result = events.events.filterIsInstance<AssistantResult>().single()
+        assertTrue(result.failed)
+        assertEquals(KoogArguments.refusal(cut), result.output)
+        // The model is sent its call as an object, and why it did not run; the turn goes on.
+        val second = client.prompts[1].messages
+        val sentCall = (second[2] as Message.Assistant).parts.filterIsInstance<MessagePart.Tool.Call>().single()
+        assertEquals(cut, KoogArguments.unreadable(sentCall.args))
+        assertEquals(KoogArguments.refusal(cut), (second[3] as Message.User).parts.filterIsInstance<MessagePart.Tool.Result>().single().output)
+        assertEquals(AssistantMessage.Reply("Done"), events.events.last())
+
+        // A later turn sends that call as an object too: no provider is sent broken JSON.
+        val later = KoogHistory.prompt("You are iCode's assistant.", AssistantRules.closed(listOf(AssistantMessage.User("Go"), reply)), ai.koog.prompt.params.LLMParams(), KoogModels.llModel(AssistantProviderKind.OpenAI, AssistantModelSpec("gpt-5")))
+        val replayed = later.messages.flatMap { it.parts }.filterIsInstance<MessagePart.Tool.Call>().single()
+        assertEquals(cut, KoogArguments.unreadable(replayed.args))
     }
 
     @Test fun `a model that never stops calling tools is stopped at the step limit`() = runBlocking {
@@ -529,6 +560,9 @@ class KoogAssistantEngineTest {
                 to "Unable to reach api.openai.com — check the address and the connection",
             LLMClientException("OpenAI", "unexpected end of stream", java.io.IOException("unexpected end of stream"))
                 to "The connection ended before the reply was complete — try again",
+            // A reply that is not what the API sends: never the parser's words.
+            LLMClientException("OpenAI", "bad body", kotlinx.serialization.SerializationException("Unexpected EOF at path: $"))
+                to "The provider's reply could not be read — try again",
             // Not from the server: said as it is.
             java.io.FileNotFoundException("/data/chats/photo.jpg (Permission denied)") to "The assistant stopped: /data/chats/photo.jpg (Permission denied)",
         )

@@ -7,6 +7,7 @@ import ai.koog.prompt.executor.clients.anthropic.AnthropicLLMClient
 import ai.koog.prompt.executor.clients.google.GoogleLLMClient
 import ai.koog.prompt.executor.clients.openai.OpenAIClientSettings
 import ai.koog.prompt.executor.clients.openai.OpenAILLMClient
+import ai.koog.prompt.executor.clients.openai.models.OpenAIChatCompletionResponse
 import ai.koog.prompt.executor.clients.openrouter.OpenRouterLLMClient
 import ai.koog.prompt.executor.ollama.client.OllamaClient
 import ai.koog.prompt.llm.LLModel
@@ -23,9 +24,9 @@ internal object KoogClients {
         val key = connection.apiKey
         fun required(): String = key ?: throw AssistantTurnException("Enter the API key in Assistant settings")
         return when (connection.kind) {
-            AssistantProviderKind.OpenAI -> OpenAILLMClient(required(), OpenAIClientSettings(), http)
+            AssistantProviderKind.OpenAI -> ReadingOpenAIClient(required(), OpenAIClientSettings(), http)
             // The address the user gave ends where the API's paths begin (…/v1).
-            AssistantProviderKind.OpenAICompatible -> OpenAILLMClient(
+            AssistantProviderKind.OpenAICompatible -> ReadingOpenAIClient(
                 key.orEmpty(),
                 OpenAIClientSettings(baseUrl = address(connection), chatCompletionsPath = "chat/completions"),
                 http,
@@ -56,4 +57,13 @@ internal object KoogClients {
 
     private fun address(connection: AssistantConnection): String =
         connection.baseUrl ?: connection.kind.defaultBaseUrl ?: throw AssistantTurnException("Enter the server's address in Assistant settings")
+}
+
+/**
+ * Koog's OpenAI client, each whole reply's call arguments made [KoogArguments.readable] before Koog
+ * reads them: Koog's reader throws on arguments that are not a JSON object, and the reply is lost.
+ */
+private class ReadingOpenAIClient(apiKey: String, settings: OpenAIClientSettings, http: KoogHttpClient.Factory) :
+    OpenAILLMClient(apiKey, settings, http) {
+    override fun decodeResponse(data: String): OpenAIChatCompletionResponse = super.decodeResponse(KoogArguments.readableResponse(data))
 }

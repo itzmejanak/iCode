@@ -389,6 +389,8 @@ lifecycle's check, and waits for its chat to be saved, before the chats move.
 | A reply that ended at the output limit (`length`, `max_tokens`, `MAX_TOKENS`; Ollama gives no reason) | Kept, and under it: "The reply was cut short at the model's output limit — ask it to continue", adding "or set a higher Output Limit for x in its provider's settings" for a model Koog does not know |
 | A summary that ended at the output limit | "The model's summary was cut short at its output limit, so the chat was not compacted" |
 | A reply or a summary stopped by a content filter; a stream that closed early or failed; a timeout; a connection that broke | As [runtime-foundation-plan.md](./runtime-foundation-plan.md) §3.11 says |
+| A call whose arguments are not a JSON object (a long call cut at the output limit) | Not a failure of the turn: the call is refused to the model with why, the reply kept ([runtime-foundation-plan.md](./runtime-foundation-plan.md) §3.12) |
+| A reply that cannot be read at all | "The provider's reply could not be read — try again" |
 | A compaction without a summary | "The model sent an empty summary — try again" |
 | Process killed mid-turn | The chat as last saved; open calls closed as stopped |
 
