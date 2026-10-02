@@ -110,6 +110,7 @@ fun AssistantProviderScreen(actions: NavigationActions) {
                 LabeledTextField("Name", name, { name = it }, placeholder = kind.label)
                 if (kind.asksBaseUrl) {
                     LabeledTextField("Server Address", baseUrl, { baseUrl = it }, placeholder = kind.defaultBaseUrl ?: "https://api.example.com/v1", literal = true)
+                    AssistantRules.providerHint(kind, baseUrl)?.let { Text(it, style = IcodeType.Caption.copy(color = IcodeColors.Amber)) }
                 }
                 if (keySaved && !replacingKey) {
                     Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {

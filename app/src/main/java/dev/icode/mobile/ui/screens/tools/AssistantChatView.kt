@@ -1,5 +1,6 @@
 package dev.icode.mobile.ui.screens.tools
 
+import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
@@ -17,7 +19,11 @@ import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.EmptyState
@@ -60,6 +66,15 @@ internal fun AssistantChatView(state: AssistantState, modifier: Modifier, onSugg
             // The newest stays in view as it comes.
             LaunchedEffect(entries.size, state.failure, state.turn?.step) {
                 if (list.layoutInfo.totalItemsCount > 0) list.animateScrollToItem(list.layoutInfo.totalItemsCount - 1)
+            }
+            // A reply being written keeps its end in view, unless the user scrolled up to read.
+            var following by remember { mutableStateOf(true) }
+            LaunchedEffect(list) {
+                snapshotFlow { list.isScrollInProgress to list.canScrollForward }.collect { (moving, more) -> if (moving) following = !more }
+            }
+            val written = state.turn?.live?.let { it.reasoning.length + it.text.length } ?: 0
+            LaunchedEffect(written) {
+                if (written > 0 && following) list.scrollToEnd()
             }
             PinchToScaleText(Modifier.weight(1f).fillMaxWidth()) {
                 LazyColumn(
@@ -106,6 +121,16 @@ internal fun AssistantChatView(state: AssistantState, modifier: Modifier, onSugg
             }
         }
     }
+}
+
+/** To the end of the last item: a long one shows its end, not its start. Each step measures the list anew. */
+private suspend fun LazyListState.scrollToEnd() {
+    val count = layoutInfo.totalItemsCount
+    if (count == 0) return
+    scrollToItem(count - 1)
+    val last = layoutInfo.visibleItemsInfo.lastOrNull() ?: return
+    val below = last.offset + last.size - (layoutInfo.viewportEndOffset - layoutInfo.afterContentPadding)
+    if (below > 0) scrollBy(below.toFloat())
 }
 
 /** An empty chat: the logo over its letterpress, as on the home screen, and a few things to ask. */

@@ -7,6 +7,7 @@ import dev.icode.mobile.domain.AssistantAnswer
 import dev.icode.mobile.domain.AssistantApproval
 import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantHistory
+import dev.icode.mobile.domain.AssistantLive
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantMode
 import dev.icode.mobile.domain.AssistantModel
@@ -195,9 +196,13 @@ internal class AssistantTurns(
             return Setup(settings, connection, model, AssistantWorkspace(File(root.location), root.displayPath))
         }
 
+        override fun writing(reasoning: String, text: String) {
+            page.state { it.copy(turn = it.turn?.copy(live = AssistantLive(reasoning, text))) }
+        }
+
         override fun replied(reply: AssistantMessage.Reply) {
             chats.append(workspace, session, reply)
-            page.refresh(workspace, session)
+            page.refresh(workspace, session, recorded = true)
         }
 
         override fun calling(call: AssistantCall) {

@@ -4,12 +4,6 @@ import ai.koog.agents.core.agent.AIAgent
 import ai.koog.agents.core.agent.GraphAIAgent
 import ai.koog.agents.core.agent.config.AIAgentConfig
 import ai.koog.agents.core.agent.entity.AIAgentGraphStrategy
-import ai.koog.agents.core.dsl.builder.node
-import ai.koog.agents.core.dsl.builder.strategy
-import ai.koog.agents.core.dsl.extension.nodeExecuteTools
-import ai.koog.agents.core.dsl.extension.nodeLLMSendToolResults
-import ai.koog.agents.core.dsl.extension.onTextMessage
-import ai.koog.agents.core.dsl.extension.onToolCalls
 import ai.koog.agents.core.tools.ToolRegistry
 import ai.koog.agents.features.eventHandler.feature.handleEvents
 import ai.koog.http.client.ktor.KtorKoogHttpClient
@@ -19,7 +13,6 @@ import ai.koog.prompt.executor.ollama.client.OllamaClient
 import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.message.Message
-import ai.koog.serialization.JSONPrimitive
 import ai.koog.utils.io.use
 import dev.icode.mobile.data.assistant.AssistantConnection
 import dev.icode.mobile.data.assistant.AssistantEngine
@@ -28,24 +21,23 @@ import dev.icode.mobile.data.assistant.AssistantInstructions
 import dev.icode.mobile.data.assistant.AssistantTool
 import dev.icode.mobile.data.assistant.AssistantTurnException
 import dev.icode.mobile.data.assistant.AssistantTurnRequest
-import dev.icode.mobile.domain.AssistantCall
+import dev.icode.mobile.data.assistant.koog.KoogTurn.report
 import dev.icode.mobile.domain.AssistantEffort
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantModel
 import dev.icode.mobile.domain.AssistantModelSpec
 import dev.icode.mobile.domain.AssistantProviderKind
-import dev.icode.mobile.domain.AssistantResult
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
-import java.util.UUID
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
  * The assistant on Koog (§4.2, §12 R1): Koog's standard agent — model, tools, results, model again,
- * until a reply calls no tool — built per turn over the chat so far ([TURN]). Its events tell the
- * page each reply, each call as it starts and ends, and the tokens used.
+ * until a reply calls no tool — built per turn over the chat so far ([KoogTurn]). Its events tell the
+ * page each reply, as it is written where it streams, each call as it starts and ends, and the
+ * tokens used.
  */
 internal class KoogAssistantEngine(
     /** One of Koog's clients for a connection: [KoogClients] on the device, a scripted one in tests. */
@@ -84,9 +76,10 @@ internal class KoogAssistantEngine(
     }
 
     override suspend fun run(turn: AssistantTurnRequest, events: AssistantEvents) = explained(turn.connection, turn.model.id) {
-        val tools = turn.tools.associateBy { it.name }
-        // Whether the last reply ended at the output limit: then the turn says so under it.
-        var cutShort = false
+        val reporter = KoogTurn.Reporter(turn.tools.associateBy { it.name }, events)
+        // OpenRouter's replies stream, so the page shows them as they are written; Koog's other
+        // streams lose what a turn needs (docs/runtime-foundation-plan.md §1.1).
+        val stream = if (turn.connection.kind == AssistantProviderKind.OpenRouter) KoogTurn.streamed(reporter) else null
         val agent = agent(
             connection = turn.connection,
             model = turn.model,
@@ -97,9 +90,11 @@ internal class KoogAssistantEngine(
             // Koog counts each node it runs: the start, a request, then a run of the tools and a
             // request per step, and the finish — so this allows exactly maxSteps requests.
             maxIterations = 2 * turn.maxSteps + 1,
-        ) { report(tools, events) { cutShort = it } }
-        agent.use { it.run(START) }
-        if (cutShort) throw AssistantTurnException(KoogFailures.cutShort(turn.model))
+            strategy = KoogTurn.strategy(stream),
+        ) { report(reporter) }
+        ran(stoppedShort = { reporter.cutShort || reporter.filtered }) { agent.use { it.run(START) } }
+        if (reporter.cutShort) throw AssistantTurnException(KoogFailures.cutShort(turn.model))
+        if (reporter.filtered) throw AssistantTurnException(KoogFailures.FILTERED)
         Unit
     }
 
@@ -111,13 +106,28 @@ internal class KoogAssistantEngine(
     ): String = explained(connection, model.id) {
         // No tools: Koog writes the chat's calls and results into it as text (its MissingToolsConversionStrategy).
         val messages = history + AssistantMessage.User(AssistantInstructions.COMPACT_REQUEST)
-        var cutShort = false
-        val agent = agent(connection, model, effort = null, instructions, messages, tools = emptyList(), maxIterations = 3) {
-            handleEvents { onLLMCallCompleted { event -> event.response?.let { cutShort = KoogHistory.cutShort(it) } } }
+        var ended: Message.Assistant? = null
+        val agent = agent(connection, model, effort = null, instructions, messages, tools = emptyList(), maxIterations = 3, strategy = KoogTurn.strategy(stream = null)) {
+            handleEvents { onLLMCallCompleted { event -> event.response?.let { ended = it } } }
         }
-        val summary = agent.use { it.run(START) }.trim()
-        if (cutShort) throw AssistantTurnException(KoogFailures.SUMMARY_CUT_SHORT)
+        val cutShort = { ended?.let(KoogHistory::cutShort) == true }
+        val filtered = { ended?.let(KoogHistory::filtered) == true }
+        val summary = ran(stoppedShort = { cutShort() || filtered() }) { agent.use { it.run(START) } }.orEmpty().trim()
+        if (cutShort()) throw AssistantTurnException(KoogFailures.SUMMARY_CUT_SHORT)
+        if (filtered()) throw AssistantTurnException(KoogFailures.SUMMARY_FILTERED)
         summary.ifEmpty { throw AssistantTurnException("The model sent an empty summary — try again") }
+    }
+
+    /**
+     * [block]'s result; null when it failed after a reply [stoppedShort] — at the output limit, or by
+     * a content filter. Such a reply with no text in it leaves Koog's agent with no edge to take:
+     * why it stopped is the reason, said by the caller.
+     */
+    private suspend fun <T> ran(stoppedShort: () -> Boolean, block: suspend () -> T): T? = try {
+        block()
+    } catch (failure: Exception) {
+        if (failure is CancellationException || !stoppedShort()) throw failure
+        null
     }
 
     private suspend fun agent(
@@ -128,6 +138,7 @@ internal class KoogAssistantEngine(
         messages: List<AssistantMessage>,
         tools: List<AssistantTool>,
         maxIterations: Int,
+        strategy: AIAgentGraphStrategy<String, String>,
         features: GraphAIAgent.FeatureContext.() -> Unit = {},
     ): GraphAIAgent<String, String> {
         val llModel = KoogModels.llModel(connection.kind, model.spec)
@@ -138,43 +149,10 @@ internal class KoogAssistantEngine(
                 model = llModel,
                 maxAgentIterations = maxIterations,
             ),
-            strategy = TURN,
+            strategy = strategy,
             toolRegistry = ToolRegistry.builder().tools(tools.map(::KoogTool)).build(),
             installFeatures = features,
         )
-    }
-
-    /**
-     * Koog's events in iCode's words. Koog runs a reply's calls one at a time, in order; each event
-     * names its call by ID, and one the provider gave no ID is the first still open. [ended] hears,
-     * for each reply, whether it stopped at the output limit.
-     */
-    private fun GraphAIAgent.FeatureContext.report(tools: Map<String, AssistantTool>, events: AssistantEvents, ended: (cutShort: Boolean) -> Unit) {
-        val open = ArrayDeque<AssistantCall>()
-        fun callOf(id: String?): AssistantCall? = open.firstOrNull { it.id == id } ?: open.firstOrNull()
-        fun answer(id: String?, output: String, failed: Boolean) {
-            val call = callOf(id) ?: return
-            open.remove(call)
-            events.answered(AssistantResult(call.id, call.tool, output, failed))
-        }
-        handleEvents {
-            onLLMCallCompleted { event ->
-                val response = event.response ?: return@onLLMCallCompleted
-                ended(KoogHistory.cutShort(response))
-                KoogHistory.tokens(response)?.let(events::used)
-                val reply = KoogHistory.reply(response, tools) { "icode-" + UUID.randomUUID() }
-                open.clear()
-                open.addAll(reply.calls)
-                if (reply.text.isNotEmpty() || reply.calls.isNotEmpty() || reply.reasoning.isNotEmpty()) events.replied(reply)
-            }
-            onToolCallStarting { event -> callOf(event.toolCallId)?.let(events::calling) }
-            onToolCallCompleted { event ->
-                answer(event.toolCallId, (event.toolResult as? JSONPrimitive)?.contentOrNull.orEmpty(), failed = false)
-            }
-            onToolCallFailed { event -> answer(event.toolCallId, event.message, failed = true) }
-            // Also arguments that are not JSON: Koog refuses those before the call starts.
-            onToolValidationFailed { event -> answer(event.toolCallId, event.message, failed = true) }
-        }
     }
 
     private suspend fun clientFor(connection: AssistantConnection): LLMClient = clientLock.withLock {
@@ -190,27 +168,7 @@ internal class KoogAssistantEngine(
     }
 
     companion object {
-        /**
-         * Koog's `singleRunStrategy()`, its own nodes and edges, with two changes. It opens with a node
-         * that only requests — Koog's `reActStrategy` has one — since the message, with its images
-         * and files, is already the prompt's last (`nodeLLMRequest` would add a text-only one). And
-         * after tool results it checks a reply's calls before its text: Koog's checks the text first
-         * and finishes, leaving the calls of a reply with both ("Now the tests:" and a call — how
-         * models work) unrun, as it already does after the first request.
-         */
-        private val TURN: AIAgentGraphStrategy<String, String> = strategy("icode-turn") {
-            val request by node<String, Message.Assistant> { llm.writeSession { requestLLM() } }
-            val runTools by nodeExecuteTools()
-            val sendResults by nodeLLMSendToolResults()
-            edge(nodeStart forwardTo request)
-            edge(request forwardTo runTools onToolCalls { true })
-            edge(request forwardTo nodeFinish onTextMessage { true })
-            edge(runTools forwardTo sendResults)
-            edge(sendResults forwardTo runTools onToolCalls { true })
-            edge(sendResults forwardTo nodeFinish onTextMessage { true })
-        }
-
-        /** The agent's input: [TURN] reads none, the prompt being whole. */
+        /** The agent's input: the turn reads none, the prompt being whole. */
         private const val START = ""
 
         private const val MAX_CLIENTS = 8

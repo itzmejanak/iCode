@@ -66,6 +66,9 @@ internal data class AssistantTurnRequest(
 
 /** What a turn reports as it goes; called on the turn's coroutine, in order. */
 internal interface AssistantEvents {
+    /** A reply being written, as far as it has come: its reasoning and its answer. Only a streamed one is. */
+    fun writing(reasoning: String, text: String)
+
     /** A reply: its text, and the calls about to run. */
     fun replied(reply: AssistantMessage.Reply)
 

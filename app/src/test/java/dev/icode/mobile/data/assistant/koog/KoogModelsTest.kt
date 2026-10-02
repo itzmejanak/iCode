@@ -16,6 +16,7 @@ import dev.icode.mobile.domain.AssistantEffort
 import dev.icode.mobile.domain.AssistantModel
 import dev.icode.mobile.domain.AssistantModelSpec
 import dev.icode.mobile.domain.AssistantProviderKind
+import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
@@ -100,7 +101,11 @@ class KoogModelsTest {
         }
         // A typed model's limit is the user's; a catalogued one keeps the provider's own.
         val typed = KoogModels.llModel(AssistantProviderKind.OpenAICompatible, AssistantModelSpec("local"))
-        assertEquals(4_000, KoogParams.of(AssistantProviderKind.OpenAICompatible, typed, AssistantModel("local", maxOutput = 4_000), null).maxTokens)
+        val compatible = KoogParams.of(AssistantProviderKind.OpenAICompatible, typed, AssistantModel("local", maxOutput = 4_000), null)
+        assertEquals(4_000, compatible.maxTokens)
+        // Koog sends it as max_completion_tokens; a server reading only max_tokens is sent that too.
+        assertEquals(mapOf("max_tokens" to JsonPrimitive(4_000)), compatible.additionalProperties)
+        assertNull(KoogParams.of(AssistantProviderKind.OpenAICompatible, typed, AssistantModel("local"), null).additionalProperties)
         assertNull(KoogParams.of(AssistantProviderKind.OpenAI, KoogModels.llModel(AssistantProviderKind.OpenAI, AssistantModelSpec(chat.id)), chat, null).maxTokens)
     }
 

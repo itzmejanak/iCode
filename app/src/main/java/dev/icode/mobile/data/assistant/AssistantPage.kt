@@ -41,13 +41,17 @@ internal class AssistantPage(
         }
     }
 
-    /** [session] of [workspace] as it is now, when it is open. */
-    fun refresh(workspace: String, session: String) {
+    /**
+     * [session] of [workspace] as it is now, when it is open. A reply just [recorded] replaces what
+     * was shown of it as it was written, in the same change: never both on the page, nor neither.
+     */
+    fun refresh(workspace: String, session: String, recorded: Boolean = false) {
         val chat = chats.of(workspace, session)
         val allowAll = chats.allowsAll(workspace, session)
         state {
-            if (it.workspace != workspace || it.session != session) it
-            else it.copy(messages = chat.messages, contextTokens = chat.contextTokens, allowAll = allowAll)
+            val turn = if (recorded) it.turn?.copy(live = null) else it.turn
+            if (it.workspace != workspace || it.session != session) it.copy(turn = turn)
+            else it.copy(messages = chat.messages, contextTokens = chat.contextTokens, allowAll = allowAll, turn = turn)
         }
     }
 
