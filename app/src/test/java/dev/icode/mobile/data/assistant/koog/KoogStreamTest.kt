@@ -31,15 +31,17 @@ class KoogStreamTest {
         assertEquals(listOf(MessagePart.Text("It starts the app.")), stream.echo().parts)
     }
 
-    @Test fun `a call's arguments are kept as sent, blank ones as an empty object`() {
+    @Test fun `a call's arguments are kept as sent, blank ones as an empty object, others carried in one`() {
         val stream = KoogStream()
         stream.add(StreamFrame.ToolCallDelta("c1", "list_files", null))
         stream.add(StreamFrame.ToolCallComplete("c1", "list_files", ""))
         stream.add(StreamFrame.ToolCallComplete("c2", "read_file", "{not json"))
+        stream.add(StreamFrame.ToolCallComplete("c3", "read_file", """{"path":"a.kt"}"""))
         stream.add(StreamFrame.End("tool_calls"))
         val calls = stream.echo().parts.filterIsInstance<MessagePart.Tool.Call>()
-        assertEquals(listOf("{}", "{not json"), calls.map { it.args })
-        assertEquals(listOf("c1", "c2"), calls.map { it.id })
+        assertEquals(listOf("{}", KoogArguments.readable("{not json"), """{"path":"a.kt"}"""), calls.map { it.args })
+        assertEquals("{not json", KoogArguments.unreadable(calls[1].args))
+        assertEquals(listOf("c1", "c2", "c3"), calls.map { it.id })
         assertEquals("tool_calls", stream.echo().finishReason)
     }
 

@@ -8,8 +8,8 @@ import ai.koog.prompt.streaming.StreamFrame
 /**
  * A streamed reply put together (docs/runtime-foundation-plan.md §3.8): its reasoning and its text as
  * their deltas wrote them, each call as Koog's stream completed it, and how it ended. Koog's own
- * `toMessageResponse()` throws on a call whose arguments are not JSON; here they reach Koog's tool
- * runner as sent, which answers the model about them, and blank ones are `{}`.
+ * `toMessageResponse()` throws on a call whose arguments are not JSON; here they are
+ * [KoogArguments.readable], and the call is refused with why.
  */
 internal class KoogStream {
     private val reasoning = StringBuilder()
@@ -29,7 +29,7 @@ internal class KoogStream {
             piece.isNotEmpty()
         }
         is StreamFrame.ToolCallComplete -> {
-            calls += MessagePart.Tool.Call(id = frame.id, tool = frame.name, args = frame.content.ifBlank { EMPTY_ARGUMENTS })
+            calls += MessagePart.Tool.Call(id = frame.id, tool = frame.name, args = KoogArguments.readable(frame.content))
             false
         }
         is StreamFrame.End -> {
@@ -64,8 +64,4 @@ internal class KoogStream {
         metaInfo = end?.metaInfo ?: ResponseMetaInfo.Empty,
         finishReason = end?.finishReason,
     )
-
-    private companion object {
-        const val EMPTY_ARGUMENTS = "{}"
-    }
 }

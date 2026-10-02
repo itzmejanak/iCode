@@ -18,6 +18,7 @@ import java.net.URI
 import java.net.UnknownHostException
 import java.net.UnknownServiceException
 import javax.net.ssl.SSLException
+import kotlinx.serialization.SerializationException
 import org.json.JSONObject
 
 /**
@@ -49,6 +50,8 @@ internal object KoogFailures {
                 is ConnectTimeoutException, is HttpRequestTimeoutException, is SocketTimeoutException -> "$host did not answer in time"
                 is ConnectException -> "Unable to connect to $host — is the server running?"
                 is SSLException -> "A secure connection to $host failed"
+                // A reply that is not what the provider's API sends: a parser's words mean nothing here.
+                is SerializationException -> UNREADABLE
                 // A connection that broke while the reply came: the stream's, or a whole reply's.
                 is IOException -> CONNECTION_ENDED.takeIf { fromServer }
                 else -> null
@@ -113,6 +116,7 @@ internal object KoogFailures {
         }
 
     private const val CONNECTION_ENDED = "The connection ended before the reply was complete — try again"
+    private const val UNREADABLE = "The provider's reply could not be read — try again"
     private const val MAX_DEPTH = 8
     private const val MAX_MESSAGE = 300
     private val CONTEXT_WORDS = listOf("context length", "context_length", "maximum context", "prompt is too long", "too many tokens")

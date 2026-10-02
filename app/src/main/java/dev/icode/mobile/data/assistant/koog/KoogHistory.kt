@@ -41,7 +41,8 @@ internal object KoogHistory {
                         Message.Assistant(
                             parts = buildList {
                                 if (message.text.isNotBlank()) add(MessagePart.Text(message.text))
-                                message.calls.forEach { add(MessagePart.Tool.Call(id = it.id, tool = it.tool, args = it.arguments)) }
+                                // Arguments that were not an object go carried in one: no provider takes broken JSON.
+                                message.calls.forEach { add(MessagePart.Tool.Call(id = it.id, tool = it.tool, args = KoogArguments.readable(it.arguments))) }
                             },
                             metaInfo = ResponseMetaInfo.Empty,
                         ),
@@ -87,7 +88,8 @@ internal object KoogHistory {
     /**
      * [reply] as iCode keeps it: its text, each call described by the tool it calls, with an ID from
      * [newId] where the provider gave none, and its reasoning. A call's arguments are not checked
-     * here — a malformed one reaches Koog's tool runner, which answers the model about it.
+     * here — a malformed one reaches Koog's tool runner, and one that was not an object [KoogTool],
+     * which answer the model about them.
      *
      * Reasoning is what the provider sent as such — Anthropic's thinking, Gemini's thoughts,
      * Ollama's thinking, an OpenAI-compatible server's `reasoning_content` — or a leading
@@ -107,11 +109,14 @@ internal object KoogHistory {
             reasoning = bounded(reasoning, MAX_REASONING),
             calls = reply.parts.filterIsInstance<MessagePart.Tool.Call>().map { call ->
                 val tool = tools[call.tool]
+                // What the model wrote, as it wrote it, where it was carried ([KoogArguments]).
+                val unreadable = KoogArguments.unreadable(call.args)
                 AssistantCall(
                     id = call.id?.takeIf { it.isNotBlank() } ?: newId(),
                     tool = call.tool,
-                    arguments = call.args,
-                    summary = tool?.let { runCatching { it.summary(JSONObject(call.args)) }.getOrNull() } ?: call.tool,
+                    arguments = unreadable ?: call.args,
+                    // Arguments that could not be read say nothing of what the call would do: its tool's name does.
+                    summary = tool?.takeIf { unreadable == null }?.let { runCatching { it.summary(JSONObject(call.args)) }.getOrNull() } ?: call.tool,
                     // A tool that does not exist is answered by the runner without running anything.
                     kind = tool?.kind ?: AssistantToolKind.Read,
                 )

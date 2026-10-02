@@ -36,9 +36,13 @@ internal class KoogTool(private val tool: AssistantTool) : ToolBase<String, Stri
         serializer.encodeJSONElementToString(rawArgs)
 
     override suspend fun execute(args: String, metadata: ToolCallMetadata): String = try {
+        // Arguments that were not an object never run, nor ask the user first: the model is told why.
+        KoogArguments.unreadable(args)?.let { throw ToolException.ValidationFailure(KoogArguments.refusal(it)) }
         tool.run(JSONObject(args))
     } catch (stopped: CancellationException) {
         throw stopped
+    } catch (invalid: ToolException) {
+        throw invalid
     } catch (refused: AssistantToolException) {
         throw ToolException.ValidationFailure(refused.message ?: "${tool.name} refused")
     } catch (failure: Exception) {
