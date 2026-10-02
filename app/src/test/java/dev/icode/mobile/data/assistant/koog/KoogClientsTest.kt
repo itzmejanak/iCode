@@ -1,7 +1,6 @@
 package dev.icode.mobile.data.assistant.koog
 
 import ai.koog.http.client.ktor.KtorKoogHttpClient
-import com.sun.net.httpserver.HttpServer
 import dev.icode.mobile.data.assistant.AssistantConnection
 import dev.icode.mobile.data.assistant.AssistantEvents
 import dev.icode.mobile.data.assistant.AssistantParameter
@@ -15,7 +14,6 @@ import dev.icode.mobile.domain.AssistantResult
 import dev.icode.mobile.domain.AssistantToolKind
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
-import java.net.InetSocketAddress
 import java.util.Collections
 import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
@@ -26,20 +24,13 @@ import org.junit.Test
 
 /** Koog's own OpenAI client, as iCode makes it, over HTTP from a local server. */
 class KoogClientsTest {
-    private val bodies = Collections.synchronizedList(mutableListOf<String>())
     private val replies = mutableListOf<String>()
-    private val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0).apply {
-        createContext("/") { exchange ->
-            bodies += exchange.requestBody.readBytes().decodeToString()
-            val reply = replies[minOf(bodies.size, replies.size) - 1].toByteArray()
-            exchange.responseHeaders.add("Content-Type", "application/json")
-            exchange.sendResponseHeaders(200, reply.size.toLong())
-            exchange.responseBody.use { it.write(reply) }
-        }
-        start()
-    }
+    private var answered = 0
 
-    @After fun stop() = server.stop(0)
+    /** Each request answered with the next of [replies]; past the last, the last again. */
+    private val server = LocalHttpServer { LocalHttpServer.Response(200, "application/json", replies[minOf(++answered, replies.size) - 1]) }
+
+    @After fun stop() = server.close()
 
     private fun completion(message: String, finish: String) =
         """{"id":"gen-1","object":"chat.completion","created":1,"model":"m","choices":[{"index":0,"finish_reason":"$finish","message":$message}],""" +
@@ -71,7 +62,7 @@ class KoogClientsTest {
         }
         val kind = AssistantProviderKind.OpenAICompatible
         val http = KtorKoogHttpClient.Factory(baseClient = HttpClient(OkHttp))
-        val connection = AssistantConnection(kind, "http://127.0.0.1:${server.address.port}/v1", "sk-test")
+        val connection = AssistantConnection(kind, server.address("/v1"), "sk-test")
         KoogAssistantEngine { KoogClients.create(it, http) }.run(
             AssistantTurnRequest(
                 connection, KoogModels.model(kind, AssistantModelSpec("minimax/minimax-m3:free")), null,
@@ -87,7 +78,7 @@ class KoogClientsTest {
         assertEquals(AssistantResult("call_1", "run_command", KoogArguments.refusal(cut), failed = true), seen.filterIsInstance<AssistantResult>().single())
         assertEquals(AssistantMessage.Reply("Done"), seen.last())
         // The next request carried the call as an object that holds what was written.
-        val sent = JSONObject(bodies[1]).getJSONArray("messages").getJSONObject(2).getJSONArray("tool_calls").getJSONObject(0)
+        val sent = JSONObject(server.requests[1].body).getJSONArray("messages").getJSONObject(2).getJSONArray("tool_calls").getJSONObject(0)
         assertEquals(cut, KoogArguments.unreadable(sent.getJSONObject("function").getString("arguments")))
     }
 }
