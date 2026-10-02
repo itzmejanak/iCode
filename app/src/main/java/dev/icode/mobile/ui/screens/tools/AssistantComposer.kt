@@ -69,6 +69,8 @@ internal fun AssistantComposer(
     onAttach: () -> Unit,
     onModels: () -> Unit,
     onSend: () -> Unit,
+    /** The workspace's files: where the assistant works, a tap away. */
+    onWorkspace: () -> Unit,
 ) {
     val gateway = LocalWorkbenchGateway.current
     val settings = state.settings
@@ -128,14 +130,21 @@ internal fun AssistantComposer(
         }
         // Under the box: where it works and what it may do unasked; how full the context is, at the right.
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
-            Icon(Icons.Outlined.FolderOpen, contentDescription = null, tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconSm))
-            Text(
-                AssistantRules.workspaceName(state.workspace.orEmpty()),
-                style = IcodeType.Caption.copy(color = IcodeColors.TextMuted),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false),
-            )
+            Row(
+                Modifier.weight(1f, fill = false).minimumInteractiveComponentSize().clip(IcodeShapes.Small)
+                    .clickable(onClickLabel = "Show the workspace's files", onClick = onWorkspace)
+                    .padding(horizontal = IcodeSpacing.Space1),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
+            ) {
+                Icon(Icons.Outlined.FolderOpen, contentDescription = null, tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconSm))
+                Text(
+                    AssistantRules.workspaceName(state.workspace.orEmpty()),
+                    style = IcodeType.Caption.copy(color = IcodeColors.TextMuted),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             // Permissions are the chat's, chosen here as VS Code's are.
             Choice(
                 if (settings.askBeforeChanges) ASK_FIRST else ALLOW_ALL, "Permissions", listOf(true, false), settings.askBeforeChanges,
