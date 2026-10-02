@@ -2,6 +2,7 @@ package dev.icode.mobile.ui.editor
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.text.Spanned
 import android.text.method.LinkMovementMethod
 import android.util.TypedValue
 import android.view.MotionEvent
@@ -23,6 +24,7 @@ import dev.icode.mobile.designsystem.IcodeColors
 import io.noties.markwon.Markwon
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
 import io.noties.markwon.ext.tables.TablePlugin
+import io.noties.markwon.ext.tables.TableRowSpan
 import io.noties.markwon.ext.tasklist.TaskListPlugin
 
 /** Native Markdown rendering; preview zoom does not change the editor setting or document. */
@@ -49,13 +51,9 @@ fun MarkdownPreview(
             },
             update = {
                 it.onScale = onScale
-                it.setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSizeSp * fontScale)
                 it.setTextColor(textColor)
                 it.setLinkTextColor(linkColor)
-                if (it.renderedMarkdown != text) {
-                    markwon.setMarkdown(it, text)
-                    it.renderedMarkdown = text
-                }
+                it.show(markwon, text, fontSizeSp * fontScale)
             },
             modifier = Modifier.fillMaxWidth(),
         )
@@ -74,13 +72,9 @@ fun MarkdownText(text: String, fontSizeSp: Float, modifier: Modifier = Modifier)
     AndroidView(
         factory = { ScalableMarkdownTextView(it) },
         update = {
-            it.setTextSize(TypedValue.COMPLEX_UNIT_SP, fontSizeSp)
             it.setTextColor(textColor)
             it.setLinkTextColor(linkColor)
-            if (it.renderedMarkdown != text) {
-                markwon.setMarkdown(it, text)
-                it.renderedMarkdown = text
-            }
+            it.show(markwon, text, fontSizeSp)
         },
         modifier = modifier.fillMaxWidth(),
     )
@@ -104,8 +98,26 @@ private class SelectableLinkMovementMethod : LinkMovementMethod() {
 }
 
 internal class ScalableMarkdownTextView(context: Context) : TextView(context) {
-    var renderedMarkdown: String? = null
+    private var renderedMarkdown: String? = null
+    private var renderedSize = 0f
     var onScale: (Float) -> Unit = {}
+
+    /**
+     * [markdown] at [sizeSp]. Text, headings and lists read the size as they are drawn; a table does
+     * not: Markwon's `TableRowSpan` lays its cells out once, again only when the width it is drawn
+     * at changes (4.6.2, `recreateLayouts`). A new size — a pinch — renders a table anew, its cells
+     * laid out at that size.
+     */
+    fun show(markwon: Markwon, markdown: String, sizeSp: Float) {
+        setTextSize(TypedValue.COMPLEX_UNIT_SP, sizeSp)
+        if (markdown != renderedMarkdown || (sizeSp != renderedSize && holdsTable())) {
+            markwon.setMarkdown(this, markdown)
+            renderedMarkdown = markdown
+        }
+        renderedSize = sizeSp
+    }
+
+    private fun holdsTable(): Boolean = (text as? Spanned)?.let { it.getSpans(0, it.length, TableRowSpan::class.java).isNotEmpty() } == true
     private var handlingPinch = false
     private val scaleDetector = ScaleGestureDetector(context, object : ScaleGestureDetector.SimpleOnScaleGestureListener() {
         override fun onScale(detector: ScaleGestureDetector): Boolean {
