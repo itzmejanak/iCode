@@ -20,13 +20,11 @@ import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Compress
 import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Sync
-import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
@@ -53,16 +51,10 @@ import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeShapes
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
-import dev.icode.mobile.designsystem.IcodeTone
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.LocalCodeTextScale
-import dev.icode.mobile.designsystem.NoticeCard
 import dev.icode.mobile.designsystem.PrimaryButton
-import dev.icode.mobile.designsystem.SecondaryButton
-import dev.icode.mobile.designsystem.ThreeColumnActions
 import dev.icode.mobile.designsystem.scaledBy
-import dev.icode.mobile.domain.AssistantAnswer
-import dev.icode.mobile.domain.AssistantApproval
 import dev.icode.mobile.domain.AssistantAttachment
 import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantEntry
@@ -213,28 +205,6 @@ private fun Disclosure(
     }
 }
 
-/** A change or a command waiting for the user: what it will do, then Deny, Allow All or Allow. */
-@Composable
-internal fun AssistantApprovalCard(approval: AssistantApproval, modifier: Modifier, onAnswer: (AssistantAnswer) -> Unit) {
-    val command = approval.call.kind == AssistantToolKind.Command
-    NoticeCard(
-        IcodeTone.Warning,
-        modifier.fillMaxWidth(),
-        title = if (command) "Run this command?" else "Make this change?",
-        icon = if (command) Icons.Outlined.Terminal else Icons.Outlined.EditNote,
-    ) {
-        CodeSurface(Modifier.fillMaxWidth()) {
-            Text(approval.detail, style = IcodeType.MonoSmall, maxLines = DETAIL_LINES, overflow = TextOverflow.Ellipsis)
-        }
-        Text("Allow All: this chat's changes and commands stop asking.", style = IcodeType.Caption.copy(color = IcodeColors.TextMuted))
-        ThreeColumnActions(
-            first = { SecondaryButton("Deny", { onAnswer(AssistantAnswer.Deny) }, Modifier.fillMaxWidth()) },
-            second = { SecondaryButton("Allow All", { onAnswer(AssistantAnswer.AllowAll) }, Modifier.fillMaxWidth()) },
-            third = { PrimaryButton("Allow", { onAnswer(AssistantAnswer.Allow) }, Modifier.fillMaxWidth()) },
-        )
-    }
-}
-
 /** No provider yet: what the assistant does, what it needs, and that what it reads is sent. */
 @Composable
 internal fun AssistantSetUp(modifier: Modifier, onSetUp: () -> Unit) {
@@ -272,4 +242,3 @@ private const val SAID_WIDTH = 0.85f
 /** An output shown on the page: the model was given at most a few times this. */
 private const val SHOWN_OUTPUT = 8_000
 
-private const val DETAIL_LINES = 14

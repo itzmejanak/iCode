@@ -116,7 +116,8 @@ internal fun AssistantChatView(state: AssistantState, modifier: Modifier, onSugg
             }
         }
         state.approval?.takeIf { state.runningHere }?.let { approval ->
-            AssistantApprovalCard(approval, Modifier.padding(horizontal = IcodeSpacing.Space3, vertical = IcodeSpacing.Space2)) { answer ->
+            // Its gap to the composer is the composer's own top padding: one, not two.
+            AssistantApprovalCard(approval, Modifier.padding(start = IcodeSpacing.Space3, end = IcodeSpacing.Space3, top = IcodeSpacing.Space2)) { answer ->
                 gateway.dispatch(WorkbenchIntent.AnswerAssistant(approval.call.id, answer))
             }
         }

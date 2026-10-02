@@ -64,8 +64,11 @@ object IcodeSizes {
     /** Offscreen-sized input that only exists to receive keystrokes. */
     val HiddenInput = 1.dp
     val BottomBar = 48.dp
-    /** A choice's button in a bottom bar: the branch, the repository. */
+    /** A choice's button in a bottom bar — the branch, the repository — and a compact action's height. */
     val BarChoice = 32.dp
+
+    /** An open approval's text, at most: a few lines of a command, then it scrolls. */
+    val ApprovalDetail = 200.dp
     val LineNumberGutter = 32.dp
     val Swatch = 28.dp
 
