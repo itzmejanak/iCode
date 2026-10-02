@@ -334,6 +334,7 @@ class AndroidWorkbenchGateway internal constructor(context: Context) : Workbench
                         WorkbenchIntent.EnsureTerminalSession -> terminal.ensure()
                         is WorkbenchIntent.SelectTerminalSession -> terminal.select(intent.id)
                         is WorkbenchIntent.ShowTerminalSession -> terminal.show(intent.id)
+                        is WorkbenchIntent.ShowProcessOutput -> execution.processes.info(intent.id)?.let { terminal.showOutput(it, execution.processes.logOf(it.id)) }
                         is WorkbenchIntent.ReorderTerminalSession -> terminal.reorder(intent.movingId, intent.targetId)
                         is WorkbenchIntent.CloseTerminalSession -> terminal.close(intent.id)
                         is WorkbenchIntent.OpenExternalUrl -> workbench.emit(WorkbenchEffect.OpenExternalUrl(intent.url))

@@ -31,6 +31,8 @@ data class TerminalSessionState(
     val exitCode: Int? = null,
     val exitSignal: Int? = null,
     val failure: String? = null,
+    /** The process whose output this tab shows (docs/runtime-foundation-plan.md §6 P3); null for a shell. */
+    val follows: String? = null,
 ) {
     val isRunning: Boolean get() = status == TerminalStatus.Running
 

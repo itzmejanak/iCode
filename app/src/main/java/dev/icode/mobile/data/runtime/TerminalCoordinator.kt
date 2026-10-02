@@ -3,6 +3,7 @@ package dev.icode.mobile.data.runtime
 import androidx.annotation.MainThread
 import dev.icode.mobile.data.workspace.WorkbenchStateHolder
 import dev.icode.mobile.data.workspace.isAtOrUnder
+import dev.icode.mobile.domain.ManagedProcess
 import dev.icode.mobile.domain.TerminalSettings
 import dev.icode.mobile.domain.TerminalSnapshot
 import dev.icode.mobile.domain.WorkbenchEffect
@@ -18,6 +19,12 @@ import kotlinx.coroutines.withContext
 /** A tab removed because its shell exited by itself. */
 internal data class TerminalEnding(val id: String, val title: String, val exitCode: Int)
 
+/**
+ * A process's output, for a tab of its own: [key] is the process, [title] its name, [log] where its
+ * output is written in the runtime, [workspaceHostPath] the workspace it runs in.
+ */
+internal data class FollowedOutput(val key: String, val title: String, val workspaceHostPath: String, val log: String)
+
 /** What the workbench asks of the process's terminal sessions; tests put a fake in their place. */
 internal interface TerminalSessions {
     val snapshot: StateFlow<TerminalSnapshot>
@@ -26,6 +33,9 @@ internal interface TerminalSessions {
 
     /** Opens a session, or selects a running one of the workspace when [reuseExisting]; null without a runtime. */
     suspend fun open(workspaceHostPath: String?, reuseExisting: Boolean): String?
+
+    /** Selects the tab following [output], or opens one; null without a runtime. */
+    suspend fun follow(output: FollowedOutput): String?
 
     @MainThread fun select(id: String)
     @MainThread fun reorder(movingId: String, targetId: String)
@@ -120,6 +130,17 @@ internal class TerminalCoordinator(
     suspend fun reorder(movingId: String, targetId: String) = withContext(main) { terminals.reorder(movingId, targetId) }
 
     suspend fun close(id: String) = withContext(main) { terminals.close(id) }
+
+    /**
+     * [process]'s output on the Terminal panel, in a tab of its own that follows [log] — the one
+     * already following it, else a new one — in the workspace it runs in.
+     */
+    suspend fun showOutput(process: ManagedProcess, log: String) {
+        if (!runtimeInstalled()) return workbench.message("Install the Linux runtime before opening a terminal")
+        val id = terminals.follow(FollowedOutput(process.id, process.name, process.workspace, log))
+            ?: return workbench.message("Unable to show ${process.name}'s output")
+        show(id)
+    }
 
     /**
      * Selects the session, then opens its workspace on the Terminal panel. The

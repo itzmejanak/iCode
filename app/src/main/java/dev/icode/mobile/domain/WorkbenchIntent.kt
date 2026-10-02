@@ -235,6 +235,8 @@ sealed interface WorkbenchIntent {
     data object StopAllProcesses : ProcessIntent
     /** An ended process leaves the list. */
     data class ForgetProcess(val id: String) : ProcessIntent
+    /** A process's output on the Terminal panel, in a tab of its own (docs/runtime-foundation-plan.md §6 P3). */
+    data class ShowProcessOutput(val id: String) : WorkbenchIntent
 
     /** The assistant (docs/assistant-koog-plan.md): its turns are their own job, never behind the mutation lock. */
     sealed interface AssistantIntent : WorkbenchIntent

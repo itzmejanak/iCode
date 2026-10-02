@@ -30,25 +30,23 @@ internal class TerminalNotifications(private val context: Context) {
     }
 
     /**
-     * The group's parent, and the service's foreground notification. With
-     * session rows present Android shows it only as the group's header, and
-     * shows no buttons on it (measured on this XOS phone, as on stock
-     * Android), so it has none; on its own — while only background work runs
-     * — it is the summary, as the reference's "1 task is running".
+     * The group's parent, and the service's foreground notification. Its
+     * children are the session rows and the work's progress rows, so iCode is
+     * one card; Android shows the parent as the group's header and no buttons
+     * on it (measured on this XOS phone, as on stock Android), so it has none.
+     * Collapsed, it says what runs — "1 session · 2 processes running".
      */
-    fun parent(sessionCount: Int, runningWork: Int, openSessionId: String?): Notification {
-        val text = listOfNotNull(
-            when (sessionCount) {
-                0 -> null
-                1 -> "1 session"
-                else -> "$sessionCount sessions"
-            },
-            when (runningWork) {
-                0 -> null
-                1 -> "1 task running"
-                else -> "$runningWork tasks running"
-            },
-        ).joinToString(" · ")
+    fun parent(sessionCount: Int, runningWork: List<String>, openSessionId: String?): Notification {
+        // The work by its own words — "2 processes running", "Cloning…" — not all called tasks.
+        val text = (
+            listOfNotNull(
+                when (sessionCount) {
+                    0 -> null
+                    1 -> "1 session"
+                    else -> "$sessionCount sessions"
+                },
+            ) + runningWork
+            ).joinToString(" · ")
         return baseBuilder(ORDER_PARENT)
             .setContentTitle(context.getString(R.string.app_name))
             .setContentText(text)
@@ -125,7 +123,8 @@ internal class TerminalNotifications(private val context: Context) {
     companion object {
         const val PARENT_ID = 4711
         private const val CHANNEL_ID = "icode.runtime"
-        private const val GROUP = "icode.terminal"
+        /** The service's group: its summary, the session rows and the work's progress rows. */
+        const val GROUP = "icode.terminal"
         private const val SESSION_ROW_BASE = 5000
         private const val ORDER_PARENT = 1000
         private const val ORDER_STEP_MILLIS = 1000L

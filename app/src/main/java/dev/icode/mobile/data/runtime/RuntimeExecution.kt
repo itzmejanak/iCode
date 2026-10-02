@@ -13,5 +13,5 @@ internal class RuntimeExecution(layout: RuntimeLayout, scope: CoroutineScope, pu
     val rootfs: File = layout.rootfs
     val guest = GuestCommand(layout)
     val environment = GuestEnvironment(layout, guest)
-    val processes = RuntimeProcesses(scope, layout::spawn, publish)
+    val processes = RuntimeProcesses(scope, layout::spawn, publish, ProcessLogs.of(layout.rootfs))
 }

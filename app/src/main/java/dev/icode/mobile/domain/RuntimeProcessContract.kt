@@ -16,10 +16,8 @@ data class ManagedProcess(
     val directory: String,
     val startedAt: Long,
     val state: ManagedProcessState,
-    /** Ports on this phone its output names (`http://127.0.0.1:8000`), at most a few, in order. */
+    /** Ports on this phone its output names a server on (`http://127.0.0.1:8000`), at most a few, in order. */
     val ports: List<Int> = emptyList(),
-    /** The end of its output, escape codes removed: what the page shows. */
-    val tail: String = "",
 ) {
     val running: Boolean get() = state == ManagedProcessState.Running
 }
@@ -74,11 +72,17 @@ object ProcessRules {
     fun address(port: Int): String = "http://127.0.0.1:$port"
 
     /**
-     * The ports [text] names on this phone — `localhost:5173`, `http://127.0.0.1:8000`,
-     * `0.0.0.0:8000`, `[::1]:3000` — that a server could listen on, in order, each once.
+     * The ports on this phone [text] names a server on, in order, each once: an address as a URL
+     * (`http://127.0.0.1:8000`, `ws://localhost:5173`), or bare (`0.0.0.0:8000`, `[::1]:3000`) on a
+     * line that says it listens. An address elsewhere is not one: a request log's is its client's
+     * (`INFO: 127.0.0.1:50744 - "GET /"`).
      */
-    fun ports(text: String): List<Int> = ADDRESS.findAll(text)
-        .mapNotNull { it.groupValues[1].toIntOrNull() }
+    fun ports(text: String): List<Int> = text.lineSequence()
+        .flatMap { line ->
+            val urls = URL.findAll(line).map { it.groupValues[1] }
+            if (LISTENS.containsMatchIn(line)) urls + ADDRESS.findAll(line).map { it.groupValues[1] } else urls
+        }
+        .mapNotNull { it.toIntOrNull() }
         .filter { it in LISTENABLE_PORTS }
         .distinct()
         .toList()
@@ -89,5 +93,10 @@ object ProcessRules {
         1 to "SIGHUP", 2 to "SIGINT", 3 to "SIGQUIT", 4 to "SIGILL", 6 to "SIGABRT", 7 to "SIGBUS",
         8 to "SIGFPE", 9 to "SIGKILL", 11 to "SIGSEGV", 13 to "SIGPIPE", 14 to "SIGALRM", 15 to "SIGTERM",
     )
-    private val ADDRESS = Regex("""(?<![\w.])(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1?\]):(\d{4,5})(?!\d)""")
+    private const val HOST = """(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1?\])"""
+    private val ADDRESS = Regex("""(?<![\w.])$HOST:(\d{4,5})(?!\d)""")
+    private val URL = Regex("""\b(?:https?|wss?)://$HOST:(\d{4,5})(?!\d)""", RegexOption.IGNORE_CASE)
+
+    /** What a server says as it starts to listen: "Listening on", "running on", "serving at", "available on". */
+    private val LISTENS = Regex("""\b(?:listen(?:s|ing)?|serving|running on|started (?:server )?on|bound to|available (?:at|on))\b""", RegexOption.IGNORE_CASE)
 }

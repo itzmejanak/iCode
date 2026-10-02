@@ -16,7 +16,7 @@ class ProcessRulesTest {
         assertEquals("failed", ProcessRules.exitMeaning(255))
     }
 
-    @Test fun `ports are the addresses on this phone an output names, from 1024, each once, in order`() {
+    @Test fun `ports are the ones an output names a server on, on this phone, from 1024, each once, in order`() {
         val output = """
             INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
               ➜  Local:   http://localhost:5173/
@@ -24,6 +24,17 @@ class ProcessRulesTest {
             Redis at 10.0.0.5:6379, an old port localhost:80, not.localhost:9000, 127.0.0.1:123456
         """.trimIndent()
         assertEquals(listOf(8000, 5173, 3000), ProcessRules.ports(output))
+    }
+
+    @Test fun `a client's address in an access log is no port of the server's`() {
+        // Uvicorn's request log, as the phone showed it (2026-10-02): the client's port, not the server's.
+        val log = """
+            INFO:     127.0.0.1:50744 - "GET /v1/tags/ng32BLNXAvN HTTP/1.1" 404 Not Found
+            INFO:     127.0.0.1:35396 - "GET /v1/health HTTP/1.1" 200 OK
+            proxied to 127.0.0.1:9000 for this request
+        """.trimIndent()
+        assertEquals(emptyList<Int>(), ProcessRules.ports(log))
+        assertEquals(listOf(8000), ProcessRules.ports("INFO:     Uvicorn running on http://0.0.0.0:8000\n$log"))
     }
 
     @Test fun `a process's state reads as the page says it`() {

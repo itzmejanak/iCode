@@ -39,7 +39,8 @@ import kotlinx.coroutines.withContext
  * A tab lives exactly as long as its shell (docs/terminal-maturity-plan.md
  * section 4): a shell that exits is removed and reported on [endings]; one
  * killed by a signal stays so the user can see what happened; closing a tab
- * hangs its session up the way a closing terminal does.
+ * hangs its session up the way a closing terminal does. A process's output has
+ * a tab of its own ([follow]), which closes without a word.
  *
  * One per process ([get]), not per screen: closing iCode's screen must not end
  * a shell the user left running (docs/terminal-background-plan.md). Only the
@@ -82,20 +83,12 @@ internal class TerminalSessionManager private constructor(
         mutableCommandsFinished.tryEmit(sessionId)
     }
 
-    private val mutableScreenVisible = MutableStateFlow(false)
-    /** iCode's screen is in view: work the user was watching there needs no pop-up when it fails. */
-    val screenVisible: StateFlow<Boolean> = mutableScreenVisible.asStateFlow()
-    private var viewedId: String? = null
-    private val mutableLookingAt = MutableStateFlow<String?>(null)
-    /** The session the user is looking at: iCode on screen and that session's view attached. */
-    val lookingAt: StateFlow<String?> = mutableLookingAt.asStateFlow()
+    private val attention = TerminalAttention()
+    val screenVisible: StateFlow<Boolean> get() = attention.screenVisible
+    val lookingAt: StateFlow<String?> get() = attention.lookingAt
 
-    /** iCode's screen came into view or left it. */
     @MainThread
-    fun setScreenVisible(visible: Boolean) {
-        mutableScreenVisible.value = visible
-        mutableLookingAt.value = viewedId.takeIf { visible }
-    }
+    fun setScreenVisible(visible: Boolean) = attention.setScreenVisible(visible)
 
     /**
      * Opens a session, or selects a running one for the same workspace when
@@ -106,6 +99,14 @@ internal class TerminalSessionManager private constructor(
             withContext(Dispatchers.Main.immediate) { selectRunning(workspaceHostPath) }?.let { return it }
         }
         val launch = withContext(Dispatchers.IO) { TerminalLaunch.prepare(layout, prompt, settings, workspaceHostPath) } ?: return null
+        return withContext(Dispatchers.Main.immediate) { start(launch) }
+    }
+
+    override suspend fun follow(output: FollowedOutput): String? {
+        withContext(Dispatchers.Main.immediate) {
+            entries.values.firstOrNull { it.follows == output.key && it.state.isRunning }?.also { publish(selectedId = it.id) }?.id
+        }?.let { return it }
+        val launch = withContext(Dispatchers.IO) { TerminalLaunch.following(layout, settings, output) } ?: return null
         return withContext(Dispatchers.Main.immediate) { start(launch) }
     }
 
@@ -166,16 +167,11 @@ internal class TerminalSessionManager private constructor(
     @MainThread
     fun observe(id: String, onScreenChanged: () -> Unit): AutoCloseable {
         entries[id]?.observer = onScreenChanged
-        viewed(id)
+        attention.viewed(id)
         return AutoCloseable {
             entries[id]?.let { if (it.observer === onScreenChanged) it.observer = null }
-            if (viewedId == id) viewed(null)
+            attention.left(id)
         }
-    }
-
-    private fun viewed(id: String?) {
-        viewedId = id
-        mutableLookingAt.value = id.takeIf { screenVisible.value }
     }
 
     /**
@@ -192,8 +188,8 @@ internal class TerminalSessionManager private constructor(
     @MainThread
     private fun start(launch: TerminalLaunch): String {
         val id = "session-${nextId++}"
-        val title = sessionNames.allocate(id)
-        val entry = Entry(id, launch.workspaceHostPath, TerminalSessionState(id, title, TerminalStatus.Running))
+        val title = launch.title ?: sessionNames.allocate(id)
+        val entry = Entry(id, launch.workspaceHostPath, TerminalSessionState(id, title, TerminalStatus.Running, follows = launch.follows), launch.follows)
         entries[id] = entry
         if (launch.failure != null) {
             entry.state = entry.state.copy(status = TerminalStatus.Failed, failure = launch.failure)
@@ -250,6 +246,8 @@ internal class TerminalSessionManager private constructor(
         // Closed by the user: already removed, and nothing to report.
         val entry = entries[id] ?: return
         entry.observer?.invoke()
+        // A process's output, closed with Ctrl-C: a view, whose ending is nothing to report.
+        if (entry.follows != null) return close(id)
         if (exitStatus < 0) {
             // Killed by a signal: keep the tab, whose screen shows the end.
             entry.state = entry.state.copy(status = TerminalStatus.Exited, exitSignal = -exitStatus)
@@ -267,12 +265,13 @@ internal class TerminalSessionManager private constructor(
             ?: states.lastOrNull()?.id
         mutableSnapshot.value = TerminalSnapshot(sessions = states, selectedId = resolved)
         ledger.record(
-            entries.values.filter { it.state.isRunning }
+            entries.values.filter { it.state.isRunning && it.follows == null }
                 .map { LostTerminalSession(it.state.title, it.workspaceHostPath?.let { path -> File(path).name }) },
         )
     }
 
-    private class Entry(val id: String, val workspaceHostPath: String?, var state: TerminalSessionState) {
+    /** [follows]: the process whose output it shows; null for a shell. */
+    private class Entry(val id: String, val workspaceHostPath: String?, var state: TerminalSessionState, val follows: String?) {
         var session: TerminalSession? = null
         var observer: (() -> Unit)? = null
     }

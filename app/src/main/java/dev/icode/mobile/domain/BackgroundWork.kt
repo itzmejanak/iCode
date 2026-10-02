@@ -79,6 +79,10 @@ data class BackgroundItem(
     val failure: String? = null,
     /** What it waits on the user for ("Run `npm test`?"); it pops up while iCode is out of view. */
     val question: String? = null,
+    /** False for what runs until it is stopped — a server — which has no progress to show. */
+    val progresses: Boolean = true,
+    /** What [cancel]'s button says. */
+    val cancelLabel: String = "Cancel",
 ) {
     val running: Boolean get() = failure == null
 
@@ -122,7 +126,7 @@ object BackgroundWorkRules {
 
     /**
      * What runs beyond the command that started it — a server, a watcher — kept by the foreground
-     * service until it is stopped; Cancel stops them all. They show on the Assistant page.
+     * service until it is stopped: no progress, and Stop All. They show on the Assistant page.
      */
     private fun processes(running: List<ManagedProcess>): BackgroundItem? {
         if (running.isEmpty()) return null
@@ -133,6 +137,8 @@ object BackgroundWorkRules {
             cancel = WorkbenchIntent.StopAllProcesses,
             place = BackgroundPlace.Processes,
             watched = true,
+            progresses = false,
+            cancelLabel = "Stop All",
         )
     }
 

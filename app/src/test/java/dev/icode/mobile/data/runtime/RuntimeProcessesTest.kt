@@ -5,8 +5,10 @@ import dev.icode.mobile.domain.ManagedProcessState
 import dev.icode.mobile.domain.ProcessRules
 import dev.icode.mobile.domain.WorkbenchIntent
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.io.PipedInputStream
 import java.io.PipedOutputStream
+import java.nio.file.Files
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
 import kotlinx.coroutines.CoroutineScope
@@ -58,9 +60,16 @@ class RuntimeProcessesTest {
     private val launched = Collections.synchronizedList(mutableListOf<Pair<RuntimeProcesses.Launch, FakeProcess>>())
     @Volatile private var published: List<ManagedProcess> = emptyList()
     private var next: () -> FakeProcess = { FakeProcess() }
-    private val processes = RuntimeProcesses(scope, { launch -> next().also { launched += launch to it } }, { published = it }, grace = 200)
+    private val logDirectory = Files.createTempDirectory("logs").toFile()
+    private val logs = ProcessLogs(logDirectory)
+    private val processes = RuntimeProcesses(scope, { launch -> next().also { launched += launch to it } }, { published = it }, logs, grace = 200)
 
-    @After fun stop() = scope.cancel()
+    @After fun stop() {
+        scope.cancel()
+        logDirectory.deleteRecursively()
+    }
+
+    private fun log(id: String) = File(logDirectory, "$id.log").takeIf { it.isFile }?.readText().orEmpty()
 
     private fun until(condition: () -> Boolean) {
         val deadline = System.currentTimeMillis() + 5_000
@@ -73,7 +82,7 @@ class RuntimeProcessesTest {
     private fun start(command: String = "uvicorn app.main:app", workspace: String = "/w/app", name: String? = null) =
         processes.start(workspace, "/workspace/app", command, name, mapOf("PATH" to "/usr/bin")).getOrThrow()
 
-    @Test fun `a process runs in its workspace and directory, its output kept and its ports found`() {
+    @Test fun `a process runs in its workspace and directory, its output logged as it came and its ports found`() {
         val started = start()
         assertEquals("p1", started.id)
         assertEquals("uvicorn", started.name)
@@ -81,7 +90,9 @@ class RuntimeProcessesTest {
         assertEquals(RuntimeProcesses.Launch("/w/app", "/workspace/app", "uvicorn app.main:app", mapOf("PATH" to "/usr/bin")), launch)
         fake.say("INFO: Uvicorn running on \u001B[1mhttp://127.0.0.1:8000\u001B[0m (Press CTRL+C to quit)\n")
         until { published.singleOrNull()?.ports == listOf(8000) }
-        assertTrue(published.single().tail.contains("Uvicorn running on http://127.0.0.1:8000"))
+        // As printed, colours and all: the terminal that follows it draws them.
+        until { log("p1").contains("Uvicorn running on \u001B[1mhttp://127.0.0.1:8000\u001B[0m") }
+        assertEquals("/tmp/icode/processes/p1.log", processes.logOf("p1"))
         assertTrue(processes.runsIn("/w/app"))
         assertFalse(processes.runsIn("/w/other"))
         fake.exit(0)
@@ -94,11 +105,11 @@ class RuntimeProcessesTest {
         val started = start()
         val fake = launched.single().second
         fake.say("one\n")
-        until { processes.info(started.id)?.let { true } == true && published.single().tail.contains("one") }
+        until { log(started.id).contains("one") }
         assertEquals("one\n", processes.read(started.id)?.output)
         processes.info(started.id)
         fake.say("two\nPassword: ")
-        until { published.single().tail.contains("Password") }
+        until { log(started.id).contains("Password") }
         assertEquals("two\nPassword: ", processes.read(started.id)?.output)
         assertEquals("Password: ", processes.read(started.id)?.output)
         assertNull(processes.read("p9"))
@@ -150,14 +161,54 @@ class RuntimeProcessesTest {
         )
     }
 
-    @Test fun `what ended in a workspace follows its rename and goes with its delete`() {
+    @Test fun `what ended in a workspace follows its rename and goes with its delete, its log too`() {
         val started = start()
+        launched.single().second.say("done\n")
+        until { log(started.id).isNotEmpty() }
         launched.single().second.exit(0)
         until { !processes.anyRunning() }
         processes.workspaceMoved("/w/app", "/w/renamed")
         assertEquals(listOf(started.id), processes.of("/w/renamed").map { it.id })
         processes.workspaceForgotten("/w/renamed")
         assertTrue(processes.of("/w/renamed").isEmpty())
+        assertFalse(File(logDirectory, "${started.id}.log").exists())
+    }
+
+    @Test fun `a port is read from whole lines, a client's address in a request log is none, and output alone publishes nothing`() {
+        start()
+        val fake = launched.single().second
+        // An address cut between two reads.
+        fake.say("INFO: Uvicorn running on http://127.0.0.1:80")
+        fake.say("00 (Press CTRL+C to quit)\n")
+        until { published.singleOrNull()?.ports == listOf(8000) }
+        val before = published
+        fake.say("INFO:     127.0.0.1:50744 - \"GET /v1/tags HTTP/1.1\" 404 Not Found\n")
+        until { log("p1").contains("50744") }
+        assertEquals(listOf(8000), processes.info("p1")?.ports)
+        assertTrue("output alone is not published", published === before)
+    }
+
+    @Test fun `a forgotten process's log goes, and an earlier iCode's logs go when it starts`() {
+        File(logDirectory, "p7.log").writeText("from an earlier iCode")
+        RuntimeProcesses(scope, { FakeProcess() }, {}, ProcessLogs(logDirectory))
+        assertFalse(File(logDirectory, "p7.log").exists())
+        val started = start()
+        launched.single().second.say("bye\n")
+        until { log(started.id).isNotEmpty() }
+        launched.single().second.exit(0)
+        until { !processes.anyRunning() }
+        processes.forget(started.id)
+        assertFalse(File(logDirectory, "${started.id}.log").exists())
+    }
+
+    @Test fun `a log past its limit moves aside and a new one starts`() {
+        val small = ProcessLogs(logDirectory, limit = 10)
+        small.append("p1", "0123456789")
+        small.append("p1", "after")
+        assertEquals("0123456789", File(logDirectory, "p1.log.1").readText())
+        assertEquals("after", File(logDirectory, "p1.log").readText())
+        small.remove("p1")
+        assertTrue(logDirectory.listFiles().isNullOrEmpty())
     }
 
     @Test fun `a process is named by its command's first word, past its variables and its path`() {
