@@ -16,6 +16,7 @@ import ai.koog.prompt.params.LLMParams
 import dev.icode.mobile.domain.AssistantEffort
 import dev.icode.mobile.domain.AssistantModel
 import dev.icode.mobile.domain.AssistantProviderKind
+import kotlinx.serialization.json.JsonPrimitive
 
 /**
  * A request's parameters, as each of Koog's clients takes them (§12 R2–R3): the output limit, and
@@ -35,7 +36,13 @@ internal object KoogParams {
             }
             AssistantProviderKind.Google -> GoogleParams(maxTokens = userLimit, thinkingConfig = effort?.let { google(it, model) })
             AssistantProviderKind.Ollama -> OllamaParams(maxTokens = userLimit, think = true.takeIf { effort == AssistantEffort.On })
-            AssistantProviderKind.OpenRouter, AssistantProviderKind.OpenAICompatible -> LLMParams(maxTokens = userLimit)
+            AssistantProviderKind.OpenRouter -> LLMParams(maxTokens = userLimit)
+            // Koog sends the limit as `max_completion_tokens`; a server that reads only the older
+            // `max_tokens` would ignore it, so that goes too (docs/runtime-foundation-plan.md D9).
+            AssistantProviderKind.OpenAICompatible -> LLMParams(
+                maxTokens = userLimit,
+                additionalProperties = userLimit?.let { mapOf(MAX_TOKENS to JsonPrimitive(it)) },
+            )
         }
     }
 
@@ -85,5 +92,6 @@ internal object KoogParams {
     private const val OUTPUT_CAP = 32_000L
 
     private const val ANSWER_ROOM = 4_096
+    private const val MAX_TOKENS = "max_tokens"
     private const val ANTHROPIC_MIN_BUDGET = 1_024
 }

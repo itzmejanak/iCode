@@ -143,6 +143,12 @@ internal object KoogHistory {
      */
     fun cutShort(reply: Message.Assistant): Boolean = reply.finishReason?.lowercase() in OUTPUT_LIMIT_REASONS
 
+    /**
+     * [reply] was stopped by its provider's content rules, as it said: `content_filter` for OpenAI,
+     * OpenRouter and OpenAI-compatible servers, `refusal` for Anthropic, `SAFETY` and its kin for Gemini.
+     */
+    fun filtered(reply: Message.Assistant): Boolean = reply.finishReason?.lowercase() in FILTER_REASONS
+
     private const val PROMPT_ID = "icode-assistant"
     private const val THINK_OPEN = "<think>"
     private const val THINK_CLOSE = "</think>"
@@ -150,6 +156,7 @@ internal object KoogHistory {
     /** Reasoning kept for the page: its start and its end past this many characters. */
     private const val MAX_REASONING = 32_000
     private val OUTPUT_LIMIT_REASONS = setOf("length", "max_tokens")
+    private val FILTER_REASONS = setOf("content_filter", "refusal", "safety", "recitation", "blocklist", "prohibited_content", "spii", "image_safety")
 
     /** Every image is sent as JPEG ([dev.icode.mobile.data.assistant.AssistantImages]). */
     private const val FORMAT_JPEG = "jpeg"

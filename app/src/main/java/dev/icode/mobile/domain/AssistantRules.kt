@@ -1,5 +1,7 @@
 package dev.icode.mobile.domain
 
+import java.net.URI
+
 /** One row of the Assistant page, keyed for its list. */
 sealed interface AssistantEntry {
     val key: String
@@ -10,8 +12,8 @@ sealed interface AssistantEntry {
     /** What the assistant answered, Markdown. */
     data class Answer(override val key: String, val text: String) : AssistantEntry
 
-    /** What the model thought before it answered, as its provider sent it. */
-    data class Reasoning(override val key: String, val text: String) : AssistantEntry
+    /** What the model thought before it answered, as its provider sent it; [live] while it is still being written. */
+    data class Reasoning(override val key: String, val text: String, val live: Boolean = false) : AssistantEntry
 
     /** A tool the assistant used, and what came of it. */
     data class Step(
@@ -67,6 +69,11 @@ object AssistantRules {
                 is AssistantMessage.Results -> Unit
                 is AssistantMessage.Compacted -> add(AssistantEntry.Compacted("m$index", message.summary))
             }
+        }
+        // The reply being written, under the rest: replaced by the reply once it is recorded.
+        state.turn?.live?.takeIf { state.runningHere }?.let { live ->
+            if (live.reasoning.isNotBlank()) add(AssistantEntry.Reasoning(LIVE_REASONING, live.reasoning, live = true))
+            if (live.text.isNotBlank()) add(AssistantEntry.Answer(LIVE_ANSWER, live.text))
         }
     }
 
@@ -152,6 +159,17 @@ object AssistantRules {
             ?: models.groupBy { it.id.trim() }.entries.firstOrNull { it.value.size > 1 }?.let { "${it.key} is listed twice" }
     }
 
+    /**
+     * Advice past what blocks saving a provider: OpenRouter's address on an OpenAI-compatible server
+     * loses what only the OpenRouter type reads — replies as they are written, and the reasoning
+     * (docs/runtime-foundation-plan.md D8).
+     */
+    fun providerHint(kind: AssistantProviderKind, baseUrl: String): String? {
+        if (kind != AssistantProviderKind.OpenAICompatible) return null
+        val host = runCatching { URI(baseUrl.trim()).host }.getOrNull()?.lowercase() ?: return null
+        return OPENROUTER_HINT.takeIf { host == OPENROUTER_HOST || host.endsWith(".$OPENROUTER_HOST") }
+    }
+
     /** What is wrong with a model's options as typed; null when they can be kept. */
     fun modelOptionsProblem(contextWindow: String, maxOutput: String): String? = when {
         contextWindow.isNotBlank() && tokens(contextWindow) == null -> "The context window is a number of tokens"
@@ -217,6 +235,10 @@ object AssistantRules {
         ((value * 10).toLong() / 10.0).toString().removeSuffix(".0")
 
     private const val PDF = "application/pdf"
+    private const val LIVE_REASONING = "live-reasoning"
+    private const val LIVE_ANSWER = "live-answer"
+    private const val OPENROUTER_HOST = "openrouter.ai"
+    private const val OPENROUTER_HINT = "Choose the OpenRouter type for OpenRouter: only it shows replies as they are written, and the models' reasoning"
 
     private val IMAGE_EXTENSIONS = setOf("jpg", "jpeg", "png", "webp", "gif", "heic", "heif", "bmp")
 

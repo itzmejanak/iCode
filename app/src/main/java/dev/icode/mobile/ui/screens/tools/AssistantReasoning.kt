@@ -42,17 +42,19 @@ import dev.icode.mobile.domain.AssistantRules
 /**
  * What the model thought before it answered, as its provider sent it: one quiet line —
  * "Reasoning · 1.2k words" — that opens on the thinking itself, smaller and muted beside a rule,
- * so the answer stays what the page leads with.
+ * so the answer stays what the page leads with. Open while it is still being written; folded once
+ * the reply is recorded.
  */
 @Composable
 internal fun AssistantReasoningRow(entry: AssistantEntry.Reasoning) {
     val scale = LocalCodeTextScale.current
-    var open by rememberSaveable(entry.key) { mutableStateOf(false) }
+    var folded by rememberSaveable(entry.key) { mutableStateOf(true) }
+    val open = entry.live || !folded
     val words = remember(entry.text) { entry.text.split(WHITESPACE).count { it.isNotEmpty() } }
     Column {
         Row(
             Modifier.minimumInteractiveComponentSize().clip(IcodeShapes.Small)
-                .clickable(onClickLabel = if (open) "Hide the reasoning" else "Show the reasoning") { open = !open }
+                .clickable(enabled = !entry.live, onClickLabel = if (open) "Hide the reasoning" else "Show the reasoning") { folded = !folded }
                 .padding(end = IcodeSpacing.Space1),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),

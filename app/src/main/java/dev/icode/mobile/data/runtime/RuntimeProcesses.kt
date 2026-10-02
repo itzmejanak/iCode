@@ -87,8 +87,10 @@ internal class RuntimeProcesses(
     }
 
     /**
-     * Ends [id]: SIGTERM to its process group — PRoot ignores it, what it runs receives it — then
-     * SIGKILL after [grace], which ends PRoot and with it everything it runs.
+     * Ends [id]: SIGTERM to its process group, which PRoot also passes on to every process it runs,
+     * killing those still running two seconds later (third_party/patches/proot/0002); then SIGKILL
+     * after [grace] if PRoot itself is still running, which ends it and, through
+     * `PTRACE_O_EXITKILL`, everything it runs.
      */
     fun stop(id: String): Boolean {
         val entry = synchronized(lock) { entries[id]?.takeIf { it.info.running }?.also { it.stopRequested = true } } ?: return false

@@ -188,7 +188,12 @@ data class AssistantTurn(
     val session: String,
     /** "Thinking…", "Read src/App.kt", "Waiting for your answer", "Compacting the chat…". */
     val step: String,
+    /** The reply being written, as far as it has come; null between replies, and where replies come whole. */
+    val live: AssistantLive? = null,
 )
+
+/** A streamed reply as far as it has come: what the model thought, and its answer so far. */
+data class AssistantLive(val reasoning: String, val text: String)
 
 /** One chat of a workspace, as its history lists it (§12 R5). */
 data class AssistantSession(val id: String, val title: String, val updatedAt: Long)

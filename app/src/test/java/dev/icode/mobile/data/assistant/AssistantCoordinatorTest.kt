@@ -9,6 +9,7 @@ import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantEffort
+import dev.icode.mobile.domain.AssistantLive
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantMode
 import dev.icode.mobile.domain.AssistantModel
@@ -34,6 +35,7 @@ import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -228,6 +230,28 @@ class AssistantCoordinatorTest {
         assertEquals("The provider refused the API key — check it in Assistant settings", state().failure)
         assertEquals(listOf(AssistantMessage.User("Hello")), state().messages)
         assertNull(state().turn)
+    }
+
+    @Test fun `a reply being written shows on its turn, and the recorded reply replaces it`() {
+        val shown = CompletableDeferred<Unit>()
+        val go = CompletableDeferred<Unit>()
+        // The page as the recorded reply left it, while the turn still runs.
+        val recorded = CompletableDeferred<AssistantState>()
+        script = { _, events ->
+            events.writing("Check a.kt.", "It sta")
+            shown.complete(Unit)
+            go.await()
+            events.replied(AssistantMessage.Reply("It starts the app.", reasoning = "Check a.kt."))
+            recorded.complete(state())
+        }
+        coordinator.handle(WorkbenchIntent.SendAssistantMessage("What does a.kt do?"))
+        runBlocking { withTimeout(5_000) { shown.await() } }
+        assertEquals(AssistantLive("Check a.kt.", "It sta"), state().turn?.live)
+        go.complete(Unit)
+        val after = runBlocking { withTimeout(5_000) { recorded.await() } }
+        assertNull(after.turn?.live)
+        assertEquals(AssistantMessage.Reply("It starts the app.", reasoning = "Check a.kt."), after.messages.last())
+        until { state().turn == null }
     }
 
     @Test fun `one turn at a time, and none without a provider`() {

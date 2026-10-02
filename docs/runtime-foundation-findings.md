@@ -11,6 +11,21 @@ every project — in iCode's process model, its runtime or Android — are iCode
 level they occur. §5 lists the decisions those fixes need; §6 the measurements to take on a
 phone before any of them.
 
+**Answered (2026-10-02)** by [runtime-foundation-plan.md](./runtime-foundation-plan.md), built in
+its cycles F0–F6. What each finding became:
+
+| # | Finding | As built |
+|---|---|---|
+| 1 | Background processes die between commands | Managed processes (`start_process`), each in a PRoot of its own, kept until stopped (plan D1, §3.4) |
+| 2 | Commands are not interactive | `send_process_input` writes to a managed process's open input; `run_command` stays one command with stdin closed, and says so (D3) |
+| 3 | PATH, directory and environment do not carry over | The login environment for every command, process and language server; the directory kept per chat; `export` ends with its command, and the tool says so (D2) |
+| 4 | Exit codes explain little | Statuses in words, where the command ended, the PATH searched for 127; a timeout points to `start_process` (D7) |
+| 5 | PRoot is not native Linux | Said to the model: `uid 0` without root's powers, no systemd (§3.10) |
+| 6 | Filesystem rules differ between operations | The agent's commands see only their own workspace under `/workspace` (D4) |
+| 7 | `ss` and `netstat` missing | Not added: Android denies what they read; the ports come from a process's output, each checked with a connection (D5) |
+| 8 | No preview | A port opens `http://127.0.0.1:<port>` in the phone's browser, from the Processes sheet (D6) |
+| 7.1 | A reply cut short looked finished | Said under the reply (built 2026-10-01); now also a content filter's stop, a stream that closed early or failed, and a reply with only reasoning that stopped so (D12) |
+
 ## 1. At a glance
 
 | # | Finding | Cause, as the code shows it | Layer | Confidence |
@@ -215,8 +230,19 @@ follows from this test.
 
 ## 5. Decisions for the owner
 
-None of these is taken. Each names the question and the honest options. The recommendation is
-only an order to take them in: measure first (§6), then D1 and D2, then the rest on top.
+Taken in [runtime-foundation-plan.md](./runtime-foundation-plan.md) §2 and built (2026-10-02):
+
+- D1: a process owner, close to (a) — `RuntimeProcesses` for what must outlive a call. The
+  terminal and the language servers keep their own managers over the shared spawn core.
+- D2: (a), the login profile for every process started on the user's behalf, with the agent's
+  directory kept per chat and no environment file.
+- D3: (b).
+- D4: (b) without its cost — only `/workspace` is narrowed to the command's own workspace, so
+  `/root`, caches and apt stay reachable.
+- D5: none added (Android denies what they read).
+- D6: discovery from the processes iCode started, then the external browser.
+
+The questions and options as they were put:
 
 | # | Question | Options |
 |---|---|---|

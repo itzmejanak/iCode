@@ -1,8 +1,9 @@
 # iCode Assistant on Koog — plan, as built
 
 Status: **Round 1 (A1–A6) and round 2 (B1–B5) done (2026-10-01)**, each checked as far as this
-container allows (§11). Left for the owner: the Gradle build, the release build and the device pass
-(§9), and the decisions of §10.
+container allows (§11); rounds 3 (§13) and 4 — the runtime's foundation and OpenRouter's streaming,
+[runtime-foundation-plan.md](./runtime-foundation-plan.md) — done (2026-10-02). Left for the owner:
+the Gradle build, the release build and the device pass (§9), and the decisions of §10.
 
 Owner's request (2026-10-01): "make plan for koog integration, as is researched make sure to
 design clean and best plan ever and implement it in clean and best way as needed to be". The
@@ -49,7 +50,7 @@ behaviour iCode relies on was run (§11).
 |---|---|---|
 | Koog **1.3.0** (2026-09-23) publishes `androidJvm` variants of `agents-core`, `agents-tools`, `agents-features-event-handler`, the OpenAI, Anthropic, OpenRouter and Ollama clients, `http-client-ktor`; Google's client and DeepSeek's are `1.3.0-beta` | each module's Gradle `.module` file; every AAR declares `minSdkVersion 23` | iCode's minSdk 30 is fine; depend on the modules, not the `koog-agents` umbrella (Bedrock's AWS SDK, OpenTelemetry and more) |
 | Koog's standard agent: `singleRunStrategy()` = `nodeLLMRequest` → `nodeExecuteTools` → `nodeLLMSendToolResults`, repeated; `maxAgentIterations` counts every node run (start and finish too) | `AIAgentSimpleStrategies.kt`, `AIAgentSubgraph.kt:290` | iCode runs these nodes, not a loop of its own. `2 × steps + 1` iterations allow exactly `steps` requests |
-| **Quirk:** after tool results, `singleRunStrategy` checks the reply's *text* before its tool calls, so a reply with both ("Now the tests:" + a call) ends the run with its calls unrun. After the first request it checks calls first | the edge order in `AIAgentSimpleStrategies.kt`; reproduced by a test (§11) | iCode's strategy is Koog's three nodes with that one edge pair in the other order (`KoogAssistantEngine.TURN`) — the only thing rebuilt |
+| **Quirk:** after tool results, `singleRunStrategy` checks the reply's *text* before its tool calls, so a reply with both ("Now the tests:" + a call) ends the run with its calls unrun. After the first request it checks calls first | the edge order in `AIAgentSimpleStrategies.kt`; reproduced by a test (§11) | iCode's strategy is Koog's three nodes with that one edge pair in the other order (`KoogTurn.strategy`) — the only thing rebuilt |
 | A reply with neither text nor a call matches no edge: `AIAgentStuckInTheNodeException`; the limit: `AIAgentMaxNumberOfIterationsReachedException` | `AIAgentSubgraph.kt:321`, `AIAgentException.kt` | Each is said plainly (§6) |
 | The `EventHandler` feature reports each reply (`onLLMCallCompleted`, with its `ResponseMetaInfo` token counts), each tool call starting, completed, failed, or refused before it ran (`onToolValidationFailed` — also for arguments that are not JSON, with no starting event) | `EventHandlerConfigCommon.kt`, `ContextualAgentEnvironment.kt` | The page's events come from Koog's own; a call is matched by ID, or as the first still open (Koog runs a reply's calls one at a time, in order) |
 | A request's tools are its registry's; calls and results of tools **not** in it are written into the prompt as text (`MissingToolsConversionStrategy.Missing`, the default) | `AIAgentLLMReadSessionCommon.kt:70` | Ask mode offers the reading tools only, and a compaction none, over the same history, with no provider refusing an unknown tool |
@@ -180,18 +181,22 @@ interface. The coordinator, tools, stores and screens do not change.
 
 - **KoogAssistantEngine**: one `HttpClient(OkHttp)` per process; one client per connection, kept
   between turns, closed when replaced. Per turn, Koog's `AIAgent` with
-  - the strategy `TURN`: Koog's `nodeLLMRequest`, `nodeExecuteTools`, `nodeLLMSendToolResults`,
-    tool calls checked before text after every request (§2's quirk) — no loop of iCode's;
+  - the strategy `KoogTurn.strategy`: a request, Koog's `nodeExecuteTools`, then the results sent
+    as Koog's `nodeLLMSendToolResults` sends them, tool calls checked before text after every
+    request (§2's quirk) — no loop of iCode's. For OpenRouter both requests stream
+    (`KoogTurn.streamed`, put together by `KoogStream`): the page shows the reply as it is written
+    ([runtime-foundation-plan.md](./runtime-foundation-plan.md) §3.8);
   - `maxAgentIterations = 2 × maxSteps + 1` (40 requests);
-  - the `EventHandler` feature mapped to `AssistantEvents`;
+  - the `EventHandler` feature and the streamed requests mapped to `AssistantEvents`
+    (`KoogTurn.Reporter`);
   - for a compaction, the same agent with no tools and three iterations, asked
-    `AssistantInstructions.COMPACT_REQUEST`.
+    `AssistantInstructions.COMPACT_REQUEST`, never streamed.
 - **KoogParams**: each request's parameters. Anthropic: `max_tokens` = the model's output limit
   (8 192 for one Koog does not know, unless the user set one), at most 32 000; a thinking budget of
   4 000 / 12 000 / 24 000 or, for Max, all but 4 096, at least 1 024. OpenAI: `reasoningEffort`
   (Chat Completions) or `reasoning` (a Responses-only model). Gemini 2.x: a budget of
   1 024 / 8 192 / 24 576; Gemini 3: LOW or HIGH. Ollama: `think`. Elsewhere, a typed model's output
-  limit where the user set one.
+  limit where the user set one — to an OpenAI-compatible server as `max_tokens` too.
 - **KoogModels**: the catalogue per provider (every model that chats and calls tools, with Koog's
   limits), a model by ID (Koog's instance, or a typed one with the user's limits), and the efforts
   each can take (§2).
@@ -218,7 +223,11 @@ may leave it. `.git` is never written. **Ask** offers the reading tools only.
 | `git_status()` / `git_diff(path, staged)` | read | `CliGitService.run` | 64 KB |
 | `write_file(path, content)` | change | `WorkspaceFileSource.createFile`/`writeDocument` (atomic, keeps encoding and line endings) | refused under unsaved edits |
 | `edit_file(path, old_text, new_text, replace_all)` | change | as above; `old_text` must match once unless `replace_all` | refused under unsaved edits |
-| `run_command(command, timeout_seconds)` | command | `GuestCommand` in the workspace, `/bin/sh -c` | 120 s default, 600 s at most; output's head and tail, 32 KB |
+| `run_command(command, timeout_seconds)` | command | `AssistantShell`: bash with the login environment, in the chat's directory, seeing only this workspace under `/workspace` | 120 s default, 600 s at most; output's head and tail, 32 KB; its status in words |
+| `start_process(command, name, wait_seconds)` | command | `RuntimeProcesses`: a managed process, as `run_command` runs it, its input open | 8 at once; answers its ID, ports and first output |
+| `process_status(id)` | read | `RuntimeProcesses` | the output since the last look, 16 KB |
+| `send_process_input(id, text, newline)` | command | `RuntimeProcesses` | answers what it printed in the next second |
+| `stop_process(id)` | command | `RuntimeProcesses` | SIGTERM, SIGKILL after 3 s |
 
 After a change, the workspace refreshes the way a terminal edit does: tree, Git and the search
 index. Clean open tabs reload.
@@ -379,6 +388,7 @@ lifecycle's check, and waits for its chat to be saved, before the chats move.
 | A reply with nothing in it | "The model sent an empty reply — send a message to continue" |
 | A reply that ended at the output limit (`length`, `max_tokens`, `MAX_TOKENS`; Ollama gives no reason) | Kept, and under it: "The reply was cut short at the model's output limit — ask it to continue", adding "or set a higher Output Limit for x in its provider's settings" for a model Koog does not know |
 | A summary that ended at the output limit | "The model's summary was cut short at its output limit, so the chat was not compacted" |
+| A reply or a summary stopped by a content filter; a stream that closed early or failed; a timeout; a connection that broke | As [runtime-foundation-plan.md](./runtime-foundation-plan.md) §3.11 says |
 | A compaction without a summary | "The model sent an empty summary — try again" |
 | Process killed mid-turn | The chat as last saved; open calls closed as stopped |
 
@@ -387,9 +397,9 @@ lifecycle's check, and waits for its chat to be saved, before the chats move.
 - **MCP servers** as tool sources: Koog's `agents-mcp` is beta, so it would sit behind an
   `AssistantToolSource` of iCode's own.
 - **External agents over ACP** (OpenCode and others) as a second `AssistantEngine`.
-- Token-by-token text: Koog's standard agent asks for whole replies; the page shows the step in
-  hand meanwhile. Streaming would need Koog's streaming nodes in `TURN`, worth it only if the
-  device pass finds whole replies slow to read.
+- Streaming for providers other than OpenRouter: Koog 1.3.0's streams lose what a turn needs
+  there — Anthropic's thinking signature, Ollama's end, a Responses reply cut short
+  ([runtime-foundation-plan.md](./runtime-foundation-plan.md) §1.1).
 - xhigh reasoning (not in Koog 1.3.0's `ReasoningEffort`); efforts for OpenRouter and compatible
   servers (no field in Koog's clients).
 - Several provider profiles; a diff view inside the approval card; a "finished" notification;
@@ -442,7 +452,7 @@ lifecycle's check, and waits for its chat to be saved, before the chats move.
    the network config. Default here: localhost only.
 2. Whether the permissions default stays "Ask before changes" (chosen here).
 3. Which Koog upgrades to take: pinned to 1.3.0; each upgrade repeats D1, D9 and §2's quirk test
-   (if Koog fixes its edge order, `TURN` can become `singleRunStrategy()` again).
+   (if Koog fixes its edge order, `KoogTurn.strategy` can become `singleRunStrategy()` again).
 
 ## 11. Record (2026-10-01)
 
@@ -494,7 +504,7 @@ files, photos and others, from shared storage or from internal"; "fill all such 
 | Every client lists its server's models: `models()` (OpenAI `v1/models`, Anthropic `v1/models`, Google — names as `models/<id>`, OpenRouter `api/v1/models`, an OpenAI-compatible server through OpenAI's client); a known ID comes back as Koog's model | `OpenAILLMClient.kt:634`, `AnthropicLLMClient.kt:794`, `GoogleLLMClient.kt:815`, `OpenRouterLLMClient.kt:220` | A provider's page lists the server's real models, Koog's knowledge where it has it; listing proves the key and address |
 | Ollama lists **model cards** (`getModels()`, `/api/tags` + `/api/show`): tools, vision and context length per model | `OllamaClient.kt:430`, `OllamaManagementConverters.kt` | An Ollama's models are offered with what they can do; one that cannot call tools is not offered |
 | A user message carries attachments: `MessagePart.Attachment(AttachmentSource.Image / File)` with bytes; every client sends images when the model has `Vision.Image`, and OpenAI, Anthropic and Google send documents (PDF) when it has `Document`; a client refuses one the model cannot read | `Attachment.kt`; `AbstractOpenAILLMClient.kt:357`, `AnthropicLLMClient.kt:550`, `GoogleLLMClient.kt:498`, `OllamaConverters.kt:83` | Photos go as images, PDFs as documents, text files as text (every model reads text); a model that cannot read one is said before anything is sent, and a chat's earlier image reaches such a model as a line of text |
-| `nodeLLMRequest(text)` appends a text-only user message; `requestLLM()` sends the prompt as it is (Koog's `reActStrategy` uses a node that does only that) | `AIAgentNodes.kt:96`, `AIAgentStrategies.kt` | `TURN`'s first node only requests: the message, with its attachments, is already the prompt's last |
+| `nodeLLMRequest(text)` appends a text-only user message; `requestLLM()` sends the prompt as it is (Koog's `reActStrategy` uses a node that does only that) | `AIAgentNodes.kt:96`, `AIAgentStrategies.kt` | The strategy's first node only requests: the message, with its attachments, is already the prompt's last |
 | The Photo Picker, the document picker and the camera are Activity results (`PickMultipleVisualMedia`, `OpenMultipleDocuments`, `TakePicture`) in `activity-compose` 1.12.4; none needs a permission; the camera needs a `FileProvider` URI (`androidx.core`) | the app's dependencies; `SystemPrompts.kt` hosts launchers already | No new permission; one `FileProvider` for the camera's photo |
 
 ### 13.2 Every gap, its decision
@@ -547,15 +557,14 @@ Koog had handed it over (`MessagePart.Reasoning`), but iCode kept only text and 
     the answer — an unclosed one, as in a reply cut short, is all reasoning.
 
   Encrypted reasoning has no text and is not shown.
-- **Not reached, by any setting.** OpenRouter sends reasoning in a field named `reasoning`. Koog
-  1.3.0 reads that field only while streaming (`OpenRouterStreamDelta`). iCode asks for whole
-  replies, and both of Koog's clients that could serve OpenRouter read only `reasoning_content`
-  from those. OpenAI's own Chat Completions sends no reasoning text at all. Showing these needs
-  streaming replies, which would also let reasoning and answers appear as they are written.
-  That is a larger change to the turn: its requests and the events the page reads. It is
-  proposed, not decided.
+- **OpenRouter's, since round 4.** OpenRouter sends reasoning in a field named `reasoning`, which
+  Koog 1.3.0 reads only while streaming (`OpenRouterStreamDelta`): OpenRouter's replies now stream,
+  and the reasoning and the answer appear as they are written
+  ([runtime-foundation-plan.md](./runtime-foundation-plan.md) D8). An OpenAI-compatible provider
+  at OpenRouter's address is pointed to the OpenRouter type. OpenAI's own Chat Completions sends
+  no reasoning text at all.
 - **The output limit's name.** Koog's OpenAI client sends a user's Output Limit as
-  `max_completion_tokens`. A compatible server that reads only `max_tokens` ignores it.
+  `max_completion_tokens`; since round 4 a compatible server is sent `max_tokens` too (D9).
 
 ### 13.5 Record (2026-10-01)
 

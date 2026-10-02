@@ -5,6 +5,7 @@ import ai.koog.http.client.KoogHttpClientException
 import ai.koog.prompt.Prompt
 import ai.koog.prompt.dsl.ModerationResult
 import ai.koog.prompt.executor.clients.LLMClient
+import ai.koog.prompt.executor.clients.LLMClientException
 import ai.koog.prompt.executor.clients.anthropic.AnthropicParams
 import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.llm.LLModel
@@ -14,6 +15,8 @@ import ai.koog.prompt.message.Message
 import ai.koog.prompt.message.MessagePart
 import ai.koog.prompt.message.ResponseMetaInfo
 import ai.koog.prompt.streaming.StreamFrame
+import ai.koog.prompt.streaming.requireEndFrame
+import ai.koog.prompt.streaming.toStreamFrames
 import dev.icode.mobile.data.assistant.AssistantConnection
 import dev.icode.mobile.data.assistant.AssistantEvents
 import dev.icode.mobile.data.assistant.AssistantInstructions
@@ -30,12 +33,15 @@ import dev.icode.mobile.domain.AssistantModelSpec
 import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.domain.AssistantResult
 import dev.icode.mobile.domain.AssistantToolKind
+import io.ktor.client.plugins.HttpRequestTimeoutException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.yield
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -69,7 +75,26 @@ class KoogAssistantEngineTest {
             }
             return replies[minOf(prompts.size, replies.size) - 1]
         }
-        override fun executeStreaming(prompt: Prompt, model: LLModel, tools: List<ToolDescriptor>): Flow<StreamFrame> = error("whole replies only")
+        /** Each request's frames, as OpenRouter's client streams them; whole replies only when null. */
+        var frames: ((request: Int) -> List<StreamFrame>)? = null
+
+        /** Holds a stream's end until the page was shown some of it: what is written is shown before it is recorded. */
+        var shownFirst: CompletableDeferred<Unit>? = null
+
+        override fun executeStreaming(prompt: Prompt, model: LLModel, tools: List<ToolDescriptor>): Flow<StreamFrame> {
+            val script = frames ?: error("whole replies only")
+            prompts += prompt
+            this.tools += tools
+            val request = prompts.size - 1
+            return flow {
+                script(request).forEach { frame ->
+                    if (frame is StreamFrame.End) shownFirst?.let { withTimeout(5_000) { it.await() } }
+                    emit(frame)
+                    yield()
+                }
+                failWith?.let { throw it }
+            }.requireEndFrame()
+        }
         override suspend fun moderate(prompt: Prompt, model: LLModel): ModerationResult = error("no moderation")
         override suspend fun models(): List<LLModel> = listed
         override fun close() {
@@ -79,6 +104,11 @@ class KoogAssistantEngineTest {
 
     private class Recorder : AssistantEvents {
         val events = mutableListOf<Any>()
+        val wrote = CompletableDeferred<Unit>()
+        override fun writing(reasoning: String, text: String) {
+            events += "writing:$reasoning|$text"
+            wrote.complete(Unit)
+        }
         override fun replied(reply: AssistantMessage.Reply) {
             events += reply
         }
@@ -283,6 +313,9 @@ class KoogAssistantEngineTest {
         fun ended(reason: String?) = KoogHistory.cutShort(Message.Assistant(listOf(MessagePart.Text("x")), ResponseMetaInfo.Empty, finishReason = reason))
         assertTrue(ended("length") && ended("max_tokens") && ended("MAX_TOKENS"))
         assertTrue(listOf("stop", "tool_calls", "end_turn", "STOP", null).none { ended(it) })
+        fun filtered(reason: String?) = KoogHistory.filtered(Message.Assistant(listOf(MessagePart.Text("x")), ResponseMetaInfo.Empty, finishReason = reason))
+        assertTrue(listOf("content_filter", "refusal", "SAFETY", "RECITATION", "BLOCKLIST", "PROHIBITED_CONTENT", "SPII", "IMAGE_SAFETY").all { filtered(it) })
+        assertTrue(listOf("stop", "length", "MAX_TOKENS", "error", null).none { filtered(it) })
     }
 
     @Test fun `a summary cut short at the output limit leaves the chat uncompacted`() = runBlocking {
@@ -335,6 +368,147 @@ class KoogAssistantEngineTest {
         assertTrue("${params.thinking}", params.thinking != null)
     }
 
+    private val openRouter = AssistantConnection(AssistantProviderKind.OpenRouter, null, "sk-or-test")
+
+    /** A turn on OpenRouter, whose replies stream. */
+    private fun streamedTurn(tool: AssistantTool) =
+        turn(tool).copy(connection = openRouter, model = KoogModels.model(AssistantProviderKind.OpenRouter, AssistantModelSpec("minimax/minimax-m3")))
+
+    @Test fun `an OpenRouter reply streams, is shown as it is written, then recorded whole without its reasoning in the prompt`() = runBlocking {
+        val usage = ResponseMetaInfo.Empty.copy(inputTokensCount = 1_200, outputTokensCount = 40)
+        val first = listOf(
+            StreamFrame.ReasoningDelta(text = "Need "),
+            StreamFrame.ReasoningDelta(text = "a.kt."),
+            StreamFrame.ReasoningComplete(id = null, content = listOf("Need a.kt.")),
+            StreamFrame.TextDelta("Read"),
+            StreamFrame.TextDelta("ing"),
+            StreamFrame.TextComplete("Reading"),
+            StreamFrame.ToolCallDelta("call_1", "read_file", """{"path":"""),
+            StreamFrame.ToolCallDelta(null, null, "\"a.kt\"}"),
+            StreamFrame.ToolCallComplete("call_1", "read_file", """{"path":"a.kt"}"""),
+            StreamFrame.End("tool_calls", usage),
+        )
+        val events = Recorder()
+        val client = ScriptedClient(emptyList(), provider = LLMProvider.OpenRouter).apply {
+            frames = { request -> if (request == 0) first else done.copy(finishReason = "stop").toStreamFrames() }
+            shownFirst = events.wrote
+        }
+        val tool = ReadTool()
+        KoogAssistantEngine { client }.run(streamedTurn(tool), events)
+
+        val call = AssistantCall("call_1", "read_file", """{"path":"a.kt"}""", "Read a.kt", AssistantToolKind.Read)
+        // Shown as written: each a part of what came, before the reply is recorded.
+        val written = events.events.takeWhile { it !is AssistantMessage.Reply }.filterIsInstance<String>().filter { it.startsWith("writing:") }
+        assertTrue(events.events.toString(), written.isNotEmpty())
+        written.forEach { shown ->
+            val (reasoning, text) = shown.removePrefix("writing:").split("|")
+            assertTrue(shown, "Need a.kt.".startsWith(reasoning) && "Reading".startsWith(text))
+        }
+        assertEquals(
+            listOf(
+                "used:1240",
+                AssistantMessage.Reply("Reading", listOf(call), reasoning = "Need a.kt."),
+                "calling:call_1",
+                AssistantResult("call_1", "read_file", "fun main() {}", failed = false),
+                "used:1320",
+                AssistantMessage.Reply("Done"),
+            ),
+            events.events.filterNot { it is String && it.startsWith("writing:") },
+        )
+        assertEquals(listOf("a.kt"), tool.seen)
+        // The next request goes on from the reply and its result, the reasoning left out.
+        val second = client.prompts[1].messages
+        val echoed = second[2] as Message.Assistant
+        assertTrue(echoed.parts.none { it is MessagePart.Reasoning })
+        assertEquals("Reading", echoed.textContent())
+        assertEquals("call_1", echoed.parts.filterIsInstance<MessagePart.Tool.Call>().single().id)
+        assertEquals("call_1", (second[3] as Message.User).parts.filterIsInstance<MessagePart.Tool.Result>().single().id)
+    }
+
+    @Test fun `a stream that breaks before its end says the connection ended, not that the provider answered`() = runBlocking {
+        val partial = listOf(StreamFrame.TextDelta("Three tiers"))
+        for (failure in listOf(null, KoogHttpClientException("OpenRouter", message = "Exception during streaming: Connection reset", cause = java.net.SocketException("Connection reset")))) {
+            val client = ScriptedClient(emptyList(), provider = LLMProvider.OpenRouter).apply {
+                frames = { partial }
+                failWith = failure
+            }
+            try {
+                KoogAssistantEngine { client }.run(streamedTurn(ReadTool()), Recorder())
+                fail("expected a failure")
+            } catch (broken: AssistantTurnException) {
+                assertEquals("The connection ended before the reply was complete — try again", broken.message)
+            }
+        }
+    }
+
+    @Test fun `a stream that closes without saying how it ended, or says its provider failed, records nothing`() = runBlocking {
+        val cases = mapOf(
+            null to "The connection ended before the reply was complete — try again",
+            "error" to "The model's provider failed while writing the reply — try again",
+        )
+        for ((reason, said) in cases) {
+            val recorder = Recorder()
+            val client = ScriptedClient(emptyList(), provider = LLMProvider.OpenRouter).apply {
+                frames = { listOf(StreamFrame.TextDelta("Three tiers"), StreamFrame.TextComplete("Three tiers"), StreamFrame.End(reason)) }
+            }
+            try {
+                KoogAssistantEngine { client }.run(streamedTurn(ReadTool()), recorder)
+                fail("expected a failure")
+            } catch (stopped: AssistantTurnException) {
+                assertEquals(said, stopped.message)
+            }
+            assertTrue(recorder.events.none { it is AssistantMessage.Reply })
+        }
+    }
+
+    @Test fun `a reply a content filter stopped is kept, and the turn says so under it, whatever the provider calls it`() = runBlocking {
+        for (reason in listOf("content_filter", "refusal", "SAFETY", "PROHIBITED_CONTENT")) {
+            val stopped = Message.Assistant(listOf(MessagePart.Text("Here is how")), ResponseMetaInfo.Empty, finishReason = reason)
+            val recorder = Recorder()
+            try {
+                KoogAssistantEngine { ScriptedClient(listOf(stopped)) }.run(turn(ReadTool()), recorder)
+                fail("expected the turn to say the filter stopped it")
+            } catch (filtered: AssistantTurnException) {
+                assertEquals("The provider's content filter stopped the reply", filtered.message)
+            }
+            assertEquals(listOf(AssistantMessage.Reply("Here is how")), recorder.events.filterIsInstance<AssistantMessage.Reply>())
+        }
+        // With nothing written, the filter is still the reason, not an empty reply.
+        val nothing = Message.Assistant(emptyList(), ResponseMetaInfo.Empty, finishReason = "content_filter")
+        try {
+            KoogAssistantEngine { ScriptedClient(listOf(nothing)) }.run(turn(ReadTool()), Recorder())
+            fail("expected the turn to say the filter stopped it")
+        } catch (filtered: AssistantTurnException) {
+            assertEquals("The provider's content filter stopped the reply", filtered.message)
+        }
+        // A summary stopped so leaves the chat as it is.
+        try {
+            KoogAssistantEngine { ScriptedClient(listOf(nothing)) }.compact(connection, model, "You are iCode's assistant.", listOf(AssistantMessage.User("Fix a.kt")))
+            fail("expected the summary to be refused")
+        } catch (filtered: AssistantTurnException) {
+            assertEquals("The provider's content filter stopped the summary, so the chat was not compacted", filtered.message)
+        }
+    }
+
+    @Test fun `a reply with only reasoning, cut short at the limit, says the limit, streamed or not`() = runBlocking {
+        val thinking = Message.Assistant(listOf(MessagePart.Reasoning(listOf("Tier A: start it, get an ID"))), ResponseMetaInfo.Empty, finishReason = "length")
+        val whole = Recorder()
+        val streamed = Recorder()
+        val runs = listOf(
+            Triple(ScriptedClient(listOf(thinking)), turn(ReadTool()), whole),
+            Triple(ScriptedClient(emptyList(), provider = LLMProvider.OpenRouter).apply { frames = { thinking.toStreamFrames() } }, streamedTurn(ReadTool()), streamed),
+        )
+        for ((client, request, recorder) in runs) {
+            try {
+                KoogAssistantEngine { client }.run(request, recorder)
+                fail("expected the turn to say it was cut short")
+            } catch (cutShort: AssistantTurnException) {
+                assertTrue(cutShort.message, cutShort.message!!.startsWith("The reply was cut short at the model's output limit"))
+            }
+            assertEquals(AssistantMessage.Reply("", reasoning = "Tier A: start it, get an ID"), recorder.events.filterIsInstance<AssistantMessage.Reply>().single())
+        }
+    }
+
     @Test fun `a refused key is said plainly`() = runBlocking {
         val client = ScriptedClient(emptyList()).apply {
             failWith = KoogHttpClientException("OpenAI", 401, """{"error":{"message":"Incorrect API key provided: sk-te****"}}""")
@@ -344,6 +518,28 @@ class KoogAssistantEngineTest {
             fail("expected a failure")
         } catch (refused: AssistantTurnException) {
             assertEquals("The provider refused the API key — check it in the provider's settings", refused.message)
+        }
+    }
+
+    @Test fun `a failure with no answer from the server is said by its cause, however Koog wrapped it`() = runBlocking {
+        val causes = mapOf(
+            KoogHttpClientException("OpenAI", message = "timeout", cause = HttpRequestTimeoutException("https://api.openai.com/v1/chat/completions", 900_000L, null))
+                to "api.openai.com did not answer in time",
+            KoogHttpClientException("OpenAI", message = "unreachable", cause = java.net.UnknownHostException("api.openai.com"))
+                to "Unable to reach api.openai.com — check the address and the connection",
+            LLMClientException("OpenAI", "unexpected end of stream", java.io.IOException("unexpected end of stream"))
+                to "The connection ended before the reply was complete — try again",
+            // Not from the server: said as it is.
+            java.io.FileNotFoundException("/data/chats/photo.jpg (Permission denied)") to "The assistant stopped: /data/chats/photo.jpg (Permission denied)",
+        )
+        for ((cause, said) in causes) {
+            val client = ScriptedClient(emptyList()).apply { failWith = cause }
+            try {
+                KoogAssistantEngine { client }.run(turn(ReadTool()), Recorder())
+                fail("expected a failure")
+            } catch (stopped: AssistantTurnException) {
+                assertEquals(said, stopped.message)
+            }
         }
     }
 

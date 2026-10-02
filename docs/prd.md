@@ -363,14 +363,14 @@ The platform provides execution, files, processes, environment variables, packag
 
 ### 10.14 Assistant
 
-Owner's decision, 2026-10-01 ([assistant-koog-plan.md](./assistant-koog-plan.md)).
+Owner's decision, 2026-10-01 ([assistant-koog-plan.md](./assistant-koog-plan.md)); its runtime foundation, 2026-10-02 ([runtime-foundation-plan.md](./runtime-foundation-plan.md)).
 
 | ID | Requirement |
 |---|---|
 | PR-ASSIST-01 | The application shall offer one built-in assistant, off until the user sets a provider; no entry or workspace flow shall ask for one. |
 | PR-ASSIST-02 | The user shall add any number of providers — OpenAI, Anthropic, Google, OpenRouter, Ollama, any OpenAI-compatible server — each with its own key and its own models, added from the server's real list, the catalogue or a typed ID; the catalogue shall never limit them, and a model it does not know shall take its context window, output limit, image reading and reasoning from the user. The chat shall list exactly these models, by provider. |
 | PR-ASSIST-03 | API keys shall be encrypted with Android-provided secure storage, never shown again once saved, and never logged. |
-| PR-ASSIST-04 | The assistant shall work only inside the open workspace; no path, link or command argument shall lead its file tools out of it. |
+| PR-ASSIST-04 | The assistant shall work only inside the open workspace; no path, link or command argument shall lead its file tools out of it, and its commands and processes shall see no other workspace. |
 | PR-ASSIST-05 | Changes to files and commands shall ask first (Allow, Allow All in This Chat, Deny) unless the user chooses otherwise on the chat page; reads shall never ask. |
 | PR-ASSIST-06 | The assistant shall never write a file that has unsaved edits in the editor. |
 | PR-ASSIST-07 | A turn shall show each reply and each step with its output as they come, and stop on Stop, keeping what was said and done. |
@@ -384,6 +384,10 @@ Owner's decision, 2026-10-01 ([assistant-koog-plan.md](./assistant-koog-plan.md)
 | PR-ASSIST-15 | The chat's text shall scale with a two-finger pinch, as the editor's does. |
 | PR-ASSIST-16 | Assistant settings shall be pages: a list of providers, each provider's own page, a model's options; not one form. |
 | PR-ASSIST-17 | A message that failed before any reply shall be sent again on Try Again, its files with it; an answer shall be copyable. |
+| PR-ASSIST-18 | The assistant's commands shall run with the user's login environment and keep each chat's working directory; a result shall say its exit status in words, where it ended, and the search path when a command was not found. |
+| PR-ASSIST-19 | What must keep running — a server, a watcher — shall be a managed process the assistant starts, reads, writes to and stops by its ID, kept in the background until stopped; at most eight shall run at once. The Assistant page shall list them with their state, output and ports; a port shall open in the user's browser. |
+| PR-ASSIST-20 | A reply that stopped short — at the output limit, by a content filter, or because the connection or the provider failed — shall never pass for a finished one: the page shall say why. |
+| PR-ASSIST-21 | A model's reasoning shall be shown apart from its answer and never sent back; with OpenRouter, the reasoning and the answer shall appear as they are written. |
 
 ## 11. User Experience Requirements
 

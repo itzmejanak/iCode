@@ -1,7 +1,7 @@
 # Native Mobile Development Workbench — Architecture Design
 
 **Version:** 1.1  
-**Status:** Foundation contract — amended 2026-09-30: workspaces live in the application's own storage ([workspace-storage-plan.md](./workspace-storage-plan.md), §25–26); amended 2026-10-01: iCode's own assistant on Koog ([assistant-koog-plan.md](./assistant-koog-plan.md), §25–26)  
+**Status:** Foundation contract — amended 2026-09-30: workspaces live in the application's own storage ([workspace-storage-plan.md](./workspace-storage-plan.md), §25–26); amended 2026-10-01: iCode's own assistant on Koog ([assistant-koog-plan.md](./assistant-koog-plan.md), §25–26); amended 2026-10-02: the runtime's execution foundation — the login environment, managed processes, the assistant's reach ([runtime-foundation-plan.md](./runtime-foundation-plan.md), §7.2, §10.5, §11.5, §14.3–14.4, §25)  
 **Product name:** iCode  
 **Platforms:** Android phones and tablets  
 
@@ -150,6 +150,8 @@ The runtime is an Ubuntu ARM64 root filesystem executed through PRoot. It owns:
 
 PRoot is not treated as a security boundary or virtual machine. It provides a compatible Linux userspace and path mapping within the Android application sandbox.
 
+What runs on the user's behalf without a terminal — the assistant's commands, managed processes, language servers — starts with the user's login environment (`GuestEnvironment`): what an interactive login bash has after reading the profile, `~/.bashrc` included, read again when a profile file changes. iCode's own commands (Git, `ripgrep`, apt) keep their fixed environment. The assistant's commands and processes see the whole runtime but only their own workspace under `/workspace`; the terminal sees every workspace ([runtime-foundation-plan.md](./runtime-foundation-plan.md) §3.1–3.2).
+
 The tools iCode's own features use — Git, the SSH client, `ripgrep` — and common toolchains are **runtime components** ([runtime-components-plan.md](./runtime-components-plan.md)): one catalog (`RuntimeComponents`, pure), installed and removed by apt through one installer (`RuntimePackageInstaller`, one run at a time). What is installed is read from dpkg's status file. An install downloads first — the only part that may be cancelled — then installs from what was downloaded. Its progress, read from apt's own lines, is background work with a notification. Features ask for a component by name; the Components page offers them after a runtime build and manages them from Runtime settings. None of it waits on the workbench's mutation lock.
 
 ### 7.3 Public website
@@ -286,6 +288,8 @@ The runtime exposes one process API for non-interactive and PTY-backed commands:
 
 Feature modules do not parse terminal screen output when a stable command format exists.
 
+What must keep running beyond the command that started it — a development server, a watcher, a worker — is a **managed process** (`RuntimeProcesses`): a PRoot of its own; an ID, its command, state and exit status; its output kept (escape codes removed, the last 256 KB, read since an offset); its input open; the ports its output names. It ends when stopped (SIGTERM to its process group, then SIGKILL), when its command ends, or with iCode's process. At most eight run at once: Android ends apps' child processes past a limit. The terminal keeps its PTY sessions and the language servers their protocol manager over the same spawn core ([runtime-foundation-plan.md](./runtime-foundation-plan.md) §3.4).
+
 ### 10.6 Git contract
 
 Git is invoked through the runtime and remains the repository authority. The source-control service provides:
@@ -397,7 +401,7 @@ Unknown future settings can be added under existing categories without adding a 
 3. The application sends an Android `ACTION_VIEW` intent.
 4. The user's chosen browser opens the URL.
 
-The application does not render the destination internally.
+The application does not render the destination internally. A port a managed process's output names opens the same way, at `http://127.0.0.1:<port>`: apps share the phone's loopback, so the browser reaches the server without forwarding.
 
 ## 12. Filesystem and Storage Model
 
@@ -441,11 +445,11 @@ The runtime coordinator starts one application-owned runtime and exposes its rea
 
 Work belongs to the process, not to a screen ([long-operations-plan.md](./long-operations-plan.md) §6). The workbench's backend is one per process (`WorkbenchProcess`), as terminal sessions are: screens attach and detach, and when the last one leaves only what serves a screen stops (the folder watcher, language servers). Every long operation — a task (delete, copy, import, a workspace's delete), a Git transfer, the runtime install, a runtime package install — is named in one derived list of background work (`BackgroundWorkRules`, pure), which the backend publishes.
 
-One foreground service keeps the process while a terminal session or any of that work runs, and stops itself when none does. Its notification summarises what runs; each piece of work has a silent progress notification (the item in hand, counts, a bar, Cancel where the work allows it) that opens iCode on that work; a failure the user was not watching pops up on its own channel. Hiding a task's dialog hands it to its notification. The assistant's turn is background work too: its notification names the step in hand, Cancel stops it, and a question it waits on pops up while iCode is out of view ([assistant-koog-plan.md](./assistant-koog-plan.md) §4.8). Background execution remains subject to Android and device-vendor process management.
+One foreground service keeps the process while a terminal session or any of that work runs, and stops itself when none does. Its notification summarises what runs; each piece of work has a silent progress notification (the item in hand, counts, a bar, Cancel where the work allows it) that opens iCode on that work; a failure the user was not watching pops up on its own channel. Hiding a task's dialog hands it to its notification. The assistant's turn is background work too: its notification names the step in hand, Cancel stops it, and a question it waits on pops up while iCode is out of view ([assistant-koog-plan.md](./assistant-koog-plan.md) §4.8). So are the managed processes that run: one item names them, its Cancel stops them all, and its tap opens the Assistant page, where the Processes sheet lists them. Background execution remains subject to Android and device-vendor process management.
 
 ### 14.4 Stop and process death
 
-The UI distinguishes running, exited, failed, and lost processes. After process death, the application restores workspace and document state but does not pretend that non-running commands resumed.
+The UI distinguishes running, exited, failed, and lost processes: a managed process reads "Running · 4m", "Exited 0", "Ended by SIGKILL" or "Stopped". After process death, the application restores workspace and document state but does not pretend that non-running commands resumed: managed processes end with it and are not listed again.
 
 ### 14.5 Update and repair
 
@@ -642,6 +646,8 @@ This model keeps the application open to contributors without creating an unboun
 | Hosted surface | Independent Next.js website | Keep distribution and documentation outside the local execution path |
 | Internal structure | Modular monolith | Balance clear ownership with operational simplicity |
 | Assistant | iCode's own, on JetBrains Koog behind an engine boundary of iCode's; its tools are iCode's file, search, Git and runtime owners | One native agent that edits through the same contracts as everything else; Koog runs on Android and covers the providers (owner, 2026-10-01; [assistant-koog-plan.md](./assistant-koog-plan.md)) |
+| Long-running processes | Managed processes, each in a PRoot of its own, kept by the foreground service; their ports opened in the browser | No process outlives the PRoot that started it; Android cannot list sockets to apps, so ports are read from what iCode started ([runtime-foundation-plan.md](./runtime-foundation-plan.md) D1, D5, D6) |
+| Assistant streaming | Replies stream for OpenRouter only | Koog 1.3.0's other streams lose what a turn needs (Anthropic's thinking signature, Ollama's end); OpenRouter's reasoning reaches iCode only streamed ([runtime-foundation-plan.md](./runtime-foundation-plan.md) D8) |
 
 ## 26. Invariants
 

@@ -107,6 +107,28 @@ class AssistantRulesTest {
         assertTrue(AssistantRules.entries(AssistantState(messages = listOf(asked, AssistantMessage.Reply("Done.")))).none { it is AssistantEntry.Reasoning })
     }
 
+    @Test fun `a reply being written shows under the chat, its reasoning held open, and only in its own chat`() {
+        val live = AssistantLive(reasoning = "Check a.kt.", text = "It starts")
+        val writing = AssistantState(workspace = "/w/app", session = "s1", messages = listOf(asked), turn = AssistantTurn("/w/app", "app", "s1", "Thinking…", live))
+        assertEquals(
+            listOf(AssistantEntry.Said("m0", asked.text), AssistantEntry.Reasoning("live-reasoning", "Check a.kt.", live = true), AssistantEntry.Answer("live-answer", "It starts")),
+            AssistantRules.entries(writing),
+        )
+        // Before any answer, the reasoning alone; in another chat, nothing of it.
+        assertEquals(1, AssistantRules.entries(writing.copy(turn = writing.turn!!.copy(live = live.copy(text = "")))).count { it.key.startsWith("live") })
+        assertTrue(AssistantRules.entries(writing.copy(session = "s2")).none { it.key.startsWith("live") })
+    }
+
+    @Test fun `an OpenAI-compatible provider at OpenRouter's address is pointed to the OpenRouter type`() {
+        val hint = "Choose the OpenRouter type for OpenRouter: only it shows replies as they are written, and the models' reasoning"
+        assertEquals(hint, AssistantRules.providerHint(AssistantProviderKind.OpenAICompatible, " https://openrouter.ai/api/v1 "))
+        assertEquals(hint, AssistantRules.providerHint(AssistantProviderKind.OpenAICompatible, "https://eu.OpenRouter.ai/api/v1"))
+        assertNull(AssistantRules.providerHint(AssistantProviderKind.OpenAICompatible, "https://api.deepseek.com/v1"))
+        assertNull(AssistantRules.providerHint(AssistantProviderKind.OpenAICompatible, "https://notopenrouter.ai/v1"))
+        assertNull(AssistantRules.providerHint(AssistantProviderKind.OpenAICompatible, "not an address"))
+        assertNull(AssistantRules.providerHint(AssistantProviderKind.OpenRouter, "https://openrouter.ai/api/v1"))
+    }
+
     @Test fun `the meter always says something, from the first message on`() {
         assertEquals("84k / 200k", AssistantRules.contextLabel(84_000, 200_000))
         assertEquals("0 / 200k", AssistantRules.contextLabel(null, 200_000))
