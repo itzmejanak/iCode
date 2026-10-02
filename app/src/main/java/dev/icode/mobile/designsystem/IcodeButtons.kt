@@ -33,18 +33,22 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
-/** Filled primary action. Labels are uppercase by design. */
+/**
+ * Filled primary action. Labels are uppercase by design. [compact]: as tall as a bar's choice,
+ * among other compact actions; Material keeps its touch target whole.
+ */
 @Composable
 fun PrimaryButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    compact: Boolean = false,
 ) {
     Button(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.height(IcodeSizes.TouchTarget),
+        modifier = modifier.height(buttonHeight(compact)),
         shape = IcodeShapes.Small,
         colors = ButtonDefaults.buttonColors(
             containerColor = IcodeColors.Accent,
@@ -52,13 +56,13 @@ fun PrimaryButton(
             disabledContainerColor = IcodeColors.SurfaceElevated,
             disabledContentColor = IcodeColors.TextMuted,
         ),
-        contentPadding = PaddingValues(horizontal = IcodeSpacing.Space4),
+        contentPadding = PaddingValues(horizontal = if (compact) IcodeSpacing.Space3 else IcodeSpacing.Space4),
     ) {
         Text(text.uppercase(), style = IcodeType.Label.copy(color = LocalContentColor.current))
     }
 }
 
-/** Outlined secondary action. Labels keep the Figma casing. */
+/** Outlined secondary action. Labels keep the Figma casing. [compact] as [PrimaryButton]'s. */
 @Composable
 fun SecondaryButton(
     text: String,
@@ -66,11 +70,12 @@ fun SecondaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     color: Color = IcodeColors.TextPrimary,
+    compact: Boolean = false,
 ) {
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.height(IcodeSizes.TouchTarget),
+        modifier = modifier.height(buttonHeight(compact)),
         shape = IcodeShapes.Small,
         border = BorderStroke(1.dp, IcodeColors.Outline),
         colors = ButtonDefaults.outlinedButtonColors(
@@ -78,11 +83,13 @@ fun SecondaryButton(
             contentColor = color,
             disabledContentColor = IcodeColors.TextMuted,
         ),
-        contentPadding = PaddingValues(horizontal = IcodeSpacing.Space4),
+        contentPadding = PaddingValues(horizontal = if (compact) IcodeSpacing.Space3 else IcodeSpacing.Space4),
     ) {
         Text(text, style = IcodeType.Label.copy(color = LocalContentColor.current))
     }
 }
+
+private fun buttonHeight(compact: Boolean) = if (compact) IcodeSizes.BarChoice else IcodeSizes.TouchTarget
 
 /** Destructive action, filled for confirmation and outlined elsewhere. */
 @Composable
