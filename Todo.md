@@ -5,7 +5,7 @@ Phase 1 UI is complete; this file tracks only backend and integration work.
 
 Authoritative UI/design references:
 
-- Figma: iCode — Full User Flow
+- Figma: iCode — Full User Flow (the design file)
 - [docs/prd.md](./docs/prd.md)
 - [docs/architecture.md](./docs/architecture.md)
 - [docs/layout.md](./docs/layout.md)

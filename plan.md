@@ -4,18 +4,18 @@
 
 ## Phase 1 — UI Implementation & Repository Readiness
 
-The Figma design is completed and will be treated as the **single source of truth** for the UI.
+The design is the **single source of truth** for the UI.
 
 - Revert the existing code to avoid carrying forward inconsistent or incorrect implementations.
 - **Clean, stabilize, and prepare the repository** for development.
 - Audit and organize the existing project structure before implementing new features.
 
 ### UI/Kit Component System
-- Build a **consistent UI/KIT component system** based on the Figma design.
+- Build a **consistent UI/KIT component system** based on the design.
 - Reuse shared components wherever possible to avoid duplicate implementations.
 
 ### UI Implementation
-- Port **all screens** from the Figma design into the application.
+- Port **all screens** from the design into the application.
 - Implement the **complete user flow/cycle**, including navigation and transitions between screens.
 - Maintain **100% visual and functional consistency** across:
   - Screens
@@ -78,7 +78,7 @@ The Figma design is completed and will be treated as the **single source of trut
 
 # UI Splitting plan
 
-I’ve completed the UI porting from Figma according to `@Todo.md` and `@plan.md`.
+I’ve completed the UI porting from the design according to `@Todo.md` and `@plan.md`.
 
 Before moving to the next phase, I want to make the entire UI codebase maintainable, consistent, and easy to integrate.
 

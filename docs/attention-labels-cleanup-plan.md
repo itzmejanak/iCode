@@ -125,9 +125,9 @@ Notifications page that lists the notices.
   (`takePrevious`), the gateway stores it; the snapshot carries `notices`.
   Intents: mark all read (on opening the page), delete one, clear all. The
   launcher card goes; its text helpers become the page's compact item. A new
-  route `Notifications` — the first without a Figma frame, so `figmaNode`
+  route `Notifications` — the first without a design frame, so `figmaNode`
   becomes nullable and `RouteTest` lists such routes explicitly; the capture
-  script keeps capturing the 39 Figma routes.
+  script keeps capturing the 39 design routes.
 - **N2 (proposed, not built):** terminal alerts (bell, command finished) also
   recorded on the page, so they can be read later.
 

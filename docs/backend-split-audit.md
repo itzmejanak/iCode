@@ -21,10 +21,10 @@ Owner decisions recorded 2026-09-25:
 
 Owner decisions recorded 2026-09-26:
 
-5. **Demo layer:** replaced by small **capture fixtures** — only the data the Figma frames draw.
+5. **Demo layer:** replaced by small **capture fixtures** — only the data the design frames draw.
    The simulated backend (every intent answered with fake behaviour) and the tests of that
    simulation are deleted; the frame capture keeps working, proven by a pixel diff.
-6. **Name:** "capture" — named by its only use, the Figma frame capture: `CaptureFixtures`,
+6. **Name:** "capture" — named by its only use, the design frame capture: `CaptureFixtures`,
    `captureMode`, launch extras `capture_route` / `capture`, UI-guard rule `capture-fork`.
    The word "demo" leaves the code, the tools and the living docs.
 7. **Location:** debug builds only (`src/debug`); the release APK contains no fixture and no
@@ -45,8 +45,8 @@ I2/G4 (`SetLanguageServiceRunning` dispatched nowhere), I3, I4 (probes at gatewa
 
 - **G1 was inverted.** The application ID is `dev.icode.mobile` (debug `dev.icode.mobile.debug`,
   `app/build.gradle.kts:16,45`) and the capture tool already targets it. Nothing to fix.
-- **Routes and frames:** 40 routes = 39 with a Figma frame + `Notifications` (owner's page, no
-  frame); 40 Figma frames = 39 routed + 3:55 (the failed state of 3:27). The capture takes **39**
+- **Routes and frames:** 40 routes = 39 with a design frame + `Notifications` (owner's page, no
+  frame); 40 design frames = 39 routed + 3:55 (the failed state of 3:27). The capture takes **39**
   screenshots (`capture-figma-screens.sh`, `RouteTest`).
 - **C8 "demo parity split" is dropped.** Splitting the simulated backend into sections that mirror
   C3–C7 would add a second, parallel copy of every coordinator — the opposite of decision 5. With
@@ -93,7 +93,7 @@ K1 is the proof, not this list.
 | Backend file budget (rules §4) | target ≤250 lines; >300 requires an ownership review |
 | Baseline gate (this cycle) | `compileDebugKotlin`, `testDebugUnitTest`, `lintDebug`, `check-ui-consistency.sh` |
 | Baseline gate (2026-09-26) | green: 241 unit tests, lint 0 errors / 23 warnings, UI guard passes |
-| Baseline frames | 39 route screenshots (40 Figma frames; 3:55 is a state of 3:27) captured before any edit (K0) |
+| Baseline frames | 39 route screenshots (40 design frames; 3:55 is a state of 3:27) captured before any edit (K0) |
 
 ## 2. Oversized owners (split conventions not followed)
 
@@ -257,7 +257,7 @@ not proceed.
 
 ## 8. Behavior-preservation contract (never broken)
 
-- 40 routes (39 with a Figma frame + Notifications) and back behavior; 40 Figma frames (39 captured + 3:55 as a state).
+- 40 routes (39 with a design frame + Notifications) and back behavior; 40 design frames (39 captured + 3:55 as a state).
 - `ICodeGateway` surface: 91 intents, 19 effects, 44 snapshot fields. (C1 removes exactly one
   intent — `SetLanguageServiceRunning` — because nothing dispatches it; recorded as a contract
   cleanup, verified against `ui/` and tests.)

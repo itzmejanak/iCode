@@ -39,7 +39,7 @@ fun SplashScreen(actions: NavigationActions) {
         actions.replace(destination)
     }
 
-    val bottomInset = IcodeSpacing.Space6 + IcodeSpacing.Space5 // 44 dp per Figma
+    val bottomInset = IcodeSpacing.Space6 + IcodeSpacing.Space5 // 44 dp per the design
     Column(
         modifier = Modifier
             .fillMaxSize()

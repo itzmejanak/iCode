@@ -131,7 +131,7 @@ reached:
 
 ### 4.4 Screens
 
-Frames are the Figma frames `Route.kt` names; changes use only the existing kit.
+Frames are the design frames `Route.kt` names; changes use only the existing kit.
 
 | Screen | Change |
 |---|---|
@@ -308,7 +308,7 @@ against the existing kit only and reviewed line by line; the owner's build is it
 | **W5** | Import: the phone-storage browser and its permission, screen, the copier as a task, the Git repair measured with real Git first | Tests pass; D6, D7 |
 | **W6** | The Files provider, Show in Files, change notifications; the security tests | Tests pass; D8, D9 |
 | **W7** | Data safety (§4.7) and the Storage page's wording | D10, D12 |
-| **W8** | Device acceptance of the whole lifecycle (§3), the 40-frame capture, and the list of Figma frames to update | Every D passes or is written down with what it showed |
+| **W8** | Device acceptance of the whole lifecycle (§3), the 40-frame capture, and the list of design frames to update | Every D passes or is written down with what it showed |
 
 ## 8. Device checks — measured, not assumed
 

@@ -131,7 +131,7 @@ turns into its progress: the bar, the step ("Downloading · 3" → "Setting up g
 §6 of the long-operations plan), and Cancel while downloading. A failure shows apt's words, then
 **Retry** and **Skip**.
 
-No Figma frame exists for it. It is built from the design system's parts (page heading, option
+No design frame exists for it. It is built from the design system's parts (page heading, option
 cards, check rows, the progress track, the bottom action bar), as Import was.
 
 ### 3.6 A feature that needs a component (the owner's A)
@@ -227,7 +227,7 @@ cards, check rows, the progress track, the bottom action bar), as Import was.
   lint 0 errors / 12 warnings (checked against lint's fresh analysis: an unchanged report is not
   rewritten); both guards pass.
 - **C4** (2026-09-30): the Components page (`RuntimeComponentsScreen`, `RuntimeComponentsParts`;
-  route `RuntimeComponents`, no Figma frame, built from the design system's parts plus a new
+  route `RuntimeComponents`, no design frame, built from the design system's parts plus a new
   `IcodeCheckbox`). A runtime build (install, repair, reset) leaves `components-offer` beside its
   marker; `RuntimeCoordinator` publishes Ready and the offer in one update, so the screen that
   routes on Ready sees both. The install screen then puts the page in its own place, and the

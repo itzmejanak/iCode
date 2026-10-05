@@ -13,7 +13,7 @@ Status: **plan** (2026-10-06). Owner's request: remove all "workbench" wording b
 ## 2. What is NOT renamed
 
 - **Workspace / Workspaces** — a distinct concept (a project folder); stays as-is.
-- **Figma frame references** in docs (e.g., "frame 40") — unrelated.
+- **Figma frame references** in docs (e.g., "frame 40") — unrelated. Kept: they name the design tool.
 - **Third-party library names** — none found containing "workbench".
 
 ## 3. File renames (11 files)

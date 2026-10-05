@@ -25,7 +25,7 @@ UI."
    **Recent**, with the letterpress behind. The tiles become **Import · Clone Repo · Workspaces**:
    the third, where New Folder was, opens the Workspaces page. First run (none yet) keeps its empty
    state, worded for the new tiles.
-2. **The Workspaces page** (new route `Workspaces`, no Figma frame, built from the design system's
+2. **The Workspaces page** (new route `Workspaces`, no design frame, built from the design system's
    parts) — the one place that manages them:
    - **Create:** **New Folder** in its top bar (the existing New Folder page). Import and Clone
      stay on the home screen, where they already are: one entry each, never two.

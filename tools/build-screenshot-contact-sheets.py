@@ -19,7 +19,7 @@ def main() -> None:
     source = Path(sys.argv[1]) if len(sys.argv) > 1 else Path("artifacts/screens")
     destination = Path(sys.argv[2]) if len(sys.argv) > 2 else Path("artifacts/review")
     screenshots = sorted(source.glob("*.png"))
-    # 40 Figma frames, 39 routes: frame 3:55 "Runtime error" is the failed state
+    # 40 design frames, 39 routes: frame 3:55 "Runtime error" is the failed state
     # of 3:27 and has no route of its own (docs/integration-plan.md).
     expected = 39
     if len(screenshots) != expected:

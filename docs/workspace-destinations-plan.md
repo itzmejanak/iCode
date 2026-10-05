@@ -60,7 +60,7 @@ several repositories is not yet a place to work on them.
    have and whether it can be used, as it is typed — and the new workspace appears in the list, as
    a file manager's new folder does, without opening it. The dialog is the Explorer's own "New
    folder" dialog's shape (`IcodeConfirmDialog`, answered by request id: a refusal is said in the
-   dialog, as Rename's is). Its Figma frame (2003:77) becomes a state of the Workspaces page. The
+   dialog, as Rename's is). Its design frame (2003:77) becomes a state of the Workspaces page. The
    destination browser (2) has the same **New folder**, into the folder it shows: a place can be
    made while one is chosen.
 6. **Several repositories in one workspace (§4 D2).** Source Control finds the repositories in the

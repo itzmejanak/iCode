@@ -27,7 +27,7 @@ import androidx.compose.ui.text.TextStyle
 /**
  * Card-wrapped text input used by every form and search surface.
  *
- * Technical values default to the mono style, matching the Figma frames.
+ * Technical values default to the mono style, matching the design.
  */
 @Composable
 fun IcodeTextField(

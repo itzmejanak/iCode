@@ -10,7 +10,7 @@ import androidx.compose.ui.unit.dp
  *
  * [Gutter] is the compact-screen page gutter. The layout document names 20 dp
  * for gutters; the implemented frames consistently use 16 dp, so 16 dp is the
- * adopted standard until Figma says otherwise (recorded deviation).
+ * adopted standard until the design says otherwise (recorded deviation).
  */
 internal val LocalIcodeCompactLayout = staticCompositionLocalOf { true }
 
