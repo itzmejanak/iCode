@@ -32,7 +32,7 @@ import dev.icode.mobile.domain.ProjectDestination
 import dev.icode.mobile.domain.WorkspaceNameRules
 import dev.icode.mobile.domain.WorkspaceRuntimePath
 import dev.icode.mobile.navigation.NavigationActions
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
  * A new workspace's name, as New Folder, Import and Clone ask for it: the name, the path it will
@@ -51,7 +51,7 @@ internal fun WorkspaceNameFields(name: String, onNameChange: (String) -> Unit, p
 /** What keeps [name] from being made where it goes — a new workspace, or [destination]; null when nothing does. */
 @Composable
 internal fun projectProblem(name: String, destination: ProjectDestination?): String? {
-    val workspaces = LocalWorkbenchSnapshot.current.workspaces
+    val workspaces = LocalICodeSnapshot.current.workspaces
     return WorkspaceNameRules.projectNameError(name, destination) { taken -> workspaces.any { it.name == taken } }
 }
 
@@ -85,8 +85,8 @@ internal fun NewWorkspacePage(
     ready: Boolean = true,
     above: @Composable () -> Unit = {},
 ) {
-    val storage = LocalWorkbenchSnapshot.current.storage
-    val destination = LocalWorkbenchSnapshot.current.projectDestination
+    val storage = LocalICodeSnapshot.current.storage
+    val destination = LocalICodeSnapshot.current.projectDestination
     val problem = projectProblem(name, destination)
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar(title, onBack = actions.back)

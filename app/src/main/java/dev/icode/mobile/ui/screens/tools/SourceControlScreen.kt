@@ -36,17 +36,17 @@ import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.domain.GitInProgress
 import dev.icode.mobile.domain.GitStatusCodes
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /** Source Control: repository state, staging groups and commit entry. */
 @Composable
 fun SourceControlScreen(actions: NavigationActions) {
-    val state = LocalWorkbenchSnapshot.current
-    val gateway = LocalWorkbenchGateway.current
+    val state = LocalICodeSnapshot.current
+    val gateway = LocalICodeGateway.current
     val repository = state.gitRepository
     if (repository == null || state.gitAvailable == false || state.gitFailure != null) {
         SourceControlGate(state, gateway::dispatch)
@@ -57,14 +57,14 @@ fun SourceControlScreen(actions: NavigationActions) {
     // The message sent to be committed, and the commit it was to follow.
     var sent by rememberSaveable(repository.workTreePath) { mutableStateOf<String?>(null) }
     var sentAfter by rememberSaveable(repository.workTreePath) { mutableStateOf<String?>(null) }
-    val send = { then: WorkbenchIntent ->
+    val send = { then: ICodeIntent ->
         sent = commitMessage
         sentAfter = repository.lastCommit?.id
         gateway.dispatch(then)
     }
 
     // Returning from the editor or the terminal must not show stale changes.
-    LaunchedEffect(repository.workTreePath) { gateway.dispatch(WorkbenchIntent.RefreshGit) }
+    LaunchedEffect(repository.workTreePath) { gateway.dispatch(ICodeIntent.RefreshGit) }
     // Once a newer commit is there, the message sent became it: kept, it would be reused by
     // accident — found on return too, when Commit & Push's sync page was over this one.
     LaunchedEffect(repository.lastCommit?.id) {
@@ -86,7 +86,7 @@ fun SourceControlScreen(actions: NavigationActions) {
         IcodeTopBar(
             title = "Source Control",
             actions = {
-                IconButton(onClick = { gateway.dispatch(WorkbenchIntent.RefreshGit) }) {
+                IconButton(onClick = { gateway.dispatch(ICodeIntent.RefreshGit) }) {
                     Icon(Icons.Outlined.Refresh, contentDescription = "Refresh", tint = IcodeColors.TextPrimary)
                 }
             },
@@ -99,7 +99,7 @@ fun SourceControlScreen(actions: NavigationActions) {
                         InProgressBanner(
                             inProgress = repository.inProgress,
                             conflicts = state.gitChanges.count { it.status == GitStatusCodes.CONFLICTED },
-                            onAbort = { gateway.dispatch(WorkbenchIntent.AbortInProgress) },
+                            onAbort = { gateway.dispatch(ICodeIntent.AbortInProgress) },
                         )
                     }
                 }
@@ -134,7 +134,7 @@ fun SourceControlScreen(actions: NavigationActions) {
                         val committable = staged.isNotEmpty() && commitMessage.isNotBlank()
                         PrimaryButton(
                             "Commit",
-                            { send(WorkbenchIntent.CommitStaged(commitMessage)) },
+                            { send(ICodeIntent.CommitStaged(commitMessage)) },
                             Modifier.fillMaxWidth(),
                             enabled = committable,
                         )
@@ -148,7 +148,7 @@ fun SourceControlScreen(actions: NavigationActions) {
                         SecondaryButton(
                             "Commit & Push",
                             {
-                                send(WorkbenchIntent.CommitAndPush(commitMessage))
+                                send(ICodeIntent.CommitAndPush(commitMessage))
                                 actions.navigate(Route.PullFetchProgress)
                             },
                             Modifier.fillMaxWidth().padding(top = IcodeSpacing.Space2),

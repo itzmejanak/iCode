@@ -34,11 +34,11 @@ import dev.icode.mobile.domain.ComponentRules
 import dev.icode.mobile.domain.RuntimeComponents
 import dev.icode.mobile.domain.RuntimeComponentsState
 import dev.icode.mobile.domain.StorageSummary
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.OnboardingRoute
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
  * The runtime's components (docs/runtime-components-plan.md §3.5): Android Studio's setup and SDK
@@ -48,8 +48,8 @@ import dev.icode.mobile.ui.LocalWorkbenchSnapshot
  */
 @Composable
 fun RuntimeComponentsScreen(actions: NavigationActions) {
-    val state = LocalWorkbenchSnapshot.current
-    val gateway = LocalWorkbenchGateway.current
+    val state = LocalICodeSnapshot.current
+    val gateway = LocalICodeGateway.current
     val components = state.components
     val installed = components.installedPackages
     // Decided on arrival: answering the offer ends it, and the page must not change what it is meanwhile.
@@ -70,14 +70,14 @@ fun RuntimeComponentsScreen(actions: NavigationActions) {
     }
     fun apply() {
         applying = true
-        gateway.dispatch(WorkbenchIntent.ApplyComponents(choice))
+        gateway.dispatch(ICodeIntent.ApplyComponents(choice))
     }
 
     LaunchedEffect(installed) {
         if (installed == null) return@LaunchedEffect
         if (chosen == null) chosen = standard
-        gateway.dispatch(WorkbenchIntent.MeasureComponents)
-        gateway.dispatch(WorkbenchIntent.RefreshStorage)
+        gateway.dispatch(ICodeIntent.MeasureComponents)
+        gateway.dispatch(ICodeIntent.RefreshStorage)
     }
     LaunchedEffect(work) {
         when {
@@ -128,14 +128,14 @@ fun RuntimeComponentsScreen(actions: NavigationActions) {
         ) {
             when {
                 work?.failure != null -> TwoColumnActions(
-                    left = { SecondaryButton("Close", { gateway.dispatch(WorkbenchIntent.DismissComponents) }, Modifier.fillMaxWidth()) },
+                    left = { SecondaryButton("Close", { gateway.dispatch(ICodeIntent.DismissComponents) }, Modifier.fillMaxWidth()) },
                     right = { PrimaryButton("Retry", ::apply, Modifier.fillMaxWidth()) },
                 )
                 work != null -> TwoColumnActions(
                     left = {
                         SecondaryButton(
                             "Cancel",
-                            { gateway.dispatch(WorkbenchIntent.CancelComponents) },
+                            { gateway.dispatch(ICodeIntent.CancelComponents) },
                             Modifier.fillMaxWidth(),
                             enabled = work.cancellable,
                         )
@@ -149,7 +149,7 @@ fun RuntimeComponentsScreen(actions: NavigationActions) {
                         TwoColumnActions(
                             left = {
                                 SecondaryButton("Skip", {
-                                    gateway.dispatch(WorkbenchIntent.SkipComponents)
+                                    gateway.dispatch(ICodeIntent.SkipComponents)
                                     leave()
                                 }, Modifier.fillMaxWidth())
                             },
@@ -157,7 +157,7 @@ fun RuntimeComponentsScreen(actions: NavigationActions) {
                                 val nothing = plan?.isEmpty != false
                                 PrimaryButton(if (nothing) "Continue" else "Install", {
                                     if (nothing) {
-                                        gateway.dispatch(WorkbenchIntent.SkipComponents)
+                                        gateway.dispatch(ICodeIntent.SkipComponents)
                                         leave()
                                     } else {
                                         apply()

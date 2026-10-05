@@ -3,14 +3,14 @@ package dev.icode.mobile.data.git
 import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.storage.WorkspacePaths
 import dev.icode.mobile.data.storage.WorkspaceStaging
-import dev.icode.mobile.data.workspace.WorkbenchStateHolder
+import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.GitActionRules
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.GitRemoteRules
 import dev.icode.mobile.domain.GitSyncAction
 import dev.icode.mobile.domain.GitTransferLabel
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.WorkspaceRuntimePath
 import java.io.File
 import java.util.concurrent.atomic.AtomicLong
@@ -32,7 +32,7 @@ import kotlinx.coroutines.withContext
  * page opened with it never shows the one before.
  */
 internal class GitTransferCoordinator(
-    private val workbench: WorkbenchStateHolder,
+    private val workbench: ICodeStateHolder,
     private val scope: CoroutineScope,
     private val git: GitTransferOperations,
     /** A clone goes into the workspaces, through iCode's staging; transfers are recorded by their runtime path. */
@@ -54,13 +54,13 @@ internal class GitTransferCoordinator(
     private val staging = WorkspaceStaging(workspaces.root)
 
     /** The transfer [intent] asks for; its job, when one started. */
-    fun handle(intent: WorkbenchIntent.TransferIntent): Job? = when (intent) {
-        WorkbenchIntent.FetchRemote -> fetch()
-        WorkbenchIntent.PullRemote -> pull()
-        WorkbenchIntent.PushRemote -> push()
-        is WorkbenchIntent.CommitAndPush -> commitAndPush(intent.message)
-        is WorkbenchIntent.CloneRepository -> clone(intent.url, intent.directoryName, intent.branch, intent.into)
-        WorkbenchIntent.CancelGitTransfer -> cancel().let { null }
+    fun handle(intent: ICodeIntent.TransferIntent): Job? = when (intent) {
+        ICodeIntent.FetchRemote -> fetch()
+        ICodeIntent.PullRemote -> pull()
+        ICodeIntent.PushRemote -> push()
+        is ICodeIntent.CommitAndPush -> commitAndPush(intent.message)
+        is ICodeIntent.CloneRepository -> clone(intent.url, intent.directoryName, intent.branch, intent.into)
+        ICodeIntent.CancelGitTransfer -> cancel().let { null }
     }
 
     fun fetch(): Job? = start(GitTransferLabel.FETCHING) { id ->

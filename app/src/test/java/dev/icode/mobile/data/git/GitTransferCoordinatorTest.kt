@@ -2,13 +2,13 @@ package dev.icode.mobile.data.git
 
 import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.storage.WorkspacePaths
-import dev.icode.mobile.data.workspace.WorkbenchStateHolder
+import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.GitProgress
 import dev.icode.mobile.domain.GitRepositoryState
-import dev.icode.mobile.domain.WorkbenchEffect
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeEffect
+import dev.icode.mobile.domain.ICodeIntent
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
@@ -49,7 +49,7 @@ class GitTransferCoordinatorTest {
         /** Opening what was cloned waits for this, when given. */
         opening: CompletableDeferred<Unit>? = null,
     ) {
-        val workbench = WorkbenchStateHolder()
+        val workbench = ICodeStateHolder()
         val events = mutableListOf<String>()
         /** What the progress screen showed while the clone was being opened. */
         val openedWhile = mutableListOf<GitOperationState?>()
@@ -105,7 +105,7 @@ class GitTransferCoordinatorTest {
         )
         assertEquals(listOf("credentials", "refresh $root"), harness.events)
         assertEquals(listOf("credential.helper=store --file=/tmp/once"), harness.git.config)
-        assertEquals(WorkbenchEffect.Message("Already up to date."), withTimeout(2_000) { message.await() })
+        assertEquals(ICodeEffect.Message("Already up to date."), withTimeout(2_000) { message.await() })
     }
 
     @Test fun `a failed pull keeps Git's reason and what it printed`() = runBlocking {
@@ -168,7 +168,7 @@ class GitTransferCoordinatorTest {
         val second = harness.coordinator.pull()
 
         assertEquals(null, second)
-        assertEquals(WorkbenchEffect.Message("Git is still fetching; try again when it finishes"), withTimeout(2_000) { message.await() })
+        assertEquals(ICodeEffect.Message("Git is still fetching; try again when it finishes"), withTimeout(2_000) { message.await() })
         gate.complete(Unit)
         fetching?.join()
         assertEquals(listOf("fetch $root"), harness.git.calls)
@@ -257,7 +257,7 @@ class GitTransferCoordinatorTest {
         val harness = Harness(this, FakeTransfers())
         harness.workbench.update { it.copy(gitRepository = repository(upstream = "origin/feature")) }
 
-        harness.coordinator.handle(WorkbenchIntent.CommitAndPush("Fix the build"))?.join()
+        harness.coordinator.handle(ICodeIntent.CommitAndPush("Fix the build"))?.join()
 
         assertEquals("commit Fix the build while ${GitOperationState.Running("Committing")}", harness.events.first())
         assertEquals(listOf("push $root upstream=false branch=feature"), harness.git.calls)

@@ -24,20 +24,20 @@ import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.domain.AppNotice
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /** What iCode has to tell the user, newest first; opening the page marks it all seen. */
 @Composable
 fun NotificationsScreen(actions: NavigationActions) {
-    val state = LocalWorkbenchSnapshot.current
-    val gateway = LocalWorkbenchGateway.current
+    val state = LocalICodeSnapshot.current
+    val gateway = LocalICodeGateway.current
     // New when the page opened: they keep their dot for this visit.
     val newIds = remember { state.notices.filterNot { it.read }.map { it.id }.toSet() }
-    LaunchedEffect(Unit) { gateway.dispatch(WorkbenchIntent.MarkNoticesRead) }
+    LaunchedEffect(Unit) { gateway.dispatch(ICodeIntent.MarkNoticesRead) }
 
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar(
@@ -45,7 +45,7 @@ fun NotificationsScreen(actions: NavigationActions) {
             onBack = actions.back,
             actions = {
                 if (state.notices.isNotEmpty()) {
-                    IconButton(onClick = { gateway.dispatch(WorkbenchIntent.ClearNotices) }) {
+                    IconButton(onClick = { gateway.dispatch(ICodeIntent.ClearNotices) }) {
                         Icon(Icons.Outlined.ClearAll, contentDescription = "Clear all notifications", tint = IcodeColors.TextPrimary)
                     }
                 }
@@ -83,13 +83,13 @@ fun NotificationsScreen(actions: NavigationActions) {
                     is AppNotice.TerminalSessionsEnded -> LostSessionsNotice(
                         notice,
                         new = notice.id in newIds,
-                        onDelete = { gateway.dispatch(WorkbenchIntent.DeleteNotice(notice.id)) },
+                        onDelete = { gateway.dispatch(ICodeIntent.DeleteNotice(notice.id)) },
                         modifier = Modifier.fillMaxWidth(),
                     )
                     is AppNotice.GitTransferInterrupted -> InterruptedTransferNotice(
                         notice,
                         new = notice.id in newIds,
-                        onDelete = { gateway.dispatch(WorkbenchIntent.DeleteNotice(notice.id)) },
+                        onDelete = { gateway.dispatch(ICodeIntent.DeleteNotice(notice.id)) },
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }

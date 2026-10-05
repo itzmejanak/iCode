@@ -29,10 +29,10 @@ import dev.icode.mobile.designsystem.IcodeTextField
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SectionLabel
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
  * Branch picker: a sheet over the screen it was opened from (Source Control, or its sync screen).
@@ -44,8 +44,8 @@ import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 @Composable
 fun BranchSelectorScreen(actions: NavigationActions) {
     var query by rememberSaveable { mutableStateOf("") }
-    val state = LocalWorkbenchSnapshot.current
-    val gateway = LocalWorkbenchGateway.current
+    val state = LocalICodeSnapshot.current
+    val gateway = LocalICodeGateway.current
     val repository = state.gitRepository
     val branches = repository?.branches.orEmpty()
     val activeBranch = repository?.branch.orEmpty()
@@ -75,7 +75,7 @@ fun BranchSelectorScreen(actions: NavigationActions) {
                 PrimaryButton(
                     "⊕  Create New Branch",
                     {
-                        gateway.dispatch(WorkbenchIntent.CreateBranch(newBranch))
+                        gateway.dispatch(ICodeIntent.CreateBranch(newBranch))
                         newBranch = ""
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -95,7 +95,7 @@ fun BranchSelectorScreen(actions: NavigationActions) {
                     branch = branch,
                     active = branch == activeBranch,
                     onSwitch = {
-                        gateway.dispatch(WorkbenchIntent.SwitchBranch(branch))
+                        gateway.dispatch(ICodeIntent.SwitchBranch(branch))
                         actions.back()
                     },
                     onDelete = { branchPendingDelete = branch },
@@ -110,7 +110,7 @@ fun BranchSelectorScreen(actions: NavigationActions) {
                         titleColor = IcodeColors.TextSecondary,
                         onClick = {
                             // Git creates the local branch that tracks exactly this one.
-                            gateway.dispatch(WorkbenchIntent.CheckoutRemoteBranch(remote))
+                            gateway.dispatch(ICodeIntent.CheckoutRemoteBranch(remote))
                             actions.back()
                         },
                         trailing = {
@@ -134,7 +134,7 @@ fun BranchSelectorScreen(actions: NavigationActions) {
             detail = branch,
             confirmLabel = "DELETE",
             onConfirm = {
-                gateway.dispatch(WorkbenchIntent.DeleteBranch(branch))
+                gateway.dispatch(ICodeIntent.DeleteBranch(branch))
                 branchPendingDelete = null
             },
             onDismiss = { branchPendingDelete = null },

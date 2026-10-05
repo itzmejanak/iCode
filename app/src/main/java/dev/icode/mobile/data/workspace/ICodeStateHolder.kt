@@ -1,8 +1,8 @@
 package dev.icode.mobile.data.workspace
 
 import dev.icode.mobile.data.log.BackendLog
-import dev.icode.mobile.domain.WorkbenchEffect
-import dev.icode.mobile.domain.WorkbenchSnapshot
+import dev.icode.mobile.domain.ICodeEffect
+import dev.icode.mobile.domain.ICodeSnapshot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,20 +15,20 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 
 /**
- * The workbench's one snapshot and one effect stream.
+ * The iCode app's one snapshot and one effect stream.
  *
  * The gateway and every part split out of it read and change state here, take
  * the same lock for a state transition, and report a failure the same way:
  * one log line for whoever diagnoses it, one message in the user's words.
  */
-internal class WorkbenchStateHolder {
+internal class ICodeStateHolder {
     private val mutableSnapshot = MutableStateFlow(emptySnapshot())
-    private val mutableEffects = MutableSharedFlow<WorkbenchEffect>(extraBufferCapacity = 1)
+    private val mutableEffects = MutableSharedFlow<ICodeEffect>(extraBufferCapacity = 1)
 
-    val snapshot: StateFlow<WorkbenchSnapshot> = mutableSnapshot.asStateFlow()
-    val effects: SharedFlow<WorkbenchEffect> = mutableEffects.asSharedFlow()
+    val snapshot: StateFlow<ICodeSnapshot> = mutableSnapshot.asStateFlow()
+    val effects: SharedFlow<ICodeEffect> = mutableEffects.asSharedFlow()
 
-    val current: WorkbenchSnapshot get() = mutableSnapshot.value
+    val current: ICodeSnapshot get() = mutableSnapshot.value
 
     /**
      * Held for one state transition at a time. Keystrokes and read-only
@@ -36,11 +36,11 @@ internal class WorkbenchStateHolder {
      */
     val mutations = Mutex()
 
-    fun update(change: (WorkbenchSnapshot) -> WorkbenchSnapshot) = mutableSnapshot.update(change)
+    fun update(change: (ICodeSnapshot) -> ICodeSnapshot) = mutableSnapshot.update(change)
 
-    suspend fun emit(effect: WorkbenchEffect) = mutableEffects.emit(effect)
+    suspend fun emit(effect: ICodeEffect) = mutableEffects.emit(effect)
 
-    suspend fun message(text: String) = emit(WorkbenchEffect.Message(text))
+    suspend fun message(text: String) = emit(ICodeEffect.Message(text))
 
     /** A failure the user is told about in a message: logged once, said once. */
     suspend fun report(subsystem: String, fallback: String, error: Throwable) =
@@ -61,7 +61,7 @@ internal class WorkbenchStateHolder {
     suspend fun <T> onMain(block: () -> T): T = withContext(Dispatchers.Main.immediate) { block() }
 
     companion object {
-        fun emptySnapshot() = WorkbenchSnapshot(
+        fun emptySnapshot() = ICodeSnapshot(
             workspaces = emptyList(),
             files = emptyList(),
             gitChanges = emptyList(),

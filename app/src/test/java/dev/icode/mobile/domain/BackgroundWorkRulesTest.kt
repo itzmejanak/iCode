@@ -1,6 +1,6 @@
 package dev.icode.mobile.domain
 
-import dev.icode.mobile.data.workspace.WorkbenchStateHolder
+import dev.icode.mobile.data.workspace.ICodeStateHolder
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -8,7 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BackgroundWorkRulesTest {
-    private val empty = WorkbenchStateHolder.emptySnapshot()
+    private val empty = ICodeStateHolder.emptySnapshot()
 
     private fun task(id: Long, done: Long = 0, total: Long? = null, item: String? = null, cancellable: Boolean = false, hidden: Boolean = false, failure: String? = null) =
         WorkTask(id, "Deleting…", "node_modules", item, done, total, cancellable, hidden, failure)
@@ -22,7 +22,7 @@ class BackgroundWorkRulesTest {
         assertEquals("task:12", item.key)
         assertEquals("Deleting… (1207 / 11813)", item.heading)
         assertEquals("node_modules/a/b.js", item.detail)
-        assertEquals(WorkbenchIntent.CancelTask(12), item.cancel)
+        assertEquals(ICodeIntent.CancelTask(12), item.cancel)
         assertEquals(BackgroundPlace.Task(12), item.place)
         assertTrue(item.running && item.watched)
         assertEquals(12, item.number)
@@ -51,7 +51,7 @@ class BackgroundWorkRulesTest {
         val item = BackgroundWorkRules.of(snapshot).single()
         assertEquals("Cloning… 45%", item.heading)
         assertEquals("icode · Receiving objects", item.detail)
-        assertEquals(WorkbenchIntent.CancelGitTransfer, item.cancel)
+        assertEquals(ICodeIntent.CancelGitTransfer, item.cancel)
         assertEquals(BackgroundPlace.Clone, item.place)
         assertEquals(900, item.number)
     }
@@ -87,7 +87,7 @@ class BackgroundWorkRulesTest {
         assertEquals("components", item.key)
         assertEquals("Installing SSH client", item.heading)
         assertEquals("Downloading 1238 kB · libcbor0.10", item.detail)
-        assertEquals(WorkbenchIntent.CancelComponents, item.cancel)
+        assertEquals(ICodeIntent.CancelComponents, item.cancel)
         assertEquals(BackgroundPlace.Components, item.place)
 
         val installing = downloading.copy(progress = AptProgress(phase = AptPhase.Installing, total = 6, done = 3, item = "libfido2-1"))
@@ -118,7 +118,7 @@ class BackgroundWorkRulesTest {
         assertEquals("assistant", item.key)
         assertEquals("Assistant is working…", item.heading)
         assertEquals("app · Run `npm test`", item.detail)
-        assertEquals(WorkbenchIntent.StopAssistant, item.cancel)
+        assertEquals(ICodeIntent.StopAssistant, item.cancel)
         assertEquals(BackgroundPlace.Assistant, item.place)
         assertEquals(903, item.number)
         assertNull(item.question)
@@ -138,7 +138,7 @@ class BackgroundWorkRulesTest {
         val item = BackgroundWorkRules.of(running).single()
         assertEquals("2 processes running", item.title)
         assertEquals("uvicorn :8000 · vite", item.detail)
-        assertEquals(WorkbenchIntent.StopAllProcesses, item.cancel)
+        assertEquals(ICodeIntent.StopAllProcesses, item.cancel)
         assertEquals("Stop All", item.cancelLabel)
         assertFalse("a server runs until it is stopped: no bar", item.progresses)
         assertEquals(BackgroundPlace.Processes, item.place)

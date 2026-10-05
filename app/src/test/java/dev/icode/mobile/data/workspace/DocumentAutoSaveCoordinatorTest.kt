@@ -3,7 +3,7 @@ package dev.icode.mobile.data.workspace
 import dev.icode.mobile.domain.LineEnding
 import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.domain.TextEncoding
-import dev.icode.mobile.domain.WorkbenchSnapshot
+import dev.icode.mobile.domain.ICodeSnapshot
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -19,7 +19,7 @@ class DocumentAutoSaveCoordinatorTest {
         readOnly = false,
     )
 
-    private fun snapshot(document: OpenDocument = draft) = WorkbenchSnapshot(
+    private fun snapshot(document: OpenDocument = draft) = ICodeSnapshot(
         workspaces = emptyList(),
         files = emptyList(),
         gitChanges = emptyList(),

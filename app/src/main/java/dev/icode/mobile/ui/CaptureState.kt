@@ -1,6 +1,6 @@
 package dev.icode.mobile.ui
 
-import dev.icode.mobile.domain.WorkbenchGateway
+import dev.icode.mobile.domain.ICodeGateway
 import dev.icode.mobile.domain.WorkspacePreferencesRepository
 
 /**
@@ -9,6 +9,6 @@ import dev.icode.mobile.domain.WorkspacePreferencesRepository
  * (`app/src/debug/.../capture`); a release build has no fixtures to draw.
  */
 class CaptureState(
-    val gateway: WorkbenchGateway,
+    val gateway: ICodeGateway,
     val preferences: WorkspacePreferencesRepository,
 )

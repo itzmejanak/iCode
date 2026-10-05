@@ -4,8 +4,8 @@ import androidx.compose.runtime.Composable
 import dev.icode.mobile.designsystem.IcodeProgressDialog
 import dev.icode.mobile.designsystem.IcodeProgressFailedDialog
 import dev.icode.mobile.domain.WorkTask
-import dev.icode.mobile.domain.WorkbenchGateway
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeGateway
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.percentOf
 
 /**
@@ -16,14 +16,14 @@ import dev.icode.mobile.domain.percentOf
  * the task in iCode. One that failed comes back to say why.
  */
 @Composable
-internal fun TaskDialogs(tasks: List<WorkTask>, gateway: WorkbenchGateway) {
+internal fun TaskDialogs(tasks: List<WorkTask>, gateway: ICodeGateway) {
     val task = tasks.firstOrNull { !it.hidden } ?: return
     val failure = task.failure
     if (failure != null) {
         IcodeProgressFailedDialog(
             title = "${task.title.removeSuffix("…")} stopped",
             reason = "${task.subject}: $failure",
-            onClose = { gateway.dispatch(WorkbenchIntent.DismissTask(task.id)) },
+            onClose = { gateway.dispatch(ICodeIntent.DismissTask(task.id)) },
         )
     } else {
         IcodeProgressDialog(
@@ -32,8 +32,8 @@ internal fun TaskDialogs(tasks: List<WorkTask>, gateway: WorkbenchGateway) {
             progress = task.fraction,
             counts = task.counts,
             share = task.fraction?.let(::percentOf),
-            onHide = { gateway.dispatch(WorkbenchIntent.HideTask(task.id)) },
-            onCancel = if (task.cancellable) ({ gateway.dispatch(WorkbenchIntent.CancelTask(task.id)) }) else null,
+            onHide = { gateway.dispatch(ICodeIntent.HideTask(task.id)) },
+            onCancel = if (task.cancellable) ({ gateway.dispatch(ICodeIntent.CancelTask(task.id)) }) else null,
         )
     }
 }

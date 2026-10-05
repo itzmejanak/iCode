@@ -4,7 +4,7 @@ import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.domain.LineEnding
 import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.domain.TextEncoding
-import dev.icode.mobile.domain.WorkbenchEffect
+import dev.icode.mobile.domain.ICodeEffect
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -27,7 +27,7 @@ class DocumentRecoveryCoordinatorTest {
     @get:Rule val temporaryFolder = TemporaryFolder()
 
     private val originalWriter = BackendLog.writer
-    private val holder = WorkbenchStateHolder()
+    private val holder = ICodeStateHolder()
     private val sources = mutableMapOf<String, WorkspaceDocument>()
     private lateinit var drafts: DocumentDraftStore
     private lateinit var recovery: DocumentRecoveryCoordinator
@@ -79,7 +79,7 @@ class DocumentRecoveryCoordinatorTest {
         open(file)
         val asked = async(start = CoroutineStart.UNDISPATCHED) { holder.effects.first() }
         recovery.opened(file)
-        assertEquals(WorkbenchEffect.ConfirmDraftRecovery(file.location, file.name, sourceChanged = true), asked.await())
+        assertEquals(ICodeEffect.ConfirmDraftRecovery(file.location, file.name, sourceChanged = true), asked.await())
         assertTrue(tab(file.location).readOnly)
         assertEquals(tab(file.location), holder.current.activeDocument)
         assertTrue(recovery.isUnresolved(file.location))
@@ -149,7 +149,7 @@ class DocumentRecoveryCoordinatorTest {
         recovery.opened(file)
         val asked = async(start = CoroutineStart.UNDISPATCHED) { holder.effects.first() }
         assertFalse(recovery.clearToSave(file.location, opened, file))
-        assertEquals(WorkbenchEffect.ConfirmDraftRecovery(file.location, file.name, sourceChanged = false), asked.await())
+        assertEquals(ICodeEffect.ConfirmDraftRecovery(file.location, file.name, sourceChanged = false), asked.await())
     }
 
     @Test fun `switching workspace drops the drafts of the closing tabs only`() = runBlocking {

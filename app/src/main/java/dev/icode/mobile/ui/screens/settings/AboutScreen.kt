@@ -24,11 +24,11 @@ import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.BuildConfig
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 // Destinations these rows will open once they exist: an update source, a
 // diagnostics export, the licence notices, the project's source and pages.
@@ -42,9 +42,9 @@ private const val NOT_AVAILABLE = "Not available yet"
 /** About iCode: what this build and this phone's runtime actually are. */
 @Composable
 fun AboutScreen(actions: NavigationActions) {
-    val state = LocalWorkbenchSnapshot.current
-    val gateway = LocalWorkbenchGateway.current
-    LaunchedEffect(Unit) { gateway.dispatch(WorkbenchIntent.RefreshRuntimeDetails) }
+    val state = LocalICodeSnapshot.current
+    val gateway = LocalICodeGateway.current
+    LaunchedEffect(Unit) { gateway.dispatch(ICodeIntent.RefreshRuntimeDetails) }
     val runtime = state.runtimeDetails
     val buildSpecs = listOf(
         "App Version" to BuildConfig.VERSION_NAME,
@@ -73,7 +73,7 @@ fun AboutScreen(actions: NavigationActions) {
                         modifier = Modifier.padding(top = IcodeSpacing.Space2 + IcodeSpacing.Micro),
                         style = IcodeType.Heading,
                     )
-                    Text("NATIVE ANDROID WORKBENCH", style = IcodeType.MonoSmall.copy(color = IcodeColors.Accent))
+                    Text("NATIVE ANDROID IDE", style = IcodeType.MonoSmall.copy(color = IcodeColors.Accent))
                 }
             }
             item { SectionLabel("Build Specifications") }

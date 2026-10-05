@@ -114,7 +114,7 @@ is bound through a link to it in the runtime's `binds/`, named by the location's
   killing those still running two seconds later (patch 0002); then SIGKILL after 3 s if PRoot is
   still running, which ends it and, through `PTRACE_O_EXITKILL`, everything it runs.
   `write(id, text)` writes to its stdin. An ended process stays listed until forgotten.
-- State reaches the snapshot as `WorkbenchSnapshot.processes` when it changes — started, a port
+- State reaches the snapshot as `ICodeSnapshot.processes` when it changes — started, a port
   found, ended — not its output (§6 P2).
 - `BackgroundWorkRules` adds one item while any run ("2 processes running" · their names), so
   the foreground service keeps them; its Cancel stops them all, and its tap opens the Assistant.

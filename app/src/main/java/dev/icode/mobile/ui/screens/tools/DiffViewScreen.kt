@@ -31,7 +31,7 @@ import dev.icode.mobile.domain.GitDiffLineKind
 import dev.icode.mobile.domain.GitFileDiff
 import dev.icode.mobile.domain.countOf
 import dev.icode.mobile.navigation.NavigationActions
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeSnapshot
 import kotlinx.coroutines.launch
 
 /**
@@ -42,7 +42,7 @@ import kotlinx.coroutines.launch
  */
 @Composable
 fun DiffViewScreen(actions: NavigationActions) {
-    val state = LocalWorkbenchSnapshot.current
+    val state = LocalICodeSnapshot.current
     val diff = state.activeDiff
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()

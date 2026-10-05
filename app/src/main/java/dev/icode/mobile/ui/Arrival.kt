@@ -3,8 +3,8 @@ package dev.icode.mobile.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import dev.icode.mobile.domain.BackgroundPlace
-import dev.icode.mobile.domain.WorkbenchGateway
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeGateway
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.Route
 
 /** What Android asked iCode's screen to show as it opened or came back to the front. */
@@ -22,7 +22,7 @@ sealed interface Arrival {
  * notification needs nothing then: onboarding is already showing the install.
  */
 @Composable
-internal fun ArrivalEffect(arrival: Arrival?, navigation: NavigationState, pastOnboarding: Boolean, gateway: WorkbenchGateway, onArrived: () -> Unit) {
+internal fun ArrivalEffect(arrival: Arrival?, navigation: NavigationState, pastOnboarding: Boolean, gateway: ICodeGateway, onArrived: () -> Unit) {
     LaunchedEffect(arrival, pastOnboarding) {
         val asked = arrival ?: return@LaunchedEffect
         if (!pastOnboarding) {
@@ -33,9 +33,9 @@ internal fun ArrivalEffect(arrival: Arrival?, navigation: NavigationState, pastO
             if (navigation.current != route) navigation.actions.navigate(route)
         }
         when (asked) {
-            is Arrival.TerminalSession -> gateway.dispatch(WorkbenchIntent.ShowTerminalSession(asked.id))
+            is Arrival.TerminalSession -> gateway.dispatch(ICodeIntent.ShowTerminalSession(asked.id))
             is Arrival.Work -> when (val place = asked.place) {
-                is BackgroundPlace.Task -> gateway.dispatch(WorkbenchIntent.ShowTask(place.id))
+                is BackgroundPlace.Task -> gateway.dispatch(ICodeIntent.ShowTask(place.id))
                 BackgroundPlace.Clone -> show(Route.CloneProgress)
                 BackgroundPlace.Sync -> show(Route.PullFetchProgress)
                 BackgroundPlace.Runtime -> show(Route.RuntimeInstalling)

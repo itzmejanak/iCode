@@ -51,8 +51,8 @@ import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.domain.AssistantMode
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantState
-import dev.icode.mobile.domain.WorkbenchIntent
-import dev.icode.mobile.ui.LocalWorkbenchGateway
+import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.ui.LocalICodeGateway
 
 /**
  * The composer, as VS Code's: the files going with the message, the message, and a toolbar — attach,
@@ -72,7 +72,7 @@ internal fun AssistantComposer(
     /** The workspace's files: where the assistant works, a tap away. */
     onWorkspace: () -> Unit,
 ) {
-    val gateway = LocalWorkbenchGateway.current
+    val gateway = LocalICodeGateway.current
     val settings = state.settings
     // A file the chosen model cannot read waits for another model; nothing is sent to fail.
     val unreadable = AssistantRules.attachmentProblem(attached.map { it.kind }, settings.model)
@@ -112,13 +112,13 @@ internal fun AssistantComposer(
                         Icon(Icons.Outlined.Add, contentDescription = "Attach files", tint = IcodeColors.TextSecondary, modifier = Modifier.size(IcodeSizes.IconMd))
                     }
                     Choice(settings.mode.label, "Mode", AssistantMode.entries, settings.mode, { it.label }, { it.description }) {
-                        gateway.dispatch(WorkbenchIntent.ChooseAssistantMode(it))
+                        gateway.dispatch(ICodeIntent.ChooseAssistantMode(it))
                     }
                     // The model and, where it has one, its reasoning effort: both chosen in the model sheet.
                     IcodeChoiceChip(modelLabel(state), onModels, Modifier.weight(1f, fill = false), role = "Model")
                 }
                 if (state.runningHere) {
-                    IconButton(onClick = { gateway.dispatch(WorkbenchIntent.StopAssistant) }) {
+                    IconButton(onClick = { gateway.dispatch(ICodeIntent.StopAssistant) }) {
                         Icon(Icons.Outlined.StopCircle, contentDescription = "Stop", tint = IcodeColors.Error)
                     }
                 } else {
@@ -151,7 +151,7 @@ internal fun AssistantComposer(
                 { if (it) ASK_FIRST else ALLOW_ALL },
                 { if (it) "Each file change and command waits for Allow" else "Changes and commands run without asking" },
                 icon = true,
-            ) { gateway.dispatch(WorkbenchIntent.SetAssistantAskFirst(it)) }
+            ) { gateway.dispatch(ICodeIntent.SetAssistantAskFirst(it)) }
             Spacer(Modifier.weight(1f))
             ContextMeter(state)
         }
@@ -191,7 +191,7 @@ private fun <T> Choice(
  */
 @Composable
 private fun ContextMeter(state: AssistantState) {
-    val gateway = LocalWorkbenchGateway.current
+    val gateway = LocalICodeGateway.current
     val window = state.settings.model?.contextWindow
     val label = AssistantRules.contextLabel(state.contextTokens, window)
     val share = AssistantRules.contextShare(state.contextTokens, window) ?: 0f
@@ -224,7 +224,7 @@ private fun ContextMeter(state: AssistantState) {
             onDismiss = { open = false },
             actions = listOf(
                 IcodeMenuAction(
-                    "Compact Chat", Icons.Outlined.Compress, { gateway.dispatch(WorkbenchIntent.CompactAssistantChat) },
+                    "Compact Chat", Icons.Outlined.Compress, { gateway.dispatch(ICodeIntent.CompactAssistantChat) },
                     enabled = state.messages.isNotEmpty() && !state.running,
                 ),
             ),

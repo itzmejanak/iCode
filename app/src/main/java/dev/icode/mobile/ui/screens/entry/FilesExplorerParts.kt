@@ -35,9 +35,9 @@ import dev.icode.mobile.domain.BrowsedItem
 import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.FileTypes
 import dev.icode.mobile.domain.RelativeTime
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.countOf
-import dev.icode.mobile.ui.LocalWorkbenchGateway
+import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.copyPathAction
 import dev.icode.mobile.ui.screens.workspace.fileTypeIcon
 import dev.icode.mobile.ui.screens.workspace.fileTypeTint
@@ -55,16 +55,16 @@ internal fun BrowsedItemRow(
     onRename: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    val gateway = LocalWorkbenchGateway.current
+    val gateway = LocalICodeGateway.current
     val context = LocalContext.current
     var longPressed by remember(item.location) { mutableStateOf(false) }
     val type = FileTypes.of(item.name)
-    val open = { if (item.folder) onBrowse(item.location) else gateway.dispatch(WorkbenchIntent.OpenFile(item.location)) }
+    val open = { if (item.folder) onBrowse(item.location) else gateway.dispatch(ICodeIntent.OpenFile(item.location)) }
     val actions = listOf(
         IcodeMenuAction("Open", if (item.folder) Icons.Outlined.FolderOpen else Icons.Outlined.Description, open),
         IcodeMenuAction("Rename…", Icons.Outlined.DriveFileRenameOutline, onRename),
-        IcodeMenuAction("Cut", Icons.Outlined.ContentCut, { gateway.dispatch(WorkbenchIntent.CutItem(item.location)) }),
-        IcodeMenuAction("Copy", Icons.Outlined.ContentCopy, { gateway.dispatch(WorkbenchIntent.CopyItem(item.location)) }),
+        IcodeMenuAction("Cut", Icons.Outlined.ContentCut, { gateway.dispatch(ICodeIntent.CutItem(item.location)) }),
+        IcodeMenuAction("Copy", Icons.Outlined.ContentCopy, { gateway.dispatch(ICodeIntent.CopyItem(item.location)) }),
         copyPathAction(context, runtimePath),
         IcodeMenuAction("Delete…", Icons.Outlined.DeleteOutline, onDelete, destructive = true),
     )

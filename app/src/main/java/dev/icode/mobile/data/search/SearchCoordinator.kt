@@ -1,6 +1,6 @@
 package dev.icode.mobile.data.search
 
-import dev.icode.mobile.data.workspace.WorkbenchStateHolder
+import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.ContentSearchState
 import dev.icode.mobile.domain.IndexedFile
 import dev.icode.mobile.domain.SearchEngineState
@@ -13,7 +13,7 @@ import kotlinx.coroutines.launch
 
 /** Search (S4): cancellable ripgrep content search and Quick Open indexing. */
 internal class SearchCoordinator(
-    private val workbench: WorkbenchStateHolder,
+    private val stateHolder: ICodeStateHolder,
     private val scope: CoroutineScope,
     private val ripgrep: WorkspaceSearchEngine,
     private val activeRoot: () -> String?,
@@ -39,7 +39,7 @@ internal class SearchCoordinator(
         indexJob = null
         indexedWorkspace = null
         indexingWorkspace = null
-        workbench.update { it.copy(fileIndex = emptyList(), fileIndexTruncated = false) }
+        stateHolder.update { it.copy(fileIndex = emptyList(), fileIndexTruncated = false) }
     }
 
     fun workspaceClosing() {
@@ -61,7 +61,7 @@ internal class SearchCoordinator(
                 return@launch
             }
             if (generation == indexGeneration.get() && root == activeRoot()) {
-                workbench.update { it.copy(searchEngine = SearchEngineState.Indexing) }
+                stateHolder.update { it.copy(searchEngine = SearchEngineState.Indexing) }
             }
             try {
                 val outcome = ripgrep.index(root)
@@ -70,7 +70,7 @@ internal class SearchCoordinator(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
-                val message = workbench.failureText("search", "Unable to index workspace files", error)
+                val message = stateHolder.failureText("search", "Unable to index workspace files", error)
                 publishIndex(generation, root, emptyList(), truncated = false, SearchEngineState.Failed(message))
             }
         }
@@ -81,7 +81,7 @@ internal class SearchCoordinator(
         val root = activeRoot()
         val normalized = query.trim()
         if (root == null) {
-            scope.launch { workbench.message("Open a workspace before searching") }
+            scope.launch { stateHolder.message("Open a workspace before searching") }
             return
         }
         if (normalized.isBlank()) {
@@ -99,7 +99,7 @@ internal class SearchCoordinator(
             try {
                 val outcome = ripgrep.search(root, normalized, matchCase, wholeWord, regex)
                 if (!isCurrentContent(generation, root)) return@launch
-                workbench.update { snapshot -> snapshot.copy(
+                stateHolder.update { snapshot -> snapshot.copy(
                     contentSearch = ContentSearchState(
                         query = normalized,
                         matchCase = matchCase,
@@ -114,7 +114,7 @@ internal class SearchCoordinator(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
-                val message = workbench.failureText("search", "Unable to search workspace files", error)
+                val message = stateHolder.failureText("search", "Unable to search workspace files", error)
                 publishContentError(generation, root, normalized, matchCase, wholeWord, regex, message)
             }
         }
@@ -124,12 +124,12 @@ internal class SearchCoordinator(
         contentGeneration.incrementAndGet()
         contentJob?.cancel()
         contentJob = null
-        workbench.update { snapshot -> snapshot.copy(contentSearch = ContentSearchState.Empty) }
+        stateHolder.update { snapshot -> snapshot.copy(contentSearch = ContentSearchState.Empty) }
     }
 
     private suspend fun ensureEngine(): String? {
         if (!ripgrep.isAvailable()) {
-            workbench.update { it.copy(searchEngine = SearchEngineState.Installing) }
+            stateHolder.update { it.copy(searchEngine = SearchEngineState.Installing) }
         }
         val availability = try {
             ripgrep.ensureAvailable()
@@ -141,18 +141,18 @@ internal class SearchCoordinator(
         return when (availability) {
             RipgrepAvailability.Ready -> {
                 reportedProvisionFailure = null
-                workbench.update { it.copy(searchEngine = SearchEngineState.Ready()) }
+                stateHolder.update { it.copy(searchEngine = SearchEngineState.Ready()) }
                 null
             }
             is RipgrepAvailability.Failed -> {
                 val message = synchronized(this) {
                     val reported = reportedProvisionFailure
                     if (reported?.first == availability.reason) reported.second
-                    else workbench.failureText("search", "Ripgrep is unavailable", IOException(availability.reason)).also {
+                    else stateHolder.failureText("search", "Ripgrep is unavailable", IOException(availability.reason)).also {
                         reportedProvisionFailure = availability.reason to it
                     }
                 }
-                workbench.update { it.copy(searchEngine = SearchEngineState.Failed(message)) }
+                stateHolder.update { it.copy(searchEngine = SearchEngineState.Failed(message)) }
                 message
             }
         }
@@ -168,7 +168,7 @@ internal class SearchCoordinator(
         if (generation != indexGeneration.get() || root != activeRoot()) return
         indexedWorkspace = root.takeIf { engine is SearchEngineState.Ready }
         indexingWorkspace = null
-        workbench.update { it.copy(fileIndex = files, fileIndexTruncated = truncated, searchEngine = engine) }
+        stateHolder.update { it.copy(fileIndex = files, fileIndexTruncated = truncated, searchEngine = engine) }
     }
 
     private fun publishContentError(
@@ -181,7 +181,7 @@ internal class SearchCoordinator(
         message: String,
     ) {
         if (!isCurrentContent(generation, root)) return
-        workbench.update { snapshot -> snapshot.copy(
+        stateHolder.update { snapshot -> snapshot.copy(
             contentSearch = ContentSearchState(
                 query = query,
                 matchCase = matchCase,

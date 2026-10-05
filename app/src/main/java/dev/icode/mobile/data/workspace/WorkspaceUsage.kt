@@ -13,7 +13,7 @@ import java.io.File
  * and — for a whole workspace — a terminal session, Git or the assistant working in it.
  */
 internal class WorkspaceUsage(
-    private val workbench: WorkbenchStateHolder,
+    private val stateHolder: ICodeStateHolder,
     private val tasks: TaskRunner,
     private val terminalRunsIn: suspend (location: String) -> Boolean,
     private val processesRunIn: (location: String) -> Boolean,
@@ -26,7 +26,7 @@ internal class WorkspaceUsage(
         if (whole && terminalRunsIn(location)) return "A terminal session is running in $name. End it first"
         if (whole && processesRunIn(location)) return "A process is running in $name. Stop it first"
         tasks.waitReason(location)?.let { return it }
-        val state = workbench.current
+        val state = stateHolder.current
         if (whole && state.gitOperation is GitOperationState.Running && activeRoot() == location) {
             return "Git is working in $name — wait for it to finish"
         }

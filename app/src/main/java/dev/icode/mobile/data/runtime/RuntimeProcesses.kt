@@ -3,7 +3,7 @@ package dev.icode.mobile.data.runtime
 import dev.icode.mobile.domain.ManagedProcess
 import dev.icode.mobile.domain.ManagedProcessState
 import dev.icode.mobile.domain.ProcessRules
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
@@ -156,11 +156,11 @@ internal class RuntimeProcesses(
     /** Running in [workspace]: its rename and delete wait (WorkspaceUsage). */
     fun runsIn(workspace: String): Boolean = synchronized(lock) { entries.values.any { it.info.running && it.info.workspace == workspace } }
 
-    fun handle(intent: WorkbenchIntent.ProcessIntent) {
+    fun handle(intent: ICodeIntent.ProcessIntent) {
         when (intent) {
-            is WorkbenchIntent.StopProcess -> stop(intent.id)
-            WorkbenchIntent.StopAllProcesses -> stopAll()
-            is WorkbenchIntent.ForgetProcess -> forget(intent.id)
+            is ICodeIntent.StopProcess -> stop(intent.id)
+            ICodeIntent.StopAllProcesses -> stopAll()
+            is ICodeIntent.ForgetProcess -> forget(intent.id)
         }
     }
 

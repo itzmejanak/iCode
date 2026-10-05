@@ -3,7 +3,7 @@ package dev.icode.mobile.data.runtime
 import dev.icode.mobile.domain.ManagedProcess
 import dev.icode.mobile.domain.ManagedProcessState
 import dev.icode.mobile.domain.ProcessRules
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.PipedInputStream
@@ -143,9 +143,9 @@ class RuntimeProcessesTest {
         repeat(ProcessRules.MAX_RUNNING) { start("worker $it") }
         val refused = processes.start("/w/app", "/workspace/app", "one more", null, emptyMap())
         assertEquals("8 processes run already: stop one first. Android ends apps' processes past a limit", refused.exceptionOrNull()?.message)
-        processes.handle(WorkbenchIntent.StopAllProcesses)
+        processes.handle(ICodeIntent.StopAllProcesses)
         until { !processes.anyRunning() }
-        processes.handle(WorkbenchIntent.ForgetProcess("p1"))
+        processes.handle(ICodeIntent.ForgetProcess("p1"))
         until { published.size == ProcessRules.MAX_RUNNING - 1 }
         assertTrue(published.none { it.id == "p1" })
     }

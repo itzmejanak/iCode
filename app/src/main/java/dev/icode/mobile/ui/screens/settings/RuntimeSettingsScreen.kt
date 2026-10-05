@@ -35,13 +35,13 @@ import dev.icode.mobile.domain.RuntimeComponents
 import dev.icode.mobile.domain.RuntimeComponentsState
 import dev.icode.mobile.domain.RuntimeDetails
 import dev.icode.mobile.domain.RuntimeState
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.countOf
 import dev.icode.mobile.domain.storageSizeLabel
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /** Which rebuild the user asked for; both are destructive, so both confirm. */
 private enum class RuntimeRebuild { Repair, Reset }
@@ -55,12 +55,12 @@ private enum class RuntimeRebuild { Repair, Reset }
  */
 @Composable
 fun RuntimeSettingsScreen(actions: NavigationActions) {
-    val state = LocalWorkbenchSnapshot.current
-    val gateway = LocalWorkbenchGateway.current
+    val state = LocalICodeSnapshot.current
+    val gateway = LocalICodeGateway.current
     val details = state.runtimeDetails
     var pending by rememberSaveable { mutableStateOf<RuntimeRebuild?>(null) }
 
-    LaunchedEffect(Unit) { gateway.dispatch(WorkbenchIntent.RefreshRuntimeDetails) }
+    LaunchedEffect(Unit) { gateway.dispatch(ICodeIntent.RefreshRuntimeDetails) }
 
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Runtime Environment", onBack = actions.back)
@@ -132,9 +132,9 @@ fun RuntimeSettingsScreen(actions: NavigationActions) {
             onConfirm = {
                 gateway.dispatch(
                     if (rebuild == RuntimeRebuild.Repair) {
-                        WorkbenchIntent.RepairRuntime
+                        ICodeIntent.RepairRuntime
                     } else {
-                        WorkbenchIntent.ResetRuntime
+                        ICodeIntent.ResetRuntime
                     },
                 )
                 pending = null

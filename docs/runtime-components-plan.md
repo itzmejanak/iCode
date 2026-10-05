@@ -26,7 +26,7 @@ What the code does:
 | Gap | Where |
 |---|---|
 | **The button says "Generating…" through the whole install** — nothing says tools are being downloaded, nor how far | `GitAuthCredentialForms.kt:138` |
-| **The install holds the workbench's mutation lock** — open, save, create and Git wait behind a network download. Test Connection (a network `ls-remote`) and Install Git do the same | `AndroidWorkbenchGateway.kt:239` (`withLock`), `:308`, `:327`, `:328` |
+| **The install holds iCode's mutation lock** — open, save, create and Git wait behind a network download. Test Connection (a network `ls-remote`) and Install Git do the same | `AndroidICodeGateway.kt:239` (`withLock`), `:308`, `:327`, `:328` |
 | **One flag for two actions**: `GitAuthState.busy` is set by Generate and by Test, so each button reads the other's work; `sshAvailable` is never set nor read | `GitContract.kt:213` |
 | **Tools arrive only on first use**, one by one, each paying for `apt-get update` (36.5 MB, measured 1 min 1 s, [integration-plan.md](./integration-plan.md)) when the lists are missing | `CliGitService.provision`, `GitAuthenticator.ensureSshAvailable`, `RipgrepService.ensureAvailable` |
 | **"Installed" is decided three ways**, each by a binary path restated in its own file | `GIT_RELATIVE_PATH`, `SSH_KEYGEN_RELATIVE`, `RG_RELATIVE_PATH` |
@@ -138,7 +138,7 @@ cards, check rows, the progress track, the bottom action bar), as Import was.
 
 - **Off the lock**: Generate SSH Key, Test Connection and Install Git run on their own jobs, one
   at a time each, never inside the mutation lock. They touch the runtime's home and the network,
-  not the workspace. The lock is taken only if a result changes the workbench.
+  not the workspace. The lock is taken only if a result changes iCode.
 - **The button says what is happening**, read from `ComponentInstall`: "Installing SSH client… 3
   of 6", then "Generating…". Test has its own state ("Testing…"): `busy` becomes
   `GitAuthWork { GeneratingKey, Testing }`, and the dead `sshAvailable` goes.

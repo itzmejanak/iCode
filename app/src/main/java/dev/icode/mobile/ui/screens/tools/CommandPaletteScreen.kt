@@ -39,18 +39,18 @@ import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.domain.PaletteCommand
 import dev.icode.mobile.domain.PaletteCommandId
 import dev.icode.mobile.domain.PaletteCommands
-import dev.icode.mobile.domain.WorkbenchIntent
-import dev.icode.mobile.domain.WorkbenchSnapshot
+import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.ICodeSnapshot
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
-/** Searchable action palette; commands use existing guarded workbench intents. */
+/** Searchable action palette; commands use existing guarded ICode intents. */
 @Composable
 fun CommandPaletteScreen(actions: NavigationActions) {
-    val snapshot = LocalWorkbenchSnapshot.current
-    val gateway = LocalWorkbenchGateway.current
+    val snapshot = LocalICodeSnapshot.current
+    val gateway = LocalICodeGateway.current
     var query by rememberSaveable { mutableStateOf("") }
     var selectedIndex by rememberSaveable { mutableIntStateOf(0) }
     val commands = PaletteCommands.search(snapshot, query)
@@ -130,25 +130,25 @@ fun CommandPaletteScreen(actions: NavigationActions) {
 /** Keeps touch and hardware-key activation on the same tested route/intent path. */
 internal fun runPaletteCommand(
     command: PaletteCommand,
-    snapshot: WorkbenchSnapshot,
-    dispatch: (WorkbenchIntent) -> Unit,
+    snapshot: ICodeSnapshot,
+    dispatch: (ICodeIntent) -> Unit,
     replace: (Route) -> Unit,
     back: () -> Unit,
 ) {
     if (!command.available) return
     when (command.id) {
         PaletteCommandId.PushBranch -> {
-            dispatch(WorkbenchIntent.PushRemote)
+            dispatch(ICodeIntent.PushRemote)
             replace(Route.PullFetchProgress)
         }
         PaletteCommandId.PullBranch -> {
-            dispatch(WorkbenchIntent.PullRemote)
+            dispatch(ICodeIntent.PullRemote)
             replace(Route.PullFetchProgress)
         }
         // A commit requires a message; Source Control owns that form and validation.
         PaletteCommandId.CommitStaged -> replace(Route.SourceControl)
         PaletteCommandId.SaveCurrent -> snapshot.activeDocument?.let {
-            dispatch(WorkbenchIntent.SaveDocument(it.location))
+            dispatch(ICodeIntent.SaveDocument(it.location))
             back()
         }
         PaletteCommandId.QuickOpen -> replace(Route.QuickOpen)

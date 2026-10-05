@@ -8,7 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
-import dev.icode.mobile.domain.WorkbenchEffect
+import dev.icode.mobile.domain.ICodeEffect
 import java.util.UUID
 
 /**
@@ -36,14 +36,14 @@ class PendingRequest internal constructor() {
 /** A [PendingRequest] for the dialog keyed by [key]; [onDone] runs once the gateway says it is done. */
 @Composable
 fun rememberPendingRequest(key: Any?, onDone: () -> Unit): PendingRequest {
-    val gateway = LocalWorkbenchGateway.current
+    val gateway = LocalICodeGateway.current
     val request = remember(key) { PendingRequest() }
     val done by rememberUpdatedState(onDone)
     LaunchedEffect(gateway, request) {
         gateway.effects.collect { effect ->
             when {
-                effect is WorkbenchEffect.WorkspaceItemChanged && effect.requestId == request.id -> done()
-                effect is WorkbenchEffect.WorkspaceItemFailed && effect.requestId == request.id -> {
+                effect is ICodeEffect.WorkspaceItemChanged && effect.requestId == request.id -> done()
+                effect is ICodeEffect.WorkspaceItemFailed && effect.requestId == request.id -> {
                     request.failure = effect.message
                     request.id = null
                 }

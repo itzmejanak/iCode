@@ -22,7 +22,7 @@ Follows [backend-split-rules.md](./backend-split-rules.md).
 | Terminal sessions | the terminal; a notification group | — | **yes** — the same service |
 
 Evidence: `WorkspaceItemsCoordinator.delete` → `WorkspaceFiles.delete` (a recursive
-`walkFileTree`, no count, no progress, no cancel), routed inside `AndroidWorkbenchGateway`'s
+`walkFileTree`, no count, no progress, no cancel), routed inside `AndroidICodeGateway`'s
 locked `when`; `DeleteWorkspaceItemDialog` dispatches and dismisses; `RuntimeForegroundService`
 is idle when there are no sessions and no install (`idle = sessions.isEmpty() && !installing`).
 
@@ -100,7 +100,7 @@ on a foundation with no gaps in how the features are wired.
 
 | Gap | Where |
 |---|---|
-| **The backend belongs to one screen.** `AndroidWorkbenchViewModel` builds its own `AndroidWorkbenchGateway` and `onCleared` calls `close()`, which cancels the gateway's scope. Leaving iCode with Back, or swiping it from Recents while work runs, cancels a running delete (half a folder left), an import, a clone or a sync, and the runtime install | `AndroidWorkbenchViewModel`, `AndroidWorkbenchGateway.close` |
+| **The backend belongs to one screen.** `AndroidICodeViewModel` builds its own `AndroidICodeGateway` and `onCleared` calls `close()`, which cancels the gateway's scope. Leaving iCode with Back, or swiping it from Recents while work runs, cancels a running delete (half a folder left), an import, a clone or a sync, and the runtime install | `AndroidICodeViewModel`, `AndroidICodeGateway.close` |
 | **Nothing keeps the process for a task.** `RuntimeForegroundService` runs while a terminal session runs or the runtime installs (`RuntimeWork.installing`), nothing else: a task, a Git transfer or an apt install in the background dies with the process Android reclaims | `RuntimeForegroundService.idle` |
 | **A hidden task has no notification.** It shows as a row in the Explorer and the launcher (`BackgroundTasks`) — inside iCode only | `TaskDialogs.kt` |
 | **Two keep-alive signals.** Sessions, and `RuntimeWork` for the install alone | `RuntimeWork.kt` |
@@ -108,7 +108,7 @@ on a foundation with no gaps in how the features are wired.
 
 ### 6.2 Design
 
-1. **One backend per process.** `AndroidWorkbenchGateway.attach(context)` returns the process's
+1. **One backend per process.** `AndroidICodeGateway.attach(context)` returns the process's
    one gateway, as `TerminalSessionManager.get` does: work belongs to the process, screens attach
    and detach. When the last screen detaches, only what serves a screen stops — the folder
    watcher and language servers. Every long operation keeps running on the gateway's scope.
@@ -176,7 +176,7 @@ On success nothing new is posted (§5): the dialog or notification ends and the 
   storage, 0.04 s in app storage). Not checked: opening a file during the delete (the owner took
   the phone). Gate: 474 tests; lint 0 errors / 11 warnings; both guards pass.
 - **§6, the background foundation** (2026-09-30), replacing T3–T4. The backend is one per
-  process (`WorkbenchProcess`: screens attach and detach; the last to leave stops the watcher and
+  process (`ICodeProcess`: screens attach and detach; the last to leave stops the watcher and
   language servers only), so a delete, an import, a clone or the runtime install goes on when
   iCode is left with Back or swiped from Recents. `BackgroundWorkRules` (domain, pure) names all
   background work from the snapshot and the package installer's `installing`; the gateway

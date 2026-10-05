@@ -11,7 +11,7 @@ import dev.icode.mobile.designsystem.IcodeConfirmDialog
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.LabeledTextField
 import dev.icode.mobile.designsystem.MonoLine
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.WorkspaceNameRules
 import dev.icode.mobile.domain.WorkspaceRuntimePath
 import dev.icode.mobile.domain.WorkspaceSummary
@@ -25,7 +25,7 @@ internal fun NewWorkspaceDialog(onDismiss: () -> Unit) = WorkspaceNameDialog(
     initial = "",
     current = null,
     onDismiss = onDismiss,
-) { name, requestId -> WorkbenchIntent.CreateWorkspace(name, requestId) }
+) { name, requestId -> ICodeIntent.CreateWorkspace(name, requestId) }
 
 /** A whole workspace's new name; its settings, history and open tabs follow it. */
 @Composable
@@ -36,7 +36,7 @@ internal fun RenameWorkspaceDialog(item: WorkspaceSummary, onDismiss: () -> Unit
     initial = item.name,
     current = item.name,
     onDismiss = onDismiss,
-) { name, requestId -> WorkbenchIntent.RenameWorkspace(item.location, name, requestId) }
+) { name, requestId -> ICodeIntent.RenameWorkspace(item.location, name, requestId) }
 
 /**
  * A workspace's name, as New Folder and Rename ask for it: the name, the `/workspace/<name>` it will
@@ -51,10 +51,10 @@ private fun WorkspaceNameDialog(
     initial: String,
     current: String?,
     onDismiss: () -> Unit,
-    intent: (name: String, requestId: String) -> WorkbenchIntent,
+    intent: (name: String, requestId: String) -> ICodeIntent,
 ) {
-    val gateway = LocalWorkbenchGateway.current
-    val workspaces = LocalWorkbenchSnapshot.current.workspaces
+    val gateway = LocalICodeGateway.current
+    val workspaces = LocalICodeSnapshot.current.workspaces
     var name by rememberSaveable(key) { mutableStateOf(initial) }
     val request = rememberPendingRequest(key, onDismiss)
     val problem = WorkspaceNameRules.newWorkspaceError(name) { taken -> taken != current && workspaces.any { it.name == taken } }

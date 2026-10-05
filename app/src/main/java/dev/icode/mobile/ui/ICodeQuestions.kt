@@ -14,10 +14,10 @@ import dev.icode.mobile.designsystem.IcodeConfirmDialog
 import dev.icode.mobile.designsystem.IcodeSaveDiscardDialog
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.SecondaryButton
-import dev.icode.mobile.domain.WorkbenchEffect
-import dev.icode.mobile.domain.WorkbenchGateway
-import dev.icode.mobile.domain.WorkbenchIntent
-import dev.icode.mobile.domain.WorkbenchSnapshot
+import dev.icode.mobile.domain.ICodeEffect
+import dev.icode.mobile.domain.ICodeGateway
+import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.ICodeSnapshot
 import dev.icode.mobile.domain.countOf
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.screens.recovery.ExternalChangePrompt
@@ -29,33 +29,33 @@ import dev.icode.mobile.ui.screens.recovery.ExternalChangePrompt
  * waits here until it is shown, and is answered with an intent.
  */
 @Stable
-internal class WorkbenchQuestions {
-    var workspaceSwitch by mutableStateOf<WorkbenchEffect.ConfirmWorkspaceSwitch?>(null)
+internal class ICodeQuestions {
+    var workspaceSwitch by mutableStateOf<ICodeEffect.ConfirmWorkspaceSwitch?>(null)
     /** One question at a time: restoring several drafts asks about each in turn. */
-    var draftRecoveries by mutableStateOf<List<WorkbenchEffect.ConfirmDraftRecovery>>(emptyList())
-    var recoveredOverwrite by mutableStateOf<WorkbenchEffect.ConfirmRecoveredOverwrite?>(null)
+    var draftRecoveries by mutableStateOf<List<ICodeEffect.ConfirmDraftRecovery>>(emptyList())
+    var recoveredOverwrite by mutableStateOf<ICodeEffect.ConfirmRecoveredOverwrite?>(null)
     var externalChange by mutableStateOf<String?>(null)
 
-    fun ask(effect: WorkbenchEffect.ConfirmWorkspaceSwitch) { workspaceSwitch = effect }
+    fun ask(effect: ICodeEffect.ConfirmWorkspaceSwitch) { workspaceSwitch = effect }
 
-    fun ask(effect: WorkbenchEffect.ConfirmDraftRecovery) {
+    fun ask(effect: ICodeEffect.ConfirmDraftRecovery) {
         draftRecoveries = draftRecoveries.filterNot { it.location == effect.location } + effect
     }
 
-    fun ask(effect: WorkbenchEffect.ConfirmRecoveredOverwrite) { recoveredOverwrite = effect }
+    fun ask(effect: ICodeEffect.ConfirmRecoveredOverwrite) { recoveredOverwrite = effect }
 
-    fun ask(effect: WorkbenchEffect.ExternalChangeDetected) { externalChange = effect.location }
+    fun ask(effect: ICodeEffect.ExternalChangeDetected) { externalChange = effect.location }
 }
 
 @Composable
-internal fun rememberWorkbenchQuestions(): WorkbenchQuestions = remember { WorkbenchQuestions() }
+internal fun rememberICodeQuestions(): ICodeQuestions = remember { ICodeQuestions() }
 
 /** The question waiting, drawn over the current screen. */
 @Composable
-internal fun WorkbenchQuestionDialogs(
-    questions: WorkbenchQuestions,
-    snapshot: WorkbenchSnapshot,
-    gateway: WorkbenchGateway,
+internal fun ICodeQuestionDialogs(
+    questions: ICodeQuestions,
+    snapshot: ICodeSnapshot,
+    gateway: ICodeGateway,
     current: Route,
     navigate: (Route) -> Unit,
 ) {
@@ -64,11 +64,11 @@ internal fun WorkbenchQuestionDialogs(
             title = "Switch workspace?",
             description = "${countOf(switch.dirtyCount, "file has", "files have")} unsaved changes.",
             onSave = {
-                gateway.dispatch(WorkbenchIntent.ResolveWorkspaceSwitch(switch.location, switch.openTerminal, saveChanges = true))
+                gateway.dispatch(ICodeIntent.ResolveWorkspaceSwitch(switch.location, switch.openTerminal, saveChanges = true))
                 questions.workspaceSwitch = null
             },
             onDiscard = {
-                gateway.dispatch(WorkbenchIntent.ResolveWorkspaceSwitch(switch.location, switch.openTerminal, saveChanges = false))
+                gateway.dispatch(ICodeIntent.ResolveWorkspaceSwitch(switch.location, switch.openTerminal, saveChanges = false))
                 questions.workspaceSwitch = null
             },
             onDismiss = { questions.workspaceSwitch = null },
@@ -80,7 +80,7 @@ internal fun WorkbenchQuestionDialogs(
             title = "Recover ${recovery.name}?",
             confirmLabel = "Restore draft",
             onConfirm = {
-                gateway.dispatch(WorkbenchIntent.RestoreDraft(recovery.location))
+                gateway.dispatch(ICodeIntent.RestoreDraft(recovery.location))
                 answered()
             },
             onDismiss = answered,
@@ -94,7 +94,7 @@ internal fun WorkbenchQuestionDialogs(
             SecondaryButton(
                 "Keep disk version · discard draft",
                 onClick = {
-                    gateway.dispatch(WorkbenchIntent.DiscardDraft(recovery.location))
+                    gateway.dispatch(ICodeIntent.DiscardDraft(recovery.location))
                     answered()
                 },
                 modifier = Modifier.fillMaxWidth(),
@@ -116,7 +116,7 @@ internal fun WorkbenchQuestionDialogs(
             confirmLabel = "Overwrite file",
             destructive = true,
             onConfirm = {
-                gateway.dispatch(WorkbenchIntent.ConfirmRecoveredOverwrite(overwrite.location))
+                gateway.dispatch(ICodeIntent.ConfirmRecoveredOverwrite(overwrite.location))
                 questions.recoveredOverwrite = null
             },
             onDismiss = { questions.recoveredOverwrite = null },

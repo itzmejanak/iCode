@@ -1,13 +1,13 @@
 package dev.icode.mobile.data.assistant
 
 import dev.icode.mobile.data.log.BackendLog
-import dev.icode.mobile.data.workspace.WorkbenchStateHolder
+import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.AssistantAvailable
 import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantProvider
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantSettings
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
  * each kept by [store], then shown with every provider's models as [engine] knows them.
  */
 internal class AssistantProviders(
-    private val workbench: WorkbenchStateHolder,
+    private val stateHolder: ICodeStateHolder,
     private val scope: CoroutineScope,
     private val engine: AssistantEngine,
     private val store: AssistantProviderStore,
@@ -52,18 +52,18 @@ internal class AssistantProviders(
     /** Another provider's page, or a new one's: what was listed for the last one is not its. */
     fun edit(id: String) = page.state { it.copy(editing = id, available = null) }
 
-    suspend fun save(intent: WorkbenchIntent.SaveAssistantProvider) {
+    suspend fun save(intent: ICodeIntent.SaveAssistantProvider) {
         val saved = settings().providers.firstOrNull { it.id == intent.id }
         val keySaved = saved?.hasKey == true && saved.kind == intent.kind
         AssistantRules.providerProblem(intent.kind, intent.name, intent.baseUrl, !intent.key.isNullOrBlank(), keySaved, intent.models)
-            ?.let { return workbench.message(it) }
+            ?.let { return stateHolder.message(it) }
         val stored = runCatching {
             store.saveProvider(intent.id, intent.kind, intent.name, AssistantRules.storedBaseUrl(intent.kind, intent.baseUrl), intent.key, intent.models)
         }
-        stored.exceptionOrNull()?.let { return workbench.message(it.message ?: "Unable to save the provider") }
+        stored.exceptionOrNull()?.let { return stateHolder.message(it.message ?: "Unable to save the provider") }
         shown()
         page.state { it.copy(editing = stored.getOrNull(), available = null) }
-        workbench.message("${intent.name.trim()} saved")
+        stateHolder.message("${intent.name.trim()} saved")
     }
 
     fun remove(id: String) = remember {
@@ -75,7 +75,7 @@ internal class AssistantProviders(
      * Asks a server for its models, with the address and key as typed — a key not typed is the
      * provider's saved one, while its kind is the same.
      */
-    fun list(intent: WorkbenchIntent.ListAssistantModels) {
+    fun list(intent: ICodeIntent.ListAssistantModels) {
         val saved = settings().providers.firstOrNull { it.id == intent.provider }
         val key = intent.key?.takeIf { it.isNotBlank() }
             ?: store.connection(intent.provider).takeIf { saved?.kind == intent.kind }?.apiKey
@@ -107,7 +107,7 @@ internal class AssistantProviders(
     /** A choice kept, then shown; a failure said. */
     fun remember(change: () -> Unit) {
         runCatching(change).exceptionOrNull()?.let { failure ->
-            scope.launch { workbench.message(failure.message ?: "Unable to save the assistant's settings") }
+            scope.launch { stateHolder.message(failure.message ?: "Unable to save the assistant's settings") }
             return
         }
         shown()

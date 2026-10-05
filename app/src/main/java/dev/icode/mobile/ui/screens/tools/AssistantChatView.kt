@@ -46,8 +46,8 @@ import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantMode
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantState
-import dev.icode.mobile.domain.WorkbenchIntent
-import dev.icode.mobile.ui.LocalWorkbenchGateway
+import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.ui.LocalICodeGateway
 
 /**
  * The chat: what was said and done, pinched larger or smaller with two fingers as the editor is;
@@ -56,7 +56,7 @@ import dev.icode.mobile.ui.LocalWorkbenchGateway
  */
 @Composable
 internal fun AssistantChatView(state: AssistantState, modifier: Modifier, onSuggestion: (String) -> Unit) {
-    val gateway = LocalWorkbenchGateway.current
+    val gateway = LocalICodeGateway.current
     val entries = remember(state) { AssistantRules.entries(state) }
     Column(modifier) {
         if (entries.isEmpty() && state.failure == null) {
@@ -94,7 +94,7 @@ internal fun AssistantChatView(state: AssistantState, modifier: Modifier, onSugg
                                 Text(failure, style = IcodeType.Caption.scaledBy(LocalCodeTextScale.current))
                                 // A message no reply came to: sent again, its files with it, once the cause is fixed.
                                 if (!state.running && state.messages.lastOrNull() is AssistantMessage.User) {
-                                    SecondaryButton("Try Again", { gateway.dispatch(WorkbenchIntent.RetryAssistantMessage) })
+                                    SecondaryButton("Try Again", { gateway.dispatch(ICodeIntent.RetryAssistantMessage) })
                                 }
                             }
                         }
@@ -118,7 +118,7 @@ internal fun AssistantChatView(state: AssistantState, modifier: Modifier, onSugg
         state.approval?.takeIf { state.runningHere }?.let { approval ->
             // Its gap to the composer is the composer's own top padding: one, not two.
             AssistantApprovalCard(approval, Modifier.padding(start = IcodeSpacing.Space3, end = IcodeSpacing.Space3, top = IcodeSpacing.Space2)) { answer ->
-                gateway.dispatch(WorkbenchIntent.AnswerAssistant(approval.call.id, answer))
+                gateway.dispatch(ICodeIntent.AnswerAssistant(approval.call.id, answer))
             }
         }
     }

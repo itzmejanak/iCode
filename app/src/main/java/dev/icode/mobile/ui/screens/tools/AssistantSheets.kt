@@ -36,13 +36,13 @@ import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantSession
 import dev.icode.mobile.domain.AssistantState
 import dev.icode.mobile.domain.RelativeTime
-import dev.icode.mobile.domain.WorkbenchIntent
-import dev.icode.mobile.ui.LocalWorkbenchGateway
+import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.ui.LocalICodeGateway
 
 /** The workspace's chats, newest first: open one, delete one, or start another. */
 @Composable
 internal fun AssistantChatsSheet(state: AssistantState, modifier: Modifier, onClose: () -> Unit) {
-    val gateway = LocalWorkbenchGateway.current
+    val gateway = LocalICodeGateway.current
     var query by rememberSaveable { mutableStateOf("") }
     var deleting by remember { mutableStateOf<AssistantSession?>(null) }
     val shown = state.sessions.filter { query.isBlank() || it.title.contains(query.trim(), ignoreCase = true) }
@@ -54,7 +54,7 @@ internal fun AssistantChatsSheet(state: AssistantState, modifier: Modifier, onCl
             PrimaryButton(
                 "New Chat",
                 {
-                    gateway.dispatch(WorkbenchIntent.NewAssistantChat)
+                    gateway.dispatch(ICodeIntent.NewAssistantChat)
                     onClose()
                 },
                 Modifier.fillMaxWidth(),
@@ -71,7 +71,7 @@ internal fun AssistantChatsSheet(state: AssistantState, modifier: Modifier, onCl
                 subtitleStyle = IcodeType.Caption,
                 selected = session.id == state.session,
                 onClick = {
-                    gateway.dispatch(WorkbenchIntent.OpenAssistantSession(session.id))
+                    gateway.dispatch(ICodeIntent.OpenAssistantSession(session.id))
                     onClose()
                 },
                 trailing = {
@@ -93,7 +93,7 @@ internal fun AssistantChatsSheet(state: AssistantState, modifier: Modifier, onCl
             message = "“${session.title}” is deleted from this phone. Every change the assistant made stays in the files.",
             confirmLabel = "Delete",
             onConfirm = {
-                gateway.dispatch(WorkbenchIntent.DeleteAssistantSession(session.id))
+                gateway.dispatch(ICodeIntent.DeleteAssistantSession(session.id))
                 deleting = null
             },
             onDismiss = { deleting = null },
@@ -107,7 +107,7 @@ internal fun AssistantChatsSheet(state: AssistantState, modifier: Modifier, onCl
  */
 @Composable
 internal fun AssistantModelsSheet(state: AssistantState, modifier: Modifier, onClose: () -> Unit, onProviders: () -> Unit) {
-    val gateway = LocalWorkbenchGateway.current
+    val gateway = LocalICodeGateway.current
     val settings = state.settings
     var query by rememberSaveable { mutableStateOf("") }
     val typed = query.trim()
@@ -138,14 +138,14 @@ internal fun AssistantModelsSheet(state: AssistantState, modifier: Modifier, onC
                 values = choices.map { it?.label ?: AUTO },
                 active = AssistantRules.effortFor(settings.effort, model)?.label ?: AUTO,
                 modifier = Modifier.fillMaxWidth(),
-            ) { label -> gateway.dispatch(WorkbenchIntent.ChooseAssistantEffort(choices.first { (it?.label ?: AUTO) == label })) }
+            ) { label -> gateway.dispatch(ICodeIntent.ChooseAssistantEffort(choices.first { (it?.label ?: AUTO) == label })) }
         }
         if (count > SEARCH_FROM) Search(query, "Search models", literal = true) { query = it }
         groups.forEachIndexed { index, (provider, models) ->
             SectionLabel(provider.name, if (index > 0 || settings.model?.efforts?.isNotEmpty() == true) Modifier.padding(top = IcodeSpacing.Space2) else Modifier)
             models.forEach { model ->
                 ModelRow(model, settings.choice == AssistantChoice(provider.id, model.id)) {
-                    gateway.dispatch(WorkbenchIntent.ChooseAssistantModel(provider.id, model.id))
+                    gateway.dispatch(ICodeIntent.ChooseAssistantModel(provider.id, model.id))
                     onClose()
                 }
             }

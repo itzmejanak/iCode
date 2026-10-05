@@ -2,7 +2,7 @@ package dev.icode.mobile.data.workspace
 
 import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.domain.RecoverableDraft
-import dev.icode.mobile.domain.WorkbenchEffect
+import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.withDocument
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -18,7 +18,7 @@ import kotlinx.coroutines.sync.withLock
  * so slow storage never holds up the editor.
  */
 internal class DocumentRecoveryCoordinator(
-    private val workbench: WorkbenchStateHolder,
+    private val stateHolder: ICodeStateHolder,
     private val scope: CoroutineScope,
     private val draftStore: DocumentDraftStore,
     /** The file as read from disk, for a document that is open. */
@@ -49,10 +49,10 @@ internal class DocumentRecoveryCoordinator(
                 val drafts = draftStore.list().map { draft ->
                     RecoverableDraft(draft.location, draft.name, draft.sizeBytes, draft.savedAtEpochMillis)
                 }
-                workbench.update { it.copy(recoverableDrafts = drafts) }
+                stateHolder.update { it.copy(recoverableDrafts = drafts) }
             }
         }.onFailure { error ->
-            workbench.report("documents", "Unable to read the recovery drafts", error)
+            stateHolder.report("documents", "Unable to read the recovery drafts", error)
         }
     }
 
@@ -64,8 +64,8 @@ internal class DocumentRecoveryCoordinator(
             return
         }
         unresolved += document.location
-        workbench.update { state -> state.withDocument(document.location) { it.copy(readOnly = true) } }
-        workbench.emit(WorkbenchEffect.ConfirmDraftRecovery(
+        stateHolder.update { state -> state.withDocument(document.location) { it.copy(readOnly = true) } }
+        stateHolder.emit(ICodeEffect.ConfirmDraftRecovery(
             location = document.location,
             name = document.name,
             sourceChanged = draft.sourceFingerprint != document.fingerprint,
@@ -77,7 +77,7 @@ internal class DocumentRecoveryCoordinator(
         scope.launch {
             runCatching {
                 draftMutex.withLock {
-                    val document = workbench.current.openDocuments.firstOrNull { it.location == location }
+                    val document = stateHolder.current.openDocuments.firstOrNull { it.location == location }
                         ?: return@withLock
                     val sourceDocument = sourceOf(location) ?: return@withLock
                     if (document.dirty) {
@@ -91,16 +91,16 @@ internal class DocumentRecoveryCoordinator(
                     }
                 }
             }.onFailure { error ->
-                workbench.report("documents", "Unable to keep a recovery draft", error)
+                stateHolder.report("documents", "Unable to keep a recovery draft", error)
             }
         }
     }
 
     suspend fun restore(location: String) {
         val draft = draftMutex.withLock { draftStore.read(location) } ?: return
-        val document = workbench.current.openDocuments.firstOrNull { it.location == location } ?: return
+        val document = stateHolder.current.openDocuments.firstOrNull { it.location == location } ?: return
         if (document.dirty) {
-            workbench.message("This document has newer edits. Save or discard them before restoring a draft")
+            stateHolder.message("This document has newer edits. Save or discard them before restoring a draft")
             return
         }
         val sourceDocument = sourceOf(location) ?: return
@@ -112,19 +112,19 @@ internal class DocumentRecoveryCoordinator(
         unresolved.remove(location)
         // Back in the editor, the draft is this session's live work again.
         draftMutex.withLock { forgetRecoverable(listOf(location)) }
-        workbench.update { state -> state.withDocument(location) { it.copy(text = draft.text, dirty = true, readOnly = sourceDocument.readOnly) } }
+        stateHolder.update { state -> state.withDocument(location) { it.copy(text = draft.text, dirty = true, readOnly = sourceDocument.readOnly) } }
         sync(location)
     }
 
     /** "Keep disk version": the draft goes and the file opens for editing again. */
     suspend fun keepDiskVersion(location: String) {
-        if (workbench.current.openDocuments.firstOrNull { it.location == location }?.dirty == true) {
-            workbench.message("This document has new edits; close or save them before discarding recovery")
+        if (stateHolder.current.openDocuments.firstOrNull { it.location == location }?.dirty == true) {
+            stateHolder.message("This document has new edits; close or save them before discarding recovery")
             return
         }
         discard(location)
         val sourceReadOnly = sourceOf(location)?.readOnly ?: false
-        workbench.update { state -> state.withDocument(location) { it.copy(readOnly = sourceReadOnly) } }
+        stateHolder.update { state -> state.withDocument(location) { it.copy(readOnly = sourceReadOnly) } }
     }
 
     suspend fun discard(location: String) {
@@ -143,7 +143,7 @@ internal class DocumentRecoveryCoordinator(
     suspend fun clearToSave(location: String, document: OpenDocument, source: WorkspaceDocument): Boolean {
         if (document.dirty || location !in unresolved) return true
         draftMutex.withLock { draftStore.read(location) }?.let { draft ->
-            workbench.emit(WorkbenchEffect.ConfirmDraftRecovery(
+            stateHolder.emit(ICodeEffect.ConfirmDraftRecovery(
                 location,
                 document.name,
                 draft.sourceFingerprint != source.fingerprint,
@@ -159,7 +159,7 @@ internal class DocumentRecoveryCoordinator(
         recoveredOverChanges.remove(location)
         runCatching {
             draftMutex.withLock {
-                val latest = workbench.current.openDocuments.firstOrNull { it.location == location }
+                val latest = stateHolder.current.openDocuments.firstOrNull { it.location == location }
                 if (latest?.dirty == true) {
                     val refreshedSource = sourceOf(location)
                     if (refreshedSource != null) {
@@ -172,7 +172,7 @@ internal class DocumentRecoveryCoordinator(
                 }
             }
         }.onFailure { error ->
-            workbench.report("documents", "File saved, but recovery cache could not update", error)
+            stateHolder.report("documents", "File saved, but recovery cache could not update", error)
         }
     }
 
@@ -218,8 +218,8 @@ internal class DocumentRecoveryCoordinator(
 
     /** Callers hold [draftMutex]. */
     private fun forgetRecoverable(locations: Collection<String>) {
-        if (workbench.current.recoverableDrafts.none { it.location in locations }) return
-        workbench.update { state ->
+        if (stateHolder.current.recoverableDrafts.none { it.location in locations }) return
+        stateHolder.update { state ->
             state.copy(recoverableDrafts = state.recoverableDrafts.filterNot { it.location in locations })
         }
     }

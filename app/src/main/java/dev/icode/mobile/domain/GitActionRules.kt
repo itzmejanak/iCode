@@ -11,7 +11,7 @@ enum class GitSyncAction { Fetch, Pull, Push }
  */
 object GitActionRules {
     /** Why no Git action can run in this workspace now, or null. */
-    fun repositoryBlocked(snapshot: WorkbenchSnapshot): String? = when {
+    fun repositoryBlocked(snapshot: ICodeSnapshot): String? = when {
         snapshot.activeWorkspaceLocation == null -> "Open a workspace first"
         snapshot.gitAvailable == null -> "Checking Git availability"
         snapshot.gitAvailable == false -> "Git is not installed"
@@ -21,7 +21,7 @@ object GitActionRules {
     }
 
     /** Why [action] cannot start now, or null. */
-    fun syncBlocked(action: GitSyncAction, snapshot: WorkbenchSnapshot): String? =
+    fun syncBlocked(action: GitSyncAction, snapshot: ICodeSnapshot): String? =
         repositoryBlocked(snapshot) ?: snapshot.gitRepository?.let { syncBlocked(action, it) }
 
     /**

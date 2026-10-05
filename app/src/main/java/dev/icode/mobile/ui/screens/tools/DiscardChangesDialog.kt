@@ -5,8 +5,8 @@ import dev.icode.mobile.designsystem.IcodeConfirmDialog
 import dev.icode.mobile.domain.GitChange
 import dev.icode.mobile.domain.GitDiscard
 import dev.icode.mobile.domain.GitStatusCodes
-import dev.icode.mobile.domain.WorkbenchGateway
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeGateway
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.countOf
 
 /**
@@ -16,7 +16,7 @@ import dev.icode.mobile.domain.countOf
  * kind are said before the destructive button.
  */
 @Composable
-internal fun DiscardChangesDialog(discard: GitDiscard, gateway: WorkbenchGateway) {
+internal fun DiscardChangesDialog(discard: GitDiscard, gateway: ICodeGateway) {
     val single = if (discard.folder) null else discard.changes.single()
     val (title, confirm) = when {
         single == null -> "Discard ${countOf(discard.changes.size, "change")} in ${discard.name}?" to "Discard"
@@ -28,8 +28,8 @@ internal fun DiscardChangesDialog(discard: GitDiscard, gateway: WorkbenchGateway
         title = title,
         message = if (single == null) folderConsequence(discard.changes) else consequence(single),
         confirmLabel = confirm,
-        onConfirm = { gateway.dispatch(WorkbenchIntent.ConfirmDiscardChanges) },
-        onDismiss = { gateway.dispatch(WorkbenchIntent.CancelDiscardChanges) },
+        onConfirm = { gateway.dispatch(ICodeIntent.ConfirmDiscardChanges) },
+        onDismiss = { gateway.dispatch(ICodeIntent.CancelDiscardChanges) },
         detail = if (discard.folder) "${discard.path}/" else discard.path,
     )
 }

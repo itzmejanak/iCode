@@ -30,7 +30,7 @@ import dev.icode.mobile.domain.SettingLimits
 import dev.icode.mobile.domain.GitTransferLabel
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.LocalWorkspacePreferences
 import dev.icode.mobile.ui.LocalWorkspacePreferencesRepository
 
@@ -39,7 +39,7 @@ private val tabTypes = listOf("Spaces", "Tabs")
 /** Workspace-scoped overrides; every enabled control has a persisted consumer. */
 @Composable
 fun WorkspaceSettingsScreen(actions: NavigationActions) {
-    val state = LocalWorkbenchSnapshot.current
+    val state = LocalICodeSnapshot.current
     val values = LocalWorkspacePreferences.current
     val repository = LocalWorkspacePreferencesRepository.current
     val root = state.activeWorkspaceLocation

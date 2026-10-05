@@ -175,7 +175,7 @@ open over the real Source Control, a little blurred, and be chosen from one bar 
   (`workingFolderOf`): for the workspace, the chosen repository while it is still there, else the
   one the workspace is in, else the first found; for anything in it, the repository holding it —
   so status, diff, stage, commit, branches, conflicts, pull and push are the chosen one's. What Git
-  says reaches the workbench by one copy (`withGit`, `GitPicture.kt`), for a workspace opened and
+  says reaches iCode by one copy (`withGit`, `GitPicture.kt`), for a workspace opened and
   for one refreshed; the snapshot carries `gitRepositories`. Source Control shows the picker
   (`RepositoryPicker`: each named by its folder in the workspace, the chosen one ticked) when there
   is more than one; `ChooseGitRepository` chooses and refreshes. Found on the way: a task's Hide

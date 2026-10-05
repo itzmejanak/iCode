@@ -24,8 +24,8 @@ import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.domain.GitInProgress
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.RuntimeComponents
-import dev.icode.mobile.domain.WorkbenchIntent
-import dev.icode.mobile.domain.WorkbenchSnapshot
+import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.ICodeSnapshot
 import dev.icode.mobile.domain.countOf
 
 /** Shown when the runtime has no `git` binary yet. */
@@ -70,15 +70,15 @@ private fun GitUnavailableGate(
  * (neither "not a repository" nor "no changes"), or no repository at all.
  */
 @Composable
-internal fun SourceControlGate(state: WorkbenchSnapshot, dispatch: (WorkbenchIntent) -> Unit) {
+internal fun SourceControlGate(state: ICodeSnapshot, dispatch: (ICodeIntent) -> Unit) {
     val failure = state.gitFailure
     when {
         state.gitAvailable == false -> GitUnavailableGate(
             state.gitOperation,
             state.components.installing(RuntimeComponents.Git)?.progress?.step,
-        ) { dispatch(WorkbenchIntent.ProvisionGit) }
-        failure != null -> GitUnreadableGate(failure) { dispatch(WorkbenchIntent.RefreshGit) }
-        else -> GitInitializationGate { dispatch(WorkbenchIntent.InitializeGit) }
+        ) { dispatch(ICodeIntent.ProvisionGit) }
+        failure != null -> GitUnreadableGate(failure) { dispatch(ICodeIntent.RefreshGit) }
+        else -> GitInitializationGate { dispatch(ICodeIntent.InitializeGit) }
     }
 }
 

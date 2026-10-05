@@ -43,10 +43,10 @@ import dev.icode.mobile.domain.FileEntry
 import dev.icode.mobile.domain.FileKind
 import dev.icode.mobile.domain.FileTypes
 import dev.icode.mobile.domain.ItemClipboard
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.WorkspaceNameRules
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.rememberPendingRequest
 
 /**
@@ -63,14 +63,14 @@ internal fun ExplorerItemMenu(
     onPaste: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    val gateway = LocalWorkbenchGateway.current
+    val gateway = LocalICodeGateway.current
     IcodeActionMenu(
         expanded = expanded,
         onDismiss = onDismiss,
         actions = listOf(
             IcodeMenuAction("Rename", Icons.Outlined.DriveFileRenameOutline, onRename),
-            IcodeMenuAction("Cut", Icons.Outlined.ContentCut, { gateway.dispatch(WorkbenchIntent.CutItem(entry.path)) }),
-            IcodeMenuAction("Copy", Icons.Outlined.ContentCopy, { gateway.dispatch(WorkbenchIntent.CopyItem(entry.path)) }),
+            IcodeMenuAction("Cut", Icons.Outlined.ContentCut, { gateway.dispatch(ICodeIntent.CutItem(entry.path)) }),
+            IcodeMenuAction("Copy", Icons.Outlined.ContentCopy, { gateway.dispatch(ICodeIntent.CopyItem(entry.path)) }),
             IcodeMenuAction(pasteLabel(clipboard), Icons.Outlined.ContentPaste, onPaste, enabled = clipboard != null),
             IcodeMenuAction("Delete", Icons.Outlined.DeleteOutline, onDelete, destructive = true),
         ),
@@ -90,7 +90,7 @@ internal fun pasteTarget(root: String?, entry: FileEntry, files: List<FileEntry>
  */
 @Composable
 internal fun RenameWorkspaceItemDialog(location: String, currentName: String, folder: Boolean, onDismiss: () -> Unit) {
-    val gateway = LocalWorkbenchGateway.current
+    val gateway = LocalICodeGateway.current
     var name by rememberSaveable(location) { mutableStateOf(currentName) }
     val request = rememberPendingRequest(location, onDismiss)
     val validationError = if (folder) WorkspaceNameRules.workspaceFolderValidationError(name) else WorkspaceNameRules.fileValidationError(name)
@@ -100,7 +100,7 @@ internal fun RenameWorkspaceItemDialog(location: String, currentName: String, fo
         confirmEnabled = validationError == null && name.trim() != currentName && !request.waiting,
         dismissEnabled = !request.waiting,
         onDismiss = onDismiss,
-        onConfirm = { request.send { requestId -> gateway.dispatch(WorkbenchIntent.RenameWorkspaceItem(location, name.trim(), requestId)) } },
+        onConfirm = { request.send { requestId -> gateway.dispatch(ICodeIntent.RenameWorkspaceItem(location, name.trim(), requestId)) } },
     ) {
         LabeledTextField(if (folder) "Folder name" else "File name", name, { name = it; request.failure = null })
         if (validationError != null && name.isNotEmpty()) {
@@ -113,7 +113,7 @@ internal fun RenameWorkspaceItemDialog(location: String, currentName: String, fo
 /** Delete is final — there is no trash — so it is asked, and says what goes: [detail], its path as shown. */
 @Composable
 internal fun DeleteWorkspaceItemDialog(location: String, name: String, folder: Boolean, detail: String, onDismiss: () -> Unit) {
-    val gateway = LocalWorkbenchGateway.current
+    val gateway = LocalICodeGateway.current
     IcodeConfirmDialog(
         title = "Delete $name?",
         message = if (folder) {
@@ -123,7 +123,7 @@ internal fun DeleteWorkspaceItemDialog(location: String, name: String, folder: B
         },
         confirmLabel = "Delete",
         onConfirm = {
-            gateway.dispatch(WorkbenchIntent.DeleteWorkspaceItem(location))
+            gateway.dispatch(ICodeIntent.DeleteWorkspaceItem(location))
             onDismiss()
         },
         onDismiss = onDismiss,

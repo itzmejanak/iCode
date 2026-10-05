@@ -1,10 +1,10 @@
 package dev.icode.mobile.data.runtime
 
-import dev.icode.mobile.data.workspace.WorkbenchStateHolder
+import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.ComponentRules
 import dev.icode.mobile.domain.RuntimeComponents
 import dev.icode.mobile.domain.RuntimeState
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -20,7 +20,7 @@ import kotlinx.coroutines.launch
  * the runtime, not the workspace.
  */
 internal class RuntimeComponentsCoordinator(
-    private val workbench: WorkbenchStateHolder,
+    private val stateHolder: ICodeStateHolder,
     private val scope: CoroutineScope,
     /** Also the features' way to a component they need: Git, the SSH client, search. */
     val installer: RuntimePackageInstaller,
@@ -36,11 +36,11 @@ internal class RuntimeComponentsCoordinator(
      */
     fun start() {
         scope.launch {
-            workbench.snapshot.map { it.runtime is RuntimeState.Ready }.distinctUntilChanged().collect { installer.refresh() }
+            stateHolder.snapshot.map { it.runtime is RuntimeState.Ready }.distinctUntilChanged().collect { installer.refresh() }
         }
         scope.launch {
             combine(installer.installed, installer.work, ::Pair).collect { (installed, work) ->
-                workbench.update { snapshot ->
+                stateHolder.update { snapshot ->
                     val before = snapshot.components
                     val changed = installed != before.installedPackages
                     snapshot.copy(
@@ -56,45 +56,45 @@ internal class RuntimeComponentsCoordinator(
         }
     }
 
-    fun handle(intent: WorkbenchIntent.ComponentIntent) {
+    fun handle(intent: ICodeIntent.ComponentIntent) {
         when (intent) {
-            WorkbenchIntent.MeasureComponents -> measure()
-            is WorkbenchIntent.ApplyComponents -> apply(intent.chosen).also { answered() }
-            WorkbenchIntent.SkipComponents -> answered()
-            WorkbenchIntent.CancelComponents -> installer.cancel()
-            WorkbenchIntent.DismissComponents -> installer.dismiss()
+            ICodeIntent.MeasureComponents -> measure()
+            is ICodeIntent.ApplyComponents -> apply(intent.chosen).also { answered() }
+            ICodeIntent.SkipComponents -> answered()
+            ICodeIntent.CancelComponents -> installer.cancel()
+            ICodeIntent.DismissComponents -> installer.dismiss()
         }
     }
 
     /** Measures each component neither installed nor measured yet; once at a time. */
     private fun measure() {
         if (measureJob?.isActive == true) return
-        val components = workbench.current.components
+        val components = stateHolder.current.components
         val wanted = RuntimeComponents.all.filterNot { components.isInstalled(it) || it.id in components.downloads }
         if (components.installedPackages == null || wanted.isEmpty()) return
         measureJob = scope.launch {
-            workbench.update { it.copy(components = it.components.copy(measuring = true, measureFailure = null)) }
+            stateHolder.update { it.copy(components = it.components.copy(measuring = true, measureFailure = null)) }
             try {
                 val measured = installer.measure(wanted)
-                workbench.update {
+                stateHolder.update {
                     it.copy(components = it.components.copy(downloads = it.components.downloads + measured.downloads, measureFailure = measured.failure))
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
-                val reason = workbench.failureText("runtime", "Could not measure the components", error)
-                workbench.update { it.copy(components = it.components.copy(measureFailure = reason)) }
+                val reason = stateHolder.failureText("runtime", "Could not measure the components", error)
+                stateHolder.update { it.copy(components = it.components.copy(measureFailure = reason)) }
             } finally {
-                workbench.update { it.copy(components = it.components.copy(measuring = false)) }
+                stateHolder.update { it.copy(components = it.components.copy(measuring = false)) }
             }
         }
     }
 
     /** The page offered after a build has been answered; it is not offered again. */
     private fun answered() {
-        if (!workbench.current.components.offerPending) return
+        if (!stateHolder.current.components.offerPending) return
         offer.delete()
-        workbench.update { it.copy(components = it.components.copy(offerPending = false)) }
+        stateHolder.update { it.copy(components = it.components.copy(offerPending = false)) }
     }
 
     /** A measure still reading the lists would hold up the install behind it; the install reads them itself. */

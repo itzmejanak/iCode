@@ -11,10 +11,10 @@ import dev.icode.mobile.designsystem.IcodeConfirmDialog
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.LabeledTextField
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.WorkspaceNameRules
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.rememberPendingRequest
 
 internal enum class WorkspaceItemType { File, Folder }
@@ -32,8 +32,8 @@ internal fun CreateFileDialog(parentLocation: String?, onDismiss: () -> Unit) {
  */
 @Composable
 internal fun CreateWorkspaceItemDialog(type: WorkspaceItemType, parentLocation: String?, onDismiss: () -> Unit, workspace: String? = null) {
-    val gateway = LocalWorkbenchGateway.current
-    val state = LocalWorkbenchSnapshot.current
+    val gateway = LocalICodeGateway.current
+    val state = LocalICodeSnapshot.current
     val followsOpen = workspace == null
     val intended = workspace ?: remember(type, parentLocation) { state.activeWorkspaceLocation }
     val parent = parentLocation ?: intended
@@ -55,8 +55,8 @@ internal fun CreateWorkspaceItemDialog(type: WorkspaceItemType, parentLocation: 
             val targetWorkspace = intended ?: return@IcodeConfirmDialog
             request.send { requestId ->
                 when (type) {
-                    WorkspaceItemType.File -> gateway.dispatch(WorkbenchIntent.CreateFile(name.trim(), targetParent, targetWorkspace, requestId))
-                    WorkspaceItemType.Folder -> gateway.dispatch(WorkbenchIntent.CreateWorkspaceFolder(name.trim(), targetParent, targetWorkspace, requestId))
+                    WorkspaceItemType.File -> gateway.dispatch(ICodeIntent.CreateFile(name.trim(), targetParent, targetWorkspace, requestId))
+                    WorkspaceItemType.Folder -> gateway.dispatch(ICodeIntent.CreateWorkspaceFolder(name.trim(), targetParent, targetWorkspace, requestId))
                 }
             }
         },

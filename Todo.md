@@ -12,7 +12,7 @@ Authoritative UI/design references:
 - [docs/user-stories.md](./docs/user-stories.md)
 - [docs/ui-split-plan.md](./docs/ui-split-plan.md)
 - [docs/backend-split-rules.md](./docs/backend-split-rules.md) — prospective repo-wide backend ownership/splitting rules
-- `app/src/main/java/dev/icode/mobile/domain/` — `WorkbenchGateway`, `WorkbenchSnapshot`, `WorkbenchIntent`, `WorkbenchEffect`, and one models file per scope
+- `app/src/main/java/dev/icode/mobile/domain/` — `ICodeGateway`, `ICodeSnapshot`, `ICodeIntent`, `ICodeEffect`, and one models file per scope
 - `app/src/main/java/dev/icode/mobile/navigation/Route.kt`
 
 Completed baseline:
@@ -20,12 +20,12 @@ Completed baseline:
 - All 40 frames are implemented in 39 screen files plus five hosts.
 - Shared kit, tokens, and navigation are complete.
 - The in-app screen catalog was removed after verification; titles and headings are static.
-- Screens use `WorkbenchGateway` and never access files, Git, processes, or storage directly.
+- Screens use `ICodeGateway` and never access files, Git, processes, or storage directly.
 - Screenshots are drawn from debug-only capture fixtures (`app/src/debug/.../capture`); a release
   build contains none.
 - Existing unit, lint, build, device, and 39-route capture checks are established.
 
-Names in dated records below are as they were then: the demo layer (`DemoWorkbenchGateway`,
+Names in dated records below are as they were then: the demo layer (`DemoICodeGateway`,
 `DemoContent`, `staticDemo`, `demo-fork`) was replaced on 2026-09-26 by the capture fixtures
 (`CaptureGateway`, `CaptureFixtures`, `captureMode`, `capture-fork`) —
 [code-separation plan](./docs/code-separation-plan.md) K1.
@@ -119,7 +119,7 @@ Workspace settings and Explorer follow-up (2026-09-23):
 - [ ] User acceptance remains for settings persistence, two dirty tabs and Git identity; rerun
       40-frame capture before fixture cleanup.
 
-- [x] Normal launches use `AndroidWorkbenchGateway`; static capture launches retain `DemoWorkbenchGateway` only for deterministic visual verification.
+- [x] Normal launches use `AndroidICodeGateway`; static capture launches retain `DemoICodeGateway` only for deterministic visual verification.
 - [x] All-files access opens the real per-app Android settings surface and verifies the result on return. *(Retired by [workspace-storage-plan](./docs/workspace-storage-plan.md), W3–W4: workspaces live in iCode's storage.)*
 - [x] The in-app folder browser lists and navigates real phone-storage directories without redirecting to Android's Files app or copying source files. *(Retired by [workspace-storage-plan](./docs/workspace-storage-plan.md), W3–W4: workspaces live in iCode's storage.)*
 - [x] Recent workspaces persist across launches, deduplicate by location, and report revoked or missing locations as unavailable. *(Retired by [workspace-storage-plan](./docs/workspace-storage-plan.md), W3–W4: workspaces live in iCode's storage.)*
@@ -152,7 +152,7 @@ Cycle 0 — restore and guard (complete):
       staging moved to an explicit trailing action so a review tap cannot stage by accident.
 - [x] Frame 32 Git credentials restored, with commit identity added as a section instead of
       replacing the frame.
-- [x] All six `staticDemo` content forks removed from screens; `DemoWorkbenchGateway` is now the
+- [x] All six `staticDemo` content forks removed from screens; `DemoICodeGateway` is now the
       single demo source of truth and emits effects like the production gateway.
 - [x] Search-as-you-type restored (debounced) and search results open their file.
 - [x] Editor find match/line computation is linear instead of quadratic; document preview bounded.
@@ -485,7 +485,7 @@ Done when all screens consume only the gateway contract or clearly scoped local 
 - Before starting a package, inspect every affected route in `navigation/Route.kt`, its screen implementation, the snapshot fields it reads, and the intents it dispatches.
 - Plan route by route before coding: affected frames, contract changes, gateway behavior, error mapping, cancellation, and tests. Never implement on an unverified assumption.
 - Domain models must not contain UI, Compose, filesystem-implementation, process, or database types.
-- Keep every feature behind `WorkbenchGateway`; screens continue to compose only.
+- Keep every feature behind `ICodeGateway`; screens continue to compose only.
 - Do not remove routes, change back behavior, regress capture output, or restore a screen catalog.
 
 ### B-01 — Domain and gateway boundary
@@ -631,7 +631,7 @@ checkbox: existing process status and editor recovery do not imply LSP diagnosti
 
 ## Integration cutover
 
-- Implement production `WorkbenchGateway` and wire every existing intent.
+- Implement production `ICodeGateway` and wire every existing intent.
 - Replace demo snapshot/fixtures without changing screen composition (done: K1, 2026-09-26).
 - Preserve all 39 routes, back behavior, scroll/clipping behavior, and capture workflow.
 - Ensure every connected frame has genuine loading/empty/error/conflict/recovery/cancelled/read-only behavior.

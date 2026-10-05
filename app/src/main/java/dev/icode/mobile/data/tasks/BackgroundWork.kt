@@ -3,7 +3,7 @@ package dev.icode.mobile.data.tasks
 import android.content.Context
 import dev.icode.mobile.data.runtime.RuntimeForegroundService
 import dev.icode.mobile.domain.BackgroundItem
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 /**
- * The workbench's background work (docs/long-operations-plan.md §6), published for
+ * The iCode app's background work (docs/long-operations-plan.md §6), published for
  * [RuntimeForegroundService]: it keeps the process while any of it runs and carries it in
  * notifications. The process's one gateway [follow]s its own; a notification's Cancel comes back
  * through [cancel] to that gateway.
@@ -23,7 +23,7 @@ internal object BackgroundWork {
     val items: StateFlow<List<BackgroundItem>> = mutableItems.asStateFlow()
 
     @Volatile
-    private var dispatch: (WorkbenchIntent) -> Unit = {}
+    private var dispatch: (ICodeIntent) -> Unit = {}
 
     /**
      * Publishes [items] as they change, and [dispatch] takes a notification's Cancel. The service
@@ -31,7 +31,7 @@ internal object BackgroundWork {
      * Android lets an app start one. A failure read in iCode, dismissed or run again leaves the
      * notification drawer too.
      */
-    fun follow(context: Context, scope: CoroutineScope, items: Flow<List<BackgroundItem>>, dispatch: (WorkbenchIntent) -> Unit) {
+    fun follow(context: Context, scope: CoroutineScope, items: Flow<List<BackgroundItem>>, dispatch: (ICodeIntent) -> Unit) {
         this.dispatch = dispatch
         scope.launch {
             items.distinctUntilChanged().collect { next ->

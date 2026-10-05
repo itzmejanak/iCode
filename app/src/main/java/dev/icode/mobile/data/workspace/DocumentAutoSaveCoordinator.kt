@@ -1,9 +1,9 @@
 package dev.icode.mobile.data.workspace
 
 import dev.icode.mobile.domain.AutoSaveMode
-import dev.icode.mobile.domain.WorkbenchGateway
-import dev.icode.mobile.domain.WorkbenchIntent
-import dev.icode.mobile.domain.WorkbenchSnapshot
+import dev.icode.mobile.domain.ICodeGateway
+import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.ICodeSnapshot
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
@@ -12,7 +12,7 @@ import kotlinx.coroutines.launch
 
 /** Debounces each dirty document; the gateway remains the sole guarded disk-write path. */
 internal class DocumentAutoSaveCoordinator(
-    private val gateway: WorkbenchGateway,
+    private val gateway: ICodeGateway,
     private val mode: AutoSaveMode,
 ) {
     private data class Pending(val workspace: String, val text: String, val job: Job)
@@ -42,7 +42,7 @@ internal class DocumentAutoSaveCoordinator(
                             val current = gateway.snapshot.value
                             val stillCurrent = current.isCurrentAutoSaveRequest(location, root, capturedText)
                             if (stillCurrent) gateway.dispatch(
-                                WorkbenchIntent.SaveDocument(
+                                ICodeIntent.SaveDocument(
                                     location = location,
                                     automatic = true,
                                     expectedText = capturedText,
@@ -61,7 +61,7 @@ internal class DocumentAutoSaveCoordinator(
 }
 
 /** The same revision guard is checked before scheduling and again inside the gateway's write lock. */
-internal fun WorkbenchSnapshot.isCurrentAutoSaveRequest(
+internal fun ICodeSnapshot.isCurrentAutoSaveRequest(
     location: String,
     workspace: String?,
     text: String?,

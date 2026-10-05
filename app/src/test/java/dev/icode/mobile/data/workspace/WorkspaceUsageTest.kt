@@ -25,14 +25,14 @@ import org.junit.Test
 class WorkspaceUsageTest {
     private val originalWriter = BackendLog.writer
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val workbench = WorkbenchStateHolder()
-    private val tasks = TaskRunner(workbench, scope)
+    private val stateHolder = ICodeStateHolder()
+    private val tasks = TaskRunner(stateHolder, scope)
     private val app = "/w/app"
     private var terminals = setOf<String>()
     private var processes = setOf<String>()
     private var unsaved: String? = null
     private val usage = WorkspaceUsage(
-        workbench,
+        icode,
         tasks,
         terminalRunsIn = { it in terminals },
         processesRunIn = { it in processes },
@@ -73,7 +73,7 @@ class WorkspaceUsageTest {
         assertEquals("A process is running in app. Stop it first", usage.holding(app, whole = true))
         assertNull(usage.holding("$app/src", whole = false))
         processes = emptySet()
-        workbench.update { it.copy(gitOperation = GitOperationState.Running(GitTransferLabel.PULLING)) }
+        stateHolder.update { it.copy(gitOperation = GitOperationState.Running(GitTransferLabel.PULLING)) }
         assertEquals("Git is working in app — wait for it to finish", usage.holding(app, whole = true))
         assertNull(usage.holding("$app/src", whole = false))
     }
@@ -83,7 +83,7 @@ class WorkspaceUsageTest {
         assertEquals("a.kt has unsaved edits. Save or close it first", usage.holding("$app/src", whole = false))
         assertEquals("a.kt has unsaved edits. Save or close it first", usage.holding(app, whole = true))
         unsaved = null
-        workbench.update { it.copy(recoverableDrafts = listOf(RecoverableDraft("$app/b.kt", "b.kt", 10, 0))) }
+        stateHolder.update { it.copy(recoverableDrafts = listOf(RecoverableDraft("$app/b.kt", "b.kt", 10, 0))) }
         assertEquals("app has unsaved work waiting in Document Recovery. Restore or discard it first", usage.holding(app, whole = true))
         assertNull(usage.holding("$app/src", whole = false))
     }
@@ -95,7 +95,7 @@ class WorkspaceUsageTest {
             work = { release.await(5, TimeUnit.SECONDS) }, finished = {},
         )
         val deadline = System.currentTimeMillis() + 5_000
-        while (workbench.current.tasks.isEmpty() && System.currentTimeMillis() < deadline) Thread.sleep(5)
+        while (stateHolder.current.tasks.isEmpty() && System.currentTimeMillis() < deadline) Thread.sleep(5)
         assertEquals("Deleting src — wait for it to finish", usage.holding("$app/src/a.kt", whole = false))
         release.countDown()
     }

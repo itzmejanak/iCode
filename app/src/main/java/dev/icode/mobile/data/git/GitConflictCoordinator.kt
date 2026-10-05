@@ -1,7 +1,7 @@
 package dev.icode.mobile.data.git
 
 import dev.icode.mobile.data.workspace.ChangedOnDiskException
-import dev.icode.mobile.data.workspace.WorkbenchStateHolder
+import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceDocument
 import dev.icode.mobile.domain.GitConflictChoice
 import java.io.File
@@ -25,7 +25,7 @@ internal interface ConflictFiles {
  * current, incoming or both — and then marked resolved, which stages it.
  */
 internal class GitConflictCoordinator(
-    private val workbench: WorkbenchStateHolder,
+    private val workbench: ICodeStateHolder,
     private val files: ConflictFiles,
     private val activeRoot: () -> String?,
     /** Stages the file: an ordinary local Git change. */

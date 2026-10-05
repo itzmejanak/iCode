@@ -36,11 +36,11 @@ import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeWatermark
 import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantRules
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /** What is drawn over the chat: its history, the model picker, what to attach, or the processes it started. */
 internal enum class AssistantSheet { Chats, Models, Attach, Processes }
@@ -53,11 +53,11 @@ internal enum class AssistantSheet { Chats, Models, Attach, Processes }
  */
 @Composable
 fun AssistantScreen(actions: NavigationActions) {
-    val gateway = LocalWorkbenchGateway.current
-    val snapshot = LocalWorkbenchSnapshot.current
+    val gateway = LocalICodeGateway.current
+    val snapshot = LocalICodeSnapshot.current
     val state = snapshot.assistant
     // The open workspace's chats, again when the workspace changes under the page.
-    LaunchedEffect(snapshot.activeWorkspaceLocation) { gateway.dispatch(WorkbenchIntent.OpenAssistant) }
+    LaunchedEffect(snapshot.activeWorkspaceLocation) { gateway.dispatch(ICodeIntent.OpenAssistant) }
     var sheet by rememberSaveable { mutableStateOf<AssistantSheet?>(null) }
     // The message being written and the files going with it: this page's own until sent.
     var draft by rememberSaveable(state.workspace) { mutableStateOf("") }
@@ -86,7 +86,7 @@ fun AssistantScreen(actions: NavigationActions) {
                         IconButton(onClick = { sheet = AssistantSheet.Chats }) {
                             Icon(Icons.Outlined.History, contentDescription = "Chats", tint = IcodeColors.TextSecondary, modifier = Modifier.size(IcodeSizes.IconMd))
                         }
-                        IconButton(onClick = { gateway.dispatch(WorkbenchIntent.NewAssistantChat) }, enabled = state.session != null) {
+                        IconButton(onClick = { gateway.dispatch(ICodeIntent.NewAssistantChat) }, enabled = state.session != null) {
                             Icon(
                                 Icons.Outlined.EditNote,
                                 contentDescription = "New chat",
@@ -99,7 +99,7 @@ fun AssistantScreen(actions: NavigationActions) {
                         contentDescription = "More options for the assistant",
                         actions = listOfNotNull(
                             IcodeMenuAction(
-                                "Compact Chat", Icons.Outlined.Compress, { gateway.dispatch(WorkbenchIntent.CompactAssistantChat) },
+                                "Compact Chat", Icons.Outlined.Compress, { gateway.dispatch(ICodeIntent.CompactAssistantChat) },
                                 enabled = ready && state.messages.isNotEmpty() && !state.running,
                             ).takeIf { ready },
                             IcodeMenuAction("Assistant Settings", Icons.Outlined.Settings, { actions.navigate(Route.AssistantSettings) }),
@@ -132,7 +132,7 @@ fun AssistantScreen(actions: NavigationActions) {
                     onAttach = { sheet = AssistantSheet.Attach },
                     onModels = { sheet = AssistantSheet.Models },
                     onSend = {
-                        gateway.dispatch(WorkbenchIntent.SendAssistantMessage(draft, attached.map { it.location }))
+                        gateway.dispatch(ICodeIntent.SendAssistantMessage(draft, attached.map { it.location }))
                         draft = ""
                         attached = emptyList()
                     },

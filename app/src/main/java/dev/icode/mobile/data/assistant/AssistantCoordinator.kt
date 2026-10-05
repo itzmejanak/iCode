@@ -4,13 +4,13 @@ import android.content.Context
 import dev.icode.mobile.data.assistant.koog.KoogAssistantEngine
 import dev.icode.mobile.data.assistant.tools.AssistantToolbox
 import dev.icode.mobile.data.assistant.tools.AssistantWorkspace
-import dev.icode.mobile.data.workspace.WorkbenchStateHolder
+import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceFileSource
 import dev.icode.mobile.data.workspace.WorkspaceRoot
 import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantRules
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
@@ -22,7 +22,7 @@ import kotlinx.coroutines.launch
  * [AssistantChats] are its stores, and [AssistantEngine] answers.
  */
 internal class AssistantCoordinator(
-    private val workbench: WorkbenchStateHolder,
+    private val stateHolder: ICodeStateHolder,
     private val scope: CoroutineScope,
     private val engine: AssistantEngine,
     private val providers: AssistantProviderStore,
@@ -36,18 +36,18 @@ internal class AssistantCoordinator(
     /** The files of a message: the workspace's and the phone's ([AssistantAttachments]). */
     attachments: (openText: (String) -> String?) -> AssistantAttachments,
 ) {
-    private val page = AssistantPage(workbench, scope, chats)
-    private val settings = AssistantProviders(workbench, scope, engine, providers, page)
+    private val page = AssistantPage(stateHolder, scope, chats)
+    private val settings = AssistantProviders(stateHolder, scope, engine, providers, page)
     private val turns = AssistantTurns(
         page, scope, engine, providers, settings::settings, chats, tools, describe,
-        attachments { location -> workbench.current.openDocuments.firstOrNull { it.location == location }?.text },
+        attachments { location -> stateHolder.current.openDocuments.firstOrNull { it.location == location }?.text },
     )
 
     /**
      * The intents in the order they were made: "New chat" then Send is never sent in the chat before.
      * Nothing here waits on a turn — a turn is its own job — so Stop and an answer are never held up.
      */
-    private val intents = Channel<WorkbenchIntent.AssistantIntent>(Channel.UNLIMITED)
+    private val intents = Channel<ICodeIntent.AssistantIntent>(Channel.UNLIMITED)
 
     /** The settings and the engine's catalogue, read once the backend starts; then the intents, in order. */
     fun start() {
@@ -59,29 +59,29 @@ internal class AssistantCoordinator(
         }
     }
 
-    fun handle(intent: WorkbenchIntent.AssistantIntent) {
+    fun handle(intent: ICodeIntent.AssistantIntent) {
         intents.trySend(intent)
     }
 
-    private suspend fun apply(intent: WorkbenchIntent.AssistantIntent) {
+    private suspend fun apply(intent: ICodeIntent.AssistantIntent) {
         when (intent) {
-            WorkbenchIntent.OpenAssistant -> page.show(activeRoot(), turns.running)
-            is WorkbenchIntent.OpenAssistantSession -> page.current.workspace?.let { page.display(it, intent.id) }
-            is WorkbenchIntent.DeleteAssistantSession -> delete(intent.id)
-            WorkbenchIntent.NewAssistantChat -> (page.current.workspace ?: activeRoot())?.let { page.display(it, null) }
-            is WorkbenchIntent.SendAssistantMessage -> send(intent.text, intent.attachments)
-            WorkbenchIntent.StopAssistant -> turns.stop()
-            is WorkbenchIntent.AnswerAssistant -> turns.answer(intent.callId, intent.answer)
-            WorkbenchIntent.CompactAssistantChat -> compact()
-            WorkbenchIntent.RetryAssistantMessage -> retry()
-            is WorkbenchIntent.ChooseAssistantModel -> settings.choose(AssistantChoice(intent.provider, intent.model))
-            is WorkbenchIntent.ChooseAssistantEffort -> settings.remember { providers.chooseEffort(intent.effort) }
-            is WorkbenchIntent.ChooseAssistantMode -> settings.remember { providers.chooseMode(intent.mode) }
-            is WorkbenchIntent.SetAssistantAskFirst -> settings.remember { providers.setAskFirst(intent.ask) }
-            is WorkbenchIntent.EditAssistantProvider -> settings.edit(intent.id)
-            is WorkbenchIntent.SaveAssistantProvider -> settings.save(intent)
-            is WorkbenchIntent.RemoveAssistantProvider -> settings.remove(intent.id)
-            is WorkbenchIntent.ListAssistantModels -> settings.list(intent)
+            ICodeIntent.OpenAssistant -> page.show(activeRoot(), turns.running)
+            is ICodeIntent.OpenAssistantSession -> page.current.workspace?.let { page.display(it, intent.id) }
+            is ICodeIntent.DeleteAssistantSession -> delete(intent.id)
+            ICodeIntent.NewAssistantChat -> (page.current.workspace ?: activeRoot())?.let { page.display(it, null) }
+            is ICodeIntent.SendAssistantMessage -> send(intent.text, intent.attachments)
+            ICodeIntent.StopAssistant -> turns.stop()
+            is ICodeIntent.AnswerAssistant -> turns.answer(intent.callId, intent.answer)
+            ICodeIntent.CompactAssistantChat -> compact()
+            ICodeIntent.RetryAssistantMessage -> retry()
+            is ICodeIntent.ChooseAssistantModel -> settings.choose(AssistantChoice(intent.provider, intent.model))
+            is ICodeIntent.ChooseAssistantEffort -> settings.remember { providers.chooseEffort(intent.effort) }
+            is ICodeIntent.ChooseAssistantMode -> settings.remember { providers.chooseMode(intent.mode) }
+            is ICodeIntent.SetAssistantAskFirst -> settings.remember { providers.setAskFirst(intent.ask) }
+            is ICodeIntent.EditAssistantProvider -> settings.edit(intent.id)
+            is ICodeIntent.SaveAssistantProvider -> settings.save(intent)
+            is ICodeIntent.RemoveAssistantProvider -> settings.remove(intent.id)
+            is ICodeIntent.ListAssistantModels -> settings.list(intent)
         }
     }
 
@@ -141,13 +141,13 @@ internal class AssistantCoordinator(
          */
         fun create(
             context: Context,
-            workbench: WorkbenchStateHolder,
+            icode: ICodeStateHolder,
             scope: CoroutineScope,
             toolbox: AssistantToolbox,
             activeRoot: () -> String?,
             source: WorkspaceFileSource,
         ) = AssistantCoordinator(
-            workbench, scope, KoogAssistantEngine.create(), SharedPreferencesAssistantProviderStore(context),
+            stateHolder, scope, KoogAssistantEngine.create(), SharedPreferencesAssistantProviderStore(context),
             AssistantChats(AssistantChatStore(File(context.applicationContext.filesDir, "assistant/chats"))),
             toolbox::forWorkspace, activeRoot, source::describeRoot,
         ) { openText ->

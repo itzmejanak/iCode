@@ -35,12 +35,12 @@ import dev.icode.mobile.designsystem.IcodeTextField
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.KeyChip
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalCodeEditorSessions
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.editor.EditorCanvas
 import io.github.rosemoe.sora.event.PublishSearchResultEvent
 import io.github.rosemoe.sora.event.SelectionChangeEvent
@@ -50,7 +50,7 @@ import java.util.regex.PatternSyntaxException
 /** Find in the same Sora document/caret/undo history used by the editor route. */
 @Composable
 fun EditorFindScreen(actions: NavigationActions) {
-    val document = LocalWorkbenchSnapshot.current.activeDocument
+    val document = LocalICodeSnapshot.current.activeDocument
     if (document == null) {
         Column(Modifier.fillMaxSize()) {
             IcodeTopBar("Find", onBack = actions.back)
@@ -60,7 +60,7 @@ fun EditorFindScreen(actions: NavigationActions) {
         }
         return
     }
-    val gateway = LocalWorkbenchGateway.current
+    val gateway = LocalICodeGateway.current
     val session = LocalCodeEditorSessions.current.get(document.location)
     val editor = session.editor
     val searcher = editor.searcher
@@ -201,7 +201,7 @@ fun EditorFindScreen(actions: NavigationActions) {
         EditorCanvas(
             session = session,
             document = document,
-            onTextChanged = { gateway.dispatch(WorkbenchIntent.UpdateDocumentText(document.location, it)) },
+            onTextChanged = { gateway.dispatch(ICodeIntent.UpdateDocumentText(document.location, it)) },
             modifier = Modifier.weight(1f),
         )
     }

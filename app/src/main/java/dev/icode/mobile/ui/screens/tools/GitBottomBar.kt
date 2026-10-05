@@ -8,7 +8,7 @@ import dev.icode.mobile.designsystem.BottomBarEntry
 import dev.icode.mobile.designsystem.BottomBarItem
 import dev.icode.mobile.designsystem.IcodeBottomBar
 import dev.icode.mobile.domain.GitRepositoryState
-import dev.icode.mobile.domain.WorkbenchSnapshot
+import dev.icode.mobile.domain.ICodeSnapshot
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 
@@ -19,7 +19,7 @@ import dev.icode.mobile.navigation.Route
  * short to fit; on the right ↑↓, what is to push and to pull, opening the sync page and lit there.
  */
 @Composable
-internal fun GitBottomBar(state: WorkbenchSnapshot, repository: GitRepositoryState, actions: NavigationActions, onSyncPage: Boolean) {
+internal fun GitBottomBar(state: ICodeSnapshot, repository: GitRepositoryState, actions: NavigationActions, onSyncPage: Boolean) {
     val name = repositoryLabel(repository.workTreePath, state.activeWorkspaceLocation)
     val branch = repository.branch.ifBlank { state.activeBranch }.ifBlank { "No branch" }
     val sync = syncLabel(repository)

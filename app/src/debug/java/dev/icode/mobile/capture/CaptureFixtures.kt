@@ -33,7 +33,7 @@ import dev.icode.mobile.domain.StorageMeasurement
 import dev.icode.mobile.domain.StorageSummary
 import dev.icode.mobile.domain.SystemAccess
 import dev.icode.mobile.domain.TextEncoding
-import dev.icode.mobile.domain.WorkbenchSnapshot
+import dev.icode.mobile.domain.ICodeSnapshot
 import dev.icode.mobile.domain.WorkspaceSummary
 
 /**
@@ -45,7 +45,7 @@ import dev.icode.mobile.domain.WorkspaceSummary
  */
 object CaptureFixtures {
     /** Built per capture: the last commit's age is relative to now. */
-    fun snapshot() = WorkbenchSnapshot(
+    fun snapshot() = ICodeSnapshot(
         workspaces = listOf(
             WorkspaceSummary("icode-subsystem", ROOT, "main", ago(hours = 2)),
             WorkspaceSummary("storage-driver", STORAGE_DRIVER, "dev-v2", ago(hours = 5)),

@@ -33,12 +33,12 @@ import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.SettingRow
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /** Settings root with the application settings categories. */
 @Composable
 fun SettingsRootScreen(actions: NavigationActions) {
-    val hasWorkspace = LocalWorkbenchSnapshot.current.activeWorkspaceLocation != null
+    val hasWorkspace = LocalICodeSnapshot.current.activeWorkspaceLocation != null
     var searchVisible by rememberSaveable { mutableStateOf(false) }
     var searchQuery by rememberSaveable { mutableStateOf("") }
     val searchFocus = remember { FocusRequester() }
