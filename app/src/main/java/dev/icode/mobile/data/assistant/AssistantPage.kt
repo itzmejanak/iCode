@@ -1,6 +1,6 @@
 package dev.icode.mobile.data.assistant
 
-import dev.icode.mobile.data.workspace.WorkbenchStateHolder
+import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.AssistantSession
 import dev.icode.mobile.domain.AssistantState
 import kotlinx.coroutines.CoroutineScope
@@ -11,11 +11,11 @@ import kotlinx.coroutines.launch
  * Everything is read before the state is changed: no file is read inside an update.
  */
 internal class AssistantPage(
-    private val workbench: WorkbenchStateHolder,
+    private val stateHolder: ICodeStateHolder,
     private val scope: CoroutineScope,
     private val chats: AssistantChats,
 ) {
-    val current: AssistantState get() = workbench.current.assistant
+    val current: AssistantState get() = stateHolder.current.assistant
 
     /** [workspace]'s chats: the one open stays; else [running], the turn's chat there; else the newest. */
     fun show(workspace: String?, running: Pair<String, String>?) {
@@ -67,9 +67,9 @@ internal class AssistantPage(
         else it.copy(workspace = null, sessions = emptyList(), session = null, messages = emptyList(), contextTokens = null, allowAll = false)
     }
 
-    fun state(change: (AssistantState) -> AssistantState) = workbench.update { it.copy(assistant = change(it.assistant)) }
+    fun state(change: (AssistantState) -> AssistantState) = stateHolder.update { it.copy(assistant = change(it.assistant)) }
 
     fun say(text: String) {
-        scope.launch { workbench.message(text) }
+        scope.launch { stateHolder.message(text) }
     }
 }

@@ -22,12 +22,12 @@ import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.NoticeCard
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.domain.GitOperationState
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /** The actual output of the latest Git operation; no reconstructed logs or timestamps. */
 @Composable
 fun OutputPanelContent(modifier: Modifier = Modifier) {
-    val operation = LocalWorkbenchSnapshot.current.gitOperation
+    val operation = LocalICodeSnapshot.current.gitOperation
     Column(modifier.fillMaxSize().background(IcodeColors.BackgroundDeep)) {
         Column(Modifier.weight(1f).fillMaxWidth()) {
             when (operation) {

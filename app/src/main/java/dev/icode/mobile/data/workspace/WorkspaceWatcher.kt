@@ -2,7 +2,7 @@ package dev.icode.mobile.data.workspace
 
 import android.os.FileObserver
 import dev.icode.mobile.domain.FileKind
-import dev.icode.mobile.domain.WorkbenchSnapshot
+import dev.icode.mobile.domain.ICodeSnapshot
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
@@ -90,7 +90,7 @@ internal fun settleDelay(first: Long, last: Long, now: Long): Long =
  * The folders worth watching: [workspacesRoot], where workspaces come and go, and in the open
  * workspace its top, every expanded folder, and each open file's folder.
  */
-internal fun watchedFolders(snapshot: WorkbenchSnapshot, workspacesRoot: File): Set<File> {
+internal fun watchedFolders(snapshot: ICodeSnapshot, workspacesRoot: File): Set<File> {
     val browsed = snapshot.filesBrowser?.path?.let(::File)
     val root = snapshot.activeWorkspaceLocation ?: return setOfNotNull(workspacesRoot, browsed)
     return buildSet {

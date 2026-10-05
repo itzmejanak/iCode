@@ -2,12 +2,12 @@ package dev.icode.mobile.data.git
 
 import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.workspace.ChangedOnDiskException
-import dev.icode.mobile.data.workspace.WorkbenchStateHolder
+import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceDocument
 import dev.icode.mobile.domain.GitConflictChoice
 import dev.icode.mobile.domain.LineEnding
 import dev.icode.mobile.domain.TextEncoding
-import dev.icode.mobile.domain.WorkbenchEffect
+import dev.icode.mobile.domain.ICodeEffect
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -71,7 +71,7 @@ class GitConflictCoordinatorTest {
     }
 
     private inner class Harness(val files: FakeFiles) {
-        val workbench = WorkbenchStateHolder()
+        val workbench = ICodeStateHolder()
         val events = mutableListOf<String>()
         val coordinator = GitConflictCoordinator(
             workbench,
@@ -122,7 +122,7 @@ class GitConflictCoordinatorTest {
 
         harness.coordinator.resolve("src/f.txt", first.startLine, GitConflictChoice.Current)
 
-        assertEquals(WorkbenchEffect.Message("f.txt has unsaved edits in the editor. Save or close it first"), withTimeout(2_000) { message.await() })
+        assertEquals(ICodeEffect.Message("f.txt has unsaved edits in the editor. Save or close it first"), withTimeout(2_000) { message.await() })
         assertEquals(twoConflicts, harness.files.disk)
     }
 
@@ -138,7 +138,7 @@ class GitConflictCoordinatorTest {
 
         harness.coordinator.resolve("src/f.txt", first.startLine, GitConflictChoice.Current)
 
-        assertEquals(WorkbenchEffect.Message("f.txt changed on disk and was read again. Choose again"), withTimeout(2_000) { message.await() })
+        assertEquals(ICodeEffect.Message("f.txt changed on disk and was read again. Choose again"), withTimeout(2_000) { message.await() })
         assertTrue("a2" in harness.files.disk && "b1" in harness.files.disk)
         assertEquals(1, harness.workbench.current.activeConflict!!.sections.size)
         assertTrue(harness.events.isEmpty())

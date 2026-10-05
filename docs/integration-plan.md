@@ -4,7 +4,7 @@
 **Supersedes:** the ad-hoc "Latest workspace-logic round" entries in [`Todo.md`](../Todo.md)
 **Reads with:** [`plan.md`](../plan.md), [`docs/prd.md`](./prd.md), [`docs/architecture.md`](./architecture.md), [`docs/user-stories.md`](./user-stories.md), [`docs/ui-split-plan.md`](./ui-split-plan.md)
 
-> **Note (2026-09-26).** Names in this record are as they were then. The demo layer (`DemoWorkbenchGateway`, `DemoContent`, `staticDemo`, `demo-fork`) was replaced by debug-only capture fixtures (`CaptureGateway`, `CaptureFixtures`, `captureMode`, `capture-fork`) — [code-separation-plan.md](./code-separation-plan.md) K1.
+> **Note (2026-09-26).** Names in this record are as they were then. The demo layer (`DemoICodeGateway`, `DemoContent`, `staticDemo`, `demo-fork`) was replaced by debug-only capture fixtures (`CaptureGateway`, `CaptureFixtures`, `captureMode`, `capture-fork`) — [code-separation-plan.md](./code-separation-plan.md) K1.
 
 ### Workspace closeout audit and order (2026-09-23)
 
@@ -151,7 +151,7 @@ Routes with **no** navigation entry point today: `PullFetchProgress`, `ExternalF
 branch with a private demo body.
 
 This breaks the rule `Todo.md` already states — *"Demo fixtures remain isolated in
-`DemoWorkbenchGateway` and `DemoContent`"* — and makes the documented "post-integration demo
+`DemoICodeGateway` and `DemoContent`"* — and makes the documented "post-integration demo
 cleanup" impossible to perform mechanically: the demo is no longer one deletable object, it is six
 hidden branches inside product code.
 
@@ -207,7 +207,7 @@ cancel choices**, not a refusal.
    A capability that cannot be made real yet stays visible and honest ("not available until the
    runtime is installed") rather than being deleted.
 3. **No `staticDemo` branches in screens.** Screens are single-path. Demo data lives in
-   `DemoWorkbenchGateway` / `DemoContent` and is injected through the same contract.
+   `DemoICodeGateway` / `DemoContent` and is injected through the same contract.
 4. **Library first.** Check `architecture.md` §25, research the current docs, adopt the library
    behind the module contract. Record every interim deviation explicitly.
 5. **Plan, then one small cycle at a time**, each compiling, tested and validated on its own.
@@ -273,7 +273,7 @@ plus a physical-device pass on the frames the cycle touched.
   Workspace settings where it belongs.
 - `38 External file change` and `39 Document recovery` fire on their own in Cycle 5; until then the
   `orphan-route` guard records them as accepted debt rather than pretending they are reachable.
-- Remove the six `staticDemo` forks by moving demo data into `DemoWorkbenchGateway`, so every
+- Remove the six `staticDemo` forks by moving demo data into `DemoICodeGateway`, so every
   screen is single-path and reads the same snapshot in both modes.
 - **New guard rules in `tools/check-ui-consistency.sh`:**
   `orphan-route` — every `Route` value has ≥ 1 navigation entry point;

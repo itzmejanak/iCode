@@ -3,7 +3,7 @@ package dev.icode.mobile.domain
 private const val ROOT = "/storage/emulated/0/projects/app"
 
 /** A workspace where every palette command can run: a branch tracking its remote, a staged change, an unsaved file. */
-internal val paletteReadySnapshot = WorkbenchSnapshot(
+internal val paletteReadySnapshot = ICodeSnapshot(
     workspaces = emptyList(),
     files = emptyList(),
     gitChanges = listOf(GitChange(GitStatusCodes.ADDED, "a.kt", "src/a.kt", staged = true)),

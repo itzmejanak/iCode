@@ -3,7 +3,7 @@
 Status: **plan** (2026-09-24). Follows [backend-split-rules.md](./backend-split-rules.md);
 builds on [terminal-background-plan.md](./terminal-background-plan.md).
 
-> **Note (2026-09-26).** Names in this record are as they were then. The demo layer (`DemoWorkbenchGateway`, `DemoContent`, `staticDemo`, `demo-fork`) was replaced by debug-only capture fixtures (`CaptureGateway`, `CaptureFixtures`, `captureMode`, `capture-fork`) — [code-separation-plan.md](./code-separation-plan.md) K1.
+> **Note (2026-09-26).** Names in this record are as they were then. The demo layer (`DemoICodeGateway`, `DemoContent`, `staticDemo`, `demo-fork`) was replaced by debug-only capture fixtures (`CaptureGateway`, `CaptureFixtures`, `captureMode`, `capture-fork`) — [code-separation-plan.md](./code-separation-plan.md) K1.
 
 Three owner requests, one plan: (A) the notification row showed "running
 MainThread" for freebuff — fix the cause, not the case; (B) tell the user when a
@@ -54,7 +54,7 @@ emulator iCode uses (Termux 0.118.3, bytecode of `TerminalEmulator`):
 composition root), `DemoScreen` (the route enum, 205 uses), `DemoGroup` (47),
 `DemoActions` (navigation actions, 90), `DemoNavigationState`, versionName
 `0.1.0-demo`, applicationId `dev.icode.mobile.demo`. Genuine demo — fixtures
-for the 40-frame capture only: `demo/DemoWorkbenchGateway`, `DemoContent`,
+for the 40-frame capture only: `demo/DemoICodeGateway`, `DemoContent`,
 `DemoWorkspacePreferencesRepository`, the `staticDemo` capture switch. Product
 text still demo: About ("0.1.0-demo", "Sora (integration planned)", "What's
 new in this demo", seven rows whose taps do nothing). Tools that read the

@@ -25,7 +25,7 @@ import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.IconBadge
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.domain.RelativeTime
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.WorkspaceSummary
 
 /**
@@ -42,7 +42,7 @@ fun WorkspaceRow(
     /** What a tap does; opening the workspace unless said otherwise (the file explorer goes into it). */
     onOpen: (() -> Unit)? = null,
 ) {
-    val gateway = LocalWorkbenchGateway.current
+    val gateway = LocalICodeGateway.current
     var longPressed by remember(item.location) { mutableStateOf(false) }
     IcodeListRow(
         modifier = modifier,
@@ -51,7 +51,7 @@ fun WorkspaceRow(
             horizontal = IcodeSpacing.Space3,
             vertical = (IcodeSizes.Tile - IcodeSizes.TouchTarget) / 2,
         ),
-        onClick = onOpen ?: { gateway.dispatch(WorkbenchIntent.OpenWorkspace(item.location)) },
+        onClick = onOpen ?: { gateway.dispatch(ICodeIntent.OpenWorkspace(item.location)) },
         onLongClick = { longPressed = true },
         leading = {
             IconBadge(

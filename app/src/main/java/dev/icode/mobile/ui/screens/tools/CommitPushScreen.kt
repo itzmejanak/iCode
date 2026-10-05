@@ -34,25 +34,25 @@ import dev.icode.mobile.domain.GitActionRules
 import dev.icode.mobile.domain.GitRepositoryState
 import dev.icode.mobile.domain.GitSyncAction
 import dev.icode.mobile.domain.RelativeTime
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.countOf
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /** Commit summary: branch state, last commit and remote synchronization. */
 @Composable
 fun CommitPushScreen(actions: NavigationActions) {
-    val state = LocalWorkbenchSnapshot.current
-    val gateway = LocalWorkbenchGateway.current
+    val state = LocalICodeSnapshot.current
+    val gateway = LocalICodeGateway.current
     val repository = state.gitRepository
     val lastCommit = repository?.lastCommit
     val hasRemote = repository?.hasRemote == true
     val blocked = { action: GitSyncAction -> GitActionRules.syncBlocked(action, state) }
     // Each remote action starts the real command, then opens the progress
     // surface that reports what Git itself is doing.
-    val sync: (WorkbenchIntent) -> Unit = { intent ->
+    val sync: (ICodeIntent) -> Unit = { intent ->
         gateway.dispatch(intent)
         actions.navigate(Route.PullFetchProgress)
     }
@@ -95,7 +95,7 @@ fun CommitPushScreen(actions: NavigationActions) {
                     }
                     PrimaryButton(
                         pushLabel(repository),
-                        { sync(WorkbenchIntent.PushRemote) },
+                        { sync(ICodeIntent.PushRemote) },
                         enabled = blocked(GitSyncAction.Push) == null,
                     )
                 }
@@ -104,7 +104,7 @@ fun CommitPushScreen(actions: NavigationActions) {
                 repository == null -> NoticeCard(tone = IcodeTone.Warning, modifier = Modifier.fillMaxWidth()) {
                     StatusLabel("This workspace is not a Git repository.", IcodeColors.Amber)
                 }
-                !hasRemote -> AddRemoteSection { name, url -> gateway.dispatch(WorkbenchIntent.AddRemote(name, url)) }
+                !hasRemote -> AddRemoteSection { name, url -> gateway.dispatch(ICodeIntent.AddRemote(name, url)) }
                 state.gitChanges.isEmpty() -> NoticeCard(tone = IcodeTone.Success, modifier = Modifier.fillMaxWidth()) {
                     StatusLabel("Working tree clean. No unstaged changes.", IcodeColors.Green)
                 }
@@ -134,7 +134,7 @@ fun CommitPushScreen(actions: NavigationActions) {
                 left = {
                     SecondaryButton(
                         "FETCH",
-                        { sync(WorkbenchIntent.FetchRemote) },
+                        { sync(ICodeIntent.FetchRemote) },
                         Modifier.fillMaxWidth(),
                         enabled = blocked(GitSyncAction.Fetch) == null,
                     )
@@ -142,7 +142,7 @@ fun CommitPushScreen(actions: NavigationActions) {
                 right = {
                     SecondaryButton(
                         "PULL",
-                        { sync(WorkbenchIntent.PullRemote) },
+                        { sync(ICodeIntent.PullRemote) },
                         Modifier.fillMaxWidth(),
                         enabled = blocked(GitSyncAction.Pull) == null,
                     )

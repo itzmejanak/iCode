@@ -5,14 +5,14 @@ Status: implementation in progress (2026-09-24). Follow
 [Todo.md](../Todo.md). This plan records verified code boundaries, not a claim
 that every demo frame is integrated.
 
-> **Note (2026-09-26).** Names in this record are as they were then. The demo layer (`DemoWorkbenchGateway`, `DemoContent`, `staticDemo`, `demo-fork`) was replaced by debug-only capture fixtures (`CaptureGateway`, `CaptureFixtures`, `captureMode`, `capture-fork`) — [code-separation-plan.md](./code-separation-plan.md) K1.
+> **Note (2026-09-26).** Names in this record are as they were then. The demo layer (`DemoICodeGateway`, `DemoContent`, `staticDemo`, `demo-fork`) was replaced by debug-only capture fixtures (`CaptureGateway`, `CaptureFixtures`, `captureMode`, `capture-fork`) — [code-separation-plan.md](./code-separation-plan.md) K1.
 
 ## Observed baseline and ownership
 
 | Surface | Verified current state | Canonical owner and write path |
 |---|---|---|
-| Command Palette | `CommandPaletteScreen` had four fixed rows, ignored query, and routed Push to summary and every other row to Editor. The first code slice now uses `PaletteCommands` for IDs/query/capability; screen dispatches existing intents or navigates to their existing UI. | `WorkbenchSnapshot` for availability; `WorkbenchGateway.dispatch` for Save/Git; navigation for tool routes. Palette query/selection are ephemeral UI state. |
-| Problems | The shared panel filters `snapshot.diagnostics` by severity; production currently publishes none, so it explicitly does not claim a clean-code check. | Future workspace-scoped diagnostic aggregate, sourced from actual providers; current `WorkbenchSnapshot.diagnostics` is the presentation contract. |
+| Command Palette | `CommandPaletteScreen` had four fixed rows, ignored query, and routed Push to summary and every other row to Editor. The first code slice now uses `PaletteCommands` for IDs/query/capability; screen dispatches existing intents or navigates to their existing UI. | `ICodeSnapshot` for availability; `ICodeGateway.dispatch` for Save/Git; navigation for tool routes. Palette query/selection are ephemeral UI state. |
+| Problems | The shared panel filters `snapshot.diagnostics` by severity; production currently publishes none, so it explicitly does not claim a clean-code check. | Future workspace-scoped diagnostic aggregate, sourced from actual providers; current `ICodeSnapshot.diagnostics` is the presentation contract. |
 | Output | The fixed screen-owned Git log, timestamps, fake source preview and inert channel chip are removed. The shared Output tab reads the latest real `gitOperation.transcript`, bounded by `GitProgressParser`; only Git is presented because no other output-channel provider exists yet. | Git operation state is the current source of truth. A later bounded/redacted event-channel contract belongs to runtime/Git/search/language adapters, not the UI. |
 | Terminal | Termux `terminal-view`/emulator and `TerminalSession` are integrated in the concurrent terminal cycle; full fresh-device acceptance remains in `terminal-maturity-plan.md`. | `TerminalSessionManager` owns sessions/PTY; `ui/terminal/TerminalHost` owns the view and rendering. Panel navigation does not replace either. |
 | Languages | Configuration and observed guest process state are real; no LSP initialize exchange or editor capability is connected. | User-installed server process via the existing process contract; one protocol client owns JSON-RPC and document versions. |

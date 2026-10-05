@@ -26,7 +26,7 @@ data class PaletteCommand(
 
 /** Pure query and capability policy; no navigation or platform work belongs here. */
 object PaletteCommands {
-    fun search(snapshot: WorkbenchSnapshot, query: String): List<PaletteCommand> {
+    fun search(snapshot: ICodeSnapshot, query: String): List<PaletteCommand> {
         val workspace = snapshot.activeWorkspaceLocation != null
         val gitReason = GitActionRules.repositoryBlocked(snapshot)
         val commands = listOf(

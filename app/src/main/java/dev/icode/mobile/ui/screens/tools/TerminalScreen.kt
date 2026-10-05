@@ -38,12 +38,12 @@ import dev.icode.mobile.domain.RuntimeState
 import dev.icode.mobile.domain.SettingLimits
 import dev.icode.mobile.domain.Severity
 import dev.icode.mobile.domain.TerminalStatus
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.navigation.ToolPanelTab
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.LocalWorkspacePreferences
 import dev.icode.mobile.ui.terminal.TerminalHost
 import dev.icode.mobile.ui.terminal.TerminalKeys
@@ -51,8 +51,8 @@ import dev.icode.mobile.ui.terminal.TerminalKeys
 /** One tools panel: terminal, problems and output share a tab header and back-stack entry. */
 @Composable
 fun TerminalScreen(actions: NavigationActions) {
-    val state = LocalWorkbenchSnapshot.current
-    val gateway = LocalWorkbenchGateway.current
+    val state = LocalICodeSnapshot.current
+    val gateway = LocalICodeGateway.current
     val terminal = state.terminal
     val session = terminal.selected
     val runtimeReady = state.runtime is RuntimeState.Ready
@@ -66,7 +66,7 @@ fun TerminalScreen(actions: NavigationActions) {
         else if (shouldAutoOpenTerminal(actions.panelTab, runtimeReady, attemptedFirstOpen)) {
             attemptedFirstOpen = true
             // Not "+": a panel drawn again must find the session it asked for, not start another.
-            gateway.dispatch(WorkbenchIntent.EnsureTerminalSession)
+            gateway.dispatch(ICodeIntent.EnsureTerminalSession)
         }
     }
     // Preserve the terminal's last-tab exit behavior only when the user is
@@ -118,7 +118,7 @@ fun TerminalScreen(actions: NavigationActions) {
             }
             if (actions.panelTab == ToolPanelTab.Terminal) {
                 IconButton(
-                    onClick = { gateway.dispatch(WorkbenchIntent.OpenTerminalSession) },
+                    onClick = { gateway.dispatch(ICodeIntent.OpenTerminalSession) },
                     enabled = runtimeReady,
                 ) {
                     Icon(
@@ -141,11 +141,11 @@ fun TerminalScreen(actions: NavigationActions) {
                     TerminalTabStrip(
                         sessions = terminal.sessions,
                         selectedId = session?.id,
-                        onSelect = { gateway.dispatch(WorkbenchIntent.SelectTerminalSession(it)) },
+                        onSelect = { gateway.dispatch(ICodeIntent.SelectTerminalSession(it)) },
                         onReorder = { movingId, targetId ->
-                            gateway.dispatch(WorkbenchIntent.ReorderTerminalSession(movingId, targetId))
+                            gateway.dispatch(ICodeIntent.ReorderTerminalSession(movingId, targetId))
                         },
-                        onClose = { gateway.dispatch(WorkbenchIntent.CloseTerminalSession(it)) },
+                        onClose = { gateway.dispatch(ICodeIntent.CloseTerminalSession(it)) },
                     )
                 }
                 if (session?.status == TerminalStatus.Exited) {
@@ -179,8 +179,8 @@ fun TerminalScreen(actions: NavigationActions) {
                         keys = keys,
                         // Pinch zoom stays within the sizes the Font Size setting offers, as the editor's does.
                         onScale = { fontScale = SettingLimits.zoomScale(fontScale * it, terminalSettings.fontSizeSp) },
-                        onUrl = { gateway.dispatch(WorkbenchIntent.OpenExternalUrl(it)) },
-                        onEndedEnter = { gateway.dispatch(WorkbenchIntent.CloseTerminalSession(session.id)) },
+                        onUrl = { gateway.dispatch(ICodeIntent.OpenExternalUrl(it)) },
+                        onEndedEnter = { gateway.dispatch(ICodeIntent.CloseTerminalSession(session.id)) },
                         modifier = Modifier.weight(1f),
                     )
                 }

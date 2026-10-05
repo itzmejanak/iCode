@@ -223,8 +223,8 @@ class AssistantRulesTest {
     }
 
     @Test fun `a key never shows in an intent's text`() {
-        val save = WorkbenchIntent.SaveAssistantProvider("", AssistantProviderKind.OpenAI, "OpenAI", "", "sk-secret", listOf(AssistantModelSpec("gpt-5")))
+        val save = ICodeIntent.SaveAssistantProvider("", AssistantProviderKind.OpenAI, "OpenAI", "", "sk-secret", listOf(AssistantModelSpec("gpt-5")))
         assertTrue("sk-secret" !in save.toString())
-        assertTrue("sk-secret" !in WorkbenchIntent.ListAssistantModels("", AssistantProviderKind.OpenAI, "", "sk-secret").toString())
+        assertTrue("sk-secret" !in ICodeIntent.ListAssistantModels("", AssistantProviderKind.OpenAI, "", "sk-secret").toString())
     }
 }

@@ -1,4 +1,4 @@
-# Native Mobile Development Workbench — Product Requirements
+# iCode — Native Mobile Development Environment — Product Requirements
 
 **Version:** 1.0  
 **Status:** Product contract  
@@ -7,7 +7,7 @@
 
 ## 1. Document Purpose
 
-This document defines the product problem, vision, users, required capabilities, quality expectations, constraints, and success criteria for a native mobile development workbench.
+This document defines the product problem, vision, users, required capabilities, quality expectations, constraints, and success criteria for a native mobile development environment.
 
 It defines what the product must accomplish without prescribing delivery order. Technical structure is defined in `architecture.md`, interaction and responsive layout rules are defined in `layout.md`, and observable user behavior is defined in `user-stories.md`. Implementation sequencing belongs in a separate dependency-aware plan.
 
@@ -38,7 +38,7 @@ The product must remove these restrictions without replacing them with an overly
 
 ## 4. Vision
 
-> Give developers a capable, native, local-first workbench on Android where their projects live in a real Linux workspace that every tool reaches the same way, where they edit files in place, understand and control Git changes, run any compatible tool, and shape the environment to their workflow.
+> Give developers a capable, native, local-first icode on Android where their projects live in a real Linux workspace that every tool reaches the same way, where they edit files in place, understand and control Git changes, run any compatible tool, and shape the environment to their workflow.
 
 The product should feel intentionally designed for phones and tablets while preserving familiar development concepts such as workspaces, editor tabs, diagnostics, source control, terminals, language services, and project search.
 
@@ -91,7 +91,7 @@ The product is not intended to provide:
 - a VS Code distribution or visual clone;
 - VS Code extension compatibility;
 - an application extension marketplace;
-- a browser-hosted workbench;
+- a browser-hosted icode;
 - an internal project-preview browser;
 - a curated AI-agent marketplace;
 - a provider-specific agent configuration system (the built-in assistant has one generic provider page, §10.14);
@@ -166,7 +166,7 @@ Needs:
 - stable contracts;
 - reproducible tests;
 - documented architecture decisions;
-- a manageable native codebase without a large upstream workbench fork.
+- a manageable native codebase without a large upstream icode fork.
 
 ## 8. Core User Jobs
 
@@ -518,7 +518,7 @@ Operational measures should track correctness and usability rather than vanity:
 | Risk | Product response |
 |---|---|
 | Native editor library stagnates | Keep it behind a replaceable editor contract and own document state outside the renderer |
-| Native workbench scope expands indefinitely | Center requirements on the everyday development loop and place specialized workflows behind later product decisions |
+| Native icode scope expands indefinitely | Center requirements on the everyday development loop and place specialized workflows behind later product decisions |
 | Language servers vary widely | Use capability negotiation and generic configuration; do not promise unsupported server behavior |
 | PRoot performance varies by device | Validate representative devices, start services lazily, and expose process/resource diagnostics |
 | Git parsing breaks on unusual paths | Use porcelain and NUL-delimited formats with fixture coverage |
@@ -545,7 +545,7 @@ Implementation phases, task steps, dependency groups, effort, and completion tra
 
 | Term | Product meaning |
 |---|---|
-| Workbench | Native environment combining editor, files, Git, search, terminal, and diagnostics |
+| iCode | Native environment combining editor, files, Git, search, terminal, and diagnostics |
 | Workspace | One folder in the application's storage, opened as the active project root |
 | Runtime | Ubuntu ARM64 userspace in which commands and developer tools execute |
 | Language service | User-installed LSP-compatible process providing code intelligence |

@@ -31,11 +31,11 @@ import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.domain.AssistantProvider
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
  * The assistant's providers (docs/assistant-koog-plan.md §13 P1), as Language Services lists its
@@ -44,10 +44,10 @@ import dev.icode.mobile.ui.LocalWorkbenchSnapshot
  */
 @Composable
 fun AssistantSettingsScreen(actions: NavigationActions) {
-    val gateway = LocalWorkbenchGateway.current
-    val settings = LocalWorkbenchSnapshot.current.assistant.settings
+    val gateway = LocalICodeGateway.current
+    val settings = LocalICodeSnapshot.current.assistant.settings
     fun open(id: String) {
-        gateway.dispatch(WorkbenchIntent.EditAssistantProvider(id))
+        gateway.dispatch(ICodeIntent.EditAssistantProvider(id))
         actions.navigate(Route.AssistantProvider)
     }
     Column(Modifier.fillMaxSize()) {

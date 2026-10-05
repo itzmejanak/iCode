@@ -20,13 +20,13 @@ import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.domain.ExternalChange
 import dev.icode.mobile.domain.RelativeTime
-import dev.icode.mobile.domain.WorkbenchIntent
-import dev.icode.mobile.domain.WorkbenchGateway
-import dev.icode.mobile.domain.WorkbenchSnapshot
+import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.ICodeGateway
+import dev.icode.mobile.domain.ICodeSnapshot
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
  * A file changed on disk while it had unsaved edits here (US-EDIT-009): which
@@ -66,8 +66,8 @@ fun ExternalChangeDialog(
 fun ExternalChangePrompt(
     asked: String?,
     onAskedChange: (String?) -> Unit,
-    snapshot: WorkbenchSnapshot,
-    gateway: WorkbenchGateway,
+    snapshot: ICodeSnapshot,
+    gateway: ICodeGateway,
     current: Route,
     navigate: (Route) -> Unit,
 ) {
@@ -83,17 +83,17 @@ fun ExternalChangePrompt(
     ExternalChangeDialog(
         change = change,
         onReload = {
-            gateway.dispatch(WorkbenchIntent.ReloadFromDisk(change.location))
+            gateway.dispatch(ICodeIntent.ReloadFromDisk(change.location))
             onAskedChange(null)
         },
         onCompare = {
-            gateway.dispatch(WorkbenchIntent.CompareWithDisk(change.location))
+            gateway.dispatch(ICodeIntent.CompareWithDisk(change.location))
             comparing = change.location
             onAskedChange(null)
             navigate(Route.DiffView)
         },
         onOverwrite = {
-            gateway.dispatch(WorkbenchIntent.OverwriteDisk(change.location))
+            gateway.dispatch(ICodeIntent.OverwriteDisk(change.location))
             onAskedChange(null)
         },
         onDismiss = { onAskedChange(null) },
@@ -103,8 +103,8 @@ fun ExternalChangePrompt(
 /** The captured frame: the dialog as it appears over the editor. */
 @Composable
 fun ExternalChangeScreen(actions: NavigationActions) {
-    val state = LocalWorkbenchSnapshot.current
-    val gateway = LocalWorkbenchGateway.current
+    val state = LocalICodeSnapshot.current
+    val gateway = LocalICodeGateway.current
     val change = state.externalChanges.firstOrNull()
     if (change == null) {
         EmptyState(
@@ -117,15 +117,15 @@ fun ExternalChangeScreen(actions: NavigationActions) {
     ExternalChangeDialog(
         change = change,
         onReload = {
-            gateway.dispatch(WorkbenchIntent.ReloadFromDisk(change.location))
+            gateway.dispatch(ICodeIntent.ReloadFromDisk(change.location))
             actions.back()
         },
         onCompare = {
-            gateway.dispatch(WorkbenchIntent.CompareWithDisk(change.location))
+            gateway.dispatch(ICodeIntent.CompareWithDisk(change.location))
             actions.navigate(Route.DiffView)
         },
         onOverwrite = {
-            gateway.dispatch(WorkbenchIntent.OverwriteDisk(change.location))
+            gateway.dispatch(ICodeIntent.OverwriteDisk(change.location))
             actions.back()
         },
         onDismiss = actions.back,

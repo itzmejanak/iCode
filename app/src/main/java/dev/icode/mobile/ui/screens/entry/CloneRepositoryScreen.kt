@@ -33,16 +33,16 @@ import dev.icode.mobile.designsystem.IcodeTone
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.GitRemoteRules
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.Route
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /** Clone form; authentication opens the Git credentials frame. */
 @Composable
 fun CloneRepositoryScreen(actions: NavigationActions) {
-    val gateway = LocalWorkbenchGateway.current
-    val state = LocalWorkbenchSnapshot.current
+    val gateway = LocalICodeGateway.current
+    val state = LocalICodeSnapshot.current
     // Typing drives local state so every keystroke lands immediately; routing
     // each one through the gateway made the field lag and drop characters.
     // The snapshot copy is what survives navigating away (to Git credentials),
@@ -50,7 +50,7 @@ fun CloneRepositoryScreen(actions: NavigationActions) {
     var url by remember { mutableStateOf(state.cloneUrl) }
     var name by remember { mutableStateOf(state.cloneName) }
     var branch by remember { mutableStateOf(state.cloneBranch) }
-    fun keepForm() = gateway.dispatch(WorkbenchIntent.UpdateCloneForm(url, name, branch))
+    fun keepForm() = gateway.dispatch(ICodeIntent.UpdateCloneForm(url, name, branch))
     val destination = state.projectDestination
     val nameProblem = projectProblem(name, destination)
     val branchError = branch.trim().takeIf { it.isNotEmpty() }?.let(GitRemoteRules::branchError)
@@ -121,7 +121,7 @@ fun CloneRepositoryScreen(actions: NavigationActions) {
             if (state.gitOperation is GitOperationState.Running) "Cloning…" else "Clone Repository",
             {
                 gateway.dispatch(
-                    WorkbenchIntent.CloneRepository(url = url.trim(), directoryName = name.trim(), branch = branch.trim(), into = destination?.location),
+                    ICodeIntent.CloneRepository(url = url.trim(), directoryName = name.trim(), branch = branch.trim(), into = destination?.location),
                 )
                 actions.navigate(Route.CloneProgress)
             },

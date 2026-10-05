@@ -36,10 +36,10 @@ import dev.icode.mobile.designsystem.TwoColumnActions
 import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.RecoverableDraft
 import dev.icode.mobile.domain.RelativeTime
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
  * Unsaved work the last session left behind.
@@ -50,8 +50,8 @@ import dev.icode.mobile.ui.LocalWorkbenchSnapshot
  */
 @Composable
 fun DocumentRecoveryScreen(actions: NavigationActions) {
-    val state = LocalWorkbenchSnapshot.current
-    val gateway = LocalWorkbenchGateway.current
+    val state = LocalICodeSnapshot.current
+    val gateway = LocalICodeGateway.current
     val drafts = state.recoverableDrafts
     val root = state.activeWorkspaceLocation
     val inWorkspace = drafts.filter { root != null && it.location.startsWith("$root/") }
@@ -113,7 +113,7 @@ fun DocumentRecoveryScreen(actions: NavigationActions) {
                                 left = {
                                     SecondaryButton(
                                         "Restore Cache",
-                                        { gateway.dispatch(WorkbenchIntent.OpenRecoverableDraft(draft.location)) },
+                                        { gateway.dispatch(ICodeIntent.OpenRecoverableDraft(draft.location)) },
                                         Modifier.fillMaxWidth(),
                                         color = IcodeColors.Accent,
                                     )
@@ -140,7 +140,7 @@ fun DocumentRecoveryScreen(actions: NavigationActions) {
             if (inWorkspace.isNotEmpty()) {
                 PrimaryButton(
                     "Restore All Workspace Docs",
-                    { inWorkspace.forEach { gateway.dispatch(WorkbenchIntent.OpenRecoverableDraft(it.location)) } },
+                    { inWorkspace.forEach { gateway.dispatch(ICodeIntent.OpenRecoverableDraft(it.location)) } },
                     Modifier.fillMaxWidth(),
                 )
             }
@@ -159,7 +159,7 @@ fun DocumentRecoveryScreen(actions: NavigationActions) {
             message = "The unsaved text is deleted. The files on disk stay as they are.",
             confirmLabel = "Discard",
             onConfirm = {
-                discarding.forEach { gateway.dispatch(WorkbenchIntent.DiscardDraft(it.location)) }
+                discarding.forEach { gateway.dispatch(ICodeIntent.DiscardDraft(it.location)) }
                 discarding = emptyList()
             },
             onDismiss = { discarding = emptyList() },

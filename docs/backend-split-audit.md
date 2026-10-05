@@ -69,11 +69,11 @@ I2/G4 (`SetLanguageServiceRunning` dispatched nowhere), I3, I4 (probes at gatewa
 
 | Piece | Lines | Serves |
 |---|---|---|
-| `demo/DemoWorkbenchGateway.kt` intent simulation (`dispatch` + helpers) | ~545 | nothing a user can reach: it runs only when the capture tool starts iCode with `demo_static=true` (`IcodeApp.kt:71-77`) |
+| `demo/DemoICodeGateway.kt` intent simulation (`dispatch` + helpers) | ~545 | nothing a user can reach: it runs only when the capture tool starts iCode with `demo_static=true` (`IcodeApp.kt:71-77`) |
 | its snapshot + fixture constants | ~170 | the 39 captured frames; `PaletteCommandsTest` and `CommandPaletteExecutionTest` read only `snapshot.value` |
 | `demo/DemoWorkspacePreferencesRepository.kt` | 139 | fixed settings values for the settings frames (setters simulate) |
 | `demo/DemoContent.kt` | 35 | fixture constants; also imported by `DocumentRecoveryScreen` (G11) |
-| `DemoWorkbenchGatewayTest` (8 tests), `DemoWorkspacePreferencesRepositoryTest` | — | test the simulation, not production |
+| `DemoICodeGatewayTest` (8 tests), `DemoWorkspacePreferencesRepositoryTest` | — | test the simulation, not production |
 | "demo" elsewhere | — | main code 12 files (`staticDemo` switch, extras `demo_screen`/`demo_static`, comments such as "Demo back-stack state"), tests 6, tools 3 (`demo-fork` rule, allowlist, capture extras), 14 docs |
 
 Screens that ask the gateway for state when they open — the fixtures must hold the answer, or
@@ -87,8 +87,8 @@ K1 is the proof, not this list.
 | Fact | Evidence |
 |---|---|
 | One `:app` module; packages `domain`, `data/{workspace,git,runtime,settings,language,notices,system}`, `demo`, `ui`, `designsystem`, `navigation` | `settings.gradle.kts`, tree |
-| `AndroidWorkbenchGateway.kt`: **1858 lines, 94 methods**, 69 `mutableSnapshot.update`, 95 `mutableEffects.emit`, 42 `runCatching`, 9 `try/catch`, 37 `userMessage(...)` | `wc -l`, `grep -c` |
-| `WorkbenchContract.kt`: **516 lines** — 44 snapshot fields, **91 intents**, 19 effects, 2 pure helpers, 1 interface | `awk` counts |
+| `AndroidICodeGateway.kt`: **1858 lines, 94 methods**, 69 `mutableSnapshot.update`, 95 `mutableEffects.emit`, 42 `runCatching`, 9 `try/catch`, 37 `userMessage(...)` | `wc -l`, `grep -c` |
+| `ICodeContract.kt`: **516 lines** — 44 snapshot fields, **91 intents**, 19 effects, 2 pure helpers, 1 interface | `awk` counts |
 | Gateway unit tests | **none**; parsers/codec/draft store/indexer/projector/revision-guard are covered |
 | Backend file budget (rules §4) | target ≤250 lines; >300 requires an ownership review |
 | Baseline gate (this cycle) | `compileDebugKotlin`, `testDebugUnitTest`, `lintDebug`, `check-ui-consistency.sh` |
@@ -99,16 +99,16 @@ K1 is the proof, not this list.
 
 | # | File | Lines | Concern clusters inside | Verdict |
 |---|---|---|---|---|
-| 1 | `data/workspace/AndroidWorkbenchGateway.kt` | **1858** (6.2×) | 12 clusters (below) | **Split now** |
-| 2 | `demo/DemoWorkbenchGateway.kt` | **776** (2.6×) | same 91-intent surface + fixtures | **Replaced first (K1)** by debug-only capture fixtures, ~250 lines (§0, decision 5) |
-| 3 | `domain/WorkbenchContract.kt` | **516** (1.7×) | models + git vocabulary + snapshot + 91 intents + 19 effects + helpers + interface | **Split now** |
+| 1 | `data/workspace/AndroidICodeGateway.kt` | **1858** (6.2×) | 12 clusters (below) | **Split now** |
+| 2 | `demo/DemoICodeGateway.kt` | **776** (2.6×) | same 91-intent surface + fixtures | **Replaced first (K1)** by debug-only capture fixtures, ~250 lines (§0, decision 5) |
+| 3 | `domain/ICodeContract.kt` | **516** (1.7×) | models + git vocabulary + snapshot + 91 intents + 19 effects + helpers + interface | **Split now** |
 | 4 | `data/runtime/RuntimeInstaller.kt` | **356** | manifest, download+checksum, extract, guest provisioning, dpkg config, health check, flow | **Split when touched** (network vs guest boundary) |
 | 5 | `data/runtime/RuntimeForegroundService.kt` | 353 | notification group + session rows + wakelock + install tracking | **Reviewed → keep** (one Service lifecycle; already peeled) |
 | 6 | `data/git/GitRepositoryClient.kt` | 353 | 20 commands **+ inspect-section parsing + guest/host path translation** | **Split parser seam now** (no test today) |
 | 7 | `data/runtime/TerminalSessionManager.kt` | 332 | session map, main-thread confinement, settings, ledger | **Reviewed → keep** (single lifecycle; already peeled) |
 | 8 | `data/workspace/DirectFileWorkspaceSource.kt` | 245 | directory browser + guards **+ document codec pipeline** | **Split when touched** |
 
-Clusters inside `AndroidWorkbenchGateway.kt`: app observers · runtime install/details · system
+Clusters inside `AndroidICodeGateway.kt`: app observers · runtime install/details · system
 access + permissions · folder browser · workspace session · recents + storage · file tree ·
 documents + drafts · git status/actions · git remote · git auth + identity · language services ·
 search + index · dispatch router.
@@ -119,11 +119,11 @@ search + index · dispatch router.
 |---|---|---|---|
 | D1 | SHA-256 hex digest implemented 4×, with inconsistent hex formatting | `RuntimeInstaller.kt:338`, `DirectFileWorkspaceSource.kt:239`, `DocumentDraftStore.kt:108`, `AndroidWorkspacePreferencesRepository.kt:188` | C10 |
 | D2 | `formatBytes` implemented 4× with different thresholds | `RuntimeInstaller.kt:351`, `RuntimeInstallingScreen.kt:254`, `StorageSettingsScreen.kt:151`, `RuntimeSettingsScreen.kt:142` | C10 |
-| D3 | Relative-time formatting 2× | `AndroidWorkbenchGateway.kt:1826`, `CommitPushScreen.kt:167` | C10 |
+| D3 | Relative-time formatting 2× | `AndroidICodeGateway.kt:1826`, `CommitPushScreen.kt:167` | C10 |
 | D4 | Two write paths for Git config/identity: adapter method vs gateway calling `gitCli.run("config", …)` | `GitRepositoryClient.kt:161` vs gateway `869`, `893`, `1171` | C7 |
 | D5 | Second `CliGitService` built inside `provisionGit` although `gitCli` is a field | gateway `86` vs `925` | C7 |
 | D6 | Stacked duplicate KDoc on one method | `GitRepositoryClient.kt:129-144` | C1 |
-| D7 | One feature's contract split across two owners (git models in the workbench contract) | `WorkbenchContract.kt:129-175` vs `GitContract.kt` | C2 |
+| D7 | One feature's contract split across two owners (git models in iCode contract) | `ICodeContract.kt:129-175` vs `GitContract.kt` | C2 |
 
 ## 4. Inconsistency (verified, exact sites)
 
@@ -158,8 +158,8 @@ framework, no service layer, no event bus, no repository wrappers around single 
 
 | # | File (`data/…`) | ~lines | Owns |
 |---|---|---|---|
-| 1 | `workspace/WorkbenchStateHolder.kt` | 80 | the one `MutableStateFlow<WorkbenchSnapshot>`, `MutableSharedFlow<WorkbenchEffect>`, mutation lock policy, `onMain`, `emptySnapshot()` |
-| 2 | `workspace/WorkbenchObservers.kt` | 120 | app-lifetime observers: terminals snapshot, session endings, notices/ledger, terminal preferences, runtime state report |
+| 1 | `workspace/ICodeStateHolder.kt` | 80 | the one `MutableStateFlow<ICodeSnapshot>`, `MutableSharedFlow<ICodeEffect>`, mutation lock policy, `onMain`, `emptySnapshot()` |
+| 2 | `workspace/ICodeObservers.kt` | 120 | app-lifetime observers: terminals snapshot, session endings, notices/ledger, terminal preferences, runtime state report |
 | 3 | `workspace/WorkspaceSessionCoordinator.kt` | 260 | open/switch/refresh workspace, file-tree toggle, create folder, folder browser + permission gate |
 | 4 | `workspace/WorkspaceLibraryCoordinator.kt` | 170 | recent workspaces, recent documents, stale removal, storage measurement + cache cleanup |
 | 5 | `workspace/WorkspaceItemsCoordinator.kt` | 90 | create file/create folder inside a workspace, creation guards, item effects |
@@ -175,17 +175,17 @@ framework, no service layer, no event bus, no repository wrappers around single 
 
 Each coordinator takes only the adapters it needs (2–4) plus the state holder; tests can construct
 one coordinator with fakes. The orchestrator remains the composition root and keeps the public
-`AndroidWorkbenchGateway(context) : WorkbenchGateway` type, so `AndroidWorkbenchViewModel`, the
+`AndroidICodeGateway(context) : ICodeGateway` type, so `AndroidICodeViewModel`, the
 terminal accessors and the capture fixtures are untouched.
 
 **Capture fixtures (replace the demo layer, K1):**
 
 | File | Source set | ~lines | Owns |
 |---|---|---|---|
-| `capture/CaptureFixtures.kt` | `src/debug` | 170 | the one fixture `WorkbenchSnapshot` the 39 frames draw (including the folder browser Open Folder asks for, the diff, conflict and discard subjects) and its constants |
-| `capture/CaptureGateway.kt` | `src/debug` | 30 | `WorkbenchGateway` over that snapshot: every intent ignored, no effects — a frame is a picture, not a session |
+| `capture/CaptureFixtures.kt` | `src/debug` | 170 | the one fixture `ICodeSnapshot` the 39 frames draw (including the folder browser Open Folder asks for, the diff, conflict and discard subjects) and its constants |
+| `capture/CaptureGateway.kt` | `src/debug` | 30 | `ICodeGateway` over that snapshot: every intent ignored, no effects — a frame is a picture, not a session |
 | `capture/CapturePreferences.kt` | `src/debug` | 50 | the fixed `WorkspacePreferences` the settings frames draw; setters ignored |
-| `capture/CaptureEnvironment.kt` | `src/debug` + `src/release` | 15 each | `CaptureEnvironment.create(): Pair<WorkbenchGateway, WorkspacePreferencesRepository>?` — the fixtures in debug, `null` in release, so the release APK has no fixture and ignores the capture extras |
+| `capture/CaptureEnvironment.kt` | `src/debug` + `src/release` | 15 each | `CaptureEnvironment.create(): Pair<ICodeGateway, WorkspacePreferencesRepository>?` — the fixtures in debug, `null` in release, so the release APK has no fixture and ignores the capture extras |
 
 `captureMode` (was `staticDemo`) stays in main as a behaviour switch — "do not auto-navigate
 while a frame is captured" — and is always false in release. Unit tests stop borrowing app
@@ -193,8 +193,8 @@ fixtures: the palette tests build their own snapshot in the test source set.
 
 **Contract split (same `dev.icode.mobile.domain` package ⇒ zero import churn):**
 `WorkspaceModels.kt`, `WorkspaceStorageModels.kt`, `WorkspaceSearchModels.kt`,
-`DiagnosticsContract.kt`, `LanguageServiceContract.kt`, `WorkbenchSnapshot.kt`,
-`WorkbenchIntent.kt`, `WorkbenchEffect.kt`, `WorkbenchGateway.kt`, `UrlDetector.kt`,
+`DiagnosticsContract.kt`, `LanguageServiceContract.kt`, `ICodeSnapshot.kt`,
+`ICodeIntent.kt`, `ICodeEffect.kt`, `ICodeGateway.kt`, `UrlDetector.kt`,
 `WorkspaceNameRules.kt`; the git models move into the existing `GitContract.kt` (D7).
 
 **Persistence ownership map (I5 — one writer per fact):**
@@ -224,7 +224,7 @@ fixtures: the palette tests build their own snapshot in the test source set.
 - `data/log/BackendLog.kt` — one seam: `d(subsystem, message)`, `i`, `w`, `e(subsystem, message, error)`;
   tag `iCode/<subsystem>`; `d`/`i` only in debug builds, `w`/`e` always; `credentialSafe(text)` strips
   `user:token@` from URLs and never logs secrets.
-- `data/log/WorkbenchAudit.kt` — bounded in-memory ring (last 200) recording risky operations with
+- `data/log/ICodeAudit.kt` — bounded in-memory ring (last 200) recording risky operations with
   outcome: discard changes, delete branch, runtime reset/repair, recovered-draft overwrite,
   credential save/clear, workspace switch, item creation. Logged via `BackendLog`; the ring is the
   hook for a later dev screen (no UI change now).
@@ -240,13 +240,13 @@ fixtures: the palette tests build their own snapshot in the test source set.
 | **K0** | Capture baseline | 39 screenshots from the current build into `artifacts/screens/` (replacing the 2026-09-22 set) | 39 files; the set is the parity reference for K1 |
 | **K1** | Demo → capture fixtures | §6 capture files in `src/debug` + `src/release`; `staticDemo`→`captureMode`, extras → `capture_route`/`capture`; `demo-fork`→`capture-fork` (script + allowlist); simulation, `DemoContent`, both demo test classes deleted; palette tests on a test-local snapshot; `DocumentRecoveryScreen` reads real drafts (G11); code comments reworded | gate green; **pixel diff = 0 over all 39 frames vs K0**; `assembleRelease` builds and its dex holds no `capture` class; `grep -ri demo app/src tools` → 0 |
 | **K2** | Living docs | "demo" → capture fixtures in `Todo.md`, `README.md`, `backend-split-rules.md` (its demo seam rule), `ui-split-plan.md` rules, `architecture.md`; dated records (integration-plan cycles, earlier plans) keep the names they had, with a one-line note | `grep` shows "demo" only in dated records |
-| **C1** | Foundation: `WorkbenchStateHolder`, `BackendLog`/`WorkbenchAudit`, dead-code removal (I2/G4), import hygiene (I3), stray probes (I4), D6 | new `data/log/*`, `workspace/WorkbenchStateHolder.kt`; gateway uses them; lock-policy function + test | gate green; device launch clean; no UI/capture change |
+| **C1** | Foundation: `ICodeStateHolder`, `BackendLog`/`ICodeAudit`, dead-code removal (I2/G4), import hygiene (I3), stray probes (I4), D6 | new `data/log/*`, `workspace/ICodeStateHolder.kt`; gateway uses them; lock-policy function + test | gate green; device launch clean; no UI/capture change |
 | **C2** | Contract split | 11 `domain/` files + git models into `GitContract.kt` (D7) | gate green; identical types/tests; zero call-site edits |
 | **C3** | Workspace cluster | `WorkspaceSessionCoordinator`, `WorkspaceLibraryCoordinator`, `WorkspaceItemsCoordinator` | gate green; capture diff = 0; workspace/browser/recents/storage device pass |
 | **C4** | Document cluster | `DocumentSessionCoordinator`, `DocumentRecoveryCoordinator` | save/close/draft/external-change tests + device pass; capture diff = 0 |
 | **C5** | Git cluster | `GitWorkspaceCoordinator`, `GitTransferCoordinator`, `GitAuthCoordinator`, `GitInspectParser` + test (G3), one config write path (D4/D5) | git device matrix incl. failure text; capture diff = 0 |
 | **C6** | Language + search | `LanguageServiceCoordinator`, `SearchCoordinator` | gate green; language/search device pass |
-| **C7** | Runtime + observers + orchestrator final | `RuntimeCoordinator`, `WorkbenchObservers`, slim orchestrator; failure policy I1 | orchestrator ≤300 lines; runtime repair/reset device pass |
+| **C7** | Runtime + observers + orchestrator final | `RuntimeCoordinator`, `ICodeObservers`, slim orchestrator; failure policy I1 | orchestrator ≤300 lines; runtime repair/reset device pass |
 | ~~C8~~ | ~~Demo parity split~~ | **dropped (§0)** — K1 removes the fake backend it would have mirrored; each C-cycle instead re-runs the capture | — |
 | **C9** | Guard + docs | `tools/check-backend-consistency.sh` + allowlist ratchet; architecture/Todo updates | guard enforced in the routine gate |
 | **C10** | Dedup close-out | D1 `Sha256`, D2 `ByteSize`, D3 `RelativeTime` shared helpers | single implementation each, tests, capture diff = 0 |
@@ -258,7 +258,7 @@ not proceed.
 ## 8. Behavior-preservation contract (never broken)
 
 - 40 routes (39 with a Figma frame + Notifications) and back behavior; 40 Figma frames (39 captured + 3:55 as a state).
-- `WorkbenchGateway` surface: 91 intents, 19 effects, 44 snapshot fields. (C1 removes exactly one
+- `ICodeGateway` surface: 91 intents, 19 effects, 44 snapshot fields. (C1 removes exactly one
   intent — `SetLanguageServiceRunning` — because nothing dispatches it; recorded as a contract
   cleanup, verified against `ui/` and tests.)
 - Persistence keys/formats from §6; drafts `icode-draft/1`; Keystore credentials.

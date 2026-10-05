@@ -68,7 +68,7 @@ data class BackgroundItem(
     /** 0..1 when known; null while counting or when nothing is measured. */
     val fraction: Float? = null,
     /** What Cancel sends; null where stopping would leave things worse than finishing. */
-    val cancel: WorkbenchIntent? = null,
+    val cancel: ICodeIntent? = null,
     val place: BackgroundPlace,
     /**
      * Whether iCode shows its progress while iCode is on screen: a task's dialog not hidden, or a
@@ -115,7 +115,7 @@ object BackgroundWorkRules {
      * runtime install, the components apt is installing or removing, the assistant's turn, and the
      * managed processes that run.
      */
-    fun of(snapshot: WorkbenchSnapshot): List<BackgroundItem> = buildList {
+    fun of(snapshot: ICodeSnapshot): List<BackgroundItem> = buildList {
         snapshot.tasks.forEach { add(task(it)) }
         git(snapshot)?.let(::add)
         runtime(snapshot)?.let(::add)
@@ -134,7 +134,7 @@ object BackgroundWorkRules {
             key = "processes",
             title = if (running.size == 1) "1 process running" else "${running.size} processes running",
             detail = running.joinToString(" · ") { process -> process.name + process.ports.firstOrNull()?.let { " :$it" }.orEmpty() },
-            cancel = WorkbenchIntent.StopAllProcesses,
+            cancel = ICodeIntent.StopAllProcesses,
             place = BackgroundPlace.Processes,
             watched = true,
             progresses = false,
@@ -150,7 +150,7 @@ object BackgroundWorkRules {
         key = "assistant",
         title = "Assistant is working…",
         detail = "${turn.workspaceName} · ${turn.step}",
-        cancel = WorkbenchIntent.StopAssistant,
+        cancel = ICodeIntent.StopAssistant,
         place = BackgroundPlace.Assistant,
         watched = true,
         question = approval?.let { "${it.call.summary}?" },
@@ -163,7 +163,7 @@ object BackgroundWorkRules {
         detail = listOfNotNull(work.progress.step, work.progress.item).joinToString(" · "),
         counts = work.progress.counts,
         fraction = work.progress.fraction,
-        cancel = WorkbenchIntent.CancelComponents.takeIf { work.cancellable },
+        cancel = ICodeIntent.CancelComponents.takeIf { work.cancellable },
         place = BackgroundPlace.Components,
         watched = true,
         failure = work.failure,
@@ -175,13 +175,13 @@ object BackgroundWorkRules {
         detail = task.currentItem ?: if (task.total == null) "Counting ${task.subject}" else task.subject,
         counts = task.counts,
         fraction = task.fraction,
-        cancel = WorkbenchIntent.CancelTask(task.id).takeIf { task.cancellable },
+        cancel = ICodeIntent.CancelTask(task.id).takeIf { task.cancellable },
         place = BackgroundPlace.Task(task.id),
         watched = !task.hidden,
         failure = task.failure,
     )
 
-    private fun git(snapshot: WorkbenchSnapshot): BackgroundItem? {
+    private fun git(snapshot: ICodeSnapshot): BackgroundItem? {
         val (label, failure) = when (val operation = snapshot.gitOperation) {
             is GitOperationState.Running -> operation.label to null
             is GitOperationState.Failed -> operation.label to operation.reason
@@ -197,14 +197,14 @@ object BackgroundWorkRules {
             title = "$label…",
             detail = listOfNotNull(subject.ifEmpty { null }, progress?.phase).joinToString(" · ").ifEmpty { label },
             fraction = progress?.fraction,
-            cancel = WorkbenchIntent.CancelGitTransfer,
+            cancel = ICodeIntent.CancelGitTransfer,
             place = if (clone) BackgroundPlace.Clone else BackgroundPlace.Sync,
             watched = true,
             failure = failure,
         )
     }
 
-    private fun runtime(snapshot: WorkbenchSnapshot): BackgroundItem? {
+    private fun runtime(snapshot: ICodeSnapshot): BackgroundItem? {
         val title = when (snapshot.runtimeInstallReason) {
             RuntimeInstallReason.Initial -> "Installing the Linux runtime"
             RuntimeInstallReason.Repair -> "Repairing the Linux runtime"

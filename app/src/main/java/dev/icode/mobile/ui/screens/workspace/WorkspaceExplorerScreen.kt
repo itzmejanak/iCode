@@ -46,19 +46,19 @@ import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.domain.FileEntry
 import dev.icode.mobile.domain.FileKind
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.navigation.ToolPanelTab
 import dev.icode.mobile.ui.ClipboardBar
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /** File tree with the workspace activity rail. */
 @Composable
 fun WorkspaceExplorerScreen(actions: NavigationActions) {
-    val state = LocalWorkbenchSnapshot.current
-    val gateway = LocalWorkbenchGateway.current
+    val state = LocalICodeSnapshot.current
+    val gateway = LocalICodeGateway.current
     var selectedPath by rememberSaveable(state.activePath) { mutableStateOf(state.initialExplorerSelection.orEmpty()) }
     var createParent by rememberSaveable { mutableStateOf<String?>(null) }
     var createType by rememberSaveable { mutableStateOf<WorkspaceItemType?>(null) }
@@ -68,7 +68,7 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
     // iCode's one clipboard: cut or copied here, in another workspace, or on the Workspaces page.
     val clipboard = state.clipboard
     val rootSelectionInteraction = remember { MutableInteractionSource() }
-    val pasteInto = { target: String? -> target?.let { gateway.dispatch(WorkbenchIntent.PasteInto(it)) } }
+    val pasteInto = { target: String? -> target?.let { gateway.dispatch(ICodeIntent.PasteInto(it)) } }
     Column(Modifier.fillMaxSize()) {
         WorkspaceHeader(
             onNewItem = { type ->
@@ -94,7 +94,7 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
                         badge = state.gitChanges.map { it.path }.distinct().size,
                     ) {
                         if (state.gitRepository == null) {
-                            gateway.dispatch(WorkbenchIntent.InitializeGit)
+                            gateway.dispatch(ICodeIntent.InitializeGit)
                         } else {
                             actions.navigate(Route.SourceControl)
                         }
@@ -146,9 +146,9 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
                                 onClick = {
                                     selectedPath = entry.path
                                     if (entry.kind == FileKind.Folder) {
-                                        gateway.dispatch(WorkbenchIntent.ToggleFolder(entry.path))
+                                        gateway.dispatch(ICodeIntent.ToggleFolder(entry.path))
                                     } else {
-                                        gateway.dispatch(WorkbenchIntent.OpenFile(entry.path))
+                                        gateway.dispatch(ICodeIntent.OpenFile(entry.path))
                                     }
                                 },
                                 onLongClick = {
@@ -193,7 +193,7 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
 /** Workspace header used by the explorer family. */
 @Composable
 private fun WorkspaceHeader(onNewItem: (WorkspaceItemType) -> Unit, pasteLabel: String?, onPaste: () -> Unit) {
-    val state = LocalWorkbenchSnapshot.current
+    val state = LocalICodeSnapshot.current
     var menuExpanded by remember { mutableStateOf(false) }
     IcodeTopBar(
         title = state.activeWorkspace,

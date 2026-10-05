@@ -1,6 +1,6 @@
 package dev.icode.mobile.domain
 
-data class WorkbenchSnapshot(
+data class ICodeSnapshot(
     val workspaces: List<WorkspaceSummary>,
     val files: List<FileEntry>,
     val gitChanges: List<GitChange>,

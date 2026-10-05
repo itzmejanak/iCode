@@ -9,10 +9,10 @@ import kotlinx.coroutines.flow.emptyFlow
  *
  * Production adapters will implement this interface. Compose never shells out or reads files directly.
  */
-interface WorkbenchGateway {
-    val snapshot: StateFlow<WorkbenchSnapshot>
-    val effects: Flow<WorkbenchEffect>
+interface ICodeGateway {
+    val snapshot: StateFlow<ICodeSnapshot>
+    val effects: Flow<ICodeEffect>
         get() = emptyFlow()
 
-    fun dispatch(intent: WorkbenchIntent)
+    fun dispatch(intent: ICodeIntent)
 }

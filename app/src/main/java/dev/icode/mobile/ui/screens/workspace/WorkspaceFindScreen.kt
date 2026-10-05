@@ -25,10 +25,10 @@ import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTextField
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 import kotlinx.coroutines.delay
 
 /** Debounce keeps typing responsive without running a scan per keystroke. */
@@ -51,8 +51,8 @@ enum class FindMode(val title: String, val placeholder: String) {
  */
 @Composable
 fun WorkspaceFindScreen(actions: NavigationActions, initialMode: FindMode) {
-    val state = LocalWorkbenchSnapshot.current
-    val gateway = LocalWorkbenchGateway.current
+    val state = LocalICodeSnapshot.current
+    val gateway = LocalICodeGateway.current
     val search = state.contentSearch
 
     var mode by rememberSaveable { mutableStateOf(initialMode) }
@@ -71,7 +71,7 @@ fun WorkspaceFindScreen(actions: NavigationActions, initialMode: FindMode) {
     // not install a package the user has not used yet.
     LaunchedEffect(mode, state.activeWorkspaceLocation) {
         if (mode == FindMode.Files && state.activeWorkspaceLocation != null) {
-            gateway.dispatch(WorkbenchIntent.PrepareWorkspaceSearch)
+            gateway.dispatch(ICodeIntent.PrepareWorkspaceSearch)
         }
     }
 
@@ -80,10 +80,10 @@ fun WorkspaceFindScreen(actions: NavigationActions, initialMode: FindMode) {
     LaunchedEffect(mode, query, matchCase, wholeWord, regex, state.activeWorkspaceLocation) {
         if (mode != FindMode.Text) return@LaunchedEffect
         if (query.isBlank()) {
-            gateway.dispatch(WorkbenchIntent.ClearContentSearch)
+            gateway.dispatch(ICodeIntent.ClearContentSearch)
         } else {
             delay(SEARCH_DEBOUNCE_MILLIS)
-            gateway.dispatch(WorkbenchIntent.RunContentSearch(query, matchCase, wholeWord, regex))
+            gateway.dispatch(ICodeIntent.RunContentSearch(query, matchCase, wholeWord, regex))
         }
     }
 
@@ -105,7 +105,7 @@ fun WorkspaceFindScreen(actions: NavigationActions, initialMode: FindMode) {
                     indexTruncated = state.fileIndexTruncated,
                     rankTruncated = rankedFiles.truncated,
                     engine = state.searchEngine,
-                    onOpen = { path -> gateway.dispatch(WorkbenchIntent.OpenFile(path)) },
+                    onOpen = { path -> gateway.dispatch(ICodeIntent.OpenFile(path)) },
                 )
                 FindMode.Text -> TextResults(
                     search = search,
@@ -113,7 +113,7 @@ fun WorkspaceFindScreen(actions: NavigationActions, initialMode: FindMode) {
                     resultsAreCurrent = resultsAreCurrent,
                     engine = state.searchEngine,
                     onOpen = { path, line, column ->
-                        gateway.dispatch(WorkbenchIntent.OpenFile(path, line, column))
+                        gateway.dispatch(ICodeIntent.OpenFile(path, line, column))
                     },
                 )
             }

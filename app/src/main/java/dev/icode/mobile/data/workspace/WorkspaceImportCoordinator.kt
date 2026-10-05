@@ -10,7 +10,7 @@ import dev.icode.mobile.data.tasks.TaskRunner
 import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.ImportSource
-import dev.icode.mobile.domain.WorkbenchEffect
+import dev.icode.mobile.domain.ICodeEffect
 import java.io.File
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
@@ -32,7 +32,7 @@ import kotlinx.coroutines.withContext
  * and opens. Stopped or failed, nothing is left; the source is only read.
  */
 internal class WorkspaceImportCoordinator(
-    private val workbench: WorkbenchStateHolder,
+    private val stateHolder: ICodeStateHolder,
     private val tasks: TaskRunner,
     private val paths: WorkspacePaths,
     private val git: GitCheckoutOperations,
@@ -46,14 +46,14 @@ internal class WorkspaceImportCoordinator(
     private val staging = WorkspaceStaging(paths.root)
 
     /** The browser opens at [path], or where it was last, or at the root of phone storage. */
-    suspend fun openBrowser(path: String?) = browse(path ?: workbench.current.importBrowser?.currentPath ?: storage.root.path)
+    suspend fun openBrowser(path: String?) = browse(path ?: stateHolder.current.importBrowser?.currentPath ?: storage.root.path)
 
     suspend fun browse(path: String) {
         runCatching { withContext(Dispatchers.IO) { storage.browse(path) } }
-            .onSuccess { browser -> workbench.update { it.copy(importBrowser = browser) } }
+            .onSuccess { browser -> stateHolder.update { it.copy(importBrowser = browser) } }
             .onFailure { error ->
                 // A folder gone since (an earlier workspace moved): its words, and the root instead.
-                workbench.report("import", "Unable to read this folder", error)
+                stateHolder.report("import", "Unable to read this folder", error)
                 if (path != storage.root.path) browse(storage.root.path)
             }
     }
@@ -63,9 +63,9 @@ internal class WorkspaceImportCoordinator(
      * front: a browser that waited for it lists its folder, and one that lost it waits again.
      */
     fun followAccess(scope: CoroutineScope) = scope.launch {
-        workbench.snapshot.map { it.systemAccess?.storage == true }.distinctUntilChanged().collect { granted ->
-            workbench.mutations.withLock {
-                val browser = workbench.current.importBrowser
+        stateHolder.snapshot.map { it.systemAccess?.storage == true }.distinctUntilChanged().collect { granted ->
+            stateHolder.mutations.withLock {
+                val browser = stateHolder.current.importBrowser
                 if (browser != null && browser.access != granted) browse(browser.currentPath)
             }
         }
@@ -73,19 +73,19 @@ internal class WorkspaceImportCoordinator(
 
     /** [path] is the folder to import: the Import screen opens with its name proposed. */
     suspend fun choose(path: String) {
-        if (!storage.hasAccess()) return workbench.message("Allow access to phone storage first")
+        if (!storage.hasAccess()) return stateHolder.message("Allow access to phone storage first")
         val folder = withContext(Dispatchers.IO) { storage.folder(path) }
-        if (folder == null || folder == storage.root) return workbench.message("Choose a folder on phone storage")
-        workbench.update { it.copy(importSource = ImportSource(folder.path, folder.name, storage.displayPath(folder))) }
-        workbench.emit(WorkbenchEffect.ImportSourceChosen)
+        if (folder == null || folder == storage.root) return stateHolder.message("Choose a folder on phone storage")
+        stateHolder.update { it.copy(importSource = ImportSource(folder.path, folder.name, storage.displayPath(folder))) }
+        stateHolder.emit(ICodeEffect.ImportSourceChosen)
     }
 
     /** As a new workspace, or into the folder [into] of one. */
     suspend fun import(rawName: String, into: String? = null) {
-        val source = workbench.current.importSource ?: return workbench.message("Choose a folder to import first")
+        val source = stateHolder.current.importSource ?: return stateHolder.message("Choose a folder to import first")
         val name = rawName.trim()
         val destination = into?.let(::File) ?: paths.root
-        staging.nameProblem(name, destination)?.let { return workbench.message(it) }
+        staging.nameProblem(name, destination)?.let { return stateHolder.message(it) }
         val folder = staging.reserve("import")
         var imported: Imported? = null
         tasks.start(
@@ -115,9 +115,9 @@ internal class WorkspaceImportCoordinator(
                 if (failure != null || result == null) {
                     runCatching { staging.discard(folder) }
                 } else {
-                    workbench.update { it.copy(importSource = null, projectDestination = null) }
+                    stateHolder.update { it.copy(importSource = null, projectDestination = null) }
                     open(result.location)
-                    workbench.message(result.summary(name))
+                    stateHolder.message(result.summary(name))
                 }
             },
         )
@@ -136,7 +136,7 @@ internal class WorkspaceImportCoordinator(
     } catch (cancelled: CancellationException) {
         throw cancelled
     } catch (error: Exception) {
-        workbench.failureText("git", "Git could not restore the checkout", error)
+        stateHolder.failureText("git", "Git could not restore the checkout", error)
     }
 
     private data class Imported(val location: String, val entries: Int, val skipped: Int, val unrepaired: String?) {

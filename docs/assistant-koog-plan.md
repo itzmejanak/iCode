@@ -140,7 +140,7 @@ behaviour iCode relies on was run (§11).
 ## 4. Architecture
 
 ```text
-ui/screens/tools/Assistant{Screen,ChatView,Composer,Sheets,Parts}.kt ──dispatch(AssistantIntent)──► AndroidWorkbenchGateway
+ui/screens/tools/Assistant{Screen,ChatView,Composer,Sheets,Parts}.kt ──dispatch(AssistantIntent)──► AndroidICodeGateway
 ui/screens/settings/AssistantSettingsScreen.kt                                                         │ (lock-free branch)
         ▲ snapshot.assistant (domain types only)                                                       ▼
 domain/AssistantContract.kt, AssistantRules.kt              data/assistant/AssistantCoordinator  (intents, in order; settings; lifecycle hooks)

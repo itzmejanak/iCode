@@ -31,27 +31,27 @@ import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.SettingRow
 import dev.icode.mobile.domain.ByteSize
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.SystemPermission
 import dev.icode.mobile.domain.WorkspaceListRules
 import dev.icode.mobile.domain.storageSizeLabel
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /** Device totals and bounded app/workspace measurements, never fabricated sizes. */
 @Composable
 fun StorageSettingsScreen(actions: NavigationActions) {
-    val state = LocalWorkbenchSnapshot.current
-    val gateway = LocalWorkbenchGateway.current
+    val state = LocalICodeSnapshot.current
+    val gateway = LocalICodeGateway.current
     val device = state.storageDetails?.device ?: state.storage
     val details = state.storageDetails
     var confirmClearCache by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        gateway.dispatch(WorkbenchIntent.RefreshStorage)
-        gateway.dispatch(WorkbenchIntent.MeasureWorkspaces)
+        gateway.dispatch(ICodeIntent.RefreshStorage)
+        gateway.dispatch(ICodeIntent.MeasureWorkspaces)
     }
 
     Column(Modifier.fillMaxSize()) {
@@ -116,7 +116,7 @@ fun StorageSettingsScreen(actions: NavigationActions) {
                     "All Files Access",
                     Modifier.fillMaxWidth(),
                     subtitle = if (allowed) "Import can read folders on phone storage" else "Off: Import asks for it when you import",
-                    onClick = { gateway.dispatch(WorkbenchIntent.OpenSystemSettings(SystemPermission.Storage)) },
+                    onClick = { gateway.dispatch(ICodeIntent.OpenSystemSettings(SystemPermission.Storage)) },
                 ) {
                     AccessState(if (allowed) "ALLOWED" else "OFF", allowed = allowed)
                 }
@@ -131,7 +131,7 @@ fun StorageSettingsScreen(actions: NavigationActions) {
             title = "Clear runtime cache?",
             confirmLabel = "Clear cache",
             onConfirm = {
-                gateway.dispatch(WorkbenchIntent.ClearAppCache)
+                gateway.dispatch(ICodeIntent.ClearAppCache)
                 confirmClearCache = false
             },
             onDismiss = { confirmClearCache = false },

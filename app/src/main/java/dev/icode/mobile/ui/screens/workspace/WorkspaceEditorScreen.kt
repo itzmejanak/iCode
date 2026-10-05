@@ -46,9 +46,9 @@ import dev.icode.mobile.domain.countOf
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.navigation.ToolPanelTab
-import dev.icode.mobile.domain.WorkbenchIntent
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.LocalCodeEditorSessions
 import dev.icode.mobile.ui.LocalWorkspacePreferences
 import dev.icode.mobile.ui.editor.EditorCanvas
@@ -57,8 +57,8 @@ import dev.icode.mobile.ui.editor.MarkdownPreview
 /** Editor with tab strip, syntax-highlighted document and panel bar. */
 @Composable
 fun WorkspaceEditorScreen(actions: NavigationActions) {
-    val state = LocalWorkbenchSnapshot.current
-    val gateway = LocalWorkbenchGateway.current
+    val state = LocalICodeSnapshot.current
+    val gateway = LocalICodeGateway.current
     val editorSessions = LocalCodeEditorSessions.current
     val editorPreferences = LocalWorkspacePreferences.current.editor
     val document = state.activeDocument
@@ -84,11 +84,11 @@ fun WorkspaceEditorScreen(actions: NavigationActions) {
             title = "Close ${pendingDocument.name}?",
             description = "This file has unsaved changes.",
             onSave = {
-                gateway.dispatch(WorkbenchIntent.CloseDocument(pendingDocument.location, saveChanges = true))
+                gateway.dispatch(ICodeIntent.CloseDocument(pendingDocument.location, saveChanges = true))
                 pendingClose = null
             },
             onDiscard = {
-                gateway.dispatch(WorkbenchIntent.CloseDocument(pendingDocument.location, saveChanges = false))
+                gateway.dispatch(ICodeIntent.CloseDocument(pendingDocument.location, saveChanges = false))
                 pendingClose = null
             },
             onDismiss = { pendingClose = null },
@@ -100,11 +100,11 @@ fun WorkspaceEditorScreen(actions: NavigationActions) {
             title = "Close other tabs?",
             description = "${countOf(dirtyCount, "other file has", "other files have")} unsaved changes.",
             onSave = {
-                gateway.dispatch(WorkbenchIntent.CloseOtherDocuments(document.location, saveChanges = true))
+                gateway.dispatch(ICodeIntent.CloseOtherDocuments(document.location, saveChanges = true))
                 closeOthers = false
             },
             onDiscard = {
-                gateway.dispatch(WorkbenchIntent.CloseOtherDocuments(document.location, saveChanges = false))
+                gateway.dispatch(ICodeIntent.CloseOtherDocuments(document.location, saveChanges = false))
                 closeOthers = false
             },
             onDismiss = { closeOthers = false },
@@ -116,7 +116,7 @@ fun WorkspaceEditorScreen(actions: NavigationActions) {
             actions = {
                 IconButton(
                     enabled = document?.let { it.dirty && !it.readOnly } ?: false,
-                    onClick = { document?.let { gateway.dispatch(WorkbenchIntent.SaveDocument(it.location)) } },
+                    onClick = { document?.let { gateway.dispatch(ICodeIntent.SaveDocument(it.location)) } },
                 ) {
                     Icon(Icons.Outlined.Save, contentDescription = "Save", tint = IcodeColors.TextPrimary)
                 }
@@ -131,19 +131,19 @@ fun WorkspaceEditorScreen(actions: NavigationActions) {
         DocumentTabStrip(
             documents = state.openDocuments,
             selectedLocation = document?.location,
-            onSelect = { gateway.dispatch(WorkbenchIntent.SelectDocument(it)) },
-            onReorder = { moving, target -> gateway.dispatch(WorkbenchIntent.ReorderDocument(moving, target)) },
+            onSelect = { gateway.dispatch(ICodeIntent.SelectDocument(it)) },
+            onReorder = { moving, target -> gateway.dispatch(ICodeIntent.ReorderDocument(moving, target)) },
             onClose = { location ->
                 if (state.openDocuments.any { it.location == location && it.dirty }) pendingClose = location
-                else gateway.dispatch(WorkbenchIntent.CloseDocument(location))
+                else gateway.dispatch(ICodeIntent.CloseDocument(location))
             },
             onCloseOthers = {
                 if (document != null) {
                     if (state.openDocuments.any { it.location != document.location && it.dirty }) closeOthers = true
-                    else gateway.dispatch(WorkbenchIntent.CloseOtherDocuments(document.location))
+                    else gateway.dispatch(ICodeIntent.CloseOtherDocuments(document.location))
                 }
             },
-            onCloseSaved = { gateway.dispatch(WorkbenchIntent.CloseSavedDocuments) },
+            onCloseSaved = { gateway.dispatch(ICodeIntent.CloseSavedDocuments) },
             onNewFile = { showCreateFile = true },
         )
         if (document == null) {
@@ -161,7 +161,7 @@ fun WorkspaceEditorScreen(actions: NavigationActions) {
                 EditorCanvas(
                     session = requireNotNull(activeSession),
                     document = document,
-                    onTextChanged = { gateway.dispatch(WorkbenchIntent.UpdateDocumentText(document.location, it)) },
+                    onTextChanged = { gateway.dispatch(ICodeIntent.UpdateDocumentText(document.location, it)) },
                     // A little of the editor's own background above the first line: the selected
                     // tab flows into the editor, and line 1 does not sit against the tab bar.
                     modifier = Modifier.weight(1f).background(IcodeColors.BackgroundDeep).padding(top = IcodeSpacing.Space1),

@@ -20,7 +20,7 @@ import dev.icode.mobile.designsystem.IcodeTone
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.domain.Diagnostic
 import dev.icode.mobile.domain.Severity
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /** Problems view within the tools panel; severity counts include every reported row. */
 @Composable
@@ -29,7 +29,7 @@ fun ProblemsPanelContent(
     onFilterChange: (Severity) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val diagnostics = LocalWorkbenchSnapshot.current.diagnostics
+    val diagnostics = LocalICodeSnapshot.current.diagnostics
     val errorCount = diagnostics.count { it.severity == Severity.Error }
     val warningCount = diagnostics.count { it.severity == Severity.Warning }
     val infoCount = diagnostics.count { it.severity == Severity.Info }

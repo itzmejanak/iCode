@@ -1,4 +1,4 @@
-# Native Mobile Development Workbench — User Stories
+# iCode — Native Mobile Development Environment — User Stories
 
 **Version:** 1.0  
 **Status:** Behavioral contract  
@@ -230,7 +230,7 @@ Acceptance criteria:
 
 ### US-FILE-005 — React to external changes
 
-**As a developer, I want files changed by the terminal, an agent, Git, or another application to update in the workbench, so that every tool shares one source of truth.**
+**As a developer, I want files changed by the terminal, an agent, Git, or another application to update in iCode, so that every tool shares one source of truth.**
 
 Acceptance criteria:
 
@@ -423,7 +423,7 @@ Acceptance criteria:
 
 ### US-GIT-001 — Recognize repository state
 
-**As a developer, I want the workbench to recognize my Git repository, so that I can understand version state immediately.**
+**As a developer, I want iCode to recognize my Git repository, so that I can understand version state immediately.**
 
 Acceptance criteria:
 
@@ -491,7 +491,7 @@ Acceptance criteria:
 
 ### US-GIT-007 — Commit staged changes
 
-**As a developer, I want to enter a message and commit staged changes, so that I can version my work without leaving the workbench.**
+**As a developer, I want to enter a message and commit staged changes, so that I can version my work without leaving iCode.**
 
 Acceptance criteria:
 
@@ -861,7 +861,7 @@ Acceptance criteria:
 
 ### US-LAYOUT-005 — Use accessibility services
 
-**As a developer using accessibility features, I want meaningful labels, focus order, scaling, and non-color state, so that the workbench remains operable.**
+**As a developer using accessibility features, I want meaningful labels, focus order, scaling, and non-color state, so that iCode remains operable.**
 
 Acceptance criteria:
 
@@ -1065,7 +1065,7 @@ Acceptance criteria:
 - The download source and installation guidance are clear.
 - Runtime compatibility information accompanies relevant releases.
 
-### US-WEB-003 — Use the workbench without the website
+### US-WEB-003 — Use iCode without the website
 
 **As an existing user, I want local capabilities to continue when the public website is unavailable, so that hosted infrastructure is not a runtime dependency.**
 
@@ -1153,7 +1153,7 @@ Expected outcome: the product provides full visibility without knowing or restri
 2. The server prints an HTTP URL.
 3. Developer activates the URL.
 4. Android opens the installed browser.
-5. Developer returns to the workbench with editor and terminal state preserved.
+5. Developer returns to iCode with editor and terminal state preserved.
 
 Expected outcome: no internal preview browser or port dashboard is required.
 

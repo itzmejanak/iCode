@@ -40,7 +40,7 @@ import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.domain.WorkspaceListRules
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.WorkspaceRow
 
 /**
@@ -50,7 +50,7 @@ import dev.icode.mobile.ui.WorkspaceRow
  */
 @Composable
 fun LauncherScreen(actions: NavigationActions, empty: Boolean) {
-    val state = LocalWorkbenchSnapshot.current
+    val state = LocalICodeSnapshot.current
     val workspaces = state.workspaces
     val showEmpty = empty || workspaces.isEmpty()
     Column(Modifier.fillMaxSize()) {

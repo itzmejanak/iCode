@@ -47,10 +47,10 @@ import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantModelSpec
 import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.domain.AssistantRules
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
  * One provider (§13 P1–P5): its kind (chosen when it is added), its name, its server's address
@@ -60,10 +60,10 @@ import dev.icode.mobile.ui.LocalWorkbenchSnapshot
  */
 @Composable
 fun AssistantProviderScreen(actions: NavigationActions) {
-    val gateway = LocalWorkbenchGateway.current
-    val state = LocalWorkbenchSnapshot.current.assistant
+    val gateway = LocalICodeGateway.current
+    val state = LocalICodeSnapshot.current.assistant
     // Opened again after the process was gone, the page is for a provider being added.
-    LaunchedEffect(Unit) { if (state.editing == null) gateway.dispatch(WorkbenchIntent.EditAssistantProvider("")) }
+    LaunchedEffect(Unit) { if (state.editing == null) gateway.dispatch(ICodeIntent.EditAssistantProvider("")) }
     val id = state.editing.orEmpty()
     val saved = state.settings.providers.firstOrNull { it.id == id }
     var kind by rememberSaveable(id) { mutableStateOf(saved?.kind ?: AssistantProviderKind.entries.first()) }
@@ -153,7 +153,7 @@ fun AssistantProviderScreen(actions: NavigationActions) {
                 PrimaryButton(
                     if (saved == null) "Add Provider" else "Save",
                     {
-                        gateway.dispatch(WorkbenchIntent.SaveAssistantProvider(id, kind, named, baseUrl, key.takeIf { it.isNotBlank() }, models))
+                        gateway.dispatch(ICodeIntent.SaveAssistantProvider(id, kind, named, baseUrl, key.takeIf { it.isNotBlank() }, models))
                         actions.back()
                     },
                     Modifier.fillMaxWidth(),
@@ -177,7 +177,7 @@ fun AssistantProviderScreen(actions: NavigationActions) {
                         catalogue = catalogue,
                         models = models,
                         modifier = modifier,
-                        onList = { gateway.dispatch(WorkbenchIntent.ListAssistantModels(id, kind, baseUrl, key.takeIf { it.isNotBlank() })) },
+                        onList = { gateway.dispatch(ICodeIntent.ListAssistantModels(id, kind, baseUrl, key.takeIf { it.isNotBlank() })) },
                         onClose = close,
                         onModels = { models = it },
                     )
@@ -212,7 +212,7 @@ fun AssistantProviderScreen(actions: NavigationActions) {
             message = "Its API key and models are forgotten on this phone. Chats stay.",
             confirmLabel = "Remove",
             onConfirm = {
-                gateway.dispatch(WorkbenchIntent.RemoveAssistantProvider(saved.id))
+                gateway.dispatch(ICodeIntent.RemoveAssistantProvider(saved.id))
                 removing = false
                 actions.back()
             },

@@ -36,12 +36,12 @@ import dev.icode.mobile.domain.RuntimeState
 import dev.icode.mobile.domain.RuntimeInstallReason
 import dev.icode.mobile.domain.StorageSummary
 import dev.icode.mobile.domain.SystemAccess
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.OnboardingRoute
 import dev.icode.mobile.navigation.Route
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
  * Runtime installation, including its failure.
@@ -54,8 +54,8 @@ import dev.icode.mobile.ui.LocalWorkbenchSnapshot
  */
 @Composable
 fun RuntimeInstallingScreen(actions: NavigationActions) {
-    val state = LocalWorkbenchSnapshot.current
-    val gateway = LocalWorkbenchGateway.current
+    val state = LocalICodeSnapshot.current
+    val gateway = LocalICodeGateway.current
     val runtime = state.runtime
     val reason = state.runtimeInstallReason
     LaunchedEffect(actions.captureMode, runtime, reason, state.systemAccess) {
@@ -201,10 +201,10 @@ private fun RuntimeFailure(
     )
 }
 
-private fun installIntent(reason: RuntimeInstallReason): WorkbenchIntent = when (reason) {
-    RuntimeInstallReason.Initial -> WorkbenchIntent.InstallRuntime
-    RuntimeInstallReason.Repair -> WorkbenchIntent.RepairRuntime
-    RuntimeInstallReason.Reset -> WorkbenchIntent.ResetRuntime
+private fun installIntent(reason: RuntimeInstallReason): ICodeIntent = when (reason) {
+    RuntimeInstallReason.Initial -> ICodeIntent.InstallRuntime
+    RuntimeInstallReason.Repair -> ICodeIntent.RepairRuntime
+    RuntimeInstallReason.Reset -> ICodeIntent.ResetRuntime
 }
 
 @Composable

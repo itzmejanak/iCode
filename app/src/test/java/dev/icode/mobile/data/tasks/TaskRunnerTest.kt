@@ -1,9 +1,9 @@
 package dev.icode.mobile.data.tasks
 
 import dev.icode.mobile.data.log.BackendLog
-import dev.icode.mobile.data.workspace.WorkbenchStateHolder
+import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.WorkTask
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import java.io.IOException
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -23,9 +23,9 @@ import org.junit.Test
 
 class TaskRunnerTest {
     private val originalWriter = BackendLog.writer
-    private val workbench = WorkbenchStateHolder()
+    private val stateHolder = ICodeStateHolder()
     private var now = 0L
-    private val runner = TaskRunner(workbench, CoroutineScope(SupervisorJob() + Dispatchers.Default)) { now }
+    private val runner = TaskRunner(stateHolder, CoroutineScope(SupervisorJob() + Dispatchers.Default)) { now }
 
     @Before fun quietLog() {
         BackendLog.writer = { _, _, _ -> }
@@ -35,13 +35,13 @@ class TaskRunnerTest {
         BackendLog.writer = originalWriter
     }
 
-    private fun task(): WorkTask? = workbench.current.tasks.singleOrNull()
+    private fun task(): WorkTask? = stateHolder.current.tasks.singleOrNull()
 
     /** Waits, briefly, for [condition]: the work runs on its own thread. */
     private fun until(condition: () -> Boolean) {
         val deadline = System.currentTimeMillis() + 5_000
         while (!condition()) {
-            check(System.currentTimeMillis() < deadline) { "Timed out; tasks: ${workbench.current.tasks}" }
+            check(System.currentTimeMillis() < deadline) { "Timed out; tasks: ${stateHolder.current.tasks}" }
             Thread.sleep(5)
         }
     }
@@ -57,7 +57,7 @@ class TaskRunnerTest {
                 progress.item("node_modules/a")
                 release.await(5, TimeUnit.SECONDS)
             },
-            finished = { outcome -> finished.complete(outcome to workbench.mutations.isLocked) },
+            finished = { outcome -> finished.complete(outcome to stateHolder.mutations.isLocked) },
         )
 
         until { task()?.total == 3L && task()?.done == 1L }
@@ -68,7 +68,7 @@ class TaskRunnerTest {
         val (outcome, locked) = withTimeout(5_000) { finished.await() }
         assertNull(outcome)
         assertTrue("its result is applied under the mutation lock", locked)
-        assertTrue(workbench.current.tasks.isEmpty())
+        assertTrue(stateHolder.current.tasks.isEmpty())
     }
 
     @Test fun `progress reaches the screen a few times a second, not at every item`() {
@@ -95,18 +95,18 @@ class TaskRunnerTest {
             work = { throw IOException("No space left on device") },
             finished = {},
         )
-        runner.handle(WorkbenchIntent.HideTask(id))
+        runner.handle(ICodeIntent.HideTask(id))
 
         until { task()?.failure != null }
         assertEquals("No space left on device", task()?.failure)
         assertFalse(task()!!.hidden)
         assertNull("its paths are free again", runner.claimedBy("/w/src"))
 
-        runner.handle(WorkbenchIntent.HideTask(id))
+        runner.handle(ICodeIntent.HideTask(id))
         assertFalse("a Hide that comes after the failure does not hide it", task()!!.hidden)
 
-        runner.handle(WorkbenchIntent.DismissTask(id))
-        assertTrue(workbench.current.tasks.isEmpty())
+        runner.handle(ICodeIntent.DismissTask(id))
+        assertTrue(stateHolder.current.tasks.isEmpty())
     }
 
     @Test fun `a running task holds its paths, and the folders around them`() {
@@ -133,8 +133,8 @@ class TaskRunnerTest {
                 work = { progress -> while (true) progress.item("big/x") },
                 finished = {},
             )
-            runner.handle(WorkbenchIntent.CancelTask(id))
-            until { workbench.current.tasks.isEmpty() }
+            runner.handle(ICodeIntent.CancelTask(id))
+            until { stateHolder.current.tasks.isEmpty() }
             assertNull(runner.claimedBy("/w/big"))
         }
     }
@@ -146,7 +146,7 @@ class TaskRunnerTest {
             work = { release.await(5, TimeUnit.SECONDS) },
             finished = {},
         )
-        runner.handle(WorkbenchIntent.HideTask(id))
+        runner.handle(ICodeIntent.HideTask(id))
         until { task()?.hidden == true }
         assertNull(runner.waitReason("/w/docs"))
         assertTrue(task()!!.hidden)
@@ -164,7 +164,7 @@ class TaskRunnerTest {
             finished = {},
         )
         until { task() != null }
-        runner.handle(WorkbenchIntent.CancelTask(deleteId))
+        runner.handle(ICodeIntent.CancelTask(deleteId))
         deleting.countDown()
         until { task() == null }
 
@@ -175,9 +175,9 @@ class TaskRunnerTest {
             finished = { outcome -> stopped.complete(outcome) },
         )
         until { task() != null }
-        runner.handle(WorkbenchIntent.CancelTask(copyId))
+        runner.handle(ICodeIntent.CancelTask(copyId))
         assertTrue(withTimeout(5_000) { stopped.await() } is kotlin.coroutines.cancellation.CancellationException)
-        assertTrue("a cancelled task is not a failure", workbench.current.tasks.isEmpty())
+        assertTrue("a cancelled task is not a failure", stateHolder.current.tasks.isEmpty())
     }
 
     @Test fun `hide and show move a task between its dialog and the background`() {
@@ -188,9 +188,9 @@ class TaskRunnerTest {
             finished = {},
         )
         until { task() != null }
-        runner.handle(WorkbenchIntent.HideTask(id))
+        runner.handle(ICodeIntent.HideTask(id))
         assertTrue(task()!!.hidden)
-        runner.handle(WorkbenchIntent.ShowTask(id))
+        runner.handle(ICodeIntent.ShowTask(id))
         assertFalse(task()!!.hidden)
         release.countDown()
     }

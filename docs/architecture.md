@@ -1,4 +1,4 @@
-# Native Mobile Development Workbench — Architecture Design
+# iCode — Native Mobile Development Environment — Architecture Design
 
 **Version:** 1.1  
 **Status:** Foundation contract — amended 2026-09-30: workspaces live in the application's own storage ([workspace-storage-plan.md](./workspace-storage-plan.md), §25–26); amended 2026-10-01: iCode's own assistant on Koog ([assistant-koog-plan.md](./assistant-koog-plan.md), §25–26); amended 2026-10-02: the runtime's execution foundation — the login environment, managed processes, the assistant's reach ([runtime-foundation-plan.md](./runtime-foundation-plan.md), §7.2, §10.5, §11.5, §14.3–14.4, §25)  
@@ -7,7 +7,7 @@
 
 ## 1. Purpose
 
-This document defines the durable technical foundation for a native Android development workbench. It describes system boundaries, component ownership, data flow, runtime behavior, persistence, integration contracts, and non-negotiable architectural decisions.
+This document defines the durable technical foundation for a native Android development environment. It describes system boundaries, component ownership, data flow, runtime behavior, persistence, integration contracts, and non-negotiable architectural decisions.
 
 It intentionally does not define delivery order, milestones, or task groups. Those belong in a separate implementation plan derived from this architecture, the layout specification, and the user stories.
 
@@ -45,7 +45,7 @@ The product is not a VS Code distribution, a browser-hosted IDE, an extension ma
 
 The architecture does not include:
 
-- Code OSS, OpenVSCode Server, Monaco, or a browser-rendered workbench;
+- Code OSS, OpenVSCode Server, Monaco, or a browser-rendered IDE;
 - an IDE WebView or a local HTTP server used to render the application UI;
 - VS Code extension execution, `.vsix` installation, an extension host, or an extension marketplace;
 - named integrations for Codex, Claude Code, Gemini CLI, OpenCode, or any other agent;
@@ -96,7 +96,7 @@ Compose screens render immutable view state and dispatch intents. Domain service
 
 ```mermaid
 flowchart TD
-    U["Developer"] --> A["Native Android workbench"]
+    U["Developer"] --> A["Native Android icode"]
     A --> D["Workspaces in application storage"]
     A --> R["Linux runtime"]
     R --> T["Git, search, language tools and user commands"]
@@ -104,7 +104,7 @@ flowchart TD
     A -. "release metadata and documentation" .-> W["Next.js public website"]
 ```
 
-The Android workbench and Linux runtime form the local product. The Next.js website is a distribution and information surface; it is not on the editing or execution path.
+The Android icode and Linux runtime form the local product. The Next.js website is a distribution and information surface; it is not on the editing or execution path.
 
 ## 7. High-Level Runtime Topology
 
@@ -152,7 +152,7 @@ PRoot is not treated as a security boundary or virtual machine. It provides a co
 
 What runs on the user's behalf without a terminal — the assistant's commands, managed processes, language servers — starts with the user's login environment (`GuestEnvironment`): what an interactive login bash has after reading the profile, `~/.bashrc` included, read again when a profile file changes. iCode's own commands (Git, `ripgrep`, apt) keep their fixed environment. The assistant's commands and processes see the whole runtime but only their own workspace under `/workspace`; the terminal sees every workspace ([runtime-foundation-plan.md](./runtime-foundation-plan.md) §3.1–3.2).
 
-The tools iCode's own features use — Git, the SSH client, `ripgrep` — and common toolchains are **runtime components** ([runtime-components-plan.md](./runtime-components-plan.md)): one catalog (`RuntimeComponents`, pure), installed and removed by apt through one installer (`RuntimePackageInstaller`, one run at a time). What is installed is read from dpkg's status file. An install downloads first — the only part that may be cancelled — then installs from what was downloaded. Its progress, read from apt's own lines, is background work with a notification. Features ask for a component by name; the Components page offers them after a runtime build and manages them from Runtime settings. None of it waits on the workbench's mutation lock.
+The tools iCode's own features use — Git, the SSH client, `ripgrep` — and common toolchains are **runtime components** ([runtime-components-plan.md](./runtime-components-plan.md)): one catalog (`RuntimeComponents`, pure), installed and removed by apt through one installer (`RuntimePackageInstaller`, one run at a time). What is installed is read from dpkg's status file. An install downloads first — the only part that may be cancelled — then installs from what was downloaded. Its progress, read from apt's own lines, is background work with a notification. Features ask for a component by name; the Components page offers them after a runtime build and manages them from Runtime settings. None of it waits on iCode's mutation lock.
 
 ### 7.3 Public website
 
@@ -165,7 +165,7 @@ The Next.js application may provide:
 - compatibility notes;
 - contribution documentation.
 
-The native workbench remains useful when this website is unavailable. Accounts, synchronization, and cloud execution are not architectural requirements.
+The native icode remains useful when this website is unavailable. Accounts, synchronization, and cloud execution are not architectural requirements.
 
 ## 8. Android Application Modules
 
@@ -443,7 +443,7 @@ The runtime coordinator starts one application-owned runtime and exposes its rea
 
 ### 14.3 Background work
 
-Work belongs to the process, not to a screen ([long-operations-plan.md](./long-operations-plan.md) §6). The workbench's backend is one per process (`WorkbenchProcess`), as terminal sessions are: screens attach and detach, and when the last one leaves only what serves a screen stops (the folder watcher, language servers). Every long operation — a task (delete, copy, import, a workspace's delete), a Git transfer, the runtime install, a runtime package install — is named in one derived list of background work (`BackgroundWorkRules`, pure), which the backend publishes.
+Work belongs to the process, not to a screen ([long-operations-plan.md](./long-operations-plan.md) §6). The iCode app's backend is one per process (`ICodeProcess`), as terminal sessions are: screens attach and detach, and when the last one leaves only what serves a screen stops (the folder watcher, language servers). Every long operation — a task (delete, copy, import, a workspace's delete), a Git transfer, the runtime install, a runtime package install — is named in one derived list of background work (`BackgroundWorkRules`, pure), which the backend publishes.
 
 One foreground service keeps the process while a terminal session or any of that work runs, and stops itself when none does. Its notification summarises what runs; each piece of work has a silent progress notification (the item in hand, counts, a bar, Cancel where the work allows it) that opens iCode on that work; a failure the user was not watching pops up on its own channel. Hiding a task's dialog hands it to its notification. The assistant's turn is background work too: its notification names the step in hand, Cancel stops it, and a question it waits on pops up while iCode is out of view ([assistant-koog-plan.md](./assistant-koog-plan.md) §4.8). So are the managed processes that run: one item names them, its Cancel stops them all, and its tap opens the Assistant page, where the Processes sheet lists them. Background execution remains subject to Android and device-vendor process management.
 
@@ -634,7 +634,7 @@ This model keeps the application open to contributors without creating an unboun
 |---|---|---|
 | Product UI | Native Compose | Full control over touch, hierarchy, adaptive layout, and accessibility |
 | Editor | Replaceable native engine | Avoid WebView dependency and contain third-party editor risk |
-| Workbench | Product-owned native features | Avoid maintaining a desktop workbench fork |
+| iCode UI | Product-owned native features | Avoid maintaining a desktop IDE fork |
 | Extensibility | CLI tools and open protocols | Preserve user capability without an extension runtime |
 | Workspace storage | The application's own storage, bound whole at `/workspace` for every tool; a document provider for other applications | Shared storage cannot hold what toolchains need (links, executable bits, case, many small files — measured); one filesystem keeps every tool on the same files |
 | Runtime | Ubuntu ARM64 under PRoot | Provide familiar Linux tooling without device root |
@@ -655,7 +655,7 @@ The following rules may not be violated without a new architecture decision:
 
 1. A workspace exists in one place, the application's storage: nothing is mirrored or synchronised, and a folder is copied in only by the user's explicit Import.
 2. Saving writes to the workspace file itself.
-3. The native UI does not depend on a browser-rendered workbench.
+3. The native UI does not depend on a browser-rendered IDE.
 4. The product does not maintain a list of supported AI agents: a CLI agent is never detected or special-cased, and the one assistant is iCode's own.
 5. User-installed commands execute through the same runtime contract as the terminal.
 6. Core editing and source-control workflows do not require a hosted account.
@@ -668,7 +668,7 @@ The following rules may not be violated without a new architecture decision:
 
 | Term | Meaning |
 |---|---|
-| Workbench | The complete native editing environment, including editor, files, Git, search, terminal, and diagnostics |
+| iCode | The complete native editing environment, including editor, files, Git, search, terminal, and diagnostics |
 | Workspace | One folder in the application's storage (`files/workspaces/<name>`), seen at `/workspace/<name>` in the runtime |
 | Runtime | The application-owned Ubuntu ARM64 environment executed through PRoot |
 | Assistant | iCode's built-in agent: each workspace's chats, which read, change and run commands through iCode's own owners, with a model provider the user configures |

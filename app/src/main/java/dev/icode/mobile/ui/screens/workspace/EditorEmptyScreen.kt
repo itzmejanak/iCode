@@ -40,15 +40,15 @@ import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.navigation.ToolPanelTab
-import dev.icode.mobile.domain.WorkbenchIntent
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /** Empty editor state with real quick actions and recent files. */
 @Composable
 fun EditorEmptyScreen(actions: NavigationActions) {
-    val state = LocalWorkbenchSnapshot.current
-    val gateway = LocalWorkbenchGateway.current
+    val state = LocalICodeSnapshot.current
+    val gateway = LocalICodeGateway.current
     var showCreateFile by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar(
@@ -91,7 +91,7 @@ fun EditorEmptyScreen(actions: NavigationActions) {
             }
             state.recentDocuments.forEach { document ->
                 RecentFile(document.name, document.path, if (document.available) RelativeTime.since(document.lastOpenedAt) else "Missing") {
-                    gateway.dispatch(WorkbenchIntent.OpenFile(document.location))
+                    gateway.dispatch(ICodeIntent.OpenFile(document.location))
                 }
             }
         }

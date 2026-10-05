@@ -2,7 +2,7 @@ package dev.icode.mobile.ui.screens.tools
 
 import dev.icode.mobile.domain.PaletteCommandId
 import dev.icode.mobile.domain.PaletteCommands
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.paletteReadySnapshot
 import dev.icode.mobile.navigation.Route
 import org.junit.Assert.assertEquals
@@ -14,8 +14,8 @@ class CommandPaletteExecutionTest {
 
     @Test fun pushAndPullRunTheirOwnIntentThenOpenProgress() {
         for ((id, expectedIntent) in listOf(
-            PaletteCommandId.PushBranch to WorkbenchIntent.PushRemote,
-            PaletteCommandId.PullBranch to WorkbenchIntent.PullRemote,
+            PaletteCommandId.PushBranch to ICodeIntent.PushRemote,
+            PaletteCommandId.PullBranch to ICodeIntent.PullRemote,
         )) {
             val calls = mutableListOf<Any>()
             val command = PaletteCommands.search(snapshot, "").first { it.id == id }
@@ -28,7 +28,7 @@ class CommandPaletteExecutionTest {
         val calls = mutableListOf<Any>()
         val command = PaletteCommands.search(snapshot, "").first { it.id == PaletteCommandId.SaveCurrent }
         runPaletteCommand(command, snapshot, { calls += it }, { calls += it }, { calls += "back" })
-        assertEquals(listOf(WorkbenchIntent.SaveDocument(snapshot.activeDocument!!.location), "back"), calls)
+        assertEquals(listOf(ICodeIntent.SaveDocument(snapshot.activeDocument!!.location), "back"), calls)
     }
 
     @Test fun commitOpensMessageFormAndUnavailableCommandDoesNothing() {

@@ -1,7 +1,7 @@
 package dev.icode.mobile.data.assistant
 
 import dev.icode.mobile.data.log.BackendLog
-import dev.icode.mobile.data.workspace.WorkbenchStateHolder
+import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceRoot
 import dev.icode.mobile.domain.AssistantAnswer
 import dev.icode.mobile.domain.AssistantAttachment
@@ -22,8 +22,8 @@ import dev.icode.mobile.domain.AssistantToolKind
 import dev.icode.mobile.domain.LineEnding
 import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.domain.TextEncoding
-import dev.icode.mobile.domain.WorkbenchEffect
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeEffect
+import dev.icode.mobile.domain.ICodeIntent
 import java.io.File
 import java.util.Collections
 import kotlin.coroutines.cancellation.CancellationException
@@ -51,9 +51,9 @@ class AssistantCoordinatorTest {
     @get:Rule val temp = TemporaryFolder()
 
     private val originalWriter = BackendLog.writer
-    private val workbench = WorkbenchStateHolder()
+    private val stateHolder = ICodeStateHolder()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val effects = Collections.synchronizedList(mutableListOf<WorkbenchEffect>())
+    private val effects = Collections.synchronizedList(mutableListOf<ICodeEffect>())
     /** The real store, over preferences in memory; a key "encrypted" as itself, marked. */
     private val providers = SharedPreferencesAssistantProviderStore(InMemoryPreferences(), { "enc:$it" }, { it.removePrefix("enc:") })
     private val openAI by lazy {
@@ -92,7 +92,7 @@ class AssistantCoordinatorTest {
 
     private val coordinator by lazy {
         AssistantCoordinator(
-            workbench, scope, engine, providers, chats,
+            stateHolder, scope, engine, providers, chats,
             tools = { _, _ -> listOf(FakeTool("read_file", AssistantToolKind.Read), FakeTool("edit_file", AssistantToolKind.Change)) },
             activeRoot = { app },
             describe = { WorkspaceRoot("app", it, "/workspace/app") },
@@ -104,11 +104,11 @@ class AssistantCoordinatorTest {
 
     @Before fun start() {
         BackendLog.writer = { _, _, _ -> }
-        scope.launch { workbench.effects.collect { effects += it } }
+        scope.launch { stateHolder.effects.collect { effects += it } }
         openAI
         coordinator.start()
         until { state().settings.ready && state().catalogue.isNotEmpty() }
-        coordinator.handle(WorkbenchIntent.OpenAssistant)
+        coordinator.handle(ICodeIntent.OpenAssistant)
         until { state().workspace == app }
     }
 
@@ -117,7 +117,7 @@ class AssistantCoordinatorTest {
         BackendLog.writer = originalWriter
     }
 
-    private fun state(): AssistantState = workbench.current.assistant
+    private fun state(): AssistantState = stateHolder.current.assistant
 
     private fun until(condition: () -> Boolean) {
         val deadline = System.currentTimeMillis() + 5_000
@@ -130,7 +130,7 @@ class AssistantCoordinatorTest {
     private fun said(text: String) {
         val before = requests.size
         script = { _, events -> events.replied(AssistantMessage.Reply("Re: $text")) }
-        coordinator.handle(WorkbenchIntent.SendAssistantMessage(text))
+        coordinator.handle(ICodeIntent.SendAssistantMessage(text))
         until { requests.size == before + 1 && state().turn == null }
     }
 
@@ -158,12 +158,12 @@ class AssistantCoordinatorTest {
 
     @Test fun `a change waits for Allow, runs, and the chat is kept and listed`() {
         editTurn()
-        coordinator.handle(WorkbenchIntent.SendAssistantMessage("  Rename x  "))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("  Rename x  "))
         until { state().approval != null }
         assertEquals("Edit a.kt", state().approval!!.call.summary)
         assertEquals("Waiting for your answer", state().turn!!.step)
         assertTrue(ran.isEmpty())
-        coordinator.handle(WorkbenchIntent.AnswerAssistant("c1", AssistantAnswer.Allow))
+        coordinator.handle(ICodeIntent.AnswerAssistant("c1", AssistantAnswer.Allow))
         until { state().turn == null }
         assertEquals(listOf("edit_file"), ran)
         assertEquals(AssistantMessage.User("Rename x"), requests.single().input)
@@ -178,9 +178,9 @@ class AssistantCoordinatorTest {
 
     @Test fun `Deny tells the model the change was refused, and nothing runs`() {
         editTurn()
-        coordinator.handle(WorkbenchIntent.SendAssistantMessage("Rename x"))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("Rename x"))
         until { state().approval != null }
-        coordinator.handle(WorkbenchIntent.AnswerAssistant("c1", AssistantAnswer.Deny))
+        coordinator.handle(ICodeIntent.AnswerAssistant("c1", AssistantAnswer.Deny))
         until { state().turn == null }
         assertTrue(ran.isEmpty())
         val result = (state().messages[2] as AssistantMessage.Results).results.single()
@@ -190,21 +190,21 @@ class AssistantCoordinatorTest {
 
     @Test fun `Allow All answers this chat's next changes, a new chat asks again, and the chat page's permissions answer all`() {
         editTurn()
-        coordinator.handle(WorkbenchIntent.SendAssistantMessage("one"))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("one"))
         until { state().approval != null }
-        coordinator.handle(WorkbenchIntent.AnswerAssistant("c1", AssistantAnswer.AllowAll))
+        coordinator.handle(ICodeIntent.AnswerAssistant("c1", AssistantAnswer.AllowAll))
         until { state().turn == null }
         assertTrue(state().allowAll)
-        coordinator.handle(WorkbenchIntent.SendAssistantMessage("two"))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("two"))
         until { requests.size == 2 && state().turn == null }
         assertEquals(listOf("edit_file", "edit_file"), ran)
 
-        coordinator.handle(WorkbenchIntent.NewAssistantChat)
+        coordinator.handle(ICodeIntent.NewAssistantChat)
         until { state().session == null && state().messages.isEmpty() }
         assertFalse(state().allowAll)
-        coordinator.handle(WorkbenchIntent.SetAssistantAskFirst(false))
+        coordinator.handle(ICodeIntent.SetAssistantAskFirst(false))
         until { !state().settings.askBeforeChanges }
-        coordinator.handle(WorkbenchIntent.SendAssistantMessage("three"))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("three"))
         until { requests.size == 3 && state().turn == null }
         assertEquals(3, ran.size)
         assertEquals(2, state().sessions.size)
@@ -212,9 +212,9 @@ class AssistantCoordinatorTest {
 
     @Test fun `Stop ends the turn where it is, and an open call is answered as stopped`() {
         editTurn()
-        coordinator.handle(WorkbenchIntent.SendAssistantMessage("Rename x"))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("Rename x"))
         until { state().approval != null }
-        coordinator.handle(WorkbenchIntent.StopAssistant)
+        coordinator.handle(ICodeIntent.StopAssistant)
         until { state().turn == null }
         assertNull(state().approval)
         assertNull("a stop is not a failure", state().failure)
@@ -225,7 +225,7 @@ class AssistantCoordinatorTest {
 
     @Test fun `a refusal from the provider is said on the page, and what the user wrote stays`() {
         script = { _, _ -> throw AssistantTurnException("The provider refused the API key — check it in Assistant settings") }
-        coordinator.handle(WorkbenchIntent.SendAssistantMessage("Hello"))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("Hello"))
         until { state().failure != null }
         assertEquals("The provider refused the API key — check it in Assistant settings", state().failure)
         assertEquals(listOf(AssistantMessage.User("Hello")), state().messages)
@@ -244,7 +244,7 @@ class AssistantCoordinatorTest {
             events.replied(AssistantMessage.Reply("It starts the app.", reasoning = "Check a.kt."))
             recorded.complete(state())
         }
-        coordinator.handle(WorkbenchIntent.SendAssistantMessage("What does a.kt do?"))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("What does a.kt do?"))
         runBlocking { withTimeout(5_000) { shown.await() } }
         assertEquals(AssistantLive("Check a.kt.", "It sta"), state().turn?.live)
         go.complete(Unit)
@@ -257,19 +257,19 @@ class AssistantCoordinatorTest {
     @Test fun `one turn at a time, and none without a provider`() {
         editTurn()
         // Two in the same instant: the second finds the first one's turn before its page does.
-        coordinator.handle(WorkbenchIntent.SendAssistantMessage("first"))
-        coordinator.handle(WorkbenchIntent.SendAssistantMessage("at once"))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("first"))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("at once"))
         until { state().approval != null }
-        coordinator.handle(WorkbenchIntent.SendAssistantMessage("second"))
-        until { effects.any { it is WorkbenchEffect.Message && "working in app" in it.text } }
+        coordinator.handle(ICodeIntent.SendAssistantMessage("second"))
+        until { effects.any { it is ICodeEffect.Message && "working in app" in it.text } }
         assertEquals(1, requests.size)
-        coordinator.handle(WorkbenchIntent.StopAssistant)
+        coordinator.handle(ICodeIntent.StopAssistant)
         until { state().turn == null }
 
-        coordinator.handle(WorkbenchIntent.RemoveAssistantProvider(openAI))
+        coordinator.handle(ICodeIntent.RemoveAssistantProvider(openAI))
         until { !state().settings.ready }
-        coordinator.handle(WorkbenchIntent.NewAssistantChat)
-        coordinator.handle(WorkbenchIntent.SendAssistantMessage("third"))
+        coordinator.handle(ICodeIntent.NewAssistantChat)
+        coordinator.handle(ICodeIntent.SendAssistantMessage("third"))
         until { state().failure != null }
         assertTrue(state().failure!!.startsWith("Set up the assistant first"))
         assertEquals(1, requests.size)
@@ -279,7 +279,7 @@ class AssistantCoordinatorTest {
     @Test fun `each chat is its own, opened from the history and deleted from it, and the page reopens on the one shown`() {
         said("first chat")
         val first = state().session!!
-        coordinator.handle(WorkbenchIntent.NewAssistantChat)
+        coordinator.handle(ICodeIntent.NewAssistantChat)
         until { state().session == null }
         said("second chat")
         val second = state().session!!
@@ -287,14 +287,14 @@ class AssistantCoordinatorTest {
         // The second turn sent nothing of the first chat.
         assertEquals(emptyList<AssistantMessage>(), requests.last().history)
 
-        coordinator.handle(WorkbenchIntent.OpenAssistantSession(first))
+        coordinator.handle(ICodeIntent.OpenAssistantSession(first))
         until { state().session == first }
         assertEquals("Re: first chat", (state().messages.last() as AssistantMessage.Reply).text)
-        coordinator.handle(WorkbenchIntent.OpenAssistant)
+        coordinator.handle(ICodeIntent.OpenAssistant)
         Thread.sleep(50)
         assertEquals(first, state().session)
 
-        coordinator.handle(WorkbenchIntent.DeleteAssistantSession(first))
+        coordinator.handle(ICodeIntent.DeleteAssistantSession(first))
         until { state().sessions.size == 1 }
         assertNull(state().session)
         assertEquals(second, state().sessions.single().id)
@@ -302,11 +302,11 @@ class AssistantCoordinatorTest {
 
     @Test fun `a chat in use is not deleted`() {
         editTurn()
-        coordinator.handle(WorkbenchIntent.SendAssistantMessage("Rename x"))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("Rename x"))
         until { state().approval != null }
-        coordinator.handle(WorkbenchIntent.DeleteAssistantSession(state().session!!))
-        until { effects.any { it is WorkbenchEffect.Message && it.text == "Stop the assistant before deleting this chat" } }
-        coordinator.handle(WorkbenchIntent.StopAssistant)
+        coordinator.handle(ICodeIntent.DeleteAssistantSession(state().session!!))
+        until { effects.any { it is ICodeEffect.Message && it.text == "Stop the assistant before deleting this chat" } }
+        coordinator.handle(ICodeIntent.StopAssistant)
         until { state().turn == null }
         assertEquals(1, state().sessions.size)
     }
@@ -315,10 +315,10 @@ class AssistantCoordinatorTest {
         File(app, "a.kt").writeText("val a = 1")
         File(app, "b.kt").writeText("val b = 1 // saved")
         val b = File(app, "b.kt").canonicalPath
-        workbench.update { it.copy(openDocuments = listOf(OpenDocument("b.kt", b, "val b = 2 // unsaved", TextEncoding.Utf8, LineEnding.Lf, dirty = true, readOnly = false))) }
+        stateHolder.update { it.copy(openDocuments = listOf(OpenDocument("b.kt", b, "val b = 2 // unsaved", TextEncoding.Utf8, LineEnding.Lf, dirty = true, readOnly = false))) }
         said("Compare")
         script = { _, events -> events.replied(AssistantMessage.Reply("ok")) }
-        coordinator.handle(WorkbenchIntent.SendAssistantMessage("Compare", listOf(File(app, "a.kt").path, b)))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("Compare", listOf(File(app, "a.kt").path, b)))
         until { requests.size == 2 && state().turn == null }
         assertEquals(
             listOf(AssistantAttachment("a.kt", text = "val a = 1"), AssistantAttachment("b.kt", text = "val b = 2 // unsaved")),
@@ -326,14 +326,14 @@ class AssistantCoordinatorTest {
         )
 
         val outside = temp.newFile("secret.txt").apply { writeText("no") }
-        coordinator.handle(WorkbenchIntent.SendAssistantMessage("Leak", listOf(outside.path)))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("Leak", listOf(outside.path)))
         until { state().failure != null }
         assertEquals("secret.txt is not in this workspace", state().failure)
         assertEquals(2, requests.size)
     }
 
     @Test fun `Ask offers only the tools that read`() {
-        coordinator.handle(WorkbenchIntent.ChooseAssistantMode(AssistantMode.Ask))
+        coordinator.handle(ICodeIntent.ChooseAssistantMode(AssistantMode.Ask))
         until { state().settings.mode == AssistantMode.Ask }
         said("Explain")
         assertEquals(listOf("read_file"), requests.single().tools.map { it.name })
@@ -341,12 +341,12 @@ class AssistantCoordinatorTest {
     }
 
     @Test fun `the model chosen on the page is one of a provider's, and its effort is sent only where offered`() {
-        coordinator.handle(WorkbenchIntent.ChooseAssistantEffort(AssistantEffort.High))
+        coordinator.handle(ICodeIntent.ChooseAssistantEffort(AssistantEffort.High))
         until { state().settings.effort == AssistantEffort.High }
         said("plain")
         assertNull("gpt-5 here offers no effort", requests.last().effort)
 
-        coordinator.handle(WorkbenchIntent.ChooseAssistantModel(openAI, "o3"))
+        coordinator.handle(ICodeIntent.ChooseAssistantModel(openAI, "o3"))
         until { state().settings.model?.id == "o3" }
         assertEquals(listOf(AssistantEffort.Low, AssistantEffort.High), state().settings.model?.efforts)
         said("reasoned")
@@ -355,8 +355,8 @@ class AssistantCoordinatorTest {
         assertEquals("sk-test", requests.last().connection.apiKey)
 
         // A model the provider does not list is not chosen.
-        coordinator.handle(WorkbenchIntent.ChooseAssistantModel(openAI, "gpt-9"))
-        coordinator.handle(WorkbenchIntent.ChooseAssistantMode(AssistantMode.Agent))
+        coordinator.handle(ICodeIntent.ChooseAssistantModel(openAI, "gpt-9"))
+        coordinator.handle(ICodeIntent.ChooseAssistantMode(AssistantMode.Agent))
         Thread.sleep(50)
         assertEquals("o3", state().settings.model?.id)
     }
@@ -364,7 +364,7 @@ class AssistantCoordinatorTest {
     @Test fun `Compact summarizes the chat, and later turns send the summary and what came after`() {
         said("one")
         said("two")
-        coordinator.handle(WorkbenchIntent.CompactAssistantChat)
+        coordinator.handle(ICodeIntent.CompactAssistantChat)
         until { state().messages.lastOrNull() is AssistantMessage.Compacted && state().turn == null }
         assertEquals(4, compactions.single().size)
         assertNull("the meter starts again", state().contextTokens)
@@ -380,7 +380,7 @@ class AssistantCoordinatorTest {
             events.used(850)
             events.replied(AssistantMessage.Reply("long"))
         }
-        coordinator.handle(WorkbenchIntent.SendAssistantMessage("first"))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("first"))
         until { requests.size == 1 && state().turn == null }
         assertEquals(850L, state().contextTokens)
         said("second")
@@ -398,7 +398,7 @@ class AssistantCoordinatorTest {
             asked.complete(Unit)
             awaitCancellation()
         }
-        coordinator.handle(WorkbenchIntent.SendAssistantMessage("Hello"))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("Hello"))
         asked.await()
         val session = state().session!!
         coordinator.workspaceMoved(app, "$app-renamed")
@@ -413,12 +413,12 @@ class AssistantCoordinatorTest {
     }
 
     @Test fun `a provider is checked, saved with its models and its own key, and its server asked for its models`() {
-        coordinator.handle(WorkbenchIntent.SaveAssistantProvider("", AssistantProviderKind.Anthropic, "Anthropic", "", null, listOf(AssistantModelSpec("claude-sonnet-4-5"))))
-        until { effects.any { it is WorkbenchEffect.Message && it.text == "Enter the API key" } }
-        coordinator.handle(WorkbenchIntent.SaveAssistantProvider("", AssistantProviderKind.OpenAICompatible, "DeepSeek", "https://api.deepseek.com/v1", null, emptyList()))
-        until { effects.any { it is WorkbenchEffect.Message && it.text == "Add at least one model" } }
+        coordinator.handle(ICodeIntent.SaveAssistantProvider("", AssistantProviderKind.Anthropic, "Anthropic", "", null, listOf(AssistantModelSpec("claude-sonnet-4-5"))))
+        until { effects.any { it is ICodeEffect.Message && it.text == "Enter the API key" } }
+        coordinator.handle(ICodeIntent.SaveAssistantProvider("", AssistantProviderKind.OpenAICompatible, "DeepSeek", "https://api.deepseek.com/v1", null, emptyList()))
+        until { effects.any { it is ICodeEffect.Message && it.text == "Add at least one model" } }
         coordinator.handle(
-            WorkbenchIntent.SaveAssistantProvider(
+            ICodeIntent.SaveAssistantProvider(
                 "", AssistantProviderKind.OpenAICompatible, "DeepSeek", "https://api.deepseek.com/v1/", "sk-deep",
                 listOf(AssistantModelSpec("deepseek-chat", 128_000, 8_000), AssistantModelSpec("deepseek-reasoner", reasoning = true)),
             ),
@@ -430,40 +430,40 @@ class AssistantCoordinatorTest {
         assertTrue(deepSeek.hasKey)
         assertEquals("the chat keeps its model", "gpt-5", state().settings.model?.id)
 
-        coordinator.handle(WorkbenchIntent.ChooseAssistantModel(deepSeek.id, "deepseek-chat"))
+        coordinator.handle(ICodeIntent.ChooseAssistantModel(deepSeek.id, "deepseek-chat"))
         until { state().settings.provider?.id == deepSeek.id }
         said("hello")
         assertEquals(AssistantConnection(AssistantProviderKind.OpenAICompatible, "https://api.deepseek.com/v1", "sk-deep"), requests.last().connection)
 
         // Its server's models: with the saved key of the provider, or the one typed.
         listed = listOf(AssistantModel("gpt-5", known = true), AssistantModel("gpt-6-preview"))
-        coordinator.handle(WorkbenchIntent.EditAssistantProvider(openAI))
-        coordinator.handle(WorkbenchIntent.ListAssistantModels(openAI, AssistantProviderKind.OpenAI, "", null))
+        coordinator.handle(ICodeIntent.EditAssistantProvider(openAI))
+        coordinator.handle(ICodeIntent.ListAssistantModels(openAI, AssistantProviderKind.OpenAI, "", null))
         until { state().available?.loading == false }
         assertEquals(listed, state().available?.models)
-        coordinator.handle(WorkbenchIntent.ListAssistantModels(openAI, AssistantProviderKind.OpenAI, "", "sk-wrong"))
+        coordinator.handle(ICodeIntent.ListAssistantModels(openAI, AssistantProviderKind.OpenAI, "", "sk-wrong"))
         until { state().available?.failure != null }
         assertEquals("The provider refused the API key — check it in the provider's settings", state().available?.failure)
 
         // Removing the chosen provider moves the chat to the first model left.
-        coordinator.handle(WorkbenchIntent.RemoveAssistantProvider(deepSeek.id))
+        coordinator.handle(ICodeIntent.RemoveAssistantProvider(deepSeek.id))
         until { state().settings.providers.size == 1 }
         assertEquals(AssistantChoice(openAI, "gpt-5"), state().settings.choice)
     }
 
     @Test fun `a photo from the phone goes to a model that sees, kept in its chat, and is refused by one that does not`() {
         phoneFiles["content://photos/1"] = PhoneFile("IMG_1.jpg", "image/jpeg") { byteArrayOf(9, 9, 9).inputStream() }
-        coordinator.handle(WorkbenchIntent.SendAssistantMessage("What is this?", listOf("content://photos/1")))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("What is this?", listOf("content://photos/1")))
         until { state().failure != null }
         assertEquals("gpt-5 does not read images — choose a model that does", state().failure)
         assertTrue("nothing was sent", requests.isEmpty())
 
         providers.saveProvider(openAI, AssistantProviderKind.OpenAI, "OpenAI", null, null, listOf(AssistantModelSpec("gpt-5"), AssistantModelSpec("gpt-5-vision")))
-        coordinator.handle(WorkbenchIntent.ChooseAssistantModel(openAI, "gpt-5-vision"))
+        coordinator.handle(ICodeIntent.ChooseAssistantModel(openAI, "gpt-5-vision"))
         until { state().settings.model?.id == "gpt-5-vision" }
         said("ok")
         script = { _, events -> events.replied(AssistantMessage.Reply("A cat.")) }
-        coordinator.handle(WorkbenchIntent.SendAssistantMessage("What is this?", listOf("content://photos/1")))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("What is this?", listOf("content://photos/1")))
         until { requests.size == 2 && state().turn == null }
         val photo = requests.last().input.attachments.single()
         assertEquals("IMG_1.jpg", photo.name)
@@ -472,19 +472,19 @@ class AssistantCoordinatorTest {
         assertTrue("kept in the chat's own folder", File(photo.file!!).parentFile!!.name == "${state().session}.files")
 
         // A grant gone with the process: said, nothing sent.
-        coordinator.handle(WorkbenchIntent.SendAssistantMessage("Again", listOf("content://photos/gone")))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("Again", listOf("content://photos/gone")))
         until { state().failure != null }
         assertEquals("A file from the phone can no longer be read — attach it again", state().failure)
     }
 
     @Test fun `a photo alone is a message and names its chat, while nothing at all is not sent`() {
-        coordinator.handle(WorkbenchIntent.SendAssistantMessage("  "))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("  "))
         phoneFiles["content://photos/2"] = PhoneFile("IMG_2.jpg", "image/jpeg") { byteArrayOf(7).inputStream() }
         providers.saveProvider(openAI, AssistantProviderKind.OpenAI, "OpenAI", null, null, listOf(AssistantModelSpec("gpt-5-vision")))
-        coordinator.handle(WorkbenchIntent.ChooseAssistantModel(openAI, "gpt-5-vision"))
+        coordinator.handle(ICodeIntent.ChooseAssistantModel(openAI, "gpt-5-vision"))
         until { state().settings.model?.id == "gpt-5-vision" }
         script = { _, events -> events.replied(AssistantMessage.Reply("A receipt.")) }
-        coordinator.handle(WorkbenchIntent.SendAssistantMessage("", listOf("content://photos/2")))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("", listOf("content://photos/2")))
         until { requests.size == 1 && state().turn == null }
         assertEquals("", requests.single().input.text)
         assertEquals("IMG_2.jpg", requests.single().input.attachments.single().name)
@@ -493,16 +493,16 @@ class AssistantCoordinatorTest {
 
     @Test fun `Try Again sends a message that failed before any reply once more, not twice`() {
         script = { _, _ -> throw AssistantTurnException("The provider is limiting requests — try again shortly") }
-        coordinator.handle(WorkbenchIntent.SendAssistantMessage("Hello"))
+        coordinator.handle(ICodeIntent.SendAssistantMessage("Hello"))
         until { state().failure != null }
         script = { _, events -> events.replied(AssistantMessage.Reply("Hi.")) }
-        coordinator.handle(WorkbenchIntent.RetryAssistantMessage)
+        coordinator.handle(ICodeIntent.RetryAssistantMessage)
         until { requests.size == 2 && state().turn == null }
         assertNull(state().failure)
         assertEquals(listOf(AssistantMessage.User("Hello"), AssistantMessage.Reply("Hi.")), state().messages)
         assertEquals(AssistantMessage.User("Hello"), requests.last().input)
-        coordinator.handle(WorkbenchIntent.RetryAssistantMessage)
-        until { effects.any { it is WorkbenchEffect.Message && it.text == "Nothing to send again" } }
+        coordinator.handle(ICodeIntent.RetryAssistantMessage)
+        until { effects.any { it is ICodeEffect.Message && it.text == "Nothing to send again" } }
     }
 
     private inner class FakeTool(override val name: String, override val kind: AssistantToolKind) : AssistantTool {

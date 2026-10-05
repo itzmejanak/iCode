@@ -53,7 +53,7 @@ device has one cause.
 | S6 | **Terminal and background** — sessions, background, alerts, lost sessions, notifications | Tools panel Terminal, TerminalSettings, Notifications | already separate: `TerminalSessionManager`, `RuntimeForegroundService`, `TerminalAlerts`, ledger, `NoticeStore`; the gateway only observes; [detailed S6 plan](./terminal-separation-plan.md) | terminal contracts |
 | S7 | **Tools panel and commands** — problems, output, command palette | ProblemsPanel, OutputPanel, CommandPalette | gateway (diagnostics none yet; Git transcript) | diagnostics contract |
 | S8 | **Settings and language services** | Settings root, Appearance, Editor, Languages, LanguageDetail | `AndroidWorkspacePreferencesRepository`, `LanguageServiceStore` + gateway cluster → `LanguageServiceCoordinator` | settings, language-service contracts |
-| X | **Across scopes** — app shell, navigation, design system, logging, capture fixtures, repository | `IcodeApp` (321), `MainActivity` | `WorkbenchStateHolder`, `BackendLog`/`WorkbenchAudit`, shared helpers | `WorkbenchGateway`, snapshot/intents/effects files |
+| X | **Across scopes** — app shell, navigation, design system, logging, capture fixtures, repository | `IcodeApp` (321), `MainActivity` | `ICodeStateHolder`, `BackendLog`/`ICodeAudit`, shared helpers | `ICodeGateway`, snapshot/intents/effects files |
 
 ## 4. Findings, per point (evidence 2026-09-25/26)
 
@@ -68,7 +68,7 @@ device has one cause.
 | gateway, `RuntimeInspector` | `installedRelease` 2× | S1 |
 | `RuntimeInspector.measure`, `StorageInspector.measure` | tree size measured 2× | S1/S2 |
 | gateway `gitCli.run("config"…)` ×3 vs `GitRepositoryClient`; `CliGitService` built twice | two write paths for Git config (D4, D5) | S5 |
-| ~~`WorkbenchContract` vs `GitContract`~~ | ~~one feature's models in two contracts (D7)~~ — all Git models in `GitContract` since X2 | X2 |
+| ~~`ICodeContract` vs `GitContract`~~ | ~~one feature's models in two contracts (D7)~~ — all Git models in `GitContract` since X2 | X2 |
 | ~~`demo/` (950 lines)~~ | ~~a second, simulated copy of the whole backend~~ — removed in K1 | X (K1) |
 
 ### Inconsistency
@@ -85,7 +85,7 @@ device has one cause.
 
 | Gap | Scope |
 |---|---|
-| Changes made outside the editor (an agent in the terminal) never reach the Explorer, Source Control or open editors: no watcher; `WorkbenchIntent.Refresh` is dispatched by nothing; the ExternalFileChange frame is unreachable | S3 |
+| Changes made outside the editor (an agent in the terminal) never reach the Explorer, Source Control or open editors: no watcher; `ICodeIntent.Refresh` is dispatched by nothing; the ExternalFileChange frame is unreachable | S3 |
 | Explorer cannot rename, move, copy or delete | S3 |
 | DocumentRecovery: nothing opens it; restoring a draft from another workspace is refused ("outside the active workspace"). (Its fixed list and do-nothing buttons: fixed in K1) | S3 |
 | Find in files can miss files (`WorkspaceIndexer`: ~24-directory cap, early stop, no ignore rules, not cancellable) | S4 |
@@ -103,7 +103,7 @@ device has one cause.
 
 | What | Scope |
 |---|---|
-| `AndroidWorkbenchGateway` 1858 lines / 95 functions; `WorkbenchContract` 516; `GitRepositoryClient` 353; `RuntimeInstaller` 356; `IcodeApp` 321 | their scopes |
+| `AndroidICodeGateway` 1858 lines / 95 functions; `ICodeContract` 516; `GitRepositoryClient` 353; `RuntimeInstaller` 356; `IcodeApp` 321 | their scopes |
 | Nothing committed since 2026-09-22; 388 paths staged as one change | X (H0) |
 | Tool output staged: `.kotlin/errors/*.log`, `.freebuff/project-id`; dated screenshot sets beside the canonical one | X (H0) |
 | Icon sources shipped in the APK (1.4 MB, unused) | X (H0) |
@@ -120,7 +120,7 @@ device has one cause.
 | **K0** | Capture baseline: the 39 route screenshots from the current build | the parity reference exists |
 | **K1** | Demo → capture fixtures (backend-split-audit §6): debug-only `CaptureFixtures`/`CaptureGateway`/`CapturePreferences`, release stub; `captureMode`, `capture_route`/`capture`, `capture-fork`; the simulation and its tests deleted; palette tests on their own snapshot; DocumentRecovery on real drafts with the existing restore/discard | pixel diff 0 over 39 frames; release APK has no fixture; no "demo" in `app/src` or `tools` |
 | **K2** | Living docs reworded; dated records keep their names with a note | "demo" only in dated records |
-| **X1** | Foundation shared by every scope: `WorkbenchStateHolder`; `BackendLog` + `WorkbenchAudit` (probes removed); one failure-report path; shared `Sha256`, `ByteSize`, `RelativeTime`, bounded reader — **before** the scopes, so no scope copies them again | gate; each helper tested |
+| **X1** | Foundation shared by every scope: `ICodeStateHolder`; `BackendLog` + `ICodeAudit` (probes removed); one failure-report path; shared `Sha256`, `ByteSize`, `RelativeTime`, bounded reader — **before** the scopes, so no scope copies them again | gate; each helper tested |
 | **X2** | Contract split into one file per scope (same package, no call-site change); git models into `GitContract` | gate; zero call-site edits |
 | **S1 … S8** | Each scope by the §2 recipe, in the user's lifecycle order: move → fix → harden | per scope: gate, its lifecycle matrix on the device |
 | **G** | A backend consistency guard (file budget, one writer per store, no duplicate helpers, no UI → `data` imports) added to the routine gate | guard green and enforced |
@@ -252,7 +252,7 @@ the H0 build replace the 2026-09-22 set; the contact sheets under their new name
   an escaped `$`, the literal text `$details` instead of the details); an inspection failure is now
   one warning. The terminal library's error and warning callbacks write through the seam
   (`iCode/terminal/<tag>`); its info/debug callbacks stay off (they would carry typed text).
-- **`WorkbenchAudit` not built** (deviation from the audit doc §6): an in-memory ring that nothing
+- **`ICodeAudit` not built** (deviation from the audit doc §6): an in-memory ring that nothing
   reads is the kind of dead weight this plan removes. The diagnostics export (S1, About) will
   decide what history it needs; until then failures are logged through `BackendLog`.
 - Checks: compile debug and release; 247 unit tests; lint 0 errors, 23 warnings (unchanged); UI
@@ -260,7 +260,7 @@ the H0 build replace the 2026-09-22 set; the contact sheets under their new name
 
 **X1c — state holder and one failure path (2026-09-26), done.**
 
-- `data/workspace/WorkbenchStateHolder`: the one snapshot and effect stream, the mutation lock,
+- `data/workspace/ICodeStateHolder`: the one snapshot and effect stream, the mutation lock,
   `onMain`, the empty snapshot, and the failure path — `report(subsystem, fallback, error)` for a
   message, `failureText(...)` where the failure is shown inside state (failed runtime, failed Git
   operation, item-creation error, language load error). Both write one `BackendLog` warning and
@@ -294,12 +294,12 @@ the H0 build replace the 2026-09-22 set; the contact sheets under their new name
 
 **X2 — contract split (2026-09-26), done.**
 
-- `WorkbenchContract.kt` (528 lines) is gone; same package, so no call site changed. Per scope:
+- `ICodeContract.kt` (528 lines) is gone; same package, so no call site changed. Per scope:
   `WorkspaceModels` (S2, with storage), `DocumentModels` (S3, with drafts and recents),
   `SearchModels` (S4), `GitContract` (S5 — `GitChange`, `GitCommitSummary`, `GitRepositoryState`,
   `GitStatusCodes` joined the rest of Git's models: D7 closed), `DiagnosticsContract` (S7),
-  `LanguageServiceContract` (S8); across scopes: `WorkbenchSnapshot`, `WorkbenchIntent` (145 — its
-  members are nested, so it stays one file), `WorkbenchEffect`, `WorkbenchGateway`, `UrlDetector`,
+  `LanguageServiceContract` (S8); across scopes: `ICodeSnapshot`, `ICodeIntent` (145 — its
+  members are nested, so it stays one file), `ICodeEffect`, `ICodeGateway`, `UrlDetector`,
   `WorkspaceNameRules`. Largest file 256 (`GitContract`).
 - Living references updated (`Todo.md`, `backend-split-rules.md`); dated records keep the old name.
 - Checks: compile debug and release; 250 unit tests; lint 0 errors, 20 warnings; UI guard passes.
@@ -384,7 +384,7 @@ passes.
 
 **S3 fix — one way to change a tab; recovery pinned by tests (2026-09-28), done.** The block
 that replaced one open document in both the tab list and the active document was written five
-times; `WorkbenchSnapshot.withDocument(location) { … }` (domain, 2 tests) is now the one way, so
+times; `ICodeSnapshot.withDocument(location) { … }` (domain, 2 tests) is now the one way, so
 the two can never disagree. `DocumentRecoveryCoordinator` runs on the JVM, so its lifecycle is now
 tested (9): an equal draft is dropped silently; a different one locks the tab and asks, saying
 whether the file changed since; "keep disk version" deletes and unlocks; restore makes the draft
@@ -396,7 +396,7 @@ drafts; a draft follows the text. Gate: 266 tests; lint 0 / 18; UI guard passes.
 **S3 gap plan — changes made outside the editor (2026-09-28).** Requirement: PRD PR-FILE-04
 (Explorer refreshes after terminal, Git or external changes), PR-EDIT-07 and US-EDIT-009 (a
 dirty file changed on disk offers Reload, Compare, Overwrite; nothing is lost silently),
-US-FILE-005 (a clean open file updates). Today nothing notices: `WorkbenchIntent.Refresh` is
+US-FILE-005 (a clean open file updates). Today nothing notices: `ICodeIntent.Refresh` is
 sent by no one, and the External Change screen is fixed sample text ("token-utils.ts") whose
 buttons only navigate. Steps:
 
@@ -416,7 +416,7 @@ buttons only navigate. Steps:
   on a call.
 
 **S3 gap A — when to look (2026-09-28), done in code; device check pending (owner on a call).**
-`WorkbenchIntent.Refresh` is now sent on app resume and on leaving the Terminal panel, and the
+`ICodeIntent.Refresh` is now sent on app resume and on leaving the Terminal panel, and the
 gateway sends it itself when the foreground service sees a command end in a terminal of the open
 workspace (`TerminalSessionManager.commandsFinished`). Requests are conflated into one refresh
 (settle 300 ms), routed off the dispatch lock and run under it; a refresh relists the tree,
@@ -446,7 +446,7 @@ written from iCode's terminal. A live watcher is therefore possible and is the n
 
 **S3 gap C — live watching (2026-09-28), done.** `WorkspaceWatcher` watches, with inotify
 (`FileObserver`), the workspace root, every expanded folder and the folder of each open file, only
-while iCode is on screen (`WorkbenchIntent.ScreenVisible` from the activity's start/stop); the set
+while iCode is on screen (`ICodeIntent.ScreenVisible` from the activity's start/stop); the set
 follows the state. A burst of writes becomes one refresh — after a second of quiet, or every five
 seconds while it goes on (`settleDelay`, `watchedFolders`: 4 tests). Quick Open's index is rebuilt
 only when entries came or went, not after a plain save. On the phone, with iCode on screen and no
@@ -580,16 +580,16 @@ re-measured in the code on 2026-09-29, not copied from the dated tables in §4 o
 |---|---|---|---|
 | R1 | Whether a push, pull or fetch may start is decided in three places that disagree: the palette checks only for a remote; Commit & Push enables Push and Pull whenever a remote exists; `GitTransferCoordinator` refuses a detached HEAD. A refused push still opens "Syncing Repository", which then shows an older operation or "Nothing in progress". Pull is offered without an upstream, where `git pull --ff-only` must fail. Two wordings for one fact ("HEAD is detached…", "No branch checked out…") | `PaletteCommands.kt:37-38`, `CommitPushScreen.kt:47`, `GitTransferCoordinator.kt:86-90`, `PullProgressScreen.kt:97-105`, `GitRepositoryClient.kt:168-169` | S7.1 |
 | R2 | A sample value in the domain: `Diagnostic.source` defaults to `"TS"`; only the capture fixture builds diagnostics | `DiagnosticsContract.kt:10`, `CaptureFixtures.kt:92-94` | S7.2 |
-| R3 | Saving a new or a stopped language service rebuilds every row with `running = false`: another server still running reads Stopped until its process changes state | `AndroidWorkbenchGateway.kt:457-468, 507-510` | S8.2 |
+| R3 | Saving a new or a stopped language service rebuilds every row with `running = false`: another server still running reads Stopped until its process changes state | `AndroidICodeGateway.kt:457-468, 507-510` | S8.2 |
 | R4 | One fact twice: `LanguageService.running` and `.status`; nothing reads `running` | `LanguageServiceContract.kt:9,14`; no reader in `app/src` | S8.2 |
 | R5 | The checked SharedPreferences write is written twice; `LanguageServiceStore` is the last `UseKtx` lint warning | `WorkspaceStore.kt:141-144`, `LanguageServiceStore.kt:40` | S8.3 |
 | R6 | The segmented control draws its selected label in `OnAccent` — the colour for text *on the accent* — over the grey `Outline`: on Dark it is near-black on dark grey, fainter than the unselected option. Neither it nor `ChoiceChip` tells a screen reader which option is selected | `IcodeControls.kt:52-66, 71-86`; `artifacts/screens/19-editor-settings.png` (Tab Size); S6 record | S8.4 |
-| R7 | Language services still live in the gateway (config, processes, view) | `AndroidWorkbenchGateway.kt:84-97, 206-212, 403-407, 457-557` | S8.1 |
-| R8 | The workspace session still lives in the gateway: open/switch, refresh loop, watcher, session restore, drafts of another workspace, compare with disk | `AndroidWorkbenchGateway.kt:559-769` | X3 |
+| R7 | Language services still live in the gateway (config, processes, view) | `AndroidICodeGateway.kt:84-97, 206-212, 403-407, 457-557` | S8.1 |
+| R8 | The workspace session still lives in the gateway: open/switch, refresh loop, watcher, session restore, drafts of another workspace, compare with disk | `AndroidICodeGateway.kt:559-769` | X3 |
 | R9 | Over the 300-line budget: gateway 769 (router ~200 of it), `RuntimeInstaller` 340, `DocumentSessionCoordinator` 314, `IcodeApp` 356. The UI guard checks `ui/screens` only, so `IcodeApp` is unguarded | `wc -l`; `tools/check-ui-consistency.sh` | X4, G1 |
 | R10 | Byte sizes formatted outside `ByteSize`: the terminal's download line; `GuestCommand`'s two limits say "MB" and "MiB" for the same unit | `TerminalControls.kt:73`, `GuestCommand.kt:122, 232` | X5 |
 | R11 | The persistence and lock maps in the audit are stale (no notices, ledgers or language store; "session restore: none yet"). Today each of the 9 stores is opened in exactly one file — nothing enforces it | `getSharedPreferences`/`preferencesDataStore` grep; audit §6 | G1, G2 |
-| — | *Did not hold:* language servers are stopped on a workspace switch (`AndroidWorkbenchGateway.kt:598`); restart is bounded (stop kills after 2 s, restart waits 3 s) | read | — |
+| — | *Did not hold:* language servers are stopped on a workspace switch (`AndroidICodeGateway.kt:598`); restart is bounded (stop kills after 2 s, restart waits 3 s) | read | — |
 
 Owner decisions (2026-09-29): the selected option of a segmented control is an **accent pill**
 (as the filter chips); the Light and AMOLED palettes are **accepted** ("from review I have selected
@@ -739,7 +739,7 @@ developer-tools onboarding step (Todo 5).
   for it. 2 tests for the Git half. Gate: 465 tests; lint 0 errors / 11 warnings; both guards
   pass. Phone check pending (the owner was using the phone).
 - X4, each file over 300 lines reviewed (2026-09-29):
-  - `IcodeApp` 361 → 279: `WorkbenchQuestions` (`ui`) holds what the backend asks the user —
+  - `IcodeApp` 361 → 279: `ICodeQuestions` (`ui`) holds what the backend asks the user —
     switch away from unsaved files, a draft from the last session (in turn), a recovered draft
     over a newer file, a file changed under edits — and draws the waiting one; the root collects
     the effects into it. Same dialogs, moved.
@@ -750,7 +750,7 @@ developer-tools onboarding step (Todo 5).
   - `DocumentSessionCoordinator` 314, one owner, recorded: opening, saving, closing tabs and
     reconciling with disk all read and move the same baseline — each open file's disk version
     and saved text; a split would make two owners of one fact. Held by the ratchet.
-  - `AndroidWorkbenchGateway` 410, one owner, recorded: it builds each feature once and routes
+  - `AndroidICodeGateway` 410, one owner, recorded: it builds each feature once and routes
     each intent once. Tried: the lock-free routes as one `when` — the compiler then no longer
     proved the locked `when` covers every intent (the `if … return` chain before it is what
     lets it), so a new intent could go unrouted; kept as it is.
@@ -802,8 +802,8 @@ user is told something was saved; a background write (`apply()`) is for records 
 
 | Path | Serialised by | Why |
 |---|---|---|
-| every intent not listed next | `WorkbenchStateHolder.mutations` (the gateway's locked router) | one state transition at a time |
-| Refresh, screen shown/hidden, storage and runtime reads, keystrokes, folder toggles, search, fetch/pull/push/clone and their cancel, language-service selection | nothing — routed before the lock (`AndroidWorkbenchGateway.dispatch`) | never queue behind a workspace mutation: keystroke rate, read-only reads, cancellable jobs, a slow remote |
+| every intent not listed next | `ICodeStateHolder.mutations` (the gateway's locked router) | one state transition at a time |
+| Refresh, screen shown/hidden, storage and runtime reads, keystrokes, folder toggles, search, fetch/pull/push/clone and their cancel, language-service selection | nothing — routed before the lock (`AndroidICodeGateway.dispatch`) | never queue behind a workspace mutation: keystroke rate, read-only reads, cancellable jobs, a slow remote |
 | the settled refresh, the restored session | `mutations`, inside `WorkspaceSessionCoordinator`'s own coroutines | a refresh must not interleave with a switch |
 | a transfer's refresh afterwards, opening a finished clone, a language-service restart, Git's refresh after saves | `mutations`, taken when the work is done | the long part runs outside the lock |
 | package installs (git, openssh-client, ripgrep) | `RuntimePackageInstaller.dpkg` | dpkg has one database and one lock; concurrent requests for one package share its install |

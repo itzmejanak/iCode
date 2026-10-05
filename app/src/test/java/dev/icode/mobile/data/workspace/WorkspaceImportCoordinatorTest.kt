@@ -9,8 +9,8 @@ import dev.icode.mobile.data.tasks.TaskRunner
 import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.ImportSource
 import dev.icode.mobile.domain.SystemAccess
-import dev.icode.mobile.domain.WorkbenchEffect
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeEffect
+import dev.icode.mobile.domain.ICodeIntent
 import java.io.File
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
@@ -36,11 +36,11 @@ class WorkspaceImportCoordinatorTest {
 
     private val originalWriter = BackendLog.writer
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val workbench = WorkbenchStateHolder()
-    private val tasks = TaskRunner(workbench, scope)
+    private val stateHolder = ICodeStateHolder()
+    private val tasks = TaskRunner(stateHolder, scope)
     private val messages = Collections.synchronizedList(mutableListOf<String>())
     private val opened = Collections.synchronizedList(mutableListOf<String>())
-    private val effects = Collections.synchronizedList(mutableListOf<WorkbenchEffect>())
+    private val effects = Collections.synchronizedList(mutableListOf<ICodeEffect>())
     private val git = FakeGit()
     private var room = true
     private var copying: CountDownLatch? = null
@@ -57,7 +57,7 @@ class WorkspaceImportCoordinatorTest {
     }
     private val coordinator by lazy {
         WorkspaceImportCoordinator(
-            workbench = workbench,
+            icode = icode,
             tasks = tasks,
             paths = WorkspacePaths(root),
             git = git,
@@ -85,9 +85,9 @@ class WorkspaceImportCoordinatorTest {
     @Before fun collect() {
         BackendLog.writer = { _, _, _ -> }
         scope.launch(Dispatchers.Unconfined) {
-            workbench.effects.collect { effect ->
+            stateHolder.effects.collect { effect ->
                 effects += effect
-                if (effect is WorkbenchEffect.Message) messages += effect.text
+                if (effect is ICodeEffect.Message) messages += effect.text
             }
         }
     }
@@ -100,7 +100,7 @@ class WorkspaceImportCoordinatorTest {
     private fun until(condition: () -> Boolean) {
         val deadline = System.currentTimeMillis() + 5_000
         while (!condition()) {
-            check(System.currentTimeMillis() < deadline) { "Timed out; tasks: ${workbench.current.tasks}, messages: $messages" }
+            check(System.currentTimeMillis() < deadline) { "Timed out; tasks: ${stateHolder.current.tasks}, messages: $messages" }
             Thread.sleep(5)
         }
     }
@@ -111,45 +111,45 @@ class WorkspaceImportCoordinatorTest {
         assertTrue(picked.isDirectory)
         access = false
         coordinator.openBrowser(File(phone, "Projects").path)
-        val waiting = workbench.current.importBrowser!!
+        val waiting = stateHolder.current.importBrowser!!
         assertFalse(waiting.access)
         assertEquals(listOf("sdcard", "Projects"), waiting.crumbs.map { it.name })
         access = true
         val following = coordinator.followAccess(scope)
-        workbench.update { it.copy(systemAccess = SystemAccess(notifications = false, unrestrictedBattery = false, storage = true)) }
-        until { workbench.current.importBrowser?.access == true }
-        assertEquals(listOf("app"), workbench.current.importBrowser!!.folders.map { it.name })
+        stateHolder.update { it.copy(systemAccess = SystemAccess(notifications = false, unrestrictedBattery = false, storage = true)) }
+        until { stateHolder.current.importBrowser?.access == true }
+        assertEquals(listOf("app"), stateHolder.current.importBrowser!!.folders.map { it.name })
         following.cancel()
     }
 
     @Test fun `a breadcrumb step goes back up, and a folder gone since falls back to sdcard`() = runBlocking {
         assertTrue(picked.isDirectory)
         coordinator.openBrowser(picked.path)
-        val crumbs = workbench.current.importBrowser!!.crumbs
+        val crumbs = stateHolder.current.importBrowser!!.crumbs
         assertEquals(listOf("sdcard", "Projects", "app"), crumbs.map { it.name })
         coordinator.browse(crumbs[1].path)
-        assertEquals(File(phone, "Projects").path, workbench.current.importBrowser!!.currentPath)
+        assertEquals(File(phone, "Projects").path, stateHolder.current.importBrowser!!.currentPath)
         coordinator.browse(crumbs[0].path)
-        assertTrue(workbench.current.importBrowser!!.atRoot)
+        assertTrue(stateHolder.current.importBrowser!!.atRoot)
         coordinator.browse(File(phone, "gone").path)
-        assertTrue(workbench.current.importBrowser!!.atRoot)
+        assertTrue(stateHolder.current.importBrowser!!.atRoot)
         assertEquals(1, messages.size)
     }
 
     @Test fun `the chosen folder's name is proposed, and neither the root nor a folder elsewhere can be chosen`() = runBlocking {
         coordinator.choose(phone.path)
         coordinator.choose(temp.newFolder("elsewhere").path)
-        assertNull(workbench.current.importSource)
+        assertNull(stateHolder.current.importSource)
         assertEquals(2, messages.size)
         chosen()
-        assertEquals(ImportSource(picked.path, "app", "sdcard / Projects / app"), workbench.current.importSource)
-        assertTrue(WorkbenchEffect.ImportSourceChosen in effects)
+        assertEquals(ImportSource(picked.path, "app", "sdcard / Projects / app"), stateHolder.current.importSource)
+        assertTrue(ICodeEffect.ImportSourceChosen in effects)
     }
 
     @Test fun `nothing is chosen without access`() = runBlocking {
         access = false
         chosen()
-        assertNull(workbench.current.importSource)
+        assertNull(stateHolder.current.importSource)
         assertEquals(listOf("Allow access to phone storage first"), messages.toList())
     }
 
@@ -161,7 +161,7 @@ class WorkspaceImportCoordinatorTest {
         assertEquals(listOf(workspace.path), opened.toList())
         assertEquals("fun main() {}", File(workspace, "src/App.kt").readText())
         assertEquals(listOf("app"), root.list()!!.toList())
-        assertNull(workbench.current.importSource)
+        assertNull(stateHolder.current.importSource)
         assertEquals(listOf("Imported app"), messages.toList())
         assertTrue("not a repository: Git is not asked", git.restored.isEmpty())
     }
@@ -190,8 +190,8 @@ class WorkspaceImportCoordinatorTest {
         room = false
         chosen()
         coordinator.import("app")
-        until { workbench.current.tasks.singleOrNull()?.failure != null }
-        assertTrue(workbench.current.tasks.single().failure!!.startsWith("Not enough storage"))
+        until { stateHolder.current.tasks.singleOrNull()?.failure != null }
+        assertTrue(stateHolder.current.tasks.single().failure!!.startsWith("Not enough storage"))
         until { root.list()!!.isEmpty() }
         assertTrue(opened.isEmpty())
     }
@@ -200,10 +200,10 @@ class WorkspaceImportCoordinatorTest {
         chosen()
         copying = CountDownLatch(1)
         coordinator.import("app")
-        until { workbench.current.tasks.isNotEmpty() }
-        tasks.handle(WorkbenchIntent.CancelTask(workbench.current.tasks.single().id))
+        until { stateHolder.current.tasks.isNotEmpty() }
+        tasks.handle(ICodeIntent.CancelTask(stateHolder.current.tasks.single().id))
         copying!!.countDown()
-        until { workbench.current.tasks.isEmpty() }
+        until { stateHolder.current.tasks.isEmpty() }
         until { root.list()!!.isEmpty() }
         assertTrue(opened.isEmpty())
     }
@@ -213,7 +213,7 @@ class WorkspaceImportCoordinatorTest {
         File(root, "app").mkdirs()
         coordinator.import("app")
         coordinator.import(".hidden")
-        assertTrue(workbench.current.tasks.isEmpty())
+        assertTrue(stateHolder.current.tasks.isEmpty())
         assertEquals(2, messages.size)
         assertEquals("A workspace named app already exists", messages[0])
         assertFalse(File(root, ".hidden").exists())

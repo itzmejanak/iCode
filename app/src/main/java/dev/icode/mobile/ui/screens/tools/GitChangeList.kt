@@ -47,8 +47,8 @@ import dev.icode.mobile.domain.GitChange
 import dev.icode.mobile.domain.GitChangeRow
 import dev.icode.mobile.domain.GitDiscard
 import dev.icode.mobile.domain.GitStatusCodes
-import dev.icode.mobile.domain.WorkbenchGateway
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeGateway
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.screens.workspace.fileTypeIcon
@@ -68,18 +68,18 @@ internal fun LazyListScope.gitChangeSection(
     rows: List<GitChangeRow>,
     workTreePath: String,
     onToggleFolder: (String) -> Unit,
-    gateway: WorkbenchGateway,
+    gateway: ICodeGateway,
     actions: NavigationActions,
 ) {
     val section = if (staged) "staged" else "changes"
-    val toggleStage = { path: String -> gateway.dispatch(if (staged) WorkbenchIntent.UnstageFile(path) else WorkbenchIntent.StageFile(path)) }
-    val discard = { path: String -> gateway.dispatch(WorkbenchIntent.RequestDiscardChanges(path)) }
+    val toggleStage = { path: String -> gateway.dispatch(if (staged) ICodeIntent.UnstageFile(path) else ICodeIntent.StageFile(path)) }
+    val discard = { path: String -> gateway.dispatch(ICodeIntent.RequestDiscardChanges(path)) }
     item(key = "$section:header") {
         SectionHeader(
             "$title (${changes.size})",
             modifier = Modifier.padding(top = IcodeSpacing.Space3, bottom = IcodeSpacing.Space1),
             actionLabel = if (changes.isEmpty()) null else if (staged) "UNSTAGE ALL" else "STAGE ALL",
-            onAction = { gateway.dispatch(if (staged) WorkbenchIntent.UnstageAllFiles else WorkbenchIntent.StageAllFiles) },
+            onAction = { gateway.dispatch(if (staged) ICodeIntent.UnstageAllFiles else ICodeIntent.StageAllFiles) },
         )
     }
     items(rows, key = { row -> "$section:" + if (row is GitChangeRow.Folder) "folder:${row.path}" else "file:${(row as GitChangeRow.File).change.path}" }) { row ->
@@ -93,7 +93,7 @@ internal fun LazyListScope.gitChangeSection(
                 onDiscard = { discard(row.path) }.takeIf { GitDiscard.of(changes, row.path) != null },
             )
             is GitChangeRow.File -> {
-                val openFile = { gateway.dispatch(WorkbenchIntent.OpenFile("$workTreePath/${row.change.path}")) }
+                val openFile = { gateway.dispatch(ICodeIntent.OpenFile("$workTreePath/${row.change.path}")) }
                 ChangeFileRow(
                     row,
                     onOpen = { openChange(gateway, actions, row.change, openFile) },
@@ -235,17 +235,17 @@ private fun StageButton(staged: Boolean, name: String, onClick: () -> Unit) {
  * accident. The diff is requested before navigating so the diff surface renders
  * Git's own patch.
  */
-private fun openChange(gateway: WorkbenchGateway, actions: NavigationActions, change: GitChange, openFile: () -> Unit) {
+private fun openChange(gateway: ICodeGateway, actions: NavigationActions, change: GitChange, openFile: () -> Unit) {
     when {
         change.status == GitStatusCodes.UNTRACKED -> openFile()
         change.status == GitStatusCodes.CONFLICTED -> {
-            gateway.dispatch(WorkbenchIntent.OpenConflict(change.path))
+            gateway.dispatch(ICodeIntent.OpenConflict(change.path))
             actions.navigate(Route.ConflictResolution)
         }
         // Opening a deletion asks whether to restore the file.
-        change.status == GitStatusCodes.DELETED && change.discardable -> gateway.dispatch(WorkbenchIntent.RequestDiscardChanges(change.path))
+        change.status == GitStatusCodes.DELETED && change.discardable -> gateway.dispatch(ICodeIntent.RequestDiscardChanges(change.path))
         else -> {
-            gateway.dispatch(WorkbenchIntent.OpenDiff(change.path, change.staged))
+            gateway.dispatch(ICodeIntent.OpenDiff(change.path, change.staged))
             actions.navigate(Route.DiffView)
         }
     }

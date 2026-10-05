@@ -27,7 +27,7 @@ import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.GitTransferLabel
 import dev.icode.mobile.navigation.NavigationActions
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
  * Live progress for fetch, pull and push, and Commit & Push's commit before its push.
@@ -39,7 +39,7 @@ import dev.icode.mobile.ui.LocalWorkbenchSnapshot
  */
 @Composable
 fun PullProgressScreen(actions: NavigationActions) {
-    val state = LocalWorkbenchSnapshot.current
+    val state = LocalICodeSnapshot.current
     val operation = state.gitOperation
     val running = operation is GitOperationState.Running
     // A failure has a message worth reading, so only success leaves by itself.

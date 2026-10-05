@@ -3,7 +3,7 @@ package dev.icode.mobile.ui.screens.workspace
 import androidx.compose.runtime.Composable
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
  * Workspace shell frames: explorer, editor, search and the empty editor.
@@ -17,7 +17,7 @@ fun WorkspaceScreenHost(screen: Route, actions: NavigationActions) {
         // The editor route shows the empty editor until a document is open:
         // a real condition, not an entry point of its own.
         Route.WorkspaceEditor ->
-            if (LocalWorkbenchSnapshot.current.activeDocument == null) EditorEmptyScreen(actions)
+            if (LocalICodeSnapshot.current.activeDocument == null) EditorEmptyScreen(actions)
             else WorkspaceEditorScreen(actions)
         Route.WorkspaceSearch -> WorkspaceFindScreen(actions, FindMode.Text)
         Route.EditorEmpty -> EditorEmptyScreen(actions)

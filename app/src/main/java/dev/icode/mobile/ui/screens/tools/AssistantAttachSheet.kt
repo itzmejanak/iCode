@@ -34,9 +34,9 @@ import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.SearchEngineState
-import dev.icode.mobile.domain.WorkbenchIntent
-import dev.icode.mobile.domain.WorkbenchSnapshot
-import dev.icode.mobile.ui.LocalWorkbenchGateway
+import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.ICodeSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.screens.workspace.rankFiles
 
 /**
@@ -46,17 +46,17 @@ import dev.icode.mobile.ui.screens.workspace.rankFiles
  */
 @Composable
 internal fun AssistantAttachSheet(
-    snapshot: WorkbenchSnapshot,
+    snapshot: ICodeSnapshot,
     attached: List<DraftFile>,
     pickers: AssistantPickers,
     modifier: Modifier,
     onClose: () -> Unit,
     onAttached: (List<DraftFile>) -> Unit,
 ) {
-    val gateway = LocalWorkbenchGateway.current
+    val gateway = LocalICodeGateway.current
     val root = snapshot.activeWorkspaceLocation
     // As Quick Open does: the index is asked for when it is needed, not before.
-    LaunchedEffect(root) { if (root != null) gateway.dispatch(WorkbenchIntent.PrepareWorkspaceSearch) }
+    LaunchedEffect(root) { if (root != null) gateway.dispatch(ICodeIntent.PrepareWorkspaceSearch) }
     var query by rememberSaveable { mutableStateOf("") }
     val ranked = remember(snapshot.fileIndex, query) { rankFiles(snapshot.fileIndex, query) }
     val full = attached.size >= AssistantRules.MAX_ATTACHMENTS

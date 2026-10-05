@@ -1,12 +1,12 @@
 package dev.icode.mobile.data.runtime
 
 import androidx.annotation.MainThread
-import dev.icode.mobile.data.workspace.WorkbenchStateHolder
+import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.data.workspace.isAtOrUnder
 import dev.icode.mobile.domain.ManagedProcess
 import dev.icode.mobile.domain.TerminalSettings
 import dev.icode.mobile.domain.TerminalSnapshot
-import dev.icode.mobile.domain.WorkbenchEffect
+import dev.icode.mobile.domain.ICodeEffect
 import kotlin.coroutines.CoroutineContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,7 +25,7 @@ internal data class TerminalEnding(val id: String, val title: String, val exitCo
  */
 internal data class FollowedOutput(val key: String, val title: String, val workspaceHostPath: String, val log: String)
 
-/** What the workbench asks of the process's terminal sessions; tests put a fake in their place. */
+/** What iCode asks of the process's terminal sessions; tests put a fake in their place. */
 internal interface TerminalSessions {
     val snapshot: StateFlow<TerminalSnapshot>
     val endings: SharedFlow<TerminalEnding>
@@ -45,14 +45,14 @@ internal interface TerminalSessions {
 }
 
 /**
- * The terminal as the workbench sees it (S6): opening and closing tabs,
+ * The terminal as iCode sees it (S6): opening and closing tabs,
  * showing a session from its notification, following the sessions into the
  * snapshot, and what a finished command means for the open workspace. The
  * sessions themselves belong to the process ([TerminalSessionManager]) and
  * outlive every screen.
  */
 internal class TerminalCoordinator(
-    private val workbench: WorkbenchStateHolder,
+    private val stateHolder: ICodeStateHolder,
     private val terminals: TerminalSessions,
     private val runtimeInstalled: () -> Boolean,
     private val activeRoot: () -> String?,
@@ -66,13 +66,13 @@ internal class TerminalCoordinator(
     /** Follows the sessions, their endings and the terminal settings for as long as [scope] lives. */
     fun follow(scope: CoroutineScope, settings: Flow<TerminalSettings>) {
         scope.launch {
-            terminals.snapshot.collect { terminal -> workbench.update { it.copy(terminal = terminal) } }
+            terminals.snapshot.collect { terminal -> stateHolder.update { it.copy(terminal = terminal) } }
         }
         // A tab closes when its shell exits. A clean exit needs no comment; any
         // other code is said once, so a shell that failed on its own is not silent.
         scope.launch {
             terminals.endings.collect { ending ->
-                if (ending.exitCode != 0) workbench.message("${ending.title} exited with code ${ending.exitCode}")
+                if (ending.exitCode != 0) stateHolder.message("${ending.title} exited with code ${ending.exitCode}")
             }
         }
         scope.launch {
@@ -89,11 +89,11 @@ internal class TerminalCoordinator(
     /** "+": always a new session, in the open workspace. */
     suspend fun open() {
         if (!runtimeInstalled()) {
-            workbench.message("Install the Linux runtime before opening a terminal")
+            stateHolder.message("Install the Linux runtime before opening a terminal")
             return
         }
         if (terminals.open(activeRoot(), reuseExisting = false) == null) {
-            workbench.message("Unable to start a terminal session")
+            stateHolder.message("Unable to start a terminal session")
         }
     }
 
@@ -104,11 +104,11 @@ internal class TerminalCoordinator(
      */
     suspend fun ensure() {
         if (!runtimeInstalled()) {
-            workbench.message("Install the Linux runtime before opening a terminal")
+            stateHolder.message("Install the Linux runtime before opening a terminal")
             return
         }
         if (terminals.open(activeRoot(), reuseExisting = true) == null) {
-            workbench.message("Unable to start a terminal session")
+            stateHolder.message("Unable to start a terminal session")
         }
     }
 
@@ -116,8 +116,8 @@ internal class TerminalCoordinator(
     suspend fun openIn(location: String) {
         if (!runtimeInstalled()) return
         runCatching { terminals.open(location, reuseExisting = true) }
-            .onSuccess { workbench.update { it.copy(terminal = terminals.snapshot.value) } }
-            .onFailure { error -> workbench.report("terminal", "Unable to start terminal", error) }
+            .onSuccess { stateHolder.update { it.copy(terminal = terminals.snapshot.value) } }
+            .onFailure { error -> stateHolder.report("terminal", "Unable to start terminal", error) }
     }
 
     /** Whether a session opened in [location], or in a folder inside it, still runs. */
@@ -136,9 +136,9 @@ internal class TerminalCoordinator(
      * already following it, else a new one — in the workspace it runs in.
      */
     suspend fun showOutput(process: ManagedProcess, log: String) {
-        if (!runtimeInstalled()) return workbench.message("Install the Linux runtime before opening a terminal")
+        if (!runtimeInstalled()) return stateHolder.message("Install the Linux runtime before opening a terminal")
         val id = terminals.follow(FollowedOutput(process.id, process.name, process.workspace, log))
-            ?: return workbench.message("Unable to show ${process.name}'s output")
+            ?: return stateHolder.message("Unable to show ${process.name}'s output")
         show(id)
     }
 
@@ -154,8 +154,8 @@ internal class TerminalCoordinator(
             terminals.workspaceOf(id) ?: ""
         }
         when (workspace) {
-            null -> workbench.message("That terminal session has ended")
-            "" -> workbench.emit(WorkbenchEffect.WorkspaceTerminalOpened(activeRoot().orEmpty()))
+            null -> stateHolder.message("That terminal session has ended")
+            "" -> stateHolder.emit(ICodeEffect.WorkspaceTerminalOpened(activeRoot().orEmpty()))
             else -> openWorkspaceTerminal(workspace)
         }
     }

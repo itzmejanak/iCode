@@ -16,8 +16,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import dev.icode.mobile.domain.SystemPermission
-import dev.icode.mobile.domain.WorkbenchGateway
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeGateway
+import dev.icode.mobile.domain.ICodeIntent
 
 /**
  * Android's own prompts and pages: what iCode asks to be allowed, and Android's Files app.
@@ -104,9 +104,9 @@ class SystemPrompts internal constructor(
 }
 
 @Composable
-fun rememberSystemPrompts(gateway: WorkbenchGateway): SystemPrompts {
+fun rememberSystemPrompts(gateway: ICodeGateway): SystemPrompts {
     val context = LocalContext.current
-    fun answered(permission: SystemPermission) = gateway.dispatch(WorkbenchIntent.SystemPermissionAnswered(permission))
+    fun answered(permission: SystemPermission) = gateway.dispatch(ICodeIntent.SystemPermissionAnswered(permission))
     val storagePage = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         answered(SystemPermission.Storage)
     }

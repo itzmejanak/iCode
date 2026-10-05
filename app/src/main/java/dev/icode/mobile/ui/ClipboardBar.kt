@@ -26,7 +26,7 @@ import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.domain.ItemClipboard
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 
 /**
  * What waits on iCode's one clipboard, wherever it can be pasted (docs/workspaces-page-plan.md
@@ -35,7 +35,7 @@ import dev.icode.mobile.domain.WorkbenchIntent
  */
 @Composable
 fun ClipboardBar(clipboard: ItemClipboard, onPaste: () -> Unit, modifier: Modifier = Modifier) {
-    val gateway = LocalWorkbenchGateway.current
+    val gateway = LocalICodeGateway.current
     Column(modifier.fillMaxWidth().background(IcodeColors.SurfaceElevated)) {
         Divider()
         Row(
@@ -59,7 +59,7 @@ fun ClipboardBar(clipboard: ItemClipboard, onPaste: () -> Unit, modifier: Modifi
                 Text(if (clipboard.cut) "Cut — moves when pasted" else "Copied — pastes as a copy", style = IcodeType.Caption)
             }
             PrimaryButton("Paste", onPaste)
-            IconButton(onClick = { gateway.dispatch(WorkbenchIntent.ClearClipboard) }) {
+            IconButton(onClick = { gateway.dispatch(ICodeIntent.ClearClipboard) }) {
                 Icon(Icons.Outlined.Close, contentDescription = "Clear the clipboard", tint = IcodeColors.TextSecondary)
             }
         }

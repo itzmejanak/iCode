@@ -1,6 +1,6 @@
 package dev.icode.mobile.data.git
 
-import dev.icode.mobile.data.workspace.WorkbenchStateHolder
+import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceTree
 import dev.icode.mobile.domain.GitFileDiff
 import dev.icode.mobile.domain.GitDiscard
@@ -9,7 +9,7 @@ import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.GitRemoteRules
 import dev.icode.mobile.domain.GitStatusCodes
 import dev.icode.mobile.domain.RecentDocument
-import dev.icode.mobile.domain.WorkbenchEffect
+import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.WorkspaceSummary
 import java.io.File
 import java.io.IOException
@@ -26,7 +26,7 @@ import kotlinx.coroutines.sync.withLock
  * Conflicts, network transfers and credentials have their own owners.
  */
 internal class GitWorkspaceCoordinator(
-    private val workbench: WorkbenchStateHolder,
+    private val workbench: ICodeStateHolder,
     private val scope: CoroutineScope,
     private val git: GitWorkspaceOperations,
     private val tree: WorkspaceTree,
@@ -120,7 +120,7 @@ internal class GitWorkspaceCoordinator(
         runCatching {
             git.initialize(workspace)
             refresh(workspace)
-            workbench.emit(WorkbenchEffect.GitInitialized)
+            workbench.emit(ICodeEffect.GitInitialized)
         }.onFailure { error ->
             workbench.report("git", "Unable to initialize Git", error)
         }
@@ -163,7 +163,7 @@ internal class GitWorkspaceCoordinator(
     /** Null once committed, else Git's words — said as a message too, unless [quiet] (Commit & Push shows them). */
     suspend fun commit(message: String, quiet: Boolean = false): String? = act(
         operation = { workspace -> git.commit(workspace, message) },
-        onSuccess = { workbench.emit(WorkbenchEffect.GitCommitted) },
+        onSuccess = { workbench.emit(ICodeEffect.GitCommitted) },
         quiet = quiet,
     )
 

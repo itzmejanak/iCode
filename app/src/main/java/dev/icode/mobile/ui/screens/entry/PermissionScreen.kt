@@ -14,12 +14,12 @@ import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.domain.SystemPermission
-import dev.icode.mobile.domain.WorkbenchEffect
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeEffect
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 private val stepsSaver = listSaver<List<SystemPermission>, String>(
     save = { steps -> steps.map { it.name } },
@@ -38,14 +38,14 @@ private val stepsSaver = listSaver<List<SystemPermission>, String>(
  */
 @Composable
 fun PermissionScreen(actions: NavigationActions) {
-    val gateway = LocalWorkbenchGateway.current
-    val access = LocalWorkbenchSnapshot.current.systemAccess
+    val gateway = LocalICodeGateway.current
+    val access = LocalICodeSnapshot.current.systemAccess
     val steps = rememberSaveable(saver = stepsSaver) { access?.onboardingSteps.orEmpty() }
     var position by rememberSaveable { mutableIntStateOf(0) }
 
     LaunchedEffect(gateway) {
         gateway.effects.collect { effect ->
-            if (effect is WorkbenchEffect.SystemPermissionResolved && effect.permission == steps.getOrNull(position)) position++
+            if (effect is ICodeEffect.SystemPermissionResolved && effect.permission == steps.getOrNull(position)) position++
         }
     }
 
@@ -56,9 +56,9 @@ fun PermissionScreen(actions: NavigationActions) {
     }
     PermissionExplanation(
         permission = current,
-        onAllow = { gateway.dispatch(WorkbenchIntent.RequestSystemPermission(current)) },
+        onAllow = { gateway.dispatch(ICodeIntent.RequestSystemPermission(current)) },
         onNotNow = {
-            gateway.dispatch(WorkbenchIntent.DeclineSystemPermission(current))
+            gateway.dispatch(ICodeIntent.DeclineSystemPermission(current))
             position++
         },
         modifier = Modifier.fillMaxSize().padding(IcodeSpacing.Space6),

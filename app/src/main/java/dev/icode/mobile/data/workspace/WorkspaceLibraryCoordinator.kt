@@ -10,7 +10,7 @@ import dev.icode.mobile.domain.FileKind
 import dev.icode.mobile.domain.FilesBrowserState
 import dev.icode.mobile.domain.ProjectDestination
 import dev.icode.mobile.domain.StorageDetails
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.WorkspaceSummary
 import java.io.File
 import java.nio.file.Files
@@ -30,7 +30,7 @@ import kotlinx.coroutines.launch
  */
 internal class WorkspaceLibraryCoordinator(
     private val appContext: Context,
-    private val workbench: WorkbenchStateHolder,
+    private val stateHolder: ICodeStateHolder,
     private val scope: CoroutineScope,
     private val source: WorkspaceFileSource,
     private val store: WorkspaceStore,
@@ -53,14 +53,14 @@ internal class WorkspaceLibraryCoordinator(
         // concurrent writer's fields are lost.
         val workspaces = workspaces()
         val storage = runCatching(source::storageSummary).getOrNull()
-        workbench.update { it.copy(workspaces = workspaces, storage = storage) }
+        stateHolder.update { it.copy(workspaces = workspaces, storage = storage) }
         refreshFiles()
         runCatching { WorkspacesProvider.changed(appContext) }
     }
 
     /** The file explorer's folder, read again after a change — iCode's, or one the watcher saw. */
     fun refreshFiles() {
-        workbench.current.filesBrowser?.let { browseFiles(it.path) }
+        stateHolder.current.filesBrowser?.let { browseFiles(it.path) }
     }
 
     /**
@@ -92,25 +92,25 @@ internal class WorkspaceLibraryCoordinator(
     /** A workspace renamed: its place in the list, recent files and saved session follow. */
     suspend fun relocate(from: String, to: String) {
         runCatching { store.relocate(from, to) }
-            .onFailure { error -> workbench.report("workspace", "The workspace's history could not follow the rename", error) }
+            .onFailure { error -> stateHolder.report("workspace", "The workspace's history could not follow the rename", error) }
         refresh()
     }
 
     /** A workspace deleted: what was kept about it goes. */
     suspend fun forget(location: String) {
         runCatching { store.forget(location) }
-            .onFailure { error -> workbench.report("workspace", "The deleted workspace's history could not be cleared", error) }
+            .onFailure { error -> stateHolder.report("workspace", "The deleted workspace's history could not be cleared", error) }
         refresh()
     }
 
-    fun read(intent: WorkbenchIntent.StorageIntent) {
+    fun read(intent: ICodeIntent.StorageIntent) {
         when (intent) {
-            is WorkbenchIntent.BrowseFiles -> scope.launch(Dispatchers.IO) {
-                browseFiles(intent.path ?: workbench.current.filesBrowser?.path ?: paths.root.path)
+            is ICodeIntent.BrowseFiles -> scope.launch(Dispatchers.IO) {
+                browseFiles(intent.path ?: stateHolder.current.filesBrowser?.path ?: paths.root.path)
             }
-            is WorkbenchIntent.ChooseDestination -> scope.launch(Dispatchers.IO) { chooseDestination(intent.path) }
-            WorkbenchIntent.RefreshStorage -> refreshStorage()
-            WorkbenchIntent.MeasureWorkspaces -> measureWorkspaces()
+            is ICodeIntent.ChooseDestination -> scope.launch(Dispatchers.IO) { chooseDestination(intent.path) }
+            ICodeIntent.RefreshStorage -> refreshStorage()
+            ICodeIntent.MeasureWorkspaces -> measureWorkspaces()
         }
     }
 
@@ -120,7 +120,7 @@ internal class WorkspaceLibraryCoordinator(
             val shown = paths.guestOf(location)?.takeIf { paths.workspaceOf(location) != null && File(location).isDirectory } ?: return
             ProjectDestination(location, shown, File(location).list()?.toSet().orEmpty())
         }
-        workbench.update { it.copy(projectDestination = destination) }
+        stateHolder.update { it.copy(projectDestination = destination) }
     }
 
     /**
@@ -141,7 +141,7 @@ internal class WorkspaceLibraryCoordinator(
                 BrowsedItem(node.name, node.location, folder, bytes = file.length().takeUnless { folder }, changedAt = file.lastModified(), entries = if (folder) file.list()?.size else null)
             }
         }
-        workbench.update { it.copy(filesBrowser = FilesBrowserState(root, at, items)) }
+        stateHolder.update { it.copy(filesBrowser = FilesBrowserState(root, at, items)) }
     }
 
     /** The device, the runtime and the cache; the newest measurement replaces one still running. */
@@ -155,7 +155,7 @@ internal class WorkspaceLibraryCoordinator(
                 cache = measureTree(appContext.cacheDir, maxEntries = 50_000),
             ) }
             currentCoroutineContext().ensureActive()
-            workbench.update { it.copy(workspaces = workspaces(), storage = device, storageDetails = details) }
+            stateHolder.update { it.copy(workspaces = workspaces(), storage = device, storageDetails = details) }
         }
     }
 
@@ -167,29 +167,29 @@ internal class WorkspaceLibraryCoordinator(
         sizesJob?.cancel()
         sizesJob = scope.launch(Dispatchers.IO) {
             val workspaces = workspaces()
-            workbench.update { snapshot -> snapshot.copy(workspaceSizes = snapshot.workspaceSizes.filterKeys { key -> workspaces.any { it.location == key } }) }
+            stateHolder.update { snapshot -> snapshot.copy(workspaceSizes = snapshot.workspaceSizes.filterKeys { key -> workspaces.any { it.location == key } }) }
             workspaces.forEach { item ->
                 val size = measureTree(File(item.location), maxEntries = WORKSPACE_ENTRIES)
                 currentCoroutineContext().ensureActive()
-                workbench.update { it.copy(workspaceSizes = it.workspaceSizes + (item.location to size)) }
+                stateHolder.update { it.copy(workspaceSizes = it.workspaceSizes + (item.location to size)) }
             }
         }
     }
 
     suspend fun clearCache() {
         if (tasksRunning()) {
-            workbench.message("Finish runtime, Git, terminal and language service tasks before clearing cache")
+            stateHolder.message("Finish runtime, Git, terminal and language service tasks before clearing cache")
             return
         }
         runCatching {
             StorageInspector.clearRuntimeCache(appContext.cacheDir, runtimeLayout.prootTemp)
         }.onSuccess { removed ->
-            workbench.message(
+            stateHolder.message(
                 if (removed == 0) "Runtime cache is already clear" else "Removed $removed cached runtime items",
             )
             refreshStorage()
         }.onFailure { error ->
-            workbench.report("storage", "Unable to clear runtime cache", error)
+            stateHolder.report("storage", "Unable to clear runtime cache", error)
         }
     }
 
@@ -198,9 +198,9 @@ internal class WorkspaceLibraryCoordinator(
             store.touchRecentDocument(
                 StoredRecentDocument(File(location).name, File(location).canonicalPath, root, System.currentTimeMillis()),
             )
-            workbench.update { it.copy(recentDocuments = recentDocuments(root)) }
+            stateHolder.update { it.copy(recentDocuments = recentDocuments(root)) }
         }.onFailure { error ->
-            workbench.report("documents", "File opened, but recent files could not be saved", error)
+            stateHolder.report("documents", "File opened, but recent files could not be saved", error)
         }
     }
 
@@ -209,7 +209,7 @@ internal class WorkspaceLibraryCoordinator(
     /** Kept as it changes, so a process Android ends can reopen the same workspace and tabs. */
     suspend fun saveSession(session: StoredSession?) {
         runCatching { store.saveSession(session) }
-            .onFailure { error -> workbench.report("workspace", "The open workspace could not be remembered", error) }
+            .onFailure { error -> stateHolder.report("workspace", "The open workspace could not be remembered", error) }
     }
 
     /** The workspace [location] lies in, when it is there; null for anything outside the workspaces. */
@@ -232,8 +232,8 @@ internal class WorkspaceLibraryCoordinator(
 
     private suspend fun updateRecentDocuments(root: String, change: (List<StoredRecentDocument>) -> List<StoredRecentDocument>) {
         runCatching { store.updateRecentDocuments(change) }
-            .onFailure { error -> workbench.report("documents", "Recent files could not follow the change", error) }
-        workbench.update { it.copy(recentDocuments = recentDocuments(root)) }
+            .onFailure { error -> stateHolder.report("documents", "Recent files could not follow the change", error) }
+        stateHolder.update { it.copy(recentDocuments = recentDocuments(root)) }
     }
 
     /** Recent files of [root] only; an entry that has left the workspace is dropped. */

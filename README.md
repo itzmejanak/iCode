@@ -62,8 +62,8 @@ and `tools/check-backend-consistency.sh` (`tools/backend-debt-allowlist.txt`) fo
 `domain/` — among them the file budget, one owner per store, one package installer, one digest
 and one byte format.
 
-`WorkbenchGateway` is the only state/intent/effect seam between Compose and implementations.
-The app uses `AndroidWorkbenchGateway`, which builds one coordinator per feature and routes each
+`ICodeGateway` is the only state/intent/effect seam between Compose and implementations.
+The app uses `AndroidICodeGateway`, which builds one coordinator per feature and routes each
 intent to it; a capture launch uses `CaptureGateway`, which draws the fixtures and ignores every
 intent, so no fixture reaches real storage.
 

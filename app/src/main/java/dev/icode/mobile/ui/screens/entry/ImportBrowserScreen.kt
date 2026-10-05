@@ -26,13 +26,13 @@ import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.domain.ImportBrowserState
 import dev.icode.mobile.domain.SystemPermission
-import dev.icode.mobile.domain.WorkbenchGateway
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeGateway
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.countOf
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.ui.FolderBreadcrumb
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
  * Import's browser of phone storage (docs/workspace-storage-plan.md §4.5; the Open Folder frame,
@@ -43,13 +43,13 @@ import dev.icode.mobile.ui.LocalWorkbenchSnapshot
  */
 @Composable
 fun ImportBrowserScreen(actions: NavigationActions) {
-    val gateway = LocalWorkbenchGateway.current
-    val browser = LocalWorkbenchSnapshot.current.importBrowser
+    val gateway = LocalICodeGateway.current
+    val browser = LocalICodeSnapshot.current.importBrowser
     // Where it was last, or where the earlier workspaces' notice asked, read again.
-    LaunchedEffect(Unit) { gateway.dispatch(WorkbenchIntent.OpenImportBrowser()) }
+    LaunchedEffect(Unit) { gateway.dispatch(ICodeIntent.OpenImportBrowser()) }
     // Back goes up a folder, as in the Workspaces page's file explorer; at sdcard it leaves.
     val up = browser?.takeIf { it.access }?.parent
-    val back = { if (up != null) gateway.dispatch(WorkbenchIntent.BrowseImportFolder(up)) else actions.back() }
+    val back = { if (up != null) gateway.dispatch(ICodeIntent.BrowseImportFolder(up)) else actions.back() }
     BackHandler(enabled = up != null) { back() }
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Import", onBack = back)
@@ -58,7 +58,7 @@ fun ImportBrowserScreen(actions: NavigationActions) {
             browser == null -> Unit
             !browser.access -> PermissionExplanation(
                 permission = SystemPermission.Storage,
-                onAllow = { gateway.dispatch(WorkbenchIntent.RequestSystemPermission(SystemPermission.Storage)) },
+                onAllow = { gateway.dispatch(ICodeIntent.RequestSystemPermission(SystemPermission.Storage)) },
                 onNotNow = actions.back,
                 modifier = Modifier.weight(1f).padding(IcodeSpacing.Space6),
             )
@@ -68,9 +68,9 @@ fun ImportBrowserScreen(actions: NavigationActions) {
 }
 
 @Composable
-private fun FolderListing(browser: ImportBrowserState, gateway: WorkbenchGateway, modifier: Modifier) {
+private fun FolderListing(browser: ImportBrowserState, gateway: ICodeGateway, modifier: Modifier) {
     Column(modifier) {
-        FolderBreadcrumb(browser.crumbs) { path -> gateway.dispatch(WorkbenchIntent.BrowseImportFolder(path)) }
+        FolderBreadcrumb(browser.crumbs) { path -> gateway.dispatch(ICodeIntent.BrowseImportFolder(path)) }
         LazyColumn(
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(horizontal = IcodeSpacing.Space5),
@@ -85,7 +85,7 @@ private fun FolderListing(browser: ImportBrowserState, gateway: WorkbenchGateway
                     title = folder.name,
                     subtitle = "${countOf(folder.directoryCount, "directory", "directories")}, ${countOf(folder.fileCount, "file")}",
                     titleStyle = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold),
-                    onClick = { gateway.dispatch(WorkbenchIntent.BrowseImportFolder(folder.path)) },
+                    onClick = { gateway.dispatch(ICodeIntent.BrowseImportFolder(folder.path)) },
                     leading = { Icon(Icons.Outlined.Folder, contentDescription = null, tint = IcodeColors.Accent) },
                     trailing = {
                         Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = IcodeColors.TextSecondary)
@@ -96,7 +96,7 @@ private fun FolderListing(browser: ImportBrowserState, gateway: WorkbenchGateway
         // sdcard itself is where folders are, not one to import.
         PrimaryButton(
             if (browser.atRoot) "Choose a Folder to Import" else "Import ${browser.name}",
-            { gateway.dispatch(WorkbenchIntent.ChooseImportFolder(browser.currentPath)) },
+            { gateway.dispatch(ICodeIntent.ChooseImportFolder(browser.currentPath)) },
             Modifier.fillMaxWidth().padding(IcodeSpacing.Space5),
             enabled = !browser.atRoot,
         )

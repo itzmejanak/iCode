@@ -15,10 +15,10 @@ import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.IcodeBottomSheet
 import dev.icode.mobile.designsystem.IcodeChoiceRow
 import dev.icode.mobile.designsystem.IcodeTextField
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
  * Which repository Source Control works in, when the open workspace holds more than one
@@ -30,8 +30,8 @@ import dev.icode.mobile.ui.LocalWorkbenchSnapshot
 @Composable
 fun RepositorySelectorScreen(actions: NavigationActions) {
     var query by rememberSaveable { mutableStateOf("") }
-    val state = LocalWorkbenchSnapshot.current
-    val gateway = LocalWorkbenchGateway.current
+    val state = LocalICodeSnapshot.current
+    val gateway = LocalICodeGateway.current
     val workspace = state.activeWorkspaceLocation
     val chosen = state.gitRepository?.workTreePath
     val matching = state.gitRepositories.filter { repositoryLabel(it, workspace).contains(query, ignoreCase = true) }
@@ -50,7 +50,7 @@ fun RepositorySelectorScreen(actions: NavigationActions) {
             )
             matching.forEach { location ->
                 IcodeChoiceRow(repositoryLabel(location, workspace), chosen = location == chosen, onChoose = {
-                    gateway.dispatch(WorkbenchIntent.ChooseGitRepository(location))
+                    gateway.dispatch(ICodeIntent.ChooseGitRepository(location))
                     actions.back()
                 })
             }

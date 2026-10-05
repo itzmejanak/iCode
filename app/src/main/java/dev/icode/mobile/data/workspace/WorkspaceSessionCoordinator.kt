@@ -6,8 +6,8 @@ import dev.icode.mobile.data.language.LanguageServiceCoordinator
 import dev.icode.mobile.data.runtime.TerminalCoordinator
 import dev.icode.mobile.data.search.SearchCoordinator
 import dev.icode.mobile.domain.ContentSearchState
-import dev.icode.mobile.domain.WorkbenchEffect
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeEffect
+import dev.icode.mobile.domain.ICodeIntent
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.BufferOverflow
@@ -28,7 +28,7 @@ import kotlinx.coroutines.sync.withLock
  * the gateway only builds the features and routes intents.
  */
 internal class WorkspaceSessionCoordinator(
-    private val workbench: WorkbenchStateHolder,
+    private val stateHolder: ICodeStateHolder,
     private val scope: CoroutineScope,
     private val source: WorkspaceFileSource,
     private val tree: WorkspaceTree,
@@ -66,23 +66,23 @@ internal class WorkspaceSessionCoordinator(
         announce: Boolean = true,
     ) {
         if (!source.isWorkspace(location)) {
-            workbench.message("This workspace no longer exists")
+            stateHolder.message("This workspace no longer exists")
             library.refresh()
             return
         }
         if (location == activeRoot) {
             if (openTerminal) terminal.openIn(location)
             if (announce) {
-                workbench.emit(
-                    if (openTerminal) WorkbenchEffect.WorkspaceTerminalOpened(location)
-                    else WorkbenchEffect.WorkspaceOpened(location),
+                stateHolder.emit(
+                    if (openTerminal) ICodeEffect.WorkspaceTerminalOpened(location)
+                    else ICodeEffect.WorkspaceOpened(location),
                 )
             }
             return
         }
-        val dirtyCount = workbench.current.openDocuments.count { it.dirty }
+        val dirtyCount = stateHolder.current.openDocuments.count { it.dirty }
         if (dirtyCount > 0 && !dirtyChoiceResolved) {
-            workbench.emit(WorkbenchEffect.ConfirmWorkspaceSwitch(location, openTerminal, dirtyCount))
+            stateHolder.emit(ICodeEffect.ConfirmWorkspaceSwitch(location, openTerminal, dirtyCount))
             return
         }
         runCatching {
@@ -95,7 +95,7 @@ internal class WorkspaceSessionCoordinator(
             tree.reset(root.location, children)
             if (persist) library.remember(root.location)
             val workspaces = library.workspaces()
-            workbench.update { snapshot -> snapshot.withGit(gitPicture).copy(
+            stateHolder.update { snapshot -> snapshot.withGit(gitPicture).copy(
                 workspaces = workspaces,
                 files = tree.rows(root.location, gitPicture.state),
                 localGitAuthorName = null,
@@ -115,20 +115,20 @@ internal class WorkspaceSessionCoordinator(
             leftBehind(closing)
             if (openTerminal) terminal.openIn(root.location)
             if (announce) {
-                workbench.emit(
-                    if (openTerminal) WorkbenchEffect.WorkspaceTerminalOpened(location)
-                    else WorkbenchEffect.WorkspaceOpened(location),
+                stateHolder.emit(
+                    if (openTerminal) ICodeEffect.WorkspaceTerminalOpened(location)
+                    else ICodeEffect.WorkspaceOpened(location),
                 )
             }
         }.onFailure { error ->
             library.refresh()
-            workbench.report("workspace", "Unable to open the workspace", error)
+            stateHolder.report("workspace", "Unable to open the workspace", error)
         }
     }
 
     /**
      * Closes the open workspace, before it is deleted or renamed. Its tabs close — one with unsaved
-     * edits was refused before this — its services stop, and the workbench shows no workspace.
+     * edits was refused before this — its services stop, and iCode shows no workspace.
      */
     suspend fun close() {
         if (activeRoot == null) return
@@ -136,8 +136,8 @@ internal class WorkspaceSessionCoordinator(
         languages.stopAll()
         activeRoot = null
         tree.clear()
-        val empty = WorkbenchStateHolder.emptySnapshot()
-        workbench.update { snapshot -> snapshot.copy(
+        val empty = ICodeStateHolder.emptySnapshot()
+        stateHolder.update { snapshot -> snapshot.copy(
             files = empty.files,
             gitChanges = empty.gitChanges,
             gitRepository = null,
@@ -164,9 +164,9 @@ internal class WorkspaceSessionCoordinator(
         if (activeRoot == location) reopenTabs(tabs, active)
     }
 
-    suspend fun resolveSwitch(intent: WorkbenchIntent.ResolveWorkspaceSwitch) {
+    suspend fun resolveSwitch(intent: ICodeIntent.ResolveWorkspaceSwitch) {
         if (intent.saveChanges) {
-            val dirty = workbench.current.openDocuments.filter { it.dirty }
+            val dirty = stateHolder.current.openDocuments.filter { it.dirty }
             for (document in dirty) if (!documents.save(document.location)) return
         }
         open(intent.path, persist = true, openTerminal = intent.openTerminal, dirtyChoiceResolved = true)
@@ -180,7 +180,7 @@ internal class WorkspaceSessionCoordinator(
     /** The watcher runs only while iCode is seen. */
     fun screenVisible(visible: Boolean) {
         screenVisible = visible
-        if (visible) watcher.watch(watchedFolders(workbench.current, source.workspacesRoot)) else watcher.stop()
+        if (visible) watcher.watch(watchedFolders(stateHolder.current, source.workspacesRoot)) else watcher.stop()
     }
 
     fun stopWatching() = watcher.stop()
@@ -193,7 +193,7 @@ internal class WorkspaceSessionCoordinator(
         val root = activeRoot
         if (root == null || !location.isAtOrUnder(root)) {
             val home = library.workspaceHolding(location) ?: run {
-                workbench.message("${File(location).name} is outside iCode's workspaces: import its folder, or discard the draft")
+                stateHolder.message("${File(location).name} is outside iCode's workspaces: import its folder, or discard the draft")
                 return
             }
             open(home, persist = true)
@@ -205,8 +205,8 @@ internal class WorkspaceSessionCoordinator(
 
     /** A file changed on disk under unsaved edits: the two versions, in the diff view. */
     suspend fun compareWithDisk(location: String) {
-        val change = workbench.current.externalChanges.firstOrNull { it.location == location } ?: return
-        val document = workbench.current.openDocuments.firstOrNull { it.location == location } ?: return
+        val change = stateHolder.current.externalChanges.firstOrNull { it.location == location } ?: return
+        val document = stateHolder.current.openDocuments.firstOrNull { it.location == location } ?: return
         val read = documents.sourceOf(location) ?: return
         gitWorkspace.compareWithEditor(change.path, DocumentCodec.encode(document.text, read.encoding, read.hasByteOrderMark))
     }
@@ -218,13 +218,13 @@ internal class WorkspaceSessionCoordinator(
     private suspend fun refreshOnRequest() {
         refreshRequests.conflate().collect {
             delay(REFRESH_SETTLE_MILLIS)
-            workbench.mutations.withLock { refreshActive() }
+            stateHolder.mutations.withLock { refreshActive() }
         }
     }
 
     /** The folders shown and those of open files follow the state, while iCode is seen. */
     private suspend fun followWatchedFolders() {
-        workbench.snapshot.map { watchedFolders(it, source.workspacesRoot) }.distinctUntilChanged().collect { folders ->
+        stateHolder.snapshot.map { watchedFolders(it, source.workspacesRoot) }.distinctUntilChanged().collect { folders ->
             if (screenVisible) watcher.watch(folders)
         }
     }
@@ -238,14 +238,14 @@ internal class WorkspaceSessionCoordinator(
      */
     private suspend fun restoreThenKeepSession() {
         library.lastSession()?.let { session ->
-            workbench.mutations.withLock {
+            stateHolder.mutations.withLock {
                 if (activeRoot != null || !source.isWorkspace(session.workspaceLocation)) return@withLock
                 open(session.workspaceLocation, persist = false, announce = false)
                 if (activeRoot != session.workspaceLocation) return@withLock
                 reopenTabs(session.documents, session.activeDocument)
             }
         }
-        workbench.snapshot
+        stateHolder.snapshot
             .map { state ->
                 state.activeWorkspaceLocation?.let { root ->
                     StoredSession(root, state.openDocuments.map { it.location }, state.activeDocument?.location)
@@ -261,7 +261,7 @@ internal class WorkspaceSessionCoordinator(
     }
 
     /** What a workspace being left keeps as drafts: unsaved edits, and drafts not yet answered. */
-    private fun closingDocuments() = workbench.current.openDocuments
+    private fun closingDocuments() = stateHolder.current.openDocuments
         .filter { it.dirty || !recovery.isUnresolved(it.location) }
         .map { it.location }
 
@@ -286,7 +286,7 @@ internal class WorkspaceSessionCoordinator(
             }
             documents.reconcileWithDisk()
         }.onFailure { error ->
-            workbench.report("workspace", "Unable to refresh workspace", error)
+            stateHolder.report("workspace", "Unable to refresh workspace", error)
         }
     }
 

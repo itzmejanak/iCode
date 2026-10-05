@@ -3,7 +3,7 @@
 Master refactoring plan for the completed Phase 1 UI port (40 Figma frames), executed before Phase 2 backend planning.
 
 > **Note (2026-09-26).** The tables below record the split as it was done, with the names of
-> the time. `demo/` (`DemoWorkbenchGateway`, `DemoContent`) no longer exists: screens read the
+> the time. `demo/` (`DemoICodeGateway`, `DemoContent`) no longer exists: screens read the
 > real snapshot, and screenshots are drawn from debug-only capture fixtures
 > (`app/src/debug/.../capture`; [code-separation-plan.md](./code-separation-plan.md) K1). Rules
 > 2, 3, 8 and 10 below are updated to match.
@@ -19,7 +19,7 @@ Master refactoring plan for the completed Phase 1 UI port (40 Figma frames), exe
 | Screen files | `EntryScreens.kt` 442, `WorkspaceScreens.kt` 366, `ToolScreens.kt` 563, `SettingsScreens.kt` 499, `RecoveryScreens.kt` 166 | One file per feature group, up to 13 screens + 7 helpers per file |
 | Design system | `IcodeComponents.kt` 393 (22 public symbols) + `IcodeTheme.kt` 82 | Right idea, wrong granularity; dead API and missing shared concepts |
 | App host | `IcodeApp.kt` 164 owns actions, history, catalog and dispatch | Root mixes four responsibilities; screens depend on it |
-| Domain seam | `WorkbenchContract.kt` + `DemoWorkbenchGateway.kt` | Correct, unchanged by this plan |
+| Domain seam | `ICodeContract.kt` + `DemoICodeGateway.kt` | Correct, unchanged by this plan |
 | Navigation | `Route.kt` (40 frames) + 40-frame unit test + capture script parsing it | Single source of truth; must not change |
 | Insets shell | `IcodeScreen` applied once at the app root | Keep shell-owned insets; document as an invariant |
 | State | 3 × `rememberSaveable` (host) vs 27 × `remember` (screens) | Rotation loses form state; violates `layout.md` §28 and architecture §18 |
@@ -46,7 +46,7 @@ Master refactoring plan for the completed Phase 1 UI port (40 Figma frames), exe
 | D15 | Inline shapes diverge (4/50/2/3/top-12) | screens + kit |
 | D16 | Fully-qualified types instead of imports; positional `MonoLine` calls | `WorkspaceScreens.kt:345`, `ToolScreens.kt:196` |
 | D17 | Demo literals duplicated across screens (`feature/auth` ×6, `token-utils.ts` ×5, …) | grep sweep |
-| D18 | Data seam inconsistent: snapshot vs re-typed local copies | `SettingsScreens.kt:377` vs `DemoWorkbenchGateway.kt:52` |
+| D18 | Data seam inconsistent: snapshot vs re-typed local copies | `SettingsScreens.kt:377` vs `DemoICodeGateway.kt:52` |
 | D19 | Screens silently depend on the single `IcodeScreen` call site | `IcodeApp.kt:90` |
 
 ## 3. UI-kit audit
@@ -71,10 +71,10 @@ app/src/main/java/dev/icode/mobile/
 │       IcodeFields.kt  IcodeRows.kt  IcodeStatus.kt  IcodeFeedback.kt
 │       IcodePanels.kt  IcodeDiff.kt  IcodeRail.kt  IcodeLayout.kt
 ├── navigation/{Route.kt, NavigationActions.kt}
-├── domain/{WorkbenchContract.kt, …}
-├── demo/{DemoWorkbenchGateway.kt, DemoContent.kt}
+├── domain/{ICodeContract.kt, …}
+├── demo/{DemoICodeGateway.kt, DemoContent.kt}
 └── ui/
-    ├── IcodeApp.kt  NavigationState.kt  WorkbenchLocals.kt
+    ├── IcodeApp.kt  NavigationState.kt  ICodeLocals.kt
     └── screens/{entry,workspace,tools,settings,recovery}/
         └── <Group>Host.kt + one file per screen
 ```
@@ -130,7 +130,7 @@ Per-file rules: one public `XxxScreen(actions)` per file; screen ≤ 250 lines t
 
 1. **Token → component → screen → host** is the only allowed dependency direction.
 2. `designsystem` depends on Compose and its own tokens only — no domain, capture, navigation or screen imports.
-3. Screens may depend on: `designsystem`, `domain` contracts, `navigation.Route`/`NavigationActions` and `ui.WorkbenchLocals`. Never on a sibling screen package, never on `ui.IcodeApp`, never on fixtures.
+3. Screens may depend on: `designsystem`, `domain` contracts, `navigation.Route`/`NavigationActions` and `ui.ICodeLocals`. Never on a sibling screen package, never on `ui.IcodeApp`, never on fixtures.
 4. Kit components accept primitives and slots; screens map domain models onto kit parameters (`Severity` → `IcodeTone`, `GitChange` → row slots).
 5. Feature-local private composables stay in the screen file (e.g. `WorkspaceHeader`, `ExplorerRow`, `GitChangeRow`, `ThemeSwatch`). A component is promoted to the kit only when a second consumer exists — or when `layout.md` §26 assigns it to the design system (rail, editor tabs, diff rows, diagnostic rows, dialogs, fields, choice controls, empty/error states).
 6. Screens never restyle raw controls and never write literal colors, `sp` sizes or layout `dp` values; all metrics come from `IcodeSpacing` / `IcodeShapes` / `IcodeSizes` / `IcodeType`.
@@ -214,7 +214,7 @@ Compose UI  →  screens (one file per frame, private helpers, saveable state)
             →  designsystem kit (primitives + slots, tokenized, no feature deps)
             →  tokens (colors / type / metrics / tone / theme)
 
-screens     →  domain contracts (WorkbenchSnapshot, WorkbenchIntent, gateway interfaces)
+screens     →  domain contracts (ICodeSnapshot, ICodeIntent, gateway interfaces)
             →  navigation (Route registry, NavigationActions)
             →  demo fixtures (DemoContent — replaced by gateway data in Phase 3)
 ```

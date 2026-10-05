@@ -1,12 +1,12 @@
 package dev.icode.mobile.data.git
 
 import dev.icode.mobile.data.log.BackendLog
-import dev.icode.mobile.data.workspace.WorkbenchStateHolder
+import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.GitAuthTestResult
 import dev.icode.mobile.domain.GitAuthWork
 import dev.icode.mobile.domain.GitIdentityRules
 import dev.icode.mobile.domain.GitRepositoryState
-import dev.icode.mobile.domain.WorkbenchEffect
+import dev.icode.mobile.domain.ICodeEffect
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -37,7 +37,7 @@ class GitAuthCoordinatorTest {
     }
 
     private class Harness(root: String? = "/workspace/app", repositoryOpen: Boolean = true) {
-        val workbench = WorkbenchStateHolder()
+        val workbench = ICodeStateHolder()
         val config = FakeConfig()
         val credentials = FakeCredentials()
         val events = mutableListOf<String>()
@@ -59,7 +59,7 @@ class GitAuthCoordinatorTest {
         }
     }
 
-    private suspend fun Harness.nextMessage(block: suspend () -> Unit): WorkbenchEffect {
+    private suspend fun Harness.nextMessage(block: suspend () -> Unit): ICodeEffect {
         val effect = kotlinx.coroutines.coroutineScope { async { workbench.effects.first() }.also { yield(); block() } }
         return withTimeout(2_000) { effect.await() }
     }
@@ -74,14 +74,14 @@ class GitAuthCoordinatorTest {
     @Test fun `a default identity is checked before Git is asked`() = runBlocking {
         val harness = Harness()
         val effect = harness.nextMessage { harness.coordinator.configureGlobalIdentity("Ada", "not-an-email") }
-        assertEquals(WorkbenchEffect.Message("Enter a name and valid Git author email"), effect)
+        assertEquals(ICodeEffect.Message("Enter a name and valid Git author email"), effect)
         assertTrue(harness.config.values.isEmpty())
     }
 
     @Test fun `a default identity needs Git in the runtime`() = runBlocking {
         val harness = Harness().apply { config.available = false }
         val effect = harness.nextMessage { harness.coordinator.configureGlobalIdentity("Ada", "ada@example.com") }
-        assertEquals(WorkbenchEffect.Message("Install Git in the runtime first"), effect)
+        assertEquals(ICodeEffect.Message("Install Git in the runtime first"), effect)
     }
 
     @Test fun `a default identity is saved trimmed and read back for every repository`() = runBlocking {
@@ -146,7 +146,7 @@ class GitAuthCoordinatorTest {
 
         val effect = harness.nextMessage { harness.coordinator.saveToken("github.com", "ada", "") }
 
-        assertEquals(WorkbenchEffect.Message("Enter a personal access token"), effect)
+        assertEquals(ICodeEffect.Message("Enter a personal access token"), effect)
         assertNull(harness.workbench.current.gitAuth.httpsAccount)
     }
 
@@ -157,7 +157,7 @@ class GitAuthCoordinatorTest {
 
         val effect = harness.nextMessage { harness.coordinator.clearToken() }
 
-        assertEquals(WorkbenchEffect.Message("Unable to remove the token"), effect)
+        assertEquals(ICodeEffect.Message("Unable to remove the token"), effect)
         assertEquals("ada@github.com", harness.workbench.current.gitAuth.httpsAccount)
     }
 
@@ -168,7 +168,7 @@ class GitAuthCoordinatorTest {
 
         val effect = harness.nextMessage { harness.coordinator.generateSshKey() }
 
-        assertEquals(WorkbenchEffect.Message("Could not download SSH client: E: Unable to fetch some archives"), effect)
+        assertEquals(ICodeEffect.Message("Could not download SSH client: E: Unable to fetch some archives"), effect)
         assertNull(harness.workbench.current.gitAuth.work)
         assertFalse(harness.workbench.current.gitAuth.hasSshKey)
     }

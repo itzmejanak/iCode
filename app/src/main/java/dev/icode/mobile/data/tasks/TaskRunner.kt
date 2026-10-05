@@ -1,9 +1,9 @@
 package dev.icode.mobile.data.tasks
 
-import dev.icode.mobile.data.workspace.WorkbenchStateHolder
+import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.data.workspace.isAtOrUnder
 import dev.icode.mobile.domain.WorkTask
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.cancellation.CancellationException
@@ -23,7 +23,7 @@ import kotlinx.coroutines.sync.withLock
  * times a second, however fast the work goes.
  */
 internal class TaskRunner(
-    private val workbench: WorkbenchStateHolder,
+    private val stateHolder: ICodeStateHolder,
     private val scope: CoroutineScope,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
@@ -68,7 +68,7 @@ internal class TaskRunner(
         val id = claims.entries.firstOrNull { (_, paths) ->
             paths.any { location.isAtOrUnder(it) || it.isAtOrUnder(location) }
         }?.key ?: return null
-        return workbench.current.tasks.firstOrNull { it.id == id }
+        return stateHolder.current.tasks.firstOrNull { it.id == id }
     }
 
     /**
@@ -111,7 +111,7 @@ internal class TaskRunner(
         job.invokeOnCompletion { cause -> settle(id, failed ?: cause, failure, finished) }
         // Registered before the task can be seen, so a Cancel on its first frame reaches it.
         jobs[id] = job
-        workbench.update { it.copy(tasks = it.tasks + WorkTask(id, title, subject, cancellable = cancellable)) }
+        stateHolder.update { it.copy(tasks = it.tasks + WorkTask(id, title, subject, cancellable = cancellable)) }
         job.start()
         return id
     }
@@ -121,30 +121,30 @@ internal class TaskRunner(
         claims.remove(id)
         jobs.remove(id)
         when (outcome) {
-            null, is CancellationException -> workbench.update { state -> state.copy(tasks = state.tasks.filterNot { it.id == id }) }
+            null, is CancellationException -> stateHolder.update { state -> state.copy(tasks = state.tasks.filterNot { it.id == id }) }
             else -> {
-                val reason = workbench.failureText("tasks", failure, outcome)
+                val reason = stateHolder.failureText("tasks", failure, outcome)
                 // Said in the dialog: a hidden task comes back to say why it stopped.
                 update(id) { it.copy(failure = reason, hidden = false) }
             }
         }
-        scope.launch(NonCancellable) { workbench.mutations.withLock { finished(outcome) } }
+        scope.launch(NonCancellable) { stateHolder.mutations.withLock { finished(outcome) } }
     }
 
-    fun handle(intent: WorkbenchIntent.TaskIntent) {
+    fun handle(intent: ICodeIntent.TaskIntent) {
         when (intent) {
             // A failure stays shown until dismissed, even when it landed before this Hide did.
-            is WorkbenchIntent.HideTask -> update(intent.id) { if (it.failure != null) it else it.copy(hidden = true) }
-            is WorkbenchIntent.ShowTask -> update(intent.id) { it.copy(hidden = false) }
-            is WorkbenchIntent.CancelTask ->
-                if (workbench.current.tasks.any { it.id == intent.id && it.cancellable }) jobs[intent.id]?.cancel()
-            is WorkbenchIntent.DismissTask -> workbench.update { state ->
+            is ICodeIntent.HideTask -> update(intent.id) { if (it.failure != null) it else it.copy(hidden = true) }
+            is ICodeIntent.ShowTask -> update(intent.id) { it.copy(hidden = false) }
+            is ICodeIntent.CancelTask ->
+                if (stateHolder.current.tasks.any { it.id == intent.id && it.cancellable }) jobs[intent.id]?.cancel()
+            is ICodeIntent.DismissTask -> stateHolder.update { state ->
                 state.copy(tasks = state.tasks.filterNot { it.id == intent.id && it.failure != null })
             }
         }
     }
 
-    private fun update(id: Long, change: (WorkTask) -> WorkTask) = workbench.update { state ->
+    private fun update(id: Long, change: (WorkTask) -> WorkTask) = stateHolder.update { state ->
         state.copy(tasks = state.tasks.map { if (it.id == id) change(it) else it })
     }
 

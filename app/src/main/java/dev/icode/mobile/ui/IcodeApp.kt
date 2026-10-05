@@ -36,9 +36,9 @@ import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.RouteGroup
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.screens.tools.DiscardChangesDialog
-import dev.icode.mobile.domain.WorkbenchEffect
-import dev.icode.mobile.domain.WorkbenchGateway
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeEffect
+import dev.icode.mobile.domain.ICodeGateway
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.WorkspacePreferences
 import dev.icode.mobile.domain.WorkspacePreferencesRepository
 import dev.icode.mobile.domain.GitActionRules
@@ -64,15 +64,15 @@ fun IcodeApp(
 ) {
     val context = LocalContext.current
     val captureMode = capture != null
-    val workbench: AndroidWorkbenchViewModel? = if (captureMode) {
+    val viewModel: AndroidICodeViewModel? = if (captureMode) {
         null
     } else {
-        val factory = remember(context.applicationContext) { AndroidWorkbenchViewModelFactory(context) }
-        viewModel<AndroidWorkbenchViewModel>(factory = factory)
+        val factory = remember(context.applicationContext) { AndroidICodeViewModelFactory(context) }
+        viewModel<AndroidICodeViewModel>(factory = factory)
     }
-    val gateway: WorkbenchGateway = capture?.gateway ?: checkNotNull(workbench).gateway
+    val gateway: ICodeGateway = capture?.gateway ?: checkNotNull(viewModel).gateway
     // A capture has no runtime, so no terminal sessions to draw.
-    val terminalSessions = workbench?.terminalSessions ?: TerminalSessionSource.None
+    val terminalSessions = viewModel?.terminalSessions ?: TerminalSessionSource.None
     val snapshot by gateway.snapshot.collectAsStateWithLifecycle()
     val preferencesRepository: WorkspacePreferencesRepository = capture?.preferences
         ?: remember(context.applicationContext) { AndroidWorkspacePreferencesRepository(context.applicationContext) }
@@ -105,7 +105,7 @@ fun IcodeApp(
                 DocumentAutoSaveCoordinator(gateway, preferences.editor.autoSave).run()
             }
         }
-        val questions = rememberWorkbenchQuestions()
+        val questions = rememberICodeQuestions()
         val editorSessions = remember(context, gateway) { CodeEditorSessions(context) }
         // Until the settings load, the palette stands in; the editor's theme is built for the real one.
         LaunchedEffect(editorSessions, palette, preferences.loaded) {
@@ -120,8 +120,8 @@ fun IcodeApp(
             val observer = LifecycleEventObserver { _, event ->
                 when (event) {
                     Lifecycle.Event.ON_RESUME -> resumeGeneration++
-                    Lifecycle.Event.ON_START -> gateway.dispatch(WorkbenchIntent.ScreenVisible(true))
-                    Lifecycle.Event.ON_STOP -> gateway.dispatch(WorkbenchIntent.ScreenVisible(false))
+                    Lifecycle.Event.ON_START -> gateway.dispatch(ICodeIntent.ScreenVisible(true))
+                    Lifecycle.Event.ON_STOP -> gateway.dispatch(ICodeIntent.ScreenVisible(false))
                     else -> Unit
                 }
             }
@@ -138,7 +138,7 @@ fun IcodeApp(
                 snapshot.runtimeHealthy && canFetch
             ) {
                 lastAutomaticFetch = key
-                gateway.dispatch(WorkbenchIntent.FetchRemote)
+                gateway.dispatch(ICodeIntent.FetchRemote)
             }
         }
         val openDocumentLocations = snapshot.openDocuments.map { it.location }.toSet()
@@ -155,8 +155,8 @@ fun IcodeApp(
         // and the workspace by another app or a command left running.
         LaunchedEffect(resumeGeneration) {
             if (resumeGeneration > 0) {
-                gateway.dispatch(WorkbenchIntent.RefreshSystemAccess)
-                gateway.dispatch(WorkbenchIntent.Refresh)
+                gateway.dispatch(ICodeIntent.RefreshSystemAccess)
+                gateway.dispatch(ICodeIntent.Refresh)
             }
         }
         val navigation = rememberNavigationState(initialScreen, captureMode)
@@ -165,7 +165,7 @@ fun IcodeApp(
         val terminalShown = navigation.current == Route.TerminalExpanded && navigation.panelTab == ToolPanelTab.Terminal
         var terminalWasShown by remember { mutableStateOf(false) }
         LaunchedEffect(terminalShown) {
-            if (terminalWasShown && !terminalShown) gateway.dispatch(WorkbenchIntent.Refresh)
+            if (terminalWasShown && !terminalShown) gateway.dispatch(ICodeIntent.Refresh)
             terminalWasShown = terminalShown
         }
         ArrivalEffect(arrival, navigation, pastOnboarding = navigation.current !in ONBOARDING_SCREENS, gateway, onArrived)
@@ -174,41 +174,41 @@ fun IcodeApp(
         LaunchedEffect(gateway) {
             gateway.effects.collect { effect ->
                 when (effect) {
-                    is WorkbenchEffect.RequestSystemPermission -> systemPrompts.request(effect.permission)
-                    is WorkbenchEffect.OpenSystemSettings -> systemPrompts.openSettings(effect.permission)
+                    is ICodeEffect.RequestSystemPermission -> systemPrompts.request(effect.permission)
+                    is ICodeEffect.OpenSystemSettings -> systemPrompts.openSettings(effect.permission)
                     // The permission screen walks on to its next step by itself.
-                    is WorkbenchEffect.SystemPermissionResolved -> Unit
+                    is ICodeEffect.SystemPermissionResolved -> Unit
                     // Change on the Import screen picks again; it stays, showing the new folder.
-                    WorkbenchEffect.ImportSourceChosen -> if (navigation.current != Route.ImportWorkspace) {
+                    ICodeEffect.ImportSourceChosen -> if (navigation.current != Route.ImportWorkspace) {
                         navigation.actions.navigate(Route.ImportWorkspace)
                     }
                     // What made the workspace gives way to it, so Back returns to the launcher.
-                    is WorkbenchEffect.WorkspaceOpened -> if (navigation.current in MAKES_A_WORKSPACE) {
+                    is ICodeEffect.WorkspaceOpened -> if (navigation.current in MAKES_A_WORKSPACE) {
                         navigation.actions.replace(Route.WorkspaceExplorer)
                     } else {
                         navigation.actions.navigate(Route.WorkspaceExplorer)
                     }
-                    is WorkbenchEffect.WorkspaceTerminalOpened -> navigation.actions.navigate(Route.TerminalExpanded)
+                    is ICodeEffect.WorkspaceTerminalOpened -> navigation.actions.navigate(Route.TerminalExpanded)
                     // The creation dialog consumes these request-scoped results.
-                    is WorkbenchEffect.WorkspaceItemChanged, is WorkbenchEffect.WorkspaceItemFailed -> Unit
-                    is WorkbenchEffect.ConfirmWorkspaceSwitch -> questions.ask(effect)
-                    is WorkbenchEffect.ConfirmDraftRecovery -> questions.ask(effect)
-                    is WorkbenchEffect.ConfirmRecoveredOverwrite -> questions.ask(effect)
-                    is WorkbenchEffect.ExternalChangeDetected -> questions.ask(effect)
-                    WorkbenchEffect.RuntimeRebuildStarted -> navigation.actions.navigate(Route.RuntimeInstalling)
-                    WorkbenchEffect.GitInitialized -> navigation.actions.navigate(Route.SourceControl)
-                    WorkbenchEffect.GitCommitted -> Toast.makeText(context, "Commit created", Toast.LENGTH_SHORT).show()
-                    is WorkbenchEffect.DocumentOpened -> {
+                    is ICodeEffect.WorkspaceItemChanged, is ICodeEffect.WorkspaceItemFailed -> Unit
+                    is ICodeEffect.ConfirmWorkspaceSwitch -> questions.ask(effect)
+                    is ICodeEffect.ConfirmDraftRecovery -> questions.ask(effect)
+                    is ICodeEffect.ConfirmRecoveredOverwrite -> questions.ask(effect)
+                    is ICodeEffect.ExternalChangeDetected -> questions.ask(effect)
+                    ICodeEffect.RuntimeRebuildStarted -> navigation.actions.navigate(Route.RuntimeInstalling)
+                    ICodeEffect.GitInitialized -> navigation.actions.navigate(Route.SourceControl)
+                    ICodeEffect.GitCommitted -> Toast.makeText(context, "Commit created", Toast.LENGTH_SHORT).show()
+                    is ICodeEffect.DocumentOpened -> {
                         if (effect.lineNumber != null) {
                             editorSessions.get(effect.location).revealAt(effect.lineNumber, effect.column ?: 0)
                         }
                         navigation.actions.navigate(Route.WorkspaceEditor)
                     }
-                    is WorkbenchEffect.DocumentSaved -> if (!effect.automatic) {
+                    is ICodeEffect.DocumentSaved -> if (!effect.automatic) {
                         Toast.makeText(context, "Saved", Toast.LENGTH_SHORT).show()
                     }
-                    is WorkbenchEffect.Message -> Toast.makeText(context, effect.text, Toast.LENGTH_LONG).show()
-                    is WorkbenchEffect.OpenExternalUrl -> {
+                    is ICodeEffect.Message -> Toast.makeText(context, effect.text, Toast.LENGTH_LONG).show()
+                    is ICodeEffect.OpenExternalUrl -> {
                         // The user's own browser opens the URL; the app never
                         // renders web content itself (architecture.md section 11.5).
                         val view = Intent(Intent.ACTION_VIEW, effect.url.toUri())
@@ -228,14 +228,14 @@ fun IcodeApp(
             navigation.actions.back()
         }
 
-        WorkbenchQuestionDialogs(questions, snapshot, gateway, navigation.current, navigation.actions.navigate)
+        ICodeQuestionDialogs(questions, snapshot, gateway, navigation.current, navigation.actions.navigate)
         TaskDialogs(snapshot.tasks, gateway)
         // A discard is confirmed over whatever asked for it, in the app's one confirmation dialog.
         snapshot.pendingDiscard?.let { DiscardChangesDialog(it, gateway) }
 
         CompositionLocalProvider(
-            LocalWorkbenchSnapshot provides snapshot,
-            LocalWorkbenchGateway provides gateway,
+            LocalICodeSnapshot provides snapshot,
+            LocalICodeGateway provides gateway,
             LocalCodeEditorSessions provides editorSessions,
             LocalTerminalSessions provides terminalSessions,
             LocalWorkspacePreferencesRepository provides preferencesRepository,

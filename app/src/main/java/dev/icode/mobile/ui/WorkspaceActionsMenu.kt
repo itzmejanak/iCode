@@ -25,7 +25,7 @@ import dev.icode.mobile.designsystem.IcodeActionMenu
 import dev.icode.mobile.designsystem.IcodeConfirmDialog
 import dev.icode.mobile.designsystem.IcodeMenuAction
 import dev.icode.mobile.designsystem.IcodeOverflowMenu
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.WorkspaceSummary
 
 /**
@@ -42,16 +42,16 @@ fun WorkspaceActionsMenu(
     onShowInList: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
-    val gateway = LocalWorkbenchGateway.current
+    val gateway = LocalICodeGateway.current
     val context = LocalContext.current
     var renaming by remember(item.location) { mutableStateOf(false) }
     var deleting by remember(item.location) { mutableStateOf(false) }
     val actions = listOfNotNull(
-        IcodeMenuAction("Open", Icons.Outlined.FolderOpen, { gateway.dispatch(WorkbenchIntent.OpenWorkspace(item.location)) }),
-        IcodeMenuAction("Open Terminal", Icons.Outlined.Terminal, { gateway.dispatch(WorkbenchIntent.OpenWorkspaceTerminal(item.location)) }),
+        IcodeMenuAction("Open", Icons.Outlined.FolderOpen, { gateway.dispatch(ICodeIntent.OpenWorkspace(item.location)) }),
+        IcodeMenuAction("Open Terminal", Icons.Outlined.Terminal, { gateway.dispatch(ICodeIntent.OpenWorkspaceTerminal(item.location)) }),
         IcodeMenuAction("Rename…", Icons.Outlined.DriveFileRenameOutline, { renaming = true }),
-        IcodeMenuAction("Cut", Icons.Outlined.ContentCut, { gateway.dispatch(WorkbenchIntent.CutItem(item.location)) }),
-        IcodeMenuAction("Copy", Icons.Outlined.ContentCopy, { gateway.dispatch(WorkbenchIntent.CopyItem(item.location)) }),
+        IcodeMenuAction("Cut", Icons.Outlined.ContentCut, { gateway.dispatch(ICodeIntent.CutItem(item.location)) }),
+        IcodeMenuAction("Copy", Icons.Outlined.ContentCopy, { gateway.dispatch(ICodeIntent.CopyItem(item.location)) }),
         onShowInList?.let { IcodeMenuAction("Show in Workspaces", Icons.Outlined.FolderCopy, it) },
         copyPathAction(context, item.path),
         IcodeMenuAction("Delete…", Icons.Outlined.DeleteOutline, { deleting = true }, destructive = true),
@@ -67,7 +67,7 @@ fun WorkspaceActionsMenu(
             message = "The workspace and everything in it are deleted from iCode's storage. This cannot be undone.",
             confirmLabel = "Delete",
             onConfirm = {
-                gateway.dispatch(WorkbenchIntent.DeleteWorkspace(item.location))
+                gateway.dispatch(ICodeIntent.DeleteWorkspace(item.location))
                 deleting = false
             },
             onDismiss = { deleting = false },

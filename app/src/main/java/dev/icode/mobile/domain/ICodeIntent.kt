@@ -1,64 +1,64 @@
 package dev.icode.mobile.domain
 
-sealed interface WorkbenchIntent {
+sealed interface ICodeIntent {
     /** Shows Android's own prompt for [permission]. */
-    data class RequestSystemPermission(val permission: SystemPermission) : WorkbenchIntent
+    data class RequestSystemPermission(val permission: SystemPermission) : ICodeIntent
     /** Android's prompt for [permission] has closed, whatever the answer. */
-    data class SystemPermissionAnswered(val permission: SystemPermission) : WorkbenchIntent
+    data class SystemPermissionAnswered(val permission: SystemPermission) : ICodeIntent
     /** "Not now" on an optional permission: onboarding does not offer it again. */
-    data class DeclineSystemPermission(val permission: SystemPermission) : WorkbenchIntent
+    data class DeclineSystemPermission(val permission: SystemPermission) : ICodeIntent
     /** Opens Android's settings page for [permission], where it can be changed either way. */
-    data class OpenSystemSettings(val permission: SystemPermission) : WorkbenchIntent
+    data class OpenSystemSettings(val permission: SystemPermission) : ICodeIntent
     /** Re-reads what Android allows; it may have changed while iCode was away. */
-    data object RefreshSystemAccess : WorkbenchIntent
+    data object RefreshSystemAccess : ICodeIntent
     /** The Notifications page was opened: everything on it has been seen. */
-    data object MarkNoticesRead : WorkbenchIntent
-    data class DeleteNotice(val id: String) : WorkbenchIntent
-    data object ClearNotices : WorkbenchIntent
+    data object MarkNoticesRead : ICodeIntent
+    data class DeleteNotice(val id: String) : ICodeIntent
+    data object ClearNotices : ICodeIntent
     /** New Folder: a workspace named [name], made at `/workspace/<name>` and opened. */
     /** New Folder on the Workspaces page: answered by [requestId], and not opened — it appears in the list. */
-    data class CreateWorkspace(val name: String, val requestId: String) : WorkbenchIntent
+    data class CreateWorkspace(val name: String, val requestId: String) : ICodeIntent
     /** A whole workspace renamed; the dialog that asked is answered by [requestId]. */
-    data class RenameWorkspace(val location: String, val newName: String, val requestId: String) : WorkbenchIntent
+    data class RenameWorkspace(val location: String, val newName: String, val requestId: String) : ICodeIntent
     /** A whole workspace deleted, once its menu confirmed it; runs as a task. */
-    data class DeleteWorkspace(val location: String) : WorkbenchIntent
+    data class DeleteWorkspace(val location: String) : ICodeIntent
     /**
      * The Import browser opens: at [path], or where it was last, or at the root of internal storage.
      * Without All Files Access it waits for it (docs/workspace-storage-plan.md §4.5).
      */
-    data class OpenImportBrowser(val path: String? = null) : WorkbenchIntent
-    data class BrowseImportFolder(val path: String) : WorkbenchIntent
+    data class OpenImportBrowser(val path: String? = null) : ICodeIntent
+    data class BrowseImportFolder(val path: String) : ICodeIntent
     /** The folder at [path] on phone storage is the one to import: the Import screen names it. */
-    data class ChooseImportFolder(val path: String) : WorkbenchIntent
+    data class ChooseImportFolder(val path: String) : ICodeIntent
     /** Copies the chosen [ImportSource] into a new workspace named [name]; runs as a task. */
     /** As a new workspace, or as [name] inside the folder [into]. */
-    data class ImportWorkspace(val name: String, val into: String? = null) : WorkbenchIntent
-    data class OpenWorkspace(val path: String) : WorkbenchIntent
-    data class OpenWorkspaceTerminal(val path: String) : WorkbenchIntent
-    data class ResolveWorkspaceSwitch(val path: String, val openTerminal: Boolean, val saveChanges: Boolean) : WorkbenchIntent
+    data class ImportWorkspace(val name: String, val into: String? = null) : ICodeIntent
+    data class OpenWorkspace(val path: String) : ICodeIntent
+    data class OpenWorkspaceTerminal(val path: String) : ICodeIntent
+    data class ResolveWorkspaceSwitch(val path: String, val openTerminal: Boolean, val saveChanges: Boolean) : ICodeIntent
     /** [lineNumber] is one-based and [column] is zero-based, matching content-search results. */
-    data class OpenFile(val path: String, val lineNumber: Int? = null, val column: Int? = null) : WorkbenchIntent
+    data class OpenFile(val path: String, val lineNumber: Int? = null, val column: Int? = null) : ICodeIntent
     data class CreateFile(
         val name: String,
         val parentLocation: String? = null,
         val expectedWorkspace: String? = null,
         val requestId: String? = null,
-    ) : WorkbenchIntent
+    ) : ICodeIntent
     /** Creates a subfolder without changing the active workspace. */
     data class CreateWorkspaceFolder(
         val name: String,
         val parentLocation: String,
         val expectedWorkspace: String,
         val requestId: String,
-    ) : WorkbenchIntent
+    ) : ICodeIntent
     /** Explorer file operations, inside the open workspace. */
-    data class RenameWorkspaceItem(val location: String, val newName: String, val requestId: String) : WorkbenchIntent
-    data class DeleteWorkspaceItem(val location: String) : WorkbenchIntent
+    data class RenameWorkspaceItem(val location: String, val newName: String, val requestId: String) : ICodeIntent
+    data class DeleteWorkspaceItem(val location: String) : ICodeIntent
     /**
      * One clipboard across iCode (docs/workspaces-page-plan.md §2.7): a whole workspace, or a folder
      * or file in one, cut or copied from any list, pasted wherever folders are.
      */
-    sealed interface ClipboardIntent : WorkbenchIntent
+    sealed interface ClipboardIntent : ICodeIntent
     data class CutItem(val location: String) : ClipboardIntent
     data class CopyItem(val location: String) : ClipboardIntent
     /** Into a folder of a workspace. */
@@ -68,14 +68,14 @@ sealed interface WorkbenchIntent {
     /** Nothing is waiting to be pasted any more. */
     data object ClearClipboard : ClipboardIntent
     /** A long operation's dialog: Hide sends it to the background, Show brings it back. */
-    sealed interface TaskIntent : WorkbenchIntent { val id: Long }
+    sealed interface TaskIntent : ICodeIntent { val id: Long }
     data class HideTask(override val id: Long) : TaskIntent
     data class ShowTask(override val id: Long) : TaskIntent
     data class CancelTask(override val id: Long) : TaskIntent
     /** A failure, read. */
     data class DismissTask(override val id: Long) : TaskIntent
     /** The Components page (docs/runtime-components-plan.md): it never waits on the mutation lock. */
-    sealed interface ComponentIntent : WorkbenchIntent
+    sealed interface ComponentIntent : ICodeIntent
     /** What each component not installed would download; the lists are read first when needed. */
     data object MeasureComponents : ComponentIntent
     /** Install what [chosen] adds, remove what it leaves out. */
@@ -85,65 +85,65 @@ sealed interface WorkbenchIntent {
     data object SkipComponents : ComponentIntent
     /** A failure, read. */
     data object DismissComponents : ComponentIntent
-    data class UpdateDocumentText(val location: String, val text: String) : WorkbenchIntent
+    data class UpdateDocumentText(val location: String, val text: String) : ICodeIntent
     /** Automatic requests carry the revision they observed; a later edit must start its own timer. */
     data class SaveDocument(
         val location: String,
         val automatic: Boolean = false,
         val expectedText: String? = null,
         val expectedWorkspace: String? = null,
-    ) : WorkbenchIntent
-    data class RestoreDraft(val location: String) : WorkbenchIntent
+    ) : ICodeIntent
+    data class RestoreDraft(val location: String) : ICodeIntent
     /** From Document Recovery: opens the draft's file, in its own workspace if that is another one. */
-    data class OpenRecoverableDraft(val location: String) : WorkbenchIntent
-    data class DiscardDraft(val location: String) : WorkbenchIntent
-    data class ConfirmRecoveredOverwrite(val location: String) : WorkbenchIntent
+    data class OpenRecoverableDraft(val location: String) : ICodeIntent
+    data class DiscardDraft(val location: String) : ICodeIntent
+    data class ConfirmRecoveredOverwrite(val location: String) : ICodeIntent
 
     /** Answers to an [ExternalChange]: the disk wins, the editor wins, or look at both first. */
-    data class ReloadFromDisk(val location: String) : WorkbenchIntent
-    data class OverwriteDisk(val location: String) : WorkbenchIntent
-    data class CompareWithDisk(val location: String) : WorkbenchIntent
-    data class SelectDocument(val location: String) : WorkbenchIntent
-    data class ReorderDocument(val movingLocation: String, val targetLocation: String) : WorkbenchIntent
+    data class ReloadFromDisk(val location: String) : ICodeIntent
+    data class OverwriteDisk(val location: String) : ICodeIntent
+    data class CompareWithDisk(val location: String) : ICodeIntent
+    data class SelectDocument(val location: String) : ICodeIntent
+    data class ReorderDocument(val movingLocation: String, val targetLocation: String) : ICodeIntent
     /** A dirty tab requires an explicit save/discard choice; null is only valid for clean tabs. */
-    data class CloseDocument(val location: String, val saveChanges: Boolean? = null) : WorkbenchIntent
-    data class CloseOtherDocuments(val keepLocation: String, val saveChanges: Boolean? = null) : WorkbenchIntent
-    data object CloseSavedDocuments : WorkbenchIntent
-    data object InitializeGit : WorkbenchIntent
-    data class ToggleFolder(val path: String) : WorkbenchIntent
-    data class StageFile(val path: String) : WorkbenchIntent
-    data class UnstageFile(val path: String) : WorkbenchIntent
-    data object StageAllFiles : WorkbenchIntent
-    data object UnstageAllFiles : WorkbenchIntent
-    data class CommitStaged(val message: String) : WorkbenchIntent
-    data class ConfigureGitIdentity(val name: String, val email: String) : WorkbenchIntent
-    data class ConfigureGlobalGitIdentity(val name: String, val email: String) : WorkbenchIntent
-    data object ClearRepositoryGitIdentity : WorkbenchIntent
-    data class SwitchBranch(val branch: String) : WorkbenchIntent
-    data class CreateBranch(val branch: String) : WorkbenchIntent
-    data class DeleteBranch(val branch: String) : WorkbenchIntent
+    data class CloseDocument(val location: String, val saveChanges: Boolean? = null) : ICodeIntent
+    data class CloseOtherDocuments(val keepLocation: String, val saveChanges: Boolean? = null) : ICodeIntent
+    data object CloseSavedDocuments : ICodeIntent
+    data object InitializeGit : ICodeIntent
+    data class ToggleFolder(val path: String) : ICodeIntent
+    data class StageFile(val path: String) : ICodeIntent
+    data class UnstageFile(val path: String) : ICodeIntent
+    data object StageAllFiles : ICodeIntent
+    data object UnstageAllFiles : ICodeIntent
+    data class CommitStaged(val message: String) : ICodeIntent
+    data class ConfigureGitIdentity(val name: String, val email: String) : ICodeIntent
+    data class ConfigureGlobalGitIdentity(val name: String, val email: String) : ICodeIntent
+    data object ClearRepositoryGitIdentity : ICodeIntent
+    data class SwitchBranch(val branch: String) : ICodeIntent
+    data class CreateBranch(val branch: String) : ICodeIntent
+    data class DeleteBranch(val branch: String) : ICodeIntent
     /** A local branch tracking [remoteBranch] (`origin/feature`), named by Git from the remote's refspec. */
-    data class CheckoutRemoteBranch(val remoteBranch: String) : WorkbenchIntent
+    data class CheckoutRemoteBranch(val remoteBranch: String) : ICodeIntent
 
     /** Installs Git into the runtime when it is not present yet. */
-    data object ProvisionGit : WorkbenchIntent
-    data object RefreshGit : WorkbenchIntent
+    data object ProvisionGit : ICodeIntent
+    data object RefreshGit : ICodeIntent
     /** Source Control's picker: Git works in this repository of the open workspace. */
-    data class ChooseGitRepository(val location: String) : WorkbenchIntent
+    data class ChooseGitRepository(val location: String) : ICodeIntent
     /** [staged] selects the index-vs-HEAD comparison instead of worktree-vs-index. */
-    data class OpenDiff(val path: String, val staged: Boolean) : WorkbenchIntent
-    data object CloseDiff : WorkbenchIntent
+    data class OpenDiff(val path: String, val staged: Boolean) : ICodeIntent
+    data object CloseDiff : ICodeIntent
     /** Holds the unstaged change at [path] for the confirmation screen; nothing is discarded yet. */
-    data class RequestDiscardChanges(val path: String) : WorkbenchIntent
-    data object CancelDiscardChanges : WorkbenchIntent
+    data class RequestDiscardChanges(val path: String) : ICodeIntent
+    data object CancelDiscardChanges : ICodeIntent
     /** Irreversible: discards exactly the change that was held, if Git still reports it. */
-    data object ConfirmDiscardChanges : WorkbenchIntent
+    data object ConfirmDiscardChanges : ICodeIntent
     /** Ends a half-finished merge, rebase, cherry-pick or revert. */
-    data object AbortInProgress : WorkbenchIntent
+    data object AbortInProgress : ICodeIntent
     /** Adds a remote; one that already exists is Git's refusal to report, never replaced. */
-    data class AddRemote(val name: String, val url: String) : WorkbenchIntent
+    data class AddRemote(val name: String, val url: String) : ICodeIntent
     /** What talks to a remote: each its own job, one at a time, followed on the sync page or Clone's. */
-    sealed interface TransferIntent : WorkbenchIntent
+    sealed interface TransferIntent : ICodeIntent
     data object FetchRemote : TransferIntent
     data object PullRemote : TransferIntent
     data object PushRemote : TransferIntent
@@ -151,12 +151,12 @@ sealed interface WorkbenchIntent {
     data class CommitAndPush(val message: String) : TransferIntent
     /** Stops the running clone or sync: Git and everything it started are ended. */
     data object CancelGitTransfer : TransferIntent
-    data class OpenConflict(val path: String) : WorkbenchIntent
-    data object CloseConflict : WorkbenchIntent
+    data class OpenConflict(val path: String) : ICodeIntent
+    data object CloseConflict : ICodeIntent
     /** Resolves the one marker block that starts at line [sectionStart] (zero-based). */
-    data class ResolveConflict(val path: String, val sectionStart: Int, val choice: GitConflictChoice) : WorkbenchIntent
-    data class MarkConflictResolved(val path: String) : WorkbenchIntent
-    data class UpdateCloneForm(val url: String, val name: String, val branch: String) : WorkbenchIntent
+    data class ResolveConflict(val path: String, val sectionStart: Int, val choice: GitConflictChoice) : ICodeIntent
+    data class MarkConflictResolved(val path: String) : ICodeIntent
+    data class UpdateCloneForm(val url: String, val name: String, val branch: String) : ICodeIntent
     /**
      * Clones into `/workspace/<directoryName>`, or into the folder [into] of a workspace; [branch]
      * blank means the remote's default branch.
@@ -168,15 +168,15 @@ sealed interface WorkbenchIntent {
         val into: String? = null,
     ) : TransferIntent
 
-    data class SelectGitProvider(val provider: GitProvider) : WorkbenchIntent
-    data class SelectGitAuthMethod(val method: GitAuthMethod) : WorkbenchIntent
+    data class SelectGitProvider(val provider: GitProvider) : ICodeIntent
+    data class SelectGitAuthMethod(val method: GitAuthMethod) : ICodeIntent
     /** The token is consumed straight into encrypted storage and never echoed back. */
-    data class SaveGitToken(val host: String, val username: String, val token: String) : WorkbenchIntent
-    data object ClearGitToken : WorkbenchIntent
-    data object GenerateSshKey : WorkbenchIntent
-    data class TestGitConnection(val url: String) : WorkbenchIntent
-    data object RefreshGitAuth : WorkbenchIntent
-    data class SelectLanguageService(val id: String) : WorkbenchIntent
+    data class SaveGitToken(val host: String, val username: String, val token: String) : ICodeIntent
+    data object ClearGitToken : ICodeIntent
+    data object GenerateSshKey : ICodeIntent
+    data class TestGitConnection(val url: String) : ICodeIntent
+    data object RefreshGitAuth : ICodeIntent
+    data class SelectLanguageService(val id: String) : ICodeIntent
     data class SaveLanguageService(
         val id: String?,
         val name: String,
@@ -184,24 +184,24 @@ sealed interface WorkbenchIntent {
         val patterns: String,
         val rootMarkers: String,
         val initializationOptions: String,
-    ) : WorkbenchIntent
-    data class RemoveLanguageService(val id: String) : WorkbenchIntent
-    data class StartLanguageService(val id: String) : WorkbenchIntent
-    data class StopLanguageService(val id: String) : WorkbenchIntent
-    data class RestartLanguageService(val id: String) : WorkbenchIntent
-    data object PrepareWorkspaceSearch : WorkbenchIntent
+    ) : ICodeIntent
+    data class RemoveLanguageService(val id: String) : ICodeIntent
+    data class StartLanguageService(val id: String) : ICodeIntent
+    data class StopLanguageService(val id: String) : ICodeIntent
+    data class RestartLanguageService(val id: String) : ICodeIntent
+    data object PrepareWorkspaceSearch : ICodeIntent
     data class RunContentSearch(
         val query: String,
         val matchCase: Boolean,
         val wholeWord: Boolean,
         val regex: Boolean,
-    ) : WorkbenchIntent
-    data object ClearContentSearch : WorkbenchIntent
+    ) : ICodeIntent
+    data object ClearContentSearch : ICodeIntent
 
-    data object InstallRuntime : WorkbenchIntent
-    data object RefreshRuntimeDetails : WorkbenchIntent
+    data object InstallRuntime : ICodeIntent
+    data object RefreshRuntimeDetails : ICodeIntent
     /** Reading what storage holds: it changes nothing, so it never waits on the mutation lock. */
-    sealed interface StorageIntent : WorkbenchIntent
+    sealed interface StorageIntent : ICodeIntent
     /** The file explorer at [path] — where it was when none, the workspaces folder at first. */
     data class BrowseFiles(val path: String? = null) : StorageIntent
     /** Where the next clone or import goes: the folder [path] of a workspace, or none — a new workspace. */
@@ -210,25 +210,25 @@ sealed interface WorkbenchIntent {
     data object RefreshStorage : StorageIntent
     /** Each workspace's size, without measuring the runtime and the cache. */
     data object MeasureWorkspaces : StorageIntent
-    data object ClearAppCache : WorkbenchIntent
+    data object ClearAppCache : ICodeIntent
     /** Rebuilds the base system, keeping the guest home directory. */
-    data object RepairRuntime : WorkbenchIntent
+    data object RepairRuntime : ICodeIntent
     /** Rebuilds the base system and discards the guest home directory. */
-    data object ResetRuntime : WorkbenchIntent
+    data object ResetRuntime : ICodeIntent
     /** "+": always a new session. */
-    data object OpenTerminalSession : WorkbenchIntent
+    data object OpenTerminalSession : ICodeIntent
     /** The panel needs a session: the open workspace's running one, or a new one only when there is none. */
-    data object EnsureTerminalSession : WorkbenchIntent
-    data class SelectTerminalSession(val id: String) : WorkbenchIntent
+    data object EnsureTerminalSession : ICodeIntent
+    data class SelectTerminalSession(val id: String) : ICodeIntent
 
     /** Bring a session to the front: its workspace, the Terminal panel, that tab (from its notification). */
-    data class ShowTerminalSession(val id: String) : WorkbenchIntent
-    data class ReorderTerminalSession(val movingId: String, val targetId: String) : WorkbenchIntent
-    data class CloseTerminalSession(val id: String) : WorkbenchIntent
-    data class OpenExternalUrl(val url: String) : WorkbenchIntent
+    data class ShowTerminalSession(val id: String) : ICodeIntent
+    data class ReorderTerminalSession(val movingId: String, val targetId: String) : ICodeIntent
+    data class CloseTerminalSession(val id: String) : ICodeIntent
+    data class OpenExternalUrl(val url: String) : ICodeIntent
 
     /** Managed processes (docs/runtime-foundation-plan.md §3.4): each its own job, never behind the mutation lock. */
-    sealed interface ProcessIntent : WorkbenchIntent
+    sealed interface ProcessIntent : ICodeIntent
     /** Ends a running process: SIGTERM, then SIGKILL if it is still there. */
     data class StopProcess(val id: String) : ProcessIntent
     /** The notification's Cancel: every running process ends. */
@@ -236,10 +236,10 @@ sealed interface WorkbenchIntent {
     /** An ended process leaves the list. */
     data class ForgetProcess(val id: String) : ProcessIntent
     /** A process's output on the Terminal panel, in a tab of its own (docs/runtime-foundation-plan.md §6 P3). */
-    data class ShowProcessOutput(val id: String) : WorkbenchIntent
+    data class ShowProcessOutput(val id: String) : ICodeIntent
 
     /** The assistant (docs/assistant-koog-plan.md): its turns are their own job, never behind the mutation lock. */
-    sealed interface AssistantIntent : WorkbenchIntent
+    sealed interface AssistantIntent : ICodeIntent
     /** The Assistant page opened, or the workspace under it changed: that workspace's chats are shown. */
     data object OpenAssistant : AssistantIntent
     /** One of the shown workspace's chats, from its history. */
@@ -293,8 +293,8 @@ sealed interface WorkbenchIntent {
         override fun toString(): String = "ListAssistantModels($provider, $kind, $baseUrl, key=${if (key == null) "kept" else "***"})"
     }
 
-    data object Refresh : WorkbenchIntent
+    data object Refresh : ICodeIntent
 
     /** iCode came on screen or left it: the open workspace is watched only while it is seen. */
-    data class ScreenVisible(val visible: Boolean) : WorkbenchIntent
+    data class ScreenVisible(val visible: Boolean) : ICodeIntent
 }

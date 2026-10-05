@@ -29,25 +29,25 @@ import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.domain.LanguageService
 import dev.icode.mobile.domain.LanguageServiceStatus
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /** Language server list with running state. */
 @Composable
 fun LanguageServicesScreen(actions: NavigationActions) {
-    val state = LocalWorkbenchSnapshot.current
+    val state = LocalICodeSnapshot.current
     val services = state.languageServices
-    val gateway = LocalWorkbenchGateway.current
+    val gateway = LocalICodeGateway.current
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar(
             "Language Services",
             onBack = actions.back,
             actions = {
                 IconButton(enabled = state.languageServicesLoadError == null, onClick = {
-                    gateway.dispatch(WorkbenchIntent.SelectLanguageService(""))
+                    gateway.dispatch(ICodeIntent.SelectLanguageService(""))
                     actions.navigate(Route.SettingsLanguageDetail)
                 }) {
                     Icon(Icons.Outlined.Add, contentDescription = "Add language service", tint = IcodeColors.TextPrimary)
@@ -63,7 +63,7 @@ fun LanguageServicesScreen(actions: NavigationActions) {
             }
             services.forEach { service ->
                 LanguageServiceRow(service) {
-                    gateway.dispatch(WorkbenchIntent.SelectLanguageService(service.id))
+                    gateway.dispatch(ICodeIntent.SelectLanguageService(service.id))
                     actions.navigate(Route.SettingsLanguageDetail)
                 }
             }

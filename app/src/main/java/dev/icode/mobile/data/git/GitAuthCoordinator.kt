@@ -1,7 +1,7 @@
 package dev.icode.mobile.data.git
 
 import dev.icode.mobile.data.log.BackendLog
-import dev.icode.mobile.data.workspace.WorkbenchStateHolder
+import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.GitAuthMethod
 import dev.icode.mobile.domain.GitAuthTestResult
 import dev.icode.mobile.domain.GitAuthWork
@@ -15,7 +15,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * describes a credential; it is never the secret itself.
  */
 internal class GitAuthCoordinator(
-    private val workbench: WorkbenchStateHolder,
+    private val workbench: ICodeStateHolder,
     private val config: GitConfigOperations,
     private val credentials: GitCredentialOperations,
     private val activeRoot: () -> String?,

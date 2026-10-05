@@ -2,8 +2,8 @@ package dev.icode.mobile.data.workspace
 
 import dev.icode.mobile.data.tasks.TaskRunner
 import dev.icode.mobile.domain.ItemClipboard
-import dev.icode.mobile.domain.WorkbenchEffect
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeEffect
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.WorkspaceNameRules
 import java.io.File
 
@@ -16,7 +16,7 @@ import java.io.File
  * workspace that stops being one is released and retired by the [lifecycle], as a delete is.
  */
 internal class WorkspaceItemsCoordinator(
-    private val workbench: WorkbenchStateHolder,
+    private val stateHolder: ICodeStateHolder,
     private val tasks: TaskRunner,
     private val source: WorkspaceFileSource,
     private val tree: WorkspaceTree,
@@ -34,27 +34,27 @@ internal class WorkspaceItemsCoordinator(
      * A new file in any workspace's folder — the Explorer's, the editor's tab menu's, the file
      * explorer's. Made in the open workspace, it opens in the editor, as the Explorer's always has.
      */
-    suspend fun createFile(intent: WorkbenchIntent.CreateFile) {
+    suspend fun createFile(intent: ICodeIntent.CreateFile) {
         val parent = intent.parentLocation ?: activeRoot() ?: return fail(intent.requestId, "Open a workspace before creating a file")
         val root = creationRoot(parent, intent.expectedWorkspace, intent.requestId) ?: return
         val name = intent.name.trim()
         WorkspaceNameRules.fileValidationError(name)?.let { return fail(intent.requestId, it) }
         runCatching { source.createFile(parent, name) }.onSuccess { location ->
             refreshAfterCreate(root, parent, "File", updateIndex = true)
-            if (intent.requestId != null) workbench.emit(WorkbenchEffect.WorkspaceItemChanged(intent.requestId, location))
+            if (intent.requestId != null) stateHolder.emit(ICodeEffect.WorkspaceItemChanged(intent.requestId, location))
             if (root == activeRoot()) documents.open(location)
-        }.onFailure { error -> fail(intent.requestId, workbench.failureText("workspace", "Unable to create file", error)) }
+        }.onFailure { error -> fail(intent.requestId, stateHolder.failureText("workspace", "Unable to create file", error)) }
     }
 
     /** A new folder in any workspace's folder. */
-    suspend fun createFolder(intent: WorkbenchIntent.CreateWorkspaceFolder) {
+    suspend fun createFolder(intent: ICodeIntent.CreateWorkspaceFolder) {
         val root = creationRoot(intent.parentLocation, intent.expectedWorkspace, intent.requestId) ?: return
         val name = intent.name.trim()
         WorkspaceNameRules.workspaceFolderValidationError(name)?.let { return fail(intent.requestId, it) }
         runCatching { source.createDirectory(intent.parentLocation, name) }.onSuccess { location ->
             refreshAfterCreate(root, intent.parentLocation, "Folder", updateIndex = false)
-            workbench.emit(WorkbenchEffect.WorkspaceItemChanged(intent.requestId, location))
-        }.onFailure { error -> fail(intent.requestId, workbench.failureText("workspace", "Unable to create folder", error)) }
+            stateHolder.emit(ICodeEffect.WorkspaceItemChanged(intent.requestId, location))
+        }.onFailure { error -> fail(intent.requestId, stateHolder.failureText("workspace", "Unable to create folder", error)) }
     }
 
     /**
@@ -70,7 +70,7 @@ internal class WorkspaceItemsCoordinator(
         }
     }
 
-    suspend fun rename(intent: WorkbenchIntent.RenameWorkspaceItem) {
+    suspend fun rename(intent: ICodeIntent.RenameWorkspaceItem) {
         val root = source.workspaceOf(intent.location) ?: return fail(intent.requestId, "It is not in a workspace")
         val name = intent.newName.trim()
         val nameError = if (File(intent.location).isDirectory) WorkspaceNameRules.workspaceFolderValidationError(name)
@@ -80,27 +80,27 @@ internal class WorkspaceItemsCoordinator(
         runCatching { WorkspaceFiles(File(root)).rename(intent.location, name) }
             .onSuccess { target ->
                 moved(intent.location, target.path)
-                workbench.emit(WorkbenchEffect.WorkspaceItemChanged(intent.requestId, target.path))
+                stateHolder.emit(ICodeEffect.WorkspaceItemChanged(intent.requestId, target.path))
             }
-            .onFailure { error -> fail(intent.requestId, workbench.failureText("workspace", "Unable to rename", error)) }
+            .onFailure { error -> fail(intent.requestId, stateHolder.failureText("workspace", "Unable to rename", error)) }
     }
 
-    suspend fun clipboard(intent: WorkbenchIntent.ClipboardIntent) {
+    suspend fun clipboard(intent: ICodeIntent.ClipboardIntent) {
         when (intent) {
-            is WorkbenchIntent.CutItem -> hold(intent.location, cut = true)
-            is WorkbenchIntent.CopyItem -> hold(intent.location, cut = false)
-            is WorkbenchIntent.PasteInto -> paste(intent.folder)
-            WorkbenchIntent.PasteAsWorkspace -> paste(source.workspacesRoot.path)
-            WorkbenchIntent.ClearClipboard -> workbench.update { it.copy(clipboard = null) }
+            is ICodeIntent.CutItem -> hold(intent.location, cut = true)
+            is ICodeIntent.CopyItem -> hold(intent.location, cut = false)
+            is ICodeIntent.PasteInto -> paste(intent.folder)
+            ICodeIntent.PasteAsWorkspace -> paste(source.workspacesRoot.path)
+            ICodeIntent.ClearClipboard -> stateHolder.update { it.copy(clipboard = null) }
         }
     }
 
     /** Held for Paste; nothing moves yet. */
     private suspend fun hold(location: String, cut: Boolean) {
         val file = File(location)
-        if (!file.exists()) return workbench.message("${file.name} no longer exists")
+        if (!file.exists()) return stateHolder.message("${file.name} no longer exists")
         val item = ItemClipboard(location, file.name, cut, folder = file.isDirectory, workspace = source.isWorkspace(location))
-        workbench.update { it.copy(clipboard = item) }
+        stateHolder.update { it.copy(clipboard = item) }
     }
 
     /**
@@ -109,20 +109,20 @@ internal class WorkspaceItemsCoordinator(
      * clipboard; a copy is a task that may be cancelled, and stays on the clipboard to paste again.
      */
     private suspend fun paste(destination: String) {
-        val held = workbench.current.clipboard ?: return
+        val held = stateHolder.current.clipboard ?: return
         val asWorkspace = destination == source.workspacesRoot.path
-        refusal(held, destination, asWorkspace)?.let { return workbench.message(it) }
+        refusal(held, destination, asWorkspace)?.let { return stateHolder.message(it) }
         val files = WorkspaceFiles(source.workspacesRoot)
         if (held.cut) {
             if (held.workspace) lifecycle.release(held.location)
             runCatching { files.move(held.location, destination) }
                 .onSuccess { target ->
-                    workbench.update { it.copy(clipboard = null) }
+                    stateHolder.update { it.copy(clipboard = null) }
                     if (held.workspace) lifecycle.retire(held.location) else moved(held.location, target.path)
                     if (asWorkspace) library.refresh()
                     refreshOpen(target.path)
                 }
-                .onFailure { error -> workbench.report("workspace", "Unable to move", error) }
+                .onFailure { error -> stateHolder.report("workspace", "Unable to move", error) }
             return
         }
         tasks.start(
@@ -163,9 +163,9 @@ internal class WorkspaceItemsCoordinator(
      * As the reference file manager: counted first, then deleted with the item in hand shown,
      * and no Cancel — a delete stopped midway leaves half a folder.
      */
-    suspend fun delete(intent: WorkbenchIntent.DeleteWorkspaceItem) {
+    suspend fun delete(intent: ICodeIntent.DeleteWorkspaceItem) {
         val root = source.workspaceOf(intent.location) ?: return
-        usage.holding(intent.location, whole = false)?.let { return workbench.message(it) }
+        usage.holding(intent.location, whole = false)?.let { return stateHolder.message(it) }
         val files = WorkspaceFiles(File(root))
         tasks.start(
             title = "Deleting…",
@@ -221,7 +221,7 @@ internal class WorkspaceItemsCoordinator(
             refreshWorkspaceState(root)
             reindex(root)
         }.onFailure { error ->
-            workbench.report("workspace", "The change was made, but the workspace could not refresh", error)
+            stateHolder.report("workspace", "The change was made, but the workspace could not refresh", error)
         }
     }
 
@@ -240,12 +240,12 @@ internal class WorkspaceItemsCoordinator(
             refreshWorkspaceState(root)
             if (updateIndex) reindex(root)
         }.onFailure { error ->
-            workbench.report("workspace", "$kind created, but the workspace could not refresh", error)
+            stateHolder.report("workspace", "$kind created, but the workspace could not refresh", error)
         }
     }
 
     private suspend fun fail(requestId: String?, message: String) {
-        if (requestId == null) workbench.message(message)
-        else workbench.emit(WorkbenchEffect.WorkspaceItemFailed(requestId, message))
+        if (requestId == null) stateHolder.message(message)
+        else stateHolder.emit(ICodeEffect.WorkspaceItemFailed(requestId, message))
     }
 }

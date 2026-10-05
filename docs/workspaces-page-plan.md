@@ -53,7 +53,7 @@ UI."
    workspace, or a folder or file in one — pastes wherever folders are: on the Workspaces page it
    becomes a workspace (a copy as "<name> copy"; a folder cut from a workspace becomes its own), and
    in a workspace's Explorer it goes inside the folder pasted into. A cut item moves once; a copied
-   one pastes again. The clipboard is the workbench's (`clipboard` in the snapshot), not a
+   one pastes again. The clipboard is iCode's (`clipboard` in the snapshot), not a
    screen's: the Explorer and the Workspaces page show the same one.
 8. **The backend, without a second copy of anything** (owner: "no duplication in the backend;
    abstractions where needed"):

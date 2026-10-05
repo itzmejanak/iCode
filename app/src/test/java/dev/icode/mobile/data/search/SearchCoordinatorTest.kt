@@ -1,6 +1,6 @@
 package dev.icode.mobile.data.search
 
-import dev.icode.mobile.data.workspace.WorkbenchStateHolder
+import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.ContentMatch
 import dev.icode.mobile.domain.ContentSearchResult
 import dev.icode.mobile.domain.IndexedFile
@@ -20,17 +20,17 @@ import org.junit.Test
 
 class SearchCoordinatorTest {
     @Test fun `new content query cancels old process and only publishes new result`() = runBlocking {
-        val workbench = WorkbenchStateHolder()
+        val stateHolder = ICodeStateHolder()
         val engine = FakeEngine()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-        val coordinator = SearchCoordinator(workbench, scope, engine) { "/workspace" }
+        val coordinator = SearchCoordinator(stateHolder, scope, engine) { "/workspace" }
         try {
             coordinator.runContentSearch("first", matchCase = true, wholeWord = false, regex = false)
             engine.firstSearchStarted.await()
 
             coordinator.runContentSearch("second", matchCase = true, wholeWord = false, regex = false)
             val state = withTimeout(2_000) {
-                workbench.snapshot.first { it.contentSearch.query == "second" }
+                stateHolder.snapshot.first { it.contentSearch.query == "second" }
             }
 
             withTimeout(2_000) { engine.firstSearchCancelled.await() }
@@ -42,11 +42,11 @@ class SearchCoordinatorTest {
     }
 
     @Test fun `index from previous workspace is cancelled and cannot publish`() = runBlocking {
-        val workbench = WorkbenchStateHolder()
+        val stateHolder = ICodeStateHolder()
         val engine = FakeEngine()
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
         var root = "/one"
-        val coordinator = SearchCoordinator(workbench, scope, engine) { root }
+        val coordinator = SearchCoordinator(stateHolder, scope, engine) { root }
         try {
             coordinator.prepareIndex(root)
             engine.firstIndexStarted.await()
@@ -55,7 +55,7 @@ class SearchCoordinatorTest {
             root = "/two"
             coordinator.prepareIndex(root)
             val state = withTimeout(2_000) {
-                workbench.snapshot.first { it.fileIndex.singleOrNull()?.path == "/two/new.kt" }
+                stateHolder.snapshot.first { it.fileIndex.singleOrNull()?.path == "/two/new.kt" }
             }
 
             withTimeout(2_000) { engine.firstIndexCancelled.await() }
@@ -66,19 +66,19 @@ class SearchCoordinatorTest {
     }
 
     @Test fun `first use says installing until shared provisioning completes`() = runBlocking {
-        val workbench = WorkbenchStateHolder()
+        val stateHolder = ICodeStateHolder()
         val engine = FakeEngine(available = false)
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-        val coordinator = SearchCoordinator(workbench, scope, engine) { "/workspace" }
+        val coordinator = SearchCoordinator(stateHolder, scope, engine) { "/workspace" }
         try {
             coordinator.prepareIndex("/workspace")
             withTimeout(2_000) {
-                workbench.snapshot.first { it.searchEngine == SearchEngineState.Installing }
+                stateHolder.snapshot.first { it.searchEngine == SearchEngineState.Installing }
             }
             engine.provisioning.complete(RipgrepAvailability.Ready)
 
             val state = withTimeout(2_000) {
-                workbench.snapshot.first { it.searchEngine is SearchEngineState.Ready && it.fileIndex.isNotEmpty() }
+                stateHolder.snapshot.first { it.searchEngine is SearchEngineState.Ready && it.fileIndex.isNotEmpty() }
             }
             assertTrue(state.fileIndex.isNotEmpty())
         } finally {

@@ -3,7 +3,7 @@ package dev.icode.mobile.data.runtime
 import android.content.Context
 import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.system.AndroidSystemAccess
-import dev.icode.mobile.data.workspace.WorkbenchStateHolder
+import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.RuntimeInstallReason
 import dev.icode.mobile.domain.RuntimeState
 import dev.icode.mobile.domain.SystemAccess
@@ -21,7 +21,7 @@ import kotlinx.coroutines.launch
  */
 internal class RuntimeCoordinator(
     private val appContext: Context,
-    private val workbench: WorkbenchStateHolder,
+    private val stateHolder: ICodeStateHolder,
     private val scope: CoroutineScope,
     private val layout: RuntimeLayout,
     private val systemAccess: AndroidSystemAccess,
@@ -45,7 +45,7 @@ internal class RuntimeCoordinator(
             preservedHome -> RuntimeState.NotInstalled("A runtime repair was interrupted; your home is preserved for retry")
             else -> RuntimeState.NotInstalled("The Linux runtime is not installed yet")
         }
-        workbench.update {
+        stateHolder.update {
             it.copy(
                 runtime = state,
                 runtimeHealthy = state is RuntimeState.Ready,
@@ -67,22 +67,22 @@ internal class RuntimeCoordinator(
         detailsJob = scope.launch(Dispatchers.IO) {
             runCatching {
                 val facts = inspector.facts()
-                workbench.update { it.copy(runtimeDetails = facts.copy(rootfsSize = it.runtimeDetails.rootfsSize)) }
+                stateHolder.update { it.copy(runtimeDetails = facts.copy(rootfsSize = it.runtimeDetails.rootfsSize)) }
                 val size = inspector.rootfsSize()
-                workbench.update { it.copy(runtimeDetails = it.runtimeDetails.copy(rootfsSize = size)) }
+                stateHolder.update { it.copy(runtimeDetails = it.runtimeDetails.copy(rootfsSize = size)) }
             }.onFailure { BackendLog.w("runtime", "Runtime inspection failed", it) }
         }
     }
 
     /** One state-driven installer for first install, repair and reset. */
     suspend fun install(reason: RuntimeInstallReason): Boolean {
-        if (installing || workbench.current.runtime is RuntimeState.Downloading ||
-            workbench.current.runtime is RuntimeState.Installing) {
-            workbench.message("Runtime installation is already running")
+        if (installing || stateHolder.current.runtime is RuntimeState.Downloading ||
+            stateHolder.current.runtime is RuntimeState.Installing) {
+            stateHolder.message("Runtime installation is already running")
             return false
         }
         if (reason != RuntimeInstallReason.Initial && sessionsRunning()) {
-            workbench.message("Close running terminal sessions, language services and processes before rebuilding the runtime")
+            stateHolder.message("Close running terminal sessions, language services and processes before rebuilding the runtime")
             return false
         }
         val label = when (reason) {
@@ -90,7 +90,7 @@ internal class RuntimeCoordinator(
             RuntimeInstallReason.Repair -> "Preparing runtime repair"
             RuntimeInstallReason.Reset -> "Preparing runtime reset"
         }
-        workbench.update { it.copy(
+        stateHolder.update { it.copy(
             runtime = RuntimeState.Installing(label),
             runtimeHealthy = false,
             runtimeInstallReason = reason,
@@ -103,7 +103,7 @@ internal class RuntimeCoordinator(
                     // Ready and its Components offer arrive together: the screen that routes on
                     // Ready must see both.
                     val built = state is RuntimeState.Ready
-                    workbench.update {
+                    stateHolder.update {
                         it.copy(
                             runtime = state,
                             runtimeHealthy = built,
@@ -111,16 +111,16 @@ internal class RuntimeCoordinator(
                         )
                     }
                     if (state is RuntimeState.Failed) {
-                        workbench.message(state.reason)
+                        stateHolder.message(state.reason)
                     }
                     if (state is RuntimeState.Ready) refreshDetails()
                 }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
-                val message = workbench.failureText("runtime", "Runtime installation failed", error)
-                workbench.update { it.copy(runtime = RuntimeState.Failed(message), runtimeHealthy = false) }
-                workbench.message(message)
+                val message = stateHolder.failureText("runtime", "Runtime installation failed", error)
+                stateHolder.update { it.copy(runtime = RuntimeState.Failed(message), runtimeHealthy = false) }
+                stateHolder.message(message)
             }
         }
         return true
@@ -128,7 +128,7 @@ internal class RuntimeCoordinator(
 
     fun refreshSystemAccess(): SystemAccess {
         val access = systemAccess.read()
-        workbench.update { it.copy(systemAccess = access) }
+        stateHolder.update { it.copy(systemAccess = access) }
         return access
     }
 

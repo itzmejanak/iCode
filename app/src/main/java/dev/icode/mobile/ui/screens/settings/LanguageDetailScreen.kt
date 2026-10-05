@@ -29,16 +29,16 @@ import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.domain.LanguageServiceRules
 import dev.icode.mobile.domain.LanguageServiceStatus
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /** Persisted server configuration plus observed guest-process status. */
 @Composable
 fun LanguageDetailScreen(actions: NavigationActions) {
-    val state = LocalWorkbenchSnapshot.current
-    val gateway = LocalWorkbenchGateway.current
+    val state = LocalICodeSnapshot.current
+    val gateway = LocalICodeGateway.current
     val service = state.languageServices.firstOrNull { it.id == state.selectedLanguageServiceId }
     var name by remember(service?.id) { mutableStateOf(service?.name.orEmpty()) }
     var command by remember(service?.id) { mutableStateOf(service?.command.orEmpty()) }
@@ -78,7 +78,7 @@ fun LanguageDetailScreen(actions: NavigationActions) {
             PrimaryButton(
                 if (service == null) "Add Service" else "Save Configuration",
                 onClick = {
-                    gateway.dispatch(WorkbenchIntent.SaveLanguageService(
+                    gateway.dispatch(ICodeIntent.SaveLanguageService(
                         service?.id, name, command, patterns, rootMarkers, options,
                     ))
                 },
@@ -99,10 +99,10 @@ fun LanguageDetailScreen(actions: NavigationActions) {
                 }
                 when (status) {
                     LanguageServiceStatus.Stopped, LanguageServiceStatus.Failed ->
-                        PrimaryButton("Start Server", { gateway.dispatch(WorkbenchIntent.StartLanguageService(service.id)) }, Modifier.fillMaxWidth())
+                        PrimaryButton("Start Server", { gateway.dispatch(ICodeIntent.StartLanguageService(service.id)) }, Modifier.fillMaxWidth())
                     LanguageServiceStatus.Running -> {
-                        SecondaryButton("Restart Server", { gateway.dispatch(WorkbenchIntent.RestartLanguageService(service.id)) }, Modifier.fillMaxWidth())
-                        SecondaryButton("Stop Server", { gateway.dispatch(WorkbenchIntent.StopLanguageService(service.id)) }, Modifier.fillMaxWidth())
+                        SecondaryButton("Restart Server", { gateway.dispatch(ICodeIntent.RestartLanguageService(service.id)) }, Modifier.fillMaxWidth())
+                        SecondaryButton("Stop Server", { gateway.dispatch(ICodeIntent.StopLanguageService(service.id)) }, Modifier.fillMaxWidth())
                     }
                     LanguageServiceStatus.Starting, LanguageServiceStatus.Stopping -> Unit
                 }
@@ -115,7 +115,7 @@ fun LanguageDetailScreen(actions: NavigationActions) {
             title = "Remove ${service.name}?",
             confirmLabel = "Remove",
             onConfirm = {
-                gateway.dispatch(WorkbenchIntent.RemoveLanguageService(service.id))
+                gateway.dispatch(ICodeIntent.RemoveLanguageService(service.id))
                 confirmRemove = false
                 actions.back()
             },

@@ -28,11 +28,11 @@ import dev.icode.mobile.designsystem.ThreeColumnActions
 import dev.icode.mobile.domain.GitConflictChoice
 import dev.icode.mobile.domain.GitConflictFile
 import dev.icode.mobile.domain.GitConflictSection
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.countOf
 import dev.icode.mobile.navigation.NavigationActions
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
  * Merge conflict resolution on the real conflicted file.
@@ -44,8 +44,8 @@ import dev.icode.mobile.ui.LocalWorkbenchSnapshot
  */
 @Composable
 fun ConflictResolutionScreen(actions: NavigationActions) {
-    val state = LocalWorkbenchSnapshot.current
-    val gateway = LocalWorkbenchGateway.current
+    val state = LocalICodeSnapshot.current
+    val gateway = LocalICodeGateway.current
     val conflict = state.activeConflict
     if (conflict == null) {
         ConflictUnavailable(actions)
@@ -56,7 +56,7 @@ fun ConflictResolutionScreen(actions: NavigationActions) {
             conflict.path.substringAfterLast('/'),
             subtitle = conflict.path,
             onBack = {
-                gateway.dispatch(WorkbenchIntent.CloseConflict)
+                gateway.dispatch(ICodeIntent.CloseConflict)
                 actions.back()
             },
             actions = {
@@ -73,15 +73,15 @@ fun ConflictResolutionScreen(actions: NavigationActions) {
                 padding = PaddingValues(vertical = IcodeSpacing.Space3),
             ) {
                 ConflictedFile(conflict) { section, choice ->
-                    gateway.dispatch(WorkbenchIntent.ResolveConflict(conflict.path, section.startLine, choice))
+                    gateway.dispatch(ICodeIntent.ResolveConflict(conflict.path, section.startLine, choice))
                 }
             }
         }
         ConflictFooter(
             conflict = conflict,
             onMarkResolved = {
-                gateway.dispatch(WorkbenchIntent.MarkConflictResolved(conflict.path))
-                gateway.dispatch(WorkbenchIntent.CloseConflict)
+                gateway.dispatch(ICodeIntent.MarkConflictResolved(conflict.path))
+                gateway.dispatch(ICodeIntent.CloseConflict)
                 actions.back()
             },
         )

@@ -1,0 +1,33 @@
+package dev.icode.mobile.domain
+
+sealed interface ICodeEffect {
+    data class RequestSystemPermission(val permission: SystemPermission) : ICodeEffect
+    data class SystemPermissionResolved(val permission: SystemPermission, val granted: Boolean) : ICodeEffect
+    data class OpenSystemSettings(val permission: SystemPermission) : ICodeEffect
+    /** A folder was chosen for Import: the Import screen names the new workspace. */
+    data object ImportSourceChosen : ICodeEffect
+    data class WorkspaceOpened(val location: String) : ICodeEffect
+    data class WorkspaceTerminalOpened(val location: String) : ICodeEffect
+    /** The answer to the dialog that asked, by request id: created or renamed, and where it is now. */
+    data class WorkspaceItemChanged(val requestId: String, val location: String) : ICodeEffect
+    data class WorkspaceItemFailed(val requestId: String, val message: String) : ICodeEffect
+    data class ConfirmWorkspaceSwitch(val location: String, val openTerminal: Boolean, val dirtyCount: Int) : ICodeEffect
+    data object GitInitialized : ICodeEffect
+    data object GitCommitted : ICodeEffect
+    data class DocumentOpened(val location: String, val lineNumber: Int? = null, val column: Int? = null) : ICodeEffect
+    data class DocumentSaved(val location: String, val automatic: Boolean = false) : ICodeEffect
+    data class ConfirmDraftRecovery(
+        val location: String,
+        val name: String,
+        val sourceChanged: Boolean,
+    ) : ICodeEffect
+    data class ConfirmRecoveredOverwrite(val location: String, val name: String) : ICodeEffect
+
+    /** A file changed on disk under unsaved edits; the External Change screen asks which wins. */
+    data class ExternalChangeDetected(val location: String) : ICodeEffect
+    data object RuntimeRebuildStarted : ICodeEffect
+    data class Message(val text: String) : ICodeEffect
+
+    /** Hand a URL to Android's browser; the app never renders it (PR-TERM-09). */
+    data class OpenExternalUrl(val url: String) : ICodeEffect
+}

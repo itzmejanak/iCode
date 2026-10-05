@@ -8,7 +8,7 @@ class GitActionRulesTest {
     private val ready = paletteReadySnapshot
     private val repository = ready.gitRepository!!
 
-    private fun reasons(snapshot: WorkbenchSnapshot) = GitSyncAction.entries.map { GitActionRules.syncBlocked(it, snapshot) }
+    private fun reasons(snapshot: ICodeSnapshot) = GitSyncAction.entries.map { GitActionRules.syncBlocked(it, snapshot) }
 
     @Test fun `a branch with a remote and an upstream can fetch, pull and push`() {
         assertEquals(listOf(null, null, null), reasons(ready))

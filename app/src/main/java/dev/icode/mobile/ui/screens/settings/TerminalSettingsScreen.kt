@@ -37,11 +37,11 @@ import dev.icode.mobile.domain.SystemPermission
 import dev.icode.mobile.domain.TerminalCursorStyle
 import dev.icode.mobile.domain.TerminalExtraKey
 import dev.icode.mobile.domain.TerminalSettingRules
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.LocalWorkspacePreferences
 import dev.icode.mobile.ui.LocalWorkspacePreferencesRepository
 
@@ -50,8 +50,8 @@ import dev.icode.mobile.ui.LocalWorkspacePreferencesRepository
 fun TerminalSettingsScreen(actions: NavigationActions) {
     val preferences = LocalWorkspacePreferences.current
     val repository = LocalWorkspacePreferencesRepository.current
-    val gateway = LocalWorkbenchGateway.current
-    val access = LocalWorkbenchSnapshot.current.systemAccess
+    val gateway = LocalICodeGateway.current
+    val access = LocalICodeSnapshot.current.systemAccess
     val settings = preferences.terminal
     val saver = rememberSettingSaver(preferences, "Could not save terminal setting")
     var editingShell by remember { mutableStateOf(false) }
@@ -132,7 +132,7 @@ fun TerminalSettingsScreen(actions: NavigationActions) {
                 Modifier.fillMaxWidth(),
                 subtitle = if (notifications) "Running sessions are listed in the notification drawer"
                 else "Off: running sessions appear only in Android's Task Manager",
-                onClick = { gateway.dispatch(WorkbenchIntent.OpenSystemSettings(SystemPermission.Notifications)) },
+                onClick = { gateway.dispatch(ICodeIntent.OpenSystemSettings(SystemPermission.Notifications)) },
             ) {
                 AccessState(if (notifications) "ALLOWED" else "OFF", allowed = notifications)
             }
@@ -146,8 +146,8 @@ fun TerminalSettingsScreen(actions: NavigationActions) {
                 // tap; once exempt, its list page is where to change it back.
                 onClick = {
                     gateway.dispatch(
-                        if (unrestricted) WorkbenchIntent.OpenSystemSettings(SystemPermission.Battery)
-                        else WorkbenchIntent.RequestSystemPermission(SystemPermission.Battery),
+                        if (unrestricted) ICodeIntent.OpenSystemSettings(SystemPermission.Battery)
+                        else ICodeIntent.RequestSystemPermission(SystemPermission.Battery),
                     )
                 },
             ) {

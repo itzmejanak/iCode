@@ -35,7 +35,7 @@ Measured against the current branch on 2026-09-28, after S4:
 
 | Area | Current owner / size | What is already real |
 |---|---|---|
-| Gateway Git cluster | `AndroidWorkbenchGateway.kt` 1,227 lines | all Git intents reach the real CLI, but local actions, transfers, auth, progress and config still live together |
+| Gateway Git cluster | `AndroidICodeGateway.kt` 1,227 lines | all Git intents reach the real CLI, but local actions, transfers, auth, progress and config still live together |
 | Repository adapter | `GitRepositoryClient.kt` 353 lines | init, status, stage, commit, branch, diff, discard, conflicts, abort, fetch/pull/push/clone |
 | Process adapter | `CliGitService.kt` 282 lines | PRoot Git commands, status/diff parsing, provisioning and stderr polling |
 | Authentication | `GitAuthenticator.kt` 166; `GitCredentialStore.kt` 102 | Keystore AES/GCM, HTTPS helper, ed25519 key, read-only `ls-remote` test |
@@ -51,7 +51,7 @@ was checked through Context7 (`/git/htmldocs`): porcelain formats are the machin
 ## 3. Lifecycle and control map
 
 This is the contract S5 must preserve and harden. “Owner after S5” is backend ownership; screens
-continue to see only `WorkbenchGateway`, intents, effects and snapshot state.
+continue to see only `ICodeGateway`, intents, effects and snapshot state.
 
 | Lifecycle stage | User surface and controls | Current behavior | Owner after S5 |
 |---|---|---|---|
@@ -142,7 +142,7 @@ These are current-code findings, not speculative features.
 | `GitWorkspaceCoordinator` | availability, inspect/refresh generation, Explorer decoration, init, stage/unstage, commit, branches, diff, pinned discard, conflict, abort, debounced save refresh | network transfers, secrets, apt implementation |
 | `GitTransferCoordinator` | one clone/fetch/pull/push job; operation id, bounded sanitized progress, background policy, cancel clone, completion, interruption ledger and stale-result rules | identity, token storage, local status parsing |
 | `GitAuthCoordinator` | auth snapshot, global/local identity, PAT save/clear, SSH generation/config, connection test | rendering fields, retaining typed token, transfer progress |
-| `GitRepositoryClient` | typed Git CLI operations and one config read/write API | workbench state, effects, screen navigation |
+| `GitRepositoryClient` | typed Git CLI operations and one config read/write API | iCode state, effects, screen navigation |
 | `CliGitService` | construct Git argv, run through `GuestCommand`, return bounded stdout/stderr/exit, exact Git mount context | domain decisions, progress wording, stored credentials |
 | `RuntimePackageInstaller` | the single serialized apt update/install path for `git`, `openssh-client`, `ripgrep`; shared in-flight jobs | feature state or screen messages |
 | Gateway | composition root, intent routing, cross-scope open-workspace sequence | Git commands, parser logic, credentials, progress polling |
@@ -183,7 +183,7 @@ These are current-code findings, not speculative features.
    replacement/error policy and independently bounded.
 4. Every async result carries the operation id and starting workspace. It can update repository
    state only while that workspace is still active.
-5. A network transfer never holds the workbench mutation lock. Starting it is quick; its job owns
+5. A network transfer never holds iCode mutation lock. Starting it is quick; its job owns
    its process and state.
 6. Back on sync means “run in background”; Cancel Clone means kill/reap the clone and never open its
    destination afterward.
@@ -550,7 +550,7 @@ command, credential or config call (1227 → 831 lines; the rest is S2/S3/S8 wor
 | S5.8a | the typed token was `rememberSaveable` (saved state leaves the process); describing the account decrypted the token | plain `remember`; metadata read without decrypting; host and test address validated |
 | S5.8b | the token sat in plain text in `/root/.icode-git-credentials` behind a permanent global helper | an owner-only file per command, deleted when it ends. The cleanup of the earlier file and helper line was itself removed on 2026-10-01 (no compatibility before the first release) |
 | S5.8c | transcripts unmasked and unbounded | every line masked and cut at 400 characters before state |
-| S5.9a | transfers held the workbench lock for their whole network time | one job, one at a time, operation numbers, off the lock |
+| S5.9a | transfers held iCode lock for their whole network time | one job, one at a time, operation numbers, off the lock |
 | S5.9b | the clone branch never reached Git; the address could be read as an option (`--upload-pack`) | `--branch`, `--` before addresses, a dash-led address refused, destination checked |
 | S5.9c | Cancel Clone only navigated back; a transfer cut off by process death was never mentioned | cancel kills and reaps, `Cancelled` names what Git left (nothing deleted); a ledger turns an unfinished transfer into a Notifications item |
 

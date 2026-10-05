@@ -13,7 +13,7 @@ import java.io.File
  * queue while still serializing two folder reads and a concurrent refresh.
  */
 internal class WorkspaceTree(
-    private val workbench: WorkbenchStateHolder,
+    private val stateHolder: ICodeStateHolder,
     source: WorkspaceFileSource,
     private val listChildren: (String) -> List<DocumentNode> = source::listChildren,
 ) {
@@ -54,9 +54,9 @@ internal class WorkspaceTree(
                 expanded += location
             }.exceptionOrNull()
         }
-        if (error != null) workbench.report("workspace", "Unable to read folder", error)
+        if (error != null) stateHolder.report("workspace", "Unable to read folder", error)
         if (synchronized(treeLock) { root == currentRoot }) {
-            workbench.update { snapshot ->
+            stateHolder.update { snapshot ->
                 if (snapshot.activeWorkspaceLocation != root) snapshot
                 else snapshot.copy(
                     files = rows(root, GitWorkspaceSnapshot(snapshot.gitRepository, snapshot.gitChanges)),

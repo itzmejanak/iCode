@@ -1,4 +1,4 @@
-# Native Mobile Development Workbench — Layout and Interaction Design
+# iCode — Native Mobile Development Environment — Layout and Interaction Design
 
 **Version:** 1.0  
 **Status:** Interface contract  
@@ -6,7 +6,7 @@
 
 ## 1. Purpose
 
-This document defines the information architecture, adaptive layout system, navigation behavior, visual language, interaction patterns, and screen responsibilities for the native Android workbench.
+This document defines the information architecture, adaptive layout system, navigation behavior, visual language, interaction patterns, and screen responsibilities for the native Android icode.
 
 It defines a scalable layout foundation rather than a closed list of every future feature. New capabilities must fit the route, panel, category, and detail patterns described here. Delivery order and implementation tasks are intentionally defined elsewhere.
 
@@ -253,7 +253,7 @@ The workspace shell owns five visual regions:
 
 ```mermaid
 flowchart TD
-    H["Workspace header"] --> M["Main workbench"]
+    H["Workspace header"] --> M["Main iCode surface"]
     M --> A["Activity navigation"]
     M --> S["Context sidebar"]
     M --> E["Editor region"]

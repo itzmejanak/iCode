@@ -28,11 +28,11 @@ import dev.icode.mobile.domain.GitAuthState
 import dev.icode.mobile.domain.GitAuthWork
 import dev.icode.mobile.domain.GitIdentityRules
 import dev.icode.mobile.domain.RuntimeComponents
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /** The three things setting up Git actually requires, in order. */
 internal enum class GitAuthStep(val title: String, val caption: String, val short: String = title) {
@@ -53,12 +53,12 @@ private enum class IdentityScope { Default, Repository }
  */
 @Composable
 fun GitAuthScreen(actions: NavigationActions) {
-    val gateway = LocalWorkbenchGateway.current
-    val state = LocalWorkbenchSnapshot.current
+    val gateway = LocalICodeGateway.current
+    val state = LocalICodeSnapshot.current
     val repository = state.gitRepository
     val auth = state.gitAuth
 
-    LaunchedEffect(Unit) { gateway.dispatch(WorkbenchIntent.RefreshGitAuth) }
+    LaunchedEffect(Unit) { gateway.dispatch(ICodeIntent.RefreshGitAuth) }
 
     var identityScope by rememberSaveable { mutableStateOf(IdentityScope.Default) }
     var identityEdited by remember { mutableStateOf(false) }
@@ -132,7 +132,7 @@ fun GitAuthScreen(actions: NavigationActions) {
                                 else -> "Runtime settings"
                             },
                             {
-                                if (state.runtimeHealthy) gateway.dispatch(WorkbenchIntent.ProvisionGit)
+                                if (state.runtimeHealthy) gateway.dispatch(ICodeIntent.ProvisionGit)
                                 else actions.navigate(Route.SettingsRuntime)
                             },
                             enabled = gitInstall == null,
@@ -164,7 +164,7 @@ fun GitAuthScreen(actions: NavigationActions) {
                         (state.localGitAuthorName != null || state.localGitAuthorEmail != null)
                     ) {
                         SecondaryButton("Use default identity", {
-                            gateway.dispatch(WorkbenchIntent.ClearRepositoryGitIdentity)
+                            gateway.dispatch(ICodeIntent.ClearRepositoryGitIdentity)
                             identityEdited = false
                         })
                     }
@@ -174,18 +174,18 @@ fun GitAuthScreen(actions: NavigationActions) {
                     host = host,
                     username = username,
                     token = token,
-                    onProvider = { provider -> gateway.dispatch(WorkbenchIntent.SelectGitProvider(provider)) },
-                    onMethod = { gateway.dispatch(WorkbenchIntent.SelectGitAuthMethod(it)) },
+                    onProvider = { provider -> gateway.dispatch(ICodeIntent.SelectGitProvider(provider)) },
+                    onMethod = { gateway.dispatch(ICodeIntent.SelectGitAuthMethod(it)) },
                     onHost = { customHost = it },
                     onUsername = { username = it },
                     onToken = { token = it },
                     onSaveToken = {
-                        gateway.dispatch(WorkbenchIntent.SaveGitToken(host, username, token))
+                        gateway.dispatch(ICodeIntent.SaveGitToken(host, username, token))
                         token = ""
                     },
-                    onClearToken = { gateway.dispatch(WorkbenchIntent.ClearGitToken) },
-                    onGenerateSsh = { gateway.dispatch(WorkbenchIntent.GenerateSshKey) },
-                    onOpenHost = { gateway.dispatch(WorkbenchIntent.OpenExternalUrl(it)) },
+                    onClearToken = { gateway.dispatch(ICodeIntent.ClearGitToken) },
+                    onGenerateSsh = { gateway.dispatch(ICodeIntent.GenerateSshKey) },
+                    onOpenHost = { gateway.dispatch(ICodeIntent.OpenExternalUrl(it)) },
                     sshClientInstall = state.components.installing(RuntimeComponents.SshClient),
                 )
                 GitAuthStep.Verify -> VerifySection(
@@ -205,12 +205,12 @@ fun GitAuthScreen(actions: NavigationActions) {
                 if (step == GitAuthStep.Identity) {
                     pendingIdentitySave = name.trim() to email.trim()
                     gateway.dispatch(
-                        if (identityScope == IdentityScope.Default) WorkbenchIntent.ConfigureGlobalGitIdentity(name, email)
-                        else WorkbenchIntent.ConfigureGitIdentity(name, email),
+                        if (identityScope == IdentityScope.Default) ICodeIntent.ConfigureGlobalGitIdentity(name, email)
+                        else ICodeIntent.ConfigureGitIdentity(name, email),
                     )
                 } else step = nextStep(step)
             },
-            onTest = { gateway.dispatch(WorkbenchIntent.TestGitConnection(testUrl)) },
+            onTest = { gateway.dispatch(ICodeIntent.TestGitConnection(testUrl)) },
             onDone = actions.back,
         )
         // The steps: the bottom bar, as the editor's (owner's design), under the step's button.

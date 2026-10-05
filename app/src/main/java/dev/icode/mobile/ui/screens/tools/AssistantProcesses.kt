@@ -45,8 +45,8 @@ import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.ManagedProcess
 import dev.icode.mobile.domain.ManagedProcessState
 import dev.icode.mobile.domain.ProcessRules
-import dev.icode.mobile.domain.WorkbenchIntent
-import dev.icode.mobile.ui.LocalWorkbenchGateway
+import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.ui.LocalICodeGateway
 import kotlinx.coroutines.delay
 
 // The processes the assistant started (docs/runtime-foundation-plan.md §3.7): a row above the
@@ -77,7 +77,7 @@ internal fun AssistantProcessesRow(processes: List<ManagedProcess>, onOpen: () -
  */
 @Composable
 internal fun AssistantProcessesSheet(processes: List<ManagedProcess>, workspace: String?, modifier: Modifier, onClose: () -> Unit) {
-    val gateway = LocalWorkbenchGateway.current
+    val gateway = LocalICodeGateway.current
     // A running process's age moves on while the sheet is open.
     val now by produceState(System.currentTimeMillis()) {
         while (true) {
@@ -91,7 +91,7 @@ internal fun AssistantProcessesSheet(processes: List<ManagedProcess>, workspace:
             processes.sortedBy { it.workspace != workspace }.forEachIndexed { index, process ->
                 if (index > 0) Divider()
                 ProcessRow(process, elsewhere = process.workspace != workspace, now = now) {
-                    gateway.dispatch(WorkbenchIntent.ShowProcessOutput(process.id))
+                    gateway.dispatch(ICodeIntent.ShowProcessOutput(process.id))
                     onClose()
                 }
             }
@@ -109,7 +109,7 @@ internal fun AssistantProcessesSheet(processes: List<ManagedProcess>, workspace:
  */
 @Composable
 private fun ProcessRow(process: ManagedProcess, elsewhere: Boolean, now: Long, onShowOutput: () -> Unit) {
-    val gateway = LocalWorkbenchGateway.current
+    val gateway = LocalICodeGateway.current
     Row(
         Modifier.fillMaxWidth().clickable(onClickLabel = "Show its output", onClick = onShowOutput)
             .padding(start = IcodeSpacing.Space3, top = IcodeSpacing.Space2, bottom = IcodeSpacing.Space2),
@@ -133,17 +133,17 @@ private fun ProcessRow(process: ManagedProcess, elsewhere: Boolean, now: Long, o
                 Text(command, style = IcodeType.MonoSmall.copy(color = IcodeColors.TextMuted), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (process.ports.isNotEmpty()) {
                     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3)) {
-                        process.ports.forEach { port -> PortLink(port) { gateway.dispatch(WorkbenchIntent.OpenExternalUrl(ProcessRules.address(port))) } }
+                        process.ports.forEach { port -> PortLink(port) { gateway.dispatch(ICodeIntent.OpenExternalUrl(ProcessRules.address(port))) } }
                     }
                 }
             }
         }
         if (process.running) {
-            IconButton(onClick = { gateway.dispatch(WorkbenchIntent.StopProcess(process.id)) }) {
+            IconButton(onClick = { gateway.dispatch(ICodeIntent.StopProcess(process.id)) }) {
                 Icon(Icons.Outlined.StopCircle, contentDescription = "Stop ${process.name}", tint = IcodeColors.Error, modifier = Modifier.size(IcodeSizes.IconMd))
             }
         } else {
-            IconButton(onClick = { gateway.dispatch(WorkbenchIntent.ForgetProcess(process.id)) }) {
+            IconButton(onClick = { gateway.dispatch(ICodeIntent.ForgetProcess(process.id)) }) {
                 Icon(Icons.Outlined.Close, contentDescription = "Remove ${process.name}", tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconMd))
             }
         }

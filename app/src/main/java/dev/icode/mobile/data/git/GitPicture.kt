@@ -1,6 +1,6 @@
 package dev.icode.mobile.data.git
 
-import dev.icode.mobile.domain.WorkbenchSnapshot
+import dev.icode.mobile.domain.ICodeSnapshot
 
 /** What Git says about one workspace. */
 internal data class GitPicture(
@@ -15,7 +15,7 @@ internal data class GitPicture(
 )
 
 /** What Git says, onto the workbench: one copy, for a workspace opened and for one refreshed. */
-internal fun WorkbenchSnapshot.withGit(picture: GitPicture): WorkbenchSnapshot = copy(
+internal fun ICodeSnapshot.withGit(picture: GitPicture): ICodeSnapshot = copy(
     gitChanges = picture.state.changes,
     gitRepository = picture.state.repository,
     gitRepositories = picture.repositories,

@@ -20,13 +20,13 @@ import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.OnboardingRoute
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeSnapshot
 import kotlinx.coroutines.delay
 
 /** Splash frame. */
 @Composable
 fun SplashScreen(actions: NavigationActions) {
-    val state = LocalWorkbenchSnapshot.current
+    val state = LocalICodeSnapshot.current
     // Onboarding's order lives in OnboardingRoute, so this screen and the
     // runtime installer cannot disagree about it. Each step replaces this one
     // rather than stacking on it, so Back from the launcher leaves the app

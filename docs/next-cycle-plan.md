@@ -215,5 +215,5 @@ It is now first on the guest PATH, as Ubuntu orders it.
 
 ## Not in this round
 
-Autosave (cycle 11, R2) is being wired in `AndroidWorkbenchGateway` by another
+Autosave (cycle 11, R2) is being wired in `AndroidICodeGateway` by another
 agent — `draftStore.write` is already called there — so it is left alone here.

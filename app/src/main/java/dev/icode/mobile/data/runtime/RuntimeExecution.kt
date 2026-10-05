@@ -7,7 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 /**
  * What runs in the runtime on the user's behalf beyond a terminal (docs/runtime-foundation-plan.md
  * §3): the login environment it starts with, and the managed processes that outlive the command
- * that started them. One per process, as the workbench's backend is.
+ * that started them. One per process, as iCode's backend is.
  */
 internal class RuntimeExecution(layout: RuntimeLayout, scope: CoroutineScope, publish: (List<ManagedProcess>) -> Unit) {
     val rootfs: File = layout.rootfs

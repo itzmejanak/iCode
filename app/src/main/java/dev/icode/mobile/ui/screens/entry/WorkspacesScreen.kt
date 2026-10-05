@@ -46,14 +46,14 @@ import dev.icode.mobile.designsystem.SegmentedControl
 import dev.icode.mobile.domain.FilesBrowserState
 import dev.icode.mobile.domain.FilesRules
 import dev.icode.mobile.domain.FilesSort
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.WorkspaceListRules
 import dev.icode.mobile.domain.storageSizeLabel
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.ui.ClipboardBar
 import dev.icode.mobile.ui.FolderBreadcrumb
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.NewWorkspaceDialog
 import dev.icode.mobile.ui.WorkspaceRow
 import dev.icode.mobile.ui.screens.workspace.CreateWorkspaceItemDialog
@@ -72,19 +72,19 @@ import dev.icode.mobile.ui.screens.workspace.WorkspaceItemType
  */
 @Composable
 fun WorkspacesScreen(actions: NavigationActions, choosing: Boolean = false) {
-    val state = LocalWorkbenchSnapshot.current
-    val gateway = LocalWorkbenchGateway.current
+    val state = LocalICodeSnapshot.current
+    val gateway = LocalICodeGateway.current
     val browser = state.filesBrowser
     var sort by rememberSaveable { mutableStateOf(FilesSort.Date) }
     var query by rememberSaveable(browser?.path) { mutableStateOf("") }
     var creating by rememberSaveable { mutableStateOf<WorkspaceItemType?>(null) }
     var renaming by rememberSaveable { mutableStateOf<String?>(null) }
     var deleting by rememberSaveable { mutableStateOf<String?>(null) }
-    val browse = { path: String -> gateway.dispatch(WorkbenchIntent.BrowseFiles(path)) }
+    val browse = { path: String -> gateway.dispatch(ICodeIntent.BrowseFiles(path)) }
     // Where it was when it was last shown — choosing, at the place chosen before; the workspaces folder the first time.
-    LaunchedEffect(Unit) { gateway.dispatch(WorkbenchIntent.BrowseFiles(state.projectDestination?.location?.takeIf { choosing })) }
+    LaunchedEffect(Unit) { gateway.dispatch(ICodeIntent.BrowseFiles(state.projectDestination?.location?.takeIf { choosing })) }
     // A workspace's size is measured on arrival, and again when the list of them changes.
-    LaunchedEffect(state.workspaces.map { it.location }) { gateway.dispatch(WorkbenchIntent.MeasureWorkspaces) }
+    LaunchedEffect(state.workspaces.map { it.location }) { gateway.dispatch(ICodeIntent.MeasureWorkspaces) }
     // Back goes up a folder, as in a file manager; at the top it leaves.
     val up = browser?.parent
     val back = { if (up != null) browse(up) else actions.back() }
@@ -120,13 +120,13 @@ fun WorkspacesScreen(actions: NavigationActions, choosing: Boolean = false) {
         }
         if (choosing) {
             ChooseBar(browser) { path ->
-                gateway.dispatch(WorkbenchIntent.ChooseDestination(path))
+                gateway.dispatch(ICodeIntent.ChooseDestination(path))
                 actions.back()
             }
         } else state.clipboard?.let { held ->
             ClipboardBar(held, onPaste = {
                 val here = browser
-                gateway.dispatch(if (here == null || here.atRoot) WorkbenchIntent.PasteAsWorkspace else WorkbenchIntent.PasteInto(here.path))
+                gateway.dispatch(if (here == null || here.atRoot) ICodeIntent.PasteAsWorkspace else ICodeIntent.PasteInto(here.path))
             })
         }
     }
@@ -154,7 +154,7 @@ private fun Listing(
     onRename: (String) -> Unit,
     onDelete: (String) -> Unit,
 ) {
-    val state = LocalWorkbenchSnapshot.current
+    val state = LocalICodeSnapshot.current
     val here = if (foldersOnly) browser.items.filter { it.folder } else browser.items
     val shown = FilesRules.sorted(FilesRules.matching(here, query), sort, state.workspaceSizes)
     when {

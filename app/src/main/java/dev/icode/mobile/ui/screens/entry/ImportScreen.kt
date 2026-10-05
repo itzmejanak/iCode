@@ -11,11 +11,11 @@ import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.LabeledField
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
  * Import (docs/workspace-storage-plan.md §4.5): the folder chosen in the Import browser is copied into
@@ -24,8 +24,8 @@ import dev.icode.mobile.ui.LocalWorkbenchSnapshot
  */
 @Composable
 fun ImportScreen(actions: NavigationActions) {
-    val gateway = LocalWorkbenchGateway.current
-    val state = LocalWorkbenchSnapshot.current
+    val gateway = LocalICodeGateway.current
+    val state = LocalICodeSnapshot.current
     val source = state.importSource
     // Another folder chosen after Change proposes its own name.
     var name by rememberSaveable(source?.path) { mutableStateOf(source?.name.orEmpty()) }
@@ -35,7 +35,7 @@ fun ImportScreen(actions: NavigationActions) {
         name = name,
         onNameChange = { name = it },
         actionLabel = "Import",
-        onSubmit = { gateway.dispatch(WorkbenchIntent.ImportWorkspace(name, into = state.projectDestination?.location)) },
+        onSubmit = { gateway.dispatch(ICodeIntent.ImportWorkspace(name, into = state.projectDestination?.location)) },
         ready = source != null,
         above = {
             LabeledField("From", source?.displayPath ?: "Choose a folder on phone storage") {

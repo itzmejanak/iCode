@@ -29,7 +29,7 @@ fun selectedAfterClose(
  * it — in the tab list and, when it is the active one, as the active document
  * too, so the two can never disagree. Unchanged when no such tab is open.
  */
-fun WorkbenchSnapshot.withDocument(location: String, change: (OpenDocument) -> OpenDocument): WorkbenchSnapshot {
+fun ICodeSnapshot.withDocument(location: String, change: (OpenDocument) -> OpenDocument): ICodeSnapshot {
     val current = openDocuments.firstOrNull { it.location == location } ?: return this
     val changed = change(current)
     return copy(
@@ -39,6 +39,6 @@ fun WorkbenchSnapshot.withDocument(location: String, change: (OpenDocument) -> O
 }
 
 /** The snapshot without the unanswered external change of [location], if it had one. */
-fun WorkbenchSnapshot.withoutExternalChange(location: String): WorkbenchSnapshot =
+fun ICodeSnapshot.withoutExternalChange(location: String): ICodeSnapshot =
     if (externalChanges.none { it.location == location }) this
     else copy(externalChanges = externalChanges.filterNot { it.location == location })

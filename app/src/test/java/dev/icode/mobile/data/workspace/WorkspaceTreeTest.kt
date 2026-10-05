@@ -16,30 +16,30 @@ class WorkspaceTreeTest {
     private val child = DocumentNode("Main.kt", "$root/src/Main.kt", FileKind.File)
 
     @Test fun `folder tap expands and next tap collapses without gateway state`() = runBlocking {
-        val workbench = WorkbenchStateHolder()
-        workbench.update { it.copy(activeWorkspaceLocation = root) }
-        val tree = WorkspaceTree(workbench, WorkspaceFileSource(WorkspacePaths(File("/workspaces")))) { location ->
+        val stateHolder = ICodeStateHolder()
+        stateHolder.update { it.copy(activeWorkspaceLocation = root) }
+        val tree = WorkspaceTree(stateHolder, WorkspaceFileSource(WorkspacePaths(File("/workspaces")))) { location ->
             if (location == folder.location) listOf(child) else emptyList()
         }
         tree.reset(root, listOf(folder))
 
         tree.toggle(root, folder.location)
-        assertEquals(listOf(folder.location, child.location), workbench.current.files.map { it.path })
-        assertTrue(workbench.current.files.first().expanded)
+        assertEquals(listOf(folder.location, child.location), stateHolder.current.files.map { it.path })
+        assertTrue(stateHolder.current.files.first().expanded)
 
         tree.toggle(root, folder.location)
-        assertEquals(listOf(folder.location), workbench.current.files.map { it.path })
-        assertFalse(workbench.current.files.first().expanded)
+        assertEquals(listOf(folder.location), stateHolder.current.files.map { it.path })
+        assertFalse(stateHolder.current.files.first().expanded)
     }
 
     @Test fun `late tap from previous workspace cannot replace current rows`() = runBlocking {
-        val workbench = WorkbenchStateHolder()
-        workbench.update { it.copy(activeWorkspaceLocation = "/new") }
-        val tree = WorkspaceTree(workbench, WorkspaceFileSource(WorkspacePaths(File("/workspaces")))) { listOf(child) }
+        val stateHolder = ICodeStateHolder()
+        stateHolder.update { it.copy(activeWorkspaceLocation = "/new") }
+        val tree = WorkspaceTree(stateHolder, WorkspaceFileSource(WorkspacePaths(File("/workspaces")))) { listOf(child) }
         tree.reset("/new", emptyList())
 
         tree.toggle(root, folder.location)
 
-        assertTrue(workbench.current.files.isEmpty())
+        assertTrue(stateHolder.current.files.isEmpty())
     }
 }

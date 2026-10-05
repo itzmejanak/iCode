@@ -26,16 +26,16 @@ import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.navigation.Route
-import dev.icode.mobile.domain.WorkbenchIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.WorkspaceRuntimePath
-import dev.icode.mobile.ui.LocalWorkbenchGateway
-import dev.icode.mobile.ui.LocalWorkbenchSnapshot
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /** Clone progress with streaming Git output; auto-advances into the explorer. */
 @Composable
 fun CloneProgressScreen(actions: NavigationActions) {
-    val state = LocalWorkbenchSnapshot.current
-    val gateway = LocalWorkbenchGateway.current
+    val state = LocalICodeSnapshot.current
+    val gateway = LocalICodeGateway.current
     val operation = state.gitOperation
     // The clone finishes when Git exits, not after a fixed delay. A failure
     // returns to the form so the address or the name can be corrected. Success
@@ -106,7 +106,7 @@ fun CloneProgressScreen(actions: NavigationActions) {
             {
                 if (operation is GitOperationState.Running) {
                     cancelling = true
-                    gateway.dispatch(WorkbenchIntent.CancelGitTransfer)
+                    gateway.dispatch(ICodeIntent.CancelGitTransfer)
                 } else {
                     actions.back()
                 }
