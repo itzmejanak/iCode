@@ -1,10 +1,9 @@
 # iCode
 
-iCode is a native Android mobile IDE built from the complete Figma user flow. Its workspaces live
-in its own Linux storage, which a real Linux runtime and every other part of iCode reach the same
-way: workspaces, the file tree, the editor with autosave and
-recovery drafts, Git (clone, status, diff, commit, push, pull, branches, credentials), the
-terminal with background sessions and alerts, language services, and settings.
+iCode is a native Android mobile IDE. Its workspaces live in its own Linux storage, which a real
+Linux runtime and every other part of iCode reach the same way: workspaces, the file tree, the
+editor with autosave and recovery drafts, Git (clone, status, diff, commit, push, pull, branches,
+credentials), the terminal with background sessions and alerts, language services, and settings.
 
 ## Build and run
 
@@ -26,7 +25,7 @@ On first launch iCode installs its runtime, then offers its two optional permiss
 repository, or import a folder from phone storage; other apps reach your workspaces through
 Android's Files app ([docs/workspace-storage-plan.md](./docs/workspace-storage-plan.md)).
 
-## Capture all 39 screens
+## Capture all screens
 
 Connect an authorized Android device, build the debug APK, then run:
 
@@ -55,8 +54,8 @@ app/src/main/java/dev/icode/mobile/
 app/src/debug/java/dev/icode/mobile/capture/   # Capture fixtures (debug builds only)
 ```
 
-Each Figma frame lives in its own screen file with a small group host that dispatches it; the
-shared kit owns every reusable surface. Structural consistency is enforced by two guards with
+Each screen lives in its own file with a small group host that dispatches it; the shared kit owns
+every reusable surface. Structural consistency is enforced by two guards with
 shrinking ratchets: `tools/check-ui-consistency.sh` (`tools/ui-debt-allowlist.txt`) for the UI,
 and `tools/check-backend-consistency.sh` (`tools/backend-debt-allowlist.txt`) for `data/` and
 `domain/` — among them the file budget, one owner per store, one package installer, one digest

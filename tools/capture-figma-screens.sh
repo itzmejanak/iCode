@@ -27,7 +27,7 @@ mapfile -t screens < <(
     sed -nE 's/^    ([A-Za-z0-9]+)\("[^"]+", "([^"]+)",.*$/\1|\2/p' "$catalog_file"
 )
 
-# 40 Figma frames, 37 routes: frame 3:55 "Runtime error" is the failed state of
+# 40 design frames, 37 routes: frame 3:55 "Runtime error" is the failed state of
 # 3:27 "Runtime installing" and has no route of its own (docs/integration-plan.md),
 # frame 2003:77 "Create folder" is the Workspaces page's New Folder dialog
 # (docs/workspace-destinations-plan.md §2.5), and frame 2003:731 "Delete confirmation"

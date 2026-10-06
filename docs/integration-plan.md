@@ -8,7 +8,7 @@
 
 ### Workspace closeout audit and order (2026-09-23)
 
-This is the current implementation map for the requested workspace end-to-end pass. A Figma
+This is the current implementation map for the requested workspace end-to-end pass. A design
 frame is not automatically a navigation destination: keep its capture route until the real
 parent state is verified, then retire only the redundant production route. Git/clone/sync
 are excluded from this pass while their separate integration is in progress.
@@ -139,7 +139,7 @@ reachable screens and working controls than it started with.
 | 10 Workspace editor | three document tabs | one tab; opening a second file is refused while the first is dirty | US-EDIT-002 (multiple documents) lost |
 | 11 Workspace search | search-as-you-type | an explicit `Search` button was added | slower loop; PR-SEARCH-04 (streaming) unmet |
 | 11 + 14 results | — | results are not clickable | PR-SEARCH-03 / US-SEARCH-001 "selecting a result opens the exact range" unmet |
-| all 40 | `IcodeType.Title`, bordered top bar | `IcodeType.Heading`, hairline divider | **accepted** as an intentional Figma correction (user decision, 2026-09-22); the 40 captures are re-baselined, not reverted |
+| all 40 | `IcodeType.Title`, bordered top bar | `IcodeType.Heading`, hairline divider | **accepted** as an intentional design correction (user decision, 2026-09-22); the 40 captures are re-baselined, not reverted |
 
 Routes with **no** navigation entry point today: `PullFetchProgress`, `ExternalFileChange`,
 `DocumentRecovery`. Effectively dead: `DiffView`, `ConflictResolution`.
@@ -211,7 +211,7 @@ cancel choices**, not a refusal.
 4. **Library first.** Check `architecture.md` §25, research the current docs, adopt the library
    behind the module contract. Record every interim deviation explicitly.
 5. **Plan, then one small cycle at a time**, each compiling, tested and validated on its own.
-6. **No restyling.** Visual changes are out of scope unless a Figma inconsistency is being corrected
+6. **No restyling.** Visual changes are out of scope unless a design inconsistency is being corrected
    deliberately and noted.
 
 These are saved as durable project rules.
@@ -390,7 +390,7 @@ repository from a shell.
 
 ### Cycle 4a — Frames that are states, not pages
 
-Several Figma frames are not separate destinations; they are states of a surface that already
+Several design frames are not separate destinations; they are states of a surface that already
 exists. Keeping them as routes duplicates layout, and some can only be reached through a navigation
 edge invented for the demo. Each one below should collapse into its parent's state while its route
 stays registered, so static capture still produces all 40 frames.

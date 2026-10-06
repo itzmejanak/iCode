@@ -1,6 +1,6 @@
 # UI Splitting & Consistency Plan (Phase 1.5)
 
-Master refactoring plan for the completed Phase 1 UI port (40 Figma frames), executed before Phase 2 backend planning.
+Master refactoring plan for the completed Phase 1 UI port (40 design frames), executed before Phase 2 backend planning.
 
 > **Note (2026-09-26).** The tables below record the split as it was done, with the names of
 > the time. `demo/` (`DemoICodeGateway`, `DemoContent`) no longer exists: screens read the
@@ -58,7 +58,7 @@ Charter: `docs/layout.md` §26 ("The shared native design system owns …"; "Scr
 - **Add:** `IcodeListRow`, `IcodeTextField`, `LabeledTextField`, `CodeSurface`, `NoticeCard`, `EmptyState`, `IconBadge`, `DiffRow`, `DiffBand`, `PanelTabStrip`, `BottomPanelBar`, `EditorTab`, `SectionHeader`, `Stepper`, `ActivityRail`, `DiagnosticRow`.
 - **Delete:** `IconText`, `VerticalGap`, `HorizontalGap`, `NavigationActions.reset`.
 - **Tokens added:** diff/conflict surfaces, `OnAccent`, `Scrim`; `Display`, `Logomark`, `LogomarkSmall`, `Heading`, `Micro`, `MonoMicro`; `IcodeSpacing`, `IcodeShapes`, `IcodeSizes`; `IcodeTone`.
-- **Not changed (Figma fidelity):** button/Secondary casing stays per-frame; `Divider` keeps its name; component-internal metrics (e.g. `KeyChip` 8 sp compact) stay inside the kit where they define the component's identity.
+- **Not changed (design fidelity):** button/Secondary casing stays per-frame; `Divider` keeps its name; component-internal metrics (e.g. `KeyChip` 8 sp compact) stay inside the kit where they define the component's identity.
 
 ## 4. Target structure
 
@@ -180,8 +180,8 @@ Every cycle was required to keep the tree compiling and the 40-frame unit test g
 
 ## 10. Decisions taken (with defaults applied)
 
-1. **Page gutter** — kept at the implemented 16 dp (`IcodeSpacing.Gutter`) instead of the 20 dp named in `layout.md` §4.5, to preserve the validated Figma output; deviation recorded in `IcodeMetrics`.
-2. **Button casing** — unchanged: `PrimaryButton` uppercases, secondary/danger labels keep Figma casing. Changing it would alter validated frames, so the guard treats it as intended behavior.
+1. **Page gutter** — kept at the implemented 16 dp (`IcodeSpacing.Gutter`) instead of the 20 dp named in `layout.md` §4.5, to preserve the validated design output; deviation recorded in `IcodeMetrics`.
+2. **Button casing** — unchanged: `PrimaryButton` uppercases, secondary/danger labels keep design casing. Changing it would alter validated frames, so the guard treats it as intended behavior.
 3. **`NavigationActions`** — moved to `navigation`, removing the screen → composition-root dependency.
 4. **Demo strings** — centralized: `DemoContent` owns the duplicated fixtures (`activeBranch`, `branches`, `authMethods`, `appTsx`, `packageJson`, `selectedExplorerPath`, recovery documents); frame-unique content stays local to its screen.
 5. **Dead API** — deleted (`IconText`, `VerticalGap`, `HorizontalGap`, `NavigationActions.reset`).

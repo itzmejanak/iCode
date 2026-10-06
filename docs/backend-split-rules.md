@@ -32,7 +32,7 @@ Dependency path: `UI → feature contract ← adapter`; `composition root → im
 4. **One effective-value resolver.** App defaults, workspace overrides, capability gates and derived statuses are resolved once and exposed immutably. Do not persist derived values or duplicate fallback logic in multiple screens.
 5. **One capability truth.** A control is enabled only if its underlying provider and prerequisites exist. Distinguish `Loading`, `Ready`, `Unavailable(reason)`, `Running`, `Failed(reason)`, and `Cancelled` where relevant. Never replace failure with sample success, fabricated output, or silent defaults.
 6. **One capture seam.** The real implementation and the capture fixtures share domain contracts and UI composition. Fixtures live in `app/src/debug/.../capture` (`CaptureFixtures`, drawn by `CaptureGateway`), never in product screens; a screen reads `captureMode` only to stop its own timed advance, never to choose content (guard rule `capture-fork`). A release build contains no fixture.
-7. **One design vocabulary.** Backend statuses map to semantic UI tones/components in a presentation adapter; backends never store colors or Figma strings. UI tokens and component rules remain in `ui-split-plan.md`.
+7. **One design vocabulary.** Backend statuses map to semantic UI tones/components in a presentation adapter; backends never store colors or design strings. UI tokens and component rules remain in `ui-split-plan.md`.
 
 ## 4. When and how to split a backend component
 

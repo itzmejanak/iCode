@@ -27,7 +27,7 @@ val PlexMono = FontFamily(
 /**
  * Type scale for the iCode design system.
  *
- * Screens pick a named style instead of overriding `fontSize` so the Figma
+ * Screens pick a named style instead of overriding `fontSize` so the design
  * scale stays consistent across all 40 frames.
  */
 internal val LocalIcodeUiTextScale = staticCompositionLocalOf { 1f }

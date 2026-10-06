@@ -9,7 +9,7 @@ enum class RouteGroup(val label: String) {
 }
 
 enum class Route(
-    /** The Figma frame this route draws; null for a page the design does not have. */
+    /** The design frame this route draws; null for a page the design does not have. */
     val figmaNode: String?,
     val title: String,
     val group: RouteGroup,

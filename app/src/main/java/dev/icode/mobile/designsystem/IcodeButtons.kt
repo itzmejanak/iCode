@@ -62,7 +62,7 @@ fun PrimaryButton(
     }
 }
 
-/** Outlined secondary action. Labels keep the Figma casing. [compact] as [PrimaryButton]'s. */
+/** Outlined secondary action. Labels keep the design casing. [compact] as [PrimaryButton]'s. */
 @Composable
 fun SecondaryButton(
     text: String,
