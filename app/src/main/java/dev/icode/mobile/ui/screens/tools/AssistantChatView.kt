@@ -6,8 +6,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -27,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeBrandMark
 import dev.icode.mobile.designsystem.IcodeColors
@@ -96,6 +99,12 @@ internal fun AssistantChatView(state: AssistantState, modifier: Modifier, onSugg
             val written = state.turn?.live?.let { it.reasoning.length + it.text.length } ?: 0
             LaunchedEffect(written) {
                 if (written > 0 && following) list.scrollToEnd()
+            }
+            // When the keyboard opens the viewport shrinks; scroll to end so the latest stays visible.
+            val density = LocalDensity.current
+            val imeBottom = WindowInsets.ime.getBottom(density)
+            LaunchedEffect(imeBottom) {
+                if (imeBottom > 0 && following) list.scrollToEnd()
             }
             val scope = rememberCoroutineScope()
             Box(Modifier.weight(1f).fillMaxWidth()) {

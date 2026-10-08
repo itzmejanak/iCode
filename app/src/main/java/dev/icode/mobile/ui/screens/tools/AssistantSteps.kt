@@ -131,51 +131,56 @@ internal fun Disclosure(
     val opens = detail != null || heading != null
     Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
         if (divided) Divider()
-        Box {
-            Row(
-                Modifier.fillMaxWidth()
-                    .combinedClickable(
-                        enabled = opens || actions.isNotEmpty(),
-                        onClickLabel = if (open) "Hide" else "Show",
-                        onLongClickLabel = actionsLabel,
-                        onLongClick = if (actions.isEmpty()) null else ({ menu = true }),
-                        onClick = { if (opens) open = !open },
-                    )
-                    .padding(vertical = IcodeSpacing.Space1),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
-            ) {
-                Icon(icon, contentDescription = status, tint = tint, modifier = Modifier.size(IcodeSizes.IconSm))
-                Text(
-                    label,
-                    modifier = Modifier.weight(1f),
-                    style = (if (mono) IcodeType.MonoSmall else IcodeType.Caption).scaledBy(scale).copy(color = IcodeColors.TextSecondary),
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                changes?.let { ChangedLines(it) }
-                if (opens) {
-                    Icon(
-                        if (open) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
-                        contentDescription = null,
-                        tint = IcodeColors.TextMuted,
-                        modifier = Modifier.size(IcodeSizes.IconSm),
-                    )
-                }
-            }
-            IcodeActionMenu(expanded = menu, onDismiss = { menu = false }, actions = actions)
-        }
         if (open && opens) {
+            // Expanded view: replaces the summary row entirely to avoid duplication
             CodeSurface(Modifier.fillMaxWidth().clip(IcodeShapes.Small).clickable(onClickLabel = "Hide") { open = false }) {
                 Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
-                    Text(
-                        heading.orEmpty(),
-                        modifier = Modifier.weight(1f),
-                        style = IcodeType.MonoSmall.scaledBy(scale).copy(color = IcodeColors.TextPrimary),
-                    )
+                    Icon(icon, contentDescription = status, tint = tint, modifier = Modifier.size(IcodeSizes.IconSm).padding(top = IcodeSpacing.Space1))
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            heading ?: label, // Use heading if available, otherwise fall back to label
+                            style = IcodeType.MonoSmall.scaledBy(scale).copy(color = IcodeColors.TextPrimary),
+                        )
+                        detail?.let { Text(it, modifier = Modifier.padding(top = IcodeSpacing.Space1), style = IcodeType.MonoSmall.scaledBy(scale)) }
+                    }
                     CopyChip { copyText(context, "Output", listOfNotNull(heading, detail).joinToString("\n\n"), "Copied") }
                 }
-                detail?.let { Text(it, modifier = Modifier.padding(top = IcodeSpacing.Space1), style = IcodeType.MonoSmall.scaledBy(scale)) }
+            }
+        } else {
+            // Collapsed view: the summary row
+            Box {
+                Row(
+                    Modifier.fillMaxWidth()
+                        .combinedClickable(
+                            enabled = opens || actions.isNotEmpty(),
+                            onClickLabel = if (open) "Hide" else "Show",
+                            onLongClickLabel = actionsLabel,
+                            onLongClick = if (actions.isEmpty()) null else ({ menu = true }),
+                            onClick = { if (opens) open = !open },
+                        )
+                        .padding(vertical = IcodeSpacing.Space1),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
+                ) {
+                    Icon(icon, contentDescription = status, tint = tint, modifier = Modifier.size(IcodeSizes.IconSm))
+                    Text(
+                        label,
+                        modifier = Modifier.weight(1f),
+                        style = (if (mono) IcodeType.MonoSmall else IcodeType.Caption).scaledBy(scale).copy(color = IcodeColors.TextSecondary),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    changes?.let { ChangedLines(it) }
+                    if (opens) {
+                        Icon(
+                            Icons.Outlined.ExpandMore,
+                            contentDescription = null,
+                            tint = IcodeColors.TextMuted,
+                            modifier = Modifier.size(IcodeSizes.IconSm),
+                        )
+                    }
+                }
+                IcodeActionMenu(expanded = menu, onDismiss = { menu = false }, actions = actions)
             }
         }
         if (divided) Divider()
