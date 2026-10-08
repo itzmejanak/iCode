@@ -208,6 +208,12 @@ fun IcodeApp(
                         Toast.makeText(context, "Saved", Toast.LENGTH_SHORT).show()
                     }
                     is ICodeEffect.Message -> Toast.makeText(context, effect.text, Toast.LENGTH_LONG).show()
+                    // A chat shared as its transcript: Android's share sheet, as the terminal's output is.
+                    is ICodeEffect.ShareChat -> {
+                        val send = Intent(Intent.ACTION_SEND).setType("text/plain")
+                            .putExtra(Intent.EXTRA_TEXT, effect.text)
+                        context.startActivity(Intent.createChooser(send, "Share ${effect.title}"))
+                    }
                     is ICodeEffect.OpenExternalUrl -> {
                         // The user's own browser opens the URL; the app never
                         // renders web content itself (architecture.md section 11.5).

@@ -11,6 +11,7 @@ import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantCommitMessage
 import dev.icode.mobile.domain.AssistantEffort
+import dev.icode.mobile.domain.AssistantExports
 import dev.icode.mobile.domain.AssistantLive
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantMode
@@ -374,6 +375,39 @@ class AssistantCoordinatorTest {
         said("Add settings")
         assertEquals(listOf("read_file", "edit_file"), requests.last().tools.map { it.name })
         assertTrue("implements and verifies" in requests.last().instructions)
+    }
+
+    @Test fun `a chat is shared as its transcript, head and answers`() {
+        said("Rename x")
+        val session = state().session!!
+        coordinator.handle(ICodeIntent.ExportAssistantSession(session))
+        until { effects.any { it is ICodeEffect.ShareChat } }
+        val effect = effects.filterIsInstance<ICodeEffect.ShareChat>().last()
+        assertEquals("Rename x", effect.title)
+        assertTrue("## Assistant" in effect.text)
+        assertTrue("Re: Rename x" in effect.text)
+        assertTrue("Worked in app" in effect.text)
+    }
+
+    @Test fun `a chat with nothing in it is not shared`() {
+        coordinator.handle(ICodeIntent.ExportAssistantSession("ghost"))
+        until { effects.any { it is ICodeEffect.Message } }
+        assertTrue(effects.any { it is ICodeEffect.Message && it.text == "Nothing to share yet" })
+        assertTrue(effects.none { it is ICodeEffect.ShareChat })
+    }
+
+    @Test fun `a chat's transcript shows its steps, their results and the compaction en route`() {
+        editTurn()
+        coordinator.handle(ICodeIntent.SendAssistantMessage("Add a helper"))
+        until { state().approval != null }
+        coordinator.handle(ICodeIntent.AnswerAssistant("c1", AssistantAnswer.Allow))
+        until { state().turn == null && state().messages.lastOrNull() is AssistantMessage.Reply }
+        coordinator.handle(ICodeIntent.ExportAssistantSession(state().session!!))
+        until { effects.any { it is ICodeEffect.ShareChat } }
+        val text = effects.filterIsInstance<ICodeEffect.ShareChat>().last().text
+        assertTrue("### Edit a.kt" in text)
+        assertTrue("+2 −1" in text)
+        assertTrue("ok" in text)
     }
 
     @Test fun `the model chosen on the page is one of a provider's, and its effort is sent only where offered`() {

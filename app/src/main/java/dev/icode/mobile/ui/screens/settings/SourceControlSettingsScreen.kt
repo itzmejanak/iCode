@@ -1,6 +1,7 @@
 package dev.icode.mobile.ui.screens.settings
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -10,15 +11,21 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.AccountTree
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeDropdown
+import dev.icode.mobile.designsystem.IcodeSizes
+import dev.icode.mobile.designsystem.IcodeSheetOverlay
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
-import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SettingRow
 import dev.icode.mobile.domain.AssistantChoice
@@ -27,6 +34,7 @@ import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
+import dev.icode.mobile.ui.screens.tools.AssistantModelsSheet
 
 /**
  * Source Control's settings: Git's credentials, and the model that writes commit messages
@@ -35,45 +43,58 @@ import dev.icode.mobile.ui.LocalICodeSnapshot
 @Composable
 fun SourceControlSettingsScreen(actions: NavigationActions) {
     val gateway = LocalICodeGateway.current
-    val settings = LocalICodeSnapshot.current.assistant.settings
-    val choices = listOf<AssistantChoice?>(null) + settings.providers.flatMap { provider -> provider.models.map { AssistantChoice(provider.id, it.id) } }
-    Column(Modifier.fillMaxSize()) {
-        IcodeTopBar("Source Control", subtitle = settingsSubtitle(Route.SourceControlSettings), onBack = actions.back)
-        Column(
-            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(IcodeSpacing.Space4),
-            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space4),
-        ) {
-            SettingRow(
-                "Git Credentials",
-                Modifier.fillMaxWidth(),
-                subtitle = "Commit identity, token and SSH key",
-                leadingIcon = Icons.Outlined.AccountTree,
-                onClick = { actions.navigate(Route.GitAuth) },
+    val state = LocalICodeSnapshot.current.assistant
+    val settings = state.settings
+    var picking by rememberSaveable { mutableStateOf(false) }
+    // The effective model being used for commit messages: explicit choice, or the assistant's.
+    val effectiveChoice = settings.commitChoice ?: settings.choice
+    // What the row says of the choice: the model, then who hosts it.
+    val label = effectiveChoice?.model ?: "No model yet"
+    val hint = effectiveChoice?.let { choice -> settings.providers.firstOrNull { it.id == choice.provider }?.name }
+        ?: "No model yet"
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().then(if (picking) Modifier.blur(IcodeSizes.SheetBackdropBlur) else Modifier)) {
+            IcodeTopBar("Source Control", subtitle = settingsSubtitle(Route.SourceControlSettings), onBack = actions.back)
+            Column(
+                modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(IcodeSpacing.Space4),
+                verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space4),
             ) {
-                Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = IcodeColors.TextSecondary)
+                SettingRow(
+                    "Git Credentials",
+                    Modifier.fillMaxWidth(),
+                    subtitle = "Commit identity, token and SSH key",
+                    leadingIcon = Icons.Outlined.AccountTree,
+                    onClick = { actions.navigate(Route.GitAuth) },
+                ) {
+                    Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = IcodeColors.TextSecondary)
+                }
+                SettingRow(
+                    "Commit Message Model",
+                    Modifier.fillMaxWidth(),
+                    subtitle = "$label · $hint",
+                    leadingIcon = Icons.Outlined.AutoAwesome,
+                    onClick = { picking = true },
+                ) {
+                    Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = IcodeColors.TextSecondary)
+                }
+                if (settings.providers.isEmpty()) {
+                    SecondaryButton("Add a Model Provider", { actions.navigate(Route.AssistantSettings) }, Modifier.fillMaxWidth())
+                }
             }
-            IcodeDropdown(
-                label = "Commit Message Model",
-                options = choices,
-                selected = settings.commitChoice,
-                optionLabel = { choice -> choice?.model ?: "The assistant's model" },
-                optionDescription = { choice ->
-                    if (choice != null) {
-                        settings.providers.firstOrNull { it.id == choice.provider }?.name
-                    } else {
-                        settings.model?.let { model -> "Now ${model.id}" } ?: "No model yet"
-                    }
-                },
-                onSelect = { gateway.dispatch(ICodeIntent.ChooseCommitModel(it)) },
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Text(
-                "✨ in Source Control's message field writes a commit message from the staged changes, which are sent to this " +
-                    "model's provider. The message is yours to edit before you commit.",
-                style = IcodeType.Caption.copy(color = IcodeColors.TextMuted),
-            )
-            if (settings.providers.isEmpty()) {
-                SecondaryButton("Add a Model Provider", { actions.navigate(Route.AssistantSettings) }, Modifier.fillMaxWidth())
+        }
+        if (picking) {
+            val close = { picking = false }
+            IcodeSheetOverlay(onClose = close) {
+                AssistantModelsSheet(
+                    state,
+                    Modifier.align(Alignment.BottomCenter),
+                    onClose = close,
+                    onProviders = { actions.navigate(Route.AssistantSettings) },
+                    title = "Commit Message Model",
+                    chosen = { it == effectiveChoice },
+                    onChoose = { gateway.dispatch(ICodeIntent.ChooseCommitModel(it)) },
+                    showEffort = false,
+                )
             }
         }
     }

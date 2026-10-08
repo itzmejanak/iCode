@@ -28,6 +28,9 @@ sealed interface ICodeEffect {
     data object RuntimeRebuildStarted : ICodeEffect
     data class Message(val text: String) : ICodeEffect
 
+    /** A chat was exported: its transcript, to be shared as text. */
+    data class ShareChat(val title: String, val text: String) : ICodeEffect
+
     /** Hand a URL to Android's browser; the app never renders it (PR-TERM-09). */
     data class OpenExternalUrl(val url: String) : ICodeEffect
 }
