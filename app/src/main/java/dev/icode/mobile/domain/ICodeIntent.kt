@@ -241,6 +241,8 @@ sealed interface ICodeIntent {
     /** One of the shown workspace's chats, from its history. */
     data class OpenAssistantSession(val id: String) : AssistantIntent
     data class DeleteAssistantSession(val id: String) : AssistantIntent
+    /** One of the shown workspace's chats, shared as its transcript (§12 R9). */
+    data class ExportAssistantSession(val id: String) : AssistantIntent
     /** A new, empty chat; it is kept once something is said in it. */
     data object NewAssistantChat : AssistantIntent
     /** [attachments]: the files sent with it — a workspace file's location, or a phone file's `content://` URI. */

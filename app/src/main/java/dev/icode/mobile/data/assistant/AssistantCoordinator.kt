@@ -9,8 +9,11 @@ import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceFileSource
 import dev.icode.mobile.data.workspace.WorkspaceRoot
 import dev.icode.mobile.domain.AssistantChoice
+import dev.icode.mobile.domain.AssistantExports
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantRules
+import dev.icode.mobile.domain.AssistantSession
+import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeIntent
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
@@ -72,6 +75,7 @@ internal class AssistantCoordinator(
             ICodeIntent.OpenAssistant -> page.show(activeRoot(), turns.running)
             is ICodeIntent.OpenAssistantSession -> page.current.workspace?.let { page.display(it, intent.id) }
             is ICodeIntent.DeleteAssistantSession -> delete(intent.id)
+            is ICodeIntent.ExportAssistantSession -> export(intent.id)
             ICodeIntent.NewAssistantChat -> (page.current.workspace ?: activeRoot())?.let { page.display(it, null) }
             is ICodeIntent.SendAssistantMessage -> send(intent.text, intent.attachments)
             ICodeIntent.StopAssistant -> turns.stop()
@@ -139,6 +143,18 @@ internal class AssistantCoordinator(
         if (turns.running == (workspace to session)) return page.say("Stop the assistant before deleting this chat")
         chats.delete(workspace, session)
         if (page.current.session == session) page.display(workspace, null) else page.listed(workspace)
+    }
+
+    /** One chat, shared as its transcript: the user's words, the answers, the steps and their output. */
+    private fun export(session: String) {
+        val workspace = page.current.workspace ?: return
+        val chat = chats.of(workspace, session)
+        if (chat.messages.isEmpty()) return page.say("Nothing to share yet")
+        val listed = page.current.sessions.firstOrNull { it.id == session }
+        val title = listed?.title ?: AssistantRules.sessionTitle(
+            chat.messages.firstNotNullOfOrNull { it as? AssistantMessage.User }?.text.orEmpty(),
+        )
+        scope.launch { stateHolder.emit(ICodeEffect.ShareChat(title, AssistantExports.transcript(AssistantSession(session, title, listed?.updatedAt ?: 0L), AssistantRules.workspaceName(workspace), chat.messages))) }
     }
 
     companion object {
