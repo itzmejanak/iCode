@@ -32,7 +32,7 @@ class WorkspaceUsageTest {
     private var processes = setOf<String>()
     private var unsaved: String? = null
     private val usage = WorkspaceUsage(
-        icode,
+        stateHolder,
         tasks,
         terminalRunsIn = { it in terminals },
         processesRunIn = { it in processes },

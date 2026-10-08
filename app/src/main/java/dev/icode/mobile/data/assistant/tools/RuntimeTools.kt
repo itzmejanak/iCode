@@ -84,6 +84,8 @@ internal class RunCommandTool(
 
     override fun summary(arguments: JSONObject): String = "Run `${arguments.textOrNull("command").orEmpty().lineSequence().first()}`"
 
+    override fun command(arguments: JSONObject): String? = arguments.textOrNull("command")
+
     override fun detail(arguments: JSONObject): String = arguments.textOrNull("command").orEmpty()
 
     override suspend fun run(arguments: JSONObject): String {

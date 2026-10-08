@@ -373,7 +373,7 @@ Owner's decision, 2026-10-01 ([assistant-koog-plan.md](./assistant-koog-plan.md)
 | PR-ASSIST-04 | The assistant shall work only inside the open workspace; no path, link or command argument shall lead its file tools out of it, and its commands and processes shall see no other workspace. |
 | PR-ASSIST-05 | Changes to files and commands shall ask first (Allow, Allow All in This Chat, Deny) unless the user chooses otherwise on the chat page; reads shall never ask. |
 | PR-ASSIST-06 | The assistant shall never write a file that has unsaved edits in the editor. |
-| PR-ASSIST-07 | A turn shall show each reply and each step with its output as they come, and stop on Stop, keeping what was said and done. |
+| PR-ASSIST-07 | A turn shall show each reply and each step with its output as they come, and stop on Stop, keeping what was said and done. A command's step shall open to its command line and all the output the assistant read, copyable, and close with a tap on it; a change to a file shall say how many lines it added and removed, as Git counts them; a long press on a step about a file shall open it in the editor, show its changes where Source Control lists them, or copy its path. |
 | PR-ASSIST-08 | A turn shall continue in the background with a notification; a question shall pop up while the application is out of view. |
 | PR-ASSIST-09 | Each workspace shall keep its chats, listed newest first; each shall survive process death, and all shall follow a rename and go with a delete. |
 | PR-ASSIST-10 | A refused key, an unknown model, no connection and blocked plain `http://` shall each be explained in plain words. |
@@ -387,7 +387,7 @@ Owner's decision, 2026-10-01 ([assistant-koog-plan.md](./assistant-koog-plan.md)
 | PR-ASSIST-18 | The assistant's commands shall run with the user's login environment and keep each chat's working directory; a result shall say its exit status in words, where it ended, and the search path when a command was not found. |
 | PR-ASSIST-19 | What must keep running — a server, a watcher — shall be a managed process the assistant starts, reads, writes to and stops by its ID, kept in the background until stopped; at most eight shall run at once. The Assistant page shall list them with their state, output and ports; a port shall open in the user's browser. |
 | PR-ASSIST-20 | A reply that stopped short — at the output limit, by a content filter, or because the connection or the provider failed — shall never pass for a finished one: the page shall say why. |
-| PR-ASSIST-21 | A model's reasoning shall be shown apart from its answer and never sent back; with OpenRouter, the reasoning and the answer shall appear as they are written. |
+| PR-ASSIST-21 | A model's reasoning shall be shown apart from its answer and never sent back; with OpenAI, OpenAI-compatible servers and OpenRouter, the answer and any reasoning the server sends shall appear as they are written, and a server that cannot stream shall still answer whole. |
 
 ## 11. User Experience Requirements
 

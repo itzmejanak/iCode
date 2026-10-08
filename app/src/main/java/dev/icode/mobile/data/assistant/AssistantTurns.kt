@@ -16,6 +16,7 @@ import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantSettings
 import dev.icode.mobile.domain.AssistantToolKind
 import dev.icode.mobile.domain.AssistantTurn
+import dev.icode.mobile.domain.LineChanges
 import java.io.File
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -51,6 +52,9 @@ internal class AssistantTurns(
     /** The call running now: what an approval is about. */
     private var calling: AssistantCall? = null
     private var pending: CompletableDeferred<AssistantAnswer>? = null
+
+    /** The lines each change to a file added and removed, by call, until its result is recorded. */
+    private val counted = mutableMapOf<String, LineChanges>()
 
     /** The workspace and chat of the turn in hand; null when none runs. */
     val running: Pair<String, String>? get() = synchronized(lock) { place }
@@ -133,6 +137,7 @@ internal class AssistantTurns(
                         place = null
                         calling = null
                         pending = null
+                        counted.clear()
                     }
                     page.listed(workspace)
                     page.refresh(workspace, session)
@@ -211,8 +216,12 @@ internal class AssistantTurns(
         }
 
         override fun answered(result: AssistantResult) {
-            synchronized(lock) { calling = null }
-            chats.answer(workspace, session, result)
+            // A change to a file says by how many lines, as its tool counted them while it ran.
+            val changes = synchronized(lock) {
+                calling = null
+                counted.remove(result.callId)
+            }
+            chats.answer(workspace, session, result.copy(changes = changes))
             page.refresh(workspace, session)
             step(THINKING)
         }
@@ -245,7 +254,11 @@ internal class AssistantTurns(
                     )
                 }
             }
-            return tool.run(arguments)
+            return tool.run(arguments).also {
+                (tool as? AssistantFileChanger)?.lastChanges?.let { changes ->
+                    synchronized(lock) { calling?.let { counted[it.id] = changes } }
+                }
+            }
         }
 
         private suspend fun ask(call: AssistantCall, detail: String): AssistantAnswer {

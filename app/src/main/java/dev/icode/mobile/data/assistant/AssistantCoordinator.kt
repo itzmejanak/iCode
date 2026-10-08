@@ -147,7 +147,7 @@ internal class AssistantCoordinator(
             activeRoot: () -> String?,
             source: WorkspaceFileSource,
         ) = AssistantCoordinator(
-            stateHolder, scope, KoogAssistantEngine.create(), SharedPreferencesAssistantProviderStore(context),
+            icode, scope, KoogAssistantEngine.create(), SharedPreferencesAssistantProviderStore(context),
             AssistantChats(AssistantChatStore(File(context.applicationContext.filesDir, "assistant/chats"))),
             toolbox::forWorkspace, activeRoot, source::describeRoot,
         ) { openText ->

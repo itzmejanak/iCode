@@ -74,6 +74,9 @@ internal class ReadFileTool(
 
     override fun summary(arguments: JSONObject): String = "Read ${arguments.textOrNull("path") ?: "a file"}"
 
+    override fun file(arguments: JSONObject): String? =
+        arguments.textOrNull("path")?.let { path -> runCatching { workspace.relative(workspace.resolve(path)) }.getOrNull() }
+
     override suspend fun run(arguments: JSONObject): String {
         val file = workspace.resolve(arguments.text("path"))
         if (!file.isFile) throw AssistantToolException("${workspace.relative(file)} is not a file")

@@ -111,12 +111,16 @@ internal object KoogHistory {
                 val tool = tools[call.tool]
                 // What the model wrote, as it wrote it, where it was carried ([KoogArguments]).
                 val unreadable = KoogArguments.unreadable(call.args)
+                // Arguments that could not be read say nothing of what the call would do: its tool's name does.
+                val arguments = if (unreadable == null) runCatching { JSONObject(call.args) }.getOrNull() else null
+                fun <T> said(what: AssistantTool.(JSONObject) -> T): T? = arguments?.let { read -> tool?.let { runCatching { it.what(read) }.getOrNull() } }
                 AssistantCall(
                     id = call.id?.takeIf { it.isNotBlank() } ?: newId(),
                     tool = call.tool,
                     arguments = unreadable ?: call.args,
-                    // Arguments that could not be read say nothing of what the call would do: its tool's name does.
-                    summary = tool?.takeIf { unreadable == null }?.let { runCatching { it.summary(JSONObject(call.args)) }.getOrNull() } ?: call.tool,
+                    summary = said { summary(it) } ?: call.tool,
+                    file = said { file(it) },
+                    command = said { command(it) },
                     // A tool that does not exist is answered by the runner without running anything.
                     kind = tool?.kind ?: AssistantToolKind.Read,
                 )

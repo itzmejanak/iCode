@@ -22,6 +22,8 @@ sealed interface AssistantEntry {
         val status: AssistantStepStatus,
         /** What the tool answered; null while it has not. */
         val output: String? = null,
+        /** For a change to a file, the lines it added and removed. */
+        val changes: LineChanges? = null,
     ) : AssistantEntry
 
     /** Where the chat was compacted: before it, the model reads only its summary. */
@@ -63,7 +65,7 @@ object AssistantRules {
                             else -> AssistantStepStatus.Queued
                         }
                         if (result == null) firstOpen = false
-                        add(AssistantEntry.Step("m${index}c$position", call, status, result?.output ?: STOPPED.takeIf { !state.runningHere }))
+                        add(AssistantEntry.Step("m${index}c$position", call, status, result?.output ?: STOPPED.takeIf { !state.runningHere }, result?.changes))
                     }
                 }
                 is AssistantMessage.Results -> Unit
@@ -161,13 +163,24 @@ object AssistantRules {
 
     /**
      * Advice past what blocks saving a provider: OpenRouter's address on an OpenAI-compatible server
-     * loses what only the OpenRouter type reads — replies as they are written, and the reasoning
-     * (docs/runtime-foundation-plan.md D8).
+     * loses what only the OpenRouter type reads — the models' reasoning, which OpenRouter sends as
+     * `reasoning` and Koog's OpenAI client reads as `reasoning_content` (docs/runtime-foundation-plan.md D8).
      */
     fun providerHint(kind: AssistantProviderKind, baseUrl: String): String? {
         if (kind != AssistantProviderKind.OpenAICompatible) return null
         val host = runCatching { URI(baseUrl.trim()).host }.getOrNull()?.lowercase() ?: return null
         return OPENROUTER_HINT.takeIf { host == OPENROUTER_HOST || host.endsWith(".$OPENROUTER_HOST") }
+    }
+
+    /**
+     * What Git says changed in the file at [location], as Source Control opens it: the change it can
+     * show as a diff — unstaged before staged — or null for a file Git does not see changed, one it
+     * tracks no history of (new, not yet added), one deleted, or one in conflict.
+     */
+    fun gitChangeOf(location: String, repository: GitRepositoryState?, changes: List<GitChange>): GitChange? {
+        val root = repository?.workTreePath?.trimEnd('/') ?: return null
+        val path = location.takeIf { it.startsWith("$root/") }?.removePrefix("$root/") ?: return null
+        return changes.filter { it.path == path && it.status !in UNSHOWN_CHANGES }.minByOrNull { it.staged }
     }
 
     /** What is wrong with a model's options as typed; null when they can be kept. */
@@ -235,10 +248,11 @@ object AssistantRules {
         ((value * 10).toLong() / 10.0).toString().removeSuffix(".0")
 
     private const val PDF = "application/pdf"
+    private val UNSHOWN_CHANGES = setOf(GitStatusCodes.UNTRACKED, GitStatusCodes.DELETED, GitStatusCodes.CONFLICTED)
     private const val LIVE_REASONING = "live-reasoning"
     private const val LIVE_ANSWER = "live-answer"
     private const val OPENROUTER_HOST = "openrouter.ai"
-    private const val OPENROUTER_HINT = "Choose the OpenRouter type for OpenRouter: only it shows replies as they are written, and the models' reasoning"
+    private const val OPENROUTER_HINT = "Choose the OpenRouter type for OpenRouter: only it shows the models' reasoning"
 
     private val IMAGE_EXTENSIONS = setOf("jpg", "jpeg", "png", "webp", "gif", "heic", "heif", "bmp")
 

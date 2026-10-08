@@ -8,6 +8,7 @@ import dev.icode.mobile.domain.AssistantModelSpec
 import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.domain.AssistantResult
 import dev.icode.mobile.domain.AssistantToolKind
+import dev.icode.mobile.domain.LineChanges
 import org.json.JSONObject
 
 /**
@@ -102,8 +103,22 @@ internal interface AssistantTool {
     /** What an approval shows before a change or a command; a read is never asked about. */
     fun detail(arguments: JSONObject): String = summary(arguments)
 
+    /**
+     * The workspace file [arguments] read or change, relative to its top, for the page to open;
+     * null when they touch none, or name one outside the workspace. Never throws.
+     */
+    fun file(arguments: JSONObject): String? = null
+
+    /** The command line [arguments] run, whole, for the page to show; null for a tool that runs none. Never throws. */
+    fun command(arguments: JSONObject): String? = null
+
     /** What the model reads back. A refusal is an [AssistantToolException]. */
     suspend fun run(arguments: JSONObject): String
+}
+
+/** A tool that changes a file: by how many lines its last [AssistantTool.run] changed it, or null when it changed none. */
+internal interface AssistantFileChanger {
+    val lastChanges: LineChanges?
 }
 
 internal enum class AssistantParameterType { Text, Integer, Boolean }

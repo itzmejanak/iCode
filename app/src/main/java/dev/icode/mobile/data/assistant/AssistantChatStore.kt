@@ -11,6 +11,7 @@ import dev.icode.mobile.domain.AssistantResult
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantSession
 import dev.icode.mobile.domain.AssistantToolKind
+import dev.icode.mobile.domain.LineChanges
 import java.io.File
 import java.io.FileOutputStream
 import java.nio.file.Files
@@ -180,7 +181,9 @@ internal class AssistantChatStore(private val folder: File) {
                 message.calls.forEach { call ->
                     put(
                         JSONObject().put("id", call.id).put("tool", call.tool).put("arguments", call.arguments)
-                            .put("summary", call.summary).put("kind", call.kind.name),
+                            .put("summary", call.summary).put("kind", call.kind.name)
+                            .apply { call.file?.let { put("file", it) } }
+                            .apply { call.command?.let { put("command", it) } },
                     )
                 }
             },
@@ -191,7 +194,8 @@ internal class AssistantChatStore(private val folder: File) {
                 message.results.forEach { result ->
                     put(
                         JSONObject().put("callId", result.callId).put("tool", result.tool)
-                            .put("output", bounded(result.output, MAX_OUTPUT)).put("failed", result.failed),
+                            .put("output", bounded(result.output, MAX_OUTPUT)).put("failed", result.failed)
+                            .apply { result.changes?.let { put("added", it.added).put("removed", it.removed) } },
                     )
                 }
             },
@@ -210,13 +214,18 @@ internal class AssistantChatStore(private val folder: File) {
                     arguments = call.getString("arguments"),
                     summary = call.getString("summary"),
                     kind = AssistantToolKind.valueOf(call.getString("kind")),
+                    file = call.optString("file").ifEmpty { null },
+                    command = call.optString("command").ifEmpty { null },
                 )
             },
             json.optString("reasoning"),
         )
         "results" -> AssistantMessage.Results(
             json.getJSONArray("results").objects().map { result ->
-                AssistantResult(result.getString("callId"), result.getString("tool"), result.getString("output"), result.getBoolean("failed"))
+                AssistantResult(
+                    result.getString("callId"), result.getString("tool"), result.getString("output"), result.getBoolean("failed"),
+                    changes = if (result.has("added")) LineChanges(result.getInt("added"), result.getInt("removed")) else null,
+                )
             },
         )
         "compacted" -> AssistantMessage.Compacted(json.getString("summary"))
@@ -242,7 +251,8 @@ internal class AssistantChatStore(private val folder: File) {
         const val TAG = "AssistantChatStore"
         const val INDEX = "index.json"
         const val MAX_MESSAGES = 400
-        const val MAX_OUTPUT = 16_000
+        /** Above every command's output as its tool bounds it: the page shows what the model read. */
+        const val MAX_OUTPUT = 48_000
         const val NAME_LENGTH = 24
         val SESSION_ID = Regex("^[A-Za-z0-9-]{1,64}$")
     }

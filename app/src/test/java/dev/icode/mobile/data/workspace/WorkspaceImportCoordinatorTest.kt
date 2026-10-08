@@ -57,7 +57,7 @@ class WorkspaceImportCoordinatorTest {
     }
     private val coordinator by lazy {
         WorkspaceImportCoordinator(
-            icode = icode,
+            stateHolder = stateHolder,
             tasks = tasks,
             paths = WorkspacePaths(root),
             git = git,

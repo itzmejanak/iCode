@@ -76,24 +76,44 @@ class KoogAssistantEngineTest {
             }
             return replies[minOf(prompts.size, replies.size) - 1]
         }
-        /** Each request's frames, as OpenRouter's client streams them; whole replies only when null. */
+        /**
+         * Each request's frames, as a provider's client streams them; when null, the scripted reply,
+         * ending as a real server's does (with a finish reason).
+         */
         var frames: ((request: Int) -> List<StreamFrame>)? = null
 
         /** Holds a stream's end until the page was shown some of it: what is written is shown before it is recorded. */
         var shownFirst: CompletableDeferred<Unit>? = null
 
+        /** Breaks a stream after its frames, as a connection that drops does. */
+        var breakWith: Throwable? = null
+
+        /** Refuses every stream before its first frame, as a server that does not take one does. */
+        var refuseStreams: Throwable? = null
+
+        /** The requests that streamed. */
+        var streamed = 0
+
         override fun executeStreaming(prompt: Prompt, model: LLModel, tools: List<ToolDescriptor>): Flow<StreamFrame> {
-            val script = frames ?: error("whole replies only")
             prompts += prompt
             this.tools += tools
+            streamed += 1
             val request = prompts.size - 1
             return flow {
-                script(request).forEach { frame ->
+                refuseStreams?.let { throw it }
+                failWith?.let { throw it }
+                hang?.let {
+                    it.complete(Unit)
+                    awaitCancellation()
+                }
+                val script = frames?.invoke(request)
+                    ?: replies[minOf(request + 1, replies.size) - 1].let { it.copy(finishReason = it.finishReason ?: "stop") }.toStreamFrames()
+                script.forEach { frame ->
                     if (frame is StreamFrame.End) shownFirst?.let { withTimeout(5_000) { it.await() } }
                     emit(frame)
                     yield()
                 }
-                failWith?.let { throw it }
+                breakWith?.let { throw it }
             }.requireEndFrame()
         }
         override suspend fun moderate(prompt: Prompt, model: LLModel): ModerationResult = error("no moderation")
@@ -170,7 +190,7 @@ class KoogAssistantEngineTest {
                 "used:1320",
                 AssistantMessage.Reply("Done"),
             ),
-            events.events,
+            events.events.filterNot { it is String && it.startsWith("writing:") },
         )
         assertEquals(listOf("a.kt"), tool.seen)
         assertEquals(listOf("read_file"), client.tools.first().map { it.name })
@@ -334,6 +354,34 @@ class KoogAssistantEngineTest {
         assertEquals("It starts the app.", sent[2].textContent())
     }
 
+    @Test fun `a call names the file it touches and the command it runs, as its tool reads them`() {
+        val runner = object : AssistantTool {
+            override val name = "run_command"
+            override val description = "Runs a command"
+            override val parameters = listOf(AssistantParameter("command", "The command"))
+            override val kind = AssistantToolKind.Command
+            override fun summary(arguments: JSONObject) = "Run `${arguments.optString("command").lineSequence().first()}`"
+            override fun command(arguments: JSONObject) = arguments.optString("command")
+            override suspend fun run(arguments: JSONObject) = ""
+        }
+        val reader = object : AssistantTool by ReadTool() {
+            override fun file(arguments: JSONObject) = arguments.optString("path")
+        }
+        val tools = mapOf("run_command" to runner, "read_file" to reader)
+        val reply = KoogHistory.reply(
+            reply(call("c1", """{"command":"npm test\nnpm run lint"}""", tool = "run_command"), call("c2", """{"path":"src/a.kt"}""")),
+            tools,
+        ) { "new" }
+        assertEquals("npm test\nnpm run lint", reply.calls[0].command)
+        assertEquals("Run `npm test`", reply.calls[0].summary)
+        assertEquals(null, reply.calls[0].file)
+        assertEquals("src/a.kt", reply.calls[1].file)
+        assertEquals(null, reply.calls[1].command)
+        // Arguments that could not be read name nothing.
+        val unreadable = KoogHistory.reply(reply(call("c3", KoogArguments.readable("{\"command\":\"npm"), tool = "run_command")), tools) { "new" }
+        assertEquals(null, unreadable.calls.single().command)
+    }
+
     @Test fun `a think block is reasoning, an unclosed one all of it, and text without one is left alone`() {
         assertEquals("plan" to "answer", KoogHistory.thinking("<think>plan</think>answer"))
         assertEquals("plan, cut" to "", KoogHistory.thinking("<think>plan, cut"))
@@ -461,7 +509,7 @@ class KoogAssistantEngineTest {
         for (failure in listOf(null, KoogHttpClientException("OpenRouter", message = "Exception during streaming: Connection reset", cause = java.net.SocketException("Connection reset")))) {
             val client = ScriptedClient(emptyList(), provider = LLMProvider.OpenRouter).apply {
                 frames = { partial }
-                failWith = failure
+                breakWith = failure
             }
             try {
                 KoogAssistantEngine { client }.run(streamedTurn(ReadTool()), Recorder())
@@ -537,6 +585,79 @@ class KoogAssistantEngineTest {
                 assertTrue(cutShort.message, cutShort.message!!.startsWith("The reply was cut short at the model's output limit"))
             }
             assertEquals(AssistantMessage.Reply("", reasoning = "Tier A: start it, get an ID"), recorder.events.filterIsInstance<AssistantMessage.Reply>().single())
+        }
+    }
+
+    @Test fun `replies stream from OpenAI, OpenAI-compatible servers and OpenRouter, and come whole from the rest`() = runBlocking {
+        val providers = mapOf(
+            AssistantProviderKind.OpenAI to LLMProvider.OpenAI,
+            AssistantProviderKind.OpenAICompatible to LLMProvider.OpenAI,
+            AssistantProviderKind.OpenRouter to LLMProvider.OpenRouter,
+            AssistantProviderKind.Anthropic to LLMProvider.Anthropic,
+            AssistantProviderKind.Google to LLMProvider.Google,
+            AssistantProviderKind.Ollama to LLMProvider.Ollama,
+        )
+        for ((kind, provider) in providers) {
+            val client = ScriptedClient(listOf(done), provider = provider)
+            val request = turn(ReadTool()).copy(
+                connection = AssistantConnection(kind, "https://example.com/v1".takeIf { kind.asksBaseUrl }, "sk-test"),
+                model = KoogModels.model(kind, AssistantModelSpec("some-model")),
+            )
+            val events = Recorder()
+            KoogAssistantEngine { client }.run(request, events)
+            val streams = kind in setOf(AssistantProviderKind.OpenAI, AssistantProviderKind.OpenAICompatible, AssistantProviderKind.OpenRouter)
+            assertEquals("$kind", if (streams) 1 else 0, client.streamed)
+            assertEquals("$kind", AssistantMessage.Reply("Done"), events.events.last())
+        }
+    }
+
+    private val compatible = AssistantConnection(AssistantProviderKind.OpenAICompatible, "https://example.com/v1", "sk-test")
+    private val compatibleModel = KoogModels.model(AssistantProviderKind.OpenAICompatible, AssistantModelSpec("free/deepseek-v4-pro"))
+
+    @Test fun `a server that refuses to stream is asked the same whole, and its model is not streamed again`() = runBlocking {
+        val client = ScriptedClient(listOf(done)).apply {
+            refuseStreams = KoogHttpClientException("OpenAI", 400, """{"error":{"message":"Unrecognized request argument supplied: stream_options"}}""")
+        }
+        val engine = KoogAssistantEngine { client }
+        val first = Recorder()
+        engine.run(turn(ReadTool()).copy(connection = compatible, model = compatibleModel), first)
+        assertEquals(AssistantMessage.Reply("Done"), first.events.last())
+        assertEquals(1, client.streamed)
+        assertEquals(2, client.prompts.size)
+        val second = Recorder()
+        engine.run(turn(ReadTool()).copy(connection = compatible, model = compatibleModel), second)
+        assertEquals(AssistantMessage.Reply("Done"), second.events.last())
+        assertEquals("not streamed again", 1, client.streamed)
+    }
+
+    @Test fun `a refusal the whole request repeats is the request's failure, and the next turn streams again`() = runBlocking {
+        val tooLong = KoogHttpClientException("OpenAI", 400, """{"error":{"message":"This model's maximum context length is 8192 tokens"}}""")
+        val client = ScriptedClient(listOf(done)).apply {
+            refuseStreams = tooLong
+            failWith = tooLong
+        }
+        val engine = KoogAssistantEngine { client }
+        repeat(2) {
+            try {
+                engine.run(turn(ReadTool()).copy(connection = compatible, model = compatibleModel), Recorder())
+                fail("expected a failure")
+            } catch (refused: AssistantTurnException) {
+                assertEquals("This chat is longer than the model accepts — compact it or start a new chat", refused.message)
+            }
+        }
+        assertEquals(2, client.streamed)
+    }
+
+    @Test fun `a compatible server's stream need not say how it ended, OpenAI's must`() = runBlocking {
+        val unsaid = listOf(StreamFrame.TextDelta("Done"), StreamFrame.TextComplete("Done"), StreamFrame.End(null))
+        val events = Recorder()
+        KoogAssistantEngine { ScriptedClient(emptyList()).apply { frames = { unsaid } } }.run(turn(ReadTool()).copy(connection = compatible, model = compatibleModel), events)
+        assertEquals(AssistantMessage.Reply("Done"), events.events.last())
+        try {
+            KoogAssistantEngine { ScriptedClient(emptyList()).apply { frames = { unsaid } } }.run(turn(ReadTool()), Recorder())
+            fail("expected a failure")
+        } catch (broken: AssistantTurnException) {
+            assertEquals("The connection ended before the reply was complete — try again", broken.message)
         }
     }
 

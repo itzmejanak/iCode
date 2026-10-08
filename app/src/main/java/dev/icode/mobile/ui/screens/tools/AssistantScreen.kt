@@ -118,7 +118,16 @@ fun AssistantScreen(actions: NavigationActions) {
                         modifier = Modifier.padding(IcodeSpacing.Space6),
                     )
                 }
-                else -> AssistantChatView(state, Modifier.weight(1f), onSuggestion = { draft = it })
+                else -> AssistantChatView(
+                    state,
+                    Modifier.weight(1f),
+                    onSuggestion = { draft = it },
+                    // As Source Control opens a change: its diff, a step forward from the chat.
+                    onDiff = { change ->
+                        gateway.dispatch(ICodeIntent.OpenDiff(change.path, change.staged))
+                        actions.navigate(Route.DiffView)
+                    },
+                )
             }
             // Above the composer on every state of the page: a process outlives the chat that started it.
             if (snapshot.processes.isNotEmpty()) AssistantProcessesRow(snapshot.processes) { sheet = AssistantSheet.Processes }

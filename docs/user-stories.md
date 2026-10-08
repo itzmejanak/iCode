@@ -955,6 +955,9 @@ Acceptance criteria:
 
 - An empty chat shows the iCode mark over its letterpress, as the home screen does, with a few things to ask.
 - Each reply shows as Markdown when it comes; each step shows what it did ("Read src/App.kt", "Ran `npm test`") and how it went; its output is a tap away.
+- An opened command shows its command line and all the output the assistant read, with **Copy** at its corner; a tap on it closes it again.
+- A write or an edit shows how many lines it added and removed ("+12 −3"), as Git counts them.
+- A long press on a step about a file offers **Open in Editor**, **Show Changes** (when Source Control lists the file as changed) and **Copy Path**.
 - The composer chooses the mode (Agent, or Ask: it reads and changes nothing), the model — every provider's, listed under its name — and its reasoning effort where the model has one ("Auto" sends the provider's default).
 - **+** opens **Attach**: Camera, Photos and Files (the phone's own pickers, no permission asked), then the workspace's files, the open one first; up to five in all. Text goes as its text then; a photo or a PDF goes to a model that reads it, and the composer says when the chosen model cannot. Photos show as thumbnails; a photo alone can be sent.
 - The answer a turn ends on can be copied; a message that failed before any reply can be sent again with **Try Again**.
@@ -1041,7 +1044,7 @@ Acceptance criteria:
 
 - A reply cut short at the output limit, or stopped by the provider's content filter, is kept, and the page says so under it.
 - A reply whose connection broke, or whose provider failed while writing it, ends the turn with those words; **Try Again** is offered where nothing was answered.
-- The model's reasoning shows above its answer, folded; with OpenRouter, the reasoning and the answer appear as they are written.
+- The model's reasoning shows above its answer, folded; with OpenAI, an OpenAI-compatible server or OpenRouter, the answer and any reasoning the server sends appear as they are written. A server that cannot stream answers whole, and is not asked to stream again.
 
 ## 19. Public Website and Distribution
 

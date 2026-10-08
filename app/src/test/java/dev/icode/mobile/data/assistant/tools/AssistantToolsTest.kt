@@ -10,6 +10,7 @@ import dev.icode.mobile.data.workspace.WorkspaceFileSource
 import dev.icode.mobile.domain.ContentMatch
 import dev.icode.mobile.domain.ContentSearchResult
 import dev.icode.mobile.domain.IndexedFile
+import dev.icode.mobile.domain.LineChanges
 import java.io.File
 import java.nio.file.Files
 import kotlinx.coroutines.runBlocking
@@ -69,11 +70,15 @@ class AssistantToolsTest {
 
     @Test fun `a write creates the file and its folders, or replaces one, and the workspace refreshes`() = runBlocking {
         val write = WriteFileTool(writer)
-        assertEquals("Created src/main/App.kt (2 lines)", write.run(args("path" to "src/main/App.kt", "content" to "fun main() {\n}")))
+        assertEquals("Created src/main/App.kt: +2 lines", write.run(args("path" to "src/main/App.kt", "content" to "fun main() {\n}")))
+        assertEquals(LineChanges(2, 0), write.lastChanges)
+        assertEquals("src/main/App.kt", write.file(args("path" to "/workspace/app/src/main/App.kt")))
         assertEquals("fun main() {\n}", File(root, "src/main/App.kt").readText())
-        assertEquals("Replaced src/main/App.kt (1 line)", write.run(args("path" to "src/main/App.kt", "content" to "// gone")))
+        assertEquals("Replaced src/main/App.kt: +1 −2 lines", write.run(args("path" to "src/main/App.kt", "content" to "// gone")))
+        assertEquals(LineChanges(1, 2), write.lastChanges)
+        assertEquals("Replaced src/main/App.kt: no lines changed", write.run(args("path" to "src/main/App.kt", "content" to "// gone")))
         assertEquals("// gone", File(root, "src/main/App.kt").readText())
-        assertEquals(2, changes)
+        assertEquals(3, changes)
     }
 
     @Test fun `nothing is written into Git's folder, over a folder, or under the user's unsaved edits`() {
@@ -94,8 +99,11 @@ class AssistantToolsTest {
         val kotlin = file("a.kt", "val x = 1\nval y = 1\n")
         assertTrue(refused { edit.run(args("path" to "a.kt", "old_text" to "= 1", "new_text" to "= 2")) }.contains("2 times"))
         assertTrue(refused { edit.run(args("path" to "a.kt", "old_text" to "val z", "new_text" to "")) }.contains("is not in a.kt"))
-        assertEquals("Edited a.kt", edit.run(args("path" to "a.kt", "old_text" to "val x = 1", "new_text" to "val x = 3")))
-        assertEquals("Edited a.kt (2 places)", edit.run(args("path" to "a.kt", "old_text" to "val", "new_text" to "var", "replace_all" to true)))
+        assertEquals("Edited a.kt: +1 −1 lines", edit.run(args("path" to "a.kt", "old_text" to "val x = 1", "new_text" to "val x = 3")))
+        assertEquals(LineChanges(1, 1), edit.lastChanges)
+        assertEquals("Edited a.kt in 2 places: +2 −2 lines", edit.run(args("path" to "a.kt", "old_text" to "val", "new_text" to "var", "replace_all" to true)))
+        assertEquals("a.kt", edit.file(args("path" to "a.kt")))
+        assertEquals(null, edit.file(args("path" to "../elsewhere.kt")))
         assertEquals("var x = 3\nvar y = 1\n", kotlin.readText())
         assertTrue(refused { edit.run(args("path" to "new.kt", "old_text" to "a", "new_text" to "b")) }.contains("does not exist"))
     }

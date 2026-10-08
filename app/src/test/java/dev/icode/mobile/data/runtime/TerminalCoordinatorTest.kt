@@ -68,7 +68,7 @@ class TerminalCoordinatorTest {
         val opened = mutableListOf<String>()
         var changed = 0
         val coordinator = TerminalCoordinator(
-            icode,
+            stateHolder,
             sessions,
             runtimeInstalled = { installed },
             activeRoot = { root },

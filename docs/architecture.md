@@ -647,7 +647,7 @@ This model keeps the application open to contributors without creating an unboun
 | Internal structure | Modular monolith | Balance clear ownership with operational simplicity |
 | Assistant | iCode's own, on JetBrains Koog behind an engine boundary of iCode's; its tools are iCode's file, search, Git and runtime owners | One native agent that edits through the same contracts as everything else; Koog runs on Android and covers the providers (owner, 2026-10-01; [assistant-koog-plan.md](./assistant-koog-plan.md)) |
 | Long-running processes | Managed processes, each in a PRoot of its own, kept by the foreground service; their ports opened in the browser | No process outlives the PRoot that started it; Android cannot list sockets to apps, so ports are read from what iCode started ([runtime-foundation-plan.md](./runtime-foundation-plan.md) D1, D5, D6) |
-| Assistant streaming | Replies stream for OpenRouter only | Koog 1.3.0's other streams lose what a turn needs (Anthropic's thinking signature, Ollama's end); OpenRouter's reasoning reaches iCode only streamed ([runtime-foundation-plan.md](./runtime-foundation-plan.md) D8) |
+| Assistant streaming | Replies stream for OpenRouter, OpenAI's Chat Completions and OpenAI-compatible servers; a server that refuses the stream is asked whole, and not streamed again | Koog 1.3.0's other streams lose what a turn needs (Anthropic's thinking signature, Ollama's end); OpenRouter's reasoning reaches iCode only streamed ([runtime-foundation-plan.md](./runtime-foundation-plan.md) D8) |
 
 ## 26. Invariants
 

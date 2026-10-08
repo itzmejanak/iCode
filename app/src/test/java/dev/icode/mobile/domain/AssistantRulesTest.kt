@@ -120,13 +120,33 @@ class AssistantRulesTest {
     }
 
     @Test fun `an OpenAI-compatible provider at OpenRouter's address is pointed to the OpenRouter type`() {
-        val hint = "Choose the OpenRouter type for OpenRouter: only it shows replies as they are written, and the models' reasoning"
+        val hint = "Choose the OpenRouter type for OpenRouter: only it shows the models' reasoning"
         assertEquals(hint, AssistantRules.providerHint(AssistantProviderKind.OpenAICompatible, " https://openrouter.ai/api/v1 "))
         assertEquals(hint, AssistantRules.providerHint(AssistantProviderKind.OpenAICompatible, "https://eu.OpenRouter.ai/api/v1"))
         assertNull(AssistantRules.providerHint(AssistantProviderKind.OpenAICompatible, "https://api.deepseek.com/v1"))
         assertNull(AssistantRules.providerHint(AssistantProviderKind.OpenAICompatible, "https://notopenrouter.ai/v1"))
         assertNull(AssistantRules.providerHint(AssistantProviderKind.OpenAICompatible, "not an address"))
         assertNull(AssistantRules.providerHint(AssistantProviderKind.OpenRouter, "https://openrouter.ai/api/v1"))
+    }
+
+    @Test fun `a file's change is found as Source Control lists it, unstaged first, and only one it can show`() {
+        val repository = GitRepositoryState(workTreePath = "/w/app", branch = "main", hasCommits = true, remoteName = null, authorName = null, authorEmail = null, branches = listOf("main"), lastCommit = null)
+        val staged = GitChange(GitStatusCodes.MODIFIED, "a.kt", "src/a.kt", staged = true)
+        val unstaged = GitChange(GitStatusCodes.MODIFIED, "a.kt", "src/a.kt", staged = false)
+        val untracked = GitChange(GitStatusCodes.UNTRACKED, "new.kt", "src/new.kt", staged = false)
+        val changes = listOf(staged, unstaged, untracked)
+        assertEquals(unstaged, AssistantRules.gitChangeOf("/w/app/src/a.kt", repository, changes))
+        assertEquals(staged, AssistantRules.gitChangeOf("/w/app/src/a.kt", repository, listOf(staged)))
+        // New and not yet added: nothing to show as a diff, only the file.
+        assertNull(AssistantRules.gitChangeOf("/w/app/src/new.kt", repository, changes))
+        assertNull(AssistantRules.gitChangeOf("/w/other/src/a.kt", repository, changes))
+        assertNull(AssistantRules.gitChangeOf("/w/app/src/a.kt", null, changes))
+    }
+
+    @Test fun `a step keeps the lines its change added and removed`() {
+        val change = AssistantResult("1", "read_file", "Edited a.kt: +2 −1 lines", failed = false, changes = LineChanges(2, 1))
+        val steps = AssistantRules.entries(AssistantState(messages = listOf(asked, AssistantMessage.Reply("", listOf(call("1"))), AssistantMessage.Results(listOf(change)))))
+        assertEquals(LineChanges(2, 1), (steps.last() as AssistantEntry.Step).changes)
     }
 
     @Test fun `the meter always says something, from the first message on`() {

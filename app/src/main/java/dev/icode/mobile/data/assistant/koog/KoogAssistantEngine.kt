@@ -29,6 +29,7 @@ import dev.icode.mobile.domain.AssistantModelSpec
 import dev.icode.mobile.domain.AssistantProviderKind
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
+import java.util.Collections
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -71,6 +72,9 @@ internal class KoogAssistantEngine(
      * the newest.
      */
     private val clientLock = Mutex()
+
+    /** The servers and models that refused to stream (`kind|address|model`): they are asked for whole replies. */
+    private val refusedStreams: MutableSet<String> = Collections.synchronizedSet(mutableSetOf())
     private val cached = object : LinkedHashMap<AssistantConnection, LLMClient>(MAX_CLIENTS, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<AssistantConnection, LLMClient>): Boolean =
             (size > MAX_CLIENTS).also { if (it) eldest.value.close() }
@@ -78,9 +82,11 @@ internal class KoogAssistantEngine(
 
     override suspend fun run(turn: AssistantTurnRequest, events: AssistantEvents) = explained(turn.connection, turn.model.id) {
         val reporter = KoogTurn.Reporter(turn.tools.associateBy { it.name }, events)
-        // OpenRouter's replies stream, so the page shows them as they are written; Koog's other
-        // streams lose what a turn needs (docs/runtime-foundation-plan.md §1.1).
-        val stream = if (turn.connection.kind == AssistantProviderKind.OpenRouter) KoogTurn.streamed(reporter) else null
+        // Replies stream where Koog's streams are sound, so the page shows them as they are written.
+        val kind = turn.connection.kind
+        val wholeOnly = "$kind|${turn.connection.baseUrl}|${turn.model.id}"
+        val stream = KoogTurn.streamed(reporter, finishSaid = kind != AssistantProviderKind.OpenAICompatible) { refusedStreams += wholeOnly }
+            .takeIf { KoogTurn.streams(kind, KoogModels.llModel(kind, turn.model.spec)) && wholeOnly !in refusedStreams }
         val agent = agent(
             connection = turn.connection,
             model = turn.model,
