@@ -1,5 +1,6 @@
 package dev.icode.mobile.ui.screens.tools
 
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -7,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -16,6 +18,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.IcodeBottomSheet
 import dev.icode.mobile.designsystem.IcodeColors
@@ -75,13 +78,23 @@ internal fun AssistantChatsSheet(state: AssistantState, modifier: Modifier, onCl
                     onClose()
                 },
                 trailing = {
-                    IconButton(onClick = { deleting = session }, enabled = !working) {
-                        Icon(
-                            Icons.Outlined.DeleteOutline,
-                            contentDescription = "Delete ${session.title}",
-                            tint = if (working) IcodeColors.TextMuted else IcodeColors.TextSecondary,
-                            modifier = Modifier.size(IcodeSizes.IconMd),
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = { gateway.dispatch(ICodeIntent.ExportAssistantSession(session.id)) }, enabled = !working) {
+                            Icon(
+                                Icons.Outlined.Share,
+                                contentDescription = "Share ${session.title}",
+                                tint = if (working) IcodeColors.TextMuted else IcodeColors.TextSecondary,
+                                modifier = Modifier.size(IcodeSizes.IconMd),
+                            )
+                        }
+                        IconButton(onClick = { deleting = session }, enabled = !working) {
+                            Icon(
+                                Icons.Outlined.DeleteOutline,
+                                contentDescription = "Delete ${session.title}",
+                                tint = if (working) IcodeColors.TextMuted else IcodeColors.TextSecondary,
+                                modifier = Modifier.size(IcodeSizes.IconMd),
+                            )
+                        }
                     }
                 },
             )
@@ -102,13 +115,30 @@ internal fun AssistantChatsSheet(state: AssistantState, modifier: Modifier, onCl
 }
 
 /**
- * The chat's model, from every provider's (§13 P1): grouped by provider, each said with what it
- * reads and whether it reasons; the chosen one's reasoning effort above them; the providers a tap away.
+ * A model to choose, from every provider's (§13 P1): grouped by provider, each said with what it
+ * reads and whether it reasons; [showEffort] adds the chosen one's reasoning effort above them;
+ * [reset] sets the hope back to what the tool uses by default. Chosen and chosen-for decide what
+ * picking does (the chat then, a commit message in Source Control's settings).
  */
 @Composable
-internal fun AssistantModelsSheet(state: AssistantState, modifier: Modifier, onClose: () -> Unit, onProviders: () -> Unit) {
+internal fun AssistantModelsSheet(
+    state: AssistantState,
+    modifier: Modifier,
+    onClose: () -> Unit,
+    onProviders: () -> Unit,
+    title: String = "Model",
+    chosen: (AssistantChoice) -> Boolean = { it == state.settings.choice },
+    onChoose: ((AssistantChoice) -> Unit)? = null,
+    showEffort: Boolean = true,
+    /** A row that means "no choice" — the tool's default — shown above the providers. */
+    reset: String? = null,
+    resetChosen: Boolean = false,
+    onReset: (() -> Unit)? = null,
+) {
     val gateway = LocalICodeGateway.current
     val settings = state.settings
+    val pick: (AssistantChoice) -> Unit = onChoose
+        ?: { choice -> gateway.dispatch(ICodeIntent.ChooseAssistantModel(choice.provider, choice.model)) }
     var query by rememberSaveable { mutableStateOf("") }
     val typed = query.trim()
     val count = settings.providers.sumOf { it.models.size }
@@ -116,7 +146,7 @@ internal fun AssistantModelsSheet(state: AssistantState, modifier: Modifier, onC
         .map { provider -> provider to provider.models.filter { typed.isEmpty() || it.id.contains(typed, ignoreCase = true) } }
         .filter { (_, models) -> models.isNotEmpty() }
     IcodeBottomSheet(
-        title = "Model",
+        title = title,
         onClose = onClose,
         modifier = modifier,
         footer = {
@@ -130,22 +160,44 @@ internal fun AssistantModelsSheet(state: AssistantState, modifier: Modifier, onC
             )
         },
     ) {
-        settings.model?.takeIf { it.efforts.isNotEmpty() }?.let { model ->
-            // How much it reasons before answering: the provider's levels for this model, or its default.
-            SectionLabel("Reasoning")
-            val choices = listOf<AssistantEffort?>(null) + model.efforts
-            SegmentedControl(
-                values = choices.map { it?.label ?: AUTO },
-                active = AssistantRules.effortFor(settings.effort, model)?.label ?: AUTO,
-                modifier = Modifier.fillMaxWidth(),
-            ) { label -> gateway.dispatch(ICodeIntent.ChooseAssistantEffort(choices.first { (it?.label ?: AUTO) == label })) }
+        if (showEffort) {
+            settings.model?.takeIf { it.efforts.isNotEmpty() }?.let { model ->
+                // How much it reasons before answering: the provider's levels for this model, or its default.
+                SectionLabel("Reasoning")
+                val choices = listOf<AssistantEffort?>(null) + model.efforts
+                SegmentedControl(
+                    values = choices.map { it?.label ?: AUTO },
+                    active = AssistantRules.effortFor(settings.effort, model)?.label ?: AUTO,
+                    modifier = Modifier.fillMaxWidth(),
+                ) { label -> gateway.dispatch(ICodeIntent.ChooseAssistantEffort(choices.first { (it?.label ?: AUTO) == label })) }
+            }
+        }
+        if (reset != null && onReset != null) {
+            IcodeListRow(
+                title = reset,
+                titleStyle = IcodeType.Mono,
+                titleColor = if (resetChosen) IcodeColors.Accent else IcodeColors.TextPrimary,
+                subtitle = settings.model?.let { "Now ${it.id}" },
+                subtitleStyle = IcodeType.Caption,
+                selected = resetChosen,
+                onClick = {
+                    onReset()
+                    onClose()
+                },
+                trailing = {
+                    if (resetChosen) Icon(Icons.Outlined.CheckCircle, contentDescription = null, tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconMd))
+                },
+            )
         }
         if (count > SEARCH_FROM) Search(query, "Search models", literal = true) { query = it }
         groups.forEachIndexed { index, (provider, models) ->
-            SectionLabel(provider.name, if (index > 0 || settings.model?.efforts?.isNotEmpty() == true) Modifier.padding(top = IcodeSpacing.Space2) else Modifier)
+            SectionLabel(
+                provider.name,
+                if (index > 0 || settings.model?.efforts?.isNotEmpty() == true || (reset != null && onReset != null)) Modifier.padding(top = IcodeSpacing.Space2) else Modifier,
+            )
             models.forEach { model ->
-                ModelRow(model, settings.choice == AssistantChoice(provider.id, model.id)) {
-                    gateway.dispatch(ICodeIntent.ChooseAssistantModel(provider.id, model.id))
+                ModelRow(model, chosen(AssistantChoice(provider.id, model.id))) {
+                    pick(AssistantChoice(provider.id, model.id))
                     onClose()
                 }
             }
