@@ -501,6 +501,17 @@ Acceptance criteria:
 - Failure preserves the message and displays the Git error.
 - Success refreshes branch, status, and ahead/behind state.
 
+### US-GIT-012 — Have the assistant write the commit message
+
+**As a developer, I want the assistant to write a commit message from what I staged, so that committing is one tap instead of a chore.**
+
+Acceptance criteria:
+
+- ✨ in the message field is active only with staged changes; while it writes, it shows a small spinner.
+- The message follows the repository's recent commits (Conventional Commits where they use them) and replaces what the field held, for me to edit before I commit.
+- A failure — nothing staged, no model set up, the provider's refusal — is said under the field, and what I typed stays.
+- The assistant's model writes it unless **Settings › Source Control › Commit Message Model** names another.
+
 ### US-GIT-008 — Work with branches
 
 **As a developer, I want to see, create, and switch branches, so that I can manage parallel work.**
@@ -958,6 +969,7 @@ Acceptance criteria:
 - An opened command shows its command line and all the output the assistant read, with **Copy** at its corner; a tap on it closes it again.
 - A write or an edit shows how many lines it added and removed ("+12 −3"), as Git counts them.
 - A long press on a step about a file offers **Open in Editor**, **Show Changes** (when Source Control lists the file as changed) and **Copy Path**.
+- A chat opens at its end at once, never scrolling down through all it holds. At the end, the chat follows what comes; scrolled up to read, it stays where I am, and **↓** — the terminal's — brings me back.
 - The composer chooses the mode (Agent, or Ask: it reads and changes nothing), the model — every provider's, listed under its name — and its reasoning effort where the model has one ("Auto" sends the provider's default).
 - **+** opens **Attach**: Camera, Photos and Files (the phone's own pickers, no permission asked), then the workspace's files, the open one first; up to five in all. Text goes as its text then; a photo or a PDF goes to a model that reads it, and the composer says when the chosen model cannot. Photos show as thumbnails; a photo alone can be sent.
 - The answer a turn ends on can be copied; a message that failed before any reply can be sent again with **Try Again**.

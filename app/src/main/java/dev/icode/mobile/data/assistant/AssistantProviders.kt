@@ -38,6 +38,7 @@ internal class AssistantProviders(
             askBeforeChanges = stored.askBeforeChanges,
             effort = stored.effort,
             mode = stored.mode,
+            commitChoice = stored.commitChoice,
         )
     }
 

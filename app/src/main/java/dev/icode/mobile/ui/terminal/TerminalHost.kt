@@ -5,16 +5,10 @@ import android.graphics.Typeface
 import android.view.View
 import android.view.ViewTreeObserver
 import android.view.inputmethod.InputMethodManager
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ArrowDownward
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -32,10 +26,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.res.ResourcesCompat
 import com.termux.view.TerminalView
 import dev.icode.mobile.R
-import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeShapes
-import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
+import dev.icode.mobile.designsystem.JumpToLatestButton
 import dev.icode.mobile.designsystem.LocalIcodePalette
 import dev.icode.mobile.domain.EditorFontFamily
 import dev.icode.mobile.domain.TerminalSettings
@@ -136,15 +128,12 @@ fun TerminalHost(
         Box(Modifier.padding(start = IcodeSpacing.Space3).offset { pressedAt }) {
             TerminalMoreMenu(session, more, onShow = { more = it }, onUrl = onUrl)
         }
-        if (scrolledBack) {
-            IconButton(
-                onClick = { view?.let(::jumpToLatest) },
-                modifier = Modifier.align(Alignment.BottomEnd).padding(IcodeSpacing.Space3)
-                    .size(IcodeSizes.TouchTarget).background(IcodeColors.SurfaceElevated, IcodeShapes.Pill),
-            ) {
-                Icon(Icons.Outlined.ArrowDownward, contentDescription = "Jump to latest output", tint = IcodeColors.Green)
-            }
-        }
+        JumpToLatestButton(
+            visible = scrolledBack,
+            contentDescription = "Jump to latest output",
+            onClick = { view?.let(::jumpToLatest) },
+            modifier = Modifier.align(Alignment.BottomEnd).padding(IcodeSpacing.Space3),
+        )
     }
 
     DisposableEffect(source, sessionId, view) {

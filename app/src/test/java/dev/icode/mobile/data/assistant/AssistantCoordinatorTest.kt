@@ -1,5 +1,6 @@
 package dev.icode.mobile.data.assistant
 
+import dev.icode.mobile.data.git.CliGitService
 import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceRoot
@@ -8,6 +9,7 @@ import dev.icode.mobile.domain.AssistantAttachment
 import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantChoice
+import dev.icode.mobile.domain.AssistantCommitMessage
 import dev.icode.mobile.domain.AssistantEffort
 import dev.icode.mobile.domain.AssistantLive
 import dev.icode.mobile.domain.AssistantMessage
@@ -69,6 +71,11 @@ class AssistantCoordinatorTest {
     private val requests = Collections.synchronizedList(mutableListOf<AssistantTurnRequest>())
     private val compactions = Collections.synchronizedList(mutableListOf<List<AssistantMessage>>())
     private val ran = Collections.synchronizedList(mutableListOf<String>())
+    /** Each one-shot request: the model asked, and what it was asked. */
+    private val answers = Collections.synchronizedList(mutableListOf<Pair<String, String>>())
+    private var answer: suspend () -> String = { "feat: add login" }
+    private var staged = "3\t1\tsrc/a.kt\n"
+    private var log = CliGitService.CommandResult(0, "feat: first\nfix: second\n", "")
 
     private val engine = object : AssistantEngine {
         override val catalogue = mapOf(AssistantProviderKind.OpenAI to listOf(AssistantModel("gpt-5", 400_000, known = true)))
@@ -89,6 +96,10 @@ class AssistantCoordinatorTest {
             compactions += history
             return "Summary of ${history.size}"
         }
+        override suspend fun answer(connection: AssistantConnection, model: AssistantModel, instructions: String, request: String): String {
+            answers += model.id to request
+            return answer()
+        }
     }
 
     private val coordinator by lazy {
@@ -97,10 +108,16 @@ class AssistantCoordinatorTest {
             tools = { _, _ -> listOf(FakeTool("read_file", AssistantToolKind.Read), FakeTool("edit_file", AssistantToolKind.Change)) },
             activeRoot = { app },
             describe = { WorkspaceRoot("app", it, "/workspace/app") },
-        ) { openText ->
             // Images pass as they are: Android's decoding is not on a JVM.
-            AssistantAttachments({ phoneFiles[it] }, { bytes -> bytes }, openText, readText = { File(it).readText() })
-        }
+            attachments = { openText -> AssistantAttachments({ phoneFiles[it] }, { bytes -> bytes }, openText, readText = { File(it).readText() }) },
+            git = { _, arguments ->
+                when {
+                    "--numstat" in arguments -> CliGitService.CommandResult(0, staged, "")
+                    arguments.first() == "diff" -> CliGitService.CommandResult(0, "diff --git a/src/a.kt b/src/a.kt\n+fun a() = 1\n", "")
+                    else -> log
+                }
+            },
+        )
     }
 
     @Before fun start() {
@@ -506,6 +523,45 @@ class AssistantCoordinatorTest {
         assertEquals(AssistantMessage.User("Hello"), requests.last().input)
         coordinator.handle(ICodeIntent.RetryAssistantMessage)
         until { effects.any { it is ICodeEffect.Message && it.text == "Nothing to send again" } }
+    }
+
+    @Test fun `a commit message is written from the staged changes by the chat's model, and taken once`() {
+        coordinator.handle(ICodeIntent.WriteCommitMessage)
+        until { state().commitMessage?.message != null }
+        assertEquals(AssistantCommitMessage(app, message = "feat: add login"), state().commitMessage)
+        val (model, request) = answers.single()
+        assertEquals("gpt-5", model)
+        assertTrue(request, "- feat: first\n- fix: second" in request)
+        assertTrue(request, "3\t1\tsrc/a.kt" in request)
+        assertTrue(request, "+fun a() = 1" in request)
+        coordinator.handle(ICodeIntent.CommitMessageTaken)
+        until { state().commitMessage == null }
+    }
+
+    @Test fun `commit messages are written by the model chosen for them, and nothing staged is said`() {
+        coordinator.handle(ICodeIntent.ChooseCommitModel(AssistantChoice(openAI, "o3")))
+        until { state().settings.commitChoice != null }
+        assertEquals("o3", state().settings.commitWriter?.second?.id)
+        coordinator.handle(ICodeIntent.WriteCommitMessage)
+        until { state().commitMessage?.message != null }
+        assertEquals("o3", answers.single().first)
+        staged = ""
+        coordinator.handle(ICodeIntent.WriteCommitMessage)
+        until { state().commitMessage?.failure != null }
+        assertEquals("Nothing is staged: stage the changes to describe first", state().commitMessage?.failure)
+        assertEquals(1, answers.size)
+    }
+
+    @Test fun `a model's refusal is said, and a repository without commits follows no style`() {
+        log = CliGitService.CommandResult(128, "", "fatal: your current branch 'main' does not have any commits yet")
+        answer = { throw AssistantTurnException("The provider refused the API key — check it in the provider's settings") }
+        coordinator.handle(ICodeIntent.WriteCommitMessage)
+        until { state().commitMessage?.failure != null }
+        assertEquals("The provider refused the API key — check it in the provider's settings", state().commitMessage?.failure)
+        assertTrue(answers.single().second.startsWith("This repository has no commits yet."))
+        // Read, the failure goes; the next tap tries again.
+        coordinator.handle(ICodeIntent.CommitMessageTaken)
+        until { state().commitMessage == null }
     }
 
     private inner class FakeTool(override val name: String, override val kind: AssistantToolKind) : AssistantTool, AssistantFileChanger {

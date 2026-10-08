@@ -436,6 +436,20 @@ class KoogAssistantEngineTest {
         )
     }
 
+    @Test fun `a request is answered in one whole reply with no tools, or says why there is none`() = runBlocking {
+        val client = ScriptedClient(listOf(reply(MessagePart.Text("  feat(auth): add login validation  "))))
+        assertEquals("feat(auth): add login validation", KoogAssistantEngine { client }.answer(connection, model, "You write Git commit messages.", "The staged diff: +a"))
+        assertEquals(emptyList<ToolDescriptor>(), client.tools.single())
+        assertEquals(listOf("You write Git commit messages.", "The staged diff: +a"), client.prompts.single().messages.map { it.textContent() })
+        val cut = Message.Assistant(listOf(MessagePart.Text("feat: add")), ResponseMetaInfo.Empty, finishReason = "length")
+        try {
+            KoogAssistantEngine { ScriptedClient(listOf(cut)) }.answer(connection, model, "You write Git commit messages.", "The staged diff: +a")
+            fail("expected the answer to be refused")
+        } catch (cutShort: AssistantTurnException) {
+            assertEquals("The model's answer was cut short at its output limit — try again", cutShort.message)
+        }
+    }
+
     @Test fun `every request carries the model's output limit and the chosen effort`() = runBlocking {
         val opus = KoogModels.catalogue.getValue(AssistantProviderKind.Anthropic).first()
         val anthropic = AssistantConnection(AssistantProviderKind.Anthropic, null, "sk-ant")

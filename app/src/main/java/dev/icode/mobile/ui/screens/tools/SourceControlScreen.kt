@@ -10,10 +10,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountTree
+import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -27,6 +30,7 @@ import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTextField
 import dev.icode.mobile.designsystem.IcodeTopBar
@@ -76,6 +80,13 @@ fun SourceControlScreen(actions: NavigationActions) {
 
     val staged = state.gitChanges.filter { it.staged }
     val changes = state.gitChanges.filterNot { it.staged }
+    // The message the model writes from the staged changes (docs/commit-message-generator-plan.md).
+    val written = state.assistant.commitMessage?.takeIf { it.workspace == state.activeWorkspaceLocation }
+    LaunchedEffect(written?.message) {
+        // Into the field once; a failure leaves what was typed as it was.
+        commitMessage = written?.message ?: return@LaunchedEffect
+        gateway.dispatch(ICodeIntent.CommitMessageTaken)
+    }
     // Folders closed in each section's tree, as the user left them.
     var closedStaged by rememberSaveable(repository.workTreePath) { mutableStateOf(emptySet<String>()) }
     var closedChanges by rememberSaveable(repository.workTreePath) { mutableStateOf(emptySet<String>()) }
@@ -108,10 +119,27 @@ fun SourceControlScreen(actions: NavigationActions) {
                 IcodeCard(Modifier.fillMaxWidth()) {
                     IcodeTextField(
                         value = commitMessage,
-                        onValueChange = { commitMessage = it },
+                        onValueChange = {
+                            commitMessage = it
+                            if (written?.failure != null) gateway.dispatch(ICodeIntent.CommitMessageTaken)
+                        },
                         placeholder = "Commit message",
                         modifier = Modifier.fillMaxWidth(),
+                        // A written message may have a body under its subject.
+                        singleLine = false,
+                        trailing = {
+                            WriteMessageButton(writing = written?.writing == true, enabled = staged.isNotEmpty()) {
+                                gateway.dispatch(ICodeIntent.WriteCommitMessage)
+                            }
+                        },
                     )
+                    written?.failure?.let { failure ->
+                        Text(
+                            failure,
+                            modifier = Modifier.padding(top = IcodeSpacing.Space2),
+                            style = IcodeType.Caption.copy(color = IcodeColors.Error),
+                        )
+                    }
                     Spacer(Modifier.height(IcodeSpacing.Space2))
                     if (!hasIdentity) {
                         MonoLine(
@@ -175,6 +203,27 @@ fun SourceControlScreen(actions: NavigationActions) {
             }
         }
         GitBottomBar(state, repository, actions, onSyncPage = false)
+    }
+}
+
+/** ✨ in the commit field: the staged changes described by the assistant's model; a spinner while it writes. */
+@Composable
+private fun WriteMessageButton(writing: Boolean, enabled: Boolean, onClick: () -> Unit) {
+    if (writing) {
+        CircularProgressIndicator(
+            Modifier.padding(IcodeSpacing.Space2).size(IcodeSizes.IconSm),
+            color = IcodeColors.Accent,
+            strokeWidth = IcodeSpacing.Micro,
+        )
+    } else {
+        IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(IcodeSizes.BadgeSm)) {
+            Icon(
+                Icons.Outlined.AutoAwesome,
+                contentDescription = "Write a commit message",
+                tint = if (enabled) IcodeColors.Accent else IcodeColors.TextMuted,
+                modifier = Modifier.size(IcodeSizes.IconMd),
+            )
+        }
     }
 }
 

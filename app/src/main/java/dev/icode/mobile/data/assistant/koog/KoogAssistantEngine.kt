@@ -110,19 +110,30 @@ internal class KoogAssistantEngine(
         model: AssistantModel,
         instructions: String,
         history: List<AssistantMessage>,
+    ): String = written(connection, model, instructions, history + AssistantMessage.User(AssistantInstructions.COMPACT_REQUEST), KoogFailures.SUMMARY)
+
+    override suspend fun answer(connection: AssistantConnection, model: AssistantModel, instructions: String, request: String): String =
+        written(connection, model, instructions, listOf(AssistantMessage.User(request)), KoogFailures.ANSWER)
+
+    /** One whole reply to [messages], with no tools; [words] say why there is none. */
+    private suspend fun written(
+        connection: AssistantConnection,
+        model: AssistantModel,
+        instructions: String,
+        messages: List<AssistantMessage>,
+        words: KoogFailures.Writing,
     ): String = explained(connection, model.id) {
-        // No tools: Koog writes the chat's calls and results into it as text (its MissingToolsConversionStrategy).
-        val messages = history + AssistantMessage.User(AssistantInstructions.COMPACT_REQUEST)
+        // No tools: Koog writes a chat's calls and results into it as text (its MissingToolsConversionStrategy).
         var ended: Message.Assistant? = null
         val agent = agent(connection, model, effort = null, instructions, messages, tools = emptyList(), maxIterations = 3, strategy = KoogTurn.strategy(stream = null)) {
             handleEvents { onLLMCallCompleted { event -> event.response?.let { ended = it } } }
         }
         val cutShort = { ended?.let(KoogHistory::cutShort) == true }
         val filtered = { ended?.let(KoogHistory::filtered) == true }
-        val summary = ran(stoppedShort = { cutShort() || filtered() }) { agent.use { it.run(START) } }.orEmpty().trim()
-        if (cutShort()) throw AssistantTurnException(KoogFailures.SUMMARY_CUT_SHORT)
-        if (filtered()) throw AssistantTurnException(KoogFailures.SUMMARY_FILTERED)
-        summary.ifEmpty { throw AssistantTurnException("The model sent an empty summary — try again") }
+        val text = ran(stoppedShort = { cutShort() || filtered() }) { agent.use { it.run(START) } }.orEmpty().trim()
+        if (cutShort()) throw AssistantTurnException(words.cutShort)
+        if (filtered()) throw AssistantTurnException(words.filtered)
+        text.ifEmpty { throw AssistantTurnException(words.empty) }
     }
 
     /**

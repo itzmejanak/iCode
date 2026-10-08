@@ -16,7 +16,9 @@ class SettingsCatalogTest {
     @Test fun `controls the old terms missed are found on their page`() {
         assertEquals(Route.TerminalSettings, searchSettingsCategories("cursor").single().destination)
         assertEquals(Route.TerminalSettings, searchSettingsCategories("bell").single().destination)
-        assertEquals(Route.GitAuth, searchSettingsCategories("token").single().destination)
+        assertEquals(Route.SourceControlSettings, searchSettingsCategories("token").single().destination)
+        assertEquals(Route.SourceControlSettings, searchSettingsCategories("commit message").single().destination)
+        assertEquals("Git credentials, commit message model", settingsSubtitle(Route.SourceControlSettings))
         assertEquals(Route.WorkspaceSettings, searchSettingsCategories("auto fetch").single().destination)
         assertEquals(Route.AssistantSettings, searchSettingsCategories("api key").single().destination)
         assertEquals(Route.AssistantSettings, searchSettingsCategories("ollama").single().destination)

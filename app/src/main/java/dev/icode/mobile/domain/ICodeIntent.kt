@@ -15,7 +15,6 @@ sealed interface ICodeIntent {
     data object MarkNoticesRead : ICodeIntent
     data class DeleteNotice(val id: String) : ICodeIntent
     data object ClearNotices : ICodeIntent
-    /** New Folder: a workspace named [name], made at `/workspace/<name>` and opened. */
     /** New Folder on the Workspaces page: answered by [requestId], and not opened — it appears in the list. */
     data class CreateWorkspace(val name: String, val requestId: String) : ICodeIntent
     /** A whole workspace renamed; the dialog that asked is answered by [requestId]. */
@@ -157,10 +156,7 @@ sealed interface ICodeIntent {
     data class ResolveConflict(val path: String, val sectionStart: Int, val choice: GitConflictChoice) : ICodeIntent
     data class MarkConflictResolved(val path: String) : ICodeIntent
     data class UpdateCloneForm(val url: String, val name: String, val branch: String) : ICodeIntent
-    /**
-     * Clones into `/workspace/<directoryName>`, or into the folder [into] of a workspace; [branch]
-     * blank means the remote's default branch.
-     */
+    /** Clones into `/workspace/<directoryName>`, or into the folder [into] of a workspace; [branch] blank: the remote's default. */
     data class CloneRepository(
         val url: String,
         val directoryName: String,
@@ -265,10 +261,7 @@ sealed interface ICodeIntent {
     data object RetryAssistantMessage : AssistantIntent
     /** A provider's settings page opens on [id]; "" for one being added. */
     data class EditAssistantProvider(val id: String) : AssistantIntent
-    /**
-     * Saves a provider: [id] "" adds one. [key] null keeps the saved one; [baseUrl] is read only
-     * where the kind asks for it; [models] in the user's order.
-     */
+    /** Saves a provider ([id] "" adds one); [key] null keeps the saved key; [baseUrl] only where the kind asks; [models] in order. */
     data class SaveAssistantProvider(
         val id: String,
         val kind: AssistantProviderKind,
@@ -283,6 +276,12 @@ sealed interface ICodeIntent {
     }
     /** Forgets a provider, its key and its models. */
     data class RemoveAssistantProvider(val id: String) : AssistantIntent
+    /** The open workspace's staged changes described by the model, for the commit field (docs/commit-message-generator-plan.md). */
+    data object WriteCommitMessage : AssistantIntent
+    /** The written message is in the commit field, or its failure was read: it is not offered again. */
+    data object CommitMessageTaken : AssistantIntent
+    /** The model that writes commit messages; null: the assistant's. */
+    data class ChooseCommitModel(val choice: AssistantChoice?) : AssistantIntent
     /** Asks a provider's server for its models, with the address and key as typed ([key] null: the saved one of [provider]). */
     data class ListAssistantModels(
         val provider: String,

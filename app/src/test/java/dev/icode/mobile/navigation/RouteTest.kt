@@ -35,6 +35,7 @@ class RouteTest {
         Route.Assistant, // 2026-10-01: iCode's own assistant, on Koog (assistant-koog-plan.md §3)
         Route.AssistantSettings, // 2026-10-01: the assistant's providers (assistant-koog-plan.md §13 P3)
         Route.AssistantProvider, // 2026-10-01: one provider — its key, address and models (assistant-koog-plan.md §13 P3)
+        Route.SourceControlSettings, // 2026-10-08: Git's credentials and the commit messages' model (commit-message-generator-plan.md M8)
     )
 
     private val framed = Route.entries.mapNotNull { it.figmaNode }
