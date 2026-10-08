@@ -29,7 +29,7 @@ internal data class StoredSettings(
     val choice: AssistantChoice? = null,
     val askBeforeChanges: Boolean = true,
     val effort: AssistantEffort? = null,
-    val mode: AssistantMode = AssistantMode.Agent,
+    val mode: AssistantMode = AssistantMode.Code,
     /** The model that writes commit messages, while it is listed; null: the chat's. */
     val commitChoice: AssistantChoice? = null,
 )
@@ -90,7 +90,10 @@ internal class SharedPreferencesAssistantProviderStore(
             },
             askBeforeChanges = preferences.getBoolean(KEY_ASK, true),
             effort = preferences.getString(KEY_EFFORT, null)?.let { name -> AssistantEffort.entries.firstOrNull { it.name == name } },
-            mode = preferences.getString(KEY_MODE, null)?.let { name -> AssistantMode.entries.firstOrNull { it.name == name } } ?: AssistantMode.Agent,
+            mode = preferences.getString(KEY_MODE, null)?.let { name ->
+                // "Agent" was renamed to Code in 2026-10; a saved "Agent" reads as Code.
+                if (name == "Agent") AssistantMode.Code else AssistantMode.entries.firstOrNull { it.name == name }
+            } ?: AssistantMode.Code,
             // A model taken out of its provider, or a provider removed, leaves the chat's model to write them.
             commitChoice = preferences.getString(KEY_COMMIT_PROVIDER, null)?.let { provider ->
                 preferences.getString(KEY_COMMIT_MODEL, null)?.let { AssistantChoice(provider, it) }

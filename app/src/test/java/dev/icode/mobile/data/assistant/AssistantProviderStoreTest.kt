@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.assistant
 
 import dev.icode.mobile.domain.AssistantChoice
+import dev.icode.mobile.domain.AssistantMode
 import dev.icode.mobile.domain.AssistantModelSpec
 import dev.icode.mobile.domain.AssistantProviderKind
 import org.junit.Assert.assertEquals
@@ -12,6 +13,15 @@ import org.junit.Test
 class AssistantProviderStoreTest {
     private val preferences = InMemoryPreferences()
     private val store = SharedPreferencesAssistantProviderStore(preferences, { "enc:$it" }, { it.removePrefix("enc:").takeIf { _ -> it.startsWith("enc:") } })
+
+    @Test fun `the mode is kept, and an "Agent" saved before the rename reads as Code`() {
+        assertEquals(AssistantMode.Code, store.settings().mode)
+        store.chooseMode(AssistantMode.Plan)
+        assertEquals(AssistantMode.Plan, store.settings().mode)
+        // "Agent" was renamed to Code; a settings saved under the old name keeps the user's choice.
+        preferences.edit().putString("mode", "Agent").commit()
+        assertEquals(AssistantMode.Code, store.settings().mode)
+    }
 
     @Test fun `providers keep their own keys, models in order, and the first model added is the chat's`() {
         assertNull(store.settings().choice)

@@ -166,7 +166,7 @@ internal class AssistantTurns(
             }
             val history = AssistantRules.forModel(chats.of(workspace, session).messages.dropLast(1))
             // Ask reads only: the tools that change or run are not offered (§12 R8).
-            val offered = tools(setup.place, session).filter { setup.settings.mode == AssistantMode.Agent || it.kind == AssistantToolKind.Read }
+            val offered = tools(setup.place, session).filter { setup.settings.mode == AssistantMode.Code || setup.settings.mode == AssistantMode.Orchestrator || it.kind == AssistantToolKind.Read }
             step(THINKING)
             engine.run(
                 AssistantTurnRequest(
