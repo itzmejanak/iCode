@@ -7,9 +7,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -29,7 +30,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalDensity
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeBrandMark
 import dev.icode.mobile.designsystem.IcodeColors
@@ -61,6 +61,7 @@ import kotlinx.coroutines.launch
  * then what the turn is doing and the question it waits on. A chat with nothing in it yet is the
  * home screen's: the logo, and what to ask.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun AssistantChatView(state: AssistantState, modifier: Modifier, onSuggestion: (String) -> Unit, onDiff: (GitChange) -> Unit) {
     val gateway = LocalICodeGateway.current
@@ -100,11 +101,12 @@ internal fun AssistantChatView(state: AssistantState, modifier: Modifier, onSugg
             LaunchedEffect(written) {
                 if (written > 0 && following) list.scrollToEnd()
             }
-            // When the keyboard opens the viewport shrinks; scroll to end so the latest stays visible.
-            val density = LocalDensity.current
-            val imeBottom = WindowInsets.ime.getBottom(density)
-            LaunchedEffect(imeBottom) {
-                if (imeBottom > 0 && following) list.scrollToEnd()
+            // The keyboard's arrival shrinks the viewport; scroll to the end once, on each time it
+            // appears, so the latest stays visible. Its insets animate — only the on-going state
+            // is watched, or the list would be re-jumped to the end at every frame of the rise.
+            val isImeVisible = WindowInsets.isImeVisible
+            LaunchedEffect(isImeVisible) {
+                if (isImeVisible && following) list.scrollToEnd()
             }
             val scope = rememberCoroutineScope()
             Box(Modifier.weight(1f).fillMaxWidth()) {

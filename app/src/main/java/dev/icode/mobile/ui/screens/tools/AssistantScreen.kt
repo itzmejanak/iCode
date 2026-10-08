@@ -4,7 +4,6 @@ import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -77,7 +76,7 @@ fun AssistantScreen(actions: NavigationActions) {
     val title = state.sessions.firstOrNull { it.id == state.session }?.title ?: "New chat"
 
     Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().imePadding().then(if (sheet != null) Modifier.blur(IcodeSizes.SheetBackdropBlur) else Modifier)) {
+        Column(Modifier.fillMaxSize().then(if (sheet != null) Modifier.blur(IcodeSizes.SheetBackdropBlur) else Modifier)) {
             IcodeTopBar(
                 if (ready) title else "Assistant",
                 subtitle = state.workspace?.let(AssistantRules::workspaceName),
