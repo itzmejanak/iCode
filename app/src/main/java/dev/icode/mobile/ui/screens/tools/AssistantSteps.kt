@@ -5,6 +5,7 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.os.Build
 import android.widget.Toast
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -12,8 +13,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Check
@@ -105,8 +109,10 @@ internal fun AssistantStepRow(step: AssistantEntry.Step, onDiff: (GitChange) -> 
 
 /**
  * A line of the chat with more under it: a step and its output, or a compaction and its summary.
- * A tap opens it, and a tap on what opened closes it again; Copy takes all it shows. A long press
- * offers [actions] where there are some.
+ * The row stays and the more opens under it — as the approval card's does — with Copy taking all
+ * it shows. A tap on the row opens it, a tap on the open row closes it again; what opened is a
+ * surface plain to read on, scrolling within a few lines, its height growing as it opens. A long
+ * press offers [actions] where there are some, open or not.
  */
 @Composable
 internal fun Disclosure(
@@ -166,16 +172,28 @@ internal fun Disclosure(
             IcodeActionMenu(expanded = menu, onDismiss = { menu = false }, actions = actions)
         }
         if (open && opens) {
-            CodeSurface(Modifier.fillMaxWidth().clip(IcodeShapes.Small).clickable(onClickLabel = "Hide") { open = false }) {
-                Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
-                    Text(
-                        heading.orEmpty(),
-                        modifier = Modifier.weight(1f),
-                        style = IcodeType.MonoSmall.scaledBy(scale).copy(color = IcodeColors.TextPrimary),
-                    )
+            CodeSurface(
+                Modifier.animateContentSize().fillMaxWidth().clip(IcodeShapes.Small).heightIn(max = IcodeSizes.ApprovalDetail),
+            ) {
+                Row(
+                    Modifier.padding(IcodeSpacing.Space2).fillMaxWidth(),
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
+                ) {
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
+                        heading?.let {
+                            Text(it, style = IcodeType.MonoSmall.scaledBy(scale).copy(color = IcodeColors.TextPrimary))
+                        }
+                        detail?.let { d ->
+                            Text(
+                                d,
+                                modifier = Modifier.verticalScroll(rememberScrollState()),
+                                style = IcodeType.MonoSmall.scaledBy(scale),
+                            )
+                        }
+                    }
                     CopyChip { copyText(context, "Output", listOfNotNull(heading, detail).joinToString("\n\n"), "Copied") }
                 }
-                detail?.let { Text(it, modifier = Modifier.padding(top = IcodeSpacing.Space1), style = IcodeType.MonoSmall.scaledBy(scale)) }
             }
         }
         if (divided) Divider()

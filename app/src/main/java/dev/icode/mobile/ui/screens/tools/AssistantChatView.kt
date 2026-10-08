@@ -6,8 +6,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -58,6 +61,7 @@ import kotlinx.coroutines.launch
  * then what the turn is doing and the question it waits on. A chat with nothing in it yet is the
  * home screen's: the logo, and what to ask.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun AssistantChatView(state: AssistantState, modifier: Modifier, onSuggestion: (String) -> Unit, onDiff: (GitChange) -> Unit) {
     val gateway = LocalICodeGateway.current
@@ -96,6 +100,13 @@ internal fun AssistantChatView(state: AssistantState, modifier: Modifier, onSugg
             val written = state.turn?.live?.let { it.reasoning.length + it.text.length } ?: 0
             LaunchedEffect(written) {
                 if (written > 0 && following) list.scrollToEnd()
+            }
+            // The keyboard's arrival shrinks the viewport; scroll to the end once, on each time it
+            // appears, so the latest stays visible. Its insets animate — only the on-going state
+            // is watched, or the list would be re-jumped to the end at every frame of the rise.
+            val isImeVisible = WindowInsets.isImeVisible
+            LaunchedEffect(isImeVisible) {
+                if (isImeVisible && following) list.scrollToEnd()
             }
             val scope = rememberCoroutineScope()
             Box(Modifier.weight(1f).fillMaxWidth()) {

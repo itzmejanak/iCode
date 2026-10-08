@@ -1,80 +1,108 @@
 # iCode
 
-iCode is a native Android mobile IDE. Its workspaces live in its own Linux storage, which a real
-Linux runtime and every other part of iCode reach the same way: workspaces, the file tree, the
-editor with autosave and recovery drafts, Git (clone, status, diff, commit, push, pull, branches,
-credentials), the terminal with background sessions and alerts, language services, and settings.
+A native Android IDE built with Kotlin and Jetpack Compose. Workspaces live in an embedded Linux
+runtime (Ubuntu, ARM64, PRoot), which every part of iCode reaches uniformly: the file tree, the
+editor with autosave and draft recovery, Git (clone, diff, commit, push, pull, branches,
+credentials), a terminal with background sessions, language servers, an AI assistant, and
+AI-generated commit messages.
 
-## Build and run
+## Features
 
-Requirements:
+- **Workspaces** — create, clone, import from phone storage; accessible to other apps via Android's Files app
+- **Editor** — syntax highlighting, autosave, draft recovery, external-change detection
+- **Git** — full workflow: stage, commit, push, pull, branch, merge conflicts, SSH and HTTPS credentials
+- **AI assistant** — chat with your codebase using any OpenAI-compatible, Anthropic, or Ollama provider; streaming replies; tool use for reading files, running commands, and editing code
+- **AI commit messages** — one-tap conventional commit messages generated from staged changes (configurable model)
+- **Terminal** — background sessions, alerts, managed processes
+- **Language services** — pluggable LSP servers installed through the runtime
+- **Search** — workspace-wide content search powered by ripgrep
+- **Design system** — semantic tokens, dark/light/AMOLED themes, user-selectable accent color
 
-- JDK 17
-- Android SDK 36
+## Build
 
-Build:
+Requirements: JDK 17, Android SDK 36.
 
 ```bash
 ./gradlew :app:assembleDebug
 ```
 
-The APK is written to `app/build/outputs/apk/debug/app-debug.apk`.
+APK output: `app/build/outputs/apk/debug/app-debug.apk`.
 
-On first launch iCode installs its runtime, then offers its two optional permissions
-(notifications, battery), one at a time, with Android's own dialogs. Create a workspace, clone a
-repository, or import a folder from phone storage; other apps reach your workspaces through
-Android's Files app ([docs/workspace-storage-plan.md](./docs/workspace-storage-plan.md)).
+On first launch iCode installs its Linux runtime, then offers optional permissions (notifications,
+battery) one at a time through Android's own dialogs.
 
-## Capture all screens
+## Tests
 
-Connect an authorized Android device, build the debug APK, then run:
+```bash
+./gradlew test
+```
+
+## Project structure
+
+```text
+app/src/main/java/dev/icode/mobile/
+├── MainActivity.kt       # Single activity host
+├── designsystem/         # Semantic tokens (colors, type, metrics, shapes) + shared UI kit
+├── domain/               # Immutable state, intent/effect contract, rules
+├── data/                 # Android implementations
+│   ├── assistant/        # AI assistant engine, Koog integration, tools, chat store
+│   ├── git/              # Git operations, auth, transfers, conflicts
+│   ├── runtime/          # Linux runtime, terminal, package installer
+│   ├── workspace/        # Gateway, session, lifecycle, documents, tree
+│   ├── search/           # Ripgrep-backed content search
+│   ├── settings/         # Preferences
+│   └── ...               # Language services, notices, storage, IO, logging
+├── navigation/           # Routes and navigation actions
+└── ui/                   # Compose screens
+    └── screens/{entry,workspace,tools,settings,recovery}/
+
+app/src/debug/            # Capture fixtures (debug builds only)
+app/src/test/             # Unit tests mirroring the main source tree
+docs/                     # Architecture, plans, and design decisions
+tools/                    # Consistency guards and screen capture scripts
+runtime/                  # Linux runtime rootfs build
+third_party/              # Vendored dependencies
+design/                   # Design assets
+```
+
+## Architecture
+
+`ICodeGateway` is the single seam between Compose UI and backend implementations. It exposes:
+
+- **`ICodeSnapshot`** — immutable state, observed as a `StateFlow`
+- **`ICodeIntent`** — user actions dispatched from screens
+- **`ICodeEffect`** — one-shot events (toasts, navigations, confirmations)
+
+`AndroidICodeGateway` builds one coordinator per feature and routes each intent to it. A debug
+capture launch uses `CaptureGateway`, which draws fixtures and ignores every intent so no fixture
+reaches real storage. Structural consistency is enforced by two guard scripts with shrinking
+allowlists: `tools/check-ui-consistency.sh` and `tools/check-backend-consistency.sh`.
+
+## Screen capture
+
+Connect an authorized device, build the debug APK, then run:
 
 ```bash
 tools/capture-figma-screens.sh
 ```
 
-The command installs the current debug APK and opens every route with the extras
-`capture_route=<Route>` and `capture=true`, which draw the screen from fixed capture fixtures
-instead of the device, so every run gives the same pixels. It writes the screenshots to
-`artifacts/screens/` and two labeled review sheets to `artifacts/review/`. The route list is read
-from `Route.kt`. The fixtures live in `app/src/debug` only: a release build ignores the extras and
-contains no fixture.
+It installs the APK, opens every route from `Route.kt` with capture extras that draw fixed fixtures
+instead of live data, and writes screenshots to `artifacts/screens/` plus labeled review sheets to
+`artifacts/review/`. Fixtures live in `app/src/debug` only; a release build ignores them.
 
-## Structure
+## Documentation
 
-```text
-app/src/main/java/dev/icode/mobile/
-├── designsystem/   # Semantic tokens (colors, type, metrics, tone, theme) + shared UI kit
-├── domain/         # UI-facing immutable state and the intent/effect contract
-├── data/           # Android implementations: workspace, git, runtime, search, settings, language,
-│                   #   notices, system, io (Sha256, checked writes), log
-├── navigation/     # Routes and navigation actions
-└── ui/             # Composition root, editor, terminal, and one file per screen
-    └── screens/{entry,workspace,tools,settings,recovery}/
-app/src/debug/java/dev/icode/mobile/capture/   # Capture fixtures (debug builds only)
-```
+| Document | What it covers |
+|----------|---------------|
+| [plan.md](plan.md) | Overall development plan |
+| [docs/prd.md](docs/prd.md) | Product requirements |
+| [docs/architecture.md](docs/architecture.md) | Architecture decisions |
+| [docs/user-stories.md](docs/user-stories.md) | User stories |
+| [docs/layout.md](docs/layout.md) | Layout and interaction design |
+| [docs/assistant-koog-plan.md](docs/assistant-koog-plan.md) | AI assistant design |
+| [docs/runtime-foundation-plan.md](docs/runtime-foundation-plan.md) | Linux runtime design |
+| [Todo.md](Todo.md) | Implementation tracker |
 
-Each screen lives in its own file with a small group host that dispatches it; the shared kit owns
-every reusable surface. Structural consistency is enforced by two guards with
-shrinking ratchets: `tools/check-ui-consistency.sh` (`tools/ui-debt-allowlist.txt`) for the UI,
-and `tools/check-backend-consistency.sh` (`tools/backend-debt-allowlist.txt`) for `data/` and
-`domain/` — among them the file budget, one owner per store, one package installer, one digest
-and one byte format.
-
-`ICodeGateway` is the only state/intent/effect seam between Compose and implementations.
-The app uses `AndroidICodeGateway`, which builds one coordinator per feature and routes each
-intent to it; a capture launch uses `CaptureGateway`, which draws the fixtures and ignores every
-intent, so no fixture reaches real storage.
-
-## Project documents
-
-- [Development plan](./plan.md)
-- [UI splitting & consistency plan](./docs/ui-split-plan.md)
-- [Product requirements](./docs/prd.md)
-- [Architecture](./docs/architecture.md)
-- [Layout and interaction design](./docs/layout.md)
-- [User stories](./docs/user-stories.md)
-- [Implementation tracker](./Todo.md)
-- [Code separation plan and record](./docs/code-separation-plan.md) (ownership, persistence and lock maps)
-- [Backend splitting rules](./docs/backend-split-rules.md)
-- [Editor colours plan](./docs/editor-colors-plan.md) and [grammar provenance](./docs/editor-grammar-provenance.md)
+The `docs/` folder also contains implementation plans for individual features (workspace storage,
+terminal, Git separation, UI splitting, etc.) — useful as historical design records.
+</content>
