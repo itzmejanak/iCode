@@ -1,14 +1,19 @@
 package dev.icode.mobile.ui.editor
 
 import android.os.SystemClock
+import android.text.Layout
 import android.text.Selection
 import android.text.Spannable
+import android.text.Spanned
 import android.text.method.LinkMovementMethod
 import android.view.InputDevice
 import android.view.MotionEvent
 import android.view.View
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import io.noties.markwon.Markwon
+import io.noties.markwon.ext.tables.TablePlugin
+import io.noties.markwon.ext.tables.TableRowSpan
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -28,6 +33,36 @@ class MarkdownPreviewInteractionTest {
             Selection.setSelection(view.text as Spannable, 0, 10)
             assertEquals(0, view.selectionStart)
             assertEquals(10, view.selectionEnd)
+        }
+    }
+
+    @Test
+    fun tableRowsAreLaidOutBeforeFirstDraw() {
+        // Streaming updates the answer tens of times a second; each chunk must render the table at
+        // its real width on the very first layout pass (Markwon's own repair races the next chunk).
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.runOnMainSync {
+            val view = ScalableMarkdownTextView(instrumentation.targetContext)
+            val size = 1000
+            view.measure(
+                View.MeasureSpec.makeMeasureSpec(size, View.MeasureSpec.EXACTLY),
+                View.MeasureSpec.makeMeasureSpec(size, View.MeasureSpec.EXACTLY),
+            )
+            view.layout(0, 0, size, size)
+            val markwon = Markwon.builder(instrumentation.targetContext)
+                .usePlugin(TablePlugin.create(instrumentation.targetContext))
+                .build()
+            view.show(markwon, "| a | b |\n|---|---|\n| c | d |", 14f)
+
+            val spanned = view.text as Spanned
+            val row = spanned.getSpans(0, spanned.length, TableRowSpan::class.java).first()
+            val widthField = TableRowSpan::class.java.getDeclaredField("width").apply { isAccessible = true }
+            val layoutsField = TableRowSpan::class.java.getDeclaredField("layouts").apply { isAccessible = true }
+            assertEquals(view.width - view.paddingLeft - view.paddingRight, widthField.getInt(row))
+            @Suppress("UNCHECKED_CAST")
+            val layouts = layoutsField.get(row) as List<Layout>
+            assertEquals(2, layouts.size)
+            assertTrue("Rows must be laid out before the first draw", layouts.all { it.height > 0 })
         }
     }
 
