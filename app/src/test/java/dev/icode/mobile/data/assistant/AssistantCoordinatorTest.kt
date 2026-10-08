@@ -19,6 +19,7 @@ import dev.icode.mobile.domain.AssistantResult
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantState
 import dev.icode.mobile.domain.AssistantToolKind
+import dev.icode.mobile.domain.LineChanges
 import dev.icode.mobile.domain.LineEnding
 import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.domain.TextEncoding
@@ -168,6 +169,8 @@ class AssistantCoordinatorTest {
         assertEquals(listOf("edit_file"), ran)
         assertEquals(AssistantMessage.User("Rename x"), requests.single().input)
         assertEquals(4, state().messages.size)
+        // The change's result says by how many lines it changed the file.
+        assertEquals(LineChanges(2, 1), (state().messages[2] as AssistantMessage.Results).results.single().changes)
         assertEquals("Done.", (state().messages.last() as AssistantMessage.Reply).text)
         assertEquals(700L, state().contextTokens)
         val session = state().session!!
@@ -505,12 +508,15 @@ class AssistantCoordinatorTest {
         until { effects.any { it is ICodeEffect.Message && it.text == "Nothing to send again" } }
     }
 
-    private inner class FakeTool(override val name: String, override val kind: AssistantToolKind) : AssistantTool {
+    private inner class FakeTool(override val name: String, override val kind: AssistantToolKind) : AssistantTool, AssistantFileChanger {
         override val description = name
         override val parameters = emptyList<AssistantParameter>()
+        override var lastChanges: LineChanges? = null
         override fun summary(arguments: JSONObject) = name
         override suspend fun run(arguments: JSONObject): String {
             ran += name
+            // A change counts its lines as the write and edit tools do.
+            if (kind == AssistantToolKind.Change) lastChanges = LineChanges(2, 1)
             return "ok"
         }
     }

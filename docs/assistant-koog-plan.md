@@ -2,8 +2,9 @@
 
 Status: **Round 1 (A1–A6) and round 2 (B1–B5) done (2026-10-01)**, each checked as far as this
 container allows (§11); rounds 3 (§13) and 4 — the runtime's foundation and OpenRouter's streaming,
-[runtime-foundation-plan.md](./runtime-foundation-plan.md) — done (2026-10-02). Left for the owner:
-the Gradle build, the release build and the device pass (§9), and the decisions of §10.
+[runtime-foundation-plan.md](./runtime-foundation-plan.md) — done (2026-10-02); streaming for OpenAI
+and compatible servers, and the chat's steps (§17), done 2026-10-08. Left for the owner: the Gradle
+build, the release build and the device pass (§9), and the decisions of §10.
 
 Owner's request (2026-10-01): "make plan for koog integration, as is researched make sure to
 design clean and best plan ever and implement it in clean and best way as needed to be". The
@@ -183,9 +184,11 @@ interface. The coordinator, tools, stores and screens do not change.
   between turns, closed when replaced. Per turn, Koog's `AIAgent` with
   - the strategy `KoogTurn.strategy`: a request, Koog's `nodeExecuteTools`, then the results sent
     as Koog's `nodeLLMSendToolResults` sends them, tool calls checked before text after every
-    request (§2's quirk) — no loop of iCode's. For OpenRouter both requests stream
-    (`KoogTurn.streamed`, put together by `KoogStream`): the page shows the reply as it is written
-    ([runtime-foundation-plan.md](./runtime-foundation-plan.md) §3.8);
+    request (§2's quirk) — no loop of iCode's. For OpenRouter, OpenAI's Chat Completions models
+    and OpenAI-compatible servers (`KoogTurn.streams`) both requests stream (`KoogTurn.streamed`,
+    put together by `KoogStream`): the page shows the reply as it is written; a server that refuses
+    the stream is asked the same request whole, and not streamed again
+    ([runtime-foundation-plan.md](./runtime-foundation-plan.md) §3.8, D8);
   - `maxAgentIterations = 2 × maxSteps + 1` (40 requests);
   - the `EventHandler` feature and the streamed requests mapped to `AssistantEvents`
     (`KoogTurn.Reporter`);
@@ -229,6 +232,14 @@ may leave it. `.git` is never written. **Ask** offers the reading tools only.
 | `send_process_input(id, text, newline)` | command | `RuntimeProcesses` | answers what it printed in the next second |
 | `stop_process(id)` | command | `RuntimeProcesses` | SIGTERM, SIGKILL after 3 s |
 
+A write or an edit answers how many lines it added and removed, as `git diff --numstat` counts
+them (`LineChanges.between`, Myers' shortest edit): "Created src/App.kt: +2 lines", "Edited a.kt in
+2 places: +2 −2 lines". The tool keeps the count (`AssistantFileChanger.lastChanges`) and the turn
+carries it to the call's result (`AssistantResult.changes`), so the page shows it too. Each tool
+also names, from a call's arguments, the file it touches (`file`: `read_file`, `write_file`,
+`edit_file`) and the command it runs (`command`: `run_command`, `start_process`); the call keeps
+both (`AssistantCall.file`, `.command`), none for arguments that could not be read.
+
 After a change, the workspace refreshes the way a terminal edit does: tree, Git and the search
 index. Clean open tabs reload.
 
@@ -271,10 +282,12 @@ sealed interface AssistantMessage {
 - `AssistantChatStore`: `files/assistant/chats/<sha256 of the location>/` holds `index.json`
   (id, title, time — what **Chats** lists) and one `<uuid>.json` per chat (its messages, the last
   request's tokens, and its own title and time, so an index that cannot be read is made again from
-  the chats). Every file is written whole and renamed into place. Each output is capped at 16 KB;
-  a chat keeps its newest 400 messages from something the user said; its title, once given, stays.
-  An empty chat is never saved. The round-1 file (`<sha256>.json`) becomes the workspace's first
-  chat. A chat ID is iCode's own UUID, never a path.
+  the chats). Every file is written whole and renamed into place. Each output is kept up to
+  48 000 characters — above what a command or a process answers (`run_command`: 32 000, and its
+  stderr's 8 000), so such a step shows all the model read; a call keeps its file and command, a
+  result its line counts. A
+  chat keeps its newest 400 messages from something the user said; its title, once given, stays.
+  An empty chat is never saved. A chat ID is iCode's own UUID, never a path.
 - `AssistantChats` holds the chats read in this process and "Allow All in This Chat"; each change
   is saved under its lock, so two never reach a file in the other order. A killed process loses at
   most the reply in flight. The lifecycle's move and forget hooks carry the chats with a rename and
@@ -338,6 +351,13 @@ lifecycle's check, and waits for its chat to be saved, before the chats move.
 - `AssistantChatView`: the chat inside `PinchToScaleText`, every row's text scaled by
   `LocalCodeTextScale`; the branded welcome (`IcodeWatermark`, `IcodeBrandMark`); the step line;
   the approval card.
+- `AssistantSteps`: a step's row (`AssistantStepRow`) — its state's icon, what it did, and for a
+  write or an edit that is done, "+12 −3" in green and red. A tap opens all it answered, a
+  command's `$ line` above its output, Copy at its corner (the line and the output); a tap on what
+  opened closes it. A long press on a step about a file offers Open in Editor, Show Changes —
+  where Source Control lists the file as changed and can show its diff
+  (`AssistantRules.gitChangeOf`: not untracked, deleted or conflicted; the unstaged change first) —
+  and Copy Path. `Disclosure` is the same row for a compaction's summary.
 - `AssistantComposer`, `AssistantSheets`, `AssistantParts` as named.
 - Design system, made once for every screen: `IcodeChoiceMenu` (the dropdown's menu, now shared by
   `IcodeDropdown`), `IcodeChoiceChip` (a toolbar choice), `IcodeSheetOverlay` (now
@@ -399,8 +419,9 @@ lifecycle's check, and waits for its chat to be saved, before the chats move.
 - **MCP servers** as tool sources: Koog's `agents-mcp` is beta, so it would sit behind an
   `AssistantToolSource` of iCode's own.
 - **External agents over ACP** (OpenCode and others) as a second `AssistantEngine`.
-- Streaming for providers other than OpenRouter: Koog 1.3.0's streams lose what a turn needs
-  there — Anthropic's thinking signature, Ollama's end, a Responses reply cut short
+- Streaming for Anthropic, Gemini, Ollama and OpenAI's Responses-only models: Koog 1.3.0's
+  streams lose what a turn needs there — Anthropic's thinking signature, Gemini's thought
+  signature, Ollama's end, a Responses reply cut short
   ([runtime-foundation-plan.md](./runtime-foundation-plan.md) §1.1).
 - xhigh reasoning (not in Koog 1.3.0's `ReasoningEffort`); efforts for OpenRouter and compatible
   servers (no field in Koog's clients).
@@ -641,3 +662,11 @@ starts closed; a tap on it opens all it will do, scrolling past a few lines
   and where the Markdown holds a table and the size changed, renders it anew: new rows, laid out at
   the new size. One method for both renderers.
 
+## 17. Replies as they are written, and the chat's steps (owner, 2026-10-08)
+
+The owner, with four OpenAI-compatible providers: no reply appeared as it was written; an opened
+command's output was cut; and asked for a Copy, each write's real line counts, a tap on the open
+output to close it, and a long press on a file to open it or see its changes. Decided and built in
+[runtime-foundation-plan.md](./runtime-foundation-plan.md) §7: OpenAI's Chat Completions and
+compatible servers stream (D8); the step row of §4.11; the line counts and the calls' files and
+commands of §4.3; the chat file's bound of §4.6.

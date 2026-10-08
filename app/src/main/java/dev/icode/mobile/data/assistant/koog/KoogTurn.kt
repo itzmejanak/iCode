@@ -10,6 +10,9 @@ import ai.koog.agents.core.dsl.extension.nodeExecuteTools
 import ai.koog.agents.core.dsl.extension.onTextMessage
 import ai.koog.agents.core.dsl.extension.onToolCalls
 import ai.koog.agents.features.eventHandler.feature.handleEvents
+import ai.koog.http.client.KoogHttpClientException
+import ai.koog.prompt.llm.LLMCapability
+import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.message.Message
 import ai.koog.prompt.streaming.IncompleteStreamException
 import ai.koog.serialization.JSONPrimitive
@@ -17,12 +20,15 @@ import dev.icode.mobile.data.assistant.AssistantEvents
 import dev.icode.mobile.data.assistant.AssistantTool
 import dev.icode.mobile.data.assistant.AssistantTurnException
 import dev.icode.mobile.domain.AssistantCall
+import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.domain.AssistantResult
 import java.util.UUID
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.SerializationException
 
 /** A request of the turn's: whole, or one that streams ([KoogTurn.streamed]). */
 internal typealias KoogRequest = suspend AIAgentLLMWriteSession.() -> Message.Assistant
@@ -60,38 +66,79 @@ internal object KoogTurn {
     }
 
     /**
-     * An OpenRouter request that streams: what is written shown as it comes, at most ten times a
-     * second, then the whole reply reported as a whole one is, and added to the prompt without its
-     * reasoning.
+     * Whether [kind]'s replies stream (docs/runtime-foundation-plan.md §1.1, D8): Koog's streams are
+     * sound for OpenRouter and for OpenAI's Chat Completions, which every OpenAI-compatible server
+     * speaks; for Anthropic, Gemini and Ollama they lose what a turn needs.
      */
-    fun streamed(reporter: Reporter): KoogRequest = {
-        val stream = KoogStream()
-        coroutineScope {
-            val grown = MutableStateFlow(0)
-            // The state is read when it is shown, never per piece: a long reply comes in thousands.
-            val showing = launch {
-                grown.collect { pieces ->
-                    if (pieces == 0) return@collect
-                    val (reasoning, text) = synchronized(stream) { stream.shown() }
-                    reporter.writing(reasoning, text)
-                    delay(LIVE_MILLIS)
-                }
-            }
+    fun streams(kind: AssistantProviderKind, model: LLModel): Boolean = when (kind) {
+        AssistantProviderKind.OpenRouter -> true
+        AssistantProviderKind.OpenAI, AssistantProviderKind.OpenAICompatible -> model.supports(LLMCapability.OpenAIEndpoint.Completions)
+        AssistantProviderKind.Anthropic, AssistantProviderKind.Google, AssistantProviderKind.Ollama -> false
+    }
+
+    /**
+     * A request that streams: what is written shown as it comes, at most ten times a second, then
+     * the whole reply reported as a whole one is, and added to the prompt without its reasoning.
+     *
+     * A server that refuses the stream before anything came — a 400 or 422 for a field it does not
+     * take (`stream_options`), OpenAI's rule that only verified organizations stream some models, a
+     * reply that is not a stream, or one that cannot be read — is asked the same request whole; once
+     * that works, [refused] hears it, and the connection is not streamed again.
+     *
+     * [finishSaid]: the provider ends every reply with a finish reason (OpenRouter, OpenAI), so a
+     * stream without one closed early. A compatible server may never send one, and is not held to it.
+     */
+    fun streamed(reporter: Reporter, finishSaid: Boolean, refused: () -> Unit): KoogRequest {
+        // Refused once, the turn's later requests go whole at once.
+        var whole = false
+        return request@{
+            if (whole) return@request requestLLM()
+            val stream = KoogStream()
+            var received = false
             try {
-                requestLLMStreaming().collect { frame -> if (synchronized(stream) { stream.add(frame) }) grown.value += 1 }
-            } finally {
-                showing.cancel()
+                coroutineScope {
+                    val grown = MutableStateFlow(0)
+                    // The state is read when it is shown, never per piece: a long reply comes in thousands.
+                    val showing = launch {
+                        grown.collect { pieces ->
+                            if (pieces == 0) return@collect
+                            val (reasoning, text) = synchronized(stream) { stream.shown() }
+                            reporter.writing(reasoning, text)
+                            delay(LIVE_MILLIS)
+                        }
+                    }
+                    try {
+                        requestLLMStreaming().collect { frame ->
+                            received = true
+                            if (synchronized(stream) { stream.add(frame) }) grown.value += 1
+                        }
+                    } finally {
+                        showing.cancel()
+                    }
+                }
+            } catch (failure: Exception) {
+                if (failure is CancellationException || received || !refusesStreams(failure)) throw failure
+                // Whole: Koog adds it to the prompt and reports it as it does every whole reply.
+                val reply = requestLLM()
+                whole = true
+                refused()
+                return@request reply
             }
+            val reply = stream.reply()
+            // Koog's clients end a stream that closed early as if it had finished, and keep an upstream
+            // failure's reason ("error", OpenRouter's), not its error (F10, F11).
+            when {
+                reply.finishReason == null && finishSaid -> throw IncompleteStreamException("The stream closed before the reply said how it ended")
+                reply.finishReason == UPSTREAM_FAILED -> throw AssistantTurnException(KoogFailures.PROVIDER_FAILED)
+            }
+            reporter.completed(reply)
+            stream.echo().also { appendPrompt { message(it) } }
         }
-        val reply = stream.reply()
-        // OpenRouter ends every reply with one of five reasons; Koog's client ends a stream that
-        // closed early as if it had finished, and keeps an upstream failure's reason, not its error.
-        when (reply.finishReason) {
-            null -> throw IncompleteStreamException("The stream closed before the reply said how it ended")
-            OPENROUTER_FAILED -> throw AssistantTurnException(KoogFailures.PROVIDER_FAILED)
-        }
-        reporter.completed(reply)
-        stream.echo().also { appendPrompt { message(it) } }
+    }
+
+    /** [failure], before any frame came, is the server refusing to stream: an answer that is not a stream, or not one Koog can read. */
+    private fun refusesStreams(failure: Throwable): Boolean = generateSequence(failure) { it.cause }.take(MAX_CAUSES).any { cause ->
+        (cause as? KoogHttpClientException)?.statusCode in REFUSED || cause is SerializationException
     }
 
     /** Koog's events for [reporter]: each whole reply, and each call as it starts and ends. */
@@ -151,6 +198,10 @@ internal object KoogTurn {
     /** A streamed reply is shown at most this often. */
     private const val LIVE_MILLIS = 100L
 
-    /** OpenRouter's finish reason for a provider that failed after the reply began. */
-    private const val OPENROUTER_FAILED = "error"
+    /** The finish reason of a provider that failed after the reply began (OpenRouter's; relays pass it on). */
+    private const val UPSTREAM_FAILED = "error"
+
+    /** A stream refused: 400 and 422 for what a server does not take; 200 for a whole reply where a stream was asked. */
+    private val REFUSED = setOf(200, 400, 422)
+    private const val MAX_CAUSES = 8
 }

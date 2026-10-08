@@ -46,6 +46,7 @@ import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantMode
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantState
+import dev.icode.mobile.domain.GitChange
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.ui.LocalICodeGateway
 
@@ -55,7 +56,7 @@ import dev.icode.mobile.ui.LocalICodeGateway
  * home screen's: the logo, and what to ask.
  */
 @Composable
-internal fun AssistantChatView(state: AssistantState, modifier: Modifier, onSuggestion: (String) -> Unit) {
+internal fun AssistantChatView(state: AssistantState, modifier: Modifier, onSuggestion: (String) -> Unit, onDiff: (GitChange) -> Unit) {
     val gateway = LocalICodeGateway.current
     val entries = remember(state) { AssistantRules.entries(state) }
     Column(modifier) {
@@ -86,7 +87,7 @@ internal fun AssistantChatView(state: AssistantState, modifier: Modifier, onSugg
                     itemsIndexed(entries, key = { _, entry -> entry.key }) { index, entry ->
                         // The answer a turn ends on; one still being worked on may yet go on to a step.
                         val ends = entries.getOrNull(index + 1) !is AssistantEntry.Step && !(index == entries.lastIndex && state.runningHere)
-                        AssistantEntryRow(entry, copyable = ends)
+                        AssistantEntryRow(entry, copyable = ends, onDiff = onDiff)
                     }
                     state.failure?.let { failure ->
                         item(key = "failure") {

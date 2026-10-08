@@ -132,10 +132,20 @@ data class AssistantCall(
     /** "Read src/App.kt": what its step says, written when the call arrived. */
     val summary: String,
     val kind: AssistantToolKind,
+    /** The workspace file it reads or changes, relative to its top; null for a call that touches none. */
+    val file: String? = null,
+    /** The command line it runs, whole, for a call that runs one. */
+    val command: String? = null,
 )
 
-/** A tool's answer, as the model reads it. */
-data class AssistantResult(val callId: String, val tool: String, val output: String, val failed: Boolean)
+/** A tool's answer, as the model reads it, and for a change to a file, by how many lines it changed it. */
+data class AssistantResult(
+    val callId: String,
+    val tool: String,
+    val output: String,
+    val failed: Boolean,
+    val changes: LineChanges? = null,
+)
 
 /** What a file sent with a message is to the model (§13 P7). */
 enum class AssistantAttachmentKind { Text, Image, Document }

@@ -10,6 +10,7 @@ import dev.icode.mobile.domain.AssistantResult
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantSession
 import dev.icode.mobile.domain.AssistantToolKind
+import dev.icode.mobile.domain.LineChanges
 import java.io.File
 import org.json.JSONArray
 import org.junit.After
@@ -75,12 +76,36 @@ class AssistantChatStoreTest {
 
     @Test fun `it keeps its newest messages, starting at something the user said, each output bounded`() {
         val long = (1..300).flatMap { listOf(AssistantMessage.User("q$it"), AssistantMessage.Reply("a$it")) }
-        val output = AssistantMessage.Results(listOf(AssistantResult("c", "run_command", "x".repeat(40_000), failed = false)))
-        store.save("/w/app", "s1", AssistantChat(long + AssistantMessage.Reply("", listOf(call.copy(id = "c"))) + output), now = 1)
+        // A command's output as its tool bounds it — 32 000 characters and its stderr — is kept whole.
+        val whole = "x".repeat(41_000)
+        val output = AssistantMessage.Results(listOf(AssistantResult("c", "run_command", whole, failed = false), AssistantResult("d", "read_file", "y".repeat(90_000), failed = false)))
+        val calls = listOf(call.copy(id = "c"), call.copy(id = "d"))
+        store.save("/w/app", "s1", AssistantChat(long + AssistantMessage.Reply("", calls) + output), now = 1)
         val loaded = store.load("/w/app", "s1").messages
         assertTrue(loaded.size <= 400)
         assertTrue(loaded.first() is AssistantMessage.User)
-        assertTrue((loaded.last() as AssistantMessage.Results).results.single().output.length < 17_000)
+        val results = (loaded.last() as AssistantMessage.Results).results
+        assertEquals(whole, results[0].output)
+        assertTrue(results[1].output.length < 49_000)
+    }
+
+    @Test fun `a call keeps the file and the command it names, and a change by how many lines`() {
+        val edit = AssistantCall("e1", "edit_file", """{"path":"src/a.kt"}""", "Edit src/a.kt", AssistantToolKind.Change, file = "src/a.kt")
+        val run = AssistantCall("r1", "run_command", """{"command":"npm test"}""", "Run `npm test`", AssistantToolKind.Command, command = "npm test")
+        val saved = AssistantChat(
+            listOf(
+                AssistantMessage.User("Fix it"),
+                AssistantMessage.Reply("", listOf(edit, run)),
+                AssistantMessage.Results(
+                    listOf(
+                        AssistantResult("e1", "edit_file", "Edited src/a.kt: +2 −1 lines", failed = false, changes = LineChanges(2, 1)),
+                        AssistantResult("r1", "run_command", "Exit code 0 (succeeded)", failed = false),
+                    ),
+                ),
+            ),
+        )
+        store.save("/w/app", "s1", saved, now = 1)
+        assertEquals(saved, store.load("/w/app", "s1"))
     }
 
     @Test fun `deleting a chat takes it off the list`() {

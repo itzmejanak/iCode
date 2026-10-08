@@ -1,7 +1,8 @@
 # Runtime foundation — plan, as built (2026-10-02)
 
-Status: **F0–F6 done (2026-10-02)**, each checked as far as this container allows (§5). Left for
-the owner: the Gradle build and the device pass (§5.3).
+Status: **F0–F7 done (2026-10-02)**, each checked as far as this container allows (§5); streaming
+for OpenAI and OpenAI-compatible servers, and the chat's steps (§7), done 2026-10-08. Left for the
+owner: the Gradle build and the device pass (§5.3, §7.3).
 
 The owner asked for decisions taken, not offered: researched, accurate, the foundation made right
 before production. This plan takes them, each on facts checked in iCode's code, Koog 1.3.0's
@@ -26,13 +27,14 @@ Two rules hold throughout:
 | F4 | Apps share the phone's loopback, so a server on `127.0.0.1` opens in the phone's browser; an app that is not root cannot listen below port 1024 | [Termux local server guides](https://www.learntermux.tech/2020/10/Apache2-Termux.html) | A preview needs no forwarding: the browser opens it. Servers use ports from 1024 |
 | F5 | A non-interactive login bash reads `/etc/profile` and `~/.profile`; Ubuntu's `~/.bashrc` returns at once unless the shell is interactive | Ubuntu's `/etc/skel/.bashrc` (`case $- in *i*) ;; *) return;; esac`) | What installers add to `~/.bashrc` (nvm, a conda init) is seen only by an interactive shell: the snapshot is taken with `bash -lic` |
 | F6 | A variable a shell exports after it started is invisible from outside it | `/proc/<pid>/environ` holds the environment at `execve` | A live terminal's state cannot be copied; the profile can be read |
-| F7 | Koog 1.3.0 streams soundly only through some clients | §1.1 | Streaming where it is sound and needed: OpenRouter |
+| F7 | Koog 1.3.0 streams soundly only through some clients | §1.1 | Streaming where it is sound: OpenRouter, and OpenAI's Chat Completions, which every OpenAI-compatible server speaks |
 | F8 | OpenRouter sends reasoning as `message.reasoning` (whole) and `delta.reasoning` (streamed); it treats `max_completion_tokens` as `max_tokens`; it puts usage in the last streamed chunk | [OpenRouter reasoning tokens](https://openrouter.ai/docs/guides/best-practices/reasoning-tokens), [parameters](https://openrouter.ai/docs/api_reference/parameters), [usage accounting](https://openrouter.ai/docs/cookbook/administration/usage-accounting) | Koog's whole-reply path (`OpenAIMessage`, `reasoning_content` only) loses it; its streamed path keeps it |
 | F9 | Koog's OpenAI client sends an output limit as `max_completion_tokens`, and flattens `additionalProperties` into the request | `OpenAILLMClient.kt:182`, `OpenAIChatCompletionRequestSerializer` | A compatible server that reads only `max_tokens` is sent that too |
 | F10 | OpenRouter ends every reply with one of five finish reasons — `tool_calls`, `stop`, `length`, `content_filter`, `error` — and reports a provider that fails after the reply began as a chunk with an `error` and `finish_reason: "error"` | [Standardized finish reasons](https://openrouter.ai/announcements/standardized-finish-reasons), [streaming](https://openrouter.ai/docs/api_reference/streaming), [LangChain.js issue 11699](https://github.com/langchain-ai/langchainjs/issues/11699) | A stream with no finish reason closed early; one ending in `error` failed. Neither is a finished reply |
 | F11 | Koog's OpenRouter client emits its `End` frame whenever the stream's body ends, closed early or not, and keeps a chunk's `finish_reason` but not its `error`; Koog's SSE client wraps every failure without a status in `KoogHttpClientException`, its other clients wrap theirs in `LLMClientException` | `OpenRouterLLMClient.processStreamingResponse`, `KtorKoogHttpClient.sse`, `AbstractOpenAILLMClient.getResponse` | iCode reads the finish reason itself (F10), and explains a failure without a status by its cause |
 | F12 | Providers say when their content rules stopped a reply: `content_filter` (OpenAI, OpenRouter, compatible servers), `refusal` (Anthropic), `SAFETY`, `RECITATION`, `BLOCKLIST`, `PROHIBITED_CONTENT`, `SPII`, `IMAGE_SAFETY` (Gemini); Koog passes each through as the reply's finish reason | Each client's response mapping, as for the output limit's reasons | Such a reply passed for a finished one, as one cut short did |
 | F13 | Koog's OpenAI client, reading a whole reply, parses each call's `arguments` with `Json.parseToJsonElement` outside any error handling, and throws on arguments that are not a JSON object — losing the whole reply. A long call cut at the output limit is one: on a phone, a `run_command` script cut inside its string ended the turn with "Unexpected EOF at path: $", again after "continue". Koog's Anthropic, Google and Ollama clients parse a call's arguments the same way when they send it back | `AbstractOpenAILLMClient.toolCallPartsOrNull`; `AnthropicLLMClient`, `GoogleLLMClient`, `OllamaConverters`; reproduced against Koog's real client (§5.1) | Arguments that are not an object are carried in one before Koog reads them, and never sent back as they were (§3.12) |
+| F14 | Koog's OpenAI client, streaming, asks for `stream_options: {"include_usage": true}` and reads each chunk as OpenAI's: `id`, `object`, `created` and `model` required, the reasoning only as `reasoning_content`. A compatible server need not take that field, send those four, stream at all, or end with a finish reason; OpenAI itself refuses to stream some models to an organization it has not verified | `OpenAILLMClient` (`OpenAIStreamOptions(includeUsage = true)`), `OpenAIChatCompletionStreamResponse`, `OpenAIStreamDelta` | A server that refuses the stream before anything came is asked the same request whole, and not streamed again; a compatible server's stream is not held to a finish reason (D8) |
 
 ### 1.1 Koog 1.3.0's streams, client by client
 
@@ -56,7 +58,7 @@ Two rules hold throughout:
 | D5 | **No socket tools added** to the runtime; "what is listening" is iCode's: the ports a managed process's output names (`http://127.0.0.1:8000`, `localhost:5173`, `0.0.0.0:8000`), each checked with a connection from iCode | F3 |
 | D6 | **Preview** is the phone's browser: a port opens `http://127.0.0.1:<port>` | F4; nothing to forward |
 | D7 | **Diagnostics**: a command's result says its exit status in words — 126 "not executable", 127 "not found", 128+n "ended by signal NAME" — where it ran, and, for 127, the PATH searched. A timeout says to start a server or watcher with `start_process` | The test's 127 and 143 said nothing |
-| D8 | **Streaming** for OpenRouter only (§1.1): its reasoning and answer appear as they are written, and its reasoning becomes visible at all (F8). The reasoning is shown, never sent back, as today. Every other client stays on whole replies. An OpenAI-compatible provider whose address is `openrouter.ai` is told to use the OpenRouter type | Streaming everywhere would break Anthropic and Ollama in Koog 1.3.0 |
+| D8 | **Streaming** for OpenRouter, OpenAI's Chat Completions and OpenAI-compatible servers (§1.1): the reasoning and the answer appear as they are written, and OpenRouter's reasoning becomes visible at all (F8). The reasoning is shown, never sent back, as today. A server that refuses the stream before anything came — a 400 or 422, a whole reply where a stream was asked, chunks Koog cannot read (F14) — is asked the same request whole; the provider's address and model are then not streamed again while iCode runs, nor the rest of that turn. A stream with no finish reason closed early for OpenRouter and OpenAI, which always send one; a compatible server is not held to it. OpenAI's Responses-only models, Anthropic, Gemini and Ollama stay on whole replies. An OpenAI-compatible provider whose address is `openrouter.ai` is told to use the OpenRouter type, which alone reads its reasoning | Streaming everywhere would break Anthropic and Ollama in Koog 1.3.0. OpenRouter alone first (cycle F5); the owner's providers, all OpenAI-compatible, then showed no reply as it was written (§7) |
 | D9 | **Output limit**: an OpenAI-compatible server is sent `max_tokens` as well as `max_completion_tokens` | F9; OpenAI's own API keeps the one it accepts |
 | D10 | **No compatibility code**: removed — the provider store's round-2 migration, the chat store's single-chat migration and round-2 attachments, the workspace storage migration's one-time part and its notice (`WorkspacesMovedIn`, `EarlierWorkspace`, the earlier recents), the Git credentials file of earlier versions. The staging sweep at every start stays: it is recovery from a crash, not from a version | Owner, 2026-10-01 |
 | D11 | **`uv`'s hard link** is not worked around: its failing call is unknown without a trace on a device, and a global `UV_LINK_MODE` would be one tool's setting in the platform | The findings' rule |
@@ -151,17 +153,24 @@ workspace, each with:
 The sheet says that Android may end background processes when many run. *Reworked in §6: the
 sheet lists processes; their output is in the terminal.*
 
-### 3.8 Streaming for OpenRouter
+### 3.8 Streaming
 
 - **The turn:** `KoogTurn.strategy(stream)` builds the turn's strategy per run. For OpenRouter,
-  its two requests stream (`KoogTurn.streamed`): the reply is put together from the frames
+  OpenAI's Chat Completions models and OpenAI-compatible servers (`KoogTurn.streams`), its two
+  requests stream (`KoogTurn.streamed`): the reply is put together from the frames
   (`KoogStream`) — the reasoning and the text from their deltas, each call as Koog's stream
   completed it — and reported.
   - Tool arguments: blank arguments become `{}`. Arguments that are not JSON reach Koog's tool
     runner, which answers the model about them (Koog's own `toMessageResponse()` would throw).
   - The prompt: the reply is appended without its reasoning.
-  - How it ended: no finish reason means the stream closed early, `error` that OpenRouter's
-    provider failed (F10, F11); neither reply is kept.
+  - How it ended: no finish reason means the stream closed early — for OpenRouter and OpenAI,
+    not for a compatible server, which may never send one (F14) — and `error` that the provider
+    failed (F10, F11); neither reply is kept.
+  - Refused (F14): a failure before any frame came whose cause is a 200, 400 or 422, or a chunk
+    Koog cannot read, sends the same request whole, which Koog adds to the prompt and reports as
+    it does every whole reply. Once that works, the turn's later requests go whole at once, and
+    the engine keeps `kind|address|model` for the rest of iCode's run (`refusedStreams`). A failure
+    after a frame came, or one the whole request repeats, is the request's own.
 - **Events:** the reply, the tokens, the output limit and a content filter's stop are reported
   the same way for streamed and whole replies (`KoogTurn.Reporter`). A stream that broke or closed
   early says "The connection ended before the reply was complete — try again"; one whose
@@ -173,8 +182,8 @@ sheet lists processes; their output is in the terminal.*
   as Markdown; the page keeps the end in view unless the user scrolled up to read. The recorded
   reply then replaces both, its reasoning folded.
 - **The provider page:** an OpenAI-compatible provider whose address is on `openrouter.ai` says
-  "Choose the OpenRouter type for OpenRouter: only it shows replies as they are written, and the
-  models' reasoning".
+  "Choose the OpenRouter type for OpenRouter: only it shows the models' reasoning" — OpenRouter
+  sends it as `reasoning`, which Koog's OpenAI client does not read (F8, F14).
 
 ### 3.9 The output limit
 
@@ -239,7 +248,8 @@ it sends a limit. On the wire, against a local server: `"max_completion_tokens":
 | F4 | The Processes sheet (D6) | Compose type-check, UI guard | `75df794` |
 | F5 | Streaming for OpenRouter, live page, OpenRouter hint, output limit, why a turn stopped (D8, D9, D12) | Engine tests with a streaming fake client; params test; Koog's real clients against a local server | `800f661` |
 | F6 | Architecture, PRD, user stories, plans as built; guards; API-30 check; commit | Review | `bfec8c8` |
-| F7 | Arguments that are not an object (F13, §3.12), from the phone's "Unexpected EOF at path: $" | The failure reproduced against Koog's real client; unit tests; the real client over HTTP with the phone's cut reply | this commit |
+| F7 | Arguments that are not an object (F13, §3.12), from the phone's "Unexpected EOF at path: $" | The failure reproduced against Koog's real client; unit tests; the real client over HTTP with the phone's cut reply | `1ef68f6` |
+| S1–S5 | Streaming for OpenAI and compatible servers; the chat's steps (§7) | Engine tests; Koog's real client against a local server; unit tests; Compose type-check; guards; API-30 check | this commit |
 
 ## 5. Record (2026-10-02)
 
@@ -284,7 +294,8 @@ it sends a limit. On the wire, against a local server: `"max_completion_tokens":
 2. A command that `cd`s into a folder, then one that runs there; `nvm`'s Node found by a command
    with nothing set by hand.
 3. OpenRouter with a reasoning model: the reasoning and the answer appear as written; the
-   recorded reply folds its reasoning.
+   recorded reply folds its reasoning. An OpenAI-compatible server: the answer appears as written
+   (§7.3).
 4. A compatible server with an Output Limit: the limit holds.
 
 ## 6. The Processes sheet lists processes; their output is in the terminal (owner, 2026-10-02)
@@ -333,3 +344,58 @@ every `host:port` in the output.
   service's group under its summary — one iCode card — and the summary names the work by its own
   words ("1 session · 2 processes running"), not "tasks". Failures and questions still pop up alone.
 
+
+## 7. Replies as they are written, and the chat's steps (owner, 2026-10-08)
+
+The owner, on the phone, with four OpenAI-compatible providers: no reply appeared as it was
+written. Asked with it: an opened command's output was cut, and should be whole, with a Copy; a
+write should say how many lines it really changed; a tap on the open output should close it; a
+long press on a file should open it in the editor or show its changes.
+
+| Step | What |
+|---|---|
+| S1 | **Why nothing streamed:** D8 streamed the OpenRouter type alone; every other provider, the owner's OpenAI-compatible servers among them, waited for the whole reply. Now OpenAI's Chat Completions models and compatible servers stream too, through the same request (§3.8). A server that refuses the stream is asked whole and remembered (F14); a compatible stream is not held to a finish reason |
+| S2 | **A command's step, opened, is whole:** the page cut its output at 8 000 characters and the chat's file at 16 000, below what `run_command` gives the model (32 000 of head and tail, 8 000 of stderr). The page no longer cuts; the file keeps 48 000. The command's line (`$ npm test`) heads the output, Copy at its corner copies both, and a tap on what is open closes it |
+| S3 | **Lines changed:** `write_file` and `edit_file` count the lines they added and removed as `git diff --numstat` does (`LineChanges.between`: Myers' shortest edit over the lines, what both start and end with taken off first; a missing final line break makes the last line another, as Git's "\ No newline at end of file"; line endings are the file's, which a write keeps). The model reads it ("Edited a.kt: +1 −1 lines"); the step shows "+1 −1" in green and red once done; the chat keeps it |
+| S4 | **A long press on a step about a file:** Open in Editor (`OpenFile`, which goes to the editor), Show Changes — only where Source Control lists the file as changed and its diff can be shown: not untracked, deleted or conflicted; the unstaged change first, as the list opens it — and Copy Path. A call names its file and command as its tool reads them from the arguments (`AssistantTool.file`, `.command`), kept with the chat |
+| S5 | These documents as built; guards; the API-30 check; commit |
+
+### 7.1 Found with it
+
+- **Main did not compile after its rename** (Workbench → ICode, `d18d540`): `AssistantCoordinator`
+  still passed `workbench`, and three tests (`TerminalCoordinatorTest`, `WorkspaceUsageTest`,
+  `WorkspaceImportCoordinatorTest`) named their state holder by its old name. Fixed here.
+- **The provider page's OpenRouter hint** said only the OpenRouter type shows replies as written.
+  Now the compatible type streams too, and loses only the reasoning, which OpenRouter sends as
+  `reasoning` and Koog's OpenAI client reads only as `reasoning_content` (`OpenAIStreamDelta`):
+  "Choose the OpenRouter type for OpenRouter: only it shows the models' reasoning".
+
+### 7.2 Record (2026-10-08)
+
+- **Tests.** 665 `data/` and `domain/` tests run; one fails, `TreeSizeTest`'s unreadable
+  directory, as before (the container runs as root). New: replies stream from OpenAI, compatible
+  servers and OpenRouter and come whole from the rest; a refused stream asked whole, its model not
+  streamed again, the turn's later requests whole at once; a refusal the whole request repeats is
+  the request's own, and the next turn streams again; a compatible stream without a finish reason
+  is kept, OpenAI's is not; a call's file and command; line counts (new files, changed, moved and
+  kept lines, final line breaks, line endings, a 3 000-line rewrite); the tools' words; the counts
+  carried from the tool to the result and the step; the chat file keeping a 41 000-character output
+  whole, and a call's file, command and counts; a file's change found as Source Control lists it.
+- **Against Git.** 400 random pairs of texts (empty lines, final line breaks gained and lost, whole
+  rewrites): `LineChanges.between` and `git diff --no-index --numstat` agreed on every one.
+- **On the wire.** Koog's real OpenAI client against a local server speaking a compatible server's
+  stream: the reasoning (`reasoning_content`) and the answer reach the page as written, a call
+  split over three chunks runs, the usage comes from the last chunk, both requests ask for it, and
+  the next request carries the reply without its reasoning. A server that answers 400 to a stream
+  is asked whole, and the next turn goes whole at once. The phone's cut call (§3.12) goes the same
+  way, through the refused stream to the whole reply.
+- **Builds and guards.** The backend and the Assistant's screens type-check (the screens against
+  Compose's desktop jars); the backend and UI guards pass; every class is checked against Android
+  11's API (minSdk 30).
+
+### 7.3 The device pass
+
+1. The owner's OpenAI-compatible provider: the answer appears as it is written; a model that
+   sends `reasoning_content` (DeepSeek's) shows its reasoning as written, then folded.
+2. A command with long output: opened, all of it under `$ command`; Copy; a tap closes it.
+3. An edit: "+N −M" beside its step; a long press: Open in Editor, Show Changes, Copy Path.
