@@ -3,11 +3,14 @@ package dev.icode.mobile.ui.editor
 import android.annotation.SuppressLint
 import android.content.Context
 import android.text.Spanned
+import android.text.TextPaint
 import android.text.method.LinkMovementMethod
 import android.util.TypedValue
 import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.widget.TextView
+import java.lang.reflect.Field
+import java.lang.reflect.Method
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -104,17 +107,79 @@ internal class ScalableMarkdownTextView(context: Context) : TextView(context) {
 
     /**
      * [markdown] at [sizeSp]. Text, headings and lists read the size as they are drawn; a table does
-     * not: Markwon's `TableRowSpan` lays its cells out once, again only when the width it is drawn
-     * at changes (4.6.2, `recreateLayouts`). A new size — a pinch — renders a table anew, its cells
-     * laid out at that size.
+     * not: Markwon's `TableRowSpan` lays its cells out once, once the width it is drawn at changes
+     * (4.6.2, `recreateLayouts`). A new size — a pinch — renders a table anew, its cells laid out
+     * at that size.
+     *
+     * Rendering always pre-lays any table rows at the text area's real width, before the text is
+     * set. Markwon itself is two-pass: a row measures at width 0 on the first layout, gets its real
+     * width (and height) only when drawn, then an `Invalidator`'s `setText(same)` forces a correct
+     * second layout. During streaming the second pass races the next chunk, so rows stay one line
+     * tall and overlap. Setting each row's width before [setText] makes the first layout correct.
      */
     fun show(markwon: Markwon, markdown: String, sizeSp: Float) {
         setTextSize(TypedValue.COMPLEX_UNIT_SP, sizeSp)
         if (markdown != renderedMarkdown || (sizeSp != renderedSize && holdsTable())) {
-            markwon.setMarkdown(this, markdown)
+            setRenderedMarkdown(markwon, markdown)
             renderedMarkdown = markdown
         }
         renderedSize = sizeSp
+    }
+
+    private fun setRenderedMarkdown(markwon: Markwon, markdown: String) {
+        // `setMarkdown` = `setParsedMarkdown(toMarkdown(source))`; render first so the TableRowSpans
+        // can be laid out at the text area's width before the text is set. `setParsedMarkdown`
+        // keeps the plugins' hooks: CorePlugin attaches TextViewSpan (the width draw() measures a
+        // row at), TablePlugin reprograms its rows' Invalidators.
+        val available = width - paddingLeft - paddingRight
+        if (available > 0) {
+            val spanned = markwon.toMarkdown(markdown)
+            layOutTableRows(spanned, available)
+            markwon.setParsedMarkdown(this, spanned)
+        } else {
+            markwon.setMarkdown(this, markdown)
+        }
+    }
+
+    /**
+     * Markwon measures a `TableRowSpan` at its stored `width`; before the first draw that is 0, and
+     * the row is one line tall. Laying each row out at [available] here makes `draw`'s
+     * `recreateLayouts(width)` a no-op (width already matches), so the row is correct on the very
+     * first layout pass instead of being repaired one frame late (which streaming never waits for).
+     */
+    private fun layOutTableRows(spanned: Spanned, available: Int) {
+        val rows = spanned.getSpans(0, spanned.length, TableRowSpan::class.java)
+        if (rows.isEmpty()) return
+        // Markwon's draw() mutates its `textPaint` in place; do the same so the copy carries the
+        // view's text size and colors when each cell's StaticLayout is created.
+        val viewPaint = TextPaint(paint)
+        for (row in rows) {
+            try {
+                TableRowSpans.WIDTH.setInt(row, available)
+                (TableRowSpans.TEXT_PAINT.get(row) as TextPaint).set(viewPaint)
+                TableRowSpans.MAKING_NEW_LAYOUTS.invoke(row)
+            } catch (_: Exception) {
+                // R8 renames or removes private library members in release builds; fall back to the
+                // library's own two-pass layout (one frame off during streaming rather than a crash).
+                return
+            }
+        }
+    }
+
+    private object TableRowSpans {
+        private val width = reflectField("width")
+        private val textPaint = reflectField("textPaint")
+        private val makingNewLayouts = reflectMethod("makeNewLayouts")
+
+        private fun reflectField(name: String): Field =
+            TableRowSpan::class.java.getDeclaredField(name).apply { setAccessible(true) }
+
+        private fun reflectMethod(name: String): Method =
+            TableRowSpan::class.java.getDeclaredMethod(name).apply { setAccessible(true) }
+
+        val WIDTH: Field = width
+        val TEXT_PAINT: Field = textPaint
+        val MAKING_NEW_LAYOUTS: Method = makingNewLayouts
     }
 
     private fun holdsTable(): Boolean = (text as? Spanned)?.let { it.getSpans(0, it.length, TableRowSpan::class.java).isNotEmpty() } == true
