@@ -357,7 +357,23 @@ class AssistantCoordinatorTest {
         until { state().settings.mode == AssistantMode.Ask }
         said("Explain")
         assertEquals(listOf("read_file"), requests.single().tools.map { it.name })
-        assertTrue("Ask" in requests.single().instructions || "read the workspace" in requests.single().instructions)
+        assertTrue("You CANNOT change files or run commands" in requests.single().instructions)
+    }
+
+    @Test fun `Plan offers only the tools that read, and plans rather than changes`() {
+        coordinator.handle(ICodeIntent.ChooseAssistantMode(AssistantMode.Plan))
+        until { state().settings.mode == AssistantMode.Plan }
+        said("How should authentication work?")
+        assertEquals(listOf("read_file"), requests.single().tools.map { it.name })
+        assertTrue("you never implement" in requests.single().instructions)
+    }
+
+    @Test fun `Orchestrator keeps every tool and leads a task step by step`() {
+        coordinator.handle(ICodeIntent.ChooseAssistantMode(AssistantMode.Orchestrator))
+        until { state().settings.mode == AssistantMode.Orchestrator }
+        said("Add settings")
+        assertEquals(listOf("read_file", "edit_file"), requests.last().tools.map { it.name })
+        assertTrue("implements and verifies" in requests.last().instructions)
     }
 
     @Test fun `the model chosen on the page is one of a provider's, and its effort is sent only where offered`() {
@@ -376,7 +392,7 @@ class AssistantCoordinatorTest {
 
         // A model the provider does not list is not chosen.
         coordinator.handle(ICodeIntent.ChooseAssistantModel(openAI, "gpt-9"))
-        coordinator.handle(ICodeIntent.ChooseAssistantMode(AssistantMode.Agent))
+        coordinator.handle(ICodeIntent.ChooseAssistantMode(AssistantMode.Code))
         Thread.sleep(50)
         assertEquals("o3", state().settings.model?.id)
     }

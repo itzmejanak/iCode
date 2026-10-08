@@ -37,10 +37,12 @@ enum class AssistantEffort(val label: String) {
     On("On"),
 }
 
-/** What a turn may do: everything, or only read (§12 R8). */
+/** What a turn may do (§12 R8): implement, plan, answer, or orchestrate. */
 enum class AssistantMode(val label: String, val description: String) {
-    Agent("Agent", "Reads, changes files and runs commands"),
+    Code("Code", "Reads, changes files and runs commands"),
+    Plan("Plan", "Reads and analyzes; plans changes without making them"),
     Ask("Ask", "Reads and answers; changes nothing"),
+    Orchestrator("Orchestrator", "Plans, implements and verifies step by step"),
 }
 
 /** A model as the assistant knows it: its limits, its efforts, and what it reads besides text. */
@@ -100,7 +102,7 @@ data class AssistantSettings(
     val askBeforeChanges: Boolean = true,
     /** Null: the provider's default ("Auto"). */
     val effort: AssistantEffort? = null,
-    val mode: AssistantMode = AssistantMode.Agent,
+    val mode: AssistantMode = AssistantMode.Code,
     /** The model that writes commit messages (Settings › Source Control); null: the chat's. */
     val commitChoice: AssistantChoice? = null,
 ) {

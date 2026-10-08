@@ -201,6 +201,8 @@ private suspend fun LazyListState.scrollToEnd() {
 private fun AssistantWelcome(state: AssistantState, modifier: Modifier, onSuggestion: (String) -> Unit) {
     val workspace = AssistantRules.workspaceName(state.workspace.orEmpty())
     val asking = state.settings.mode == AssistantMode.Ask
+    val planning = state.settings.mode == AssistantMode.Plan
+    val orchestrating = state.settings.mode == AssistantMode.Orchestrator
     Box(modifier.fillMaxWidth()) {
         IcodeWatermark(Modifier.align(Alignment.Center))
         Column(
@@ -209,29 +211,52 @@ private fun AssistantWelcome(state: AssistantState, modifier: Modifier, onSugges
             verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
         ) {
             EmptyState(
-                title = if (asking) "Ask about $workspace" else "Build with the assistant",
-                description = if (asking) {
-                    "It reads this workspace to answer, and changes nothing."
-                } else {
-                    "It reads and changes $workspace's files and runs commands in its terminal${if (state.settings.askBeforeChanges) ", asking first" else ""}."
+                title = when {
+                    asking -> "Ask about $workspace"
+                    planning -> "Plan for $workspace"
+                    orchestrating -> "Build with orchestration"
+                    else -> "Build with the assistant"
+                },
+                description = when {
+                    asking -> "It reads this workspace to answer, and changes nothing."
+                    planning -> "It reads everything to understand and plan. It never changes files or runs commands."
+                    orchestrating -> "It plans, implements and verifies step by step, reporting what it did."
+                    else -> "It reads and changes $workspace's files and runs commands in its terminal${if (state.settings.askBeforeChanges) ", asking first" else ""}."
                 },
                 mark = { IcodeBrandMark(Modifier.size(IcodeSizes.MarkLg)) },
             )
-            (if (asking) ASK_SUGGESTIONS else AGENT_SUGGESTIONS).forEach { suggestion ->
+            when {
+                asking -> ASK_SUGGESTIONS
+                planning -> PLAN_SUGGESTIONS
+                orchestrating -> ORCHESTRATOR_SUGGESTIONS
+                else -> CODE_SUGGESTIONS
+            }.forEach { suggestion ->
                 IcodeListRow(title = suggestion, card = true, onClick = { onSuggestion(suggestion) }, modifier = Modifier.fillMaxWidth())
             }
         }
     }
 }
 
-private val AGENT_SUGGESTIONS = listOf(
+private val CODE_SUGGESTIONS = listOf(
     "Explain how this project is organized",
     "Review my uncommitted changes",
     "Add a README for this project",
+)
+
+private val PLAN_SUGGESTIONS = listOf(
+    "Analyze the architecture and suggest improvements",
+    "Plan how to add authentication",
+    "What would it take to add dark mode?",
 )
 
 private val ASK_SUGGESTIONS = listOf(
     "Explain how this project is organized",
     "Where does the app start?",
     "What do my uncommitted changes do?",
+)
+
+private val ORCHESTRATOR_SUGGESTIONS = listOf(
+    "Add a new settings screen with search",
+    "Refactor the gateway into smaller coordinators",
+    "Set up CI with GitHub Actions",
 )

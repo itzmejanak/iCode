@@ -92,7 +92,12 @@ internal fun AssistantComposer(
             Box(Modifier.fillMaxWidth().padding(IcodeSpacing.Space1)) {
                 if (draft.isEmpty()) {
                     Text(
-                        if (settings.mode == AssistantMode.Ask) "Ask about ${AssistantRules.workspaceName(state.workspace.orEmpty())}" else "Describe what to build",
+                        when (settings.mode) {
+                            AssistantMode.Ask -> "Ask about ${AssistantRules.workspaceName(state.workspace.orEmpty())}"
+                            AssistantMode.Plan -> "Plan what to build"
+                            AssistantMode.Code -> "Describe what to build"
+                            AssistantMode.Orchestrator -> "What would you like to build?"
+                        },
                         style = IcodeType.Body.copy(color = IcodeColors.TextMuted),
                     )
                 }
