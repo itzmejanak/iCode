@@ -30,6 +30,8 @@ internal data class StoredSettings(
     val askBeforeChanges: Boolean = true,
     val effort: AssistantEffort? = null,
     val mode: AssistantMode = AssistantMode.Agent,
+    /** The model that writes commit messages, while it is listed; null: the chat's. */
+    val commitChoice: AssistantChoice? = null,
 )
 
 /**
@@ -50,6 +52,9 @@ internal interface AssistantProviderStore {
     fun removeProvider(id: String)
 
     fun choose(choice: AssistantChoice)
+
+    /** The model that writes commit messages; null: the chat's. One no longer listed is not kept. */
+    fun chooseCommitModel(choice: AssistantChoice?)
 
     fun chooseEffort(effort: AssistantEffort?)
 
@@ -77,14 +82,19 @@ internal class SharedPreferencesAssistantProviderStore(
     private val lock = Any()
 
     override fun settings(): StoredSettings = synchronized(lock) {
+        val providers = providers()
         StoredSettings(
-            providers = providers(),
+            providers = providers,
             choice = preferences.getString(KEY_CHOICE_PROVIDER, null)?.let { provider ->
                 preferences.getString(KEY_CHOICE_MODEL, null)?.let { AssistantChoice(provider, it) }
             },
             askBeforeChanges = preferences.getBoolean(KEY_ASK, true),
             effort = preferences.getString(KEY_EFFORT, null)?.let { name -> AssistantEffort.entries.firstOrNull { it.name == name } },
             mode = preferences.getString(KEY_MODE, null)?.let { name -> AssistantMode.entries.firstOrNull { it.name == name } } ?: AssistantMode.Agent,
+            // A model taken out of its provider, or a provider removed, leaves the chat's model to write them.
+            commitChoice = preferences.getString(KEY_COMMIT_PROVIDER, null)?.let { provider ->
+                preferences.getString(KEY_COMMIT_MODEL, null)?.let { AssistantChoice(provider, it) }
+            }?.takeIf { listed(providers, it) },
         )
     }
 
@@ -124,9 +134,25 @@ internal class SharedPreferencesAssistantProviderStore(
     }
 
     override fun choose(choice: AssistantChoice) = synchronized(lock) {
-        if (providers().none { provider -> provider.id == choice.provider && provider.models.any { it.id == choice.model } }) return@synchronized
+        if (!listed(providers(), choice)) return@synchronized
         preferences.commitOrFail("Unable to save the assistant's model") { putChoice(choice) }
     }
+
+    override fun chooseCommitModel(choice: AssistantChoice?) = synchronized(lock) {
+        if (choice != null && !listed(providers(), choice)) return@synchronized
+        preferences.commitOrFail("Unable to save the commit messages' model") {
+            if (choice == null) {
+                remove(KEY_COMMIT_PROVIDER)
+                remove(KEY_COMMIT_MODEL)
+            } else {
+                putString(KEY_COMMIT_PROVIDER, choice.provider)
+                putString(KEY_COMMIT_MODEL, choice.model)
+            }
+        }
+    }
+
+    private fun listed(providers: List<StoredProvider>, choice: AssistantChoice) =
+        providers.any { provider -> provider.id == choice.provider && provider.models.any { it.id == choice.model } }
 
     override fun chooseEffort(effort: AssistantEffort?) {
         preferences.commitOrFail("Unable to save the assistant's settings") {
@@ -230,6 +256,8 @@ internal class SharedPreferencesAssistantProviderStore(
         const val KEY_PROVIDERS = "providers"
         const val KEY_CHOICE_PROVIDER = "choice.provider"
         const val KEY_CHOICE_MODEL = "choice.model"
+        const val KEY_COMMIT_PROVIDER = "commit.provider"
+        const val KEY_COMMIT_MODEL = "commit.model"
         const val KEY_ASK = "ask_before_changes"
         const val KEY_EFFORT = "effort"
         const val KEY_MODE = "mode"

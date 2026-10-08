@@ -174,7 +174,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
         appContext, stateHolder, scope,
         AssistantToolbox(source, ripgrep, gitCli, execution, runtimeLayout::isInstalled, { documents.blockingEdits(it) != null }) { session.requestRefresh(rebuildIndex = true) },
         activeRoot = { session.activeRoot },
-        source = source,
+        source = source, git = gitCli,
     )
 
     override val snapshot: StateFlow<ICodeSnapshot> = stateHolder.snapshot

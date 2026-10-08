@@ -1,5 +1,8 @@
 package dev.icode.mobile.designsystem
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -16,9 +19,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -186,6 +191,22 @@ fun KeyChipRow(
     Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
         keys.forEach { key ->
             KeyChip(key, modifier = chipModifier, active = key in activeKeys, onClick = onKey?.let { handler -> { handler(key) } })
+        }
+    }
+}
+
+/**
+ * ↓ over what scrolls, at its end: back to the latest — the terminal's output, the chat's reply.
+ * Shown, fading in and out, only while [visible]: the user scrolled back from the end.
+ */
+@Composable
+fun JumpToLatestButton(visible: Boolean, contentDescription: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    AnimatedVisibility(visible = visible, modifier = modifier, enter = fadeIn(), exit = fadeOut()) {
+        IconButton(
+            onClick = onClick,
+            modifier = Modifier.size(IcodeSizes.TouchTarget).background(IcodeColors.SurfaceElevated, IcodeShapes.Pill),
+        ) {
+            Icon(Icons.Outlined.ArrowDownward, contentDescription = contentDescription, tint = IcodeColors.Green)
         }
     }
 }

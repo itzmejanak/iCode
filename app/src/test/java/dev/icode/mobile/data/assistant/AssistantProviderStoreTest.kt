@@ -54,6 +54,24 @@ class AssistantProviderStoreTest {
         assertNull(store.settings().choice)
     }
 
+    @Test fun `the commit messages' model is kept while it is listed, and none is the chat's`() {
+        val openAI = store.saveProvider("", AssistantProviderKind.OpenAI, "OpenAI", null, "sk", listOf(AssistantModelSpec("gpt-5"), AssistantModelSpec("gpt-5-mini")))
+        assertNull(store.settings().commitChoice)
+        store.chooseCommitModel(AssistantChoice(openAI, "gpt-5-mini"))
+        assertEquals(AssistantChoice(openAI, "gpt-5-mini"), store.settings().commitChoice)
+        // Not listed: refused, the one before kept.
+        store.chooseCommitModel(AssistantChoice(openAI, "not-listed"))
+        assertEquals(AssistantChoice(openAI, "gpt-5-mini"), store.settings().commitChoice)
+        // Taken out of its provider: the chat's model writes them again.
+        store.saveProvider(openAI, AssistantProviderKind.OpenAI, "OpenAI", null, null, listOf(AssistantModelSpec("gpt-5")))
+        assertNull(store.settings().commitChoice)
+        store.chooseCommitModel(AssistantChoice(openAI, "gpt-5"))
+        store.chooseCommitModel(null)
+        assertNull(store.settings().commitChoice)
+        // The chat's choice is its own.
+        assertEquals(AssistantChoice(openAI, "gpt-5"), store.settings().choice)
+    }
+
     @Test fun `a key this device can no longer decrypt reads as missing, and is removed`() {
         val id = store.saveProvider("", AssistantProviderKind.OpenAI, "OpenAI", null, "sk-1", listOf(AssistantModelSpec("gpt-5")))
         preferences.edit().putString("key.$id", "from another device").commit()

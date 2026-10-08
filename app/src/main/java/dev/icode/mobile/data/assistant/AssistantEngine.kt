@@ -39,6 +39,9 @@ internal interface AssistantEngine {
 
     /** A summary of [history] by the model, for the chat to go on from in fewer tokens (§12 R4). */
     suspend fun compact(connection: AssistantConnection, model: AssistantModel, instructions: String, history: List<AssistantMessage>): String
+
+    /** [request] answered by the model in one reply, with no tools and nothing streamed: a commit's message. */
+    suspend fun answer(connection: AssistantConnection, model: AssistantModel, instructions: String, request: String): String
 }
 
 /** Where a provider's server is, with its key, decrypted only for the request. */

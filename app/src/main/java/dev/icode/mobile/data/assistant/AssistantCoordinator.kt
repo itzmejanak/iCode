@@ -4,6 +4,7 @@ import android.content.Context
 import dev.icode.mobile.data.assistant.koog.KoogAssistantEngine
 import dev.icode.mobile.data.assistant.tools.AssistantToolbox
 import dev.icode.mobile.data.assistant.tools.AssistantWorkspace
+import dev.icode.mobile.data.git.CliGitService
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceFileSource
 import dev.icode.mobile.data.workspace.WorkspaceRoot
@@ -35,9 +36,12 @@ internal class AssistantCoordinator(
     describe: (String) -> WorkspaceRoot,
     /** The files of a message: the workspace's and the phone's ([AssistantAttachments]). */
     attachments: (openText: (String) -> String?) -> AssistantAttachments,
+    /** Git, for a workspace, in the repository it works in: what a commit message is written from. */
+    git: suspend (workspace: String, arguments: List<String>) -> CliGitService.CommandResult,
 ) {
     private val page = AssistantPage(stateHolder, scope, chats)
     private val settings = AssistantProviders(stateHolder, scope, engine, providers, page)
+    private val commitMessages = AssistantCommitMessages(scope, engine, providers, settings::settings, page, git)
     private val turns = AssistantTurns(
         page, scope, engine, providers, settings::settings, chats, tools, describe,
         attachments { location -> stateHolder.current.openDocuments.firstOrNull { it.location == location }?.text },
@@ -82,6 +86,9 @@ internal class AssistantCoordinator(
             is ICodeIntent.SaveAssistantProvider -> settings.save(intent)
             is ICodeIntent.RemoveAssistantProvider -> settings.remove(intent.id)
             is ICodeIntent.ListAssistantModels -> settings.list(intent)
+            ICodeIntent.WriteCommitMessage -> activeRoot()?.let(commitMessages::write) ?: page.say("Open a workspace first")
+            ICodeIntent.CommitMessageTaken -> commitMessages.taken()
+            is ICodeIntent.ChooseCommitModel -> settings.remember { providers.chooseCommitModel(intent.choice) }
         }
     }
 
@@ -137,7 +144,7 @@ internal class AssistantCoordinator(
     companion object {
         /**
          * The assistant on Koog, its settings in preferences, its chats in iCode's storage, its files
-         * [source]'s and the phone's.
+         * [source]'s and the phone's, its commit messages written from what [git] reads.
          */
         fun create(
             context: Context,
@@ -146,17 +153,20 @@ internal class AssistantCoordinator(
             toolbox: AssistantToolbox,
             activeRoot: () -> String?,
             source: WorkspaceFileSource,
+            git: CliGitService,
         ) = AssistantCoordinator(
             icode, scope, KoogAssistantEngine.create(), SharedPreferencesAssistantProviderStore(context),
             AssistantChats(AssistantChatStore(File(context.applicationContext.filesDir, "assistant/chats"))),
             toolbox::forWorkspace, activeRoot, source::describeRoot,
-        ) { openText ->
-            AssistantAttachments(
-                ContentResolverPhoneFiles(context.applicationContext.contentResolver),
-                AssistantImages::prepare,
-                openText,
-                readText = { location -> source.readDocument(location).text },
-            )
-        }
+            attachments = { openText ->
+                AssistantAttachments(
+                    ContentResolverPhoneFiles(context.applicationContext.contentResolver),
+                    AssistantImages::prepare,
+                    openText,
+                    readText = { location -> source.readDocument(location).text },
+                )
+            },
+            git = { workspace, arguments -> git.run(workspace, arguments) },
+        )
     }
 }

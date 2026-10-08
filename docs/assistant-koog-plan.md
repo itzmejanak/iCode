@@ -350,7 +350,8 @@ lifecycle's check, and waits for its chat to be saved, before the chats move.
   Services keep theirs); `AssistantModelSheets` holds **Add Models** and a model's options.
 - `AssistantChatView`: the chat inside `PinchToScaleText`, every row's text scaled by
   `LocalCodeTextScale`; the branded welcome (`IcodeWatermark`, `IcodeBrandMark`); the step line;
-  the approval card.
+  the approval card. Each chat's list starts at its last row (§18); `JumpToLatestButton` — the
+  terminal's ↓, now the design system's — brings it back to the end.
 - `AssistantSteps`: a step's row (`AssistantStepRow`) — its state's icon, what it did, and for a
   write or an edit that is done, "+12 −3" in green and red. A tap opens all it answered, a
   command's `$ line` above its output, Copy at its corner (the line and the output); a tap on what
@@ -670,3 +671,20 @@ output to close it, and a long press on a file to open it or see its changes. De
 [runtime-foundation-plan.md](./runtime-foundation-plan.md) §7: OpenAI's Chat Completions and
 compatible servers stream (D8); the step row of §4.11; the line counts and the calls' files and
 commands of §4.3; the chat file's bound of §4.6.
+
+## 18. The chat opens at its end (owner, 2026-10-08)
+
+The owner, on the phone: opening a chat was not smooth — the chat seemed to hang while it scrolled;
+wanted: an arrow to the bottom, as the terminal has. Found: the list started at its first row and
+then glided to the last (`animateScrollToItem`), laying out and drawing every reply on the way — a
+Markdown view each — and it glided to a long last row's start, not its end. It also pulled the
+user down at every step of a turn, even scrolled up to read.
+
+- **Laid out at the end:** each chat's list starts at its last row (`LazyListState(last)`, one per
+  workspace and chat), then jumps to that row's end, with no glide; nothing between is drawn.
+- **Followed only at the end:** a step, a reply or the reply being written moves the list only while
+  it is at its end. Scrolled up, it stays; a message the user sends is shown wherever they were, and
+  what answers it followed. At rest at the end, whatever brought it there, it follows again.
+- **↓** (`JumpToLatestButton`, fading in and out; the terminal's, moved into the design system and
+  used by both) shows while the user is away from the end: a glide when the last row is in view, a
+  jump from further up — where a glide would draw everything between.

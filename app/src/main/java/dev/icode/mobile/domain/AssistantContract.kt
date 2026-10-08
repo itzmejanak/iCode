@@ -101,9 +101,20 @@ data class AssistantSettings(
     /** Null: the provider's default ("Auto"). */
     val effort: AssistantEffort? = null,
     val mode: AssistantMode = AssistantMode.Agent,
+    /** The model that writes commit messages (Settings › Source Control); null: the chat's. */
+    val commitChoice: AssistantChoice? = null,
 ) {
     val provider: AssistantProvider? get() = providers.firstOrNull { it.id == choice?.provider }
     val model: AssistantModel? get() = provider?.models?.firstOrNull { it.id == choice?.model }
+
+    /** What writes commit messages: [commitChoice] while its provider lists its model, else the chat's model. */
+    val commitWriter: Pair<AssistantProvider, AssistantModel>?
+        get() = chosen(commitChoice) ?: chosen(choice)
+
+    private fun chosen(choice: AssistantChoice?): Pair<AssistantProvider, AssistantModel>? {
+        val provider = providers.firstOrNull { it.id == choice?.provider } ?: return null
+        return provider.models.firstOrNull { it.id == choice?.model }?.let { provider to it }
+    }
 
     /** A model is chosen: the chat can be used. */
     val ready: Boolean get() = model != null
@@ -232,9 +243,23 @@ data class AssistantState(
     val allowAll: Boolean = false,
     /** Why the last turn stopped short; the next one clears it. */
     val failure: String? = null,
+    /** A commit message being written, or written and not yet in the commit field. */
+    val commitMessage: AssistantCommitMessage? = null,
 ) {
     val running: Boolean get() = turn != null
 
     /** The turn in hand belongs to the chat shown, not to another one. */
     val runningHere: Boolean get() = turn != null && turn.workspace == workspace && turn.session == session
+}
+
+/**
+ * A commit message the model writes from [workspace]'s staged changes
+ * (docs/commit-message-generator-plan.md M6): being written, written, or why it could not be.
+ */
+data class AssistantCommitMessage(
+    val workspace: String,
+    val message: String? = null,
+    val failure: String? = null,
+) {
+    val writing: Boolean get() = message == null && failure == null
 }

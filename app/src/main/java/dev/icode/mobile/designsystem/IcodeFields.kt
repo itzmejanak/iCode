@@ -48,6 +48,8 @@ fun IcodeTextField(
      * account name: no autocorrection, suggestion or capital letter.
      */
     literal: Boolean = false,
+    /** An action at the field's end, after [trailingText]: a button that fills it. */
+    trailing: (@Composable () -> Unit)? = null,
 ) {
     IcodeCard(
         modifier = modifier,
@@ -100,6 +102,7 @@ fun IcodeTextField(
             if (trailingText != null) {
                 Text(trailingText, style = IcodeType.Caption)
             }
+            trailing?.invoke()
         }
     }
 }

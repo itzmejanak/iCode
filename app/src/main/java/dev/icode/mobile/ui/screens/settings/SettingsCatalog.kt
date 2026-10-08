@@ -37,8 +37,8 @@ internal val settingsCategories = listOf(
     SettingsCategory("Terminal", "Shell, extra keys, scrollback, background", Icons.Outlined.Terminal, Route.TerminalSettings,
         "shell path font family size scrollback extra keys keyboard cursor block underline bar " +
             "background notifications battery optimization bell alert long command"),
-    SettingsCategory("Source Control", "Git identity, token, and SSH key", Icons.Outlined.AccountTree, Route.GitAuth,
-        "git identity name email credentials authentication https token ssh key provider"),
+    SettingsCategory("Source Control", "Git credentials, commit message model", Icons.Outlined.AccountTree, Route.SourceControlSettings,
+        "git identity name email credentials authentication https token ssh key provider commit message write generate ai model"),
     SettingsCategory("Assistant", "Providers, models, API keys", Icons.Outlined.AutoAwesome, Route.AssistantSettings,
         "ai agent assistant koog provider model api key openai anthropic claude gemini google openrouter ollama deepseek approval"),
     SettingsCategory("Languages", "Language servers", Icons.Outlined.Public, Route.SettingsLanguages,

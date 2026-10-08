@@ -284,6 +284,7 @@ The platform provides execution, files, processes, environment variables, packag
 | PR-GIT-10 | The application shall report ahead, behind, detached-head, and in-progress repository states where available. |
 | PR-GIT-11 | Conflicted files shall be identifiable, editable, resolvable, and markable as resolved. |
 | PR-GIT-12 | Git failures shall preserve repository state and show actionable command errors. |
+| PR-GIT-13 | With staged changes, one tap in the commit message field shall have the assistant's model — or the one chosen in Source Control's settings — write a message from them, in the repository's style, into the field for the user to edit; a failure shall say why and leave the field as it was. |
 
 ### 10.7 Terminal and processes
 

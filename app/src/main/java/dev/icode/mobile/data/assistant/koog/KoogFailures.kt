@@ -84,6 +84,17 @@ internal object KoogFailures {
 
     const val SUMMARY_FILTERED = "The provider's content filter stopped the summary, so the chat was not compacted"
 
+    /** Why a one-shot reply is not there: it was cut short, filtered, or empty. */
+    class Writing(val cutShort: String, val filtered: String, val empty: String)
+
+    val SUMMARY = Writing(SUMMARY_CUT_SHORT, SUMMARY_FILTERED, "The model sent an empty summary — try again")
+
+    val ANSWER = Writing(
+        "The model's answer was cut short at its output limit — try again",
+        "The provider's content filter stopped the answer",
+        "The model sent an empty answer — try again",
+    )
+
     /** OpenRouter's word for a provider that failed after the reply began (`finish_reason: "error"`). */
     const val PROVIDER_FAILED = "The model's provider failed while writing the reply — try again"
 
