@@ -9,6 +9,7 @@ import ai.koog.prompt.executor.clients.openai.OpenAIClientSettings
 import ai.koog.prompt.executor.clients.openai.OpenAILLMClient
 import ai.koog.prompt.executor.clients.openai.OpenAIModels
 import ai.koog.prompt.executor.clients.openai.models.OpenAIChatCompletionResponse
+import ai.koog.prompt.executor.clients.openai.models.OpenAIChatCompletionStreamResponse
 import ai.koog.prompt.executor.clients.openrouter.OpenRouterLLMClient
 import ai.koog.prompt.executor.ollama.client.OllamaClient
 import ai.koog.prompt.llm.LLMProvider
@@ -93,10 +94,13 @@ internal object KoogClients {
 }
 
 /**
- * Koog's OpenAI client, each whole reply's call arguments made [KoogArguments.readable] before Koog
- * reads them: Koog's reader throws on arguments that are not a JSON object, and the reply is lost.
+ * Koog's OpenAI client, each whole reply's call arguments made [KoogArguments.readable] and each
+ * streamed chunk [KoogChunks.readable] before Koog reads them: Koog's reader throws on what it does
+ * not expect, and the reply is lost.
  */
 private open class ReadingOpenAIClient(apiKey: String, settings: OpenAIClientSettings, http: KoogHttpClient.Factory) :
     OpenAILLMClient(apiKey, settings, http) {
     override fun decodeResponse(data: String): OpenAIChatCompletionResponse = super.decodeResponse(KoogArguments.readableResponse(data))
+
+    override fun decodeStreamingResponse(data: String): OpenAIChatCompletionStreamResponse = super.decodeStreamingResponse(KoogChunks.readable(data))
 }

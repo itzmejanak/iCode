@@ -295,7 +295,6 @@ sealed interface ICodeIntent {
     }
 
     data object Refresh : ICodeIntent
-
     /** iCode came on screen or left it: the open workspace is watched only while it is seen. */
     data class ScreenVisible(val visible: Boolean) : ICodeIntent
 }

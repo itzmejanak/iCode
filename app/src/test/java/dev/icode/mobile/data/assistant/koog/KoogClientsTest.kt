@@ -6,6 +6,7 @@ import dev.icode.mobile.data.assistant.AssistantEvents
 import dev.icode.mobile.data.assistant.AssistantParameter
 import dev.icode.mobile.data.assistant.AssistantTool
 import dev.icode.mobile.data.assistant.AssistantTurnRequest
+import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantModelSpec
@@ -19,7 +20,9 @@ import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 
 /** Koog's own OpenAI client, as iCode makes it, over HTTP from a local server. */
@@ -44,7 +47,17 @@ class KoogClientsTest {
 
     private val LocalHttpServer.Request.streams: Boolean get() = JSONObject(body).optBoolean("stream")
 
-    @After fun stop() = server.close()
+    private val originalWriter = BackendLog.writer
+    private val logged = Collections.synchronizedList(mutableListOf<String>())
+
+    @Before fun log() {
+        BackendLog.writer = { _, _, message -> logged += message }
+    }
+
+    @After fun stop() {
+        server.close()
+        BackendLog.writer = originalWriter
+    }
 
     private val seen = Collections.synchronizedList(mutableListOf<Any>())
     private val events = object : AssistantEvents {
@@ -115,6 +128,59 @@ class KoogClientsTest {
         val echoed = JSONObject(server.requests[1].body).getJSONArray("messages").getJSONObject(2)
         assertEquals("Reading", echoed.getString("content"))
         assertTrue(!echoed.has("reasoning_content"))
+    }
+
+    @Test fun `a stream laxer than OpenAI's is read whole — keep-alives, blank events, chunks short of fields`() = runBlocking {
+        // The phone's RadoxAI turns: text came, then an event Koog's reader refused, mid-reply.
+        streams += "data: ${chunk("""{"role":"assistant","content":"Starting the "}""")}\n\n" +
+            "event: ping\ndata: {\"type\":\"ping\"}\n\n" +
+            "data: \n\n" +
+            // No id, object, created or model; a choice with no index.
+            "data: {\"choices\":[{\"delta\":{\"content\":\"audit\"}}]}\n\n" +
+            // A call, and the rest of its arguments, with no index.
+            "data: ${chunk("""{"tool_calls":[{"id":"call_1","type":"function","function":{"name":"read_file","arguments":""}}]}""")}\n\n" +
+            "data: ${chunk("""{"tool_calls":[{"function":{"arguments":"{\"path\":\"a.kt\"}"}}]}""")}\n\n" +
+            "data: ${chunk("{}", "tool_calls")}\n\n" +
+            // The usage alone, without choices.
+            "data: {\"usage\":{\"prompt_tokens\":1200,\"completion_tokens\":40,\"total_tokens\":1240}}\n\n" +
+            "data: [DONE]\n\n"
+        streams += sse(chunk("""{"role":"assistant","content":"Done"}""", "stop"))
+        engine.run(turn(readFile), events)
+
+        assertEquals(listOf("a.kt"), reads)
+        val call = AssistantCall("call_1", "read_file", """{"path":"a.kt"}""", "Read a.kt", AssistantToolKind.Read)
+        assertEquals(
+            listOf(
+                "used:1240",
+                AssistantMessage.Reply("Starting the audit", listOf(call)),
+                AssistantResult("call_1", "read_file", "fun main() {}", failed = false),
+                AssistantMessage.Reply("Done"),
+            ),
+            seen.filterNot { it is String && it.startsWith("writing:") },
+        )
+        assertEquals("both requests streamed", listOf(true, true), server.requests.map { it.streams })
+    }
+
+    @Test fun `a stream that breaks mid-reply says why, never that the address is wrong`() = runBlocking {
+        // The provider's own failure, sent as OpenAI's API sends one.
+        streams += sse(chunk("""{"role":"assistant","content":"Starting"}"""), """{"error":{"message":"Upstream overloaded","type":"server_error"}}""")
+        val failed = runCatching { engine.run(turn(readFile), events) }.exceptionOrNull()
+        assertEquals("The model's provider failed while writing the reply: Upstream overloaded", failed?.message)
+        // A chunk no reading makes sense of.
+        streams.clear()
+        streams += sse(chunk("""{"role":"assistant","content":"Starting"}"""), chunk("""{"tool_calls":"not a list"}"""))
+        val unreadable = runCatching { engine.run(turn(readFile), events) }.exceptionOrNull()
+        assertEquals("The provider's reply could not be read — try again", unreadable?.message)
+        // The provider failing before it wrote anything is no refusal to stream: no whole request, and the next streams.
+        streams.clear()
+        streams += sse("""{"error":{"message":"Rate limited"}}""")
+        val first = runCatching { engine.run(turn(readFile), events) }.exceptionOrNull()
+        assertEquals("The model's provider failed while writing the reply: Rate limited", first?.message)
+        assertTrue("every request streamed", server.requests.all { it.streams })
+        // The log says what broke by its types; never what the reply held.
+        val said = logged.single { it.startsWith("A stream broke after it began: ") }
+        assertTrue(said, "SerializationException" in said || "JsonDecodingException" in said)
+        assertFalse(said, "not a list" in said || "Starting" in said)
     }
 
     @Test fun `a server that refuses a stream is answered whole, and not asked to stream again`() = runBlocking {

@@ -11,6 +11,7 @@ import ai.koog.agents.core.dsl.extension.onTextMessage
 import ai.koog.agents.core.dsl.extension.onToolCalls
 import ai.koog.agents.features.eventHandler.feature.handleEvents
 import ai.koog.http.client.KoogHttpClientException
+import io.ktor.client.plugins.sse.SSEClientException
 import ai.koog.prompt.llm.LLMCapability
 import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.message.Message
@@ -136,9 +137,19 @@ internal object KoogTurn {
         }
     }
 
-    /** [failure], before any frame came, is the server refusing to stream: an answer that is not a stream, or not one Koog can read. */
-    private fun refusesStreams(failure: Throwable): Boolean = generateSequence(failure) { it.cause }.take(MAX_CAUSES).any { cause ->
-        (cause as? KoogHttpClientException)?.statusCode in REFUSED || cause is SerializationException
+    /**
+     * [failure], before any frame came, is the server refusing to stream: an answer that is not a
+     * stream, or not one Koog can read. A stream that broke after it began carries what broke, with
+     * the stream's own 200 (F15): its provider's failure, or a connection that broke, is not a refusal.
+     */
+    private fun refusesStreams(failure: Throwable): Boolean {
+        val chain = generateSequence(failure) { it.cause }.take(MAX_CAUSES).toList()
+        if (chain.any { it is AssistantTurnException }) return false
+        val broke = chain.any { it is SSEClientException && it.cause != null }
+        return chain.any { cause ->
+            val status = (cause as? KoogHttpClientException)?.statusCode
+            cause is SerializationException || (status in REFUSED && !(status == OK && broke))
+        }
     }
 
     /** Koog's events for [reporter]: each whole reply, and each call as it starts and ends. */
@@ -202,6 +213,7 @@ internal object KoogTurn {
     private const val UPSTREAM_FAILED = "error"
 
     /** A stream refused: 400 and 422 for what a server does not take; 200 for a whole reply where a stream was asked. */
-    private val REFUSED = setOf(200, 400, 422)
+    private val REFUSED = setOf(OK, 400, 422)
     private const val MAX_CAUSES = 8
+    private const val OK = 200
 }
