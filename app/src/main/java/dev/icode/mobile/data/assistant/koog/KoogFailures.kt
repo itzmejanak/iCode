@@ -7,11 +7,13 @@ import ai.koog.prompt.executor.clients.LLMClientException
 import ai.koog.prompt.streaming.IncompleteStreamException
 import dev.icode.mobile.data.assistant.AssistantConnection
 import dev.icode.mobile.data.assistant.AssistantTurnException
+import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.domain.AssistantModel
 import dev.icode.mobile.domain.AssistantProviderKind
 import io.ktor.client.call.NoTransformationFoundException
 import io.ktor.client.network.sockets.ConnectTimeoutException
 import io.ktor.client.plugins.HttpRequestTimeoutException
+import io.ktor.client.plugins.sse.SSEClientException
 import io.ktor.serialization.ContentConvertException
 import java.io.IOException
 import java.net.ConnectException
@@ -36,7 +38,14 @@ internal object KoogFailures {
         val host = host(connection)
         // Koog's clients wrap what failed on the way to and from the server; a file read is not that.
         val fromServer = chain.any { it is LLMClientException || it is KoogHttpClientException }
-        val message = chain.firstNotNullOfOrNull { cause ->
+        // A stream that broke after it began: Ktor wraps what broke with the stream's own 200 — which
+        // Koog carries as the failure's status — and says nothing of the answer. What broke is deeper
+        // (§3.13). Ktor's own refusals of a stream (another status, not an event stream) carry no cause.
+        val broke = chain.indexOfFirst { it is SSEClientException && it.cause != null }
+        val reasons = if (broke < 0) chain else chain.drop(broke + 1)
+        // Its types only: a parser's message quotes the reply.
+        if (broke >= 0) BackendLog.w(TAG, "A stream broke after it began: ${reasons.joinToString(" ← ") { it.javaClass.simpleName }}")
+        val message = reasons.firstNotNullOfOrNull { cause ->
             when (cause) {
                 // Without a status the server never answered: what failed is the cause, deeper in the chain.
                 is KoogHttpClientException -> cause.statusCode?.let { http(cause, connection, model) }
@@ -61,6 +70,7 @@ internal object KoogFailures {
                 else -> null
             }
         } ?: run {
+            if (broke >= 0) return AssistantTurnException("The reply stopped while it was written (${reasons.firstOrNull()?.javaClass?.simpleName ?: "no cause given"}) — try again", failure)
             val said = failure.message?.lineSequence()?.firstOrNull { it.isNotBlank() } ?: failure.javaClass.simpleName
             // Listing a server's models is no turn: nothing was running to stop.
             if (model == null) "Unable to list the models: $said" else "The assistant stopped: $said"
@@ -153,6 +163,7 @@ internal object KoogFailures {
     private const val UNREADABLE = "The provider's reply could not be read — try again"
     private val SUCCESS = 200..299
     private const val MAX_DEPTH = 8
+    private const val TAG = "KoogFailures"
     private const val MAX_MESSAGE = 300
     private val CONTEXT_WORDS = listOf("context length", "context_length", "maximum context", "prompt is too long", "too many tokens")
 }

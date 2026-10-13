@@ -35,6 +35,7 @@ Two rules hold throughout:
 | F12 | Providers say when their content rules stopped a reply: `content_filter` (OpenAI, OpenRouter, compatible servers), `refusal` (Anthropic), `SAFETY`, `RECITATION`, `BLOCKLIST`, `PROHIBITED_CONTENT`, `SPII`, `IMAGE_SAFETY` (Gemini); Koog passes each through as the reply's finish reason | Each client's response mapping, as for the output limit's reasons | Such a reply passed for a finished one, as one cut short did |
 | F13 | Koog's OpenAI client, reading a whole reply, parses each call's `arguments` with `Json.parseToJsonElement` outside any error handling, and throws on arguments that are not a JSON object — losing the whole reply. A long call cut at the output limit is one: on a phone, a `run_command` script cut inside its string ended the turn with "Unexpected EOF at path: $", again after "continue". Koog's Anthropic, Google and Ollama clients parse a call's arguments the same way when they send it back | `AbstractOpenAILLMClient.toolCallPartsOrNull`; `AnthropicLLMClient`, `GoogleLLMClient`, `OllamaConverters`; reproduced against Koog's real client (§5.1) | Arguments that are not an object are carried in one before Koog reads them, and never sent back as they were (§3.12) |
 | F14 | Koog's OpenAI client, streaming, asks for `stream_options: {"include_usage": true}` and reads each chunk as OpenAI's: `id`, `object`, `created` and `model` required, the reasoning only as `reasoning_content`. A compatible server need not take that field, send those four, stream at all, or end with a finish reason; OpenAI itself refuses to stream some models to an organization it has not verified | `OpenAILLMClient` (`OpenAIStreamOptions(includeUsage = true)`), `OpenAIChatCompletionStreamResponse`, `OpenAIStreamDelta` | A server that refuses the stream before anything came is asked the same request whole, and not streamed again; a compatible server's stream is not held to a finish reason (D8) |
+| F15 | Ktor (3.3.3) wraps whatever fails while a stream is read — a chunk Koog cannot decode, a connection that breaks — in an `SSEClientException` carrying the stream's own response, 200; Koog's SSE client turns that into a `KoogHttpClientException` with status 200. Ktor's own refusals of a stream (another status, a body that is not `text/event-stream`) are `SSEClientException`s with no cause. Koog decodes every data event, of any `event:` name, as a whole chunk, and requires `id`, `object`, `created`, `model`, `choices`, each choice's `index` and `delta`, and each call's `index` | `builders.kt` `serverSentEvents` → `mapToSSEException`; `SSE.kt` `checkResponse`; `KtorKoogHttpClient.sse`; `AbstractOpenAILLMClient.executeStreaming` (`dataFilter = { it != "[DONE]" }`); `OpenAIChatCompletionStreamResponse`, `OpenAIStreamChoice`, `OpenAIStreamToolCall` | Any such event mid-reply ended the turn as "<host> did not answer as this API does — check the server address": the 200 read as a page sent where the API was asked (§3.13) |
 
 ### 1.1 Koog 1.3.0's streams, client by client
 
@@ -237,6 +238,28 @@ it sends a limit. On the wire, against a local server: `"max_completion_tokens":
 - **A reply that cannot be read at all** says "The provider's reply could not be read — try
   again", never a parser's words.
 
+### 3.13 Streams as compatible servers send them (F15)
+
+- **Read as the OpenAI SDK reads them:** `KoogClients`' `ReadingOpenAIClient` passes every streamed
+  event through `KoogChunks.readable` before Koog decodes it. A chunk missing `id`, `object`,
+  `created` or `model` (or with another type) gets values iCode never reads; a choice missing
+  `index` gets its position, one missing `delta` an empty one; a call missing `index` gets 0 (a
+  server that leaves it out streams one call at a time, and Koog tells calls apart by `id`); a chunk
+  without `choices` keeps its usage. An event that is not a JSON object — blank, `ping`, a list — is
+  an empty chunk. A chunk as OpenAI sends it is read as it came.
+- **A provider's failure, in its words:** an event `{"error": …}` with no reply in it ends the turn
+  with "The model's provider failed while writing the reply: <its message>".
+- **Why a stream broke, not where it was asked:** `KoogFailures.explain` looks past an
+  `SSEClientException` that carries a cause, and past the 200 Koog took from it, to what broke: an
+  unreadable chunk ("The provider's reply could not be read — try again"), a connection that broke
+  ("The connection ended before the reply was complete — try again"), else the type that broke.
+  Only Ktor's own refusals — no cause — still say to check the address. What broke is logged by its
+  types alone (`A stream broke after it began: …`): a parser's message quotes the reply.
+- **A refusal to stream is only a refusal (D8):** before anything came, a 400 or 422, Ktor's own
+  refusal of a stream sent as a whole reply (200, no cause), or a chunk no reading makes sense of
+  still asks the request whole and stops streaming that model. A provider's failure sent in the
+  stream, or a connection that broke, no longer does: it is said, and the next request streams.
+
 ## 4. Cycles
 
 | # | Step | Verified by | Done |
@@ -250,6 +273,7 @@ it sends a limit. On the wire, against a local server: `"max_completion_tokens":
 | F6 | Architecture, PRD, user stories, plans as built; guards; API-30 check; commit | Review | `bfec8c8` |
 | F7 | Arguments that are not an object (F13, §3.12), from the phone's "Unexpected EOF at path: $" | The failure reproduced against Koog's real client; unit tests; the real client over HTTP with the phone's cut reply | `1ef68f6` |
 | S1–S5 | Streaming for OpenAI and compatible servers; the chat's steps (§7) | Engine tests; Koog's real client against a local server; unit tests; Compose type-check; guards; API-30 check | this commit |
+| X1 | Streams as compatible servers send them; why a stream broke (F15, §3.13, §8) | The phone's failure reproduced with Koog's real client over a chunked stream; unit tests | this commit |
 
 ## 5. Record (2026-10-02)
 
@@ -399,3 +423,35 @@ long press on a file should open it in the editor or show its changes.
    sends `reasoning_content` (DeepSeek's) shows its reasoning as written, then folded.
 2. A command with long output: opened, all of it under `$ command`; Copy; a tap closes it.
 3. An edit: "+N −M" beside its step; a long press: Open in Editor, Show Changes, Copy Path.
+
+## 8. RadoxAI ends every reply mid-stream (owner, 2026-10-13)
+
+The owner, on the phone: every model of an OpenAI-compatible provider, RadoxAI
+(`https://radoxai.com/v1`), began its reply — "Starting your 5-hour autonomous audit –" — and
+0.3–0.8 s later the reply was replaced by "radoxai.com did not answer as this API does — check the
+server address in the provider's settings". Other compatible providers finished their replies.
+
+- **Not checked against RadoxAI itself:** this container's network policy refuses radoxai.com (and
+  grok.com, where the owner's first diagnosis is), so its stream was never read here. What follows
+  rests on Ktor's, Koog's and iCode's sources and on a reproduction.
+- **What the message meant (F15):** nothing about the address. Every failure while a stream is read
+  reaches iCode as a 200 status, which iCode read as a page sent with 200. The reply had begun: the
+  address answered as the API does.
+- **Reproduced:** Koog's real OpenAI client, on Ktor and OkHttp, against a local server that streams
+  as servers do — chunked, an event at a time, a moment apart (`LocalHttpServer`): text, then a
+  keep-alive event (`event: ping`, `{"type":"ping"}`), gave "127.0.0.1 did not answer as this API does
+  — check the server address in the provider's settings" — the phone's words — from
+  `MissingFieldException: Fields [choices, created, id, model, object] are required`. So did an
+  `{"error": …}` event mid-reply. (Sent all at once, or with a `Content-Length`, the same failure took
+  other paths: the test server now streams as a real one does.)
+- **Fixed (§3.13):** such events are read as the OpenAI SDK reads them, and a stream that breaks says
+  why. The same stream — text, a keep-alive, a blank event, a chunk without its envelope, a choice
+  without `index`, a call without `index`, the usage alone — now completes, its call run; a
+  provider's mid-stream error is said in its words; a chunk nothing can read says so. Found with
+  it: a provider's error as a stream's first event was taken for a refusal to stream — the request
+  asked again whole, and the model not streamed again while iCode ran. It is now said, as it is.
+- **Which of these RadoxAI sends is not known.** If a reply still stops, the page now says why, and
+  the log names what broke (`A stream broke after it began: …`). With radoxai.com allowed in this
+  environment's network settings, its stream can be read here and the cause confirmed.
+- **Also:** `tools/check-backend-consistency.sh` failed on main (`ICodeIntent.kt`, 301 lines, the
+  owner's findings F1): a blank line taken out, 300.
