@@ -5,11 +5,12 @@ import dev.icode.mobile.domain.AssistantRetryPolicy
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.delay
 
-/** Provider-agnostic retry — 5× with 15s→30s→45s→90s→180s countdown, per design. */
+/** Provider-agnostic retry — per-kind: Server 5-10s×10, others 30s×5, with countdown. */
 internal object AssistantRetries {
     suspend fun runWithRetry(step: (String) -> Unit, block: suspend (Int) -> Unit) {
         var attempt = 0
-        while (attempt <= AssistantRetryPolicy.MAX_RETRIES) {
+        var lastKind: dev.icode.mobile.domain.AssistantRetryKind? = null
+        while (true) {
             try {
                 block(attempt)
                 return
@@ -17,10 +18,12 @@ internal object AssistantRetries {
                 if (failure is CancellationException) throw failure
                 val kind = KoogFailures.retryKind((failure as? AssistantTurnException)?.cause ?: failure)
                     ?: KoogFailures.retryKind(failure)
-                if (kind == null || attempt == AssistantRetryPolicy.MAX_RETRIES) throw failure
+                lastKind = kind ?: lastKind
+                val cap = lastKind?.let { AssistantRetryPolicy.maxRetries(it) } ?: AssistantRetryPolicy.MAX_RETRIES
+                if (kind == null || attempt >= cap) throw failure
                 val ms = KoogFailures.retryAfterMillis((failure as? AssistantTurnException)?.cause ?: failure)
                     ?: KoogFailures.retryAfterMillis(failure)
-                val wait = AssistantRetryPolicy.delayMillis(attempt, ms)
+                val wait = AssistantRetryPolicy.delayMillis(kind, attempt, ms)
                 countdown(step, kind, attempt + 1, wait)
                 attempt++
             }
@@ -29,7 +32,8 @@ internal object AssistantRetries {
 
     suspend fun retryable(initialStep: String, step: (String) -> Unit, block: suspend () -> Unit) {
         var attempt = 0
-        while (attempt <= AssistantRetryPolicy.MAX_RETRIES) {
+        var lastKind: dev.icode.mobile.domain.AssistantRetryKind? = null
+        while (true) {
             try {
                 step(initialStep)
                 block()
@@ -38,10 +42,12 @@ internal object AssistantRetries {
                 if (failure is CancellationException) throw failure
                 val kind = KoogFailures.retryKind((failure as? AssistantTurnException)?.cause ?: failure)
                     ?: KoogFailures.retryKind(failure)
-                if (kind == null || attempt == AssistantRetryPolicy.MAX_RETRIES) throw failure
+                lastKind = kind ?: lastKind
+                val cap = lastKind?.let { AssistantRetryPolicy.maxRetries(it) } ?: AssistantRetryPolicy.MAX_RETRIES
+                if (kind == null || attempt >= cap) throw failure
                 val ms = KoogFailures.retryAfterMillis((failure as? AssistantTurnException)?.cause ?: failure)
                     ?: KoogFailures.retryAfterMillis(failure)
-                val wait = AssistantRetryPolicy.delayMillis(attempt, ms)
+                val wait = AssistantRetryPolicy.delayMillis(kind, attempt, ms)
                 countdown(step, kind, attempt + 1, wait)
                 attempt++
             }
