@@ -6,10 +6,10 @@ package dev.icode.mobile.domain
  * Architecture: KoogFailures classifies (429, timeouts, UnknownHost, etc.),
  * this pure policy decides delays and user-facing step text. No provider branches.
  */
-enum class AssistantRetryKind { RateLimited, Connection, Overloaded }
+enum class AssistantRetryKind { RateLimited, Connection, Server, Overloaded }
 
 object AssistantRetryPolicy {
-    /** RateLimited/Connection = 5, Overloaded = 10 per your ask. */
+    /** Legacy Server kind removed; use Overloaded (5-10s ×10) or RateLimited/Connection (30s×5). */
     const val MAX_RETRIES = 5
     const val MAX_ATTEMPTS_OVERLOADED = 10
     private const val FIXED_DELAY_MILLIS = 30_000L
@@ -24,8 +24,9 @@ object AssistantRetryPolicy {
             val cap = if (kind == AssistantRetryKind.Overloaded) OVERLOADED_MAX_MILLIS else MAX_RETRY_AFTER_MILLIS
             return it.coerceIn(1_000L, cap)
         }
+        // Legacy Server kind (500/502/504 not overloaded) keeps same 5–10s window as Overloaded — short.
         return when (kind) {
-            AssistantRetryKind.Overloaded -> OVERLOADED_MIN_MILLIS + (Math.random() * (OVERLOADED_MAX_MILLIS - OVERLOADED_MIN_MILLIS)).toLong()
+            AssistantRetryKind.Overloaded, AssistantRetryKind.Server -> OVERLOADED_MIN_MILLIS + (Math.random() * (OVERLOADED_MAX_MILLIS - OVERLOADED_MIN_MILLIS)).toLong()
             else -> FIXED_DELAY_MILLIS
         }
     }
