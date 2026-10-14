@@ -40,6 +40,7 @@ import dev.icode.mobile.domain.AssistantAttachment
 import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantEntry
 import dev.icode.mobile.domain.GitChange
+import dev.icode.mobile.ui.copyText
 import dev.icode.mobile.ui.editor.MarkdownText
 
 /**

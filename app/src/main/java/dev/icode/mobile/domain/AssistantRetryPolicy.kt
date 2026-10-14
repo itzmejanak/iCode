@@ -40,6 +40,8 @@ object AssistantRetryPolicy {
         val label = when (kind) {
             AssistantRetryKind.RateLimited -> "Rate limited"
             AssistantRetryKind.Connection -> "Connection lost"
+            // A 500–504 that does not say it is overloaded (KoogFailures.retryKind).
+            AssistantRetryKind.Server -> "Server error"
             AssistantRetryKind.Overloaded -> "Server overloaded — retrying"
         }
         return if (kind == AssistantRetryKind.Overloaded) "$label in ${seconds}s ($attempt/$cap)…"

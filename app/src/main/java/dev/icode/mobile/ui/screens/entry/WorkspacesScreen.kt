@@ -13,29 +13,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.CreateNewFolder
-import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.Divider
 import dev.icode.mobile.designsystem.EmptyState
-import dev.icode.mobile.designsystem.IcodeActionMenu
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeMenuAction
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTextField
 import dev.icode.mobile.designsystem.IcodeTopBar
@@ -57,6 +49,8 @@ import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.NewWorkspaceDialog
 import dev.icode.mobile.ui.WorkspaceRow
 import dev.icode.mobile.ui.screens.workspace.CreateWorkspaceItemDialog
+import dev.icode.mobile.ui.FileItemActions
+import dev.icode.mobile.ui.NewItemButton
 import dev.icode.mobile.ui.screens.workspace.DeleteWorkspaceItemDialog
 import dev.icode.mobile.ui.screens.workspace.RenameWorkspaceItemDialog
 import dev.icode.mobile.ui.screens.workspace.WorkspaceItemType
@@ -89,6 +83,11 @@ fun WorkspacesScreen(actions: NavigationActions, choosing: Boolean = false) {
     val up = browser?.parent
     val back = { if (up != null) browse(up) else actions.back() }
     BackHandler(enabled = up != null) { back() }
+    // Paste goes where the page is: into the folder shown; at the top, as a workspace of its own.
+    val top = browser == null || browser.atRoot
+    val pasteHere = { gateway.dispatch(if (browser == null || browser.atRoot) ICodeIntent.PasteAsWorkspace else ICodeIntent.PasteInto(browser.path)) }
+    // Choosing a place pastes nothing; at the top, what can never be a workspace is not offered there.
+    val held = state.clipboard?.takeUnless { choosing || (top && it.notAWorkspace != null) }
 
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar(
@@ -99,7 +98,18 @@ fun WorkspacesScreen(actions: NavigationActions, choosing: Boolean = false) {
                 FilesRules.contents(browser.items)
             },
             onBack = back,
-            actions = { NewItemMenu(foldersOnly = choosing || browser?.atRoot != false) { creating = it } },
+            actions = {
+                NewItemButton(
+                    contentDescription = "New",
+                    actions = FileItemActions.creation(
+                        // At the top a folder is a workspace; choosing a place, only folders are made.
+                        onNewFile = { creating = WorkspaceItemType.File }.takeUnless { choosing || top },
+                        onNewFolder = { creating = WorkspaceItemType.Folder },
+                        clipboard = held,
+                        onPaste = pasteHere,
+                    ),
+                )
+            },
         )
         browser?.let { FolderBreadcrumb(it.crumbs, browse) }
         Column(
@@ -123,11 +133,8 @@ fun WorkspacesScreen(actions: NavigationActions, choosing: Boolean = false) {
                 gateway.dispatch(ICodeIntent.ChooseDestination(path))
                 actions.back()
             }
-        } else state.clipboard?.let { held ->
-            ClipboardBar(held, onPaste = {
-                val here = browser
-                gateway.dispatch(if (here == null || here.atRoot) ICodeIntent.PasteAsWorkspace else ICodeIntent.PasteInto(here.path))
-            })
+        } else state.clipboard?.let { clipboard ->
+            ClipboardBar(clipboard, destination = browser?.takeUnless { it.atRoot }?.let { it.runtimePathOf(it.path) }, onPaste = pasteHere)
         }
     }
     creating?.let { type ->
@@ -188,29 +195,10 @@ private fun Listing(
                 if (workspace != null) {
                     WorkspaceRow(workspace, size = storageSizeLabel(state.workspaceSizes[workspace.location]), onOpen = { browse(workspace.location) })
                 } else {
-                    BrowsedItemRow(item, browser.runtimePathOf(item.location), browse, { onRename(item.location) }, { onDelete(item.location) })
+                    BrowsedItemRow(item, browser.path, browser.runtimePathOf(item.location), browse, { onRename(item.location) }, { onDelete(item.location) })
                 }
             }
         }
-    }
-}
-
-/** + in the top bar: New folder — a new workspace at the top — and, inside one, New file. */
-@Composable
-private fun NewItemMenu(foldersOnly: Boolean, onCreate: (WorkspaceItemType) -> Unit) {
-    var open by remember { mutableStateOf(false) }
-    Box {
-        IconButton(onClick = { open = true }) {
-            Icon(Icons.Outlined.Add, contentDescription = "New", tint = IcodeColors.TextPrimary)
-        }
-        IcodeActionMenu(
-            expanded = open,
-            onDismiss = { open = false },
-            actions = listOfNotNull(
-                IcodeMenuAction("New folder", Icons.Outlined.CreateNewFolder, { onCreate(WorkspaceItemType.Folder) }),
-                IcodeMenuAction("New file", Icons.Outlined.Description, { onCreate(WorkspaceItemType.File) }).takeUnless { foldersOnly },
-            ),
-        )
     }
 }
 

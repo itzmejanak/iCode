@@ -1,10 +1,5 @@
 package dev.icode.mobile.ui.screens.tools
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
-import android.os.Build
-import android.widget.Toast
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -63,8 +58,11 @@ import dev.icode.mobile.domain.AssistantToolKind
 import dev.icode.mobile.domain.GitChange
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.LineChanges
+import dev.icode.mobile.domain.WorkspaceRuntimePath
+import dev.icode.mobile.ui.FileItemActions
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
+import dev.icode.mobile.ui.copyText
 import java.io.File
 
 /**
@@ -90,7 +88,10 @@ internal fun AssistantStepRow(step: AssistantEntry.Step, onDiff: (GitChange) -> 
     val actions = if (file == null || location == null) emptyList() else listOfNotNull(
         IcodeMenuAction("Open in Editor", Icons.Outlined.Description, { gateway.dispatch(ICodeIntent.OpenFile(location)) }),
         change?.let { IcodeMenuAction("Show Changes", Icons.Outlined.Difference, { onDiff(it) }) },
-        IcodeMenuAction("Copy Path", Icons.Outlined.ContentCopy, { copyText(context, "Path", file, "Path copied") }),
+        // As every explorer's: the path the runtime names it by.
+        snapshot.assistant.workspace?.let { root ->
+            FileItemActions.copyPath(context, WorkspaceRuntimePath.within(root, WorkspaceRuntimePath.of(AssistantRules.workspaceName(root)), location))
+        },
     )
     Disclosure(
         key = step.key,
@@ -225,11 +226,6 @@ private fun CopyChip(onCopy: () -> Unit) {
     }
 }
 
-/** [text] to the clipboard; below Android 13, which says so itself, a toast says [said]. */
-internal fun copyText(context: Context, label: String, text: String, said: String) {
-    context.getSystemService(ClipboardManager::class.java)?.setPrimaryClip(ClipData.newPlainText(label, text))
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) Toast.makeText(context, said, Toast.LENGTH_SHORT).show()
-}
 
 private val STATUS_WORDS = mapOf(
     AssistantStepStatus.Running to "Running",

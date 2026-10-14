@@ -148,8 +148,7 @@ internal class WorkspaceItemsCoordinator(
         if (!File(held.location).exists()) return "${held.name} no longer exists"
         if (destination.isAtOrUnder(held.location)) return "${held.name} cannot go inside itself"
         if (asWorkspace) {
-            if (!held.folder) return "A workspace is a folder: paste ${held.name} inside one"
-            if (held.cut && held.workspace) return "${held.name} is a workspace already"
+            held.notAWorkspace?.let { return it }
             WorkspaceNameRules.newWorkspaceError(held.name) { held.cut && File(destination, it).exists() }?.let { return it }
         } else if (held.cut && File(destination, held.name).exists()) {
             return "“${held.name}” is already there"

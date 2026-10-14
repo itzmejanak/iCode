@@ -1,19 +1,8 @@
 package dev.icode.mobile.ui
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
-import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.ContentCut
-import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material.icons.outlined.DriveFileRenameOutline
-import androidx.compose.material.icons.outlined.FolderCopy
 import androidx.compose.material.icons.outlined.FolderOpen
-import androidx.compose.material.icons.outlined.Link
-import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,9 +19,10 @@ import dev.icode.mobile.domain.WorkspaceSummary
 
 /**
  * One set of actions for a whole workspace, wherever one is listed, shown by its ⋮ and by a long
- * press on it alike (docs/workspaces-page-plan.md §2.6). Cut and Copy put it on iCode's one
- * clipboard. [onShowInList] is the way from the home screen's recent rows to the Workspaces page;
- * the page itself has none.
+ * press on it alike (docs/workspaces-page-plan.md §2.6): every file's and folder's
+ * ([FileItemActions]), with Open Terminal. Cut and Copy put it on iCode's one clipboard; Paste puts
+ * what is held inside it. [onShowInList] is the way from the home screen's recent rows to the
+ * Workspaces page; the page itself has none.
  */
 @Composable
 fun WorkspaceActionsMenu(
@@ -44,17 +34,21 @@ fun WorkspaceActionsMenu(
 ) {
     val gateway = LocalICodeGateway.current
     val context = LocalContext.current
+    val clipboard = LocalICodeSnapshot.current.clipboard
     var renaming by remember(item.location) { mutableStateOf(false) }
     var deleting by remember(item.location) { mutableStateOf(false) }
-    val actions = listOfNotNull(
-        IcodeMenuAction("Open", Icons.Outlined.FolderOpen, { gateway.dispatch(ICodeIntent.OpenWorkspace(item.location)) }),
-        IcodeMenuAction("Open Terminal", Icons.Outlined.Terminal, { gateway.dispatch(ICodeIntent.OpenWorkspaceTerminal(item.location)) }),
-        IcodeMenuAction("Rename…", Icons.Outlined.DriveFileRenameOutline, { renaming = true }),
-        IcodeMenuAction("Cut", Icons.Outlined.ContentCut, { gateway.dispatch(ICodeIntent.CutItem(item.location)) }),
-        IcodeMenuAction("Copy", Icons.Outlined.ContentCopy, { gateway.dispatch(ICodeIntent.CopyItem(item.location)) }),
-        onShowInList?.let { IcodeMenuAction("Show in Workspaces", Icons.Outlined.FolderCopy, it) },
-        copyPathAction(context, item.path),
-        IcodeMenuAction("Delete…", Icons.Outlined.DeleteOutline, { deleting = true }, destructive = true),
+    val actions = FileItemActions.of(
+        context = context,
+        dispatch = gateway::dispatch,
+        location = item.location,
+        runtimePath = item.path,
+        clipboard = clipboard,
+        open = IcodeMenuAction("Open", Icons.Outlined.FolderOpen, { gateway.dispatch(ICodeIntent.OpenWorkspace(item.location)) }),
+        onRename = { renaming = true },
+        onPaste = { gateway.dispatch(ICodeIntent.PasteInto(item.location)) },
+        onDelete = { deleting = true },
+        openTerminal = { gateway.dispatch(ICodeIntent.OpenWorkspaceTerminal(item.location)) },
+        showInList = onShowInList,
     )
     Box(modifier) {
         IcodeOverflowMenu(contentDescription = "More options for ${item.name}", actions = actions)
@@ -75,10 +69,3 @@ fun WorkspaceActionsMenu(
         )
     }
 }
-
-/** Copy path: the runtime path — what a terminal, a script or another workspace's config names it by. */
-fun copyPathAction(context: Context, runtimePath: String) = IcodeMenuAction("Copy path", Icons.Outlined.Link, {
-    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-    clipboard.setPrimaryClip(ClipData.newPlainText("Path", runtimePath))
-    Toast.makeText(context, "Path copied", Toast.LENGTH_SHORT).show()
-})

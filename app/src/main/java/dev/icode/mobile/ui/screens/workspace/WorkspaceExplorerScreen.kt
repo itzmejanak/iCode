@@ -14,17 +14,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountTree
-import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.AutoAwesome
-import androidx.compose.material.icons.outlined.ContentPaste
-import androidx.compose.material.icons.outlined.CreateNewFolder
-import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Terminal
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -36,7 +30,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import dev.icode.mobile.designsystem.ActivityRail
 import dev.icode.mobile.designsystem.ActivityRailEntry
-import dev.icode.mobile.designsystem.IcodeActionMenu
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeMenuAction
 import dev.icode.mobile.designsystem.IcodeShapes
@@ -50,7 +43,10 @@ import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.navigation.ToolPanelTab
+import dev.icode.mobile.domain.WorkspaceRuntimePath
 import dev.icode.mobile.ui.ClipboardBar
+import dev.icode.mobile.ui.FileItemActions
+import dev.icode.mobile.ui.NewItemButton
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 
@@ -68,15 +64,20 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
     // iCode's one clipboard: cut or copied here, in another workspace, or on the Workspaces page.
     val clipboard = state.clipboard
     val rootSelectionInteraction = remember { MutableInteractionSource() }
-    val pasteInto = { target: String? -> target?.let { gateway.dispatch(ICodeIntent.PasteInto(it)) } }
+    val root = state.activeWorkspaceLocation
+    // The folder + makes in and the header's and the bar's Paste go into: the selected folder, or the selected file's.
+    val selectedFolder = creationParentLocation(root, selectedPath, state.files)
+    val pasteHere = { selectedFolder?.let { gateway.dispatch(ICodeIntent.PasteInto(it)) } }
+    // Each path as the runtime names it, as Copy path gives it and the terminal shows it.
+    val runtimePathOf = { location: String -> root?.let { WorkspaceRuntimePath.within(it, state.activePath, location) } ?: location }
     Column(Modifier.fillMaxSize()) {
         WorkspaceHeader(
-            onNewItem = { type ->
-                createParent = creationParentLocation(state.activeWorkspaceLocation, selectedPath, state.files)
-                createType = type
-            },
-            pasteLabel = clipboard?.let { pasteLabel(it) },
-            onPaste = { pasteInto(creationParentLocation(state.activeWorkspaceLocation, selectedPath, state.files)) },
+            actions = FileItemActions.creation(
+                onNewFile = { createParent = selectedFolder; createType = WorkspaceItemType.File },
+                onNewFolder = { createParent = selectedFolder; createType = WorkspaceItemType.Folder },
+                clipboard = clipboard,
+                onPaste = { pasteHere() },
+            ),
         )
         Row(Modifier.weight(1f).background(IcodeColors.Surface)) {
             ActivityRail(
@@ -143,6 +144,13 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
                             ExplorerRow(
                                 entry = entry,
                                 selected = entry.path == selectedPath,
+                                actions = explorerItemActions(
+                                    entry, root, state.activePath, state.files, clipboard,
+                                    onRename = { renaming = entry.path },
+                                    onDelete = { deleting = entry.path },
+                                ),
+                                menuOpen = menuFor == entry.path,
+                                onMenuDismiss = { menuFor = null },
                                 onClick = {
                                     selectedPath = entry.path
                                     if (entry.kind == FileKind.Folder) {
@@ -156,26 +164,14 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
                                     menuFor = entry.path
                                 },
                             )
-                            ExplorerItemMenu(
-                                entry = entry,
-                                expanded = menuFor == entry.path,
-                                clipboard = clipboard,
-                                onDismiss = { menuFor = null },
-                                onRename = { menuFor = null; renaming = entry.path },
-                                onPaste = {
-                                    menuFor = null
-                                    pasteInto(pasteTarget(state.activeWorkspaceLocation, entry, state.files))
-                                },
-                                onDelete = { menuFor = null; deleting = entry.path },
-                            )
                         }
                     }
                 }
             }
         }
-        // The Workspaces page's bar too: into the selected folder, as the header's Paste.
-        clipboard?.let { held ->
-            ClipboardBar(held, onPaste = { pasteInto(creationParentLocation(state.activeWorkspaceLocation, selectedPath, state.files)) })
+        // The Workspaces page's bar too: into the selected folder, as the header's Paste, and it says so.
+        if (clipboard != null && selectedFolder != null) {
+            ClipboardBar(clipboard, destination = runtimePathOf(selectedFolder), onPaste = { pasteHere() })
         }
     }
     createType?.let { type ->
@@ -185,35 +181,18 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
         RenameWorkspaceItemDialog(entry.path, entry.name, entry.kind == FileKind.Folder, onDismiss = { renaming = null })
     }
     state.files.firstOrNull { it.path == deleting }?.let { entry ->
-        val shown = state.activeWorkspaceLocation?.let { entry.path.removePrefix("$it/") } ?: entry.path
-        DeleteWorkspaceItemDialog(entry.path, entry.name, entry.kind == FileKind.Folder, shown, onDismiss = { deleting = null })
+        DeleteWorkspaceItemDialog(entry.path, entry.name, entry.kind == FileKind.Folder, runtimePathOf(entry.path), onDismiss = { deleting = null })
     }
 }
 
-/** Workspace header used by the explorer family. */
+/** Workspace header used by the explorer family: its + offers [actions] ([FileItemActions.creation]). */
 @Composable
-private fun WorkspaceHeader(onNewItem: (WorkspaceItemType) -> Unit, pasteLabel: String?, onPaste: () -> Unit) {
+private fun WorkspaceHeader(actions: List<IcodeMenuAction>) {
     val state = LocalICodeSnapshot.current
-    var menuExpanded by remember { mutableStateOf(false) }
     IcodeTopBar(
         title = state.activeWorkspace,
         subtitle = state.activePath,
-        actions = {
-            Box {
-                IconButton(onClick = { menuExpanded = true }) {
-                    Icon(Icons.Outlined.Add, contentDescription = "Create in workspace", tint = IcodeColors.TextPrimary)
-                }
-                IcodeActionMenu(
-                    expanded = menuExpanded,
-                    onDismiss = { menuExpanded = false },
-                    actions = listOfNotNull(
-                        IcodeMenuAction("New file", Icons.Outlined.Description, { onNewItem(WorkspaceItemType.File) }),
-                        IcodeMenuAction("New folder", Icons.Outlined.CreateNewFolder, { onNewItem(WorkspaceItemType.Folder) }),
-                        pasteLabel?.let { IcodeMenuAction(it, Icons.Outlined.ContentPaste, { menuExpanded = false; onPaste() }) },
-                    ),
-                )
-            }
-        },
+        actions = { NewItemButton(contentDescription = "Create in workspace", actions = actions) },
     )
 }
 

@@ -4,11 +4,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.ContentCut
-import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material.icons.outlined.DriveFileRenameOutline
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material3.Text
@@ -37,19 +32,22 @@ import dev.icode.mobile.domain.FileTypes
 import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.countOf
+import dev.icode.mobile.ui.FileItemActions
 import dev.icode.mobile.ui.LocalICodeGateway
-import dev.icode.mobile.ui.copyPathAction
+import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.screens.workspace.fileTypeIcon
 import dev.icode.mobile.ui.screens.workspace.fileTypeTint
 
 /**
  * One folder or file inside a workspace, in the file explorer: its icon, its name, its size or
  * count and when it changed. A tap goes into a folder or opens a file in the editor; a long press
- * or ⋮ gives its actions — one list: Open, Rename…, Cut, Copy, Copy path, Delete….
+ * or ⋮ gives its actions, every explorer's ([FileItemActions]): Open, Rename…, Cut, Copy, Paste,
+ * Copy path, Delete…. Paste goes into a folder; beside a file, into the folder shown ([here]).
  */
 @Composable
 internal fun BrowsedItemRow(
     item: BrowsedItem,
+    here: String,
     runtimePath: String,
     onBrowse: (String) -> Unit,
     onRename: () -> Unit,
@@ -60,13 +58,16 @@ internal fun BrowsedItemRow(
     var longPressed by remember(item.location) { mutableStateOf(false) }
     val type = FileTypes.of(item.name)
     val open = { if (item.folder) onBrowse(item.location) else gateway.dispatch(ICodeIntent.OpenFile(item.location)) }
-    val actions = listOf(
-        IcodeMenuAction("Open", if (item.folder) Icons.Outlined.FolderOpen else Icons.Outlined.Description, open),
-        IcodeMenuAction("Rename…", Icons.Outlined.DriveFileRenameOutline, onRename),
-        IcodeMenuAction("Cut", Icons.Outlined.ContentCut, { gateway.dispatch(ICodeIntent.CutItem(item.location)) }),
-        IcodeMenuAction("Copy", Icons.Outlined.ContentCopy, { gateway.dispatch(ICodeIntent.CopyItem(item.location)) }),
-        copyPathAction(context, runtimePath),
-        IcodeMenuAction("Delete…", Icons.Outlined.DeleteOutline, onDelete, destructive = true),
+    val actions = FileItemActions.of(
+        context = context,
+        dispatch = gateway::dispatch,
+        location = item.location,
+        runtimePath = runtimePath,
+        clipboard = LocalICodeSnapshot.current.clipboard,
+        open = if (item.folder) IcodeMenuAction("Open", Icons.Outlined.FolderOpen, open) else FileItemActions.openFile(open),
+        onRename = onRename,
+        onPaste = { gateway.dispatch(ICodeIntent.PasteInto(if (item.folder) item.location else here)) },
+        onDelete = onDelete,
     )
     IcodeListRow(
         card = true,
