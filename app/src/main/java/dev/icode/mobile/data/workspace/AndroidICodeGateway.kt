@@ -82,8 +82,10 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
         appContext, stateHolder, scope, runtimeLayout, AndroidSystemAccess(appContext),
         sessionsRunning = runtimeBusy,
     )
+    /** Phone storage, the file explorer's Shared place (docs/storage-explorer-plan.md). */
+    private val phoneStorage = PhoneStorage.of()
     private val library: WorkspaceLibraryCoordinator = WorkspaceLibraryCoordinator(
-        appContext, stateHolder, scope, source, store, runtimeLayout,
+        appContext, stateHolder, scope, source, store, runtimeLayout, phoneStorage,
         branchOf = git::branchOf,
         tasksRunning = { runtimeBusy() || runtime.installing || stateHolder.current.gitOperation is GitOperationState.Running },
     )
@@ -157,17 +159,15 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
         forgetSettings = { location -> settings.forgetWorkspace(location).also { assistant.workspaceForgotten(location); execution.processes.workspaceForgotten(location) } },
     )
     private val items = WorkspaceItemsCoordinator(
-        stateHolder, tasks, source, tree, documents, library, usage, lifecycle,
+        stateHolder, tasks, source, tree, documents, library, usage, lifecycle, phoneStorage,
+        StorageTransfers(
+            stateHolder, tasks, runtimeLayout.workspaces, git, phoneStorage,
+            reserveSpace = runtimeLayout::reserveSpace,
+            freeBytes = runtimeLayout::allocatableBytes,
+        ),
         activeRoot = { session.activeRoot },
         refreshWorkspaceState = { root -> gitWorkspace.refresh(root) },
         reindex = { root -> search.workspaceChanged(root) },
-    )
-    private val importer = WorkspaceImportCoordinator(
-        stateHolder, tasks, runtimeLayout.workspaces, git,
-        PhoneStorage.of(),
-        reserveSpace = runtimeLayout::reserveSpace,
-        freeBytes = runtimeLayout::allocatableBytes,
-        open = lifecycle::reveal,
     )
     /** iCode's assistant (docs/assistant-koog-plan.md): its turns are its own jobs, its tools iCode's owners. */
     private val assistant = AssistantCoordinator.create(
@@ -193,7 +193,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
         scope.launch { runtime.reportState() }
         components.start()
         BackgroundWork.follow(appContext, scope, stateHolder.snapshot.map(BackgroundWorkRules::of), ::dispatch)
-        importer.followAccess(scope)
+        library.followAccess()
         assistant.start()
     }
 
@@ -257,10 +257,6 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
                         is ICodeIntent.CreateWorkspace -> lifecycle.create(intent)
                         is ICodeIntent.RenameWorkspace -> lifecycle.rename(intent)
                         is ICodeIntent.DeleteWorkspace -> lifecycle.delete(intent.location)
-                        is ICodeIntent.OpenImportBrowser -> importer.openBrowser(intent.path)
-                        is ICodeIntent.BrowseImportFolder -> importer.browse(intent.path)
-                        is ICodeIntent.ChooseImportFolder -> importer.choose(intent.path)
-                        is ICodeIntent.ImportWorkspace -> importer.import(intent.name, intent.into)
                         is ICodeIntent.OpenWorkspace -> session.open(intent.path, persist = true)
                         is ICodeIntent.OpenWorkspaceTerminal -> session.open(intent.path, persist = true, openTerminal = true)
                         is ICodeIntent.ResolveWorkspaceSwitch -> session.resolveSwitch(intent)

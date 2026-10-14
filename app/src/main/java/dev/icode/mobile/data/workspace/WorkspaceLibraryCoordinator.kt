@@ -3,6 +3,7 @@ package dev.icode.mobile.data.workspace
 import android.content.Context
 import dev.icode.mobile.data.io.measureTree
 import dev.icode.mobile.data.runtime.RuntimeLayout
+import dev.icode.mobile.data.storage.PhoneStorage
 import dev.icode.mobile.data.storage.WorkspacesProvider
 import dev.icode.mobile.domain.RecentDocument
 import dev.icode.mobile.domain.BrowsedItem
@@ -11,22 +12,28 @@ import dev.icode.mobile.domain.FilesBrowserState
 import dev.icode.mobile.domain.ProjectDestination
 import dev.icode.mobile.domain.StorageDetails
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.StoragePlace
 import dev.icode.mobile.domain.WorkspaceSummary
 import java.io.File
 import java.nio.file.Files
 import java.nio.file.LinkOption
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
  * The user's library of workspaces (docs/workspace-storage-plan.md §4.3): every folder in iCode's
  * workspaces, most recently opened first — the folder is the registry, so nothing in the list can
  * go stale — their recent files, as the one writer of the workspace store, and what they and the
- * runtime take up in storage.
+ * runtime take up in storage. And the file explorer's listing, of iCode's storage and of phone
+ * storage (docs/storage-explorer-plan.md §4.3).
  */
 internal class WorkspaceLibraryCoordinator(
     private val appContext: Context,
@@ -35,6 +42,7 @@ internal class WorkspaceLibraryCoordinator(
     private val source: WorkspaceFileSource,
     private val store: WorkspaceStore,
     private val runtimeLayout: RuntimeLayout,
+    private val storage: PhoneStorage,
     /** The branch `HEAD` names, read from disk: the launcher names it without starting Git. */
     private val branchOf: (location: String) -> String?,
     /** Clearing the cache under a running task would pull files out from under it. */
@@ -43,6 +51,14 @@ internal class WorkspaceLibraryCoordinator(
     private var storageJob: Job? = null
     private var sizesJob: Job? = null
     private val paths get() = runtimeLayout.workspaces
+
+    /** Where the explorer goes next, decided as each request arrives. */
+    @Volatile private var browsing: String? = null
+    private var browseJob: Job? = null
+    private val browseLock = Any()
+
+    /** Where each place was last, for [ICodeIntent.BrowsePlace]. */
+    private val lastIn = ConcurrentHashMap<StoragePlace, String>()
 
     /**
      * After a workspace was made, renamed or deleted, and whenever iCode refreshes after a change —
@@ -60,7 +76,14 @@ internal class WorkspaceLibraryCoordinator(
 
     /** The file explorer's folder, read again after a change — iCode's, or one the watcher saw. */
     fun refreshFiles() {
-        stateHolder.current.filesBrowser?.let { browseFiles(it.path) }
+        browsing?.let(::browse)
+    }
+
+    /** Phone storage lists its folder once All Files Access is granted, and waits for it again once it is taken back. */
+    fun followAccess() = scope.launch {
+        stateHolder.snapshot.map { it.systemAccess?.storage == true }.distinctUntilChanged().collect {
+            if (stateHolder.current.filesBrowser?.place == StoragePlace.Shared) refreshFiles()
+        }
     }
 
     /**
@@ -105,9 +128,8 @@ internal class WorkspaceLibraryCoordinator(
 
     fun read(intent: ICodeIntent.StorageIntent) {
         when (intent) {
-            is ICodeIntent.BrowseFiles -> scope.launch(Dispatchers.IO) {
-                browseFiles(intent.path ?: stateHolder.current.filesBrowser?.path ?: paths.root.path)
-            }
+            is ICodeIntent.BrowseFiles -> browse(intent.path ?: browsing ?: paths.root.path)
+            is ICodeIntent.BrowsePlace -> browse(lastIn[intent.place] ?: if (intent.place == StoragePlace.Shared) storage.root.path else paths.root.path)
             is ICodeIntent.ChooseDestination -> scope.launch(Dispatchers.IO) { chooseDestination(intent.path) }
             ICodeIntent.RefreshStorage -> refreshStorage()
             ICodeIntent.MeasureWorkspaces -> measureWorkspaces()
@@ -123,13 +145,33 @@ internal class WorkspaceLibraryCoordinator(
         stateHolder.update { it.copy(projectDestination = destination) }
     }
 
+    /** The explorer goes to [path]; an older listing still running stops, and is never shown after a newer one. */
+    private fun browse(path: String): Unit = synchronized(browseLock) {
+        browsing = path
+        browseJob?.cancel()
+        browseJob = scope.launch(Dispatchers.IO) {
+            val listed = listing(path)
+            synchronized(browseLock) {
+                if (!isActive) return@launch
+                browsing = listed.path
+                lastIn[listed.place] = listed.path
+                stateHolder.update { it.copy(filesBrowser = listed) }
+            }
+        }
+    }
+
     /**
-     * The file explorer at [path] (docs/workspace-destinations-plan.md §2.2): the workspaces at the
-     * top — the library's own list — and inside one, its folders and files as the Explorer lists
-     * them (not `.git`, no link that leads out), each with its size or count and when it changed.
-     * A folder gone meanwhile leaves it at the top.
+     * What the explorer shows at [path]: on phone storage every entry, or nothing until All Files
+     * Access; in iCode's storage the workspaces at the top, and inside one what the Explorer lists
+     * (not `.git`, no link that leads out). A folder gone meanwhile leaves it at its place's top.
      */
-    private fun browseFiles(path: String) {
+    private fun listing(path: String): FilesBrowserState {
+        val shared = storage.root.path
+        if (storage.contains(path)) {
+            if (!storage.hasAccess()) return FilesBrowserState(StoragePlace.Shared, shared, path, access = false, sharedRoot = shared)
+            val at = storage.folder(path)?.path ?: shared
+            return FilesBrowserState(StoragePlace.Shared, shared, at, runCatching { storage.list(at) }.getOrDefault(emptyList()), sharedRoot = shared)
+        }
         val root = paths.root.path
         val at = path.takeIf { it == root || (paths.workspaceOf(it) != null && File(it).isDirectory) } ?: root
         val items = if (at == root) {
@@ -141,7 +183,7 @@ internal class WorkspaceLibraryCoordinator(
                 BrowsedItem(node.name, node.location, folder, bytes = file.length().takeUnless { folder }, changedAt = file.lastModified(), entries = if (folder) file.list()?.size else null)
             }
         }
-        stateHolder.update { it.copy(filesBrowser = FilesBrowserState(root, at, items)) }
+        return FilesBrowserState(StoragePlace.Private, root, at, items, sharedRoot = shared)
     }
 
     /** The device, the runtime and the cache; the newest measurement replaces one still running. */

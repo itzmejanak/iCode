@@ -32,6 +32,7 @@ import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.SettingRow
 import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.StoragePlace
 import dev.icode.mobile.domain.SystemPermission
 import dev.icode.mobile.domain.WorkspaceListRules
 import dev.icode.mobile.domain.storageSizeLabel
@@ -105,7 +106,10 @@ fun StorageSettingsScreen(actions: NavigationActions) {
                     Modifier.fillMaxWidth(),
                     subtitle = WorkspaceListRules.summary(state.workspaces, state.workspaceSizes),
                     leadingIcon = Icons.Outlined.FolderCopy,
-                    onClick = { actions.navigate(Route.Workspaces) },
+                    onClick = {
+                        gateway.dispatch(ICodeIntent.BrowsePlace(StoragePlace.Private))
+                        actions.navigate(Route.Workspaces)
+                    },
                 )
             }
             // Android's own setting; iCode shows what it reads and opens the page to change it.
@@ -115,7 +119,7 @@ fun StorageSettingsScreen(actions: NavigationActions) {
                 SettingRow(
                     "All Files Access",
                     Modifier.fillMaxWidth(),
-                    subtitle = if (allowed) "Import can read folders on phone storage" else "Off: Import asks for it when you import",
+                    subtitle = if (allowed) "The file explorer can open Shared, phone storage" else "Off: the file explorer asks for it at Shared",
                     onClick = { gateway.dispatch(ICodeIntent.OpenSystemSettings(SystemPermission.Storage)) },
                 ) {
                     AccessState(if (allowed) "ALLOWED" else "OFF", allowed = allowed)

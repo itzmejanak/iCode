@@ -178,10 +178,6 @@ fun IcodeApp(
                     is ICodeEffect.OpenSystemSettings -> systemPrompts.openSettings(effect.permission)
                     // The permission screen walks on to its next step by itself.
                     is ICodeEffect.SystemPermissionResolved -> Unit
-                    // Change on the Import screen picks again; it stays, showing the new folder.
-                    ICodeEffect.ImportSourceChosen -> if (navigation.current != Route.ImportWorkspace) {
-                        navigation.actions.navigate(Route.ImportWorkspace)
-                    }
                     // What made the workspace gives way to it, so Back returns to the launcher.
                     is ICodeEffect.WorkspaceOpened -> if (navigation.current in MAKES_A_WORKSPACE) {
                         navigation.actions.replace(Route.WorkspaceExplorer)
@@ -266,7 +262,7 @@ private fun ScreenHost(screen: Route, actions: NavigationActions) {
 }
 
 /** Screens that make a workspace: once it opens, it takes their place. */
-private val MAKES_A_WORKSPACE = setOf(Route.ImportWorkspace, Route.CloneProgress)
+private val MAKES_A_WORKSPACE = setOf(Route.CloneProgress)
 
 /** The first-run screens; each replaces the one before it. */
 private val ONBOARDING_SCREENS = setOf(

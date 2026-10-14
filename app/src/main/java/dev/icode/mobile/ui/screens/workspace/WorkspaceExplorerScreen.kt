@@ -65,7 +65,7 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
     val clipboard = state.clipboard
     val rootSelectionInteraction = remember { MutableInteractionSource() }
     val root = state.activeWorkspaceLocation
-    // The folder + makes in and the header's and the bar's Paste go into: the selected folder, or the selected file's.
+    // The folder + makes in and the bar's Paste goes into: the selected folder, or the selected file's.
     val selectedFolder = creationParentLocation(root, selectedPath, state.files)
     val pasteHere = { selectedFolder?.let { gateway.dispatch(ICodeIntent.PasteInto(it)) } }
     // Each path as the runtime names it, as Copy path gives it and the terminal shows it.
@@ -75,8 +75,6 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
             actions = FileItemActions.creation(
                 onNewFile = { createParent = selectedFolder; createType = WorkspaceItemType.File },
                 onNewFolder = { createParent = selectedFolder; createType = WorkspaceItemType.Folder },
-                clipboard = clipboard,
-                onPaste = { pasteHere() },
             ),
         )
         Row(Modifier.weight(1f).background(IcodeColors.Surface)) {

@@ -3,6 +3,7 @@ package dev.icode.mobile.data.workspace
 import dev.icode.mobile.data.io.deleteTree
 import java.io.File
 import java.io.IOException
+import java.nio.file.FileAlreadyExistsException
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
 import java.nio.file.LinkOption
@@ -12,13 +13,27 @@ import java.nio.file.StandardCopyOption
 import java.nio.file.attribute.BasicFileAttributes
 
 /**
- * Rename, move, copy and delete inside one workspace (S3). Every path is
- * checked against [root] first: nothing outside it, never the root itself,
- * never Git's own `.git`. Nothing is overwritten, and links are never followed —
- * a link is moved, copied or deleted as the link it is.
+ * Make, rename, move, copy and delete inside one workspace (S3) — or inside phone storage, the
+ * explorer's Shared place (docs/storage-explorer-plan.md §4.2), where [gitOwnsDotGit] is false: a
+ * `.git` there is the user's data like any other. Every path is checked against [root] first:
+ * nothing outside it, never the root itself, and in a workspace never Git's own `.git`. Nothing is
+ * overwritten, and links are never followed — a link is moved, copied or deleted as the link it is.
  */
-internal class WorkspaceFiles(root: File) {
+internal class WorkspaceFiles(root: File, private val gitOwnsDotGit: Boolean = true) {
     private val root: Path = root.canonicalFile.toPath()
+
+    /** A new, empty folder ([isFolder]) or file named [name] in [parentLocation]; refused when the name is taken. */
+    fun create(parentLocation: String, name: String, isFolder: Boolean): File {
+        val parent = folder(parentLocation)
+        val target = parent.resolve(name)
+        requireInside(target)
+        if (target.parent != parent) throw IOException("Invalid ${if (isFolder) "folder" else "file"} destination")
+        return try {
+            (if (isFolder) Files.createDirectory(target) else Files.createFile(target)).toFile()
+        } catch (taken: FileAlreadyExistsException) {
+            throw IOException("A file or folder with this name already exists")
+        }
+    }
 
     fun rename(location: String, newName: String): File {
         val source = item(location)
@@ -107,14 +122,14 @@ internal class WorkspaceFiles(root: File) {
     private fun item(location: String): Path {
         val path = absolute(location)
         if (!Files.exists(path, LinkOption.NOFOLLOW_LINKS)) throw IOException("It no longer exists")
-        if (path == root) throw IOException("The workspace folder itself cannot be changed here")
+        if (path == root) throw IOException("This folder itself cannot be changed here")
         requireInside(path)
         return path
     }
 
     private fun folder(location: String): Path {
         val path = absolute(location)
-        if (!Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)) throw IOException("Choose a folder in this workspace")
+        if (!Files.isDirectory(path, LinkOption.NOFOLLOW_LINKS)) throw IOException("Choose a folder here")
         if (path != root) requireInside(path)
         return path
     }
@@ -130,22 +145,26 @@ internal class WorkspaceFiles(root: File) {
     }
 
     private fun requireInside(path: Path) {
-        if (!path.startsWith(root) || path == root) throw IOException("Only items inside this workspace can be changed")
-        if (root.relativize(path).any { it.toString() == ".git" }) throw IOException("The .git folder belongs to Git")
+        if (!path.startsWith(root) || path == root) throw IOException("Only items inside ${if (gitOwnsDotGit) "this workspace" else "phone storage"} can be changed")
+        if (gitOwnsDotGit && root.relativize(path).any { it.toString() == ".git" }) throw IOException("The .git folder belongs to Git")
     }
 
-    private fun freeName(folder: Path, name: String, isDirectory: Boolean): Path {
-        val candidate = folder.resolve(name)
-        if (!Files.exists(candidate, LinkOption.NOFOLLOW_LINKS)) return candidate
-        val dot = name.lastIndexOf('.').takeIf { !isDirectory && it > 0 } ?: name.length
-        val stem = name.substring(0, dot)
-        val extension = name.substring(dot)
-        return generateSequence(1) { it + 1 }
-            .map { number -> folder.resolve(if (number == 1) "$stem copy$extension" else "$stem copy $number$extension") }
-            .first { !Files.exists(it, LinkOption.NOFOLLOW_LINKS) }
-    }
+    private fun Path.display(): String = toString().ifEmpty { if (gitOwnsDotGit) "the workspace" else "phone storage" }
+}
 
-    private fun Path.display(): String = toString().ifEmpty { "the workspace" }
+/**
+ * [name] in [folder], or when it is taken “name copy”, then “name copy 2”… — a file's extension kept
+ * last. On phone storage `Files.exists` answers as its filesystem does, ignoring case.
+ */
+internal fun freeName(folder: Path, name: String, isDirectory: Boolean): Path {
+    val candidate = folder.resolve(name)
+    if (!Files.exists(candidate, LinkOption.NOFOLLOW_LINKS)) return candidate
+    val dot = name.lastIndexOf('.').takeIf { !isDirectory && it > 0 } ?: name.length
+    val stem = name.substring(0, dot)
+    val extension = name.substring(dot)
+    return generateSequence(1) { it + 1 }
+        .map { number -> folder.resolve(if (number == 1) "$stem copy$extension" else "$stem copy $number$extension") }
+        .first { !Files.exists(it, LinkOption.NOFOLLOW_LINKS) }
 }
 
 /** This location is [path] itself or lies inside it. */

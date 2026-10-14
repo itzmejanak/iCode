@@ -37,9 +37,12 @@ import dev.icode.mobile.designsystem.IcodeWatermark
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.StatusDot
 import dev.icode.mobile.designsystem.StatusLabel
+import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.StoragePlace
 import dev.icode.mobile.domain.WorkspaceListRules
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
+import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.WorkspaceRow
 
@@ -51,8 +54,17 @@ import dev.icode.mobile.ui.WorkspaceRow
 @Composable
 fun LauncherScreen(actions: NavigationActions, empty: Boolean) {
     val state = LocalICodeSnapshot.current
+    val gateway = LocalICodeGateway.current
     val workspaces = state.workspaces
     val showEmpty = empty || workspaces.isEmpty()
+    val explore = { place: StoragePlace ->
+        gateway.dispatch(ICodeIntent.BrowsePlace(place))
+        actions.navigate(Route.Workspaces)
+    }
+    val showIn = { folder: String ->
+        gateway.dispatch(ICodeIntent.BrowseFiles(folder))
+        actions.navigate(Route.Workspaces)
+    }
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar(
             title = "iCode",
@@ -78,9 +90,10 @@ fun LauncherScreen(actions: NavigationActions, empty: Boolean) {
             modifier = Modifier.fillMaxWidth().padding(IcodeSpacing.Space4),
             horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
         ) {
-            LauncherActionTile(Icons.Outlined.FolderOpen, "Import", Modifier.weight(1f)) { actions.navigate(Route.ImportBrowser) }
+            // Import and Workspaces open the one file explorer, at phone storage and at iCode's (docs/storage-explorer-plan.md §1).
+            LauncherActionTile(Icons.Outlined.FolderOpen, "Import", Modifier.weight(1f)) { explore(StoragePlace.Shared) }
             LauncherActionTile(Icons.Outlined.AccountTree, "Clone Repo", Modifier.weight(1f)) { actions.navigate(Route.CloneRepository) }
-            LauncherActionTile(Icons.Outlined.FolderCopy, "Workspaces", Modifier.weight(1f)) { actions.navigate(Route.Workspaces) }
+            LauncherActionTile(Icons.Outlined.FolderCopy, "Workspaces", Modifier.weight(1f)) { explore(StoragePlace.Private) }
         }
         // The logo as a letterpress in the free space, as VS Code's empty editor: workspaces
         // cover it as they fill the page.
@@ -90,7 +103,7 @@ fun LauncherScreen(actions: NavigationActions, empty: Boolean) {
                 Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
                     EmptyState(
                         title = "No workspaces yet",
-                        description = "Import a folder from phone storage, clone a repository,\nor make a new one in Workspaces.",
+                        description = "Copy a folder in from phone storage with Import, clone\na repository, or make a new one in Workspaces.",
                         icon = Icons.Outlined.Folder,
                         modifier = Modifier.padding(top = IcodeSpacing.Space6 + IcodeSpacing.Space2),
                     )
@@ -102,7 +115,8 @@ fun LauncherScreen(actions: NavigationActions, empty: Boolean) {
                 ) {
                     item { SectionLabel("Recent", Modifier.padding(bottom = IcodeSpacing.Space1)) }
                     items(WorkspaceListRules.recent(workspaces), key = { it.location }) { workspace ->
-                        WorkspaceRow(workspace, onShowInList = { actions.navigate(Route.Workspaces) })
+                        // Shown where it is listed: the top of iCode's storage, the folder holding it.
+                        WorkspaceRow(workspace, onShowInList = { showIn(workspace.location.substringBeforeLast('/')) })
                     }
                 }
             }

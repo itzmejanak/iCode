@@ -32,7 +32,7 @@ mapfile -t screens < <(
 # frame 2003:77 "Create folder" is the Workspaces page's New Folder dialog
 # (docs/workspace-destinations-plan.md §2.5), and frame 2003:731 "Delete confirmation"
 # is the discard dialog over what asked for it (the same plan, G14).
-# Frame 2003:117 "Open folder" draws the Import browser (docs/workspace-storage-plan.md §4.4).
+# Frame 2003:117 "Open folder" draws the file explorer, Private and Shared (docs/storage-explorer-plan.md).
 expected_routes=37
 if [[ "${#screens[@]}" -ne $expected_routes ]]; then
     echo "Expected $expected_routes registered routes, found ${#screens[@]}." >&2

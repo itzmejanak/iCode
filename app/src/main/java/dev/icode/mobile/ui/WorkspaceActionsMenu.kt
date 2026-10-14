@@ -18,11 +18,11 @@ import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.WorkspaceSummary
 
 /**
- * One set of actions for a whole workspace, wherever one is listed, shown by its ⋮ and by a long
- * press on it alike (docs/workspaces-page-plan.md §2.6): every file's and folder's
- * ([FileItemActions]), with Open Terminal. Cut and Copy put it on iCode's one clipboard; Paste puts
- * what is held inside it. [onShowInList] is the way from the home screen's recent rows to the
- * Workspaces page; the page itself has none.
+ * One set of actions for a whole workspace, wherever one is listed, shown by a long press on it —
+ * and on the home screen by its ⋮ too ([overflow]) (docs/workspaces-page-plan.md §2.6): every
+ * file's and folder's ([FileItemActions]), with Open Terminal. Cut and Copy put it on iCode's one
+ * clipboard; Paste puts what is held inside it. [onShowInList] is the way from the home screen's
+ * recent rows to the file explorer; the explorer itself has none.
  */
 @Composable
 fun WorkspaceActionsMenu(
@@ -31,6 +31,7 @@ fun WorkspaceActionsMenu(
     onLongPressDismiss: () -> Unit,
     onShowInList: (() -> Unit)?,
     modifier: Modifier = Modifier,
+    overflow: Boolean = true,
 ) {
     val gateway = LocalICodeGateway.current
     val context = LocalContext.current
@@ -51,7 +52,7 @@ fun WorkspaceActionsMenu(
         showInList = onShowInList,
     )
     Box(modifier) {
-        IcodeOverflowMenu(contentDescription = "More options for ${item.name}", actions = actions)
+        if (overflow) IcodeOverflowMenu(contentDescription = "More options for ${item.name}", actions = actions)
         IcodeActionMenu(expanded = longPressed, onDismiss = onLongPressDismiss, actions = actions)
     }
     if (renaming) RenameWorkspaceDialog(item) { renaming = false }

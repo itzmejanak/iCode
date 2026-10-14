@@ -19,11 +19,9 @@ fun EntryScreenHost(screen: Route, actions: NavigationActions) {
         Route.PermissionExplanation -> PermissionScreen(actions)
         Route.LauncherHome -> LauncherScreen(actions, empty = false)
         Route.LauncherEmpty -> LauncherScreen(actions, empty = true)
-        Route.Workspaces -> WorkspacesScreen(actions)
-        Route.ChooseDestination -> WorkspacesScreen(actions, choosing = true)
+        Route.Workspaces -> FilesScreen(actions)
+        Route.ChooseDestination -> FilesScreen(actions, choosing = true)
         Route.Notifications -> NotificationsScreen(actions)
-        Route.ImportBrowser -> ImportBrowserScreen(actions)
-        Route.ImportWorkspace -> ImportScreen(actions)
         Route.CloneRepository -> CloneRepositoryScreen(actions)
         Route.CloneProgress -> CloneProgressScreen(actions)
         else -> Unit

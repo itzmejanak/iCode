@@ -28,6 +28,11 @@ the Files provider — reaches it through one path model (§4.2). Nothing is mou
 synchronised. A folder from phone storage comes in once, by an explicit Import, as a copy; the
 original is never written.
 
+> **Since 2026-10-14** ([storage-explorer-plan.md](./storage-explorer-plan.md)): phone storage is the
+> file explorer's Shared place, beside Private. Import is a Copy there and a Paste in Private, with the
+> same engine. Copy and cut also go the other way. iCode changes phone storage only when the user
+> pastes, renames, deletes or creates something there.
+
 ## 2. Why — measured on the owner's phone (Infinix-X6881, 2026-09-29/30)
 
 | | Shared storage (`/storage/emulated/0`, FUSE) | iCode's storage (`files/`, ext4) |

@@ -1,5 +1,6 @@
 package dev.icode.mobile.data.workspace
 
+import dev.icode.mobile.data.storage.PhoneStorage
 import dev.icode.mobile.data.tasks.TaskRunner
 import dev.icode.mobile.domain.ItemClipboard
 import dev.icode.mobile.domain.ICodeEffect
@@ -8,12 +9,13 @@ import dev.icode.mobile.domain.WorkspaceNameRules
 import java.io.File
 
 /**
- * New files and folders inside the open workspace (S3), from the Explorer and the editor's tab
- * menu; the Explorer's rename and delete; and the one clipboard (docs/workspaces-page-plan.md
- * §2.7) — cut or copy anywhere in the workspaces, paste into a folder or as a workspace. The dialog
- * that asked is answered by request id. Copy and delete can take long: they run as tasks, with
- * their own dialog, off the mutation lock. What may change now is [WorkspaceUsage]'s answer, and a
- * workspace that stops being one is released and retired by the [lifecycle], as a delete is.
+ * New files and folders (S3), from the Explorer, the editor's tab menu and the file explorer; their
+ * rename and delete; and the one clipboard (docs/workspaces-page-plan.md §2.7) — cut or copy
+ * anywhere, paste into a folder or as a workspace. Each works in a workspace and on phone storage
+ * alike (docs/storage-explorer-plan.md §4); between the two places a paste is [transfers]'. The
+ * dialog that asked is answered by request id. Copy and delete can take long: they run as tasks,
+ * with their own dialog, off the mutation lock. What may change now is [WorkspaceUsage]'s answer,
+ * and a workspace that stops being one is released and retired by the [lifecycle], as a delete is.
  */
 internal class WorkspaceItemsCoordinator(
     private val stateHolder: ICodeStateHolder,
@@ -24,6 +26,8 @@ internal class WorkspaceItemsCoordinator(
     private val library: WorkspaceLibraryCoordinator,
     private val usage: WorkspaceUsage,
     private val lifecycle: WorkspaceLifecycleCoordinator,
+    private val storage: PhoneStorage,
+    private val transfers: StorageTransfers,
     private val activeRoot: () -> String?,
     /** Tree rows, Git status and recents after the worktree changed. */
     private val refreshWorkspaceState: suspend (root: String) -> Unit,
@@ -31,27 +35,32 @@ internal class WorkspaceItemsCoordinator(
     private val reindex: suspend (root: String) -> Unit,
 ) {
     /**
-     * A new file in any workspace's folder — the Explorer's, the editor's tab menu's, the file
-     * explorer's. Made in the open workspace, it opens in the editor, as the Explorer's always has.
+     * A new file in any workspace's folder or on phone storage — the Explorer's, the editor's tab
+     * menu's, the file explorer's. Made in the open workspace, it opens in the editor.
      */
     suspend fun createFile(intent: ICodeIntent.CreateFile) {
         val parent = intent.parentLocation ?: activeRoot() ?: return fail(intent.requestId, "Open a workspace before creating a file")
         val root = creationRoot(parent, intent.expectedWorkspace, intent.requestId) ?: return
         val name = intent.name.trim()
         WorkspaceNameRules.fileValidationError(name)?.let { return fail(intent.requestId, it) }
-        runCatching { source.createFile(parent, name) }.onSuccess { location ->
+        runCatching {
+            if (root == storage.root.path) shared().create(parent, name, isFolder = false).path else source.createFile(parent, name)
+        }.onSuccess { location ->
             refreshAfterCreate(root, parent, "File", updateIndex = true)
             if (intent.requestId != null) stateHolder.emit(ICodeEffect.WorkspaceItemChanged(intent.requestId, location))
             if (root == activeRoot()) documents.open(location)
         }.onFailure { error -> fail(intent.requestId, stateHolder.failureText("workspace", "Unable to create file", error)) }
     }
 
-    /** A new folder in any workspace's folder. */
+    /** A new folder in any workspace's folder, or on phone storage. */
     suspend fun createFolder(intent: ICodeIntent.CreateWorkspaceFolder) {
         val root = creationRoot(intent.parentLocation, intent.expectedWorkspace, intent.requestId) ?: return
         val name = intent.name.trim()
         WorkspaceNameRules.workspaceFolderValidationError(name)?.let { return fail(intent.requestId, it) }
-        runCatching { source.createDirectory(intent.parentLocation, name) }.onSuccess { location ->
+        runCatching {
+            if (root == storage.root.path) shared().create(intent.parentLocation, name, isFolder = true).path
+            else source.createDirectory(intent.parentLocation, name)
+        }.onSuccess { location ->
             refreshAfterCreate(root, intent.parentLocation, "Folder", updateIndex = false)
             stateHolder.emit(ICodeEffect.WorkspaceItemChanged(intent.requestId, location))
         }.onFailure { error -> fail(intent.requestId, stateHolder.failureText("workspace", "Unable to create folder", error)) }
@@ -59,9 +68,11 @@ internal class WorkspaceItemsCoordinator(
 
     /**
      * The workspace [parent] is in, when something may be made there: inside a workspace, outside
-     * `.git`, and — when the dialog named one — in the workspace it was opened for.
+     * `.git`, and — when the dialog named one — in the workspace it was opened for. On phone storage,
+     * its top, once it may be changed.
      */
     private suspend fun creationRoot(parent: String, expectedWorkspace: String?, requestId: String?): String? {
+        if (storage.contains(parent)) return storage.root.path.takeIf { sharedRefusal(requestId) == null }
         val root = source.workspaceOf(parent)
         return when {
             root == null || !isCreationParent(root, parent) -> null.also { fail(requestId, "Choose a folder inside a workspace") }
@@ -71,13 +82,13 @@ internal class WorkspaceItemsCoordinator(
     }
 
     suspend fun rename(intent: ICodeIntent.RenameWorkspaceItem) {
-        val root = source.workspaceOf(intent.location) ?: return fail(intent.requestId, "It is not in a workspace")
+        val files = filesOf(intent.location, intent.requestId) ?: return
         val name = intent.newName.trim()
         val nameError = if (File(intent.location).isDirectory) WorkspaceNameRules.workspaceFolderValidationError(name)
         else WorkspaceNameRules.fileValidationError(name)
         nameError?.let { return fail(intent.requestId, it) }
         usage.holding(intent.location, whole = false)?.let { return fail(intent.requestId, it) }
-        runCatching { WorkspaceFiles(File(root)).rename(intent.location, name) }
+        runCatching { files.rename(intent.location, name) }
             .onSuccess { target ->
                 moved(intent.location, target.path)
                 stateHolder.emit(ICodeEffect.WorkspaceItemChanged(intent.requestId, target.path))
@@ -104,15 +115,16 @@ internal class WorkspaceItemsCoordinator(
     }
 
     /**
-     * The clipboard's item into [destination]: a folder of a workspace, or the workspaces folder,
-     * where it becomes a workspace. A cut moves — one filesystem, one step — and leaves the
-     * clipboard; a copy is a task that may be cancelled, and stays on the clipboard to paste again.
+     * The clipboard's item into [destination]: a folder, or the workspaces folder, where it becomes
+     * a workspace. In one place a cut moves in one step and leaves the clipboard; a copy is a task
+     * that may be cancelled, and stays on the clipboard to paste again.
      */
     private suspend fun paste(destination: String) {
         val held = stateHolder.current.clipboard ?: return
         val asWorkspace = destination == source.workspacesRoot.path
         refusal(held, destination, asWorkspace)?.let { return stateHolder.message(it) }
-        val files = WorkspaceFiles(source.workspacesRoot)
+        if (transfers.crosses(held.location, destination)) return pasteAcross(held, destination, asWorkspace)
+        val files = if (storage.contains(destination)) shared() else WorkspaceFiles(source.workspacesRoot)
         if (held.cut) {
             if (held.workspace) lifecycle.release(held.location)
             runCatching { files.move(held.location, destination) }
@@ -143,8 +155,25 @@ internal class WorkspaceItemsCoordinator(
         )
     }
 
+    /**
+     * Between iCode's storage and phone storage: a task that copies, and for a cut then deletes the
+     * source ([StorageTransfers]); what follows a move in one place follows it once all was carried.
+     */
+    private suspend fun pasteAcross(held: ItemClipboard, destination: String, asWorkspace: Boolean) {
+        if (held.cut && held.workspace) lifecycle.release(held.location)
+        transfers.paste(held, destination) { target ->
+            if (target != null && held.cut) {
+                stateHolder.update { it.copy(clipboard = null) }
+                if (held.workspace) lifecycle.retire(held.location) else moved(held.location, target.path)
+            }
+            if (asWorkspace) library.refresh()
+            refreshOpen(destination)
+        }
+    }
+
     /** Why the clipboard's item cannot go into [destination] now; null when it can. */
     private suspend fun refusal(held: ItemClipboard, destination: String, asWorkspace: Boolean): String? {
+        if ((storage.contains(held.location) || storage.contains(destination)) && !storage.hasAccess()) return NO_ACCESS
         if (!File(held.location).exists()) return "${held.name} no longer exists"
         if (destination.isAtOrUnder(held.location)) return "${held.name} cannot go inside itself"
         if (asWorkspace) {
@@ -163,9 +192,9 @@ internal class WorkspaceItemsCoordinator(
      * and no Cancel — a delete stopped midway leaves half a folder.
      */
     suspend fun delete(intent: ICodeIntent.DeleteWorkspaceItem) {
-        val root = source.workspaceOf(intent.location) ?: return
+        val files = filesOf(intent.location, requestId = null) ?: return
+        val root = source.workspaceOf(intent.location)
         usage.holding(intent.location, whole = false)?.let { return stateHolder.message(it) }
-        val files = WorkspaceFiles(File(root))
         tasks.start(
             title = "Deleting…",
             subject = File(intent.location).name,
@@ -177,7 +206,7 @@ internal class WorkspaceItemsCoordinator(
                 files.delete(intent.location, progress::item)
             },
             finished = { failure ->
-                if (failure == null) {
+                if (failure == null && root != null) {
                     library.forgetRecentDocumentsUnder(root, intent.location)
                     documents.closeDeleted(intent.location)
                 }
@@ -192,7 +221,7 @@ internal class WorkspaceItemsCoordinator(
      * a workspace, its tabs close and its recent files go. The open workspace shows either.
      */
     private suspend fun moved(from: String, to: String) {
-        val home = source.workspaceOf(from) ?: return
+        val home = source.workspaceOf(from) ?: return refreshOpen(from, to)
         if (home == source.workspaceOf(to)) {
             documents.relocate(from, to)
             tree.relocate(from, to)
@@ -243,8 +272,29 @@ internal class WorkspaceItemsCoordinator(
         }
     }
 
+    /**
+     * [location]'s place, to change it in: its workspace's files, or phone storage's once it may be
+     * changed; null — and the dialog told — when it is in neither.
+     */
+    private suspend fun filesOf(location: String, requestId: String?): WorkspaceFiles? {
+        if (storage.contains(location)) return shared().takeIf { sharedRefusal(requestId) == null }
+        val root = source.workspaceOf(location) ?: return null.also { fail(requestId, "It is not in a workspace") }
+        return WorkspaceFiles(File(root))
+    }
+
+    /** Phone storage can be changed only with All Files Access: why not now, told to the dialog; null when it can. */
+    private suspend fun sharedRefusal(requestId: String?): String? =
+        NO_ACCESS.takeUnless { storage.hasAccess() }?.also { fail(requestId, it) }
+
+    /** Phone storage's files: a `.git` there is the user's data like any other. */
+    private fun shared() = WorkspaceFiles(storage.root, gitOwnsDotGit = false)
+
     private suspend fun fail(requestId: String?, message: String) {
         if (requestId == null) stateHolder.message(message)
         else stateHolder.emit(ICodeEffect.WorkspaceItemFailed(requestId, message))
+    }
+
+    private companion object {
+        const val NO_ACCESS = "Allow access to phone storage first"
     }
 }

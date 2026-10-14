@@ -7,6 +7,7 @@ import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.domain.TextEncoding
 import dev.icode.mobile.domain.paletteReadySnapshot
 import dev.icode.mobile.domain.FilesBrowserState
+import dev.icode.mobile.domain.StoragePlace
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -47,7 +48,7 @@ class WorkspaceWatcherTest {
     }
 
     @Test fun `the file explorer's folder is watched too, a workspace open or not`() {
-        val browsing = FilesBrowserState(workspaces.path, "${workspaces.path}/tools/cli")
+        val browsing = FilesBrowserState(StoragePlace.Private, workspaces.path, "${workspaces.path}/tools/cli")
         assertEquals(
             setOf(workspaces, File("${workspaces.path}/tools/cli")),
             watchedFolders(paletteReadySnapshot.copy(activeWorkspaceLocation = null, filesBrowser = browsing), workspaces),
