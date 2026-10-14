@@ -6,7 +6,7 @@ import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.BottomBarItem
 import dev.icode.mobile.designsystem.IcodeBottomBar
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeDropdown
+import dev.icode.mobile.designsystem.IcodeSelect
 import dev.icode.mobile.designsystem.IcodeTone
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.LabeledTextField
@@ -73,17 +73,16 @@ internal fun AuthenticationSection(
     /** The SSH client's install, while Generate waits on it. */
     sshClientInstall: ComponentWork? = null,
 ) {
-    IcodeDropdown(
-        label = "Git Provider",
+    IcodeSelect(
         options = GitProvider.entries,
         selected = auth.provider,
         optionLabel = { it.displayName },
         optionDescription = { it.host.ifEmpty { "Enter the host yourself" } },
         onSelect = onProvider,
         modifier = Modifier.fillMaxWidth(),
+        label = "Git Provider",
     )
-    IcodeDropdown(
-        label = "Method",
+    IcodeSelect(
         options = GitAuthMethod.entries,
         selected = auth.method,
         optionLabel = { method ->
@@ -100,6 +99,7 @@ internal fun AuthenticationSection(
         },
         onSelect = onMethod,
         modifier = Modifier.fillMaxWidth(),
+        label = "Method",
     )
     when (auth.method) {
         GitAuthMethod.PersonalAccessToken -> TokenSection(

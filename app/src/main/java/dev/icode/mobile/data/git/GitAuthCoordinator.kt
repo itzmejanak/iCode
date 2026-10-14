@@ -15,7 +15,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  * describes a credential; it is never the secret itself.
  */
 internal class GitAuthCoordinator(
-    private val workbench: ICodeStateHolder,
+    private val stateHolder: ICodeStateHolder,
     private val config: GitConfigOperations,
     private val credentials: GitCredentialOperations,
     private val activeRoot: () -> String?,
@@ -26,11 +26,11 @@ internal class GitAuthCoordinator(
 ) {
     private val working = AtomicBoolean(false)
 
-    fun selectProvider(provider: GitProvider) = workbench.update {
+    fun selectProvider(provider: GitProvider) = stateHolder.update {
         it.copy(gitAuth = it.gitAuth.copy(provider = provider))
     }
 
-    fun selectMethod(method: GitAuthMethod) = workbench.update {
+    fun selectMethod(method: GitAuthMethod) = stateHolder.update {
         it.copy(gitAuth = it.gitAuth.copy(method = method))
     }
 
@@ -41,11 +41,11 @@ internal class GitAuthCoordinator(
 
     suspend fun configureGlobalIdentity(name: String, email: String) {
         if (name.isBlank() || !GitIdentityRules.isValidEmail(email)) {
-            workbench.message("Enter a name and valid Git author email")
+            stateHolder.message("Enter a name and valid Git author email")
             return
         }
         if (!config.isAvailable()) {
-            workbench.message("Install Git in the runtime first")
+            stateHolder.message("Install Git in the runtime first")
             return
         }
         runCatching {
@@ -54,7 +54,7 @@ internal class GitAuthCoordinator(
             activeRoot()?.let { refreshRepository(it) }
             refresh()
         }.onFailure { error ->
-            workbench.report("git", "Could not save Git identity", error)
+            stateHolder.report("git", "Could not save Git identity", error)
         }
     }
 
@@ -67,7 +67,7 @@ internal class GitAuthCoordinator(
             refreshRepository(workspace)
             refresh()
         }.onFailure { error ->
-            workbench.report("git", "Could not reset repository identity", error)
+            stateHolder.report("git", "Could not reset repository identity", error)
         }
     }
 
@@ -75,7 +75,7 @@ internal class GitAuthCoordinator(
         runCatching {
             credentials.saveHttps(host, username, token)
         }.onFailure { error ->
-            workbench.report("git", "Unable to save the token", error)
+            stateHolder.report("git", "Unable to save the token", error)
         }
         refresh()
     }
@@ -84,7 +84,7 @@ internal class GitAuthCoordinator(
         runCatching {
             credentials.clearHttpsCredentials()
         }.onFailure { error ->
-            workbench.report("git", "Unable to remove the token", error)
+            stateHolder.report("git", "Unable to remove the token", error)
         }
         refresh()
     }
@@ -93,16 +93,16 @@ internal class GitAuthCoordinator(
     suspend fun generateSshKey() = alone(GitAuthWork.GeneratingKey) {
         val client = credentials.ensureSshAvailable()
         val outcome = if (client.succeeded) credentials.generateSshKey(credentials.describeHttps() ?: "icode") else client
-        if (!outcome.succeeded) workbench.message(outcome.message)
+        if (!outcome.succeeded) stateHolder.message(outcome.message)
         refresh()
     }
 
     suspend fun testConnection(url: String) = alone(GitAuthWork.Testing) {
-        workbench.update { it.copy(gitAuth = it.gitAuth.copy(lastTest = null)) }
+        stateHolder.update { it.copy(gitAuth = it.gitAuth.copy(lastTest = null)) }
         val outcome = credentials.testConnection(url)
         // Git's refusal can repeat the address it was given.
         val result = GitAuthTestResult(outcome.succeeded, BackendLog.credentialSafe(outcome.message))
-        workbench.update { it.copy(gitAuth = it.gitAuth.copy(lastTest = result)) }
+        stateHolder.update { it.copy(gitAuth = it.gitAuth.copy(lastTest = result)) }
     }
 
     /**
@@ -111,11 +111,11 @@ internal class GitAuthCoordinator(
      */
     private suspend fun alone(work: GitAuthWork, block: suspend () -> Unit) {
         if (!working.compareAndSet(false, true)) return
-        workbench.update { it.copy(gitAuth = it.gitAuth.copy(work = work)) }
+        stateHolder.update { it.copy(gitAuth = it.gitAuth.copy(work = work)) }
         try {
             block()
         } finally {
-            workbench.update { it.copy(gitAuth = it.gitAuth.copy(work = null)) }
+            stateHolder.update { it.copy(gitAuth = it.gitAuth.copy(work = null)) }
             working.set(false)
         }
     }
@@ -128,10 +128,10 @@ internal class GitAuthCoordinator(
         val gitAvailable = config.isAvailable()
         val globalName = if (gitAvailable) config.readConfig(GitConfigScope.Global, "user.name") else null
         val globalEmail = if (gitAvailable) config.readConfig(GitConfigScope.Global, "user.email") else null
-        val workspace = activeRoot()?.takeIf { workbench.current.gitRepository != null }
+        val workspace = activeRoot()?.takeIf { stateHolder.current.gitRepository != null }
         val localName = if (gitAvailable && workspace != null) config.readConfig(GitConfigScope.Local, "user.name", workspace) else null
         val localEmail = if (gitAvailable && workspace != null) config.readConfig(GitConfigScope.Local, "user.email", workspace) else null
-        workbench.update {
+        stateHolder.update {
             it.copy(
                 gitAvailable = gitAvailable,
                 globalGitAuthorName = globalName,

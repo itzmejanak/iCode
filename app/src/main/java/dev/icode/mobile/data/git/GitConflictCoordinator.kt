@@ -25,7 +25,7 @@ internal interface ConflictFiles {
  * current, incoming or both — and then marked resolved, which stages it.
  */
 internal class GitConflictCoordinator(
-    private val workbench: ICodeStateHolder,
+    private val stateHolder: ICodeStateHolder,
     private val files: ConflictFiles,
     private val activeRoot: () -> String?,
     /** Stages the file: an ordinary local Git change. */
@@ -41,7 +41,7 @@ internal class GitConflictCoordinator(
      * the opened folder when a subdirectory of a repository is opened.
      */
     private fun conflictRoot(): String? =
-        workbench.current.gitRepository?.workTreePath ?: activeRoot()
+        stateHolder.current.gitRepository?.workTreePath ?: activeRoot()
 
     /** Loads the conflicted file straight from the worktree, markers and all. */
     suspend fun open(path: String) {
@@ -49,18 +49,18 @@ internal class GitConflictCoordinator(
         runCatching { files.read(location) }
             .onSuccess { read ->
                 document = read
-                workbench.update { it.copy(activeConflict = GitConflictParser.parse(path, read.text)) }
+                stateHolder.update { it.copy(activeConflict = GitConflictParser.parse(path, read.text)) }
             }
             .onFailure { error ->
                 document = null
-                workbench.update { it.copy(activeConflict = null) }
-                workbench.report("git", "Unable to read the conflicted file", error)
+                stateHolder.update { it.copy(activeConflict = null) }
+                stateHolder.report("git", "Unable to read the conflicted file", error)
             }
     }
 
     fun close() {
         document = null
-        workbench.update { it.copy(activeConflict = null) }
+        stateHolder.update { it.copy(activeConflict = null) }
     }
 
     /**
@@ -71,11 +71,11 @@ internal class GitConflictCoordinator(
      * resolved stays a separate explicit step.
      */
     suspend fun resolve(path: String, sectionStart: Int, choice: GitConflictChoice) {
-        val conflict = workbench.current.activeConflict?.takeIf { it.path == path } ?: return
+        val conflict = stateHolder.current.activeConflict?.takeIf { it.path == path } ?: return
         val read = document ?: return
         val section = conflict.sections.firstOrNull { it.startLine == sectionStart } ?: return
         if (files.hasUnsavedEdits(read.location)) {
-            workbench.message("${read.name} has unsaved edits in the editor. Save or close it first")
+            stateHolder.message("${read.name} has unsaved edits in the editor. Save or close it first")
             return
         }
         runCatching { files.write(read, GitConflictParser.resolve(conflict, section, choice)) }
@@ -87,9 +87,9 @@ internal class GitConflictCoordinator(
             .onFailure { error ->
                 if (error is ChangedOnDiskException) {
                     open(path)
-                    workbench.message("${read.name} changed on disk and was read again. Choose again")
+                    stateHolder.message("${read.name} changed on disk and was read again. Choose again")
                 } else {
-                    workbench.report("git", "Unable to write the resolved file", error)
+                    stateHolder.report("git", "Unable to write the resolved file", error)
                 }
             }
     }

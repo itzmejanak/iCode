@@ -17,13 +17,15 @@ Authoritative UI/design references:
 
 Completed baseline:
 
-- All 40 frames are implemented in 39 screen files plus five hosts.
+- All 47 routes (37 with design frames) are implemented in 39 screen files plus five hosts (`Route.kt`, `tools/capture-figma-screens.sh:expected_routes=37`).
+- Stale "40 frames / 39 screen files" / "39-route capture" wording elsewhere was reconciled against `Route.kt`.
+- The `workbench` → `ICode` rename is complete in code (remaining hits are in this changelog only; tests updated — 2026-10-14).
 - Shared kit, tokens, and navigation are complete.
 - The in-app screen catalog was removed after verification; titles and headings are static.
 - Screens use `ICodeGateway` and never access files, Git, processes, or storage directly.
 - Screenshots are drawn from debug-only capture fixtures (`app/src/debug/.../capture`); a release
   build contains none.
-- Existing unit, lint, build, device, and 39-route capture checks are established.
+- Existing unit, lint, build, device, and 37-route capture checks are established.
 
 Names in dated records below are as they were then: the demo layer (`DemoICodeGateway`,
 `DemoContent`, `staticDemo`, `demo-fork`) was replaced on 2026-09-26 by the capture fixtures

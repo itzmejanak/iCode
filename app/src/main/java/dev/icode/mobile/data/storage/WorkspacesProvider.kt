@@ -68,7 +68,7 @@ class WorkspacesProvider : DocumentsProvider() {
             return ParcelFileDescriptor.open(file, bits)
         }
         // Written by another app: its folder's listing is read again once it is closed.
-        return ParcelFileDescriptor.open(file, bits, Handler(Looper.getMainLooper())) { changed(file.parentFile!!) }
+        return ParcelFileDescriptor.open(file, bits, Handler(Looper.getMainLooper())) { file.parentFile?.let { changed(it) } }
     }
 
     override fun createDocument(parentDocumentId: String, mimeType: String, displayName: String): String {
@@ -90,16 +90,18 @@ class WorkspacesProvider : DocumentsProvider() {
         nameError(displayName, file.isDirectory)?.let { throw FileNotFoundException(it) }
         val target = File(file.parentFile, displayName.trim())
         if (Files.exists(target.toPath(), LinkOption.NOFOLLOW_LINKS)) throw FileNotFoundException("${target.name} already exists")
+        val oldParent = file.parentFile
         Files.move(file.toPath(), target.toPath())
-        changed(file.parentFile!!)
+        if (oldParent != null) changed(oldParent)
         return idOf(target)
     }
 
     override fun deleteDocument(documentId: String) {
         val file = changeable(documentId)
+        val oldParent = file.parentFile
         // A link goes as the link it is; what it points to stays.
         deleteTree(file)
-        changed(file.parentFile!!)
+        if (oldParent != null) changed(oldParent)
     }
 
     override fun moveDocument(sourceDocumentId: String, sourceParentDocumentId: String, targetParentDocumentId: String): String {
@@ -109,8 +111,9 @@ class WorkspacesProvider : DocumentsProvider() {
         if (destination.path.startsWith(file.path + "/")) throw FileNotFoundException("A folder cannot be moved into itself")
         val target = File(destination, file.name)
         if (Files.exists(target.toPath(), LinkOption.NOFOLLOW_LINKS)) throw FileNotFoundException("${file.name} already exists there")
+        val oldParent = file.parentFile
         Files.move(file.toPath(), target.toPath())
-        changed(file.parentFile!!)
+        if (oldParent != null) changed(oldParent)
         changed(destination)
         return idOf(target)
     }

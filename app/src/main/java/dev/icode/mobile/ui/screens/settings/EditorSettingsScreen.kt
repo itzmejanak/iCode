@@ -11,7 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeDropdown
+import dev.icode.mobile.designsystem.IcodeSelect
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeToggle
 import dev.icode.mobile.designsystem.IcodeTopBar
@@ -62,12 +62,12 @@ fun EditorSettingsScreen(actions: NavigationActions) {
                             },
                         )
                     }
-                    IcodeDropdown(
-                        label = "Font Family",
+                    IcodeSelect(
                         options = EditorFontFamily.entries,
                         selected = editor.fontFamily,
                         optionLabel = { if (it == EditorFontFamily.PlexMono) "IBM Plex Mono" else "System Monospace" },
                         onSelect = { family -> saver.save { repository.setEditorFontFamily(family) } },
+                        label = "Font Family",
                     )
                     SettingRow("Tab Size", Modifier.fillMaxWidth()) {
                         SegmentedControl(listOf("2", "4"), preferences.globalIndentSize.toString()) { selected ->
@@ -78,8 +78,7 @@ fun EditorSettingsScreen(actions: NavigationActions) {
                         IcodeToggle(editor.wordWrap) { saver.save { repository.setWordWrap(it) } }
                     }
                     SectionLabel("Save", Modifier.padding(top = IcodeSpacing.Space2))
-                    IcodeDropdown(
-                        label = "Auto Save",
+                    IcodeSelect(
                         options = AutoSaveMode.entries,
                         selected = editor.autoSave,
                         optionLabel = {
@@ -90,6 +89,7 @@ fun EditorSettingsScreen(actions: NavigationActions) {
                             }
                         },
                         onSelect = { mode -> saver.save { repository.setAutoSave(mode) } },
+                        label = "Auto Save",
                     )
                     SettingRow(
                         title = "Format On Save",

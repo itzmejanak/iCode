@@ -95,7 +95,7 @@ internal class CliGitService(
      * holding it, so the root-relative paths Git reports can be handed back to
      * it; the folder itself when no repository does.
      */
-    /** Where Git runs for [path]: every Git command of the workbench comes here ([GitLocator.workingFolderOf]). */
+    /** Where Git runs for [path]: every Git command comes here ([GitLocator.workingFolderOf]). */
     fun workingFolderOf(path: String): String = locator.workingFolderOf(path)
 
     /**

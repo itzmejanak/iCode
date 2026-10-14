@@ -31,7 +31,7 @@ import dev.icode.mobile.designsystem.DangerButton
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeConfirmDialog
-import dev.icode.mobile.designsystem.IcodeDropdown
+import dev.icode.mobile.designsystem.IcodeSelect
 import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodeSheetOverlay
 import dev.icode.mobile.designsystem.IcodeSizes
@@ -98,12 +98,12 @@ fun AssistantProviderScreen(actions: NavigationActions) {
                 verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space4),
             ) {
                 if (saved == null) {
-                    IcodeDropdown(
-                        label = "Provider",
+                    IcodeSelect(
                         options = AssistantProviderKind.entries,
                         selected = kind,
                         optionLabel = { it.label },
                         onSelect = { kind = it },
+                        label = "Provider",
                         optionDescription = { it.description },
                     )
                 }

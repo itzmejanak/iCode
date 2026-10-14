@@ -153,43 +153,43 @@ internal class AssistantTurns(
             talk(setup, AssistantMessage.User(input, files))
         }
 
-        /** [message] added to the chat, and answered. */
+        /** [message] added to the chat, and answered — retries transient rate-limit / connection with backoff, provider-agnostic. */
         suspend fun talk(setup: Setup, message: AssistantMessage.User) {
             val before = chats.of(workspace, session)
             chats.append(workspace, session, message)
-            // A new chat is listed from its first message.
             page.listed(workspace)
             page.refresh(workspace, session)
-            // Near the model's window, the chat so far is compacted before it is sent (§12 R4).
             if ((AssistantRules.contextShare(before.contextTokens, setup.model.contextWindow) ?: 0f) >= AssistantRules.COMPACT_AT) {
                 compact(setup, AssistantRules.forModel(before.messages))
             }
             val history = AssistantRules.forModel(chats.of(workspace, session).messages.dropLast(1))
-            // Ask reads only: the tools that change or run are not offered (§12 R8).
             val offered = tools(setup.place, session).filter { setup.settings.mode == AssistantMode.Code || setup.settings.mode == AssistantMode.Orchestrator || it.kind == AssistantToolKind.Read }
-            step(THINKING)
-            engine.run(
-                AssistantTurnRequest(
-                    connection = setup.connection,
-                    model = setup.model,
-                    effort = AssistantRules.effortFor(setup.settings.effort, setup.model),
-                    instructions = AssistantInstructions.of(setup.place, setup.settings.mode, history.summary),
-                    history = history.messages,
-                    input = message,
-                    tools = offered.map { Asking(it, this) },
-                    maxSteps = MAX_STEPS,
-                ),
-                this,
+            val request = AssistantTurnRequest(
+                connection = setup.connection,
+                model = setup.model,
+                effort = AssistantRules.effortFor(setup.settings.effort, setup.model),
+                instructions = AssistantInstructions.of(setup.place, setup.settings.mode, history.summary),
+                history = history.messages,
+                input = message,
+                tools = offered.map { Asking(it, this) },
+                maxSteps = MAX_STEPS,
             )
+            runWithRetry { attempt ->
+                step(if (attempt == 0) THINKING else "Preparing to retry…")
+                engine.run(request, this)
+            }
         }
 
-        /** [history] summarized by the model and marked in the chat: what it covers is no longer sent. */
-        suspend fun compact(setup: Setup, history: AssistantHistory) {
-            step(COMPACTING)
-            val instructions = AssistantInstructions.of(setup.place, setup.settings.mode, history.summary)
-            chats.compacted(workspace, session, engine.compact(setup.connection, setup.model, instructions, history.messages))
-            page.refresh(workspace, session)
-        }
+        private suspend fun runWithRetry(block: suspend (Int) -> Unit) =
+            AssistantRetries.runWithRetry(step = ::step, block = block)
+
+        /** [history] summarized by the model and marked in the chat. */
+        suspend fun compact(setup: Setup, history: AssistantHistory) =
+            AssistantRetries.retryable(COMPACTING, step = ::step) {
+                val instructions = AssistantInstructions.of(setup.place, setup.settings.mode, history.summary)
+                chats.compacted(workspace, session, engine.compact(setup.connection, setup.model, instructions, history.messages))
+                page.refresh(workspace, session)
+            }
 
         fun setup(): Setup {
             val settings = settings()

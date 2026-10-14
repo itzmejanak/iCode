@@ -32,7 +32,7 @@ import kotlinx.coroutines.withContext
  * page opened with it never shows the one before.
  */
 internal class GitTransferCoordinator(
-    private val workbench: ICodeStateHolder,
+    private val stateHolder: ICodeStateHolder,
     private val scope: CoroutineScope,
     private val git: GitTransferOperations,
     /** A clone goes into the workspaces, through iCode's staging; transfers are recorded by their runtime path. */
@@ -89,18 +89,18 @@ internal class GitTransferCoordinator(
     private fun start(label: String, work: suspend (id: Long) -> Unit): Job? = synchronized(this) {
         if (job?.isActive == true) {
             val busy = running.lowercase()
-            scope.launch { workbench.message("Git is still $busy; try again when it finishes") }
+            scope.launch { stateHolder.message("Git is still $busy; try again when it finishes") }
             return null
         }
         val id = operations.incrementAndGet()
         running = label
-        workbench.update { it.copy(gitOperation = GitOperationState.Running(label)) }
+        stateHolder.update { it.copy(gitOperation = GitOperationState.Running(label)) }
         scope.launch {
             try {
                 work(id)
             } catch (cancelled: CancellationException) {
                 // Stopped wherever it was — even installing Git first — it never stays "running".
-                workbench.update { state ->
+                stateHolder.update { state ->
                     val stopped = state.gitOperation as? GitOperationState.Running
                     if (stopped == null || !isCurrent(id)) state
                     else state.copy(gitOperation = GitOperationState.Cancelled(stopped.label, stopped.output))
@@ -124,16 +124,16 @@ internal class GitTransferCoordinator(
      * rule, but the repository may have changed since. Ends it failed, in its words.
      */
     private fun refused(label: String, action: GitSyncAction): Boolean {
-        val reason = workbench.current.gitRepository?.let { GitActionRules.syncBlocked(action, it) } ?: return false
+        val reason = stateHolder.current.gitRepository?.let { GitActionRules.syncBlocked(action, it) } ?: return false
         finish(GitOperationState.Failed(label, reason))
         return true
     }
 
-    private fun finish(state: GitOperationState) = workbench.update { it.copy(gitOperation = state) }
+    private fun finish(state: GitOperationState) = stateHolder.update { it.copy(gitOperation = state) }
 
     private suspend fun push(id: Long) {
         if (refused(GitTransferLabel.PUSHING, GitSyncAction.Push)) return
-        val repository = workbench.current.gitRepository
+        val repository = stateHolder.current.gitRepository
         val needsUpstream = repository?.upstream == null
         runRemote(id, GitTransferLabel.PUSHING) { workspace, config, onStderr ->
             git.push(
@@ -155,24 +155,24 @@ internal class GitTransferCoordinator(
         val label = GitTransferLabel.CLONING
         // Checked again here, just before Git runs: the form's view may be old.
         cloneProblem(url, directoryName, branch, into)?.let { problem ->
-            workbench.update { it.copy(gitOperation = GitOperationState.Failed(label, problem)) }
+            stateHolder.update { it.copy(gitOperation = GitOperationState.Failed(label, problem)) }
             return
         }
         // A new install has no Git until something needs it, and a clone is
         // often the first thing that does: install it as part of this clone.
         if (!git.isAvailable()) {
             val installing = listOf("Installing Git…")
-            workbench.update { it.copy(gitOperation = GitOperationState.Running(label, output = installing)) }
+            stateHolder.update { it.copy(gitOperation = GitOperationState.Running(label, output = installing)) }
             val installed = runCatching { git.provision() }.getOrNull()
             if (!git.isAvailable()) {
                 val reason = (installed as? GitOutcome.Failure)?.message ?: "Git could not be installed"
                 BackendLog.w("git", "Git install before clone failed: $reason")
-                workbench.update { it.copy(gitOperation = GitOperationState.Failed(label, reason, installing)) }
+                stateHolder.update { it.copy(gitOperation = GitOperationState.Failed(label, reason, installing)) }
                 return
             }
-            workbench.update { it.copy(gitAvailable = true) }
+            stateHolder.update { it.copy(gitAvailable = true) }
         }
-        workbench.update { it.copy(gitOperation = GitOperationState.Running(label)) }
+        stateHolder.update { it.copy(gitOperation = GitOperationState.Running(label)) }
         val folder = staging.reserve("clone")
         ledger.started(label, WorkspaceRuntimePath.of(directoryName))
         var transcript = emptyList<String>()
@@ -186,19 +186,19 @@ internal class GitTransferCoordinator(
             staging.complete(folder, directoryName, into)
         } catch (cancelled: CancellationException) {
             runCatching { staging.discard(folder) }
-            workbench.update { it.copy(gitOperation = GitOperationState.Cancelled(label, transcript)) }
+            stateHolder.update { it.copy(gitOperation = GitOperationState.Cancelled(label, transcript)) }
             throw cancelled
         } catch (error: Exception) {
             runCatching { staging.discard(folder) }
-            workbench.update {
-                it.copy(gitOperation = GitOperationState.Failed(label, workbench.failureText("git", "Clone failed", error), transcript))
+            stateHolder.update {
+                it.copy(gitOperation = GitOperationState.Failed(label, stateHolder.failureText("git", "Clone failed", error), transcript))
             }
             return
         }
         // The clone is whole: what it made is shown before it says so, so the progress screen gives
         // way to it and never to the workspace open before; Cancel no longer applies.
         withContext(NonCancellable) { openClone(target.path) }
-        workbench.update { it.copy(gitOperation = GitOperationState.Succeeded(label, transcript), projectDestination = null) }
+        stateHolder.update { it.copy(gitOperation = GitOperationState.Succeeded(label, transcript), projectDestination = null) }
     }
 
     private fun cloneProblem(url: String, directoryName: String, branch: String, into: File): String? {
@@ -220,7 +220,7 @@ internal class GitTransferCoordinator(
     ) {
         val workspace = activeRoot() ?: return finish(GitOperationState.Failed(label, "Open a workspace first"))
         synchronized(this) { running = label }
-        workbench.update { it.copy(gitOperation = GitOperationState.Running(label)) }
+        stateHolder.update { it.copy(gitOperation = GitOperationState.Running(label)) }
         ledger.started(label, workspaces.guestOf(workspace) ?: workspace)
         var transcript = emptyList<String>()
         try {
@@ -233,16 +233,16 @@ internal class GitTransferCoordinator(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
-            workbench.update {
-                it.copy(gitOperation = GitOperationState.Failed(label, workbench.failureText("git", "$label failed", error), transcript))
+            stateHolder.update {
+                it.copy(gitOperation = GitOperationState.Failed(label, stateHolder.failureText("git", "$label failed", error), transcript))
             }
             return
         }
-        workbench.update { it.copy(gitOperation = GitOperationState.Succeeded(label, transcript)) }
+        stateHolder.update { it.copy(gitOperation = GitOperationState.Succeeded(label, transcript)) }
         refresh(workspace)
         // The progress surface closes itself, so the outcome is
         // reported here or it is never reported at all.
-        workbench.message(completionMessage(label, transcript))
+        stateHolder.message(completionMessage(label, transcript))
     }
 
     /**
@@ -253,7 +253,7 @@ internal class GitTransferCoordinator(
      */
     private fun publishProgress(id: Long, label: String, stderr: String, transcript: List<String>) {
         if (!isCurrent(id)) return
-        workbench.update { state ->
+        stateHolder.update { state ->
             val running = state.gitOperation as? GitOperationState.Running ?: return@update state
             if (running.label != label) return@update state
             state.copy(

@@ -62,13 +62,13 @@ class GitWorkspaceCoordinatorTest {
     )
 
     private class Harness(val git: FakeGit, var root: String?, val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)) {
-        val workbench = ICodeStateHolder().apply { update { it.copy(activeWorkspaceLocation = root) } }
+        val stateHolder = ICodeStateHolder().apply { update { it.copy(activeWorkspaceLocation = root) } }
         var installed = 0
         val coordinator = GitWorkspaceCoordinator(
-            workbench,
+            stateHolder,
             scope,
             git,
-            WorkspaceTree(workbench, WorkspaceFileSource(WorkspacePaths(File("/workspaces")))) { emptyList() },
+            WorkspaceTree(stateHolder, WorkspaceFileSource(WorkspacePaths(File("/workspaces")))) { emptyList() },
             activeRoot = { root },
             workspaces = { emptyList() },
             recentDocuments = { emptyList() },
@@ -83,9 +83,9 @@ class GitWorkspaceCoordinatorTest {
         harness.coordinator.stage("a.txt")
 
         assertEquals(listOf("stage $root a.txt", "inspect $root"), git.calls)
-        assertEquals(listOf(change), harness.workbench.current.gitChanges)
-        assertEquals("main", harness.workbench.current.activeBranch)
-        assertTrue(harness.workbench.current.gitAvailable == true)
+        assertEquals(listOf(change), harness.stateHolder.current.gitChanges)
+        assertEquals("main", harness.stateHolder.current.activeBranch)
+        assertTrue(harness.stateHolder.current.gitAvailable == true)
     }
 
     @Test fun `a repository Git cannot read still opens, and says Git's words until Git can read it`() = runBlocking {
@@ -98,20 +98,20 @@ class GitWorkspaceCoordinatorTest {
         assertTrue(picture.available)
 
         harness.coordinator.refresh(root)
-        assertEquals("bad object HEAD", harness.workbench.current.gitFailure)
-        assertTrue(harness.workbench.current.gitChanges.isEmpty())
+        assertEquals("bad object HEAD", harness.stateHolder.current.gitFailure)
+        assertTrue(harness.stateHolder.current.gitChanges.isEmpty())
 
         git.inspectFailure = null
         git.snapshot = GitWorkspaceSnapshot(repository(), listOf(change))
         harness.coordinator.refresh(root)
-        assertNull(harness.workbench.current.gitFailure)
-        assertEquals(listOf(change), harness.workbench.current.gitChanges)
+        assertNull(harness.stateHolder.current.gitFailure)
+        assertEquals(listOf(change), harness.stateHolder.current.gitChanges)
     }
 
     @Test fun `a failed action is said once in Git's words and nothing is refreshed`() = runBlocking {
         val git = FakeGit().apply { failure = IOException("pathspec 'x' did not match any files") }
         val harness = Harness(git, root)
-        val message = async { harness.workbench.effects.first() }
+        val message = async { harness.stateHolder.effects.first() }
         yield()
 
         harness.coordinator.stage("x")
@@ -124,7 +124,7 @@ class GitWorkspaceCoordinatorTest {
     @Test fun `without an open workspace nothing runs`() = runBlocking {
         val git = FakeGit()
         val harness = Harness(git, root = null)
-        val message = async { harness.workbench.effects.first() }
+        val message = async { harness.stateHolder.effects.first() }
         yield()
 
         harness.coordinator.commit("message")
@@ -136,7 +136,7 @@ class GitWorkspaceCoordinatorTest {
     @Test fun `a commit refreshes and then announces itself`() = runBlocking {
         val git = FakeGit().apply { snapshot = GitWorkspaceSnapshot(repository(), emptyList()) }
         val harness = Harness(git, root)
-        val effect = async { harness.workbench.effects.first() }
+        val effect = async { harness.stateHolder.effects.first() }
         yield()
 
         harness.coordinator.commit("first")
@@ -177,7 +177,7 @@ class GitWorkspaceCoordinatorTest {
 
         assertEquals(
             GitOperationState.Failed("Installing Git", "E: Unable to locate package git"),
-            harness.workbench.current.gitOperation,
+            harness.stateHolder.current.gitOperation,
         )
         assertEquals(0, harness.installed)
     }
@@ -193,7 +193,7 @@ class GitWorkspaceCoordinatorTest {
 
         harness.coordinator.provision()
 
-        assertEquals(GitOperationState.Succeeded("Git installed"), harness.workbench.current.gitOperation)
+        assertEquals(GitOperationState.Succeeded("Git installed"), harness.stateHolder.current.gitOperation)
         assertEquals(1, harness.installed)
         assertEquals(listOf("provision", "inspect $root"), git.calls)
     }
@@ -201,35 +201,35 @@ class GitWorkspaceCoordinatorTest {
     @Test fun `a file staged and edited again offers only its unstaged edit for discard`() = runBlocking {
         val harness = Harness(FakeGit(), root)
         val staged = change.copy(staged = true)
-        harness.workbench.update { it.copy(gitChanges = listOf(staged, change)) }
+        harness.stateHolder.update { it.copy(gitChanges = listOf(staged, change)) }
 
         harness.coordinator.requestDiscard("a.txt")
-        assertEquals(GitDiscard("a.txt", folder = false, listOf(change)), harness.workbench.current.pendingDiscard)
+        assertEquals(GitDiscard("a.txt", folder = false, listOf(change)), harness.stateHolder.current.pendingDiscard)
 
-        harness.workbench.update { it.copy(gitChanges = listOf(staged)) }
+        harness.stateHolder.update { it.copy(gitChanges = listOf(staged)) }
         harness.coordinator.requestDiscard("a.txt")
-        assertNull("staged work is unstaged first, never discarded", harness.workbench.current.pendingDiscard)
+        assertNull("staged work is unstaged first, never discarded", harness.stateHolder.current.pendingDiscard)
     }
 
     @Test fun `a confirmed discard runs only while Git still reports that change`() = runBlocking {
         val git = FakeGit().apply { snapshot = GitWorkspaceSnapshot(repository(), listOf(change)) }
         val harness = Harness(git, root)
-        harness.workbench.update { it.copy(gitChanges = listOf(change)) }
+        harness.stateHolder.update { it.copy(gitChanges = listOf(change)) }
         harness.coordinator.requestDiscard("a.txt")
 
         harness.coordinator.confirmDiscard()
 
         assertEquals(listOf("inspect $root", "discard $root a.txt M", "inspect $root"), git.calls)
-        assertNull(harness.workbench.current.pendingDiscard)
+        assertNull(harness.stateHolder.current.pendingDiscard)
     }
 
     @Test fun `a change that moved on after confirming is not discarded`() = runBlocking {
         // Confirmed as an edit; meanwhile the file was deleted from the terminal.
         val git = FakeGit().apply { snapshot = GitWorkspaceSnapshot(repository(), listOf(change.copy(status = GitStatusCodes.DELETED))) }
         val harness = Harness(git, root)
-        harness.workbench.update { it.copy(gitChanges = listOf(change)) }
+        harness.stateHolder.update { it.copy(gitChanges = listOf(change)) }
         harness.coordinator.requestDiscard("a.txt")
-        val message = async { harness.workbench.effects.first() }
+        val message = async { harness.stateHolder.effects.first() }
         yield()
 
         harness.coordinator.confirmDiscard()
@@ -246,11 +246,11 @@ class GitWorkspaceCoordinatorTest {
         val all = listOf(new, edited, staged, elsewhere)
         val git = FakeGit().apply { snapshot = GitWorkspaceSnapshot(repository(), all) }
         val harness = Harness(git, root)
-        harness.workbench.update { it.copy(gitChanges = all) }
+        harness.stateHolder.update { it.copy(gitChanges = all) }
 
         harness.coordinator.requestDiscard("colors")
         // Staged work is unstaged first, and a name that only begins the same is not in it.
-        assertEquals(GitDiscard("colors", folder = true, listOf(new, edited)), harness.workbench.current.pendingDiscard)
+        assertEquals(GitDiscard("colors", folder = true, listOf(new, edited)), harness.stateHolder.current.pendingDiscard)
 
         harness.coordinator.confirmDiscard()
         assertEquals(listOf("inspect $root", "discard $root colors ?", "discard $root colors M", "inspect $root"), git.calls)
@@ -261,7 +261,7 @@ class GitWorkspaceCoordinatorTest {
         val arrived = GitChange(GitStatusCodes.UNTRACKED, "pink.txt", "colors/pink.txt", staged = false)
         val git = FakeGit().apply { snapshot = GitWorkspaceSnapshot(repository(), listOf(new, arrived)) }
         val harness = Harness(git, root)
-        harness.workbench.update { it.copy(gitChanges = listOf(new)) }
+        harness.stateHolder.update { it.copy(gitChanges = listOf(new)) }
         harness.coordinator.requestDiscard("colors")
 
         harness.coordinator.confirmDiscard()
@@ -273,12 +273,12 @@ class GitWorkspaceCoordinatorTest {
         listOf(".git/config", "../elsewhere.txt", "sub/.git", "/etc/passwd", "a/./b").forEach { path ->
             val git = FakeGit()
             val harness = Harness(git, root)
-            harness.workbench.update { it.copy(pendingDiscard = GitDiscard(path, folder = false, listOf(GitChange(GitStatusCodes.MODIFIED, "x", path, staged = false)))) }
+            harness.stateHolder.update { it.copy(pendingDiscard = GitDiscard(path, folder = false, listOf(GitChange(GitStatusCodes.MODIFIED, "x", path, staged = false)))) }
 
             harness.coordinator.confirmDiscard()
 
             assertTrue(path, git.calls.isEmpty())
-            assertNull(harness.workbench.current.pendingDiscard)
+            assertNull(harness.stateHolder.current.pendingDiscard)
         }
     }
 
@@ -297,7 +297,7 @@ class GitWorkspaceCoordinatorTest {
                 harness.coordinator.scheduleRefresh()
                 delay(50)
             }
-            withTimeout(2_000) { harness.workbench.snapshot.first { it.gitAvailable == true } }
+            withTimeout(2_000) { harness.stateHolder.snapshot.first { it.gitAvailable == true } }
             delay(500)
             assertEquals(listOf("inspect $root"), git.calls)
         } finally {
@@ -308,12 +308,12 @@ class GitWorkspaceCoordinatorTest {
     @Test fun `an answer for a workspace no longer open is dropped`() = runBlocking {
         val git = FakeGit().apply { snapshot = GitWorkspaceSnapshot(repository(), listOf(change)) }
         val harness = Harness(git, root)
-        harness.workbench.update { it.copy(activeWorkspaceLocation = "/workspace/other") }
+        harness.stateHolder.update { it.copy(activeWorkspaceLocation = "/workspace/other") }
 
         harness.coordinator.refresh(root)
 
-        assertTrue(harness.workbench.current.gitChanges.isEmpty())
-        assertNull(harness.workbench.current.gitRepository)
+        assertTrue(harness.stateHolder.current.gitChanges.isEmpty())
+        assertNull(harness.stateHolder.current.gitRepository)
     }
 
     @Test fun `a refresh waiting for a closing workspace never runs`() = runBlocking {
@@ -336,7 +336,7 @@ class GitWorkspaceCoordinatorTest {
         harness.coordinator.checkoutRemote("upstream/team/feature")
 
         assertEquals(listOf("track $root upstream/team/feature", "inspect $root"), git.calls)
-        assertEquals("feature", harness.workbench.current.activeBranch)
+        assertEquals("feature", harness.stateHolder.current.activeBranch)
     }
 
     @Test fun `a remote is added only with a clean name and an address without an account`() = runBlocking {
@@ -359,13 +359,13 @@ class GitWorkspaceCoordinatorTest {
 
         assertEquals(listOf("compare $root a.txt unsaved"), git.calls)
         // Git found no difference: the diff view opens on the file, empty.
-        assertEquals(GitFileDiff(path = "a.txt", hunks = emptyList()), harness.workbench.current.activeDiff)
+        assertEquals(GitFileDiff(path = "a.txt", hunks = emptyList()), harness.stateHolder.current.activeDiff)
     }
 
     @Test fun `comparing without Git says how to get it`() = runBlocking {
         val git = FakeGit().apply { available = false }
         val harness = Harness(git, root)
-        val message = async { harness.workbench.effects.first() }
+        val message = async { harness.stateHolder.effects.first() }
         yield()
 
         harness.coordinator.compareWithEditor("a.txt", "unsaved".toByteArray())
@@ -380,7 +380,7 @@ class GitWorkspaceCoordinatorTest {
     @Test fun `abort ends the operation Git reported`() = runBlocking {
         val git = FakeGit().apply { snapshot = GitWorkspaceSnapshot(repository(), emptyList()) }
         val harness = Harness(git, root)
-        harness.workbench.update { it.copy(gitRepository = repository().copy(inProgress = GitInProgress.Rebase)) }
+        harness.stateHolder.update { it.copy(gitRepository = repository().copy(inProgress = GitInProgress.Rebase)) }
 
         harness.coordinator.abort()
 

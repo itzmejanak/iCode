@@ -11,7 +11,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /**
- * The repository operations the workbench needs, run through the real `git`.
+ * The repository operations the snapshot needs, run through the real `git`.
  *
  * Every method either succeeds or throws with Git's own message, so callers
  * report the actionable command error rather than a rewritten one

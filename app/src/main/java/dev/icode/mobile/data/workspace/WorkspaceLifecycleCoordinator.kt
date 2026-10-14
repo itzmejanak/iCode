@@ -58,7 +58,8 @@ internal class WorkspaceLifecycleCoordinator(
         val renamed = runCatching { Files.move(File(from).toPath(), File(to).toPath()) }
         if (renamed.isFailure) {
             if (open) session.openWithTabs(from, tabs, selected)
-            return fail(intent.requestId, stateHolder.failureText("workspace", "Unable to rename the workspace", renamed.exceptionOrNull()!!))
+            val cause = renamed.exceptionOrNull() ?: IOException("Unable to rename the workspace")
+            return fail(intent.requestId, stateHolder.failureText("workspace", "Unable to rename the workspace", cause))
         }
         runCatching { moveSettings(from, to) }
             .onFailure { error -> stateHolder.report("workspace", "The workspace's settings could not follow the rename", error) }

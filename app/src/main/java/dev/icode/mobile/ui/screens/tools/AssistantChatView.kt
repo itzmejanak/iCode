@@ -124,9 +124,12 @@ internal fun AssistantChatView(state: AssistantState, modifier: Modifier, onSugg
                         }
                         state.failure?.let { failure ->
                             item(key = "failure") {
-                                NoticeCard(IcodeTone.Error, Modifier.fillMaxWidth(), title = "The assistant stopped", icon = Icons.Outlined.ErrorOutline) {
+                                val rateLimited = failure.contains("limiting requests", ignoreCase = true) || failure.contains("rate limit", ignoreCase = true)
+                                val tone = if (rateLimited) IcodeTone.Warning else IcodeTone.Error
+                                val title = if (rateLimited) "Rate limited — retried" else "The assistant stopped"
+                                val icon = Icons.Outlined.ErrorOutline
+                                NoticeCard(tone, Modifier.fillMaxWidth(), title = title, icon = icon) {
                                     Text(failure, style = IcodeType.Caption.scaledBy(LocalCodeTextScale.current))
-                                    // A message no reply came to: sent again, its files with it, once the cause is fixed.
                                     if (!state.running && state.messages.lastOrNull() is AssistantMessage.User) {
                                         SecondaryButton("Try Again", { gateway.dispatch(ICodeIntent.RetryAssistantMessage) })
                                     }

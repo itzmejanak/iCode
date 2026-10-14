@@ -71,10 +71,10 @@ class GitConflictCoordinatorTest {
     }
 
     private inner class Harness(val files: FakeFiles) {
-        val workbench = ICodeStateHolder()
+        val stateHolder = ICodeStateHolder()
         val events = mutableListOf<String>()
         val coordinator = GitConflictCoordinator(
-            workbench,
+            stateHolder,
             files,
             activeRoot = { root },
             act = { operation, onSuccess ->
@@ -89,7 +89,7 @@ class GitConflictCoordinatorTest {
     @Test fun `one block is resolved and every other keeps its markers`() = runBlocking {
         val harness = Harness(FakeFiles(twoConflicts))
         harness.coordinator.open("src/f.txt")
-        val second = harness.workbench.current.activeConflict!!.sections[1]
+        val second = harness.stateHolder.current.activeConflict!!.sections[1]
 
         harness.coordinator.resolve("src/f.txt", second.startLine, GitConflictChoice.Incoming)
 
@@ -98,7 +98,7 @@ class GitConflictCoordinatorTest {
             harness.files.disk,
         )
         // Read again from disk: one block left to decide.
-        assertEquals(1, harness.workbench.current.activeConflict!!.sections.size)
+        assertEquals(1, harness.stateHolder.current.activeConflict!!.sections.size)
         assertEquals(listOf(location), harness.files.written)
         assertEquals(listOf("refresh"), harness.events)
     }
@@ -106,7 +106,7 @@ class GitConflictCoordinatorTest {
     @Test fun `a windows file keeps its line endings`() = runBlocking {
         val harness = Harness(FakeFiles("a\r\n<<<<<<< HEAD\r\nx\r\n=======\r\ny\r\n>>>>>>> b\r\nz\r\n"))
         harness.coordinator.open("src/f.txt")
-        val section = harness.workbench.current.activeConflict!!.sections.single()
+        val section = harness.stateHolder.current.activeConflict!!.sections.single()
 
         harness.coordinator.resolve("src/f.txt", section.startLine, GitConflictChoice.Current)
 
@@ -116,8 +116,8 @@ class GitConflictCoordinatorTest {
     @Test fun `an open tab with unsaved edits is never written under`() = runBlocking {
         val harness = Harness(FakeFiles(twoConflicts).apply { unsaved = true })
         harness.coordinator.open("src/f.txt")
-        val first = harness.workbench.current.activeConflict!!.sections[0]
-        val message = async { harness.workbench.effects.first() }
+        val first = harness.stateHolder.current.activeConflict!!.sections[0]
+        val message = async { harness.stateHolder.effects.first() }
         yield()
 
         harness.coordinator.resolve("src/f.txt", first.startLine, GitConflictChoice.Current)
@@ -129,18 +129,18 @@ class GitConflictCoordinatorTest {
     @Test fun `a file changed on disk is read again instead of overwritten`() = runBlocking {
         val harness = Harness(FakeFiles(twoConflicts))
         harness.coordinator.open("src/f.txt")
-        val first = harness.workbench.current.activeConflict!!.sections[0]
+        val first = harness.stateHolder.current.activeConflict!!.sections[0]
         // Someone fixes the second block in the terminal meanwhile.
         harness.files.disk = twoConflicts.replace("<<<<<<< HEAD\na2\n=======\nb2\n>>>>>>> other", "a2")
         harness.files.version += 1
-        val message = async { harness.workbench.effects.first() }
+        val message = async { harness.stateHolder.effects.first() }
         yield()
 
         harness.coordinator.resolve("src/f.txt", first.startLine, GitConflictChoice.Current)
 
         assertEquals(ICodeEffect.Message("f.txt changed on disk and was read again. Choose again"), withTimeout(2_000) { message.await() })
         assertTrue("a2" in harness.files.disk && "b1" in harness.files.disk)
-        assertEquals(1, harness.workbench.current.activeConflict!!.sections.size)
+        assertEquals(1, harness.stateHolder.current.activeConflict!!.sections.size)
         assertTrue(harness.events.isEmpty())
     }
 
@@ -158,6 +158,6 @@ class GitConflictCoordinatorTest {
 
         harness.coordinator.close()
 
-        assertNull(harness.workbench.current.activeConflict)
+        assertNull(harness.stateHolder.current.activeConflict)
     }
 }
