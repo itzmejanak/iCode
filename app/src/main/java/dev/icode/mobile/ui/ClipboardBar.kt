@@ -30,11 +30,15 @@ import dev.icode.mobile.domain.ICodeIntent
 
 /**
  * What waits on iCode's one clipboard, wherever it can be pasted (docs/workspaces-page-plan.md
- * §2.7): its name, whether it was cut or copied, Paste, and ✕ to let it go. The Workspaces page and
- * the Explorer show the same bar, so what was cut on one is seen on the other.
+ * §2.7): its name, whether it is cut or copied and where Paste puts it — [destination], as the
+ * runtime names it; null, at the top of the workspaces, as a workspace of its own — Paste, and ✕ to
+ * let it go. What can never be a workspace says why there, and is not pasted
+ * ([ItemClipboard.notAWorkspace]). The Workspaces page and the Explorer show the same bar, so what
+ * was cut on one is seen on the other (docs/file-explorer-unification-plan.md E3).
  */
 @Composable
-fun ClipboardBar(clipboard: ItemClipboard, onPaste: () -> Unit, modifier: Modifier = Modifier) {
+fun ClipboardBar(clipboard: ItemClipboard, destination: String?, onPaste: () -> Unit, modifier: Modifier = Modifier) {
+    val refused = clipboard.notAWorkspace.takeIf { destination == null }
     val gateway = LocalICodeGateway.current
     Column(modifier.fillMaxWidth().background(IcodeColors.SurfaceElevated)) {
         Divider()
@@ -56,9 +60,18 @@ fun ClipboardBar(clipboard: ItemClipboard, onPaste: () -> Unit, modifier: Modifi
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(if (clipboard.cut) "Cut — moves when pasted" else "Copied — pastes as a copy", style = IcodeType.Caption)
+                Text(
+                    refused ?: when {
+                        destination == null -> if (clipboard.cut) "Moves here as a workspace" else "Copies here as a workspace"
+                        clipboard.cut -> "Moves into $destination"
+                        else -> "Copies into $destination"
+                    },
+                    style = IcodeType.Caption.copy(color = if (refused != null) IcodeColors.Amber else IcodeColors.TextSecondary),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
-            PrimaryButton("Paste", onPaste)
+            PrimaryButton("Paste", onPaste, enabled = refused == null)
             IconButton(onClick = { gateway.dispatch(ICodeIntent.ClearClipboard) }) {
                 Icon(Icons.Outlined.Close, contentDescription = "Clear the clipboard", tint = IcodeColors.TextSecondary)
             }

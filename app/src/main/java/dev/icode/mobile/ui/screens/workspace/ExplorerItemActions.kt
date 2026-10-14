@@ -1,21 +1,18 @@
 package dev.icode.mobile.ui.screens.workspace
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
-import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.ContentCut
-import androidx.compose.material.icons.outlined.ContentPaste
-import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material.icons.outlined.DriveFileRenameOutline
-import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.UnfoldLess
+import androidx.compose.material.icons.outlined.UnfoldMore
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,11 +23,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.platform.LocalContext
 import dev.icode.mobile.designsystem.IcodeActionMenu
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeConfirmDialog
 import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodeMenuAction
+import dev.icode.mobile.designsystem.IcodeOverflowMenu
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
@@ -45,44 +44,48 @@ import dev.icode.mobile.domain.FileTypes
 import dev.icode.mobile.domain.ItemClipboard
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.WorkspaceNameRules
+import dev.icode.mobile.domain.WorkspaceRuntimePath
+import dev.icode.mobile.ui.FileItemActions
 import dev.icode.mobile.ui.LocalICodeGateway
-import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.rememberPendingRequest
 
 /**
- * The long-press menu of one Explorer row. Cut and Copy put it on iCode's one clipboard — the
- * Workspaces page's too — and Paste takes whatever is there, from this workspace or another.
+ * One Explorer row's actions, every explorer's ([FileItemActions]), from its ⋮ and a long press
+ * alike. Open is a file into the editor, a folder opened or closed in the tree; Paste goes into a
+ * folder row itself, or beside a file row into the folder it sits in ([creationParentLocation]).
  */
 @Composable
-internal fun ExplorerItemMenu(
+internal fun explorerItemActions(
     entry: FileEntry,
-    expanded: Boolean,
+    root: String?,
+    rootPath: String,
+    files: List<FileEntry>,
     clipboard: ItemClipboard?,
-    onDismiss: () -> Unit,
     onRename: () -> Unit,
-    onPaste: () -> Unit,
     onDelete: () -> Unit,
-) {
+): List<IcodeMenuAction> {
     val gateway = LocalICodeGateway.current
-    IcodeActionMenu(
-        expanded = expanded,
-        onDismiss = onDismiss,
-        actions = listOf(
-            IcodeMenuAction("Rename", Icons.Outlined.DriveFileRenameOutline, onRename),
-            IcodeMenuAction("Cut", Icons.Outlined.ContentCut, { gateway.dispatch(ICodeIntent.CutItem(entry.path)) }),
-            IcodeMenuAction("Copy", Icons.Outlined.ContentCopy, { gateway.dispatch(ICodeIntent.CopyItem(entry.path)) }),
-            IcodeMenuAction(pasteLabel(clipboard), Icons.Outlined.ContentPaste, onPaste, enabled = clipboard != null),
-            IcodeMenuAction("Delete", Icons.Outlined.DeleteOutline, onDelete, destructive = true),
-        ),
+    val folder = entry.kind == FileKind.Folder
+    return FileItemActions.of(
+        context = LocalContext.current,
+        dispatch = gateway::dispatch,
+        location = entry.path,
+        runtimePath = root?.let { WorkspaceRuntimePath.within(it, rootPath, entry.path) } ?: entry.path,
+        clipboard = clipboard,
+        open = if (folder) {
+            IcodeMenuAction(
+                if (entry.expanded) "Collapse" else "Expand",
+                if (entry.expanded) Icons.Outlined.UnfoldLess else Icons.Outlined.UnfoldMore,
+                { gateway.dispatch(ICodeIntent.ToggleFolder(entry.path)) },
+            )
+        } else {
+            FileItemActions.openFile { gateway.dispatch(ICodeIntent.OpenFile(entry.path)) }
+        },
+        onRename = onRename,
+        onPaste = { creationParentLocation(root, entry.path, files)?.let { gateway.dispatch(ICodeIntent.PasteInto(it)) } },
+        onDelete = onDelete,
     )
 }
-
-/** "Paste RevPlayer": what Paste would bring, named, so a clipboard from another page is never a surprise. */
-internal fun pasteLabel(clipboard: ItemClipboard?): String = clipboard?.let { "Paste ${it.name}" } ?: "Paste"
-
-/** Paste goes into a folder row itself, or into the folder a file row sits in. */
-internal fun pasteTarget(root: String?, entry: FileEntry, files: List<FileEntry>): String? =
-    creationParentLocation(root, entry.path, files)
 
 /**
  * The create form, for a new name: the same rules, the same answer by request id — for an item of
@@ -131,8 +134,20 @@ internal fun DeleteWorkspaceItemDialog(location: String, name: String, folder: B
     )
 }
 
+/**
+ * One row of the Explorer's tree, as Source Control's: compact, its ⋮ its height. Its actions open
+ * from ⋮, and from a long press ([menuOpen]) at the same place.
+ */
 @Composable
-internal fun ExplorerRow(entry: FileEntry, selected: Boolean, onClick: () -> Unit, onLongClick: () -> Unit) {
+internal fun ExplorerRow(
+    entry: FileEntry,
+    selected: Boolean,
+    actions: List<IcodeMenuAction>,
+    menuOpen: Boolean,
+    onMenuDismiss: () -> Unit,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit,
+) {
     val folder = entry.kind == FileKind.Folder
     val type = FileTypes.of(entry.name)
     val icon = when {
@@ -147,6 +162,7 @@ internal fun ExplorerRow(entry: FileEntry, selected: Boolean, onClick: () -> Uni
         selected = selected,
         selectionBackground = IcodeColors.Surface,
         rowShape = RectangleShape,
+        compact = true,
         indent = IcodeSpacing.IndentStep * entry.depth,
         onClick = onClick,
         onLongClick = onLongClick,
@@ -188,6 +204,10 @@ internal fun ExplorerRow(entry: FileEntry, selected: Boolean, onClick: () -> Uni
                 status == null -> Unit
                 entry.kind == FileKind.Folder -> StatusDot(gitStatusTone(status).tint())
                 else -> MonoLine(status, color = gitStatusTone(status).tint(), style = IcodeType.MonoSmall)
+            }
+            Box {
+                IcodeOverflowMenu(contentDescription = "More options for ${entry.name}", actions = actions)
+                IcodeActionMenu(expanded = menuOpen, onDismiss = onMenuDismiss, actions = actions)
             }
         },
     )

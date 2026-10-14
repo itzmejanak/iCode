@@ -123,7 +123,11 @@ internal object KoogFailures {
             when (cause) {
                 is KoogHttpClientException -> when {
                     cause.statusCode == 429 -> return AssistantRetryKind.RateLimited
-                    cause.statusCode in 500..504 -> return AssistantRetryKind.Server
+                    cause.statusCode in 500..504 -> {
+                        val msg = (cause.message.orEmpty() + " " + (cause.errorBody.orEmpty())).lowercase()
+                        if ("overloaded" in msg || "temporarily" in msg) return AssistantRetryKind.Overloaded
+                        return AssistantRetryKind.Server
+                    }
                     cause.statusCode == null -> return AssistantRetryKind.Connection
                 }
                 is ConnectTimeoutException, is HttpRequestTimeoutException, is SocketTimeoutException,
@@ -133,17 +137,21 @@ internal object KoogFailures {
                 else -> {
                     val msg = (cause.message ?: "").lowercase()
                     if ("rate limit" in msg || "too many requests" in msg || "token rate limit" in msg) return AssistantRetryKind.RateLimited
+                    if ("overloaded" in msg || "temporarily" in msg) return AssistantRetryKind.Overloaded
                 }
             }
             val msg = (cause.message ?: "").lowercase()
             if ("rate limit" in msg || "too many requests" in msg || "token rate limit" in msg) return AssistantRetryKind.RateLimited
+            if ("overloaded" in msg || "temporarily" in msg) return AssistantRetryKind.Overloaded
         }
-        // Also check wrapped provider body for rate-limit wording (429 with no status parsed)
+        // Also check wrapped provider body for rate-limit/overloaded wording (503 overloaded → Overloaded, 429 → RateLimited)
         val body = chain.filterIsInstance<KoogHttpClientException>().firstOrNull()?.errorBody?.lowercase().orEmpty()
         if ("rate limit" in body || "rate_limit" in body || "too many requests" in body) return AssistantRetryKind.RateLimited
-        // Fallback: message contains rate-limit even without known exception type
+        if ("overloaded" in body || "temporarily" in body || "temporarily overloaded" in body) return AssistantRetryKind.Overloaded
+        // Fallback: message contains overloaded even without known exception type
         val msg = chain.joinToString(" ") { it.message.orEmpty().lowercase() }
         if ("rate limit" in msg && chain.any { it is KoogHttpClientException || it is LLMClientException }) return AssistantRetryKind.RateLimited
+        if ("overloaded" in msg && chain.any { it is KoogHttpClientException || it is LLMClientException }) return AssistantRetryKind.Overloaded
         return null
     }
 

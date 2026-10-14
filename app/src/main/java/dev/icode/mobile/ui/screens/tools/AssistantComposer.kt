@@ -21,6 +21,7 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Compress
 import androidx.compose.material.icons.outlined.FolderOpen
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.StopCircle
 import androidx.compose.material3.CircularProgressIndicator

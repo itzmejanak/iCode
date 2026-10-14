@@ -10,6 +10,9 @@ object WorkspaceRuntimePath {
 
     /** Where a new project named [name] will be: a new workspace, or inside [destination]. */
     fun of(name: String, destination: ProjectDestination?) = destination?.let { "${it.displayPath}/$name" } ?: of(name)
+
+    /** [location], inside the workspace at [root] whose runtime path is [rootPath], as the runtime names it: what Copy path gives. */
+    fun within(root: String, rootPath: String, location: String): String = rootPath + location.removePrefix(root)
 }
 
 /**
@@ -105,7 +108,19 @@ data class ItemClipboard(
     val folder: Boolean,
     /** A whole workspace, not something in one. */
     val workspace: Boolean,
-)
+) {
+    /**
+     * Why it can never be pasted as a workspace of its own — at the top of the workspaces — or null
+     * when it can: a file is not a workspace, and a cut workspace already is one. The paste's own
+     * check and the paste bar's both read it.
+     */
+    val notAWorkspace: String?
+        get() = when {
+            !folder -> "A workspace is a folder: paste $name inside one"
+            cut && workspace -> "$name is a workspace already"
+            else -> null
+        }
+}
 
 /** A folder chosen on phone storage for Import: where it is, and the name it proposes. */
 data class ImportSource(val path: String, val name: String, val displayPath: String)
