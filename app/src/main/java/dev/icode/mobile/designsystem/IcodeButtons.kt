@@ -19,9 +19,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
@@ -208,5 +210,24 @@ fun JumpToLatestButton(visible: Boolean, contentDescription: String, onClick: ()
         ) {
             Icon(Icons.Outlined.ArrowDownward, contentDescription = contentDescription, tint = IcodeColors.Green)
         }
+    }
+}
+
+/**
+ * The floating + of a list (docs/storage-explorer-plan.md §3.3): what can be made where the list is,
+ * from a menu anchored on it ([menu]).
+ */
+@Composable
+fun IcodeFab(contentDescription: String, onClick: () -> Unit, modifier: Modifier = Modifier, menu: @Composable () -> Unit = {}) {
+    Box(modifier) {
+        FloatingActionButton(
+            onClick = onClick,
+            shape = IcodeShapes.Pill,
+            containerColor = IcodeColors.Accent,
+            contentColor = IcodeColors.OnAccent,
+        ) {
+            Icon(Icons.Outlined.Add, contentDescription = contentDescription)
+        }
+        menu()
     }
 }

@@ -2,11 +2,13 @@ package dev.icode.mobile.capture
 
 import android.annotation.SuppressLint
 import dev.icode.mobile.data.git.GitConflictParser
+import dev.icode.mobile.domain.BrowsedItem
 import dev.icode.mobile.domain.ComponentDownload
 import dev.icode.mobile.domain.Diagnostic
 import dev.icode.mobile.domain.ExternalChange
 import dev.icode.mobile.domain.FileEntry
 import dev.icode.mobile.domain.FileKind
+import dev.icode.mobile.domain.FilesBrowserState
 import dev.icode.mobile.domain.GitChange
 import dev.icode.mobile.domain.GitCommitSummary
 import dev.icode.mobile.domain.GitDiffHunk
@@ -15,13 +17,11 @@ import dev.icode.mobile.domain.GitDiffLineKind
 import dev.icode.mobile.domain.GitFileDiff
 import dev.icode.mobile.domain.GitRepositoryState
 import dev.icode.mobile.domain.GitStatusCodes
-import dev.icode.mobile.domain.ImportBrowserState
 import dev.icode.mobile.domain.IndexedFile
 import dev.icode.mobile.domain.LanguageService
 import dev.icode.mobile.domain.LanguageServiceStatus
 import dev.icode.mobile.domain.LineEnding
 import dev.icode.mobile.domain.OpenDocument
-import dev.icode.mobile.domain.PhoneFolder
 import dev.icode.mobile.domain.RecentDocument
 import dev.icode.mobile.domain.RecoverableDraft
 import dev.icode.mobile.domain.RuntimeDetails
@@ -30,6 +30,7 @@ import dev.icode.mobile.domain.RuntimeComponentsState
 import dev.icode.mobile.domain.Severity
 import dev.icode.mobile.domain.StorageDetails
 import dev.icode.mobile.domain.StorageMeasurement
+import dev.icode.mobile.domain.StoragePlace
 import dev.icode.mobile.domain.StorageSummary
 import dev.icode.mobile.domain.SystemAccess
 import dev.icode.mobile.domain.TextEncoding
@@ -155,15 +156,18 @@ object CaptureFixtures {
         ),
         // Clone progress names the workspace the clone becomes.
         cloneName = "icode-subsystem",
-        importBrowser = ImportBrowserState(
-            access = true,
+        // The file explorer at Shared, as Open Folder's frame (2003:117) draws phone storage.
+        filesBrowser = FilesBrowserState(
+            place = StoragePlace.Shared,
             rootPath = PHONE_ROOT,
-            currentPath = "$PHONE_ROOT/Projects",
-            folders = listOf(
-                PhoneFolder("RevPlayer", "$PHONE_ROOT/Projects/RevPlayer", directoryCount = 12, fileCount = 4),
-                PhoneFolder("site", "$PHONE_ROOT/Projects/site", directoryCount = 2, fileCount = 15),
-                PhoneFolder("notes", "$PHONE_ROOT/Projects/notes", directoryCount = 1, fileCount = 6),
+            path = "$PHONE_ROOT/Projects",
+            items = listOf(
+                BrowsedItem("RevPlayer", "$PHONE_ROOT/Projects/RevPlayer", folder = true, changedAt = ago(hours = 2), entries = 16),
+                BrowsedItem("site", "$PHONE_ROOT/Projects/site", folder = true, changedAt = ago(hours = 26), entries = 17),
+                BrowsedItem("notes", "$PHONE_ROOT/Projects/notes", folder = true, changedAt = ago(hours = 50), entries = 7),
+                BrowsedItem("README.md", "$PHONE_ROOT/Projects/README.md", folder = false, bytes = 2_048, changedAt = ago(minutes = 40)),
             ),
+            sharedRoot = PHONE_ROOT,
         ),
         storage = StorageSummary(availableBytes = 13_314_398_617L, totalBytes = 137_438_953_472L),
         storageDetails = StorageDetails(

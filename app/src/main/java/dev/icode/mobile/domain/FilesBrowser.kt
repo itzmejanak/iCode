@@ -1,7 +1,7 @@
 package dev.icode.mobile.domain
 
-// The Workspaces page as the file explorer of the workspaces (docs/workspace-destinations-plan.md
-// §2.2): where it is, what is there, and how it is ordered and found.
+// The file explorer of iCode's storage and phone storage (docs/storage-explorer-plan.md §3): where
+// it is, what is there, and how it is ordered and found.
 
 /** One entry where the file explorer is: a folder — a workspace, at the top — or a file. */
 data class BrowsedItem(
@@ -18,27 +18,49 @@ data class BrowsedItem(
     val branch: String? = null,
 )
 
-/** Where the file explorer is, and what is there. */
-data class FilesBrowserState(val rootPath: String, val path: String, val items: List<BrowsedItem> = emptyList()) {
+/**
+ * The two places the file explorer shows (docs/storage-explorer-plan.md §3.1): iCode's own storage,
+ * where workspaces live, and phone storage, which other apps see.
+ */
+enum class StoragePlace(val label: String) {
+    Private("Private"),
+    Shared("Shared"),
+}
+
+/**
+ * Where the file explorer is, and what is there. On [StoragePlace.Shared] without All Files Access
+ * ([access] false) it lists nothing and waits there for it. [sharedRoot] is phone storage's top,
+ * wherever the explorer is: the places menu names it.
+ */
+data class FilesBrowserState(
+    val place: StoragePlace,
+    val rootPath: String,
+    val path: String,
+    val items: List<BrowsedItem> = emptyList(),
+    val access: Boolean = true,
+    val sharedRoot: String = "",
+) {
     val atRoot: Boolean get() = path == rootPath
-    val name: String get() = path.substringAfterLast('/')
 
-    /** `workspace › tools › cli`: each step a tap back. */
-    val crumbs: List<FolderCrumb> get() = FolderCrumbs.of(ROOT_NAME, rootPath, path)
+    /** The folder shown; at the top, the place. */
+    val name: String get() = if (atRoot) place.label else path.substringAfterLast('/')
 
-    /** The folder above, where Back goes; null at the top. */
-    val parent: String? get() = FolderCrumbs.parentOf(crumbs)
+    /** The folder above, where `..` and Back go; null at the top. */
+    val parent: String? get() = if (atRoot) null else path.substringBeforeLast('/')
 
-    /** The workspace it is in; null at the top. */
-    val workspace: String? get() = crumbs.getOrNull(1)?.path
+    /** The workspace it is in; null at the top, and on phone storage. */
+    val workspace: String?
+        get() = if (place == StoragePlace.Shared || atRoot) null else "$rootPath/" + path.removePrefix("$rootPath/").substringBefore('/')
 
-    /** [location] as the runtime names it: `/workspace/tools/cli/README.md`. */
-    fun runtimePathOf(location: String): String = WorkspaceRuntimePath.ROOT + location.removePrefix(rootPath)
+    /** Where the folder shown is, as ZArchiver says it under the name: its parent's path; at the top, the place's. */
+    val where: String get() = runtimePathOf(parent ?: path)
 
-    private companion object {
-        /** The runtime's name for the workspaces folder: `/workspace`. */
-        val ROOT_NAME = WorkspaceRuntimePath.ROOT.removePrefix("/")
-    }
+    /**
+     * [location] as the runtime names it — `/workspace/tools/cli/README.md` — or, on phone storage,
+     * as Android does: `/storage/emulated/0/Download/notes.txt`.
+     */
+    fun runtimePathOf(location: String): String =
+        if (place == StoragePlace.Shared) location else WorkspaceRuntimePath.ROOT + location.removePrefix(rootPath)
 }
 
 enum class FilesSort { Name, Date, Size }
@@ -65,9 +87,17 @@ object FilesRules {
         )
     }
 
-    /** "3 folders, 12 files": what a folder inside a workspace holds. */
-    fun contents(items: List<BrowsedItem>): String {
-        val folders = items.count { it.folder }
-        return "${countOf(folders, "folder")}, ${countOf(items.size - folders, "file")}"
+    /**
+     * A row's detail: a file's size; a folder's "12 items" or "Empty" — "Folder" when it cannot be
+     * read — and a workspace's branch after it.
+     */
+    fun detail(item: BrowsedItem): String {
+        val what = when {
+            !item.folder -> ByteSize.format(item.bytes ?: 0)
+            item.entries == null -> "Folder"
+            item.entries == 0 -> "Empty"
+            else -> countOf(item.entries, "item")
+        }
+        return item.branch?.let { "$what · $it" } ?: what
     }
 }

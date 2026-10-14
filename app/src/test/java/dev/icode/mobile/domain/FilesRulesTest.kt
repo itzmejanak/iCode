@@ -22,18 +22,39 @@ class FilesRulesTest {
         assertEquals(all, FilesRules.matching(all, " "))
     }
 
-    @Test fun `a folder says what it holds, and the breadcrumb starts at workspace`() {
-        assertEquals("2 folders, 2 files", FilesRules.contents(all))
-        val state = FilesBrowserState("/data/w", "/data/w/tools/cli")
-        assertEquals(listOf("workspace", "tools", "cli"), state.crumbs.map { it.name })
-        assertEquals("/data/w/tools", state.crumbs[1].path)
+    @Test fun `a row says what a folder holds — a workspace its branch too — or a file's size`() {
+        assertEquals("4 items", FilesRules.detail(src))
+        assertEquals("1 item", FilesRules.detail(docs))
+        assertEquals("900 B", FilesRules.detail(readme))
+        assertEquals("Empty", FilesRules.detail(src.copy(entries = 0)))
+        assertEquals("Folder", FilesRules.detail(src.copy(entries = null)))
+        assertEquals("4 items · main", FilesRules.detail(src.copy(branch = "main")))
     }
 
-    @Test fun `Back goes up a folder in both browsers, and leaves only at their root`() {
-        assertEquals("/data/w/tools", FilesBrowserState("/data/w", "/data/w/tools/cli").parent)
-        assertEquals(null, FilesBrowserState("/data/w", "/data/w").parent)
+    @Test fun `the title is the folder and under it where that folder is, at the top the place and its path`() {
+        val private = FilesBrowserState(StoragePlace.Private, "/data/w", "/data/w/tools/cli")
+        assertEquals("cli", private.name)
+        assertEquals("/workspace/tools", private.where)
+        assertEquals("/workspace/tools/cli/README.md", private.runtimePathOf("/data/w/tools/cli/README.md"))
+        assertEquals("/data/w/tools", private.workspace)
+        val top = FilesBrowserState(StoragePlace.Private, "/data/w", "/data/w")
+        assertEquals("Private", top.name)
+        assertEquals("/workspace", top.where)
+        assertEquals(null, top.workspace)
         val sdcard = "/storage/emulated/0"
-        assertEquals(sdcard, ImportBrowserState(access = true, rootPath = sdcard, currentPath = "$sdcard/Download").parent)
-        assertEquals(null, ImportBrowserState(access = true, rootPath = sdcard, currentPath = sdcard).parent)
+        val shared = FilesBrowserState(StoragePlace.Shared, sdcard, "$sdcard/Download")
+        assertEquals("Download", shared.name)
+        assertEquals(sdcard, shared.where)
+        assertEquals("$sdcard/Download/a.txt", shared.runtimePathOf("$sdcard/Download/a.txt"))
+        assertEquals(null, shared.workspace)
+        assertEquals("Shared", FilesBrowserState(StoragePlace.Shared, sdcard, sdcard).name)
+    }
+
+    @Test fun `up goes a folder up in both places, and only at their top is there none`() {
+        assertEquals("/data/w/tools", FilesBrowserState(StoragePlace.Private, "/data/w", "/data/w/tools/cli").parent)
+        assertEquals(null, FilesBrowserState(StoragePlace.Private, "/data/w", "/data/w").parent)
+        val sdcard = "/storage/emulated/0"
+        assertEquals(sdcard, FilesBrowserState(StoragePlace.Shared, sdcard, "$sdcard/Download").parent)
+        assertEquals(null, FilesBrowserState(StoragePlace.Shared, sdcard, sdcard).parent)
     }
 }

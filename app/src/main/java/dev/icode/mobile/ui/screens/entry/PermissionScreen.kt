@@ -28,8 +28,8 @@ private val stepsSaver = listSaver<List<SystemPermission>, String>(
 
 /**
  * The permissions onboarding asks for, one at a time on this one screen. Both are optional:
- * workspaces live in iCode's own storage and need none; All Files Access is asked where Import
- * needs it, in the same words ([PermissionExplanation]).
+ * workspaces live in iCode's own storage and need none; All Files Access is asked where the file
+ * explorer's Shared needs it, in the same words ([PermissionExplanation]).
  *
  * The steps are fixed when the screen opens, so answering one does not
  * reshuffle the rest, and the position survives the trip to Android's own

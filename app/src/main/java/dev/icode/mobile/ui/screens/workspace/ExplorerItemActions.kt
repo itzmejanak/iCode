@@ -29,7 +29,6 @@ import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeConfirmDialog
 import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodeMenuAction
-import dev.icode.mobile.designsystem.IcodeOverflowMenu
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
@@ -134,10 +133,7 @@ internal fun DeleteWorkspaceItemDialog(location: String, name: String, folder: B
     )
 }
 
-/**
- * One row of the Explorer's tree, as Source Control's: compact, its ⋮ its height. Its actions open
- * from ⋮, and from a long press ([menuOpen]) at the same place.
- */
+/** One row of the Explorer's tree; its actions open from a long press ([menuOpen]), at its end. */
 @Composable
 internal fun ExplorerRow(
     entry: FileEntry,
@@ -162,7 +158,6 @@ internal fun ExplorerRow(
         selected = selected,
         selectionBackground = IcodeColors.Surface,
         rowShape = RectangleShape,
-        compact = true,
         indent = IcodeSpacing.IndentStep * entry.depth,
         onClick = onClick,
         onLongClick = onLongClick,
@@ -205,10 +200,8 @@ internal fun ExplorerRow(
                 entry.kind == FileKind.Folder -> StatusDot(gitStatusTone(status).tint())
                 else -> MonoLine(status, color = gitStatusTone(status).tint(), style = IcodeType.MonoSmall)
             }
-            Box {
-                IcodeOverflowMenu(contentDescription = "More options for ${entry.name}", actions = actions)
-                IcodeActionMenu(expanded = menuOpen, onDismiss = onMenuDismiss, actions = actions)
-            }
+            // A long press opens the menu here, as in every explorer (docs/storage-explorer-plan.md §3.2).
+            Box { IcodeActionMenu(expanded = menuOpen, onDismiss = onMenuDismiss, actions = actions) }
         },
     )
 }

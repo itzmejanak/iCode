@@ -11,18 +11,18 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Every explorer's actions are one list, in one order (docs/file-explorer-unification-plan.md §3). */
+/** Every explorer's actions are one list, in one order (docs/file-explorer-unification-plan.md §3; storage-explorer-plan.md §3). */
 class FileItemActionsTest {
     private val sent = mutableListOf<ICodeIntent>()
     private val held = ItemClipboard("/w/app/README.md", "README.md", cut = true, folder = false, workspace = false)
 
-    private fun actions(clipboard: ItemClipboard?, workspace: Boolean = false, listed: Boolean = false) = FileItemActions.of(
+    private fun actions(clipboard: ItemClipboard?, workspace: Boolean = false, listed: Boolean = false, openable: Boolean = true) = FileItemActions.of(
         context = ContextWrapper(null),
         dispatch = { sent += it },
         location = "/w/app/src",
         runtimePath = "/workspace/app/src",
         clipboard = clipboard,
-        open = IcodeMenuAction("Open", Icons.Outlined.FolderOpen, {}),
+        open = IcodeMenuAction("Open", Icons.Outlined.FolderOpen, {}).takeIf { openable },
         onRename = {},
         onPaste = {},
         onDelete = {},
@@ -58,9 +58,15 @@ class FileItemActionsTest {
         assertEquals(listOf<ICodeIntent>(ICodeIntent.CutItem("/w/app/src"), ICodeIntent.CopyItem("/w/app/src")), sent)
     }
 
-    @Test fun `+ makes a file where one can go, a folder, and pastes what is held`() {
-        assertEquals(listOf("New file", "New folder", "Paste README.md"), FileItemActions.creation({}, {}, held, {}).map { it.label })
-        assertEquals(listOf("New folder"), FileItemActions.creation(null, {}, held, null).map { it.label })
-        assertEquals(listOf("New file", "New folder"), FileItemActions.creation({}, {}, null, {}).map { it.label })
+    @Test fun `a file with nothing to open it in has no Open, and the rest as any other`() {
+        assertEquals(
+            listOf("Rename…", "Cut", "Copy", "Paste README.md", "Copy path", "Delete…"),
+            actions(held, openable = false).map { it.label },
+        )
+    }
+
+    @Test fun `+ makes a folder, and a file where one can go, and Paste is the paste bar's`() {
+        assertEquals(listOf("New folder", "New file"), FileItemActions.creation({}, {}).map { it.label })
+        assertEquals(listOf("New folder"), FileItemActions.creation(null, {}).map { it.label })
     }
 }

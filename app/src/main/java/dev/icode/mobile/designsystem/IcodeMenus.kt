@@ -2,10 +2,12 @@ package dev.icode.mobile.designsystem
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -22,13 +24,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 
-/** Shared overflow action: app typography, color, surface, and destructive grouping. */
+/**
+ * Shared overflow action: app typography, color, surface, and destructive grouping. [detail] is a
+ * second line under the label (a place's path); [checked] marks the one chosen of a set (a sort).
+ */
 data class IcodeMenuAction(
     val label: String,
     val icon: ImageVector,
     val onClick: () -> Unit,
     val enabled: Boolean = true,
     val destructive: Boolean = false,
+    val detail: String? = null,
+    val checked: Boolean = false,
 )
 
 @Composable
@@ -84,9 +91,19 @@ fun IcodeActionMenu(
                 else -> IcodeColors.TextPrimary
             }
             DropdownMenuItem(
-                text = { Text(action.label, style = IcodeType.Body.copy(color = color)) },
+                text = {
+                    Column {
+                        Text(action.label, style = IcodeType.Body.copy(color = color))
+                        action.detail?.let { MonoLine(it, color = IcodeColors.TextSecondary, style = IcodeType.MonoSmall, maxLines = 1) }
+                    }
+                },
                 leadingIcon = {
                     Icon(action.icon, contentDescription = null, tint = color, modifier = Modifier.size(IcodeSizes.IconMd))
+                },
+                trailingIcon = if (action.checked) {
+                    { Icon(Icons.Outlined.Check, contentDescription = "Chosen", tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconMd)) }
+                } else {
+                    null
                 },
                 enabled = action.enabled,
                 contentPadding = PaddingValues(horizontal = IcodeSpacing.Space3),

@@ -21,17 +21,6 @@ sealed interface ICodeIntent {
     data class RenameWorkspace(val location: String, val newName: String, val requestId: String) : ICodeIntent
     /** A whole workspace deleted, once its menu confirmed it; runs as a task. */
     data class DeleteWorkspace(val location: String) : ICodeIntent
-    /**
-     * The Import browser opens: at [path], or where it was last, or at the root of internal storage.
-     * Without All Files Access it waits for it (docs/workspace-storage-plan.md §4.5).
-     */
-    data class OpenImportBrowser(val path: String? = null) : ICodeIntent
-    data class BrowseImportFolder(val path: String) : ICodeIntent
-    /** The folder at [path] on phone storage is the one to import: the Import screen names it. */
-    data class ChooseImportFolder(val path: String) : ICodeIntent
-    /** Copies the chosen [ImportSource] into a new workspace named [name]; runs as a task. */
-    /** As a new workspace, or as [name] inside the folder [into]. */
-    data class ImportWorkspace(val name: String, val into: String? = null) : ICodeIntent
     data class OpenWorkspace(val path: String) : ICodeIntent
     data class OpenWorkspaceTerminal(val path: String) : ICodeIntent
     data class ResolveWorkspaceSwitch(val path: String, val openTerminal: Boolean, val saveChanges: Boolean) : ICodeIntent
@@ -198,9 +187,11 @@ sealed interface ICodeIntent {
     data object RefreshRuntimeDetails : ICodeIntent
     /** Reading what storage holds: it changes nothing, so it never waits on the mutation lock. */
     sealed interface StorageIntent : ICodeIntent
-    /** The file explorer at [path] — where it was when none, the workspaces folder at first. */
+    /** The file explorer at [path], in whichever place it is — where it was when none, the workspaces folder at first. */
     data class BrowseFiles(val path: String? = null) : StorageIntent
-    /** Where the next clone or import goes: the folder [path] of a workspace, or none — a new workspace. */
+    /** The file explorer in [place], where it was last there; at its top the first time. */
+    data class BrowsePlace(val place: StoragePlace) : StorageIntent
+    /** Where the next clone goes: the folder [path] of a workspace, or none — a new workspace. */
     data class ChooseDestination(val path: String?) : StorageIntent
     /** The device, the runtime and the cache. */
     data object RefreshStorage : StorageIntent

@@ -23,14 +23,13 @@ enum class Route(
     LauncherEmpty("3:202", "Launcher empty", RouteGroup.ENTRY),
     // Owner's request (2026-09-25): notices move off the launcher onto their own page.
     Notifications(null, "Notifications", RouteGroup.ENTRY),
-    // Workspaces live in iCode's storage (2026-09-30): Import names the folder chosen in its browser.
-    ImportWorkspace(null, "Import", RouteGroup.ENTRY),
     // Owner's request (2026-09-30): choose the runtime's tools, as Android Studio's setup does
     // (docs/runtime-components-plan.md §3.5).
     RuntimeComponents(null, "Runtime components", RouteGroup.ENTRY),
-    // Owner's request (2026-10-01): every workspace, managed in one place (docs/workspaces-page-plan.md).
-    Workspaces(null, "Workspaces", RouteGroup.ENTRY),
-    // The same file explorer, choosing where a clone or an import goes (workspace-destinations-plan.md §2.2).
+    // Owner's request (2026-10-01, 2026-10-14): every workspace, managed in one place, and phone storage
+    // beside it — the file explorer of both places, drawing Open Folder's frame (docs/storage-explorer-plan.md).
+    Workspaces("2003:117", "Workspaces", RouteGroup.ENTRY),
+    // The same file explorer, choosing where a clone goes (workspace-destinations-plan.md §2.2).
     ChooseDestination(null, "Choose where", RouteGroup.ENTRY),
     CloneRepository("3:239", "Clone repository", RouteGroup.ENTRY),
     CloneProgress("3:278", "Clone progress", RouteGroup.ENTRY),
@@ -54,8 +53,6 @@ enum class Route(
     SettingsRuntime("3:1455", "Runtime environment", RouteGroup.SETTINGS),
     ConflictResolution("3:1509", "Conflict resolution", RouteGroup.TOOLS),
     EditorEmpty("2003:19", "Editor empty state", RouteGroup.WORKSPACE),
-    // Open Folder's frame, now Import's browser of phone storage (docs/workspace-storage-plan.md §4.4).
-    ImportBrowser("2003:117", "Import browser", RouteGroup.ENTRY),
     CommandPalette("2003:166", "Command palette", RouteGroup.TOOLS),
     OutputPanel("2003:208", "Output panel", RouteGroup.TOOLS),
     CommitPush("2003:246", "Commit and push", RouteGroup.TOOLS),

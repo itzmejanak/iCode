@@ -38,68 +38,10 @@ data class WorkspaceSummary(
     val location: String = path,
 )
 
-/** A folder on phone storage, as the Import browser lists it. */
-data class PhoneFolder(
-    val name: String,
-    val path: String,
-    val directoryCount: Int,
-    val fileCount: Int,
-)
-
 /**
- * Import's view of phone storage (docs/workspace-storage-plan.md §4.5): where it is and the folders
- * there. Without All Files Access ([access] false) it lists nothing and waits at [currentPath]
- * until the permission is granted.
- */
-data class ImportBrowserState(
-    val access: Boolean,
-    val rootPath: String,
-    val currentPath: String,
-    val folders: List<PhoneFolder> = emptyList(),
-) {
-    /** The root of phone storage is where folders are, not a folder to import. */
-    val atRoot: Boolean get() = currentPath == rootPath
-    val name: String get() = currentPath.substringAfterLast('/')
-
-    /** The breadcrumb: sdcard, then each folder down to here. */
-    val crumbs: List<FolderCrumb> get() = PhoneStoragePaths.crumbs(rootPath, currentPath)
-
-    /** The folder above, where Back goes; null at the root. */
-    val parent: String? get() = FolderCrumbs.parentOf(crumbs)
-}
-
-/** One step of a breadcrumb — Import's browser, the workspaces' file explorer: a folder's name, and where it is. */
-data class FolderCrumb(val name: String, val path: String)
-
-object FolderCrumbs {
-    /** Each folder from [rootPath] — named [rootName] — down to [path], the root first. */
-    fun of(rootName: String, rootPath: String, path: String): List<FolderCrumb> {
-        var at = rootPath
-        val below = path.removePrefix(rootPath).split('/').filter(String::isNotEmpty).map { name ->
-            at = "$at/$name"
-            FolderCrumb(name, at)
-        }
-        return listOf(FolderCrumb(rootName, rootPath)) + below
-    }
-
-    /** The folder above the last of [crumbs], where Back goes in a file browser; null at the root. */
-    fun parentOf(crumbs: List<FolderCrumb>): String? = crumbs.dropLast(1).lastOrNull()?.path
-}
-
-/** How iCode names places on phone storage — the browser's breadcrumb and Import's "From" alike. */
-object PhoneStoragePaths {
-    /** The root, by the name developers know it (owner, 2026-09-30). */
-    const val ROOT_NAME = "sdcard"
-
-    fun crumbs(rootPath: String, path: String): List<FolderCrumb> = FolderCrumbs.of(ROOT_NAME, rootPath, path)
-
-    /** "sdcard / Projects / RevPlayer". */
-    fun display(rootPath: String, path: String): String = crumbs(rootPath, path).joinToString(" / ") { it.name }
-}
-
-/**
- * What is cut or copied, anywhere in iCode's workspaces, waiting for Paste
- * (docs/workspaces-page-plan.md §2.7). A cut item moves once; a copied one pastes again.
+ * What is cut or copied, anywhere in iCode's workspaces or on phone storage, waiting for Paste
+ * (docs/workspaces-page-plan.md §2.7; docs/storage-explorer-plan.md §4). A cut item moves once; a
+ * copied one pastes again.
  */
 data class ItemClipboard(
     val location: String,
@@ -121,9 +63,6 @@ data class ItemClipboard(
             else -> null
         }
 }
-
-/** A folder chosen on phone storage for Import: where it is, and the name it proposes. */
-data class ImportSource(val path: String, val name: String, val displayPath: String)
 
 data class StorageSummary(
     val availableBytes: Long,

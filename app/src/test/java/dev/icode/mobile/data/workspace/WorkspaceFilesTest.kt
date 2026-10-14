@@ -151,4 +151,31 @@ class WorkspaceFilesTest {
         assertFalse(File(root, "docs/src copy").exists())
         assertEquals("a", File(root, "src/a.kt").readText())
     }
+
+    @Test fun `create makes an empty folder or file, never over one, and never in Git's own folder`() {
+        assertTrue(files.create(path("src"), "lib", isFolder = true).isDirectory)
+        assertEquals(0L, files.create(path("src"), "b.kt", isFolder = false).length())
+        assertThrows(IOException::class.java) { files.create(path("src"), "a.kt", isFolder = false) }
+        assertEquals("a", File(root, "src/a.kt").readText())
+        assertThrows(IOException::class.java) { files.create(path(".git"), "hooks", isFolder = true) }
+    }
+
+    @Test fun `on phone storage a dot-git folder is the user's, and nothing leaves it`() {
+        val phone = WorkspaceFiles(root, gitOwnsDotGit = false)
+        assertTrue(phone.create(path(".git"), "notes", isFolder = true).isDirectory)
+        phone.delete(path(".git"))
+        assertFalse(File(root, ".git").exists())
+        val outside = temporaryFolder.newFolder("outside")
+        assertThrows(IOException::class.java) { phone.copy(path("src"), outside.path) }
+        assertThrows(IOException::class.java) { phone.rename(root.path, "other") }
+    }
+
+    @Test fun `a free name is the name, then name copy, then name copy 2, a file's extension last`() {
+        val folder = root.toPath().resolve("src")
+        assertEquals("b.kt", freeName(folder, "b.kt", isDirectory = false).fileName.toString())
+        assertEquals("a copy.kt", freeName(folder, "a.kt", isDirectory = false).fileName.toString())
+        File(root, "src/a copy.kt").writeText("")
+        assertEquals("a copy 2.kt", freeName(folder, "a.kt", isDirectory = false).fileName.toString())
+        assertEquals("src copy", freeName(root.toPath(), "src", isDirectory = true).fileName.toString())
+    }
 }

@@ -52,6 +52,8 @@ object IcodeSizes {
     val BadgeMd = 36.dp
     val Tile = 74.dp
     val TouchTarget = 48.dp
+    /** Room under a list's last row for the floating + (56 dp) and the margin around it. */
+    val FabClearance = 88.dp
     val MenuWidth = 200.dp
     val DialogMaxWidth = 400.dp
     val DotMd = 12.dp

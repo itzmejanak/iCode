@@ -39,12 +39,9 @@ data class ICodeSnapshot(
     val cloneUrl: String = "",
     val cloneName: String = "",
     val cloneBranch: String = "",
-    /** The folder picked for Import, until it is imported or another is picked. */
-    val importBrowser: ImportBrowserState? = null,
-    val importSource: ImportSource? = null,
     val storage: StorageSummary? = null,
     val storageDetails: StorageDetails? = null,
-    /** The Workspaces page's file explorer: where it is and what is there; null until it is opened. */
+    /** The file explorer, of iCode's storage or phone storage: where it is and what is there; null until it is opened. */
     val filesBrowser: FilesBrowserState? = null,
     /** Each workspace's size by location, once measured: measured on its own, apart from the runtime. */
     val workspaceSizes: Map<String, StorageMeasurement> = emptyMap(),
@@ -61,9 +58,9 @@ data class ICodeSnapshot(
     val terminal: TerminalSnapshot = TerminalSnapshot(),
     /** The Notifications page, newest first. */
     val notices: List<AppNotice> = emptyList(),
-    /** Where the next clone or import goes; none, a new workspace (docs/workspace-destinations-plan.md). */
+    /** Where the next clone goes; none, a new workspace (docs/workspace-destinations-plan.md). */
     val projectDestination: ProjectDestination? = null,
-    /** What is cut or copied, waiting for Paste — the Explorer's and the Workspaces page's one clipboard. */
+    /** What is cut or copied, waiting for Paste — every explorer's one clipboard, across both places. */
     val clipboard: ItemClipboard? = null,
     /** Long operations running, or failed and not yet seen (docs/long-operations-plan.md). */
     val tasks: List<WorkTask> = emptyList(),

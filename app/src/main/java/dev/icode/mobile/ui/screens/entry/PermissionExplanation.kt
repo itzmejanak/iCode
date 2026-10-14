@@ -51,10 +51,11 @@ private fun stepOf(permission: SystemPermission): PermissionStep = when (permiss
     )
     SystemPermission.Storage -> PermissionStep(
         title = "All Files Access",
-        description = "Import brings a folder from phone storage into iCode. Android asks whether iCode may read the folders there.",
+        description = "Shared is your phone's storage, the files other apps see. Android asks whether iCode may read and change them.",
         reasons = listOf(
-            "Browse phone storage inside iCode and choose the folder to import.",
-            "The folder is only read: iCode copies it into its own storage and never changes the original.",
+            "Browse phone storage in iCode's file explorer, beside your workspaces.",
+            "Copy or move files and folders between phone storage and iCode's own storage.",
+            "iCode changes phone storage only when you paste, rename, delete or create something there.",
             "Your workspaces never need this: they live in iCode's own storage.",
             "You remain in control. Change it at any time in Storage Settings.",
         ),
@@ -64,7 +65,8 @@ private fun stepOf(permission: SystemPermission): PermissionStep = when (permiss
 
 /**
  * [permission]'s explanation and its two answers, as onboarding asks and as a feature asks where it
- * needs one (Import asks for All Files Access): one text for each permission, wherever it is asked.
+ * needs one (the file explorer's Shared asks for All Files Access): one text for each permission,
+ * wherever it is asked.
  * [header] goes above the title — onboarding's step count.
  */
 @Composable

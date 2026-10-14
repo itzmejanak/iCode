@@ -27,11 +27,18 @@ internal fun CreateFileDialog(parentLocation: String?, onDismiss: () -> Unit) {
 
 /**
  * One compact form for files and subfolders — in the open workspace (the Explorer, the editor), or
- * in [workspace], the one the file explorer is in. Following the open workspace, it stops when that
- * changes under it.
+ * in [workspace], the one the file explorer is in, or phone storage's top. Following the open
+ * workspace, it stops when that changes under it. [shownAs] names the folder it makes in, as the
+ * file explorer shows it.
  */
 @Composable
-internal fun CreateWorkspaceItemDialog(type: WorkspaceItemType, parentLocation: String?, onDismiss: () -> Unit, workspace: String? = null) {
+internal fun CreateWorkspaceItemDialog(
+    type: WorkspaceItemType,
+    parentLocation: String?,
+    onDismiss: () -> Unit,
+    workspace: String? = null,
+    shownAs: String? = null,
+) {
     val gateway = LocalICodeGateway.current
     val state = LocalICodeSnapshot.current
     val followsOpen = workspace == null
@@ -62,7 +69,7 @@ internal fun CreateWorkspaceItemDialog(type: WorkspaceItemType, parentLocation: 
         },
     ) {
         Text(
-            "In ${if (parent == intended) intended?.substringAfterLast('/') ?: "No workspace" else parent?.removePrefix("$intended/")}",
+            "In ${shownAs ?: if (parent == intended) intended?.substringAfterLast('/') ?: "No workspace" else parent?.removePrefix("$intended/")}",
             style = IcodeType.Body,
             color = IcodeColors.TextSecondary,
         )

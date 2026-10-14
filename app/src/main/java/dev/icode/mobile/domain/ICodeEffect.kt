@@ -4,8 +4,6 @@ sealed interface ICodeEffect {
     data class RequestSystemPermission(val permission: SystemPermission) : ICodeEffect
     data class SystemPermissionResolved(val permission: SystemPermission, val granted: Boolean) : ICodeEffect
     data class OpenSystemSettings(val permission: SystemPermission) : ICodeEffect
-    /** A folder was chosen for Import: the Import screen names the new workspace. */
-    data object ImportSourceChosen : ICodeEffect
     data class WorkspaceOpened(val location: String) : ICodeEffect
     data class WorkspaceTerminalOpened(val location: String) : ICodeEffect
     /** The answer to the dialog that asked, by request id: created or renamed, and where it is now. */

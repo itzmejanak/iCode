@@ -28,9 +28,9 @@ import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.ItemClipboard
 
 /**
- * The one owner of a file's or a folder's actions (docs/file-explorer-unification-plan.md §3):
- * the Explorer's tree, the Workspaces page's files and its workspaces show the same list, in the
- * same order, from ⋮ and from a long press alike.
+ * The one owner of a file's or a folder's actions (docs/file-explorer-unification-plan.md §3;
+ * docs/storage-explorer-plan.md §3.2): the Explorer's tree and the file explorer — its workspaces,
+ * their files, phone storage's — show the same list, in the same order, from a long press.
  */
 object FileItemActions {
     /** "Paste RevPlayer": what Paste would bring, named, so a clipboard from another page is never a surprise. */
@@ -38,10 +38,11 @@ object FileItemActions {
 
     /**
      * Open, Rename…, Cut, Copy, Paste, Copy path, Delete…. [open] says what opening is here (a
-     * file into the editor, a folder into the list or open in the tree). A workspace adds Open
-     * Terminal after Open, and where it is listed apart, [showInList]. Paste is always there, and
-     * named by what it holds; with nothing held it is there, greyed. [onPaste] puts it where this
-     * item is the place for it: into a folder, beside a file.
+     * file into the editor, a folder into the list or open in the tree); none where there is
+     * nothing to open it in (a file on phone storage). A workspace adds Open Terminal after Open,
+     * and where it is listed apart, [showInList]. Paste is always there, and named by what it
+     * holds; with nothing held it is there, greyed. [onPaste] puts it where this item is the place
+     * for it: into a folder, beside a file.
      */
     fun of(
         context: Context,
@@ -49,7 +50,7 @@ object FileItemActions {
         location: String,
         runtimePath: String,
         clipboard: ItemClipboard?,
-        open: IcodeMenuAction,
+        open: IcodeMenuAction?,
         onRename: () -> Unit,
         onPaste: () -> Unit,
         onDelete: () -> Unit,
@@ -72,21 +73,20 @@ object FileItemActions {
         IcodeMenuAction("Copy path", Icons.Outlined.Link, { copyText(context, "Path", runtimePath, "Path copied") })
 
     /**
-     * What + makes in the folder shown: New file — where a file can go — New folder, and Paste,
-     * named, while something is held.
+     * What + makes in the folder shown: New folder, and New file where a file can go. Paste is the
+     * paste bar's, shown whenever something is held (docs/storage-explorer-plan.md §3.3).
      */
-    fun creation(onNewFile: (() -> Unit)?, onNewFolder: () -> Unit, clipboard: ItemClipboard?, onPaste: (() -> Unit)?): List<IcodeMenuAction> =
+    fun creation(onNewFile: (() -> Unit)?, onNewFolder: () -> Unit): List<IcodeMenuAction> =
         listOfNotNull(
-            onNewFile?.let { IcodeMenuAction("New file", Icons.Outlined.Description, it) },
             IcodeMenuAction("New folder", Icons.Outlined.CreateNewFolder, onNewFolder),
-            onPaste?.takeIf { clipboard != null }?.let { IcodeMenuAction(pasteLabel(clipboard), Icons.Outlined.ContentPaste, it) },
+            onNewFile?.let { IcodeMenuAction("New file", Icons.Outlined.Description, it) },
         )
 
     /** Open, for a file: into the editor. */
     fun openFile(onOpen: () -> Unit) = IcodeMenuAction("Open", Icons.Outlined.Description, onOpen)
 }
 
-/** + in a top bar, and the [actions] it offers ([FileItemActions.creation]). */
+/** + in the Explorer's top bar, and the [actions] it offers ([FileItemActions.creation]). */
 @Composable
 fun NewItemButton(contentDescription: String, actions: List<IcodeMenuAction>) {
     var open by remember { mutableStateOf(false) }
