@@ -37,12 +37,12 @@ class GitAuthCoordinatorTest {
     }
 
     private class Harness(root: String? = "/workspace/app", repositoryOpen: Boolean = true) {
-        val workbench = ICodeStateHolder()
+        val stateHolder = ICodeStateHolder()
         val config = FakeConfig()
         val credentials = FakeCredentials()
         val events = mutableListOf<String>()
         val coordinator = GitAuthCoordinator(
-            workbench,
+            stateHolder,
             config,
             credentials,
             activeRoot = { root },
@@ -55,12 +55,12 @@ class GitAuthCoordinatorTest {
         )
 
         init {
-            if (repositoryOpen) workbench.update { it.copy(gitRepository = repository(root.orEmpty())) }
+            if (repositoryOpen) stateHolder.update { it.copy(gitRepository = repository(root.orEmpty())) }
         }
     }
 
     private suspend fun Harness.nextMessage(block: suspend () -> Unit): ICodeEffect {
-        val effect = kotlinx.coroutines.coroutineScope { async { workbench.effects.first() }.also { yield(); block() } }
+        val effect = kotlinx.coroutines.coroutineScope { async { stateHolder.effects.first() }.also { yield(); block() } }
         return withTimeout(2_000) { effect.await() }
     }
 
@@ -93,8 +93,8 @@ class GitAuthCoordinatorTest {
         assertEquals("Ada", harness.config.values["Global user.name"])
         assertEquals("ada@example.com", harness.config.values["Global user.email"])
         assertEquals(listOf("refresh $root"), harness.events)
-        assertEquals("Ada", harness.workbench.current.globalGitAuthorName)
-        assertTrue(harness.workbench.current.gitIdentityLoaded)
+        assertEquals("Ada", harness.stateHolder.current.globalGitAuthorName)
+        assertTrue(harness.stateHolder.current.gitIdentityLoaded)
     }
 
     @Test fun `a repository override is written in the repository and then shown`() = runBlocking {
@@ -103,8 +103,8 @@ class GitAuthCoordinatorTest {
         harness.coordinator.configureRepositoryIdentity("Ada", "ada@work.example")
 
         assertEquals(listOf("act"), harness.events)
-        assertEquals("Ada", harness.workbench.current.localGitAuthorName)
-        assertEquals("ada@work.example", harness.workbench.current.localGitAuthorEmail)
+        assertEquals("Ada", harness.stateHolder.current.localGitAuthorName)
+        assertEquals("ada@work.example", harness.stateHolder.current.localGitAuthorEmail)
     }
 
     @Test fun `resetting the override leaves the default in place`() = runBlocking {
@@ -117,9 +117,9 @@ class GitAuthCoordinatorTest {
 
         harness.coordinator.clearRepositoryIdentity()
 
-        assertNull(harness.workbench.current.localGitAuthorName)
-        assertNull(harness.workbench.current.localGitAuthorEmail)
-        assertEquals("Ada", harness.workbench.current.globalGitAuthorName)
+        assertNull(harness.stateHolder.current.localGitAuthorName)
+        assertNull(harness.stateHolder.current.localGitAuthorEmail)
+        assertEquals("Ada", harness.stateHolder.current.globalGitAuthorName)
         assertEquals(listOf("refresh $root"), harness.events)
     }
 
@@ -129,7 +129,7 @@ class GitAuthCoordinatorTest {
 
         harness.coordinator.refresh()
 
-        assertNull(harness.workbench.current.localGitAuthorName)
+        assertNull(harness.stateHolder.current.localGitAuthorName)
     }
 
     @Test fun `a saved token is described, never kept in state`() = runBlocking {
@@ -137,8 +137,8 @@ class GitAuthCoordinatorTest {
 
         harness.coordinator.saveToken("github.com", "ada", "ghp_secretValue123")
 
-        assertEquals("ada@github.com", harness.workbench.current.gitAuth.httpsAccount)
-        assertFalse(harness.workbench.current.toString().contains("ghp_secretValue123"))
+        assertEquals("ada@github.com", harness.stateHolder.current.gitAuth.httpsAccount)
+        assertFalse(harness.stateHolder.current.toString().contains("ghp_secretValue123"))
     }
 
     @Test fun `a refused token is said and the surface still refreshes`() = runBlocking {
@@ -147,7 +147,7 @@ class GitAuthCoordinatorTest {
         val effect = harness.nextMessage { harness.coordinator.saveToken("github.com", "ada", "") }
 
         assertEquals(ICodeEffect.Message("Enter a personal access token"), effect)
-        assertNull(harness.workbench.current.gitAuth.httpsAccount)
+        assertNull(harness.stateHolder.current.gitAuth.httpsAccount)
     }
 
     @Test fun `a token that cannot be removed is said, and still shown`() = runBlocking {
@@ -158,7 +158,7 @@ class GitAuthCoordinatorTest {
         val effect = harness.nextMessage { harness.coordinator.clearToken() }
 
         assertEquals(ICodeEffect.Message("Unable to remove the token"), effect)
-        assertEquals("ada@github.com", harness.workbench.current.gitAuth.httpsAccount)
+        assertEquals("ada@github.com", harness.stateHolder.current.gitAuth.httpsAccount)
     }
 
     @Test fun `an SSH key needs the SSH client first, and apt's words say why it could not come`() = runBlocking {
@@ -169,8 +169,8 @@ class GitAuthCoordinatorTest {
         val effect = harness.nextMessage { harness.coordinator.generateSshKey() }
 
         assertEquals(ICodeEffect.Message("Could not download SSH client: E: Unable to fetch some archives"), effect)
-        assertNull(harness.workbench.current.gitAuth.work)
-        assertFalse(harness.workbench.current.gitAuth.hasSshKey)
+        assertNull(harness.stateHolder.current.gitAuth.work)
+        assertFalse(harness.stateHolder.current.gitAuth.hasSshKey)
     }
 
     @Test fun `a connection test shows Git's answer and ends`() = runBlocking {
@@ -178,23 +178,23 @@ class GitAuthCoordinatorTest {
 
         harness.coordinator.testConnection("git@github.com:ada/repo.git")
 
-        assertEquals(GitAuthTestResult(true, "Connected — 2 branch(es) visible"), harness.workbench.current.gitAuth.lastTest)
-        assertNull(harness.workbench.current.gitAuth.work)
+        assertEquals(GitAuthTestResult(true, "Connected — 2 branch(es) visible"), harness.stateHolder.current.gitAuth.lastTest)
+        assertNull(harness.stateHolder.current.gitAuth.work)
     }
 
     @Test fun `one thing at a time — while a key is generated it says so, and a test asked meanwhile is dropped`() = runBlocking {
         val harness = Harness().apply { credentials.clientGate = CompletableDeferred() }
         val generating = async(Dispatchers.Default) { harness.coordinator.generateSshKey() }
-        withTimeout(2_000) { while (harness.workbench.current.gitAuth.work == null) delay(5) }
-        assertEquals(GitAuthWork.GeneratingKey, harness.workbench.current.gitAuth.work)
+        withTimeout(2_000) { while (harness.stateHolder.current.gitAuth.work == null) delay(5) }
+        assertEquals(GitAuthWork.GeneratingKey, harness.stateHolder.current.gitAuth.work)
 
         harness.coordinator.testConnection("git@github.com:ada/repo.git")
-        assertNull("dropped", harness.workbench.current.gitAuth.lastTest)
+        assertNull("dropped", harness.stateHolder.current.gitAuth.lastTest)
 
         harness.credentials.clientGate!!.complete(Unit)
         withTimeout(2_000) { generating.await() }
-        assertNull(harness.workbench.current.gitAuth.work)
-        assertTrue(harness.workbench.current.gitAuth.hasSshKey)
+        assertNull(harness.stateHolder.current.gitAuth.work)
+        assertTrue(harness.stateHolder.current.gitAuth.hasSshKey)
     }
 
     private class FakeConfig : GitConfigOperations {

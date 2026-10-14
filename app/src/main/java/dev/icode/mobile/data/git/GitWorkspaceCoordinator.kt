@@ -26,7 +26,7 @@ import kotlinx.coroutines.sync.withLock
  * Conflicts, network transfers and credentials have their own owners.
  */
 internal class GitWorkspaceCoordinator(
-    private val workbench: ICodeStateHolder,
+    private val stateHolder: ICodeStateHolder,
     private val scope: CoroutineScope,
     private val git: GitWorkspaceOperations,
     private val tree: WorkspaceTree,
@@ -55,7 +55,7 @@ internal class GitWorkspaceCoordinator(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
-            GitPicture(true, none, git.branchOf(root).orEmpty(), workbench.failureText("git", "Git cannot read this repository", error), repositories)
+            GitPicture(true, none, git.branchOf(root).orEmpty(), stateHolder.failureText("git", "Git cannot read this repository", error), repositories)
         }
     }
 
@@ -68,7 +68,7 @@ internal class GitWorkspaceCoordinator(
         val picture = read(root)
         val workspaces = workspaces()
         val files = tree.rows(root, picture.state)
-        workbench.update {
+        stateHolder.update {
             if (it.activeWorkspaceLocation != root) return@update it
             it.copy(workspaces = workspaces, files = files, recentDocuments = recentDocuments(root)).withGit(picture)
         }
@@ -103,26 +103,26 @@ internal class GitWorkspaceCoordinator(
         refreshJob?.cancel()
         refreshJob = scope.launch {
             delay(REFRESH_DEBOUNCE_MILLIS)
-            workbench.mutations.withLock { refresh(root) }
+            stateHolder.mutations.withLock { refresh(root) }
         }
     }
 
     suspend fun initialize() {
         val workspace = activeRoot()
         if (workspace == null) {
-            workbench.message("Open a workspace before initializing Git")
+            stateHolder.message("Open a workspace before initializing Git")
             return
         }
         if (git.isRepository(workspace)) {
-            workbench.message("This folder is already inside a Git repository")
+            stateHolder.message("This folder is already inside a Git repository")
             return
         }
         runCatching {
             git.initialize(workspace)
             refresh(workspace)
-            workbench.emit(ICodeEffect.GitInitialized)
+            stateHolder.emit(ICodeEffect.GitInitialized)
         }.onFailure { error ->
-            workbench.report("git", "Unable to initialize Git", error)
+            stateHolder.report("git", "Unable to initialize Git", error)
         }
     }
 
@@ -132,13 +132,13 @@ internal class GitWorkspaceCoordinator(
      */
     suspend fun provision() {
         if (git.isAvailable()) {
-            workbench.update { it.copy(gitAvailable = true) }
+            stateHolder.update { it.copy(gitAvailable = true) }
             return
         }
-        workbench.update { it.copy(gitOperation = GitOperationState.Running("Installing Git")) }
+        stateHolder.update { it.copy(gitOperation = GitOperationState.Running("Installing Git")) }
         val installed = runCatching { git.provision() }.getOrNull()
         val available = git.isAvailable()
-        workbench.update {
+        stateHolder.update {
             it.copy(
                 gitAvailable = available,
                 gitOperation = if (available) {
@@ -149,7 +149,7 @@ internal class GitWorkspaceCoordinator(
             )
         }
         if (available) onInstalled()
-        if (available) workbench.mutations.withLock { refreshActive() }
+        if (available) stateHolder.mutations.withLock { refreshActive() }
     }
 
     suspend fun stage(path: String) = act(operation = { workspace -> git.stage(workspace, path) })
@@ -163,7 +163,7 @@ internal class GitWorkspaceCoordinator(
     /** Null once committed, else Git's words — said as a message too, unless [quiet] (Commit & Push shows them). */
     suspend fun commit(message: String, quiet: Boolean = false): String? = act(
         operation = { workspace -> git.commit(workspace, message) },
-        onSuccess = { workbench.emit(ICodeEffect.GitCommitted) },
+        onSuccess = { stateHolder.emit(ICodeEffect.GitCommitted) },
         quiet = quiet,
     )
 
@@ -179,7 +179,7 @@ internal class GitWorkspaceCoordinator(
     suspend fun addRemote(name: String, url: String) {
         val problem = GitRemoteRules.nameError(name) ?: GitRemoteRules.urlError(url)
         if (problem != null) {
-            workbench.message(problem)
+            stateHolder.message(problem)
             return
         }
         act(operation = { workspace -> git.addRemote(workspace, name, url) })
@@ -188,14 +188,14 @@ internal class GitWorkspaceCoordinator(
     suspend fun openDiff(path: String, staged: Boolean) {
         val workspace = activeRoot() ?: return
         runCatching { git.diff(workspace, path, staged) }
-            .onSuccess { diff -> workbench.update { if (it.activeWorkspaceLocation != workspace) it else it.copy(activeDiff = diff) } }
+            .onSuccess { diff -> stateHolder.update { if (it.activeWorkspaceLocation != workspace) it else it.copy(activeDiff = diff) } }
             .onFailure { error ->
-                workbench.update { it.copy(activeDiff = null) }
-                workbench.report("git", "Unable to read the diff", error)
+                stateHolder.update { it.copy(activeDiff = null) }
+                stateHolder.report("git", "Unable to read the diff", error)
             }
     }
 
-    fun closeDiff() = workbench.update { it.copy(activeDiff = null) }
+    fun closeDiff() = stateHolder.update { it.copy(activeDiff = null) }
 
     /**
      * The disk version of [path] against the editor's unsaved text, [editorBytes]
@@ -205,27 +205,27 @@ internal class GitWorkspaceCoordinator(
     suspend fun compareWithEditor(path: String, editorBytes: ByteArray) {
         val workspace = activeRoot() ?: return
         if (!git.isAvailable()) {
-            workbench.message("Comparing uses Git, which is not installed yet. Install it from Source Control")
+            stateHolder.message("Comparing uses Git, which is not installed yet. Install it from Source Control")
             return
         }
-        workbench.update { it.copy(activeDiff = null) }
+        stateHolder.update { it.copy(activeDiff = null) }
         runCatching { git.compareWithBytes(workspace, path, editorBytes) }
             .onSuccess { outcome ->
                 when (outcome) {
-                    is GitOutcome.Success -> workbench.update {
+                    is GitOutcome.Success -> stateHolder.update {
                         it.copy(activeDiff = outcome.value ?: GitFileDiff(path = path, hunks = emptyList()))
                     }
-                    is GitOutcome.Failure -> workbench.message(outcome.message)
+                    is GitOutcome.Failure -> stateHolder.message(outcome.message)
                 }
             }
-            .onFailure { error -> workbench.report("git", "Unable to compare the two versions", error) }
+            .onFailure { error -> stateHolder.report("git", "Unable to compare the two versions", error) }
     }
 
     /** Holds the one unstaged change at [path]; a file staged and edited again has a staged row too. */
     /** Holds what discarding [path] — a file, or all a folder holds — would throw away, for its confirmation. */
-    fun requestDiscard(path: String) = workbench.update { it.copy(pendingDiscard = GitDiscard.of(it.gitChanges, path)) }
+    fun requestDiscard(path: String) = stateHolder.update { it.copy(pendingDiscard = GitDiscard.of(it.gitChanges, path)) }
 
-    fun cancelDiscard() = workbench.update { it.copy(pendingDiscard = null) }
+    fun cancelDiscard() = stateHolder.update { it.copy(pendingDiscard = null) }
 
     /**
      * Discards exactly the changes that were confirmed. Git is asked again
@@ -233,15 +233,15 @@ internal class GitWorkspaceCoordinator(
      * in the folder — what the user agreed to is no longer what would be lost.
      */
     suspend fun confirmDiscard() {
-        val confirmed = workbench.current.pendingDiscard ?: return
-        workbench.update { it.copy(pendingDiscard = null) }
+        val confirmed = stateHolder.current.pendingDiscard ?: return
+        stateHolder.update { it.copy(pendingDiscard = null) }
         if (!isDiscardablePath(confirmed.path)) {
-            workbench.message("${confirmed.path} is not a change iCode can discard")
+            stateHolder.message("${confirmed.path} is not a change iCode can discard")
             return
         }
         act(operation = { workspace ->
             refresh(workspace)
-            val current = GitDiscard.of(workbench.current.gitChanges, confirmed.path)
+            val current = GitDiscard.of(stateHolder.current.gitChanges, confirmed.path)
             if (current?.changes?.toSet() != confirmed.changes.toSet()) throw IOException("${confirmed.name} changed after you confirmed. Review it again")
             // Edits and deletions return from the index at once; what is new is removed at once.
             confirmed.changes.map { if (it.status == GitStatusCodes.UNTRACKED) it.status else GitStatusCodes.MODIFIED }.distinct()
@@ -257,7 +257,7 @@ internal class GitWorkspaceCoordinator(
     }
 
     suspend fun abort() {
-        val inProgress = workbench.current.gitRepository?.inProgress ?: return
+        val inProgress = stateHolder.current.gitRepository?.inProgress ?: return
         act(operation = { workspace -> git.abortInProgress(workspace, inProgress) })
     }
 
@@ -279,9 +279,9 @@ internal class GitWorkspaceCoordinator(
                 operation(workspace)
                 refresh(workspace)
                 onSuccess()
-            }.exceptionOrNull()?.let { error -> workbench.failureText("git", "Git operation failed", error) }
+            }.exceptionOrNull()?.let { error -> stateHolder.failureText("git", "Git operation failed", error) }
         }
-        if (failure != null && !quiet) workbench.message(failure)
+        if (failure != null && !quiet) stateHolder.message(failure)
         return failure
     }
 

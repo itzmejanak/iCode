@@ -10,6 +10,8 @@ import dev.icode.mobile.data.assistant.AssistantTurnException
 import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.domain.AssistantModel
 import dev.icode.mobile.domain.AssistantProviderKind
+import dev.icode.mobile.domain.AssistantRetryKind
+import kotlin.coroutines.cancellation.CancellationException
 import io.ktor.client.call.NoTransformationFoundException
 import io.ktor.client.network.sockets.ConnectTimeoutException
 import io.ktor.client.plugins.HttpRequestTimeoutException
@@ -107,6 +109,51 @@ internal object KoogFailures {
 
     /** OpenRouter's word for a provider that failed after the reply began (`finish_reason: "error"`). */
     const val PROVIDER_FAILED = "The model's provider failed while writing the reply — try again"
+
+    /** Provider-agnostic transient check — architecture fix, not per-provider. */
+    fun isTransient(failure: Throwable): Boolean = retryKind(failure) != null
+
+    fun retryKind(failure: Throwable): AssistantRetryKind? {
+        if (failure is CancellationException) return null
+        val chain = generateSequence(failure) { it.cause }.take(MAX_DEPTH).toList()
+        if (chain.any { it is CancellationException }) return null
+        val brokeIndex = chain.indexOfFirst { it is SSEClientException && it.cause != null }
+        val reasons = if (brokeIndex < 0) chain else chain.drop(brokeIndex + 1)
+        for (cause in reasons) {
+            when (cause) {
+                is KoogHttpClientException -> when {
+                    cause.statusCode == 429 -> return AssistantRetryKind.RateLimited
+                    cause.statusCode in 500..504 -> return AssistantRetryKind.Server
+                    cause.statusCode == null -> return AssistantRetryKind.Connection
+                }
+                is ConnectTimeoutException, is HttpRequestTimeoutException, is SocketTimeoutException,
+                is ConnectException, is UnknownHostException -> return AssistantRetryKind.Connection
+                is IncompleteStreamException -> return AssistantRetryKind.Connection
+                is IOException -> if (reasons.any { it is LLMClientException || it is KoogHttpClientException }) return AssistantRetryKind.Connection
+                else -> {
+                    val msg = (cause.message ?: "").lowercase()
+                    if ("rate limit" in msg || "too many requests" in msg || "token rate limit" in msg) return AssistantRetryKind.RateLimited
+                }
+            }
+            val msg = (cause.message ?: "").lowercase()
+            if ("rate limit" in msg || "too many requests" in msg || "token rate limit" in msg) return AssistantRetryKind.RateLimited
+        }
+        // Also check wrapped provider body for rate-limit wording (429 with no status parsed)
+        val body = chain.filterIsInstance<KoogHttpClientException>().firstOrNull()?.errorBody?.lowercase().orEmpty()
+        if ("rate limit" in body || "rate_limit" in body || "too many requests" in body) return AssistantRetryKind.RateLimited
+        // Fallback: message contains rate-limit even without known exception type
+        val msg = chain.joinToString(" ") { it.message.orEmpty().lowercase() }
+        if ("rate limit" in msg && chain.any { it is KoogHttpClientException || it is LLMClientException }) return AssistantRetryKind.RateLimited
+        return null
+    }
+
+    fun retryAfterMillis(failure: Throwable): Long? {
+        val body = generateSequence(failure) { it.cause }.take(MAX_DEPTH).filterIsInstance<KoogHttpClientException>().firstOrNull()?.errorBody ?: return null
+        val text = body.lowercase()
+        // "retry after 3s" / "retry-after: 5" / "try again in 2 seconds" — best-effort parse, 1–60s
+        val match = Regex("""retry[^0-9]*([0-9]+)\s*s""").find(text) ?: Regex("""try again in ([0-9]+)""").find(text)
+        return match?.groupValues?.getOrNull(1)?.toLongOrNull()?.coerceIn(1, 60)?.let { it * 1000 }
+    }
 
     /**
      * The server answered, but not as this API: a web page, or another service's JSON — as a server

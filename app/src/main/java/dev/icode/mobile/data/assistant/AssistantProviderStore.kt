@@ -206,7 +206,7 @@ internal class SharedPreferencesAssistantProviderStore(
         val provider = preferences.getString(KEY_CHOICE_PROVIDER, null)
         val model = preferences.getString(KEY_CHOICE_MODEL, null)
         val saved = providers.firstOrNull { it.id == provider }
-        if (saved != null && saved.models.any { it.id == model }) return AssistantChoice(saved.id, model!!)
+        if (saved != null && saved.models.any { it.id == model } && model != null) return AssistantChoice(saved.id, model)
         // The chosen provider stays chosen while it has a model, on its first.
         saved?.models?.firstOrNull()?.let { return AssistantChoice(saved.id, it.id) }
         return providers.firstOrNull { it.models.isNotEmpty() }?.let { AssistantChoice(it.id, it.models.first().id) }

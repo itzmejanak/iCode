@@ -17,9 +17,10 @@ object WorkspaceListRules {
      */
     fun summary(workspaces: List<WorkspaceSummary>, sizes: Map<String, StorageMeasurement>): String {
         val count = countOf(workspaces.size, "workspace")
-        val measured = workspaces.map { sizes[it.location] }
-        if (workspaces.isEmpty() || measured.any { it?.bytes == null || it.truncated }) return count
-        return "$count · ${ByteSize.format(measured.sumOf { it!!.bytes!! })}"
+        val measured = workspaces.mapNotNull { sizes[it.location] }
+        if (workspaces.isEmpty() || measured.size != workspaces.size || measured.any { it.bytes == null || it.truncated }) return count
+        val bytes = measured.sumOf { it.bytes!! }
+        return "$count · ${ByteSize.format(bytes)}"
     }
 }
 

@@ -14,7 +14,7 @@ internal data class GitPicture(
     val repositories: List<String> = emptyList(),
 )
 
-/** What Git says, onto the workbench: one copy, for a workspace opened and for one refreshed. */
+/** What Git says, onto the snapshot: one copy, for a workspace opened and for one refreshed. */
 internal fun ICodeSnapshot.withGit(picture: GitPicture): ICodeSnapshot = copy(
     gitChanges = picture.state.changes,
     gitRepository = picture.state.repository,

@@ -49,7 +49,7 @@ class GitTransferCoordinatorTest {
         /** Opening what was cloned waits for this, when given. */
         opening: CompletableDeferred<Unit>? = null,
     ) {
-        val workbench = ICodeStateHolder()
+        val stateHolder = ICodeStateHolder()
         val events = mutableListOf<String>()
         /** What the progress screen showed while the clone was being opened. */
         val openedWhile = mutableListOf<GitOperationState?>()
@@ -57,7 +57,7 @@ class GitTransferCoordinatorTest {
         var commitFailure: String? = null
         val ledger = mutableListOf<String>()
         val coordinator = GitTransferCoordinator(
-            workbench,
+            stateHolder,
             scope,
             git,
             workspaces,
@@ -69,11 +69,11 @@ class GitTransferCoordinatorTest {
             refresh = { events += "refresh $it" },
             openClone = {
                 events += "open $it"
-                openedWhile += workbench.current.gitOperation
+                openedWhile += stateHolder.current.gitOperation
                 opening?.await()
             },
             commit = { message ->
-                events += "commit $message while ${workbench.current.gitOperation}"
+                events += "commit $message while ${stateHolder.current.gitOperation}"
                 commitFailure
             },
             ledger = object : TransferLedger {
@@ -90,8 +90,8 @@ class GitTransferCoordinatorTest {
     @Test fun `a fetch shows Git's progress while it runs and its own last word after`() = runBlocking {
         val harness = Harness(this, FakeTransfers())
         harness.git.stderr = listOf("Receiving objects:  45% (45/100)\r", "Receiving objects: 100% (100/100), done.\nAlready up to date.\n")
-        harness.git.observe = { harness.workbench.current.gitOperation }
-        val message = async { harness.workbench.effects.first() }
+        harness.git.observe = { harness.stateHolder.current.gitOperation }
+        val message = async { harness.stateHolder.effects.first() }
         yield()
 
         harness.coordinator.fetch()?.join()
@@ -101,7 +101,7 @@ class GitTransferCoordinatorTest {
         assertEquals(GitProgress("Receiving objects", 0.45f), running.progress)
         assertEquals(
             GitOperationState.Succeeded("Fetching", listOf("Receiving objects: 100% (100/100), done.", "Already up to date.")),
-            harness.workbench.current.gitOperation,
+            harness.stateHolder.current.gitOperation,
         )
         assertEquals(listOf("credentials", "refresh $root"), harness.events)
         assertEquals(listOf("credential.helper=store --file=/tmp/once"), harness.git.config)
@@ -117,7 +117,7 @@ class GitTransferCoordinatorTest {
 
         assertEquals(
             GitOperationState.Failed("Pulling", "Not possible to fast-forward, aborting.", listOf("fatal: Not possible to fast-forward, aborting.")),
-            harness.workbench.current.gitOperation,
+            harness.stateHolder.current.gitOperation,
         )
         assertEquals(listOf("credentials"), harness.events)
     }
@@ -132,7 +132,7 @@ class GitTransferCoordinatorTest {
 
         harness.coordinator.fetch()?.join()
 
-        val failed = harness.workbench.current.gitOperation as GitOperationState.Failed
+        val failed = harness.stateHolder.current.gitOperation as GitOperationState.Failed
         val shown = (failed.output + failed.reason).joinToString("\n")
         assertFalse(shown.contains("ghp_secretValue123"))
         assertTrue(shown.contains("https://***@github.com/ada/app.git/"))
@@ -141,7 +141,7 @@ class GitTransferCoordinatorTest {
 
     @Test fun `a push without an upstream sets one for the current branch`() = runBlocking {
         val harness = Harness(this, FakeTransfers())
-        harness.workbench.update { it.copy(gitRepository = repository(upstream = null)) }
+        harness.stateHolder.update { it.copy(gitRepository = repository(upstream = null)) }
 
         harness.coordinator.push()?.join()
 
@@ -150,7 +150,7 @@ class GitTransferCoordinatorTest {
 
     @Test fun `a push with an upstream just pushes`() = runBlocking {
         val harness = Harness(this, FakeTransfers())
-        harness.workbench.update { it.copy(gitRepository = repository(upstream = "origin/feature")) }
+        harness.stateHolder.update { it.copy(gitRepository = repository(upstream = "origin/feature")) }
 
         harness.coordinator.push()?.join()
 
@@ -162,7 +162,7 @@ class GitTransferCoordinatorTest {
         val harness = Harness(this, FakeTransfers().apply { hold = gate })
         val fetching = harness.coordinator.fetch()
         yield()
-        val message = async { harness.workbench.effects.first() }
+        val message = async { harness.stateHolder.effects.first() }
         yield()
 
         val second = harness.coordinator.pull()
@@ -172,7 +172,7 @@ class GitTransferCoordinatorTest {
         gate.complete(Unit)
         fetching?.join()
         assertEquals(listOf("fetch $root"), harness.git.calls)
-        assertTrue(harness.workbench.current.gitOperation is GitOperationState.Succeeded)
+        assertTrue(harness.stateHolder.current.gitOperation is GitOperationState.Succeeded)
     }
 
     @Test fun `a cancelled clone stops, says so, and leaves nothing`() = runBlocking {
@@ -188,7 +188,7 @@ class GitTransferCoordinatorTest {
         harness.coordinator.cancel()
         cloning?.join()
 
-        assertEquals(GitOperationState.Cancelled("Cloning"), harness.workbench.current.gitOperation)
+        assertEquals(GitOperationState.Cancelled("Cloning"), harness.stateHolder.current.gitOperation)
         assertTrue("never opened", harness.events == listOf("credentials"))
         assertEquals("iCode's staging is gone with it", emptyList<String>(), workspaces.root.list()!!.toList())
     }
@@ -218,18 +218,18 @@ class GitTransferCoordinatorTest {
         harness.coordinator.cancel()
         fetching?.join()
 
-        assertEquals(GitOperationState.Cancelled("Fetching"), harness.workbench.current.gitOperation)
+        assertEquals(GitOperationState.Cancelled("Fetching"), harness.stateHolder.current.gitOperation)
         assertTrue(harness.events == listOf("credentials"))
     }
 
     @Test fun `a detached HEAD is not pushed`() = runBlocking {
         val harness = Harness(this, FakeTransfers())
-        harness.workbench.update { it.copy(gitRepository = repository(upstream = null).copy(detached = true)) }
+        harness.stateHolder.update { it.copy(gitRepository = repository(upstream = null).copy(detached = true)) }
 
         harness.coordinator.push()?.join()
 
         // Said where the push is followed: its page shows why it stopped.
-        assertEquals(GitOperationState.Failed("Pushing", "Check out a branch first"), harness.workbench.current.gitOperation)
+        assertEquals(GitOperationState.Failed("Pushing", "Check out a branch first"), harness.stateHolder.current.gitOperation)
         assertTrue(harness.git.calls.isEmpty())
     }
 
@@ -239,39 +239,39 @@ class GitTransferCoordinatorTest {
         harness.coordinator.fetch()?.join()
 
         assertTrue(harness.git.calls.isEmpty())
-        assertEquals(GitOperationState.Failed("Fetching", "Open a workspace first"), harness.workbench.current.gitOperation)
+        assertEquals(GitOperationState.Failed("Fetching", "Open a workspace first"), harness.stateHolder.current.gitOperation)
     }
 
     @Test fun `a transfer is running from the moment it is accepted, not after the one before`() = runBlocking<Unit> {
         val harness = Harness(this, FakeTransfers())
-        harness.workbench.update { it.copy(gitOperation = GitOperationState.Succeeded("Pushing", listOf("main -> main"))) }
+        harness.stateHolder.update { it.copy(gitOperation = GitOperationState.Succeeded("Pushing", listOf("main -> main"))) }
 
         val fetching = harness.coordinator.fetch()
 
         // Before its job has run at all: the page opened with it follows this one.
-        assertEquals(GitOperationState.Running("Fetching"), harness.workbench.current.gitOperation)
+        assertEquals(GitOperationState.Running("Fetching"), harness.stateHolder.current.gitOperation)
         fetching?.join()
     }
 
     @Test fun `commit and push commits what is staged, then pushes it, as one transfer`() = runBlocking {
         val harness = Harness(this, FakeTransfers())
-        harness.workbench.update { it.copy(gitRepository = repository(upstream = "origin/feature")) }
+        harness.stateHolder.update { it.copy(gitRepository = repository(upstream = "origin/feature")) }
 
         harness.coordinator.handle(ICodeIntent.CommitAndPush("Fix the build"))?.join()
 
         assertEquals("commit Fix the build while ${GitOperationState.Running("Committing")}", harness.events.first())
         assertEquals(listOf("push $root upstream=false branch=feature"), harness.git.calls)
-        assertTrue(harness.workbench.current.gitOperation is GitOperationState.Succeeded)
+        assertTrue(harness.stateHolder.current.gitOperation is GitOperationState.Succeeded)
     }
 
     @Test fun `a commit Git refuses is not pushed`() = runBlocking {
         val harness = Harness(this, FakeTransfers())
-        harness.workbench.update { it.copy(gitRepository = repository(upstream = "origin/feature")) }
+        harness.stateHolder.update { it.copy(gitRepository = repository(upstream = "origin/feature")) }
         harness.commitFailure = "nothing added to commit"
 
         harness.coordinator.commitAndPush("Fix the build")?.join()
 
-        assertEquals(GitOperationState.Failed("Committing", "nothing added to commit"), harness.workbench.current.gitOperation)
+        assertEquals(GitOperationState.Failed("Committing", "nothing added to commit"), harness.stateHolder.current.gitOperation)
         assertTrue(harness.git.calls.isEmpty())
     }
 
@@ -285,7 +285,7 @@ class GitTransferCoordinatorTest {
 
         assertEquals(
             GitOperationState.Failed("Cloning", "E: Unable to fetch some archives", listOf("Installing Git…")),
-            harness.workbench.current.gitOperation,
+            harness.stateHolder.current.gitOperation,
         )
         assertEquals(listOf("provision"), harness.git.calls)
         assertTrue(harness.events.isEmpty())
@@ -311,7 +311,7 @@ class GitTransferCoordinatorTest {
         cases.forEach { (request, reason) ->
             val harness = Harness(this, FakeTransfers())
             harness.coordinator.clone(request.first, request.second)?.join()
-            assertEquals(GitOperationState.Failed("Cloning", reason), harness.workbench.current.gitOperation)
+            assertEquals(GitOperationState.Failed("Cloning", reason), harness.stateHolder.current.gitOperation)
             assertTrue(harness.git.calls.isEmpty())
         }
     }
@@ -321,7 +321,7 @@ class GitTransferCoordinatorTest {
 
         harness.coordinator.clone("git@host:me/repo.git", "repo")?.join()
 
-        assertEquals(GitOperationState.Succeeded("Cloning", emptyList()), harness.workbench.current.gitOperation)
+        assertEquals(GitOperationState.Succeeded("Cloning", emptyList()), harness.stateHolder.current.gitOperation)
         // Still running while it opens: the progress screen gives way to the clone, not to what was open.
         assertTrue(harness.openedWhile.single() is GitOperationState.Running)
         // A private repository needs the saved token for its first clone too.
@@ -341,7 +341,7 @@ class GitTransferCoordinatorTest {
         opening.complete(Unit)
         cloning?.join()
 
-        assertEquals(GitOperationState.Succeeded("Cloning", emptyList()), harness.workbench.current.gitOperation)
+        assertEquals(GitOperationState.Succeeded("Cloning", emptyList()), harness.stateHolder.current.gitOperation)
         assertTrue(File(workspaces.root, "repo/.git").isDirectory)
     }
 
