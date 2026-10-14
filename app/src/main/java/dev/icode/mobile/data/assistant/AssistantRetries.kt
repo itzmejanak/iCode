@@ -5,7 +5,7 @@ import dev.icode.mobile.domain.AssistantRetryPolicy
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.delay
 
-/** Provider-agnostic retry for turns — retries transient 429 / connection / 5xx with backoff. */
+/** Provider-agnostic retry — 5× with 15s→30s→45s→90s→180s countdown, per design. */
 internal object AssistantRetries {
     suspend fun runWithRetry(step: (String) -> Unit, block: suspend (Int) -> Unit) {
         var attempt = 0
@@ -21,12 +21,7 @@ internal object AssistantRetries {
                 val ms = KoogFailures.retryAfterMillis((failure as? AssistantTurnException)?.cause ?: failure)
                     ?: KoogFailures.retryAfterMillis(failure)
                 val wait = AssistantRetryPolicy.delayMillis(attempt, ms)
-                step(AssistantRetryPolicy.stepText(kind, attempt + 1, wait))
-                try {
-                    delay(wait)
-                } catch (c: CancellationException) {
-                    throw c
-                }
+                countdown(step, kind, attempt + 1, wait)
                 attempt++
             }
         }
@@ -47,14 +42,23 @@ internal object AssistantRetries {
                 val ms = KoogFailures.retryAfterMillis((failure as? AssistantTurnException)?.cause ?: failure)
                     ?: KoogFailures.retryAfterMillis(failure)
                 val wait = AssistantRetryPolicy.delayMillis(attempt, ms)
-                step(AssistantRetryPolicy.stepText(kind, attempt + 1, wait))
-                try {
-                    delay(wait)
-                } catch (c: CancellationException) {
-                    throw c
-                }
+                countdown(step, kind, attempt + 1, wait)
                 attempt++
             }
+        }
+    }
+
+    private suspend fun countdown(step: (String) -> Unit, kind: dev.icode.mobile.domain.AssistantRetryKind, attempt: Int, totalMillis: Long) {
+        var remaining = totalMillis
+        while (remaining > 0) {
+            step(AssistantRetryPolicy.stepTextWithCountdown(kind, attempt, totalMillis, remaining))
+            val tick = minOf(1_000L, remaining)
+            try {
+                delay(tick)
+            } catch (c: CancellationException) {
+                throw c
+            }
+            remaining -= tick
         }
     }
 }

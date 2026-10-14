@@ -37,12 +37,12 @@ Koog exception chain → KoogFailures (provider-agnostic) → AssistantRetryPoli
 
 Detection lives in `domain/AssistantRetryPolicy` + `KoogFailures.isTransient(throwable)` — both work on the **cause chain**, not on `connection.kind`.
 
-## 4. Backoff & UX (like Claude Code)
+## 4. Backoff & UX (per design: fixed 30s × 5 — simple and best)
 
-- Attempts: 3 → delays `2s, 4s, 8s` + `±20%` jitter, interruptible by `Stop`.
-- Respect `Retry-After` header/body when present (`seconds` or `ms`): `min(parsed, 60s)` otherwise exponential.
-- While retrying: `AssistantTurn.step = "Rate limited — retrying in 2s (1/3)"` or `"Connection lost — retrying in 2s (1/3)..."` — inline progress, **not** a red card. Existing `IndeterminateProgressTrack` keeps moving.
-- After 3 fails: soft failure card `IcodeTone.Warning` (amber) for rate-limit, `IcodeTone.Error` (red) for permanent, with `Try Again` + `Open Assistant settings` where relevant. Conversation stays resumable (`RetryAssistantMessage`).
+- Attempts: **5 × 30s** — fixed `30s` each retry, interruptible by `Stop`. Countdown ticks every 1s: `retrying in 30s … 1s (1/5)`.
+- Respect `Retry-After` header/body when present: `min(parsed, 180s)` otherwise `30s`.
+- While retrying: `AssistantTurn.step` updates each second via `AssistantRetries.countdown`. Existing `IndeterminateProgressTrack` keeps moving.
+- After 5 fails: soft failure card `IcodeTone.Warning` (amber) for rate-limit, `IcodeTone.Error` (red) for permanent, with `Try Again` + `Open Assistant settings` where relevant. Conversation stays resumable (`RetryAssistantMessage`).
 
 Ask approvals never auto-retry — `CancellationException` and `Deny` bypass retry.
 

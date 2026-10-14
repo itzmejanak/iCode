@@ -38,10 +38,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.style.TextOverflow
+
 import dev.icode.mobile.designsystem.IcodeActionMenu
 import dev.icode.mobile.designsystem.IcodeCard
-import dev.icode.mobile.designsystem.IcodeChoiceChip
-import dev.icode.mobile.designsystem.IcodeChoiceMenu
+import dev.icode.mobile.designsystem.IcodeSelect
+import dev.icode.mobile.designsystem.IcodeSelectVariant
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeMenuAction
 import dev.icode.mobile.designsystem.IcodeShapes
@@ -116,11 +117,29 @@ internal fun AssistantComposer(
                     IconButton(onClick = onAttach, enabled = attached.size < AssistantRules.MAX_ATTACHMENTS) {
                         Icon(Icons.Outlined.Add, contentDescription = "Attach files", tint = IcodeColors.TextSecondary, modifier = Modifier.size(IcodeSizes.IconMd))
                     }
-                    Choice(settings.mode.label, "Mode", AssistantMode.entries, settings.mode, { it.label }, { it.description }) {
-                        gateway.dispatch(ICodeIntent.ChooseAssistantMode(it))
+                    IcodeSelect(
+                        options = AssistantMode.entries,
+                        selected = settings.mode,
+                        optionLabel = { it.label },
+                        onSelect = { gateway.dispatch(ICodeIntent.ChooseAssistantMode(it)) },
+                        label = settings.mode.label,
+                        variant = IcodeSelectVariant.Chip,
+                        chipRole = "Mode",
+                        optionDescription = { it.description },
+                    )
+                    // Model opens the model sheet (not a DropdownMenu) — chip visuals kept consistent with IcodeSelect.
+                    Row(
+                        modifier = Modifier
+                            .minimumInteractiveComponentSize()
+                            .clip(IcodeShapes.Small)
+                            .clickable(onClickLabel = "Choose Model") { onModels() }
+                            .padding(horizontal = IcodeSpacing.Space1, vertical = IcodeSpacing.Micro),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Micro),
+                    ) {
+                        Text(modelLabel(state).ifEmpty { "Choose model" }, style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = null, tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconSm))
                     }
-                    // The model and, where it has one, its reasoning effort: both chosen in the model sheet.
-                    IcodeChoiceChip(modelLabel(state), onModels, Modifier.weight(1f, fill = false), role = "Model")
                 }
                 if (state.runningHere) {
                     IconButton(onClick = { gateway.dispatch(ICodeIntent.StopAssistant) }) {
@@ -171,7 +190,7 @@ internal fun modelLabel(state: AssistantState): String {
     return "${model.id} · ${AssistantRules.effortFor(settings.effort, model)?.label ?: AUTO}"
 }
 
-/** A toolbar choice and its menu, anchored to it. */
+/** A toolbar choice and its menu, anchored to it — now via IcodeSelect Chip. */
 @Composable
 private fun <T> Choice(
     label: String,
@@ -183,11 +202,17 @@ private fun <T> Choice(
     icon: Boolean = false,
     onSelect: (T) -> Unit,
 ) {
-    var open by remember { mutableStateOf(false) }
-    Box {
-        IcodeChoiceChip(label, { open = true }, icon = Icons.Outlined.Shield.takeIf { icon }, role = role)
-        IcodeChoiceMenu(open, { open = false }, options, selected, optionLabel, onSelect, optionDescription)
-    }
+    IcodeSelect(
+        options = options,
+        selected = selected,
+        optionLabel = optionLabel,
+        onSelect = onSelect,
+        label = label,
+        variant = IcodeSelectVariant.Chip,
+        chipIcon = Icons.Outlined.Shield.takeIf { icon },
+        chipRole = role,
+        optionDescription = optionDescription,
+    )
 }
 
 /**

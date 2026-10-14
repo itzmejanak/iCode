@@ -19,7 +19,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeConfirmDialog
-import dev.icode.mobile.designsystem.IcodeDropdown
+import dev.icode.mobile.designsystem.IcodeSelect
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTextField
@@ -82,12 +82,12 @@ fun TerminalSettingsScreen(actions: NavigationActions) {
             ) {
                 Text("EDIT", style = IcodeType.Label.copy(color = IcodeColors.Accent))
             }
-            IcodeDropdown(
-                label = "Font Family",
+            IcodeSelect(
                 options = EditorFontFamily.entries,
                 selected = settings.fontFamily,
                 optionLabel = { if (it == EditorFontFamily.PlexMono) "IBM Plex Mono" else "System Monospace" },
                 onSelect = { saver.save { repository.setTerminalFontFamily(it) } },
+                label = "Font Family",
             )
             SettingRow("Font Size", Modifier.fillMaxWidth()) {
                 Stepper(
@@ -96,12 +96,12 @@ fun TerminalSettingsScreen(actions: NavigationActions) {
                     { if (settings.fontSizeSp < SettingLimits.fontSizesSp.last) saver.save { repository.setTerminalFontSize(settings.fontSizeSp + 1) } },
                 )
             }
-            IcodeDropdown(
-                label = "Scrollback Limit",
+            IcodeSelect(
                 options = TerminalSettingRules.scrollbackChoices,
                 selected = settings.scrollbackLines,
                 optionLabel = { "$it lines" },
                 onSelect = { saver.save { repository.setTerminalScrollbackLimit(it) } },
+                label = "Scrollback Limit",
             )
             SectionLabel("Extra Keys Row")
             Text("Tap a key to show or hide it in the terminal.", style = IcodeType.Caption)
