@@ -4,7 +4,7 @@ import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.runtime.RuntimePackageInstaller
 import dev.icode.mobile.domain.GitRemoteRules
-import dev.icode.mobile.domain.RuntimeComponents
+import dev.icode.mobile.domain.RuntimeTools
 import dev.icode.mobile.domain.countOf
 import java.io.File
 
@@ -97,8 +97,8 @@ internal class GitAuthenticator(
 
     /** Installs the SSH client, which the base image does not include. */
     override suspend fun ensureSshAvailable(): GitOperationOutcome {
-        if (packages.isInstalled(RuntimeComponents.SshClient)) return GitOperationOutcome(true, "The SSH client is installed")
-        return when (val outcome = packages.ensure(RuntimeComponents.SshClient)) {
+        if (packages.isInstalled(RuntimeTools.SshClient)) return GitOperationOutcome(true, "The SSH client is installed")
+        return when (val outcome = packages.ensure(RuntimeTools.SshClient)) {
             RuntimePackageInstaller.Outcome.Ready -> GitOperationOutcome(true, "The SSH client is installed").also { configureSshClient() }
             is RuntimePackageInstaller.Outcome.Failed -> GitOperationOutcome(false, outcome.reason)
             RuntimePackageInstaller.Outcome.Cancelled -> GitOperationOutcome(false, "Installing the SSH client was cancelled")

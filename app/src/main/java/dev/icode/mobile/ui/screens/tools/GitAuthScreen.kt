@@ -27,7 +27,7 @@ import dev.icode.mobile.designsystem.TwoColumnActions
 import dev.icode.mobile.domain.GitAuthState
 import dev.icode.mobile.domain.GitAuthWork
 import dev.icode.mobile.domain.GitIdentityRules
-import dev.icode.mobile.domain.RuntimeComponents
+import dev.icode.mobile.domain.RuntimeTools
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
@@ -124,7 +124,7 @@ fun GitAuthScreen(actions: NavigationActions) {
                             else "Install the Linux runtime before setting Git identity.",
                             style = IcodeType.Caption.copy(color = IcodeColors.Amber),
                         )
-                        val gitInstall = state.components.installing(RuntimeComponents.Git)
+                        val gitInstall = state.runtimeTools.installing(RuntimeTools.Git)
                         SecondaryButton(
                             when {
                                 gitInstall != null -> gitInstall.status
@@ -186,7 +186,7 @@ fun GitAuthScreen(actions: NavigationActions) {
                     onClearToken = { gateway.dispatch(ICodeIntent.ClearGitToken) },
                     onGenerateSsh = { gateway.dispatch(ICodeIntent.GenerateSshKey) },
                     onOpenHost = { gateway.dispatch(ICodeIntent.OpenExternalUrl(it)) },
-                    sshClientInstall = state.components.installing(RuntimeComponents.SshClient),
+                    sshClientInstall = state.runtimeTools.installing(RuntimeTools.SshClient),
                 )
                 GitAuthStep.Verify -> VerifySection(
                     auth = auth,

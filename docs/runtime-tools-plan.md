@@ -1,6 +1,6 @@
-# Runtime components — choose the tools, install them in the open — plan
+# Runtime tools — choose the tools, install them in the open — plan
 
-Status: **plan, for the owner's review** (2026-09-30). Owner's request, after Generate SSH Key sat
+Status: **built (2026-09-30); page redesigned and renamed (2026-10-17, §8)**. Owner's request, after Generate SSH Key sat
 on "Generating…" for two minutes: fix the wait (A: "the button says what is happening, and it
 no longer holds up the app"), and (B) "on onboarding, after the runtime installation, show an
 Android Studio–like UI where the user can make custom installation selections — a better and
@@ -53,12 +53,12 @@ progress on the same page.
 
 ## 3. Design
 
-### 3.1 One catalog (`domain/RuntimeComponents.kt`, pure)
+### 3.1 One catalog (`domain/RuntimeTools.kt`, pure)
 
 A component is what the user chooses; packages are what apt installs.
 
 ```kotlin
-data class RuntimeComponent(
+data class RuntimeTool(
     val id: String,               // "git"
     val name: String,             // "Git"
     val summary: String,          // "Version control"
@@ -68,7 +68,7 @@ data class RuntimeComponent(
 )
 ```
 
-Features name the component they need (`RuntimeComponents.Git`), never a package or a path. A new
+Features name the component they need (`RuntimeTools.Git`), never a package or a path. A new
 component is one entry. The first catalog (§5 D1):
 
 | Component | Packages | Used by in iCode | Standard |
@@ -113,7 +113,7 @@ are known. It shows "…" until then, and never a number written in the code.
   as delete has none (§5 D4).
 - Removal: `apt-get remove -y --autoremove <packages>`, the same state and rules.
 
-### 3.5 The Components page (new route `RuntimeComponents`)
+### 3.5 The Components page (new route `RuntimeTools`)
 
 One page, two places:
 
@@ -182,11 +182,11 @@ cards, check rows, the progress track, the bottom action bar), as Import was.
 
 ## 7. Record
 
-- **C1** (2026-09-30): `RuntimeComponents` (domain): the catalog of §3.1, Standard = the three
-  iCode uses. `ComponentRules`: installed when dpkg has every package; the page opens on Standard
+- **C1** (2026-09-30): `RuntimeTools` (domain): the catalog of §3.1, Standard = the three
+  iCode uses. `RuntimeToolRules`: installed when dpkg has every package; the page opens on Standard
   plus what is installed; a plan installs what is chosen and missing, and removes what is unticked
   and installed, keeping any package a component that stays lists; the download counts each archive
-  once, and is unknown until each part is measured. `ComponentWork`: the one published install,
+  once, and is unknown until each part is measured. `RuntimeToolWork`: the one published install,
   with its title and whether Cancel is safe (before dpkg only). `AptProgress`: apt's plan gives the
   total, `Get:` lines the package being downloaded (a list's `Get:` is updating, not a package), and
   dpkg's `Setting up` / `Removing` lines, which always name a version, the count. A maintainer
@@ -202,12 +202,12 @@ cards, check rows, the progress track, the bottom action bar), as Import was.
   still on disk). `RuntimePackageInstaller` is by component: an install is `apt-get install -d`
   (cancellable: nothing installed yet), then the install from the cache (never stopped). Missing or
   old lists are read once, then it tries again. Progress and apt's last lines are published as
-  `ComponentWork`. A feature's failure is its to say; Apply's stays until read. Apply always runs
+  `RuntimeToolWork`. A feature's failure is its to say; Apply's stays until read. Apply always runs
   on its own, queued: it never takes over a feature's install. Removal marks the packages as no
   longer wanted and removes what apt would now remove, less what it would have removed before
   (another cause's leftovers). What another package needs is not removed and says so, and its mark
   is put back. Measuring: each component alone, the lists read once when apt names nothing; one it
-  cannot find is left out with apt's reason. `RuntimeComponentsCoordinator` follows dpkg and the
+  cannot find is left out with apt's reason. `RuntimeToolsCoordinator` follows dpkg and the
   run into the snapshot (sizes measured again once what is installed changes) and takes the
   page's intents off the lock. The background item is the snapshot's run: step, package,
   count, and Cancel while it is safe. Git, the SSH client and search ask by component; the three
@@ -226,8 +226,8 @@ cards, check rows, the progress track, the bottom action bar), as Import was.
   same install; the Git item now carries transfers only (`GitTransferLabel.ALL`). Gate: 554 tests;
   lint 0 errors / 12 warnings (checked against lint's fresh analysis: an unchanged report is not
   rewritten); both guards pass.
-- **C4** (2026-09-30): the Components page (`RuntimeComponentsScreen`, `RuntimeComponentsParts`;
-  route `RuntimeComponents`, no design frame, built from the design system's parts plus a new
+- **C4** (2026-09-30): the Components page (`RuntimeToolsScreen`, `RuntimeToolsParts`;
+  route `RuntimeTools`, no design frame, built from the design system's parts plus a new
   `IcodeCheckbox`). A runtime build (install, repair, reset) leaves `components-offer` beside its
   marker; `RuntimeCoordinator` publishes Ready and the offer in one update, so the screen that
   routes on Ready sees both. The install screen then puts the page in its own place, and the
@@ -268,3 +268,70 @@ cards, check rows, the progress track, the bottom action bar), as Import was.
   still get PRoot's emulated links, which a rename breaks — PRoot's own limit, not addressed here.
   Gate: 558 tests; lint 0 errors / 12 warnings; both guards pass.
 
+## 8. Redesign: Set Up Tools and Runtime Tools (2026-10-17)
+
+Owner ask (verbatim): "Also the ui of the components page looks to heavy we can make it look real and
+best cool and consistent with android studio setup look like and also the behavior of ui if little
+confusing and andlo need to replace the wording like components with accurate words to make it accurate
+software"
+
+### 8.1 What was heavy and confusing (read in the C4 page)
+
+| | What it did |
+|---|---|
+| Heavy | **The list:** every tool was a bordered card; a selected tool's border turned the accent colour. **The cost line:** in a code font. **The actions:** two full-width buttons per state, plus a full-width Show Details button. |
+| Confusing | **Standard:** the list showed with its ticks fixed and greyed, so taps did nothing. **One button, three meanings:** it read Install, Continue or Apply by state. **Progress:** "Hide" was its primary action. **Labels:** "Removes" did not say when, and "—" and "…" meant unmeasured or measuring. |
+| Wording | "Components" is not the word for what this is. The page installs **tools** into the Linux runtime: Git, the SSH client, ripgrep, Python, and later the Android SDK. Android Studio's SDK Manager calls the same kind of thing **SDK Tools**. |
+
+### 8.2 Decisions
+
+- **Words.** The feature is *Runtime Tools*. Onboarding's page is **Set Up Tools**. Settings has **Runtime Tools** (Settings › Runtime Environment › Runtime Tools).
+- **Code uses the same words**, with no second vocabulary:
+  - types: `RuntimeTool`, `RuntimeTools`, `RuntimeToolRules`, `RuntimeToolPlan`, `RuntimeToolWork`, `RuntimeToolsState`;
+  - intents: `RuntimeToolsIntent`, with `ApplyRuntimeTools` and its siblings;
+  - the coordinator `RuntimeToolsCoordinator`, the snapshot's `runtimeTools`, the route `RuntimeTools`;
+  - notification arrival `runtime-tools`, the offer marker `tools-offer`;
+  - this document's name.
+
+  The C1–C4 records above keep their words for what was built then. Where they name a type, it is now the renamed one.
+- **Set Up Tools follows Android Studio's setup wizard.** The steps are **Install Type**, **Select Tools** and **Verify Settings**, then the install, then **Finish**:
+  - Install Type is Standard or Custom, as radio options with a description. Standard shows its download size.
+  - Select Tools appears only for Custom, so a list is never shown that cannot be changed.
+  - Verify Settings lists what will be installed, each with its download.
+  - "SET UP TOOLS · STEP n OF m" heads each step, as the permission steps do.
+- **Runtime Tools follows Android Studio's SDK Manager.** The list has the installed tools ticked; tick to add, untick to remove. **Apply** leads to **Confirm Changes**, which lists what is installed and what is removed. Its primary button then says what it does: Install, Remove or Apply.
+- **Flat rows**, as a table. The tick takes the whole row. Each row has:
+  - the name;
+  - what it is;
+  - "Used by …", for iCode's own tools;
+  - its status at the end: the download size, "Installed" (green), "Will be removed" (amber), "Measuring…" or "Size unknown".
+
+  Rows are separated by hairlines. There are no cards.
+- **One foot on every step**, above a hairline:
+  - the cost in plain text ("Download 7.1 MB · Remove 1 tool · 42.3 GB available");
+  - then Skip or Back on the left, and the way on (Next, Install, Apply, Finish) on the right.
+- **Progress, as Android Studio's Downloading Components.** It shows:
+  - the run's title;
+  - the bar;
+  - apt's step and the package in hand;
+  - a quiet **Show Details** text button over apt's own lines.
+
+  **Cancel** is enabled only while it is safe; otherwise a line says why ("dpkg would be left half done"). **Run in Background** leaves it to its notification. A failure says apt's words with its details open, then **Back** (to Verify) or **Retry**.
+- **Finish says what changed** ("Installed Git, SSH client and ripgrep."). Finish moves onboarding on; in Runtime Tools, Done returns to the list. Done is decided by what is installed: the plan is empty once apt has finished. It is not decided by watching the run disappear, so a run that ends between two frames is never missed.
+
+### 8.3 As built
+
+| Piece | What |
+|---|---|
+| `domain/RuntimeTools.kt` | `RuntimeToolRules.steps(setup, custom)`, `status(tool, ticked, state)`, `summary(plan, state, availableBytes)`; `RuntimeToolStep`, `RuntimeToolStatus` |
+| `ui/screens/entry/RuntimeToolsScreen.kt` | The steps, the foot and the step actions; `Applied` for Finish |
+| `ui/screens/entry/RuntimeToolsParts.kt` | `InstallTypeChoice`, `ToolList` and its flat rows, `VerifyChanges`, `ToolProgress`, `ToolsStarting`, `ToolsApplied` |
+| Design system | `IcodeOptionRow` (radio option), `IcodeTextButton` (quiet action) |
+| Settings | The row reads **Runtime Tools** |
+
+### 8.4 Verified
+
+- **Unit tests.** `RuntimeToolsTest` covers the steps, a row's status and the foot's summary. With it, all 702 data and domain tests pass except `TreeSizeTest`'s unreadable-folder case: this container runs as root, which reads the folder anyway. `OnboardingRouteTest`, `RouteTest` and `FileItemActionsTest` pass.
+- **Type-check.** The page and its parts type-check against Compose's desktop jars.
+- **Guards.** Both pass.
+- **Not checked here.** The phone: the owner walks Set Up Tools (Standard; Custom, then Verify, Install, Finish) and Runtime Tools (untick, Apply, Confirm Changes, then Done).

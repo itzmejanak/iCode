@@ -2,7 +2,7 @@ package dev.icode.mobile.data.runtime
 
 import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.workspace.ICodeStateHolder
-import dev.icode.mobile.domain.RuntimeComponentsState
+import dev.icode.mobile.domain.RuntimeToolsState
 import dev.icode.mobile.domain.ICodeIntent
 import java.io.File
 import java.util.Collections
@@ -17,7 +17,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
-class RuntimeComponentsCoordinatorTest {
+class RuntimeToolsCoordinatorTest {
     private val originalWriter = BackendLog.writer
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val stateHolder = ICodeStateHolder()
@@ -34,8 +34,8 @@ class RuntimeComponentsCoordinatorTest {
         }
         GuestCommand.Result(0, "", false)
     }
-    private val offer: File = File.createTempFile("components-offer", "").apply { deleteOnExit() }
-    private val coordinator = RuntimeComponentsCoordinator(stateHolder, scope, installer, offer)
+    private val offer: File = File.createTempFile("tools-offer", "").apply { deleteOnExit() }
+    private val coordinator = RuntimeToolsCoordinator(stateHolder, scope, installer, offer)
 
     @Before fun quietLog() {
         BackendLog.writer = { _, _, _ -> }
@@ -46,41 +46,41 @@ class RuntimeComponentsCoordinatorTest {
         BackendLog.writer = originalWriter
     }
 
-    private fun components(): RuntimeComponentsState = stateHolder.current.components
+    private fun tools(): RuntimeToolsState = stateHolder.current.runtimeTools
 
     private fun until(condition: () -> Boolean) {
         val deadline = System.currentTimeMillis() + 5_000
         while (!condition()) {
-            check(System.currentTimeMillis() < deadline) { "Timed out; components: ${components()}" }
+            check(System.currentTimeMillis() < deadline) { "Timed out; tools: ${tools()}" }
             Thread.sleep(5)
         }
     }
 
     @Test fun `the page sees what dpkg has, what the rest would download, and an install that lands`() {
         coordinator.start()
-        until { components().installedPackages == setOf("git") }
+        until { tools().installedPackages == setOf("git") }
 
-        coordinator.handle(ICodeIntent.MeasureComponents)
-        until { !components().measuring && components().downloads.isNotEmpty() }
-        assertFalse("an installed component is not measured", "git" in components().downloads)
-        assertEquals(mapOf("ripgrep_1_arm64.deb" to 2000L), components().downloads.getValue("ripgrep").archives)
+        coordinator.handle(ICodeIntent.MeasureRuntimeTools)
+        until { !tools().measuring && tools().downloads.isNotEmpty() }
+        assertFalse("an installed tool is not measured", "git" in tools().downloads)
+        assertEquals(mapOf("ripgrep_1_arm64.deb" to 2000L), tools().downloads.getValue("ripgrep").archives)
 
-        coordinator.handle(ICodeIntent.ApplyComponents(setOf("git", "ripgrep")))
-        until { "ripgrep" in components().installedPackages.orEmpty() && components().work == null }
-        assertTrue("what is installed changed: the sizes are measured again", components().downloads.isEmpty())
+        coordinator.handle(ICodeIntent.ApplyRuntimeTools(setOf("git", "ripgrep")))
+        until { "ripgrep" in tools().installedPackages.orEmpty() && tools().work == null }
+        assertTrue("what is installed changed: the sizes are measured again", tools().downloads.isEmpty())
     }
 
     @Test fun `the offer after a build is answered once, by Skip or by Apply`() {
         coordinator.start()
-        stateHolder.update { it.copy(components = it.components.copy(offerPending = true)) }
-        coordinator.handle(ICodeIntent.SkipComponents)
-        assertFalse(components().offerPending)
+        stateHolder.update { it.copy(runtimeTools = it.runtimeTools.copy(offerPending = true)) }
+        coordinator.handle(ICodeIntent.SkipRuntimeTools)
+        assertFalse(tools().offerPending)
         assertFalse("not offered again", offer.exists())
 
         offer.createNewFile()
-        stateHolder.update { it.copy(components = it.components.copy(offerPending = true)) }
-        coordinator.handle(ICodeIntent.ApplyComponents(setOf("git", "ripgrep")))
-        assertFalse(components().offerPending)
+        stateHolder.update { it.copy(runtimeTools = it.runtimeTools.copy(offerPending = true)) }
+        coordinator.handle(ICodeIntent.ApplyRuntimeTools(setOf("git", "ripgrep")))
+        assertFalse(tools().offerPending)
         assertFalse(offer.exists())
     }
 }

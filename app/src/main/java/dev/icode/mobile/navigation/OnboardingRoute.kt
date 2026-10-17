@@ -22,10 +22,10 @@ object OnboardingRoute {
      * decides the rest, and until it has been read there is nothing honest to
      * show.
      */
-    fun next(runtime: RuntimeState, access: SystemAccess?, componentsPending: Boolean): Route? = when {
+    fun next(runtime: RuntimeState, access: SystemAccess?, toolsPending: Boolean): Route? = when {
         access == null -> null
         runtime.needsInstallStep -> Route.RuntimeInstalling
-        else -> afterRuntime(access, componentsPending)
+        else -> afterRuntime(access, toolsPending)
     }
 
     /**
@@ -34,15 +34,15 @@ object OnboardingRoute {
      * Skips the runtime step, which is the one just completed — otherwise a
      * finished install would route straight back into itself.
      */
-    fun afterRuntime(access: SystemAccess?, componentsPending: Boolean): Route? = when {
+    fun afterRuntime(access: SystemAccess?, toolsPending: Boolean): Route? = when {
         access == null -> null
-        // A runtime just built has no tools yet: its Components page comes first, once.
-        componentsPending -> Route.RuntimeComponents
-        else -> afterComponents(access)
+        // A runtime just built has no tools yet: Set Up Tools comes first, once.
+        toolsPending -> Route.RuntimeTools
+        else -> afterTools(access)
     }
 
-    /** Where to go once the Components page is answered: what Android allows decides. */
-    fun afterComponents(access: SystemAccess?): Route? = when {
+    /** Where to go once Set Up Tools is answered: what Android allows decides. */
+    fun afterTools(access: SystemAccess?): Route? = when {
         access == null -> null
         access.onboardingSteps.isEmpty() -> Route.LauncherHome
         else -> Route.PermissionExplanation

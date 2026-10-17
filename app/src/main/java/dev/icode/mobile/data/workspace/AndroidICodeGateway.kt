@@ -16,7 +16,7 @@ import dev.icode.mobile.data.git.GitTransferLedger
 import dev.icode.mobile.data.git.GitWorkspaceCoordinator
 import dev.icode.mobile.data.language.LanguageServiceCoordinator
 import dev.icode.mobile.data.notices.NoticeStore
-import dev.icode.mobile.data.runtime.RuntimeComponentsCoordinator
+import dev.icode.mobile.data.runtime.RuntimeToolsCoordinator
 import dev.icode.mobile.data.runtime.RuntimeCoordinator
 import dev.icode.mobile.data.runtime.RuntimeExecution
 import dev.icode.mobile.data.runtime.RuntimeForegroundService
@@ -60,11 +60,11 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     private val execution = RuntimeExecution(runtimeLayout, scope) { list -> stateHolder.update { it.copy(processes = list) } }
     private val source = WorkspaceFileSource(runtimeLayout.workspaces)
     private val settings = AndroidWorkspacePreferencesRepository(appContext)
-    /** The runtime's components, one apt run at a time: Git, the SSH client and search install through it. */
-    private val components = RuntimeComponentsCoordinator(stateHolder, scope, RuntimePackageInstaller(runtimeLayout, scope), runtimeLayout.componentsOffer)
-    private val gitCli = CliGitService(runtimeLayout, components.installer)
+    /** The runtime's tools, one apt run at a time: Git, the SSH client and search install through it. */
+    private val runtimeTools = RuntimeToolsCoordinator(stateHolder, scope, RuntimePackageInstaller(runtimeLayout, scope), runtimeLayout.toolsOffer)
+    private val gitCli = CliGitService(runtimeLayout, runtimeTools.installer)
     private val git = GitRepositoryClient(gitCli)
-    private val authenticator = GitAuthenticator(runtimeLayout, gitCli, components.installer, GitCredentialStore(appContext))
+    private val authenticator = GitAuthenticator(runtimeLayout, gitCli, runtimeTools.installer, GitCredentialStore(appContext))
     private val terminals = TerminalSessionManager.get(appContext)
     private val terminal: TerminalCoordinator = TerminalCoordinator(
         stateHolder,
@@ -141,7 +141,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     /** Long operations: their own jobs, off the mutation lock (docs/long-operations-plan.md). */
     private val tasks = TaskRunner(stateHolder, scope)
     /** One ripgrep, for Search and the assistant: one install, one cooldown after a failed one. */
-    private val ripgrep = RipgrepService(runtimeLayout, components.installer)
+    private val ripgrep = RipgrepService(runtimeLayout, runtimeTools.installer)
     private val search: SearchCoordinator = SearchCoordinator(stateHolder, scope, ripgrep) { session.activeRoot }
     private val recovery: DocumentRecoveryCoordinator =
         DocumentRecoveryCoordinator(stateHolder, scope, DocumentDraftStore(File(appContext.filesDir, "document-drafts"))) { location -> documents.sourceOf(location) }
@@ -191,7 +191,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
         scope.launch { observeNotices() }
         terminal.follow(scope, settings.values(null).filter { it.loaded && it.loadError == null }.map { it.terminal })
         scope.launch { runtime.reportState() }
-        components.start()
+        runtimeTools.start()
         BackgroundWork.follow(appContext, scope, stateHolder.snapshot.map(BackgroundWorkRules::of), ::dispatch)
         library.followAccess()
         assistant.start()
@@ -219,7 +219,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
             is ICodeIntent.TestGitConnection -> scope.launch { gitAuth.testConnection(intent.url) }
             // A task's dialog must answer while the task runs.
             is ICodeIntent.TaskIntent -> tasks.handle(intent)
-            is ICodeIntent.ComponentIntent -> components.handle(intent)
+            is ICodeIntent.RuntimeToolsIntent -> runtimeTools.handle(intent)
             ICodeIntent.Refresh -> session.requestRefresh(rebuildIndex = true)
             is ICodeIntent.ScreenVisible -> session.screenVisible(intent.visible)
             is ICodeIntent.StorageIntent -> library.read(intent)

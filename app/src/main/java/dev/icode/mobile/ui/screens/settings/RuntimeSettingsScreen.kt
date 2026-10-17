@@ -31,8 +31,8 @@ import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SettingRow
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.domain.ByteSize
-import dev.icode.mobile.domain.RuntimeComponents
-import dev.icode.mobile.domain.RuntimeComponentsState
+import dev.icode.mobile.domain.RuntimeTools
+import dev.icode.mobile.domain.RuntimeToolsState
 import dev.icode.mobile.domain.RuntimeDetails
 import dev.icode.mobile.domain.RuntimeState
 import dev.icode.mobile.domain.ICodeIntent
@@ -88,11 +88,11 @@ fun RuntimeSettingsScreen(actions: NavigationActions) {
                 DetailRow("PRoot Version", checking ?: details.prootVersion ?: UNKNOWN)
             }
             SettingRow(
-                "Components",
+                "Runtime Tools",
                 modifier = Modifier.fillMaxWidth(),
-                subtitle = componentsSummary(state.components),
+                subtitle = toolsSummary(state.runtimeTools),
                 leadingIcon = Icons.Outlined.Extension,
-                onClick = { actions.navigate(Route.RuntimeComponents) },
+                onClick = { actions.navigate(Route.RuntimeTools) },
             )
             Spacer(Modifier.weight(1f))
             SecondaryButton(
@@ -167,9 +167,9 @@ private const val UNKNOWN = "Not measured"
 private const val CHECKING = "Checking…"
 
 /** "2 of 6 installed: Git, SSH client". */
-private fun componentsSummary(components: RuntimeComponentsState): String {
-    if (components.installedPackages == null) return CHECKING
-    val installed = RuntimeComponents.all.filter(components::isInstalled)
-    val count = "${installed.size} of ${RuntimeComponents.all.size} installed"
+private fun toolsSummary(tools: RuntimeToolsState): String {
+    if (tools.installedPackages == null) return CHECKING
+    val installed = RuntimeTools.all.filter(tools::isInstalled)
+    val count = "${installed.size} of ${RuntimeTools.all.size} installed"
     return if (installed.isEmpty()) count else "$count: ${installed.joinToString { it.name }}"
 }

@@ -62,17 +62,17 @@ sealed interface ICodeIntent {
     data class CancelTask(override val id: Long) : TaskIntent
     /** A failure, read. */
     data class DismissTask(override val id: Long) : TaskIntent
-    /** The Components page (docs/runtime-components-plan.md): it never waits on the mutation lock. */
-    sealed interface ComponentIntent : ICodeIntent
-    /** What each component not installed would download; the lists are read first when needed. */
-    data object MeasureComponents : ComponentIntent
+    /** The tools page (docs/runtime-tools-plan.md): it never waits on the mutation lock. */
+    sealed interface RuntimeToolsIntent : ICodeIntent
+    /** What each tool not installed would download; the lists are read first when needed. */
+    data object MeasureRuntimeTools : RuntimeToolsIntent
     /** Install what [chosen] adds, remove what it leaves out. */
-    data class ApplyComponents(val chosen: Set<String>) : ComponentIntent
-    data object CancelComponents : ComponentIntent
+    data class ApplyRuntimeTools(val chosen: Set<String>) : RuntimeToolsIntent
+    data object CancelRuntimeTools : RuntimeToolsIntent
     /** The page offered after a runtime build is answered without installing anything. */
-    data object SkipComponents : ComponentIntent
+    data object SkipRuntimeTools : RuntimeToolsIntent
     /** A failure, read. */
-    data object DismissComponents : ComponentIntent
+    data object DismissRuntimeTools : RuntimeToolsIntent
     data class UpdateDocumentText(val location: String, val text: String) : ICodeIntent
     /** Automatic requests carry the revision they observed; a later edit must start its own timer. */
     data class SaveDocument(

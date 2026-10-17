@@ -21,7 +21,7 @@ import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.designsystem.TwoColumnActions
-import dev.icode.mobile.domain.ComponentWork
+import dev.icode.mobile.domain.RuntimeToolWork
 import dev.icode.mobile.domain.GitAuthState
 import dev.icode.mobile.domain.GitAuthWork
 import dev.icode.mobile.domain.GitRemoteRules
@@ -88,7 +88,7 @@ internal fun TokenSection(
 internal fun SshSection(
     auth: GitAuthState,
     /** The SSH client's install, while Generate waits on it. */
-    clientInstall: ComponentWork?,
+    clientInstall: RuntimeToolWork?,
     onGenerate: () -> Unit,
     onOpenHost: (String) -> Unit,
 ) {

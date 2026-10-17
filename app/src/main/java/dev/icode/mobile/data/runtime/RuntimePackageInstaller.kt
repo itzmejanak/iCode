@@ -2,12 +2,12 @@ package dev.icode.mobile.data.runtime
 
 import dev.icode.mobile.domain.AptPhase
 import dev.icode.mobile.domain.AptProgress
-import dev.icode.mobile.domain.ComponentAction
-import dev.icode.mobile.domain.ComponentDownload
-import dev.icode.mobile.domain.ComponentPlan
-import dev.icode.mobile.domain.ComponentRules
-import dev.icode.mobile.domain.ComponentWork
-import dev.icode.mobile.domain.RuntimeComponent
+import dev.icode.mobile.domain.RuntimeToolAction
+import dev.icode.mobile.domain.RuntimeToolDownload
+import dev.icode.mobile.domain.RuntimeToolPlan
+import dev.icode.mobile.domain.RuntimeToolRules
+import dev.icode.mobile.domain.RuntimeToolWork
+import dev.icode.mobile.domain.RuntimeTool
 import java.io.IOException
 import java.util.ArrayDeque
 import kotlinx.coroutines.CancellationException
@@ -24,9 +24,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * The one way iCode installs and removes runtime components (docs/runtime-components-plan.md §3.4).
+ * The one way iCode installs and removes runtime tools (docs/runtime-tools-plan.md §3.4).
  *
- * dpkg has one database and one lock, so apt runs one at a time. A request for a component already
+ * dpkg has one database and one lock, so apt runs one at a time. A request for a tool already
  * being installed waits for that install instead of starting apt again. The run belongs to [scope],
  * not to the request: a search replaced by the next keystroke, or a screen left, must not kill apt
  * half-way through its package database.
@@ -57,15 +57,15 @@ internal class RuntimePackageInstaller(
         data class Failed(val reason: String) : Outcome
     }
 
-    /** What each component would download; [failure] says why one could not be measured. */
-    data class Measured(val downloads: Map<String, ComponentDownload>, val failure: String?)
+    /** What each tool would download; [failure] says why one could not be measured. */
+    data class Measured(val downloads: Map<String, RuntimeToolDownload>, val failure: String?)
 
     private val dpkg = Mutex()
     private val inFlight = mutableMapOf<String, Deferred<Outcome>>()
 
-    private val mutableWork = MutableStateFlow<ComponentWork?>(null)
+    private val mutableWork = MutableStateFlow<RuntimeToolWork?>(null)
     /** The run in hand, or the page's last failure until it is dismissed. */
-    val work: StateFlow<ComponentWork?> = mutableWork.asStateFlow()
+    val work: StateFlow<RuntimeToolWork?> = mutableWork.asStateFlow()
 
     private val mutableInstalled = MutableStateFlow<Set<String>?>(null)
     /** dpkg's packages as last read — after every run, and on [refresh]; null before the first read. */
@@ -79,32 +79,32 @@ internal class RuntimePackageInstaller(
         mutableInstalled.value = readInstalled()
     }
 
-    fun isInstalled(component: RuntimeComponent): Boolean = ComponentRules.isInstalled(component, readInstalled())
+    fun isInstalled(tool: RuntimeTool): Boolean = RuntimeToolRules.isInstalled(tool, readInstalled())
 
     /**
-     * Installs [component] unless dpkg has it; a request while it is being installed waits for that
+     * Installs [tool] unless dpkg has it; a request while it is being installed waits for that
      * install. Its failure is the caller's to say, and is not kept.
      */
-    suspend fun ensure(component: RuntimeComponent): Outcome {
-        if (isInstalled(component)) return Outcome.Ready
+    suspend fun ensure(tool: RuntimeTool): Outcome {
+        if (isInstalled(tool)) return Outcome.Ready
         if (!runtimeReady()) return Outcome.Failed("Install the Linux runtime first")
         val run = synchronized(inFlight) {
-            inFlight[component.id]?.takeIf(Deferred<Outcome>::isActive)
-                ?: queue(listOf(component)) { settle(ComponentAction.Install, listOf(component), keepFailure = false, ::install) }
+            inFlight[tool.id]?.takeIf(Deferred<Outcome>::isActive)
+                ?: queue(listOf(tool)) { settle(RuntimeToolAction.Install, listOf(tool), keepFailure = false, ::install) }
         }
         return run.await()
     }
 
-    /** The Components page's Apply: what is unticked goes first, then what is ticked comes. A failure stays until [dismiss]. */
-    suspend fun apply(plan: ComponentPlan): Outcome {
+    /** The tools page's Apply: what is unticked goes first, then what is ticked comes. A failure stays until [dismiss]. */
+    suspend fun apply(plan: RuntimeToolPlan): Outcome {
         if (plan.isEmpty) return Outcome.Ready
         if (!runtimeReady()) return Outcome.Failed("Install the Linux runtime first")
         val run = synchronized(inFlight) {
             queue(plan.install) {
                 val removed = if (plan.remove.isEmpty()) Outcome.Ready
-                else settle(ComponentAction.Remove, plan.remove, keepFailure = true) { remove(it, plan.removePackages) }
+                else settle(RuntimeToolAction.Remove, plan.remove, keepFailure = true) { remove(it, plan.removePackages) }
                 if (removed != Outcome.Ready || plan.install.isEmpty()) removed
-                else settle(ComponentAction.Install, plan.install, keepFailure = true, ::install)
+                else settle(RuntimeToolAction.Install, plan.install, keepFailure = true, ::install)
             }
         }
         return run.await()
@@ -123,16 +123,16 @@ internal class RuntimePackageInstaller(
     }
 
     /**
-     * What installing each of [components] would download now, as apt computes it
+     * What installing each of [tools] would download now, as apt computes it
      * (`--print-uris`); the lists are read once first when apt has none that name a package.
      */
-    suspend fun measure(components: List<RuntimeComponent>): Measured = dpkg.withLock {
+    suspend fun measure(tools: List<RuntimeTool>): Measured = dpkg.withLock {
         var listsRead = false
         var failure: String? = null
         val downloads = buildMap {
-            components.forEach { component ->
+            tools.forEach { tool ->
                 val output = mutableListOf<String>()
-                val command = listOf("apt-get", "install", "--print-uris", "-qq", "--no-install-recommends") + component.packages
+                val command = listOf("apt-get", "install", "--print-uris", "-qq", "--no-install-recommends") + tool.packages
                 var result = apt(command) { line -> output += line; true }
                 if (result.exitCode != 0 && !listsRead) {
                     listsRead = true
@@ -141,28 +141,28 @@ internal class RuntimePackageInstaller(
                     output.clear()
                     result = apt(command) { line -> output += line; true }
                 }
-                if (result.exitCode == 0) put(component.id, ComponentDownload(output.mapNotNull(::archive).toMap()))
-                else failure = failure ?: failure("Could not measure ${component.name}", result, output)
+                if (result.exitCode == 0) put(tool.id, RuntimeToolDownload(output.mapNotNull(::archive).toMap()))
+                else failure = failure ?: failure("Could not measure ${tool.name}", result, output)
             }
         }
         Measured(downloads, failure)
     }
 
-    /** A run of its own, queued behind any other; each of [components] waits on it while it lasts. */
-    private fun queue(components: List<RuntimeComponent>, body: suspend () -> Outcome): Deferred<Outcome> =
-        scope.async(Dispatchers.IO) { dpkg.withLock { body() } }.also { run -> components.forEach { inFlight[it.id] = run } }
+    /** A run of its own, queued behind any other; each of [tools] waits on it while it lasts. */
+    private fun queue(tools: List<RuntimeTool>, body: suspend () -> Outcome): Deferred<Outcome> =
+        scope.async(Dispatchers.IO) { dpkg.withLock { body() } }.also { run -> tools.forEach { inFlight[it.id] = run } }
 
-    /** Publishes [components]' run as it goes, and settles it: gone when it succeeds, kept when it fails and [keepFailure]. */
+    /** Publishes [tools]' run as it goes, and settles it: gone when it succeeds, kept when it fails and [keepFailure]. */
     private suspend fun settle(
-        action: ComponentAction,
-        components: List<RuntimeComponent>,
+        action: RuntimeToolAction,
+        tools: List<RuntimeTool>,
         keepFailure: Boolean,
-        body: suspend (ComponentRun) -> Outcome,
+        body: suspend (ToolRun) -> Outcome,
     ): Outcome {
         // The run that held the lock before this one may have brought them.
-        if (action == ComponentAction.Install && components.all(::isInstalled)) return Outcome.Ready
+        if (action == RuntimeToolAction.Install && tools.all(::isInstalled)) return Outcome.Ready
         stopRequested = false
-        val run = ComponentRun(ComponentWork(action, components))
+        val run = ToolRun(RuntimeToolWork(action, tools))
         mutableWork.value = run.work
         val outcome = try {
             body(run)
@@ -170,7 +170,7 @@ internal class RuntimePackageInstaller(
             if (!stopRequested) throw cancelled
             Outcome.Cancelled
         } catch (error: Throwable) {
-            Outcome.Failed(error.message?.takeIf(String::isNotBlank) ?: "Could not change runtime components")
+            Outcome.Failed(error.message?.takeIf(String::isNotBlank) ?: "Could not change the runtime's tools")
         } finally {
             stoppable = null
             refresh()
@@ -179,8 +179,8 @@ internal class RuntimePackageInstaller(
         return outcome
     }
 
-    private suspend fun install(run: ComponentRun): Outcome {
-        val packages = run.work.components.flatMap { it.packages }.distinct()
+    private suspend fun install(run: ToolRun): Outcome {
+        val packages = run.work.tools.flatMap { it.packages }.distinct()
         val download = listOf("apt-get", "install", "-d", "-y", "--no-install-recommends") + packages
         var fetched = run.apt(download, stoppable = true)
         if (fetched.exitCode != 0) {
@@ -195,7 +195,7 @@ internal class RuntimePackageInstaller(
         }
         run.progress = AptProgress(phase = AptPhase.Installing, total = run.progress.total)
         val installed = run.apt(listOf("apt-get", "install", "-y", "--no-install-recommends") + packages, stoppable = false)
-        return if (installed.exitCode == 0 && run.work.components.all(::isInstalled)) Outcome.Ready
+        return if (installed.exitCode == 0 && run.work.tools.all(::isInstalled)) Outcome.Ready
         else Outcome.Failed(failure("Could not install ${run.names}", installed, run.output))
     }
 
@@ -204,7 +204,7 @@ internal class RuntimePackageInstaller(
      * are marked as no longer wanted, and apt says which of them, and of what they brought, it would
      * now remove. What it would have removed before the mark (another cause's leftovers) stays.
      */
-    private suspend fun remove(run: ComponentRun, packages: List<String>): Outcome {
+    private suspend fun remove(run: ToolRun, packages: List<String>): Outcome {
         run.progress = AptProgress(phase = AptPhase.Removing)
         val before = simulatedRemovals()
         val mark = apt(listOf("apt-mark", "auto") + packages) { true }
@@ -231,9 +231,9 @@ internal class RuntimePackageInstaller(
     }
 
     /** One published run: its progress and apt's last lines, as they come. */
-    private inner class ComponentRun(var work: ComponentWork) {
+    private inner class ToolRun(var work: RuntimeToolWork) {
         val output = ArrayDeque<String>()
-        val names: String get() = work.components.joinToString { it.name }
+        val names: String get() = work.tools.joinToString { it.name }
 
         var progress: AptProgress
             get() = work.progress
@@ -255,7 +255,7 @@ internal class RuntimePackageInstaller(
             command.await()
         }
 
-        private fun publish(next: ComponentWork) {
+        private fun publish(next: RuntimeToolWork) {
             work = next
             mutableWork.value = next
         }

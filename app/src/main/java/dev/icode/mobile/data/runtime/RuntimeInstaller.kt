@@ -162,7 +162,7 @@ internal class RuntimeInstaller(
             // calling this a failed install after writing the marker is not.
             if (reason == RuntimeInstallReason.Repair) runCatching { homeBackup.completeRepair() }
             // A rebuilt base system has none of the tools installed before: they are offered again.
-            runCatching { layout.componentsOffer.createNewFile() }
+            runCatching { layout.toolsOffer.createNewFile() }
             archive.delete()
             emit(RuntimeState.Ready(release))
         } catch (error: CancellationException) {

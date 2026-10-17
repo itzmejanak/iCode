@@ -62,7 +62,7 @@ fun RuntimeInstallingScreen(actions: NavigationActions) {
         if (actions.captureMode) return@LaunchedEffect
         when (runtime) {
             is RuntimeState.NotInstalled -> gateway.dispatch(installIntent(reason))
-            is RuntimeState.Ready -> leave(actions, state.systemAccess, state.components.offerPending)
+            is RuntimeState.Ready -> leave(actions, state.systemAccess, state.runtimeTools.offerPending)
             else -> Unit
         }
     }
@@ -82,7 +82,7 @@ fun RuntimeInstallingScreen(actions: NavigationActions) {
             RuntimeFailure(
                 runtime = runtime,
                 onRetry = { gateway.dispatch(installIntent(reason)) },
-                onSkip = { leave(actions, state.systemAccess, componentsPending = false) },
+                onSkip = { leave(actions, state.systemAccess, toolsPending = false) },
                 rebuilding = reason != RuntimeInstallReason.Initial,
             )
             Spacer(Modifier.weight(1.35f))
@@ -120,14 +120,14 @@ fun RuntimeInstallingScreen(actions: NavigationActions) {
 /**
  * Where onboarding goes once the runtime is settled.
  *
- * A runtime just built offers its Components page first, in this screen's place, whether
+ * A runtime just built offers Set Up Tools first, in this screen's place, whether
  * onboarding or a rebuild brought the user here. Otherwise, reached from the Terminal or
  * Runtime settings there is something to return to; reached as the first step of onboarding
  * there is not, and this screen must route onward.
  */
-private fun leave(actions: NavigationActions, access: SystemAccess?, componentsPending: Boolean) {
-    if (componentsPending) {
-        actions.replace(Route.RuntimeComponents)
+private fun leave(actions: NavigationActions, access: SystemAccess?, toolsPending: Boolean) {
+    if (toolsPending) {
+        actions.replace(Route.RuntimeTools)
         return
     }
     if (actions.canGoBack) {
@@ -135,7 +135,7 @@ private fun leave(actions: NavigationActions, access: SystemAccess?, componentsP
         return
     }
     // What Android allows has not been read yet; the next state change routes.
-    OnboardingRoute.afterRuntime(access, componentsPending = false)?.let { actions.replace(it) }
+    OnboardingRoute.afterRuntime(access, toolsPending = false)?.let { actions.replace(it) }
 }
 
 /**

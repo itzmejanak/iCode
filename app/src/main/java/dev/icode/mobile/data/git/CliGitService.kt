@@ -5,7 +5,7 @@ import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.runtime.RuntimePackageInstaller
 import dev.icode.mobile.domain.GitFileDiff
 import dev.icode.mobile.domain.GitOutcome
-import dev.icode.mobile.domain.RuntimeComponents
+import dev.icode.mobile.domain.RuntimeTools
 import java.io.File
 
 /**
@@ -62,7 +62,7 @@ internal class CliGitService(
 
     /** True once `git` is present in the guest; false until it is provisioned. */
     suspend fun isAvailable(): Boolean =
-        layout.isInstalled && packages.isInstalled(RuntimeComponents.Git)
+        layout.isInstalled && packages.isInstalled(RuntimeTools.Git)
 
     /**
      * Records the workspace exception in the guest's own Git configuration.
@@ -154,7 +154,7 @@ internal class CliGitService(
 
     /** Installs git through the runtime's one package installer; apt's own words explain a failure. */
     suspend fun provision(): GitOutcome<Unit> =
-        when (val outcome = packages.ensure(RuntimeComponents.Git)) {
+        when (val outcome = packages.ensure(RuntimeTools.Git)) {
             RuntimePackageInstaller.Outcome.Ready -> GitOutcome.Success(Unit)
             is RuntimePackageInstaller.Outcome.Failed -> GitOutcome.Failure(outcome.reason, 1)
             RuntimePackageInstaller.Outcome.Cancelled -> GitOutcome.Failure("Installing Git was cancelled", 1)

@@ -17,8 +17,8 @@ sealed interface BackgroundPlace {
     /** The runtime install, repair or reset. */
     data object Runtime : BackgroundPlace
 
-    /** The Components page: a components install or removal, wherever it was asked for. */
-    data object Components : BackgroundPlace
+    /** The tools' page: a tools install or removal, wherever it was asked for. */
+    data object RuntimeTools : BackgroundPlace
 
     /** The Assistant page: its turn in hand. */
     data object Assistant : BackgroundPlace
@@ -26,13 +26,13 @@ sealed interface BackgroundPlace {
     /** The Assistant page, where a workspace's managed processes are listed. */
     data object Processes : BackgroundPlace
 
-    /** As a notification carries it: `task:12`, `clone`, `sync`, `runtime`, `components`, `assistant`, `processes`. */
+    /** As a notification carries it: `task:12`, `clone`, `sync`, `runtime`, `runtime-tools`, `assistant`, `processes`. */
     fun encoded(): String = when (this) {
         is Task -> "$TASK$id"
         Clone -> "clone"
         Sync -> "sync"
         Runtime -> "runtime"
-        Components -> "components"
+        RuntimeTools -> "runtime-tools"
         Assistant -> "assistant"
         Processes -> "processes"
     }
@@ -47,7 +47,7 @@ sealed interface BackgroundPlace {
             value == "clone" -> Clone
             value == "sync" -> Sync
             value == "runtime" -> Runtime
-            value == "components" -> Components
+            value == "runtime-tools" -> RuntimeTools
             value == "assistant" -> Assistant
             value == "processes" -> Processes
             else -> null
@@ -57,7 +57,7 @@ sealed interface BackgroundPlace {
 
 /** One piece of background work, as its notification says it. */
 data class BackgroundItem(
-    /** Stable while the work lasts: `task:12`, `git`, `runtime`, `components`. */
+    /** Stable while the work lasts: `task:12`, `git`, `runtime`, `runtime-tools`. */
     val key: String,
     /** "Deleting…", "Cloning…", "Installing the Linux runtime". */
     val title: String,
@@ -89,14 +89,14 @@ data class BackgroundItem(
     /**
      * Stable and small, for what the system keys by number (a notification's id): a task's id below
      * 900 — ids count up in a process, and 900 tasks never run at once — then 900 for the Git
-     * transfer, 901 for the runtime, 902 for the components' apt run, 903 for the assistant's turn,
+     * transfer, 901 for the runtime, 902 for the runtime tools' apt run, 903 for the assistant's turn,
      * 904 for the managed processes.
      */
     val number: Int get() = when (place) {
         is BackgroundPlace.Task -> (place.id % 900).toInt()
         BackgroundPlace.Clone, BackgroundPlace.Sync -> 900
         BackgroundPlace.Runtime -> 901
-        BackgroundPlace.Components -> 902
+        BackgroundPlace.RuntimeTools -> 902
         BackgroundPlace.Assistant -> 903
         BackgroundPlace.Processes -> 904
     }
@@ -112,14 +112,14 @@ data class BackgroundItem(
 object BackgroundWorkRules {
     /**
      * Everything running in [snapshot], and what stopped short: each task, the Git transfer, the
-     * runtime install, the components apt is installing or removing, the assistant's turn, and the
+     * runtime install, the tools apt is installing or removing, the assistant's turn, and the
      * managed processes that run.
      */
     fun of(snapshot: ICodeSnapshot): List<BackgroundItem> = buildList {
         snapshot.tasks.forEach { add(task(it)) }
         git(snapshot)?.let(::add)
         runtime(snapshot)?.let(::add)
-        snapshot.components.work?.let { add(components(it)) }
+        snapshot.runtimeTools.work?.let { add(runtimeTools(it)) }
         snapshot.assistant.turn?.let { add(assistant(it, snapshot.assistant.approval)) }
         processes(snapshot.processes.filter { it.running })?.let(::add)
     }
@@ -156,15 +156,15 @@ object BackgroundWorkRules {
         question = approval?.let { "${it.call.summary}?" },
     )
 
-    /** Its progress shows on the Components page, and on a button waiting for it. */
-    private fun components(work: ComponentWork) = BackgroundItem(
-        key = "components",
+    /** Its progress shows on the tools' page, and on a button waiting for it. */
+    private fun runtimeTools(work: RuntimeToolWork) = BackgroundItem(
+        key = "runtime-tools",
         title = work.title,
         detail = listOfNotNull(work.progress.step, work.progress.item).joinToString(" · "),
         counts = work.progress.counts,
         fraction = work.progress.fraction,
-        cancel = ICodeIntent.CancelComponents.takeIf { work.cancellable },
-        place = BackgroundPlace.Components,
+        cancel = ICodeIntent.CancelRuntimeTools.takeIf { work.cancellable },
+        place = BackgroundPlace.RuntimeTools,
         watched = true,
         failure = work.failure,
     )
@@ -187,7 +187,7 @@ object BackgroundWorkRules {
             is GitOperationState.Failed -> operation.label to operation.reason
             else -> return null
         }
-        // Installing Git is the components' run, carried as theirs.
+        // Installing Git is the tools' run, carried as theirs.
         if (label !in GitTransferLabel.ALL) return null
         val clone = label == GitTransferLabel.CLONING
         val subject = if (clone) snapshot.cloneName else snapshot.activeWorkspace

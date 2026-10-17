@@ -181,7 +181,7 @@ told what an approved command can reach.
 
 **What is known.** The runtime is `ubuntu-base` (`runtime/bootstrap/README.md`), deliberately
 minimal. `iproute2` and `net-tools` are not in it, and not among the runtime components
-(`RuntimeComponents`). Installing them may not be enough. Since Android 10, an app targeting
+(`RuntimeTools`). Installing them may not be enough. Since Android 10, an app targeting
 API 29 or later cannot read `/proc/net`, and iCode targets 36. `netstat` reads `/proc/net`, and
 `ss` asks netlink's socket diagnostics, which Android may deny as well. If both are denied,
 inspecting sockets from inside the runtime cannot work on Android at all, and any "what is

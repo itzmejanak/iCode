@@ -23,7 +23,7 @@ import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.domain.GitInProgress
 import dev.icode.mobile.domain.GitOperationState
-import dev.icode.mobile.domain.RuntimeComponents
+import dev.icode.mobile.domain.RuntimeTools
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.ICodeSnapshot
 import dev.icode.mobile.domain.countOf
@@ -75,7 +75,7 @@ internal fun SourceControlGate(state: ICodeSnapshot, dispatch: (ICodeIntent) -> 
     when {
         state.gitAvailable == false -> GitUnavailableGate(
             state.gitOperation,
-            state.components.installing(RuntimeComponents.Git)?.progress?.step,
+            state.runtimeTools.installing(RuntimeTools.Git)?.progress?.step,
         ) { dispatch(ICodeIntent.ProvisionGit) }
         failure != null -> GitUnreadableGate(failure) { dispatch(ICodeIntent.RefreshGit) }
         else -> GitInitializationGate { dispatch(ICodeIntent.InitializeGit) }

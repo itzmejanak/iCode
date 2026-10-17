@@ -15,7 +15,7 @@ fun EntryScreenHost(screen: Route, actions: NavigationActions) {
     when (screen) {
         Route.Splash -> SplashScreen(actions)
         Route.RuntimeInstalling -> RuntimeInstallingScreen(actions)
-        Route.RuntimeComponents -> RuntimeComponentsScreen(actions)
+        Route.RuntimeTools -> RuntimeToolsScreen(actions)
         Route.PermissionExplanation -> PermissionScreen(actions)
         Route.LauncherHome -> LauncherScreen(actions, empty = false)
         Route.LauncherEmpty -> LauncherScreen(actions, empty = true)
