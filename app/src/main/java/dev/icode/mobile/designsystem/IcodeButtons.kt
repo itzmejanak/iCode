@@ -29,6 +29,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -66,6 +67,14 @@ fun PrimaryButton(
         contentPadding = PaddingValues(horizontal = if (compact) IcodeSpacing.Space3 else IcodeSpacing.Space4),
     ) {
         Text(text.uppercase(), style = IcodeType.Label.copy(color = LocalContentColor.current))
+    }
+}
+
+/** A quiet action inside content — Show Details: the label alone, in the accent, with a full touch target. */
+@Composable
+fun IcodeTextButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
+    TextButton(onClick = onClick, modifier = modifier, enabled = enabled, contentPadding = PaddingValues(horizontal = IcodeSpacing.Space2)) {
+        Text(text, style = IcodeType.Label.copy(color = if (enabled) IcodeColors.Accent else IcodeColors.TextMuted))
     }
 }
 

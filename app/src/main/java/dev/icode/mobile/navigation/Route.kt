@@ -24,8 +24,8 @@ enum class Route(
     // Owner's request (2026-09-25): notices move off the launcher onto their own page.
     Notifications(null, "Notifications", RouteGroup.ENTRY),
     // Owner's request (2026-09-30): choose the runtime's tools, as Android Studio's setup does
-    // (docs/runtime-components-plan.md §3.5).
-    RuntimeComponents(null, "Runtime components", RouteGroup.ENTRY),
+    // (docs/runtime-tools-plan.md §3.5).
+    RuntimeTools(null, "Runtime tools", RouteGroup.ENTRY),
     // Owner's request (2026-10-01, 2026-10-14): every workspace, managed in one place, and phone storage
     // beside it — the file explorer of both places, drawing Open Folder's frame (docs/storage-explorer-plan.md).
     Workspaces("2003:117", "Workspaces", RouteGroup.ENTRY),

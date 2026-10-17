@@ -3,7 +3,7 @@ package dev.icode.mobile.data.search
 import dev.icode.mobile.data.runtime.GuestCommand
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.runtime.RuntimePackageInstaller
-import dev.icode.mobile.domain.RuntimeComponents
+import dev.icode.mobile.domain.RuntimeTools
 
 internal interface WorkspaceSearchEngine {
     fun isAvailable(): Boolean
@@ -28,7 +28,7 @@ internal class RipgrepService(
     /** When the last install failed, and why: typing must not start apt again on every key. */
     @Volatile private var lastFailure: Pair<Long, String>? = null
 
-    override fun isAvailable(): Boolean = layout.isInstalled && packages.isInstalled(RuntimeComponents.Ripgrep)
+    override fun isAvailable(): Boolean = layout.isInstalled && packages.isInstalled(RuntimeTools.Ripgrep)
 
     /** Installs ripgrep when search is first used, through the runtime's one package installer. */
     override suspend fun ensureAvailable(): RipgrepAvailability {
@@ -39,7 +39,7 @@ internal class RipgrepService(
         lastFailure?.let { (failedAt, reason) ->
             if (System.nanoTime() - failedAt < RETRY_COOLDOWN_NANOS) return RipgrepAvailability.Failed(reason)
         }
-        return when (val outcome = packages.ensure(RuntimeComponents.Ripgrep)) {
+        return when (val outcome = packages.ensure(RuntimeTools.Ripgrep)) {
             RuntimePackageInstaller.Outcome.Ready -> {
                 lastFailure = null
                 RipgrepAvailability.Ready

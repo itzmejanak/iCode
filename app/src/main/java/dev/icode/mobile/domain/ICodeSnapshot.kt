@@ -64,8 +64,8 @@ data class ICodeSnapshot(
     val clipboard: ItemClipboard? = null,
     /** Long operations running, or failed and not yet seen (docs/long-operations-plan.md). */
     val tasks: List<WorkTask> = emptyList(),
-    /** The runtime's components: what dpkg has, what each would download, and the apt run in hand. */
-    val components: RuntimeComponentsState = RuntimeComponentsState(),
+    /** The runtime's tools: what dpkg has, what each would download, and the apt run in hand. */
+    val runtimeTools: RuntimeToolsState = RuntimeToolsState(),
     /**
      * Whether the `git` binary exists in the runtime; null until checked.
      *

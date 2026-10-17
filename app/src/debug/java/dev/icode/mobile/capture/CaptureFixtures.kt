@@ -3,7 +3,7 @@ package dev.icode.mobile.capture
 import android.annotation.SuppressLint
 import dev.icode.mobile.data.git.GitConflictParser
 import dev.icode.mobile.domain.BrowsedItem
-import dev.icode.mobile.domain.ComponentDownload
+import dev.icode.mobile.domain.RuntimeToolDownload
 import dev.icode.mobile.domain.Diagnostic
 import dev.icode.mobile.domain.ExternalChange
 import dev.icode.mobile.domain.FileEntry
@@ -26,7 +26,7 @@ import dev.icode.mobile.domain.RecentDocument
 import dev.icode.mobile.domain.RecoverableDraft
 import dev.icode.mobile.domain.RuntimeDetails
 import dev.icode.mobile.domain.RuntimeState
-import dev.icode.mobile.domain.RuntimeComponentsState
+import dev.icode.mobile.domain.RuntimeToolsState
 import dev.icode.mobile.domain.Severity
 import dev.icode.mobile.domain.StorageDetails
 import dev.icode.mobile.domain.StorageMeasurement
@@ -120,9 +120,9 @@ object CaptureFixtures {
         runtime = RuntimeState.Ready("Ubuntu 24.04.5 LTS"),
         // The owner's runtime (2026-09-30): Git, the SSH client and curl installed; ripgrep's
         // download as apt measured it on the phone; the rest still being measured.
-        components = RuntimeComponentsState(
+        runtimeTools = RuntimeToolsState(
             installedPackages = setOf("git", "openssh-client", "curl", "ca-certificates"),
-            downloads = mapOf("ripgrep" to ComponentDownload(mapOf("ripgrep_14.1.0-1_arm64.deb" to 1_455_428L))),
+            downloads = mapOf("ripgrep" to RuntimeToolDownload(mapOf("ripgrep_14.1.0-1_arm64.deb" to 1_455_428L))),
             measuring = true,
         ),
         runtimeDetails = RuntimeDetails(

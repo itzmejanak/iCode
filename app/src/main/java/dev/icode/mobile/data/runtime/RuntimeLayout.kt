@@ -37,11 +37,11 @@ internal class RuntimeLayout(context: Context) {
     val installMarker: File = File(runtimeRoot, "installed.json")
 
     /**
-     * Written when a build of the runtime completes, and removed once its Components page is
-     * answered (docs/runtime-components-plan.md §3.5). A runtime built before the page existed has
+     * Written when a build of the runtime completes, and removed once its Set Up Tools page is
+     * answered (docs/runtime-tools-plan.md §3.5). A runtime built before the page existed has
      * none, and is not offered it.
      */
-    val componentsOffer: File = File(runtimeRoot, "components-offer")
+    val toolsOffer: File = File(runtimeRoot, "tools-offer")
 
     val isInstalled: Boolean
         get() = installMarker.isFile && File(rootfs, "bin/sh").exists()

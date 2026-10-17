@@ -31,7 +31,7 @@ Generic references that use "Figma" as a synonym for "design", "screen", or "UI 
 | "Figma fidelity" | "design fidelity" | `ui-split-plan.md` |
 | "Figma inconsistency" | "design inconsistency" | `integration-plan.md` |
 | "Figma correction" | "design correction" | `integration-plan.md` |
-| "no Figma frame" (in plan docs describing owner-added pages) | "no design frame" | `runtime-components-plan.md`, `workspaces-page-plan.md` |
+| "no Figma frame" (in plan docs describing owner-added pages) | "no design frame" | `runtime-tools-plan.md`, `workspaces-page-plan.md` |
 | "the first without a Figma frame" | "the first without a design frame" | `attention-labels-cleanup-plan.md` |
 | "Figma strings" | "design tokens" | `backend-split-rules.md` |
 | "Capture all 39 screens" section heading | "Capture all screens" | `README.md` |
@@ -59,7 +59,7 @@ Generic references that use "Figma" as a synonym for "design", "screen", or "UI 
 | `docs/ui-split-plan.md` | "Figma fidelity" → "design fidelity"; "Figma casing" → "design casing"; "validated Figma output" → "validated design output" |
 | `docs/integration-plan.md` | "Figma inconsistency" → "design inconsistency"; "Figma correction" → "design correction"; "Figma frames" → "design frames" where generic |
 | `docs/backend-split-rules.md` | "Figma strings" → "design tokens" |
-| `docs/runtime-components-plan.md` | "No Figma frame" → "No design frame" (×2) |
+| `docs/runtime-tools-plan.md` | "No Figma frame" → "No design frame" (×2) |
 | `docs/workspaces-page-plan.md` | "no Figma frame" → "no design frame"; "list of Figma frames" → "list of design frames" |
 | `docs/workspace-storage-plan.md` | "Figma frames" → "design frames" where generic; "Frames are the Figma frames" → "Frames are the design frames" |
 | `docs/attention-labels-cleanup-plan.md` | "without a Figma frame" → "without a design frame" (×2); "Figma routes" → "design routes" |

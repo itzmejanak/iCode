@@ -3,7 +3,7 @@ package dev.icode.mobile.domain
 enum class AptPhase { Preparing, Updating, Downloading, Installing, Removing }
 
 /**
- * How far one apt run has got, read from apt's own lines (docs/runtime-components-plan.md §3.4).
+ * How far one apt run has got, read from apt's own lines (docs/runtime-tools-plan.md §3.4).
  *
  * Off a terminal apt prints no byte progress, so a download is told by the files fetched, and the
  * install by dpkg's `Setting up` and `Removing` lines against the plan apt printed first.

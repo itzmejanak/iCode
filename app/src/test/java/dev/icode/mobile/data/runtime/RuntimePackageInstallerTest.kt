@@ -1,11 +1,11 @@
 package dev.icode.mobile.data.runtime
 
 import dev.icode.mobile.domain.AptPhase
-import dev.icode.mobile.domain.ComponentAction
-import dev.icode.mobile.domain.ComponentRules
-import dev.icode.mobile.domain.ComponentWork
-import dev.icode.mobile.domain.RuntimeComponent
-import dev.icode.mobile.domain.RuntimeComponents
+import dev.icode.mobile.domain.RuntimeToolAction
+import dev.icode.mobile.domain.RuntimeToolRules
+import dev.icode.mobile.domain.RuntimeToolWork
+import dev.icode.mobile.domain.RuntimeTool
+import dev.icode.mobile.domain.RuntimeTools
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CompletableDeferred
@@ -122,30 +122,30 @@ class RuntimePackageInstallerTest {
         "apt-get install -y --no-install-recommends $name",
     )
 
-    @Test fun `an installed component needs no apt`() = runBlocking {
+    @Test fun `an installed tool needs no apt`() = runBlocking {
         val apt = FakeApt().apply { installed += "git" }
-        assertEquals(RuntimePackageInstaller.Outcome.Ready, apt.installer().ensure(RuntimeComponents.Git))
+        assertEquals(RuntimePackageInstaller.Outcome.Ready, apt.installer().ensure(RuntimeTools.Git))
         assertEquals(emptyList<String>(), calls)
     }
 
     @Test fun `without the runtime nothing is attempted`() = runBlocking {
         assertEquals(
             RuntimePackageInstaller.Outcome.Failed("Install the Linux runtime first"),
-            FakeApt().installer(runtimeReady = false).ensure(RuntimeComponents.Git),
+            FakeApt().installer(runtimeReady = false).ensure(RuntimeTools.Git),
         )
         assertEquals(emptyList<String>(), calls)
     }
 
     @Test fun `it downloads first, then installs what it downloaded`() = runBlocking {
         val apt = FakeApt()
-        assertEquals(RuntimePackageInstaller.Outcome.Ready, apt.installer().ensure(RuntimeComponents.Ripgrep))
+        assertEquals(RuntimePackageInstaller.Outcome.Ready, apt.installer().ensure(RuntimeTools.Ripgrep))
         assertEquals(installOf("ripgrep"), calls)
         assertTrue("ripgrep" in apt.installed)
     }
 
     @Test fun `missing lists are read before downloading again`() = runBlocking {
         val installer = FakeApt(listsFresh = false).installer()
-        assertEquals(RuntimePackageInstaller.Outcome.Ready, installer.ensure(RuntimeComponents.Git))
+        assertEquals(RuntimePackageInstaller.Outcome.Ready, installer.ensure(RuntimeTools.Git))
         assertEquals(
             listOf("apt-get install -d -y --no-install-recommends git", "apt-get update") + installOf("git"),
             calls,
@@ -158,34 +158,34 @@ class RuntimePackageInstallerTest {
             RuntimePackageInstaller.Outcome.Failed(
                 "Could not update runtime packages: E: Failed to fetch http://ports.ubuntu.com  Temporary failure resolving",
             ),
-            installer.ensure(RuntimeComponents.Git),
+            installer.ensure(RuntimeTools.Git),
         )
         assertNull(installer.work.value)
     }
 
-    @Test fun `a package apt does not know is reported with the component's name`() = runBlocking {
-        val nope = RuntimeComponent("nope", "Nope", "", null, listOf("nope"))
+    @Test fun `a package apt does not know is reported with the tool's name`() = runBlocking {
+        val nope = RuntimeTool("nope", "Nope", "", null, listOf("nope"))
         assertEquals(
             RuntimePackageInstaller.Outcome.Failed("Could not download Nope: E: Unable to locate package nope"),
             FakeApt().installer().ensure(nope),
         )
     }
 
-    @Test fun `requests for the same component share one install`() = runBlocking {
+    @Test fun `requests for the same tool share one install`() = runBlocking {
         val apt = FakeApt().apply { downloadGate = CompletableDeferred() }
         val installer = apt.installer()
-        val requests = List(3) { async { installer.ensure(RuntimeComponents.Git) } }
+        val requests = List(3) { async { installer.ensure(RuntimeTools.Git) } }
         delay(100)
         apt.downloadGate!!.complete(Unit)
         assertEquals(List(3) { RuntimePackageInstaller.Outcome.Ready }, withTimeout(2_000) { requests.awaitAll() })
         assertEquals(installOf("git"), calls)
     }
 
-    @Test fun `different components never run apt at the same time`() = runBlocking {
+    @Test fun `different tools never run apt at the same time`() = runBlocking {
         val installer = FakeApt().installer()
         val outcomes = withTimeout(2_000) {
-            listOf(RuntimeComponents.Git, RuntimeComponents.Ripgrep, RuntimeComponents.SshClient)
-                .map { component -> async { installer.ensure(component) } }.awaitAll()
+            listOf(RuntimeTools.Git, RuntimeTools.Ripgrep, RuntimeTools.SshClient)
+                .map { tool -> async { installer.ensure(tool) } }.awaitAll()
         }
         assertEquals(List(3) { RuntimePackageInstaller.Outcome.Ready }, outcomes)
         assertEquals(1, mostAtOnce.get())
@@ -195,7 +195,7 @@ class RuntimePackageInstallerTest {
     @Test fun `a cancelled request does not stop the install`() = runBlocking {
         val apt = FakeApt().apply { downloadGate = CompletableDeferred() }
         val installer = apt.installer()
-        val request = launch { installer.ensure(RuntimeComponents.Ripgrep) }
+        val request = launch { installer.ensure(RuntimeTools.Ripgrep) }
         delay(100)
         request.cancelAndJoin()
         apt.downloadGate!!.complete(Unit)
@@ -208,7 +208,7 @@ class RuntimePackageInstallerTest {
             downloadGate = CompletableDeferred(); installGate = CompletableDeferred(); installedGate = CompletableDeferred()
         }
         val installer = apt.installer()
-        val outcome = async { installer.ensure(RuntimeComponents.SshClient) }
+        val outcome = async { installer.ensure(RuntimeTools.SshClient) }
         withTimeout(2_000) { while (installer.work.value?.progress?.downloadSize == null) delay(5) }
         assertEquals("Installing SSH client", installer.work.value?.title)
         assertEquals("apt has printed its plan; no archive yet", "Reading package lists", installer.work.value?.progress?.step)
@@ -234,7 +234,7 @@ class RuntimePackageInstallerTest {
     @Test fun `a cancel while downloading stops before anything is installed`() = runBlocking {
         val apt = FakeApt().apply { downloadGate = CompletableDeferred() }
         val installer = apt.installer()
-        val outcome = async { installer.ensure(RuntimeComponents.Git) }
+        val outcome = async { installer.ensure(RuntimeTools.Git) }
         withTimeout(2_000) { while (installer.work.value?.progress?.total == null) delay(5) }
         installer.cancel()
         assertEquals(RuntimePackageInstaller.Outcome.Cancelled, withTimeout(2_000) { outcome.await() })
@@ -246,7 +246,7 @@ class RuntimePackageInstallerTest {
     @Test fun `a cancel once dpkg runs is refused`() = runBlocking {
         val apt = FakeApt().apply { installGate = CompletableDeferred() }
         val installer = apt.installer()
-        val outcome = async { installer.ensure(RuntimeComponents.Git) }
+        val outcome = async { installer.ensure(RuntimeTools.Git) }
         withTimeout(2_000) { while (installer.work.value?.progress?.phase != AptPhase.Installing) delay(5) }
         installer.cancel()
         apt.installGate!!.complete(Unit)
@@ -260,7 +260,7 @@ class RuntimePackageInstallerTest {
             auto += "libcurl4t64"
         }
         val installer = apt.installer()
-        val plan = ComponentRules.plan(setOf("git"), apt.installed.toSet())
+        val plan = RuntimeToolRules.plan(setOf("git"), apt.installed.toSet())
         assertEquals(RuntimePackageInstaller.Outcome.Ready, installer.apply(plan))
         assertEquals(setOf("git"), apt.installed.toSet())
         assertTrue(calls.contains("apt-get remove -y ca-certificates curl libcurl4t64"))
@@ -272,12 +272,12 @@ class RuntimePackageInstallerTest {
             installed += setOf("git", "curl", "ca-certificates")
         }
         val installer = apt.installer()
-        val outcome = installer.apply(ComponentRules.plan(setOf("git"), apt.installed.toSet()))
+        val outcome = installer.apply(RuntimeToolRules.plan(setOf("git"), apt.installed.toSet()))
         assertEquals(RuntimePackageInstaller.Outcome.Failed("curl cannot be removed: other installed packages need it"), outcome)
         assertEquals(setOf("git", "curl", "ca-certificates"), apt.installed.toSet())
         assertTrue("its marks are put back", apt.auto.isEmpty())
         val kept = installer.work.value!!
-        assertEquals(ComponentAction.Remove, kept.action)
+        assertEquals(RuntimeToolAction.Remove, kept.action)
         assertEquals("curl cannot be removed: other installed packages need it", kept.failure)
         installer.dismiss()
         assertNull(installer.work.value)
@@ -288,13 +288,13 @@ class RuntimePackageInstallerTest {
             installed += setOf("ripgrep", "libcurl4t64")
             auto += "libcurl4t64"
         }
-        assertEquals(RuntimePackageInstaller.Outcome.Ready, apt.installer().apply(ComponentRules.plan(emptySet(), apt.installed.toSet())))
+        assertEquals(RuntimePackageInstaller.Outcome.Ready, apt.installer().apply(RuntimeToolRules.plan(emptySet(), apt.installed.toSet())))
         assertEquals(setOf("libcurl4t64"), apt.installed.toSet())
     }
 
-    @Test fun `measuring reads what each component would download, reading the lists once when apt has none`() = runBlocking {
+    @Test fun `measuring reads what each tool would download, reading the lists once when apt has none`() = runBlocking {
         val apt = FakeApt(listsFresh = false).apply { installed += "git" }
-        val measured = apt.installer().measure(listOf(RuntimeComponents.Git, RuntimeComponents.Ripgrep, RuntimeComponents.Curl))
+        val measured = apt.installer().measure(listOf(RuntimeTools.Git, RuntimeTools.Ripgrep, RuntimeTools.Curl))
         assertNull(measured.failure)
         assertEquals(emptyMap<String, Long>(), measured.downloads.getValue("git").archives)
         assertEquals(mapOf("ripgrep_1_arm64.deb" to 1000L), measured.downloads.getValue("ripgrep").archives)
@@ -302,9 +302,9 @@ class RuntimePackageInstallerTest {
         assertEquals(1, calls.count { it == "apt-get update" })
     }
 
-    @Test fun `a component apt cannot find is not measured, and says why`() = runBlocking {
-        val nope = RuntimeComponent("nope", "Nope", "", null, listOf("nope"))
-        val measured = FakeApt().installer().measure(listOf(nope, RuntimeComponents.Ripgrep))
+    @Test fun `a tool apt cannot find is not measured, and says why`() = runBlocking {
+        val nope = RuntimeTool("nope", "Nope", "", null, listOf("nope"))
+        val measured = FakeApt().installer().measure(listOf(nope, RuntimeTools.Ripgrep))
         assertEquals(setOf("ripgrep"), measured.downloads.keys)
         assertEquals("Could not measure Nope: E: Unable to locate package nope", measured.failure)
     }

@@ -5,10 +5,14 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
@@ -17,6 +21,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 
@@ -47,7 +53,7 @@ fun IcodeToggle(
 }
 
 /**
- * A tick for choosing items of a list — the runtime's components. [onCheckedChange] is null when
+ * A tick for choosing items of a list — the runtime's tools. [onCheckedChange] is null when
  * the row around it takes the tap (and says it is a checkbox to a screen reader).
  */
 @Composable
@@ -139,5 +145,42 @@ fun Stepper(
         KeyChip("−", onClick = onDecrement)
         MonoLine(value.toString(), color = IcodeColors.Accent)
         KeyChip("+", onClick = onIncrement)
+    }
+}
+
+/**
+ * One of a few exclusive choices, as a setup wizard asks it (Android Studio's Install Type): a radio,
+ * the choice's name, what it means, and — when it has one — what it costs at the end. The whole row
+ * takes the tap; the chosen one sits on the elevated surface.
+ */
+@Composable
+fun IcodeOptionRow(
+    title: String,
+    description: String,
+    selected: Boolean,
+    onSelect: () -> Unit,
+    modifier: Modifier = Modifier,
+    trailing: String? = null,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(IcodeShapes.Small)
+            .background(if (selected) IcodeColors.SurfaceElevated else Color.Transparent)
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
+            .padding(vertical = IcodeSpacing.Space2, horizontal = IcodeSpacing.Space1),
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = null,
+            colors = RadioButtonDefaults.colors(selectedColor = IcodeColors.Accent, unselectedColor = IcodeColors.Outline),
+        )
+        Column(Modifier.weight(1f).padding(top = IcodeSpacing.Micro)) {
+            Text(title, style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold))
+            Text(description, style = IcodeType.Caption)
+        }
+        if (trailing != null) Text(trailing, style = IcodeType.Caption, modifier = Modifier.padding(top = IcodeSpacing.Micro))
     }
 }

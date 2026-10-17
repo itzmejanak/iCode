@@ -62,7 +62,7 @@ class BackgroundWorkRulesTest {
         val done = empty.copy(gitOperation = GitOperationState.Succeeded(GitTransferLabel.PULLING))
         assertTrue(BackgroundWorkRules.of(done).isEmpty())
         val installingGit = empty.copy(gitOperation = GitOperationState.Running("Installing Git"))
-        assertTrue("installing Git is the components' run, carried as theirs", BackgroundWorkRules.of(installingGit).isEmpty())
+        assertTrue("installing Git is the tools' run, carried as theirs", BackgroundWorkRules.of(installingGit).isEmpty())
     }
 
     @Test fun `the runtime install is carried, not cancellable`() {
@@ -77,32 +77,32 @@ class BackgroundWorkRulesTest {
         assertTrue(item.cancel == null && item.running)
     }
 
-    @Test fun `a components install is carried with apt's step and count, cancellable only while downloading`() {
-        val downloading = ComponentWork(
-            ComponentAction.Install,
-            listOf(RuntimeComponents.SshClient),
+    @Test fun `a tools install is carried with apt's step and count, cancellable only while downloading`() {
+        val downloading = RuntimeToolWork(
+            RuntimeToolAction.Install,
+            listOf(RuntimeTools.SshClient),
             AptProgress(phase = AptPhase.Downloading, total = 6, downloadSize = "1238 kB", item = "libcbor0.10"),
         )
-        val item = BackgroundWorkRules.of(empty.copy(components = RuntimeComponentsState(work = downloading))).single()
-        assertEquals("components", item.key)
+        val item = BackgroundWorkRules.of(empty.copy(runtimeTools = RuntimeToolsState(work = downloading))).single()
+        assertEquals("runtime-tools", item.key)
         assertEquals("Installing SSH client", item.heading)
         assertEquals("Downloading 1238 kB · libcbor0.10", item.detail)
-        assertEquals(ICodeIntent.CancelComponents, item.cancel)
-        assertEquals(BackgroundPlace.Components, item.place)
+        assertEquals(ICodeIntent.CancelRuntimeTools, item.cancel)
+        assertEquals(BackgroundPlace.RuntimeTools, item.place)
 
         val installing = downloading.copy(progress = AptProgress(phase = AptPhase.Installing, total = 6, done = 3, item = "libfido2-1"))
-        val counted = BackgroundWorkRules.of(empty.copy(components = RuntimeComponentsState(work = installing))).single()
+        val counted = BackgroundWorkRules.of(empty.copy(runtimeTools = RuntimeToolsState(work = installing))).single()
         assertEquals("Installing SSH client (3 / 6)", counted.heading)
         assertEquals(0.5f, counted.fraction)
         assertEquals(null, counted.cancel)
 
         val failed = installing.copy(failure = "Could not install SSH client: E: Unable to fetch")
-        assertEquals(false, BackgroundWorkRules.of(empty.copy(components = RuntimeComponentsState(work = failed))).single().running)
+        assertEquals(false, BackgroundWorkRules.of(empty.copy(runtimeTools = RuntimeToolsState(work = failed))).single().running)
     }
 
     @Test fun `a place survives the notification that carries it`() {
         listOf(
-            BackgroundPlace.Task(7), BackgroundPlace.Clone, BackgroundPlace.Sync, BackgroundPlace.Runtime, BackgroundPlace.Components,
+            BackgroundPlace.Task(7), BackgroundPlace.Clone, BackgroundPlace.Sync, BackgroundPlace.Runtime, BackgroundPlace.RuntimeTools,
             BackgroundPlace.Assistant,
         ).forEach {
             assertEquals(it, BackgroundPlace.decode(it.encoded()))

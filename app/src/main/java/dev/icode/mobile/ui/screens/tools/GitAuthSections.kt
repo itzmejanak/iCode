@@ -13,7 +13,7 @@ import dev.icode.mobile.designsystem.LabeledTextField
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.NoticeCard
 import dev.icode.mobile.designsystem.StatusLabel
-import dev.icode.mobile.domain.ComponentWork
+import dev.icode.mobile.domain.RuntimeToolWork
 import dev.icode.mobile.domain.GitAuthMethod
 import dev.icode.mobile.domain.GitAuthState
 import dev.icode.mobile.domain.GitProvider
@@ -71,7 +71,7 @@ internal fun AuthenticationSection(
     onGenerateSsh: () -> Unit,
     onOpenHost: (String) -> Unit,
     /** The SSH client's install, while Generate waits on it. */
-    sshClientInstall: ComponentWork? = null,
+    sshClientInstall: RuntimeToolWork? = null,
 ) {
     IcodeSelect(
         options = GitProvider.entries,
