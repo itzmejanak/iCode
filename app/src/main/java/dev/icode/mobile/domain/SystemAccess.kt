@@ -12,8 +12,8 @@ enum class SystemPermission {
     Battery,
 
     /**
-     * All Files Access: reading folders on phone storage — Import. Asked where it is needed, each
-     * time it is needed and missing; never in onboarding.
+     * All Files Access: phone storage, the file explorer's Shared place (docs/storage-explorer-plan.md).
+     * Asked where it is needed, each time it is needed and missing; never in onboarding.
      */
     Storage,
 }
