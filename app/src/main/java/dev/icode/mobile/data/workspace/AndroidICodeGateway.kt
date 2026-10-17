@@ -2,6 +2,8 @@ package dev.icode.mobile.data.workspace
 
 import android.content.Context
 import com.termux.terminal.TerminalSession
+import dev.icode.mobile.data.android.AndroidApps
+import dev.icode.mobile.data.android.ApkInstaller
 import dev.icode.mobile.data.assistant.AssistantCoordinator
 import dev.icode.mobile.data.assistant.tools.AssistantToolbox
 import dev.icode.mobile.data.git.CliGitService
@@ -21,7 +23,6 @@ import dev.icode.mobile.data.runtime.RuntimeCoordinator
 import dev.icode.mobile.data.runtime.RuntimeExecution
 import dev.icode.mobile.data.runtime.RuntimeForegroundService
 import dev.icode.mobile.data.runtime.RuntimeLayout
-import dev.icode.mobile.data.runtime.RuntimePackageInstaller
 import dev.icode.mobile.data.runtime.TerminalCoordinator
 import dev.icode.mobile.data.runtime.TerminalSessionManager
 import dev.icode.mobile.data.search.RipgrepService
@@ -61,7 +62,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     private val source = WorkspaceFileSource(runtimeLayout.workspaces)
     private val settings = AndroidWorkspacePreferencesRepository(appContext)
     /** The runtime's tools, one apt run at a time: Git, the SSH client and search install through it. */
-    private val runtimeTools = RuntimeToolsCoordinator(stateHolder, scope, RuntimePackageInstaller(runtimeLayout, scope), runtimeLayout.toolsOffer)
+    private val runtimeTools = RuntimeToolsCoordinator(stateHolder, scope, runtimeLayout, appContext)
     private val gitCli = CliGitService(runtimeLayout, runtimeTools.installer)
     private val git = GitRepositoryClient(gitCli)
     private val authenticator = GitAuthenticator(runtimeLayout, gitCli, runtimeTools.installer, GitCredentialStore(appContext))
@@ -169,10 +170,12 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
         refreshWorkspaceState = { root -> gitWorkspace.refresh(root) },
         reindex = { root -> search.workspaceChanged(root) },
     )
+    /** Build & Run for Android projects (docs/android-toolchain-plan.md §4.4): the Explorer's ▶ and the assistant's tool. */
+    private val androidApps = AndroidApps(stateHolder, scope, runtimeLayout, execution, ApkInstaller(appContext))
     /** iCode's assistant (docs/assistant-koog-plan.md): its turns are its own jobs, its tools iCode's owners. */
     private val assistant = AssistantCoordinator.create(
         appContext, stateHolder, scope,
-        AssistantToolbox(source, ripgrep, gitCli, execution, runtimeLayout::isInstalled, { documents.blockingEdits(it) != null }) { session.requestRefresh(rebuildIndex = true) },
+        AssistantToolbox(source, ripgrep, gitCli, execution, androidApps, runtimeLayout::isInstalled, { documents.blockingEdits(it) != null }) { session.requestRefresh(rebuildIndex = true) },
         activeRoot = { session.activeRoot },
         source = source, git = gitCli,
     )
@@ -192,6 +195,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
         terminal.follow(scope, settings.values(null).filter { it.loaded && it.loadError == null }.map { it.terminal })
         scope.launch { runtime.reportState() }
         runtimeTools.start()
+        androidApps.start()
         BackgroundWork.follow(appContext, scope, stateHolder.snapshot.map(BackgroundWorkRules::of), ::dispatch)
         library.followAccess()
         assistant.start()
@@ -239,17 +243,16 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
             is ICodeIntent.TransferIntent -> gitTransfers.handle(intent)
             is ICodeIntent.AssistantIntent -> assistant.handle(intent)
             is ICodeIntent.ProcessIntent -> execution.processes.handle(intent)
+            is ICodeIntent.AndroidAppIntent -> androidApps.handle(intent)
             else -> scope.launch {
                 stateHolder.mutations.withLock {
                     when (intent) {
-                        is ICodeIntent.RequestSystemPermission ->
-                            stateHolder.emit(ICodeEffect.RequestSystemPermission(intent.permission))
+                        is ICodeIntent.RequestSystemPermission -> stateHolder.emit(ICodeEffect.RequestSystemPermission(intent.permission))
                         // Android's prompt closed: whatever the answer, the permission has been offered.
                         is ICodeIntent.SystemPermissionAnswered ->
                             stateHolder.emit(ICodeEffect.SystemPermissionResolved(intent.permission, runtime.permissionAnswered(intent.permission)))
                         is ICodeIntent.DeclineSystemPermission -> runtime.declinePermission(intent.permission)
-                        is ICodeIntent.OpenSystemSettings ->
-                            stateHolder.emit(ICodeEffect.OpenSystemSettings(intent.permission))
+                        is ICodeIntent.OpenSystemSettings -> stateHolder.emit(ICodeEffect.OpenSystemSettings(intent.permission))
                         ICodeIntent.RefreshSystemAccess -> runtime.refreshSystemAccess()
                         ICodeIntent.MarkNoticesRead -> notices.markAllRead()
                         is ICodeIntent.DeleteNotice -> notices.delete(intent.id)
@@ -266,8 +269,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
                         is ICodeIntent.RenameWorkspaceItem -> items.rename(intent)
                         is ICodeIntent.ClipboardIntent -> items.clipboard(intent)
                         is ICodeIntent.DeleteWorkspaceItem -> items.delete(intent)
-                        is ICodeIntent.SaveDocument ->
-                            documents.save(intent.location, intent.automatic, intent.expectedText, intent.expectedWorkspace)
+                        is ICodeIntent.SaveDocument -> documents.save(intent.location, intent.automatic, intent.expectedText, intent.expectedWorkspace)
                         is ICodeIntent.RestoreDraft -> recovery.restore(intent.location)
                         is ICodeIntent.OpenRecoverableDraft -> session.openRecoverableDraft(intent.location)
                         is ICodeIntent.DiscardDraft -> recovery.keepDiskVersion(intent.location)
@@ -306,8 +308,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
                         ICodeIntent.CloseConflict -> gitConflicts.close()
                         is ICodeIntent.ResolveConflict -> gitConflicts.resolve(intent.path, intent.sectionStart, intent.choice)
                         is ICodeIntent.MarkConflictResolved -> gitConflicts.markResolved(intent.path)
-                        is ICodeIntent.UpdateCloneForm ->
-                            stateHolder.update { it.copy(cloneUrl = intent.url, cloneName = intent.name, cloneBranch = intent.branch) }
+                        is ICodeIntent.UpdateCloneForm -> stateHolder.update { it.copy(cloneUrl = intent.url, cloneName = intent.name, cloneBranch = intent.branch) }
                         is ICodeIntent.SelectGitProvider -> gitAuth.selectProvider(intent.provider)
                         is ICodeIntent.SelectGitAuthMethod -> gitAuth.selectMethod(intent.method)
                         is ICodeIntent.SaveGitToken -> gitAuth.saveToken(intent.host, intent.username, intent.token)
@@ -322,10 +323,8 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
                         ICodeIntent.ClearAppCache -> library.clearCache()
                         // Repair keeps the home directory, reset does not; both go
                         // through the one installer rather than a second path.
-                        ICodeIntent.RepairRuntime ->
-                            if (runtime.install(RuntimeInstallReason.Repair)) stateHolder.emit(ICodeEffect.RuntimeRebuildStarted)
-                        ICodeIntent.ResetRuntime ->
-                            if (runtime.install(RuntimeInstallReason.Reset)) stateHolder.emit(ICodeEffect.RuntimeRebuildStarted)
+                        ICodeIntent.RepairRuntime -> if (runtime.install(RuntimeInstallReason.Repair)) stateHolder.emit(ICodeEffect.RuntimeRebuildStarted)
+                        ICodeIntent.ResetRuntime -> if (runtime.install(RuntimeInstallReason.Reset)) stateHolder.emit(ICodeEffect.RuntimeRebuildStarted)
                         ICodeIntent.OpenTerminalSession -> terminal.open()
                         ICodeIntent.EnsureTerminalSession -> terminal.ensure()
                         is ICodeIntent.SelectTerminalSession -> terminal.select(intent.id)

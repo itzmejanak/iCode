@@ -3,6 +3,7 @@ package dev.icode.mobile.capture
 import android.annotation.SuppressLint
 import dev.icode.mobile.data.git.GitConflictParser
 import dev.icode.mobile.domain.BrowsedItem
+import dev.icode.mobile.domain.RuntimeInventory
 import dev.icode.mobile.domain.RuntimeToolDownload
 import dev.icode.mobile.domain.Diagnostic
 import dev.icode.mobile.domain.ExternalChange
@@ -121,7 +122,7 @@ object CaptureFixtures {
         // The owner's runtime (2026-09-30): Git, the SSH client and curl installed; ripgrep's
         // download as apt measured it on the phone; the rest still being measured.
         runtimeTools = RuntimeToolsState(
-            installedPackages = setOf("git", "openssh-client", "curl", "ca-certificates"),
+            installed = RuntimeInventory(setOf("git", "openssh-client", "curl", "ca-certificates")),
             downloads = mapOf("ripgrep" to RuntimeToolDownload(mapOf("ripgrep_14.1.0-1_arm64.deb" to 1_455_428L))),
             measuring = true,
         ),

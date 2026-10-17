@@ -14,7 +14,6 @@ import dev.icode.mobile.designsystem.BottomBarItem
 import dev.icode.mobile.designsystem.DiagnosticRow
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeBottomBar
-import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTone
 import dev.icode.mobile.designsystem.IcodeType
@@ -45,7 +44,7 @@ fun ProblemsPanelContent(
                     EmptyState(
                         title = if (diagnostics.isEmpty()) "No diagnostics reported" else "No ${severityLabel(filter).lowercase()} reported",
                         description = if (diagnostics.isEmpty()) {
-                            "Language-server diagnostics are not connected yet; this is not a clean-code check."
+                            "Build & Run lists a build's errors here. Language servers' diagnostics are not connected yet."
                         } else {
                             "Other severity filters may still have reported diagnostics."
                         },

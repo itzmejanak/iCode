@@ -8,9 +8,11 @@ import java.nio.file.Paths
 import java.util.zip.GZIPInputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
+import org.apache.commons.compress.archivers.zip.ZipFile
 
 /**
- * Unpacks the root filesystem directly, without PRoot.
+ * Unpacks a pinned archive directly, without PRoot: the root filesystem (a tar.gz), and the zips a
+ * runtime tool's setup downloads.
  *
  * Extracting through PRoot means every syscall is intercepted with ptrace, and
  * unpacking a base system is thousands of small files — open, write, close,
@@ -26,13 +28,13 @@ import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
  *   is the whole reason `--link2symlink` existed for this step. A copy costs
  *   some space and is correct, where a dangling emulated symlink is not.
  */
-internal class RootfsExtractor {
+internal class ArchiveExtractor {
 
     /**
-     * Extracts [archive] into [target], reporting entries as it goes, and
-     * returns how many it wrote.
+     * Extracts the tar.gz [archive] into [target], reporting entries as it goes,
+     * and returns how many it wrote.
      */
-    fun extract(archive: File, target: File, onEntry: (Long) -> Unit): Long {
+    fun extractTarGz(archive: File, target: File, onEntry: (Long) -> Unit): Long {
         target.mkdirs()
         val root = target.canonicalFile
         var entries = 0L
@@ -60,6 +62,33 @@ internal class RootfsExtractor {
             }
         }
         onEntry(entries)
+        return entries
+    }
+
+    /**
+     * Extracts the zip [archive] into [target]: each entry [place] gives a path for, at that path
+     * under [target] — null leaves it out. Returns how many it wrote. A zip keeps its executable
+     * bits only as Unix modes, which `java.util.zip` cannot read; commons-compress can.
+     */
+    fun extractZip(archive: File, target: File, place: (String) -> String? = { it }): Long {
+        target.mkdirs()
+        val root = target.canonicalFile
+        var entries = 0L
+        ZipFile.builder().setFile(archive).get().use { zip ->
+            zip.entries.asSequence().forEach { entry ->
+                val destination = place(entry.name)?.let { resolve(root, it) } ?: return@forEach
+                when {
+                    entry.isDirectory -> destination.mkdirs()
+                    entry.isUnixSymlink -> writeSymbolicLink(destination, zip.getUnixSymlink(entry))
+                    else -> {
+                        destination.parentFile?.mkdirs()
+                        zip.getInputStream(entry).use { input -> destination.outputStream().buffered().use { input.copyTo(it) } }
+                        if (entry.unixMode and EXECUTE_BITS != 0) destination.setExecutable(true, false)
+                    }
+                }
+                entries++
+            }
+        }
         return entries
     }
 

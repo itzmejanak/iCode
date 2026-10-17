@@ -1,5 +1,7 @@
 package dev.icode.mobile.data.runtime
 
+import android.content.Context
+import dev.icode.mobile.data.android.AndroidSdkSetup
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.RuntimeToolRules
 import dev.icode.mobile.domain.RuntimeTools
@@ -26,15 +28,31 @@ internal class RuntimeToolsCoordinator(
     val installer: RuntimePackageInstaller,
     /** [RuntimeLayout.toolsOffer]: the page offered after a build, until it is answered. */
     private val offer: File,
+    /** A licence's text, by id ([RuntimeLicences]). */
+    private val licenceText: (String) -> String,
 ) {
+    /** The tools catalog's setups ([dev.icode.mobile.domain.RuntimeTool.setup]) and licences, registered in one place. */
+    constructor(stateHolder: ICodeStateHolder, scope: CoroutineScope, layout: RuntimeLayout, context: Context) : this(
+        stateHolder,
+        scope,
+        RuntimePackageInstaller(layout, scope, listOf(AndroidSdkSetup(layout, context))),
+        layout.toolsOffer,
+        licenceText = { RuntimeLicences.text(context, it) },
+    )
+
     private var measureJob: Job? = null
 
     /**
-     * Follows dpkg and the apt run into the snapshot; dpkg is read again whenever the runtime
+     * Reads the licences tools accept, for the License Agreement. Follows what is installed and the
+     * run into the snapshot; what is installed is read again whenever the runtime
      * becomes ready — a rebuilt one has other packages. What a tool would download changes
      * with what is installed.
      */
     fun start() {
+        scope.launch {
+            val licences = RuntimeTools.all.mapNotNull { it.licence }.distinct().associateWith(licenceText)
+            stateHolder.update { it.copy(runtimeTools = it.runtimeTools.copy(licences = licences)) }
+        }
         scope.launch {
             stateHolder.snapshot.map { it.runtime is RuntimeState.Ready }.distinctUntilChanged().collect { installer.refresh() }
         }
@@ -42,10 +60,10 @@ internal class RuntimeToolsCoordinator(
             combine(installer.installed, installer.work, ::Pair).collect { (installed, work) ->
                 stateHolder.update { snapshot ->
                     val before = snapshot.runtimeTools
-                    val changed = installed != before.installedPackages
+                    val changed = installed != before.installed
                     snapshot.copy(
                         runtimeTools = before.copy(
-                            installedPackages = installed,
+                            installed = installed,
                             work = work,
                             downloads = if (changed) emptyMap() else before.downloads,
                             measureFailure = if (changed) null else before.measureFailure,
@@ -59,7 +77,7 @@ internal class RuntimeToolsCoordinator(
     fun handle(intent: ICodeIntent.RuntimeToolsIntent) {
         when (intent) {
             ICodeIntent.MeasureRuntimeTools -> measure()
-            is ICodeIntent.ApplyRuntimeTools -> apply(intent.chosen).also { answered() }
+            is ICodeIntent.ApplyRuntimeTools -> apply(intent.chosen, intent.accepted).also { answered() }
             ICodeIntent.SkipRuntimeTools -> answered()
             ICodeIntent.CancelRuntimeTools -> installer.cancel()
             ICodeIntent.DismissRuntimeTools -> installer.dismiss()
@@ -71,7 +89,7 @@ internal class RuntimeToolsCoordinator(
         if (measureJob?.isActive == true) return
         val tools = stateHolder.current.runtimeTools
         val wanted = RuntimeTools.all.filterNot { tools.isInstalled(it) || it.id in tools.downloads }
-        if (tools.installedPackages == null || wanted.isEmpty()) return
+        if (tools.installed == null || wanted.isEmpty()) return
         measureJob = scope.launch {
             stateHolder.update { it.copy(runtimeTools = it.runtimeTools.copy(measuring = true, measureFailure = null)) }
             try {
@@ -98,10 +116,10 @@ internal class RuntimeToolsCoordinator(
     }
 
     /** A measure still reading the lists would hold up the install behind it; the install reads them itself. */
-    private fun apply(chosen: Set<String>) {
+    private fun apply(chosen: Set<String>, accepted: Set<String>) {
         measureJob?.cancel()
         scope.launch {
-            installer.apply(RuntimeToolRules.plan(chosen, installer.installed.value ?: return@launch))
+            installer.apply(RuntimeToolRules.plan(chosen, installer.installed.value ?: return@launch), accepted)
         }
     }
 }

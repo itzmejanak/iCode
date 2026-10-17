@@ -19,16 +19,31 @@ class RuntimeToolsTest {
     }
 
     @Test fun `a tool is installed only when dpkg has every one of its packages`() {
-        assertTrue(RuntimeToolRules.isInstalled(git, setOf("git", "libc6")))
-        assertFalse(RuntimeToolRules.isInstalled(python, setOf("python3", "python3-pip")))
+        assertTrue(RuntimeToolRules.isInstalled(git, RuntimeInventory(setOf("git", "libc6"))))
+        assertFalse(RuntimeToolRules.isInstalled(python, RuntimeInventory(setOf("python3", "python3-pip"))))
+    }
+
+    @Test fun `a tool with a setup is installed only when its receipt matches too`() {
+        val sdk = RuntimeTools.AndroidSdk
+        assertFalse(RuntimeToolRules.isInstalled(sdk, RuntimeInventory(setOf("openjdk-17-jdk-headless"))))
+        assertFalse("the JDK went with a Repair", RuntimeToolRules.isInstalled(sdk, RuntimeInventory(emptySet(), setOf("android-sdk"))))
+        assertTrue(RuntimeToolRules.isInstalled(sdk, RuntimeInventory(setOf("openjdk-17-jdk-headless"), setOf("android-sdk"))))
+    }
+
+    @Test fun `the Android SDK is opt-in, used by Build & Run, and asks for Google's licence`() {
+        val sdk = RuntimeTools.AndroidSdk
+        assertFalse(sdk.id in RuntimeTools.standard)
+        assertEquals("android-sdk", sdk.setup)
+        assertEquals("android-sdk-license", sdk.licence)
+        assertEquals(listOf("openjdk-17-jdk-headless"), sdk.packages)
     }
 
     @Test fun `the page opens on Standard and on what is installed already`() {
-        assertEquals(RuntimeTools.standard + "curl", RuntimeToolRules.initialChoice(setOf("curl", "ca-certificates")))
+        assertEquals(RuntimeTools.standard + "curl", RuntimeToolRules.initialChoice(RuntimeInventory(setOf("curl", "ca-certificates"))))
     }
 
     @Test fun `a plan installs what is chosen and missing, and removes what is unticked and installed`() {
-        val installed = setOf("git", "ripgrep", "curl", "ca-certificates")
+        val installed = RuntimeInventory(setOf("git", "ripgrep", "curl", "ca-certificates"))
         val plan = RuntimeToolRules.plan(setOf("git", "ssh-client", "python"), installed)
         assertEquals(listOf(ssh, python), plan.install)
         assertEquals(listOf("openssh-client", "python3", "python3-pip", "python3-venv"), plan.installPackages)
@@ -39,7 +54,7 @@ class RuntimeToolsTest {
 
     @Test fun `a package a kept tool also lists is not removed`() {
         val fetch = RuntimeTool("fetch", "Fetch", "", null, listOf("wget", "ca-certificates"))
-        val plan = RuntimeToolRules.plan(setOf("fetch"), setOf("curl", "ca-certificates", "wget"), listOf(curl, fetch))
+        val plan = RuntimeToolRules.plan(setOf("fetch"), RuntimeInventory(setOf("curl", "ca-certificates", "wget")), listOf(curl, fetch))
         assertEquals(listOf(curl), plan.remove)
         assertEquals(listOf("curl"), plan.removePackages)
     }
@@ -78,17 +93,46 @@ class RuntimeToolsTest {
     }
 
     @Test fun `Set Up Tools asks the install type first and lists the tools only for Custom, Runtime Tools lists then confirms`() {
-        assertEquals(listOf(RuntimeToolStep.InstallType, RuntimeToolStep.Verify), RuntimeToolRules.steps(setup = true, custom = false))
+        assertEquals(
+            listOf(RuntimeToolStep.InstallType, RuntimeToolStep.Verify),
+            RuntimeToolRules.steps(setup = true, custom = false, licences = false),
+        )
         assertEquals(
             listOf(RuntimeToolStep.InstallType, RuntimeToolStep.Select, RuntimeToolStep.Verify),
-            RuntimeToolRules.steps(setup = true, custom = true),
+            RuntimeToolRules.steps(setup = true, custom = true, licences = false),
         )
-        assertEquals(listOf(RuntimeToolStep.Select, RuntimeToolStep.Verify), RuntimeToolRules.steps(setup = false, custom = true))
+        assertEquals(
+            listOf(RuntimeToolStep.Select, RuntimeToolStep.Verify),
+            RuntimeToolRules.steps(setup = false, custom = true, licences = false),
+        )
+    }
+
+    @Test fun `installing a tool with a licence ends on the License Agreement`() {
+        val plan = RuntimeToolRules.plan(setOf("git", "android-sdk"), RuntimeInventory(setOf("git")))
+        assertEquals(listOf("android-sdk-license"), plan.licences)
+        assertEquals(emptyList<String>(), RuntimeToolRules.plan(setOf("python"), RuntimeInventory(emptySet())).licences)
+        assertEquals(
+            listOf(RuntimeToolStep.Select, RuntimeToolStep.Verify, RuntimeToolStep.Licence),
+            RuntimeToolRules.steps(setup = false, custom = true, licences = true),
+        )
+    }
+
+    @Test fun `once apt is done the run says its setup's step, share and file, and may be cancelled where the setup says`() {
+        val apt = RuntimeToolWork(RuntimeToolAction.Install, listOf(RuntimeTools.AndroidSdk), AptProgress(phase = AptPhase.Installing, total = 4, done = 4))
+        assertEquals("4 / 4", apt.counts)
+        val setup = apt.copy(setup = ToolSetupProgress("Downloading Android SDK Command-line Tools", 0.25f, "45 of 181 MB", cancellable = true))
+        assertEquals("Downloading Android SDK Command-line Tools", setup.step)
+        assertEquals(0.25f, setup.fraction)
+        assertEquals("45 of 181 MB", setup.item)
+        assertNull(setup.counts)
+        assertTrue(setup.cancellable)
+        assertFalse(setup.copy(setup = ToolSetupProgress("Setting up build tools for ARM64", cancellable = false)).cancellable)
+        assertEquals("Installing Android SDK · Downloading Android SDK Command-line Tools", setup.status)
     }
 
     @Test fun `a row says Installed, Will be removed, its download, or that it is being measured`() {
         val state = RuntimeToolsState(
-            installedPackages = setOf("git"),
+            installed = RuntimeInventory(setOf("git")),
             downloads = mapOf("ssh-client" to RuntimeToolDownload(mapOf("a.deb" to 1_000L, "b.deb" to 500L))),
         )
         assertEquals(RuntimeToolStatus.Installed, RuntimeToolRules.status(git, ticked = true, state))
@@ -99,9 +143,9 @@ class RuntimeToolsTest {
     }
 
     @Test fun `the foot says what the change costs and the space there is`() {
-        val installed = setOf("git", "curl", "ca-certificates")
+        val installed = RuntimeInventory(setOf("git", "curl", "ca-certificates"))
         val state = RuntimeToolsState(
-            installedPackages = installed,
+            installed = installed,
             downloads = mapOf("ssh-client" to RuntimeToolDownload(mapOf("ssh.deb" to 2_048L))),
         )
         val plan = RuntimeToolRules.plan(setOf("git", "ssh-client"), installed)

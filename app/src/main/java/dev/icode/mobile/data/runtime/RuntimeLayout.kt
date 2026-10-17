@@ -33,6 +33,12 @@ internal class RuntimeLayout(context: Context) {
     /** Every workspace, bound whole at `/workspace` in every launch. */
     val workspaces = WorkspacePaths.of(appContext)
 
+    /** The guest home, `/root`: Repair keeps it ([RuntimeHomeBackup]). */
+    val home: File = File(rootfs, GUEST_HOME.removePrefix("/"))
+
+    /** Each runtime tool setup's receipt, by id: `~/.icode/runtime-tools/<id>` (docs/android-toolchain-plan.md §4.2). */
+    val toolReceipts: File = File(home, ".icode/runtime-tools")
+
     /** Marks a verified, fully extracted root filesystem. */
     val installMarker: File = File(runtimeRoot, "installed.json")
 

@@ -66,13 +66,21 @@ sealed interface ICodeIntent {
     sealed interface RuntimeToolsIntent : ICodeIntent
     /** What each tool not installed would download; the lists are read first when needed. */
     data object MeasureRuntimeTools : RuntimeToolsIntent
-    /** Install what [chosen] adds, remove what it leaves out. */
-    data class ApplyRuntimeTools(val chosen: Set<String>) : RuntimeToolsIntent
+    /** Install what [chosen] adds, remove what it leaves out; [accepted] are the licences the user accepted. */
+    data class ApplyRuntimeTools(val chosen: Set<String>, val accepted: Set<String> = emptySet()) : RuntimeToolsIntent
     data object CancelRuntimeTools : RuntimeToolsIntent
     /** The page offered after a runtime build is answered without installing anything. */
     data object SkipRuntimeTools : RuntimeToolsIntent
     /** A failure, read. */
     data object DismissRuntimeTools : RuntimeToolsIntent
+    /** Build & Run (docs/android-toolchain-plan.md §4.4): it never waits on the mutation lock. */
+    sealed interface AndroidAppIntent : ICodeIntent
+    /** Builds the open workspace's Android app, then installs and opens it. */
+    data object BuildAndRunAndroidApp : AndroidAppIntent
+    /** Android's confirmation of its install, opened again from iCode's screen. */
+    data object ConfirmAndroidAppInstall : AndroidAppIntent
+    /** Its failure read, or its install cancelled. */
+    data object DismissAndroidAppRun : AndroidAppIntent
     data class UpdateDocumentText(val location: String, val text: String) : ICodeIntent
     /** Automatic requests carry the revision they observed; a later edit must start its own timer. */
     data class SaveDocument(

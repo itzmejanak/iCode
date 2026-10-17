@@ -24,6 +24,6 @@ class Sha256Test {
     fun `a file read in chunks hashes as its bytes do`() {
         val bytes = ByteArray(3 * DEFAULT_BUFFER_SIZE + 17) { (it * 31).toByte() }
         val file = File(temporaryFolder.root, "blob").apply { writeBytes(bytes) }
-        assertEquals(Sha256.hex(bytes), Sha256.hexOf(file))
+        assertEquals(Sha256.hex(bytes), hexDigestOf(file, DigestAlgorithm.Sha256))
     }
 }

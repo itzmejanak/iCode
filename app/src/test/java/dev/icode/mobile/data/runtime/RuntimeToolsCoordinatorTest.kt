@@ -2,8 +2,10 @@ package dev.icode.mobile.data.runtime
 
 import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.workspace.ICodeStateHolder
-import dev.icode.mobile.domain.RuntimeToolsState
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.RuntimeInventory
+import dev.icode.mobile.domain.RuntimeToolsState
+import dev.icode.mobile.domain.ToolSetupProgress
 import java.io.File
 import java.util.Collections
 import kotlinx.coroutines.CoroutineScope
@@ -23,19 +25,35 @@ class RuntimeToolsCoordinatorTest {
     private val stateHolder = ICodeStateHolder()
     private val installed: MutableSet<String> = Collections.synchronizedSet(mutableSetOf("git"))
 
-    /** apt as it answers the page: sizes for what is missing, and an install that lands. */
-    private val installer = RuntimePackageInstaller(scope, { true }, { installed.toSet() }) { argv, onLine ->
-        val packages = argv.filterNot { it.startsWith("-") }.drop(2)
-        when {
-            "--print-uris" in argv -> packages.filterNot { it in installed }
-                .forEach { onLine("'http://ports.ubuntu.com/$it.deb' ${it}_1_arm64.deb 2000 MD5Sum:0") }
-            "-d" in argv -> Unit
-            argv[1] == "install" -> installed += packages
-        }
-        GuestCommand.Result(0, "", false)
+    /** The catalog's one setup, as the page measures it. */
+    private val sdk = object : RuntimeToolSetup {
+        override val id = "android-sdk"
+        override val receipt = "sdk 1\n"
+        override fun measure() = mapOf("sdk.zip" to 7_000L)
+        override suspend fun install(onProgress: (ToolSetupProgress) -> Unit, onLine: (String) -> Unit) = Unit
+        override fun configure() = Unit
+        override suspend fun remove() = Unit
     }
+
+    /** apt as it answers the page: sizes for what is missing, and an install that lands. */
+    private val installer = RuntimePackageInstaller(
+        scope,
+        { true },
+        { installed.toSet() },
+        { argv, onLine ->
+            val packages = argv.filterNot { it.startsWith("-") }.drop(2)
+            when {
+                "--print-uris" in argv -> packages.filterNot { it in installed }
+                    .forEach { onLine("'http://ports.ubuntu.com/$it.deb' ${it}_1_arm64.deb 2000 MD5Sum:0") }
+                "-d" in argv -> Unit
+                argv[1] == "install" -> installed += packages
+            }
+            GuestCommand.Result(0, "", false)
+        },
+        ToolSetups(listOf(sdk), File.createTempFile("receipts", "").apply { delete(); deleteOnExit() }),
+    )
     private val offer: File = File.createTempFile("tools-offer", "").apply { deleteOnExit() }
-    private val coordinator = RuntimeToolsCoordinator(stateHolder, scope, installer, offer)
+    private val coordinator = RuntimeToolsCoordinator(stateHolder, scope, installer, offer) { "The text of $it" }
 
     @Before fun quietLog() {
         BackendLog.writer = { _, _, _ -> }
@@ -56,18 +74,41 @@ class RuntimeToolsCoordinatorTest {
         }
     }
 
-    @Test fun `the page sees what dpkg has, what the rest would download, and an install that lands`() {
+    @Test fun `the page sees what is installed, what the rest would download, and an install that lands`() {
         coordinator.start()
-        until { tools().installedPackages == setOf("git") }
+        until { tools().installed == RuntimeInventory(setOf("git")) }
 
         coordinator.handle(ICodeIntent.MeasureRuntimeTools)
         until { !tools().measuring && tools().downloads.isNotEmpty() }
         assertFalse("an installed tool is not measured", "git" in tools().downloads)
         assertEquals(mapOf("ripgrep_1_arm64.deb" to 2000L), tools().downloads.getValue("ripgrep").archives)
+        assertEquals(
+            "apt's archives, then its setup's",
+            mapOf("openjdk-17-jdk-headless_1_arm64.deb" to 2000L, "sdk.zip" to 7_000L),
+            tools().downloads.getValue("android-sdk").archives,
+        )
 
         coordinator.handle(ICodeIntent.ApplyRuntimeTools(setOf("git", "ripgrep")))
-        until { "ripgrep" in tools().installedPackages.orEmpty() && tools().work == null }
+        until { "ripgrep" in tools().installed?.packages.orEmpty() && tools().work == null }
         assertTrue("what is installed changed: the sizes are measured again", tools().downloads.isEmpty())
+    }
+
+    @Test fun `each licence a tool accepts is read for the License Agreement`() {
+        coordinator.start()
+        until { tools().licences.isNotEmpty() }
+        assertEquals(mapOf("android-sdk-license" to "The text of android-sdk-license"), tools().licences)
+    }
+
+    @Test fun `the Android SDK is installed only with its licence accepted`() {
+        coordinator.start()
+        until { tools().installed != null }
+        coordinator.handle(ICodeIntent.ApplyRuntimeTools(setOf("git", "android-sdk")))
+        until { tools().work?.failure != null }
+        assertEquals("Android SDK installs only once its licence is accepted, in Runtime Tools", tools().work?.failure)
+        coordinator.handle(ICodeIntent.DismissRuntimeTools)
+        coordinator.handle(ICodeIntent.ApplyRuntimeTools(setOf("git", "android-sdk"), accepted = setOf("android-sdk-license")))
+        until { tools().installed?.setups == setOf("android-sdk") && tools().work == null }
+        assertTrue("openjdk-17-jdk-headless" in tools().installed!!.packages)
     }
 
     @Test fun `the offer after a build is answered once, by Skip or by Apply`() {

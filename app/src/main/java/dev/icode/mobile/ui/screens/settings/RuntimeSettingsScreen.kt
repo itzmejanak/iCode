@@ -168,7 +168,7 @@ private const val CHECKING = "Checking…"
 
 /** "2 of 6 installed: Git, SSH client". */
 private fun toolsSummary(tools: RuntimeToolsState): String {
-    if (tools.installedPackages == null) return CHECKING
+    if (tools.installed == null) return CHECKING
     val installed = RuntimeTools.all.filter(tools::isInstalled)
     val count = "${installed.size} of ${RuntimeTools.all.size} installed"
     return if (installed.isEmpty()) count else "$count: ${installed.joinToString { it.name }}"

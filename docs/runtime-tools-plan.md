@@ -335,3 +335,15 @@ software"
 - **Type-check.** The page and its parts type-check against Compose's desktop jars.
 - **Guards.** Both pass.
 - **Not checked here.** The phone: the owner walks Set Up Tools (Standard; Custom, then Verify, Install, Finish) and Runtime Tools (untick, Apply, Confirm Changes, then Done).
+
+### 8.5 A tool with a setup and a licence (2026-10-17)
+
+The Android SDK tool ([android-toolchain-plan.md](./android-toolchain-plan.md) §4.1) brings two things to this page:
+
+- **A last step, License Agreement**, as Android Studio's.
+  - It appears whenever what is installed has a licence: `RuntimeToolRules.steps(setup, custom, licences)`.
+  - For each licence it shows the id, the tools that need it and the text in a scrolling box, with **Decline** and **Accept**.
+  - Install or Apply stays disabled until each is accepted. Verify Settings and Confirm Changes then say Next.
+- **The progress of the setup after apt.** `RuntimeToolWork.step`, `fraction`, `item` and `counts` read apt's progress, then the setup's. Show Details shows the last lines of either.
+  - Cancel follows the setup's step. While one runs that cannot be stopped, the line reads "This step can't be stopped".
+- **Installed** now reads `RuntimeInventory`: dpkg's packages and the setups whose receipt matches.

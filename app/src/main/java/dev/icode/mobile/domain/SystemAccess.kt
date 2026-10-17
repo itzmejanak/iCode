@@ -16,6 +16,12 @@ enum class SystemPermission {
      * Asked where it is needed, each time it is needed and missing; never in onboarding.
      */
     Storage,
+
+    /**
+     * Install unknown apps: Build & Run installs the app it built (docs/android-toolchain-plan.md
+     * §4.5). Asked where it is needed, each time it is needed and missing; never in onboarding.
+     */
+    InstallApps,
 }
 
 /**
@@ -28,6 +34,7 @@ data class SystemAccess(
     val notifications: Boolean,
     val unrestrictedBattery: Boolean,
     val storage: Boolean = false,
+    val installApps: Boolean = false,
     /** Onboarding's permissions it has already offered; each is offered once. */
     val offered: Set<SystemPermission> = emptySet(),
 ) {
@@ -35,6 +42,7 @@ data class SystemAccess(
         SystemPermission.Notifications -> notifications
         SystemPermission.Battery -> unrestrictedBattery
         SystemPermission.Storage -> storage
+        SystemPermission.InstallApps -> installApps
     }
 
     /**
@@ -46,7 +54,7 @@ data class SystemAccess(
         get() = ONBOARDING.filter { permission -> !granted(permission) && permission !in offered }
 
     private companion object {
-        /** Storage is not among them: Import asks for it where it is needed. */
+        /** Storage and InstallApps are not among them: each is asked where it is needed. */
         val ONBOARDING = listOf(SystemPermission.Notifications, SystemPermission.Battery)
     }
 }
