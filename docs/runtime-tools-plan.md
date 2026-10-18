@@ -76,6 +76,7 @@ component is one entry. The first catalog (§5 D1):
 | Git | `git` | Source Control, Clone, Pull, Push | ✓ |
 | SSH client | `openssh-client` | SSH keys, `git@` remotes | ✓ |
 | ripgrep | `ripgrep` | Workspace search | ✓ |
+| GnuPG | `gpg`, `gpg-agent` | Signed commits, the passphrase asked in iCode ([gpg-signing-plan.md](./gpg-signing-plan.md), 2026-10-18) | |
 | curl | `curl`, `ca-certificates` | — (downloads, installers such as nvm) | |
 | Python 3 | `python3`, `python3-pip`, `python3-venv` | — | |
 | Build tools | `build-essential` | — (native npm and pip modules compile with it) | |

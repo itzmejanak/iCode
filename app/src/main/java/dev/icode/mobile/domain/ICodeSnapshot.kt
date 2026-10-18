@@ -68,6 +68,8 @@ data class ICodeSnapshot(
     val runtimeTools: RuntimeToolsState = RuntimeToolsState(),
     /** The Run tab: what the open workspace can start, and how each run went. */
     val run: RunState = RunState(),
+    /** What gpg-agent asks through iCode's pinentry, oldest first: the dialog shows the first. */
+    val gpgPrompts: List<GpgPrompt> = emptyList(),
     /**
      * Whether the `git` binary exists in the runtime; null until checked.
      *

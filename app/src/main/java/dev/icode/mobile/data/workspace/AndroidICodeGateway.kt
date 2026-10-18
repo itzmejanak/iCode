@@ -37,6 +37,7 @@ import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.RuntimeInstallReason
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeGateway
+import dev.icode.mobile.domain.GpgIntent
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.ICodeSnapshot
 import java.io.File
@@ -57,7 +58,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     private val store: WorkspaceStore = SharedPreferencesWorkspaceStore(appContext)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val runtimeLayout = RuntimeLayout(appContext)
-    private val execution = RuntimeExecution(runtimeLayout, scope) { list -> stateHolder.update { it.copy(processes = list) } }
+    private val execution = RuntimeExecution(runtimeLayout, scope, stateHolder)
     private val source = WorkspaceFileSource(runtimeLayout.workspaces)
     private val settings = AndroidWorkspacePreferencesRepository(appContext)
     /** The runtime's tools, one apt run at a time: Git, the SSH client and search install through it. */
@@ -243,6 +244,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
             is ICodeIntent.AssistantIntent -> assistant.handle(intent)
             is ICodeIntent.ProcessIntent -> execution.processes.handle(intent)
             is ICodeIntent.RunIntent -> runs.handle(intent)
+            is GpgIntent -> execution.gpg.handle(intent)
             else -> scope.launch {
                 stateHolder.mutations.withLock {
                     when (intent) {

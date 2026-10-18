@@ -192,6 +192,7 @@ internal class RuntimeInstaller(
         File(layout.rootfs, RuntimeHomeBackup.HOME_RELATIVE).mkdirs()
         layout.ensureGuestGroups()
         GuestSudo.install(layout.rootfs)
+        GuestGpg.install(appContext, layout.rootfs)
         // dpkg syncs every file it unpacks, and on the phone's flash those syncs
         // dominate an install (measured: git 152 s with them, 84 s without).
         // The package database is rebuildable — Repair Runtime exists for a
