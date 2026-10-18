@@ -3,13 +3,17 @@ package dev.icode.mobile.ui.screens.workspace
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.MoreVert
@@ -32,17 +36,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
+import dev.icode.mobile.designsystem.BottomBarEntry
+import dev.icode.mobile.designsystem.BottomBarItem
 import dev.icode.mobile.designsystem.BottomPanelBar
 import dev.icode.mobile.designsystem.CodeSurface
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeSaveDiscardDialog
+import dev.icode.mobile.designsystem.IcodeSheetOverlay
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.domain.FileTypes
+import dev.icode.mobile.domain.LineDiff
+import dev.icode.mobile.domain.StageLineChange
 import dev.icode.mobile.domain.countOf
+import dev.icode.mobile.domain.markedLine
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.navigation.ToolPanelTab
@@ -55,6 +65,7 @@ import dev.icode.mobile.ui.editor.EditorCanvas
 import dev.icode.mobile.ui.editor.MarkdownPreview
 
 /** Editor with tab strip, syntax-highlighted document and panel bar. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun WorkspaceEditorScreen(actions: NavigationActions) {
     val state = LocalICodeSnapshot.current
@@ -72,6 +83,15 @@ fun WorkspaceEditorScreen(actions: NavigationActions) {
             markdownPreview = false
             handledRevealVersion = version
         }
+    }
+    // The file's Git changes (docs/editor-plan.md §3), and the one the change sheet shows.
+    val lineChanges = document?.let { state.lineChanges[it.location] }
+    val changes = lineChanges?.changes.orEmpty()
+    var changeIndex by rememberSaveable(document?.location) { mutableStateOf<Int?>(null) }
+    val shownChange = changeIndex?.takeIf { changes.isNotEmpty() }?.coerceAtMost(changes.lastIndex)
+    val showChange: (Int) -> Unit = { index ->
+        changeIndex = index
+        activeSession?.revealAt(changes[index].markedLine + 1, 0)
     }
     var pendingClose by rememberSaveable { mutableStateOf<String?>(null) }
     var closeOthers by rememberSaveable { mutableStateOf(false) }
@@ -110,75 +130,108 @@ fun WorkspaceEditorScreen(actions: NavigationActions) {
             onDismiss = { closeOthers = false },
         )
     }
-    Column(Modifier.fillMaxSize()) {
-        IcodeTopBar(
-            title = title,
-            actions = {
-                IconButton(
-                    enabled = document?.let { it.dirty && !it.readOnly } ?: false,
-                    onClick = { document?.let { gateway.dispatch(ICodeIntent.SaveDocument(it.location)) } },
-                ) {
-                    Icon(Icons.Outlined.Save, contentDescription = "Save", tint = IcodeColors.TextPrimary)
-                }
-                IconButton(onClick = { actions.navigate(Route.EditorFind) }) {
-                    Icon(Icons.Outlined.Search, contentDescription = "Find", tint = IcodeColors.TextPrimary)
-                }
-                IconButton(onClick = { actions.navigate(Route.CommandPalette) }) {
-                    Icon(Icons.Outlined.MoreVert, contentDescription = "Commands", tint = IcodeColors.TextPrimary)
-                }
-            },
-        )
-        DocumentTabStrip(
-            documents = state.openDocuments,
-            selectedLocation = document?.location,
-            onSelect = { gateway.dispatch(ICodeIntent.SelectDocument(it)) },
-            onReorder = { moving, target -> gateway.dispatch(ICodeIntent.ReorderDocument(moving, target)) },
-            onClose = { location ->
-                if (state.openDocuments.any { it.location == location && it.dirty }) pendingClose = location
-                else gateway.dispatch(ICodeIntent.CloseDocument(location))
-            },
-            onCloseOthers = {
-                if (document != null) {
-                    if (state.openDocuments.any { it.location != document.location && it.dirty }) closeOthers = true
-                    else gateway.dispatch(ICodeIntent.CloseOtherDocuments(document.location))
-                }
-            },
-            onCloseSaved = { gateway.dispatch(ICodeIntent.CloseSavedDocuments) },
-            onNewFile = { showCreateFile = true },
-        )
-        if (document == null) {
-            NoDocumentContent(Modifier.weight(1f))
-        } else {
-            if (markdownPreview && isMarkdown) {
-                MarkdownPreview(
-                    text = document.text,
-                    fontSizeSp = editorPreferences.fontSizeSp,
-                    fontScale = markdownScale,
-                    onScale = { markdownScale = (markdownScale * it).coerceIn(0.6f, 2.4f) },
-                    modifier = Modifier.weight(1f),
-                )
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize()) {
+            IcodeTopBar(
+                title = title,
+                actions = {
+                    IconButton(
+                        enabled = document?.let { it.dirty && !it.readOnly } ?: false,
+                        onClick = { document?.let { gateway.dispatch(ICodeIntent.SaveDocument(it.location)) } },
+                    ) {
+                        Icon(Icons.Outlined.Save, contentDescription = "Save", tint = IcodeColors.TextPrimary)
+                    }
+                    IconButton(onClick = { actions.navigate(Route.EditorFind) }) {
+                        Icon(Icons.Outlined.Search, contentDescription = "Find", tint = IcodeColors.TextPrimary)
+                    }
+                    IconButton(onClick = { actions.navigate(Route.CommandPalette) }) {
+                        Icon(Icons.Outlined.MoreVert, contentDescription = "Commands", tint = IcodeColors.TextPrimary)
+                    }
+                },
+            )
+            DocumentTabStrip(
+                documents = state.openDocuments,
+                selectedLocation = document?.location,
+                onSelect = { gateway.dispatch(ICodeIntent.SelectDocument(it)) },
+                onReorder = { moving, target -> gateway.dispatch(ICodeIntent.ReorderDocument(moving, target)) },
+                onClose = { location ->
+                    if (state.openDocuments.any { it.location == location && it.dirty }) pendingClose = location
+                    else gateway.dispatch(ICodeIntent.CloseDocument(location))
+                },
+                onCloseOthers = {
+                    if (document != null) {
+                        if (state.openDocuments.any { it.location != document.location && it.dirty }) closeOthers = true
+                        else gateway.dispatch(ICodeIntent.CloseOtherDocuments(document.location))
+                    }
+                },
+                onCloseSaved = { gateway.dispatch(ICodeIntent.CloseSavedDocuments) },
+                onNewFile = { showCreateFile = true },
+            )
+            if (document == null) {
+                NoDocumentContent(Modifier.weight(1f))
             } else {
-                EditorCanvas(
-                    session = requireNotNull(activeSession),
-                    document = document,
-                    onTextChanged = { gateway.dispatch(ICodeIntent.UpdateDocumentText(document.location, it)) },
-                    // A little of the editor's own background above the first line: the selected
-                    // tab flows into the editor, and line 1 does not sit against the tab bar.
-                    modifier = Modifier.weight(1f).background(IcodeColors.BackgroundDeep).padding(top = IcodeSpacing.Space1),
-                )
+                if (markdownPreview && isMarkdown) {
+                    MarkdownPreview(
+                        text = document.text,
+                        fontSizeSp = editorPreferences.fontSizeSp,
+                        fontScale = markdownScale,
+                        onScale = { markdownScale = (markdownScale * it).coerceIn(0.6f, 2.4f) },
+                        modifier = Modifier.weight(1f),
+                    )
+                } else {
+                    EditorCanvas(
+                        session = requireNotNull(activeSession),
+                        document = document,
+                        onTextChanged = { gateway.dispatch(ICodeIntent.UpdateDocumentText(document.location, it)) },
+                        // A little of the editor's own background above the first line: the selected
+                        // tab flows into the editor, and line 1 does not sit against the tab bar.
+                        modifier = Modifier.weight(1f).background(IcodeColors.BackgroundDeep).padding(top = IcodeSpacing.Space1),
+                        changes = changes,
+                        onChangeTapped = { changeIndex = it },
+                    )
+                }
+                activeSession?.coloringError?.let { error ->
+                    MonoLine(error, color = IcodeColors.Amber, style = IcodeType.MonoSmall)
+                }
             }
-            activeSession?.coloringError?.let { error ->
-                MonoLine(error, color = IcodeColors.Amber, style = IcodeType.MonoSmall)
+            // While the keyboard is open the keys row takes the bottom bar's place (docs/editor-plan.md §4).
+            val typing = WindowInsets.isImeVisible && document?.readOnly == false && !(markdownPreview && isMarkdown)
+            if (typing && editorPreferences.keys.isNotEmpty()) {
+                EditorKeyRow(editorPreferences.keys, onKey = { activeSession?.press(it) })
+            } else {
+                BottomPanelBar(
+                    problemCount = state.diagnostics.size,
+                    onTerminal = { actions.openPanel(ToolPanelTab.Terminal) },
+                    onProblems = { actions.openPanel(ToolPanelTab.Problems) },
+                    trailing = if (isMarkdown || changes.isNotEmpty()) {
+                        {
+                            if (changes.isNotEmpty()) {
+                                BottomBarEntry(
+                                    BottomBarItem(countOf(changes.size, "change"), onClick = {
+                                        LineDiff.nextChange(changes, activeSession?.caretLine ?: 0)?.let(showChange)
+                                    }),
+                                )
+                            }
+                            if (isMarkdown) MarkdownModeToggle(showingPreview = markdownPreview, onToggle = { markdownPreview = !markdownPreview })
+                        }
+                    } else null,
+                )
             }
         }
-        BottomPanelBar(
-            problemCount = state.diagnostics.size,
-            onTerminal = { actions.openPanel(ToolPanelTab.Terminal) },
-            onProblems = { actions.openPanel(ToolPanelTab.Problems) },
-            trailing = if (isMarkdown) {
-                { MarkdownModeToggle(showingPreview = markdownPreview, onToggle = { markdownPreview = !markdownPreview }) }
-            } else null,
-        )
+        if (shownChange != null && document != null && lineChanges != null) {
+            val close = { changeIndex = null }
+            IcodeSheetOverlay(onClose = close) {
+                EditorChangeSheet(
+                    changes = changes,
+                    index = shownChange,
+                    onRevert = { activeSession?.revert(it, lineChanges.base) },
+                    onStage = { gateway.dispatch(StageLineChange(document.location, it)) },
+                    onShow = showChange,
+                    onClose = close,
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                )
+            }
+        }
     }
     if (showCreateFile) CreateFileDialog(parentLocation = null, onDismiss = { showCreateFile = false })
 }

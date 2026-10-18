@@ -2,38 +2,41 @@ package dev.icode.mobile.ui.editor
 
 import android.content.Context
 import android.graphics.Typeface
+import android.text.InputType
 import android.util.Log
 import android.util.TypedValue
-import android.view.ViewGroup
 import androidx.core.content.res.ResourcesCompat
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.key
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.graphics.toArgb
 import dev.icode.mobile.designsystem.IcodePalette
 import dev.icode.mobile.R
 import dev.icode.mobile.domain.EditorFontFamily
+import dev.icode.mobile.domain.EditorKey
 import dev.icode.mobile.domain.EditorSettings
+import dev.icode.mobile.domain.EditorTextRules
 import dev.icode.mobile.domain.FileTypes
+import dev.icode.mobile.domain.GitDiffHunk
+import dev.icode.mobile.domain.LineDiff
+import dev.icode.mobile.domain.LineEnding
 import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.domain.SettingLimits
 import dev.icode.mobile.domain.IndentType
 import dev.icode.mobile.domain.WorkspacePreferences
+import io.github.rosemoe.sora.event.ClickEvent
 import io.github.rosemoe.sora.event.ContentChangeEvent
+import io.github.rosemoe.sora.event.EditorMotionEvent
 import io.github.rosemoe.sora.lang.EmptyLanguage
 import io.github.rosemoe.sora.langs.textmate.TextMateLanguage
 import io.github.rosemoe.sora.langs.textmate.registry.ThemeRegistry
-import io.github.rosemoe.sora.widget.CodeEditor
+import io.github.rosemoe.sora.text.LineSeparator
+import io.github.rosemoe.sora.widget.SelectionMovement
 
 /** One view/content/undo history shared by the Editor and Find routes. */
 class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePalette.Dark) {
-    val editor = CodeEditor(context)
+    internal val editor = IcodeCodeEditor(context)
     var coloringError: String? by mutableStateOf(null)
         private set
 
@@ -44,6 +47,12 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
     private var pendingReveal: Pair<Int, Int>? = null
     private var onTextChanged: (String) -> Unit = {}
     private val plainTextLanguage = ConfigurablePlainTextLanguage()
+    /** The file's grammar while it has one: its indentation follows the settings. */
+    private var textMate: TextMateLanguage? = null
+    /** Text the backend already holds — the disk's, the assistant's, a restored draft — is going in: not the user's typing. */
+    private var applyingOutside = false
+    /** A tap on a changed line's gutter: which change; null leaves the gutter to Sora. */
+    var onChangeTapped: ((Int) -> Unit)? = null
     private var preferences = WorkspacePreferences()
     private var appliedEditorSettings: EditorSettings? = null
     private var appliedPalette: IcodePalette? = null
@@ -68,16 +77,25 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
         editor.setEditorLanguage(plainTextLanguage)
         applyPalette(initialPalette)
         editor.subscribeEvent(ContentChangeEvent::class.java) { event, _ ->
-            if (event.action != ContentChangeEvent.ACTION_SET_NEW_TEXT) {
+            if (event.action != ContentChangeEvent.ACTION_SET_NEW_TEXT && !applyingOutside) {
                 val text = editor.text.toString()
                 pendingLocalText = text
                 onTextChanged(text)
             }
         }
+        editor.subscribeEvent(ClickEvent::class.java) { event, _ ->
+            val tapped = onChangeTapped ?: return@subscribeEvent
+            if (event.motionRegion !in GUTTER) return@subscribeEvent
+            val index = LineDiff.changeAt(editor.changes, event.line) ?: return@subscribeEvent
+            // The sheet opens instead of the caret moving and the keyboard rising.
+            event.intercept()
+            tapped(index)
+        }
     }
 
     fun bind(document: OpenDocument, onChange: (String) -> Unit) {
         onTextChanged = onChange
+        separateLinesAs(document.lineEnding)
         if (location != document.location) {
             location = document.location
             acceptedText = document.text
@@ -94,7 +112,7 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
                 pendingLocalText != null -> acceptedText = document.text
                 document.text != acceptedText -> {
                     acceptedText = document.text
-                    editor.setText(document.text)
+                    applyOutside(viewText, document.text)
                     applyLanguage(document)
                 }
             }
@@ -108,6 +126,59 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
             pendingReveal = null
         }
     }
+
+    /**
+     * Text from outside the editor, as the smallest edit between what it shows and [text]: the
+     * caret and what is around it stay, and Undo brings the old text back (docs/editor-plan.md §2).
+     */
+    private fun applyOutside(viewText: String, text: String) {
+        val edit = EditorTextRules.splice(viewText, text) ?: return
+        applyingOutside = true
+        try {
+            editor.text.replace(edit.start, edit.end, edit.replacement)
+        } finally {
+            applyingOutside = false
+        }
+    }
+
+    /** New lines — Enter, typed, pasted — take the file's line break, as it is saved with it. */
+    private fun separateLinesAs(ending: LineEnding) {
+        editor.separator = EditorTextRules.separatorOf(ending)
+        editor.lineSeparator = when (ending) {
+            LineEnding.CrLf -> LineSeparator.CRLF
+            LineEnding.Cr -> LineSeparator.CR
+            LineEnding.Lf, LineEnding.None -> LineSeparator.LF
+        }
+    }
+
+    /** [change] undone in the editor — an edit, so Undo brings it back; false when the text no longer holds it. */
+    fun revert(change: GitDiffHunk, base: String): Boolean {
+        val viewText = editor.text.toString()
+        val reverted = LineDiff.revert(viewText, base, change) ?: return false
+        EditorTextRules.splice(viewText, reverted)?.let { editor.text.replace(it.start, it.end, it.replacement) }
+        editor.notifyIMEExternalCursorChange()
+        return true
+    }
+
+    /** A key of the keys row (docs/editor-plan.md §4): as from a keyboard, so the editor's rules apply. */
+    fun press(key: EditorKey) {
+        if (!editor.isEditable) return
+        when (key) {
+            EditorKey.Tab -> editor.indentOrCommitTab()
+            EditorKey.Outdent -> editor.unindentSelection()
+            EditorKey.Left -> editor.moveSelection(SelectionMovement.LEFT)
+            EditorKey.Up -> editor.moveSelection(SelectionMovement.UP)
+            EditorKey.Down -> editor.moveSelection(SelectionMovement.DOWN)
+            EditorKey.Right -> editor.moveSelection(SelectionMovement.RIGHT)
+            EditorKey.Undo -> return editor.undo()
+            EditorKey.Redo -> return editor.redo()
+            else -> editor.commitText(checkNotNull(key.text))
+        }
+        editor.notifyIMEExternalCursorChange()
+    }
+
+    /** The caret's line, counted from 0: where the changes count starts. */
+    val caretLine: Int get() = editor.cursor.leftLine
 
     /** Apply a search-result location after the document has been bound to this view. */
     fun revealAt(lineNumber: Int, column: Int) {
@@ -136,11 +207,18 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
             editor.requestLayout()
             editor.invalidate()
         }
+        if (previous?.keyboardSuggestions != settings.keyboardSuggestions) {
+            editor.inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE or
+                if (settings.keyboardSuggestions) 0 else InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
+            // An open keyboard reads the input type only when it starts again.
+            if (previous != null) editor.restartInput()
+        }
+        editor.props.symbolPairAutoCompletion = settings.autoCloseBrackets
         appliedEditorSettings = settings
         preferences = next
         editor.setTabWidth(next.effectiveIndentSize)
         plainTextLanguage.tabs = next.effectiveIndentType == IndentType.Tabs
-        (editor.editorLanguage as? TextMateLanguage)?.apply {
+        textMate?.apply {
             setTabSize(next.effectiveIndentSize)
             useTab(next.effectiveIndentType == IndentType.Tabs)
         }
@@ -149,6 +227,7 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
     /** Recolor the native view in place; never replace its text or history. */
     fun applyPalette(next: IcodePalette) {
         if (appliedPalette == next) return
+        editor.markerColors = MarkerColors(next.green.toArgb(), next.blue.toArgb(), next.error.toArgb())
         coloringError = runCatching {
             TextMateAssets.setTheme(next)
             editor.colorScheme = PaletteColorScheme(ThemeRegistry.getInstance(), next)
@@ -167,26 +246,33 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
         if (nextScope == scope) return
         scope = nextScope
         if (nextScope == null || coloringError != null) {
-            editor.setEditorLanguage(plainTextLanguage)
+            usePlainText()
             return
         }
         // The text shows at once; its colours follow when the grammars have loaded (TextMateAssets).
-        if (!TextMateAssets.grammarsReady) editor.setEditorLanguage(plainTextLanguage)
+        if (!TextMateAssets.grammarsReady) usePlainText()
         TextMateAssets.whenGrammarsLoaded(editor.context) { failure ->
             // Another file, or none, since the request: its own request applies instead.
             if (scope != nextScope || released) return@whenGrammarsLoaded
             runCatching {
                 failure?.let { throw it }
-                editor.setEditorLanguage(TextMateLanguage.create(nextScope, false).apply {
+                val grammar = TextMateLanguage.create(nextScope, false).apply {
                     setTabSize(preferences.effectiveIndentSize)
                     useTab(preferences.effectiveIndentType == IndentType.Tabs)
-                })
+                }
+                editor.setEditorLanguage(FileLineBreaksLanguage(grammar) { editor.separator })
+                textMate = grammar
             }.onFailure { error ->
                 Log.e("iCodeEditor", "Grammar load failed for $name", error)
                 coloringError = "Syntax coloring is unavailable for $name"
-                editor.setEditorLanguage(plainTextLanguage)
+                usePlainText()
             }
         }
+    }
+
+    private fun usePlainText() {
+        textMate = null
+        editor.setEditorLanguage(plainTextLanguage)
     }
 
     private var released = false
@@ -202,71 +288,8 @@ private class ConfigurablePlainTextLanguage : EmptyLanguage() {
     override fun useTab(): Boolean = tabs
 }
 
-/** Per-document Sora views preserve each tab's undo, caret, scroll and fold state. */
-class CodeEditorSessions(private val context: Context) {
-    private val sessions = mutableMapOf<String, CodeEditorSession>()
-    private var preferences = WorkspacePreferences()
-    private var palette = IcodePalette.Dark
-
-    fun get(location: String): CodeEditorSession =
-        sessions.getOrPut(location) {
-            CodeEditorSession(context, palette).also {
-                it.applyPreferences(preferences)
-                it.applyPalette(palette)
-            }
-        }
-
-    fun applyPreferences(next: WorkspacePreferences) {
-        preferences = next
-        sessions.values.forEach { it.applyPreferences(next) }
-    }
-
-    /** Also starts the grammars loading, at app start, so the first file need not wait for them. */
-    fun applyPalette(next: IcodePalette) {
-        palette = next
-        runCatching {
-            TextMateAssets.setTheme(next)
-            TextMateAssets.preload(context)
-        }.onFailure { error -> Log.e("iCodeEditor", "TextMate theme setup failed", error) }
-        sessions.values.forEach { it.applyPalette(next) }
-    }
-
-    fun releaseClosed(openLocations: Set<String>) {
-        val closed = sessions.keys.filterNot { it in openLocations }
-        closed.forEach { location -> sessions.remove(location)?.release() }
-    }
-
-    fun releaseAll() {
-        sessions.values.forEach { it.release() }
-        sessions.clear()
-    }
-}
-
-@Composable
-fun EditorCanvas(
-    session: CodeEditorSession,
-    document: OpenDocument,
-    onTextChanged: (String) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    // AndroidView's factory is not rerun when its parameters change. Keying
-    // the host to the session prevents one tab's native View being shown while
-    // a different session receives the new document in update.
-    key(session) {
-        AndroidView(
-            factory = {
-                // Navigation swaps Compose hosts but retains this editor and its undo history.
-                (session.editor.parent as? ViewGroup)?.removeView(session.editor)
-                session.editor
-            },
-            update = { view ->
-                check(view === session.editor) { "Editor View and document session diverged" }
-                session.bind(document, onTextChanged)
-            },
-            modifier = modifier.fillMaxSize(),
-        )
-    }
-}
-
 /** A `#!` line longer than this is not one a script would start with. */
 private const val FIRST_LINE_CHARS = 256
+
+/** Where Sora reports a tap in the gutter: the line numbers, the marker lane beside them, the divider. */
+private val GUTTER = setOf(EditorMotionEvent.REGION_LINE_NUMBER, EditorMotionEvent.REGION_DIVIDER_MARGIN, EditorMotionEvent.REGION_DIVIDER)

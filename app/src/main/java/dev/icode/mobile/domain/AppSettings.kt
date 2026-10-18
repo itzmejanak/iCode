@@ -117,7 +117,27 @@ data class EditorSettings(
     val lineNumbers: Boolean = true,
     val minimap: Boolean = false,
     val bracketMatching: Boolean = true,
+    /** The keys row above the keyboard (docs/editor-plan.md §4). */
+    val keys: List<EditorKey> = EditorKey.entries,
+    /** Off: the keyboard is asked not to suggest or autocorrect inside code. */
+    val keyboardSuggestions: Boolean = false,
+    /** The gutter's Git change markers and their sheet (docs/editor-plan.md §3). */
+    val changeMarkers: Boolean = true,
+    /** Typing an opening bracket or quote adds its closing one. */
+    val autoCloseBrackets: Boolean = true,
 )
+
+/** A key of the editor's keys row: an editing action, or a symbol typed as from the keyboard ([text]). */
+enum class EditorKey(val label: String, val text: String? = null) {
+    Tab("TAB"), Outdent("⇤"), Left("◀"), Up("▲"), Down("▼"), Right("▶"), Undo("↶"), Redo("↷"),
+    OpenBrace("{", "{"), CloseBrace("}", "}"), OpenParen("(", "("), CloseParen(")", ")"),
+    OpenBracket("[", "["), CloseBracket("]", "]"), Semicolon(";", ";"), Equals("=", "="),
+    DoubleQuote("\"", "\""), Quote("'", "'"), Less("<", "<"), Greater(">", ">"),
+    Slash("/", "/"), Backslash("\\", "\\"), Bar("|", "|"), Colon(":", ":"), Comma(",", ","), Period(".", "."),
+    Bang("!", "!"), Ampersand("&", "&"), Underscore("_", "_"), Minus("-", "-"), Plus("+", "+"), Star("*", "*"),
+    Hash("#", "#"), Dollar("$", "$"), Percent("%", "%"), Question("?", "?"), At("@", "@"), Tilde("~", "~"),
+    Caret("^", "^"), Backtick("`", "`"),
+}
 
 enum class TerminalExtraKey(val label: String) {
     Escape("ESC"), Tab("TAB"), Ctrl("CTRL"), Alt("ALT"),

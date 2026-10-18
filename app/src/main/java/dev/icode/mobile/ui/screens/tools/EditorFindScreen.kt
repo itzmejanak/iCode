@@ -203,6 +203,8 @@ fun EditorFindScreen(actions: NavigationActions) {
             document = document,
             onTextChanged = { gateway.dispatch(ICodeIntent.UpdateDocumentText(document.location, it)) },
             modifier = Modifier.weight(1f),
+            // The same view as the editor's: its markers stay; their sheet is the editor's.
+            changes = LocalICodeSnapshot.current.lineChanges[document.location]?.changes.orEmpty(),
         )
     }
 }

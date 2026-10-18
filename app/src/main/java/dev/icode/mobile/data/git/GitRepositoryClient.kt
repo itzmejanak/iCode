@@ -149,6 +149,15 @@ internal class GitRepositoryClient(private val cli: CliGitService) :
     override suspend fun addRemote(workspacePath: String, name: String, url: String) =
         expect(workspacePath, listOf("remote", "add", "--", name, url))
 
+    override fun repositoryTopOf(location: String): String? = cli.locator.topOf(File(location).parent ?: location)?.path
+
+    override fun indexStampOf(top: String): String? =
+        cli.locator.indexOf(top)?.takeIf { it.isFile }?.let { "${it.length()}:${it.lastModified()}" }
+
+    override suspend fun indexVersions(top: String, paths: List<String>): Map<String, IndexVersion> = cli.indexVersions(top, paths)
+
+    override suspend fun stageVersion(top: String, path: String, mode: String, bytes: ByteArray) = cli.stageVersion(top, path, mode, bytes)
+
     override suspend fun compareWithBytes(workspacePath: String, path: String, editorBytes: ByteArray): GitOutcome<GitFileDiff?> =
         cli.compareWithBytes(workspacePath, path, editorBytes)
 

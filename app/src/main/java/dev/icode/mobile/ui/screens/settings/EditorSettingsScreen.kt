@@ -2,8 +2,11 @@ package dev.icode.mobile.ui.screens.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -12,23 +15,26 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeSelect
+import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeToggle
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
-import dev.icode.mobile.designsystem.MonoLine
+import dev.icode.mobile.designsystem.KeyChip
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.SegmentedControl
 import dev.icode.mobile.designsystem.SettingRow
 import dev.icode.mobile.designsystem.Stepper
 import dev.icode.mobile.domain.AutoSaveMode
 import dev.icode.mobile.domain.EditorFontFamily
+import dev.icode.mobile.domain.EditorKey
 import dev.icode.mobile.domain.SettingLimits
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.ui.LocalWorkspacePreferences
 import dev.icode.mobile.ui.LocalWorkspacePreferencesRepository
 
 /** Application editor preferences. Values come from the same store as workspace overrides. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun EditorSettingsScreen(actions: NavigationActions) {
     val preferences = LocalWorkspacePreferences.current
@@ -77,6 +83,27 @@ fun EditorSettingsScreen(actions: NavigationActions) {
                     SettingRow("Word Wrap", Modifier.fillMaxWidth()) {
                         IcodeToggle(editor.wordWrap) { saver.save { repository.setWordWrap(it) } }
                     }
+                    SectionLabel("Editing", Modifier.padding(top = IcodeSpacing.Space2))
+                    SettingRow("Auto-Close Brackets", Modifier.fillMaxWidth(), subtitle = "Typing ( [ { \" ' adds the closing one") {
+                        IcodeToggle(editor.autoCloseBrackets) { saver.save { repository.setAutoCloseBrackets(it) } }
+                    }
+                    SettingRow(
+                        "Keyboard Suggestions",
+                        Modifier.fillMaxWidth(),
+                        subtitle = if (editor.keyboardSuggestions) "The keyboard suggests and may autocorrect words" else "Off: the keyboard does not autocorrect code",
+                    ) {
+                        IcodeToggle(editor.keyboardSuggestions) { saver.save { repository.setKeyboardSuggestions(it) } }
+                    }
+                    SectionLabel("Keys Row", Modifier.padding(top = IcodeSpacing.Space2))
+                    Text("Tap a key to show or hide it above the keyboard.", style = IcodeType.Caption)
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1), verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
+                        EditorKey.entries.forEach { key ->
+                            KeyChip(key.label, Modifier.heightIn(min = IcodeSizes.TouchTarget), active = key in editor.keys, onClick = {
+                                val chosen = EditorKey.entries.filter { if (it == key) it !in editor.keys else it in editor.keys }
+                                saver.save { repository.setEditorKeys(chosen) }
+                            })
+                        }
+                    }
                     SectionLabel("Save", Modifier.padding(top = IcodeSpacing.Space2))
                     IcodeSelect(
                         options = AutoSaveMode.entries,
@@ -91,13 +118,6 @@ fun EditorSettingsScreen(actions: NavigationActions) {
                         onSelect = { mode -> saver.save { repository.setAutoSave(mode) } },
                         label = "Auto Save",
                     )
-                    SettingRow(
-                        title = "Format On Save",
-                        modifier = Modifier.fillMaxWidth(),
-                        subtitle = "Available when a real formatter is connected",
-                    ) {
-                        MonoLine("Unavailable", color = IcodeColors.TextMuted, style = IcodeType.MonoSmall)
-                    }
                     SectionLabel("Display", Modifier.padding(top = IcodeSpacing.Space2))
                     SettingRow("Line Numbers", Modifier.fillMaxWidth()) {
                         IcodeToggle(editor.lineNumbers) { saver.save { repository.setLineNumbers(it) } }
@@ -107,6 +127,9 @@ fun EditorSettingsScreen(actions: NavigationActions) {
                     }
                     SettingRow("Bracket Matching", Modifier.fillMaxWidth()) {
                         IcodeToggle(editor.bracketMatching) { saver.save { repository.setBracketMatching(it) } }
+                    }
+                    SettingRow("Git Change Markers", Modifier.fillMaxWidth(), subtitle = "Changed lines marked beside the line numbers") {
+                        IcodeToggle(editor.changeMarkers) { saver.save { repository.setChangeMarkers(it) } }
                     }
                 }
             }

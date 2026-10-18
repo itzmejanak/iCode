@@ -17,8 +17,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.BottomBarEntry
 import dev.icode.mobile.designsystem.BottomBarItem
-import dev.icode.mobile.designsystem.DiffKind
-import dev.icode.mobile.designsystem.DiffRow
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeBottomBar
 import dev.icode.mobile.designsystem.IcodeColors
@@ -27,10 +25,10 @@ import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.PinchToScaleText
 import dev.icode.mobile.designsystem.StatusLabel
-import dev.icode.mobile.domain.GitDiffLineKind
 import dev.icode.mobile.domain.GitFileDiff
 import dev.icode.mobile.domain.countOf
 import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.ui.GitDiffLineRow
 import dev.icode.mobile.ui.LocalICodeSnapshot
 import kotlinx.coroutines.launch
 
@@ -93,18 +91,7 @@ fun DiffViewScreen(actions: NavigationActions) {
                                     color = IcodeColors.TextSecondary,
                                 )
                             }
-                            items(hunk.lines.size) { lineIndex ->
-                                val line = hunk.lines[lineIndex]
-                                DiffRow(
-                                    numbers = line.gutter,
-                                    content = line.text,
-                                    kind = when (line.kind) {
-                                        GitDiffLineKind.Added -> DiffKind.Added
-                                        GitDiffLineKind.Removed -> DiffKind.Removed
-                                        GitDiffLineKind.Context -> DiffKind.Context
-                                    },
-                                )
-                            }
+                            items(hunk.lines.size) { lineIndex -> GitDiffLineRow(hunk.lines[lineIndex]) }
                         }
                     }
                 }

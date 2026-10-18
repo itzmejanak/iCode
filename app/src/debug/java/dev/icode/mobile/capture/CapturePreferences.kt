@@ -3,6 +3,7 @@ package dev.icode.mobile.capture
 import dev.icode.mobile.domain.AppTheme
 import dev.icode.mobile.domain.AutoSaveMode
 import dev.icode.mobile.domain.EditorFontFamily
+import dev.icode.mobile.domain.EditorKey
 import dev.icode.mobile.domain.IndentType
 import dev.icode.mobile.domain.TerminalCursorStyle
 import dev.icode.mobile.domain.TerminalExtraKey
@@ -37,6 +38,10 @@ class CapturePreferences : WorkspacePreferencesRepository {
     override suspend fun setLineNumbers(enabled: Boolean) = Unit
     override suspend fun setMinimap(enabled: Boolean) = Unit
     override suspend fun setBracketMatching(enabled: Boolean) = Unit
+    override suspend fun setEditorKeys(keys: List<EditorKey>) = Unit
+    override suspend fun setKeyboardSuggestions(enabled: Boolean) = Unit
+    override suspend fun setChangeMarkers(enabled: Boolean) = Unit
+    override suspend fun setAutoCloseBrackets(enabled: Boolean) = Unit
     override suspend fun setTerminalShellPath(path: String) = Unit
     override suspend fun setTerminalFontSize(sizeSp: Int) = Unit
     override suspend fun setTerminalFontFamily(family: EditorFontFamily) = Unit
