@@ -221,7 +221,7 @@ There is no offline Maven repository: the first build downloads Gradle and the d
 
 | | Why |
 |---|---|
-| NDK / CMake (L9) | Google's NDK host is x86-64 only. Native Android code needs a separate plan, for example Ubuntu's clang with an Android target, as ADT does |
+| NDK / CMake (L9) | Google's NDK host is x86-64 only. Planned separately: [android-ndk-plan.md](./android-ndk-plan.md) (ARM64 NDK r28c and r27, CMake 3.22.1) |
 | `adb` and the built app's logcat (L7) | They need Wireless debugging paired on the same phone, after every reboot. That is a feature of its own, not part of the toolkit |
 | An offline Maven repository | It freezes versions (L4). Gradle's cache keeps what one build downloaded |
 | x86 emulators, release signing by iCode | Debug builds only. A project's own release signing still works through Gradle |
