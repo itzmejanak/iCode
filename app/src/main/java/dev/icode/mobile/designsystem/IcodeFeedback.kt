@@ -144,6 +144,7 @@ fun IcodeConfirmDialog(
     destructive: Boolean = false,
     confirmEnabled: Boolean = true,
     dismissEnabled: Boolean = true,
+    dismissLabel: String = "Cancel",
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Dialog(onDismissRequest = { if (dismissEnabled) onDismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -158,7 +159,7 @@ fun IcodeConfirmDialog(
                     )
                     Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2), content = content)
                     TwoColumnActions(
-                        left = { SecondaryButton("Cancel", onDismiss, Modifier.fillMaxWidth(), enabled = dismissEnabled) },
+                        left = { SecondaryButton(dismissLabel, onDismiss, Modifier.fillMaxWidth(), enabled = dismissEnabled) },
                         right = {
                             if (destructive) DangerButton(confirmLabel, onConfirm, Modifier.fillMaxWidth(), filled = true)
                             else PrimaryButton(confirmLabel, onConfirm, Modifier.fillMaxWidth(), enabled = confirmEnabled)

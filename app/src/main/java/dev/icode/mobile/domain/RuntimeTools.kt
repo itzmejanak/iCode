@@ -32,6 +32,10 @@ object RuntimeTools {
         "ssh-client", "SSH client", "OpenSSH: ssh, scp and ssh-keygen", "SSH keys and git@ remotes",
         listOf("openssh-client"), recommended = true,
     )
+    val GnuPg = RuntimeTool(
+        "gnupg", "GnuPG", "gpg and its agent: OpenPGP keys and signatures", "Signed commits, the passphrase asked in iCode",
+        listOf("gpg", "gpg-agent"),
+    )
     val Ripgrep = RuntimeTool(
         "ripgrep", "ripgrep", "Fast text search", "Workspace search", listOf("ripgrep"), recommended = true,
     )
@@ -49,7 +53,7 @@ object RuntimeTools {
     )
 
     /** In the order the page lists them: iCode's own first. */
-    val all: List<RuntimeTool> = listOf(Git, SshClient, Ripgrep, AndroidSdk, Curl, Python, BuildTools)
+    val all: List<RuntimeTool> = listOf(Git, SshClient, GnuPg, Ripgrep, AndroidSdk, Curl, Python, BuildTools)
 
     /** Standard's choice. */
     val standard: Set<String> = all.filter { it.recommended }.mapTo(linkedSetOf()) { it.id }

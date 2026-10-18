@@ -234,6 +234,8 @@ fun IcodeApp(
         TaskDialogs(snapshot.tasks, gateway)
         // A discard is confirmed over whatever asked for it, in the app's one confirmation dialog.
         snapshot.pendingDiscard?.let { DiscardChangesDialog(it, gateway) }
+        // gpg-agent's question, over whatever asked it: a commit, the terminal, the assistant.
+        snapshot.gpgPrompts.firstOrNull()?.let { GpgPromptDialog(it, gateway) }
 
         CompositionLocalProvider(
             LocalICodeSnapshot provides snapshot,
