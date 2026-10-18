@@ -5,19 +5,16 @@ import java.io.File
 import org.json.JSONObject
 
 /**
- * Finds a workspace's Android app (docs/android-toolchain-plan.md §4.4): a Gradle build — its
- * wrapper and `settings.gradle(.kts)` at the top — with a module, the top or a folder in it, that
+ * Finds a workspace's Android apps (docs/android-toolchain-plan.md §4.4): a Gradle build — its
+ * wrapper and `settings.gradle(.kts)` at the top — and each module, the top or a folder in it, that
  * holds `src/main/AndroidManifest.xml` and applies the Android application plugin, by its id
  * (`com.android.application`) or its version-catalog alias (`libs.plugins.android.application`).
- * Several apps: `app`, as Android Studio's run configuration starts, else the first by name.
  */
 internal object AndroidProjects {
-    fun find(root: File, workspace: String): AndroidProject? {
-        if (!File(root, "gradlew").isFile || SETTINGS.none { File(root, it).isFile }) return null
+    fun apps(root: File, workspace: String): List<AndroidProject> {
+        if (!File(root, "gradlew").isFile || SETTINGS.none { File(root, it).isFile }) return emptyList()
         val modules = listOf(root) + root.listFiles().orEmpty().filter { it.isDirectory && !it.name.startsWith(".") }.sortedBy { it.name }
-        val apps = modules.filter(::isApplication).map { if (it == root) "" else it.name }
-        val module = apps.firstOrNull { it == "app" } ?: apps.firstOrNull() ?: return null
-        return AndroidProject(workspace, module)
+        return modules.filter(::isApplication).map { AndroidProject(workspace, if (it == root) "" else it.name) }
     }
 
     private fun isApplication(module: File): Boolean {

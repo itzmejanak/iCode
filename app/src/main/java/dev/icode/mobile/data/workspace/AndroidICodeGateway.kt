@@ -2,8 +2,6 @@ package dev.icode.mobile.data.workspace
 
 import android.content.Context
 import com.termux.terminal.TerminalSession
-import dev.icode.mobile.data.android.AndroidApps
-import dev.icode.mobile.data.android.ApkInstaller
 import dev.icode.mobile.data.assistant.AssistantCoordinator
 import dev.icode.mobile.data.assistant.tools.AssistantToolbox
 import dev.icode.mobile.data.git.CliGitService
@@ -18,6 +16,7 @@ import dev.icode.mobile.data.git.GitTransferLedger
 import dev.icode.mobile.data.git.GitWorkspaceCoordinator
 import dev.icode.mobile.data.language.LanguageServiceCoordinator
 import dev.icode.mobile.data.notices.NoticeStore
+import dev.icode.mobile.data.run.RunCoordinator
 import dev.icode.mobile.data.runtime.RuntimeToolsCoordinator
 import dev.icode.mobile.data.runtime.RuntimeCoordinator
 import dev.icode.mobile.data.runtime.RuntimeExecution
@@ -156,8 +155,8 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     private val usage = WorkspaceUsage(stateHolder, tasks, terminal::runsIn, execution.processes::runsIn, documents::blockingEdits) { session.activeRoot }
     private val lifecycle = WorkspaceLifecycleCoordinator(
         stateHolder, tasks, source, library, session, usage, documents::open,
-        moveSettings = { from, to -> settings.moveWorkspace(from, to).also { assistant.workspaceMoved(from, to); execution.processes.workspaceMoved(from, to) } },
-        forgetSettings = { location -> settings.forgetWorkspace(location).also { assistant.workspaceForgotten(location); execution.processes.workspaceForgotten(location) } },
+        moveSettings = { from, to -> settings.moveWorkspace(from, to).also { assistant.workspaceMoved(from, to); execution.processes.workspaceMoved(from, to); runs.workspaceMoved(from, to) } },
+        forgetSettings = { location -> settings.forgetWorkspace(location).also { assistant.workspaceForgotten(location); execution.processes.workspaceForgotten(location); runs.workspaceForgotten(location) } },
     )
     private val items = WorkspaceItemsCoordinator(
         stateHolder, tasks, source, tree, documents, library, usage, lifecycle, phoneStorage,
@@ -170,12 +169,12 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
         refreshWorkspaceState = { root -> gitWorkspace.refresh(root) },
         reindex = { root -> search.workspaceChanged(root) },
     )
-    /** Build & Run for Android projects (docs/android-toolchain-plan.md §4.4): the Explorer's ▶ and the assistant's tool. */
-    private val androidApps = AndroidApps(stateHolder, scope, runtimeLayout, execution, ApkInstaller(appContext))
+    /** The Terminal panel's Run tab (docs/run-tab-plan.md): Android apps and saved commands, for the tab and the assistant. */
+    private val runs = RunCoordinator(stateHolder, scope, runtimeLayout, execution, appContext)
     /** iCode's assistant (docs/assistant-koog-plan.md): its turns are its own jobs, its tools iCode's owners. */
     private val assistant = AssistantCoordinator.create(
         appContext, stateHolder, scope,
-        AssistantToolbox(source, ripgrep, gitCli, execution, androidApps, runtimeLayout::isInstalled, { documents.blockingEdits(it) != null }) { session.requestRefresh(rebuildIndex = true) },
+        AssistantToolbox(source, ripgrep, gitCli, execution, runs, runtimeLayout::isInstalled, { documents.blockingEdits(it) != null }) { session.requestRefresh(rebuildIndex = true) },
         activeRoot = { session.activeRoot },
         source = source, git = gitCli,
     )
@@ -195,7 +194,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
         terminal.follow(scope, settings.values(null).filter { it.loaded && it.loadError == null }.map { it.terminal })
         scope.launch { runtime.reportState() }
         runtimeTools.start()
-        androidApps.start()
+        runs.start()
         BackgroundWork.follow(appContext, scope, stateHolder.snapshot.map(BackgroundWorkRules::of), ::dispatch)
         library.followAccess()
         assistant.start()
@@ -243,7 +242,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
             is ICodeIntent.TransferIntent -> gitTransfers.handle(intent)
             is ICodeIntent.AssistantIntent -> assistant.handle(intent)
             is ICodeIntent.ProcessIntent -> execution.processes.handle(intent)
-            is ICodeIntent.AndroidAppIntent -> androidApps.handle(intent)
+            is ICodeIntent.RunIntent -> runs.handle(intent)
             else -> scope.launch {
                 stateHolder.mutations.withLock {
                     when (intent) {

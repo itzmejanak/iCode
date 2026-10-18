@@ -4,13 +4,9 @@ import dev.icode.mobile.domain.ManagedProcess
 import dev.icode.mobile.domain.ManagedProcessState
 import dev.icode.mobile.domain.ProcessRules
 import dev.icode.mobile.domain.ICodeIntent
-import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.PipedInputStream
-import java.io.PipedOutputStream
 import java.nio.file.Files
 import java.util.Collections
-import java.util.concurrent.CountDownLatch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -23,43 +19,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RuntimeProcessesTest {
-    /** A process the test drives: it prints what [say] writes, ends with [exit], and dies by a signal it is sent unless told otherwise. */
-    private class FakeProcess(private val diesBy: Set<Int> = setOf(PosixSignal.TERM, PosixSignal.KILL)) : SpawnedProcess {
-        private val writer = PipedOutputStream()
-        override val output = PipedInputStream(writer, 64 * 1024)
-        override val input = ByteArrayOutputStream()
-        val signals: MutableList<Int> = Collections.synchronizedList(mutableListOf())
-        private val ended = CountDownLatch(1)
-        @Volatile private var code = 0
-
-        fun say(text: String) {
-            writer.write(text.toByteArray())
-            writer.flush()
-        }
-
-        fun exit(status: Int) {
-            code = status
-            writer.close()
-            ended.countDown()
-        }
-
-        override fun signal(number: Int) {
-            signals += number
-            if (number in diesBy && ended.count > 0) exit(128 + number)
-        }
-
-        override fun waitFor(): Int {
-            ended.await()
-            return code
-        }
-
-        override fun close() = Unit
-    }
-
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val launched = Collections.synchronizedList(mutableListOf<Pair<RuntimeProcesses.Launch, FakeProcess>>())
+    private val launched = Collections.synchronizedList(mutableListOf<Pair<RuntimeProcesses.Launch, FakeSpawnedProcess>>())
     @Volatile private var published: List<ManagedProcess> = emptyList()
-    private var next: () -> FakeProcess = { FakeProcess() }
+    private var next: () -> FakeSpawnedProcess = { FakeSpawnedProcess() }
     private val logDirectory = Files.createTempDirectory("logs").toFile()
     private val logs = ProcessLogs(logDirectory)
     private val processes = RuntimeProcesses(scope, { launch -> next().also { launched += launch to it } }, { published = it }, logs, grace = 200)
@@ -127,7 +90,7 @@ class RuntimeProcessesTest {
     }
 
     @Test fun `stopping sends SIGTERM, then SIGKILL to one that ignores it, and says it was stopped`() {
-        next = { FakeProcess(diesBy = setOf(PosixSignal.KILL)) }
+        next = { FakeSpawnedProcess(diesBy = setOf(PosixSignal.KILL)) }
         val started = start()
         val fake = launched.single().second
         assertTrue(processes.stop(started.id))
@@ -190,7 +153,7 @@ class RuntimeProcessesTest {
 
     @Test fun `a forgotten process's log goes, and an earlier iCode's logs go when it starts`() {
         File(logDirectory, "p7.log").writeText("from an earlier iCode")
-        RuntimeProcesses(scope, { FakeProcess() }, {}, ProcessLogs(logDirectory))
+        RuntimeProcesses(scope, { FakeSpawnedProcess() }, {}, ProcessLogs(logDirectory))
         assertFalse(File(logDirectory, "p7.log").exists())
         val started = start()
         launched.single().second.say("bye\n")

@@ -3,7 +3,6 @@ package dev.icode.mobile.data.android
 import dev.icode.mobile.domain.AndroidProject
 import java.io.File
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
 import org.junit.Rule
 import org.junit.Test
@@ -25,12 +24,12 @@ class AndroidProjectsTest {
             "app/build.gradle.kts" to "plugins {\n    alias(libs.plugins.android.application)\n}",
             "app/src/main/AndroidManifest.xml" to "<manifest/>",
         )
-        assertEquals(AndroidProject(root.path, "app"), AndroidProjects.find(root, root.path))
+        assertEquals(listOf(AndroidProject(root.path, "app")), AndroidProjects.apps(root, root.path))
         assertEquals(":app:assembleDebug", AndroidProject(root.path, "app").task)
     }
 
     @Test
-    fun `an app module is found by the plugin's id, a library is not an app, and app wins among several`() {
+    fun `every app module is found by the plugin's id, by folder name, and a library is not an app`() {
         val root = project(
             *wrapper,
             "demo/build.gradle" to "apply plugin: 'com.android.application'",
@@ -40,21 +39,21 @@ class AndroidProjectsTest {
             "core/build.gradle.kts" to "plugins { alias(libs.plugins.android.library) }",
             "core/src/main/AndroidManifest.xml" to "<manifest/>",
         )
-        assertEquals("app", AndroidProjects.find(root, root.path)?.module)
+        assertEquals(listOf("app", "demo"), AndroidProjects.apps(root, root.path).map { it.module })
     }
 
     @Test
     fun `a project that is one module builds at its top`() {
         val root = project(*wrapper, "build.gradle" to "apply plugin: 'com.android.application'", "src/main/AndroidManifest.xml" to "<manifest/>")
-        assertEquals("", AndroidProjects.find(root, root.path)?.module)
+        assertEquals(listOf(""), AndroidProjects.apps(root, root.path).map { it.module })
         assertEquals("assembleDebug", AndroidProject(root.path, "").task)
     }
 
     @Test
     fun `without the wrapper and settings, or without an app module, there is no Android app`() {
-        assertNull(AndroidProjects.find(project("app/build.gradle.kts" to "com.android.application", "app/src/main/AndroidManifest.xml" to ""), "w"))
-        assertNull(AndroidProjects.find(project(*wrapper, "lib/build.gradle.kts" to "com.android.library", "lib/src/main/AndroidManifest.xml" to ""), "w"))
-        assertNull(AndroidProjects.find(project(*wrapper, "app/build.gradle.kts" to "com.android.application"), "w"))
+        assertEquals(emptyList<AndroidProject>(), AndroidProjects.apps(project("app/build.gradle.kts" to "com.android.application", "app/src/main/AndroidManifest.xml" to ""), "w"))
+        assertEquals(emptyList<AndroidProject>(), AndroidProjects.apps(project(*wrapper, "lib/build.gradle.kts" to "com.android.library", "lib/src/main/AndroidManifest.xml" to ""), "w"))
+        assertEquals(emptyList<AndroidProject>(), AndroidProjects.apps(project(*wrapper, "app/build.gradle.kts" to "com.android.application"), "w"))
     }
 
     @Test

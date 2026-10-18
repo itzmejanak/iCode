@@ -156,9 +156,9 @@ One point is left to the phone: whether `ndkVersion` reads as AGP's default when
 ### 3.5 Build & Run with C and C++
 
 - **Before building:**
-  - A module that builds C or C++ needs CMake and at least one NDK row installed. Otherwise ▶ shows **NDK and CMake Needed**, with Open Runtime Tools, as it already does for the SDK.
+  - A module that builds C or C++ needs CMake and at least one NDK row installed. Otherwise the Run tab's ▶ shows **NDK and CMake Needed**, with Open Runtime Tools, as it already does for the SDK.
   - Which NDK version is Gradle's to say (§3.4); iCode does not parse build files for it.
-- **When it fails,** the notice shows Gradle's own "What went wrong" line, its first two lines without the `> `. So the init script's message, or CMake's, reaches the user.
+- **When it fails,** the row's state line shows Gradle's own "What went wrong", its first two lines without the `> ` (built with the Run tab, `GradleIssues.failure`). So the init script's message, or CMake's, reaches the user.
 - **Problems** gains clang's own diagnostics, `<path>:<line>:<col>: error|warning: <message>`, with or without the `C/C++: ` prefix AGP's native tasks print. The prefix is to be confirmed on the phone; the clang form itself is fixed.
 
 ### 3.6 Size, licence and the owner's notes
@@ -182,11 +182,11 @@ One point is left to the phone: whether `ndkVersion` reads as AGP's default when
 
 ### 3.7 The set-aside edits (`git stash`, 2026-10-18)
 
-- **Kept: "say Gradle's What went wrong"** (§3.5).
-- **Reshaped: "refuse projects with C or C++"** becomes "needs NDK and CMake" (§3.5).
+- **Kept: "say Gradle's What went wrong"** (§3.5). Built with the Run tab ([run-tab-plan.md](./run-tab-plan.md)).
+- **Reshaped: "refuse projects with C or C++"** becomes "needs NDK and CMake" (§3.5), written afresh in N4.
 - **Dropped: "write `sdk.dir` into `local.properties`".** On a clean install a project has none, and `ANDROID_HOME` names iCode's SDK.
 
-The stash is applied, reshaped, in N4 and then dropped.
+The stash is dropped: nothing in it is applied.
 
 ### 3.8 Not done, and why
 
@@ -204,7 +204,7 @@ The stash is applied, reshaped, in N4 and then dropped.
 | N1 | Domain: `RuntimeTool.requires`, `RuntimeToolRules.toggle`, the three rows, the catalog's order | Unit tests: toggle, plan with requirements, order |
 | N2 | Data: `.tar.xz` and filtered tar.gz in `ArchiveExtractor`; the pins; `CmakeSetup`; `AndroidNdkSetup`; their registration | Unit tests on small fixture archives; the overlay rule on Kitware's real tarball, run here |
 | N3 | Gradle: the init script's default CMake and its checks (§3.4) | `GradleSettings` tests; the script parsed here by Gradle's Groovy |
-| N4 | Build & Run: NDK and CMake Needed, Gradle's "What went wrong", clang diagnostics; the stash reshaped | Unit tests (`AndroidProjects`, `GradleIssues`) |
+| N4 | Build & Run: NDK and CMake Needed, clang diagnostics | Unit tests (`AndroidProjects`, `GradleIssues`) |
 | N5 | UI: the rows, their requirement line ("Needs Android SDK and CMake 3.22.1"), the toggle; the dialog | Type-check; UI tests |
 | N6 | Docs as built, guards, API-30 check, pull, push | All green |
 

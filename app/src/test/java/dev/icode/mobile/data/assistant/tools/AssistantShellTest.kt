@@ -1,17 +1,13 @@
 package dev.icode.mobile.data.assistant.tools
 
 import dev.icode.mobile.data.assistant.AssistantToolException
+import dev.icode.mobile.data.runtime.FakeSpawnedProcess
 import dev.icode.mobile.data.runtime.GuestCommand
 import dev.icode.mobile.data.runtime.GuestEnvironment
 import dev.icode.mobile.data.runtime.PosixSignal
 import dev.icode.mobile.data.runtime.ProcessLogs
 import dev.icode.mobile.data.runtime.RuntimeProcesses
-import dev.icode.mobile.data.runtime.SpawnedProcess
-import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.PipedInputStream
-import java.io.PipedOutputStream
-import java.util.concurrent.CountDownLatch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -41,8 +37,8 @@ class AssistantShellTest {
     private var profile = "\u0000icode-environment\u0000PATH=/root/.nvm/bin:/usr/bin\u0000NVM_DIR=/root/.nvm\u0000"
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val spawned = mutableListOf<FakeProcess>()
-    private val processes by lazy { RuntimeProcesses(scope, { FakeProcess().also { spawned += it } }, { }, ProcessLogs.of(rootfs), grace = 200) }
+    private val spawned = mutableListOf<FakeSpawnedProcess>()
+    private val processes by lazy { RuntimeProcesses(scope, { FakeSpawnedProcess().also { spawned += it } }, { }, ProcessLogs.of(rootfs), grace = 200) }
     private val shell by lazy {
         AssistantShell(
             rootfs,
@@ -169,34 +165,4 @@ class AssistantShellTest {
     }
 
     private fun <T> runAsync(block: suspend () -> T) = scope.async { block() }
-
-    private class FakeProcess : SpawnedProcess {
-        private val writer = PipedOutputStream()
-        override val output = PipedInputStream(writer, 64 * 1024)
-        override val input = ByteArrayOutputStream()
-        val signals = mutableListOf<Int>()
-        private val ended = CountDownLatch(1)
-        @Volatile private var code = 0
-
-        fun say(text: String) {
-            writer.write(text.toByteArray())
-            writer.flush()
-        }
-
-        override fun signal(number: Int) {
-            signals += number
-            if (ended.count > 0) {
-                code = 128 + number
-                writer.close()
-                ended.countDown()
-            }
-        }
-
-        override fun waitFor(): Int {
-            ended.await()
-            return code
-        }
-
-        override fun close() = Unit
-    }
 }

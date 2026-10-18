@@ -66,8 +66,8 @@ data class ICodeSnapshot(
     val tasks: List<WorkTask> = emptyList(),
     /** The runtime's tools: what dpkg has, what each would download, and the apt run in hand. */
     val runtimeTools: RuntimeToolsState = RuntimeToolsState(),
-    /** The open workspace's Android app, and where Build & Run has got to. */
-    val androidApps: AndroidAppsState = AndroidAppsState(),
+    /** The Run tab: what the open workspace can start, and how each run went. */
+    val run: RunState = RunState(),
     /**
      * Whether the `git` binary exists in the runtime; null until checked.
      *

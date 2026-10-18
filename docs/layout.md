@@ -187,6 +187,7 @@ Application
 │   │   └── Diff
 │   ├── Bottom panel
 │   │   ├── Terminal
+│   │   ├── Run
 │   │   ├── Problems
 │   │   └── Output
 │   └── Workspace settings
@@ -302,7 +303,7 @@ The editor region owns:
 
 ### 8.5 Bottom panel
 
-The bottom panel owns Terminal, Problems, and Output. It supports collapsed, remembered intermediate, and expanded states. Drag resizing is available where pointer precision allows; touch users receive a large handle and snap positions.
+The bottom panel owns Terminal, Run, Problems, and Output. It supports collapsed, remembered intermediate, and expanded states. Drag resizing is available where pointer precision allows; touch users receive a large handle and snap positions.
 
 ## 9. Launcher
 
@@ -367,7 +368,7 @@ The user is taken to the requested workspace as soon as the runtime is ready. No
 
 Once after a runtime is built (first install, repair or reset), **Set Up Tools** is offered — the owner's decision of 2026-09-30, after Android Studio's setup wizard, redesigned 2026-10-17 ([runtime-tools-plan.md](./runtime-tools-plan.md) §8). It forces nothing. **Install Type** offers **Standard** (the tools iCode itself uses: Git, the SSH client, ripgrep; recommended, with its download) or **Custom**, which opens **Select Tools**. **Verify Settings** lists what will be installed, each with its download, and **Skip** installs nothing: a feature that needs a tool installs it when used, its button saying so. Rows are flat, each with what uses it and its download as apt measures it. The cost and the free space sit in the page's foot. While apt runs, the page is its progress: the bar, the step, Show Details with apt's own lines, Cancel while it only downloads, and Run in Background. Finish says what was installed. From Runtime settings, **Runtime Tools** ticks what is installed: tick to add, untick to remove, then Apply and Confirm Changes. Ticking a tool with a licence — the **Android SDK** — adds a last step, **License Agreement**: the licence's text in a scrolling box with Decline and Accept, Install disabled until it is accepted ([android-toolchain-plan.md](./android-toolchain-plan.md) §4.1).
 
-In a workspace holding an Android project, the Explorer's header has **▶ Build & Run** beside +. Without the Android SDK it offers Runtime Tools; without Android's "Install unknown apps" it shows that permission's explanation in place of the tree. A notice under the Explorer's label then says Building…, Installing… (with Install, to open Android's confirmation again, and Cancel), or Build & Run Failed with the reason; each offers Show Output, the build's tab in the Terminal panel. The build's errors are listed in Problems.
+An Android project is built and run from the Terminal panel's **Run** tab (§18.3).
 
 ## 12. Explorer Layout
 
@@ -565,7 +566,7 @@ Users can reorder or hide keys. The row avoids covering terminal content when a 
 
 Recognized HTTP and HTTPS URLs use a clear activation gesture and open through Android's external browser chooser/default. The application does not create a preview tab.
 
-## 18. Problems and Output
+## 18. Problems, Output and Run
 
 ### 18.1 Problems
 
@@ -576,6 +577,10 @@ Filters include severity, active file, and source. Empty state states that no cu
 ### 18.2 Output
 
 Output is reserved for structured application-owned streams such as language-server lifecycle or Git operation details. Interactive commands belong in Terminal. Output channels are selectable and bounded.
+
+### 18.3 Run
+
+The Run tab ([run-tab-plan.md](./run-tab-plan.md)) lists what the open workspace can start: each Android app iCode finds in it, then the commands the user saved, as flat rows divided by hairlines. A row has its name and kind, the command in mono, its state line ("Never run", "Building · 1m", "Running · 1m · port 5173", "Installing · Android asks you to confirm" with **Install**, "Opened", "Exited 0", "Stopped", "Failed · " and the reason), and a trailing ▶, or ■ while it runs. A tap opens the run's output, its tab in Terminal; a long press on a saved command offers Edit and Delete, and Delete asks first. The header's **+** saves a command: the command line, and a name that may be left to its first word. Before an Android app builds, ▶ asks for the Android SDK (Open Runtime Tools) and for "Install unknown apps" (the shared permission explanation, in place of the rows); the build's errors are listed in Problems.
 
 ## 19. Settings Layout
 

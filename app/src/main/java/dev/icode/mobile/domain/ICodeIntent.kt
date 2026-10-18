@@ -73,14 +73,15 @@ sealed interface ICodeIntent {
     data object SkipRuntimeTools : RuntimeToolsIntent
     /** A failure, read. */
     data object DismissRuntimeTools : RuntimeToolsIntent
-    /** Build & Run (docs/android-toolchain-plan.md §4.4): it never waits on the mutation lock. */
-    sealed interface AndroidAppIntent : ICodeIntent
-    /** Builds the open workspace's Android app, then installs and opens it. */
-    data object BuildAndRunAndroidApp : AndroidAppIntent
-    /** Android's confirmation of its install, opened again from iCode's screen. */
-    data object ConfirmAndroidAppInstall : AndroidAppIntent
-    /** Its failure read, or its install cancelled. */
-    data object DismissAndroidAppRun : AndroidAppIntent
+    /** The Terminal panel's Run tab (docs/run-tab-plan.md), for the open workspace: it never waits on the mutation lock. */
+    sealed interface RunIntent : ICodeIntent
+    data class StartRun(val configuration: String) : RunIntent
+    /** Stops its process, or abandons the install that waits on Android. */
+    data class StopRun(val configuration: String) : RunIntent
+    data object ConfirmAndroidAppInstall : RunIntent
+    /** A new command when [id] is null; otherwise that one, changed. */
+    data class SaveRunCommand(val id: String?, val name: String, val command: String) : RunIntent
+    data class DeleteRunCommand(val id: String) : RunIntent
     data class UpdateDocumentText(val location: String, val text: String) : ICodeIntent
     /** Automatic requests carry the revision they observed; a later edit must start its own timer. */
     data class SaveDocument(
