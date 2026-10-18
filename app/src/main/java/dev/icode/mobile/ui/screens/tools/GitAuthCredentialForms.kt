@@ -84,6 +84,33 @@ internal fun TokenSection(
     }
 }
 
+/** A public key's way to its host: Copy, and Add to the provider where iCode knows its form. */
+@Composable
+internal fun PublicKeyActions(publicKey: String, addUrl: String?, providerName: String, onOpenHost: (String) -> Unit) {
+    val clipboard = LocalClipboardManager.current
+    if (addUrl == null) {
+        SecondaryButton("Copy Public Key", { clipboard.setText(AnnotatedString(publicKey)) }, Modifier.fillMaxWidth())
+    } else {
+        TwoColumnActions(
+            left = {
+                SecondaryButton("Copy Key", { clipboard.setText(AnnotatedString(publicKey)) }, Modifier.fillMaxWidth())
+            },
+            right = {
+                PrimaryButton(
+                    "Add to $providerName",
+                    {
+                        // Copied first, so the key is ready to paste
+                        // when the browser reaches the form.
+                        clipboard.setText(AnnotatedString(publicKey))
+                        onOpenHost(addUrl)
+                    },
+                    Modifier.fillMaxWidth(),
+                )
+            },
+        )
+    }
+}
+
 @Composable
 internal fun SshSection(
     auth: GitAuthState,
@@ -92,7 +119,6 @@ internal fun SshSection(
     onGenerate: () -> Unit,
     onOpenHost: (String) -> Unit,
 ) {
-    val clipboard = LocalClipboardManager.current
     val publicKey = auth.sshPublicKey
     Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
         if (auth.hasSshKey && publicKey != null) {
@@ -105,32 +131,7 @@ internal fun SshSection(
                     MonoLine(publicKey, style = IcodeType.MonoSmall)
                 }
             }
-            val keyUrl = auth.provider.sshKeyUrl
-            if (keyUrl == null) {
-                SecondaryButton(
-                    "Copy Public Key",
-                    { clipboard.setText(AnnotatedString(publicKey)) },
-                    Modifier.fillMaxWidth(),
-                )
-            } else {
-                TwoColumnActions(
-                    left = {
-                        SecondaryButton("Copy Key", { clipboard.setText(AnnotatedString(publicKey)) }, Modifier.fillMaxWidth())
-                    },
-                    right = {
-                        PrimaryButton(
-                            "Add to ${auth.provider.displayName}",
-                            {
-                                // Copied first, so the key is ready to paste
-                                // when the browser reaches the form.
-                                clipboard.setText(AnnotatedString(publicKey))
-                                onOpenHost(keyUrl)
-                            },
-                            Modifier.fillMaxWidth(),
-                        )
-                    },
-                )
-            }
+            PublicKeyActions(publicKey, auth.provider.sshKeyUrl, auth.provider.displayName, onOpenHost)
             MonoLine(
                 "Add the key to your host, then use a git@ URL.",
                 color = IcodeColors.TextMuted,

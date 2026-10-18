@@ -15,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import dev.icode.mobile.designsystem.DetailRow
 import dev.icode.mobile.designsystem.IcodeCard
@@ -31,7 +32,9 @@ import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.designsystem.TwoColumnActions
 import dev.icode.mobile.domain.GitActionRules
+import dev.icode.mobile.domain.GitCommitSignature
 import dev.icode.mobile.domain.GitRepositoryState
+import dev.icode.mobile.domain.GitSignatureStatus
 import dev.icode.mobile.domain.GitSyncAction
 import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.domain.ICodeIntent
@@ -127,6 +130,11 @@ fun CommitPushScreen(actions: NavigationActions) {
                             valueStyle = IcodeType.MonoSmall,
                             valueColor = IcodeColors.TextSecondary,
                         )
+                        lastCommit.signature?.let { signature ->
+                            val (verdict, color) = verdictOf(signature)
+                            DetailRow("Signature", verdict, valueStyle = IcodeType.MonoSmall, valueColor = color)
+                            signature.keyId?.let { DetailRow("Key", it, valueStyle = IcodeType.MonoSmall, valueColor = IcodeColors.TextSecondary) }
+                        }
                     }
                 }
             }
@@ -163,4 +171,15 @@ private fun branchSummary(repository: GitRepositoryState?): String = when {
     repository.upstream != null -> "${countOf(repository.ahead, "commit")} ahead, ${repository.behind} behind"
     repository.hasRemote -> "Remote \"${repository.remoteName}\" · no upstream for this branch"
     else -> "Local repository · ${countOf(repository.branches.size, "branch", "branches")}"
+}
+
+/** Git's verdict on a commit's signature (docs/gpg-signing-plan.md §7), and its colour: Verified by whom, or why not. */
+@Composable
+private fun verdictOf(signature: GitCommitSignature): Pair<String, Color> = when (signature.status) {
+    GitSignatureStatus.Verified -> "✓ Verified" + signature.signer?.let { " · " + it.substringBefore(" <") }.orEmpty() to IcodeColors.Green
+    GitSignatureStatus.Expired -> "Verified · expired" to IcodeColors.Amber
+    GitSignatureStatus.Revoked -> "Key revoked" to IcodeColors.Error
+    GitSignatureStatus.Bad -> "Bad signature" to IcodeColors.Error
+    GitSignatureStatus.UnknownKey -> "Key not on this phone" to IcodeColors.Amber
+    GitSignatureStatus.Unsigned -> "Not signed" to IcodeColors.TextMuted
 }

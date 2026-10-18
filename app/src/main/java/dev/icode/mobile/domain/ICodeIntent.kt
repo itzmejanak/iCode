@@ -167,8 +167,8 @@ sealed interface ICodeIntent {
     /** The token is consumed straight into encrypted storage and never echoed back. */
     data class SaveGitToken(val host: String, val username: String, val token: String) : ICodeIntent
     data object ClearGitToken : ICodeIntent
-    data object GenerateSshKey : ICodeIntent
-    data class TestGitConnection(val url: String) : ICodeIntent
+    data object GenerateSshKey : GitAuthWorkIntent
+    data class TestGitConnection(val url: String) : GitAuthWorkIntent
     data object RefreshGitAuth : ICodeIntent
     data class SelectLanguageService(val id: String) : ICodeIntent
     data class SaveLanguageService(

@@ -516,7 +516,14 @@ Each group is collapsible and shows a count. Each file row shows status, path, s
 
 The commit message field remains pinned near staged changes when space permits. Commit is disabled with an explanation when no eligible staged changes exist. It does not silently stage every file.
 
-When Git signs commits with a key that has a passphrase, gpg-agent's question appears over whatever screen asked it — Source Control, the terminal, the assistant — as one dialog titled **GnuPG** ([gpg-signing-plan.md](./gpg-signing-plan.md)): gpg's own text, its error after a wrong passphrase ("Bad Passphrase (try 2 of 3)") in red, a masked Passphrase field, and gpg's own button labels, Cancel and OK by default. A confirmation is the same dialog without the field. Cancel leaves the commit unsigned and unmade, with Git's "gpg failed to sign the data".
+When Git signs commits with a key that has a passphrase, gpg-agent's question appears over whatever screen asked it — Source Control, the terminal, the assistant — as one dialog titled **GnuPG** ([gpg-signing-plan.md](./gpg-signing-plan.md)): gpg's own text, its error after a wrong passphrase ("Bad Passphrase (try 2 of 3)") in red, a masked Passphrase field, and gpg's own button labels, Cancel and OK by default. A confirmation is the same dialog without the field. Cancel leaves the commit unsigned and unmade, with Git's "gpg failed to sign the data". While iCode is out of view, the question is a "Needs your answer" notification, "Enter your GnuPG passphrase", which opens the dialog.
+
+Signing is set up in **Git Credentials**, whose steps are Identity, Authentication, **Signing** and Verify ([gpg-signing-plan.md §7](./gpg-signing-plan.md)). The Signing step shows one of:
+- **Install GnuPG**;
+- **Create Key**, for the default identity;
+- the key in use: a Key selector when there are several, the key's card, a **Sign every commit** toggle, **Copy Key** and **Add to GitHub**, and **Change Passphrase**. An amber note says when the repository's email is not the key's.
+
+Commit & Push's **Last Commit** card gains a **Signature** row once GnuPG is installed: "✓ Verified · <signer>" in green, "Not signed" muted, and so on. A **Key** row follows with the key ID.
 
 ### 16.4 Diff presentation
 

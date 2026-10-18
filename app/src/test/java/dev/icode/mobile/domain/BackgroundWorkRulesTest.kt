@@ -103,7 +103,7 @@ class BackgroundWorkRulesTest {
     @Test fun `a place survives the notification that carries it`() {
         listOf(
             BackgroundPlace.Task(7), BackgroundPlace.Clone, BackgroundPlace.Sync, BackgroundPlace.Runtime, BackgroundPlace.RuntimeTools,
-            BackgroundPlace.Assistant,
+            BackgroundPlace.Assistant, BackgroundPlace.Processes, BackgroundPlace.Gpg,
         ).forEach {
             assertEquals(it, BackgroundPlace.decode(it.encoded()))
         }
@@ -144,5 +144,35 @@ class BackgroundWorkRulesTest {
         assertEquals(BackgroundPlace.Processes, item.place)
         assertEquals(904, item.number)
         assertEquals(BackgroundPlace.Processes, BackgroundPlace.decode(item.place.encoded()))
+    }
+
+    @Test fun `gpg's question is carried in its own words, and Cancel answers it`() {
+        // What gpg-agent 2.4.4 asked to unlock a key, as the pinentry received it.
+        val prompt = GpgPrompt(
+            id = "941",
+            asksPassphrase = true,
+            title = null,
+            description = "Please enter the passphrase to unlock the OpenPGP secret key:\n\"Ada Lovelace <ada@example.com>\"\n" +
+                "255-bit EDDSA key, ID BFDDD2AF39D6382D,\ncreated 2026-10-18.\n",
+            prompt = "Passphrase:",
+            error = null,
+            ok = null,
+            cancel = null,
+        )
+        val item = BackgroundWorkRules.of(empty.copy(gpgPrompts = listOf(prompt))).single()
+        assertEquals("gpg", item.key)
+        assertEquals("GnuPG is waiting…", item.heading)
+        assertEquals(
+            "Please enter the passphrase to unlock the OpenPGP secret key: \"Ada Lovelace <ada@example.com>\" " +
+                "255-bit EDDSA key, ID BFDDD2AF39D6382D, created 2026-10-18.",
+            item.detail,
+        )
+        assertEquals("Enter your GnuPG passphrase", item.question)
+        assertEquals(GpgIntent.Answer("941", GpgAnswer.Cancel), item.cancel)
+        assertFalse(item.progresses)
+        assertEquals(BackgroundPlace.Gpg, item.place)
+        assertEquals(905, item.number)
+        val confirm = prompt.copy(asksPassphrase = false)
+        assertEquals("Answer GnuPG", BackgroundWorkRules.of(empty.copy(gpgPrompts = listOf(confirm))).single().question)
     }
 }

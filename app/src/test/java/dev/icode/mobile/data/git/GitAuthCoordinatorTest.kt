@@ -6,7 +6,9 @@ import dev.icode.mobile.domain.GitAuthTestResult
 import dev.icode.mobile.domain.GitAuthWork
 import dev.icode.mobile.domain.GitIdentityRules
 import dev.icode.mobile.domain.GitRepositoryState
+import dev.icode.mobile.domain.GitSigningKey
 import dev.icode.mobile.domain.ICodeEffect
+import dev.icode.mobile.domain.SigningIntent
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -197,6 +199,74 @@ class GitAuthCoordinatorTest {
         assertTrue(harness.stateHolder.current.gitAuth.hasSshKey)
     }
 
+    @Test fun `a signing key is made for the default identity, and Git then signs every commit with it, by OpenPGP`() = runBlocking {
+        val harness = Harness()
+        harness.config.values["Global user.name"] = "Ada"
+        harness.config.values["Global user.email"] = "ada@example.com"
+        harness.config.values["Global gpg.format"] = "ssh"
+        harness.coordinator.handle(SigningIntent.CreateKey)
+        assertEquals(listOf("Ada <ada@example.com>"), harness.credentials.created)
+        val made = harness.credentials.keys.single()
+        assertEquals(made.fingerprint, harness.config.values["Global user.signingkey"])
+        assertEquals("true", harness.config.values["Global commit.gpgsign"])
+        assertEquals("openpgp", harness.config.values["Global gpg.format"])
+        val signing = harness.stateHolder.current.gitAuth.signing
+        assertEquals(made, signing.key)
+        assertTrue(signing.signsCommits)
+        assertEquals("-----BEGIN PGP PUBLIC KEY BLOCK----- ${made.fingerprint}", signing.publicKey)
+        assertNull(harness.stateHolder.current.gitAuth.work)
+    }
+
+    @Test fun `no key is made without a default identity, and gpg's refusal is said in its words`() = runBlocking {
+        val harness = Harness()
+        assertEquals(
+            ICodeEffect.Message("Save a default commit identity first"),
+            harness.nextMessage { harness.coordinator.handle(SigningIntent.CreateKey) },
+        )
+        assertTrue(harness.credentials.created.isEmpty())
+        harness.config.values["Global user.name"] = "Ada"
+        harness.config.values["Global user.email"] = "ada@example.com"
+        harness.credentials.creation = "key generation failed: Operation cancelled"
+        assertEquals(
+            ICodeEffect.Message("key generation failed: Operation cancelled"),
+            harness.nextMessage { harness.coordinator.handle(SigningIntent.CreateKey) },
+        )
+        assertNull(harness.config.values["Global commit.gpgsign"])
+    }
+
+    @Test fun `signing turned on uses the key shown, another key can be chosen, and off is Git's default again`() = runBlocking {
+        val harness = Harness()
+        val first = signingKey("A".repeat(24) + "1111111111111111", "Ada <ada@example.com>")
+        val second = signingKey("B".repeat(24) + "2222222222222222", "Ada <ada@work.example>")
+        harness.credentials.keys += listOf(first, second)
+        harness.coordinator.refresh()
+        assertNull(harness.stateHolder.current.gitAuth.signing.key)
+        harness.coordinator.handle(SigningIntent.SignCommits(true))
+        assertEquals(first.fingerprint, harness.config.values["Global user.signingkey"])
+        assertEquals("true", harness.config.values["Global commit.gpgsign"])
+        harness.coordinator.handle(SigningIntent.UseKey(second.fingerprint))
+        assertEquals(second, harness.stateHolder.current.gitAuth.signing.key)
+        harness.coordinator.handle(SigningIntent.SignCommits(false))
+        assertNull(harness.config.values["Global commit.gpgsign"])
+        assertFalse(harness.stateHolder.current.gitAuth.signing.signsCommits)
+    }
+
+    @Test fun `a passphrase is changed for the key named, and that is said`() = runBlocking {
+        val harness = Harness()
+        val effect = harness.nextMessage { harness.coordinator.handle(SigningIntent.ChangePassphrase("ABC")) }
+        assertEquals(ICodeEffect.Message("Passphrase changed"), effect)
+        assertEquals(listOf("ABC"), harness.credentials.passphrases)
+    }
+
+    @Test fun `without GnuPG the step says so, and Install brings it`() = runBlocking {
+        val harness = Harness()
+        harness.credentials.gnupg = false
+        harness.coordinator.refresh()
+        assertEquals(false, harness.stateHolder.current.gitAuth.signing.gnupgInstalled)
+        harness.coordinator.handle(SigningIntent.InstallGnuPg)
+        assertEquals(true, harness.stateHolder.current.gitAuth.signing.gnupgInstalled)
+    }
+
     private class FakeConfig : GitConfigOperations {
         var available = true
         val values = mutableMapOf<String, String>()
@@ -241,9 +311,31 @@ class GitAuthCoordinatorTest {
         override suspend fun ensureSshAvailable() = clientInstall.also { clientGate?.await() }
         override suspend fun generateSshKey(comment: String) = GitOperationOutcome(true, "SSH key created").also { key = "ssh-ed25519 AAAA $comment" }
         override suspend fun testConnection(url: String) = GitOperationOutcome(true, "Connected — 2 branch(es) visible")
+
+        var gnupg = true
+        val keys = mutableListOf<GitSigningKey>()
+        /** What gpg answers creating a key: made, or why not ("Operation cancelled"). */
+        var creation: String? = null
+        val created = mutableListOf<String>()
+        val passphrases = mutableListOf<String>()
+        override fun hasGnuPg() = gnupg
+        override suspend fun ensureGnuPg() = GitOperationOutcome(true, "GnuPG is installed").also { gnupg = true }
+        override suspend fun signingKeys() = keys.toList()
+        override suspend fun publicSigningKey(fingerprint: String) = "-----BEGIN PGP PUBLIC KEY BLOCK----- $fingerprint"
+        override suspend fun createSigningKey(userId: String): GitOperationOutcome {
+            created += userId
+            creation?.let { return GitOperationOutcome(false, it) }
+            keys += signingKey("F".repeat(24) + "%016X".format(keys.size + 1), userId)
+            return GitOperationOutcome(true, "Signing key created")
+        }
+        override suspend fun changeSigningPassphrase(fingerprint: String) =
+            GitOperationOutcome(true, "Passphrase changed").also { passphrases += fingerprint }
     }
 
     private companion object {
+        fun signingKey(fingerprint: String, userId: String) =
+            GitSigningKey(fingerprint, fingerprint.takeLast(16), userId, "ed25519", 0L, null)
+
         fun repository(root: String) = GitRepositoryState(
             workTreePath = root,
             branch = "main",

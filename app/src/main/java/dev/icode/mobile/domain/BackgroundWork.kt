@@ -26,7 +26,10 @@ sealed interface BackgroundPlace {
     /** The Assistant page, where a workspace's managed processes are listed. */
     data object Processes : BackgroundPlace
 
-    /** As a notification carries it: `task:12`, `clone`, `sync`, `runtime`, `runtime-tools`, `assistant`, `processes`. */
+    /** gpg's question: its GnuPG dialog shows over whatever screen is open. */
+    data object Gpg : BackgroundPlace
+
+    /** As a notification carries it: `task:12`, `clone`, `sync`, `runtime`, `runtime-tools`, `assistant`, `processes`, `gpg`. */
     fun encoded(): String = when (this) {
         is Task -> "$TASK$id"
         Clone -> "clone"
@@ -35,6 +38,7 @@ sealed interface BackgroundPlace {
         RuntimeTools -> "runtime-tools"
         Assistant -> "assistant"
         Processes -> "processes"
+        Gpg -> "gpg"
     }
 
     companion object {
@@ -50,6 +54,7 @@ sealed interface BackgroundPlace {
             value == "runtime-tools" -> RuntimeTools
             value == "assistant" -> Assistant
             value == "processes" -> Processes
+            value == "gpg" -> Gpg
             else -> null
         }
     }
@@ -90,7 +95,7 @@ data class BackgroundItem(
      * Stable and small, for what the system keys by number (a notification's id): a task's id below
      * 900 — ids count up in a process, and 900 tasks never run at once — then 900 for the Git
      * transfer, 901 for the runtime, 902 for the runtime tools' apt run, 903 for the assistant's turn,
-     * 904 for the managed processes.
+     * 904 for the managed processes, 905 for gpg's question.
      */
     val number: Int get() = when (place) {
         is BackgroundPlace.Task -> (place.id % 900).toInt()
@@ -99,6 +104,7 @@ data class BackgroundItem(
         BackgroundPlace.RuntimeTools -> 902
         BackgroundPlace.Assistant -> 903
         BackgroundPlace.Processes -> 904
+        BackgroundPlace.Gpg -> 905
     }
 
     /** The notification's title: "Deleting… (1207 / 11813)", "Cloning… 45%", or the title alone. */
@@ -112,8 +118,8 @@ data class BackgroundItem(
 object BackgroundWorkRules {
     /**
      * Everything running in [snapshot], and what stopped short: each task, the Git transfer, the
-     * runtime install, the tools apt is installing or removing, the assistant's turn, and the
-     * managed processes that run.
+     * runtime install, the tools apt is installing or removing, the assistant's turn, the
+     * managed processes that run, and gpg's question waiting on its dialog.
      */
     fun of(snapshot: ICodeSnapshot): List<BackgroundItem> = buildList {
         snapshot.tasks.forEach { add(task(it)) }
@@ -122,7 +128,25 @@ object BackgroundWorkRules {
         snapshot.runtimeTools.work?.let { add(runtimeTools(it)) }
         snapshot.assistant.turn?.let { add(assistant(it, snapshot.assistant.approval)) }
         processes(snapshot.processes.filter { it.running })?.let(::add)
+        snapshot.gpgPrompts.firstOrNull()?.let { add(gpg(it)) }
     }
+
+    /**
+     * gpg-agent asks through the GnuPG dialog, and the command that needed it — a commit, the
+     * terminal's — waits: out of view, the question pops up, and Cancel answers it. Its text is
+     * gpg's, a paragraph gpg wraps into lines.
+     */
+    private fun gpg(prompt: GpgPrompt): BackgroundItem = BackgroundItem(
+        key = "gpg",
+        title = "GnuPG is waiting…",
+        detail = prompt.description.lines().map(String::trim).filter(String::isNotEmpty).joinToString(" ")
+            .ifEmpty { prompt.prompt.orEmpty() },
+        cancel = GpgIntent.Answer(prompt.id, GpgAnswer.Cancel),
+        place = BackgroundPlace.Gpg,
+        watched = true,
+        question = if (prompt.asksPassphrase) "Enter your GnuPG passphrase" else "Answer GnuPG",
+        progresses = false,
+    )
 
     /**
      * What runs beyond the command that started it — a server, a watcher — kept by the foreground

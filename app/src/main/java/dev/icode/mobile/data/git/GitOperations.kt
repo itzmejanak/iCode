@@ -3,6 +3,7 @@ package dev.icode.mobile.data.git
 import dev.icode.mobile.domain.GitFileDiff
 import dev.icode.mobile.domain.GitInProgress
 import dev.icode.mobile.domain.GitOutcome
+import dev.icode.mobile.domain.GitSigningKey
 
 // What each Git owner needs from the real client, narrow enough for a test to fake.
 
@@ -96,4 +97,16 @@ internal interface GitCredentialOperations {
     suspend fun ensureSshAvailable(): GitOperationOutcome
     suspend fun generateSshKey(comment: String): GitOperationOutcome
     suspend fun testConnection(url: String): GitOperationOutcome
+    /** GnuPG is installed in the runtime: signing commits needs it. */
+    fun hasGnuPg(): Boolean
+    /** Installs GnuPG when it is missing; apt's words say why it could not. */
+    suspend fun ensureGnuPg(): GitOperationOutcome
+    /** The secret keys gpg holds that can sign. */
+    suspend fun signingKeys(): List<GitSigningKey>
+    /** [fingerprint]'s public half, armored; null when gpg has none. */
+    suspend fun publicSigningKey(fingerprint: String): String?
+    /** A key of gpg's defaults for [userId] ("Name <email>"); gpg asks its passphrase in the GnuPG dialog. */
+    suspend fun createSigningKey(userId: String): GitOperationOutcome
+    /** gpg asks the current passphrase, then the new one twice, in the GnuPG dialog. */
+    suspend fun changeSigningPassphrase(fingerprint: String): GitOperationOutcome
 }

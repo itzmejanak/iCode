@@ -1,7 +1,9 @@
 package dev.icode.mobile.data.git
 
 import dev.icode.mobile.data.storage.WorkspacePaths
+import dev.icode.mobile.domain.GitCommitSignature
 import dev.icode.mobile.domain.GitInProgress
+import dev.icode.mobile.domain.GitSignatureStatus
 import dev.icode.mobile.domain.GitStatusCodes
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -112,18 +114,33 @@ class GitInspectParserTest {
     @Test
     fun `the last commit is shortened and timed in milliseconds`() {
         val commit = parse(
-            output(lastCommit = "7d466e4c47d969352f2bc7f569d10ef8b72d2170\n1727500000\nAda <ada@example.com>\nFix: keep spaces here\n"),
+            output(lastCommit = "7d466e4c47d969352f2bc7f569d10ef8b72d2170\n1727500000\nAda <ada@example.com>\n-\n\n\nFix: keep spaces here\n"),
         ).repository!!.lastCommit!!
         assertEquals("7d466e4c47d9", commit.id)
         assertEquals("Fix: keep spaces here", commit.message)
         assertEquals("Ada <ada@example.com>", commit.author)
         assertEquals(1_727_500_000_000L, commit.authoredAtEpochMillis)
+        assertNull(commit.signature)
+    }
+
+    @Test
+    fun `the last commit's signature is Git's verdict where GnuPG is installed to check it`() {
+        val signed = parse(
+            output(lastCommit = "abc\n1727500000\nAda <a@b.c>\nG\nBFDDD2AF39D6382D\nAda Lovelace <ada@example.com>\nfix: a\n"),
+        ).repository!!.lastCommit!!
+        assertEquals(
+            GitCommitSignature(GitSignatureStatus.Verified, "Ada Lovelace <ada@example.com>", "BFDDD2AF39D6382D"),
+            signed.signature,
+        )
+        assertEquals("fix: a", signed.message)
+        val unsigned = parse(output(lastCommit = "abc\n1727500000\nAda <a@b.c>\nN\n\n\nfix: a\n")).repository!!.lastCommit!!
+        assertEquals(GitCommitSignature(GitSignatureStatus.Unsigned, null, null), unsigned.signature)
     }
 
     @Test
     fun `an incomplete last commit is absent and an unreadable time is zero`() {
         assertNull(parse(output(lastCommit = "abc\nonly two\n")).repository!!.lastCommit)
-        val commit = parse(output(lastCommit = "abc\nsoon\na\nm\n")).repository!!.lastCommit!!
+        val commit = parse(output(lastCommit = "abc\nsoon\na\n-\n\n\nm\n")).repository!!.lastCommit!!
         assertEquals(0L, commit.authoredAtEpochMillis)
     }
 
@@ -205,7 +222,7 @@ class GitInspectParserTest {
     @Test
     fun `a subject is kept whole, whatever it contains`() {
         val commit = parse(
-            output(lastCommit = "abc\n1727500000\nAda <a@b.c>\nfix: a\u001Fb \u001E c\n"),
+            output(lastCommit = "abc\n1727500000\nAda <a@b.c>\n-\n\n\nfix: a\u001Fb \u001E c\n"),
         ).repository!!.lastCommit!!
         assertEquals("fix: a\u001Fb \u001E c", commit.message)
         assertEquals("Ada <a@b.c>", commit.author)

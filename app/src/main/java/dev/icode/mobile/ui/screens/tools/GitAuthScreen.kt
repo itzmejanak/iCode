@@ -34,10 +34,11 @@ import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 
-/** The three things setting up Git actually requires, in order. */
+/** What setting up Git requires, in order; signing is the user's choice (docs/gpg-signing-plan.md §7). */
 internal enum class GitAuthStep(val title: String, val caption: String, val short: String = title) {
     Identity("Commit Identity", "Who your commits are attributed to", short = "Identity"),
     Authentication("Authentication", "How this device proves it may push"),
+    Signing("Commit Signing", "How your commits are signed", short = "Signing"),
     Verify("Verify", "Check it works against a real repository"),
 }
 
@@ -188,6 +189,16 @@ fun GitAuthScreen(actions: NavigationActions) {
                     onOpenHost = { gateway.dispatch(ICodeIntent.OpenExternalUrl(it)) },
                     sshClientInstall = state.runtimeTools.installing(RuntimeTools.SshClient),
                 )
+                GitAuthStep.Signing -> SigningSection(
+                    auth = auth,
+                    identity = state.globalGitAuthorName?.takeIf { it.isNotBlank() }?.let { name ->
+                        state.globalGitAuthorEmail?.takeIf { it.isNotBlank() }?.let { "$name <$it>" }
+                    },
+                    commitEmail = repository?.authorEmail ?: state.globalGitAuthorEmail,
+                    gnupgInstall = state.runtimeTools.installing(RuntimeTools.GnuPg),
+                    onIntent = gateway::dispatch,
+                    onOpenHost = { gateway.dispatch(ICodeIntent.OpenExternalUrl(it)) },
+                )
                 GitAuthStep.Verify -> VerifySection(
                     auth = auth,
                     url = testUrl,
@@ -232,7 +243,8 @@ private fun StepActions(
     val canAdvance = when (step) {
         GitAuthStep.Identity -> identityValid
         GitAuthStep.Authentication -> auth.hasHttpsCredential || auth.hasSshKey
-        GitAuthStep.Verify -> true
+        // Signing is the user's choice: the step never holds the flow up.
+        GitAuthStep.Signing, GitAuthStep.Verify -> true
     }
     Column(Modifier.padding(IcodeSpacing.Space5)) {
         when (step) {
@@ -253,7 +265,7 @@ private fun StepActions(
                 Modifier.fillMaxWidth(),
                 enabled = canAdvance,
             )
-            GitAuthStep.Authentication -> TwoColumnActions(
+            GitAuthStep.Authentication, GitAuthStep.Signing -> TwoColumnActions(
                 left = { SecondaryButton("Back", onBack, Modifier.fillMaxWidth()) },
                 right = {
                     PrimaryButton(
@@ -275,12 +287,14 @@ private fun StepActions(
 
 private fun nextStep(step: GitAuthStep): GitAuthStep = when (step) {
     GitAuthStep.Identity -> GitAuthStep.Authentication
-    GitAuthStep.Authentication -> GitAuthStep.Verify
+    GitAuthStep.Authentication -> GitAuthStep.Signing
+    GitAuthStep.Signing -> GitAuthStep.Verify
     GitAuthStep.Verify -> GitAuthStep.Verify
 }
 
 private fun previousStep(step: GitAuthStep): GitAuthStep = when (step) {
     GitAuthStep.Identity -> GitAuthStep.Identity
     GitAuthStep.Authentication -> GitAuthStep.Identity
-    GitAuthStep.Verify -> GitAuthStep.Authentication
+    GitAuthStep.Signing -> GitAuthStep.Authentication
+    GitAuthStep.Verify -> GitAuthStep.Signing
 }
