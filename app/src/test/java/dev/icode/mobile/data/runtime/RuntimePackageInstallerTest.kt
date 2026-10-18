@@ -1,11 +1,14 @@
 package dev.icode.mobile.data.runtime
 
 import dev.icode.mobile.domain.AptPhase
+import dev.icode.mobile.domain.RuntimeInventory
+import dev.icode.mobile.domain.RuntimeTool
 import dev.icode.mobile.domain.RuntimeToolAction
 import dev.icode.mobile.domain.RuntimeToolRules
-import dev.icode.mobile.domain.RuntimeToolWork
-import dev.icode.mobile.domain.RuntimeTool
 import dev.icode.mobile.domain.RuntimeTools
+import dev.icode.mobile.domain.ToolSetupProgress
+import java.io.File
+import java.io.IOException
 import java.util.Collections
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CompletableDeferred
@@ -25,13 +28,18 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
 
 class RuntimePackageInstallerTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val calls = Collections.synchronizedList(mutableListOf<String>())
     private val running = AtomicInteger()
     private val mostAtOnce = AtomicInteger()
+
+    @get:Rule val temporaryFolder = TemporaryFolder()
+    private val receipts by lazy { File(temporaryFolder.root, "receipts") }
 
     @After fun stop() = scope.cancel()
 
@@ -53,17 +61,23 @@ class RuntimePackageInstallerTest {
         var installGate: CompletableDeferred<Unit>? = null
         var installedGate: CompletableDeferred<Unit>? = null
 
-        fun installer(runtimeReady: Boolean = true) = RuntimePackageInstaller(scope, { runtimeReady }, { installed.toSet() }) { argv, onLine ->
-            val now = running.incrementAndGet()
-            mostAtOnce.accumulateAndGet(now) { a, b -> maxOf(a, b) }
-            try {
-                calls += argv.joinToString(" ")
-                delay(10)
-                respond(argv, onLine)
-            } finally {
-                running.decrementAndGet()
-            }
-        }
+        fun installer(runtimeReady: Boolean = true, setups: List<RuntimeToolSetup> = emptyList()) = RuntimePackageInstaller(
+            scope,
+            { runtimeReady },
+            { installed.toSet() },
+            { argv, onLine ->
+                val now = running.incrementAndGet()
+                mostAtOnce.accumulateAndGet(now) { a, b -> maxOf(a, b) }
+                try {
+                    calls += argv.joinToString(" ")
+                    delay(10)
+                    respond(argv, onLine)
+                } finally {
+                    running.decrementAndGet()
+                }
+            },
+            ToolSetups(setups, receipts),
+        )
 
         /** As apt: what no manually installed package needs, directly or through another. */
         private fun orphans(): List<String> {
@@ -228,7 +242,7 @@ class RuntimePackageInstallerTest {
         apt.installedGate!!.complete(Unit)
         assertEquals(RuntimePackageInstaller.Outcome.Ready, withTimeout(2_000) { outcome.await() })
         assertNull(installer.work.value)
-        assertEquals(setOf("openssh-client"), installer.installed.value)
+        assertEquals(RuntimeInventory(setOf("openssh-client")), installer.installed.value)
     }
 
     @Test fun `a cancel while downloading stops before anything is installed`() = runBlocking {
@@ -260,8 +274,8 @@ class RuntimePackageInstallerTest {
             auto += "libcurl4t64"
         }
         val installer = apt.installer()
-        val plan = RuntimeToolRules.plan(setOf("git"), apt.installed.toSet())
-        assertEquals(RuntimePackageInstaller.Outcome.Ready, installer.apply(plan))
+        val plan = RuntimeToolRules.plan(setOf("git"), RuntimeInventory(apt.installed.toSet()))
+        assertEquals(RuntimePackageInstaller.Outcome.Ready, installer.apply(plan, emptySet()))
         assertEquals(setOf("git"), apt.installed.toSet())
         assertTrue(calls.contains("apt-get remove -y ca-certificates curl libcurl4t64"))
         assertNull(installer.work.value)
@@ -272,7 +286,7 @@ class RuntimePackageInstallerTest {
             installed += setOf("git", "curl", "ca-certificates")
         }
         val installer = apt.installer()
-        val outcome = installer.apply(RuntimeToolRules.plan(setOf("git"), apt.installed.toSet()))
+        val outcome = installer.apply(RuntimeToolRules.plan(setOf("git"), RuntimeInventory(apt.installed.toSet())), emptySet())
         assertEquals(RuntimePackageInstaller.Outcome.Failed("curl cannot be removed: other installed packages need it"), outcome)
         assertEquals(setOf("git", "curl", "ca-certificates"), apt.installed.toSet())
         assertTrue("its marks are put back", apt.auto.isEmpty())
@@ -288,7 +302,7 @@ class RuntimePackageInstallerTest {
             installed += setOf("ripgrep", "libcurl4t64")
             auto += "libcurl4t64"
         }
-        assertEquals(RuntimePackageInstaller.Outcome.Ready, apt.installer().apply(RuntimeToolRules.plan(emptySet(), apt.installed.toSet())))
+        assertEquals(RuntimePackageInstaller.Outcome.Ready, apt.installer().apply(RuntimeToolRules.plan(emptySet(), RuntimeInventory(apt.installed.toSet())), emptySet()))
         assertEquals(setOf("libcurl4t64"), apt.installed.toSet())
     }
 
@@ -307,5 +321,128 @@ class RuntimePackageInstallerTest {
         val measured = FakeApt().installer().measure(listOf(nope, RuntimeTools.Ripgrep))
         assertEquals(setOf("ripgrep"), measured.downloads.keys)
         assertEquals("Could not measure Nope: E: Unable to locate package nope", measured.failure)
+    }
+
+    /** A scripted setup: it says a step, prints a line, and waits on [gate] where a test holds it. */
+    private inner class FakeSetup : RuntimeToolSetup {
+        override val id = "kit"
+        override val receipt = "kit 1\n"
+        var gate: CompletableDeferred<Unit>? = null
+        var fails: String? = null
+
+        override fun measure() = mapOf("kit.zip" to 5_000L)
+
+        override suspend fun install(onProgress: (ToolSetupProgress) -> Unit, onLine: (String) -> Unit) {
+            calls += "setup install"
+            onProgress(ToolSetupProgress("Downloading the kit", 0.5f, "1 of 2 MB", cancellable = true))
+            onLine("kit: fetched")
+            gate?.await()
+            fails?.let { throw IOException(it) }
+        }
+
+        override fun configure() {
+            calls += "setup configure"
+        }
+
+        override suspend fun remove() {
+            calls += "setup remove"
+        }
+    }
+
+    private val kit = RuntimeTool("kit", "Kit", "", null, listOf("git"), setup = "kit", licence = "kit-licence")
+
+    private fun planFor(installer: RuntimePackageInstaller, chosen: Set<String>) =
+        RuntimeToolRules.plan(chosen, installer.run { refresh(); installed.value!! }, listOf(kit))
+
+    @Test fun `a tool's setup runs once apt is done, its receipt is kept, and it reads installed`() = runBlocking {
+        val apt = FakeApt()
+        val setup = FakeSetup()
+        val installer = apt.installer(setups = listOf(setup))
+        assertEquals(RuntimePackageInstaller.Outcome.Ready, installer.apply(planFor(installer, setOf("kit")), setOf("kit-licence")))
+        assertEquals(installOf("git") + listOf("setup install", "setup configure"), calls)
+        assertEquals("kit 1\n", File(receipts, "kit").readText())
+        assertEquals(RuntimeInventory(setOf("git"), setOf("kit")), installer.installed.value)
+        assertTrue(installer.isInstalled(kit))
+        assertNull(installer.work.value)
+    }
+
+    @Test fun `a receipt that matches skips the setup but not its configuration, as after a Repair`() = runBlocking {
+        val apt = FakeApt()
+        val setup = FakeSetup()
+        File(receipts.apply { mkdirs() }, "kit").writeText(setup.receipt)
+        val installer = apt.installer(setups = listOf(setup))
+        assertFalse("the packages went with the system", installer.isInstalled(kit))
+        assertEquals(RuntimePackageInstaller.Outcome.Ready, installer.apply(planFor(installer, setOf("kit")), setOf("kit-licence")))
+        assertEquals(installOf("git") + "setup configure", calls)
+    }
+
+    @Test fun `a receipt for other pins reads as not installed, and installing runs the setup again`() = runBlocking {
+        val apt = FakeApt().apply { installed += "git" }
+        val setup = FakeSetup()
+        File(receipts.apply { mkdirs() }, "kit").writeText("kit 0\n")
+        val installer = apt.installer(setups = listOf(setup))
+        assertFalse(installer.isInstalled(kit))
+        installer.apply(planFor(installer, setOf("kit")), setOf("kit-licence"))
+        assertTrue("setup install" in calls)
+        assertTrue(installer.isInstalled(kit))
+    }
+
+    @Test fun `a tool whose licence was not accepted is not installed, and nothing runs`() = runBlocking {
+        val apt = FakeApt()
+        val setup = FakeSetup()
+        val installer = apt.installer(setups = listOf(setup))
+        val failed = RuntimePackageInstaller.Outcome.Failed("Kit installs only once its licence is accepted, in Runtime Tools")
+        assertEquals(failed, installer.apply(planFor(installer, setOf("kit")), emptySet()))
+        assertEquals(failed, installer.ensure(kit))
+        assertEquals(emptyList<String>(), calls)
+    }
+
+    @Test fun `a setup's progress and lines are published, and a cancel where it says so stops it without a receipt`() = runBlocking {
+        val apt = FakeApt()
+        val setup = FakeSetup().apply { gate = CompletableDeferred() }
+        val installer = apt.installer(setups = listOf(setup))
+        val outcome = async { installer.apply(planFor(installer, setOf("kit")), setOf("kit-licence")) }
+        withTimeout(2_000) { while (installer.work.value?.setup == null) delay(5) }
+        val work = installer.work.value!!
+        assertEquals("Downloading the kit", work.step)
+        assertEquals(0.5f, work.fraction)
+        assertEquals("1 of 2 MB", work.item)
+        withTimeout(2_000) { while (installer.work.value?.log?.lastOrNull() != "kit: fetched") delay(5) }
+        assertTrue(installer.work.value!!.cancellable)
+        installer.cancel()
+        assertEquals(RuntimePackageInstaller.Outcome.Cancelled, withTimeout(2_000) { outcome.await() })
+        assertFalse(File(receipts, "kit").exists())
+        assertFalse(installer.isInstalled(kit))
+    }
+
+    @Test fun `a setup's failure is said in its words and kept, without a receipt`() = runBlocking {
+        val apt = FakeApt()
+        val setup = FakeSetup().apply { fails = "sdkmanager could not install the SDK packages: Connection refused" }
+        val installer = apt.installer(setups = listOf(setup))
+        val outcome = installer.apply(planFor(installer, setOf("kit")), setOf("kit-licence"))
+        assertEquals(RuntimePackageInstaller.Outcome.Failed("sdkmanager could not install the SDK packages: Connection refused"), outcome)
+        assertEquals("sdkmanager could not install the SDK packages: Connection refused", installer.work.value?.failure)
+        assertFalse(File(receipts, "kit").exists())
+    }
+
+    @Test fun `a removal takes the setup away and its receipt, then the packages`() = runBlocking {
+        val apt = FakeApt().apply { installed += "git" }
+        val setup = FakeSetup()
+        File(receipts.apply { mkdirs() }, "kit").writeText(setup.receipt)
+        val installer = apt.installer(setups = listOf(setup))
+        assertEquals(RuntimePackageInstaller.Outcome.Ready, installer.apply(planFor(installer, emptySet()), emptySet()))
+        assertEquals("setup remove", calls.first())
+        assertTrue(calls.contains("apt-get remove -y git"))
+        assertFalse(File(receipts, "kit").exists())
+        assertEquals(RuntimeInventory(emptySet()), installer.installed.value)
+    }
+
+    @Test fun `a tool's download is apt's archives and its setup's pinned files, until its receipt matches`() = runBlocking {
+        val apt = FakeApt()
+        val setup = FakeSetup()
+        val installer = apt.installer(setups = listOf(setup))
+        assertEquals(mapOf("git_1_arm64.deb" to 1000L, "kit.zip" to 5_000L), installer.measure(listOf(kit)).downloads.getValue("kit").archives)
+        File(receipts.apply { mkdirs() }, "kit").writeText(setup.receipt)
+        assertEquals(mapOf("git_1_arm64.deb" to 1000L), installer.measure(listOf(kit)).downloads.getValue("kit").archives)
     }
 }

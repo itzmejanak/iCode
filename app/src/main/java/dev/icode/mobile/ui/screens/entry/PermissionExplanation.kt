@@ -61,6 +61,17 @@ private fun stepOf(permission: SystemPermission): PermissionStep = when (permiss
         ),
         allowLabel = "Allow Access",
     )
+    SystemPermission.InstallApps -> PermissionStep(
+        title = "Install Unknown Apps",
+        description = "Build & Run installs the app it built on this phone, as Android Studio does on a device. Android asks whether iCode may install apps.",
+        reasons = listOf(
+            "Android shows its own confirmation before each app is installed or updated.",
+            "iCode installs only an app you build with Build & Run, or the assistant does when you approve it.",
+            "The app is installed as any other: uninstall it from Android's settings.",
+            "You remain in control. Change it at any time in Android's settings for iCode.",
+        ),
+        allowLabel = "Allow Installs",
+    )
 }
 
 /**

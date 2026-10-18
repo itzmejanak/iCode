@@ -5,6 +5,8 @@ import java.nio.file.Files
 import java.util.zip.GZIPOutputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
+import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -12,7 +14,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
-class RootfsExtractorTest {
+class ArchiveExtractorTest {
 
     @get:Rule
     val temporaryFolder = TemporaryFolder()
@@ -43,7 +45,7 @@ class RootfsExtractorTest {
     fun `regular files land with their contents`() {
         val source = archive { file("etc/hostname", "icode\n") }
         val out = target()
-        RootfsExtractor().extract(source, out) {}
+        ArchiveExtractor().extractTarGz(source, out) {}
         assertEquals("icode\n", File(out, "etc/hostname").readText())
     }
 
@@ -51,7 +53,7 @@ class RootfsExtractorTest {
     fun `directories are created even when only implied by a path`() {
         val source = archive { file("usr/lib/deep/thing.txt", "x") }
         val out = target()
-        RootfsExtractor().extract(source, out) {}
+        ArchiveExtractor().extractTarGz(source, out) {}
         assertTrue(File(out, "usr/lib/deep").isDirectory)
     }
 
@@ -59,7 +61,7 @@ class RootfsExtractorTest {
     fun `an executable keeps its execute bit`() {
         val source = archive { file("bin/tool", "#!/bin/sh\n", mode = 0b111_101_101) }
         val out = target()
-        RootfsExtractor().extract(source, out) {}
+        ArchiveExtractor().extractTarGz(source, out) {}
         assertTrue(File(out, "bin/tool").canExecute())
     }
 
@@ -67,7 +69,7 @@ class RootfsExtractorTest {
     fun `a plain file does not become executable`() {
         val source = archive { file("etc/passwd", "root:x:0:0\n") }
         val out = target()
-        RootfsExtractor().extract(source, out) {}
+        ArchiveExtractor().extractTarGz(source, out) {}
         assertFalse(File(out, "etc/passwd").canExecute())
     }
 
@@ -81,7 +83,7 @@ class RootfsExtractorTest {
             closeArchiveEntry()
         }
         val out = target()
-        RootfsExtractor().extract(source, out) {}
+        ArchiveExtractor().extractTarGz(source, out) {}
         assertTrue(Files.isSymbolicLink(File(out, "bin/sh").toPath()))
     }
 
@@ -96,7 +98,7 @@ class RootfsExtractorTest {
             closeArchiveEntry()
         }
         val out = target()
-        RootfsExtractor().extract(source, out) {}
+        ArchiveExtractor().extractTarGz(source, out) {}
         val copy = File(out, "usr/bin/perl5.38")
         assertTrue(copy.isFile)
         assertFalse(Files.isSymbolicLink(copy.toPath()))
@@ -113,7 +115,7 @@ class RootfsExtractorTest {
             file("usr/bin/late", "arrived later")
         }
         val out = target()
-        RootfsExtractor().extract(source, out) {}
+        ArchiveExtractor().extractTarGz(source, out) {}
         assertEquals("arrived later", File(out, "usr/bin/early").readText())
     }
 
@@ -121,7 +123,7 @@ class RootfsExtractorTest {
     fun `an entry escaping the target is refused`() {
         val source = archive { file("../escaped.txt", "nope") }
         val out = target()
-        RootfsExtractor().extract(source, out) {}
+        ArchiveExtractor().extractTarGz(source, out) {}
         assertFalse(File(temporaryFolder.root, "escaped.txt").exists())
     }
 
@@ -130,8 +132,39 @@ class RootfsExtractorTest {
         val source = archive { repeat(5) { index -> file("file$index.txt", "$index") } }
         val out = target()
         var lastReported = -1L
-        val written = RootfsExtractor().extract(source, out) { lastReported = it }
+        val written = ArchiveExtractor().extractTarGz(source, out) { lastReported = it }
         assertEquals(5L, written)
         assertEquals(5L, lastReported)
+    }
+
+    private fun zip(vararg entries: Pair<String, Int>): File {
+        val file = temporaryFolder.newFile("tools-${System.nanoTime()}.zip")
+        ZipArchiveOutputStream(file).use { zip ->
+            entries.forEach { (name, mode) ->
+                zip.putArchiveEntry(ZipArchiveEntry(name).apply { unixMode = mode })
+                zip.write(name.toByteArray())
+                zip.closeArchiveEntry()
+            }
+        }
+        return file
+    }
+
+    @Test
+    fun `a zip's entries land where they are placed, executables kept executable, the rest left out`() {
+        val source = zip("build-tools/aapt2" to 0b111_000_000, "build-tools/NOTICE" to 0b110_100_100, "others/veridex" to 0b111_101_101)
+        val out = target()
+        val written = ArchiveExtractor().extractZip(source, out) { name -> name.removePrefix("build-tools/").takeIf { it != name } }
+        assertEquals(2L, written)
+        assertEquals("build-tools/aapt2", File(out, "aapt2").readText())
+        assertTrue(File(out, "aapt2").canExecute())
+        assertFalse(File(out, "NOTICE").canExecute())
+        assertFalse(File(out, "veridex").exists())
+    }
+
+    @Test
+    fun `a zip entry escaping the target is refused`() {
+        val out = target()
+        ArchiveExtractor().extractZip(zip("../escaped.txt" to 0b110_100_100), out)
+        assertFalse(File(temporaryFolder.root, "escaped.txt").exists())
     }
 }

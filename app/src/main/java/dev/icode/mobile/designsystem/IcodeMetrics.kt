@@ -71,6 +71,8 @@ object IcodeSizes {
 
     /** An open approval's text, at most: a few lines of a command, then it scrolls. */
     val ApprovalDetail = 200.dp
+    /** A licence's text on the License Agreement, at most: then it scrolls, the Accept below it in sight. */
+    val LicenceText = 320.dp
     val LineNumberGutter = 32.dp
     val Swatch = 28.dp
 

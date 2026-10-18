@@ -1,0 +1,82 @@
+package dev.icode.mobile.data.android
+
+import dev.icode.mobile.domain.AndroidProject
+import java.io.File
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
+import org.junit.Rule
+import org.junit.Test
+import org.junit.rules.TemporaryFolder
+
+class AndroidProjectsTest {
+    @get:Rule val temporaryFolder = TemporaryFolder()
+
+    private fun project(vararg files: Pair<String, String>): File = temporaryFolder.newFolder().also { root ->
+        files.forEach { (path, text) -> File(root, path).apply { parentFile?.mkdirs() }.writeText(text) }
+    }
+
+    private val wrapper = arrayOf("gradlew" to "#!/bin/sh", "settings.gradle.kts" to "include(\":app\")")
+
+    @Test
+    fun `Android Studio's template is found by its version-catalog alias`() {
+        val root = project(
+            *wrapper,
+            "app/build.gradle.kts" to "plugins {\n    alias(libs.plugins.android.application)\n}",
+            "app/src/main/AndroidManifest.xml" to "<manifest/>",
+        )
+        assertEquals(AndroidProject(root.path, "app"), AndroidProjects.find(root, root.path))
+        assertEquals(":app:assembleDebug", AndroidProject(root.path, "app").task)
+    }
+
+    @Test
+    fun `an app module is found by the plugin's id, a library is not an app, and app wins among several`() {
+        val root = project(
+            *wrapper,
+            "demo/build.gradle" to "apply plugin: 'com.android.application'",
+            "demo/src/main/AndroidManifest.xml" to "<manifest/>",
+            "app/build.gradle.kts" to "plugins { id(\"com.android.application\") }",
+            "app/src/main/AndroidManifest.xml" to "<manifest/>",
+            "core/build.gradle.kts" to "plugins { alias(libs.plugins.android.library) }",
+            "core/src/main/AndroidManifest.xml" to "<manifest/>",
+        )
+        assertEquals("app", AndroidProjects.find(root, root.path)?.module)
+    }
+
+    @Test
+    fun `a project that is one module builds at its top`() {
+        val root = project(*wrapper, "build.gradle" to "apply plugin: 'com.android.application'", "src/main/AndroidManifest.xml" to "<manifest/>")
+        assertEquals("", AndroidProjects.find(root, root.path)?.module)
+        assertEquals("assembleDebug", AndroidProject(root.path, "").task)
+    }
+
+    @Test
+    fun `without the wrapper and settings, or without an app module, there is no Android app`() {
+        assertNull(AndroidProjects.find(project("app/build.gradle.kts" to "com.android.application", "app/src/main/AndroidManifest.xml" to ""), "w"))
+        assertNull(AndroidProjects.find(project(*wrapper, "lib/build.gradle.kts" to "com.android.library", "lib/src/main/AndroidManifest.xml" to ""), "w"))
+        assertNull(AndroidProjects.find(project(*wrapper, "app/build.gradle.kts" to "com.android.application"), "w"))
+    }
+
+    @Test
+    fun `the APK and the app's id are read from what Gradle wrote`() {
+        val root = project(
+            "app/build/outputs/apk/debug/output-metadata.json" to """
+                {"version": 3, "artifactType": {"type": "APK", "kind": "Directory"}, "applicationId": "com.example.hello",
+                 "variantName": "debug", "elements": [{"type": "SINGLE", "filters": [], "attributes": [], "versionCode": 1,
+                 "versionName": "1.0", "outputFile": "app-debug.apk"}], "elementType": "File"}
+            """.trimIndent(),
+        )
+        val metadata = AndroidProjects.metadata(root, AndroidProject(root.path, "app"))
+        val (id, apk) = AndroidProjects.apk(metadata)
+        assertEquals("com.example.hello", id)
+        assertEquals(File(root, "app/build/outputs/apk/debug/app-debug.apk"), apk)
+    }
+
+    @Test
+    fun `split APKs are said as not installed`() {
+        val metadata = File(temporaryFolder.root, "output-metadata.json").apply {
+            writeText("""{"applicationId": "a", "elements": [{"type": "ONE_OF_MANY", "outputFile": "a-arm64.apk"}]}""")
+        }
+        assertThrows(IllegalArgumentException::class.java) { AndroidProjects.apk(metadata) }
+    }
+}

@@ -1,6 +1,7 @@
 # Android Apps, Built on the Phone — Toolchain Plan
 
-Status: **plan, decisions taken (2026-10-17), for the owner's review**. Nothing is built yet. It extends
+Status: **A2–A7 built (2026-10-17)**; §4.1–§4.5 describe what was built. A1, the phone measurement,
+and A8, the New Android app template that waits on it, are open (§5, §6). It extends
 [runtime-tools-plan.md](./runtime-tools-plan.md) (Set Up Tools and Runtime Tools) and uses
 [runtime-foundation-plan.md](./runtime-foundation-plan.md) (managed processes, the login environment).
 
@@ -19,7 +20,7 @@ no any fallback and complex code. Let's plan and be 100% accurate about the dire
 | What makes building Android apps on a phone hard? | Eleven limits, listed in §2. The decisive one: Google publishes the SDK's native host tools, `aapt2` above all, for x86-64 Linux only. Gradle's own `aapt2` download cannot run on an ARM64 phone. |
 | How did Mobile Harness solve it? | It ships one 570 MB bundle containing JDK 17, SDK 36, ARM64 build tools, Gradle 8.14.3 and an offline Maven repository. It targets Android 9 (API 28) so it may run programs from its data folder. It installs APKs through Android's package installer. Its approach has gaps of its own (§2.2). |
 | Does iCode's architecture block it? | **Partly, in four places** (§3). The runtime itself is already right: iCode targets API 36 and runs everything through PRoot's loader. It uses Ubuntu 24.04 with apt, mounts the Android system folders, keeps workspaces on ext4, and reads environment variables from the login profile. What blocks Android work is narrower: the tools catalog can only install apt packages, pinned downloads cover only the root filesystem, nothing can install an APK, and no build can be started by the user. |
-| Where does it go? | **One tool, "Android SDK", in the tools catalog**: Set Up Tools in onboarding, Runtime Tools in Settings. It installs the JDK through apt. It installs Google's own `sdkmanager`, which fetches the platform and build tools after the user accepts Google's licence. Then it replaces the build tools' x86-64 executables with ARM64 builds of the same AOSP source. Gradle is configured once, in one file. Build → install → launch is one action, used by the UI and the assistant (§4). |
+| Where does it go? | **One tool, "Android SDK", in the tools catalog**: Set Up Tools in onboarding, Runtime Tools in Settings. It installs the JDK through apt. It installs Google's own `sdkmanager`, which fetches the platform and build tools after the user accepts Google's licence. Then it replaces the build tools' x86-64 executables with ARM64 builds of the same AOSP source. Each Gradle setting is written once, where Gradle documents it. Build → install → launch is one action, used by the UI and the assistant (§4). |
 
 ## 2. The limits — measured or read, and how the reference handled each
 
@@ -69,7 +70,7 @@ Each claim names its evidence. "Reference" is Mobile Harness v1.0.7 (MIT), clone
 | # | Gap | Where | Root fix |
 |---|---|---|---|
 | G1 | **A tool is apt packages and nothing else.** "Installed" means dpkg, size means `apt --print-uris`, and the installer is apt. The Android SDK is not an apt package | `domain/RuntimeTools.kt` (`packages`), `RuntimePackageInstaller`, `DpkgStatus` | A tool may add a **setup** after its apt packages: pinned downloads plus steps it owns, with a receipt (§4.1) |
-| G2 | **Only the root filesystem is a pinned download.** The downloader is named for it (`RootfsDownloader`), and the manifest has one `rootfs` entry | `RuntimeInstaller.kt:56`, `RootfsDownloader.kt` | The manifest gains `archives`. One `RuntimeManifest` reads both. The downloader becomes `PinnedDownload` and verifies the SHA-256 itself (§4.2) |
+| G2 | **Only the root filesystem is a pinned download.** The downloader is named for it (`RootfsDownloader`), and the manifest has one `rootfs` entry | `RuntimeInstaller.kt:56`, `RootfsDownloader.kt` | The manifest gains `archives` and `packageBytes`. One `RuntimeManifest` reads them all. The downloader becomes `PinnedDownload`: it checks each pin's size and digest — SHA-256, or Google's own SHA-1 — as the bytes arrive (§4.2) |
 | G3 | **No APK install, no launch, no "Install unknown apps" permission** | `domain/SystemAccess.kt` (`Notifications`, `Battery`, `Storage`) | `SystemPermission.InstallApps`; one installer and launcher (§4.5) |
 | G4 | **No build the user can start.** Managed processes are started only by the assistant | `RuntimeProcesses.start`, `ICodeIntent.ProcessIntent` | Build is a managed process that iCode starts. Install and launch follow when it exits with 0. The ▶ button and the assistant share one action (§4.4) |
 
@@ -80,32 +81,40 @@ Each claim names its evidence. "Reference" is Mobile Harness v1.0.7 (MIT), clone
 ```kotlin
 data class RuntimeTool(
     …,
-    val packages: List<String>,          // apt, as today
-    /** The data layer's setup run after the apt packages, by id; null for an apt-only tool. */
+    val packages: List<String>,          // apt, as before
+    /** The data layer's setup, by id, run after [packages]; null for a tool apt installs whole. */
     val setup: String? = null,
+    /** The licence installing it accepts, by id: shown, and accepted, before it is installed. */
+    val licence: String? = null,
 )
 
 val AndroidSdk = RuntimeTool(
-    "android-sdk", "Android SDK", "Build, install and run Android apps: JDK 17, SDK Platform 36, Build-Tools 36 (ARM64)",
-    usedBy = "Build & Run for Android projects", packages = listOf("openjdk-17-jdk-headless"), setup = "android-sdk",
+    "android-sdk", "Android SDK", "JDK 17, SDK Platform 36 and Build-Tools 36, with build tools that run on ARM64",
+    "Build & Run for Android apps", listOf("openjdk-17-jdk-headless"), setup = "android-sdk", licence = "android-sdk-license",
 )
 ```
 
-**How the setup works:**
-- It is one data-layer interface, `RuntimeToolSetup`, with these members:
+**How a setup works (as built):**
+- `RuntimeToolSetup` (data) has these members:
   - `id`;
-  - `measure()`, which gives exact bytes;
-  - `install(progress)`;
-  - `isInstalled()`, read from its receipt;
+  - `receipt`: what it installs, by version and checksum;
+  - `measure()`: the size of each file it downloads, as pinned;
+  - `install(onProgress, onLine)`: its steps, with its progress and output;
+  - `configure()`: what it keeps outside the guest home (§4.2);
   - `remove()`.
-- Setups are registered by id. The domain stays pure: it knows a setup exists, not how it runs.
+- `ToolSetups` registers the setups by id and keeps their receipts in `~/.icode/runtime-tools/<id>`. A setup never writes a receipt itself. The one registration is `RuntimeToolsCoordinator`'s constructor.
+- The domain stays pure: it knows a setup and a licence exist, not how they run.
 
 **What changes where:**
-- **Installed** means dpkg has every package *and* the setup's receipt matches. Install runs apt first, then the setup. Removal reverses that order.
-- **Download** is apt's archives plus the setup's measured bytes, so the page's one total still counts each thing once.
-- **Progress** stays one `RuntimeToolWork`. The setup reports its own steps in the same phase and step fields: "Downloading Android platform 36 · 41 of 63 MB", then "Setting up build tools". Downloads report bytes; apt does not.
+- **Installed** means dpkg has every package *and* the setup's receipt equals the receipt this build pins (`RuntimeInventory`). A build that pins other versions reads as not installed, and installing brings it up to date.
+- **Install** checks the licence first. A tool whose licence was not accepted is refused, so `ensure()`, which features call, can never install one. Then apt runs, then the setup unless its receipt matches. `configure()` runs either way, and the receipt is written last.
+- **Removal** removes the setup and its receipt, then apt removes the packages.
+- **Download** is apt's archives plus the setup's pinned files, unless its receipt matches. The page's one total still counts each file once.
+- **Progress** stays one `RuntimeToolWork`. Once apt is done, the setup's `ToolSetupProgress` gives the step, fraction, file and whether it can be cancelled. Downloads and sdkmanager can be cancelled. Unpacking, the ARM64 overlay and writing settings run in `NonCancellable`, and the page says "This step can't be stopped". `ToolRuns` holds the run in hand and its Cancel. Every apt command stays in `RuntimePackageInstaller`, which the guard checks (`apt-owner`).
 
-**Placement:** not in Standard, because it is opt-in and large. It is listed in Set Up Tools (onboarding, Custom) and in Settings › Runtime Environment › Runtime Tools, the same list (`runtime-tools-plan.md` §8).
+**Placement:** not in Standard, because it is opt-in and large.
+- It is listed under "Used by iCode" in Set Up Tools (onboarding, Custom) and in Settings › Runtime Environment › Runtime Tools.
+- Ticking it adds Android Studio's last step, **License Agreement**. That step shows the licence's id, which tools need it, and its text in a scrolling box, with Decline and Accept. Install or Apply stays disabled until each licence is accepted. `ApplyRuntimeTools(chosen, accepted)` carries the accepted ids.
 
 ### 4.2 What the Android SDK tool installs, exactly
 
@@ -114,13 +123,16 @@ The SDK lives at **`/root/Android/Sdk`**, which is Android Studio's location on 
 | Order | What | From | Checked by |
 |---|---|---|---|
 | 1 | `openjdk-17-jdk-headless`. JDK 17 is AGP 9's minimum and default; Gradle 7.3 and later run on it | apt (noble) | dpkg |
-| 2 | Google **cmdline-tools** (`sdkmanager`), into `…/Sdk/cmdline-tools/latest` | Google's download page, pinned in `manifest.json` `archives` with URL, SHA-256 and size | SHA-256 |
-| 3 | `platforms;android-36` and `build-tools;36.0.0`. 36.0.0 is AGP 9's minimum, and AGP 8.x accepts it | `sdkmanager --install`: Google's own installer writes `package.xml` and checks Google's checksums | sdkmanager |
-| 4 | **ARM64 host tools** over `build-tools/36.0.0`: `aapt`, `aapt2`, `aidl`, `zipalign`, `dexdump`, `split-select` | lzhiyong/android-sdk-tools release **35.0.2**, `android-sdk-tools-static-aarch64.zip`, SHA-256 `db1cea2c4454d5f9c5a802646b2d1cf560b4ee7badbe23e51ab8e1881bb50fc2`, 14,401,170 bytes. Its `aapt2` is "ELF 64-bit, ARM aarch64, statically linked" (read here). It is built by the project's public CI from AOSP source, under Apache-2.0 | SHA-256 |
-| 5 | The environment: `/etc/profile.d/icode-android.sh` sets `ANDROID_HOME` and adds `cmdline-tools/latest/bin` and `build-tools/36.0.0` to `PATH` | Written by the setup | — |
-| 6 | Gradle, in one file: `~/.gradle/init.d/icode-android.gradle` (§4.3) | Written by the setup | — |
-| 7 | The receipt `~/.icode/runtime-tools/android-sdk`: the versions and checksums installed | Written by the setup | — |
-| 8 | Verification: `java -version` reports 17, `sdkmanager --version` runs, `aapt2 version` runs, and `platforms/android-36/android.jar` exists | Guest commands | exit codes |
+| 2 | Google **Command-line Tools** 22.0, unpacked into `…/Sdk/cmdline-tools/latest` through a staging folder, executable bits kept (commons-compress reads the zip's Unix modes) | `manifest.json` `archives.android-cmdline-tools`: Google's URL, size 181,833,628 bytes and **Google's own SHA-1** `040d3996…` | SHA-1 and size, as the bytes arrive |
+| 3 | The licence the user accepted: `licenses/android-sdk-license`, a newline and then the SHA-1 of the licence text, exactly as sdkmanager writes it | The text shipped as `assets/runtime/licences/android-sdk-license.txt` | A test pins its SHA-1 to `24333f8a63b6825ea9c5514f83c2829b004d1fee`, the hash sdkmanager accepts |
+| 4 | `platforms;android-36` and `build-tools;36.0.0`, by `sdkmanager --sdk_root=/root/Android/Sdk --install …` with stdin closed: a licence it does not find accepted is declined, never waited on | Google's own installer: it writes `package.xml` and checks Google's checksums. Sizes are pinned in `manifest.json` `packageBytes` (65,878,410 and 63,737,259 bytes) | sdkmanager's exit code; `android.jar` and the build tools folder must exist afterwards |
+| 5 | **ARM64 host tools** over `build-tools/36.0.0`: `aapt`, `aapt2`, `aidl`, `dexdump`, `split-select`, `zipalign`, and nothing else from the archive | lzhiyong/android-sdk-tools **35.0.2**, `android-sdk-tools-static-aarch64.zip`, SHA-256 `db1cea2c4454d5f9c5a802646b2d1cf560b4ee7badbe23e51ab8e1881bb50fc2`, 14,401,170 bytes. Its `aapt2` is "ELF 64-bit, ARM aarch64, statically linked". It is built by the project's public CI from AOSP source, under Apache-2.0 | SHA-256 and size; all six must be placed |
+| 6 | Gradle's settings (§4.3) | Written by the setup | — |
+| 7 | Verification: `java -version` says 17, and `aapt2 version` and `sdkmanager --version` each exit with 0 | Guest commands | exit codes |
+| 8 | The receipt `~/.icode/runtime-tools/android-sdk`: the licence hash, both archive checksums, both packages, and a SHA-256 of the settings written | Written by `ToolSetups` | — |
+| — | The environment: `/etc/profile.d/icode-android-sdk.sh` sets `ANDROID_HOME` and appends `cmdline-tools/latest/bin` and `build-tools/36.0.0` to `PATH`. Written by `configure()` on every install | The system's | — |
+
+Both zips stay in the cache until the whole setup succeeds. A retry after a later step fails verifies them and downloads nothing again.
 
 **Why these ARM64 tools, and not another source:**
 - **Mobile Harness's bundle** has no recorded source (§2.2).
@@ -130,53 +142,65 @@ The SDK lives at **`/root/Android/Sdk`**, which is Android Studio's location on 
 
 **Why sdkmanager, and not iCode unpacking zips:** sdkmanager is Google's installer. It writes `package.xml` and resolves dependencies as Android Studio does. The user also gets the standard `sdkmanager` to add other platforms later.
 
-**The licence (L10):**
-- Runtime Tools reads Google's repository (`repository2-3.xml`, the file sdkmanager reads) for two things only:
-  - the download sizes of the two packages, measured and never written in the code;
-  - the text of the licence they require (`android-sdk-license`).
-- With Android SDK ticked, Install shows that text with **Accept** and **Decline**, as Android Studio's setup does.
-- Accept writes `licenses/android-sdk-license`, the licence's SHA-1, which is what sdkmanager writes. Only then does sdkmanager run. The parser is `SdkRepository`: pure, and tested on a recorded copy.
+**The licence (L10), as built:**
+- iCode pins Google's packages as it pins every other download. Nothing reads Google's repository at runtime.
+  - The Command-line Tools are pinned with Google's own SHA-1, and the two packages with their sizes. Both come from Google's repository data as nixpkgs mirrors it (`androidenv/repo.json`, updated 2026-10-17).
+  - `dl.google.com` cannot be reached from this container, so nothing here could check it more directly.
+- The licence text ships as an asset, byte for byte. `.editorconfig` keeps an editor from adding a final newline.
+- The License Agreement shows that text. Accept is what makes iCode write sdkmanager's record, whose hash is computed from the same bytes, so the two cannot differ.
+- **If Google changes the licence,** sdkmanager finds it not accepted and declines it. The setup then fails with sdkmanager's own words. A new build of iCode ships the new text.
 
 **What Repair and Reset do:**
-- **Repair** rebuilds the system, which removes the JDK, but keeps the home: the SDK, receipt, init script and debug key. The tool then reads as not installed, because one package is missing. Install fetches only the JDK, since the receipt is still valid.
+- **Repair** rebuilds the system, which removes the JDK and `/etc/profile.d`. It keeps the home: the SDK, receipt, Gradle settings and debug key.
+  - The tool then reads as not installed, because its package is missing.
+  - Installing it again fetches only the JDK, since the receipt matches. `configure()` writes the environment again.
 - **Reset** removes everything, and the tool is offered again.
-- **The debug key (L11):** it stays `~/.android/debug.keystore`, so Repair keeps it. Reset's confirmation says the apps it installed must be uninstalled before they can be installed again.
+- **The debug key (L11):** it stays `~/.android/debug.keystore`, so Repair keeps it.
 
-### 4.3 Gradle on the phone — one file
+### 4.3 Gradle on the phone — each setting once, where Gradle documents it
 
-All of iCode's Gradle settings live in one init script, `~/.gradle/init.d/icode-android.gradle`, applied to every build. Nothing goes in `gradle.properties`, and there is no environment variable.
-
-**What it sets:**
-
-| Setting | Value | Why |
+| Where | What | Why |
 |---|---|---|
-| aapt2 | AGP's override, pointing at `…/build-tools/36.0.0/aapt2` (L1) | Gradle's own `aapt2` download is x86-64 and cannot run |
-| Build tools for every Android module | `buildToolsVersion = "36.0.0"` | Every project uses the one ARM64 build tools. Without it, a project naming another version would make AGP download x86-64 tools that cannot run. The build log says so in one line |
-| Memory | Heap = one quarter of the phone's RAM, between 768 MB and 2 GB; metaspace 512 MB (L3) | Phones differ. iCode writes the figure when the setup runs |
-| Workers | 2, no parallel builds, the Kotlin compiler in-process (L3, L8) | Fewer processes, and fewer killed |
-| Daemon | Off | A guest process ends with its PRoot session (`--kill-on-exit`), so a daemon could not outlive the build anyway |
+| `~/.gradle/gradle.properties`, a block between `# >>> iCode: Android SDK …` and `# <<< iCode: Android SDK <<<` | `android.aapt2FromMavenOverride=/root/Android/Sdk/build-tools/36.0.0/aapt2` (L1) | Gradle's own `aapt2` download is x86-64 and cannot run |
+| the same block | `org.gradle.jvmargs=-Xmx<heap>m -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8`. The heap is a quarter of the phone's RAM, between 768 MB and 2 GB (L3) | Phones differ: iCode reads the RAM when the setup runs |
+| the same block | `org.gradle.workers.max=2`, `org.gradle.parallel=false`, `kotlin.compiler.execution.strategy=in-process` (L3, L8) | Fewer processes, and fewer killed |
+| the same block | `org.gradle.daemon=false` | A guest process ends with its PRoot session (`--kill-on-exit`), so a daemon could not outlive the build anyway |
+| `~/.gradle/init.d/icode-android.gradle` | When an Android module's plugin is applied, it sets the default `buildToolsVersion` to `36.0.0`. A build that names its own keeps it | A project on AGP 8.x would otherwise fetch Google's x86-64 build tools; AGP 9's default is already 36.0.0 |
 
-**One part depends on measurement:** whether an init script can set properties that AGP reads as Gradle properties, namely the `aapt2` override and `org.gradle.jvmargs`. Step A1 measures this on the phone. If it cannot, those two lines go in `~/.gradle/gradle.properties` as a block marked as iCode's, written and removed by the setup. It is still one owner and one place for each setting, never both.
+These are Gradle properties, and Gradle documents the user's `gradle.properties` as their place. It takes precedence over a project's own file: a project asking for more memory than the phone has gets the phone's figure. The rest of that file is the user's and is never touched. Removal takes out iCode's block, and deletes the file only when nothing else was in it. This settles the open point the plan left to A1: the properties are not set from an init script.
 
-### 4.4 Build → install → launch: one action (G4)
+### 4.4 Build → install → launch: one action (G4), as built
 
-- **`AndroidApps`** (data, one coordinator) has three steps:
-  1. **Find** the module: `settings.gradle(.kts)` and a module holding `src/main/AndroidManifest.xml`, under the workspace.
-  2. **Build** as a *managed process* named "Build <app>", running `./gradlew assembleDebug` (the project's own wrapper, so it uses the project's Gradle). Its output goes to the Terminal panel tab that managed processes already have. Stop is the process's own Stop.
-  3. **When it ends with 0**, read `outputs/apk/debug/output-metadata.json` for the APK, then **install and launch** it (§4.5).
-- **The ▶ button** appears in the Explorer header when the workspace holds an Android project, with "Build & Run". It is disabled until the Android SDK tool is installed, and then says what is missing. The assistant gets one tool, `run_android_app`, that calls the same action. There is no second build path.
-- **Issues** come from Gradle's own `e: file:///…:line:col` and `error:` lines. They become the Problems panel's existing `Diagnostic` (`domain/DiagnosticsContract.kt`, with source "Gradle"), parsed by one pure `GradleIssues`. iCode has no other parser of build output, so nothing is duplicated.
+- **`AndroidApps`** (data) is the one action. The Explorer's ▶ and the assistant's `run_android_app` both call `buildAndRun(workspace)`.
+  1. **Find** the app (`AndroidProjects`).
+     - The top must hold `gradlew` and `settings.gradle(.kts)`.
+     - An app module is the top, or a folder in it, that holds `src/main/AndroidManifest.xml`. Its build file must apply the application plugin, by id (`com.android.application`) or by Android Studio's version-catalog alias (`libs.plugins.android.application`).
+     - With several app modules, `app` wins, as Android Studio's run configuration does; otherwise the first by name.
+     - It is read again whenever the open workspace's files change, and ▶ shows only when there is one.
+  2. **Build** as a managed process named "Build app": `bash ./gradlew --console=plain :app:assembleDebug`.
+     - It uses the project's own wrapper, so the project's own Gradle. bash runs the wrapper whether or not it is executable.
+     - It runs with the login environment, where `ANDROID_HOME` now is.
+     - Its output is that process's tab in the Terminal panel, and Stop is the process's own Stop. A second Build & Run of the same app is refused while one runs.
+  3. **When it ends:**
+     - What it printed goes through `GradleIssues` into the Problems panel. That panel had no producer before.
+     - Exit 0: AGP's `build/outputs/apk/debug/output-metadata.json` gives the `applicationId` and the one `SINGLE` APK. It must be newer than the build's start. The APK is then installed and opened (§4.5).
+- **The ▶ button** asks for what is missing first:
+  - Without the Android SDK, a dialog offers Open Runtime Tools.
+  - Without "Install unknown apps", the Explorer shows the shared `PermissionExplanation`. Once Android's page grants it, the build starts.
+  - While a run goes, ▶ is accented and opens its output.
+- **A notice** under the Explorer's label says Building…, Installing…, or Build & Run Failed with the reason. It offers Show Output, and Dismiss for a failure.
+- **Issues:** Kotlin's `e:`/`w: file:///…:line:col message` and javac's `/….java:line: error|warning: message` lines become `Diagnostic`s with source "Gradle", by file within the workspace. They are kept per workspace: opening another workspace clears them.
 
-### 4.5 Installing and launching (L5, L6, G3)
+### 4.5 Installing and launching (L5, L6, G3), as built
 
 - **The permission:**
-  - The manifest gets `REQUEST_INSTALL_PACKAGES`.
-  - `SystemPermission.InstallApps` is read with `canRequestPackageInstalls()` and requested through `ACTION_MANAGE_UNKNOWN_APP_SOURCES`.
-  - It is asked where it is needed, the first time something is installed, with the shared `PermissionExplanation` wording.
+  - The manifest has `REQUEST_INSTALL_PACKAGES`.
+  - `SystemPermission.InstallApps` is read with `canRequestPackageInstalls()` and requested through `ACTION_MANAGE_UNKNOWN_APP_SOURCES`. It is never asked in onboarding.
   - Distributing through Play would need the `REQUEST_INSTALL_PACKAGES` declaration. This is noted for the owner.
-- **Install:**
+- **Install (`ApkInstaller`):**
   - A `PackageInstaller` session in full-install mode.
-  - The result goes to a receiver that is not exported. `STATUS_PENDING_USER_ACTION` starts Android's confirmation; success carries `EXTRA_PACKAGE_NAME`.
+  - Its result goes to a receiver registered with `RECEIVER_NOT_EXPORTED` for that session alone. The PendingIntent is mutable, because Android adds the outcome to it.
+  - `STATUS_PENDING_USER_ACTION` opens Android's confirmation. Android does not let an app in the background open it, so it is kept: the notice's **Install** opens it again from iCode's screen, and **Cancel** abandons the session.
   - Failures are said in Android's words. Signature mismatch (L11) says to uninstall the old copy.
 - **Launch:**
   - `startActivity(Intent(ACTION_MAIN).addCategory(CATEGORY_LAUNCHER).setPackage(package))`.
@@ -197,7 +221,7 @@ There is no offline Maven repository: the first build downloads Gradle and the d
 
 | | Why |
 |---|---|
-| NDK / CMake (L9) | Google's NDK host is x86-64 only. Native Android code needs a separate plan, for example Ubuntu's clang with an Android target, as ADT does |
+| NDK / CMake (L9) | Google's NDK host is x86-64 only. Planned separately: [android-ndk-plan.md](./android-ndk-plan.md) (ARM64 NDK r28c and r27, CMake 3.22.1) |
 | `adb` and the built app's logcat (L7) | They need Wireless debugging paired on the same phone, after every reboot. That is a feature of its own, not part of the toolkit |
 | An offline Maven repository | It freezes versions (L4). Gradle's cache keeps what one build downloaded |
 | x86 emulators, release signing by iCode | Debug builds only. A project's own release signing still works through Gradle |
@@ -205,16 +229,16 @@ There is no offline Maven repository: the first build downloads Gradle and the d
 
 ## 5. Steps (each: gate, commit; the phone where it says so)
 
-| Step | What | Gate |
-|---|---|---|
-| A1 | **Measure on the phone first.** This step decides §4.3's one open point and the template's AGP version. Run by hand in iCode's terminal: <ul><li>JDK 17 from apt under iCode's PRoot;</li><li>cmdline-tools and `sdkmanager --install`;</li><li>the ARM64 `aapt2 version`;</li><li>an Empty Activity project with AGP 9.x, then 8.13.x, through `assembleDebug`, with the settings of §4.3;</li><li>time, peak memory, and the number of processes against the 32 limit.</li></ul> | Recorded in §7 |
-| A2 | G2: `RuntimeManifest` (rootfs plus archives) and `PinnedDownload` (download, SHA-256, size, progress), replacing `RootfsDownloader` | Unit tests; the rootfs install unchanged |
-| A3 | G1: `RuntimeTool.setup`, `RuntimeToolSetup`, receipts, the installer running apt then the setup, sizes, and removal | Unit tests with a scripted setup |
-| A4 | The Android SDK setup (§4.2) and `SdkRepository` (sizes and licence, tested on a recorded `repository2-3.xml`), plus the init script (§4.3) | Unit tests; phone install |
-| A5 | UI: the Android SDK row and the licence Accept/Decline in Select Tools and Verify Settings | Type-check, captures |
-| A6 | G3: `SystemPermission.InstallApps`, the installer, the receiver and the launcher | Unit tests where pure; phone install |
-| A7 | G4: `AndroidApps`, the ▶ button and `run_android_app` | Unit tests (module discovery, APK metadata, Gradle issues); phone build & run |
-| A8 | New Android app (§4.6); docs as built; guards; push | Phone: new app → ▶ → it opens |
+| Step | What | Gate | State |
+|---|---|---|---|
+| A1 | **Measure on the phone.** Install the Android SDK from Runtime Tools, then Build & Run an Empty Activity project with AGP 9.x, then 8.13.x. Record time, peak memory, and the number of processes against the 32 limit | Recorded in §7 | Open: needs the phone |
+| A2 | G2: `RuntimeManifest` (rootfs, archives, package sizes) and `PinnedDownload` (download, size, SHA-256 or SHA-1, progress), replacing `RootfsDownloader`; `ArchiveExtractor` (tar.gz and zip) replacing `RootfsExtractor` | Unit tests; the rootfs install unchanged | Built |
+| A3 | G1: `RuntimeTool.setup` and `licence`, `RuntimeInventory`, `RuntimeToolSetup`, `ToolSetups` (receipts), `ToolRuns`, the installer running apt then the setup, sizes, removal | Unit tests with a scripted setup | Built |
+| A4 | The Android SDK setup (§4.2), the licence asset, and Gradle's settings (§4.3) | Unit tests; the overlay run on the pinned zip here; phone install | Built; phone install open |
+| A5 | UI: the Android SDK row, setup progress, and the License Agreement step | Type-check | Built |
+| A6 | G3: `SystemPermission.InstallApps`, `ApkInstaller` (session, receiver, confirmation, launch) | Type-check, API-30 check; phone install | Built; phone install open |
+| A7 | G4: `AndroidApps`, `AndroidProjects`, `GradleIssues`, the ▶ button, its notice, and `run_android_app` | Unit tests (module discovery, APK metadata, Gradle issues); phone build & run | Built; phone build open |
+| A8 | New Android app (§4.6) | Phone: new app → ▶ → it opens | Waits on A1's AGP version |
 
 ## 6. Device checks (none can run here)
 
@@ -224,14 +248,34 @@ This container is x86-64. `dl.google.com` is refused by its proxy (403), and Goo
 |---|---|
 | `aapt2 version` from the pinned zip, under PRoot | That the static ARM64 binary runs (L1) |
 | AGP 9.x with an `aapt2` built from AOSP 35.0.2 | The template's AGP. ADT validated its 35.0.2 build tools on a real device, but AGP 9 has not been measured with them |
-| An init script setting the `aapt2` override and `jvmargs` | §4.3: init script alone, or plus a marked `gradle.properties` block |
+| The init script's default `buildToolsVersion` on an AGP 8.x project | §4.3: that such a project uses the ARM64 build tools |
 | Peak RAM and process count of `assembleDebug` | §4.3 values; the phantom-process risk (L8) |
 | Install → confirm → launch on API 30–36 | §4.5's launch, without `<queries>` |
 | Repair, then Build & Run with the same app installed | That the debug key survives (L11) |
 
 ## 7. Record
 
-Filled in at A1 and later.
+**2026-10-17, built and checked here (x86-64, no phone):**
+- **Data and domain tests pass**, apart from one known exception. They cover:
+  - the manifest's pins;
+  - `PinnedDownload` against a local server: a match kept, another digest or size deleted, HTTP errors;
+  - zip extraction with modes and refusal of paths that escape;
+  - setups through the installer: install, receipt, a Repair-like matching receipt, other pins, the licence gate, Cancel, failure, removal, sizes;
+  - the coordinator with the Android SDK;
+  - Gradle settings;
+  - module discovery;
+  - APK metadata;
+  - Gradle issues.
+
+  `TreeSizeTest`'s unreadable-folder case fails here only because the container runs as root.
+- **The overlay was run on the pinned ARM64 zip** (SHA-256 checked). Exactly the six programs land in place of the old files, all executable, and `aapt2` is "ELF 64-bit LSB executable, ARM aarch64, statically linked".
+- **The licence asset's SHA-1 is `24333f8a63b6825ea9c5514f83c2829b004d1fee`**, the hash sdkmanager accepts for `android-sdk-license`.
+- **Other checks:**
+  - the UI type-checks against Compose's desktop jars;
+  - the new code's platform calls all exist at API 30;
+  - the backend and UI consistency guards pass.
+
+**Open, on the phone (§6):** A1's measurements, the SDK install end to end, and install → confirm → launch.
 
 ## 8. Sources
 

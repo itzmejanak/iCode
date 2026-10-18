@@ -42,19 +42,22 @@ import dev.icode.mobile.ui.LocalICodeSnapshot
  * The Linux runtime's tools (docs/runtime-tools-plan.md §8), as Android Studio sets up its SDK.
  * Offered once after a runtime is built, **Set Up Tools**: Install Type (Standard or Custom), Select
  * Tools (Custom only), Verify Settings, the install, Finish. From Settings, **Runtime Tools**, the SDK
- * Manager: what is installed is ticked; tick to add, untick to remove, Apply, Confirm Changes. While
- * apt runs the page is its progress; Run in Background leaves it to its notification.
+ * Manager: what is installed is ticked; tick to add, untick to remove, Apply, Confirm Changes. A tool
+ * with a licence adds the License Agreement last (docs/android-toolchain-plan.md §4.2). While the
+ * run goes the page is its progress; Run in Background leaves it to its notification.
  */
 @Composable
 fun RuntimeToolsScreen(actions: NavigationActions) {
     val state = LocalICodeSnapshot.current
     val gateway = LocalICodeGateway.current
     val tools = state.runtimeTools
-    val installed = tools.installedPackages
+    val installed = tools.installed
     // Decided on arrival: answering the offer ends it, and the page must not change what it is meanwhile.
     val setup by rememberSaveable { mutableStateOf(tools.offerPending) }
     var custom by rememberSaveable { mutableStateOf(false) }
     var chosen by rememberSaveable(stateSaver = ChoiceSaver) { mutableStateOf<Set<String>?>(null) }
+    // The licences accepted on the License Agreement, by id.
+    var accepted by rememberSaveable(stateSaver = ChoiceSaver) { mutableStateOf<Set<String>?>(null) }
     var stepIndex by rememberSaveable { mutableStateOf(0) }
     // What this page asked apt for, by name: said as done once the plan is empty.
     var applied by rememberSaveable(stateSaver = AppliedSaver) { mutableStateOf<Applied?>(null) }
@@ -63,7 +66,7 @@ fun RuntimeToolsScreen(actions: NavigationActions) {
     val choice = if (setup && !custom) initial else chosen ?: initial
     val plan = installed?.let { RuntimeToolRules.plan(choice, it) }
     val work = tools.work
-    val steps = RuntimeToolRules.steps(setup, custom)
+    val steps = RuntimeToolRules.steps(setup, custom, licences = plan?.licences?.isNotEmpty() == true)
     val step = steps[stepIndex.coerceIn(steps.indices)]
     val done = applied != null && work == null && plan?.isEmpty == true
     val atStep = work == null && applied == null
@@ -73,7 +76,7 @@ fun RuntimeToolsScreen(actions: NavigationActions) {
     }
     fun apply(plan: RuntimeToolPlan) {
         applied = Applied(plan.install.map { it.name }, plan.remove.map { it.name })
-        gateway.dispatch(ICodeIntent.ApplyRuntimeTools(choice))
+        gateway.dispatch(ICodeIntent.ApplyRuntimeTools(choice, accepted.orEmpty()))
     }
     fun finish() {
         gateway.dispatch(ICodeIntent.SkipRuntimeTools)
@@ -116,6 +119,11 @@ fun RuntimeToolsScreen(actions: NavigationActions) {
                             chosen = if (id in before) before - id else before + id
                         }
                         RuntimeToolStep.Verify -> VerifyChanges(plan, tools)
+                        RuntimeToolStep.Licence -> plan?.let {
+                            LicenceAgreement(it, tools, accepted.orEmpty()) { id, yes ->
+                                accepted = if (yes) accepted.orEmpty() + id else accepted.orEmpty() - id
+                            }
+                        }
                     }
                 }
             }
@@ -140,7 +148,11 @@ fun RuntimeToolsScreen(actions: NavigationActions) {
                     )
                     work != null || (applied != null && !done) -> {
                         if (work != null && !work.cancellable) {
-                            Text("Packages being set up can't be stopped: dpkg would be left half done.", style = IcodeType.Caption)
+                            Text(
+                                if (work.setup == null) "Packages being set up can't be stopped: dpkg would be left half done."
+                                else "This step can't be stopped: it would be left half done.",
+                                style = IcodeType.Caption,
+                            )
                         }
                         TwoColumnActions(
                             left = {
@@ -159,7 +171,17 @@ fun RuntimeToolsScreen(actions: NavigationActions) {
                         stepIndex = 0
                         if (setup) leave()
                     }, Modifier.fillMaxWidth())
-                    else -> StepActions(step, setup, plan, tools, state.storage?.availableBytes, ::back, ::finish) {
+                    else -> StepActions(
+                        step,
+                        last = stepIndex >= steps.lastIndex,
+                        setup = setup,
+                        plan = plan,
+                        accepted = plan?.licences.orEmpty().all { it in accepted.orEmpty() },
+                        tools = tools,
+                        availableBytes = state.storage?.availableBytes,
+                        onBack = ::back,
+                        onSkip = ::finish,
+                    ) {
                         when {
                             stepIndex < steps.lastIndex -> stepIndex++
                             plan == null -> Unit
@@ -184,17 +206,21 @@ private fun headingOf(step: RuntimeToolStep, setup: Boolean): Pair<String, Strin
     } else {
         "Confirm Changes" to "This is what will change. Go back to change it."
     }
+    RuntimeToolStep.Licence -> "License Agreement" to "Read each licence, then accept it to install."
 }
 
 /**
  * The foot of a step: what it costs, then Back (Skip, on the first step of Set Up Tools) and the
- * way on — Next, Install, Apply, or Finish when there is nothing to do.
+ * way on — Next, then on the [last] step Install, Apply, or Finish when there is nothing to do; the
+ * License Agreement's only once each licence is [accepted].
  */
 @Composable
 private fun StepActions(
     step: RuntimeToolStep,
+    last: Boolean,
     setup: Boolean,
     plan: RuntimeToolPlan?,
+    accepted: Boolean,
     tools: RuntimeToolsState,
     availableBytes: Long?,
     onBack: () -> Unit,
@@ -206,14 +232,15 @@ private fun StepActions(
     val first = step == RuntimeToolStep.InstallType || (!setup && step == RuntimeToolStep.Select)
     val forward = when {
         // Runtime Tools' list moves on as Android Studio's SDK Manager does: Apply, then a confirmation.
-        step != RuntimeToolStep.Verify -> if (setup) "Next" else "Apply"
+        !last -> if (setup || step != RuntimeToolStep.Select) "Next" else "Apply"
         plan == null || plan.isEmpty -> "Finish"
         plan.remove.isEmpty() -> "Install"
         plan.install.isEmpty() -> "Remove"
         else -> "Apply"
     }
     // Runtime Tools moves on only with something to change; Set Up Tools may finish with nothing.
-    val enabled = plan != null && (setup || step == RuntimeToolStep.Verify || !plan.isEmpty)
+    val enabled = plan != null && (setup || step != RuntimeToolStep.Select || !plan.isEmpty) &&
+        (step != RuntimeToolStep.Licence || accepted)
     when {
         setup && first -> TwoColumnActions(
             left = { SecondaryButton("Skip", onSkip, Modifier.fillMaxWidth()) },

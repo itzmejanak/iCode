@@ -4,10 +4,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material3.Icon
@@ -52,7 +55,7 @@ import dev.icode.mobile.domain.RuntimeToolsState
 /** Install Type: Standard, what iCode's own features use, with its download; or Custom, the list. */
 @Composable
 internal fun InstallTypeChoice(custom: Boolean, tools: RuntimeToolsState, standard: Set<String>, onCustom: (Boolean) -> Unit) {
-    val plan = tools.installedPackages?.let { RuntimeToolRules.plan(standard, it) }
+    val plan = tools.installed?.let { RuntimeToolRules.plan(standard, it) }
     val cost = when {
         plan == null -> null
         plan.install.isEmpty() -> "Installed"
@@ -68,7 +71,7 @@ internal fun InstallTypeChoice(custom: Boolean, tools: RuntimeToolsState, standa
         )
         IcodeOptionRow(
             title = "Custom",
-            description = "Choose each tool the Linux runtime installs, Python and the build tools among them.",
+            description = "Choose each tool the Linux runtime installs: Python, the build tools and the Android SDK among them.",
             selected = custom,
             onSelect = { onCustom(true) },
         )
@@ -136,9 +139,10 @@ internal fun VerifyChanges(plan: RuntimeToolPlan?, tools: RuntimeToolsState) {
 }
 
 /**
- * apt's run, as Android Studio's Downloading Components: the bar (it sweeps while apt reads and
- * downloads, and fills by the packages dpkg sets up), the step and the package in hand, and Show
- * Details — apt's own last lines. A failure says apt's words, its details open.
+ * The run, as Android Studio's Downloading Components: the bar (it sweeps while apt reads and
+ * downloads, fills by the packages dpkg sets up, then by a setup's own share), the step and what is
+ * in hand, and Show Details — the last lines apt or the setup printed. A failure says their words,
+ * its details open.
  */
 @Composable
 internal fun ToolProgress(work: RuntimeToolWork) {
@@ -153,15 +157,34 @@ internal fun ToolProgress(work: RuntimeToolWork) {
             Text(failure, style = IcodeType.Caption)
         }
     } else {
-        work.progress.fraction?.let { ProgressTrack(it, Modifier.fillMaxWidth()) }
+        work.fraction?.let { ProgressTrack(it, Modifier.fillMaxWidth()) }
             ?: IndeterminateProgressTrack(Modifier.fillMaxWidth())
-        Text(work.progress.step, style = IcodeType.Caption.copy(color = IcodeColors.Accent))
-        work.progress.item?.let { MonoLine(it, style = IcodeType.MonoSmall, maxLines = 1) }
+        Text(work.step, style = IcodeType.Caption.copy(color = IcodeColors.Accent))
+        work.item?.let { MonoLine(it, style = IcodeType.MonoSmall, maxLines = 1) }
     }
     IcodeTextButton(if (details) "Hide Details" else "Show Details", { details = !details })
     if (details) {
         CodeSurface(Modifier.fillMaxWidth()) {
-            work.log.ifEmpty { listOf("apt has printed nothing yet.") }.forEach { MonoLine(it, style = IcodeType.MonoSmall) }
+            work.log.ifEmpty { listOf("Nothing has been printed yet.") }.forEach { MonoLine(it, style = IcodeType.MonoSmall) }
+        }
+    }
+}
+
+/**
+ * License Agreement, as Android Studio's: for each licence what is installed needs, which tools need
+ * it, its text, and Decline or Accept. Nothing with a licence installs until it is accepted.
+ */
+@Composable
+internal fun LicenceAgreement(plan: RuntimeToolPlan, tools: RuntimeToolsState, accepted: Set<String>, onAnswer: (String, Boolean) -> Unit) {
+    plan.licences.forEach { id ->
+        SectionLabel(id, Modifier.padding(top = IcodeSpacing.Space2))
+        Text("For ${spoken(plan.install.filter { it.licence == id }.map { it.name })}.", style = IcodeType.Caption)
+        CodeSurface(Modifier.fillMaxWidth().height(IcodeSizes.LicenceText)) {
+            Text(tools.licences[id] ?: "Reading the licence…", style = IcodeType.MonoSmall, modifier = Modifier.verticalScroll(rememberScrollState()))
+        }
+        Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
+            IcodeOptionRow("Decline", "Nothing that needs it is installed.", selected = id !in accepted, onSelect = { onAnswer(id, false) })
+            IcodeOptionRow("Accept", "I have read the licence and agree to its terms.", selected = id in accepted, onSelect = { onAnswer(id, true) })
         }
     }
 }

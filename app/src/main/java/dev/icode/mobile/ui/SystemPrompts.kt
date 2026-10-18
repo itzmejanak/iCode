@@ -33,6 +33,7 @@ class SystemPrompts internal constructor(
     private val notificationDialog: ActivityResultLauncher<String>,
     private val notificationPage: ActivityResultLauncher<Intent>,
     private val batteryDialog: ActivityResultLauncher<Intent>,
+    private val installPage: ActivityResultLauncher<Intent>,
 ) {
     /** Shows Android's prompt for [permission]. */
     // The battery prompt is the owner's decision; Google Play limits it to
@@ -61,6 +62,10 @@ class SystemPrompts internal constructor(
                 appPage(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS),
                 Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS),
             )
+            // Install unknown apps has no dialog either: Android's page for this app.
+            SystemPermission.InstallApps ->
+                if (context.packageManager.canRequestPackageInstalls()) answered(permission)
+                else launch(installPage, permission, appPage(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES))
         }
     }
 
@@ -70,6 +75,7 @@ class SystemPrompts internal constructor(
             SystemPermission.Storage -> appPage(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION)
             SystemPermission.Notifications -> notificationSettings()
             SystemPermission.Battery -> Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+            SystemPermission.InstallApps -> appPage(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES)
         }
         startFirst(page, appPage(Settings.ACTION_APPLICATION_DETAILS_SETTINGS))
     }
@@ -119,7 +125,10 @@ fun rememberSystemPrompts(gateway: ICodeGateway): SystemPrompts {
     val batteryDialog = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         answered(SystemPermission.Battery)
     }
-    return remember(context, gateway, storagePage, notificationDialog, notificationPage, batteryDialog) {
-        SystemPrompts(context, ::answered, storagePage, notificationDialog, notificationPage, batteryDialog)
+    val installPage = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        answered(SystemPermission.InstallApps)
+    }
+    return remember(context, gateway, storagePage, notificationDialog, notificationPage, batteryDialog, installPage) {
+        SystemPrompts(context, ::answered, storagePage, notificationDialog, notificationPage, batteryDialog, installPage)
     }
 }

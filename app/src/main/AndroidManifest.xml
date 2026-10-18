@@ -19,6 +19,10 @@
          allows this only for listed use cases; see
          docs/terminal-background-plan.md §7. -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    <!-- Build & Run installs the app it built, through Android's package installer: Android asks
+         the user to allow it once, and confirms each install (docs/android-toolchain-plan.md §4.5).
+         Distribution through Google Play requires declaring this use. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <!-- Every workspace lives in iCode's own storage (docs/workspace-storage-plan.md §4.7):
          uninstalling asks whether to keep that data. App info keeps Android's own Clear

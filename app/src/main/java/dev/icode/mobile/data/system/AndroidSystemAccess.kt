@@ -25,6 +25,7 @@ class AndroidSystemAccess(context: Context) {
         notifications = app.getSystemService(NotificationManager::class.java).areNotificationsEnabled(),
         unrestrictedBattery = app.getSystemService(PowerManager::class.java).isIgnoringBatteryOptimizations(app.packageName),
         storage = Environment.isExternalStorageManager(),
+        installApps = app.packageManager.canRequestPackageInstalls(),
         offered = SystemPermission.entries.filterTo(mutableSetOf()) { permission ->
             offeredKey(permission)?.let { offered.getBoolean(it, false) } == true
         },
@@ -36,13 +37,13 @@ class AndroidSystemAccess(context: Context) {
     }
 
     /**
-     * Storage is asked where it is needed, each time it is missing, so it has no mark. Keys are
-     * stored; do not rename.
+     * Storage and InstallApps are asked where they are needed, each time they are missing, so they
+     * have no mark. Keys are stored; do not rename.
      */
     private fun offeredKey(permission: SystemPermission): String? = when (permission) {
         SystemPermission.Notifications -> "offered.notifications"
         SystemPermission.Battery -> "offered.battery"
-        SystemPermission.Storage -> null
+        SystemPermission.Storage, SystemPermission.InstallApps -> null
     }
 
     private companion object {

@@ -2,7 +2,7 @@ package dev.icode.mobile.data.runtime
 
 import android.content.Context
 import android.os.Build
-import dev.icode.mobile.data.io.Sha256
+import dev.icode.mobile.data.io.DigestAlgorithm
 import dev.icode.mobile.data.io.deleteTree
 import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.RuntimeState
@@ -20,15 +20,6 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import org.json.JSONObject
 
-/** The root filesystem this build installs, read from the packaged manifest. */
-internal data class RootfsDescriptor(
-    val id: String,
-    val base: String,
-    val url: String,
-    val sha256: String,
-    val minimumFreeBytes: Long,
-)
-
 /**
  * Installs and verifies the Ubuntu root filesystem.
  *
@@ -44,30 +35,15 @@ internal class RuntimeInstaller(
     private val appContext = context.applicationContext
 
     fun readDescriptor(): RootfsDescriptor {
-        val json = appContext.assets.open(MANIFEST_ASSET).bufferedReader().use { it.readText() }
-        val manifest = JSONObject(json)
-        require(manifest.getInt("schemaVersion") == SUPPORTED_SCHEMA) {
-            "Unsupported runtime manifest schema"
+        val manifest = readManifest(appContext)
+        require(Build.SUPPORTED_ABIS.contains(manifest.architecture)) {
+            "This runtime build requires ${manifest.architecture}; this device reports ${Build.SUPPORTED_ABIS.joinToString()}"
         }
-        val architecture = manifest.getString("architecture")
-        require(Build.SUPPORTED_ABIS.contains(architecture)) {
-            "This runtime build requires $architecture; this device reports ${Build.SUPPORTED_ABIS.joinToString()}"
-        }
-        val rootfs = manifest.getJSONObject("rootfs")
-        return RootfsDescriptor(
-            id = rootfs.getString("id"),
-            base = rootfs.getString("base"),
-            url = rootfs.getString("url"),
-            sha256 = rootfs.getString("sha256"),
-            minimumFreeBytes = rootfs.getLong("minimumFreeBytes"),
-        )
+        return manifest.rootfs
     }
 
     /** The PRoot this build ships, read from the manifest rather than restated here. */
-    fun prootVersion(): String? = runCatching {
-        val json = appContext.assets.open(MANIFEST_ASSET).bufferedReader().use { it.readText() }
-        JSONObject(json).getJSONObject("proot").getString("version")
-    }.getOrNull()
+    fun prootVersion(): String? = runCatching { readManifest(appContext).prootVersion }.getOrNull()
 
     /**
      * Emits progress for the whole install. Collect on a background dispatcher.
@@ -108,19 +84,14 @@ internal class RuntimeInstaller(
             return@flow
         }
         val archive = File(appContext.cacheDir, "${descriptor.id}.tar.gz")
+        val pinned = PinnedFile(descriptor.url, bytes = null, Checksum(DigestAlgorithm.Sha256, descriptor.sha256))
 
         try {
-            if (!archive.isFile || Sha256.hexOf(archive) != descriptor.sha256) {
+            if (!PinnedDownload.isVerified(archive, pinned)) {
                 archive.delete()
-                RootfsDownloader().download(descriptor.url, archive) { received, total ->
+                // The digest is checked as the bytes arrive: a download that is not the pinned base system is deleted.
+                PinnedDownload.download(pinned, archive) { received, total ->
                     emit(RuntimeState.Downloading(received, total, "Downloading ${descriptor.base}"))
-                }
-                emit(RuntimeState.Installing("Verifying download"))
-                val actual = Sha256.hexOf(archive)
-                if (actual != descriptor.sha256) {
-                    archive.delete()
-                    emit(RuntimeState.Failed("The downloaded runtime failed checksum verification"))
-                    return@flow
                 }
             }
 
@@ -189,7 +160,7 @@ internal class RuntimeInstaller(
         val counted = AtomicLong(0)
         coroutineScope {
             val work = async(Dispatchers.IO) {
-                RootfsExtractor().extract(archive, layout.rootfs) { entries -> counted.set(entries) }
+                ArchiveExtractor().extractTarGz(archive, layout.rootfs) { entries -> counted.set(entries) }
             }
             while (!work.isCompleted) {
                 delay(EXTRACT_REPORT_INTERVAL_MILLIS)
@@ -264,10 +235,8 @@ internal class RuntimeInstaller(
     internal data class CommandResult(val exitCode: Int, val output: String)
 
     private companion object {
-        const val MANIFEST_ASSET = "runtime/manifest.json"
         const val DPKG_UNSAFE_IO_RELATIVE = "etc/dpkg/dpkg.cfg.d/icode-unsafe-io"
         const val GIT_SYSTEM_CONFIG_RELATIVE = "etc/gitconfig"
-        const val SUPPORTED_SCHEMA = 1
         const val EXTRACT_REPORT_INTERVAL_MILLIS = 250L
 
         /**
@@ -277,3 +246,7 @@ internal class RuntimeInstaller(
         val REQUIRED_PATHS = listOf("bin/sh", "usr/bin/apt")
     }
 }
+
+/** The packaged manifest ([RuntimeManifest]): read wherever a pin is needed, never restated. */
+internal fun readManifest(context: Context): RuntimeManifest =
+    RuntimeManifest.parse(context.assets.open(RuntimeManifest.ASSET).bufferedReader().use { it.readText() })

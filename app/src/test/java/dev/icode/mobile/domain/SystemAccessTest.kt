@@ -26,13 +26,13 @@ class SystemAccessTest {
 
     @Test
     fun `granted answers each permission`() {
-        val access = SystemAccess(notifications = false, unrestrictedBattery = true, storage = true)
-        assertEquals(listOf(false, true, true), SystemPermission.entries.map(access::granted))
+        val access = SystemAccess(notifications = false, unrestrictedBattery = true, storage = true, installApps = false)
+        assertEquals(listOf(false, true, true, false), SystemPermission.entries.map(access::granted))
     }
 
     @Test
-    fun `phone storage is never an onboarding step, Import asks for it where it is needed`() {
-        assertEquals(listOf(SystemPermission.Notifications, SystemPermission.Battery), nothing.copy(storage = false).onboardingSteps)
+    fun `phone storage and installing apps are never onboarding steps, each is asked where it is needed`() {
+        assertEquals(listOf(SystemPermission.Notifications, SystemPermission.Battery), nothing.copy(storage = false, installApps = false).onboardingSteps)
         assertEquals(emptyList<SystemPermission>(), nothing.copy(notifications = true, unrestrictedBattery = true).onboardingSteps)
     }
 }

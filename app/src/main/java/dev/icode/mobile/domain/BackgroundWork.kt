@@ -160,9 +160,9 @@ object BackgroundWorkRules {
     private fun runtimeTools(work: RuntimeToolWork) = BackgroundItem(
         key = "runtime-tools",
         title = work.title,
-        detail = listOfNotNull(work.progress.step, work.progress.item).joinToString(" · "),
-        counts = work.progress.counts,
-        fraction = work.progress.fraction,
+        detail = listOfNotNull(work.step, work.item).joinToString(" · "),
+        counts = work.counts,
+        fraction = work.fraction,
         cancel = ICodeIntent.CancelRuntimeTools.takeIf { work.cancellable },
         place = BackgroundPlace.RuntimeTools,
         watched = true,
