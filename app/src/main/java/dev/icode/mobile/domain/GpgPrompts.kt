@@ -45,21 +45,27 @@ sealed interface GpgIntent : ICodeIntent {
 }
 
 object GpgRequests {
+    // A request's kinds and the agent request's field: iCode's own words, written into the guest script from here.
+    const val AGENT = "agent"
+    const val PIN = "pin"
+    const val CONFIRM = "confirm"
+    const val HOMEDIR = "HOMEDIR"
+
     /**
-     * A request as the guest script writes it: its kind on the first line — `agent`, `pin` or
-     * `confirm` — then `HOMEDIR <path>`, or gpg-agent's `SET…` commands as it sent them. Null for a
-     * kind this build does not know.
+     * A request as the guest script writes it: its kind on the first line — [AGENT], [PIN] or
+     * [CONFIRM] — then [HOMEDIR] and a path, or gpg-agent's `SET…` commands as it sent them. Null for
+     * a kind this build does not know.
      */
     fun parse(id: String, text: String): GpgRequest? {
         val lines = text.lines().filter(String::isNotEmpty)
         val fields = lines.drop(1).associate { it.substringBefore(' ') to it.substringAfter(' ', "") }
         val kind = lines.firstOrNull()
         return when (kind) {
-            "agent" -> fields["HOMEDIR"]?.let(GpgRequest::StartAgent)
-            "pin", "confirm" -> GpgRequest.Ask(
+            AGENT -> fields[HOMEDIR]?.let(GpgRequest::StartAgent)
+            PIN, CONFIRM -> GpgRequest.Ask(
                 GpgPrompt(
                     id = id,
-                    asksPassphrase = kind == "pin",
+                    asksPassphrase = kind == PIN,
                     title = fields["SETTITLE"]?.let(::unescape),
                     description = fields["SETDESC"]?.let(::unescape)?.trim().orEmpty(),
                     prompt = fields["SETPROMPT"]?.let(::unescape),

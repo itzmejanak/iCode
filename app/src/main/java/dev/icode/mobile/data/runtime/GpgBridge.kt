@@ -28,12 +28,15 @@ import kotlinx.coroutines.launch
 internal class GpgBridge(private val stateHolder: ICodeStateHolder, private val scope: CoroutineScope, private val layout: RuntimeLayout) {
     private val directory = File(layout.rootfs, GuestGpg.REQUESTS)
     private val agents = mutableListOf<RuntimeProcess>()
-    @Volatile private var observer: FileObserver? = null
+    private val lock = Any()
+    private var observer: FileObserver? = null
 
     // From the start it follows the runtime: requests are read while it is ready, and a rebuild ends the agent first.
     init {
         scope.launch {
-            stateHolder.snapshot.map { it.runtime is RuntimeState.Ready }.distinctUntilChanged().collect { ready -> if (ready) watch() else stop() }
+            stateHolder.snapshot.map { it.runtime is RuntimeState.Ready }.distinctUntilChanged().collect { ready ->
+                if (ready) watch(fresh = true) else stop()
+            }
         }
     }
 
@@ -45,28 +48,39 @@ internal class GpgBridge(private val stateHolder: ICodeStateHolder, private val 
         }
     }
 
-    private fun watch() {
+    /**
+     * Watches the folder. [fresh]: what is in it belongs to an earlier iCode process, and whoever asked
+     * went with it. Otherwise the folder was deleted under the watch — the guest's /tmp emptied — and what
+     * the script has handed over since is read.
+     */
+    private fun watch(fresh: Boolean): Unit = synchronized(lock) {
+        observer?.stopWatching()
         directory.mkdirs()
-        // What an earlier iCode process was asked went with it, and so did whoever asked.
-        directory.listFiles().orEmpty().forEach(File::delete)
-        observer = object : FileObserver(directory, MOVED_TO or DELETE) {
+        if (fresh) directory.listFiles().orEmpty().forEach(File::delete)
+        observer = object : FileObserver(directory, MOVED_TO or DELETE or DELETE_SELF or MOVE_SELF) {
             override fun onEvent(event: Int, path: String?) {
-                val id = path?.takeIf { it.endsWith(REQUEST) }?.removeSuffix(REQUEST) ?: return
+                if (event and (DELETE_SELF or MOVE_SELF) != 0) return watch(fresh = false)
+                val id = path?.takeIf { it.endsWith(GuestGpg.REQUEST) }?.removeSuffix(GuestGpg.REQUEST) ?: return
                 if (event and DELETE != 0) withdraw(id) else read(id)
             }
         }.also { it.startWatching() }
+        if (!fresh) directory.list().orEmpty().filter { it.endsWith(GuestGpg.REQUEST) }.forEach { read(it.removeSuffix(GuestGpg.REQUEST)) }
     }
 
+    /** The runtime is being rebuilt: what waits on an answer is told no, and the agent ends. */
     private fun stop() {
-        observer?.stopWatching()
-        observer = null
+        synchronized(lock) {
+            observer?.stopWatching()
+            observer = null
+        }
+        stateHolder.current.gpgPrompts.forEach { reply(it.id, GpgRequests.answerLine(GpgAnswer.Cancel)) }
+        stateHolder.update { it.copy(gpgPrompts = emptyList()) }
         // PRoot passes SIGTERM on to gpg-agent, and ends it two seconds later if it is still there.
         synchronized(agents) { agents.toList() }.forEach(RuntimeProcess::terminate)
-        stateHolder.update { it.copy(gpgPrompts = emptyList()) }
     }
 
     private fun read(id: String) {
-        val text = runCatching { File(directory, id + REQUEST).readText() }.getOrNull() ?: return
+        val text = runCatching { File(directory, id + GuestGpg.REQUEST).readText() }.getOrNull() ?: return
         when (val request = GpgRequests.parse(id, text)) {
             is GpgRequest.StartAgent -> startAgent(id, request.homedir)
             is GpgRequest.Ask -> stateHolder.update { snapshot ->
@@ -77,18 +91,18 @@ internal class GpgBridge(private val stateHolder: ICodeStateHolder, private val 
     }
 
     /**
-     * gpg waits for the script to exit, then connects. Its status is gpg-agent's own check once the
+     * gpg waits for the script to exit, then connects. Its answer is gpg-agent's own check once the
      * start is done: 0 when an agent answers — a second start exits 2 while one already runs.
      */
     private fun startAgent(id: String, homedir: String) {
         val home = shellQuote(homedir)
         val script = "gpg-agent --homedir $home --daemon >/dev/null 2>&1; gpg-agent --homedir $home >/dev/null 2>&1; " +
-            "echo \$? 1<>${shellQuote("/${GuestGpg.REQUESTS}/$id$ANSWER")}"
+            "echo \$? 1<>${shellQuote("/${GuestGpg.REQUESTS}/$id${GuestGpg.ANSWER}")}"
         val agent = runCatching {
             RuntimeProcess.start(layout.prootCommand(listOf("/bin/sh", "-c", script)), layout.prootEnvironment(), layout.runtimeRoot.absolutePath)
         }.getOrElse {
             BackendLog.w(TAG, "gpg-agent could not be started (${it.javaClass.simpleName})")
-            return reply(id, "1")
+            return reply(id, GpgRequests.answerLine(GpgAnswer.Cancel))
         }
         synchronized(agents) { agents += agent }
         scope.launch(Dispatchers.IO) {
@@ -109,7 +123,7 @@ internal class GpgBridge(private val stateHolder: ICodeStateHolder, private val 
     /** [line] into [id]'s pipe, without waiting: whoever asked may be gone, and the pipe with them. */
     private fun reply(id: String, line: String) {
         runCatching {
-            val pipe = Os.open(File(directory, id + ANSWER).path, OsConstants.O_WRONLY or OsConstants.O_NONBLOCK, 0)
+            val pipe = Os.open(File(directory, id + GuestGpg.ANSWER).path, OsConstants.O_WRONLY or OsConstants.O_NONBLOCK, 0)
             try {
                 val bytes = (line + "\n").toByteArray()
                 Os.write(pipe, bytes, 0, bytes.size)
@@ -123,8 +137,6 @@ internal class GpgBridge(private val stateHolder: ICodeStateHolder, private val 
 
     private companion object {
         const val TAG = "gpg"
-        const val REQUEST = ".request"
-        const val ANSWER = ".answer"
         const val BUFFER = 1024
     }
 }

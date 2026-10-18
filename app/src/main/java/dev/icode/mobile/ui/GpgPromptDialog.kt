@@ -22,9 +22,12 @@ import dev.icode.mobile.domain.ICodeGateway
  */
 @Composable
 internal fun GpgPromptDialog(prompt: GpgPrompt, gateway: ICodeGateway) {
-    // Held while the dialog is shown, never saved with the screen's state.
-    var passphrase by remember(prompt.id, prompt.error) { mutableStateOf("") }
-    val answer = { value: GpgAnswer -> gateway.dispatch(GpgIntent.Answer(prompt.id, value)) }
+    // Held only until it is sent, never saved with the screen's state: a question asked again starts empty.
+    var passphrase by remember(prompt) { mutableStateOf("") }
+    val answer = { value: GpgAnswer ->
+        gateway.dispatch(GpgIntent.Answer(prompt.id, value))
+        passphrase = ""
+    }
     IcodeConfirmDialog(
         title = prompt.title ?: "GnuPG",
         confirmLabel = prompt.ok ?: "OK",

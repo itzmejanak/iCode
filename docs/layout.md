@@ -516,6 +516,8 @@ Each group is collapsible and shows a count. Each file row shows status, path, s
 
 The commit message field remains pinned near staged changes when space permits. Commit is disabled with an explanation when no eligible staged changes exist. It does not silently stage every file.
 
+When Git signs commits with a key that has a passphrase, gpg-agent's question appears over whatever screen asked it — Source Control, the terminal, the assistant — as one dialog titled **GnuPG** ([gpg-signing-plan.md](./gpg-signing-plan.md)): gpg's own text, its error after a wrong passphrase ("Bad Passphrase (try 2 of 3)") in red, a masked Passphrase field, and gpg's own button labels, Cancel and OK by default. A confirmation is the same dialog without the field. Cancel leaves the commit unsigned and unmade, with Git's "gpg failed to sign the data".
+
 ### 16.4 Diff presentation
 
 Compact inline diff:
