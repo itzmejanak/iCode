@@ -1,6 +1,7 @@
 package dev.icode.mobile.domain
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class GradleIssuesTest {
@@ -27,5 +28,33 @@ class GradleIssuesTest {
     @Test
     fun `a build that printed no problems has none`() {
         assertEquals(emptyList<Diagnostic>(), GradleIssues.parse("BUILD SUCCESSFUL in 41s\n34 actionable tasks: 34 executed", "/workspace/hello"))
+    }
+
+    @Test
+    fun `what went wrong is its first two lines, without the cause's marker or the stack trace under it`() {
+        val output = """
+            > Task :app:configureCMakeDebug[arm64-v8a] FAILED
+
+            FAILURE: Build failed with an exception.
+
+            * What went wrong:
+            Execution failed for task ':app:configureCMakeDebug[arm64-v8a]'.
+            > [CXX1428] exception while building Json A problem occurred starting process 'command '/opt/android-sdk/cmake/3.22.1/bin/cmake''
+                    at org.gradle.process.internal.DefaultExecHandle.execExceptionFor(DefaultExecHandle.java:241)
+
+            * Try:
+            > Run with --stacktrace option to get the stack trace.
+        """.trimIndent()
+        assertEquals(
+            "Execution failed for task ':app:configureCMakeDebug[arm64-v8a]'. [CXX1428] exception while building Json A problem occurred starting process 'command '/opt/android-sdk/cmake/3.22.1/bin/cmake''",
+            GradleIssues.failure(output),
+        )
+    }
+
+    @Test
+    fun `a build that said nothing went wrong has no failure, and a long one is cut`() {
+        assertNull(GradleIssues.failure("BUILD SUCCESSFUL in 41s"))
+        assertNull(GradleIssues.failure("* What went wrong:\n\n* Try:"))
+        assertEquals(300, GradleIssues.failure("* What went wrong:\n" + "x".repeat(500))?.length)
     }
 }

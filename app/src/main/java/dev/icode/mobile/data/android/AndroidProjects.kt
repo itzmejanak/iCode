@@ -2,22 +2,20 @@ package dev.icode.mobile.data.android
 
 import dev.icode.mobile.domain.AndroidProject
 import java.io.File
+import java.io.IOException
 import org.json.JSONObject
 
 /**
- * Finds a workspace's Android app (docs/android-toolchain-plan.md §4.4): a Gradle build — its
- * wrapper and `settings.gradle(.kts)` at the top — with a module, the top or a folder in it, that
+ * Finds a workspace's Android apps (docs/android-toolchain-plan.md §4.4): a Gradle build — its
+ * wrapper and `settings.gradle(.kts)` at the top — and each module, the top or a folder in it, that
  * holds `src/main/AndroidManifest.xml` and applies the Android application plugin, by its id
  * (`com.android.application`) or its version-catalog alias (`libs.plugins.android.application`).
- * Several apps: `app`, as Android Studio's run configuration starts, else the first by name.
  */
 internal object AndroidProjects {
-    fun find(root: File, workspace: String): AndroidProject? {
-        if (!File(root, "gradlew").isFile || SETTINGS.none { File(root, it).isFile }) return null
+    fun apps(root: File, workspace: String): List<AndroidProject> {
+        if (!File(root, "gradlew").isFile || SETTINGS.none { File(root, it).isFile }) return emptyList()
         val modules = listOf(root) + root.listFiles().orEmpty().filter { it.isDirectory && !it.name.startsWith(".") }.sortedBy { it.name }
-        val apps = modules.filter(::isApplication).map { if (it == root) "" else it.name }
-        val module = apps.firstOrNull { it == "app" } ?: apps.firstOrNull() ?: return null
-        return AndroidProject(workspace, module)
+        return modules.filter(::isApplication).map { AndroidProject(workspace, if (it == root) "" else it.name) }
     }
 
     private fun isApplication(module: File): Boolean {
@@ -26,12 +24,14 @@ internal object AndroidProjects {
         return APPLICATION_PLUGIN.containsMatchIn(build.readText())
     }
 
-    /** What `assembleDebug` wrote: `<module>/build/outputs/apk/debug/output-metadata.json`. */
-    fun metadata(root: File, project: AndroidProject): File =
-        File(if (project.module.isEmpty()) root else File(root, project.module), "build/outputs/apk/debug/output-metadata.json")
-
-    /** The app's id and its APK, from AGP's [metadata]: the one `SINGLE` output of a debug build. */
-    fun apk(metadata: File): Pair<String, File> {
+    /**
+     * The app's id and its APK, once `assembleDebug` ended with 0: the one `SINGLE` output AGP's
+     * `<module>/build/outputs/apk/debug/output-metadata.json` names. However old: a build that
+     * found nothing changed left the last build's, which Gradle checked is current (UP-TO-DATE).
+     */
+    fun debugApk(root: File, project: AndroidProject): Pair<String, File> {
+        val metadata = File(if (project.module.isEmpty()) root else File(root, project.module), "build/outputs/apk/debug/output-metadata.json")
+        if (!metadata.isFile) throw IOException("The build wrote no debug APK where Gradle writes one")
         val json = JSONObject(metadata.readText())
         val elements = json.getJSONArray("elements")
         val single = (0 until elements.length()).map(elements::getJSONObject).firstOrNull { it.optString("type") == "SINGLE" }

@@ -72,7 +72,7 @@ Each claim names its evidence. "Reference" is Mobile Harness v1.0.7 (MIT), clone
 | G1 | **A tool is apt packages and nothing else.** "Installed" means dpkg, size means `apt --print-uris`, and the installer is apt. The Android SDK is not an apt package | `domain/RuntimeTools.kt` (`packages`), `RuntimePackageInstaller`, `DpkgStatus` | A tool may add a **setup** after its apt packages: pinned downloads plus steps it owns, with a receipt (§4.1) |
 | G2 | **Only the root filesystem is a pinned download.** The downloader is named for it (`RootfsDownloader`), and the manifest has one `rootfs` entry | `RuntimeInstaller.kt:56`, `RootfsDownloader.kt` | The manifest gains `archives` and `packageBytes`. One `RuntimeManifest` reads them all. The downloader becomes `PinnedDownload`: it checks each pin's size and digest — SHA-256, or Google's own SHA-1 — as the bytes arrive (§4.2) |
 | G3 | **No APK install, no launch, no "Install unknown apps" permission** | `domain/SystemAccess.kt` (`Notifications`, `Battery`, `Storage`) | `SystemPermission.InstallApps`; one installer and launcher (§4.5) |
-| G4 | **No build the user can start.** Managed processes are started only by the assistant | `RuntimeProcesses.start`, `ICodeIntent.ProcessIntent` | Build is a managed process that iCode starts. Install and launch follow when it exits with 0. The ▶ button and the assistant share one action (§4.4) |
+| G4 | **No build the user can start.** Managed processes are started only by the assistant | `RuntimeProcesses.start`, `ICodeIntent.ProcessIntent` | Build is a managed process that iCode starts. Install and launch follow when it exits with 0. The Run tab's ▶ and the assistant share one action (§4.4) |
 
 ## 4. Decisions
 
@@ -171,24 +171,24 @@ These are Gradle properties, and Gradle documents the user's `gradle.properties`
 
 ### 4.4 Build → install → launch: one action (G4), as built
 
-- **`AndroidApps`** (data) is the one action. The Explorer's ▶ and the assistant's `run_android_app` both call `buildAndRun(workspace)`.
-  1. **Find** the app (`AndroidProjects`).
+- **`AndroidApps`** (data) is the one action, the Android kind of run on the Terminal panel's **Run** tab ([run-tab-plan.md](./run-tab-plan.md), 2026-10-18; it was the Explorer header's ▶ before). An Android app row's ▶ and the assistant's `run_android_app` both start it through `RunCoordinator`, which keeps the run's record; `AndroidApps` keeps no state.
+  1. **Find** the apps (`AndroidProjects.apps`).
      - The top must hold `gradlew` and `settings.gradle(.kts)`.
      - An app module is the top, or a folder in it, that holds `src/main/AndroidManifest.xml`. Its build file must apply the application plugin, by id (`com.android.application`) or by Android Studio's version-catalog alias (`libs.plugins.android.application`).
-     - With several app modules, `app` wins, as Android Studio's run configuration does; otherwise the first by name.
-     - It is read again whenever the open workspace's files change, and ▶ shows only when there is one.
+     - Each app module is a row of the Run tab: `app` first, as Android Studio's run configuration picks it, then the rest by name. The assistant's `run_android_app` starts the first.
+     - They are read again whenever the open workspace's files change.
   2. **Build** as a managed process named "Build app": `bash ./gradlew --console=plain :app:assembleDebug`.
      - It uses the project's own wrapper, so the project's own Gradle. bash runs the wrapper whether or not it is executable.
      - It runs with the login environment, where `ANDROID_HOME` now is.
-     - Its output is that process's tab in the Terminal panel, and Stop is the process's own Stop. A second Build & Run of the same app is refused while one runs.
+     - Its output is that process's tab in the Terminal panel, and Stop is the process's own Stop. A second run of the same app is refused while one builds or waits on Android's install.
   3. **When it ends:**
      - What it printed goes through `GradleIssues` into the Problems panel. That panel had no producer before.
-     - Exit 0: AGP's `build/outputs/apk/debug/output-metadata.json` gives the `applicationId` and the one `SINGLE` APK. It must be newer than the build's start. The APK is then installed and opened (§4.5).
-- **The ▶ button** asks for what is missing first:
+     - Exit 0: AGP's `build/outputs/apk/debug/output-metadata.json` gives the `applicationId` and the one `SINGLE` APK (`AndroidProjects.debugApk`). The file's age is not checked: a build that found nothing changed (UP-TO-DATE) leaves the last build's, which Gradle checked is current. The APK is then installed and opened (§4.5).
+     - Otherwise the row says why: how many errors Problems lists, or Gradle's own "What went wrong", its first two lines without the `> ` (`GradleIssues.failure`). A build the user stopped says Stopped.
+- **The row's ▶** asks for what is missing first:
   - Without the Android SDK, a dialog offers Open Runtime Tools.
-  - Without "Install unknown apps", the Explorer shows the shared `PermissionExplanation`. Once Android's page grants it, the build starts.
-  - While a run goes, ▶ is accented and opens its output.
-- **A notice** under the Explorer's label says Building…, Installing…, or Build & Run Failed with the reason. It offers Show Output, and Dismiss for a failure.
+  - Without "Install unknown apps", the Run tab shows the shared `PermissionExplanation`. Once Android's page grants it, the build starts.
+- **The row's state line** says Building · 1m, Installing · Android asks you to confirm (with **Install**), Opened, or Failed · and the reason ([run-tab-plan.md](./run-tab-plan.md) §2.1). ■ shows while it builds or waits on the install; a tap on the row opens the build's output.
 - **Issues:** Kotlin's `e:`/`w: file:///…:line:col message` and javac's `/….java:line: error|warning: message` lines become `Diagnostic`s with source "Gradle", by file within the workspace. They are kept per workspace: opening another workspace clears them.
 
 ### 4.5 Installing and launching (L5, L6, G3), as built
@@ -200,7 +200,7 @@ These are Gradle properties, and Gradle documents the user's `gradle.properties`
 - **Install (`ApkInstaller`):**
   - A `PackageInstaller` session in full-install mode.
   - Its result goes to a receiver registered with `RECEIVER_NOT_EXPORTED` for that session alone. The PendingIntent is mutable, because Android adds the outcome to it.
-  - `STATUS_PENDING_USER_ACTION` opens Android's confirmation. Android does not let an app in the background open it, so it is kept: the notice's **Install** opens it again from iCode's screen, and **Cancel** abandons the session.
+  - `STATUS_PENDING_USER_ACTION` opens Android's confirmation. Android does not let an app in the background open it, so it is kept: the row's **Install** opens it again from iCode's screen, and its ■ abandons the session.
   - Failures are said in Android's words. Signature mismatch (L11) says to uninstall the old copy.
 - **Launch:**
   - `startActivity(Intent(ACTION_MAIN).addCategory(CATEGORY_LAUNCHER).setPackage(package))`.
@@ -237,8 +237,8 @@ There is no offline Maven repository: the first build downloads Gradle and the d
 | A4 | The Android SDK setup (§4.2), the licence asset, and Gradle's settings (§4.3) | Unit tests; the overlay run on the pinned zip here; phone install | Built; phone install open |
 | A5 | UI: the Android SDK row, setup progress, and the License Agreement step | Type-check | Built |
 | A6 | G3: `SystemPermission.InstallApps`, `ApkInstaller` (session, receiver, confirmation, launch) | Type-check, API-30 check; phone install | Built; phone install open |
-| A7 | G4: `AndroidApps`, `AndroidProjects`, `GradleIssues`, the ▶ button, its notice, and `run_android_app` | Unit tests (module discovery, APK metadata, Gradle issues); phone build & run | Built; phone build open |
-| A8 | New Android app (§4.6) | Phone: new app → ▶ → it opens | Waits on A1's AGP version |
+| A7 | G4: `AndroidApps`, `AndroidProjects`, `GradleIssues`, the Run tab's Android rows ([run-tab-plan.md](./run-tab-plan.md)), and `run_android_app` | Unit tests (module discovery, APK metadata, Gradle issues); phone build & run | Built; phone build open |
+| A8 | New Android app (§4.6) | Phone: new app → the Run tab's ▶ → it opens | Waits on A1's AGP version |
 
 ## 6. Device checks (none can run here)
 

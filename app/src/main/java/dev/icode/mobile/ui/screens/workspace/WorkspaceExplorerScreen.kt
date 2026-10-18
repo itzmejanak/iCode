@@ -21,7 +21,6 @@ import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,7 +40,6 @@ import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.domain.FileEntry
 import dev.icode.mobile.domain.FileKind
 import dev.icode.mobile.domain.ICodeIntent
-import dev.icode.mobile.domain.SystemPermission
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.navigation.ToolPanelTab
@@ -51,7 +49,6 @@ import dev.icode.mobile.ui.FileItemActions
 import dev.icode.mobile.ui.NewItemButton
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
-import dev.icode.mobile.ui.screens.entry.PermissionExplanation
 
 /** File tree with the workspace activity rail. */
 @Composable
@@ -64,8 +61,6 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
     var menuFor by remember { mutableStateOf<String?>(null) }
     var renaming by rememberSaveable { mutableStateOf<String?>(null) }
     var deleting by rememberSaveable { mutableStateOf<String?>(null) }
-    // What ▶ asked for before it builds: the Android SDK, or leave to install apps.
-    var need by rememberSaveable { mutableStateOf<BuildAndRunNeed?>(null) }
     // iCode's one clipboard: cut or copied here, in another workspace, or on the Workspaces page.
     val clipboard = state.clipboard
     val rootSelectionInteraction = remember { MutableInteractionSource() }
@@ -75,20 +70,12 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
     val pasteHere = { selectedFolder?.let { gateway.dispatch(ICodeIntent.PasteInto(it)) } }
     // Each path as the runtime names it, as Copy path gives it and the terminal shows it.
     val runtimePathOf = { location: String -> root?.let { WorkspaceRuntimePath.within(it, state.activePath, location) } ?: location }
-    // Allowed on Android's page: the build ▶ asked for goes on.
-    LaunchedEffect(state.systemAccess?.installApps) {
-        if (need == BuildAndRunNeed.InstallApps && state.systemAccess?.installApps == true) {
-            need = null
-            gateway.dispatch(ICodeIntent.BuildAndRunAndroidApp)
-        }
-    }
     Column(Modifier.fillMaxSize()) {
         WorkspaceHeader(
             actions = FileItemActions.creation(
                 onNewFile = { createParent = selectedFolder; createType = WorkspaceItemType.File },
                 onNewFolder = { createParent = selectedFolder; createType = WorkspaceItemType.Folder },
             ),
-            onNeed = { need = it },
         )
         Row(Modifier.weight(1f).background(IcodeColors.Surface)) {
             ActivityRail(
@@ -130,15 +117,7 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
                     .background(IcodeColors.Background),
             ) {
                 SectionLabel("Workspace Explorer", Modifier.padding(IcodeSpacing.Space3))
-                visibleAndroidRun()?.let { AndroidRunNotice(it, Modifier.padding(horizontal = IcodeSpacing.Space3)) }
-                if (need == BuildAndRunNeed.InstallApps) {
-                    PermissionExplanation(
-                        permission = SystemPermission.InstallApps,
-                        onAllow = { gateway.dispatch(ICodeIntent.RequestSystemPermission(SystemPermission.InstallApps)) },
-                        onNotNow = { need = null },
-                        modifier = Modifier.weight(1f).padding(IcodeSpacing.Space4),
-                    )
-                } else LazyColumn(
+                LazyColumn(
                     Modifier
                         .weight(1f)
                         .fillMaxWidth()
@@ -196,9 +175,6 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
     createType?.let { type ->
         CreateWorkspaceItemDialog(type, createParent, onDismiss = { createType = null })
     }
-    if (need == BuildAndRunNeed.AndroidSdk) {
-        AndroidSdkNeededDialog(onOpenRuntimeTools = { need = null; actions.navigate(Route.RuntimeTools) }, onDismiss = { need = null })
-    }
     state.files.firstOrNull { it.path == renaming }?.let { entry ->
         RenameWorkspaceItemDialog(entry.path, entry.name, entry.kind == FileKind.Folder, onDismiss = { renaming = null })
     }
@@ -207,20 +183,14 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
     }
 }
 
-/**
- * Workspace header used by the explorer family: ▶ Build & Run when the workspace holds an Android app
- * ([onNeed] hears what it asks for first), and + offering [actions] ([FileItemActions.creation]).
- */
+/** Workspace header used by the explorer family: its + offers [actions] ([FileItemActions.creation]). */
 @Composable
-private fun WorkspaceHeader(actions: List<IcodeMenuAction>, onNeed: (BuildAndRunNeed) -> Unit) {
+private fun WorkspaceHeader(actions: List<IcodeMenuAction>) {
     val state = LocalICodeSnapshot.current
     IcodeTopBar(
         title = state.activeWorkspace,
         subtitle = state.activePath,
-        actions = {
-            if (state.androidApps.project != null) BuildAndRunButton(onNeed)
-            NewItemButton(contentDescription = "Create in workspace", actions = actions)
-        },
+        actions = { NewItemButton(contentDescription = "Create in workspace", actions = actions) },
     )
 }
 

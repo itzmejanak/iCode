@@ -48,7 +48,7 @@ import dev.icode.mobile.ui.LocalWorkspacePreferences
 import dev.icode.mobile.ui.terminal.TerminalHost
 import dev.icode.mobile.ui.terminal.TerminalKeys
 
-/** One tools panel: terminal, problems and output share a tab header and back-stack entry. */
+/** One tools panel: terminal, run, problems and output share a tab header and back-stack entry. */
 @Composable
 fun TerminalScreen(actions: NavigationActions) {
     val state = LocalICodeSnapshot.current
@@ -58,7 +58,7 @@ fun TerminalScreen(actions: NavigationActions) {
     val runtimeReady = state.runtime is RuntimeState.Ready
     val terminalSettings = LocalWorkspacePreferences.current.terminal
 
-    // Starting a panel on Problems/Output must not start a shell. Closing the
+    // Starting a panel on Run/Problems/Output must not start a shell. Closing the
     // last shell must not silently reopen one or dismiss the other two tabs.
     var attemptedFirstOpen by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(actions.panelTab, runtimeReady, terminal.sessions.isEmpty()) {
@@ -82,6 +82,7 @@ fun TerminalScreen(actions: NavigationActions) {
 
     var fontScale by rememberSaveable { mutableFloatStateOf(1f) }
     var problemsFilter by rememberSaveable { mutableStateOf(Severity.Error) }
+    var addingCommand by rememberSaveable { mutableStateOf(false) }
     val keys = remember { TerminalKeys() }
     LaunchedEffect(terminalSettings.extraKeys) { keys.keepOnly(terminalSettings.extraKeys) }
 
@@ -105,6 +106,7 @@ fun TerminalScreen(actions: NavigationActions) {
                         BottomBarItem(
                             label = when (tab) {
                                 ToolPanelTab.Terminal -> "Terminal"
+                                ToolPanelTab.Run -> "Run"
                                 ToolPanelTab.Problems -> "Problems"
                                 ToolPanelTab.Output -> "Output"
                             },
@@ -116,20 +118,28 @@ fun TerminalScreen(actions: NavigationActions) {
                     )
                 }
             }
-            if (actions.panelTab == ToolPanelTab.Terminal) {
-                IconButton(
-                    onClick = { gateway.dispatch(ICodeIntent.OpenTerminalSession) },
-                    enabled = runtimeReady,
-                ) {
-                    Icon(
-                        Icons.Outlined.Add,
-                        contentDescription = "New terminal session",
-                        tint = if (runtimeReady) IcodeColors.Accent else IcodeColors.TextMuted,
-                    )
+            when (actions.panelTab) {
+                ToolPanelTab.Terminal -> AddButton("New terminal session", enabled = runtimeReady) {
+                    gateway.dispatch(ICodeIntent.OpenTerminalSession)
                 }
+                ToolPanelTab.Run -> AddButton("New command", enabled = state.activeWorkspaceLocation != null) {
+                    addingCommand = true
+                }
+                ToolPanelTab.Problems, ToolPanelTab.Output -> Unit
             }
         }
         when (actions.panelTab) {
+            ToolPanelTab.Run -> RunPanelContent(
+                adding = addingCommand,
+                onAddingDone = { addingCommand = false },
+                // The output's tab opens the Terminal tab itself; no shell is started beside it.
+                onShowOutput = {
+                    attemptedFirstOpen = true
+                    gateway.dispatch(ICodeIntent.ShowProcessOutput(it))
+                },
+                navigate = actions.navigate,
+                modifier = Modifier.weight(1f),
+            )
             ToolPanelTab.Problems -> ProblemsPanelContent(
                 filter = problemsFilter,
                 onFilterChange = { problemsFilter = it },
@@ -198,6 +208,17 @@ fun TerminalScreen(actions: NavigationActions) {
     }
 }
 
+/** The header's +: a new shell on Terminal, a new command on Run. */
+@Composable
+private fun AddButton(contentDescription: String, enabled: Boolean, onClick: () -> Unit) {
+    IconButton(onClick = onClick, enabled = enabled) {
+        Icon(
+            Icons.Outlined.Add,
+            contentDescription = contentDescription,
+            tint = if (enabled) IcodeColors.Accent else IcodeColors.TextMuted,
+        )
+    }
+}
 
 internal fun shouldAutoOpenTerminal(tab: ToolPanelTab, runtimeReady: Boolean, alreadyAttempted: Boolean): Boolean =
     tab == ToolPanelTab.Terminal && runtimeReady && !alreadyAttempted

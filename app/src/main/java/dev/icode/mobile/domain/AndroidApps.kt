@@ -1,33 +1,23 @@
 package dev.icode.mobile.domain
 
 // Build & Run (docs/android-toolchain-plan.md §4.4): an Android project's app, built in the Linux
-// runtime by the project's own Gradle, installed on this phone and opened.
+// runtime by the project's own Gradle, installed on this phone and opened — one kind of run on the
+// Terminal panel's Run tab (docs/run-tab-plan.md).
 
-/** The open workspace's Android app: the Gradle module that builds it, by its folder ("" for the top). */
+/** An Android app of a workspace: the Gradle module that builds it, by its folder ("" for the top). */
 data class AndroidProject(val workspace: String, val module: String) {
     /** `:app:assembleDebug`, or `assembleDebug` for a project that is one module. */
     val task: String get() = if (module.isEmpty()) "assembleDebug" else ":${module.replace('/', ':')}:assembleDebug"
 }
 
-enum class AndroidAppStep { Building, Installing, Opened }
-
-/** One Build & Run: its step, the build's managed process (its output is that process's tab), and why it stopped. */
-data class AndroidAppRun(
-    val workspace: String,
-    val step: AndroidAppStep,
-    val process: String? = null,
-    /** In the words of what failed; null while it goes, and once the app is open. */
-    val failure: String? = null,
-) {
-    val running: Boolean get() = failure == null && step != AndroidAppStep.Opened
-}
-
-data class AndroidAppsState(val project: AndroidProject? = null, val run: AndroidAppRun? = null)
+/** What follows an Android app's build once it ends with 0. */
+enum class AndroidAppStep { Installing, Opened }
 
 /**
- * The problems a Gradle build printed, as the Problems panel lists them: Kotlin's
+ * What a Gradle build printed: the problems, as the Problems panel lists them — Kotlin's
  * `e: file:///workspace/app/src/Main.kt:12:5 Unresolved reference 'x'.` and javac's
- * `/workspace/app/src/Main.java:12: error: cannot find symbol`, by file within the workspace.
+ * `/workspace/app/src/Main.java:12: error: cannot find symbol`, by file within the workspace — and
+ * what went wrong, as its `* What went wrong:` block says it.
  */
 object GradleIssues {
     fun parse(output: String, workspaceGuestPath: String): List<Diagnostic> = output.lineSequence().mapNotNull { line ->
@@ -38,9 +28,19 @@ object GradleIssues {
         }
     }.distinct().toList()
 
+    /** The first two lines after `* What went wrong:`, without the `> ` a cause is indented with; null when there are none. */
+    fun failure(output: String): String? {
+        val lines = output.lines()
+        val start = lines.indexOfFirst { it.trim() == WENT_WRONG }.takeIf { it >= 0 } ?: return null
+        return lines.drop(start + 1).takeWhile { it.isNotBlank() && !it.startsWith("* ") }.take(2)
+            .joinToString(" ") { it.trim().removePrefix(">").trim() }.take(MAX_FAILURE).ifEmpty { null }
+    }
+
     private fun relative(path: String, top: String) = path.removePrefix("$top/")
 
     private const val SOURCE = "Gradle"
+    private const val WENT_WRONG = "* What went wrong:"
+    private const val MAX_FAILURE = 300
     private val KOTLIN = Regex("""^([ew]): file://(/[^:]+):(\d+):(\d+) (.+)$""")
     private val JAVAC = Regex("""^(/[^:]+\.java):(\d+): (error|warning): (.+)$""")
 }

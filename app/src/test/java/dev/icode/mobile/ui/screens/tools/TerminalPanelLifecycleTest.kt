@@ -6,7 +6,8 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TerminalPanelLifecycleTest {
-    @Test fun openingProblemsOrOutputDoesNotStartAShell() {
+    @Test fun openingRunProblemsOrOutputDoesNotStartAShell() {
+        assertFalse(shouldAutoOpenTerminal(ToolPanelTab.Run, runtimeReady = true, alreadyAttempted = false))
         assertFalse(shouldAutoOpenTerminal(ToolPanelTab.Problems, runtimeReady = true, alreadyAttempted = false))
         assertFalse(shouldAutoOpenTerminal(ToolPanelTab.Output, runtimeReady = true, alreadyAttempted = false))
     }
@@ -19,6 +20,7 @@ class TerminalPanelLifecycleTest {
 
     @Test fun endingShellOnlyReturnsWhenTerminalIsVisible() {
         assertTrue(shouldReturnAfterLastTerminal(ToolPanelTab.Terminal, hadSessions = true))
+        assertFalse(shouldReturnAfterLastTerminal(ToolPanelTab.Run, hadSessions = true))
         assertFalse(shouldReturnAfterLastTerminal(ToolPanelTab.Problems, hadSessions = true))
         assertFalse(shouldReturnAfterLastTerminal(ToolPanelTab.Output, hadSessions = true))
         assertFalse(shouldReturnAfterLastTerminal(ToolPanelTab.Terminal, hadSessions = false))

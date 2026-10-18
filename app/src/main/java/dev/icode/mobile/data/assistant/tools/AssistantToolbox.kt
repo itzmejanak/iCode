@@ -1,8 +1,8 @@
 package dev.icode.mobile.data.assistant.tools
 
-import dev.icode.mobile.data.android.AndroidApps
 import dev.icode.mobile.data.assistant.AssistantTool
 import dev.icode.mobile.data.git.CliGitService
+import dev.icode.mobile.data.run.RunCoordinator
 import dev.icode.mobile.data.runtime.RuntimeExecution
 import dev.icode.mobile.data.search.WorkspaceSearchEngine
 import dev.icode.mobile.data.workspace.WorkspaceFileSource
@@ -13,7 +13,7 @@ internal class AssistantToolbox(
     private val search: WorkspaceSearchEngine,
     private val git: CliGitService,
     private val execution: RuntimeExecution,
-    private val androidApps: AndroidApps,
+    private val runs: RunCoordinator,
     private val runtimeInstalled: () -> Boolean,
     /** An open tab holds unsaved edits at this location. */
     private val unsavedEdits: (String) -> Boolean,
@@ -38,7 +38,7 @@ internal class AssistantToolbox(
             ProcessStatusTool(workspace, processes),
             SendProcessInputTool(workspace, processes),
             StopProcessTool(workspace, processes),
-            RunAndroidAppTool(workspace, androidApps),
+            RunAndroidAppTool(workspace, runs),
         )
     }
 }
