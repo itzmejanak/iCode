@@ -435,5 +435,10 @@ class GitWorkspaceCoordinatorTest {
         }
         override suspend fun discard(workspacePath: String, path: String, status: String) = record("discard $workspacePath $path $status")
         override suspend fun abortInProgress(workspacePath: String, inProgress: GitInProgress) = record("abort $workspacePath $inProgress")
+        // No file is open in these tests: the change markers read nothing.
+        override fun repositoryTopOf(location: String): String? = null
+        override fun indexStampOf(top: String): String? = null
+        override suspend fun indexVersions(top: String, paths: List<String>) = emptyMap<String, IndexVersion>()
+        override suspend fun stageVersion(top: String, path: String, mode: String, bytes: ByteArray) = record("stageVersion $top $path")
     }
 }

@@ -9,6 +9,7 @@ import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.GitRemoteRules
 import dev.icode.mobile.domain.GitStatusCodes
 import dev.icode.mobile.domain.RecentDocument
+import dev.icode.mobile.domain.StageLineChange
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.WorkspaceSummary
 import java.io.File
@@ -38,6 +39,9 @@ internal class GitWorkspaceCoordinator(
     private val onInstalled: suspend () -> Unit,
 ) {
     private var refreshJob: Job? = null
+
+    /** The editor's change markers: they read the index again whenever the repository is read. */
+    val lineChanges = GitLineChanges(stateHolder, scope, git)
 
     suspend fun read(root: String): GitPicture {
         val available = git.isAvailable()
@@ -72,6 +76,7 @@ internal class GitWorkspaceCoordinator(
             if (it.activeWorkspaceLocation != root) return@update it
             it.copy(workspaces = workspaces, files = files, recentDocuments = recentDocuments(root)).withGit(picture)
         }
+        lineChanges.repositoryRead()
     }
 
     /** The workspace is closing: a refresh still waiting for it has nothing left to show. */
@@ -158,6 +163,9 @@ internal class GitWorkspaceCoordinator(
 
     suspend fun stageAll() = act(operation = { workspace -> git.stageAll(workspace) })
 
+    /** One change of an open file, from the editor's change sheet (docs/editor-plan.md §3.5). */
+    suspend fun stageLineChange(intent: StageLineChange) = act(operation = { lineChanges.stage(intent) })
+
     suspend fun unstageAll() = act(operation = { workspace -> git.unstageAll(workspace) })
 
     /** Null once committed, else Git's words — said as a message too, unless [quiet] (Commit & Push shows them). */
@@ -221,7 +229,6 @@ internal class GitWorkspaceCoordinator(
             .onFailure { error -> stateHolder.report("git", "Unable to compare the two versions", error) }
     }
 
-    /** Holds the one unstaged change at [path]; a file staged and edited again has a staged row too. */
     /** Holds what discarding [path] — a file, or all a folder holds — would throw away, for its confirmation. */
     fun requestDiscard(path: String) = stateHolder.update { it.copy(pendingDiscard = GitDiscard.of(it.gitChanges, path)) }
 
@@ -261,7 +268,6 @@ internal class GitWorkspaceCoordinator(
         act(operation = { workspace -> git.abortInProgress(workspace, inProgress) })
     }
 
-    /** Runs one local Git change in the open workspace, then shows what Git now says. */
     /**
      * Runs [operation] on the open workspace's repository and reads it again. Returns null when it
      * was done, else what went wrong in Git's words — said as a message too, unless [quiet].

@@ -435,6 +435,17 @@ The code surface includes:
 
 The minimap is disabled by default on compact screens and remains optional elsewhere.
 
+The **Git change gutter** ([editor-plan.md §3](./editor-plan.md)) marks each line changed against the file's version in Git's index, as VS Code's does: a green bar for added lines, a blue bar for modified ones, a red wedge where lines were deleted, in a lane between the line numbers and the divider. A tap in the gutter of a changed line opens the **change sheet**:
+- "Change 2 of 3" and where it is ("Modified · lines 13–15");
+- its removed lines in red and its added lines in green, numbered as the diff screen numbers them;
+- **Revert** and **Stage**, then **‹ Prev** and **Next ›**.
+
+While the file has changes, the bottom bar says "3 changes"; a tap opens the sheet at the first change at or after the caret.
+
+### 13.2.1 Keys row
+
+While the keyboard is open, the **keys row** takes the bottom bar's place ([editor-plan.md §4](./editor-plan.md)): TAB, ⇤, ◀ ▲ ▼ ▶, ↶ ↷, then the symbols, one row of the terminal's `KeyChip`s scrolling sideways. It is not shown for a read-only file or the Markdown preview. Editor Settings › Keys Row chooses its keys, as Terminal Settings › Extra Keys Row does.
+
 ### 13.3 Editor toolbar
 
 The default toolbar remains minimal:

@@ -5,7 +5,6 @@ import com.termux.terminal.TerminalSession
 import dev.icode.mobile.data.assistant.AssistantCoordinator
 import dev.icode.mobile.data.assistant.tools.AssistantToolbox
 import dev.icode.mobile.data.git.CliGitService
-import dev.icode.mobile.data.git.ConflictFiles
 import dev.icode.mobile.data.git.GitAuthCoordinator
 import dev.icode.mobile.data.git.GitAuthenticator
 import dev.icode.mobile.data.git.GitConflictCoordinator
@@ -41,6 +40,7 @@ import dev.icode.mobile.domain.ICodeGateway
 import dev.icode.mobile.domain.GpgIntent
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.ICodeSnapshot
+import dev.icode.mobile.domain.StageLineChange
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -107,13 +107,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     private val interruptedTransfer = transferLedger.takeInterrupted()
     private val gitConflicts: GitConflictCoordinator = GitConflictCoordinator(
         stateHolder,
-        object : ConflictFiles {
-            override fun read(location: String) = source.readDocument(location)
-            override fun write(document: WorkspaceDocument, text: String) = source.writeDocument(document, text)
-            override fun hasUnsavedEdits(location: String) =
-                stateHolder.current.openDocuments.any { it.location == location && it.dirty }
-            override suspend fun written(location: String) = documents.reconcileWithDisk()
-        },
+        WorkspaceConflictFiles(stateHolder, source) { documents.reconcileWithDisk() },
         activeRoot = { session.activeRoot },
         act = gitWorkspace::act,
         stage = { workspace, path -> git.markResolved(workspace, path) },
@@ -194,6 +188,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
         scope.launch { recovery.loadRecoverable() }
         scope.launch { observeNotices() }
         terminal.follow(scope, settings.values(null).filter { it.loaded && it.loadError == null }.map { it.terminal })
+        gitWorkspace.lineChanges.follow(settings.values(null).filter { it.loaded && it.loadError == null }.map { it.editor.changeMarkers })
         scope.launch { runtime.reportState() }
         runtimeTools.start()
         runs.start()
@@ -299,6 +294,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
                         ICodeIntent.RefreshGit -> gitWorkspace.refreshActive()
                         is ICodeIntent.ChooseGitRepository -> gitWorkspace.choose(intent.location)
                         is ICodeIntent.OpenDiff -> gitWorkspace.openDiff(intent.path, intent.staged)
+                        is StageLineChange -> gitWorkspace.stageLineChange(intent)
                         ICodeIntent.CloseDiff -> gitWorkspace.closeDiff()
                         is ICodeIntent.RequestDiscardChanges -> gitWorkspace.requestDiscard(intent.path)
                         ICodeIntent.CancelDiscardChanges -> gitWorkspace.cancelDiscard()

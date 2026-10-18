@@ -77,6 +77,8 @@ data class ICodeSnapshot(
      * here yet", which otherwise look identical to every Git surface.
      */
     val gitAvailable: Boolean? = null,
+    /** Each open file's Git changes, by location, for those Git's index holds (docs/editor-plan.md §3). */
+    val lineChanges: Map<String, DocumentLineChanges> = emptyMap(),
     /** The diff currently being viewed, or null when no file is open in the diff surface. */
     val activeDiff: GitFileDiff? = null,
     /** The conflicted file currently open for resolution. */

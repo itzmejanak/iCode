@@ -7,9 +7,21 @@ import dev.icode.mobile.domain.GitSigningKey
 
 // What each Git owner needs from the real client, narrow enough for a test to fake.
 
-/** The local operations on the open workspace's repository; tests put a fake in their place. */
-internal interface GitWorkspaceOperations {
+/** What the editor's change markers read from Git and write to it (docs/editor-plan.md §3); tests put a fake in their place. */
+internal interface GitIndexOperations {
     suspend fun isAvailable(): Boolean
+    /** The top of the repository holding [location], read from disk; null when none does. */
+    fun repositoryTopOf(location: String): String?
+    /** When the index of the repository at [top] last changed — its file's size and time; null without one. */
+    fun indexStampOf(top: String): String?
+    /** [paths]' versions in that index as a checkout writes them; a path without one is left out. */
+    suspend fun indexVersions(top: String, paths: List<String>): Map<String, IndexVersion>
+    /** Stages [bytes] as [path]'s version, with [mode]. */
+    suspend fun stageVersion(top: String, path: String, mode: String, bytes: ByteArray)
+}
+
+/** The local operations on the open workspace's repository; tests put a fake in their place. */
+internal interface GitWorkspaceOperations : GitIndexOperations {
     /** The branch `HEAD` names, read from disk without Git: a repository names it before Git is installed. */
     fun branchOf(workspacePath: String): String?
     /** Whether [workspacePath] is in a repository, read from disk without Git. */

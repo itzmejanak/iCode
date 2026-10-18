@@ -16,6 +16,7 @@ import dev.icode.mobile.domain.AccentColorRules
 import dev.icode.mobile.domain.AppearanceSettings
 import dev.icode.mobile.domain.AutoSaveMode
 import dev.icode.mobile.domain.EditorFontFamily
+import dev.icode.mobile.domain.EditorKey
 import dev.icode.mobile.domain.EditorSettings
 import dev.icode.mobile.domain.SettingLimits
 import dev.icode.mobile.domain.TerminalSettings
@@ -53,6 +54,10 @@ class AndroidWorkspacePreferencesRepository internal constructor(
     private val lineNumbersKey = booleanPreferencesKey("editor_line_numbers")
     private val minimapKey = booleanPreferencesKey("editor_minimap")
     private val bracketKey = booleanPreferencesKey("editor_bracket_matching")
+    private val editorKeysKey = stringPreferencesKey("editor_keys")
+    private val keyboardSuggestionsKey = booleanPreferencesKey("editor_keyboard_suggestions")
+    private val changeMarkersKey = booleanPreferencesKey("editor_change_markers")
+    private val autoCloseBracketsKey = booleanPreferencesKey("editor_auto_close_brackets")
     private val terminalShellKey = stringPreferencesKey("terminal_shell_path")
     private val terminalFontSizeKey = intPreferencesKey("terminal_font_size_sp")
     private val terminalFontFamilyKey = stringPreferencesKey("terminal_font_family")
@@ -82,6 +87,10 @@ class AndroidWorkspacePreferencesRepository internal constructor(
                 lineNumbers = prefs[lineNumbersKey] ?: editorDefaults.lineNumbers,
                 minimap = prefs[minimapKey] ?: editorDefaults.minimap,
                 bracketMatching = prefs[bracketKey] ?: editorDefaults.bracketMatching,
+                keys = prefs[editorKeysKey]?.split(',')?.mapNotNull { enumOrNull<EditorKey>(it) }?.distinct() ?: editorDefaults.keys,
+                keyboardSuggestions = prefs[keyboardSuggestionsKey] ?: editorDefaults.keyboardSuggestions,
+                changeMarkers = prefs[changeMarkersKey] ?: editorDefaults.changeMarkers,
+                autoCloseBrackets = prefs[autoCloseBracketsKey] ?: editorDefaults.autoCloseBrackets,
             ),
             terminal = TerminalSettings(
                 shellPath = prefs[terminalShellKey]?.takeIf(TerminalSettingRules::validShellPath) ?: terminalDefaults.shellPath,
@@ -132,6 +141,17 @@ class AndroidWorkspacePreferencesRepository internal constructor(
     override suspend fun setWordWrap(enabled: Boolean) { store.edit { it[wordWrapKey] = enabled } }
 
     override suspend fun setAutoSave(mode: AutoSaveMode) { store.edit { it[autoSaveKey] = mode.name } }
+
+    override suspend fun setEditorKeys(keys: List<EditorKey>) {
+        require(keys.distinct().size == keys.size)
+        store.edit { it[editorKeysKey] = keys.joinToString(",") { key -> key.name } }
+    }
+
+    override suspend fun setKeyboardSuggestions(enabled: Boolean) { store.edit { it[keyboardSuggestionsKey] = enabled } }
+
+    override suspend fun setChangeMarkers(enabled: Boolean) { store.edit { it[changeMarkersKey] = enabled } }
+
+    override suspend fun setAutoCloseBrackets(enabled: Boolean) { store.edit { it[autoCloseBracketsKey] = enabled } }
 
     override suspend fun setLineNumbers(enabled: Boolean) { store.edit { it[lineNumbersKey] = enabled } }
 

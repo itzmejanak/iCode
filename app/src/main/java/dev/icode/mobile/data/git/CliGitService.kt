@@ -7,6 +7,8 @@ import dev.icode.mobile.domain.GitFileDiff
 import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.RuntimeTools
 import java.io.File
+import java.io.IOException
+import java.util.UUID
 
 /**
  * Runs the real `git` binary inside the Linux runtime.
@@ -183,9 +185,42 @@ internal class CliGitService(
         }
     }
 
+    /**
+     * [paths]' versions in the index of the repository at [top] ([GitIndexVersions]); a path without
+     * one is left out. Git writes them into a folder of the guest's /tmp of this call's own.
+     */
+    suspend fun indexVersions(top: String, paths: List<String>): Map<String, IndexVersion> {
+        val relative = "$INDEX_SCRATCH_RELATIVE-${UUID.randomUUID()}"
+        val folder = File(layout.rootfs, relative)
+        try {
+            val result = runScript(top, GitIndexVersions.script(paths, "/$relative"))
+            if (!result.succeeded) throw IOException(result.errorMessage)
+            return GitIndexVersions.read(result.stdout, paths) { index -> File(folder, "$index").takeIf { it.isFile }?.readBytes() }
+        } finally {
+            folder.deleteRecursively()
+        }
+    }
+
+    /** Stages [bytes] as [path]'s version in the index of the repository at [top] ([GitIndexVersions.stageScript]). */
+    suspend fun stageVersion(top: String, path: String, mode: String, bytes: ByteArray) {
+        val relative = "$INDEX_SCRATCH_RELATIVE-${UUID.randomUUID()}"
+        val file = File(layout.rootfs, relative)
+        try {
+            file.parentFile?.mkdirs()
+            file.writeBytes(bytes)
+            val result = runScript(top, GitIndexVersions.stageScript(path, mode, "/$relative"))
+            if (!result.succeeded) throw IOException(result.errorMessage)
+        } finally {
+            file.delete()
+        }
+    }
+
     private companion object {
         /** Guest /tmp, inside the rootfs: seen by Git, never part of any workspace. */
         const val COMPARE_SCRATCH_RELATIVE = "tmp/icode-compare"
+
+        /** Index versions read or staged, each call under a name of its own beside it. */
+        const val INDEX_SCRATCH_RELATIVE = "tmp/icode-index"
 
         const val SAFE_DIRECTORY_MARKER = "root/.icode-git-configured"
         val EXPLANATORY_PREFIXES = listOf("fatal:", "error:")

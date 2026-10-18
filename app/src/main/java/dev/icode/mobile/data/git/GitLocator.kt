@@ -81,6 +81,9 @@ internal class GitLocator(private val paths: WorkspacePaths) {
 
     fun isRepository(folder: String): Boolean = headOf(folder) != null
 
+    /** The index file of the repository at [top], which Git rewrites whenever its index changes. */
+    fun indexOf(top: String): File? = gitDirectoryOf(File(top))?.let { File(it, "index") }
+
     private fun headOf(folder: String): File? =
         topOf(folder)?.let(::gitDirectoryOf)?.let { File(it, "HEAD") }?.takeIf { it.isFile }
 
