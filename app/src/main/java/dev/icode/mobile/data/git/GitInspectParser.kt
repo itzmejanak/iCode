@@ -3,6 +3,7 @@ package dev.icode.mobile.data.git
 import dev.icode.mobile.domain.GitChange
 import dev.icode.mobile.domain.GitCommitSummary
 import dev.icode.mobile.domain.GitRepositoryState
+import dev.icode.mobile.domain.GitSigningRules
 
 /**
  * One repository's state and its changes, read together.
@@ -100,15 +101,19 @@ internal object GitInspectParser {
         )
     }
 
-    /** Hash, author time, author and subject, one per line: none of them can hold a newline. */
+    /**
+     * Hash, author time, author, the signature's verdict, key and signer, then the subject, one per
+     * line: none of them can hold a newline. The verdict is `-` where GnuPG is not installed.
+     */
     private fun parseLastCommit(section: String): GitCommitSummary? {
-        val fields = section.split('\n', limit = 4)
-        if (fields.size < 4 || fields[0].isBlank()) return null
+        val fields = section.split('\n', limit = 7)
+        if (fields.size < 7 || fields[0].isBlank()) return null
         return GitCommitSummary(
             id = fields[0].take(SHORT_ID_LENGTH),
-            message = fields[3].removeSuffix("\n"),
+            message = fields[6].removeSuffix("\n"),
             author = fields[2],
             authoredAtEpochMillis = (fields[1].trim().toLongOrNull() ?: 0L) * 1000L,
+            signature = GitSigningRules.signature(fields[3], fields[4], fields[5]),
         )
     }
 
@@ -150,9 +155,11 @@ internal object GitInspectParser {
         append("git remote 2>/dev/null; printf '\\0'; ")
         append("git config user.name 2>/dev/null; printf '\\0'; ")
         append("git config user.email 2>/dev/null; printf '\\0'; ")
-        append("git ")
+        // The signature, in Git's own verdict, only where GnuPG can check one: without it Git says N
+        // of a signed commit too.
+        append("S='-%n%n'; command -v gpg >/dev/null 2>&1 && S='%G?%n%GK%n%GS'; git ")
         append(SAFE_DIRECTORY)
-        append(" log -1 --format='%H%n%at%n%an <%ae>%n%s' 2>/dev/null; printf '\\0'; ")
+        append(" log -1 --format=\"%H%n%at%n%an <%ae>%n\$S%n%s\" 2>/dev/null; printf '\\0'; ")
         // An interrupted merge, rebase, cherry-pick, revert or bisect is
         // recorded as a file in .git. Reading them is how Git itself knows,
         // and it costs nothing compared with another command.

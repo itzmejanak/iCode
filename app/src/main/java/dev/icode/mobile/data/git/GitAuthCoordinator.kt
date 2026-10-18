@@ -5,13 +5,19 @@ import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.GitAuthMethod
 import dev.icode.mobile.domain.GitAuthTestResult
 import dev.icode.mobile.domain.GitAuthWork
+import dev.icode.mobile.domain.GitAuthWorkIntent
 import dev.icode.mobile.domain.GitIdentityRules
 import dev.icode.mobile.domain.GitProvider
+import dev.icode.mobile.domain.GitSigningRules
+import dev.icode.mobile.domain.GitSigningState
+import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.SigningIntent
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Who commits and how Git reaches a remote (S5): the author identity, the
- * saved token, the SSH key and the connection test. What reaches the snapshot
+ * saved token, the SSH key, the connection test, and the key commits are
+ * signed with (docs/gpg-signing-plan.md §7). What reaches the snapshot
  * describes a credential; it is never the secret itself.
  */
 internal class GitAuthCoordinator(
@@ -89,6 +95,59 @@ internal class GitAuthCoordinator(
         refresh()
     }
 
+    /** What never waits on the mutation lock: apt, ssh-keygen, gpg — and the GnuPG dialog — and the network. */
+    suspend fun handle(intent: GitAuthWorkIntent) = when (intent) {
+        ICodeIntent.GenerateSshKey -> generateSshKey()
+        is ICodeIntent.TestGitConnection -> testConnection(intent.url)
+        SigningIntent.InstallGnuPg -> alone(GitAuthWork.InstallingGnuPg) {
+            credentials.ensureGnuPg().takeUnless { it.succeeded }?.let { stateHolder.message(it.message) }
+            refresh()
+        }
+        SigningIntent.CreateKey -> createSigningKey()
+        // Git's config, written at once: the page waits on nothing else meanwhile.
+        is SigningIntent.UseKey -> configureSigning { config.writeConfig(GitConfigScope.Global, SIGNING_KEY, intent.fingerprint) }
+        is SigningIntent.SignCommits -> configureSigning { signCommits(intent.enabled) }
+        // Nothing on the page changes with it, so its outcome is said either way.
+        is SigningIntent.ChangePassphrase -> alone(GitAuthWork.ChangingPassphrase) {
+            stateHolder.message(credentials.changeSigningPassphrase(intent.fingerprint).message)
+        }
+    }
+
+    /**
+     * A key of gpg's defaults for the default commit identity — gpg asks its passphrase in the GnuPG
+     * dialog — then Git signs every commit with it.
+     */
+    private suspend fun createSigningKey() = alone(GitAuthWork.CreatingSigningKey) {
+        val name = config.readConfig(GitConfigScope.Global, "user.name")
+        val email = config.readConfig(GitConfigScope.Global, "user.email")
+        if (name.isNullOrBlank() || email.isNullOrBlank()) return@alone stateHolder.message("Save a default commit identity first")
+        val before = credentials.signingKeys().mapTo(hashSetOf()) { it.fingerprint }
+        val outcome = credentials.createSigningKey("$name <$email>")
+        val created = credentials.signingKeys().firstOrNull { it.fingerprint !in before }
+        if (created == null) {
+            stateHolder.message(outcome.message)
+            return@alone refresh()
+        }
+        configureSigning {
+            config.writeConfig(GitConfigScope.Global, SIGNING_KEY, created.fingerprint)
+            signCommits(true)
+        }
+    }
+
+    /** On: Git signs every commit, with OpenPGP — not SSH — and the chosen key. Off: Git's default again. */
+    private suspend fun signCommits(enabled: Boolean) {
+        if (!enabled) return config.unsetConfig(GitConfigScope.Global, SIGN_COMMITS)
+        val signing = stateHolder.current.gitAuth.signing
+        if (signing.key == null) signing.keys.firstOrNull()?.let { config.writeConfig(GitConfigScope.Global, SIGNING_KEY, it.fingerprint) }
+        config.writeConfig(GitConfigScope.Global, "gpg.format", "openpgp")
+        config.writeConfig(GitConfigScope.Global, SIGN_COMMITS, "true")
+    }
+
+    private suspend fun configureSigning(change: suspend () -> Unit) {
+        runCatching { change() }.onFailure { error -> stateHolder.report("git", "Could not change commit signing", error) }
+        refresh()
+    }
+
     /** The SSH client is installed first when it is missing; its install shows as its own. */
     suspend fun generateSshKey() = alone(GitAuthWork.GeneratingKey) {
         val client = credentials.ensureSshAvailable()
@@ -131,6 +190,7 @@ internal class GitAuthCoordinator(
         val workspace = activeRoot()?.takeIf { stateHolder.current.gitRepository != null }
         val localName = if (gitAvailable && workspace != null) config.readConfig(GitConfigScope.Local, "user.name", workspace) else null
         val localEmail = if (gitAvailable && workspace != null) config.readConfig(GitConfigScope.Local, "user.email", workspace) else null
+        val signing = signingState(gitAvailable)
         stateHolder.update {
             it.copy(
                 gitAvailable = gitAvailable,
@@ -143,8 +203,26 @@ internal class GitAuthCoordinator(
                     httpsAccount = account,
                     hasSshKey = hasSshKey,
                     sshPublicKey = publicKey,
+                    signing = signing,
                 ),
             )
         }
+    }
+
+    /** gpg's keys, and what Git's global config signs with; the chosen key's public half for the provider's form. */
+    private suspend fun signingState(gitAvailable: Boolean): GitSigningState {
+        val gnupg = credentials.hasGnuPg()
+        val keys = credentials.signingKeys()
+        val signingKey = if (gitAvailable) config.readConfig(GitConfigScope.Global, SIGNING_KEY) else null
+        val signs = gitAvailable && config.readConfig(GitConfigScope.Global, SIGN_COMMITS)?.lowercase() in GIT_TRUE
+        val publicKey = GitSigningRules.keyFor(signingKey, keys)?.let { credentials.publicSigningKey(it.fingerprint) }
+        return GitSigningState(gnupg, keys, signingKey, signs, publicKey)
+    }
+
+    private companion object {
+        const val SIGNING_KEY = "user.signingkey"
+        const val SIGN_COMMITS = "commit.gpgsign"
+        /** How Git's config spells a true boolean. */
+        val GIT_TRUE = setOf("true", "yes", "on", "1")
     }
 }

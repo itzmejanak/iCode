@@ -168,47 +168,6 @@ sealed interface GitOperationState {
 enum class GitAuthMethod { PersonalAccessToken, SshKey }
 
 /**
- * A Git hosting provider.
- *
- * Choosing one up front lets the screen show a single relevant action instead
- * of every host's button at once. [Other] covers self-hosted and anything not
- * listed, where the app can only offer the generic fields.
- */
-enum class GitProvider(
-    val displayName: String,
-    val host: String,
-    /** Where this provider accepts a new SSH public key. */
-    val sshKeyUrl: String?,
-    /** Where this provider issues personal access tokens. */
-    val tokenUrl: String?,
-) {
-    GitHub(
-        displayName = "GitHub",
-        host = "github.com",
-        sshKeyUrl = "https://github.com/settings/ssh/new",
-        tokenUrl = "https://github.com/settings/tokens",
-    ),
-    GitLab(
-        displayName = "GitLab",
-        host = "gitlab.com",
-        sshKeyUrl = "https://gitlab.com/-/user_settings/ssh_keys",
-        tokenUrl = "https://gitlab.com/-/user_settings/personal_access_tokens",
-    ),
-    Bitbucket(
-        displayName = "Bitbucket",
-        host = "bitbucket.org",
-        sshKeyUrl = "https://bitbucket.org/account/settings/ssh-keys/",
-        tokenUrl = "https://bitbucket.org/account/settings/app-passwords/",
-    ),
-    Other(
-        displayName = "Other / self-hosted",
-        host = "",
-        sshKeyUrl = null,
-        tokenUrl = null,
-    ),
-}
-
-/**
  * Authentication state, without ever carrying the secret itself.
  *
  * [httpsAccount] is a display string such as `octocat@github.com`; the token
@@ -225,12 +184,17 @@ data class GitAuthState(
     val lastTest: GitAuthTestResult? = null,
     /** What the page is doing, one thing at a time; each button says its own. */
     val work: GitAuthWork? = null,
+    /** The Signing step: gpg's keys, and what Git signs with (docs/gpg-signing-plan.md §7). */
+    val signing: GitSigningState = GitSigningState(),
 ) {
     val hasHttpsCredential: Boolean get() = httpsAccount != null
 }
 
-/** Generating installs the SSH client first when it is missing: that shows as the client's install. */
-enum class GitAuthWork { GeneratingKey, Testing }
+/**
+ * Generating installs the SSH client first when it is missing: that shows as the client's install, as
+ * GnuPG's does. Creating a signing key and changing its passphrase wait on the GnuPG dialog.
+ */
+enum class GitAuthWork { GeneratingKey, Testing, InstallingGnuPg, CreatingSigningKey, ChangingPassphrase }
 
 data class GitAuthTestResult(val succeeded: Boolean, val message: String)
 
@@ -260,6 +224,8 @@ data class GitCommitSummary(
     val message: String,
     val author: String,
     val authoredAtEpochMillis: Long,
+    /** Git's verdict on its signature; null where GnuPG is not installed to check one. */
+    val signature: GitCommitSignature? = null,
 )
 
 data class GitRepositoryState(

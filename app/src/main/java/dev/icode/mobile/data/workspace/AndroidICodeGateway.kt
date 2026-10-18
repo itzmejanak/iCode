@@ -33,6 +33,7 @@ import dev.icode.mobile.data.system.AndroidSystemAccess
 import dev.icode.mobile.data.tasks.BackgroundWork
 import dev.icode.mobile.data.tasks.TaskRunner
 import dev.icode.mobile.domain.BackgroundWorkRules
+import dev.icode.mobile.domain.GitAuthWorkIntent
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.RuntimeInstallReason
 import dev.icode.mobile.domain.ICodeEffect
@@ -216,11 +217,10 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
 
     override fun dispatch(intent: ICodeIntent) {
         when (intent) {
-            // What must not wait on the mutation lock. apt, ssh-keygen and the network do not change the workspace.
+            // What must not wait on the mutation lock. apt, ssh-keygen, gpg and the network do not change the workspace.
             is ICodeIntent.SelectLanguageService -> languages.select(intent.id)
             ICodeIntent.ProvisionGit -> scope.launch { gitWorkspace.provision() }
-            ICodeIntent.GenerateSshKey -> scope.launch { gitAuth.generateSshKey() }
-            is ICodeIntent.TestGitConnection -> scope.launch { gitAuth.testConnection(intent.url) }
+            is GitAuthWorkIntent -> scope.launch { gitAuth.handle(intent) }
             // A task's dialog must answer while the task runs.
             is ICodeIntent.TaskIntent -> tasks.handle(intent)
             is ICodeIntent.RuntimeToolsIntent -> runtimeTools.handle(intent)

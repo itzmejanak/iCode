@@ -1,8 +1,13 @@
 # Signed Commits — gpg's Passphrase in iCode's Dialog
 
-Status: **built (2026-10-18)**; the phone check is §5.
+Status: **built (2026-10-18)**; the phone check is §5. §7 sets signing up in iCode's own pages.
 
-Owner ask (2026-10-18): "The goal is to achieve gpg setup for signed commits and the password asking popup as gpg behavior after 30 min … don't overengineer or don't write code unnecessary".
+Owner asks (2026-10-18):
+- "The goal is to achieve gpg setup for signed commits and the password asking popup as gpg behavior after 30 min … don't overengineer or don't write code unnecessary".
+- "Let's complete all the remenings things to fill all gaps and flow". The owner chose:
+  - a Signing step in Git Credentials;
+  - the signature as a row in the Last Commit card;
+  - a new key with gpg's defaults, expiring in 3 years.
 
 ## 1. What stood in the way (verified)
 
@@ -49,21 +54,13 @@ Owner ask (2026-10-18): "The goal is to achieve gpg setup for signed commits and
 | 30 minutes after the passphrase was last used (2 hours at most) | gpg-agent forgets it, and the next signature asks again |
 | The runtime is rebuilt, or iCode's process ends | The agent ends, and the passphrase with it |
 
-**The user, once, in the terminal** — keys and Git's settings are the user's, as on any computer:
+**The user, once, in Settings › Source Control › Git Credentials › Commit Signing** (§7.1):
 
-1. **Runtime Tools › GnuPG**, then Apply.
-2. A key, or a passphrase for the key already there:
-   ```sh
-   gpg --full-generate-key                      # a new key: the passphrase is asked in iCode's dialog
-   gpg --passwd <ID>                            # or: a passphrase for a key that has none
-   gpg --list-secret-keys --keyid-format=long   # the key's ID
-   ```
-3. Git signs with it:
-   ```sh
-   git config --global user.signingkey <ID>
-   git config --global commit.gpgsign true
-   ```
-4. GitHub knows it: `gpg --armor --export <ID>`, pasted in GitHub › Settings › SSH and GPG keys. GitHub shows a commit as Verified when its committer email is one of the key's, so a workspace's own `user.email` must be that email too.
+1. **Install GnuPG**.
+2. **Create Key**: a key for the default commit identity. The GnuPG dialog asks its passphrase, twice. Git then signs every commit with it.
+3. **Add to GitHub** (or GitLab): the provider's page for a new GPG key, with the key copied by **Copy Key**. GitHub shows a commit as Verified when its committer email is one of the key's: the step warns when the open repository commits as another email.
+
+The keys and Git's settings are gpg's and Git's own, as on any computer. So the terminal does the same — `gpg --full-generate-key`, `git config --global user.signingkey <ID>`, `git config --global commit.gpgsign true` — and the step shows what it did.
 
 **A runtime built before this version** has none of iCode's gpg files until it is rebuilt: Runtime settings › **Repair Runtime** writes them. Repair keeps the home — the keys in `~/.gnupg`, `~/.gitconfig` — and installs packages anew, so GnuPG is ticked again in Set Up Tools or Runtime Tools.
 
@@ -83,6 +80,12 @@ Owner ask (2026-10-18): "The goal is to achieve gpg setup for signed commits and
 | `data/runtime/GuestGpg.kt` | The script (`script`) and `/etc/gnupg`, written by `RuntimeInstaller.configureGuest` beside `GuestSudo` |
 | `data/runtime/GpgBridge.kt` | Watches the requests, starts the agent, answers; owned by `RuntimeExecution` |
 | `ui/GpgPromptDialog.kt`, `IcodeApp` | The dialog, over any screen; `IcodeConfirmDialog` gained `dismissLabel` |
+| `domain/GitSigning.kt` | §7: `GitSigningKey`, `GitSigningState`, `GitCommitSignature`, `SigningIntent`, `GitSigningRules`: gpg's listing, the key `user.signingkey` names, `%G?`, gpg's failure, the email GitHub matches |
+| `domain/GitProviders.kt` | `GitProvider` (moved from `GitContract.kt`), with `gpgKeyUrl` |
+| `data/git/GitAuthenticator.kt`, `GitAuthCoordinator.kt` | gpg's keys, a key made, its passphrase changed; Git's `user.signingkey`, `gpg.format`, `commit.gpgsign` |
+| `data/git/GitInspectParser.kt` | The last commit's `%G?`, `%GK`, `%GS` where gpg is installed |
+| `domain/BackgroundWork.kt` | `BackgroundPlace.Gpg`: gpg's question while iCode is out of view |
+| `ui/screens/tools/GitSigningSection.kt`, `GitAuthScreen.kt`, `CommitPushScreen.kt` | The Commit Signing step; the Last Commit's Signature row |
 
 Tests:
 - `GuestGpgTest` runs the script with a real POSIX shell, as `GuestSudoTest` runs `sudo`. It speaks gpg-agent's side of the protocol and answers through the pipe as iCode does: a passphrase passed on, Cancel, the error said once, a confirmation's buttons, `SETNOTOK` unknown, the question taken back, and the agent program's exit status. Nothing is left behind.
@@ -92,16 +95,74 @@ Tests:
   - the cache: asked once, then not; asked again after a 3 s TTL, and after `gpgconf --reload gpg-agent`;
   - `git commit -S` with "Good signature", and a question taken back when gpg was killed;
   - key generation (the passphrase, its repeat, the empty-passphrase confirmation) and `gpg --passwd`.
+- §7, by hand, with gpg 2.4.4 and the script: the step's own commands — `gpg --batch --yes --quick-generate-key`, answered and cancelled; a commit signed with the key; `gpg --batch --status-fd 1 --passwd`, answered and cancelled. The inspect script on signed and unsigned commits, with gpg, without it, and without the public key.
+- `GitSigningRulesTest`: the listing gpg 2.4.4 printed for two keys made with its defaults; unusable keys; RSA; escapes; `user.signingkey`'s forms; every `%G?`; gpg's failure.
+- `GitAuthCoordinatorTest`: a key made for the default identity and Git set to sign with it; the refusals; signing on, off, and another key; the passphrase's outcome; GnuPG's install.
+- `GitInspectParserTest`: the last commit with and without a signature. `BackgroundWorkRulesTest`: gpg's question, as gpg-agent asked it.
 
 ## 5. On the phone, open
 
-On a clean install, §3's steps; then commit from Source Control. The dialog appears once, a second commit within 30 minutes signs without it, and `git log --show-signature` says Good signature.
+On a clean install, §3's steps; then commit from Source Control:
+- the dialog appears once, and a second commit within 30 minutes signs without it;
+- Commit & Push's Last Commit says "✓ Verified · <name>", and so does GitHub once the key is added;
+- with iCode out of view during a commit from the terminal, the "Needs your answer" notification appears and opens the dialog.
 
 ## 6. Not done, and why
 
 | | Why |
 |---|---|
-| Key generation and Git's signing settings in iCode's own pages | The terminal does it in a few commands, once (§3) |
-| "Verified" in Source Control | GitHub shows it; `git log --show-signature` in the terminal |
 | A cache time to choose in Settings | gpg's own file chooses it (§3) |
-| A notification when gpg asks while iCode is in the background | The question waits; the dialog is there on return, and the command waits with it |
+| Deleting a key, another user ID, a key's expiry changed | Rare, and gpg's own commands in the terminal do them: `gpg --delete-secret-and-public-key`, `gpg --quick-add-uid`, `gpg --quick-set-expire` |
+| A key sent to the provider by iCode | It would need a token allowed to write keys. The provider's own page takes it, with the key copied |
+| Bitbucket's page for a GPG key | No address for it was confirmed: Copy Key only |
+| Signatures in Source Control's history | iCode lists no history; the Last Commit says the one that matters, and `git log --show-signature` the rest |
+
+## 7. Signing in iCode's own pages
+
+### 7.1 Git Credentials › Commit Signing
+
+A step of its own between Authentication and Verify. It shows what gpg holds and what Git's global config says, read on each refresh of the page:
+- **Keys:** `gpg --list-secret-keys --with-colons --fixed-list-mode`. A key counts when it can sign ("S" among its capabilities) and is not revoked or expired.
+- **The key in use:** the one `user.signingkey` names, matched as gpg matches it: a fingerprint, a long or short key ID (with `0x` or a trailing `!`), or an email.
+
+| State | The step shows |
+|---|---|
+| GnuPG missing | **Install GnuPG**: the Runtime Tools install, its progress on the button |
+| No key that signs | **Create Key**, which asks first: the identity, "ed25519 · expires in 3 years", "The passphrase is asked in the GnuPG dialog.". It needs the default identity of step 1 |
+| A key | "Signing key ready" when `user.signingkey` names it; a **Key** selector when gpg has several; the key's user ID, algorithm, ID and expiry; **Sign every commit**; **Copy Key** and **Add to GitHub**; **Change Passphrase** |
+| The repository's email not the key's | An amber note: GitHub would show its commits as Unverified |
+
+What each does:
+
+| Action | Runs | Then |
+|---|---|---|
+| **Create Key** | `gpg --batch --yes --quick-generate-key "Name <email>"` (gpg's defaults: ed25519 to sign, cv25519 to encrypt, 3 years). The dialog asks the passphrase and its repeat; an empty one is confirmed in the same dialog | `user.signingkey <fingerprint>`, `gpg.format openpgp`, `commit.gpgsign true`, global. The key is the one gpg did not hold before |
+| **Sign every commit** on | `gpg.format openpgp` (Git may have been set to sign with SSH) and `commit.gpgsign true`; `user.signingkey` too when it names no key gpg holds | |
+| **Sign every commit** off | `commit.gpgsign` unset: Git's default again | The key stays chosen |
+| **Key** | `user.signingkey <fingerprint>` | |
+| **Change Passphrase** | `gpg --batch --status-fd 1 --passwd <fingerprint>`. The dialog asks the current passphrase (gpg-agent never takes it from its cache here), then the new one twice | gpg exits 0 either way: `[GNUPG:] SUCCESS keyedit.passwd` says it changed. Otherwise gpg's own words ("…: Operation cancelled"). gpg changes each key in turn, so Cancel on the first question asks once more, for the encryption subkey |
+| **Add to GitHub** | Opens `https://github.com/settings/gpg/new` (GitLab: `https://gitlab.com/-/user_settings/gpg_keys`) | The key is pasted from **Copy Key**: `gpg --armor --export <fingerprint>` |
+
+Creating a key and changing its passphrase wait on the GnuPG dialog. Like the SSH key and the connection test, they never take the mutation lock (`GitAuthWorkIntent`). They and GnuPG's install go one at a time (`GitAuthWork`), and each button says its own. Git's settings are written at once.
+
+### 7.2 Commit & Push › Last Commit › Signature
+
+The repository's inspect script prints `%G?`, `%GK` and `%GS` with the last commit — only where `gpg` is installed. Without gpg, Git calls a signed commit "N", not signed (tested), so the script prints `-` and the row is not shown. Checking a signature needs only the public key, not the agent or a passphrase.
+
+| `%G?` | Signature | Colour |
+|---|---|---|
+| `G`, `U` | ✓ Verified · <signer> | green |
+| `X`, `Y` | Verified · expired | amber |
+| `R` | Key revoked | red |
+| `B` | Bad signature | red |
+| `E` | Key not on this phone | amber |
+| `N` | Not signed | muted |
+
+A **Key** row follows with the key ID. This is gpg's check on the phone. GitHub's also needs the key added there and the commit's email among the key's.
+
+### 7.3 gpg's question while iCode is out of view
+
+A commit from the terminal, or the assistant's, can wait on the passphrase while iCode is in the background:
+- gpg's question is background work (`BackgroundPlace.Gpg`, "GnuPG is waiting…", gpg's text as its detail). Like other background work, it keeps iCode's foreground service running while it waits.
+- Its notification's **Cancel** answers Cancel.
+- Out of view, the "Needs your answer" notification pops up: "Enter your GnuPG passphrase", or "Answer GnuPG" for a confirmation. It opens iCode, where the dialog is. The passphrase is never typed into a notification.

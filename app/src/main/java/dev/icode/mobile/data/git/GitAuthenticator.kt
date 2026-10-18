@@ -4,6 +4,8 @@ import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.runtime.RuntimePackageInstaller
 import dev.icode.mobile.domain.GitRemoteRules
+import dev.icode.mobile.domain.GitSigningKey
+import dev.icode.mobile.domain.GitSigningRules
 import dev.icode.mobile.domain.RuntimeTools
 import dev.icode.mobile.domain.countOf
 import java.io.File
@@ -13,8 +15,9 @@ import java.io.File
  *
  * The application does not implement an account system of its own
  * (architecture.md section 15.3): it configures the mechanisms Git already
- * has — a credentials file for HTTPS and an ordinary key pair for SSH — and
- * then stays out of the way.
+ * has — a credentials file for HTTPS, an ordinary key pair for SSH, and gpg's
+ * own keys for signing (docs/gpg-signing-plan.md §7) — and then stays out of
+ * the way.
  */
 internal class GitAuthenticator(
     private val layout: RuntimeLayout,
@@ -153,9 +156,45 @@ internal class GitAuthenticator(
         )
     }
 
+    override fun hasGnuPg(): Boolean = packages.isInstalled(RuntimeTools.GnuPg)
+
+    override suspend fun ensureGnuPg(): GitOperationOutcome = when (val outcome = packages.ensure(RuntimeTools.GnuPg)) {
+        RuntimePackageInstaller.Outcome.Ready -> GitOperationOutcome(true, "GnuPG is installed")
+        is RuntimePackageInstaller.Outcome.Failed -> GitOperationOutcome(false, outcome.reason)
+        RuntimePackageInstaller.Outcome.Cancelled -> GitOperationOutcome(false, "Installing GnuPG was cancelled")
+    }
+
+    override suspend fun signingKeys(): List<GitSigningKey> {
+        if (!hasGnuPg()) return emptyList()
+        val result = cli.runScript(null, "gpg --batch --list-secret-keys --with-colons --fixed-list-mode")
+        return if (result.succeeded) GitSigningRules.keys(result.stdout) else emptyList()
+    }
+
+    override suspend fun publicSigningKey(fingerprint: String): String? =
+        cli.runScript(null, "gpg --batch --armor --export ${GitCommandLine.quote(fingerprint)}")
+            .takeIf { it.succeeded }?.stdout?.trim()?.ifEmpty { null }
+
+    /** gpg's defaults — ed25519 to sign, cv25519 to encrypt, three years — as `gpg --quick-generate-key` makes them. */
+    override suspend fun createSigningKey(userId: String): GitOperationOutcome {
+        val result = cli.runScript(null, "gpg --batch --yes --quick-generate-key ${GitCommandLine.quote(userId)}")
+        return gpgOutcome(result, result.succeeded, "Signing key created")
+    }
+
+    /** gpg exits 0 whether or not the passphrase changed: its status line says which. */
+    override suspend fun changeSigningPassphrase(fingerprint: String): GitOperationOutcome {
+        val result = cli.runScript(null, "gpg --batch --status-fd 1 --passwd ${GitCommandLine.quote(fingerprint)}")
+        return gpgOutcome(result, result.succeeded && PASSWD_CHANGED in result.stdout.lines(), "Passphrase changed")
+    }
+
+    /** [done], or gpg's own words when it did not: "key generation failed: Operation cancelled". */
+    private fun gpgOutcome(result: CliGitService.CommandResult, succeeded: Boolean, done: String) =
+        GitOperationOutcome(succeeded, if (succeeded) done else GitSigningRules.failure(result.stderr) ?: "gpg did not finish")
+
     private companion object {
         const val GUEST_SSH_KEY_PATH = "/root/.ssh/id_ed25519"
         const val SSH_PUBLIC_RELATIVE = "root/.ssh/id_ed25519.pub"
+        /** gpg's status line once `--passwd` has changed every key's passphrase. */
+        const val PASSWD_CHANGED = "[GNUPG:] SUCCESS keyedit.passwd"
     }
 }
 
