@@ -50,11 +50,10 @@ internal class AndroidApps(
         val name = "Build ${project.module.ifEmpty { File(project.workspace).name }}"
         // The project's own wrapper, so its own Gradle; bash runs it whether or not it is executable.
         val command = "bash ./gradlew --console=plain ${project.task}"
-        val started = System.currentTimeMillis()
         val process = execution.processes.start(project.workspace, directory, command, name, execution.environment.current().variables)
             .getOrElse { return Result.failure(it) }
         problems(project, emptyList())
-        return Result.success(AndroidRun(process) { follow(project, process, started, directory, report) })
+        return Result.success(AndroidRun(process) { follow(project, process, directory, report) })
     }
 
     override fun confirmInstall() = apks.confirm()
@@ -63,7 +62,6 @@ internal class AndroidApps(
     private suspend fun follow(
         project: AndroidProject,
         process: ManagedProcess,
-        started: Long,
         directory: String,
         report: ((RunRecord) -> RunRecord) -> Unit,
     ) {
@@ -84,9 +82,7 @@ internal class AndroidApps(
         if (failure != null) return report { it.copy(failure = failure) }
         report { it.copy(androidStep = AndroidAppStep.Installing) }
         try {
-            val metadata = AndroidProjects.metadata(File(project.workspace), project)
-            if (!metadata.isFile || metadata.lastModified() < started) throw IOException("The build wrote no debug APK where Gradle writes one")
-            val (applicationId, apk) = AndroidProjects.apk(metadata)
+            val (applicationId, apk) = AndroidProjects.debugApk(File(project.workspace), project)
             apks.install(apk)
             apks.open(applicationId)
             report { it.copy(androidStep = AndroidAppStep.Opened) }

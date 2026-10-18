@@ -2,6 +2,7 @@ package dev.icode.mobile.data.android
 
 import dev.icode.mobile.domain.AndroidProject
 import java.io.File
+import java.io.IOException
 import org.json.JSONObject
 
 /**
@@ -23,12 +24,14 @@ internal object AndroidProjects {
         return APPLICATION_PLUGIN.containsMatchIn(build.readText())
     }
 
-    /** What `assembleDebug` wrote: `<module>/build/outputs/apk/debug/output-metadata.json`. */
-    fun metadata(root: File, project: AndroidProject): File =
-        File(if (project.module.isEmpty()) root else File(root, project.module), "build/outputs/apk/debug/output-metadata.json")
-
-    /** The app's id and its APK, from AGP's [metadata]: the one `SINGLE` output of a debug build. */
-    fun apk(metadata: File): Pair<String, File> {
+    /**
+     * The app's id and its APK, once `assembleDebug` ended with 0: the one `SINGLE` output AGP's
+     * `<module>/build/outputs/apk/debug/output-metadata.json` names. However old: a build that
+     * found nothing changed left the last build's, which Gradle checked is current (UP-TO-DATE).
+     */
+    fun debugApk(root: File, project: AndroidProject): Pair<String, File> {
+        val metadata = File(if (project.module.isEmpty()) root else File(root, project.module), "build/outputs/apk/debug/output-metadata.json")
+        if (!metadata.isFile) throw IOException("The build wrote no debug APK where Gradle writes one")
         val json = JSONObject(metadata.readText())
         val elements = json.getJSONArray("elements")
         val single = (0 until elements.length()).map(elements::getJSONObject).firstOrNull { it.optString("type") == "SINGLE" }

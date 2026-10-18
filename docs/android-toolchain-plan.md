@@ -183,7 +183,7 @@ These are Gradle properties, and Gradle documents the user's `gradle.properties`
      - Its output is that process's tab in the Terminal panel, and Stop is the process's own Stop. A second run of the same app is refused while one builds or waits on Android's install.
   3. **When it ends:**
      - What it printed goes through `GradleIssues` into the Problems panel. That panel had no producer before.
-     - Exit 0: AGP's `build/outputs/apk/debug/output-metadata.json` gives the `applicationId` and the one `SINGLE` APK. It must be newer than the build's start. The APK is then installed and opened (§4.5).
+     - Exit 0: AGP's `build/outputs/apk/debug/output-metadata.json` gives the `applicationId` and the one `SINGLE` APK (`AndroidProjects.debugApk`). The file's age is not checked: a build that found nothing changed (UP-TO-DATE) leaves the last build's, which Gradle checked is current. The APK is then installed and opened (§4.5).
      - Otherwise the row says why: how many errors Problems lists, or Gradle's own "What went wrong", its first two lines without the `> ` (`GradleIssues.failure`). A build the user stopped says Stopped.
 - **The row's ▶** asks for what is missing first:
   - Without the Android SDK, a dialog offers Open Runtime Tools.
