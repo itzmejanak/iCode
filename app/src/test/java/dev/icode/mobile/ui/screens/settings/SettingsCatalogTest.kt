@@ -11,6 +11,17 @@ class SettingsCatalogTest {
         assertEquals(Route.SettingsEditor, searchSettingsCategories("minimap").single().destination)
         assertEquals(Route.SettingsEditor, searchSettingsCategories("auto save").single().destination)
         assertEquals(Route.AppearanceSettings, searchSettingsCategories("amoled").single().destination)
+        assertEquals(Route.AppearanceSettings, searchSettingsCategories("card borders").single().destination)
+        assertEquals(Route.AppearanceSettings, searchSettingsCategories("outline").single().destination)
+    }
+
+    @Test fun `the editor's terms are its page's controls`() {
+        assertEquals(Route.SettingsEditor, searchSettingsCategories("keys row").single().destination)
+        assertEquals(Route.SettingsEditor, searchSettingsCategories("keyboard suggestions").single().destination)
+        assertEquals(Route.SettingsEditor, searchSettingsCategories("git change markers").single().destination)
+        assertEquals(Route.SettingsEditor, searchSettingsCategories("auto close brackets").single().destination)
+        // Removed from the page (docs/editor-plan.md §5): no longer found there.
+        assertTrue(searchSettingsCategories("format on save").isEmpty())
     }
 
     @Test fun `controls the old terms missed are found on their page`() {

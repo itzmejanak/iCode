@@ -79,7 +79,8 @@ fun AppearanceScreen(actions: NavigationActions) {
             ) {
                 AppTheme.entries.forEach { option ->
                     ThemeSwatch(
-                        option = option,
+                        sample = IcodePalette.of(option, appearance.cardBorders),
+                        name = option.name,
                         selected = appearance.theme == option,
                         onClick = { saver.save { repository.setTheme(option) } },
                         modifier = Modifier.weight(1f),
@@ -116,6 +117,11 @@ fun AppearanceScreen(actions: NavigationActions) {
                     saver.save { repository.setCompactLayout(it) }
                 }
             }
+            SettingRow("Card Borders", Modifier.fillMaxWidth(), subtitle = "Lines around cards, rows and tiles") {
+                IcodeToggle(appearance.cardBorders) {
+                    saver.save { repository.setCardBorders(it) }
+                }
+            }
             SectionLabel("Accent Color")
             SettingRow(
                 if (appearance.accentColor == null) "Theme accent" else "${AccentColorRules.nameOf(accentArgb)} accent",
@@ -145,21 +151,17 @@ fun AppearanceScreen(actions: NavigationActions) {
     }
 }
 
+/** A theme to choose, its page shown as it will be drawn ([sample]). */
 @Composable
-private fun ThemeSwatch(option: AppTheme, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val sample = when (option) {
-        AppTheme.Dark -> IcodePalette.Dark
-        AppTheme.Light -> IcodePalette.Light
-        AppTheme.Amoled -> IcodePalette.Amoled
-    }
+private fun ThemeSwatch(sample: IcodePalette, name: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     IcodeCard(
         modifier = modifier.semantics { this.selected = selected },
-        borderColor = if (selected) IcodeColors.Accent else IcodeColors.Outline,
+        borderColor = if (selected) IcodeColors.Accent else null,
         onClick = onClick,
     ) {
         Box(Modifier.fillMaxWidth().height(IcodeSizes.Swatch).background(sample.background))
         Text(
-            option.name,
+            name,
             modifier = Modifier.padding(top = IcodeSpacing.Space2),
             style = IcodeType.Body,
             color = if (selected) IcodeColors.TextPrimary else IcodeColors.TextSecondary,

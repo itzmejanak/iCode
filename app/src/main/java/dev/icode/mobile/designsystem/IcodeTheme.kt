@@ -18,12 +18,14 @@ fun IcodeTheme(
     palette: IcodePalette = IcodePalette.Dark,
     uiTextScalePercent: Int = 100,
     compactLayout: Boolean = true,
+    cardBorders: Boolean = true,
     content: @Composable () -> Unit,
 ) {
     CompositionLocalProvider(
         LocalIcodePalette provides palette,
         LocalIcodeUiTextScale provides uiTextScalePercent / 100f,
         LocalIcodeCompactLayout provides compactLayout,
+        LocalIcodeCardBorders provides cardBorders,
     ) {
         val scheme = if (palette.kind == PaletteKind.Light) lightColorScheme(
             primary = palette.accent, onPrimary = palette.onAccent,

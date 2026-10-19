@@ -50,10 +50,15 @@ internal fun editorTheme(palette: IcodePalette): JSONObject {
         fontStyle(role)?.let { settings.put("fontStyle", it) }
         rules.put(JSONObject().put("scope", selectors.flatten().joinToString(", ")).put("settings", settings))
     }
-    return JSONObject().put("name", themeName(palette.kind)).put("settings", rules)
+    return JSONObject().put("name", themeName(palette)).put("settings", rules)
 }
 
-internal fun themeName(kind: PaletteKind): String = "icode-${kind.name.lowercase()}"
+/**
+ * [palette]'s TextMate theme by what its colours follow — the kind, the editor and its current line —
+ * so the same theme drawn on other tones (without card borders) is a theme of its own.
+ */
+internal fun themeName(palette: IcodePalette): String =
+    "icode-${palette.kind.name.lowercase()}-${hex(palette.backgroundDeep).drop(1)}-${hex(palette.editorLineHighlight).drop(1)}"
 
 /** A colour no role draws with (tested), standing for "the text colour" in the theme. */
 internal const val DEFAULT_COLOR_SENTINEL = "#010101"
@@ -168,7 +173,7 @@ internal object TextMateAssets {
     /** Makes [palette]'s theme current, building it the first time; every editor and the grammars take it, so only when it is not. */
     @MainThread fun setTheme(palette: IcodePalette) {
         val registry = ThemeRegistry.getInstance()
-        val name = themeName(palette.kind)
+        val name = themeName(palette)
         if (registry.currentThemeModel?.name == name) return
         if (registry.findThemeByThemeName(name) == null) {
             val source = IThemeSource.fromString(IThemeSource.ContentType.JSON, editorTheme(palette).toString())

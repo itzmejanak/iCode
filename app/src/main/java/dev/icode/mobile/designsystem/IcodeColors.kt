@@ -34,6 +34,12 @@ data class IcodePalette(
     val diffRemovedSurface: Color,
     val conflictCurrentSurface: Color,
     val conflictIncomingSurface: Color,
+    /**
+     * The sixteen ANSI colors terminal programs choose from: normal 0–7, then bright 8–15.
+     * Background, text and cursor come from the palette itself. On Light, "white" is a grey, as
+     * light terminal themes do, so white text stays readable on the light background.
+     */
+    val terminalAnsi: List<Color>,
 ) {
     val scrim: Color get() = backgroundDeep.copy(alpha = 0.95f)
 
@@ -59,6 +65,7 @@ data class IcodePalette(
             textMuted = Color(0xFF5F6C60), onAccent = Color.Black,
             diffAddedSurface = Color(0xFF182E22), diffRemovedSurface = Color(0xFF3F1E1B),
             conflictCurrentSurface = Color(0xFF3F1E1B), conflictIncomingSurface = Color(0xFF172738),
+            terminalAnsi = DarkTerminalAnsi,
         )
 
         /** Proposed light palette; user review remains pending. */
@@ -73,6 +80,7 @@ data class IcodePalette(
             textMuted = Color(0xFF647467), onAccent = Color.White,
             diffAddedSurface = Color(0xFFE7F4EB), diffRemovedSurface = Color(0xFFFBEAE7),
             conflictCurrentSurface = Color(0xFFFBEAE7), conflictIncomingSurface = Color(0xFFE7F0FB),
+            terminalAnsi = LightTerminalAnsi,
         )
 
         /** Proposed OLED-black palette; user review remains pending. */
@@ -87,7 +95,18 @@ data class IcodePalette(
             textMuted = Color(0xFF8B9B8B), onAccent = Color.Black,
             diffAddedSurface = Color(0xFF102318), diffRemovedSurface = Color(0xFF2B1110),
             conflictCurrentSurface = Color(0xFF2B1110), conflictIncomingSurface = Color(0xFF101D2E),
+            terminalAnsi = DarkTerminalAnsi,
         )
+
+        /** [theme]'s palette as the app draws it: with its card outlines, or apart by tone without ([borderless]). */
+        fun of(theme: AppTheme, cardBorders: Boolean): IcodePalette {
+            val palette = when (theme) {
+                AppTheme.Dark -> Dark
+                AppTheme.Light -> Light
+                AppTheme.Amoled -> Amoled
+            }
+            return if (cardBorders) palette else palette.borderless()
+        }
     }
 }
 
@@ -126,15 +145,6 @@ object IcodeColors {
     val Scrim: Color @Composable get() = LocalIcodePalette.current.scrim
     val SheetScrim: Color @Composable get() = LocalIcodePalette.current.sheetScrim
 }
-
-/**
- * The sixteen ANSI colors terminal programs choose from, for this palette:
- * normal 0–7, then bright 8–15. Background, text and cursor come from the
- * palette itself. On Light, "white" is a grey, as light terminal themes do, so
- * white text stays readable on the light background.
- */
-val IcodePalette.terminalAnsi: List<Color>
-    get() = if (kind == PaletteKind.Light) LightTerminalAnsi else DarkTerminalAnsi
 
 private val DarkTerminalAnsi = listOf(
     Color(0xFF1C231B), Color(0xFFFF5449), Color(0xFF43D9A3), Color(0xFFFFC24B),

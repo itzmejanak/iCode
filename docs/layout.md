@@ -90,6 +90,8 @@ The default theme is not a permanent dark-only restriction. Semantic tokens allo
 | `text.secondary` | `#9AA69A` | Supporting content |
 | `text.muted` | `#5F6C60` | Disabled and low-emphasis metadata |
 
+These are the Dark theme with card borders. Without them, the surfaces and the colours drawn on them are derived from these by one rule ([card-borders-plan.md §3](./card-borders-plan.md)).
+
 ### 4.2 Semantic color rules
 
 - Ember identifies the active primary action or focused control; it is not used decoratively everywhere.
@@ -115,6 +117,7 @@ Users can configure editor and terminal fonts independently. System font scaling
 ### 4.4 Shape and density
 
 - Cards and modal surfaces use restrained rounded corners.
+- Cards draw a 1 dp outline while Appearance › Card Borders is on (the default). Off, they stand apart by tone: the theme's surfaces are derived to sit at least 1.12 : 1 from the page, and nothing on them reads worse ([card-borders-plan.md](./card-borders-plan.md)). A line that says something — a control's edge, a selection, a warning or error tone — is drawn either way.
 - Editor, terminal, diff, and dense tree rows use minimal decoration.
 - Touch targets remain at least 48 dp even when the visual icon is smaller.
 - Dense lists preserve a clear selected state and comfortable row height.

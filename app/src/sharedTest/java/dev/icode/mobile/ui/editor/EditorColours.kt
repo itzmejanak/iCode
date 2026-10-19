@@ -1,8 +1,8 @@
 package dev.icode.mobile.ui.editor
 
 import androidx.compose.ui.graphics.toArgb
-import dev.icode.mobile.designsystem.IcodePalette
 import dev.icode.mobile.designsystem.SyntaxRole
+import dev.icode.mobile.designsystem.everyPalette
 import dev.icode.mobile.designsystem.syntaxColor
 import dev.icode.mobile.domain.FileTypes
 import org.eclipse.tm4e.core.grammar.IGrammar
@@ -31,7 +31,7 @@ internal object EditorColours {
 
     /** Every token that is not drawn in its role's colour and style, as a readable line each. */
     fun wrong(grammars: (scopeName: String) -> IGrammarSource?, oniguruma: Boolean): List<String> =
-        listOf(IcodePalette.Dark, IcodePalette.Light, IcodePalette.Amoled).flatMap { palette ->
+        everyPalette.flatMap { palette ->
             val registry = Registry(object : IRegistryOptions {
                 override fun getGrammarSource(scopeName: String): IGrammarSource? = grammars(scopeName)
             })

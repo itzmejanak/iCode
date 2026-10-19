@@ -13,28 +13,37 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 
-/** Card surface used by every list, form and panel block. */
+/** Appearance › Card Borders: whether a card draws its own outline (docs/card-borders-plan.md). */
+internal val LocalIcodeCardBorders = staticCompositionLocalOf { true }
+
+/**
+ * Card surface used by every list, form and panel block. Without a [borderColor] it draws its own
+ * outline while Card Borders is on; a [borderColor] is a line that says something — a control's
+ * edge, a selection, a tone — and is drawn either way.
+ */
 @Composable
 fun IcodeCard(
     modifier: Modifier = Modifier,
     elevated: Boolean = false,
-    borderColor: Color = IcodeColors.Outline,
+    borderColor: Color? = null,
     padding: PaddingValues = PaddingValues(IcodeSpacing.CardPadding),
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val clickableModifier = if (onClick == null) Modifier else Modifier.clickable(role = Role.Button, onClick = onClick)
+    val line = borderColor ?: IcodeColors.Outline.takeIf { LocalIcodeCardBorders.current }
     Column(
         modifier = modifier
             .clip(IcodeShapes.Small)
             .background(if (elevated) IcodeColors.SurfaceElevated else IcodeColors.Surface)
-            .border(1.dp, borderColor, IcodeShapes.Small)
+            .then(if (line != null) Modifier.border(1.dp, line, IcodeShapes.Small) else Modifier)
             .then(clickableModifier)
             .padding(padding),
         content = content,

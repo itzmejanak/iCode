@@ -43,6 +43,8 @@ data class AppearanceSettings(
     /** 100 is the validated original UI; editor, Markdown and terminal sizes are independent. */
     val uiTextScalePercent: Int = 100,
     val compactLayout: Boolean = true,
+    /** Lines around cards, rows and tiles; off, cards stand apart by tone (docs/card-borders-plan.md). */
+    val cardBorders: Boolean = true,
     /** Opaque ARGB chosen over the theme's own accent; null keeps the theme's. App-wide. */
     val accentColor: Int? = null,
 )

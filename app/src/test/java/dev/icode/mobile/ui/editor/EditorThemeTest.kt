@@ -3,6 +3,7 @@ package dev.icode.mobile.ui.editor
 import androidx.compose.ui.graphics.toArgb
 import dev.icode.mobile.designsystem.IcodePalette
 import dev.icode.mobile.designsystem.SyntaxRole
+import dev.icode.mobile.designsystem.everyPalette
 import dev.icode.mobile.designsystem.syntaxColor
 import dev.icode.mobile.domain.AccentColorRules
 import io.github.rosemoe.sora.widget.schemes.EditorColorScheme
@@ -14,7 +15,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class EditorThemeTest {
-    private val palettes = listOf(IcodePalette.Dark, IcodePalette.Light, IcodePalette.Amoled)
+    private val palettes = everyPalette
 
     @Test fun `each theme is the palette's editor, with one rule per role`() {
         palettes.forEach { palette ->
@@ -48,7 +49,7 @@ class EditorThemeTest {
     @Test fun `the editor's TextMate engine reads every theme`() {
         palettes.forEach { palette ->
             val json = editorTheme(palette).toString()
-            val model = ThemeModel(IThemeSource.fromString(IThemeSource.ContentType.JSON, json), themeName(palette.kind))
+            val model = ThemeModel(IThemeSource.fromString(IThemeSource.ContentType.JSON, json), themeName(palette))
             model.load()
             val colours = model.theme.colorMap.map { it.uppercase() }.toSet()
             SyntaxRole.entries.forEach { role ->
