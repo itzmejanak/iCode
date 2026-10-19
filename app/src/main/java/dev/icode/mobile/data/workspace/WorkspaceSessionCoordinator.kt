@@ -177,10 +177,12 @@ internal class WorkspaceSessionCoordinator(
         refreshRequests.tryEmit(Unit)
     }
 
-    /** The watcher runs only while iCode is seen. */
+    /** The watcher runs only while iCode is seen; out of sight, the drafts waiting to be written are written. */
     fun screenVisible(visible: Boolean) {
         screenVisible = visible
-        if (visible) watcher.watch(watchedFolders(stateHolder.current, source.workspacesRoot)) else watcher.stop()
+        if (visible) return watcher.watch(watchedFolders(stateHolder.current, source.workspacesRoot))
+        watcher.stop()
+        recovery.flush()
     }
 
     fun stopWatching() = watcher.stop()

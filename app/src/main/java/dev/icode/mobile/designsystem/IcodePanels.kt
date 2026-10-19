@@ -23,6 +23,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -53,6 +54,7 @@ data class BottomBarItem(
      * name and ▾, as a button, so it reads as both the state and the way to change it.
      */
     val choice: Boolean = false,
+    /** Drawn before the label: a choice's in the accent, any other's in the label's colour. */
     val icon: ImageVector? = null,
 )
 
@@ -95,32 +97,16 @@ fun IcodeBottomBar(
 /** One entry drawn the bar's way; also for a bar's trailing toggles. */
 @Composable
 fun BottomBarEntry(item: BottomBarItem, modifier: Modifier = Modifier) {
+    if (item.choice) return ChoiceEntry(item, item.onClick?.takeIf { item.enabled }, modifier)
     val count = item.count
-    val alerting = item.alert && count != null && count > 0
-    val color = when {
-        !item.enabled -> IcodeColors.TextMuted
-        item.active -> IcodeColors.Accent
-        alerting -> item.countTone.tint()
-        else -> IcodeColors.TextSecondary
-    }
-    val click = item.onClick?.takeIf { item.enabled }
-    if (item.choice) return ChoiceEntry(item, click, modifier)
-    Row(
-        modifier = modifier
-            .fillMaxHeight()
-            .then(if (click != null) Modifier.clickable(role = Role.Tab, onClick = click) else Modifier)
-            .semantics {
-                selected = item.active
-                item.description?.let { contentDescription = it }
-            },
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(item.label, style = IcodeType.Body.copy(color = color, fontWeight = if (alerting) FontWeight.SemiBold else null))
+    BottomBarEntry(item, modifier) { color ->
+        item.icon?.let { Icon(it, contentDescription = null, tint = color, modifier = Modifier.size(IcodeSizes.IconSm)) }
+        Text(item.label, style = IcodeType.Body.copy(color = color, fontWeight = if (item.alerting) FontWeight.SemiBold else null))
         if (count != null) {
             val lit = count > 0
             Box(
                 modifier = Modifier
-                    .padding(start = IcodeSpacing.Space1 + IcodeSpacing.Micro)
+                    .padding(start = IcodeSpacing.Micro)
                     .defaultMinSize(minWidth = 20.dp)
                     .height(20.dp)
                     .background(if (lit) item.countTone.tint() else IcodeColors.SurfaceElevated, IcodeShapes.Pill)
@@ -132,6 +118,37 @@ fun BottomBarEntry(item: BottomBarItem, modifier: Modifier = Modifier) {
         }
     }
 }
+
+/**
+ * An entry drawn by [content] — more than a label, as the sync counts' arrows are — in the colour
+ * [item]'s state gives it, with [item]'s tap and spoken description.
+ */
+@Composable
+fun BottomBarEntry(item: BottomBarItem, modifier: Modifier = Modifier, content: @Composable RowScope.(color: Color) -> Unit) {
+    val color = when {
+        !item.enabled -> IcodeColors.TextMuted
+        item.active -> IcodeColors.Accent
+        item.alerting -> item.countTone.tint()
+        else -> IcodeColors.TextSecondary
+    }
+    val click = item.onClick?.takeIf { item.enabled }
+    Row(
+        modifier = modifier
+            .fillMaxHeight()
+            .then(if (click != null) Modifier.clickable(role = Role.Tab, onClick = click) else Modifier)
+            .semantics {
+                selected = item.active
+                item.description?.let { contentDescription = it }
+            },
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
+    ) {
+        content(color)
+    }
+}
+
+/** While its count is above zero, an [BottomBarItem.alert] item takes the pill's colour and weight. */
+private val BottomBarItem.alerting: Boolean get() = alert && count != null && count > 0
 
 /**
  * A [BottomBarItem.choice]: its icon in the accent, what is chosen and ▾, on the raised surface

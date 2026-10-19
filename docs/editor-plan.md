@@ -76,26 +76,27 @@ A tap anywhere in the gutter of a changed line (or on either side of a deletion'
 
 ### 3.5 The change sheet
 
-A bottom sheet: "Change 2 of 3 · Lines 13–15" and its kind; the removed lines in red and the added lines in green, numbered (`DiffRow`, as the diff screen draws them); then **Revert**, **Stage**, **‹ Prev** and **Next ›**.
+A bottom sheet: "Change 2 of 3 · Lines 13–15" and its kind; the removed lines in red and the added lines in green, numbered (`DiffRow`, as the diff screen draws them); then **Revert**, **Stage**, **Prev** and **Next** (the up and down arrows, [icons-plan.md §2](./icons-plan.md)).
 
 | Action | What happens |
 |---|---|
 | Revert | The base's lines go back in place of the change: an edit in the editor, so Undo brings the text back. Refused when the text no longer holds that change |
 | Stage | The index gets the base with only this change applied, encoded as the base was (`hash-object --path`, `update-index --cacheinfo` with the entry's mode). Source Control reads the repository again; the change leaves the markers, as it is staged |
-| ‹ Prev / Next › | The sheet moves to the previous or next change, and the editor shows it |
+| Prev / Next | The sheet moves to the previous or next change, and the editor shows it |
 
 The bottom bar shows "3 changes" while the file has any; a tap opens the sheet at the first change at or after the caret's line, else the first.
 
 ## 4. Keys row
 
-`EditorKey`: **TAB**, **⇤** (outdent), **◀ ▲ ▼ ▶**, **↶** (undo), **↷** (redo), then the symbols `{ } ( ) [ ] ; = " ' < > / \ | : , . ! & _ - + * # $ % ? @ ~ ^` and the backtick.
+`EditorKey`: **Tab**, **Outdent**, **Left**, **Up**, **Down**, **Right**, **Home**, **End**, **Undo**, **Redo**, drawn as their icons ([icons-plan.md §3](./icons-plan.md)), then the symbols `{ } ( ) [ ] ; = " ' < > / \ | : , . ! & _ - + * # $ % ? @ ~ ^` and the backtick.
 
 | Key | Does |
 |---|---|
-| TAB | Sora's `indentOrCommitTab`: indents the selected lines, or the line when the caret is in its indentation, else inserts one indent |
-| ⇤ | `unindentSelection` |
-| ◀ ▲ ▼ ▶ | `moveSelection` |
-| ↶ ↷ | `undo`, `redo` |
+| Tab | Sora's `indentOrCommitTab`: indents the selected lines, or the line when the caret is in its indentation, else inserts one indent |
+| Outdent | `unindentSelection` |
+| The arrows | `moveSelection` |
+| Home, End | `moveSelection(LINE_START)`, `(LINE_END)`: Sora's enhanced Home and End — the first non-blank character, then column 0; the end of the text, then the line's end |
+| Undo, Redo | `undo`, `redo` |
 | A symbol | Typed as from the keyboard (`commitText`): Auto-Close Brackets applies |
 
 One row of `KeyChip`s, scrolling sideways, between the code and the keyboard, shown only while the keyboard is open, in place of the bottom bar. Not shown for a read-only file or the Markdown preview. Editor Settings › Keys Row chooses its keys, as Terminal Settings › Extra Keys Row does: tap a key to show or hide it.
@@ -166,7 +167,7 @@ Format On Save's placeholder row is removed.
 
 On a clean install, in a repository:
 - edit a tracked file: green, blue and red markers; the bottom bar's count; a tap opens the sheet; Revert, then Undo; Stage, and Source Control shows the change staged;
-- the keys row while typing: TAB, the arrows, ↶ ↷ and a symbol; Auto-Close Brackets on and off;
+- the keys row while typing: Tab, the arrows, Home and End (twice each), Undo, Redo and a symbol; Auto-Close Brackets on and off;
 - Backspace on an indented empty line, and in four spaces of indentation;
 - Enter in a CRLF file, then `git diff` in the terminal shows no `^M` change;
 - an assistant edit to the open file: the caret stays, and Undo takes the edit back;

@@ -4,10 +4,17 @@ import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.domain.RecoverableDraft
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.withDocument
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 
 /**
  * Unsaved work that must survive the process (S3): the draft kept for every
@@ -15,17 +22,22 @@ import kotlinx.coroutines.sync.withLock
  * and Document Recovery's list of what the last session left behind.
  *
  * Draft files are written off the mutation lock under their own [draftMutex],
- * so slow storage never holds up the editor.
+ * so slow storage never holds up the editor; and [draftDelayMillis] after a
+ * file's last edit, not at every keystroke (docs/icons-plan.md §5).
  */
 internal class DocumentRecoveryCoordinator(
     private val stateHolder: ICodeStateHolder,
     private val scope: CoroutineScope,
     private val draftStore: DocumentDraftStore,
+    private val draftDelayMillis: Long = DRAFT_DELAY_MILLIS,
     /** The file as read from disk, for a document that is open. */
     private val sourceOf: (location: String) -> WorkspaceDocument?,
 ) {
     private val draftMutex = Mutex()
     private val lastDraftText = mutableMapOf<String, String>()
+
+    /** Each file's draft waiting out [draftDelayMillis]; a newer edit replaces it. */
+    private val waiting = ConcurrentHashMap<String, Job>()
 
     /** Opened with a draft that differs from disk and not yet answered: read-only until it is. */
     private val unresolved = mutableSetOf<String>()
@@ -72,28 +84,66 @@ internal class DocumentRecoveryCoordinator(
         ))
     }
 
-    /** Writes the document's draft if it has unsaved text, removes it if not. */
+    /**
+     * After an edit: the draft of unsaved text is written [draftDelayMillis] after the last edit, as
+     * VS Code backs up a dirty file; a file back to clean has its draft removed at once.
+     */
     fun sync(location: String) {
-        scope.launch {
-            runCatching {
-                draftMutex.withLock {
-                    val document = stateHolder.current.openDocuments.firstOrNull { it.location == location }
-                        ?: return@withLock
-                    val sourceDocument = sourceOf(location) ?: return@withLock
-                    if (document.dirty) {
-                        if (lastDraftText[location] != document.text) {
-                            draftStore.write(location, document.name, document.text, sourceDocument.fingerprint)
-                            lastDraftText[location] = document.text
-                        }
-                    } else {
-                        draftStore.delete(location)
-                        lastDraftText.remove(location)
-                    }
-                }
-            }.onFailure { error ->
-                stateHolder.report("documents", "Unable to keep a recovery draft", error)
+        if (stateHolder.current.openDocuments.firstOrNull { it.location == location }?.dirty != true) {
+            waiting.remove(location)?.cancel()
+            scope.launch { keepDraft(location) }
+            return
+        }
+        val timer = scope.launch(start = CoroutineStart.LAZY) {
+            delay(draftDelayMillis)
+            val self = coroutineContext.job
+            // Once begun, a write is not cut short by the next edit's timer.
+            withContext(NonCancellable) { keepDraft(location, self) }
+        }
+        waiting.put(location, timer)?.cancel()
+        timer.start()
+    }
+
+    /** iCode leaves the screen and Android may end the process: every waiting draft is written now. */
+    fun flush() {
+        waiting.keys.forEach { location ->
+            waiting.remove(location)?.let { timer ->
+                timer.cancel()
+                scope.launch { keepDraft(location) }
             }
         }
+    }
+
+    /**
+     * Writes the document's draft if it has unsaved text, removes it if not. For a [timer]'s write,
+     * only while that timer still stands: a file saved, closed or edited again meanwhile has its
+     * draft from what came after.
+     */
+    private suspend fun keepDraft(location: String, timer: Job? = null) {
+        runCatching {
+            draftMutex.withLock {
+                if (timer != null && !waiting.remove(location, timer)) return@withLock
+                val document = stateHolder.current.openDocuments.firstOrNull { it.location == location }
+                    ?: return@withLock
+                val sourceDocument = sourceOf(location) ?: return@withLock
+                if (document.dirty) {
+                    if (lastDraftText[location] != document.text) {
+                        draftStore.write(location, document.name, document.text, sourceDocument.fingerprint)
+                        lastDraftText[location] = document.text
+                    }
+                } else {
+                    draftStore.delete(location)
+                    lastDraftText.remove(location)
+                }
+            }
+        }.onFailure { error ->
+            stateHolder.report("documents", "Unable to keep a recovery draft", error)
+        }
+    }
+
+    /** Callers hold [draftMutex]: [location]'s draft is settled by what they do. */
+    private fun stopWaiting(location: String) {
+        waiting.remove(location)?.cancel()
     }
 
     suspend fun restore(location: String) {
@@ -129,6 +179,7 @@ internal class DocumentRecoveryCoordinator(
 
     suspend fun discard(location: String) {
         draftMutex.withLock {
+            stopWaiting(location)
             draftStore.delete(location)
             lastDraftText.remove(location)
             forgetRecoverable(listOf(location))
@@ -159,6 +210,7 @@ internal class DocumentRecoveryCoordinator(
         recoveredOverChanges.remove(location)
         runCatching {
             draftMutex.withLock {
+                stopWaiting(location)
                 val latest = stateHolder.current.openDocuments.firstOrNull { it.location == location }
                 if (latest?.dirty == true) {
                     val refreshedSource = sourceOf(location)
@@ -192,6 +244,7 @@ internal class DocumentRecoveryCoordinator(
         draftMutex.withLock {
             documents.forEach { document ->
                 if (document.location !in unresolved || document.dirty) {
+                    stopWaiting(document.location)
                     draftStore.delete(document.location)
                     lastDraftText.remove(document.location)
                 }
@@ -209,6 +262,7 @@ internal class DocumentRecoveryCoordinator(
         unresolved.clear()
         draftMutex.withLock {
             closing.forEach { location ->
+                stopWaiting(location)
                 draftStore.delete(location)
                 lastDraftText.remove(location)
             }
@@ -222,5 +276,10 @@ internal class DocumentRecoveryCoordinator(
         stateHolder.update { state ->
             state.copy(recoverableDrafts = state.recoverableDrafts.filterNot { it.location in locations })
         }
+    }
+
+    private companion object {
+        /** VS Code's backup delay after an edit (`DEFAULT_BACKUP_SCHEDULE_DELAYS.default`, workingCopyBackupTracker.ts). */
+        const val DRAFT_DELAY_MILLIS = 1000L
     }
 }

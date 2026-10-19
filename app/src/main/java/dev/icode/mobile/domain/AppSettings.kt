@@ -127,22 +127,20 @@ data class EditorSettings(
     val autoCloseBrackets: Boolean = true,
 )
 
-/** A key of the editor's keys row: an editing action, or a symbol typed as from the keyboard ([text]). */
-enum class EditorKey(val label: String, val text: String? = null) {
-    Tab("TAB"), Outdent("⇤"), Left("◀"), Up("▲"), Down("▼"), Right("▶"), Undo("↶"), Redo("↷"),
-    OpenBrace("{", "{"), CloseBrace("}", "}"), OpenParen("(", "("), CloseParen(")", ")"),
-    OpenBracket("[", "["), CloseBracket("]", "]"), Semicolon(";", ";"), Equals("=", "="),
-    DoubleQuote("\"", "\""), Quote("'", "'"), Less("<", "<"), Greater(">", ">"),
-    Slash("/", "/"), Backslash("\\", "\\"), Bar("|", "|"), Colon(":", ":"), Comma(",", ","), Period(".", "."),
-    Bang("!", "!"), Ampersand("&", "&"), Underscore("_", "_"), Minus("-", "-"), Plus("+", "+"), Star("*", "*"),
-    Hash("#", "#"), Dollar("$", "$"), Percent("%", "%"), Question("?", "?"), At("@", "@"), Tilde("~", "~"),
-    Caret("^", "^"), Backtick("`", "`"),
+/**
+ * A key of the editor's keys row (docs/editor-plan.md §4): an editing action, or a symbol typed as
+ * from the keyboard — [text], what it types. How each is drawn is the UI's (KeyFaces.kt).
+ */
+enum class EditorKey(val text: String? = null) {
+    Tab, Outdent, Left, Up, Down, Right, Home, End, Undo, Redo,
+    OpenBrace("{"), CloseBrace("}"), OpenParen("("), CloseParen(")"), OpenBracket("["), CloseBracket("]"),
+    Semicolon(";"), Equals("="), DoubleQuote("\""), Quote("'"), Less("<"), Greater(">"), Slash("/"), Backslash("\\"),
+    Bar("|"), Colon(":"), Comma(","), Period("."), Bang("!"), Ampersand("&"), Underscore("_"), Minus("-"), Plus("+"),
+    Star("*"), Hash("#"), Dollar("$"), Percent("%"), Question("?"), At("@"), Tilde("~"), Caret("^"), Backtick("`"),
 }
 
-enum class TerminalExtraKey(val label: String) {
-    Escape("ESC"), Tab("TAB"), Ctrl("CTRL"), Alt("ALT"),
-    Left("◀"), Up("▲"), Down("▼"), Right("▶"),
-}
+/** A key of the terminal's extra keys row; how each is drawn is the UI's (KeyFaces.kt). */
+enum class TerminalExtraKey { Escape, Tab, Ctrl, Alt, Left, Up, Down, Right }
 
 /** How the terminal draws its cursor. Programs may still change it while they run. */
 enum class TerminalCursorStyle(val label: String) { Block("Block"), Underline("Underline"), Bar("Bar") }

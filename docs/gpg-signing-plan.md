@@ -104,7 +104,7 @@ Tests:
 
 On a clean install, §3's steps; then commit from Source Control:
 - the dialog appears once, and a second commit within 30 minutes signs without it;
-- Commit & Push's Last Commit says "✓ Verified · <name>", and so does GitHub once the key is added;
+- Commit & Push's Last Commit says "Verified · <name>" after the Verified icon, and so does GitHub once the key is added;
 - with iCode out of view during a commit from the terminal, the "Needs your answer" notification appears and opens the dialog.
 
 ## 6. Not done, and why
@@ -151,7 +151,7 @@ The repository's inspect script prints `%G?`, `%GK` and `%GS` with the last comm
 
 | `%G?` | Signature | Colour |
 |---|---|---|
-| `G`, `U` | ✓ Verified · <signer> | green |
+| `G`, `U` | The Verified icon, "Verified · <signer>" | green |
 | `X`, `Y` | Verified · expired | amber |
 | `R` | Key revoked | red |
 | `B` | Bad signature | red |

@@ -169,7 +169,7 @@ fun SettingRow(
     }
 }
 
-/** Label/value pair used by detail, runtime, build and recovery sections. */
+/** Label/value pair used by detail, runtime, build and recovery sections; [valueIcon] leads the value, in its colour. */
 @Composable
 fun DetailRow(
     label: String,
@@ -177,13 +177,17 @@ fun DetailRow(
     modifier: Modifier = Modifier,
     valueColor: Color = IcodeColors.TextPrimary,
     valueStyle: TextStyle = IcodeType.Mono,
+    valueIcon: ImageVector? = null,
 ) {
     Row(
         modifier = modifier.fillMaxWidth().padding(vertical = IcodeSpacing.Space1),
         horizontalArrangement = Arrangement.SpaceBetween,
     ) {
         Text(label, style = IcodeType.Caption)
-        MonoLine(value, color = valueColor, style = valueStyle)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
+            valueIcon?.let { Icon(it, contentDescription = null, tint = valueColor, modifier = Modifier.size(IcodeSizes.IconSm)) }
+            MonoLine(value, color = valueColor, style = valueStyle)
+        }
     }
 }
 

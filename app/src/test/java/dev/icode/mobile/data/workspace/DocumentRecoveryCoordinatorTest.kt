@@ -35,9 +35,13 @@ class DocumentRecoveryCoordinatorTest {
     @Before fun setUp() {
         BackendLog.writer = { _, _, _ -> }
         drafts = DocumentDraftStore(File(temporaryFolder.root, "drafts"))
-        // Unconfined: a draft write runs to completion inside the call that queued it.
-        recovery = DocumentRecoveryCoordinator(holder, CoroutineScope(Dispatchers.Unconfined), drafts) { sources[it] }
+        // Unconfined: a draft write runs to completion inside the call that queued it. A draft waits
+        // for good, so each test says when it is written: flush(), as iCode leaving the screen does.
+        recovery = coordinator(Long.MAX_VALUE)
     }
+
+    private fun coordinator(draftDelayMillis: Long) =
+        DocumentRecoveryCoordinator(holder, CoroutineScope(Dispatchers.Unconfined), drafts, draftDelayMillis) { sources[it] }
 
     @After fun restoreLog() {
         BackendLog.writer = originalWriter
@@ -124,6 +128,7 @@ class DocumentRecoveryCoordinatorTest {
         val edited = source("/w/edited.kt", "on disk")
         val editedTab = open(edited, text = "typed", dirty = true)
         recovery.sync(edited.location)
+        recovery.flush()
         assertEquals("typed", drafts.read(edited.location)?.text)
         recovery.closed(editedTab)
         assertNull(drafts.read(edited.location))
@@ -137,6 +142,7 @@ class DocumentRecoveryCoordinatorTest {
         val edited = source("/w/edited.kt", "on disk")
         val editedTab = open(edited, text = "typed", dirty = true)
         recovery.sync(edited.location)
+        recovery.flush()
         recovery.closedAll(listOf(waitingTab, editedTab))
         assertNotNull(drafts.read(waiting.location))
         assertNull(drafts.read(edited.location))
@@ -168,9 +174,62 @@ class DocumentRecoveryCoordinatorTest {
         val file = source("/w/a.kt", "on disk")
         open(file, text = "typed", dirty = true)
         recovery.sync(file.location)
+        recovery.flush()
         assertEquals("typed", drafts.read(file.location)?.text)
         holder.update { state -> state.copy(openDocuments = state.openDocuments.map { it.copy(text = "on disk", dirty = false) }) }
         recovery.sync(file.location)
         assertNull(drafts.read(file.location))
     }
+
+    @Test fun `a draft waits for the typing to stop, then holds the last text`() = runBlocking {
+        val file = source("/w/a.kt", "on disk")
+        open(file, text = "t", dirty = true)
+        recovery.sync(file.location)
+        type(file.location, "ty")
+        recovery.sync(file.location)
+        assertNull(drafts.read(file.location))
+        recovery.flush()
+        assertEquals("ty", drafts.read(file.location)?.text)
+    }
+
+    @Test fun `a waiting draft is written once its delay has passed`() {
+        val file = source("/w/a.kt", "on disk")
+        open(file, text = "typed", dirty = true)
+        val timed = coordinator(draftDelayMillis = 10)
+        timed.sync(file.location)
+        val deadline = System.currentTimeMillis() + 5_000
+        while (drafts.read(file.location) == null && System.currentTimeMillis() < deadline) Thread.sleep(10)
+        assertEquals("typed", drafts.read(file.location)?.text)
+    }
+
+    @Test fun `back to clean, the draft goes at once and the waiting one never comes`() = runBlocking {
+        val file = source("/w/a.kt", "on disk")
+        drafts.write(file.location, file.name, "older", "disk-1")
+        open(file, text = "typed", dirty = true)
+        recovery.sync(file.location)
+        holder.update { state -> state.copy(openDocuments = state.openDocuments.map { it.copy(text = "on disk", dirty = false) }) }
+        recovery.sync(file.location)
+        assertNull(drafts.read(file.location))
+        recovery.flush()
+        assertNull(drafts.read(file.location))
+    }
+
+    @Test fun `a draft still waiting when its tab closes, is saved or its workspace closes is not written`() = runBlocking {
+        val closed = source("/w/closed.kt", "on disk")
+        val closedTab = open(closed, text = "typed", dirty = true)
+        val saved = source("/w/saved.kt", "on disk")
+        open(saved, text = "typed", dirty = true)
+        val leaving = source("/w/leaving.kt", "on disk")
+        open(leaving, text = "typed", dirty = true)
+        listOf(closed, saved, leaving).forEach { recovery.sync(it.location) }
+        recovery.closed(closedTab)
+        holder.update { state -> state.copy(openDocuments = state.openDocuments.map { if (it.location == saved.location) it.copy(text = "on disk", dirty = false) else it }) }
+        recovery.saved(saved.location)
+        recovery.workspaceClosing(listOf(leaving.location))
+        recovery.flush()
+        listOf(closed, saved, leaving).forEach { assertNull(drafts.read(it.location)) }
+    }
+
+    private fun type(location: String, text: String) =
+        holder.update { state -> state.copy(openDocuments = state.openDocuments.map { if (it.location == location) it.copy(text = text) else it }) }
 }

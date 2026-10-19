@@ -8,9 +8,10 @@ import java.util.Base64
  * Unsaved editor text, kept outside the workspace so it survives the process.
  *
  * Android kills a backgrounded app without warning, so the only work that
- * survives is work already written down. A draft is written as the user types
- * and removed the moment the document is saved, which is what makes "recover
- * unsaved work" possible at all.
+ * survives is work already written down. A draft is written a second after the
+ * user stops typing, and at once when iCode leaves the screen, and removed the
+ * moment the document is saved, which is what makes "recover unsaved work"
+ * possible at all.
  *
  * Drafts live in app-private storage, never in the user's workspace: a
  * half-typed file must never be picked up by a build, a search or Git.

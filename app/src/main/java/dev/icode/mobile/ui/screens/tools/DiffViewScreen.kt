@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ArrowDownward
+import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -105,24 +108,26 @@ fun DiffViewScreen(actions: NavigationActions) {
                     trailing = {
                         BottomBarEntry(
                             BottomBarItem(
-                                "⌃ Prev",
+                                "Prev",
                                 onClick = {
                                     hunkIndex = (hunkIndex - 1).coerceAtLeast(0)
                                     scope.launch { listState.scrollToItem(itemIndexOfHunk(diff, hunkIndex)) }
                                 },
                                 enabled = hunkIndex > 0,
                                 description = "Previous change",
+                                icon = Icons.Outlined.ArrowUpward,
                             ),
                         )
                         BottomBarEntry(
                             BottomBarItem(
-                                "Next ⌄",
+                                "Next",
                                 onClick = {
                                     hunkIndex = (hunkIndex + 1).coerceAtMost(diff.hunks.lastIndex)
                                     scope.launch { listState.scrollToItem(itemIndexOfHunk(diff, hunkIndex)) }
                                 },
                                 enabled = hunkIndex < diff.hunks.lastIndex,
                                 description = "Next change",
+                                icon = Icons.Outlined.ArrowDownward,
                             ),
                         )
                     },

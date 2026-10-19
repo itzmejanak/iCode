@@ -54,7 +54,8 @@ internal class GitLineChanges(
     private val computed = HashMap<String, Triple<String, String, List<GitDiffHunk>>>()
 
     init {
-        val documents = stateHolder.snapshot.map { it.openDocuments }.distinctUntilChanged()
+        // By identity: a document changes only by a new copy, and its text is not compared each time.
+        val documents = stateHolder.snapshot.map { it.openDocuments }.distinctUntilChanged { old, new -> old === new }
         scope.launch {
             combine(documents.map { list -> list.map { it.location } }.distinctUntilChanged(), enabled) { locations, on -> locations to on }
                 .collect { (locations, on) ->

@@ -3,6 +3,7 @@ package dev.icode.mobile.ui.screens.settings
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -26,7 +27,6 @@ import dev.icode.mobile.designsystem.IcodeTextField
 import dev.icode.mobile.designsystem.IcodeToggle
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
-import dev.icode.mobile.designsystem.KeyChipRow
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.SegmentedControl
 import dev.icode.mobile.designsystem.SettingRow
@@ -44,6 +44,7 @@ import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.LocalWorkspacePreferences
 import dev.icode.mobile.ui.LocalWorkspacePreferencesRepository
+import dev.icode.mobile.ui.TerminalKeyChip
 
 /** App-wide terminal preferences; shell changes apply when the next session starts. */
 @Composable
@@ -105,18 +106,14 @@ fun TerminalSettingsScreen(actions: NavigationActions) {
             )
             SectionLabel("Extra Keys Row")
             Text("Tap a key to show or hide it in the terminal.", style = IcodeType.Caption)
-            KeyChipRow(
-                keys = TerminalExtraKey.entries.map { it.label },
-                modifier = Modifier.horizontalScroll(rememberScrollState()),
-                chipModifier = Modifier.heightIn(min = IcodeSizes.TouchTarget),
-                activeKeys = settings.extraKeys.map { it.label }.toSet(),
-                onKey = { label ->
-                    val selected = TerminalExtraKey.entries.filter { key ->
-                        if (key.label == label) key !in settings.extraKeys else key in settings.extraKeys
-                    }
-                    saver.save { repository.setTerminalExtraKeys(selected) }
-                },
-            )
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
+                TerminalExtraKey.entries.forEach { key ->
+                    TerminalKeyChip(key, Modifier.heightIn(min = IcodeSizes.TouchTarget), active = key in settings.extraKeys, onClick = {
+                        val selected = TerminalExtraKey.entries.filter { if (it == key) it !in settings.extraKeys else it in settings.extraKeys }
+                        saver.save { repository.setTerminalExtraKeys(selected) }
+                    })
+                }
+            }
             SectionLabel("Cursor Style")
             SettingRow("Cursor Type", Modifier.fillMaxWidth()) {
                 SegmentedControl(TerminalCursorStyle.entries.map { it.label }, settings.cursorStyle.label) { label ->

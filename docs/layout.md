@@ -420,6 +420,8 @@ Each tab communicates:
 
 Tabs scroll horizontally on compact devices. Long press opens actions such as Close Others, Close Saved, Copy Path, and Reveal in Explorer.
 
+A dirty file's tab shows a dot before its name; the editor's title shows the name alone. The close button is the Close icon. The terminal's tabs are the same strip (`IcodeTabStrip`, [icons-plan.md §4](./icons-plan.md)), each marked by its state: the Terminal icon in green while the shell runs, the error icon in red once it ended or failed.
+
 ### 13.2 Code surface
 
 The code surface includes:
@@ -438,13 +440,13 @@ The minimap is disabled by default on compact screens and remains optional elsew
 The **Git change gutter** ([editor-plan.md §3](./editor-plan.md)) marks each line changed against the file's version in Git's index, as VS Code's does: a green bar for added lines, a blue bar for modified ones, a red wedge where lines were deleted, in a lane between the line numbers and the divider. A tap in the gutter of a changed line opens the **change sheet**:
 - "Change 2 of 3" and where it is ("Modified · lines 13–15");
 - its removed lines in red and its added lines in green, numbered as the diff screen numbers them;
-- **Revert** and **Stage**, then **‹ Prev** and **Next ›**.
+- **Revert** and **Stage**, then **Prev** and **Next**, after the up and down arrows (VS Code's own icons for the previous and next change).
 
 While the file has changes, the bottom bar says "3 changes"; a tap opens the sheet at the first change at or after the caret.
 
 ### 13.2.1 Keys row
 
-While the keyboard is open, the **keys row** takes the bottom bar's place ([editor-plan.md §4](./editor-plan.md)): TAB, ⇤, ◀ ▲ ▼ ▶, ↶ ↷, then the symbols, one row of the terminal's `KeyChip`s scrolling sideways. It is not shown for a read-only file or the Markdown preview. Editor Settings › Keys Row chooses its keys, as Terminal Settings › Extra Keys Row does.
+While the keyboard is open, the **keys row** takes the bottom bar's place ([editor-plan.md §4](./editor-plan.md)): Tab, Outdent, the four arrows, Home, End, Undo and Redo as their icons, then the symbols as what they type, one row of `KeyChip`s scrolling sideways, laid out left to right in every locale as code is ([icons-plan.md §3](./icons-plan.md)). It is not shown for a read-only file or the Markdown preview. Editor Settings › Keys Row chooses its keys, as Terminal Settings › Extra Keys Row does.
 
 ### 13.3 Editor toolbar
 
@@ -534,7 +536,7 @@ Signing is set up in **Git Credentials**, whose steps are Identity, Authenticati
 - **Create Key**, for the default identity;
 - the key in use: a Key selector when there are several, the key's card, a **Sign every commit** toggle, **Copy Key** and **Add to GitHub**, and **Change Passphrase**. An amber note says when the repository's email is not the key's.
 
-Commit & Push's **Last Commit** card gains a **Signature** row once GnuPG is installed: "✓ Verified · <signer>" in green, "Not signed" muted, and so on. A **Key** row follows with the key ID.
+Commit & Push's **Last Commit** card gains a **Signature** row once GnuPG is installed: the Verified icon and "Verified · <signer>" in green, "Not signed" muted, and so on. A **Key** row follows with the key ID.
 
 ### 16.4 Diff presentation
 
@@ -574,13 +576,9 @@ The terminal occupies the complete panel body with no decorative card. Scrollbac
 
 ### 17.3 Extra keys
 
-The configurable mobile row may contain:
+The row holds ESC, CTRL and ALT by name, then Tab and the four arrows as the editor's keys row draws them, left to right in every locale ([icons-plan.md §3](./icons-plan.md)). CTRL and ALT latch until the next key.
 
-```text
-Esc  Tab  Ctrl  Alt  ←  ↓  ↑  →  /  -
-```
-
-Users can reorder or hide keys. The row avoids covering terminal content when a hardware keyboard is active.
+Users can hide keys in Terminal Settings › Extra Keys Row. The row avoids covering terminal content when a hardware keyboard is active.
 
 ### 17.4 URLs
 
@@ -590,7 +588,7 @@ Recognized HTTP and HTTPS URLs use a clear activation gesture and open through A
 
 ### 18.1 Problems
 
-Problems group by file and severity. Each row contains severity, message, source, and line/column. Selecting a problem opens and focuses the exact range.
+Problems group by file and severity. A file's group is headed by its type icon, its name, its folder muted, and how many problems it has, as VS Code's Problems view heads them. Each row contains its severity's icon (a circled cross, a triangle, a circled i) in its colour, the message, source, and line/column. Selecting a problem opens and focuses the exact range.
 
 Filters include severity, active file, and source. Empty state states that no current diagnostics exist.
 

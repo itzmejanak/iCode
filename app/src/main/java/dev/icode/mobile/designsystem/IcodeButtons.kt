@@ -12,11 +12,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.Add
@@ -36,14 +38,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 /**
- * Filled primary action. Labels are uppercase by design. [compact]: as tall as a bar's choice,
- * among other compact actions; Material keeps its touch target whole.
+ * Filled primary action. Labels are uppercase by design; [icon] leads the label. [compact]: as tall
+ * as a bar's choice, among other compact actions; Material keeps its touch target whole.
  */
 @Composable
 fun PrimaryButton(
@@ -52,6 +55,7 @@ fun PrimaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     compact: Boolean = false,
+    icon: ImageVector? = null,
 ) {
     Button(
         onClick = onClick,
@@ -66,15 +70,24 @@ fun PrimaryButton(
         ),
         contentPadding = PaddingValues(horizontal = if (compact) IcodeSpacing.Space3 else IcodeSpacing.Space4),
     ) {
+        icon?.let {
+            Icon(it, contentDescription = null, modifier = Modifier.size(IcodeSizes.IconSm))
+            Spacer(Modifier.width(IcodeSpacing.Space2))
+        }
         Text(text.uppercase(), style = IcodeType.Label.copy(color = LocalContentColor.current))
     }
 }
 
-/** A quiet action inside content — Show Details: the label alone, in the accent, with a full touch target. */
+/** A quiet action inside content — Show Details: the label, after its [icon] if any, in the accent, with a full touch target. */
 @Composable
-fun IcodeTextButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
+fun IcodeTextButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, icon: ImageVector? = null) {
+    val color = if (enabled) IcodeColors.Accent else IcodeColors.TextMuted
     TextButton(onClick = onClick, modifier = modifier, enabled = enabled, contentPadding = PaddingValues(horizontal = IcodeSpacing.Space2)) {
-        Text(text, style = IcodeType.Label.copy(color = if (enabled) IcodeColors.Accent else IcodeColors.TextMuted))
+        icon?.let {
+            Icon(it, contentDescription = null, tint = color, modifier = Modifier.size(IcodeSizes.IconSm))
+            Spacer(Modifier.width(IcodeSpacing.Space1))
+        }
+        Text(text, style = IcodeType.Label.copy(color = color))
     }
 }
 
@@ -156,10 +169,12 @@ fun IcodeNavigationLink(
 }
 
 /**
- * Compact technical chip: keyboard keys, shortcuts and small metadata.
+ * Compact technical chip: keyboard keys, shortcuts and small metadata. [description] is spoken in
+ * place of a symbol ("Match case" for "Aa").
  *
- * Pass [onClick] to make it interactive. Callers with dense controls can
- * supply an explicit touch-target size without changing every chip surface.
+ * Pass [onClick] to make it interactive; without it the chip is drawn muted, a key that does nothing
+ * now. Callers with dense controls can supply an explicit touch-target size without changing every
+ * chip surface.
  */
 @Composable
 fun KeyChip(
@@ -167,42 +182,51 @@ fun KeyChip(
     modifier: Modifier = Modifier,
     active: Boolean = false,
     compact: Boolean = false,
+    description: String? = null,
     onClick: (() -> Unit)? = null,
+) = KeyChipSurface(modifier, active, compact, description, onClick) { color ->
+    Text(text, style = IcodeType.MonoSmall.copy(color = color), maxLines = 1, overflow = TextOverflow.Ellipsis)
+}
+
+/** A [KeyChip] showing [icon], spoken as [description]. */
+@Composable
+fun KeyChip(
+    icon: ImageVector,
+    description: String,
+    modifier: Modifier = Modifier,
+    active: Boolean = false,
+    compact: Boolean = false,
+    onClick: (() -> Unit)? = null,
+) = KeyChipSurface(modifier, active, compact, description, onClick) { color ->
+    Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(IcodeSizes.IconSm))
+}
+
+@Composable
+private fun KeyChipSurface(
+    modifier: Modifier,
+    active: Boolean,
+    compact: Boolean,
+    description: String?,
+    onClick: (() -> Unit)?,
+    content: @Composable (color: Color) -> Unit,
 ) {
     // A key that toggles (Match case, a latched Ctrl) says whether it is on, as the bottom bar's toggles do.
     val clickableModifier = if (onClick == null) modifier else modifier.clickable(onClick = onClick).semantics { selected = active }
     Box(
         modifier = clickableModifier
+            .then(if (description != null) Modifier.semantics { contentDescription = description } else Modifier)
             .background(if (active) IcodeColors.Background else IcodeColors.SurfaceElevated, IcodeShapes.Small)
             .border(1.dp, if (active) IcodeColors.Accent else Color.Transparent, IcodeShapes.Small)
             .padding(horizontal = if (compact) IcodeSpacing.Space1 else 10.dp, vertical = 7.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text,
-            style = IcodeType.MonoSmall.copy(
-                color = if (active) IcodeColors.Accent else IcodeColors.TextPrimary,
-                fontSize = IcodeType.MonoSmall.fontSize,
-            ),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
+        content(
+            when {
+                onClick == null -> IcodeColors.TextMuted
+                active -> IcodeColors.Accent
+                else -> IcodeColors.TextPrimary
+            },
         )
-    }
-}
-
-/** Inline keyboard hint row used by terminal and editor surfaces. */
-@Composable
-fun KeyChipRow(
-    keys: List<String>,
-    modifier: Modifier = Modifier,
-    chipModifier: Modifier = Modifier,
-    activeKeys: Set<String> = emptySet(),
-    onKey: ((String) -> Unit)? = null,
-) {
-    Row(modifier = modifier, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
-        keys.forEach { key ->
-            KeyChip(key, modifier = chipModifier, active = key in activeKeys, onClick = onKey?.let { handler -> { handler(key) } })
-        }
     }
 }
 

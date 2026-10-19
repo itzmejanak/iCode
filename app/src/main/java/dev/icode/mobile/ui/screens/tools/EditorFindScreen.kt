@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ArrowDownward
+import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
@@ -151,12 +153,12 @@ fun EditorFindScreen(actions: NavigationActions) {
                         .focusRequester(queryFocusRequester)
                         .onFocusChanged { queryFocused = it.isFocused },
                 )
-                KeyChip("⌃", onClick = if (matchCount > 0) ({
+                KeyChip(Icons.Outlined.ArrowUpward, "Previous match", onClick = if (matchCount > 0) ({
                     val restoreQueryFocus = queryFocused
                     searcher.gotoPrevious()
                     if (restoreQueryFocus) queryFocusRequester.requestFocus()
                 }) else null)
-                KeyChip("⌄", onClick = if (matchCount > 0) ({
+                KeyChip(Icons.Outlined.ArrowDownward, "Next match", onClick = if (matchCount > 0) ({
                     val restoreQueryFocus = queryFocused
                     searcher.gotoNext()
                     if (restoreQueryFocus) queryFocusRequester.requestFocus()
@@ -183,9 +185,9 @@ fun EditorFindScreen(actions: NavigationActions) {
                 )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
-                KeyChip("Aa", active = matchCase, onClick = { matchCase = !matchCase })
-                KeyChip("Ab*", active = wholeWord, onClick = { wholeWord = !wholeWord })
-                KeyChip(".*", active = regex, onClick = { regex = !regex })
+                KeyChip("Aa", active = matchCase, description = "Match case", onClick = { matchCase = !matchCase })
+                KeyChip("Ab*", active = wholeWord, description = "Whole word", onClick = { wholeWord = !wholeWord })
+                KeyChip(".*", active = regex, description = "Regular expression", onClick = { regex = !regex })
             }
             IcodeNavigationLink(
                 label = "Search Workspace",

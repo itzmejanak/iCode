@@ -7,14 +7,20 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeToggle
 import dev.icode.mobile.designsystem.IcodeTopBar
@@ -135,10 +141,10 @@ fun WorkspaceSettingsScreen(actions: NavigationActions) {
             }
             SectionLabel("File Watcher Excludes", Modifier.padding(top = IcodeSpacing.Space2))
             IcodeCard(Modifier.fillMaxWidth()) {
-                Text(
-                    "+ Add Exclude Pattern",
-                    style = IcodeType.Body.copy(color = IcodeColors.TextMuted, fontWeight = FontWeight.SemiBold),
-                )
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
+                    Icon(Icons.Outlined.Add, contentDescription = null, tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconSm))
+                    Text("Add Exclude Pattern", style = IcodeType.Body.copy(color = IcodeColors.TextMuted, fontWeight = FontWeight.SemiBold))
+                }
                 Text(
                     "Not available yet. The watcher follows only the folders open in the Explorer " +
                         "and the folders of open files.",

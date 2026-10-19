@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.CloudDownload
 import androidx.compose.material.icons.outlined.Search
@@ -73,13 +74,14 @@ fun BranchSelectorScreen(actions: NavigationActions) {
                     literal = true,
                 )
                 PrimaryButton(
-                    "⊕  Create New Branch",
+                    "Create New Branch",
                     {
                         gateway.dispatch(ICodeIntent.CreateBranch(newBranch))
                         newBranch = ""
                     },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = newBranch.isNotBlank(),
+                    icon = Icons.Outlined.Add,
                 )
             },
         ) {
@@ -87,7 +89,7 @@ fun BranchSelectorScreen(actions: NavigationActions) {
                 value = query,
                 onValueChange = { query = it },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = "Search branches...",
+                placeholder = "Search branches",
                 leadingIcon = Icons.Outlined.Search,
             )
             matching.forEach { branch ->

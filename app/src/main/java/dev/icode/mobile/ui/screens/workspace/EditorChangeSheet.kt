@@ -3,6 +3,9 @@ package dev.icode.mobile.ui.screens.workspace
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ArrowDownward
+import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.IcodeBottomSheet
@@ -43,8 +46,8 @@ internal fun EditorChangeSheet(
                 right = { PrimaryButton("Stage", { onStage(change) }, Modifier.fillMaxWidth()) },
             )
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                IcodeTextButton("‹ Prev", { onShow(index - 1) }, enabled = index > 0)
-                IcodeTextButton("Next ›", { onShow(index + 1) }, enabled = index < changes.lastIndex)
+                IcodeTextButton("Prev", { onShow(index - 1) }, enabled = index > 0, icon = Icons.Outlined.ArrowUpward)
+                IcodeTextButton("Next", { onShow(index + 1) }, enabled = index < changes.lastIndex, icon = Icons.Outlined.ArrowDownward)
             }
         },
     ) {
