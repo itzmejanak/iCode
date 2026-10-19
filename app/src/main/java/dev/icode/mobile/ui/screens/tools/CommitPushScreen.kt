@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountTree
+import androidx.compose.material.icons.outlined.Verified
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -132,7 +133,13 @@ fun CommitPushScreen(actions: NavigationActions) {
                         )
                         lastCommit.signature?.let { signature ->
                             val (verdict, color) = verdictOf(signature)
-                            DetailRow("Signature", verdict, valueStyle = IcodeType.MonoSmall, valueColor = color)
+                            DetailRow(
+                                "Signature",
+                                verdict,
+                                valueStyle = IcodeType.MonoSmall,
+                                valueColor = color,
+                                valueIcon = Icons.Outlined.Verified.takeIf { signature.status == GitSignatureStatus.Verified },
+                            )
                             signature.keyId?.let { DetailRow("Key", it, valueStyle = IcodeType.MonoSmall, valueColor = IcodeColors.TextSecondary) }
                         }
                     }
@@ -176,7 +183,7 @@ private fun branchSummary(repository: GitRepositoryState?): String = when {
 /** Git's verdict on a commit's signature (docs/gpg-signing-plan.md §7), and its colour: Verified by whom, or why not. */
 @Composable
 private fun verdictOf(signature: GitCommitSignature): Pair<String, Color> = when (signature.status) {
-    GitSignatureStatus.Verified -> "✓ Verified" + signature.signer?.let { " · " + it.substringBefore(" <") }.orEmpty() to IcodeColors.Green
+    GitSignatureStatus.Verified -> "Verified" + signature.signer?.let { " · " + it.substringBefore(" <") }.orEmpty() to IcodeColors.Green
     GitSignatureStatus.Expired -> "Verified · expired" to IcodeColors.Amber
     GitSignatureStatus.Revoked -> "Key revoked" to IcodeColors.Error
     GitSignatureStatus.Bad -> "Bad signature" to IcodeColors.Error

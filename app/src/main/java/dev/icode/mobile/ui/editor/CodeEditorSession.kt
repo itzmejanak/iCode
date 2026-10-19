@@ -103,7 +103,9 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
             editor.setText(document.text)
             applyLanguage(document)
         } else {
-            val viewText = editor.text.toString()
+            // The editor's own typing come back, or nothing new: its text is not copied at every keystroke.
+            val caughtUp = document.text === pendingLocalText || (pendingLocalText == null && document.text === acceptedText)
+            val viewText = if (caughtUp) document.text else editor.text.toString()
             when {
                 document.text == viewText -> {
                     acceptedText = document.text
@@ -170,6 +172,9 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
             EditorKey.Up -> editor.moveSelection(SelectionMovement.UP)
             EditorKey.Down -> editor.moveSelection(SelectionMovement.DOWN)
             EditorKey.Right -> editor.moveSelection(SelectionMovement.RIGHT)
+            // Sora's enhanced Home and End: the first non-blank character, then column 0; the end of the text, then the line's.
+            EditorKey.Home -> editor.moveSelection(SelectionMovement.LINE_START)
+            EditorKey.End -> editor.moveSelection(SelectionMovement.LINE_END)
             EditorKey.Undo -> return editor.undo()
             EditorKey.Redo -> return editor.redo()
             else -> editor.commitText(checkNotNull(key.text))
@@ -242,7 +247,7 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
     /** By the file's name, or for a script without an extension, its `#!` line (read up to its end, at most 256 characters). */
     private fun applyLanguage(document: OpenDocument) {
         val name = document.name
-        val nextScope = FileTypes.of(name, document.text.substringBefore('\n').take(FIRST_LINE_CHARS)).grammar
+        val nextScope = FileTypes.of(name, document.text.take(FIRST_LINE_CHARS).substringBefore('\n')).grammar
         if (nextScope == scope) return
         scope = nextScope
         if (nextScope == null || coloringError != null) {

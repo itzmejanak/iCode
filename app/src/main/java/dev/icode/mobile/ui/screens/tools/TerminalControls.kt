@@ -13,11 +13,12 @@ import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
-import dev.icode.mobile.designsystem.KeyChip
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.domain.RuntimeState
 import dev.icode.mobile.domain.TerminalExtraKey
+import dev.icode.mobile.ui.LeftToRight
+import dev.icode.mobile.ui.TerminalKeyChip
 
 /**
  * Control keys a software keyboard cannot produce.
@@ -34,7 +35,7 @@ internal fun ExtraKeyRow(
     ctrlHeld: Boolean,
     altHeld: Boolean,
     onKey: (TerminalExtraKey) -> Unit,
-) {
+) = LeftToRight {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -49,9 +50,9 @@ internal fun ExtraKeyRow(
                 TerminalExtraKey.Alt -> altHeld
                 else -> false
             }
-            KeyChip(
-                text = key.label,
-                modifier = Modifier.weight(1f).height(IcodeSizes.TouchTarget),
+            TerminalKeyChip(
+                key,
+                Modifier.weight(1f).height(IcodeSizes.TouchTarget),
                 active = sticky,
                 compact = true,
                 onClick = if (enabled) ({ onKey(key) }) else null,

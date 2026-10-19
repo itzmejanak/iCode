@@ -247,9 +247,9 @@ private fun stepLabel(runtime: RuntimeState): String = when (runtime) {
     is RuntimeState.Ready -> "Ready: ${runtime.release}"
     is RuntimeState.Failed -> runtime.reason
     is RuntimeState.NotInstalled -> runtime.reason
-    else -> "Checking the runtime..."
+    else -> "Checking the runtime…"
 }
 
 private fun storageLabel(storage: StorageSummary?): String = storage
     ?.let { "Available storage: ${ByteSize.format(it.availableBytes)} of ${ByteSize.format(it.totalBytes)}" }
-    ?: "Checking available storage..."
+    ?: "Checking available storage…"

@@ -97,7 +97,7 @@ fun WorkspaceEditorScreen(actions: NavigationActions) {
     var closeOthers by rememberSaveable { mutableStateOf(false) }
     var showCreateFile by rememberSaveable { mutableStateOf(false) }
     val isMarkdown = document != null && FileTypes.of(document.name) == FileTypes.Markdown
-    val title = document?.let { "${it.name}${if (it.dirty) "  •" else ""}" } ?: "No document"
+    val title = document?.name ?: "No document"
     val pendingDocument = state.openDocuments.firstOrNull { it.location == pendingClose }
     if (pendingDocument?.dirty == true) {
         IcodeSaveDiscardDialog(

@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.RadioButton
@@ -142,9 +145,9 @@ fun Stepper(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
     ) {
-        KeyChip("−", onClick = onDecrement)
+        KeyChip(Icons.Outlined.Remove, "Decrease", onClick = onDecrement)
         MonoLine(value.toString(), color = IcodeColors.Accent)
-        KeyChip("+", onClick = onIncrement)
+        KeyChip(Icons.Outlined.Add, "Increase", onClick = onIncrement)
     }
 }
 

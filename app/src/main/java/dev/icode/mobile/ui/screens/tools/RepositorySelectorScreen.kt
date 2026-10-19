@@ -45,7 +45,7 @@ fun RepositorySelectorScreen(actions: NavigationActions) {
                 value = query,
                 onValueChange = { query = it },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = "Search repositories...",
+                placeholder = "Search repositories",
                 leadingIcon = Icons.Outlined.Search,
             )
             matching.forEach { location ->

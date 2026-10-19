@@ -26,10 +26,11 @@ internal class MarkerColors(val added: Int, val modified: Int, val deleted: Int)
  * written as the file's own.
  */
 internal class IcodeCodeEditor(context: Context) : CodeEditor(context) {
-    /** The open file's changes against Git's index; drawn while there are any. */
+    /** The open file's changes against Git's index, in line order; drawn while there are any. */
     var changes: List<GitDiffHunk> = emptyList()
         set(value) {
-            if (field == value) return
+            // The backend publishes a new list only when the changes are computed again.
+            if (field === value) return
             field = value
             invalidate()
         }
@@ -87,19 +88,21 @@ private class ChangeMarkerRenderer(private val view: IcodeCodeEditor) : EditorRe
         val first = view.firstVisibleLine
         val last = view.lastVisibleLine
         val lines = view.text.lineCount
-        changes.forEach { change ->
+        for (change in changes) {
+            // In line order: past the last visible line, so is every change after it.
+            if (change.newStart - 1 > last + 1) break
             when (change.kind) {
                 LineChangeKind.Added, LineChangeKind.Modified -> {
                     val from = change.newStart - 1
                     val to = minOf(from + change.newCount - 1, lines - 1)
-                    if (to < first || from > last) return@forEach
+                    if (to < first || from > last) continue
                     paint.color = if (change.kind == LineChangeKind.Added) view.markerColors.added else view.markerColors.modified
                     canvas.drawRect(left, top(maxOf(from, first)), left + BAR_DP * unit, bottom(minOf(to, last)), paint)
                 }
                 LineChangeKind.Deleted -> {
                     // Between the line before the removed ones and the line after: the top of the line after.
                     val after = change.newStart
-                    if (after < first || after > last + 1) return@forEach
+                    if (after < first || after > last + 1) continue
                     val y = if (after < lines) top(after) else bottom(lines - 1)
                     val half = WEDGE_DP * unit / 2
                     paint.color = view.markerColors.deleted

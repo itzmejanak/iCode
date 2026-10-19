@@ -20,7 +20,6 @@ import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeToggle
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
-import dev.icode.mobile.designsystem.KeyChip
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.SegmentedControl
 import dev.icode.mobile.designsystem.SettingRow
@@ -30,6 +29,7 @@ import dev.icode.mobile.domain.EditorFontFamily
 import dev.icode.mobile.domain.EditorKey
 import dev.icode.mobile.domain.SettingLimits
 import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.ui.EditorKeyChip
 import dev.icode.mobile.ui.LocalWorkspacePreferences
 import dev.icode.mobile.ui.LocalWorkspacePreferencesRepository
 
@@ -98,7 +98,7 @@ fun EditorSettingsScreen(actions: NavigationActions) {
                     Text("Tap a key to show or hide it above the keyboard.", style = IcodeType.Caption)
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1), verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
                         EditorKey.entries.forEach { key ->
-                            KeyChip(key.label, Modifier.heightIn(min = IcodeSizes.TouchTarget), active = key in editor.keys, onClick = {
+                            EditorKeyChip(key, Modifier.heightIn(min = IcodeSizes.TouchTarget), active = key in editor.keys, onClick = {
                                 val chosen = EditorKey.entries.filter { if (it == key) it !in editor.keys else it in editor.keys }
                                 saver.save { repository.setEditorKeys(chosen) }
                             })
