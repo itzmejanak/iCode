@@ -5,6 +5,7 @@ import dev.icode.mobile.data.tasks.TaskRunner
 import dev.icode.mobile.domain.ItemClipboard
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.WorkspaceNameRules
 import java.io.File
 
@@ -49,7 +50,7 @@ internal class WorkspaceItemsCoordinator(
             refreshAfterCreate(root, parent, "File", updateIndex = true)
             if (intent.requestId != null) stateHolder.emit(ICodeEffect.WorkspaceItemChanged(intent.requestId, location))
             if (root == activeRoot()) documents.open(location)
-        }.onFailure { error -> fail(intent.requestId, stateHolder.failureText("workspace", "Unable to create file", error)) }
+        }.onFailure { error -> failed(intent.requestId, "Unable to create file", error) }
     }
 
     /** A new folder in any workspace's folder, or on phone storage. */
@@ -63,7 +64,7 @@ internal class WorkspaceItemsCoordinator(
         }.onSuccess { location ->
             refreshAfterCreate(root, intent.parentLocation, "Folder", updateIndex = false)
             stateHolder.emit(ICodeEffect.WorkspaceItemChanged(intent.requestId, location))
-        }.onFailure { error -> fail(intent.requestId, stateHolder.failureText("workspace", "Unable to create folder", error)) }
+        }.onFailure { error -> failed(intent.requestId, "Unable to create folder", error) }
     }
 
     /**
@@ -93,23 +94,21 @@ internal class WorkspaceItemsCoordinator(
                 moved(intent.location, target.path)
                 stateHolder.emit(ICodeEffect.WorkspaceItemChanged(intent.requestId, target.path))
             }
-            .onFailure { error -> fail(intent.requestId, stateHolder.failureText("workspace", "Unable to rename", error)) }
+            .onFailure { error -> failed(intent.requestId, "Unable to rename", error) }
     }
 
-    suspend fun clipboard(intent: ICodeIntent.ClipboardIntent) {
-        when (intent) {
-            is ICodeIntent.CutItem -> hold(intent.location, cut = true)
-            is ICodeIntent.CopyItem -> hold(intent.location, cut = false)
-            is ICodeIntent.PasteInto -> paste(intent.folder)
-            ICodeIntent.PasteAsWorkspace -> paste(source.workspacesRoot.path)
-            ICodeIntent.ClearClipboard -> stateHolder.update { it.copy(clipboard = null) }
-        }
+    suspend fun clipboard(intent: ICodeIntent.ClipboardIntent) = when (intent) {
+        is ICodeIntent.CutItem -> hold(intent.location, cut = true)
+        is ICodeIntent.CopyItem -> hold(intent.location, cut = false)
+        is ICodeIntent.PasteInto -> paste(intent.folder)
+        ICodeIntent.PasteAsWorkspace -> paste(source.workspacesRoot.path)
+        ICodeIntent.ClearClipboard -> stateHolder.update { it.copy(clipboard = null) }
     }
 
     /** Held for Paste; nothing moves yet. */
     private suspend fun hold(location: String, cut: Boolean) {
         val file = File(location)
-        if (!file.exists()) return stateHolder.message("${file.name} no longer exists")
+        if (!file.exists()) return stateHolder.notify(NoticeTone.HeadsUp, "${file.name} no longer exists")
         val item = ItemClipboard(location, file.name, cut, folder = file.isDirectory, workspace = source.isWorkspace(location))
         stateHolder.update { it.copy(clipboard = item) }
     }
@@ -122,7 +121,7 @@ internal class WorkspaceItemsCoordinator(
     private suspend fun paste(destination: String) {
         val held = stateHolder.current.clipboard ?: return
         val asWorkspace = destination == source.workspacesRoot.path
-        refusal(held, destination, asWorkspace)?.let { return stateHolder.message(it) }
+        refusal(held, destination, asWorkspace)?.let { return stateHolder.notify(NoticeTone.HeadsUp, it) }
         if (transfers.crosses(held.location, destination)) return pasteAcross(held, destination, asWorkspace)
         val files = if (storage.contains(destination)) shared() else WorkspaceFiles(source.workspacesRoot)
         if (held.cut) {
@@ -186,15 +185,14 @@ internal class WorkspaceItemsCoordinator(
         return tasks.waitReason(held.location) ?: tasks.waitReason(destination)
     }
 
-    /** Asked and confirmed in the Explorer first: this cannot be undone. */
     /**
-     * As the reference file manager: counted first, then deleted with the item in hand shown,
-     * and no Cancel — a delete stopped midway leaves half a folder.
+     * Asked and confirmed in the Explorer first: this cannot be undone. As the reference file manager:
+     * counted first, then deleted with the item in hand shown, and no Cancel — a delete stopped midway leaves half a folder.
      */
     suspend fun delete(intent: ICodeIntent.DeleteWorkspaceItem) {
         val files = filesOf(intent.location, requestId = null) ?: return
         val root = source.workspaceOf(intent.location)
-        usage.holding(intent.location, whole = false)?.let { return stateHolder.message(it) }
+        usage.holding(intent.location, whole = false)?.let { return stateHolder.notify(NoticeTone.HeadsUp, it) }
         tasks.start(
             title = "Deleting…",
             subject = File(intent.location).name,
@@ -248,9 +246,7 @@ internal class WorkspaceItemsCoordinator(
             tree.reload(root)
             refreshWorkspaceState(root)
             reindex(root)
-        }.onFailure { error ->
-            stateHolder.report("workspace", "The change was made, but the workspace could not refresh", error)
-        }
+        }.onFailure { error -> stateHolder.report("workspace", "The change was made, but the workspace could not refresh", error) }
     }
 
     /** Inside the workspace and outside `.git`, which belongs to Git alone. */
@@ -289,9 +285,13 @@ internal class WorkspaceItemsCoordinator(
     /** Phone storage's files: a `.git` there is the user's data like any other. */
     private fun shared() = WorkspaceFiles(storage.root, gitOwnsDotGit = false)
 
-    private suspend fun fail(requestId: String?, message: String) {
-        if (requestId == null) stateHolder.message(message)
-        else stateHolder.emit(ICodeEffect.WorkspaceItemFailed(requestId, message))
+    /** What was refused: to the dialog that asked, by [requestId], else on the bell. */
+    private suspend fun fail(requestId: String?, message: String) =
+        if (requestId == null) stateHolder.notify(NoticeTone.HeadsUp, message) else stateHolder.emit(ICodeEffect.WorkspaceItemFailed(requestId, message))
+
+    /** What failed: to the dialog that asked, in the error's words, else on the bell as [fallback]. */
+    private suspend fun failed(requestId: String?, fallback: String, error: Throwable) = stateHolder.failureText("workspace", fallback, error).let { words ->
+        if (requestId == null) stateHolder.failed(fallback, words) else stateHolder.emit(ICodeEffect.WorkspaceItemFailed(requestId, words))
     }
 
     private companion object {

@@ -2,7 +2,6 @@ package dev.icode.mobile.ui
 
 import android.app.Activity
 import android.content.Intent
-import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -22,6 +21,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.core.view.WindowCompat
+import dev.icode.mobile.domain.NoticeIntent
+import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.navigation.ToolPanelTab
 import dev.icode.mobile.ui.terminal.TerminalSessionSource
 import dev.icode.mobile.data.settings.AndroidWorkspacePreferencesRepository
@@ -167,7 +168,8 @@ fun IcodeApp(
             if (terminalWasShown && !terminalShown) gateway.dispatch(ICodeIntent.Refresh)
             terminalWasShown = terminalShown
         }
-        ArrivalEffect(arrival, navigation, pastOnboarding = navigation.current !in ONBOARDING_SCREENS, gateway, onArrived)
+        val notices = remember { NoticeHostState() }
+        ArrivalEffect(arrival, navigation, pastOnboarding = navigation.current !in ONBOARDING_SCREENS, gateway, notices, onArrived)
         val systemPrompts = rememberSystemPrompts(gateway)
         val fileViewer = remember { FileViewerState() }
 
@@ -193,17 +195,13 @@ fun IcodeApp(
                     is ICodeEffect.ExternalChangeDetected -> questions.ask(effect)
                     ICodeEffect.RuntimeRebuildStarted -> navigation.actions.navigate(Route.RuntimeInstalling)
                     ICodeEffect.GitInitialized -> navigation.actions.navigate(Route.SourceControl)
-                    ICodeEffect.GitCommitted -> Toast.makeText(context, "Commit created", Toast.LENGTH_SHORT).show()
                     is ICodeEffect.DocumentOpened -> {
                         if (effect.lineNumber != null) {
                             editorSessions.get(effect.location).revealAt(effect.lineNumber, effect.column ?: 0)
                         }
                         navigation.actions.navigate(Route.WorkspaceEditor)
                     }
-                    is ICodeEffect.DocumentSaved -> if (!effect.automatic) {
-                        Toast.makeText(context, "Saved", Toast.LENGTH_SHORT).show()
-                    }
-                    is ICodeEffect.Message -> Toast.makeText(context, effect.text, Toast.LENGTH_LONG).show()
+                    is ICodeEffect.Notice -> notices.arrived(effect.notice)
                     // A chat shared as its transcript: Android's share sheet, as the terminal's output is.
                     is ICodeEffect.ShareChat -> {
                         val send = Intent(Intent.ACTION_SEND).setType("text/plain")
@@ -211,14 +209,14 @@ fun IcodeApp(
                         context.startActivity(Intent.createChooser(send, "Share ${effect.title}"))
                     }
                     is ICodeEffect.ViewFile -> fileViewer.show(effect.location, File(effect.location).name, effect.viewer)
-                    is ICodeEffect.OpenInOtherApp -> SharedFiles.open(context, effect.location)
+                    is ICodeEffect.OpenInOtherApp -> SharedFiles.open(context, effect.location, gateway::dispatch)
                     is ICodeEffect.OpenExternalUrl -> {
                         // The user's own browser opens the URL; the app never
                         // renders web content itself (architecture.md section 11.5).
                         val view = Intent(Intent.ACTION_VIEW, effect.url.toUri())
                             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         runCatching { context.startActivity(view) }
-                            .onFailure { Toast.makeText(context, "No browser is available", Toast.LENGTH_LONG).show() }
+                            .onFailure { gateway.dispatch(NoticeIntent.Notify(NoticeTone.HeadsUp, "No browser is available")) }
                     }
                 }
             }
@@ -249,7 +247,9 @@ fun IcodeApp(
         ) {
             IcodeScreen {
                 FileViewerHost(fileViewer) {
-                    NavigationHost(navigation) { route -> ScreenHost(screen = route, actions = navigation.actions) }
+                    NoticeHost(notices, snapshot.notices, pageOpen = navigation.current == Route.Notifications, onAll = { navigation.actions.navigate(Route.Notifications) }) {
+                        NavigationHost(navigation) { route -> ScreenHost(screen = route, actions = navigation.actions) }
+                    }
                 }
             }
         }

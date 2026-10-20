@@ -11,6 +11,7 @@ import dev.icode.mobile.domain.GitRemoteRules
 import dev.icode.mobile.domain.GitSyncAction
 import dev.icode.mobile.domain.GitTransferLabel
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.WorkspaceRuntimePath
 import java.io.File
 import java.util.concurrent.atomic.AtomicLong
@@ -89,7 +90,7 @@ internal class GitTransferCoordinator(
     private fun start(label: String, work: suspend (id: Long) -> Unit): Job? = synchronized(this) {
         if (job?.isActive == true) {
             val busy = running.lowercase()
-            scope.launch { stateHolder.message("Git is still $busy; try again when it finishes") }
+            scope.launch { stateHolder.notify(NoticeTone.HeadsUp, "Git is still $busy; try again when it finishes") }
             return null
         }
         val id = operations.incrementAndGet()
@@ -242,7 +243,7 @@ internal class GitTransferCoordinator(
         refresh(workspace)
         // The progress surface closes itself, so the outcome is
         // reported here or it is never reported at all.
-        stateHolder.message(completionMessage(label, transcript))
+        stateHolder.notify(NoticeTone.Done, completionMessage(label, transcript))
     }
 
     /**

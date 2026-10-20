@@ -8,6 +8,7 @@ import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.GitRemoteRules
 import dev.icode.mobile.domain.GitStatusCodes
+import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.RecentDocument
 import dev.icode.mobile.domain.StageLineChange
 import dev.icode.mobile.domain.ICodeEffect
@@ -115,11 +116,11 @@ internal class GitWorkspaceCoordinator(
     suspend fun initialize() {
         val workspace = activeRoot()
         if (workspace == null) {
-            stateHolder.message("Open a workspace before initializing Git")
+            stateHolder.notify(NoticeTone.HeadsUp, "Open a workspace before initializing Git")
             return
         }
         if (git.isRepository(workspace)) {
-            stateHolder.message("This folder is already inside a Git repository")
+            stateHolder.notify(NoticeTone.HeadsUp, "This folder is already inside a Git repository")
             return
         }
         runCatching {
@@ -171,7 +172,7 @@ internal class GitWorkspaceCoordinator(
     /** Null once committed, else Git's words — said as a message too, unless [quiet] (Commit & Push shows them). */
     suspend fun commit(message: String, quiet: Boolean = false): String? = act(
         operation = { workspace -> git.commit(workspace, message) },
-        onSuccess = { stateHolder.emit(ICodeEffect.GitCommitted) },
+        onSuccess = { stateHolder.notify(NoticeTone.Done, "Commit created") },
         quiet = quiet,
     )
 
@@ -187,7 +188,7 @@ internal class GitWorkspaceCoordinator(
     suspend fun addRemote(name: String, url: String) {
         val problem = GitRemoteRules.nameError(name) ?: GitRemoteRules.urlError(url)
         if (problem != null) {
-            stateHolder.message(problem)
+            stateHolder.notify(NoticeTone.HeadsUp, problem)
             return
         }
         act(operation = { workspace -> git.addRemote(workspace, name, url) })
@@ -213,7 +214,7 @@ internal class GitWorkspaceCoordinator(
     suspend fun compareWithEditor(path: String, editorBytes: ByteArray) {
         val workspace = activeRoot() ?: return
         if (!git.isAvailable()) {
-            stateHolder.message("Comparing uses Git, which is not installed yet. Install it from Source Control")
+            stateHolder.notify(NoticeTone.HeadsUp, "Comparing uses Git, which is not installed yet. Install it from Source Control")
             return
         }
         stateHolder.update { it.copy(activeDiff = null) }
@@ -223,10 +224,10 @@ internal class GitWorkspaceCoordinator(
                     is GitOutcome.Success -> stateHolder.update {
                         it.copy(activeDiff = outcome.value ?: GitFileDiff(path = path, hunks = emptyList()))
                     }
-                    is GitOutcome.Failure -> stateHolder.message(outcome.message)
+                    is GitOutcome.Failure -> stateHolder.failed(COMPARE_FAILED, outcome.message)
                 }
             }
-            .onFailure { error -> stateHolder.report("git", "Unable to compare the two versions", error) }
+            .onFailure { error -> stateHolder.report("git", COMPARE_FAILED, error) }
     }
 
     /** Holds what discarding [path] — a file, or all a folder holds — would throw away, for its confirmation. */
@@ -243,7 +244,7 @@ internal class GitWorkspaceCoordinator(
         val confirmed = stateHolder.current.pendingDiscard ?: return
         stateHolder.update { it.copy(pendingDiscard = null) }
         if (!isDiscardablePath(confirmed.path)) {
-            stateHolder.message("${confirmed.path} is not a change iCode can discard")
+            stateHolder.notify(NoticeTone.HeadsUp, "${confirmed.path} is not a change iCode can discard")
             return
         }
         act(operation = { workspace ->
@@ -270,29 +271,28 @@ internal class GitWorkspaceCoordinator(
 
     /**
      * Runs [operation] on the open workspace's repository and reads it again. Returns null when it
-     * was done, else what went wrong in Git's words — said as a message too, unless [quiet].
+     * was done, else what went wrong in Git's words — said on the bell too, unless [quiet].
      */
     suspend fun act(
         operation: suspend (String) -> Unit,
         onSuccess: suspend () -> Unit = {},
         quiet: Boolean = false,
     ): String? {
-        val workspace = activeRoot()
-        val failure = if (workspace == null) {
-            "Open a workspace first"
-        } else {
-            runCatching {
-                operation(workspace)
-                refresh(workspace)
-                onSuccess()
-            }.exceptionOrNull()?.let { error -> stateHolder.failureText("git", "Git operation failed", error) }
-        }
-        if (failure != null && !quiet) stateHolder.message(failure)
+        val workspace = activeRoot() ?: return OPEN_A_WORKSPACE.also { if (!quiet) stateHolder.notify(NoticeTone.HeadsUp, it) }
+        val failure = runCatching {
+            operation(workspace)
+            refresh(workspace)
+            onSuccess()
+        }.exceptionOrNull()?.let { error -> stateHolder.failureText("git", GIT_FAILED, error) }
+        if (failure != null && !quiet) stateHolder.failed(GIT_FAILED, failure)
         return failure
     }
 
     private companion object {
         /** Long enough to absorb a burst of saves, short enough to feel immediate. */
         const val REFRESH_DEBOUNCE_MILLIS = 350L
+        const val OPEN_A_WORKSPACE = "Open a workspace first"
+        const val GIT_FAILED = "Git operation failed"
+        const val COMPARE_FAILED = "Unable to compare the two versions"
     }
 }

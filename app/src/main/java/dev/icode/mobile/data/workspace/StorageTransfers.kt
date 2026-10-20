@@ -11,6 +11,7 @@ import dev.icode.mobile.data.tasks.TaskRunner
 import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.ItemClipboard
+import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.countOf
 import java.io.File
 import java.io.IOException
@@ -84,7 +85,7 @@ internal class StorageTransfers(
             finished = {
                 val result = done
                 if (result == null) staged?.let { runCatching { staging.discard(it) } }
-                result?.summary(held)?.let { stateHolder.message(it) }
+                result?.summary(held)?.let { stateHolder.notify(NoticeTone.HeadsUp, it) }
                 landed(result?.target)
             },
         )

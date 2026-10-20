@@ -1,11 +1,13 @@
 package dev.icode.mobile.data.notices
 
-import android.annotation.SuppressLint
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.core.content.edit
 import dev.icode.mobile.domain.AppNotice
 import dev.icode.mobile.domain.LostTerminalSession
 import dev.icode.mobile.domain.LostTerminalSessions
+import dev.icode.mobile.domain.NoticeRules
+import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.ProcessEndCause
 import dev.icode.mobile.domain.markedRead
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -16,11 +18,10 @@ import org.json.JSONObject
 
 /**
  * The Notifications page's notices: kept until the user deletes them, newest
- * first, at most [MAX_NOTICES]. One per process, so every screen and service
- * sees the same list.
+ * first, at most [NoticeRules.MAX_KEPT]. One per process, so every screen and
+ * service sees the same list.
  */
-internal class NoticeStore private constructor(context: Context) {
-    private val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+internal class NoticeStore(private val preferences: SharedPreferences) {
     private val mutableNotices = MutableStateFlow(read())
     val notices: StateFlow<List<AppNotice>> = mutableNotices.asStateFlow()
 
@@ -29,7 +30,14 @@ internal class NoticeStore private constructor(context: Context) {
     fun add(notice: AppNotice) {
         val current = mutableNotices.value
         if (current.any { it.id == notice.id }) return
-        save((listOf(notice) + current).sortedByDescending { it.at }.take(MAX_NOTICES))
+        save((listOf(notice) + current).sortedByDescending { it.at }.take(NoticeRules.MAX_KEPT))
+    }
+
+    @Synchronized
+    fun markRead(id: String) {
+        val current = mutableNotices.value
+        if (current.none { it.id == id && !it.read }) return
+        save(current.map { if (it.id == id) it.markedRead() else it })
     }
 
     @Synchronized
@@ -92,6 +100,16 @@ internal class NoticeStore private constructor(context: Context) {
                         .put(KEY_LABEL, notice.label)
                         .put(KEY_TARGET, notice.target),
                 )
+                is AppNotice.Message -> put(
+                    JSONObject()
+                        .put(KEY_KIND, KIND_MESSAGE)
+                        .put(KEY_ID, notice.id)
+                        .put(KEY_AT, notice.at)
+                        .put(KEY_READ, notice.read)
+                        .put(KEY_TONE, notice.tone.name)
+                        .put(KEY_TITLE, notice.title)
+                        .put(KEY_DETAIL, notice.detail ?: JSONObject.NULL),
+                )
             }
         }
     }.toString()
@@ -123,12 +141,18 @@ internal class NoticeStore private constructor(context: Context) {
             label = item.getString(KEY_LABEL),
             target = item.getString(KEY_TARGET),
         )
+        KIND_MESSAGE -> AppNotice.Message(
+            id = item.getString(KEY_ID),
+            at = item.getLong(KEY_AT),
+            read = item.getBoolean(KEY_READ),
+            tone = NoticeTone.valueOf(item.getString(KEY_TONE)),
+            title = item.getString(KEY_TITLE),
+            detail = if (item.isNull(KEY_DETAIL)) null else item.getString(KEY_DETAIL),
+        )
         else -> null
     }
 
     companion object {
-        private const val MAX_NOTICES = 50
-
         // Stored keys and kinds; do not rename.
         private const val PREFERENCES_NAME = "notices"
         private const val KEY_NOTICES = "notices"
@@ -145,14 +169,15 @@ internal class NoticeStore private constructor(context: Context) {
         private const val KIND_GIT_TRANSFER_INTERRUPTED = "git-transfer-interrupted"
         private const val KEY_LABEL = "label"
         private const val KEY_TARGET = "target"
+        private const val KIND_MESSAGE = "message"
+        private const val KEY_TONE = "tone"
+        private const val KEY_DETAIL = "detail"
 
-        // Holds the application context only, which lives as long as the process.
-        @SuppressLint("StaticFieldLeak")
         @Volatile
         private var instance: NoticeStore? = null
 
         fun get(context: Context): NoticeStore = instance ?: synchronized(this) {
-            instance ?: NoticeStore(context.applicationContext).also { instance = it }
+            instance ?: NoticeStore(context.applicationContext.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)).also { instance = it }
         }
     }
 }

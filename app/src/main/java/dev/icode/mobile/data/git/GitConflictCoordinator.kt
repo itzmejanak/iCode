@@ -4,6 +4,7 @@ import dev.icode.mobile.data.workspace.ChangedOnDiskException
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceDocument
 import dev.icode.mobile.domain.GitConflictChoice
+import dev.icode.mobile.domain.NoticeTone
 import java.io.File
 
 /**
@@ -75,7 +76,7 @@ internal class GitConflictCoordinator(
         val read = document ?: return
         val section = conflict.sections.firstOrNull { it.startLine == sectionStart } ?: return
         if (files.hasUnsavedEdits(read.location)) {
-            stateHolder.message("${read.name} has unsaved edits in the editor. Save or close it first")
+            stateHolder.notify(NoticeTone.HeadsUp, "${read.name} has unsaved edits in the editor. Save or close it first")
             return
         }
         runCatching { files.write(read, GitConflictParser.resolve(conflict, section, choice)) }
@@ -87,7 +88,7 @@ internal class GitConflictCoordinator(
             .onFailure { error ->
                 if (error is ChangedOnDiskException) {
                     open(path)
-                    stateHolder.message("${read.name} changed on disk and was read again. Choose again")
+                    stateHolder.notify(NoticeTone.HeadsUp, "${read.name} changed on disk and was read again. Choose again")
                 } else {
                     stateHolder.report("git", "Unable to write the resolved file", error)
                 }

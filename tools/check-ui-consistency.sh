@@ -19,6 +19,8 @@
 #   capture-fork captureMode branches inside ui/screens (capture data belongs
 #                in the debug-only CaptureFixtures, not in product screens)
 #   orphan-route Route values with no navigate(...) entry point
+#   toast        android.widget.Toast anywhere: what iCode says is a notice, on the
+#                bell, the Notifications page and Android's shade (docs/notices-plan.md)
 
 set -euo pipefail
 
@@ -68,6 +70,12 @@ while read -r file count; do
     [[ -z "$file" ]] && continue
     emit "sp-literal" "${file#"$repo_root/"}" "$count"
 done < <(count_matches '[0-9]+\.sp' "$ui_root/screens")
+
+# 4a. Toasts anywhere in the app: none is allowed.
+while read -r file count; do
+    [[ -z "$file" ]] && continue
+    emit "toast" "${file#"$repo_root/"}" "$count"
+done < <(count_matches 'android\.widget\.Toast|Toast\.makeText' "$src_root")
 
 # 5a. Capture forks inside product screens.
 #

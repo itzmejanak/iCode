@@ -7,8 +7,10 @@ import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.GitProgress
 import dev.icode.mobile.domain.GitRepositoryState
-import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.Said
+import dev.icode.mobile.domain.said
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
@@ -105,7 +107,7 @@ class GitTransferCoordinatorTest {
         )
         assertEquals(listOf("credentials", "refresh $root"), harness.events)
         assertEquals(listOf("credential.helper=store --file=/tmp/once"), harness.git.config)
-        assertEquals(ICodeEffect.Message("Already up to date."), withTimeout(2_000) { message.await() })
+        assertEquals(Said(NoticeTone.Done, "Already up to date."), withTimeout(2_000) { message.await() }.said())
     }
 
     @Test fun `a failed pull keeps Git's reason and what it printed`() = runBlocking {
@@ -168,7 +170,7 @@ class GitTransferCoordinatorTest {
         val second = harness.coordinator.pull()
 
         assertEquals(null, second)
-        assertEquals(ICodeEffect.Message("Git is still fetching; try again when it finishes"), withTimeout(2_000) { message.await() })
+        assertEquals(Said(NoticeTone.HeadsUp, "Git is still fetching; try again when it finishes"), withTimeout(2_000) { message.await() }.said())
         gate.complete(Unit)
         fetching?.join()
         assertEquals(listOf("fetch $root"), harness.git.calls)

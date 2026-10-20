@@ -4,6 +4,7 @@ import androidx.annotation.MainThread
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.data.workspace.isAtOrUnder
 import dev.icode.mobile.domain.ManagedProcess
+import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.TerminalSettings
 import dev.icode.mobile.domain.TerminalSnapshot
 import dev.icode.mobile.domain.ICodeEffect
@@ -72,7 +73,7 @@ internal class TerminalCoordinator(
         // other code is said once, so a shell that failed on its own is not silent.
         scope.launch {
             terminals.endings.collect { ending ->
-                if (ending.exitCode != 0) stateHolder.message("${ending.title} exited with code ${ending.exitCode}")
+                if (ending.exitCode != 0) stateHolder.notify(NoticeTone.Info, "${ending.title} exited with code ${ending.exitCode}")
             }
         }
         scope.launch {
@@ -89,11 +90,11 @@ internal class TerminalCoordinator(
     /** "+": always a new session, in the open workspace. */
     suspend fun open() {
         if (!runtimeInstalled()) {
-            stateHolder.message("Install the Linux runtime before opening a terminal")
+            stateHolder.notify(NoticeTone.HeadsUp, "Install the Linux runtime before opening a terminal")
             return
         }
         if (terminals.open(activeRoot(), reuseExisting = false) == null) {
-            stateHolder.message("Unable to start a terminal session")
+            stateHolder.notify(NoticeTone.Problem, "Unable to start a terminal session")
         }
     }
 
@@ -104,11 +105,11 @@ internal class TerminalCoordinator(
      */
     suspend fun ensure() {
         if (!runtimeInstalled()) {
-            stateHolder.message("Install the Linux runtime before opening a terminal")
+            stateHolder.notify(NoticeTone.HeadsUp, "Install the Linux runtime before opening a terminal")
             return
         }
         if (terminals.open(activeRoot(), reuseExisting = true) == null) {
-            stateHolder.message("Unable to start a terminal session")
+            stateHolder.notify(NoticeTone.Problem, "Unable to start a terminal session")
         }
     }
 
@@ -136,9 +137,9 @@ internal class TerminalCoordinator(
      * already following it, else a new one — in the workspace it runs in.
      */
     suspend fun showOutput(process: ManagedProcess, log: String) {
-        if (!runtimeInstalled()) return stateHolder.message("Install the Linux runtime before opening a terminal")
+        if (!runtimeInstalled()) return stateHolder.notify(NoticeTone.HeadsUp, "Install the Linux runtime before opening a terminal")
         val id = terminals.follow(FollowedOutput(process.id, process.name, process.workspace, log))
-            ?: return stateHolder.message("Unable to show ${process.name}'s output")
+            ?: return stateHolder.notify(NoticeTone.Problem, "Unable to show ${process.name}'s output")
         show(id)
     }
 
@@ -154,7 +155,7 @@ internal class TerminalCoordinator(
             terminals.workspaceOf(id) ?: ""
         }
         when (workspace) {
-            null -> stateHolder.message("That terminal session has ended")
+            null -> stateHolder.notify(NoticeTone.HeadsUp, "That terminal session has ended")
             "" -> stateHolder.emit(ICodeEffect.WorkspaceTerminalOpened(activeRoot().orEmpty()))
             else -> openWorkspaceTerminal(workspace)
         }

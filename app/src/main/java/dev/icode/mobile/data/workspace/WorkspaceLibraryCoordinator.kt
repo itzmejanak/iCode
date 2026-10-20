@@ -5,6 +5,7 @@ import dev.icode.mobile.data.io.measureTree
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.storage.PhoneStorage
 import dev.icode.mobile.data.storage.WorkspacesProvider
+import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.RecentDocument
 import dev.icode.mobile.domain.BrowsedItem
 import dev.icode.mobile.domain.FileKind
@@ -220,15 +221,13 @@ internal class WorkspaceLibraryCoordinator(
 
     suspend fun clearCache() {
         if (tasksRunning()) {
-            stateHolder.message("Finish runtime, Git, terminal and language service tasks before clearing cache")
+            stateHolder.notify(NoticeTone.HeadsUp, "Finish runtime, Git, terminal and language service tasks before clearing cache")
             return
         }
         runCatching {
             StorageInspector.clearRuntimeCache(appContext.cacheDir, runtimeLayout.prootTemp)
         }.onSuccess { removed ->
-            stateHolder.message(
-                if (removed == 0) "Runtime cache is already clear" else "Removed $removed cached runtime items",
-            )
+            stateHolder.notify(NoticeTone.Done, if (removed == 0) "Runtime cache is already clear" else "Removed $removed cached runtime items")
             refreshStorage()
         }.onFailure { error ->
             stateHolder.report("storage", "Unable to clear runtime cache", error)

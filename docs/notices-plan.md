@@ -72,15 +72,23 @@ the repository, as with the terminal bar's.
 
 - At the bottom right, 88 dp above the screen's foot (`IcodeSizes.FabClearance`). That clears
   every foot bar (48 dp), the keys rows (64 dp, or 72 dp with Compact Layout off) and the file
-  explorer's + (56 dp, 16 dp from the edge).
-  Over the keyboard while it is up, as everything is.
-- A pill: the bell in the tone's colour, then the notice's one line, cut with "…" to the width
-  it has (at most 75% of the screen).
-- Shown for 3 s for Done, 4 s for Heads-up and Info, and 6 s for a Problem. A new notice replaces
-  the line, and a badge on the bell counts those that came while it showed.
-- TalkBack reads it as it reads a toast (a polite live region).
+  explorer's + (56 dp, 16 dp from the edge). Over the keyboard while it is up, as everything is.
+- **When a notice comes**, a pill: the bell in the tone's colour, then the notice's one line, cut
+  with "…" to the width it has (at most 75% of the screen). A tap opens that notice's sheet. A
+  Done has nothing more to say, so a tap on it only folds the bell away.
+- **After 3 s for Done, 4 s for Heads-up and Info, and 6 s for a Problem**, the line folds away
+  smoothly from left to right. The bell stays at the right edge, with the count of unread notices
+  and an ×.
+  - The folded bell takes the colour of the most serious unread notice (Problem, then Heads-up,
+    then Info).
+  - A tap on it opens the one unread notice's sheet. With several unread, it opens the
+    Notifications page.
+  - × puts the bell away. The notices stay unread on the page, with the launcher bell's dot, until
+    the next notice brings the bell back.
+  - With nothing unread (after a Done, or once they are read), the bell fades out instead.
+- A new notice unfolds the line again with its own words.
+- TalkBack reads each line as it reads a toast (a polite live region).
 - Not shown while the Notifications page or a notice's sheet is open: the notice is there already.
-- A tap: see **Q1**.
 
 ### 2.3 A notice's sheet
 
@@ -90,7 +98,7 @@ An `IcodeBottomSheet` over the screen:
 - when, and the tone;
 - the detail, in full. A failure's own words are in the mono face, as the terminal's text is.
 - **Copy** (title and detail, for a bug report or a search) and **Delete**;
-- **All Notifications**, when the sheet was opened from the bell.
+- **All Notifications**, to the page.
 
 Opening it marks the notice read.
 
@@ -107,10 +115,13 @@ Opening it marks the notice read.
 
 | Channel | Importance | Holds |
 |---|---|---|
-| **Messages** (new) | `LOW`: no sound, no pop-up | Every kept notice that is unread, up to the 20 newest, grouped under one "iCode · Messages" summary |
+| **Messages** (new) | `LOW`: no sound, no pop-up | Every unread message notice, up to the 20 newest, grouped under one "iCode · Messages" summary |
 | **Problems** (new) | `HIGH`: pops up | A Problem that arrives while iCode is out of view (the same test `WorkNotifications` uses for task failures) |
 
-- A tap opens iCode with that notice's sheet (a new `Arrival.Notice`).
+- A tap opens iCode with that notice's sheet (a new `Arrival.Notice`); the summary opens the page.
+- The two kinds found at start-up (terminal sessions and Git transfers the previous process took
+  with it) stay on the page and the launcher bell's dot, as now: the user is opening iCode when
+  they are found.
 - A notice read, deleted or cleared in iCode is withdrawn from the shade.
 - Swiping one away in the shade leaves it unread in iCode, as a mail app does.
 - Without the notification permission, the bell and the page still work.
@@ -118,31 +129,59 @@ Opening it marks the notice read.
 
 ### 2.6 Done
 
-See **Q2**. Copying on Android 13 and later stays as it is: Android shows its own confirmation, so
-iCode adds none.
+Done shows on the bell only. It is not kept and not posted, so "Saved" on every save never pushes
+a problem off the page or fills the shade. Copying on Android 13 and later stays as it is:
+Android shows its own confirmation, so iCode adds none.
 
-## 3. Owner's decisions
+## 3. Owner's decisions (2026-10-20)
 
-| | Question | Recommended | Why |
-|---|---|---|---|
-| **Q1** | What a tap on the bell opens | **The notice's sheet**, over the screen, with **All Notifications** in it | One tap reaches the detail, and Back returns straight to the work. The page is a tap further, from the sheet or from the launcher's bell. The alternative, the page first, takes two taps in and two Backs out |
-| **Q2** | Where Done goes | **The bell only**: not kept, not in the shade | "Saved" on every save would push real problems off the page, and would fill the shade with what the user just did. Android asks for notifications to be kept for what needs the user |
-| **Q3** | What the bell shows | **The bell and the notice's line** | With the bell alone, every message ("Install the runtime first") needs a tap to be read, which a toast never did |
+From the mockup, the owner chose:
+
+| | Question | Decision |
+|---|---|---|
+| **Q1** | What a tap on the bell opens | **The notice's sheet**, over the screen, with **All Notifications** in it |
+| **Q2** | Where Done goes | **The bell only**: not kept, not in the shade |
+| **Q3** | What the bell shows | **The bell and the line first** (mockup 1), then the line folds away smoothly from left to right. **The bell stays with the unread count and an × to put it away** |
+
+The rest of §2 was decided here, from Android's guidance (§1.3) and the code as it stands.
 
 ## 4. How
 
 | Layer | Part |
 |---|---|
-| Domain | `NoticeTone`. `AppNotice.Message(id, at, read, tone, title, detail)`. `ICodeEffect.Notice(notice)` replaces `Message`, and the "Saved" and "Commit created" toasts. `ICodeIntent.Notify(tone, title, detail)` for what the UI raises. `ICodeIntent.ReadNotice(id)` |
-| Data | `ICodeStateHolder.notify(tone, title, detail)` replaces `message`. `report` keeps fallback and words apart. Each of the 99 sites chooses its tone. `NoticeStore` stores the new kind (100). New `NoticeNotifications` holds the two channels, the group and withdrawal. `MainActivity` gets `ACTION_SHOW_NOTICE` |
-| UI | `NoticeHost` at the app's root, beside `FileViewerHost`: the bell and the sheet. `NoticeRow` and `NoticeSheet` serve the page and the bell alike. The 9 toasts go |
-| Guard | `tools/check-ui-consistency.sh` refuses `Toast.makeText` anywhere (rule `toast`, none allowed), so a toast cannot come back |
+| Domain | `NoticeTone` (in order, the most serious first). `AppNotice.Message(id, at, read, tone, title, detail)`. `NoticeRules`: what is kept, how long the bell's line shows, the folded bell's tone, what the shade holds. `NoticeIntent`: `MarkAllRead`, `Read`, `Delete`, `Clear`, and `Notify` for what a screen raises. `ICodeEffect.Notice(notice)` replaces `Message`, `GitCommitted` and `DocumentSaved` |
+| Data | `ICodeStateHolder.notify(tone, title, detail)` replaces `message`. `report(subsystem, fallback, error)` keeps the fallback as the title and the error's words as the detail, through `failed(title, words)`. Each of the 99 sites chooses its tone; an outcome that can go either way (a passphrase change) chooses by it. `NoticeBoard` (in `data/notices`, out of the gateway) keeps what is said, from before anything else starts, publishes the page's list, posts to the shade and takes `NoticeIntent`. `NoticeStore` keeps the new kind, up to 100. `NoticeNotifications` holds the two channels and the group, and posts each notice under its id as its tag, so a later process withdraws what an earlier one posted |
+| UI | `NoticeHost` at the app's root, inside `FileViewerHost`: the bell, with `NoticeHostState` (what it last told, whether its line shows, ×, the sheet) and `LocalNotices`. `NoticeViews`: `NoticeRow` and `NoticeSheet` for every kind, the bell and the page alike. The two kinds' cards (`LostSessionsNotice`, `InterruptedTransferNotice`) became rows and sheets. `MainActivity.ACTION_SHOW_NOTICE` → `Arrival.Notice`. The 9 toasts go: `copyText`, `SharedFiles` and the pickers say what they have to through `dispatch` |
+| Guard | `tools/check-ui-consistency.sh`, rule `toast`: any `Toast` anywhere fails |
 
-## 5. Steps
+## 5. As built
 
-1. **N1 Domain and store**: tones, the notice kind, the store's new kind and its limit, with tests (`NoticeStoreTest`, the rules for which notices are kept and posted).
-2. **N2 The 99 sites**: each with its tone; `report` with both parts.
-3. **N3 UI**: the bell, the sheet, the page's rows; the toasts removed.
-4. **N4 The shade**: the channels, the group, the arrival, withdrawal.
-5. **N5 Checks**: the guard, type-checks, the tests touched, docs as built (`layout.md`), then
-   push.
+### 5.1 Tones, as given
+
+- **Problem**: every `report`; a terminal session that could not start; a process's output that could not be shown; a failed runtime install (its reason the detail); Git's failures ("Git operation failed", Git's words the detail); GnuPG's and the SSH client's failures in their words; a language server that would not start or stop; a provider or the assistant's settings that could not be saved; a turn that failed in a chat not shown.
+- **Heads-up**: everything that asks for something first or refuses ("Install the Linux runtime before opening a terminal", "Open a workspace before searching", "Choose Save, Discard or Cancel before closing …"), a storage transfer that left items behind, and the UI's own: no browser, no app for a picker, a file that cannot be handed out or shown, more than five attachments.
+- **Info**: a terminal session that exited with an error code; a file deleted outside iCode while open.
+- **Done**: Saved, Commit created, a Git transfer's end, a provider saved, a passphrase changed, the runtime cache cleared, and Copied below Android 13.
+
+### 5.2 How it was checked
+
+| Check | What it showed |
+|---|---|
+| Type-checks | The backend and domain (`check-assistant.sh`). The bell, the sheet, the page and every changed screen (`NoticeHost`, `NoticeViews`, `Arrival`, `NotificationsScreen`, the file viewer, the assistant's screens, the file explorer, `SharedFiles`, `CopyText`, the design system), on Compose's desktop jars |
+| Tests | The backend and domain suite: 835 tests, every one passing but `TreeSizeTest`, which fails here only because this container runs as root (a directory without permissions can still be listed). New: `NoticeStoreTest` (a message kept and read back, read one at a time, the newest 100 kept) and `NoticeRulesTest` (what is kept, the line's times, the folded bell's tone, the shade's 20). The tests that read messages now read the notice's tone, title and detail (`Said`); `AssistantCoordinatorTest` expects the workspace mark the last cycle added |
+| Guards | Backend and UI consistency, line budgets; the `toast` rule was shown to catch a toast put back |
+
+`IcodeApp` and `MainActivity` are outside every type-check here; their changes were read line by line.
+
+### 5.3 On the phone, open
+
+- Save with the button: the bell, green, "Saved", folds and fades (nothing unread).
+- Open a terminal before the runtime is installed: amber, kept; the line folds to the bell with 1 and ×. Tap it: its sheet. × puts it away.
+- Switch to a branch while changes Git would overwrite are in the way: red, "Git operation failed"; the sheet holds Git's words in mono; Copy.
+- Several in a row, then the folded bell: the Notifications page.
+- The shade: the same notices, silent, under "Notifications · N unread"; a tap opens the sheet, and reading it in iCode clears it there.
+- Turn notifications off for iCode: the bell and the page still work.
+
+A Problem that comes while iCode is out of view pops up (the Problems channel). No step above causes one
+on purpose. Git transfers (clone, fetch, pull, push) report their end as before, on their progress
+screen and, out of view, in the "Task failures" notification.

@@ -1,8 +1,11 @@
 package dev.icode.mobile.data.workspace
 
 import dev.icode.mobile.data.log.BackendLog
+import dev.icode.mobile.domain.AppNotice
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeSnapshot
+import dev.icode.mobile.domain.NoticeTone
+import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,7 +22,7 @@ import kotlinx.coroutines.withContext
  *
  * The gateway and every part split out of it read and change state here, take
  * the same lock for a state transition, and report a failure the same way:
- * one log line for whoever diagnoses it, one message in the user's words.
+ * one log line for whoever diagnoses it, one notice in the user's words.
  */
 internal class ICodeStateHolder {
     private val mutableSnapshot = MutableStateFlow(emptySnapshot())
@@ -40,11 +43,18 @@ internal class ICodeStateHolder {
 
     suspend fun emit(effect: ICodeEffect) = mutableEffects.emit(effect)
 
-    suspend fun message(text: String) = emit(ICodeEffect.Message(text))
+    /**
+     * What the user is told, of [tone] (docs/notices-plan.md): on the bell, and kept on the
+     * Notifications page and in Android's shade unless it is Done.
+     */
+    suspend fun notify(tone: NoticeTone, title: String, detail: String? = null) =
+        emit(ICodeEffect.Notice(AppNotice.Message(UUID.randomUUID().toString(), System.currentTimeMillis(), read = false, tone, title, detail)))
 
-    /** A failure the user is told about in a message: logged once, said once. */
-    suspend fun report(subsystem: String, fallback: String, error: Throwable) =
-        message(failureText(subsystem, fallback, error))
+    /** A failure the user is told about: logged once, said once — [fallback] its title, the error's own words its detail. */
+    suspend fun report(subsystem: String, fallback: String, error: Throwable) = failed(fallback, failureText(subsystem, fallback, error))
+
+    /** A failure already logged ([failureText]): [title], with [words] as its detail when they say more. */
+    suspend fun failed(title: String, words: String) = notify(NoticeTone.Problem, title, words.takeIf { it != title })
 
     /**
      * For a failure the user sees inside state instead (a failed runtime, a

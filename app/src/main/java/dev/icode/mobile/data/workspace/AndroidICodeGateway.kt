@@ -14,7 +14,7 @@ import dev.icode.mobile.data.git.GitTransferCoordinator
 import dev.icode.mobile.data.git.GitTransferLedger
 import dev.icode.mobile.data.git.GitWorkspaceCoordinator
 import dev.icode.mobile.data.language.LanguageServiceCoordinator
-import dev.icode.mobile.data.notices.NoticeStore
+import dev.icode.mobile.data.notices.NoticeBoard
 import dev.icode.mobile.data.run.RunCoordinator
 import dev.icode.mobile.data.runtime.RuntimeToolsCoordinator
 import dev.icode.mobile.data.runtime.RuntimeCoordinator
@@ -34,6 +34,7 @@ import dev.icode.mobile.data.tasks.TaskRunner
 import dev.icode.mobile.domain.BackgroundWorkRules
 import dev.icode.mobile.domain.GitAuthWorkIntent
 import dev.icode.mobile.domain.GitOperationState
+import dev.icode.mobile.domain.NoticeIntent
 import dev.icode.mobile.domain.RuntimeInstallReason
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeGateway
@@ -76,7 +77,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
         openWorkspaceTerminal = { location -> session.open(location, persist = true, openTerminal = true) },
         workspaceChanged = { session.requestRefresh(rebuildIndex = true) },
     )
-    private val notices = NoticeStore.get(appContext)
+    private val notices = NoticeBoard(appContext, stateHolder, terminals.screenVisible)
     /** Something runs in the runtime that rebuilding it, or clearing the cache PRoot works in, would break. */
     private val runtimeBusy = { terminals.hasRunningSessions() || languages.hasActiveProcesses() || execution.processes.anyRunning() }
     private val languages: LanguageServiceCoordinator = LanguageServiceCoordinator(appContext, stateHolder, scope, runtimeLayout, { session.activeRoot }) { execution.environment.current().variables }
@@ -179,6 +180,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     override val effects: SharedFlow<ICodeEffect> = stateHolder.effects
 
     init {
+        notices.start(scope) { listOfNotNull(terminals.ledger.takePrevious(), interruptedTransfer) }
         languages.publish()
         scope.launch {
             WorkspaceStaging(runtimeLayout.workspaces.root).sweep()
@@ -186,7 +188,6 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
             session.start()
         }
         scope.launch { recovery.loadRecoverable() }
-        scope.launch { observeNotices() }
         terminal.follow(scope, settings.values(null).filter { it.loaded && it.loadError == null }.map { it.terminal })
         gitWorkspace.lineChanges.follow(settings.values(null).filter { it.loaded && it.loadError == null }.map { it.editor.changeMarkers })
         scope.launch { runtime.reportState() }
@@ -203,13 +204,6 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     /** Reports screen changes of a terminal session until the handle is closed. Main thread. */
     fun observeTerminal(id: String, onScreenChanged: () -> Unit): AutoCloseable = terminals.observe(id, onScreenChanged)
 
-    /** The Notifications page; first, once per process, what the previous process's end took with it. */
-    private suspend fun observeNotices() {
-        terminals.ledger.takePrevious()?.let(notices::add)
-        interruptedTransfer?.let(notices::add)
-        notices.notices.collect { list -> stateHolder.update { it.copy(notices = list) } }
-    }
-
     override fun dispatch(intent: ICodeIntent) {
         when (intent) {
             // What must not wait on the mutation lock. apt, ssh-keygen, gpg and the network do not change the workspace.
@@ -221,6 +215,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
             is ICodeIntent.RuntimeToolsIntent -> runtimeTools.handle(intent)
             ICodeIntent.Refresh -> session.requestRefresh(rebuildIndex = true)
             is ICodeIntent.ScreenVisible -> session.screenVisible(intent.visible)
+            is NoticeIntent -> scope.launch { notices.handle(intent) }
             is ICodeIntent.StorageIntent -> library.read(intent)
             // Reading the runtime's own files changes nothing, so it does not wait
             // on the mutation lock behind whatever the workspace is doing.
@@ -250,9 +245,6 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
                         is ICodeIntent.DeclineSystemPermission -> runtime.declinePermission(intent.permission)
                         is ICodeIntent.OpenSystemSettings -> stateHolder.emit(ICodeEffect.OpenSystemSettings(intent.permission))
                         ICodeIntent.RefreshSystemAccess -> runtime.refreshSystemAccess()
-                        ICodeIntent.MarkNoticesRead -> notices.markAllRead()
-                        is ICodeIntent.DeleteNotice -> notices.delete(intent.id)
-                        ICodeIntent.ClearNotices -> notices.clear()
                         is ICodeIntent.CreateWorkspace -> lifecycle.create(intent)
                         is ICodeIntent.RenameWorkspace -> lifecycle.rename(intent)
                         is ICodeIntent.DeleteWorkspace -> lifecycle.delete(intent.location)

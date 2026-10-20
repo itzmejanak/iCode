@@ -6,8 +6,10 @@ import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceDocument
 import dev.icode.mobile.domain.GitConflictChoice
 import dev.icode.mobile.domain.LineEnding
+import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.Said
 import dev.icode.mobile.domain.TextEncoding
-import dev.icode.mobile.domain.ICodeEffect
+import dev.icode.mobile.domain.said
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -122,7 +124,7 @@ class GitConflictCoordinatorTest {
 
         harness.coordinator.resolve("src/f.txt", first.startLine, GitConflictChoice.Current)
 
-        assertEquals(ICodeEffect.Message("f.txt has unsaved edits in the editor. Save or close it first"), withTimeout(2_000) { message.await() })
+        assertEquals(Said(NoticeTone.HeadsUp, "f.txt has unsaved edits in the editor. Save or close it first"), withTimeout(2_000) { message.await() }.said())
         assertEquals(twoConflicts, harness.files.disk)
     }
 
@@ -138,7 +140,7 @@ class GitConflictCoordinatorTest {
 
         harness.coordinator.resolve("src/f.txt", first.startLine, GitConflictChoice.Current)
 
-        assertEquals(ICodeEffect.Message("f.txt changed on disk and was read again. Choose again"), withTimeout(2_000) { message.await() })
+        assertEquals(Said(NoticeTone.HeadsUp, "f.txt changed on disk and was read again. Choose again"), withTimeout(2_000) { message.await() }.said())
         assertTrue("a2" in harness.files.disk && "b1" in harness.files.disk)
         assertEquals(1, harness.stateHolder.current.activeConflict!!.sections.size)
         assertTrue(harness.events.isEmpty())

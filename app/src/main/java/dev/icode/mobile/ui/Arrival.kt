@@ -14,6 +14,9 @@ sealed interface Arrival {
 
     /** Background work's notification: where iCode shows that work (docs/long-operations-plan.md §6). */
     data class Work(val place: BackgroundPlace) : Arrival
+
+    /** A notice in Android's shade: its sheet; their summary, without [id]: the Notifications page (docs/notices-plan.md §2.5). */
+    data class Notice(val id: String?) : Arrival
 }
 
 /**
@@ -22,7 +25,7 @@ sealed interface Arrival {
  * notification needs nothing then: onboarding is already showing the install.
  */
 @Composable
-internal fun ArrivalEffect(arrival: Arrival?, navigation: NavigationState, pastOnboarding: Boolean, gateway: ICodeGateway, onArrived: () -> Unit) {
+internal fun ArrivalEffect(arrival: Arrival?, navigation: NavigationState, pastOnboarding: Boolean, gateway: ICodeGateway, notices: NoticeHostState, onArrived: () -> Unit) {
     LaunchedEffect(arrival, pastOnboarding) {
         val asked = arrival ?: return@LaunchedEffect
         if (!pastOnboarding) {
@@ -44,6 +47,8 @@ internal fun ArrivalEffect(arrival: Arrival?, navigation: NavigationState, pastO
                 // The GnuPG dialog is drawn over whatever is open.
                 BackgroundPlace.Gpg -> Unit
             }
+            // A notice's sheet is drawn over whatever is open.
+            is Arrival.Notice -> if (asked.id != null) notices.open(asked.id) else show(Route.Notifications)
         }
         onArrived()
     }

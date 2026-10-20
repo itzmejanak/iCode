@@ -15,6 +15,7 @@ import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantSession
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.NoticeTone
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
@@ -90,7 +91,7 @@ internal class AssistantCoordinator(
             is ICodeIntent.SaveAssistantProvider -> settings.save(intent)
             is ICodeIntent.RemoveAssistantProvider -> settings.remove(intent.id)
             is ICodeIntent.ListAssistantModels -> settings.list(intent)
-            ICodeIntent.WriteCommitMessage -> activeRoot()?.let(commitMessages::write) ?: page.say("Open a workspace first")
+            ICodeIntent.WriteCommitMessage -> activeRoot()?.let(commitMessages::write) ?: page.say(NoticeTone.HeadsUp, "Open a workspace first")
             ICodeIntent.CommitMessageTaken -> commitMessages.taken()
             is ICodeIntent.ChooseCommitModel -> settings.remember { providers.chooseCommitModel(intent.choice) }
         }
@@ -119,7 +120,7 @@ internal class AssistantCoordinator(
         val input = text.trim()
         if (input.isEmpty() && attachments.isEmpty()) return
         val shown = page.current
-        val workspace = shown.workspace ?: activeRoot() ?: return page.say("Open a workspace to ask the assistant")
+        val workspace = shown.workspace ?: activeRoot() ?: return page.say(NoticeTone.HeadsUp, "Open a workspace to ask the assistant")
         val session = shown.session?.takeIf { shown.workspace == workspace } ?: chats.newSession()
         turns.send(workspace, session, input, attachments)
     }
@@ -127,20 +128,20 @@ internal class AssistantCoordinator(
     private fun retry() {
         val workspace = page.current.workspace ?: return
         val session = page.current.session ?: return
-        if (chats.of(workspace, session).messages.lastOrNull() !is AssistantMessage.User) return page.say("Nothing to send again")
+        if (chats.of(workspace, session).messages.lastOrNull() !is AssistantMessage.User) return page.say(NoticeTone.HeadsUp, "Nothing to send again")
         turns.retry(workspace, session)
     }
 
     private fun compact() {
         val workspace = page.current.workspace ?: return
         val session = page.current.session ?: return
-        if (AssistantRules.forModel(chats.of(workspace, session).messages).messages.isEmpty()) return page.say("Nothing to compact yet")
+        if (AssistantRules.forModel(chats.of(workspace, session).messages).messages.isEmpty()) return page.say(NoticeTone.HeadsUp, "Nothing to compact yet")
         turns.compact(workspace, session)
     }
 
     private fun delete(session: String) {
         val workspace = page.current.workspace ?: return
-        if (turns.running == (workspace to session)) return page.say("Stop the assistant before deleting this chat")
+        if (turns.running == (workspace to session)) return page.say(NoticeTone.HeadsUp, "Stop the assistant before deleting this chat")
         chats.delete(workspace, session)
         if (page.current.session == session) page.display(workspace, null) else page.listed(workspace)
     }
@@ -149,7 +150,7 @@ internal class AssistantCoordinator(
     private fun export(session: String) {
         val workspace = page.current.workspace ?: return
         val chat = chats.of(workspace, session)
-        if (chat.messages.isEmpty()) return page.say("Nothing to share yet")
+        if (chat.messages.isEmpty()) return page.say(NoticeTone.HeadsUp, "Nothing to share yet")
         val listed = page.current.sessions.firstOrNull { it.id == session }
         val title = listed?.title ?: AssistantRules.sessionTitle(
             chat.messages.firstNotNullOfOrNull { it as? AssistantMessage.User }?.text.orEmpty(),

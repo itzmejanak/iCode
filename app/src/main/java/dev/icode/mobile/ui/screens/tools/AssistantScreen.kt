@@ -1,6 +1,5 @@
 package dev.icode.mobile.ui.screens.tools
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -23,7 +22,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
-import androidx.compose.ui.platform.LocalContext
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeBrandMark
 import dev.icode.mobile.designsystem.IcodeColors
@@ -37,6 +35,8 @@ import dev.icode.mobile.designsystem.IcodeWatermark
 import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.NoticeIntent
+import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalICodeGateway
@@ -63,11 +63,10 @@ fun AssistantScreen(actions: NavigationActions) {
     var draft by rememberSaveable(state.workspace) { mutableStateOf("") }
     var attached by rememberSaveable(state.workspace, stateSaver = DRAFT_SAVER) { mutableStateOf(emptyList<DraftFile>()) }
     // Up to five, each once, in the order chosen; any past five are said to stay behind.
-    val context = LocalContext.current
     val attach = { files: List<DraftFile> ->
         val all = (attached + files).distinctBy { it.location }
         if (all.size > AssistantRules.MAX_ATTACHMENTS) {
-            Toast.makeText(context, "Five files go with a message at most: ${all.size - AssistantRules.MAX_ATTACHMENTS} not attached", Toast.LENGTH_LONG).show()
+            gateway.dispatch(NoticeIntent.Notify(NoticeTone.HeadsUp, "Five files go with a message at most: ${all.size - AssistantRules.MAX_ATTACHMENTS} not attached"))
         }
         attached = all.take(AssistantRules.MAX_ATTACHMENTS)
     }

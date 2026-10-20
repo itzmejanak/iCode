@@ -90,7 +90,7 @@ internal fun AssistantStepRow(step: AssistantEntry.Step, onDiff: (GitChange) -> 
         change?.let { IcodeMenuAction("Show Changes", Icons.Outlined.Difference, { onDiff(it) }) },
         // As every explorer's: the path the runtime names it by.
         snapshot.assistant.workspace?.let { root ->
-            FileItemActions.copyPath(context, WorkspaceRuntimePath.within(root, WorkspaceRuntimePath.of(AssistantRules.workspaceName(root)), location))
+            FileItemActions.copyPath(context, WorkspaceRuntimePath.within(root, WorkspaceRuntimePath.of(AssistantRules.workspaceName(root)), location), gateway::dispatch)
         },
     )
     Disclosure(
@@ -133,6 +133,7 @@ internal fun Disclosure(
 ) {
     val scale = LocalCodeTextScale.current
     val context = LocalContext.current
+    val gateway = LocalICodeGateway.current
     var open by rememberSaveable(key) { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     val opens = detail != null || heading != null
@@ -193,7 +194,7 @@ internal fun Disclosure(
                             )
                         }
                     }
-                    CopyChip { copyText(context, "Output", listOfNotNull(heading, detail).joinToString("\n\n"), "Copied") }
+                    CopyChip { copyText(context, "Output", listOfNotNull(heading, detail).joinToString("\n\n"), "Copied", gateway::dispatch) }
                 }
             }
         }
