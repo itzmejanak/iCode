@@ -48,7 +48,7 @@ chooser: only a file the user asked to open is handed out.
 | Guards | Backend and UI consistency, line budgets |
 
 `DocumentCodecTest` now expects `NotTextException` for binary data, and for bytes no encoding reads
-(a new case). It was not run here: the owner asked for the push without the test runs.
+(a new case). The test suite was not run for this change.
 
 ### 4.2 On the phone, open
 
