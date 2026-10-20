@@ -59,4 +59,27 @@ class NavigationPanelTest {
         navigation.actions.back()
         assertEquals(Route.Assistant, navigation.current)
     }
+
+    @Test fun theEditorAndTheTerminalTakeTurnsRatherThanStackUp() {
+        val navigation = NavigationState.create(Route.LauncherHome, captureMode = false)
+        navigation.actions.navigate(Route.WorkspaceEditor)
+        // The editor's Terminal, then the terminal's Editor, twice over: one of them is ever on top of the other.
+        repeat(2) {
+            navigation.actions.openPanel(ToolPanelTab.Terminal)
+            navigation.actions.returnTo(Route.WorkspaceEditor)
+        }
+        assertEquals(listOf("LauncherHome", "WorkspaceEditor"), navigation.historyNames)
+        navigation.actions.back()
+        assertEquals(Route.LauncherHome, navigation.current)
+    }
+
+    @Test fun reachedFromElsewhereTheTerminalGivesWayToTheEditor() {
+        val navigation = NavigationState.create(Route.WorkspaceExplorer, captureMode = false)
+        navigation.actions.openPanel(ToolPanelTab.Terminal)
+        navigation.actions.returnTo(Route.WorkspaceEditor)
+        assertEquals(listOf("WorkspaceExplorer", "WorkspaceEditor"), navigation.historyNames)
+        // Already there, nothing moves.
+        navigation.actions.returnTo(Route.WorkspaceEditor)
+        assertEquals(listOf("WorkspaceExplorer", "WorkspaceEditor"), navigation.historyNames)
+    }
 }

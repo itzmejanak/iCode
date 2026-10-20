@@ -59,7 +59,8 @@ internal class TerminalViewCallbacks(private val keys: TerminalKeys) : TerminalV
             onEndedEnter()
             return true
         }
-        followOutput()
+        // Typing returns to the end of the output, as terminals do.
+        view?.followOutput()
         return false
     }
 
@@ -89,17 +90,9 @@ internal class TerminalViewCallbacks(private val keys: TerminalKeys) : TerminalV
             onEndedEnter()
             return true
         }
-        followOutput()
+        // Typing returns to the end of the output, as terminals do.
+        view?.followOutput()
         return false
-    }
-
-    /** Typing returns to the end of the output, as terminals do. */
-    private fun followOutput() {
-        val target = view ?: return
-        if (target.topRow != 0) {
-            target.topRow = 0
-            target.invalidate()
-        }
     }
 
     override fun onEmulatorSet() = Unit
@@ -129,5 +122,13 @@ internal class TerminalViewCallbacks(private val keys: TerminalKeys) : TerminalV
         const val LOG_TAG = "IcodeTerminal"
         const val MIN_STEP = 0.9f
         const val MAX_STEP = 1.1f
+    }
+}
+
+/** Back at the end of the output, scrolled back no longer: where what is typed or pasted shows. */
+internal fun TerminalView.followOutput() {
+    if (topRow != 0) {
+        topRow = 0
+        invalidate()
     }
 }

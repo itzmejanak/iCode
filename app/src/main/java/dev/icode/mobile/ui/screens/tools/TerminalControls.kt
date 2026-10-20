@@ -9,7 +9,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import dev.icode.mobile.designsystem.BottomBarEntry
+import dev.icode.mobile.designsystem.BottomBarItem
 import dev.icode.mobile.designsystem.EmptyState
+import dev.icode.mobile.designsystem.IcodeBottomBar
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSizes
@@ -20,6 +23,7 @@ import dev.icode.mobile.domain.RuntimeState
 import dev.icode.mobile.domain.TerminalExtraKey
 import dev.icode.mobile.ui.LeftToRight
 import dev.icode.mobile.ui.TerminalKeyChip
+import dev.icode.mobile.ui.terminal.TerminalKeys
 
 /**
  * Control keys a software keyboard cannot produce.
@@ -60,6 +64,23 @@ internal fun ExtraKeyRow(
             )
         }
     }
+}
+
+/**
+ * The terminal's bar while the keyboard is down (layout.md §17.3): Editor where the editor's bar
+ * has Terminal, so one spot goes back and forth between the code and the shell; then, for a running
+ * shell, Paste, Stop (Ctrl+C) and Clear (Ctrl+L).
+ */
+@Composable
+internal fun TerminalBar(running: Boolean, keys: TerminalKeys, onEditor: () -> Unit) {
+    IcodeBottomBar(
+        items = listOf(BottomBarItem("Editor", onClick = onEditor)),
+        trailing = {
+            BottomBarEntry(BottomBarItem("Paste", onClick = keys::paste, enabled = running))
+            BottomBarEntry(BottomBarItem("Stop", onClick = keys::interrupt, enabled = running))
+            BottomBarEntry(BottomBarItem("Clear", onClick = keys::clear, enabled = running))
+        },
+    )
 }
 
 @Composable

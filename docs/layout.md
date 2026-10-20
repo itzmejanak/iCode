@@ -437,7 +437,7 @@ Each tab communicates:
 
 Tabs scroll horizontally on compact devices. Long press opens actions such as Close Others, Close Saved, Copy Path, and Reveal in Explorer.
 
-A dirty file's tab shows a dot before its name; the editor's title shows the name alone. The close button is the Close icon. The terminal's tabs are the same strip (`IcodeTabStrip`, [icons-plan.md §4](./icons-plan.md)), each marked by its state: the Terminal icon in green while the shell runs, the error icon in red once it ended or failed.
+A dirty file's tab shows a dot before its name; the editor's title shows the name alone. The close button is the Close icon. The terminal's tabs are the same strip (`IcodeTabStrip`, [icons-plan.md §4](./icons-plan.md)), each marked by its state: the Terminal icon in the accent while the shell runs, the error icon in red once it ended or failed.
 
 ### 13.2 Code surface
 
@@ -591,11 +591,20 @@ Conflict files receive a persistent status strip and distinct markers. Inline ac
 
 The terminal occupies the complete panel body with no decorative card. Scrollback, selection, cursor, and alternate-screen applications remain readable.
 
-### 17.3 Extra keys
+### 17.3 Extra keys and the bar
 
-The row holds ESC, CTRL and ALT by name, then Tab and the four arrows as the editor's keys row draws them, left to right in every locale ([icons-plan.md §3](./icons-plan.md)). CTRL and ALT latch until the next key.
+The foot of the Terminal tab works as the editor's (§13.2.1): while the keyboard is open, the extra keys row stands above it; while it is down, the terminal's bar (owner, 2026-10-20):
 
-Users can hide keys in Terminal Settings › Extra Keys Row. The row avoids covering terminal content when a hardware keyboard is active.
+- **Editor**, where the editor's bar has **Terminal**: one spot goes back and forth between the code and the shell. It returns to the editor when the terminal was opened from it, and takes the terminal's place otherwise, so the two never stack up.
+- **Paste**: the clipboard's text at the cursor, as Termux's own Paste puts it (newlines as Enter, bracketed when the program asked for it).
+- **Stop**: Ctrl+C to the program in the foreground; at the prompt it drops the line typed.
+- **Clear**: Ctrl+L, the shell's clear screen, its prompt on the top line.
+
+Paste, Stop and Clear are muted while no shell runs. Run, Problems and Output are the header's, so the bar does not repeat them. A tap on the terminal raises the keyboard, and the keys row with it; with a hardware keyboard, which keeps the soft one down, the bar stays.
+
+The row holds ESC, CTRL and ALT by name, then Tab and the four arrows as the editor's keys row draws them, left to right in every locale ([icons-plan.md §3](./icons-plan.md)). CTRL and ALT latch until the next key; the bar's Stop and Clear send exactly their keys, letting a held one go.
+
+Users can hide keys in Terminal Settings › Extra Keys Row; with none left, the bar stays while typing too.
 
 ### 17.4 URLs
 
