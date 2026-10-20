@@ -104,7 +104,7 @@ fun BranchSelectorScreen(actions: NavigationActions) {
                 )
             }
             if (remotes.isNotEmpty()) {
-                SectionLabel("Remote branches", Modifier.padding(top = IcodeSpacing.Space3))
+                SectionLabel("Remote branches", Modifier.padding(top = IcodeSpacing.SectionBreak))
                 remotes.forEach { remote ->
                     IcodeListRow(
                         title = remote,

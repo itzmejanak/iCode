@@ -81,7 +81,7 @@ internal fun AssistantComposer(
     // Words, files or both: a photo alone is a question too.
     val canSend = (draft.isNotBlank() || attached.isNotEmpty()) && !state.running && unreadable == null
     Column(
-        Modifier.fillMaxWidth().padding(horizontal = IcodeSpacing.Space3, vertical = IcodeSpacing.Space2),
+        Modifier.fillMaxWidth().padding(horizontal = IcodeSpacing.Gutter, vertical = IcodeSpacing.Space2),
         verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
     ) {
         IcodeCard(Modifier.fillMaxWidth(), padding = PaddingValues(IcodeSpacing.Space2)) {

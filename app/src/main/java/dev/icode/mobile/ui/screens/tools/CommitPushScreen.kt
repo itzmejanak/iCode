@@ -1,8 +1,6 @@
 package dev.icode.mobile.ui.screens.tools
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,6 +19,8 @@ import androidx.compose.ui.text.font.FontWeight
 import dev.icode.mobile.designsystem.DetailRow
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodePageColumn
+import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTone
 import dev.icode.mobile.designsystem.IcodeTopBar
@@ -79,41 +79,41 @@ fun CommitPushScreen(actions: NavigationActions) {
                 )
             },
         )
-        Column(
-            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(IcodeSpacing.Space4),
-            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space4),
-        ) {
-            IcodeCard(Modifier.fillMaxWidth()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Outlined.AccountTree, contentDescription = null, tint = IcodeColors.Green)
-                    Column(Modifier.weight(1f).padding(start = IcodeSpacing.Space2 + IcodeSpacing.Micro)) {
-                        Text(
-                            repository?.branch ?: state.activeBranch.ifBlank { "No branch" },
-                            style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold),
-                        )
-                        MonoLine(
-                            branchSummary(repository),
-                            color = if (repository?.upstream != null) IcodeColors.Green else IcodeColors.TextSecondary,
-                            style = IcodeType.MonoSmall,
+        IcodePageColumn(Modifier.weight(1f)) {
+            // Where the branch stands, and the working tree.
+            IcodeSection {
+                IcodeCard(Modifier.fillMaxWidth()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Outlined.AccountTree, contentDescription = null, tint = IcodeColors.Green)
+                        Column(Modifier.weight(1f).padding(start = IcodeSpacing.Space2 + IcodeSpacing.Micro)) {
+                            Text(
+                                repository?.branch ?: state.activeBranch.ifBlank { "No branch" },
+                                style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold),
+                            )
+                            MonoLine(
+                                branchSummary(repository),
+                                color = if (repository?.upstream != null) IcodeColors.Green else IcodeColors.TextSecondary,
+                                style = IcodeType.MonoSmall,
+                            )
+                        }
+                        PrimaryButton(
+                            pushLabel(repository),
+                            { sync(ICodeIntent.PushRemote) },
+                            enabled = blocked(GitSyncAction.Push) == null,
                         )
                     }
-                    PrimaryButton(
-                        pushLabel(repository),
-                        { sync(ICodeIntent.PushRemote) },
-                        enabled = blocked(GitSyncAction.Push) == null,
-                    )
                 }
-            }
-            when {
-                repository == null -> NoticeCard(tone = IcodeTone.Warning, modifier = Modifier.fillMaxWidth()) {
-                    StatusLabel("This workspace is not a Git repository.", IcodeColors.Amber)
-                }
-                !hasRemote -> AddRemoteSection { name, url -> gateway.dispatch(ICodeIntent.AddRemote(name, url)) }
-                state.gitChanges.isEmpty() -> NoticeCard(tone = IcodeTone.Success, modifier = Modifier.fillMaxWidth()) {
-                    StatusLabel("Working tree clean. No unstaged changes.", IcodeColors.Green)
-                }
-                else -> NoticeCard(tone = IcodeTone.Info, modifier = Modifier.fillMaxWidth()) {
-                    StatusLabel("${countOf(state.gitChanges.size, "change")} in the working tree.", IcodeColors.TextSecondary)
+                when {
+                    repository == null -> NoticeCard(tone = IcodeTone.Warning, modifier = Modifier.fillMaxWidth()) {
+                        StatusLabel("This workspace is not a Git repository.", IcodeColors.Amber)
+                    }
+                    !hasRemote -> AddRemoteSection { name, url -> gateway.dispatch(ICodeIntent.AddRemote(name, url)) }
+                    state.gitChanges.isEmpty() -> NoticeCard(tone = IcodeTone.Success, modifier = Modifier.fillMaxWidth()) {
+                        StatusLabel("Working tree clean. No unstaged changes.", IcodeColors.Green)
+                    }
+                    else -> NoticeCard(tone = IcodeTone.Info, modifier = Modifier.fillMaxWidth()) {
+                        StatusLabel("${countOf(state.gitChanges.size, "change")} in the working tree.", IcodeColors.TextSecondary)
+                    }
                 }
             }
             IcodeCard(Modifier.fillMaxWidth(), elevated = true) {

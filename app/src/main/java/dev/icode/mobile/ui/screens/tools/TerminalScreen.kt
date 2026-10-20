@@ -29,6 +29,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.BottomBarEntry
 import dev.icode.mobile.designsystem.BottomBarItem
+import dev.icode.mobile.designsystem.EdgeLine
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeSizes
@@ -90,7 +91,7 @@ fun TerminalScreen(actions: NavigationActions) {
         // The panel's own header: its tabs drawn as the bottom bar's entries
         // (owner's design) — accent when active, a count pill on Problems.
         Row(
-            modifier = Modifier.fillMaxWidth().height(IcodeSizes.TopBar).background(IcodeColors.Background),
+            modifier = Modifier.fillMaxWidth().height(IcodeSizes.TopBar).background(IcodeColors.Background).padding(horizontal = IcodeSpacing.IconButtonGutter),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             IconButton(onClick = actions.back) {
@@ -128,6 +129,7 @@ fun TerminalScreen(actions: NavigationActions) {
                 ToolPanelTab.Problems, ToolPanelTab.Output -> Unit
             }
         }
+        EdgeLine()
         when (actions.panelTab) {
             ToolPanelTab.Run -> RunPanelContent(
                 adding = addingCommand,

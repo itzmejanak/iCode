@@ -30,10 +30,11 @@ internal data class SettingsCategory(
  * (checked against each page, S8.4); a page that shows a subtitle takes it from here.
  */
 internal val settingsCategories = listOf(
-    SettingsCategory("Appearance", "Theme, UI text size, density, accent", Icons.Outlined.Palette, Route.AppearanceSettings,
-        "dark light amoled color colour theme ui text scale size compact layout density accent ember"),
-    SettingsCategory("Editor", "Font, indentation, autosave, display", Icons.Outlined.Code, Route.SettingsEditor,
-        "font family size tab indent word wrap auto save format on save line numbers minimap bracket matching"),
+    SettingsCategory("Appearance", "Theme, UI text size, density, borders, accent", Icons.Outlined.Palette, Route.AppearanceSettings,
+        "dark light amoled color colour theme ui text scale size compact layout density border lines borders outline accent ember"),
+    SettingsCategory("Editor", "Font, indentation, keys, autosave, display", Icons.Outlined.Code, Route.SettingsEditor,
+        "font family size tab indent word wrap auto close brackets keyboard suggestions autocorrect keys row home end " +
+            "auto save line numbers minimap bracket matching git change markers"),
     SettingsCategory("Terminal", "Shell, extra keys, scrollback, background", Icons.Outlined.Terminal, Route.TerminalSettings,
         "shell path font family size scrollback extra keys keyboard cursor block underline bar " +
             "background notifications battery optimization bell alert long command"),

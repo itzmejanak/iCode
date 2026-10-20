@@ -1,8 +1,9 @@
 package dev.icode.mobile.designsystem
 
-import androidx.compose.foundation.border
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -11,7 +12,6 @@ import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -71,19 +71,10 @@ fun IcodeActionMenu(
     onDismiss: () -> Unit,
     actions: List<IcodeMenuAction>,
 ) {
-    DropdownMenu(
-        expanded = expanded,
-        onDismissRequest = onDismiss,
-        modifier = Modifier
-            .width(IcodeSizes.MenuWidth)
-            .border(1.dp, IcodeColors.Outline, IcodeShapes.Small),
-        containerColor = IcodeColors.SurfaceElevated,
-        shape = IcodeShapes.Small,
-        tonalElevation = 0.dp,
-    ) {
+    IcodeDropdownMenu(expanded, onDismiss, Modifier.width(IcodeSizes.MenuWidth)) {
         actions.forEach { action ->
             if (action.destructive) {
-                HorizontalDivider(color = IcodeColors.Outline)
+                Divider()
             }
             val color = when {
                 !action.enabled -> IcodeColors.TextMuted
@@ -114,4 +105,24 @@ fun IcodeActionMenu(
             )
         }
     }
+}
+
+/** Every popup menu's surface: raised over the screen, its shadow kept, its [edgeLine] drawn. */
+@Composable
+internal fun IcodeDropdownMenu(
+    expanded: Boolean,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    DropdownMenu(
+        expanded = expanded,
+        onDismissRequest = onDismiss,
+        modifier = modifier,
+        shape = IcodeShapes.Small,
+        containerColor = IcodeColors.SurfaceElevated,
+        tonalElevation = 0.dp,
+        border = edgeLine?.let { BorderStroke(1.dp, it) },
+        content = content,
+    )
 }

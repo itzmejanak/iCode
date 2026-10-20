@@ -127,7 +127,7 @@ fun FilesScreen(actions: NavigationActions, choosing: Boolean = false) {
                     permission = SystemPermission.Storage,
                     onAllow = { gateway.dispatch(ICodeIntent.RequestSystemPermission(SystemPermission.Storage)) },
                     onNotNow = actions.back,
-                    modifier = Modifier.fillMaxSize().padding(IcodeSpacing.Space6),
+                    modifier = Modifier.fillMaxSize().padding(IcodeSpacing.Gutter),
                 )
                 else -> {
                     FilesListing(browser, query, sort, choosing, browse, { renaming = it }, { deleting = it })
@@ -216,7 +216,7 @@ private fun SearchField(query: String, placeholder: String, onQuery: (String) ->
     IcodeTextField(
         value = query,
         onValueChange = onQuery,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = IcodeSpacing.Space4, vertical = IcodeSpacing.Space2),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = IcodeSpacing.Gutter, vertical = IcodeSpacing.Space2),
         placeholder = placeholder,
         leadingIcon = Icons.Outlined.Search,
         inputModifier = Modifier.focusRequester(focus),

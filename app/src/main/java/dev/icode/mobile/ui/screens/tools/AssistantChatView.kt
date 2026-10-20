@@ -34,6 +34,7 @@ import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeBrandMark
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeListRow
+import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTone
@@ -114,7 +115,8 @@ internal fun AssistantChatView(state: AssistantState, modifier: Modifier, onSugg
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
                         state = list,
-                        contentPadding = PaddingValues(IcodeSpacing.Space3),
+                        // The page's gutter; its entries a conversation's, not a page's groups.
+                        contentPadding = PaddingValues(IcodeSpacing.Gutter),
                         verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
                     ) {
                         itemsIndexed(entries, key = { _, entry -> entry.key }) { index, entry ->
@@ -158,7 +160,7 @@ internal fun AssistantChatView(state: AssistantState, modifier: Modifier, onSugg
         }
         state.turn?.let { turn ->
             Column(
-                Modifier.fillMaxWidth().padding(horizontal = IcodeSpacing.Space3, vertical = IcodeSpacing.Space1),
+                Modifier.fillMaxWidth().padding(horizontal = IcodeSpacing.Gutter, vertical = IcodeSpacing.Space1),
                 verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
             ) {
                 if (state.runningHere) IndeterminateProgressTrack(Modifier.fillMaxWidth())
@@ -209,9 +211,9 @@ private fun AssistantWelcome(state: AssistantState, modifier: Modifier, onSugges
     Box(modifier.fillMaxWidth()) {
         IcodeWatermark(Modifier.align(Alignment.Center))
         Column(
-            Modifier.align(Alignment.Center).widthIn(max = IcodeSizes.ContentMaxWidth).padding(IcodeSpacing.Space4),
+            Modifier.align(Alignment.Center).widthIn(max = IcodeSizes.ContentMaxWidth).padding(IcodeSpacing.Gutter),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
+            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.SectionGap),
         ) {
             EmptyState(
                 title = when {
@@ -228,13 +230,15 @@ private fun AssistantWelcome(state: AssistantState, modifier: Modifier, onSugges
                 },
                 mark = { IcodeBrandMark(Modifier.size(IcodeSizes.MarkLg)) },
             )
-            when {
-                asking -> ASK_SUGGESTIONS
-                planning -> PLAN_SUGGESTIONS
-                orchestrating -> ORCHESTRATOR_SUGGESTIONS
-                else -> CODE_SUGGESTIONS
-            }.forEach { suggestion ->
-                IcodeListRow(title = suggestion, card = true, onClick = { onSuggestion(suggestion) }, modifier = Modifier.fillMaxWidth())
+            IcodeSection {
+                when {
+                    asking -> ASK_SUGGESTIONS
+                    planning -> PLAN_SUGGESTIONS
+                    orchestrating -> ORCHESTRATOR_SUGGESTIONS
+                    else -> CODE_SUGGESTIONS
+                }.forEach { suggestion ->
+                    IcodeListRow(title = suggestion, card = true, onClick = { onSuggestion(suggestion) }, modifier = Modifier.fillMaxWidth())
+                }
             }
         }
     }

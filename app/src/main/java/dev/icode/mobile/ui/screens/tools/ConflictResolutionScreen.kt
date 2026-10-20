@@ -1,6 +1,5 @@
 package dev.icode.mobile.ui.screens.tools
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -166,7 +165,7 @@ private fun ConflictFooter(conflict: GitConflictFile, onMarkResolved: () -> Unit
     Column {
         NoticeCard(
             tone = if (conflict.isResolved) IcodeTone.Success else IcodeTone.Warning,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = IcodeSpacing.Space4),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = IcodeSpacing.Gutter),
         ) {
             StatusLabel(
                 if (conflict.isResolved) {
@@ -180,7 +179,7 @@ private fun ConflictFooter(conflict: GitConflictFile, onMarkResolved: () -> Unit
         PrimaryButton(
             "Mark as Resolved",
             onMarkResolved,
-            Modifier.fillMaxWidth().padding(IcodeSpacing.Space4),
+            Modifier.fillMaxWidth().padding(IcodeSpacing.Gutter),
             enabled = conflict.isResolved,
         )
     }
@@ -189,12 +188,9 @@ private fun ConflictFooter(conflict: GitConflictFile, onMarkResolved: () -> Unit
 /** Reached only if the file stopped being conflicted while the screen was open. */
 @Composable
 private fun ConflictUnavailable(actions: NavigationActions) {
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
-    ) {
+    Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Conflict", onBack = actions.back)
-        NoticeCard(tone = IcodeTone.Info, modifier = Modifier.fillMaxWidth().padding(IcodeSpacing.Space4)) {
+        NoticeCard(tone = IcodeTone.Info, modifier = Modifier.fillMaxWidth().padding(IcodeSpacing.Gutter)) {
             StatusLabel("This file is no longer conflicted.", IcodeColors.TextSecondary)
         }
     }

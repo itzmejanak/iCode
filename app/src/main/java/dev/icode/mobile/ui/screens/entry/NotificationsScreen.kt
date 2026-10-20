@@ -66,8 +66,8 @@ fun NotificationsScreen(actions: NavigationActions) {
             return@Column
         }
         LazyColumn(
-            contentPadding = PaddingValues(IcodeSpacing.Space4),
-            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
+            contentPadding = PaddingValues(IcodeSpacing.Gutter),
+            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.ItemGap),
         ) {
             if (state.recoverableDrafts.isNotEmpty()) {
                 item(key = "unsaved-work") {

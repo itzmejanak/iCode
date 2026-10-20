@@ -99,7 +99,7 @@ fun IcodeListRow(
                     onLongClick = onLongClick,
                 )
             },
-            borderColor = if (selected) IcodeColors.Accent else IcodeColors.Outline,
+            borderColor = if (selected) IcodeColors.Accent else null,
             padding = cardPadding,
             // The card would otherwise install a second click handler that
             // swallows the long press.
@@ -130,7 +130,7 @@ fun IcodeListRow(
                         else -> Modifier
                     },
                 )
-                .padding(horizontal = IcodeSpacing.Space2, vertical = if (compact) 0.dp else IcodeSpacing.Space3),
+                .padding(horizontal = IcodeSpacing.RowInset, vertical = if (compact) 0.dp else IcodeSpacing.Space3),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
             content = rowContent,

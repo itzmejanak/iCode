@@ -3,6 +3,7 @@ package dev.icode.mobile.ui.screens.workspace
 import androidx.compose.ui.graphics.toArgb
 import dev.icode.mobile.designsystem.IcodePalette
 import dev.icode.mobile.designsystem.Oklch
+import dev.icode.mobile.designsystem.everyPalette
 import dev.icode.mobile.domain.AccentColorRules
 import dev.icode.mobile.domain.FileTypes
 import org.junit.Assert.assertEquals
@@ -17,7 +18,7 @@ class FileTypeIconsTest {
     }
 
     @Test fun `every icon is at least 3 to 1 on everything it is drawn on, on every theme`() {
-        listOf(IcodePalette.Dark, IcodePalette.Light, IcodePalette.Amoled).forEach { palette ->
+        everyPalette.forEach { palette ->
             types.forEach { type ->
                 val colour = palette.fileTypeColor(type).toArgb()
                 listOf(palette.background, palette.surface, palette.surfaceElevated).forEach { behind ->

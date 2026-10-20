@@ -5,6 +5,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.LabeledField
 import dev.icode.mobile.designsystem.LabeledTextField
@@ -21,10 +22,12 @@ import dev.icode.mobile.ui.LocalICodeSnapshot
 @Composable
 internal fun WorkspaceNameFields(name: String, onNameChange: (String) -> Unit, problem: String?, destination: ProjectDestination? = null) {
     LabeledTextField(label = "Folder Name", value = name, onValueChange = onNameChange, literal = true)
-    LabeledField("Path", WorkspaceRuntimePath.of(name.trim(), destination))
-    // Nothing typed yet is not a mistake to point at.
-    if (name.isNotBlank()) {
-        StatusLabel(problem ?: "Path is valid and available", if (problem == null) IcodeColors.Green else IcodeColors.Error)
+    IcodeSection {
+        LabeledField("Path", WorkspaceRuntimePath.of(name.trim(), destination))
+        // Nothing typed yet is not a mistake to point at.
+        if (name.isNotBlank()) {
+            StatusLabel(problem ?: "Path is valid and available", if (problem == null) IcodeColors.Green else IcodeColors.Error)
+        }
     }
 }
 

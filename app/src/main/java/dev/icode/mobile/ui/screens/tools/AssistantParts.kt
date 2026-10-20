@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Compress
 import androidx.compose.material.icons.outlined.ContentCopy
@@ -29,6 +28,8 @@ import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeBrandMark
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodePageColumn
+import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeShapes
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
@@ -120,11 +121,7 @@ private fun CopyAnswer(text: String) {
 /** No provider yet: what the assistant does, what it needs, and that what it reads is sent. */
 @Composable
 internal fun AssistantSetUp(modifier: Modifier, onSetUp: () -> Unit) {
-    Column(
-        modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(IcodeSpacing.Space6),
-        verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space4),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
+    IcodePageColumn(modifier) {
         EmptyState(
             title = "Set up the assistant",
             description = "It reads and changes this workspace's files and runs commands in its runtime, " +
@@ -132,11 +129,13 @@ internal fun AssistantSetUp(modifier: Modifier, onSetUp: () -> Unit) {
                 "Ollama, or any OpenAI-compatible server.",
             mark = { IcodeBrandMark(Modifier.size(IcodeSizes.MarkLg)) },
         )
-        Text(
-            "What it reads — files, search results, command output — is sent to the provider you choose.",
-            style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary),
-        )
-        PrimaryButton("Set Up Assistant", onSetUp, Modifier.fillMaxWidth())
+        IcodeSection {
+            Text(
+                "What it reads — files, search results, command output — is sent to the provider you choose.",
+                style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary),
+            )
+            PrimaryButton("Set Up Assistant", onSetUp, Modifier.fillMaxWidth())
+        }
     }
 }
 

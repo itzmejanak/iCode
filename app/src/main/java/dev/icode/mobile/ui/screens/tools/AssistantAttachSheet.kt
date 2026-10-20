@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FolderOpen
@@ -102,7 +103,7 @@ internal fun AssistantAttachSheet(
         Hint(if (full) "Five files go with a message at most: take one off to add another" else "Photos and PDFs go to models that read them; text files to any model")
         // The workspace's own files; the chat is only open on one.
         if (root != null) {
-            SectionLabel("From ${AssistantRules.workspaceName(root)}")
+            SectionLabel("From ${AssistantRules.workspaceName(root)}", Modifier.padding(top = IcodeSpacing.SectionBreak))
             Search(query, "Search files", literal = true) { query = it }
             open?.let { document -> FileRow(document.name, document.location, "Open · ${pathOf(document.location)}") }
             listed.forEach { file -> FileRow(file.name, file.path, pathOf(file.path)) }
@@ -125,7 +126,7 @@ internal fun AssistantAttachSheet(
 /** One of the phone's pickers: its icon over its name; muted, and not a button, while five are attached. */
 @Composable
 private fun AttachTile(label: String, icon: ImageVector, enabled: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    IcodeCard(modifier, elevated = true, padding = PaddingValues(vertical = IcodeSpacing.Space3), onClick = onClick.takeIf { enabled }) {
+    IcodeCard(modifier, padding = PaddingValues(vertical = IcodeSpacing.Space3), onClick = onClick.takeIf { enabled }) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
             Icon(icon, contentDescription = null, tint = if (enabled) IcodeColors.Accent else IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconXl))
             Text(label, style = IcodeType.Caption.copy(color = if (enabled) IcodeColors.TextPrimary else IcodeColors.TextMuted))

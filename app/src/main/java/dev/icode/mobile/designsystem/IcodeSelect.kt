@@ -1,7 +1,5 @@
 package dev.icode.mobile.designsystem
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,7 +11,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -31,7 +28,6 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 
 /**
  * One select primitive — same tokens, same menu, two variants.
@@ -58,7 +54,7 @@ fun <T> IcodeSelect(
     val dismiss = { expanded = false }
     when (variant) {
         IcodeSelectVariant.Card -> {
-            Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
+            Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(IcodeSpacing.ItemGap)) {
                 label?.let { SectionLabel(it) }
                 Box {
                     IcodeCard(
@@ -115,16 +111,7 @@ private fun <T> SelectMenu(
     onSelect: (T) -> Unit,
     optionDescription: ((T) -> String?)?,
 ) {
-    DropdownMenu(
-        expanded = expanded,
-        onDismissRequest = onDismiss,
-        modifier = Modifier
-            .background(IcodeColors.SurfaceElevated, IcodeShapes.Small)
-            .border(1.dp, IcodeColors.Outline, IcodeShapes.Small),
-        containerColor = IcodeColors.SurfaceElevated,
-        shape = IcodeShapes.Small,
-        tonalElevation = 0.dp,
-    ) {
+    IcodeDropdownMenu(expanded, onDismiss) {
         options.forEach { option ->
             DropdownMenuItem(
                 text = {

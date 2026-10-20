@@ -1,12 +1,9 @@
 package dev.icode.mobile.ui.screens.tools
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -16,6 +13,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import dev.icode.mobile.designsystem.IcodePageColumn
+import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeColors
@@ -110,16 +109,10 @@ fun GitAuthScreen(actions: NavigationActions) {
 
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Git Credentials", subtitle = step.caption, onBack = actions.back)
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(IcodeSpacing.Space5),
-            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
-        ) {
+        IcodePageColumn(Modifier.weight(1f)) {
             when (step) {
                 GitAuthStep.Identity -> {
-                    if (state.gitIdentityLoaded && state.gitAvailable == false) {
+                    if (state.gitIdentityLoaded && state.gitAvailable == false) IcodeSection {
                         Text(
                             if (state.runtimeHealthy) "Git is not installed in the runtime yet."
                             else "Install the Linux runtime before setting Git identity.",
@@ -139,19 +132,21 @@ fun GitAuthScreen(actions: NavigationActions) {
                             enabled = gitInstall == null,
                         )
                     }
-                    SegmentedControl(
-                        values = if (repository == null) listOf("Default") else listOf("Default", "This repo"),
-                        active = if (identityScope == IdentityScope.Default) "Default" else "This repo",
-                    ) { selected ->
-                        identityScope = if (selected == "Default") IdentityScope.Default else IdentityScope.Repository
-                        identityEdited = false
-                        pendingIdentitySave = null
+                    IcodeSection {
+                        SegmentedControl(
+                            values = if (repository == null) listOf("Default") else listOf("Default", "This repo"),
+                            active = if (identityScope == IdentityScope.Default) "Default" else "This repo",
+                        ) { selected ->
+                            identityScope = if (selected == "Default") IdentityScope.Default else IdentityScope.Repository
+                            identityEdited = false
+                            pendingIdentitySave = null
+                        }
+                        Text(
+                            if (identityScope == IdentityScope.Default) "Default for every repository in this app's Linux runtime"
+                            else "Overrides the default only for ${state.activeWorkspace}",
+                            style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary),
+                        )
                     }
-                    Text(
-                        if (identityScope == IdentityScope.Default) "Default for every repository in this app's Linux runtime"
-                        else "Overrides the default only for ${state.activeWorkspace}",
-                        style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary),
-                    )
                     IdentitySection(
                         name = name,
                         email = email,
@@ -246,7 +241,7 @@ private fun StepActions(
         // Signing is the user's choice: the step never holds the flow up.
         GitAuthStep.Signing, GitAuthStep.Verify -> true
     }
-    Column(Modifier.padding(IcodeSpacing.Space5)) {
+    Column(Modifier.padding(IcodeSpacing.Gutter)) {
         when (step) {
             GitAuthStep.Verify -> TwoColumnActions(
                 left = { SecondaryButton("Back", onBack, Modifier.fillMaxWidth()) },

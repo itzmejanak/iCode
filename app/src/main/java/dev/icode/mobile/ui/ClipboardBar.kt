@@ -19,7 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import dev.icode.mobile.designsystem.Divider
+import dev.icode.mobile.designsystem.EdgeLine
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
@@ -41,9 +41,9 @@ fun ClipboardBar(clipboard: ItemClipboard, destination: String?, onPaste: () -> 
     val refused = clipboard.notAWorkspace.takeIf { destination == null }
     val gateway = LocalICodeGateway.current
     Column(modifier.fillMaxWidth().background(IcodeColors.SurfaceElevated)) {
-        Divider()
+        EdgeLine()
         Row(
-            modifier = Modifier.fillMaxWidth().padding(start = IcodeSpacing.Space4, end = IcodeSpacing.Space1, top = IcodeSpacing.Space2, bottom = IcodeSpacing.Space2),
+            modifier = Modifier.fillMaxWidth().padding(start = IcodeSpacing.Gutter, end = IcodeSpacing.IconButtonGutter, top = IcodeSpacing.Space2, bottom = IcodeSpacing.Space2),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
         ) {

@@ -46,6 +46,7 @@ class AndroidWorkspacePreferencesRepository internal constructor(
     private val themeKey = stringPreferencesKey("appearance_theme")
     private val uiScaleKey = intPreferencesKey("appearance_ui_text_scale_percent")
     private val compactKey = booleanPreferencesKey("appearance_compact_layout")
+    private val borderLinesKey = booleanPreferencesKey("appearance_border_lines")
     private val accentKey = intPreferencesKey("appearance_accent_color")
     private val fontSizeKey = intPreferencesKey("editor_font_size_sp")
     private val fontFamilyKey = stringPreferencesKey("editor_font_family")
@@ -77,6 +78,7 @@ class AndroidWorkspacePreferencesRepository internal constructor(
                 theme = prefs[themeKey]?.let { enumOrNull<AppTheme>(it) } ?: appearanceDefaults.theme,
                 uiTextScalePercent = prefs[uiScaleKey]?.takeIf { it in SettingLimits.uiTextScales } ?: appearanceDefaults.uiTextScalePercent,
                 compactLayout = prefs[compactKey] ?: appearanceDefaults.compactLayout,
+                borderLines = prefs[borderLinesKey] ?: appearanceDefaults.borderLines,
                 accentColor = prefs[accentKey]?.let(AccentColorRules::opaque),
             ),
             editor = EditorSettings(
@@ -124,6 +126,7 @@ class AndroidWorkspacePreferencesRepository internal constructor(
     }
 
     override suspend fun setCompactLayout(compact: Boolean) { store.edit { it[compactKey] = compact } }
+    override suspend fun setBorderLines(shown: Boolean) { store.edit { it[borderLinesKey] = shown } }
 
     override suspend fun setAccentColor(argb: Int?) {
         store.edit { if (argb == null) it.remove(accentKey) else it[accentKey] = AccentColorRules.opaque(argb) }

@@ -22,6 +22,7 @@ import dev.icode.mobile.designsystem.DangerButton
 import dev.icode.mobile.designsystem.DetailRow
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeConfirmDialog
+import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTone
 import dev.icode.mobile.designsystem.IcodeTopBar
@@ -29,7 +30,6 @@ import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.NoticeCard
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SettingRow
-import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.RuntimeTools
 import dev.icode.mobile.domain.RuntimeToolsState
@@ -64,9 +64,10 @@ fun RuntimeSettingsScreen(actions: NavigationActions) {
 
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Runtime Environment", onBack = actions.back)
+        // The page's rhythm, without scrolling: the rebuilds stay at its foot.
         Column(
-            modifier = Modifier.fillMaxSize().padding(IcodeSpacing.Space4),
-            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space4 + IcodeSpacing.Micro),
+            modifier = Modifier.fillMaxSize().padding(IcodeSpacing.Gutter),
+            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.SectionGap),
         ) {
             val healthy = state.runtime is RuntimeState.Ready
             NoticeCard(
@@ -77,43 +78,48 @@ fun RuntimeSettingsScreen(actions: NavigationActions) {
             ) {
                 Text(runtimeSummary(state.runtime), style = IcodeType.Caption)
             }
-            SectionLabel("Technical Details")
-            IcodeCard(Modifier.fillMaxWidth()) {
-                // Until the first read lands, every row says so rather than "Not measured".
-                val checking = CHECKING.takeUnless { details.inspected }
-                DetailRow("Architecture", checking ?: details.architecture.ifBlank { UNKNOWN })
-                DetailRow("Runtime Home", checking ?: details.rootfsPath.ifBlank { UNKNOWN })
-                DetailRow("Installed Packages", checking ?: packageCount(details))
-                DetailRow("Disk Usage", checking ?: diskUsage(details))
-                DetailRow("PRoot Version", checking ?: details.prootVersion ?: UNKNOWN)
+            IcodeSection("Technical Details") {
+                IcodeCard(Modifier.fillMaxWidth()) {
+                    // Until the first read lands, every row says so rather than "Not measured".
+                    val checking = CHECKING.takeUnless { details.inspected }
+                    DetailRow("Architecture", checking ?: details.architecture.ifBlank { UNKNOWN })
+                    DetailRow("Runtime Home", checking ?: details.rootfsPath.ifBlank { UNKNOWN })
+                    DetailRow("Installed Packages", checking ?: packageCount(details))
+                    DetailRow("Disk Usage", checking ?: diskUsage(details))
+                    DetailRow("PRoot Version", checking ?: details.prootVersion ?: UNKNOWN)
+                }
+                SettingRow(
+                    "Runtime Tools",
+                    modifier = Modifier.fillMaxWidth(),
+                    subtitle = toolsSummary(state.runtimeTools),
+                    leadingIcon = Icons.Outlined.Extension,
+                    onClick = { actions.navigate(Route.RuntimeTools) },
+                )
             }
-            SettingRow(
-                "Runtime Tools",
-                modifier = Modifier.fillMaxWidth(),
-                subtitle = toolsSummary(state.runtimeTools),
-                leadingIcon = Icons.Outlined.Extension,
-                onClick = { actions.navigate(Route.RuntimeTools) },
-            )
             Spacer(Modifier.weight(1f))
-            SecondaryButton(
-                "Repair Runtime",
-                { pending = RuntimeRebuild.Repair },
-                Modifier.fillMaxWidth(),
-            )
-            Text(
-                "Reinstalls the base system and keeps your home directory and workspaces. " +
-                    "Packages you installed are not kept.",
-                style = IcodeType.Caption,
-            )
-            DangerButton(
-                "Reset Runtime",
-                { pending = RuntimeRebuild.Reset },
-                Modifier.fillMaxWidth(),
-            )
-            Text(
-                "Removes everything in the runtime, including your home directory and installed tools. Workspaces are kept.",
-                style = IcodeType.Caption,
-            )
+            IcodeSection {
+                SecondaryButton(
+                    "Repair Runtime",
+                    { pending = RuntimeRebuild.Repair },
+                    Modifier.fillMaxWidth(),
+                )
+                Text(
+                    "Reinstalls the base system and keeps your home directory and workspaces. " +
+                        "Packages you installed are not kept.",
+                    style = IcodeType.Caption,
+                )
+            }
+            IcodeSection {
+                DangerButton(
+                    "Reset Runtime",
+                    { pending = RuntimeRebuild.Reset },
+                    Modifier.fillMaxWidth(),
+                )
+                Text(
+                    "Removes everything in the runtime, including your home directory and installed tools. Workspaces are kept.",
+                    style = IcodeType.Caption,
+                )
+            }
         }
     }
 

@@ -92,7 +92,7 @@ fun WorkspaceFindScreen(actions: NavigationActions, initialMode: FindMode) {
         IcodeTextField(
             value = query,
             onValueChange = { query = it },
-            modifier = Modifier.fillMaxWidth().padding(IcodeSpacing.Space4),
+            modifier = Modifier.fillMaxWidth().padding(IcodeSpacing.Gutter),
             placeholder = mode.placeholder,
             leadingIcon = Icons.Outlined.Search,
         )

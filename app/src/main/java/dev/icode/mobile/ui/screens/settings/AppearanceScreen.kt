@@ -10,8 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -27,7 +25,9 @@ import androidx.compose.ui.semantics.semantics
 import dev.icode.mobile.designsystem.CodeSurface
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodePageColumn
 import dev.icode.mobile.designsystem.IcodePalette
+import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeShapes
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSlider
@@ -36,7 +36,6 @@ import dev.icode.mobile.designsystem.IcodeToggle
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.MonoLine
-import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.SettingRow
 import dev.icode.mobile.domain.AccentColorRules
 import dev.icode.mobile.domain.AppTheme
@@ -63,71 +62,78 @@ fun AppearanceScreen(actions: NavigationActions) {
 
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Appearance", subtitle = settingsSubtitle(Route.AppearanceSettings), onBack = actions.back)
-        Column(
-            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(IcodeSpacing.Space4),
-            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space4 + IcodeSpacing.Micro),
-        ) {
+        IcodePageColumn {
             if (!preferences.loaded) Text("Loading settings…", style = IcodeType.Caption)
             preferences.loadError?.let {
                 Text("Settings unavailable: $it", style = IcodeType.Caption.copy(color = IcodeColors.Error))
             }
             saver.error?.let { Text(it, style = IcodeType.Caption.copy(color = IcodeColors.Error)) }
-            SectionLabel("Color Theme")
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2 + IcodeSpacing.Micro),
-            ) {
-                AppTheme.entries.forEach { option ->
-                    ThemeSwatch(
-                        option = option,
-                        selected = appearance.theme == option,
-                        onClick = { saver.save { repository.setTheme(option) } },
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-            }
-            SectionLabel("Font Size & Scale")
-            IcodeCard(Modifier.fillMaxWidth()) {
-                // The slider's thumb sits on the ends of its track: without room it covered the labels.
+            IcodeSection("Color Theme") {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.ItemGap),
                 ) {
-                    Text("Aa", style = IcodeType.Caption)
-                    IcodeSlider(
-                        value = pendingScale,
-                        onValueChange = { pendingScale = it },
-                        modifier = Modifier.weight(1f),
-                        onValueChangeFinished = {
-                            val percent = SettingLimits.uiTextScaleAt(pendingScale)
-                            saver.save { repository.setUiTextScalePercent(percent) }
-                        },
-                    )
-                    Text("Aa", style = IcodeType.Body)
-                }
-                Text("${SettingLimits.uiTextScaleAt(pendingScale)}% UI text", style = IcodeType.Caption)
-                Column(Modifier.padding(top = IcodeSpacing.Space2)) {
-                    CodeSurface(Modifier.fillMaxWidth()) { MonoLine("const ide = iCode.init();") }
+                    AppTheme.entries.forEach { option ->
+                        ThemeSwatch(
+                            sample = IcodePalette.of(option, appearance.borderLines),
+                            name = option.name,
+                            selected = appearance.theme == option,
+                            onClick = { saver.save { repository.setTheme(option) } },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
                 }
             }
-            SectionLabel("UI Density")
-            SettingRow("Compact Layout", Modifier.fillMaxWidth()) {
-                IcodeToggle(appearance.compactLayout) {
-                    saver.save { repository.setCompactLayout(it) }
+            IcodeSection("Font Size & Scale") {
+                IcodeCard(Modifier.fillMaxWidth()) {
+                    // The slider's thumb sits on the ends of its track: without room it covered the labels.
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
+                    ) {
+                        Text("Aa", style = IcodeType.Caption)
+                        IcodeSlider(
+                            value = pendingScale,
+                            onValueChange = { pendingScale = it },
+                            modifier = Modifier.weight(1f),
+                            onValueChangeFinished = {
+                                val percent = SettingLimits.uiTextScaleAt(pendingScale)
+                                saver.save { repository.setUiTextScalePercent(percent) }
+                            },
+                        )
+                        Text("Aa", style = IcodeType.Body)
+                    }
+                    Text("${SettingLimits.uiTextScaleAt(pendingScale)}% UI text", style = IcodeType.Caption)
+                    Column(Modifier.padding(top = IcodeSpacing.Space2)) {
+                        CodeSurface(Modifier.fillMaxWidth()) { MonoLine("const ide = iCode.init();") }
+                    }
                 }
             }
-            SectionLabel("Accent Color")
-            SettingRow(
-                if (appearance.accentColor == null) "Theme accent" else "${AccentColorRules.nameOf(accentArgb)} accent",
-                Modifier.fillMaxWidth(),
-                onClick = { if (saver.ready) pickingAccent = true },
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
+            IcodeSection("UI Density") {
+                SettingRow("Compact Layout", Modifier.fillMaxWidth()) {
+                    IcodeToggle(appearance.compactLayout) {
+                        saver.save { repository.setCompactLayout(it) }
+                    }
+                }
+                SettingRow("Border Lines", Modifier.fillMaxWidth(), subtitle = "Lines around cards, menus and bars") {
+                    IcodeToggle(appearance.borderLines) {
+                        saver.save { repository.setBorderLines(it) }
+                    }
+                }
+            }
+            IcodeSection("Accent Color") {
+                SettingRow(
+                    if (appearance.accentColor == null) "Theme accent" else "${AccentColorRules.nameOf(accentArgb)} accent",
+                    Modifier.fillMaxWidth(),
+                    onClick = { if (saver.ready) pickingAccent = true },
                 ) {
-                    Box(Modifier.size(IcodeSizes.IconSm).background(accent, IcodeShapes.Pill))
-                    MonoLine(AccentColorRules.hex(accentArgb), color = accent, style = IcodeType.MonoSmall)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
+                    ) {
+                        Box(Modifier.size(IcodeSizes.IconSm).background(accent, IcodeShapes.Pill))
+                        MonoLine(AccentColorRules.hex(accentArgb), color = accent, style = IcodeType.MonoSmall)
+                    }
                 }
             }
         }
@@ -145,21 +151,17 @@ fun AppearanceScreen(actions: NavigationActions) {
     }
 }
 
+/** A theme to choose, its page shown as it will be drawn ([sample]). */
 @Composable
-private fun ThemeSwatch(option: AppTheme, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val sample = when (option) {
-        AppTheme.Dark -> IcodePalette.Dark
-        AppTheme.Light -> IcodePalette.Light
-        AppTheme.Amoled -> IcodePalette.Amoled
-    }
+private fun ThemeSwatch(sample: IcodePalette, name: String, selected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
     IcodeCard(
         modifier = modifier.semantics { this.selected = selected },
-        borderColor = if (selected) IcodeColors.Accent else IcodeColors.Outline,
+        borderColor = if (selected) IcodeColors.Accent else null,
         onClick = onClick,
     ) {
         Box(Modifier.fillMaxWidth().height(IcodeSizes.Swatch).background(sample.background))
         Text(
-            option.name,
+            name,
             modifier = Modifier.padding(top = IcodeSpacing.Space2),
             style = IcodeType.Body,
             color = if (selected) IcodeColors.TextPrimary else IcodeColors.TextSecondary,

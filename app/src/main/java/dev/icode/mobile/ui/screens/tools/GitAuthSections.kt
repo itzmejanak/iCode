@@ -6,6 +6,7 @@ import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.BottomBarItem
 import dev.icode.mobile.designsystem.IcodeBottomBar
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSelect
 import dev.icode.mobile.designsystem.IcodeTone
 import dev.icode.mobile.designsystem.IcodeType
@@ -46,13 +47,15 @@ internal fun IdentitySection(
     onName: (String) -> Unit,
     onEmail: (String) -> Unit,
 ) {
-    LabeledTextField("Name", name, onName, placeholder = "Your name", modifier = Modifier.fillMaxWidth())
-    LabeledTextField("Email", email, onEmail, placeholder = "you@example.com", modifier = Modifier.fillMaxWidth(), literal = true)
-    MonoLine(
-        description,
-        color = IcodeColors.TextMuted,
-        style = IcodeType.MonoSmall,
-    )
+    IcodeSection {
+        LabeledTextField("Name", name, onName, placeholder = "Your name", modifier = Modifier.fillMaxWidth())
+        LabeledTextField("Email", email, onEmail, placeholder = "you@example.com", modifier = Modifier.fillMaxWidth(), literal = true)
+        MonoLine(
+            description,
+            color = IcodeColors.TextMuted,
+            style = IcodeType.MonoSmall,
+        )
+    }
 }
 
 @Composable
@@ -131,19 +134,21 @@ internal fun VerifySection(auth: GitAuthState, url: String, onUrl: (String) -> U
     ) {
         StatusLabel(credential, IcodeColors.TextSecondary)
     }
-    LabeledTextField(
-        "Repository URL",
-        url,
-        onUrl,
-        placeholder = "git@host:owner/repo.git",
-        modifier = Modifier.fillMaxWidth(),
-        literal = true,
-    )
-    MonoLine(
-        "Runs a read-only ls-remote. Nothing is written to the repository.",
-        color = IcodeColors.TextMuted,
-        style = IcodeType.MonoSmall,
-    )
+    IcodeSection {
+        LabeledTextField(
+            "Repository URL",
+            url,
+            onUrl,
+            placeholder = "git@host:owner/repo.git",
+            modifier = Modifier.fillMaxWidth(),
+            literal = true,
+        )
+        MonoLine(
+            "Runs a read-only ls-remote. Nothing is written to the repository.",
+            color = IcodeColors.TextMuted,
+            style = IcodeType.MonoSmall,
+        )
+    }
     auth.lastTest?.let { result ->
         NoticeCard(
             tone = if (result.succeeded) IcodeTone.Success else IcodeTone.Error,

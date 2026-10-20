@@ -90,6 +90,8 @@ The default theme is not a permanent dark-only restriction. Semantic tokens allo
 | `text.secondary` | `#9AA69A` | Supporting content |
 | `text.muted` | `#5F6C60` | Disabled and low-emphasis metadata |
 
+These are the Dark theme with border lines. Without them, the surfaces and the colours drawn on them are derived from these by one rule ([border-lines-plan.md §3](./border-lines-plan.md)).
+
 ### 4.2 Semantic color rules
 
 - Ember identifies the active primary action or focused control; it is not used decoratively everywhere.
@@ -115,6 +117,8 @@ Users can configure editor and terminal fonts independently. System font scaling
 ### 4.4 Shape and density
 
 - Cards and modal surfaces use restrained rounded corners.
+- Every line where a surface ends — a card's, a dialog's, a popup menu's, the line under the top bar and the terminal's header, the line over the clipboard, folder-choice and foot bars — is 1 dp and drawn while Appearance › Border Lines is on (the default). Off, surfaces stand apart by tone: the theme's surfaces are derived to sit at least 1.12 : 1 from the page, and nothing on them reads worse ([border-lines-plan.md](./border-lines-plan.md)). A line that says something — a control's edge, a selection, a warning or error tone — and the separators between rows are drawn either way.
+- A card stands one step above what it is on: the surface tone on a page, the raised tone on a sheet.
 - Editor, terminal, diff, and dense tree rows use minimal decoration.
 - Touch targets remain at least 48 dp even when the visual icon is smaller.
 - Dense lists preserve a clear selected state and comfortable row height.
@@ -122,16 +126,29 @@ Users can configure editor and terminal fonts independently. System font scaling
 
 ### 4.5 Spacing scale
 
-| Token | Value | Use |
+`IcodeSpacing` in Compact Layout (the default); with it off, every step from `space.2` up is 4 dp wider.
+
+| Token | Compact | Use |
 |---|---:|---|
 | `space.1` | 4 dp | Icon-label and micro spacing |
-| `space.2` | 8 dp | Compact internal spacing |
-| `space.3` | 12 dp | Row and control spacing |
-| `space.4` | 16 dp | Card and panel padding |
-| `space.5` | 20 dp | Page gutter on compact screens |
-| `space.6` | 24 dp | Section separation |
+| `space.2` | 8 dp | Compact internal spacing; `ItemGap` |
+| `space.3` | 12 dp | Row and control spacing, card padding |
+| `space.4` | 16 dp | Panel padding; `Gutter` |
+| `space.5` | 20 dp | `SectionGap` |
+| `space.6` | 24 dp | Around a centered empty state |
 
-Code and terminal surfaces may use tighter internal metrics where touch targets are not involved.
+Every page keeps one rhythm (owner, 2026-10-19; [border-lines-plan.md](./border-lines-plan.md) §5):
+
+| Token | Value | Use |
+|---|---|---|
+| `Gutter` | `space.4`, 16 dp | A page's content from the screen's edges: cards, fields, buttons, a list's text, a top bar's title |
+| `ItemGap` | `space.2`, 8 dp | Between the cards and items of a group, under a group's label, between side-by-side actions |
+| `SectionGap` | `space.5`, 20 dp | Between a page's groups |
+| `SectionBreak` | `SectionGap` − `ItemGap` | Above a group's label inside a run of items (a list, a sheet) |
+| `IconButtonGutter` | `Gutter` − 12 dp | A bar's edge beside an icon button, so its icon lines up with the gutter, as Material's top app bar has it |
+| `RowGutter` | `Gutter` − `space.2` | Beside a list of rows, so their text lines up with the gutter and their selection is drawn a little wider |
+
+A page is `IcodePageColumn` (scrolling, the gutter, groups `SectionGap` apart) of `IcodeSection`s (an optional label, items `ItemGap` apart); a labeled field is a section of one. Code and terminal surfaces, dense trees and lists (the Explorer, Source Control's changes, the Command Palette), the chat's conversation and logs keep their own tighter metrics where touch targets are not involved; a centered empty state keeps `space.6` around it.
 
 ## 5. Adaptive Width Classes
 

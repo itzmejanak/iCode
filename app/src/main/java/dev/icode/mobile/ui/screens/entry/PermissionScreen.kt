@@ -61,7 +61,7 @@ fun PermissionScreen(actions: NavigationActions) {
             gateway.dispatch(ICodeIntent.DeclineSystemPermission(current))
             position++
         },
-        modifier = Modifier.fillMaxSize().padding(IcodeSpacing.Space6),
+        modifier = Modifier.fillMaxSize().padding(IcodeSpacing.Gutter),
         header = {
             if (steps.size > 1) {
                 Text(

@@ -29,7 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
-import dev.icode.mobile.designsystem.Divider
+import dev.icode.mobile.designsystem.EdgeLine
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeActionMenu
 import dev.icode.mobile.designsystem.IcodeColors
@@ -74,7 +74,7 @@ internal fun FilesListing(
     val here = if (foldersOnly) browser.items.filter { it.folder } else browser.items
     val shown = FilesRules.sorted(FilesRules.matching(here, query), sort, state.workspaceSizes)
     val top = browser.place == StoragePlace.Private && browser.atRoot
-    LazyColumn(contentPadding = PaddingValues(start = IcodeSpacing.Space2, end = IcodeSpacing.Space2, bottom = IcodeSizes.FabClearance)) {
+    LazyColumn(contentPadding = PaddingValues(start = IcodeSpacing.RowGutter, end = IcodeSpacing.RowGutter, bottom = IcodeSizes.FabClearance)) {
         browser.parent?.let { parent -> item(key = "..") { UpRow { browse(parent) } } }
         when {
             // Empty as far as this list goes: choosing, a folder of files has no place to offer.
@@ -211,9 +211,9 @@ internal fun ChooseBar(browser: FilesBrowserState?, onChoose: (String?) -> Unit)
     // A folder inside a workspace; at the top, none: a new workspace.
     val place = browser?.takeUnless { it.atRoot }
     Column(Modifier.fillMaxWidth().background(IcodeColors.SurfaceElevated)) {
-        Divider()
+        EdgeLine()
         Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = IcodeSpacing.Space4, vertical = IcodeSpacing.Space2),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = IcodeSpacing.Gutter, vertical = IcodeSpacing.Space2),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
         ) {

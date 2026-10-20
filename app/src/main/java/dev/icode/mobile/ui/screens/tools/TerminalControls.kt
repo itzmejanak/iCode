@@ -11,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.MonoLine
@@ -64,11 +65,11 @@ internal fun ExtraKeyRow(
 @Composable
 internal fun RuntimeGate(runtime: RuntimeState, onInstall: () -> Unit) {
     Column(
-        modifier = Modifier.fillMaxWidth().padding(IcodeSpacing.Space5),
-        verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
+        modifier = Modifier.fillMaxWidth().padding(IcodeSpacing.Gutter),
+        verticalArrangement = Arrangement.spacedBy(IcodeSpacing.SectionGap),
     ) {
         when (runtime) {
-            is RuntimeState.Downloading -> {
+            is RuntimeState.Downloading -> IcodeSection {
                 MonoLine(runtime.label, color = IcodeColors.TextSecondary)
                 MonoLine(
                     runtime.transferred + (runtime.fraction?.let { " (${(it * 100).toInt()}%)" } ?: ""),

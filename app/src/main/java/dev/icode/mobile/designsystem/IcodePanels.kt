@@ -5,6 +5,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.defaultMinSize
@@ -91,6 +93,22 @@ fun IcodeBottomBar(
             items.forEach { item -> BottomBarEntry(item, if (item.choice) Modifier.weight(1f, fill = false) else Modifier) }
         }
         trailing?.invoke(this)
+    }
+}
+
+/**
+ * A page's actions at its foot, the page scrolling above them: a surface band with its [EdgeLine]
+ * on top, its content [IcodeSpacing.Gutter] from the edges and [IcodeSpacing.ItemGap] apart.
+ */
+@Composable
+fun IcodeFootBar(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Column(modifier.fillMaxWidth().background(IcodeColors.Surface)) {
+        EdgeLine()
+        Column(
+            Modifier.fillMaxWidth().padding(IcodeSpacing.Gutter),
+            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.ItemGap),
+            content = content,
+        )
     }
 }
 

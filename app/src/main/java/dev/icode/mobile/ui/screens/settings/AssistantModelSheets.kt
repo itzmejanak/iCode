@@ -102,7 +102,7 @@ internal fun AddModelsSheet(
                 leading = { Icon(Icons.Outlined.Add, contentDescription = null, tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconMd)) },
             )
         }
-        SectionLabel("Served by $providerName", Modifier.padding(top = IcodeSpacing.Space2))
+        SectionLabel("Served by $providerName", Modifier.padding(top = IcodeSpacing.SectionBreak))
         when {
             available == null || available.loading -> Row(
                 Modifier.padding(vertical = IcodeSpacing.Space2),
@@ -120,7 +120,7 @@ internal fun AddModelsSheet(
             else -> Choices(served)
         }
         if (known.any(::matches)) {
-            SectionLabel("Known to iCode", Modifier.padding(top = IcodeSpacing.Space2))
+            SectionLabel("Known to iCode", Modifier.padding(top = IcodeSpacing.SectionBreak))
             Choices(known)
         }
     }

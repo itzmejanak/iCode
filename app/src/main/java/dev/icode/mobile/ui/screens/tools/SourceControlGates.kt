@@ -2,9 +2,9 @@ package dev.icode.mobile.ui.screens.tools
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountTree
 import androidx.compose.runtime.Composable
@@ -12,6 +12,8 @@ import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodePageColumn
+import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
@@ -36,29 +38,23 @@ private fun GitUnavailableGate(
     installStep: String?,
     onInstall: () -> Unit,
 ) {
-    Column(Modifier.fillMaxSize()) {
-        IcodeTopBar("Source Control")
-        Column(
-            modifier = Modifier.fillMaxSize().padding(IcodeSpacing.Space5),
-            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space4),
-        ) {
-            when (operation) {
-                is GitOperationState.Running -> {
-                    EmptyState(title = operation.label, description = "This runs once, then Git is ready.")
-                    MonoLine(installStep ?: "Working…", color = IcodeColors.Accent, style = IcodeType.MonoSmall)
-                }
-                is GitOperationState.Failed -> {
-                    EmptyState(title = "Git could not be installed", description = operation.reason)
-                    PrimaryButton("Retry", onInstall, Modifier.fillMaxWidth())
-                }
-                else -> {
-                    EmptyState(
-                        title = "Git is not installed in the runtime",
-                        description = "Install it to see changes, diffs, branches and commits for this workspace.",
-                        icon = Icons.Outlined.AccountTree,
-                    )
-                    PrimaryButton("Install Git", onInstall, Modifier.fillMaxWidth())
-                }
+    GatePage {
+        when (operation) {
+            is GitOperationState.Running -> {
+                EmptyState(title = operation.label, description = "This runs once, then Git is ready.")
+                MonoLine(installStep ?: "Working…", color = IcodeColors.Accent, style = IcodeType.MonoSmall)
+            }
+            is GitOperationState.Failed -> {
+                EmptyState(title = "Git could not be installed", description = operation.reason)
+                PrimaryButton("Retry", onInstall, Modifier.fillMaxWidth())
+            }
+            else -> {
+                EmptyState(
+                    title = "Git is not installed in the runtime",
+                    description = "Install it to see changes, diffs, branches and commits for this workspace.",
+                    icon = Icons.Outlined.AccountTree,
+                )
+                PrimaryButton("Install Git", onInstall, Modifier.fillMaxWidth())
             }
         }
     }
@@ -85,36 +81,29 @@ internal fun SourceControlGate(state: ICodeSnapshot, dispatch: (ICodeIntent) -> 
 /** Git ran and could not read the repository: its words, and a way to ask again once it is fixed. */
 @Composable
 private fun GitUnreadableGate(failure: String, onRetry: () -> Unit) {
-    Column(Modifier.fillMaxSize()) {
-        IcodeTopBar("Source Control")
-        Column(
-            modifier = Modifier.fillMaxSize().padding(IcodeSpacing.Space5),
-            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space4),
-        ) {
+    GatePage {
+        // What Git said follows its introduction.
+        IcodeSection {
             EmptyState(
                 title = "Git cannot read this repository",
                 description = "The files are untouched. Git said:",
                 icon = Icons.Outlined.AccountTree,
             )
             MonoLine(failure, color = IcodeColors.Error, style = IcodeType.MonoSmall, maxLines = 6)
-            PrimaryButton("Check again", onRetry, Modifier.fillMaxWidth())
         }
+        PrimaryButton("Check again", onRetry, Modifier.fillMaxWidth())
     }
 }
 
 @Composable
 internal fun GitInitializationGate(onInitialize: () -> Unit) {
-    Column(Modifier.fillMaxSize()) {
-        IcodeTopBar("Source Control")
-        Column(
-            modifier = Modifier.fillMaxSize().padding(IcodeSpacing.Space5),
-            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space4),
-        ) {
-            EmptyState(
-                title = "This folder is not a Git repository",
-                description = "Initialize Git to track changes, create commits, and manage branches in this workspace.",
-                icon = Icons.Outlined.AccountTree,
-            )
+    GatePage {
+        EmptyState(
+            title = "This folder is not a Git repository",
+            description = "Initialize Git to track changes, create commits, and manage branches in this workspace.",
+            icon = Icons.Outlined.AccountTree,
+        )
+        IcodeSection {
             IcodeCard(Modifier.fillMaxWidth()) {
                 MonoLine(
                     "Creates a local .git folder only. Your files stay where they are.",
@@ -124,6 +113,15 @@ internal fun GitInitializationGate(onInitialize: () -> Unit) {
             }
             PrimaryButton("Initialize Git", onInitialize, Modifier.fillMaxWidth())
         }
+    }
+}
+
+/** A gate's page: Source Control's bar, then what stands in the way and what to do about it. */
+@Composable
+private fun GatePage(content: @Composable ColumnScope.() -> Unit) {
+    Column(Modifier.fillMaxSize()) {
+        IcodeTopBar("Source Control")
+        IcodePageColumn(Modifier.weight(1f), content = content)
     }
 }
 

@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FolderCopy
 import androidx.compose.material3.Text
@@ -24,11 +23,12 @@ import androidx.compose.ui.text.font.FontWeight
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeConfirmDialog
+import dev.icode.mobile.designsystem.IcodePageColumn
+import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.SecondaryButton
-import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.SettingRow
 import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.ICodeIntent
@@ -57,12 +57,8 @@ fun StorageSettingsScreen(actions: NavigationActions) {
 
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Storage Settings", subtitle = settingsSubtitle(Route.StorageSettings), onBack = actions.back)
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(IcodeSpacing.Space4),
-            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2 + IcodeSpacing.Micro),
-        ) {
-            item { SectionLabel("Storage Usage") }
-            item {
+        IcodePageColumn {
+            IcodeSection("Storage Usage") {
                 IcodeCard(Modifier.fillMaxWidth()) {
                     if (device == null || device.totalBytes <= 0) {
                         Text("Storage usage is unavailable", style = IcodeType.Body)
@@ -92,15 +88,12 @@ fun StorageSettingsScreen(actions: NavigationActions) {
                     )
                 }
             }
-            item { SectionLabel("Workspaces", Modifier.padding(top = IcodeSpacing.Space2)) }
-            item {
+            IcodeSection("Workspaces") {
                 Text(
                     "Workspaces live in iCode's storage. Uninstalling iCode removes them unless you choose to keep its data.",
                     style = IcodeType.Caption,
                 )
-            }
-            // The workspaces themselves are the Workspaces page's: one list, not two.
-            item {
+                // The workspaces themselves are the Workspaces page's: one list, not two.
                 SettingRow(
                     "Workspaces",
                     Modifier.fillMaxWidth(),
@@ -113,8 +106,7 @@ fun StorageSettingsScreen(actions: NavigationActions) {
                 )
             }
             // Android's own setting; iCode shows what it reads and opens the page to change it.
-            item { SectionLabel("Phone Storage", Modifier.padding(top = IcodeSpacing.Space2)) }
-            item {
+            IcodeSection("Phone Storage") {
                 val allowed = state.systemAccess?.storage == true
                 SettingRow(
                     "All Files Access",
@@ -125,8 +117,9 @@ fun StorageSettingsScreen(actions: NavigationActions) {
                     AccessState(if (allowed) "ALLOWED" else "OFF", allowed = allowed)
                 }
             }
-            item { SectionLabel("Cleanup Operations", Modifier.padding(top = IcodeSpacing.Space2)) }
-            item { SecondaryButton("Clear Cache", { confirmClearCache = true }, Modifier.fillMaxWidth()) }
+            IcodeSection("Cleanup Operations") {
+                SecondaryButton("Clear Cache", { confirmClearCache = true }, Modifier.fillMaxWidth())
+            }
         }
     }
 

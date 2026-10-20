@@ -5,7 +5,6 @@ import androidx.compose.ui.graphics.toArgb
 import com.termux.terminal.TerminalColors
 import com.termux.terminal.TerminalSession
 import dev.icode.mobile.designsystem.IcodePalette
-import dev.icode.mobile.designsystem.terminalAnsi
 import java.util.Properties
 import java.util.WeakHashMap
 

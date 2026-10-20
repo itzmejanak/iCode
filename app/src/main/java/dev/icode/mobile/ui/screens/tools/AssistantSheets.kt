@@ -193,7 +193,7 @@ internal fun AssistantModelsSheet(
         groups.forEachIndexed { index, (provider, models) ->
             SectionLabel(
                 provider.name,
-                if (index > 0 || settings.model?.efforts?.isNotEmpty() == true || (reset != null && onReset != null)) Modifier.padding(top = IcodeSpacing.Space2) else Modifier,
+                if (index > 0 || settings.model?.efforts?.isNotEmpty() == true || (reset != null && onReset != null)) Modifier.padding(top = IcodeSpacing.SectionBreak) else Modifier,
             )
             models.forEach { model ->
                 ModelRow(model, chosen(AssistantChoice(provider.id, model.id))) {

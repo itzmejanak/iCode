@@ -7,20 +7,18 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodePageColumn
+import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSelect
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeToggle
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
-import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.SegmentedControl
 import dev.icode.mobile.designsystem.SettingRow
 import dev.icode.mobile.designsystem.Stepper
@@ -43,10 +41,7 @@ fun EditorSettingsScreen(actions: NavigationActions) {
 
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Editor Settings", onBack = actions.back)
-        Column(
-            modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(IcodeSpacing.Space4),
-            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
-        ) {
+        IcodePageColumn {
             when {
                 preferences.loadError != null -> Text(
                     "Settings unavailable: ${preferences.loadError}",
@@ -55,81 +50,86 @@ fun EditorSettingsScreen(actions: NavigationActions) {
                 !preferences.loaded -> Text("Loading settings…", style = IcodeType.Caption)
                 else -> {
                     val editor = preferences.editor
-                    SectionLabel("General")
                     saver.error?.let { Text(it, style = IcodeType.Caption.copy(color = IcodeColors.Error)) }
-                    SettingRow("Font Size", Modifier.fillMaxWidth()) {
-                        Stepper(
-                            value = editor.fontSizeSp,
-                            onDecrement = {
-                                if (editor.fontSizeSp > SettingLimits.fontSizesSp.first) saver.save { repository.setEditorFontSize(editor.fontSizeSp - 1) }
+                    IcodeSection("General") {
+                        SettingRow("Font Size", Modifier.fillMaxWidth()) {
+                            Stepper(
+                                value = editor.fontSizeSp,
+                                onDecrement = {
+                                    if (editor.fontSizeSp > SettingLimits.fontSizesSp.first) saver.save { repository.setEditorFontSize(editor.fontSizeSp - 1) }
+                                },
+                                onIncrement = {
+                                    if (editor.fontSizeSp < SettingLimits.fontSizesSp.last) saver.save { repository.setEditorFontSize(editor.fontSizeSp + 1) }
+                                },
+                            )
+                        }
+                        IcodeSelect(
+                            options = EditorFontFamily.entries,
+                            selected = editor.fontFamily,
+                            optionLabel = { if (it == EditorFontFamily.PlexMono) "IBM Plex Mono" else "System Monospace" },
+                            onSelect = { family -> saver.save { repository.setEditorFontFamily(family) } },
+                            label = "Font Family",
+                        )
+                        SettingRow("Tab Size", Modifier.fillMaxWidth()) {
+                            SegmentedControl(listOf("2", "4"), preferences.globalIndentSize.toString()) { selected ->
+                                saver.save { repository.setGlobalIndentSize(selected.toInt()) }
+                            }
+                        }
+                        SettingRow("Word Wrap", Modifier.fillMaxWidth()) {
+                            IcodeToggle(editor.wordWrap) { saver.save { repository.setWordWrap(it) } }
+                        }
+                    }
+                    IcodeSection("Editing") {
+                        SettingRow("Auto-Close Brackets", Modifier.fillMaxWidth(), subtitle = "Typing ( [ { \" ' adds the closing one") {
+                            IcodeToggle(editor.autoCloseBrackets) { saver.save { repository.setAutoCloseBrackets(it) } }
+                        }
+                        SettingRow(
+                            "Keyboard Suggestions",
+                            Modifier.fillMaxWidth(),
+                            subtitle = if (editor.keyboardSuggestions) "The keyboard suggests and may autocorrect words" else "Off: the keyboard does not autocorrect code",
+                        ) {
+                            IcodeToggle(editor.keyboardSuggestions) { saver.save { repository.setKeyboardSuggestions(it) } }
+                        }
+                    }
+                    IcodeSection("Keys Row") {
+                        Text("Tap a key to show or hide it above the keyboard.", style = IcodeType.Caption)
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1), verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
+                            EditorKey.entries.forEach { key ->
+                                EditorKeyChip(key, Modifier.heightIn(min = IcodeSizes.TouchTarget), active = key in editor.keys, onClick = {
+                                    val chosen = EditorKey.entries.filter { if (it == key) it !in editor.keys else it in editor.keys }
+                                    saver.save { repository.setEditorKeys(chosen) }
+                                })
+                            }
+                        }
+                    }
+                    IcodeSection("Save") {
+                        IcodeSelect(
+                            options = AutoSaveMode.entries,
+                            selected = editor.autoSave,
+                            optionLabel = {
+                                when (it) {
+                                    AutoSaveMode.Off -> "Off"
+                                    AutoSaveMode.AfterOneSecond -> "After 1 second"
+                                    AutoSaveMode.AfterFiveSeconds -> "After 5 seconds"
+                                }
                             },
-                            onIncrement = {
-                                if (editor.fontSizeSp < SettingLimits.fontSizesSp.last) saver.save { repository.setEditorFontSize(editor.fontSizeSp + 1) }
-                            },
+                            onSelect = { mode -> saver.save { repository.setAutoSave(mode) } },
+                            label = "Auto Save",
                         )
                     }
-                    IcodeSelect(
-                        options = EditorFontFamily.entries,
-                        selected = editor.fontFamily,
-                        optionLabel = { if (it == EditorFontFamily.PlexMono) "IBM Plex Mono" else "System Monospace" },
-                        onSelect = { family -> saver.save { repository.setEditorFontFamily(family) } },
-                        label = "Font Family",
-                    )
-                    SettingRow("Tab Size", Modifier.fillMaxWidth()) {
-                        SegmentedControl(listOf("2", "4"), preferences.globalIndentSize.toString()) { selected ->
-                            saver.save { repository.setGlobalIndentSize(selected.toInt()) }
+                    IcodeSection("Display") {
+                        SettingRow("Line Numbers", Modifier.fillMaxWidth()) {
+                            IcodeToggle(editor.lineNumbers) { saver.save { repository.setLineNumbers(it) } }
                         }
-                    }
-                    SettingRow("Word Wrap", Modifier.fillMaxWidth()) {
-                        IcodeToggle(editor.wordWrap) { saver.save { repository.setWordWrap(it) } }
-                    }
-                    SectionLabel("Editing", Modifier.padding(top = IcodeSpacing.Space2))
-                    SettingRow("Auto-Close Brackets", Modifier.fillMaxWidth(), subtitle = "Typing ( [ { \" ' adds the closing one") {
-                        IcodeToggle(editor.autoCloseBrackets) { saver.save { repository.setAutoCloseBrackets(it) } }
-                    }
-                    SettingRow(
-                        "Keyboard Suggestions",
-                        Modifier.fillMaxWidth(),
-                        subtitle = if (editor.keyboardSuggestions) "The keyboard suggests and may autocorrect words" else "Off: the keyboard does not autocorrect code",
-                    ) {
-                        IcodeToggle(editor.keyboardSuggestions) { saver.save { repository.setKeyboardSuggestions(it) } }
-                    }
-                    SectionLabel("Keys Row", Modifier.padding(top = IcodeSpacing.Space2))
-                    Text("Tap a key to show or hide it above the keyboard.", style = IcodeType.Caption)
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1), verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
-                        EditorKey.entries.forEach { key ->
-                            EditorKeyChip(key, Modifier.heightIn(min = IcodeSizes.TouchTarget), active = key in editor.keys, onClick = {
-                                val chosen = EditorKey.entries.filter { if (it == key) it !in editor.keys else it in editor.keys }
-                                saver.save { repository.setEditorKeys(chosen) }
-                            })
+                        SettingRow("Minimap", Modifier.fillMaxWidth(), subtitle = "Experimental editor feature") {
+                            IcodeToggle(editor.minimap) { saver.save { repository.setMinimap(it) } }
                         }
-                    }
-                    SectionLabel("Save", Modifier.padding(top = IcodeSpacing.Space2))
-                    IcodeSelect(
-                        options = AutoSaveMode.entries,
-                        selected = editor.autoSave,
-                        optionLabel = {
-                            when (it) {
-                                AutoSaveMode.Off -> "Off"
-                                AutoSaveMode.AfterOneSecond -> "After 1 second"
-                                AutoSaveMode.AfterFiveSeconds -> "After 5 seconds"
-                            }
-                        },
-                        onSelect = { mode -> saver.save { repository.setAutoSave(mode) } },
-                        label = "Auto Save",
-                    )
-                    SectionLabel("Display", Modifier.padding(top = IcodeSpacing.Space2))
-                    SettingRow("Line Numbers", Modifier.fillMaxWidth()) {
-                        IcodeToggle(editor.lineNumbers) { saver.save { repository.setLineNumbers(it) } }
-                    }
-                    SettingRow("Minimap", Modifier.fillMaxWidth(), subtitle = "Experimental editor feature") {
-                        IcodeToggle(editor.minimap) { saver.save { repository.setMinimap(it) } }
-                    }
-                    SettingRow("Bracket Matching", Modifier.fillMaxWidth()) {
-                        IcodeToggle(editor.bracketMatching) { saver.save { repository.setBracketMatching(it) } }
-                    }
-                    SettingRow("Git Change Markers", Modifier.fillMaxWidth(), subtitle = "Changed lines marked beside the line numbers") {
-                        IcodeToggle(editor.changeMarkers) { saver.save { repository.setChangeMarkers(it) } }
+                        SettingRow("Bracket Matching", Modifier.fillMaxWidth()) {
+                            IcodeToggle(editor.bracketMatching) { saver.save { repository.setBracketMatching(it) } }
+                        }
+                        SettingRow("Git Change Markers", Modifier.fillMaxWidth(), subtitle = "Changed lines marked beside the line numbers") {
+                            IcodeToggle(editor.changeMarkers) { saver.save { repository.setChangeMarkers(it) } }
+                        }
                     }
                 }
             }

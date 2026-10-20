@@ -38,4 +38,8 @@ class SettingLimitsTest {
         assertTrue(WorkspacePreferences().globalIndentSize in SettingLimits.indentSizes)
         assertTrue(AppearanceSettings().uiTextScalePercent in SettingLimits.uiTextScales)
     }
+
+    @Test fun `cards keep their outline until the user turns it off`() {
+        assertTrue(AppearanceSettings().borderLines)
+    }
 }

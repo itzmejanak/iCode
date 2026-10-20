@@ -28,8 +28,10 @@ internal fun fileTypeTint(type: FileType): Color = LocalIcodePalette.current.fil
 internal fun IcodePalette.fileTypeColor(type: FileType): Color {
     val seti = fileTypeColours.getValue(type.id)
     val rgb = (if (kind == PaletteKind.Light) seti.light else seti.dark) ?: return textSecondary
-    return iconColors.getOrPut(kind to seti) {
-        Oklch.readable(rgb, listOf(background, surface, surfaceElevated), MIN_ICON_CONTRAST, darker = kind == PaletteKind.Light)
+    val behind = listOf(background, surface, surfaceElevated)
+    // By what it is drawn on: one theme draws on other tones without border lines.
+    return iconColors.getOrPut(seti to behind) {
+        Oklch.readable(rgb, behind, MIN_ICON_CONTRAST, darker = kind == PaletteKind.Light)
     }
 }
 
@@ -47,7 +49,7 @@ internal enum class SetiColour(val dark: Int?, val light: Int?) {
     Grey(null, null),
 }
 
-private val iconColors = ConcurrentHashMap<Pair<PaletteKind, SetiColour>, Color>()
+private val iconColors = ConcurrentHashMap<Pair<SetiColour, List<Color>>, Color>()
 private const val MIN_ICON_CONTRAST = 3.0
 
 /** Each file type's colour, as Seti gives its language (`languageIds`), or Seti's default where it lists none. */

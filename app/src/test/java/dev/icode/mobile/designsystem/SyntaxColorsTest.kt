@@ -8,7 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SyntaxColorsTest {
-    private val palettes = listOf(IcodePalette.Dark, IcodePalette.Light, IcodePalette.Amoled)
+    private val palettes = everyPalette
 
     /** Roles whose tokens must look different from plain text; the rest carry only a font style. */
     private val coloured = SyntaxRole.entries - setOf(

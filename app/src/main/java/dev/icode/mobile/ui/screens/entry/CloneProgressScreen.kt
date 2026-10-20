@@ -50,7 +50,7 @@ fun CloneProgressScreen(actions: NavigationActions) {
         }
     }
     var cancelling by remember { mutableStateOf(false) }
-    Column(Modifier.fillMaxSize().padding(IcodeSpacing.Space6)) {
+    Column(Modifier.fillMaxSize().padding(IcodeSpacing.Gutter)) {
         Text("GIT CLONE IN PROGRESS", style = IcodeType.Label.copy(color = IcodeColors.Accent))
         Text(
             state.cloneName,
