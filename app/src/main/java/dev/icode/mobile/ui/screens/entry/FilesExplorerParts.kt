@@ -51,6 +51,7 @@ import dev.icode.mobile.domain.StoragePlace
 import dev.icode.mobile.ui.FileItemActions
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
+import dev.icode.mobile.ui.SharedFiles
 import dev.icode.mobile.ui.WorkspaceActionsMenu
 import dev.icode.mobile.ui.screens.workspace.fileTypeIcon
 import dev.icode.mobile.ui.screens.workspace.fileTypeTint
@@ -117,9 +118,9 @@ private fun UpRow(onClick: () -> Unit) {
 
 /**
  * One folder or file, in a workspace or on phone storage. A tap goes into a folder, opens a file of
- * a workspace in the editor, and — a file on phone storage having no editor to open in — shows its
- * menu, as a long press does: every explorer's ([FileItemActions]). Paste goes into a folder; beside
- * a file, into the folder shown.
+ * a workspace in the editor — one it cannot show in another app — and a file on phone storage, having
+ * no editor to open in, in another app (docs/open-with-plan.md). A long press shows every explorer's
+ * menu ([FileItemActions]). Paste goes into a folder; beside a file, into the folder shown.
  */
 @Composable
 private fun BrowsedItemRow(item: BrowsedItem, browser: FilesBrowserState, browse: (String) -> Unit, onRename: () -> Unit, onDelete: () -> Unit) {
@@ -142,6 +143,7 @@ private fun BrowsedItemRow(item: BrowsedItem, browser: FilesBrowserState, browse
         onRename = onRename,
         onPaste = { gateway.dispatch(ICodeIntent.PasteInto(if (item.folder) item.location else browser.path)) },
         onDelete = onDelete,
+        file = !item.folder,
     )
     FileRow(
         icon = if (item.folder) Icons.Outlined.Folder else fileTypeIcon(type),
@@ -149,7 +151,7 @@ private fun BrowsedItemRow(item: BrowsedItem, browser: FilesBrowserState, browse
         name = item.name,
         detail = FilesRules.detail(item),
         changedAt = item.changedAt,
-        onClick = open ?: { menuOpen = true },
+        onClick = open ?: { SharedFiles.open(context, item.location) },
         onLongClick = { menuOpen = true },
     ) {
         IcodeActionMenu(expanded = menuOpen, onDismiss = { menuOpen = false }, actions = actions)

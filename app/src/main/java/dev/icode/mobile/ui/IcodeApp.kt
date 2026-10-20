@@ -208,6 +208,7 @@ fun IcodeApp(
                             .putExtra(Intent.EXTRA_TEXT, effect.text)
                         context.startActivity(Intent.createChooser(send, "Share ${effect.title}"))
                     }
+                    is ICodeEffect.OpenInOtherApp -> SharedFiles.open(context, effect.location)
                     is ICodeEffect.OpenExternalUrl -> {
                         // The user's own browser opens the URL; the app never
                         // renders web content itself (architecture.md section 11.5).

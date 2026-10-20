@@ -83,6 +83,7 @@ internal fun explorerItemActions(
         onRename = onRename,
         onPaste = { creationParentLocation(root, entry.path, files)?.let { gateway.dispatch(ICodeIntent.PasteInto(it)) } },
         onDelete = onDelete,
+        file = !folder,
     )
 }
 

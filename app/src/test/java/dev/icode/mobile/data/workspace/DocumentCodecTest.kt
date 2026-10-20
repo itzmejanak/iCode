@@ -2,7 +2,6 @@ package dev.icode.mobile.data.workspace
 
 import dev.icode.mobile.domain.LineEnding
 import dev.icode.mobile.domain.TextEncoding
-import java.io.IOException
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -31,8 +30,14 @@ class DocumentCodecTest {
         assertEquals(source.toList(), DocumentCodec.encode(decoded.text, decoded.encoding, false).toList())
     }
 
-    @Test(expected = IOException::class)
+    // Not text: the editor hands it to another app (docs/open-with-plan.md).
+    @Test(expected = NotTextException::class)
     fun `binary data is rejected`() {
         DocumentCodec.decode(byteArrayOf(1, 0, 2, 3, 0, 4))
+    }
+
+    @Test(expected = NotTextException::class)
+    fun `bytes no encoding reads are rejected`() {
+        DocumentCodec.decode(byteArrayOf(0xC3.toByte(), 0x28))
     }
 }

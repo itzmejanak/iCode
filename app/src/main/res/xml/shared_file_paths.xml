@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- What another app may be granted, a file at a time: nothing is reachable without its grant. -->
+<paths>
+    <!-- The assistant's camera folder in the cache, for a capture. -->
+    <cache-path name="camera" path="assistant-camera/" />
+    <!-- The workspaces' files, to Open with or Share. -->
+    <files-path name="workspaces" path="workspaces/" />
+    <!-- Phone storage's files, to Open with or Share. -->
+    <external-path name="phone" path="." />
+</paths>

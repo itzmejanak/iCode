@@ -415,6 +415,7 @@ Common actions:
 - delete;
 - copy path;
 - open terminal here;
+- open with another app, and share ([open-with-plan.md](./open-with-plan.md)): a file the editor cannot show opens with another app on a tap;
 - refresh.
 
 Touch uses long press or overflow. Mouse and trackpad may use secondary click. Hardware keyboard users receive command and navigation shortcuts.

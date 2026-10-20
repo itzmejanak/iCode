@@ -155,8 +155,7 @@ class WorkspacesProvider : DocumentsProvider() {
             .add(Document.COLUMN_FLAGS, flags)
     }
 
-    private fun mimeOf(name: String) =
-        MimeTypeMap.getSingleton().getMimeTypeFromExtension(name.substringAfterLast('.', "").lowercase()) ?: "application/octet-stream"
+    private fun mimeOf(name: String) = mimeTypeOf(name) ?: "application/octet-stream"
 
     /** The Explorer's rules for a name inside a workspace. */
     private fun nameError(name: String, folder: Boolean) =
@@ -185,6 +184,10 @@ class WorkspacesProvider : DocumentsProvider() {
             Document.COLUMN_DOCUMENT_ID, Document.COLUMN_DISPLAY_NAME, Document.COLUMN_MIME_TYPE,
             Document.COLUMN_SIZE, Document.COLUMN_LAST_MODIFIED, Document.COLUMN_FLAGS,
         )
+
+        /** A file's kind by its extension, as Android names it; null for one it does not know. */
+        fun mimeTypeOf(name: String): String? =
+            MimeTypeMap.getSingleton().getMimeTypeFromExtension(name.substringAfterLast('.', "").lowercase())
 
         /** `<applicationId>.workspaces`, as the manifest declares it. */
         fun authorityOf(context: Context) = "${context.packageName}.workspaces"

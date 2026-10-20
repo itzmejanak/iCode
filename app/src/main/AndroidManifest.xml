@@ -62,16 +62,17 @@
             </intent-filter>
         </provider>
 
-        <!-- The camera's photo for the assistant: the camera app writes it to iCode's cache through
-             this, for the one capture it is granted (docs/assistant-koog-plan.md §13 P6). -->
+        <!-- A file handed to another app, one URI and one grant at a time: a workspace's or phone
+             storage's file to Open with or Share (docs/open-with-plan.md), and the assistant's photo
+             the camera app writes (docs/assistant-koog-plan.md §13 P6). -->
         <provider
             android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.assistant.camera"
+            android:authorities="${applicationId}.files"
             android:exported="false"
             android:grantUriPermissions="true">
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/assistant_camera_paths" />
+                android:resource="@xml/shared_file_paths" />
         </provider>
 
         <service

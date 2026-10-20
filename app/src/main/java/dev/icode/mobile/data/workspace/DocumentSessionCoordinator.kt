@@ -63,17 +63,15 @@ internal class DocumentSessionCoordinator(
                 dirty = false,
                 readOnly = document.readOnly,
             )
-            stateHolder.update { snapshot -> snapshot.copy(
-                openDocuments = snapshot.openDocuments + opened,
-                activeDocument = opened,
-            ) }
+            stateHolder.update { it.copy(openDocuments = it.openDocuments + opened, activeDocument = opened) }
             if (announce) {
                 activeRoot()?.let { library.recordRecentDocument(it, document.location) }
                 stateHolder.emit(ICodeEffect.DocumentOpened(location, lineNumber, column))
             }
             recovery.opened(document)
         }.onFailure { error ->
-            stateHolder.report("documents", "Unable to open document", error)
+            if (error is NotTextException && announce) stateHolder.emit(ICodeEffect.OpenInOtherApp(location))
+            else stateHolder.report("documents", "Unable to open document", error)
         }
     }
 
