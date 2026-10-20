@@ -24,7 +24,7 @@ enum class SyntaxRole(
  * regex 0° — drawn by [hueColor], so a theme's colours are equally readable
  * and differ only in what they mean; comments a quiet grey. Every colour is at
  * least 4.5 : 1 on the editor background and on the current line: where a
- * theme's editor is drawn on other tones (Light without card borders) and one
+ * theme's editor is drawn on other tones (Light without border lines) and one
  * would not be, only its lightness moves until it is (SyntaxColorsTest).
  */
 fun IcodePalette.syntaxColor(role: SyntaxRole): Color = when (role) {

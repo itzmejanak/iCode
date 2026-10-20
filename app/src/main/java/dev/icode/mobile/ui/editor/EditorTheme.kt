@@ -55,7 +55,7 @@ internal fun editorTheme(palette: IcodePalette): JSONObject {
 
 /**
  * [palette]'s TextMate theme by what its colours follow — the kind, the editor and its current line —
- * so the same theme drawn on other tones (without card borders) is a theme of its own.
+ * so the same theme drawn on other tones (without border lines) is a theme of its own.
  */
 internal fun themeName(palette: IcodePalette): String =
     "icode-${palette.kind.name.lowercase()}-${hex(palette.backgroundDeep).drop(1)}-${hex(palette.editorLineHighlight).drop(1)}"

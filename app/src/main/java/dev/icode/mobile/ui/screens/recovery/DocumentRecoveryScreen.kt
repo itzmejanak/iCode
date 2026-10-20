@@ -1,8 +1,8 @@
 package dev.icode.mobile.ui.screens.recovery
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeConfirmDialog
+import dev.icode.mobile.designsystem.IcodeFootBar
 import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTone
@@ -68,8 +69,9 @@ fun DocumentRecoveryScreen(actions: NavigationActions) {
             return@Column
         }
         LazyColumn(
-            modifier = Modifier.weight(1f).padding(IcodeSpacing.Space4),
-            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(IcodeSpacing.Gutter),
+            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.ItemGap),
         ) {
             item {
                 NoticeCard(
@@ -83,12 +85,7 @@ fun DocumentRecoveryScreen(actions: NavigationActions) {
                     )
                 }
             }
-            item {
-                SectionLabel(
-                    "Recoverable Documents",
-                    Modifier.padding(top = IcodeSpacing.Space3, bottom = IcodeSpacing.Space1),
-                )
-            }
+            item { SectionLabel("Recoverable Documents", Modifier.padding(top = IcodeSpacing.SectionBreak)) }
             items(drafts, key = { it.location }) { draft ->
                 IcodeListRow(
                     card = true,
@@ -133,10 +130,7 @@ fun DocumentRecoveryScreen(actions: NavigationActions) {
                 )
             }
         }
-        Column(
-            modifier = Modifier.fillMaxWidth().background(IcodeColors.Surface).padding(IcodeSpacing.Space4),
-            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
-        ) {
+        IcodeFootBar {
             if (inWorkspace.isNotEmpty()) {
                 PrimaryButton(
                     "Restore All Workspace Docs",

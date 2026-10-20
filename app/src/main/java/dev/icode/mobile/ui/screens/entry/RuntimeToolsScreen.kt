@@ -1,14 +1,10 @@
 package dev.icode.mobile.ui.screens.entry
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -18,8 +14,9 @@ import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import dev.icode.mobile.designsystem.Divider
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodeFootBar
+import dev.icode.mobile.designsystem.IcodePageColumn
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
@@ -94,16 +91,13 @@ fun RuntimeToolsScreen(actions: NavigationActions) {
 
     Column(Modifier.fillMaxSize()) {
         if (setup) {
-            Column(Modifier.padding(start = IcodeSpacing.Space5, end = IcodeSpacing.Space5, top = IcodeSpacing.Space6)) {
+            Column(Modifier.padding(start = IcodeSpacing.Gutter, end = IcodeSpacing.Gutter, top = IcodeSpacing.Space6)) {
                 Text("SET UP TOOLS · STEP ${if (atStep) stepIndex + 1 else steps.size} OF ${steps.size}", style = IcodeType.MonoSmall)
             }
         } else {
             IcodeTopBar("Runtime Tools", subtitle = "Linux runtime · Ubuntu 24.04", onBack = { if (atStep) back() else leave() })
         }
-        Column(
-            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(IcodeSpacing.Space5),
-            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
-        ) {
+        IcodePageColumn(Modifier.weight(1f)) {
             when {
                 work != null -> ToolProgress(work)
                 done -> applied?.let { ToolsApplied(it) }
@@ -128,66 +122,58 @@ fun RuntimeToolsScreen(actions: NavigationActions) {
                 }
             }
         }
-        Column(
-            modifier = Modifier.fillMaxWidth().background(IcodeColors.Surface),
-        ) {
-            Divider()
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(IcodeSpacing.Space4),
-                verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
-            ) {
-                when {
-                    work?.failure != null -> TwoColumnActions(
-                        left = {
-                            SecondaryButton("Back", {
-                                applied = null
-                                gateway.dispatch(ICodeIntent.DismissRuntimeTools)
-                            }, Modifier.fillMaxWidth())
-                        },
-                        right = { PrimaryButton("Retry", { plan?.let(::apply) }, Modifier.fillMaxWidth(), enabled = plan?.isEmpty == false) },
-                    )
-                    work != null || (applied != null && !done) -> {
-                        if (work != null && !work.cancellable) {
-                            Text(
-                                if (work.setup == null) "Packages being set up can't be stopped: dpkg would be left half done."
-                                else "This step can't be stopped: it would be left half done.",
-                                style = IcodeType.Caption,
-                            )
-                        }
-                        TwoColumnActions(
-                            left = {
-                                SecondaryButton(
-                                    "Cancel",
-                                    { gateway.dispatch(ICodeIntent.CancelRuntimeTools) },
-                                    Modifier.fillMaxWidth(),
-                                    enabled = work?.cancellable == true,
-                                )
-                            },
-                            right = { PrimaryButton("Run in Background", ::leave, Modifier.fillMaxWidth()) },
+        IcodeFootBar {
+            when {
+                work?.failure != null -> TwoColumnActions(
+                    left = {
+                        SecondaryButton("Back", {
+                            applied = null
+                            gateway.dispatch(ICodeIntent.DismissRuntimeTools)
+                        }, Modifier.fillMaxWidth())
+                    },
+                    right = { PrimaryButton("Retry", { plan?.let(::apply) }, Modifier.fillMaxWidth(), enabled = plan?.isEmpty == false) },
+                )
+                work != null || (applied != null && !done) -> {
+                    if (work != null && !work.cancellable) {
+                        Text(
+                            if (work.setup == null) "Packages being set up can't be stopped: dpkg would be left half done."
+                            else "This step can't be stopped: it would be left half done.",
+                            style = IcodeType.Caption,
                         )
                     }
-                    done -> PrimaryButton(if (setup) "Finish" else "Done", {
-                        applied = null
-                        stepIndex = 0
-                        if (setup) leave()
-                    }, Modifier.fillMaxWidth())
-                    else -> StepActions(
-                        step,
-                        last = stepIndex >= steps.lastIndex,
-                        setup = setup,
-                        plan = plan,
-                        accepted = plan?.licences.orEmpty().all { it in accepted.orEmpty() },
-                        tools = tools,
-                        availableBytes = state.storage?.availableBytes,
-                        onBack = ::back,
-                        onSkip = ::finish,
-                    ) {
-                        when {
-                            stepIndex < steps.lastIndex -> stepIndex++
-                            plan == null -> Unit
-                            plan.isEmpty -> finish()
-                            else -> apply(plan)
-                        }
+                    TwoColumnActions(
+                        left = {
+                            SecondaryButton(
+                                "Cancel",
+                                { gateway.dispatch(ICodeIntent.CancelRuntimeTools) },
+                                Modifier.fillMaxWidth(),
+                                enabled = work?.cancellable == true,
+                            )
+                        },
+                        right = { PrimaryButton("Run in Background", ::leave, Modifier.fillMaxWidth()) },
+                    )
+                }
+                done -> PrimaryButton(if (setup) "Finish" else "Done", {
+                    applied = null
+                    stepIndex = 0
+                    if (setup) leave()
+                }, Modifier.fillMaxWidth())
+                else -> StepActions(
+                    step,
+                    last = stepIndex >= steps.lastIndex,
+                    setup = setup,
+                    plan = plan,
+                    accepted = plan?.licences.orEmpty().all { it in accepted.orEmpty() },
+                    tools = tools,
+                    availableBytes = state.storage?.availableBytes,
+                    onBack = ::back,
+                    onSkip = ::finish,
+                ) {
+                    when {
+                        stepIndex < steps.lastIndex -> stepIndex++
+                        plan == null -> Unit
+                        plan.isEmpty -> finish()
+                        else -> apply(plan)
                     }
                 }
             }

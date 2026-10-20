@@ -2,6 +2,7 @@ package dev.icode.mobile.ui.screens.tools
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -68,7 +69,7 @@ fun CommandPaletteScreen(actions: NavigationActions) {
                 query = it
                 selectedIndex = 0
             },
-            modifier = Modifier.fillMaxWidth().padding(horizontal = IcodeSpacing.Space3),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = IcodeSpacing.Gutter),
             inputModifier = Modifier.focusRequester(focusRequester).onPreviewKeyEvent { event ->
                 if (event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 when (event.key) {
@@ -92,14 +93,14 @@ fun CommandPaletteScreen(actions: NavigationActions) {
             borderColor = IcodeColors.Accent,
         )
         if (commands.isEmpty()) {
-            MonoLine("No matching commands", modifier = Modifier.padding(IcodeSpacing.Space3), color = IcodeColors.TextMuted)
+            MonoLine("No matching commands", modifier = Modifier.padding(IcodeSpacing.Gutter), color = IcodeColors.TextMuted)
         } else {
-            LazyColumn(Modifier.weight(1f)) {
+            LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(horizontal = IcodeSpacing.RowGutter)) {
                 itemsIndexed(commands, key = { _, command -> command.id }) { index, command ->
                     if (index == 0 || commands[index - 1].group != command.group) {
                         SectionLabel(
                             command.group,
-                            Modifier.padding(start = IcodeSpacing.Space3, top = IcodeSpacing.Space3, bottom = IcodeSpacing.Space1),
+                            Modifier.padding(start = IcodeSpacing.RowInset, top = IcodeSpacing.Space3, bottom = IcodeSpacing.Space1),
                         )
                     }
                     IcodeListRow(

@@ -33,23 +33,23 @@ class IcodePaletteTest {
         assertEquals(Color(AccentColorRules.themeAccent(AppTheme.Amoled)), IcodePalette.Amoled.accent)
     }
 
-    @Test fun `with card borders each theme is its own palette`() {
-        assertSame(IcodePalette.Dark, IcodePalette.of(AppTheme.Dark, cardBorders = true))
-        assertSame(IcodePalette.Light, IcodePalette.of(AppTheme.Light, cardBorders = true))
-        assertSame(IcodePalette.Amoled, IcodePalette.of(AppTheme.Amoled, cardBorders = true))
+    @Test fun `with border lines each theme is its own palette`() {
+        assertSame(IcodePalette.Dark, IcodePalette.of(AppTheme.Dark, borderLines = true))
+        assertSame(IcodePalette.Light, IcodePalette.of(AppTheme.Light, borderLines = true))
+        assertSame(IcodePalette.Amoled, IcodePalette.of(AppTheme.Amoled, borderLines = true))
     }
 
-    @Test fun `without card borders a card stands at least 1_12 to 1 from its page, in every theme`() {
+    @Test fun `without border lines a card stands at least 1_12 to 1 from its page, in every theme`() {
         AppTheme.entries.forEach { theme ->
-            val drawn = IcodePalette.of(theme, cardBorders = false)
+            val drawn = IcodePalette.of(theme, borderLines = false)
             assertTrue("$theme", contrast(drawn.surface, drawn.background) >= 1.12)
         }
     }
 
-    @Test fun `without card borders every other surface keeps its own step from what it sits on`() {
+    @Test fun `without border lines every other surface keeps its own step from what it sits on`() {
         AppTheme.entries.forEach { theme ->
-            val before = IcodePalette.of(theme, cardBorders = true)
-            val drawn = IcodePalette.of(theme, cardBorders = false)
+            val before = IcodePalette.of(theme, borderLines = true)
+            val drawn = IcodePalette.of(theme, borderLines = false)
             fun keeps(what: String, step: (IcodePalette) -> Double) =
                 assertTrue("$theme $what", step(drawn) >= step(before) - EPSILON)
             keeps("chip on card") { contrast(it.surfaceElevated, it.surface) }
@@ -60,10 +60,10 @@ class IcodePaletteTest {
         }
     }
 
-    @Test fun `without card borders nothing drawn on a surface reads worse, unless it meets WCAG AA`() {
+    @Test fun `without border lines nothing drawn on a surface reads worse, unless it meets WCAG AA`() {
         AppTheme.entries.forEach { theme ->
-            val before = IcodePalette.of(theme, cardBorders = true)
-            val drawn = IcodePalette.of(theme, cardBorders = false)
+            val before = IcodePalette.of(theme, borderLines = true)
+            val drawn = IcodePalette.of(theme, borderLines = false)
             val surfaces = listOf<(IcodePalette) -> Color>({ it.background }, { it.backgroundDeep }, { it.surface }, { it.surfaceElevated })
             val colours = mapOf<String, Pair<(IcodePalette) -> Color, Double>>(
                 "text" to ({ p: IcodePalette -> p.textPrimary } to 4.5), "secondary" to ({ p: IcodePalette -> p.textSecondary } to 4.5),
@@ -85,10 +85,10 @@ class IcodePaletteTest {
         }
     }
 
-    @Test fun `without card borders the accent and what is drawn on it are the theme's`() {
+    @Test fun `without border lines the accent and what is drawn on it are the theme's`() {
         AppTheme.entries.forEach { theme ->
-            val before = IcodePalette.of(theme, cardBorders = true)
-            val drawn = IcodePalette.of(theme, cardBorders = false)
+            val before = IcodePalette.of(theme, borderLines = true)
+            val drawn = IcodePalette.of(theme, borderLines = false)
             assertEquals(before.accent, drawn.accent)
             assertEquals(before.onAccent, drawn.onAccent)
             assertEquals(before.kind, drawn.kind)

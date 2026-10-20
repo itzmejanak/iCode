@@ -20,25 +20,31 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 
-/** Appearance › Card Borders: whether a card draws its own outline (docs/card-borders-plan.md). */
-internal val LocalIcodeCardBorders = staticCompositionLocalOf { true }
+/** Appearance › Border Lines: whether a surface draws the line at its edge (docs/border-lines-plan.md). */
+internal val LocalIcodeBorderLines = staticCompositionLocalOf { true }
+
+/** Whether cards stand on a sheet, and so one step above it, as a page's cards are above the page. */
+internal val LocalIcodeCardRaised = staticCompositionLocalOf { false }
+
+/** The line where a surface ends — a card, a menu, a bar — while Border Lines is on; null while it is off. */
+internal val edgeLine: Color? @Composable get() = IcodeColors.Outline.takeIf { LocalIcodeBorderLines.current }
 
 /**
- * Card surface used by every list, form and panel block. Without a [borderColor] it draws its own
- * outline while Card Borders is on; a [borderColor] is a line that says something — a control's
- * edge, a selection, a tone — and is drawn either way.
+ * Card surface used by every list, form and panel block, a step above what it stands on. Without a
+ * [borderColor] it draws its [edgeLine]; a [borderColor] is a line that says something — a
+ * control's edge, a selection, a tone — and is drawn either way.
  */
 @Composable
 fun IcodeCard(
     modifier: Modifier = Modifier,
-    elevated: Boolean = false,
+    elevated: Boolean = LocalIcodeCardRaised.current,
     borderColor: Color? = null,
     padding: PaddingValues = PaddingValues(IcodeSpacing.CardPadding),
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val clickableModifier = if (onClick == null) Modifier else Modifier.clickable(role = Role.Button, onClick = onClick)
-    val line = borderColor ?: IcodeColors.Outline.takeIf { LocalIcodeCardBorders.current }
+    val line = borderColor ?: edgeLine
     Column(
         modifier = modifier
             .clip(IcodeShapes.Small)
@@ -48,6 +54,15 @@ fun IcodeCard(
             .padding(padding),
         content = content,
     )
+}
+
+/** A group of a page: its label, if it has one, then its items, [IcodeSpacing.ItemGap] apart. */
+@Composable
+fun IcodeSection(title: String? = null, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(IcodeSpacing.ItemGap)) {
+        title?.let { SectionLabel(it) }
+        content()
+    }
 }
 
 /** Uppercase group label above cards and sections. */
@@ -81,10 +96,16 @@ fun SectionHeader(
     }
 }
 
-/** Single-pixel separator between dense rows. */
+/** Single-pixel separator between dense rows; drawn whatever Border Lines says. */
 @Composable
 fun Divider() {
     HorizontalDivider(color = IcodeColors.Outline, thickness = 1.dp)
+}
+
+/** The line where a bar begins — under the top bar, over a bar at the foot — while Border Lines is on. */
+@Composable
+fun EdgeLine() {
+    edgeLine?.let { HorizontalDivider(color = it, thickness = 1.dp) }
 }
 
 /** Deep surface for code, terminal, diff and log content.

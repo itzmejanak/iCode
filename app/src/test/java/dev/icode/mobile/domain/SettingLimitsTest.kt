@@ -40,6 +40,6 @@ class SettingLimitsTest {
     }
 
     @Test fun `cards keep their outline until the user turns it off`() {
-        assertTrue(AppearanceSettings().cardBorders)
+        assertTrue(AppearanceSettings().borderLines)
     }
 }

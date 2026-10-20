@@ -1,12 +1,8 @@
 package dev.icode.mobile.ui.screens.settings
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Add
@@ -20,8 +16,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeListRow
+import dev.icode.mobile.designsystem.IcodePageColumn
+import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSizes
-import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.IconBadge
@@ -54,25 +51,24 @@ fun LanguageServicesScreen(actions: NavigationActions) {
                 }
             },
         )
-        Column(
-            modifier = Modifier.padding(IcodeSpacing.Space4).weight(1f).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2 + IcodeSpacing.Micro),
-        ) {
+        IcodePageColumn(Modifier.weight(1f)) {
             state.languageServicesLoadError?.let { error ->
                 Text("Saved services could not be read: $error", style = IcodeType.Caption, color = IcodeColors.Error)
             }
-            services.forEach { service ->
-                LanguageServiceRow(service) {
-                    gateway.dispatch(ICodeIntent.SelectLanguageService(service.id))
-                    actions.navigate(Route.SettingsLanguageDetail)
+            IcodeSection {
+                services.forEach { service ->
+                    LanguageServiceRow(service) {
+                        gateway.dispatch(ICodeIntent.SelectLanguageService(service.id))
+                        actions.navigate(Route.SettingsLanguageDetail)
+                    }
                 }
+                Text(
+                    "Install a language server in the terminal, then add its configuration here.",
+                    modifier = Modifier.fillMaxWidth(),
+                    style = IcodeType.Caption,
+                    textAlign = TextAlign.Center,
+                )
             }
-            Text(
-                "Install a language server in the terminal, then add its configuration here.",
-                modifier = Modifier.fillMaxWidth().padding(bottom = IcodeSpacing.Space2 + IcodeSpacing.Micro),
-                style = IcodeType.Caption,
-                textAlign = TextAlign.Center,
-            )
         }
     }
 }

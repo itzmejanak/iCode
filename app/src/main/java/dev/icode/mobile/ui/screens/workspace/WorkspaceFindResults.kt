@@ -57,26 +57,26 @@ internal fun FileResults(
         when (engine) {
             SearchEngineState.Installing -> MonoLine(
                 "Installing ripgrep for workspace search…",
-                modifier = Modifier.padding(horizontal = IcodeSpacing.Space4),
+                modifier = Modifier.padding(horizontal = IcodeSpacing.Gutter),
                 color = IcodeColors.Amber,
                 style = IcodeType.MonoSmall,
             )
             SearchEngineState.Indexing -> Text(
                 "Indexing workspace files…",
-                modifier = Modifier.padding(IcodeSpacing.Space4),
+                modifier = Modifier.padding(IcodeSpacing.Gutter),
                 style = IcodeType.Caption,
                 color = IcodeColors.TextSecondary,
             )
             is SearchEngineState.Failed -> Text(
                 engine.reason,
-                modifier = Modifier.padding(IcodeSpacing.Space4),
+                modifier = Modifier.padding(IcodeSpacing.Gutter),
                 style = IcodeType.Caption,
                 color = IcodeColors.Error,
             )
             is SearchEngineState.Ready -> engine.warning?.let { warning ->
                 MonoLine(
                     warning,
-                    modifier = Modifier.padding(horizontal = IcodeSpacing.Space4),
+                    modifier = Modifier.padding(horizontal = IcodeSpacing.Gutter),
                     color = IcodeColors.Amber,
                     style = IcodeType.MonoSmall,
                 )
@@ -84,7 +84,7 @@ internal fun FileResults(
             SearchEngineState.Unknown -> if (results.isEmpty()) {
                 Text(
                     "Preparing workspace search…",
-                    modifier = Modifier.padding(IcodeSpacing.Space4),
+                    modifier = Modifier.padding(IcodeSpacing.Gutter),
                     style = IcodeType.Caption,
                     color = IcodeColors.TextSecondary,
                 )
@@ -98,7 +98,7 @@ internal fun FileResults(
             }
             MonoLine(
                 limitMessage,
-                modifier = Modifier.padding(horizontal = IcodeSpacing.Space4),
+                modifier = Modifier.padding(horizontal = IcodeSpacing.Gutter),
                 color = IcodeColors.Amber,
                 style = IcodeType.MonoSmall,
             )
@@ -106,14 +106,14 @@ internal fun FileResults(
         if (!waitingWithoutResults && results.isEmpty()) {
             Text(
                 if (query.isBlank()) "No workspace files found" else "No file matches \"$query\"",
-                modifier = Modifier.padding(IcodeSpacing.Space4),
+                modifier = Modifier.padding(IcodeSpacing.Gutter),
                 style = IcodeType.Caption,
                 color = IcodeColors.TextSecondary,
             )
         } else if (results.isNotEmpty()) {
             LazyColumn(
-                modifier = Modifier.weight(1f).padding(horizontal = IcodeSpacing.Space3),
-                verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
+                modifier = Modifier.weight(1f).padding(horizontal = IcodeSpacing.Gutter),
+                verticalArrangement = Arrangement.spacedBy(IcodeSpacing.ItemGap),
             ) {
                 itemsIndexed(results, key = { _, entry -> entry.path }) { index, entry ->
                     IcodeCard(
@@ -155,7 +155,7 @@ internal fun TextResults(
     Column(Modifier.fillMaxSize()) {
         SearchSummary(search, query, resultsAreCurrent, engine)
         LazyColumn(
-            modifier = Modifier.weight(1f).padding(horizontal = IcodeSpacing.Space4),
+            modifier = Modifier.weight(1f).padding(horizontal = IcodeSpacing.Gutter),
             verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
         ) {
             items(if (resultsAreCurrent) search.results else emptyList(), key = { it.path }) { result ->
@@ -231,14 +231,14 @@ private fun SearchSummary(search: ContentSearchState, query: String, resultsAreC
     }
     Text(
         summary,
-        modifier = Modifier.padding(IcodeSpacing.Space4),
+        modifier = Modifier.padding(IcodeSpacing.Gutter),
         style = IcodeType.Caption,
         color = if (engine is SearchEngineState.Failed || resultsAreCurrent && search.error != null) IcodeColors.Error else IcodeColors.TextSecondary,
     )
     if (resultsAreCurrent && search.truncated) {
         MonoLine(
             "Result limit reached — narrow the query to see more",
-            modifier = Modifier.padding(horizontal = IcodeSpacing.Space4),
+            modifier = Modifier.padding(horizontal = IcodeSpacing.Gutter),
             color = IcodeColors.Amber,
             style = IcodeType.MonoSmall,
         )

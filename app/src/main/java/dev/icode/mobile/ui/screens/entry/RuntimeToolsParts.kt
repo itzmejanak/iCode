@@ -30,6 +30,7 @@ import dev.icode.mobile.designsystem.Divider
 import dev.icode.mobile.designsystem.IcodeCheckbox
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeOptionRow
+import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeShapes
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
@@ -41,7 +42,6 @@ import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.NoticeCard
 import dev.icode.mobile.designsystem.PageHeading
 import dev.icode.mobile.designsystem.ProgressTrack
-import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.RuntimeTool
 import dev.icode.mobile.domain.RuntimeToolAction
@@ -82,12 +82,13 @@ internal fun InstallTypeChoice(custom: Boolean, tools: RuntimeToolsState, standa
 @Composable
 internal fun ToolList(tools: RuntimeToolsState, choice: Set<String>, onToggle: (String) -> Unit) {
     listOf("Used by iCode" to true, "More tools" to false).forEach { (label, own) ->
-        SectionLabel(label, Modifier.padding(top = IcodeSpacing.Space2))
-        Column {
-            RuntimeTools.all.filter { (it.usedBy != null) == own }.forEachIndexed { index, tool ->
-                if (index > 0) Divider()
-                val ticked = tool.id in choice
-                ToolRow(tool, ticked, RuntimeToolRules.status(tool, ticked, tools)) { onToggle(tool.id) }
+        IcodeSection(label) {
+            Column {
+                RuntimeTools.all.filter { (it.usedBy != null) == own }.forEachIndexed { index, tool ->
+                    if (index > 0) Divider()
+                    val ticked = tool.id in choice
+                    ToolRow(tool, ticked, RuntimeToolRules.status(tool, ticked, tools)) { onToggle(tool.id) }
+                }
             }
         }
     }
@@ -127,12 +128,14 @@ internal fun VerifyChanges(plan: RuntimeToolPlan?, tools: RuntimeToolsState) {
         plan.isEmpty -> Text("Nothing will be installed or removed.", style = IcodeType.Body)
         else -> {
             if (plan.install.isNotEmpty()) {
-                SectionLabel("Install")
-                plan.install.forEach { tool -> DetailRow(tool.name, label(RuntimeToolRules.status(tool, true, tools))) }
+                IcodeSection("Install") {
+                    plan.install.forEach { tool -> DetailRow(tool.name, label(RuntimeToolRules.status(tool, true, tools))) }
+                }
             }
             if (plan.remove.isNotEmpty()) {
-                SectionLabel("Remove", Modifier.padding(top = IcodeSpacing.Space2))
-                plan.remove.forEach { tool -> DetailRow(tool.name, "Removed", valueColor = IcodeColors.Amber) }
+                IcodeSection("Remove") {
+                    plan.remove.forEach { tool -> DetailRow(tool.name, "Removed", valueColor = IcodeColors.Amber) }
+                }
             }
         }
     }
@@ -152,20 +155,24 @@ internal fun ToolProgress(work: RuntimeToolWork) {
         if (failure == null) work.title else if (work.action == RuntimeToolAction.Install) "Installation Failed" else "Removal Failed",
         description = if (failure == null) "The Linux runtime is changing. You can leave this page; the notification follows it." else null,
     )
-    if (failure != null) {
-        NoticeCard(tone = IcodeTone.Error, modifier = Modifier.fillMaxWidth()) {
-            Text(failure, style = IcodeType.Caption)
+    IcodeSection {
+        if (failure != null) {
+            NoticeCard(tone = IcodeTone.Error, modifier = Modifier.fillMaxWidth()) {
+                Text(failure, style = IcodeType.Caption)
+            }
+        } else {
+            work.fraction?.let { ProgressTrack(it, Modifier.fillMaxWidth()) }
+                ?: IndeterminateProgressTrack(Modifier.fillMaxWidth())
+            Text(work.step, style = IcodeType.Caption.copy(color = IcodeColors.Accent))
+            work.item?.let { MonoLine(it, style = IcodeType.MonoSmall, maxLines = 1) }
         }
-    } else {
-        work.fraction?.let { ProgressTrack(it, Modifier.fillMaxWidth()) }
-            ?: IndeterminateProgressTrack(Modifier.fillMaxWidth())
-        Text(work.step, style = IcodeType.Caption.copy(color = IcodeColors.Accent))
-        work.item?.let { MonoLine(it, style = IcodeType.MonoSmall, maxLines = 1) }
     }
-    IcodeTextButton(if (details) "Hide Details" else "Show Details", { details = !details })
-    if (details) {
-        CodeSurface(Modifier.fillMaxWidth()) {
-            work.log.ifEmpty { listOf("Nothing has been printed yet.") }.forEach { MonoLine(it, style = IcodeType.MonoSmall) }
+    IcodeSection {
+        IcodeTextButton(if (details) "Hide Details" else "Show Details", { details = !details })
+        if (details) {
+            CodeSurface(Modifier.fillMaxWidth()) {
+                work.log.ifEmpty { listOf("Nothing has been printed yet.") }.forEach { MonoLine(it, style = IcodeType.MonoSmall) }
+            }
         }
     }
 }
@@ -177,14 +184,15 @@ internal fun ToolProgress(work: RuntimeToolWork) {
 @Composable
 internal fun LicenceAgreement(plan: RuntimeToolPlan, tools: RuntimeToolsState, accepted: Set<String>, onAnswer: (String, Boolean) -> Unit) {
     plan.licences.forEach { id ->
-        SectionLabel(id, Modifier.padding(top = IcodeSpacing.Space2))
-        Text("For ${spoken(plan.install.filter { it.licence == id }.map { it.name })}.", style = IcodeType.Caption)
-        CodeSurface(Modifier.fillMaxWidth().height(IcodeSizes.LicenceText)) {
-            Text(tools.licences[id] ?: "Reading the licence…", style = IcodeType.MonoSmall, modifier = Modifier.verticalScroll(rememberScrollState()))
-        }
-        Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
-            IcodeOptionRow("Decline", "Nothing that needs it is installed.", selected = id !in accepted, onSelect = { onAnswer(id, false) })
-            IcodeOptionRow("Accept", "I have read the licence and agree to its terms.", selected = id in accepted, onSelect = { onAnswer(id, true) })
+        IcodeSection(id) {
+            Text("For ${spoken(plan.install.filter { it.licence == id }.map { it.name })}.", style = IcodeType.Caption)
+            CodeSurface(Modifier.fillMaxWidth().height(IcodeSizes.LicenceText)) {
+                Text(tools.licences[id] ?: "Reading the licence…", style = IcodeType.MonoSmall, modifier = Modifier.verticalScroll(rememberScrollState()))
+            }
+            Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
+                IcodeOptionRow("Decline", "Nothing that needs it is installed.", selected = id !in accepted, onSelect = { onAnswer(id, false) })
+                IcodeOptionRow("Accept", "I have read the licence and agree to its terms.", selected = id in accepted, onSelect = { onAnswer(id, true) })
+            }
         }
     }
 }
@@ -199,14 +207,16 @@ internal fun ToolsStarting() {
 /** Finish: what changed, by name. */
 @Composable
 internal fun ToolsApplied(applied: Applied) {
-    Icon(Icons.Outlined.CheckCircle, contentDescription = null, tint = IcodeColors.Green, modifier = Modifier.size(IcodeSizes.IconXl))
-    PageHeading(
-        if (applied.removed.isEmpty()) "Tools Installed" else "Changes Applied",
-        description = listOfNotNull(
-            applied.installed.takeIf { it.isNotEmpty() }?.let { "Installed ${spoken(it)}." },
-            applied.removed.takeIf { it.isNotEmpty() }?.let { "Removed ${spoken(it)}." },
-        ).joinToString(" "),
-    )
+    IcodeSection {
+        Icon(Icons.Outlined.CheckCircle, contentDescription = null, tint = IcodeColors.Green, modifier = Modifier.size(IcodeSizes.IconXl))
+        PageHeading(
+            if (applied.removed.isEmpty()) "Tools Installed" else "Changes Applied",
+            description = listOfNotNull(
+                applied.installed.takeIf { it.isNotEmpty() }?.let { "Installed ${spoken(it)}." },
+                applied.removed.takeIf { it.isNotEmpty() }?.let { "Removed ${spoken(it)}." },
+            ).joinToString(" "),
+        )
+    }
 }
 
 /** What a row's status says. */

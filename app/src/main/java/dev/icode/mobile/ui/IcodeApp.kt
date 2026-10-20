@@ -82,8 +82,8 @@ fun IcodeApp(
         initialValue = WorkspacePreferences(workspaceLocation = root, loaded = false),
     )
     val appearance = preferences.appearance.takeIf { preferences.loaded && preferences.loadError == null }
-    val cardBorders = appearance?.cardBorders ?: true
-    val palette = IcodePalette.of(appearance?.theme ?: AppTheme.Dark, cardBorders).withAccent(appearance?.accentColor)
+    val borderLines = appearance?.borderLines ?: true
+    val palette = IcodePalette.of(appearance?.theme ?: AppTheme.Dark, borderLines).withAccent(appearance?.accentColor)
     SideEffect {
         (context as? Activity)?.window?.let { window ->
             WindowCompat.getInsetsController(window, window.decorView).apply {
@@ -96,7 +96,7 @@ fun IcodeApp(
         palette = palette,
         uiTextScalePercent = appearance?.uiTextScalePercent ?: 100,
         compactLayout = appearance?.compactLayout ?: true,
-        cardBorders = cardBorders,
+        borderLines = borderLines,
     ) {
         LaunchedEffect(gateway, preferences.editor.autoSave, preferences.loaded, preferences.loadError, captureMode) {
             if (!captureMode && preferences.loaded && preferences.loadError == null) {

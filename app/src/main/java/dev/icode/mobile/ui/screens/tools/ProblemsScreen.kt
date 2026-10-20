@@ -53,7 +53,7 @@ fun ProblemsPanelContent(
     val counts = mapOf(Severity.Error to errorCount, Severity.Warning to warningCount, Severity.Info to infoCount)
     Column(modifier.fillMaxSize()) {
         LazyColumn(
-            modifier = Modifier.weight(1f).padding(horizontal = IcodeSpacing.Space3),
+            modifier = Modifier.weight(1f).padding(horizontal = IcodeSpacing.Gutter),
             verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
         ) {
             if (visible.isEmpty()) {

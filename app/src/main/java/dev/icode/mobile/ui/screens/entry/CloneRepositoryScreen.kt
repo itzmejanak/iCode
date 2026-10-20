@@ -1,13 +1,10 @@
 package dev.icode.mobile.ui.screens.entry
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Lock
@@ -21,8 +18,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeListRow
+import dev.icode.mobile.designsystem.IcodePageColumn
+import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
+import dev.icode.mobile.designsystem.IcodeTextField
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.LabeledTextField
@@ -56,14 +56,7 @@ fun CloneRepositoryScreen(actions: NavigationActions) {
     val branchError = branch.trim().takeIf { it.isNotEmpty() }?.let(GitRemoteRules::branchError)
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Clone Repository", onBack = actions.back)
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(IcodeSpacing.Space5),
-            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space5),
-        ) {
+        IcodePageColumn(Modifier.weight(1f)) {
             LabeledTextField(
                 label = "Repository URL",
                 value = url,
@@ -78,16 +71,17 @@ fun CloneRepositoryScreen(actions: NavigationActions) {
             )
             DestinationField(destination) { actions.navigate(Route.ChooseDestination) }
             WorkspaceNameFields(name, { name = it; keepForm() }, nameProblem, destination)
-            LabeledTextField(
-                label = "Checkout Branch (Optional)",
-                value = branch,
-                onValueChange = {
-                    branch = it
-                    keepForm()
-                },
-                literal = true,
-            )
-            branchError?.let { Text(it, style = IcodeType.Caption, color = IcodeColors.Error) }
+            IcodeSection("Checkout Branch (Optional)") {
+                IcodeTextField(
+                    value = branch,
+                    onValueChange = {
+                        branch = it
+                        keepForm()
+                    },
+                    literal = true,
+                )
+                branchError?.let { Text(it, style = IcodeType.Caption, color = IcodeColors.Error) }
+            }
             (state.gitOperation as? GitOperationState.Failed)?.let { failure ->
                 NoticeCard(tone = IcodeTone.Error, modifier = Modifier.fillMaxWidth()) {
                     StatusLabel(failure.reason, IcodeColors.Error)
@@ -125,7 +119,7 @@ fun CloneRepositoryScreen(actions: NavigationActions) {
                 )
                 actions.navigate(Route.CloneProgress)
             },
-            Modifier.fillMaxWidth().padding(IcodeSpacing.Space5),
+            Modifier.fillMaxWidth().padding(IcodeSpacing.Gutter),
             enabled = url.isNotBlank() && nameProblem == null && branchError == null &&
                 state.gitOperation !is GitOperationState.Running,
         )

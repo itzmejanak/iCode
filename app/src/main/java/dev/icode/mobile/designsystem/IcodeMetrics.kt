@@ -5,15 +5,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.unit.dp
 
-/**
- * Spacing scale from `docs/layout.md` §4.5 (`space.1` … `space.6`).
- *
- * [Gutter] is the compact-screen page gutter. The layout document names 20 dp
- * for gutters; the implemented frames consistently use 16 dp, so 16 dp is the
- * adopted standard until the design says otherwise (recorded deviation).
- */
 internal val LocalIcodeCompactLayout = staticCompositionLocalOf { true }
 
+/**
+ * Spacing scale from `docs/layout.md` §4.5 (`space.1` … `space.6`); from `space.2` up, each step
+ * is 4 dp wider while Appearance › Compact Layout is off.
+ *
+ * Every page keeps one rhythm (§4.5): its content [Gutter] from the screen's edges, a group's label
+ * and items [ItemGap] apart, its groups [SectionGap] apart.
+ */
 object IcodeSpacing {
     val None = 0.dp
     val Micro = 2.dp
@@ -25,6 +25,21 @@ object IcodeSpacing {
     val Space6 @Composable get() = if (LocalIcodeCompactLayout.current) 24.dp else 28.dp
 
     val Gutter @Composable get() = Space4
+    /**
+     * A bar's edge beside an icon button: the button's touch target is wider than its icon by
+     * [IconButtonInset] each side, so the icon lines up with the page's [Gutter], as Material's top
+     * app bar has it.
+     */
+    val IconButtonGutter @Composable get() = Gutter - IconButtonInset
+    val IconButtonInset = (IcodeSizes.TouchTarget - IcodeSizes.IconXl) / 2
+    /** A list row's text in from the row's edge, where its selection is drawn ([IcodeListRow]). */
+    val RowInset @Composable get() = Space2
+    /** Beside a list of rows: their text then lines up with the page's [Gutter], their selection a [RowInset] wider. */
+    val RowGutter @Composable get() = Gutter - RowInset
+    val ItemGap @Composable get() = Space2
+    val SectionGap @Composable get() = Space5
+    /** Above a section's label among items [ItemGap] apart — a list's, a sheet's — making its gap a [SectionGap]. */
+    val SectionBreak @Composable get() = SectionGap - ItemGap
     val CardPadding @Composable get() = Space3
 
     /** Tree indentation step (explorer rows). */

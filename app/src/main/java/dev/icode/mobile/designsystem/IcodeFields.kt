@@ -119,8 +119,7 @@ fun LabeledTextField(
     secret: Boolean = false,
     literal: Boolean = false,
 ) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
-        SectionLabel(label)
+    IcodeSection(label, modifier) {
         IcodeTextField(
             value = value,
             onValueChange = onValueChange,

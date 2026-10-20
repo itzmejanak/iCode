@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
@@ -18,10 +19,11 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.ArrowDropDown
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -32,7 +34,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 
 /** Application shell: background, content clamp and system-bar insets. */
 @Composable
@@ -62,10 +63,22 @@ fun IcodeScreen(
 }
 
 /**
+ * A page's content under its top bar, scrolling: [IcodeSpacing.Gutter] from the screen's edges, its
+ * sections ([IcodeSection]) [IcodeSpacing.SectionGap] apart (layout.md §4.5).
+ */
+@Composable
+fun IcodePageColumn(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        modifier = modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(IcodeSpacing.Gutter),
+        verticalArrangement = Arrangement.spacedBy(IcodeSpacing.SectionGap),
+        content = content,
+    )
+}
+
+/**
  * Workspace, page and dialog header with optional back and action slots.
  *
- * A hairline divider closes the header by default; pages can hide it with
- * [showDivider]. Pass an [AnnotatedString] title to style parts of it (e.g.
+ * Its [EdgeLine] closes the header. Pass an [AnnotatedString] title to style parts of it (e.g.
  * the product wordmark) independently from the rest of the text. [onTitleClick]
  * makes the title a choice, marked ▾ (the file explorer's places), and
  * [titleMenu] is drawn anchored under it.
@@ -77,7 +90,6 @@ fun IcodeTopBar(
     subtitle: String? = null,
     onBack: (() -> Unit)? = null,
     dense: Boolean = false,
-    showDivider: Boolean = true,
     onTitleClick: (() -> Unit)? = null,
     titleMenu: @Composable () -> Unit = {},
     actions: @Composable RowScope.() -> Unit = {},
@@ -92,7 +104,7 @@ fun IcodeTopBar(
                     subtitle == null -> IcodeSizes.TopBar
                     else -> IcodeSizes.TopBarWithSubtitle
                 })
-                .padding(horizontal = IcodeSpacing.Space3),
+                .padding(horizontal = IcodeSpacing.IconButtonGutter),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (onBack != null) {
@@ -100,7 +112,8 @@ fun IcodeTopBar(
                     Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back", tint = IcodeColors.TextPrimary)
                 }
             }
-            Box(Modifier.weight(1f)) {
+            // Without Back, the title starts at the page's gutter, as the content under it does.
+            Box(Modifier.weight(1f).padding(start = if (onBack == null) IcodeSpacing.IconButtonInset else IcodeSpacing.None)) {
                 Column(
                     modifier = if (onTitleClick == null) Modifier else Modifier.clip(IcodeShapes.Small).clickable(role = Role.Button, onClick = onTitleClick),
                 ) {
@@ -118,9 +131,7 @@ fun IcodeTopBar(
             }
             actions()
         }
-        if (showDivider) {
-            HorizontalDivider(color = IcodeColors.Outline, thickness = 0.5.dp)
-        }
+        EdgeLine()
     }
 }
 
@@ -132,12 +143,11 @@ fun IcodeTopBar(
     subtitle: String? = null,
     onBack: (() -> Unit)? = null,
     dense: Boolean = false,
-    showDivider: Boolean = true,
     onTitleClick: (() -> Unit)? = null,
     titleMenu: @Composable () -> Unit = {},
     actions: @Composable RowScope.() -> Unit = {},
 ) {
-    IcodeTopBar(AnnotatedString(title), modifier, subtitle, onBack, dense, showDivider, onTitleClick, titleMenu, actions)
+    IcodeTopBar(AnnotatedString(title), modifier, subtitle, onBack, dense, onTitleClick, titleMenu, actions)
 }
 
 /** Full-page heading used by setup and permission screens without a top bar. */

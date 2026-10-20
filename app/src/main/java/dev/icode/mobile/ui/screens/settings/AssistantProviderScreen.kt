@@ -7,10 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Icon
@@ -31,17 +28,19 @@ import dev.icode.mobile.designsystem.DangerButton
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeConfirmDialog
+import dev.icode.mobile.designsystem.IcodePageColumn
+import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSelect
 import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodeSheetOverlay
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
+import dev.icode.mobile.designsystem.IcodeTextField
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.LabeledTextField
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SecondaryButton
-import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantModelSpec
@@ -93,10 +92,7 @@ fun AssistantProviderScreen(actions: NavigationActions) {
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().then(if (adding || options != null) Modifier.blur(IcodeSizes.SheetBackdropBlur) else Modifier)) {
             IcodeTopBar(saved?.name ?: "Add Provider", subtitle = saved?.kind?.label, onBack = { if (changed) leaving = true else actions.back() })
-            Column(
-                modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(IcodeSpacing.Space4),
-                verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space4),
-            ) {
+            IcodePageColumn(Modifier.weight(1f)) {
                 if (saved == null) {
                     IcodeSelect(
                         options = AssistantProviderKind.entries,
@@ -109,12 +105,13 @@ fun AssistantProviderScreen(actions: NavigationActions) {
                 }
                 LabeledTextField("Name", name, { name = it }, placeholder = kind.label)
                 if (kind.asksBaseUrl) {
-                    LabeledTextField("Server Address", baseUrl, { baseUrl = it }, placeholder = kind.defaultBaseUrl ?: "https://api.example.com/v1", literal = true)
-                    AssistantRules.providerHint(kind, baseUrl)?.let { Text(it, style = IcodeType.Caption.copy(color = IcodeColors.Amber)) }
+                    IcodeSection("Server Address") {
+                        IcodeTextField(baseUrl, { baseUrl = it }, placeholder = kind.defaultBaseUrl ?: "https://api.example.com/v1", literal = true)
+                        AssistantRules.providerHint(kind, baseUrl)?.let { Text(it, style = IcodeType.Caption.copy(color = IcodeColors.Amber)) }
+                    }
                 }
                 if (keySaved && !replacingKey) {
-                    Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
-                        SectionLabel("API Key")
+                    IcodeSection("API Key") {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3)) {
                             StatusLabel("Saved, never shown again", IcodeColors.Green, Modifier.weight(1f))
                             SecondaryButton("Replace", { replacingKey = true })
@@ -123,8 +120,7 @@ fun AssistantProviderScreen(actions: NavigationActions) {
                 } else {
                     LabeledTextField("API Key", key, { key = it }, placeholder = if (kind.needsKey) "Paste the key" else "Optional", secret = true)
                 }
-                Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
-                    SectionLabel("Models")
+                IcodeSection("Models") {
                     if (models.isEmpty()) {
                         Text("The models this provider offers the chat: add one or more.", style = IcodeType.Caption.copy(color = IcodeColors.TextMuted))
                     } else {
@@ -149,17 +145,19 @@ fun AssistantProviderScreen(actions: NavigationActions) {
                     }
                     SecondaryButton("Add Models", { adding = true }, Modifier.fillMaxWidth())
                 }
-                problem?.let { Text(it, style = IcodeType.Caption.copy(color = IcodeColors.TextMuted)) }
-                PrimaryButton(
-                    if (saved == null) "Add Provider" else "Save",
-                    {
-                        gateway.dispatch(ICodeIntent.SaveAssistantProvider(id, kind, named, baseUrl, key.takeIf { it.isNotBlank() }, models))
-                        actions.back()
-                    },
-                    Modifier.fillMaxWidth(),
-                    enabled = problem == null,
-                )
-                if (saved != null) DangerButton("Remove Provider", { removing = true }, Modifier.fillMaxWidth())
+                IcodeSection {
+                    problem?.let { Text(it, style = IcodeType.Caption.copy(color = IcodeColors.TextMuted)) }
+                    PrimaryButton(
+                        if (saved == null) "Add Provider" else "Save",
+                        {
+                            gateway.dispatch(ICodeIntent.SaveAssistantProvider(id, kind, named, baseUrl, key.takeIf { it.isNotBlank() }, models))
+                            actions.back()
+                        },
+                        Modifier.fillMaxWidth(),
+                        enabled = problem == null,
+                    )
+                    if (saved != null) DangerButton("Remove Provider", { removing = true }, Modifier.fillMaxWidth())
+                }
             }
         }
         if (adding || options != null) {

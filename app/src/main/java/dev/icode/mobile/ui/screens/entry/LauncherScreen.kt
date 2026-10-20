@@ -3,6 +3,7 @@ package dev.icode.mobile.ui.screens.entry
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -87,8 +88,8 @@ fun LauncherScreen(actions: NavigationActions, empty: Boolean) {
             },
         )
         Row(
-            modifier = Modifier.fillMaxWidth().padding(IcodeSpacing.Space4),
-            horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
+            modifier = Modifier.fillMaxWidth().padding(start = IcodeSpacing.Gutter, top = IcodeSpacing.Gutter, end = IcodeSpacing.Gutter),
+            horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.ItemGap),
         ) {
             // Import and Workspaces open the one file explorer, at phone storage and at iCode's (docs/storage-explorer-plan.md §1).
             LauncherActionTile(Icons.Outlined.FolderOpen, "Import", Modifier.weight(1f)) { explore(StoragePlace.Shared) }
@@ -110,10 +111,11 @@ fun LauncherScreen(actions: NavigationActions, empty: Boolean) {
                 }
             } else {
                 LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = IcodeSpacing.Space4),
-                    verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(start = IcodeSpacing.Gutter, top = IcodeSpacing.SectionGap, end = IcodeSpacing.Gutter),
+                    verticalArrangement = Arrangement.spacedBy(IcodeSpacing.ItemGap),
                 ) {
-                    item { SectionLabel("Recent", Modifier.padding(bottom = IcodeSpacing.Space1)) }
+                    item { SectionLabel("Recent") }
                     items(WorkspaceListRules.recent(workspaces), key = { it.location }) { workspace ->
                         // Shown where it is listed: the top of iCode's storage, the folder holding it.
                         WorkspaceRow(workspace, onShowInList = { showIn(workspace.location.substringBeforeLast('/')) })

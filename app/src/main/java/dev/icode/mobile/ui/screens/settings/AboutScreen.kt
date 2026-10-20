@@ -1,13 +1,10 @@
 package dev.icode.mobile.ui.screens.settings
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -18,11 +15,12 @@ import dev.icode.mobile.designsystem.IcodeBrandMark
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeListRow
+import dev.icode.mobile.designsystem.IcodePageColumn
+import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
-import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.BuildConfig
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
@@ -58,50 +56,46 @@ fun AboutScreen(actions: NavigationActions) {
     )
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("About iCode", subtitle = settingsSubtitle(Route.About), onBack = actions.back)
-        LazyColumn(
-            modifier = Modifier.padding(IcodeSpacing.Space4),
-            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
-        ) {
-            item {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = IcodeSpacing.Space4 + IcodeSpacing.Micro),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    IcodeBrandMark(Modifier.size(IcodeSizes.Tile))
-                    Text(
-                        "iCode Mobile IDE",
-                        modifier = Modifier.padding(top = IcodeSpacing.Space2 + IcodeSpacing.Micro),
-                        style = IcodeType.Heading,
-                    )
-                    Text("NATIVE ANDROID IDE", style = IcodeType.MonoSmall.copy(color = IcodeColors.Accent))
-                }
+        IcodePageColumn {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(vertical = IcodeSpacing.Space4 + IcodeSpacing.Micro),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                IcodeBrandMark(Modifier.size(IcodeSizes.Tile))
+                Text(
+                    "iCode Mobile IDE",
+                    modifier = Modifier.padding(top = IcodeSpacing.Space2 + IcodeSpacing.Micro),
+                    style = IcodeType.Heading,
+                )
+                Text("NATIVE ANDROID IDE", style = IcodeType.MonoSmall.copy(color = IcodeColors.Accent))
             }
-            item { SectionLabel("Build Specifications") }
-            item {
+            IcodeSection("Build Specifications") {
                 IcodeCard(Modifier.fillMaxWidth()) {
                     buildSpecs.forEach { (label, value) -> DetailRow(label, value) }
                 }
             }
-            item { SectionLabel("Diagnostics", Modifier.padding(top = IcodeSpacing.Space1 + IcodeSpacing.Micro)) }
-            items(diagnosticActions) { action ->
-                IcodeListRow(
-                    card = true,
-                    title = action,
-                    subtitle = NOT_AVAILABLE,
-                    titleColor = IcodeColors.TextSecondary,
-                    subtitleStyle = IcodeType.Caption,
-                )
+            IcodeSection("Diagnostics") {
+                diagnosticActions.forEach { action ->
+                    IcodeListRow(
+                        card = true,
+                        title = action,
+                        subtitle = NOT_AVAILABLE,
+                        titleColor = IcodeColors.TextSecondary,
+                        subtitleStyle = IcodeType.Caption,
+                    )
+                }
             }
-            item { SectionLabel("Resources", Modifier.padding(top = IcodeSpacing.Space1 + IcodeSpacing.Micro)) }
-            items(resources) { title ->
-                IcodeListRow(
-                    card = true,
-                    title = title,
-                    subtitle = NOT_AVAILABLE,
-                    titleStyle = IcodeType.Body,
-                    titleColor = IcodeColors.TextSecondary,
-                    subtitleStyle = IcodeType.Caption,
-                )
+            IcodeSection("Resources") {
+                resources.forEach { title ->
+                    IcodeListRow(
+                        card = true,
+                        title = title,
+                        subtitle = NOT_AVAILABLE,
+                        titleStyle = IcodeType.Body,
+                        titleColor = IcodeColors.TextSecondary,
+                        subtitleStyle = IcodeType.Caption,
+                    )
+                }
             }
         }
     }

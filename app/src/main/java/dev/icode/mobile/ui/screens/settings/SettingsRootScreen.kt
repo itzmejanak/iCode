@@ -2,6 +2,7 @@ package dev.icode.mobile.ui.screens.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -63,13 +64,20 @@ fun SettingsRootScreen(actions: NavigationActions) {
                 onValueChange = { searchQuery = it },
                 placeholder = "Search settings",
                 leadingIcon = Icons.Outlined.Search,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = IcodeSpacing.Space3, vertical = IcodeSpacing.Space2),
+                modifier = Modifier.fillMaxWidth().padding(start = IcodeSpacing.Gutter, top = IcodeSpacing.Gutter, end = IcodeSpacing.Gutter),
                 inputModifier = Modifier.focusRequester(searchFocus),
             )
         }
         LazyColumn(
-            modifier = Modifier.weight(1f).padding(IcodeSpacing.Space3),
-            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
+            modifier = Modifier.weight(1f),
+            // Under the search field, its results follow it as one group.
+            contentPadding = PaddingValues(
+                start = IcodeSpacing.Gutter,
+                top = if (searchVisible) IcodeSpacing.ItemGap else IcodeSpacing.Gutter,
+                end = IcodeSpacing.Gutter,
+                bottom = IcodeSpacing.Gutter,
+            ),
+            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.ItemGap),
         ) {
             if (categories.isEmpty()) item {
                 Text("No matching settings", style = IcodeType.Body, color = IcodeColors.TextSecondary)

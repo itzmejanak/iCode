@@ -18,15 +18,15 @@ Screenshot evidence: `1000367358.jpg` (11:59 AM, 410k tokens) — `Orchestrator 
 
 ## 2. What we have — component inventory (today)
 
-Tokens: `IcodeColors` (palette + `terminalAnsi`), `IcodeType` (`ChakraPetch`/`PlexMono` + 11 styles), `IcodeMetrics` (`IcodeSpacing.Space1..6,Gutter,CardPadding,IndentStep`; `IcodeShapes`; `IcodeSizes`), `IcodeTone` (6 tints), `IcodeTheme` (bridge).
+Tokens: `IcodeColors` (palette + `terminalAnsi`), `IcodeType` (`ChakraPetch`/`PlexMono` + 11 styles), `IcodeMetrics` (`IcodeSpacing.Space1..6,Gutter,ItemGap,SectionGap,SectionBreak,IconButtonGutter,RowGutter,CardPadding,IndentStep`; `IcodeShapes`; `IcodeSizes`), `IcodeTone` (6 tints), `IcodeTheme` (bridge).
 
-Kit (27 files, each ≤ ~300 lines, all under `designsystem/`):
-- Containers: `IcodeCard`, `CodeSurface`, `IcodeScaffold`, `IcodePanels`, `IcodeSheetOverlay`, `IcodeLayout`, `IcodeBrandMark`
-- Inputs: `IcodeTextField/LabeledTextField/LabeledField`, `IcodeDropdown/IcodeChoiceMenu/IcodeChoiceChip`, `IcodeToggle/IcodeCheckbox/SegmentedControl/IcodeSlider/Stepper`
+Kit (each file ≤ ~300 lines, all under `designsystem/`):
+- Containers: `IcodeCard`, `IcodeSection`, `CodeSurface`, `IcodeScaffold` (`IcodePageColumn`), `IcodePanels` (`IcodeFootBar`), `IcodeSheetOverlay`, `IcodeLayout`, `IcodeBrandMark`; `EdgeLine` and `Divider`
+- Inputs: `IcodeTextField/LabeledTextField/LabeledField`, `IcodeSelect` (card or chip), `IcodeToggle/IcodeCheckbox/SegmentedControl/IcodeSlider/Stepper`
 - Actions: `Primary/Secondary/DangerButton` (Primary with a leading icon), `IcodeTextButton`, `IcodeNavigationLink`, `KeyChip` (text or icon), `JumpToLatestButton`
 - Lists: `IcodeListRow (card+compact)`, `SettingRow`, `DetailRow`, `IconBadge`, `IcodeChoiceRow`
-- Feedback: `NoticeCard (tone→border/title)`, `EmptyState`, `IcodeDialogCard/DialogScaffold/IcodeConfirmDialog/IcodeSaveDiscardDialog/IcodeBottomSheet`
-- Navigation: `IcodeRail`, `IcodeTopBar`, `IcodeTabStrip`, `IcodeMenus (IcodeOverflowMenu/IcodeActionMenu)`, `IcodeStatus`, `IcodeProgressDialog`, `IcodeDiff`, `IcodeZoom`
+- Feedback: `NoticeCard (tone→border/title)`, `EmptyState`, `IcodeDialogCard/IcodeConfirmDialog/IcodeSaveDiscardDialog/IcodeBottomSheet`
+- Navigation: `IcodeRail`, `IcodeTopBar`, `IcodeTabStrip`, `IcodeMenus (IcodeOverflowMenu/IcodeActionMenu, one IcodeDropdownMenu surface with IcodeSelect's)`, `IcodeStatus`, `IcodeProgressDialog`, `IcodeDiff`, `IcodeZoom`
 
 ## 3. Findings — ID, category, severity, confidence, evidence
 

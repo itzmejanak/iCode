@@ -48,7 +48,7 @@ fun PullProgressScreen(actions: NavigationActions) {
     }
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Syncing Repository", onBack = actions.back)
-        Column(Modifier.padding(IcodeSpacing.Space5)) {
+        Column(Modifier.padding(IcodeSpacing.Gutter)) {
             Text(
                 headline(operation, state.gitRepository?.remoteName, state.activeBranch),
                 modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -90,7 +90,7 @@ fun PullProgressScreen(actions: NavigationActions) {
         SecondaryButton(
             if (running) "Run in Background" else "Close",
             actions.back,
-            Modifier.fillMaxWidth().padding(IcodeSpacing.Space5),
+            Modifier.fillMaxWidth().padding(IcodeSpacing.Gutter),
         )
     }
 }

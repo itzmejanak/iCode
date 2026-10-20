@@ -7,7 +7,7 @@ import dev.icode.mobile.domain.AccentColorRules
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * This palette for cards drawn without their outline (docs/card-borders-plan.md §3): a card and its
+ * This palette for cards drawn without their outline (docs/border-lines-plan.md §3): a card and its
  * page at least [CARD_STEP] : 1 apart; every other surface its own step from what it sits on; and
  * every colour drawn on a surface that moved reading at least as well as before, or as well as WCAG
  * AA asks. A tone moves only in lightness, its hue and chroma kept ([Oklch.readable]). The accent is
@@ -51,7 +51,7 @@ private val borderlessPalettes = ConcurrentHashMap<IcodePalette, IcodePalette>()
 /**
  * A card and its page with no line between them, at least this far apart: iOS keeps its grouped
  * cells 1.116 : 1 from their page, Material 3's dark scheme a container 1.141 : 1 from its page. In
- * steps of 0.01 lightness each theme lands just past it (docs/card-borders-plan.md §3); the owner
+ * steps of 0.01 lightness each theme lands just past it (docs/border-lines-plan.md §3); the owner
  * chose it from mockups of the three (2026-10-19).
  */
 private const val CARD_STEP = 1.12

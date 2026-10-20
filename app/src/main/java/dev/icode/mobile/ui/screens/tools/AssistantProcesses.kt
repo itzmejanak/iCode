@@ -58,7 +58,7 @@ internal fun AssistantProcessesRow(processes: List<ManagedProcess>, onOpen: () -
     val running = processes.any { it.running }
     Row(
         Modifier.fillMaxWidth().minimumInteractiveComponentSize().clickable(onClickLabel = "Show processes", onClick = onOpen)
-            .padding(horizontal = IcodeSpacing.Space4),
+            .padding(horizontal = IcodeSpacing.Gutter),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
     ) {
@@ -87,7 +87,7 @@ internal fun AssistantProcessesSheet(processes: List<ManagedProcess>, workspace:
     }
     IcodeBottomSheet(title = "Processes", onClose = onClose, modifier = modifier) {
         // One group: the rows in a raised box of their own, divided within, as a settings group.
-        IcodeCard(Modifier.fillMaxWidth(), elevated = true, padding = PaddingValues()) {
+        IcodeCard(Modifier.fillMaxWidth(), padding = PaddingValues()) {
             processes.sortedBy { it.workspace != workspace }.forEachIndexed { index, process ->
                 if (index > 0) Divider()
                 ProcessRow(process, elsewhere = process.workspace != workspace, now = now) {

@@ -41,8 +41,6 @@ data class IcodePalette(
      */
     val terminalAnsi: List<Color>,
 ) {
-    val scrim: Color get() = backgroundDeep.copy(alpha = 0.95f)
-
     /** Behind a sheet: the screen it opened over stays in sight, dimmed. */
     val sheetScrim: Color get() = backgroundDeep.copy(alpha = 0.5f)
 
@@ -99,13 +97,13 @@ data class IcodePalette(
         )
 
         /** [theme]'s palette as the app draws it: with its card outlines, or apart by tone without ([borderless]). */
-        fun of(theme: AppTheme, cardBorders: Boolean): IcodePalette {
+        fun of(theme: AppTheme, borderLines: Boolean): IcodePalette {
             val palette = when (theme) {
                 AppTheme.Dark -> Dark
                 AppTheme.Light -> Light
                 AppTheme.Amoled -> Amoled
             }
-            return if (cardBorders) palette else palette.borderless()
+            return if (borderLines) palette else palette.borderless()
         }
     }
 }
@@ -142,7 +140,6 @@ object IcodeColors {
     val DiffRemovedSurface: Color @Composable get() = LocalIcodePalette.current.diffRemovedSurface
     val ConflictCurrentSurface: Color @Composable get() = LocalIcodePalette.current.conflictCurrentSurface
     val ConflictIncomingSurface: Color @Composable get() = LocalIcodePalette.current.conflictIncomingSurface
-    val Scrim: Color @Composable get() = LocalIcodePalette.current.scrim
     val SheetScrim: Color @Composable get() = LocalIcodePalette.current.sheetScrim
 }
 

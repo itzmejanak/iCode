@@ -1,13 +1,10 @@
 package dev.icode.mobile.ui.screens.settings
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Add
@@ -21,6 +18,8 @@ import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeBrandMark
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeListRow
+import dev.icode.mobile.designsystem.IcodePageColumn
+import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
@@ -28,7 +27,6 @@ import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.IconBadge
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.PrimaryButton
-import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.domain.AssistantProvider
 import dev.icode.mobile.domain.ICodeIntent
@@ -63,30 +61,30 @@ fun AssistantSettingsScreen(actions: NavigationActions) {
                 }
             },
         )
-        Column(
-            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(IcodeSpacing.Space4),
-            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2 + IcodeSpacing.Micro),
-        ) {
+        IcodePageColumn(Modifier.weight(1f)) {
             if (settings.providers.isEmpty()) {
-                EmptyState(
-                    title = "Add a model provider",
-                    description = "OpenAI, Anthropic, Google Gemini, OpenRouter, Ollama, or any OpenAI-compatible server — " +
-                        "DeepSeek, Groq, LM Studio. Add several, each with the models you use: the chat lists them all.",
-                    mark = { IcodeBrandMark(Modifier.size(IcodeSizes.MarkLg)) },
-                    modifier = Modifier.padding(vertical = IcodeSpacing.Space6),
-                )
-                PrimaryButton("Add Provider", { open("") }, Modifier.fillMaxWidth())
-            } else {
-                SectionLabel("Providers")
-                settings.providers.forEach { provider ->
-                    ProviderRow(provider, inUse = provider.id == settings.choice?.provider) { open(provider.id) }
+                IcodeSection {
+                    EmptyState(
+                        title = "Add a model provider",
+                        description = "OpenAI, Anthropic, Google Gemini, OpenRouter, Ollama, or any OpenAI-compatible server — " +
+                            "DeepSeek, Groq, LM Studio. Add several, each with the models you use: the chat lists them all.",
+                        mark = { IcodeBrandMark(Modifier.size(IcodeSizes.MarkLg)) },
+                        modifier = Modifier.padding(vertical = IcodeSpacing.Space6),
+                    )
+                    PrimaryButton("Add Provider", { open("") }, Modifier.fillMaxWidth())
                 }
-                settings.provider?.let { provider ->
-                    settings.model?.let { model ->
-                        Text(
-                            "The chat uses ${model.id} from ${provider.name}. Choose another model on the chat page.",
-                            style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary),
-                        )
+            } else {
+                IcodeSection("Providers") {
+                    settings.providers.forEach { provider ->
+                        ProviderRow(provider, inUse = provider.id == settings.choice?.provider) { open(provider.id) }
+                    }
+                    settings.provider?.let { provider ->
+                        settings.model?.let { model ->
+                            Text(
+                                "The chat uses ${model.id} from ${provider.name}. Choose another model on the chat page.",
+                                style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary),
+                            )
+                        }
                     }
                 }
             }
@@ -94,7 +92,6 @@ fun AssistantSettingsScreen(actions: NavigationActions) {
                 "What the assistant reads — files, search results, command output, what you attach — is sent to the provider of " +
                     "the chat's model. API keys are kept encrypted on this phone and never shown again.",
                 style = IcodeType.Caption.copy(color = IcodeColors.TextMuted),
-                modifier = Modifier.padding(top = IcodeSpacing.Space2),
             )
         }
     }

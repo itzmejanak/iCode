@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -24,6 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -113,27 +113,6 @@ fun IcodeDialogCard(
     )
 }
 
-/** Full-screen dialog frame used by recovery routes and static captures. */
-@Composable
-fun DialogScaffold(
-    title: String,
-    modifier: Modifier = Modifier,
-    subtitle: String? = null,
-    onBack: (() -> Unit)? = null,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    Box(modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().background(IcodeColors.Scrim)) {
-            IcodeTopBar(title, subtitle = subtitle, onBack = onBack)
-        }
-        IcodeDialogCard(
-            modifier = Modifier.align(Alignment.Center).fillMaxWidth().padding(IcodeSpacing.Space6),
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3), content = content)
-        }
-    }
-}
-
 /** Compact modal confirmation using the same surface and actions as screen dialogs. */
 @Composable
 fun IcodeConfirmDialog(
@@ -213,41 +192,44 @@ fun IcodeBottomSheet(
     footer: (@Composable ColumnScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(IcodeColors.Surface, IcodeShapes.Sheet)
-            // A tap on the sheet stays on it, never reaching the screen it is over.
-            .pointerInput(Unit) {}
-            .padding(IcodeSpacing.Space4),
-    ) {
-        Box(
-            Modifier
-                .align(Alignment.CenterHorizontally)
-                .width(36.dp)
-                .height(4.dp)
-                .background(IcodeColors.Outline, IcodeShapes.Track),
-        )
-        Row(
-            Modifier.fillMaxWidth().padding(vertical = IcodeSpacing.Space3),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(title, modifier = Modifier.weight(1f), style = IcodeType.Title)
-            IconButton(onClick = onClose) {
-                Icon(Icons.Outlined.Close, contentDescription = "Close", tint = IcodeColors.TextSecondary)
-            }
-        }
+    // Its cards stand a step above it, as a page's above the page.
+    CompositionLocalProvider(LocalIcodeCardRaised provides true) {
         Column(
-            Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
-            content = content,
-        )
-        if (footer != null) {
-            Column(
-                Modifier.padding(top = IcodeSpacing.Space3),
-                verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
-                content = footer,
+            modifier = modifier
+                .fillMaxWidth()
+                .background(IcodeColors.Surface, IcodeShapes.Sheet)
+                // A tap on the sheet stays on it, never reaching the screen it is over.
+                .pointerInput(Unit) {}
+                .padding(IcodeSpacing.Space4),
+        ) {
+            Box(
+                Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .width(36.dp)
+                    .height(4.dp)
+                    .background(IcodeColors.Outline, IcodeShapes.Track),
             )
+            Row(
+                Modifier.fillMaxWidth().padding(vertical = IcodeSpacing.Space3),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(title, modifier = Modifier.weight(1f), style = IcodeType.Title)
+                IconButton(onClick = onClose) {
+                    Icon(Icons.Outlined.Close, contentDescription = "Close", tint = IcodeColors.TextSecondary)
+                }
+            }
+            Column(
+                Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
+                content = content,
+            )
+            if (footer != null) {
+                Column(
+                    Modifier.padding(top = IcodeSpacing.Space3),
+                    verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
+                    content = footer,
+                )
+            }
         }
     }
 }

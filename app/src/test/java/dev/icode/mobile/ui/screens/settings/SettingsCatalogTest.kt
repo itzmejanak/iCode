@@ -11,7 +11,7 @@ class SettingsCatalogTest {
         assertEquals(Route.SettingsEditor, searchSettingsCategories("minimap").single().destination)
         assertEquals(Route.SettingsEditor, searchSettingsCategories("auto save").single().destination)
         assertEquals(Route.AppearanceSettings, searchSettingsCategories("amoled").single().destination)
-        assertEquals(Route.AppearanceSettings, searchSettingsCategories("card borders").single().destination)
+        assertEquals(Route.AppearanceSettings, searchSettingsCategories("border lines").single().destination)
         assertEquals(Route.AppearanceSettings, searchSettingsCategories("outline").single().destination)
     }
 

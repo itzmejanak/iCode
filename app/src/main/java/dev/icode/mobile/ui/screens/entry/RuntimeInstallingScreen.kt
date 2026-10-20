@@ -66,7 +66,7 @@ fun RuntimeInstallingScreen(actions: NavigationActions) {
             else -> Unit
         }
     }
-    Column(Modifier.fillMaxSize().padding(IcodeSpacing.Space6)) {
+    Column(Modifier.fillMaxSize().padding(IcodeSpacing.Gutter)) {
         PageHeading(
             title = when (reason) {
                 RuntimeInstallReason.Initial -> "Installing Runtime"

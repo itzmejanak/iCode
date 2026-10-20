@@ -31,11 +31,11 @@ import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodeNavigationLink
+import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
-import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
@@ -57,8 +57,8 @@ fun EditorEmptyScreen(actions: NavigationActions) {
             onBack = { actions.navigate(Route.LauncherHome) },
         )
         Row(
-            modifier = Modifier.fillMaxWidth().padding(IcodeSpacing.Space4),
-            horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
+            modifier = Modifier.fillMaxWidth().padding(IcodeSpacing.Gutter),
+            horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.ItemGap),
         ) {
             EmptyActionTile(Icons.Outlined.Search, "Quick Open", Modifier.weight(1f)) { actions.navigate(Route.QuickOpen) }
             EmptyActionTile(Icons.Outlined.Add, "New File", Modifier.weight(1f)) { showCreateFile = true }
@@ -69,7 +69,7 @@ fun EditorEmptyScreen(actions: NavigationActions) {
             detail = "Find text inside this project's files",
             icon = Icons.Outlined.Search,
             onClick = { actions.navigate(Route.WorkspaceSearch) },
-            modifier = Modifier.padding(horizontal = IcodeSpacing.Space4),
+            modifier = Modifier.padding(horizontal = IcodeSpacing.Gutter),
         )
         EmptyState(
             title = "Select a file to begin coding",
@@ -78,14 +78,10 @@ fun EditorEmptyScreen(actions: NavigationActions) {
             },
             modifier = Modifier.padding(top = IcodeSpacing.Space6 + IcodeSpacing.Space4),
         )
-        Column(
-            modifier = Modifier.padding(IcodeSpacing.Space4).weight(1f),
-            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
+        IcodeSection(
+            "Recent Files",
+            Modifier.padding(start = IcodeSpacing.Gutter, top = IcodeSpacing.SectionGap, end = IcodeSpacing.Gutter).weight(1f),
         ) {
-            SectionLabel(
-                "Recent Files",
-                Modifier.padding(top = IcodeSpacing.Space6 + IcodeSpacing.Micro, bottom = IcodeSpacing.Space1),
-            )
             if (state.recentDocuments.isEmpty()) {
                 Text("Files you open will appear here", style = IcodeType.Caption, color = IcodeColors.TextSecondary)
             }

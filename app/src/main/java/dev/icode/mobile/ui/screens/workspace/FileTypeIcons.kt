@@ -29,7 +29,7 @@ internal fun IcodePalette.fileTypeColor(type: FileType): Color {
     val seti = fileTypeColours.getValue(type.id)
     val rgb = (if (kind == PaletteKind.Light) seti.light else seti.dark) ?: return textSecondary
     val behind = listOf(background, surface, surfaceElevated)
-    // By what it is drawn on: one theme draws on other tones without card borders.
+    // By what it is drawn on: one theme draws on other tones without border lines.
     return iconColors.getOrPut(seti to behind) {
         Oklch.readable(rgb, behind, MIN_ICON_CONTRAST, darker = kind == PaletteKind.Light)
     }

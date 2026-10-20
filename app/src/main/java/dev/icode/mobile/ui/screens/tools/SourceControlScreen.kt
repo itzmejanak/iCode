@@ -1,6 +1,7 @@
 package dev.icode.mobile.ui.screens.tools
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.PaddingValues
 import dev.icode.mobile.domain.GitChangeTree
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.Box
@@ -103,7 +104,7 @@ fun SourceControlScreen(actions: NavigationActions) {
             },
         )
         // The tree's rows sit together, as the Explorer's; the parts above keep their space.
-        LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth().padding(IcodeSpacing.Space4)) {
+        LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(IcodeSpacing.Gutter)) {
             if (repository.inProgress != GitInProgress.None) {
                 item {
                     Box(Modifier.padding(bottom = IcodeSpacing.Space3)) {

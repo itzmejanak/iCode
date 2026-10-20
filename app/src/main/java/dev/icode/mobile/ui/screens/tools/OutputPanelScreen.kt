@@ -65,7 +65,7 @@ fun OutputPanelContent(modifier: Modifier = Modifier) {
                         )
                     } else {
                         LazyColumn(
-                            modifier = Modifier.weight(1f).padding(horizontal = IcodeSpacing.Space4),
+                            modifier = Modifier.weight(1f).padding(horizontal = IcodeSpacing.Gutter),
                             verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
                         ) {
                             items(operation.transcript) { line ->

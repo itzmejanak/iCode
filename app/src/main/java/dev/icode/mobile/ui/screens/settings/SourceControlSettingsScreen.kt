@@ -1,13 +1,9 @@
 package dev.icode.mobile.ui.screens.settings
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.AccountTree
@@ -22,13 +18,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodePageColumn
+import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSheetOverlay
-import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SettingRow
-import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
@@ -55,30 +51,29 @@ fun SourceControlSettingsScreen(actions: NavigationActions) {
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().then(if (picking) Modifier.blur(IcodeSizes.SheetBackdropBlur) else Modifier)) {
             IcodeTopBar("Source Control", subtitle = settingsSubtitle(Route.SourceControlSettings), onBack = actions.back)
-            Column(
-                modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(IcodeSpacing.Space4),
-                verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space4),
-            ) {
-                SettingRow(
-                    "Git Credentials",
-                    Modifier.fillMaxWidth(),
-                    subtitle = "Commit identity, token and SSH key",
-                    leadingIcon = Icons.Outlined.AccountTree,
-                    onClick = { actions.navigate(Route.GitAuth) },
-                ) {
-                    Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = IcodeColors.TextSecondary)
-                }
-                SettingRow(
-                    "Commit Message Model",
-                    Modifier.fillMaxWidth(),
-                    subtitle = "$label · $hint",
-                    leadingIcon = Icons.Outlined.AutoAwesome,
-                    onClick = { picking = true },
-                ) {
-                    Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = IcodeColors.TextSecondary)
-                }
-                if (settings.providers.isEmpty()) {
-                    SecondaryButton("Add a Model Provider", { actions.navigate(Route.AssistantSettings) }, Modifier.fillMaxWidth())
+            IcodePageColumn(Modifier.weight(1f)) {
+                IcodeSection {
+                    SettingRow(
+                        "Git Credentials",
+                        Modifier.fillMaxWidth(),
+                        subtitle = "Commit identity, token and SSH key",
+                        leadingIcon = Icons.Outlined.AccountTree,
+                        onClick = { actions.navigate(Route.GitAuth) },
+                    ) {
+                        Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = IcodeColors.TextSecondary)
+                    }
+                    SettingRow(
+                        "Commit Message Model",
+                        Modifier.fillMaxWidth(),
+                        subtitle = "$label · $hint",
+                        leadingIcon = Icons.Outlined.AutoAwesome,
+                        onClick = { picking = true },
+                    ) {
+                        Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = IcodeColors.TextSecondary)
+                    }
+                    if (settings.providers.isEmpty()) {
+                        SecondaryButton("Add a Model Provider", { actions.navigate(Route.AssistantSettings) }, Modifier.fillMaxWidth())
+                    }
                 }
             }
         }
