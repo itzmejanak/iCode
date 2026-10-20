@@ -3,12 +3,16 @@ package dev.icode.mobile.ui.screens.tools
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
@@ -50,6 +54,7 @@ import dev.icode.mobile.ui.terminal.TerminalHost
 import dev.icode.mobile.ui.terminal.TerminalKeys
 
 /** One tools panel: terminal, run, problems and output share a tab header and back-stack entry. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TerminalScreen(actions: NavigationActions) {
     val state = LocalICodeSnapshot.current
@@ -170,39 +175,49 @@ fun TerminalScreen(actions: NavigationActions) {
                         ),
                     )
                 }
-                when {
-                    !runtimeReady -> RuntimeGate(state.runtime) {
-                        actions.navigate(Route.RuntimeInstalling)
+                // The bar keeps to the foot of the panel, whatever stands above it.
+                Box(Modifier.weight(1f).fillMaxWidth()) {
+                    when {
+                        !runtimeReady -> RuntimeGate(state.runtime) {
+                            actions.navigate(Route.RuntimeInstalling)
+                        }
+                        session == null -> EmptyState(
+                            title = "No terminal sessions",
+                            description = "Use + in the header to open a shell in this workspace.",
+                            modifier = Modifier.padding(IcodeSpacing.Space6),
+                        )
+                        session.status == TerminalStatus.Failed -> EmptyState(
+                            title = "The terminal could not start",
+                            description = session.exitDescription.orEmpty(),
+                            modifier = Modifier.padding(IcodeSpacing.Space6),
+                        )
+                        else -> TerminalHost(
+                            sessionId = session.id,
+                            settings = terminalSettings,
+                            fontScale = SettingLimits.zoomScale(fontScale, terminalSettings.fontSizeSp),
+                            keys = keys,
+                            // Pinch zoom stays within the sizes the Font Size setting offers, as the editor's does.
+                            onScale = { fontScale = SettingLimits.zoomScale(fontScale * it, terminalSettings.fontSizeSp) },
+                            onUrl = { gateway.dispatch(ICodeIntent.OpenExternalUrl(it)) },
+                            onEndedEnter = { gateway.dispatch(ICodeIntent.CloseTerminalSession(session.id)) },
+                            modifier = Modifier.fillMaxSize(),
+                        )
                     }
-                    session == null -> EmptyState(
-                        title = "No terminal sessions",
-                        description = "Use + in the header to open a shell in this workspace.",
-                        modifier = Modifier.padding(IcodeSpacing.Space6),
-                    )
-                    session.status == TerminalStatus.Failed -> EmptyState(
-                        title = "The terminal could not start",
-                        description = session.exitDescription.orEmpty(),
-                        modifier = Modifier.padding(IcodeSpacing.Space6),
-                    )
-                    else -> TerminalHost(
-                        sessionId = session.id,
-                        settings = terminalSettings,
-                        fontScale = SettingLimits.zoomScale(fontScale, terminalSettings.fontSizeSp),
-                        keys = keys,
-                        // Pinch zoom stays within the sizes the Font Size setting offers, as the editor's does.
-                        onScale = { fontScale = SettingLimits.zoomScale(fontScale * it, terminalSettings.fontSizeSp) },
-                        onUrl = { gateway.dispatch(ICodeIntent.OpenExternalUrl(it)) },
-                        onEndedEnter = { gateway.dispatch(ICodeIntent.CloseTerminalSession(session.id)) },
-                        modifier = Modifier.weight(1f),
-                    )
                 }
-                if (session != null && runtimeReady && terminalSettings.extraKeys.isNotEmpty()) {
+                // While the keyboard is open the keys row takes the bar's place, as the editor's does.
+                if (WindowInsets.isImeVisible && session != null && runtimeReady && terminalSettings.extraKeys.isNotEmpty()) {
                     ExtraKeyRow(
                         keys = terminalSettings.extraKeys,
                         enabled = session.isRunning,
                         ctrlHeld = keys.ctrl,
                         altHeld = keys.alt,
                         onKey = keys::press,
+                    )
+                } else {
+                    TerminalBar(
+                        running = session?.isRunning == true && runtimeReady,
+                        keys = keys,
+                        onEditor = { actions.returnTo(Route.WorkspaceEditor) },
                     )
                 }
             }

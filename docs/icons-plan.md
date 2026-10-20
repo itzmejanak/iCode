@@ -11,7 +11,7 @@ Owner's decisions (2026-10-18):
 |---|---|
 | Home and End | Added to the editor's keys row, after the arrows |
 | Problems file header | The file's type icon, its name, its count; nothing collapses, so no chevron |
-| Terminal tab status | Running: the Terminal icon in green; ended or failed: the error icon in red |
+| Terminal tab status | Running: the Terminal icon in the accent (owner, 2026-10-20; green before); ended or failed: the error icon in red |
 | The editor title's dirty dot | Removed: only the tab shows it |
 
 ## 1. What stands today (verified)

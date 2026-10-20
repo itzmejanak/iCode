@@ -14,7 +14,7 @@ import dev.icode.mobile.domain.TerminalSessionState
 import dev.icode.mobile.domain.TerminalStatus
 
 /**
- * The terminal's sessions as tabs, each marked by its state — the Terminal icon in green while its
+ * The terminal's sessions as tabs, each marked by its state — the Terminal icon in the accent while its
  * shell runs, the error icon in red once it has ended or failed: a shape as well as a colour.
  */
 @Composable
@@ -39,7 +39,7 @@ internal fun TerminalTabStrip(
             Icon(
                 if (running) Icons.Outlined.Terminal else Icons.Outlined.ErrorOutline,
                 contentDescription = null,
-                tint = if (running) IcodeColors.Green else IcodeColors.Error,
+                tint = if (running) IcodeColors.Accent else IcodeColors.Error,
                 modifier = Modifier.size(IcodeSizes.IconSm),
             )
         },

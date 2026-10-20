@@ -52,6 +52,14 @@ class NavigationState private constructor(
             val route = panelRoute(destination)
             if (route != current) historyNames = historyNames.dropLast(1) + route.name
         },
+        returnTo = { destination ->
+            val route = panelRoute(destination)
+            when {
+                route == current -> Unit
+                historyNames.getOrNull(historyNames.lastIndex - 1) == route.name -> historyNames = historyNames.dropLast(1)
+                else -> historyNames = historyNames.dropLast(1) + route.name
+            }
+        },
         openPanel = { tab ->
             panelTab = tab
             when {

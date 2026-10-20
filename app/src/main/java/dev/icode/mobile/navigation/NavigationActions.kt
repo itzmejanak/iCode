@@ -10,6 +10,11 @@ data class NavigationActions(
     val navigate: (Route) -> Unit,
     /** Switch a sibling tool without stacking duplicate search pages. */
     val replace: (Route) -> Unit,
+    /**
+     * Shows a route: back to it when it is the screen under this one, in this one's place otherwise —
+     * so two screens a tap apart (the editor and the terminal) take turns rather than stack up.
+     */
+    val returnTo: (Route) -> Unit,
     /** Selects a view of the one tools panel; opening another tab never pushes a route. */
     val openPanel: (ToolPanelTab) -> Unit,
     val panelTab: ToolPanelTab,
