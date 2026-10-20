@@ -32,7 +32,7 @@ class FileTypeIconsTest {
     @Test fun `each type takes Seti's colour for its language`() {
         mapOf("json" to SetiColour.Yellow, "typescript" to SetiColour.Blue, "kotlin" to SetiColour.Orange,
             "shell" to SetiColour.Green, "java" to SetiColour.Red, "yaml" to SetiColour.Purple, "sql" to SetiColour.Pink,
-            "rust" to SetiColour.Grey, "plaintext" to SetiColour.Grey,
+            "rust" to SetiColour.Grey, "plaintext" to SetiColour.Grey, "image" to SetiColour.Purple,
         ).forEach { (id, colour) -> assertEquals(id, colour, fileTypeColours[id]) }
     }
 

@@ -41,8 +41,10 @@ import dev.icode.mobile.domain.AssistantAttachment
 import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantEntry
 import dev.icode.mobile.domain.GitChange
+import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.copyText
 import dev.icode.mobile.ui.editor.MarkdownText
+import java.io.File
 
 /**
  * One row of the chat — what the user wrote, an answer, a step, a compaction — at the pinched size.
@@ -75,24 +77,29 @@ internal fun AssistantEntryRow(entry: AssistantEntry, copyable: Boolean, onDiff:
     }
 }
 
-/** What went with a message: its photos drawn small, its other files by name and kind. */
+/**
+ * What went with a message: its photos drawn small, its other files by name and kind. A tap shows a
+ * photo as it was sent, and opens a file of the workspace as it is now.
+ */
 @Composable
 private fun SaidFiles(files: List<AssistantAttachment>) {
     val scale = LocalCodeTextScale.current
-    val photos = files.filter { it.kind == AssistantAttachmentKind.Image }.mapNotNull { photo -> photo.file?.let { photo.name to it } }
+    val workspace = LocalICodeSnapshot.current.assistant.workspace
+    val photos = files.filter { it.kind == AssistantAttachmentKind.Image }.mapNotNull { photo -> photo.file?.let { photo to it } }
     if (photos.isNotEmpty()) {
         Row(
             Modifier.horizontalScroll(rememberScrollState()).padding(bottom = IcodeSpacing.Space2),
             horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
         ) {
-            photos.forEach { (name, file) ->
-                AssistantThumbnail(file, AssistantAttachmentKind.Image, Modifier.size(IcodeSizes.Tile).semantics { contentDescription = name })
+            photos.forEach { (photo, file) ->
+                val open = openerOf(photo, workspace)
+                AssistantThumbnail(file, AssistantAttachmentKind.Image, Modifier.size(IcodeSizes.Tile).semantics { contentDescription = photo.name }.tappable(open))
             }
         }
     }
     files.filter { it.kind != AssistantAttachmentKind.Image || it.file == null }.forEach { file ->
         Row(
-            Modifier.padding(bottom = IcodeSpacing.Space1),
+            Modifier.padding(bottom = IcodeSpacing.Space1).tappable(openerOf(file, workspace)),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
         ) {
@@ -101,6 +108,11 @@ private fun SaidFiles(files: List<AssistantAttachment>) {
         }
     }
 }
+
+/** [attachmentOpener] for a file sent from [workspace], the chat's; a file of it is named by its path there. */
+@Composable
+private fun openerOf(file: AssistantAttachment, workspace: String?): (() -> Unit)? =
+    attachmentOpener(file.name, file.kind, file.file, workspace?.takeIf { file.inWorkspace }?.let { File(it, file.name).path })
 
 /** Copy, under an answer: its Markdown as written. */
 @Composable

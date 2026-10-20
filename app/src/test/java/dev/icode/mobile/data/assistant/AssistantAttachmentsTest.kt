@@ -33,13 +33,13 @@ class AssistantAttachmentsTest {
         failure.message
     }
 
-    @Test fun `text goes as text, an image as prepared and kept, a PDF as itself`() {
+    @Test fun `text goes as text, an image as prepared and kept, a PDF as itself, a workspace file said to be one`() {
         File(workspace.root, "a.kt").writeText("val a = 1")
         phoneFile("content://1", "notes.md", "text/markdown", "# Notes".toByteArray())
         phoneFile("content://2", "IMG.HEIC", "image/heic", byteArrayOf(1, 2))
         phoneFile("content://3", "spec.pdf", "application/pdf", "%PDF-1.7 …".toByteArray())
         val read = reader.read(workspace, listOf(File(workspace.root, "a.kt").path, "content://1", "content://2", "content://3"), seeing, keep)
-        assertEquals(AssistantAttachment("a.kt", text = "val a = 1"), read[0])
+        assertEquals(AssistantAttachment("a.kt", text = "val a = 1", inWorkspace = true), read[0])
         assertEquals(AssistantAttachment("notes.md", text = "# Notes"), read[1])
         assertEquals(AssistantAttachmentKind.Image, read[2].kind)
         assertEquals("image/jpeg", read[2].mimeType)

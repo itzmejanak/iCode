@@ -3,6 +3,7 @@ package dev.icode.mobile.ui.screens.workspace
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -18,6 +19,7 @@ import java.util.concurrent.ConcurrentHashMap
 internal fun fileTypeIcon(type: FileType): ImageVector = when (type.family) {
     FileFamily.Code -> Icons.Outlined.Code
     FileFamily.Data, FileFamily.Document -> Icons.Outlined.Description
+    FileFamily.Image -> Icons.Outlined.Image
 }
 
 /** That icon's colour on the current theme. */
@@ -52,7 +54,10 @@ internal enum class SetiColour(val dark: Int?, val light: Int?) {
 private val iconColors = ConcurrentHashMap<Pair<SetiColour, List<Color>>, Color>()
 private const val MIN_ICON_CONTRAST = 3.0
 
-/** Each file type's colour, as Seti gives its language (`languageIds`), or Seti's default where it lists none. */
+/**
+ * Each file type's colour, as Seti gives its language (`languageIds`), or Seti's default where it
+ * lists none. Pictures have no language: theirs is the one Seti gives `png`, `jpg`, `gif`, `webp`.
+ */
 internal val fileTypeColours: Map<String, SetiColour> = mapOf(
         "kotlin" to SetiColour.Orange,
         "java" to SetiColour.Red,
@@ -96,4 +101,5 @@ internal val fileTypeColours: Map<String, SetiColour> = mapOf(
         "git-commit" to SetiColour.Grey,
         "git-rebase" to SetiColour.Grey,
         "plaintext" to SetiColour.Grey,
+        "image" to SetiColour.Purple,
 )

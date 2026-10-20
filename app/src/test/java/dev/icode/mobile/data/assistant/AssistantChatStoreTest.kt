@@ -40,7 +40,7 @@ class AssistantChatStoreTest {
     private val call = AssistantCall("call_1", "edit_file", """{"path":"a.kt","old_text":"\"x\"\n","new_text":"y"}""", "Edit a.kt", AssistantToolKind.Change)
     private val chat = AssistantChat(
         messages = listOf(
-            AssistantMessage.User("Rename x — “quotes” and\nlines", listOf(AssistantAttachment("src/a.kt", text = "val x = 1\n"))),
+            AssistantMessage.User("Rename x — “quotes” and\nlines", listOf(AssistantAttachment("src/a.kt", text = "val x = 1\n", inWorkspace = true))),
             AssistantMessage.Reply("On it.", listOf(call)),
             AssistantMessage.Results(listOf(AssistantResult("call_1", "edit_file", "Edited a.kt", failed = false))),
             AssistantMessage.Compacted("The user renamed x."),

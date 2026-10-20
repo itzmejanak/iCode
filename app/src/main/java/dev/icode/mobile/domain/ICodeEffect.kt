@@ -29,6 +29,9 @@ sealed interface ICodeEffect {
     /** A chat was exported: its transcript, to be shared as text. */
     data class ShareChat(val title: String, val text: String) : ICodeEffect
 
+    /** A file asked to open that has a viewer of its own, shown in it (docs/file-viewers-plan.md). */
+    data class ViewFile(val location: String, val viewer: FileViewer) : ICodeEffect
+
     /**
      * A file asked to open that the editor cannot show — not text, or larger than it reads — handed
      * to another app (docs/open-with-plan.md). Reopening the last session hands nothing out.
