@@ -183,12 +183,14 @@ fun IcodeSaveDiscardDialog(
  * Only [content] scrolls, in whatever height is left, so a long list cannot
  * push the title off the top or the footer off the bottom. The footer — say a
  * field and the button that submits it — stays in view above the keyboard.
+ * Content that fits that height instead — a picture — does not [scroll].
  */
 @Composable
 fun IcodeBottomSheet(
     title: String,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
+    scroll: Boolean = true,
     footer: (@Composable ColumnScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -219,7 +221,7 @@ fun IcodeBottomSheet(
                 }
             }
             Column(
-                Modifier.weight(1f, fill = false).verticalScroll(rememberScrollState()),
+                Modifier.weight(1f, fill = false).then(if (scroll) Modifier.verticalScroll(rememberScrollState()) else Modifier),
                 verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
                 content = content,
             )

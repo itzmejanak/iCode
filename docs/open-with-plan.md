@@ -24,6 +24,9 @@ app the user picks, with no limit on kind, kept simple.
 A text file still opens in the editor, as before. Reopening the last session never pops up a
 chooser: only a file the user asked to open is handed out.
 
+Since [file-viewers-plan.md](./file-viewers-plan.md), a picture opens in iCode's image viewer
+instead, wherever it is; one the viewer cannot read still goes to Open with.
+
 ## 3. How
 
 - `DocumentCodec` and `readDocument` throw `NotTextException` for those three cases (an

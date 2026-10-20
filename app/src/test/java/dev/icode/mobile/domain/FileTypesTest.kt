@@ -47,6 +47,8 @@ class FileTypesTest {
         assertEquals(FileFamily.Data, FileTypes.of("package.json").family)
         assertEquals(FileFamily.Data, FileTypes.of("config.yml").family)
         assertEquals(FileFamily.Document, FileTypes.of("notes.md").family)
+        assertEquals(FileFamily.Image, FileTypes.of("Logo.PNG").family)
+        assertEquals(FileFamily.Code, FileTypes.of("logo.svg").family)
     }
 
     @Test fun `a name or an extension belongs to one type only`() {

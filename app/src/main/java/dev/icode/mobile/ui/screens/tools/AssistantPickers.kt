@@ -3,7 +3,6 @@ package dev.icode.mobile.ui.screens.tools
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.pm.PackageManager
-import android.graphics.ImageDecoder
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.widget.Toast
@@ -12,6 +11,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -30,7 +30,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -39,9 +38,13 @@ import dev.icode.mobile.designsystem.IcodeShapes
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantRules
+import dev.icode.mobile.domain.FileViewer
+import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.ui.LocalFileViewer
+import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.SharedFiles
+import dev.icode.mobile.ui.decodeImage
 import java.io.File
-import kotlin.math.max
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -121,7 +124,7 @@ private fun describe(context: Context, uri: Uri): DraftFile? = runCatching {
 internal fun AssistantThumbnail(location: String, kind: AssistantAttachmentKind, modifier: Modifier) {
     val context = LocalContext.current
     val image by produceState<ImageBitmap?>(null, location, kind) {
-        if (kind == AssistantAttachmentKind.Image) value = withContext(Dispatchers.IO) { runCatching { thumbnail(context, location) }.getOrNull() }
+        if (kind == AssistantAttachmentKind.Image) value = withContext(Dispatchers.IO) { runCatching { decodeImage(context, location, THUMBNAIL_PX) }.getOrNull() }
     }
     Box(modifier.clip(IcodeShapes.Small).background(IcodeColors.SurfaceElevated), contentAlignment = Alignment.Center) {
         val shown = image
@@ -138,6 +141,26 @@ internal fun AssistantThumbnail(location: String, kind: AssistantAttachmentKind,
     }
 }
 
+/**
+ * What a tap on a file going with a message opens (docs/file-viewers-plan.md): a picture, at
+ * [picture], in the image viewer; a file of the chat's workspace, at [workspaceFile], in the editor;
+ * nothing for a phone's other files, kept only as they were sent.
+ */
+@Composable
+internal fun attachmentOpener(name: String, kind: AssistantAttachmentKind, picture: String?, workspaceFile: String?): (() -> Unit)? {
+    val viewer = LocalFileViewer.current
+    val gateway = LocalICodeGateway.current
+    return when {
+        kind == AssistantAttachmentKind.Image && picture != null -> { { viewer.show(picture, name, FileViewer.Image) } }
+        workspaceFile != null -> { { gateway.dispatch(ICodeIntent.OpenFile(workspaceFile)) } }
+        else -> null
+    }
+}
+
+/** [this], tapped to [open] when there is something to open. */
+internal fun Modifier.tappable(open: (() -> Unit)?): Modifier =
+    if (open == null) this else clip(IcodeShapes.Small).clickable(onClick = open)
+
 /** A file's kind, as its icon says it. */
 internal val AssistantAttachmentKind.icon: ImageVector
     get() = when (this) {
@@ -145,18 +168,6 @@ internal val AssistantAttachmentKind.icon: ImageVector
         AssistantAttachmentKind.Document -> Icons.Outlined.PictureAsPdf
         AssistantAttachmentKind.Text -> Icons.AutoMirrored.Outlined.InsertDriveFile
     }
-
-private fun thumbnail(context: Context, location: String): ImageBitmap {
-    val source = if (location.startsWith("content://")) {
-        ImageDecoder.createSource(context.contentResolver, Uri.parse(location))
-    } else {
-        ImageDecoder.createSource(File(location))
-    }
-    return ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
-        val scale = THUMBNAIL_PX.toFloat() / max(info.size.width, info.size.height)
-        if (scale < 1f) decoder.setTargetSize((info.size.width * scale).toInt().coerceAtLeast(1), (info.size.height * scale).toInt().coerceAtLeast(1))
-    }.asImageBitmap()
-}
 
 /** Thumbnail sides are at most this many pixels: sharp at the sizes the chat draws them. */
 private const val THUMBNAIL_PX = 384

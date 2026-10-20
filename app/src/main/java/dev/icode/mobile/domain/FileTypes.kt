@@ -1,7 +1,7 @@
 package dev.icode.mobile.domain
 
-/** What a file holds, as lists draw it: code, structured data, or a document to read. */
-enum class FileFamily { Code, Data, Document }
+/** What a file holds, as lists draw it: code, structured data, a document to read, or a picture. */
+enum class FileFamily { Code, Data, Document, Image }
 
 /**
  * A kind of file: the TextMate grammar the editor colours it with, if one is
@@ -25,6 +25,7 @@ data class FileType(val id: String, val family: FileFamily, val grammar: String?
 object FileTypes {
     val PlainText = FileType("plaintext", FileFamily.Document, null)
     val Markdown = FileType("markdown", FileFamily.Document, "text.html.markdown")
+    val Image = FileType("image", FileFamily.Image, null)
 
     /** One rule per type; a name, extension or pattern belongs to exactly one rule (tested). */
     internal class Rule(
@@ -79,6 +80,8 @@ object FileTypes {
         document("diff", "source.diff", "diff patch rej"),
         document("git-commit", "text.git-commit", "", names = "commit_editmsg merge_msg"),
         document("git-rebase", "text.git-rebase", "", names = "git-rebase-todo"),
+        // Pictures Android's own decoder reads (SVG is XML, above: its source is what is edited).
+        rule(Image, "png jpg jpeg gif webp bmp heic heif avif ico", "", "", null),
     )
 
     private val byName: Map<String, FileType> = rules.flatMap { rule -> rule.names.map { it to rule.type } }.toMap()

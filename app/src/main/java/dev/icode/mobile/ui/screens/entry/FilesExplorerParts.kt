@@ -42,6 +42,7 @@ import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.domain.BrowsedItem
 import dev.icode.mobile.domain.FileTypes
+import dev.icode.mobile.domain.FileViewer
 import dev.icode.mobile.domain.FilesBrowserState
 import dev.icode.mobile.domain.FilesRules
 import dev.icode.mobile.domain.FilesSort
@@ -49,6 +50,7 @@ import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.domain.StoragePlace
 import dev.icode.mobile.ui.FileItemActions
+import dev.icode.mobile.ui.LocalFileViewer
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.SharedFiles
@@ -119,8 +121,9 @@ private fun UpRow(onClick: () -> Unit) {
 /**
  * One folder or file, in a workspace or on phone storage. A tap goes into a folder, opens a file of
  * a workspace in the editor — one it cannot show in another app — and a file on phone storage, having
- * no editor to open in, in another app (docs/open-with-plan.md). A long press shows every explorer's
- * menu ([FileItemActions]). Paste goes into a folder; beside a file, into the folder shown.
+ * no editor to open in, in another app (docs/open-with-plan.md). A picture opens in iCode's image
+ * viewer wherever it is (docs/file-viewers-plan.md). A long press shows every explorer's menu
+ * ([FileItemActions]). Paste goes into a folder; beside a file, into the folder shown.
  */
 @Composable
 private fun BrowsedItemRow(item: BrowsedItem, browser: FilesBrowserState, browse: (String) -> Unit, onRename: () -> Unit, onDelete: () -> Unit) {
@@ -128,10 +131,11 @@ private fun BrowsedItemRow(item: BrowsedItem, browser: FilesBrowserState, browse
     val context = LocalContext.current
     var menuOpen by remember(item.location) { mutableStateOf(false) }
     val type = FileTypes.of(item.name)
+    val viewer = LocalFileViewer.current
     val open: (() -> Unit)? = when {
         item.folder -> { { browse(item.location) } }
         browser.place == StoragePlace.Private -> { { gateway.dispatch(ICodeIntent.OpenFile(item.location)) } }
-        else -> null
+        else -> FileViewer.of(item.name)?.let { kind -> { viewer.show(item.location, item.name, kind) } }
     }
     val actions = FileItemActions.of(
         context = context,

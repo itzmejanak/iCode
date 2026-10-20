@@ -165,6 +165,7 @@ internal class AssistantChatStore(private val folder: File) {
                 message.attachments.forEach { attachment ->
                     put(
                         JSONObject().put("name", attachment.name).put("kind", attachment.kind.name).put("mimeType", attachment.mimeType).apply {
+                            if (attachment.inWorkspace) put("inWorkspace", true)
                             if (attachment.kind == AssistantAttachmentKind.Text) put("text", attachment.text)
                             // Kept by its place in the workspace's folder, which a rename moves whole.
                             attachment.file?.let { put("file", File(it).relativeTo(folderOf(workspace)).path) }
@@ -240,6 +241,7 @@ internal class AssistantChatStore(private val folder: File) {
             text = json.optString("text"),
             file = json.optString("file").ifEmpty { null }?.let { File(folderOf(workspace), it).path },
             mimeType = json.optString("mimeType", "text/plain"),
+            inWorkspace = json.optBoolean("inWorkspace"),
         )
 
     private fun JSONArray.objects(): List<JSONObject> = (0 until length()).map { getJSONObject(it) }

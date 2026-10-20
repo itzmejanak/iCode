@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.workspace
 
 import dev.icode.mobile.data.tasks.TaskRunner
+import dev.icode.mobile.domain.FileViewer
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.WorkspaceNameRules
@@ -98,13 +99,14 @@ internal class WorkspaceLifecycleCoordinator(
     /**
      * What is at [location], shown, from wherever it was asked — Quick Open, search, the file
      * explorer, a finished clone or import. A file opens in the editor, its workspace opened for it
-     * first; a folder opens its workspace with it selected in the Explorer — or, in the open one,
-     * shows it.
+     * first, or in a viewer of its own, the workspace as it is (docs/file-viewers-plan.md); a folder
+     * opens its workspace with it selected in the Explorer — or, in the open one, shows it.
      */
     suspend fun reveal(location: String, lineNumber: Int? = null, column: Int? = null) {
         val workspace = source.workspaceOf(location) ?: return
         val file = File(location).isFile
         if (file) {
+            FileViewer.of(File(location).name)?.let { return stateHolder.emit(ICodeEffect.ViewFile(location, it)) }
             if (workspace != session.activeRoot) session.open(workspace, persist = true, announce = false)
             return openFile(location, lineNumber, column)
         }

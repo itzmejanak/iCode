@@ -54,6 +54,7 @@ import dev.icode.mobile.domain.AssistantMode
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantState
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.ui.CONTENT_URI
 import dev.icode.mobile.ui.LocalICodeGateway
 
 /**
@@ -263,11 +264,15 @@ private fun ContextMeter(state: AssistantState) {
     }
 }
 
-/** A file going with the message — a photo as its thumbnail — and × to take it off. */
+/**
+ * A file going with the message — a photo as its thumbnail — and × to take it off. A tap shows a
+ * photo, and opens a file of the workspace in the editor.
+ */
 @Composable
 private fun AttachedFile(file: DraftFile, onRemove: () -> Unit) {
+    val open = attachmentOpener(file.name, file.kind, file.location, file.location.takeUnless { it.startsWith(CONTENT_URI) })
     Row(
-        Modifier.background(IcodeColors.SurfaceElevated, IcodeShapes.Small),
+        Modifier.background(IcodeColors.SurfaceElevated, IcodeShapes.Small).tappable(open),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
     ) {

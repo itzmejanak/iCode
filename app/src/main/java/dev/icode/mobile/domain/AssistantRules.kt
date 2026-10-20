@@ -196,7 +196,7 @@ object AssistantRules {
         val extension = name.substringAfterLast('.', "").lowercase()
         return when {
             // Sent as JPEG whatever it was, so any image Android decodes — a camera's HEIC too.
-            type.startsWith("image/") || (type.isEmpty() && extension in IMAGE_EXTENSIONS) -> AssistantAttachmentKind.Image
+            type.startsWith("image/") || (type.isEmpty() && FileTypes.of(name).family == FileFamily.Image) -> AssistantAttachmentKind.Image
             type == PDF || (type.isEmpty() && extension == "pdf") -> AssistantAttachmentKind.Document
             else -> AssistantAttachmentKind.Text
         }
@@ -253,8 +253,6 @@ object AssistantRules {
     private const val LIVE_ANSWER = "live-answer"
     private const val OPENROUTER_HOST = "openrouter.ai"
     private const val OPENROUTER_HINT = "Choose the OpenRouter type for OpenRouter: only it shows the models' reasoning"
-
-    private val IMAGE_EXTENSIONS = setOf("jpg", "jpeg", "png", "webp", "gif", "heic", "heif", "bmp")
 
     private const val TITLE_LENGTH = 60
     private const val MAX_TOKENS = 100_000_000L

@@ -50,6 +50,7 @@ import dev.icode.mobile.ui.screens.recovery.RecoveryScreenHost
 import dev.icode.mobile.ui.screens.settings.SettingsScreenHost
 import dev.icode.mobile.ui.screens.tools.ToolScreenHost
 import dev.icode.mobile.ui.screens.workspace.WorkspaceScreenHost
+import java.io.File
 
 @Composable
 fun IcodeApp(
@@ -168,6 +169,7 @@ fun IcodeApp(
         }
         ArrivalEffect(arrival, navigation, pastOnboarding = navigation.current !in ONBOARDING_SCREENS, gateway, onArrived)
         val systemPrompts = rememberSystemPrompts(gateway)
+        val fileViewer = remember { FileViewerState() }
 
         LaunchedEffect(gateway) {
             gateway.effects.collect { effect ->
@@ -208,6 +210,7 @@ fun IcodeApp(
                             .putExtra(Intent.EXTRA_TEXT, effect.text)
                         context.startActivity(Intent.createChooser(send, "Share ${effect.title}"))
                     }
+                    is ICodeEffect.ViewFile -> fileViewer.show(effect.location, File(effect.location).name, effect.viewer)
                     is ICodeEffect.OpenInOtherApp -> SharedFiles.open(context, effect.location)
                     is ICodeEffect.OpenExternalUrl -> {
                         // The user's own browser opens the URL; the app never
@@ -245,7 +248,9 @@ fun IcodeApp(
             LocalWorkspacePreferences provides preferences,
         ) {
             IcodeScreen {
-                NavigationHost(navigation) { route -> ScreenHost(screen = route, actions = navigation.actions) }
+                FileViewerHost(fileViewer) {
+                    NavigationHost(navigation) { route -> ScreenHost(screen = route, actions = navigation.actions) }
+                }
             }
         }
     }

@@ -173,6 +173,8 @@ data class AssistantAttachment(
     /** An image's or a document's bytes, kept in its chat's folder; null for text. */
     val file: String? = null,
     val mimeType: String = "text/plain",
+    /** A file of the chat's workspace, [name] its path there: a tap on it opens it in the editor. */
+    val inWorkspace: Boolean = false,
 )
 
 /** The conversation as the model sees it; the page is drawn from it ([AssistantRules.entries]). */

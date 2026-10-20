@@ -107,7 +107,8 @@ behaviour iCode relies on was run (§11).
    open one first, searchable; up to five in all, picks past five said. A text file goes as its
    text then (an open tab's as shown, at most 64 000 characters); a photo as a JPEG and a PDF as
    itself, to a model that reads them — the composer says otherwise, and Send waits. Photos show
-   as thumbnails in the composer and in the chat.
+   as thumbnails in the composer and in the chat. A tap on a photo shows it in the image viewer; a
+   tap on a workspace file opens it in the editor ([file-viewers-plan.md](./file-viewers-plan.md)).
 8. **Chatting.** Each reply shows as Markdown when it comes; each step as a row with its verb and
    object ("Read src/App.kt", "Ran `npm test`"), its output a tap away; the answer a turn ends on
    has **Copy**. A turn that failed before any reply offers **Try Again**. Two fingers pinch the
@@ -344,7 +345,7 @@ lifecycle's check, and waits for its chat to be saved, before the chats move.
 - `AssistantPickers`: the Photo Picker, the document picker and the camera (`TakePicture` into
   iCode's cache through the `FileProvider` `${applicationId}.files` (one for every file iCode hands out, [open-with-plan.md](./open-with-plan.md)), a day's photos
   kept), each picked file described by Android; `AssistantThumbnail` decodes an image off the main
-  thread with `ImageDecoder`. `AssistantAttachSheet`: the tiles and the workspace's files.
+  thread with the image viewer's `decodeImage`; `attachmentOpener` says what a tap on a file opens. `AssistantAttachSheet`: the tiles and the workspace's files.
 - Settings: `AssistantSettingsScreen` lists the providers; `AssistantProviderScreen` is one
   provider's page (route `AssistantProvider`, the provider in `AssistantState.editing`, as Language
   Services keep theirs); `AssistantModelSheets` holds **Add Models** and a model's options.

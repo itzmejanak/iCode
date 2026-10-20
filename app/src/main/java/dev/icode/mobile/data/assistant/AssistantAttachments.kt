@@ -58,7 +58,7 @@ internal class AssistantAttachments(
         }
     }
 
-    private class Source(val name: String, val mimeType: String?, val text: () -> String, val bytes: (limit: Long) -> ByteArray) {
+    private class Source(val name: String, val mimeType: String?, val inWorkspace: Boolean, val text: () -> String, val bytes: (limit: Long) -> ByteArray) {
         val kind = AssistantRules.attachmentKind(name, mimeType)
     }
 
@@ -66,16 +66,16 @@ internal class AssistantAttachments(
         AssistantAttachmentKind.Text -> {
             val text = source.text()
             if ('\u0000' in text) throw AssistantTurnException("${source.name} is not text — only text, images and PDFs can be sent")
-            AssistantAttachment(source.name, AssistantAttachmentKind.Text, text = bounded(text, MAX_CHARACTERS))
+            AssistantAttachment(source.name, AssistantAttachmentKind.Text, text = bounded(text, MAX_CHARACTERS), inWorkspace = source.inWorkspace)
         }
         AssistantAttachmentKind.Image -> {
             val jpeg = prepareImage(source.bytes(MAX_IMAGE_BYTES)) ?: throw AssistantTurnException("${source.name} is not an image this phone can read")
-            AssistantAttachment(source.name, AssistantAttachmentKind.Image, file = keep(jpeg, "jpg"), mimeType = "image/jpeg")
+            AssistantAttachment(source.name, AssistantAttachmentKind.Image, file = keep(jpeg, "jpg"), mimeType = "image/jpeg", inWorkspace = source.inWorkspace)
         }
         AssistantAttachmentKind.Document -> {
             val pdf = source.bytes(MAX_DOCUMENT_BYTES)
             if (!pdf.startsWith(PDF_MAGIC)) throw AssistantTurnException("${source.name} is not a PDF")
-            AssistantAttachment(source.name, AssistantAttachmentKind.Document, file = keep(pdf, "pdf"), mimeType = "application/pdf")
+            AssistantAttachment(source.name, AssistantAttachmentKind.Document, file = keep(pdf, "pdf"), mimeType = "application/pdf", inWorkspace = source.inWorkspace)
         }
     }
 
@@ -91,6 +91,7 @@ internal class AssistantAttachments(
         return Source(
             name = path,
             mimeType = null,
+            inWorkspace = true,
             text = { runCatching { openText(file.path) ?: readText(file.path) }.getOrElse { throw AssistantTurnException("Unable to read $path") } },
             bytes = { limit ->
                 if (file.length() > limit) throw AssistantTurnException("$path is larger than ${ByteSize.format(limit)}")
@@ -104,6 +105,7 @@ internal class AssistantAttachments(
         return Source(
             name = file.name,
             mimeType = file.mimeType,
+            inWorkspace = false,
             text = { String(read(file, MAX_TEXT_BYTES), Charsets.UTF_8) },
             bytes = { limit -> read(file, limit) },
         )
