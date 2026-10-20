@@ -342,7 +342,7 @@ lifecycle's check, and waits for its chat to be saved, before the chats move.
   since **Attach** edits the composer's draft, and are drawn as sheet routes are —
   `IcodeSheetOverlay` (dimmed, a tap outside or Back closes), the page blurred under it.
 - `AssistantPickers`: the Photo Picker, the document picker and the camera (`TakePicture` into
-  iCode's cache through the `FileProvider` `${applicationId}.assistant.camera`, a day's photos
+  iCode's cache through the `FileProvider` `${applicationId}.files` (one for every file iCode hands out, [open-with-plan.md](./open-with-plan.md)), a day's photos
   kept), each picked file described by Android; `AssistantThumbnail` decodes an image off the main
   thread with `ImageDecoder`. `AssistantAttachSheet`: the tiles and the workspace's files.
 - Settings: `AssistantSettingsScreen` lists the providers; `AssistantProviderScreen` is one

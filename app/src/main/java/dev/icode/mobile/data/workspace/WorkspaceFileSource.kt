@@ -118,6 +118,7 @@ internal class WorkspaceFileSource(private val paths: WorkspacePaths) {
 
     fun readDocument(location: String): WorkspaceDocument {
         val file = requireFile(location)
+        if (file.length() > MAX_TEXT_BYTES) throw NotTextException(TOO_LARGE)
         val bytes = file.inputStream().use(::readBounded)
         val decoded = DocumentCodec.decode(bytes)
         return WorkspaceDocument(
@@ -189,11 +190,12 @@ internal class WorkspaceFileSource(private val paths: WorkspacePaths) {
     private fun isInsideWorkspaces(file: File): Boolean = paths.workspaceOf(file.path) != null
 
     private fun readBounded(input: InputStream): ByteArray =
-        input.readAtMost(MAX_TEXT_BYTES, "Files larger than ${ByteSize.format(MAX_TEXT_BYTES.toLong())} are not supported yet")
+        input.readAtMost(MAX_TEXT_BYTES, TOO_LARGE)
 
     private fun fingerprint(bytes: ByteArray): String = Sha256.hex(bytes)
 
     private companion object {
         const val MAX_TEXT_BYTES = 5 * 1024 * 1024
+        val TOO_LARGE = "Files larger than ${ByteSize.format(MAX_TEXT_BYTES.toLong())} are not supported yet"
     }
 }

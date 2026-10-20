@@ -34,12 +34,12 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.core.content.FileProvider
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeShapes
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantRules
+import dev.icode.mobile.ui.SharedFiles
 import java.io.File
 import kotlin.math.max
 import kotlinx.coroutines.Dispatchers
@@ -100,7 +100,7 @@ private fun cameraFile(context: Context): Uri {
     val dayAgo = System.currentTimeMillis() - DAY_MILLIS
     folder.listFiles()?.filter { it.lastModified() < dayAgo }?.forEach(File::delete)
     val photo = File(folder, "photo-${System.currentTimeMillis()}.jpg")
-    return FileProvider.getUriForFile(context, "${context.packageName}.assistant.camera", photo)
+    return checkNotNull(SharedFiles.uriOf(context, photo))
 }
 
 /** A picked file's name and kind, as Android describes it; null when it cannot be read already. */

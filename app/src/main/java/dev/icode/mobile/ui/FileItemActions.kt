@@ -3,6 +3,7 @@ package dev.icode.mobile.ui
 import android.content.Context
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.ContentCut
@@ -13,6 +14,7 @@ import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.DriveFileRenameOutline
 import androidx.compose.material.icons.outlined.FolderCopy
 import androidx.compose.material.icons.outlined.Link
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,8 +41,9 @@ object FileItemActions {
     /**
      * Open, Rename…, Cut, Copy, Paste, Copy path, Delete…. [open] says what opening is here (a
      * file into the editor, a folder into the list or open in the tree); none where there is
-     * nothing to open it in (a file on phone storage). A workspace adds Open Terminal after Open,
-     * and where it is listed apart, [showInList]. Paste is always there, and named by what it
+     * nothing to open it in (a file on phone storage). A [file] adds Open with… and Share… after
+     * it, to hand it to another app (docs/open-with-plan.md). A workspace adds Open Terminal after
+     * Open, and where it is listed apart, [showInList]. Paste is always there, and named by what it
      * holds; with nothing held it is there, greyed. [onPaste] puts it where this item is the place
      * for it: into a folder, beside a file.
      */
@@ -54,10 +57,13 @@ object FileItemActions {
         onRename: () -> Unit,
         onPaste: () -> Unit,
         onDelete: () -> Unit,
+        file: Boolean = false,
         openTerminal: (() -> Unit)? = null,
         showInList: (() -> Unit)? = null,
     ): List<IcodeMenuAction> = listOfNotNull(
         open,
+        if (file) IcodeMenuAction("Open with…", Icons.AutoMirrored.Outlined.OpenInNew, { SharedFiles.open(context, location) }) else null,
+        if (file) IcodeMenuAction("Share…", Icons.Outlined.Share, { SharedFiles.share(context, location) }) else null,
         openTerminal?.let { IcodeMenuAction("Open Terminal", Icons.Outlined.Terminal, it) },
         IcodeMenuAction("Rename…", Icons.Outlined.DriveFileRenameOutline, onRename),
         IcodeMenuAction("Cut", Icons.Outlined.ContentCut, { dispatch(ICodeIntent.CutItem(location)) }),

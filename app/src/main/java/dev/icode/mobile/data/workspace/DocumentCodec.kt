@@ -14,12 +14,15 @@ internal data class DecodedText(
     val lineEnding: LineEnding,
 )
 
+/** The file is not text the editor can show — binary, or in no encoding it reads — or larger than it reads. */
+internal class NotTextException(message: String, cause: Throwable? = null) : IOException(message, cause)
+
 internal object DocumentCodec {
     fun decode(bytes: ByteArray): DecodedText {
         val (encoding, bomSize) = detectEncoding(bytes)
         val content = bytes.copyOfRange(bomSize, bytes.size)
         if (encoding == TextEncoding.Utf8 && content.any { it == 0.toByte() }) {
-            throw IOException("Binary files cannot be opened in the text editor")
+            throw NotTextException("Binary files cannot be opened in the text editor")
         }
         val charset = when (encoding) {
             TextEncoding.Utf8 -> StandardCharsets.UTF_8
@@ -30,7 +33,7 @@ internal object DocumentCodec {
             .onMalformedInput(CodingErrorAction.REPORT)
             .onUnmappableCharacter(CodingErrorAction.REPORT)
         val text = runCatching { decoder.decode(ByteBuffer.wrap(content)).toString() }
-            .getOrElse { throw IOException("Unsupported or malformed text encoding", it) }
+            .getOrElse { throw NotTextException("Unsupported or malformed text encoding", it) }
         return DecodedText(
             text = text,
             encoding = encoding,

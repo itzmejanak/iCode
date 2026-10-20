@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Only the assistant's camera folder in the cache is shared, and only for a capture. -->
-<paths>
-    <cache-path name="camera" path="assistant-camera/" />
-</paths>
