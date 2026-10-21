@@ -76,16 +76,15 @@ the repository, as with the terminal bar's.
 - **When a notice comes**, a pill: the bell in the tone's colour, then the notice's one line, cut
   with "…" to the width it has (at most 75% of the screen). A tap opens that notice's sheet. A
   Done has nothing more to say, so a tap on it only folds the bell away.
-- **After 3 s for Done, 4 s for Heads-up and Info, and 6 s for a Problem**, the line folds away
-  smoothly from left to right. The bell stays at the right edge, with the count of unread notices
-  and an ×.
-  - The folded bell takes the colour of the most serious unread notice (Problem, then Heads-up,
-    then Info).
-  - A tap on it opens the one unread notice's sheet. With several unread, it opens the
-    Notifications page.
-  - × puts the bell away. The notices stay unread on the page, with the launcher bell's dot, until
-    the next notice brings the bell back.
-  - With nothing unread (after a Done, or once they are read), the bell fades out instead.
+- **After 3 s for Done, 4 s for Heads-up and Info, and 6 s for a Problem**, the line slides away
+  from left to right (0.35 s). Then the bell rings once, swinging from where it hangs (0.9 s), with
+  the unread count on it, drawn as the Explorer's Source Control count is (`CountBadge`, one
+  component for both), and × comes beside it.
+  - The bell stays **10 s** after the slide, whatever is unread, then slides away to the right. ×
+    puts it away at once. The notices stay unread on the page, with the launcher bell's dot.
+  - It takes the colour of the most serious unread notice (Problem, then Heads-up, then Info).
+  - A tap on it opens the one unread notice's sheet. Otherwise (several, or none after a Done) it
+    opens the Notifications page. Either way the bell goes.
 - A new notice unfolds the line again with its own words.
 - TalkBack reads each line as it reads a toast (a polite live region).
 - Not shown while the Notifications page or a notice's sheet is open: the notice is there already.
@@ -143,6 +142,10 @@ From the mockup, the owner chose:
 | **Q2** | Where Done goes | **The bell only**: not kept, not in the shade |
 | **Q3** | What the bell shows | **The bell and the line first** (mockup 1), then the line folds away smoothly from left to right. **The bell stays with the unread count and an × to put it away** |
 
+The owner then set the bell's motion (2026-10-21), from the first build: once the line has slid
+away, the bell does not vanish with it. It rings with the unread count on it, as the Explorer's Git
+count is drawn, and stays 10 s, with × to put it away sooner.
+
 The rest of §2 was decided here, from Android's guidance (§1.3) and the code as it stands.
 
 ## 4. How
@@ -151,7 +154,7 @@ The rest of §2 was decided here, from Android's guidance (§1.3) and the code a
 |---|---|
 | Domain | `NoticeTone` (in order, the most serious first). `AppNotice.Message(id, at, read, tone, title, detail)`. `NoticeRules`: what is kept, how long the bell's line shows, the folded bell's tone, what the shade holds. `NoticeIntent`: `MarkAllRead`, `Read`, `Delete`, `Clear`, and `Notify` for what a screen raises. `ICodeEffect.Notice(notice)` replaces `Message`, `GitCommitted` and `DocumentSaved` |
 | Data | `ICodeStateHolder.notify(tone, title, detail)` replaces `message`. `report(subsystem, fallback, error)` keeps the fallback as the title and the error's words as the detail, through `failed(title, words)`. Each of the 99 sites chooses its tone; an outcome that can go either way (a passphrase change) chooses by it. `NoticeBoard` (in `data/notices`, out of the gateway) keeps what is said, from before anything else starts, publishes the page's list, posts to the shade and takes `NoticeIntent`. `NoticeStore` keeps the new kind, up to 100. `NoticeNotifications` holds the two channels and the group, and posts each notice under its id as its tag, so a later process withdraws what an earlier one posted |
-| UI | `NoticeHost` at the app's root, inside `FileViewerHost`: the bell, with `NoticeHostState` (what it last told, whether its line shows, ×, the sheet) and `LocalNotices`. `NoticeViews`: `NoticeRow` and `NoticeSheet` for every kind, the bell and the page alike. The two kinds' cards (`LostSessionsNotice`, `InterruptedTransferNotice`) became rows and sheets. `MainActivity.ACTION_SHOW_NOTICE` → `Arrival.Notice`. The 9 toasts go: `copyText`, `SharedFiles` and the pickers say what they have to through `dispatch` |
+| UI | `NoticeHost` at the app's root, inside `FileViewerHost`: the bell, with `NoticeHostState` (what it last told, whether its line shows, whether it has gone, the sheet) and `LocalNotices`. The rail's count badge became `CountBadge` in the design system, drawn on the rail and the bell alike. `NoticeViews`: `NoticeRow` and `NoticeSheet` for every kind, the bell and the page alike. The two kinds' cards (`LostSessionsNotice`, `InterruptedTransferNotice`) became rows and sheets. `MainActivity.ACTION_SHOW_NOTICE` → `Arrival.Notice`. The 9 toasts go: `copyText`, `SharedFiles` and the pickers say what they have to through `dispatch` |
 | Guard | `tools/check-ui-consistency.sh`, rule `toast`: any `Toast` anywhere fails |
 
 ## 5. As built
@@ -175,8 +178,9 @@ The rest of §2 was decided here, from Android's guidance (§1.3) and the code a
 
 ### 5.3 On the phone, open
 
-- Save with the button: the bell, green, "Saved", folds and fades (nothing unread).
-- Open a terminal before the runtime is installed: amber, kept; the line folds to the bell with 1 and ×. Tap it: its sheet. × puts it away.
+- Save with the button: the bell, green, "Saved"; the line slides away, the bell rings without a count (nothing unread), stays 10 s with ×, then slides away.
+- Open a terminal before the runtime is installed: amber, kept; the line slides away and the bell rings with 1 on it. Tap it: its sheet. Again, then ×: it goes at once.
+- Leave the bell alone: it goes 10 s after the line.
 - Switch to a branch while changes Git would overwrite are in the way: red, "Git operation failed"; the sheet holds Git's words in mono; Copy.
 - Several in a row, then the folded bell: the Notifications page.
 - The shade: the same notices, silent, under "Notifications · N unread"; a tap opens the sheet, and reading it in iCode clears it there.

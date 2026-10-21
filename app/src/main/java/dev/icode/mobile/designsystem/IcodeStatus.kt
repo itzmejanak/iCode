@@ -9,6 +9,11 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.getValue
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +34,34 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+
+/**
+ * A count on an icon's upper right — the rail's pending changes, the bell's unread notices. Placed
+ * centred over a [IcodeSizes.TouchTarget] box that holds the icon. Counts above 99 read "99+".
+ */
+@Composable
+fun CountBadge(count: Int, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .offset(x = COUNT_BADGE_OFFSET, y = -COUNT_BADGE_OFFSET)
+            .defaultMinSize(minWidth = COUNT_BADGE_SIZE, minHeight = COUNT_BADGE_SIZE)
+            .clip(CircleShape)
+            .background(IcodeColors.Accent)
+            .padding(horizontal = IcodeSpacing.Micro),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = if (count > COUNT_BADGE_MAX) "$COUNT_BADGE_MAX+" else count.toString(),
+            style = IcodeType.Badge.copy(color = IcodeColors.BackgroundDeep),
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+        )
+    }
+}
+
+private val COUNT_BADGE_SIZE = 16.dp
+private val COUNT_BADGE_OFFSET = 11.dp
+private const val COUNT_BADGE_MAX = 99
 
 /** Small saturated dot marking a status. */
 @Composable

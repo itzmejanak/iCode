@@ -104,6 +104,9 @@ object NoticeRules {
     /** Kept on the page and posted: everything but what the user just did. */
     fun kept(message: AppNotice.Message): Boolean = message.tone != NoticeTone.Done
 
+    /** Once its line has folded away, the bell stays this long, unless × puts it away first. */
+    const val BELL_MILLIS = 10_000L
+
     /** How long the bell shows a notice's line before it folds away. */
     fun lineMillis(tone: NoticeTone): Long = when (tone) {
         NoticeTone.Done -> 3_000

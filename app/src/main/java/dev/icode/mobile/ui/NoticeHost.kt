@@ -1,21 +1,24 @@
 package dev.icode.mobile.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -31,33 +34,39 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import dev.icode.mobile.designsystem.CountBadge
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeShapes
 import dev.icode.mobile.designsystem.IcodeSheetOverlay
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
-import dev.icode.mobile.designsystem.IconBadge
 import dev.icode.mobile.designsystem.edgeLine
 import dev.icode.mobile.domain.AppNotice
 import dev.icode.mobile.domain.NoticeIntent
 import dev.icode.mobile.domain.NoticeRules
+import kotlin.math.PI
+import kotlin.math.sin
 import kotlinx.coroutines.delay
 
 /**
  * The bell and the sheet, over every screen (docs/notices-plan.md §2.2–2.3): what the bell last
- * told, whether its line still shows, whether × put it away, and the notice in the sheet.
+ * told, whether its line still shows, whether it has gone (its time up, × or its notice opened), and
+ * the notice in the sheet.
  */
 @Stable
 internal class NoticeHostState {
@@ -70,7 +79,7 @@ internal class NoticeHostState {
     var shown: String? by mutableStateOf(null)
         private set
 
-    /** A notice was said: its line unfolds, and the bell comes back if × put it away. */
+    /** A notice was said: its line unfolds, and the bell comes back if it had gone. */
     fun arrived(notice: AppNotice.Message) {
         told = notice
         unfolded = true
@@ -86,9 +95,9 @@ internal class NoticeHostState {
         unfolded = false
     }
 
-    /** The notice [id] in its sheet. */
+    /** The notice [id] in its sheet; the bell, having led there, goes. */
     fun open(id: String) {
-        unfolded = false
+        putAway()
         shown = id
     }
 
@@ -110,15 +119,19 @@ internal fun NoticeHost(state: NoticeHostState, notices: List<AppNotice>, pageOp
         CompositionLocalProvider(LocalNotices provides state) { content() }
         val told = state.told
         val unread = notices.filterNot { it.read }
+        // The line, then the bell alone for its time once the line has slid away.
         LaunchedEffect(told) {
-            told?.let { delay(NoticeRules.lineMillis(it.tone)) }
+            val notice = told ?: return@LaunchedEffect
+            delay(NoticeRules.lineMillis(notice.tone))
             state.fold()
+            delay(SLIDE_MILLIS + NoticeRules.BELL_MILLIS)
+            state.putAway()
         }
         AnimatedVisibility(
-            visible = told != null && !pageOpen && state.shown == null && !state.away && (state.unfolded || unread.isNotEmpty()),
+            visible = told != null && !pageOpen && state.shown == null && !state.away,
             modifier = Modifier.align(Alignment.BottomEnd).padding(end = IcodeSpacing.Gutter, bottom = IcodeSizes.FabClearance),
-            enter = fadeIn(),
-            exit = fadeOut(),
+            enter = slideInHorizontally { it } + fadeIn(),
+            exit = slideOutHorizontally { it } + fadeOut(),
         ) {
             told?.let { notice ->
                 Bell(
@@ -131,7 +144,10 @@ internal fun NoticeHost(state: NoticeHostState, notices: List<AppNotice>, pageOp
                             state.unfolded && NoticeRules.kept(notice) -> state.open(notice.id)
                             state.unfolded -> state.fold()
                             unread.size == 1 -> state.open(unread.single().id)
-                            else -> onAll()
+                            else -> {
+                                state.putAway()
+                                onAll()
+                            }
                         }
                     },
                     onAway = state::putAway,
@@ -161,12 +177,23 @@ internal fun NoticeHost(state: NoticeHostState, notices: List<AppNotice>, pageOp
 }
 
 /**
- * The bell: unfolded, its tone's colour and [told]'s line; folded, the most serious unread tone,
- * their count and × to put it away. The line folds away from left to right, toward the bell's edge.
+ * The bell (owner's design, 2026-10-21). Unfolded: the bell in its tone's colour and [told]'s line.
+ * Folded: the line slides away from left to right, then the bell rings once, in the most serious
+ * unread tone, with the unread count as the Explorer's Source Control count is drawn, and × beside it.
  */
 @Composable
 private fun Bell(told: AppNotice.Message, unfolded: Boolean, unread: List<AppNotice>, lineWidth: Dp, onTap: () -> Unit, onAway: () -> Unit) {
     val tone = if (unfolded) told.tone else NoticeRules.bellTone(unread) ?: told.tone
+    // 0 to 1 over one ring; at rest at both ends.
+    val ring = remember { Animatable(0f) }
+    LaunchedEffect(unfolded) {
+        // A new line cuts a ring short: the bell hangs straight again.
+        if (unfolded) return@LaunchedEffect ring.snapTo(0f)
+        delay(SLIDE_MILLIS)
+        ring.snapTo(0f)
+        ring.animateTo(1f, tween(RING_MILLIS, easing = LinearEasing))
+        ring.snapTo(0f)
+    }
     val line = edgeLine
     Row(
         Modifier
@@ -177,35 +204,27 @@ private fun Bell(told: AppNotice.Message, unfolded: Boolean, unread: List<AppNot
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Row(
-            Modifier
-                .fillMaxHeight()
-                .clickable(onClickLabel = if (unfolded) "Show this notification" else "Show notifications", onClick = onTap)
-                .padding(horizontal = IcodeSpacing.Space3),
+            Modifier.fillMaxHeight().clickable(onClickLabel = if (unfolded) "Show this notification" else "Show notifications", onClick = onTap),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
         ) {
-            Box {
+            Box(Modifier.size(IcodeSizes.TouchTarget), contentAlignment = Alignment.Center) {
                 Icon(
                     Icons.Outlined.Notifications,
                     contentDescription = if (unfolded) null else "Notifications, ${unread.size} unread",
                     tint = tone.tint,
-                    modifier = Modifier.size(IcodeSizes.IconLg),
+                    // A bell swings from where it hangs: a swing that dies away, three times over.
+                    modifier = Modifier.size(IcodeSizes.IconLg).graphicsLayer {
+                        val p = ring.value
+                        rotationZ = MAX_SWING_DEGREES * (1 - p) * sin(p * SWINGS * 2 * PI.toFloat())
+                        transformOrigin = TransformOrigin(0.5f, 0f)
+                    },
                 )
-                if (!unfolded && unread.isNotEmpty()) {
-                    IconBadge(
-                        if (unread.size > MAX_COUNTED) "$MAX_COUNTED+" else "${unread.size}",
-                        tint = IcodeColors.Background,
-                        modifier = Modifier.align(Alignment.TopEnd).offset(x = BADGE_OFFSET, y = -BADGE_OFFSET),
-                        size = IcodeSizes.IconSm,
-                        background = tone.tint,
-                        style = IcodeType.Micro,
-                    )
-                }
+                if (!unfolded && unread.isNotEmpty()) CountBadge(unread.size, Modifier.align(Alignment.Center))
             }
             AnimatedVisibility(
                 visible = unfolded,
-                enter = expandHorizontally(expandFrom = Alignment.End) + fadeIn(),
-                exit = shrinkHorizontally(shrinkTowards = Alignment.End) + fadeOut(),
+                enter = expandHorizontally(tween(SLIDE_MILLIS.toInt()), expandFrom = Alignment.End) + fadeIn(tween(SLIDE_MILLIS.toInt())),
+                exit = shrinkHorizontally(tween(SLIDE_MILLIS.toInt()), shrinkTowards = Alignment.End) + fadeOut(tween(SLIDE_MILLIS.toInt())),
             ) {
                 Text(
                     told.title,
@@ -213,11 +232,17 @@ private fun Bell(told: AppNotice.Message, unfolded: Boolean, unread: List<AppNot
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     // TalkBack reads it as it read a toast.
-                    modifier = Modifier.widthIn(max = lineWidth).semantics { liveRegion = LiveRegionMode.Polite },
+                    modifier = Modifier.widthIn(max = lineWidth).padding(end = IcodeSpacing.Space4).semantics { liveRegion = LiveRegionMode.Polite },
                 )
             }
         }
-        AnimatedVisibility(visible = !unfolded, enter = expandHorizontally(expandFrom = Alignment.Start) + fadeIn(), exit = fadeOut()) {
+        // × comes once the line has gone, so the bell does not jostle while it slides.
+        AnimatedVisibility(
+            visible = !unfolded,
+            enter = expandHorizontally(tween(SLIDE_MILLIS.toInt(), delayMillis = SLIDE_MILLIS.toInt()), expandFrom = Alignment.Start) +
+                fadeIn(tween(SLIDE_MILLIS.toInt(), delayMillis = SLIDE_MILLIS.toInt())),
+            exit = fadeOut(tween(SLIDE_MILLIS.toInt())),
+        ) {
             IconButton(onClick = onAway) {
                 Icon(Icons.Outlined.Close, contentDescription = "Put the bell away", tint = IcodeColors.TextSecondary, modifier = Modifier.size(IcodeSizes.IconSm))
             }
@@ -228,7 +253,10 @@ private fun Bell(told: AppNotice.Message, unfolded: Boolean, unread: List<AppNot
 /** The line takes at most this share of the screen's width. */
 private const val LINE_SHARE = 0.75f
 
-/** Counts past this read as "99+". */
-private const val MAX_COUNTED = 99
+/** The line's slide, in and out. */
+private const val SLIDE_MILLIS = 350L
 
-private val BADGE_OFFSET = 6.dp
+/** One ring of the bell, and how far and how often it swings. */
+private const val RING_MILLIS = 900
+private const val MAX_SWING_DEGREES = 18f
+private const val SWINGS = 3
