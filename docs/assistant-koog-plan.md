@@ -662,7 +662,8 @@ starts closed; a tap on it opens all it will do, scrolling past a few lines
   changes — so a pinch, which changes the size and not the width, left tables as they were, on the
   assistant's page and in the editor's preview alike. `ScalableMarkdownTextView.show` sets the size,
   and where the Markdown holds a table and the size changed, renders it anew: new rows, laid out at
-  the new size. One method for both renderers.
+  the new size. One method for both renderers. (Markwon has since gone: in the renderer of
+  [markdown-rendering-plan.md](./markdown-rendering-plan.md), a table's cells take their size when they are drawn.)
 
 ## 17. Replies as they are written, and the chat's steps (owner, 2026-10-08)
 

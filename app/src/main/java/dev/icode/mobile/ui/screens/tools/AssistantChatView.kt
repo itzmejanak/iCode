@@ -122,7 +122,7 @@ internal fun AssistantChatView(state: AssistantState, modifier: Modifier, onSugg
                         itemsIndexed(entries, key = { _, entry -> entry.key }) { index, entry ->
                             // The answer a turn ends on; one still being worked on may yet go on to a step.
                             val ends = entries.getOrNull(index + 1) !is AssistantEntry.Step && !(index == entries.lastIndex && state.runningHere)
-                            AssistantEntryRow(entry, copyable = ends, onDiff = onDiff)
+                            AssistantEntryRow(entry, copyable = ends, streaming = index == entries.lastIndex && state.runningHere, onDiff = onDiff)
                         }
                         state.failure?.let { failure ->
                             item(key = "failure") {

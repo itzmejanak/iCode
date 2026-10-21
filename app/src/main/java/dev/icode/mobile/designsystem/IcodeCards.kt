@@ -98,8 +98,8 @@ fun SectionHeader(
 
 /** Single-pixel separator between dense rows; drawn whatever Border Lines says. */
 @Composable
-fun Divider() {
-    HorizontalDivider(color = IcodeColors.Outline, thickness = 1.dp)
+fun Divider(modifier: Modifier = Modifier) {
+    HorizontalDivider(modifier, color = IcodeColors.Outline, thickness = 1.dp)
 }
 
 /** The line where a bar begins — under the top bar, over a bar at the foot — while Border Lines is on. */

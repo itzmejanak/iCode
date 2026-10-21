@@ -82,7 +82,7 @@ Cycle 2 implementation uses Sora Editor `0.24.6` from Maven Central under
 `io.github.rosemoe` (the old group in the table below is superseded). Its
 per-document view owns find, replace, caret, undo, pinch zoom and incremental
 coloring. Bundled TextMate grammars cover the source types listed in `Todo.md`;
-Markwon `4.6.2` renders Markdown preview. The real and demo gateways now
+Markwon `4.6.2` rendered the Markdown preview (since replaced: [markdown-rendering-plan.md](./markdown-rendering-plan.md)). The real and demo gateways now
 expose an ordered multi-document tab collection and save/discard/cancel for
 dirty close and workspace switch. Unit tests, debug assembly, lint and UI
 guard passed; the APK was installed and launched on the attached phone.

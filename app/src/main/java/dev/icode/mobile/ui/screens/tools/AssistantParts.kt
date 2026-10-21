@@ -44,15 +44,16 @@ import dev.icode.mobile.domain.GitChange
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.copyText
-import dev.icode.mobile.ui.editor.MarkdownText
+import dev.icode.mobile.domain.markdown.MarkdownPlace
+import dev.icode.mobile.ui.markdown.MarkdownAnswer
 import java.io.File
 
 /**
  * One row of the chat — what the user wrote, an answer, a step, a compaction — at the pinched size.
- * An answer that ends its turn ([copyable]) can be copied.
+ * An answer that ends its turn ([copyable]) can be copied; the turn's last one may still be [streaming].
  */
 @Composable
-internal fun AssistantEntryRow(entry: AssistantEntry, copyable: Boolean, onDiff: (GitChange) -> Unit) {
+internal fun AssistantEntryRow(entry: AssistantEntry, copyable: Boolean, streaming: Boolean, onDiff: (GitChange) -> Unit) {
     val scale = LocalCodeTextScale.current
     when (entry) {
         is AssistantEntry.Said -> Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
@@ -62,7 +63,7 @@ internal fun AssistantEntryRow(entry: AssistantEntry, copyable: Boolean, onDiff:
             }
         }
         is AssistantEntry.Answer -> Column {
-            MarkdownText(entry.text, IcodeType.Body.fontSize.value * scale)
+            MarkdownAnswer(entry.text, streaming, MarkdownPlace.ofAnswer(LocalICodeSnapshot.current.assistant.workspace))
             if (copyable) CopyAnswer(entry.text)
         }
         is AssistantEntry.Reasoning -> AssistantReasoningRow(entry)

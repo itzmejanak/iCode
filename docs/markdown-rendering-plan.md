@@ -5,9 +5,9 @@ assistant answer: math shows as raw `$$ \frac{1}{20} … $$`. Find the limits of
 rendered, research the best native renderer, and plan a fix from the root for every kind of content,
 ready to implement.
 
-## 1. What stands (verified)
+## 1. What stood (verified; replaced, §7)
 
-One renderer serves two places: the editor's **preview** (`MarkdownPreview`) and the assistant's
+One renderer served two places: the editor's **preview** (`MarkdownPreview`) and the assistant's
 **answers** (`MarkdownText`), both in `ui/editor/MarkdownPreview.kt`.
 
 | Part | What it is |
@@ -205,15 +205,20 @@ parser or layout would end iCode's process, not just fail one formula.
 
 - **Parse**: JetBrains markdown 0.7.17, GFM flavour.
 - **Model**: pure Kotlin in `domain/markdown`, so it is tested on the JVM with the rest of the domain.
-  - Blocks: heading (level, slug), paragraph, bullet/ordered/task list, quote, alert (note, tip,
-    important, warning, caution), code (language), display math, table (alignments), rule, image,
-    HTML block, details (summary, blocks), front matter, footnotes.
-  - Inlines: text, emphasis, strong, strike, code, link, image, math, line break, footnote reference,
-    HTML inline.
+  - Blocks: heading (level), paragraph, list (its first number, loose or tight, items with an
+    optional check), quote, alert (note, tip, important, warning, caution), code (language), display
+    math, table (alignments, header), rule, aligned (HTML `align`), details (summary, open, blocks),
+    front matter, and source (HTML that is not drawn, shown as written).
+  - Inlines: text, styled (emphasis, strong, strike, underline, subscript, superscript, mark), code
+    (`<kbd>` a key), link, image (width), math, line break, footnote reference, source.
+  - The document: its blocks, its footnotes numbered by first reference, and its anchors (a heading's
+    slug to its block). Reference links are resolved as the document is assembled; an undefined one
+    stays as written.
 - **Render**: Compose in `ui/markdown`, one renderer for both hosts:
   - the **preview**: a lazy list of blocks, so a long file composes only what shows;
   - the **answers**: a column per answer, inside the chat's list.
-- Markwon goes, with `ScalableMarkdownTextView`, the reflection on `TableRowSpan` and its R8 rule.
+- Markwon goes, with `ScalableMarkdownTextView`, the reflection on `TableRowSpan` and its R8 rule
+  (gone, §7).
 
 ### 3.2 Math
 
@@ -266,10 +271,11 @@ parser or layout would end iCode's process, not just fail one formula.
     - The three fallback ids are drawn in `Typeface.DEFAULT`.
   - **Fonts**: the 19 used KaTeX TTFs in `assets/ratex/fonts/`, each loaded once with
     `Typeface.createFromAsset`. RaTeX-CMP copies each to a temporary file first; that step goes.
-  - **Notices in the APK**, in `assets/ratex/`:
-    - the OFL text and the fonts' copyright notice;
-    - RaTeX's and RaTeX-CMP's MIT licences;
-    - the crate list with licences.
+  - **Notices in the APK**, in `app/src/main/resources/licenses/` beside the OFL texts of Chakra
+    Petch and IBM Plex Mono:
+    - `OFL-KaTeX.txt`: the OFL text and the fonts' copyright notice;
+    - `RaTeX.txt`: RaTeX's and RaTeX-CMP's MIT licences, then the crates linked into the library
+      with their licences.
 
     The About page's "View Licenses" will list them when it exists (§2.4).
   - **Seam**: one function, from (source, display) to the engine's JSON. The cache and the layout are
@@ -292,7 +298,7 @@ parser or layout would end iCode's process, not just fail one formula.
 | Target | A tap |
 |---|---|
 | `http(s)://`, `mailto:` | Android's `ACTION_VIEW`, the user's browser or mail app (architecture §11.5) |
-| A relative path, `./src/App.kt`, `docs/guide.md#L10` | Resolved against the file's folder (preview) or the chat's workspace (answers), then `ICodeIntent.OpenFile` (editor or image viewer), with a line number from `#L10` |
+| A relative path, `./src/App.kt`, `docs/guide.md#L10` | Resolved against the file's folder (preview) or the chat's workspace (answers), then `ICodeIntent.OpenFile` (editor or image viewer), with a line number from `#L10`. Never out of the workspace; a file that is not there says so in a notice |
 | `#anchor` | Scrolls to the heading with that slug (GitHub's rules) |
 | Anything else (`javascript:`, `intent:`, `file:`) | Not followed: drawn as text |
 
@@ -300,9 +306,13 @@ parser or layout would end iCode's process, not just fail one formula.
 |---|---|---|
 | A workspace path (relative or absolute) | Shown, decoded by the image viewer's `decodeImage`; a tap opens the viewer | The same |
 | `data:image/…;base64` | Shown | Shown |
-| `https://` | Loaded; a file is the user's own. (VS Code's default preview level, Strict, blocks `http` images and scripts) | **Not loaded**: alt text and host, tap to open in the browser. An answer can be steered to leak data through an image's URL; loading it unasked would send it |
+| `https://` | Loaded (15 s, at most 10 MB); a file is the user's own. (VS Code's default preview level, Strict, blocks `http` images and scripts) | **Not loaded**: alt text and host, tap to open in the browser. An answer can be steered to leak data through an image's URL; loading it unasked would send it |
 | `http://` | Not loaded (alt text) | Not loaded |
 | SVG | Not decodable by Android: alt text | Same |
+
+A paragraph of images alone shows them, each a tap to open (a linked image, its link). An image
+inside a line of text is its alt text, a link to it: a picture's size is not known until it is
+decoded, and a line's inline content needs it before layout.
 
 ### 3.5 Everything else
 
@@ -312,7 +322,7 @@ parser or layout would end iCode's process, not just fail one formula.
 | Paragraph, lists | Body type; nested lists indented by the gutter; task items with read-only checkboxes |
 | Quote | A 2 dp rule in the outline colour, text secondary |
 | Alerts | A card with the tone's icon and colour (Note: accent, Tip: green, Important: blue, Warning: amber, Caution: red), the design system's tones |
-| Tables | A grid that scrolls sideways; header bold; alignment from the separator row; cell lines follow Border Lines |
+| Tables | A grid that scrolls sideways; a column as wide as its widest cell, at most three quarters of the page; header bold on the elevated surface, every other row shaded; alignment from the separator row; cell lines follow Border Lines |
 | Rule | 1 dp in the outline colour |
 | HTML | A safe set drawn natively: `<br>`, `<b>`/`<strong>`, `<i>`/`<em>`, `<s>`/`<del>`, `<code>`, `<kbd>`, `<sub>`, `<sup>`, `<a href>`, `<img src alt width>`, `<details><summary>` (collapsible), `<p align>`/`<div align>` (centred), `<hr>`. Comments are hidden. Any other tag shows as its source, muted: nothing vanishes |
 | Front matter (files only) | A collapsible "Front matter" code block (YAML) at the top |
@@ -321,12 +331,14 @@ parser or layout would end iCode's process, not just fail one formula.
 ### 3.6 Streaming and speed
 
 - Parsing runs off the main thread.
-- While an answer streams, only its last block is parsed again:
+- While an answer streams, only its unsettled tail is parsed again (JetBrains'
+  `StreamingMarkdownFile`; the top-level blocks it reports stable are read into the model once):
   - the blocks before it are kept, with their layouts and formulas;
-  - each chunk costs the size of the last block, not of the whole answer;
-  - once the turn ends, the whole answer is parsed once more, so references defined late resolve.
+  - each chunk costs the size of the tail, not of the whole answer;
+  - once the turn ends, the whole answer is parsed once more and kept, the same document a stream
+    gives (§7).
 - The preview parses after edits stop for 150 ms, off the main thread.
-- Blocks are stable values, so Compose skips every block that did not change.
+- A block that did not change is the same object in the new document, so Compose skips it.
 - Tables measure themselves, so no row is ever one line tall for a frame.
 
 ### 3.7 Selection, zoom, theme, accessibility
@@ -347,12 +359,12 @@ parser or layout would end iCode's process, not just fail one formula.
 
 | Part | Files |
 |---|---|
-| Domain | `domain/markdown/MarkdownModel.kt` (blocks, inlines), `MarkdownParser.kt` (JetBrains → model; delimiters by source; front matter; footnotes; ```` ```math ````; HTML set), `MarkdownLinks.kt` (link and image targets, GitHub slugs), `MathLayout.kt` (the display list, read from RaTeX's JSON; the limits; the cache) |
-| UI | `ui/markdown/MarkdownContent.kt` (the two hosts, selection, zoom), `MarkdownBlocks.kt`, `MarkdownInlines.kt` (annotated strings, links, inline math), `MarkdownCode.kt` (TextMate colours), `MarkdownMath.kt` (drawing a layout, the KaTeX typefaces, inline placeholders), `MarkdownImages.kt` |
-| Math engine | `app/src/main/java/io/ratex/RaTeXEngine.kt` (the JNI binding, §3.2); `third_party/ratex/` (`README.md`, `jniLibs/arm64-v8a/libratex_ffi.so`); `app/src/main/assets/ratex/` (`fonts/KaTeX_*.ttf`, the OFL and MIT texts, the crate list) |
-| Callers | `WorkspaceEditorScreen` (preview), `AssistantParts` (answers) |
-| Removed | `MarkdownPreview.kt`, Markwon's four artifacts, the `TableRowSpan` R8 rule |
-| Assistant | One line in `AssistantInstructions` (§3.2) |
+| Domain | `domain/markdown/`: `MarkdownModel.kt` (the document, blocks, inlines), `MarkdownParser.kt` (a file read whole; `MarkdownStream`, an answer as it streams; front matter), `MarkdownBlockReader.kt` and `MarkdownInlineReader.kt` (JetBrains' tree → the model; footnotes; ```` ```math ````; reference definitions), `MarkdownHtml.kt` and `MarkdownHtmlBlocks.kt` (the HTML set), `MarkdownAssembly.kt` (open and close tags to blocks; references resolved; footnotes numbered; anchors), `MathDelimiters.kt` (an answer's `\(…\)` and `\[…\]`), `MarkdownLinks.kt` (where a document's links lead, link and image targets, GitHub slugs), `MathLayout.kt` (the display list, read from RaTeX's JSON; the limits; the cache); `FileTypes.ofLanguage` (a fence's language) |
+| UI | `ui/markdown/`: `MarkdownContent.kt` (the two hosts, selection, zoom, where a tap goes), `MarkdownType.kt` (type and colours), `MarkdownBlocks.kt`, `MarkdownInlines.kt` (annotated strings, links, inline math), `MarkdownTable.kt`, `MarkdownCode.kt` (a code block), `MarkdownMath.kt` (display math, drawing a layout), `MathGlyphs.kt` (the KaTeX typefaces, a glyph on Android's canvas), `MarkdownImages.kt`; `ui/editor/TextMateCode.kt` (code coloured as the editor colours it); `ui/ImageViewer.decodeImage` (also from bytes) |
+| Math engine | `app/src/main/java/io/ratex/RaTeXEngine.kt` (the JNI binding, §3.2); `third_party/ratex/` (`README.md`, `jniLibs/arm64-v8a/libratex_ffi.so`); `app/src/main/assets/ratex/fonts/KaTeX_*.ttf`; `app/src/main/resources/licenses/` (`OFL-KaTeX.txt`, `RaTeX.txt`) |
+| Callers | `WorkspaceEditorScreen` (preview), `AssistantParts` and `AssistantChatView` (answers; the last one streams while its turn runs) |
+| Removed | `ui/editor/MarkdownPreview.kt` and its instrumented test, Markwon's four artifacts, the `TableRowSpan` R8 rule |
+| Assistant | One line in `AssistantInstructions` (§3.2); `WorkspaceLifecycleCoordinator.reveal` says when a linked file is not there |
 | Build | `org.jetbrains:markdown:0.7.17`; `third_party/ratex/jniLibs` added to the main source set's `jniLibs`. No dependency for math |
 
 ## 5. Steps
@@ -390,3 +402,44 @@ parser or layout would end iCode's process, not just fail one formula.
 - RaTeX was then run here on the screenshot's formulas before anything was built on it (§2.4).
 - It is vendored as §3.2 sets out, rather than upgrading Kotlin and Compose to take the published
   artifact.
+
+## 7. As built (2026-10-21)
+
+M1–M7 are built as §3 and §4 describe; Markwon is gone. Checked in this environment:
+
+| Check | Result |
+|---|---|
+| Unit tests | The Markdown tests (parser, stream, delimiters, links, math layout, `FileTypes.ofLanguage`) pass, with all of `data/` and `domain/`: 867 of 868. The other one, `TreeSizeTest`'s unreadable folder, fails only when run as root, which can list it anyway |
+| Stream against whole read | 70 Markdown files (the repository's and §2's research files, 1.1 MB), each fed in 3 random chunkings, come out as the same document as when read whole. 20,000 random strings of Markdown punctuation: nothing thrown |
+| Type-checks | Every new file, with the editor and assistant screens hosting it, against Compose's desktop jars, Sora's and tm4e's classes and Android's; `data/` and `domain/` against Android's; the instrumented `MarkdownMathTest` against Android's and JUnit's |
+| API 30 | Animal Sniffer over the new classes and markdown-jvm: nothing above API 30. As a control, it does flag `readNBytes` (API 33) |
+| Guards | UI and backend consistency checks pass |
+
+Decided while building:
+
+- **References resolve as the document is assembled.** A block that did not change keeps its object,
+  so Compose skips it while an answer streams.
+- **A pinch reaches tables.** A cell's text takes its size when it is drawn, so tables follow a
+  pinch like everything else. That replaces the redraw in
+  [assistant-koog-plan.md](./assistant-koog-plan.md) §16.
+- **A quote's rule is drawn behind its blocks**, not as a row of intrinsic height. An intrinsic
+  measurement would reach the `BoxWithConstraints` of an image or table inside, which cannot
+  answer it.
+- **Footnotes** are numbered by first reference. Their definitions come after the last block, each
+  with ↩ back to where it was first referred to.
+- **A link to a file that is not there** (moved since it was written) gives a notice, "`name` is not
+  there", instead of an Explorer selecting nothing.
+
+Left for a phone, since this environment has neither a device nor Android's build tools:
+
+1. `MarkdownMathTest`, instrumented: the owner's formulas through the real library, refused LaTeX
+   and its reasons, the hostile inputs of §2.4, and every KaTeX font loading from the APK.
+2. The release build's dex still names `io.ratex.RaTeXEngine.nativeParseAndLayout` (§5, M3).
+3. A walk-through:
+   - the screenshot's file in the preview: inline and display math, `$\dfrac{78}{35}$` in a heading;
+   - a long answer as it streams: no jumps, each formula laid out once;
+   - a pinch in both places;
+   - Dark, Light and AMOLED, with Border Lines on and off (tables);
+   - TalkBack on a heading, a formula and a checkbox;
+   - taps on a web link, a relative file, `#L10`, an anchor, and a footnote and back;
+   - an answer's `https` image: its alt text and host, and a tap opens the browser.

@@ -103,17 +103,17 @@ private fun ColumnScope.ZoomablePicture(shown: ImageBitmap, name: String) {
  * it, turned the way the camera held it, its longer side at most [maxSide] pixels. It reads the
  * file: off the main thread.
  */
-internal fun decodeImage(context: Context, location: String, maxSide: Int): ImageBitmap {
-    val source = if (location.startsWith(CONTENT_URI)) {
-        ImageDecoder.createSource(context.contentResolver, Uri.parse(location))
-    } else {
-        ImageDecoder.createSource(File(location))
-    }
-    return ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
+internal fun decodeImage(context: Context, location: String, maxSide: Int): ImageBitmap = decodeImage(
+    if (location.startsWith(CONTENT_URI)) ImageDecoder.createSource(context.contentResolver, Uri.parse(location)) else ImageDecoder.createSource(File(location)),
+    maxSide,
+)
+
+/** The picture [source] holds, as [decodeImage] reads a file's: also a Markdown document's bytes. Off the main thread. */
+internal fun decodeImage(source: ImageDecoder.Source, maxSide: Int): ImageBitmap =
+    ImageDecoder.decodeBitmap(source) { decoder, info, _ ->
         val scale = maxSide.toFloat() / max(info.size.width, info.size.height)
         if (scale < 1f) decoder.setTargetSize((info.size.width * scale).toInt().coerceAtLeast(1), (info.size.height * scale).toInt().coerceAtLeast(1))
     }.asImageBitmap()
-}
 
 private const val MAX_ZOOM = 5f
 private const val DOUBLE_TAP_ZOOM = 2.5f
