@@ -13,7 +13,9 @@ import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.GitRepositoryState
 import dev.icode.mobile.domain.GitStatusCodes
-import dev.icode.mobile.domain.ICodeEffect
+import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.Said
+import dev.icode.mobile.domain.said
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
@@ -116,7 +118,7 @@ class GitWorkspaceCoordinatorTest {
 
         harness.coordinator.stage("x")
 
-        assertEquals(ICodeEffect.Message("pathspec 'x' did not match any files"), withTimeout(2_000) { message.await() })
+        assertEquals(Said(NoticeTone.Problem, "Git operation failed", "pathspec 'x' did not match any files"), withTimeout(2_000) { message.await() }.said())
         assertEquals(listOf("iCode/git Git operation failed"), logged)
         assertEquals(listOf("stage $root x"), git.calls)
     }
@@ -129,7 +131,7 @@ class GitWorkspaceCoordinatorTest {
 
         harness.coordinator.commit("message")
 
-        assertEquals(ICodeEffect.Message("Open a workspace first"), withTimeout(2_000) { message.await() })
+        assertEquals(Said(NoticeTone.HeadsUp, "Open a workspace first"), withTimeout(2_000) { message.await() }.said())
         assertTrue(git.calls.isEmpty())
     }
 
@@ -141,7 +143,7 @@ class GitWorkspaceCoordinatorTest {
 
         harness.coordinator.commit("first")
 
-        assertEquals(ICodeEffect.GitCommitted, withTimeout(2_000) { effect.await() })
+        assertEquals(Said(NoticeTone.Done, "Commit created"), withTimeout(2_000) { effect.await() }.said())
         assertEquals(listOf("commit $root first", "inspect $root"), git.calls)
     }
 
@@ -234,7 +236,7 @@ class GitWorkspaceCoordinatorTest {
 
         harness.coordinator.confirmDiscard()
 
-        assertEquals(ICodeEffect.Message("a.txt changed after you confirmed. Review it again"), withTimeout(2_000) { message.await() })
+        assertEquals(Said(NoticeTone.Problem, "Git operation failed", "a.txt changed after you confirmed. Review it again"), withTimeout(2_000) { message.await() }.said())
         assertEquals(listOf("inspect $root"), git.calls)
     }
 
@@ -371,8 +373,8 @@ class GitWorkspaceCoordinatorTest {
         harness.coordinator.compareWithEditor("a.txt", "unsaved".toByteArray())
 
         assertEquals(
-            ICodeEffect.Message("Comparing uses Git, which is not installed yet. Install it from Source Control"),
-            withTimeout(2_000) { message.await() },
+            Said(NoticeTone.HeadsUp, "Comparing uses Git, which is not installed yet. Install it from Source Control"),
+            withTimeout(2_000) { message.await() }.said(),
         )
         assertTrue(git.calls.isEmpty())
     }

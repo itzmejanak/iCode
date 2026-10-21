@@ -11,10 +11,6 @@ sealed interface ICodeIntent {
     data class OpenSystemSettings(val permission: SystemPermission) : ICodeIntent
     /** Re-reads what Android allows; it may have changed while iCode was away. */
     data object RefreshSystemAccess : ICodeIntent
-    /** The Notifications page was opened: everything on it has been seen. */
-    data object MarkNoticesRead : ICodeIntent
-    data class DeleteNotice(val id: String) : ICodeIntent
-    data object ClearNotices : ICodeIntent
     /** New Folder on the Workspaces page: answered by [requestId], and not opened — it appears in the list. */
     data class CreateWorkspace(val name: String, val requestId: String) : ICodeIntent
     /** A whole workspace renamed; the dialog that asked is answered by [requestId]. */

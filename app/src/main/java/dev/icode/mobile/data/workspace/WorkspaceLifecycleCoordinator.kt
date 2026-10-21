@@ -4,6 +4,7 @@ import dev.icode.mobile.data.tasks.TaskRunner
 import dev.icode.mobile.domain.FileViewer
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.WorkspaceNameRules
 import java.io.File
 import java.io.IOException
@@ -72,11 +73,11 @@ internal class WorkspaceLifecycleCoordinator(
     /** Confirmed on the launcher first: this cannot be undone. Runs as the delete task, without Cancel. */
     suspend fun delete(location: String) {
         if (!source.isWorkspace(location)) {
-            stateHolder.message("This workspace no longer exists")
+            stateHolder.notify(NoticeTone.HeadsUp, "This workspace no longer exists")
             library.refresh()
             return
         }
-        usage.holding(location, whole = true)?.let { return stateHolder.message(it) }
+        usage.holding(location, whole = true)?.let { return stateHolder.notify(NoticeTone.HeadsUp, it) }
         release(location)
         val files = WorkspaceFiles(source.workspacesRoot)
         tasks.start(

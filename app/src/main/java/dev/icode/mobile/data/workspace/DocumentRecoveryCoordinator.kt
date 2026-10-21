@@ -1,5 +1,6 @@
 package dev.icode.mobile.data.workspace
 
+import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.domain.RecoverableDraft
 import dev.icode.mobile.domain.ICodeEffect
@@ -150,7 +151,7 @@ internal class DocumentRecoveryCoordinator(
         val draft = draftMutex.withLock { draftStore.read(location) } ?: return
         val document = stateHolder.current.openDocuments.firstOrNull { it.location == location } ?: return
         if (document.dirty) {
-            stateHolder.message("This document has newer edits. Save or discard them before restoring a draft")
+            stateHolder.notify(NoticeTone.HeadsUp, "This document has newer edits. Save or discard them before restoring a draft")
             return
         }
         val sourceDocument = sourceOf(location) ?: return
@@ -169,7 +170,7 @@ internal class DocumentRecoveryCoordinator(
     /** "Keep disk version": the draft goes and the file opens for editing again. */
     suspend fun keepDiskVersion(location: String) {
         if (stateHolder.current.openDocuments.firstOrNull { it.location == location }?.dirty == true) {
-            stateHolder.message("This document has new edits; close or save them before discarding recovery")
+            stateHolder.notify(NoticeTone.HeadsUp, "This document has new edits; close or save them before discarding recovery")
             return
         }
         discard(location)

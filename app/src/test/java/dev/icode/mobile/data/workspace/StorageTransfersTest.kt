@@ -7,9 +7,9 @@ import dev.icode.mobile.data.storage.PhoneStorage
 import dev.icode.mobile.data.storage.WorkspacePaths
 import dev.icode.mobile.data.tasks.TaskRunner
 import dev.icode.mobile.domain.GitOutcome
-import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.ItemClipboard
+import dev.icode.mobile.domain.said
 import java.io.File
 import java.nio.file.Files
 import java.util.Collections
@@ -92,7 +92,7 @@ class StorageTransfersTest {
     @Before fun collect() {
         BackendLog.writer = { _, _, _ -> }
         scope.launch(Dispatchers.Unconfined) {
-            stateHolder.effects.collect { effect -> if (effect is ICodeEffect.Message) messages += effect.text }
+            stateHolder.effects.collect { effect -> effect.said()?.let { messages += it.title } }
         }
     }
 

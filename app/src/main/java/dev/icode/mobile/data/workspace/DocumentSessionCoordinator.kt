@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.workspace
 
 import dev.icode.mobile.domain.ExternalChange
+import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeIntent
@@ -47,7 +48,7 @@ internal class DocumentSessionCoordinator(
         if (root == null || !runCatching {
                 File(location).canonicalFile.toPath().startsWith(File(root).canonicalFile.toPath())
             }.getOrDefault(false)) {
-            stateHolder.message("The selected file is outside the active workspace")
+            stateHolder.notify(NoticeTone.HeadsUp, "The selected file is outside the active workspace")
             return
         }
         runCatching {
@@ -98,7 +99,7 @@ internal class DocumentSessionCoordinator(
         if (automatic && (expectedWorkspace != activeRoot() ||
                 !stateHolder.current.isCurrentAutoSaveRequest(location, expectedWorkspace, expectedText))) return false
         if (sourceDocument == null || openDocument == null) {
-            stateHolder.message("The document is no longer open")
+            stateHolder.notify(NoticeTone.HeadsUp, "The document is no longer open")
             return false
         }
         // Changed on disk under these edits: nothing is written until the user picks a version.
@@ -126,7 +127,7 @@ internal class DocumentSessionCoordinator(
         }.getOrDefault(false)
         if (!saved) return false
         recovery.saved(location)
-        stateHolder.emit(ICodeEffect.DocumentSaved(location, automatic))
+        if (!automatic) stateHolder.notify(NoticeTone.Done, "Saved")
         return true
     }
 
@@ -146,7 +147,7 @@ internal class DocumentSessionCoordinator(
     suspend fun close(location: String, saveChanges: Boolean?) {
         val document = stateHolder.current.openDocuments.firstOrNull { it.location == location } ?: return
         if (document.dirty && saveChanges == null) {
-            stateHolder.message("Choose Save, Discard or Cancel before closing ${document.name}")
+            stateHolder.notify(NoticeTone.HeadsUp, "Choose Save, Discard or Cancel before closing ${document.name}")
             return
         }
         if (document.dirty && saveChanges == true && !save(location)) return
@@ -162,7 +163,7 @@ internal class DocumentSessionCoordinator(
     suspend fun closeOthers(keepLocation: String, saveChanges: Boolean?) {
         val others = stateHolder.current.openDocuments.filterNot { it.location == keepLocation }
         if (others.any { it.dirty } && saveChanges == null) {
-            stateHolder.message("Choose Save, Discard or Cancel before closing dirty tabs")
+            stateHolder.notify(NoticeTone.HeadsUp, "Choose Save, Discard or Cancel before closing dirty tabs")
             return
         }
         if (saveChanges == true) {
@@ -254,7 +255,7 @@ internal class DocumentSessionCoordinator(
                 DiskDecision.Reload -> disk?.let(::takeDiskVersion)
                 DiskDecision.Ask -> changedUnderEdits(document.location, document.name)
                 DiskDecision.Gone -> if (goneNotified.add(document.location)) {
-                    stateHolder.message("${document.name} was deleted outside iCode; its text stays open here")
+                    stateHolder.notify(NoticeTone.Info, "${document.name} was deleted outside iCode; its text stays open here")
                 }
             }
         }

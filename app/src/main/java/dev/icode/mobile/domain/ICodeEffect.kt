@@ -11,9 +11,7 @@ sealed interface ICodeEffect {
     data class WorkspaceItemFailed(val requestId: String, val message: String) : ICodeEffect
     data class ConfirmWorkspaceSwitch(val location: String, val openTerminal: Boolean, val dirtyCount: Int) : ICodeEffect
     data object GitInitialized : ICodeEffect
-    data object GitCommitted : ICodeEffect
     data class DocumentOpened(val location: String, val lineNumber: Int? = null, val column: Int? = null) : ICodeEffect
-    data class DocumentSaved(val location: String, val automatic: Boolean = false) : ICodeEffect
     data class ConfirmDraftRecovery(
         val location: String,
         val name: String,
@@ -24,7 +22,8 @@ sealed interface ICodeEffect {
     /** A file changed on disk under unsaved edits; the External Change screen asks which wins. */
     data class ExternalChangeDetected(val location: String) : ICodeEffect
     data object RuntimeRebuildStarted : ICodeEffect
-    data class Message(val text: String) : ICodeEffect
+    /** What iCode says, on the bell; the Notifications page and Android's shade keep it ([NoticeRules.kept]). */
+    data class Notice(val notice: AppNotice.Message) : ICodeEffect
 
     /** A chat was exported: its transcript, to be shared as text. */
     data class ShareChat(val title: String, val text: String) : ICodeEffect

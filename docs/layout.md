@@ -715,6 +715,23 @@ Use when the user must inspect or edit structured information, compare content, 
 
 Use for a short set of immediate actions. Do not hide the single primary action in overflow.
 
+### 21.5 Notices: the bell, the Notifications page and Android's shade
+
+iCode shows no toasts ([notices-plan.md](./notices-plan.md)); `tools/check-ui-consistency.sh` refuses one. What it says is a notice of one tone:
+
+| Tone | Colour, icon | For |
+|---|---|---|
+| Problem | Error red, error icon | Something failed: what failed is the title, the error's own words are the detail |
+| Heads-up | Amber, warning icon | What to do first; what was refused |
+| Info | Accent, info icon | Something happened |
+| Done | Green, check icon | The user's own action, done |
+
+- **The bell** floats at the bottom right of every screen, 88 dp above the foot (`FabClearance`), over the keyboard while it is up. A new notice unfolds its line beside the bell; a tap on the line opens that notice's sheet. After 3 s for Done, 4 s for Heads-up and Info, or 6 s for a Problem, the line slides away from left to right, and the bell rings once with the unread count on it (`CountBadge`, as the rail's Source Control count) and × beside it. It stays 10 s, then slides away; × puts it away sooner. A tap on it opens the one unread notice, or the Notifications page. The bell is hidden while the page or a sheet is open.
+- **A notice's sheet**: the title, when, the detail (a failure's words in the mono face), **Copy**, **Delete**, and **All Notifications**. Opening it marks the notice read.
+- **The Notifications page** (the launcher's bell): every notice as one row (icon, title, first line, time, unread dot), newest first, up to 100. A tap opens the sheet.
+- **Android's shade**: the unread notices, the newest 20, silent under one summary. A Problem that comes while iCode is out of view pops up. A tap opens the notice's sheet; read in iCode, it leaves the shade.
+- Done is on the bell only: never kept, never posted.
+
 ## 22. Loading, Empty, Error, and Read-Only States
 
 Every major surface defines:

@@ -17,6 +17,7 @@ import dev.icode.mobile.domain.AssistantSettings
 import dev.icode.mobile.domain.AssistantToolKind
 import dev.icode.mobile.domain.AssistantTurn
 import dev.icode.mobile.domain.LineChanges
+import dev.icode.mobile.domain.NoticeTone
 import java.io.File
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -95,7 +96,7 @@ internal class AssistantTurns(
     private fun launch(workspace: String, session: String, work: suspend Turn.() -> Unit) = synchronized(lock) {
         if (job?.isActive == true) {
             val name = page.current.turn?.workspaceName ?: AssistantRules.workspaceName(workspace)
-            return@synchronized page.say("The assistant is working in $name: stop it, or wait")
+            return@synchronized page.say(NoticeTone.HeadsUp, "The assistant is working in $name: stop it, or wait")
         }
         place = workspace to session
         job = scope.launch { Turn(workspace, session).run(work) }
@@ -142,7 +143,7 @@ internal class AssistantTurns(
                     page.listed(workspace)
                     page.refresh(workspace, session)
                     page.state { it.copy(turn = null, approval = null, failure = if (shows(it.workspace, it.session)) failure else it.failure) }
-                    if (failure != null && !page.current.let { shows(it.workspace, it.session) }) page.say("Assistant: $failure")
+                    if (failure != null && !page.current.let { shows(it.workspace, it.session) }) page.say(NoticeTone.Problem, "The assistant's turn failed", failure)
                 }
             }
         }

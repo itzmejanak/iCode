@@ -4,6 +4,7 @@ import android.content.Context
 import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.system.AndroidSystemAccess
 import dev.icode.mobile.data.workspace.ICodeStateHolder
+import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.RuntimeInstallReason
 import dev.icode.mobile.domain.RuntimeState
 import dev.icode.mobile.domain.SystemAccess
@@ -78,11 +79,11 @@ internal class RuntimeCoordinator(
     suspend fun install(reason: RuntimeInstallReason): Boolean {
         if (installing || stateHolder.current.runtime is RuntimeState.Downloading ||
             stateHolder.current.runtime is RuntimeState.Installing) {
-            stateHolder.message("Runtime installation is already running")
+            stateHolder.notify(NoticeTone.HeadsUp, "Runtime installation is already running")
             return false
         }
         if (reason != RuntimeInstallReason.Initial && sessionsRunning()) {
-            stateHolder.message("Close running terminal sessions, language services and processes before rebuilding the runtime")
+            stateHolder.notify(NoticeTone.HeadsUp, "Close running terminal sessions, language services and processes before rebuilding the runtime")
             return false
         }
         val label = when (reason) {
@@ -111,16 +112,16 @@ internal class RuntimeCoordinator(
                         )
                     }
                     if (state is RuntimeState.Failed) {
-                        stateHolder.message(state.reason)
+                        stateHolder.failed(INSTALL_FAILED, state.reason)
                     }
                     if (state is RuntimeState.Ready) refreshDetails()
                 }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
-                val message = stateHolder.failureText("runtime", "Runtime installation failed", error)
+                val message = stateHolder.failureText("runtime", INSTALL_FAILED, error)
                 stateHolder.update { it.copy(runtime = RuntimeState.Failed(message), runtimeHealthy = false) }
-                stateHolder.message(message)
+                stateHolder.failed(INSTALL_FAILED, message)
             }
         }
         return true
@@ -141,5 +142,9 @@ internal class RuntimeCoordinator(
     fun declinePermission(permission: SystemPermission) {
         systemAccess.markOffered(permission)
         refreshSystemAccess()
+    }
+
+    private companion object {
+        const val INSTALL_FAILED = "Runtime installation failed"
     }
 }

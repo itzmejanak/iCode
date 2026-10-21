@@ -41,6 +41,7 @@ import dev.icode.mobile.domain.AssistantAttachment
 import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantEntry
 import dev.icode.mobile.domain.GitChange
+import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.copyText
 import dev.icode.mobile.ui.editor.MarkdownText
@@ -118,9 +119,10 @@ private fun openerOf(file: AssistantAttachment, workspace: String?): (() -> Unit
 @Composable
 private fun CopyAnswer(text: String) {
     val context = LocalContext.current
+    val gateway = LocalICodeGateway.current
     Row(
         Modifier.minimumInteractiveComponentSize().clip(IcodeShapes.Small).clickable(onClickLabel = "Copy the answer") {
-            copyText(context, "Answer", text, "Answer copied")
+            copyText(context, "Answer", text, "Answer copied", gateway::dispatch)
         }.padding(horizontal = IcodeSpacing.Space1),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),

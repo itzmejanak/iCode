@@ -4,11 +4,14 @@ import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.ManagedProcess
 import dev.icode.mobile.domain.ManagedProcessState
+import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.Said
 import dev.icode.mobile.domain.TerminalSessionState
 import dev.icode.mobile.domain.TerminalSettings
 import dev.icode.mobile.domain.TerminalSnapshot
 import dev.icode.mobile.domain.TerminalStatus
 import dev.icode.mobile.domain.ICodeEffect
+import dev.icode.mobile.domain.said
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -103,14 +106,14 @@ class TerminalCoordinatorTest {
     @Test fun `without the runtime nothing is opened`() = runBlocking {
         val harness = Harness(installed = false)
         val effect = harness.nextEffect { harness.coordinator.open() }
-        assertEquals(ICodeEffect.Message("Install the Linux runtime before opening a terminal"), effect)
+        assertEquals(Said(NoticeTone.HeadsUp, "Install the Linux runtime before opening a terminal"), effect.said())
         assertTrue(harness.sessions.calls.isEmpty())
     }
 
     @Test fun `a session that could not start is said`() = runBlocking {
         val harness = Harness().apply { sessions.opened = null }
         val effect = harness.nextEffect { harness.coordinator.open() }
-        assertEquals(ICodeEffect.Message("Unable to start a terminal session"), effect)
+        assertEquals(Said(NoticeTone.Problem, "Unable to start a terminal session"), effect.said())
     }
 
     @Test fun `a workspace opened for its terminal reuses its running session`() = runBlocking {
@@ -157,7 +160,7 @@ class TerminalCoordinatorTest {
     @Test fun `an ended session is said, not shown`() = runBlocking {
         val harness = Harness()
         val effect = harness.nextEffect { harness.coordinator.show("session-9") }
-        assertEquals(ICodeEffect.Message("That terminal session has ended"), effect)
+        assertEquals(Said(NoticeTone.HeadsUp, "That terminal session has ended"), effect.said())
         assertTrue(harness.opened.isEmpty())
     }
 
@@ -172,7 +175,7 @@ class TerminalCoordinatorTest {
             assertEquals(settings, harness.sessions.applied)
 
             val effect = harness.nextEffect { harness.sessions.endings.emit(TerminalEnding("session-1", "bash", 3)) }
-            assertEquals(ICodeEffect.Message("bash exited with code 3"), effect)
+            assertEquals(Said(NoticeTone.Info, "bash exited with code 3"), effect.said())
 
             harness.sessions.workspaces["session-1"] = root
             harness.sessions.workspaces["session-2"] = "/storage/emulated/0/other"

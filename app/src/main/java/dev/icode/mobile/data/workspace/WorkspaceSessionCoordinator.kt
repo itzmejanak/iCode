@@ -8,6 +8,7 @@ import dev.icode.mobile.data.search.SearchCoordinator
 import dev.icode.mobile.domain.ContentSearchState
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.NoticeTone
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.BufferOverflow
@@ -66,7 +67,7 @@ internal class WorkspaceSessionCoordinator(
         announce: Boolean = true,
     ) {
         if (!source.isWorkspace(location)) {
-            stateHolder.message("This workspace no longer exists")
+            stateHolder.notify(NoticeTone.HeadsUp, "This workspace no longer exists")
             library.refresh()
             return
         }
@@ -195,7 +196,7 @@ internal class WorkspaceSessionCoordinator(
         val root = activeRoot
         if (root == null || !location.isAtOrUnder(root)) {
             val home = library.workspaceHolding(location) ?: run {
-                stateHolder.message("${File(location).name} is outside iCode's workspaces: import its folder, or discard the draft")
+                stateHolder.notify(NoticeTone.HeadsUp, "${File(location).name} is outside iCode's workspaces: import its folder, or discard the draft")
                 return
             }
             open(home, persist = true)

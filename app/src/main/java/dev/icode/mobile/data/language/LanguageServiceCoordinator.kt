@@ -6,6 +6,7 @@ import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.LanguageServiceConfiguration
 import dev.icode.mobile.domain.LanguageServiceRules
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.NoticeTone
 import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -66,7 +67,7 @@ internal class LanguageServiceCoordinator(
 
     suspend fun save(intent: ICodeIntent.SaveLanguageService) {
         if (stateHolder.current.languageServicesLoadError != null) {
-            stateHolder.message("Saved services could not be read; configuration was not overwritten")
+            stateHolder.notify(NoticeTone.HeadsUp, "Saved services could not be read; configuration was not overwritten")
             return
         }
         val name = intent.name.trim()
@@ -76,20 +77,20 @@ internal class LanguageServiceCoordinator(
             ?: runCatching { LanguageServiceRules.commandArguments(command); JSONObject(options) }
                 .exceptionOrNull()?.let { "Check command quoting and enter a JSON object for initialization options" }
         if (error != null) {
-            stateHolder.message(error)
+            stateHolder.notify(NoticeTone.HeadsUp, error)
             return
         }
         val existingId = intent.id
         if (existingId != null && configs.none { it.id == existingId }) {
-            stateHolder.message("This language service no longer exists")
+            stateHolder.notify(NoticeTone.HeadsUp, "This language service no longer exists")
             return
         }
         if (existingId != null && processes.isActive(existingId)) {
-            stateHolder.message("Stop this server before editing its configuration")
+            stateHolder.notify(NoticeTone.HeadsUp, "Stop this server before editing its configuration")
             return
         }
         if (existingId == null && configs.size >= LanguageServiceRules.MAX_SERVICES) {
-            stateHolder.message("Maximum ${LanguageServiceRules.MAX_SERVICES} language services")
+            stateHolder.notify(NoticeTone.HeadsUp, "Maximum ${LanguageServiceRules.MAX_SERVICES} language services")
             return
         }
         val id = existingId ?: UUID.randomUUID().toString()
@@ -132,11 +133,11 @@ internal class LanguageServiceCoordinator(
         val config = configs.firstOrNull { it.id == id } ?: return
         val workspace = activeRoot()
         if (workspace == null) {
-            stateHolder.message("Open a workspace before starting a language service")
+            stateHolder.notify(NoticeTone.HeadsUp, "Open a workspace before starting a language service")
             return
         }
         processes.start(config, workspace, environment())?.let { error ->
-            stateHolder.message(error)
+            stateHolder.notify(NoticeTone.Problem, error)
         }
     }
 
@@ -152,7 +153,7 @@ internal class LanguageServiceCoordinator(
                 }
                 delay(100)
             }
-            stateHolder.message("Server did not stop; retry after it exits")
+            stateHolder.notify(NoticeTone.Problem, "Server did not stop; retry after it exits")
         }
     }
 }

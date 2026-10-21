@@ -28,6 +28,7 @@ import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.domain.TextEncoding
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.said
 import java.io.File
 import java.util.Collections
 import kotlin.coroutines.cancellation.CancellationException
@@ -282,7 +283,7 @@ class AssistantCoordinatorTest {
         coordinator.handle(ICodeIntent.SendAssistantMessage("at once"))
         until { state().approval != null }
         coordinator.handle(ICodeIntent.SendAssistantMessage("second"))
-        until { effects.any { it is ICodeEffect.Message && "working in app" in it.text } }
+        until { effects.any { "working in app" in it.said()?.title.orEmpty() } }
         assertEquals(1, requests.size)
         coordinator.handle(ICodeIntent.StopAssistant)
         until { state().turn == null }
@@ -326,7 +327,7 @@ class AssistantCoordinatorTest {
         coordinator.handle(ICodeIntent.SendAssistantMessage("Rename x"))
         until { state().approval != null }
         coordinator.handle(ICodeIntent.DeleteAssistantSession(state().session!!))
-        until { effects.any { it is ICodeEffect.Message && it.text == "Stop the assistant before deleting this chat" } }
+        until { effects.any { it.said()?.title == "Stop the assistant before deleting this chat" } }
         coordinator.handle(ICodeIntent.StopAssistant)
         until { state().turn == null }
         assertEquals(1, state().sessions.size)
@@ -342,7 +343,7 @@ class AssistantCoordinatorTest {
         coordinator.handle(ICodeIntent.SendAssistantMessage("Compare", listOf(File(app, "a.kt").path, b)))
         until { requests.size == 2 && state().turn == null }
         assertEquals(
-            listOf(AssistantAttachment("a.kt", text = "val a = 1"), AssistantAttachment("b.kt", text = "val b = 2 // unsaved")),
+            listOf(AssistantAttachment("a.kt", text = "val a = 1", inWorkspace = true), AssistantAttachment("b.kt", text = "val b = 2 // unsaved", inWorkspace = true)),
             requests.last().input.attachments,
         )
 
@@ -391,8 +392,8 @@ class AssistantCoordinatorTest {
 
     @Test fun `a chat with nothing in it is not shared`() {
         coordinator.handle(ICodeIntent.ExportAssistantSession("ghost"))
-        until { effects.any { it is ICodeEffect.Message } }
-        assertTrue(effects.any { it is ICodeEffect.Message && it.text == "Nothing to share yet" })
+        until { effects.any { it is ICodeEffect.Notice } }
+        assertTrue(effects.any { it.said()?.title == "Nothing to share yet" })
         assertTrue(effects.none { it is ICodeEffect.ShareChat })
     }
 
@@ -484,9 +485,9 @@ class AssistantCoordinatorTest {
 
     @Test fun `a provider is checked, saved with its models and its own key, and its server asked for its models`() {
         coordinator.handle(ICodeIntent.SaveAssistantProvider("", AssistantProviderKind.Anthropic, "Anthropic", "", null, listOf(AssistantModelSpec("claude-sonnet-4-5"))))
-        until { effects.any { it is ICodeEffect.Message && it.text == "Enter the API key" } }
+        until { effects.any { it.said()?.title == "Enter the API key" } }
         coordinator.handle(ICodeIntent.SaveAssistantProvider("", AssistantProviderKind.OpenAICompatible, "DeepSeek", "https://api.deepseek.com/v1", null, emptyList()))
-        until { effects.any { it is ICodeEffect.Message && it.text == "Add at least one model" } }
+        until { effects.any { it.said()?.title == "Add at least one model" } }
         coordinator.handle(
             ICodeIntent.SaveAssistantProvider(
                 "", AssistantProviderKind.OpenAICompatible, "DeepSeek", "https://api.deepseek.com/v1/", "sk-deep",
@@ -572,7 +573,7 @@ class AssistantCoordinatorTest {
         assertEquals(listOf(AssistantMessage.User("Hello"), AssistantMessage.Reply("Hi.")), state().messages)
         assertEquals(AssistantMessage.User("Hello"), requests.last().input)
         coordinator.handle(ICodeIntent.RetryAssistantMessage)
-        until { effects.any { it is ICodeEffect.Message && it.text == "Nothing to send again" } }
+        until { effects.any { it.said()?.title == "Nothing to send again" } }
     }
 
     @Test fun `a commit message is written from the staged changes by the chat's model, and taken once`() {

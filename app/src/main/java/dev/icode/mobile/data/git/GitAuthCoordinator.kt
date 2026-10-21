@@ -11,6 +11,7 @@ import dev.icode.mobile.domain.GitProvider
 import dev.icode.mobile.domain.GitSigningRules
 import dev.icode.mobile.domain.GitSigningState
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.SigningIntent
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -47,11 +48,11 @@ internal class GitAuthCoordinator(
 
     suspend fun configureGlobalIdentity(name: String, email: String) {
         if (name.isBlank() || !GitIdentityRules.isValidEmail(email)) {
-            stateHolder.message("Enter a name and valid Git author email")
+            stateHolder.notify(NoticeTone.HeadsUp, "Enter a name and valid Git author email")
             return
         }
         if (!config.isAvailable()) {
-            stateHolder.message("Install Git in the runtime first")
+            stateHolder.notify(NoticeTone.HeadsUp, "Install Git in the runtime first")
             return
         }
         runCatching {
@@ -100,7 +101,7 @@ internal class GitAuthCoordinator(
         ICodeIntent.GenerateSshKey -> generateSshKey()
         is ICodeIntent.TestGitConnection -> testConnection(intent.url)
         SigningIntent.InstallGnuPg -> alone(GitAuthWork.InstallingGnuPg) {
-            credentials.ensureGnuPg().takeUnless { it.succeeded }?.let { stateHolder.message(it.message) }
+            credentials.ensureGnuPg().takeUnless { it.succeeded }?.let { stateHolder.notify(NoticeTone.Problem, it.message) }
             refresh()
         }
         SigningIntent.CreateKey -> createSigningKey()
@@ -109,7 +110,8 @@ internal class GitAuthCoordinator(
         is SigningIntent.SignCommits -> configureSigning { signCommits(intent.enabled) }
         // Nothing on the page changes with it, so its outcome is said either way.
         is SigningIntent.ChangePassphrase -> alone(GitAuthWork.ChangingPassphrase) {
-            stateHolder.message(credentials.changeSigningPassphrase(intent.fingerprint).message)
+            val outcome = credentials.changeSigningPassphrase(intent.fingerprint)
+            stateHolder.notify(if (outcome.succeeded) NoticeTone.Done else NoticeTone.Problem, outcome.message)
         }
     }
 
@@ -120,12 +122,12 @@ internal class GitAuthCoordinator(
     private suspend fun createSigningKey() = alone(GitAuthWork.CreatingSigningKey) {
         val name = config.readConfig(GitConfigScope.Global, "user.name")
         val email = config.readConfig(GitConfigScope.Global, "user.email")
-        if (name.isNullOrBlank() || email.isNullOrBlank()) return@alone stateHolder.message("Save a default commit identity first")
+        if (name.isNullOrBlank() || email.isNullOrBlank()) return@alone stateHolder.notify(NoticeTone.HeadsUp, "Save a default commit identity first")
         val before = credentials.signingKeys().mapTo(hashSetOf()) { it.fingerprint }
         val outcome = credentials.createSigningKey("$name <$email>")
         val created = credentials.signingKeys().firstOrNull { it.fingerprint !in before }
         if (created == null) {
-            stateHolder.message(outcome.message)
+            stateHolder.notify(NoticeTone.Problem, outcome.message)
             return@alone refresh()
         }
         configureSigning {
@@ -152,7 +154,7 @@ internal class GitAuthCoordinator(
     suspend fun generateSshKey() = alone(GitAuthWork.GeneratingKey) {
         val client = credentials.ensureSshAvailable()
         val outcome = if (client.succeeded) credentials.generateSshKey(credentials.describeHttps() ?: "icode") else client
-        if (!outcome.succeeded) stateHolder.message(outcome.message)
+        if (!outcome.succeeded) stateHolder.notify(NoticeTone.Problem, outcome.message)
         refresh()
     }
 

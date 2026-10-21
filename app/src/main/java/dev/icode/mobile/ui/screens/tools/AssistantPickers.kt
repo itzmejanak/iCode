@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.provider.OpenableColumns
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -40,6 +39,8 @@ import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.FileViewer
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.NoticeIntent
+import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.ui.LocalFileViewer
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.SharedFiles
@@ -61,6 +62,7 @@ internal class AssistantPickers(val photos: () -> Unit, val files: () -> Unit, v
 @Composable
 internal fun rememberAssistantPickers(onPicked: (List<DraftFile>) -> Unit): AssistantPickers {
     val context = LocalContext.current
+    val gateway = LocalICodeGateway.current
     var shot by rememberSaveable { mutableStateOf<String?>(null) }
     val photos = rememberLauncherForActivityResult(ActivityResultContracts.PickMultipleVisualMedia(AssistantRules.MAX_ATTACHMENTS)) { uris ->
         onPicked(uris.mapNotNull { describe(context, it) })
@@ -77,9 +79,9 @@ internal fun rememberAssistantPickers(onPicked: (List<DraftFile>) -> Unit): Assi
         val hasCamera = context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)
         AssistantPickers(
             photos = { photos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
-            files = { launch(context) { files.launch(arrayOf("*/*")) } },
+            files = { launch(gateway::dispatch) { files.launch(arrayOf("*/*")) } },
             camera = {
-                launch(context) {
+                launch(gateway::dispatch) {
                     val uri = cameraFile(context)
                     shot = uri.toString()
                     camera.launch(uri)
@@ -89,11 +91,11 @@ internal fun rememberAssistantPickers(onPicked: (List<DraftFile>) -> Unit): Assi
     }
 }
 
-private fun launch(context: Context, start: () -> Unit) {
+private fun launch(dispatch: (ICodeIntent) -> Unit, start: () -> Unit) {
     try {
         start()
     } catch (missing: ActivityNotFoundException) {
-        Toast.makeText(context, "No app on this phone can do that", Toast.LENGTH_LONG).show()
+        dispatch(NoticeIntent.Notify(NoticeTone.HeadsUp, "No app on this phone can do that"))
     }
 }
 

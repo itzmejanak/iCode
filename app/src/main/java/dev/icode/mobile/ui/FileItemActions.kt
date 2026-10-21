@@ -62,21 +62,21 @@ object FileItemActions {
         showInList: (() -> Unit)? = null,
     ): List<IcodeMenuAction> = listOfNotNull(
         open,
-        if (file) IcodeMenuAction("Open with…", Icons.AutoMirrored.Outlined.OpenInNew, { SharedFiles.open(context, location) }) else null,
-        if (file) IcodeMenuAction("Share…", Icons.Outlined.Share, { SharedFiles.share(context, location) }) else null,
+        if (file) IcodeMenuAction("Open with…", Icons.AutoMirrored.Outlined.OpenInNew, { SharedFiles.open(context, location, dispatch) }) else null,
+        if (file) IcodeMenuAction("Share…", Icons.Outlined.Share, { SharedFiles.share(context, location, dispatch) }) else null,
         openTerminal?.let { IcodeMenuAction("Open Terminal", Icons.Outlined.Terminal, it) },
         IcodeMenuAction("Rename…", Icons.Outlined.DriveFileRenameOutline, onRename),
         IcodeMenuAction("Cut", Icons.Outlined.ContentCut, { dispatch(ICodeIntent.CutItem(location)) }),
         IcodeMenuAction("Copy", Icons.Outlined.ContentCopy, { dispatch(ICodeIntent.CopyItem(location)) }),
         IcodeMenuAction(pasteLabel(clipboard), Icons.Outlined.ContentPaste, onPaste, enabled = clipboard != null),
         showInList?.let { IcodeMenuAction("Show in Workspaces", Icons.Outlined.FolderCopy, it) },
-        copyPath(context, runtimePath),
+        copyPath(context, runtimePath, dispatch),
         IcodeMenuAction("Delete…", Icons.Outlined.DeleteOutline, onDelete, destructive = true),
     )
 
     /** Copy path: the runtime path — what a terminal, a script or another workspace's config names it by. */
-    fun copyPath(context: Context, runtimePath: String) =
-        IcodeMenuAction("Copy path", Icons.Outlined.Link, { copyText(context, "Path", runtimePath, "Path copied") })
+    fun copyPath(context: Context, runtimePath: String, dispatch: (ICodeIntent) -> Unit) =
+        IcodeMenuAction("Copy path", Icons.Outlined.Link, { copyText(context, "Path", runtimePath, "Path copied", dispatch) })
 
     /**
      * What + makes in the folder shown: New folder, and New file where a file can go. Paste is the

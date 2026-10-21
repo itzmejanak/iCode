@@ -73,6 +73,7 @@ class MainActivity : ComponentActivity() {
         return when (asked.action) {
             ACTION_SHOW_TERMINAL_SESSION -> asked.getStringExtra(EXTRA_TERMINAL_SESSION_ID)?.let(Arrival::TerminalSession)
             ACTION_SHOW_WORK -> BackgroundPlace.decode(asked.getStringExtra(EXTRA_WORK_PLACE))?.let(Arrival::Work)
+            ACTION_SHOW_NOTICE -> Arrival.Notice(asked.getStringExtra(EXTRA_NOTICE_ID))
             else -> null
         }
     }
@@ -85,5 +86,9 @@ class MainActivity : ComponentActivity() {
         /** Opens iCode on a piece of background work, from its notification: [EXTRA_WORK_PLACE] says where. */
         const val ACTION_SHOW_WORK = "dev.icode.mobile.action.SHOW_WORK"
         const val EXTRA_WORK_PLACE = "work_place"
+
+        /** Opens iCode on a notice, from Android's shade: [EXTRA_NOTICE_ID]'s sheet, or the Notifications page without one. */
+        const val ACTION_SHOW_NOTICE = "dev.icode.mobile.action.SHOW_NOTICE"
+        const val EXTRA_NOTICE_ID = "notice"
     }
 }

@@ -3,6 +3,7 @@ package dev.icode.mobile.data.assistant
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.AssistantSession
 import dev.icode.mobile.domain.AssistantState
+import dev.icode.mobile.domain.NoticeTone
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -69,7 +70,7 @@ internal class AssistantPage(
 
     fun state(change: (AssistantState) -> AssistantState) = stateHolder.update { it.copy(assistant = change(it.assistant)) }
 
-    fun say(text: String) {
-        scope.launch { stateHolder.message(text) }
+    fun say(tone: NoticeTone, title: String, detail: String? = null) {
+        scope.launch { stateHolder.notify(tone, title, detail) }
     }
 }

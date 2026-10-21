@@ -8,6 +8,7 @@ import dev.icode.mobile.domain.AssistantProvider
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantSettings
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.NoticeTone
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -57,14 +58,14 @@ internal class AssistantProviders(
         val saved = settings().providers.firstOrNull { it.id == intent.id }
         val keySaved = saved?.hasKey == true && saved.kind == intent.kind
         AssistantRules.providerProblem(intent.kind, intent.name, intent.baseUrl, !intent.key.isNullOrBlank(), keySaved, intent.models)
-            ?.let { return stateHolder.message(it) }
+            ?.let { return stateHolder.notify(NoticeTone.HeadsUp, it) }
         val stored = runCatching {
             store.saveProvider(intent.id, intent.kind, intent.name, AssistantRules.storedBaseUrl(intent.kind, intent.baseUrl), intent.key, intent.models)
         }
-        stored.exceptionOrNull()?.let { return stateHolder.message(it.message ?: "Unable to save the provider") }
+        stored.exceptionOrNull()?.let { return stateHolder.notify(NoticeTone.Problem, "Unable to save the provider", it.message) }
         shown()
         page.state { it.copy(editing = stored.getOrNull(), available = null) }
-        stateHolder.message("${intent.name.trim()} saved")
+        stateHolder.notify(NoticeTone.Done, "${intent.name.trim()} saved")
     }
 
     fun remove(id: String) = remember {
@@ -108,7 +109,7 @@ internal class AssistantProviders(
     /** A choice kept, then shown; a failure said. */
     fun remember(change: () -> Unit) {
         runCatching(change).exceptionOrNull()?.let { failure ->
-            scope.launch { stateHolder.message(failure.message ?: "Unable to save the assistant's settings") }
+            scope.launch { stateHolder.notify(NoticeTone.Problem, "Unable to save the assistant's settings", failure.message) }
             return
         }
         shown()

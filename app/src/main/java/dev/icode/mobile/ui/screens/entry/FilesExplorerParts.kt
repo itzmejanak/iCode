@@ -155,7 +155,7 @@ private fun BrowsedItemRow(item: BrowsedItem, browser: FilesBrowserState, browse
         name = item.name,
         detail = FilesRules.detail(item),
         changedAt = item.changedAt,
-        onClick = open ?: { SharedFiles.open(context, item.location) },
+        onClick = open ?: { SharedFiles.open(context, item.location, gateway::dispatch) },
         onLongClick = { menuOpen = true },
     ) {
         IcodeActionMenu(expanded = menuOpen, onDismiss = { menuOpen = false }, actions = actions)

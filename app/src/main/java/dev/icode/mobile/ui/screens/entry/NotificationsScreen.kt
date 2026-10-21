@@ -23,21 +23,23 @@ import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
-import dev.icode.mobile.domain.AppNotice
-import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.NoticeIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
+import dev.icode.mobile.ui.LocalNotices
+import dev.icode.mobile.ui.NoticeRow
 
-/** What iCode has to tell the user, newest first; opening the page marks it all seen. */
+/** What iCode has to tell the user, newest first; opening the page marks it all seen, a tap opens one's sheet. */
 @Composable
 fun NotificationsScreen(actions: NavigationActions) {
     val state = LocalICodeSnapshot.current
     val gateway = LocalICodeGateway.current
+    val notices = LocalNotices.current
     // New when the page opened: they keep their dot for this visit.
     val newIds = remember { state.notices.filterNot { it.read }.map { it.id }.toSet() }
-    LaunchedEffect(Unit) { gateway.dispatch(ICodeIntent.MarkNoticesRead) }
+    LaunchedEffect(Unit) { gateway.dispatch(NoticeIntent.MarkAllRead) }
 
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar(
@@ -45,7 +47,7 @@ fun NotificationsScreen(actions: NavigationActions) {
             onBack = actions.back,
             actions = {
                 if (state.notices.isNotEmpty()) {
-                    IconButton(onClick = { gateway.dispatch(ICodeIntent.ClearNotices) }) {
+                    IconButton(onClick = { gateway.dispatch(NoticeIntent.Clear) }) {
                         Icon(Icons.Outlined.ClearAll, contentDescription = "Clear all notifications", tint = IcodeColors.TextPrimary)
                     }
                 }
@@ -59,7 +61,7 @@ fun NotificationsScreen(actions: NavigationActions) {
             ) {
                 EmptyState(
                     title = "No notifications",
-                    description = "iCode tells you here what happened while it was away, such as terminal sessions that ended.",
+                    description = "What iCode tells you stays here: problems, what to do first, and what happened while it was away.",
                     icon = Icons.Outlined.NotificationsNone,
                 )
             }
@@ -78,21 +80,9 @@ fun NotificationsScreen(actions: NavigationActions) {
                     )
                 }
             }
+            // One row for every kind; its whole story is in its sheet (docs/notices-plan.md §2.4).
             items(state.notices, key = { it.id }) { notice ->
-                when (notice) {
-                    is AppNotice.TerminalSessionsEnded -> LostSessionsNotice(
-                        notice,
-                        new = notice.id in newIds,
-                        onDelete = { gateway.dispatch(ICodeIntent.DeleteNotice(notice.id)) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    is AppNotice.GitTransferInterrupted -> InterruptedTransferNotice(
-                        notice,
-                        new = notice.id in newIds,
-                        onDelete = { gateway.dispatch(ICodeIntent.DeleteNotice(notice.id)) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
+                NoticeRow(notice, new = notice.id in newIds, onOpen = { notices.open(notice.id) }, modifier = Modifier.fillMaxWidth())
             }
         }
     }

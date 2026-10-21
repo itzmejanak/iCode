@@ -1,6 +1,5 @@
 package dev.icode.mobile.ui
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -17,6 +16,8 @@ import androidx.compose.ui.platform.LocalContext
 import dev.icode.mobile.designsystem.IcodeSheetOverlay
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.domain.FileViewer
+import dev.icode.mobile.domain.NoticeIntent
+import dev.icode.mobile.domain.NoticeTone
 
 /** A file in a viewer of iCode's own: [location] a path, or a picked file's `content://` URI. */
 internal data class ViewedFile(val location: String, val name: String, val viewer: FileViewer)
@@ -51,14 +52,15 @@ internal fun FileViewerHost(state: FileViewerState, content: @Composable () -> U
     }
     if (shown == null) return
     val context = LocalContext.current
+    val gateway = LocalICodeGateway.current
     // One its viewer cannot read goes to another app, as a file the editor cannot read does. A picked
     // file was lent to iCode alone, so it is only said.
     val unreadable = {
         state.close()
         if (shown.location.startsWith(CONTENT_URI)) {
-            Toast.makeText(context, "${shown.name} cannot be shown", Toast.LENGTH_LONG).show()
+            gateway.dispatch(NoticeIntent.Notify(NoticeTone.HeadsUp, "${shown.name} cannot be shown"))
         } else {
-            SharedFiles.open(context, shown.location)
+            SharedFiles.open(context, shown.location, gateway::dispatch)
         }
     }
     IcodeSheetOverlay(onClose = state::close) {
