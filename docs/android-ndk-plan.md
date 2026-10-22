@@ -135,7 +135,7 @@ programs and modules are replaced whatever they were.
 - **Nothing through apt.** An Android native build needs no host compiler.
 - **Host tools a project's own CMake scripts call.** iCode's build runs `patch`, for example. Those come from the Build tools row: `build-essential` depends on `dpkg-dev`, which depends on `patch`. That is the project's requirement, said by CMake's own error.
 
-**Extraction:** `ArchiveExtractor` gains `.tar.xz` (commons-compress with `org.tukaani:xz`, its documented optional dependency) and a placement filter for tar.gz, as zip has. It unpacks from the app, never through PRoot, which crawls on many small files (`ArchiveExtractor`'s own reason).
+**Extraction:** the runtime's own GNU tar and xz unpack an NDK (`xz-utils` is the NDK rows' package), not the app: its archives need a 257 MiB decoder (§7.6). `ArchiveExtractor` gains a placement filter for tar.gz, as zip has, for CMake.
 
 ### 3.3 Pins
 
@@ -245,8 +245,8 @@ accepted licence lets it fetch any missing package, and §3.4's guard was not bu
 | Where | What |
 |---|---|
 | `domain/RuntimeTools.kt` | `RuntimeTool.requires`; the CMake 3.22.1 and two NDK rows after the Android SDK; `CMAKE_VERSION`, `NDK_28`, `NDK_27`, `ndks` (by revision) and `ndkId`, the one place each is spelled; `RuntimeToolRules.toggle` and `withRequirements`; `plan` reads the choice with its requirements; `RuntimeToolsState.buildsNative` |
-| `data/runtime/ArchiveExtractor.kt` | `extractTarXz`, and a placement filter for tar, hard links mapped the same way; `org.tukaani:xz:1.10`, the version commons-compress 1.27.1's POM names |
-| `data/runtime/RuntimePackageInstaller.kt` | A tool apt has nothing for (CMake, an NDK) runs no apt: measured, installed and removed by its setup alone |
+| `data/runtime/ArchiveExtractor.kt` | A placement filter for tar.gz, hard links mapped the same way (an NDK's tar.xz is the runtime's to unpack, §7.6) |
+| `data/runtime/RuntimePackageInstaller.kt` | A tool apt has nothing for (CMake) runs no apt: measured, installed and removed by its setup alone. A setup's failure names its step, and each step is a line of Details (§7.6) |
 | `data/runtime/RuntimeToolSetup.kt`, `data/android/SdkManager.kt` | `fetchPinned` and `SdkManager` (install, `--list_installed`), shared by the three setups that had copies |
 | `data/android/CmakeSetup.kt`, `AndroidNdkSetup.kt` | §3.2, registered in `RuntimeToolsCoordinator` |
 | `data/android/GradleSettings.kt` | §3.4, with §7.3's changes |
@@ -329,4 +329,34 @@ In every failing case the plugin's hook saw no CMake path.
    install until iCode pins the new one. A copy the owner controls (a release of iCode's own, or iCode's
    CI building them from the same scripts, as §3.6 foresaw) would not change; it would mean the owner
    redistributing the NDK, which §3.6 left to the owner.
+
+### 7.6 Found on the phone: the NDK needs more memory than the app has (2026-10-22, the owner)
+
+Installing an NDK stopped with "Installation Failed" and only the runtime's words: "Failed to allocate a
+268435472 byte allocation with 29592783 free bytes and 227MB until OOM, target footprint 59185567, growth
+limit 268435456". Details said "Nothing has been printed yet".
+
+- **Cause.** Both NDK archives are XZ with a 256 MiB LZMA2 window (`xz -lvv`: `--lzma2=dict=256MiB`,
+  "Memory needed: 257 MiB"). The decoder holds the window whole, as one array. The app decoded them in its
+  own heap, which Android limits to 256 MiB on this phone ("growth limit 268435456"): it could never
+  fit. §7.4's check passed because a desktop JVM's heap is far larger. The check did not hold the
+  phone's limits.
+- **Fix, by where the work belongs.** Unpacking 1.3 GB is the runtime's work, not the app's. The NDK rows
+  now list `xz-utils` as their apt package, measured, installed and removed like any other. The setup
+  downloads the archive into the SDK folder, and the runtime's GNU tar and xz unpack it there
+  (`tar -xvJf … --strip-components=1 --no-same-owner`). The decoder's memory is native, in a process of
+  its own, and the app's heap stays the app's. In-app XZ (`extractTarXz`, `org.tukaani:xz`) is gone.
+  Checked here with GNU tar 1.35 and XZ Utils 5.4.5, Ubuntu 24.04's:
+  - the setup's own command gives a tree identical to the reference: 14,760 entries, one line each, which
+    the progress counts;
+  - 17 s on this machine;
+  - xz's peak is 258 MiB.
+- **What the user sees, whatever fails.**
+  - A setup's failure names the step it stopped at: "Unpacking NDK 27.0.12077973 failed: …".
+  - The phone's own limits are said as such: "There is not enough free memory to unpack NDK
+    27.0.12077973. Close other apps, then Retry."; not enough storage, "… Free some space, then Retry."
+  - Each step a setup starts is a line of Details, so Details shows what was done before the failure,
+    never "Nothing has been printed yet" after one.
+  - Stopping or failing an unpack leaves no staging folder. Retry downloads nothing again, and what
+    installed before the failure (the Android SDK, CMake) stays installed.
 

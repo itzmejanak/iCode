@@ -175,7 +175,9 @@ internal class RuntimePackageInstaller(
             if (!runs.stopRequested) throw cancelled
             Outcome.Cancelled
         } catch (error: Throwable) {
-            Outcome.Failed(error.message?.takeIf(String::isNotBlank) ?: "Could not change the runtime's tools")
+            // A setup's failure says the step it stopped at: what the user saw last, and what to retry.
+            val reason = error.message?.takeIf(String::isNotBlank) ?: "Could not change the runtime's tools"
+            Outcome.Failed(run.work.setup?.let { "${it.step} failed: $reason" } ?: reason)
         } finally {
             refresh()
         }
@@ -264,11 +266,16 @@ internal class RuntimePackageInstaller(
 
     /**
      * Runs [setup] unless its receipt matches, then configures it either way; Cancel stops it where
-     * its step says it may. Its receipt is written once both are done.
+     * its step says it may. Each step it starts is a line of Details, so they tell what it did before
+     * whatever it printed. Its receipt is written once both are done.
      */
     private suspend fun setUp(run: ToolRuns.ToolRun, setup: RuntimeToolSetup) {
         if (setups.matches(setup)) return setup.configure()
-        run.stoppably(true) { setup.install(onProgress = { run.publish(run.work.copy(setup = it)) }, onLine = run::printed) }
+        val onProgress = { progress: ToolSetupProgress ->
+            if (progress.step != run.work.setup?.step) run.printed(progress.step)
+            run.publish(run.work.copy(setup = progress))
+        }
+        run.stoppably(true) { setup.install(onProgress, onLine = run::printed) }
         setup.configure()
         setups.record(setup)
     }

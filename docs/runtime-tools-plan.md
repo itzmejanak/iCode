@@ -359,4 +359,6 @@ each NDK needs CMake:
   (`RuntimeToolRules.toggle`). `plan` reads a choice with its requirements, so nothing is installed
   without what it needs.
 - **The catalog** lists what a tool requires before it, so one install sets that up first.
-- **A tool with no apt packages** (CMake, an NDK) is measured, installed and removed by its setup alone.
+- **A tool with no apt packages** (CMake) is measured, installed and removed by its setup alone.
+- **A setup's failure names its step** ("Unpacking NDK 27.0.12077973 failed: …"), and each step it starts
+  is a line of Details ([android-ndk-plan.md](./android-ndk-plan.md) §7.6).

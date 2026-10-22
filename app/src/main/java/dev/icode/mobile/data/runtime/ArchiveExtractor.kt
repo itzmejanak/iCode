@@ -9,11 +9,12 @@ import java.util.zip.GZIPInputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.archivers.zip.ZipFile
-import org.apache.commons.compress.compressors.xz.XZCompressorInputStream
 
 /**
- * Unpacks a pinned archive directly, without PRoot: the root filesystem (a tar.gz), and what a
- * runtime tool's setup downloads — zips, a tar.gz, the NDK's tar.xz.
+ * Unpacks a pinned archive directly, without PRoot: the root filesystem (a tar.gz), and the zips and
+ * tar.gz a runtime tool's setup downloads. Only archives whose decoder is small: gzip's and zip's
+ * window is 32 KB. An NDK's tar.xz needs a 256 MiB one, and the runtime unpacks it
+ * ([dev.icode.mobile.data.android.AndroidNdkSetup]).
  *
  * Extracting through PRoot means every syscall is intercepted with ptrace, and
  * unpacking a base system is thousands of small files — open, write, close,
@@ -37,10 +38,6 @@ internal class ArchiveExtractor {
      */
     fun extractTarGz(archive: File, target: File, place: (String) -> String? = { it }, onEntry: (Long) -> Unit): Long =
         archive.inputStream().buffered().use { raw -> GZIPInputStream(raw).use { extractTar(it, target, place, onEntry) } }
-
-    /** As [extractTarGz], for a tar.xz: the NDK's archives (docs/android-ndk-plan.md §3.2). */
-    fun extractTarXz(archive: File, target: File, place: (String) -> String? = { it }, onEntry: (Long) -> Unit): Long =
-        archive.inputStream().buffered().use { raw -> XZCompressorInputStream(raw).use { extractTar(it, target, place, onEntry) } }
 
     private fun extractTar(input: InputStream, target: File, place: (String) -> String?, onEntry: (Long) -> Unit): Long {
         target.mkdirs()

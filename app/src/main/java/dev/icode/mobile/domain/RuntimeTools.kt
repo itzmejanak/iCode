@@ -79,10 +79,13 @@ object RuntimeTools {
     /** An NDK row's id — its setup's, and its pin's in the runtime manifest — by its major version: `android-ndk-28`. */
     fun ndkId(revision: String) = "android-ndk-${revision.substringBefore('.')}"
 
-    /** An NDK row, as Android Studio's SDK Tools tab names it. */
+    /**
+     * An NDK row, as Android Studio's SDK Tools tab names it. Its package is xz: the runtime unpacks the
+     * NDK's tar.xz itself, out of the app's memory (docs/android-ndk-plan.md §7.6).
+     */
     private fun ndk(revision: String, use: String) = RuntimeTool(
         ndkId(revision), "NDK (Side by side) $revision", "C and C++ for Android apps: $use, built for ARM64",
-        NATIVE_USE, emptyList(), setup = ndkId(revision), licence = AndroidSdk.licence, requires = listOf(Cmake.id, AndroidSdk.id),
+        NATIVE_USE, listOf("xz-utils"), setup = ndkId(revision), licence = AndroidSdk.licence, requires = listOf(Cmake.id, AndroidSdk.id),
     )
 
     /** Standard's choice. */

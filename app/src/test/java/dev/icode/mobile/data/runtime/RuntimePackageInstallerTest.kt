@@ -415,13 +415,16 @@ class RuntimePackageInstallerTest {
         assertFalse(installer.isInstalled(kit))
     }
 
-    @Test fun `a setup's failure is said in its words and kept, without a receipt`() = runBlocking {
+    @Test fun `a setup's failure is said in its words, after the step it stopped at, and kept without a receipt`() = runBlocking {
         val apt = FakeApt()
-        val setup = FakeSetup().apply { fails = "sdkmanager could not install the SDK packages: Connection refused" }
+        val setup = FakeSetup().apply { fails = "Download failed with HTTP 503" }
         val installer = apt.installer(setups = listOf(setup))
         val outcome = installer.apply(planFor(installer, setOf("kit")), setOf("kit-licence"))
-        assertEquals(RuntimePackageInstaller.Outcome.Failed("sdkmanager could not install the SDK packages: Connection refused"), outcome)
-        assertEquals("sdkmanager could not install the SDK packages: Connection refused", installer.work.value?.failure)
+        assertEquals(RuntimePackageInstaller.Outcome.Failed("Downloading the kit failed: Download failed with HTTP 503"), outcome)
+        val failed = installer.work.value!!
+        assertEquals("Downloading the kit failed: Download failed with HTTP 503", failed.failure)
+        // Details: the step the setup started, then what it printed.
+        assertEquals(listOf("Downloading the kit", "kit: fetched"), failed.log.takeLast(2))
         assertFalse(File(receipts, "kit").exists())
     }
 

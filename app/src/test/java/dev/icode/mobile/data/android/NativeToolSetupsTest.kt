@@ -36,11 +36,25 @@ class NativeToolSetupsTest {
         assertEquals(setOf("cmake", "ctest", "cpack", "ninja"), CmakeSetup.PROGRAMS)
     }
 
-    @Test fun `an NDK's entries land under its own folder, without the archive's top`() {
-        assertEquals("source.properties", AndroidNdkSetup.withinTop("android-ndk-r27/source.properties"))
-        assertEquals("toolchains/llvm/prebuilt/linux-arm64/bin/clang-18", AndroidNdkSetup.withinTop("android-ndk-r28c/toolchains/llvm/prebuilt/linux-arm64/bin/clang-18"))
-        assertNull(AndroidNdkSetup.withinTop("android-ndk-r27/"))
-        assertNull(AndroidNdkSetup.withinTop("android-ndk-r27"))
+    @Test fun `an NDK is unpacked by the runtime's tar and xz, without the archive's top, owned by the runtime's user`() {
+        assertEquals(
+            listOf("tar", "-xvJf", "/root/Android/Sdk/ndk/.27.0.12077973.tar.xz", "-C", "/root/Android/Sdk/ndk/.27.0.12077973-unpacking", "--strip-components=1", "--no-same-owner"),
+            AndroidNdkSetup.unpackCommand("/root/Android/Sdk/ndk/.27.0.12077973.tar.xz", "/root/Android/Sdk/ndk/.27.0.12077973-unpacking"),
+        )
+        // The xz the rows install unpacks it: apt brings it before the setup runs.
+        RuntimeTools.ndks.values.forEach { assertEquals(listOf("xz-utils"), it.packages) }
+    }
+
+    @Test fun `a failure that is the phone's doing is said in the user's words`() {
+        assertEquals(
+            "There is not enough free memory to unpack NDK 27.0.12077973. Close other apps, then Retry.",
+            AndroidNdkSetup.unpackFailure("27.0.12077973", "xz: (stdin): Cannot allocate memory\ntar: Child returned status 1\n"),
+        )
+        assertEquals(
+            "There is not enough free storage to unpack NDK 27.0.12077973. Free some space, then Retry.",
+            AndroidNdkSetup.unpackFailure("27.0.12077973", "tar: lib/libc++.a: Cannot write: No space left on device\n"),
+        )
+        assertNull(AndroidNdkSetup.unpackFailure("27.0.12077973", "xz: (stdin): File format not recognized\n"))
     }
 
     @Test fun `sdkmanager's installed list is read by package path`() {

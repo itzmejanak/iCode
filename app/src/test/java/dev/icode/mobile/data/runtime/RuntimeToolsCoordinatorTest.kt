@@ -95,7 +95,8 @@ class RuntimeToolsCoordinatorTest {
             mapOf("openjdk-17-jdk-headless_1_arm64.deb" to 2000L, "sdk.zip" to 7_000L),
             tools().downloads.getValue("android-sdk").archives,
         )
-        assertEquals("a tool apt has nothing for is its setup's files", mapOf("ndk-r27.tar.xz" to 8_000L), tools().downloads.getValue("android-ndk-27").archives)
+        assertEquals("a tool apt has nothing for is its setup's files", mapOf("cmake.tar.gz" to 3_000L), tools().downloads.getValue("cmake").archives)
+        assertEquals(mapOf("xz-utils_1_arm64.deb" to 2000L, "ndk-r27.tar.xz" to 8_000L), tools().downloads.getValue("android-ndk-27").archives)
 
         coordinator.handle(ICodeIntent.ApplyRuntimeTools(setOf("git", "ripgrep")))
         until { "ripgrep" in tools().installed?.packages.orEmpty() && tools().work == null }

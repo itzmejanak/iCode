@@ -8,7 +8,6 @@ import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import org.apache.commons.compress.archivers.tar.TarConstants
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
 import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream
-import org.apache.commons.compress.compressors.xz.XZCompressorOutputStream
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -140,9 +139,9 @@ class ArchiveExtractorTest {
     }
 
     @Test
-    fun `a tar xz unpacks where its entries are placed, its links and hard links mapped the same way`() {
-        val file = temporaryFolder.newFile("ndk-${System.nanoTime()}.tar.xz")
-        TarArchiveOutputStream(XZCompressorOutputStream(file.outputStream())).use { tar ->
+    fun `a tar gz unpacks where its entries are placed, its links and hard links mapped the same way`() {
+        val file = temporaryFolder.newFile("tool-${System.nanoTime()}.tar.gz")
+        TarArchiveOutputStream(GZIPOutputStream(file.outputStream())).use { tar ->
             tar.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX)
             tar.putArchiveEntry(TarArchiveEntry("android-ndk-r27/"))
             tar.closeArchiveEntry()
@@ -158,7 +157,7 @@ class ArchiveExtractorTest {
             tar.finish()
         }
         val out = target()
-        val written = ArchiveExtractor().extractTarXz(file, out, { it.substringAfter('/', "").takeIf(String::isNotEmpty) }) {}
+        val written = ArchiveExtractor().extractTarGz(file, out, { it.substringAfter('/', "").takeIf(String::isNotEmpty) }) {}
         assertEquals(4L, written)
         assertEquals("Pkg.Revision = 27.0.12077973\n", File(out, "source.properties").readText())
         val clang = File(out, "toolchains/llvm/prebuilt/linux-arm64/bin/clang")

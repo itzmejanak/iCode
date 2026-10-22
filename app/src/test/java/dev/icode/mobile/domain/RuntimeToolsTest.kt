@@ -46,8 +46,10 @@ class RuntimeToolsTest {
             assertFalse(tool.id in RuntimeTools.standard)
             assertEquals("android-sdk-license", tool.licence)
             assertEquals(tool.id, tool.setup)
-            assertEquals(emptyList<String>(), tool.packages)
         }
+        assertEquals(emptyList<String>(), RuntimeTools.Cmake.packages)
+        // The runtime unpacks an NDK's tar.xz with its own xz, outside the app's memory.
+        assertEquals(listOf("xz-utils"), RuntimeTools.Ndk28.packages)
         assertEquals("NDK (Side by side) 28.2.13676358", RuntimeTools.Ndk28.name)
         assertEquals(listOf("cmake", "android-sdk"), RuntimeTools.Ndk27.requires)
     }
@@ -68,7 +70,7 @@ class RuntimeToolsTest {
         val plan = RuntimeToolRules.plan(setOf("git", "android-ndk-28"), jdk)
         assertEquals(listOf(RuntimeTools.AndroidSdk, RuntimeTools.Cmake, RuntimeTools.Ndk28), plan.install)
         assertEquals(listOf("android-sdk-license"), plan.licences)
-        val all = RuntimeInventory(setOf("git", "openjdk-17-jdk-headless"), setOf("android-sdk", "cmake", "android-ndk-28"))
+        val all = RuntimeInventory(setOf("git", "openjdk-17-jdk-headless", "xz-utils"), setOf("android-sdk", "cmake", "android-ndk-28"))
         assertEquals(listOf(RuntimeTools.AndroidSdk, RuntimeTools.Cmake, RuntimeTools.Ndk28), RuntimeToolRules.plan(setOf("git"), all).remove)
     }
 
