@@ -16,7 +16,10 @@ internal data class RootfsDescriptor(
 internal data class Checksum(val algorithm: DigestAlgorithm, val hex: String)
 
 /** A file downloaded at one pinned version: where it is, its size when known, and the digest that proves it. */
-internal data class PinnedFile(val url: String, val bytes: Long?, val checksum: Checksum)
+internal data class PinnedFile(val url: String, val bytes: Long?, val checksum: Checksum) {
+    /** Its name, as its URL ends: what a download is kept as, and how the page lists it. */
+    val fileName: String get() = url.substringAfterLast('/')
+}
 
 /**
  * `assets/runtime/manifest.json` (docs/android-toolchain-plan.md §4.2): the root filesystem, the PRoot it

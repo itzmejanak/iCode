@@ -133,6 +133,11 @@ internal class RuntimePackageInstaller(
         var failure: String? = null
         val downloads = buildMap {
             tools.forEach { tool ->
+                // A tool apt has nothing for (CMake, an NDK) is its setup's files alone.
+                if (tool.packages.isEmpty()) {
+                    put(tool.id, RuntimeToolDownload(setups.download(tool)))
+                    return@forEach
+                }
                 val output = mutableListOf<String>()
                 val command = listOf("apt-get", "install", "--print-uris", "-qq", "--no-install-recommends") + tool.packages
                 var result = apt(command) { line -> output += line; true }
@@ -183,6 +188,13 @@ internal class RuntimePackageInstaller(
             return Outcome.Failed("${tool.name} installs only once its licence is accepted, in Runtime Tools")
         }
         val packages = run.work.tools.flatMap { it.packages }.distinct()
+        if (packages.isNotEmpty()) installPackages(run, packages)?.let { return it }
+        run.work.tools.mapNotNull { it.setup }.distinct().map(setups::of).forEach { setUp(run, it) }
+        return if (run.work.tools.all(::isInstalled)) Outcome.Ready else Outcome.Failed("Could not install ${run.names}")
+    }
+
+    /** apt downloads [packages], then installs them; null when it did, else why not. */
+    private suspend fun installPackages(run: ToolRuns.ToolRun, packages: List<String>): Outcome? {
         val download = listOf("apt-get", "install", "-d", "-y", "--no-install-recommends") + packages
         var fetched = run.apt(download, stoppable = true)
         if (fetched.exitCode != 0) {
@@ -200,8 +212,7 @@ internal class RuntimePackageInstaller(
         if (installed.exitCode != 0 || !readInstalled().containsAll(packages)) {
             return Outcome.Failed(failure("Could not install ${run.names}", installed, run.output))
         }
-        run.work.tools.mapNotNull { it.setup }.distinct().map(setups::of).forEach { setUp(run, it) }
-        return if (run.work.tools.all(::isInstalled)) Outcome.Ready else Outcome.Failed("Could not install ${run.names}")
+        return null
     }
 
     /**
@@ -216,6 +227,8 @@ internal class RuntimePackageInstaller(
             setup.remove()
             setups.forget(setup)
         }
+        // Tools apt has nothing for (CMake, an NDK): their setups were all there was.
+        if (packages.isEmpty()) return Outcome.Ready
         run.publish(run.work.copy(setup = null, progress = AptProgress(phase = AptPhase.Removing)))
         val before = simulatedRemovals()
         val mark = apt(listOf("apt-mark", "auto") + packages) { true }

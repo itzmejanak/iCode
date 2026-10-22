@@ -43,8 +43,12 @@ internal class AndroidApps(
     private val apks: ApkInstaller,
 ) : AndroidBuilds {
     override suspend fun buildAndRun(project: AndroidProject, report: ((RunRecord) -> RunRecord) -> Unit): Result<AndroidRun> {
-        if (!stateHolder.current.runtimeTools.isInstalled(RuntimeTools.AndroidSdk)) {
+        val tools = stateHolder.current.runtimeTools
+        if (!tools.isInstalled(RuntimeTools.AndroidSdk)) {
             return refuse("Install the Android SDK first, in Settings › Runtime Environment › Runtime Tools")
+        }
+        if (project.native && !tools.buildsNative) {
+            return refuse("This app builds C or C++: install CMake ${RuntimeTools.CMAKE_VERSION} and an NDK first, in Settings › Runtime Environment › Runtime Tools")
         }
         val directory = layout.workspaces.guestOf(project.workspace) ?: return refuse("${project.workspace} is not in iCode's workspaces")
         val name = "Build ${project.module.ifEmpty { File(project.workspace).name }}"

@@ -5,6 +5,7 @@ import dev.icode.mobile.domain.RuntimeTools
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AndroidSdkSetupTest {
@@ -27,7 +28,7 @@ class AndroidSdkSetupTest {
         val manifest = RuntimeManifest.parse(File("src/main/assets/${RuntimeManifest.ASSET}").readText())
         manifest.archive(AndroidSdkSetup.COMMAND_LINE_TOOLS)
         manifest.archive(AndroidSdkSetup.HOST_TOOLS)
-        assertEquals(AndroidSdk.PACKAGES.toSet(), manifest.packageBytes.keys)
+        assertTrue(manifest.packageBytes.keys.containsAll(AndroidSdk.PACKAGES))
     }
 
     @Test

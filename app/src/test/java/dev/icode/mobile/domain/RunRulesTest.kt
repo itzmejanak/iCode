@@ -6,7 +6,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RunRulesTest {
-    private val app = RunConfiguration.AndroidApp(AndroidProject("/w/hello", "app"))
+    private val app = RunConfiguration.AndroidApp(AndroidProject("/w/hello", "app", native = false))
     private val dev = RunConfiguration.Command("c1", "dev", "npm run dev")
     private fun process(state: ManagedProcessState, ports: List<Int> = emptyList()) =
         ManagedProcess("p1", "/w/hello", "dev", "npm run dev", "/workspace/hello", startedAt = 0, state = state, ports = ports)
@@ -17,13 +17,13 @@ class RunRulesTest {
         assertEquals("app", app.name)
         assertEquals("./gradlew :app:assembleDebug", app.command)
         assertEquals("Android app", app.kind)
-        assertEquals("hello", RunConfiguration.AndroidApp(AndroidProject("/w/hello", "")).name)
-        assertEquals("./gradlew assembleDebug", RunConfiguration.AndroidApp(AndroidProject("/w/hello", "")).command)
+        assertEquals("hello", RunConfiguration.AndroidApp(AndroidProject("/w/hello", "", native = false)).name)
+        assertEquals("./gradlew assembleDebug", RunConfiguration.AndroidApp(AndroidProject("/w/hello", "", native = false)).command)
         assertEquals("Command", dev.kind)
     }
 
     @Test fun `apps come first, app before the rest by name, then the saved commands as saved`() {
-        val apps = listOf(AndroidProject("/w", "wear"), AndroidProject("/w", "app"), AndroidProject("/w", "demo"))
+        val apps = listOf(AndroidProject("/w", "wear", native = false), AndroidProject("/w", "app", native = false), AndroidProject("/w", "demo", native = false))
         val saved = listOf(RunConfiguration.Command("b", "test", "npm test"), RunConfiguration.Command("a", "dev", "npm run dev"))
         assertEquals(listOf("android:app", "android:demo", "android:wear", "b", "a"), RunRules.configurations(apps, saved).map { it.id })
     }

@@ -72,7 +72,7 @@ internal object PinnedDownload {
         val actual = digest.digest().toHex()
         if ((file.bytes != null && received != file.bytes) || actual != file.checksum.hex) {
             target.delete()
-            throw IOException("${file.url.substringAfterLast('/')} failed its checksum: the download is not the file iCode pins")
+            throw IOException("${file.fileName} failed its checksum: the download is not the file iCode pins")
         }
     }
 

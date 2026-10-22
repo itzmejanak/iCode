@@ -21,6 +21,8 @@ data class RuntimeTool(
     val setup: String? = null,
     /** The licence installing it accepts, by id: its text is shown, and accepted, before it is installed. */
     val licence: String? = null,
+    /** The tools it needs, by id (docs/android-ndk-plan.md §3.1): ticked with it, and it goes when they go. */
+    val requires: List<String> = emptyList(),
 )
 
 /** Every tool iCode offers. A feature names the one it needs, never a package or a path. */
@@ -43,6 +45,22 @@ object RuntimeTools {
         "android-sdk", "Android SDK", "JDK 17, SDK Platform 36 and Build-Tools 36, with build tools that run on ARM64",
         "Build & Run for Android apps", listOf("openjdk-17-jdk-headless"), setup = "android-sdk", licence = "android-sdk-license",
     )
+
+    /** The CMake and the NDKs it installs (docs/android-ndk-plan.md §2.3): Android Studio's CMake, and AGP 9's and AGP 8.7–8.13's NDKs. */
+    const val CMAKE_VERSION = "3.22.1"
+    const val NDK_28 = "28.2.13676358"
+    const val NDK_27 = "27.0.12077973"
+
+    val Cmake = RuntimeTool(
+        "cmake", "CMake $CMAKE_VERSION", "CMake and Ninja for C and C++ builds, built for ARM64", NATIVE_USE, emptyList(),
+        setup = "cmake", licence = AndroidSdk.licence, requires = listOf(AndroidSdk.id),
+    )
+    val Ndk28 = ndk(NDK_28, "Android Gradle plugin 9's NDK")
+    val Ndk27 = ndk(NDK_27, "Android Gradle plugin 8.7–8.13's NDK")
+
+    /** The NDKs by revision, newest first: a build with C or C++ needs one of them. */
+    val ndks: Map<String, RuntimeTool> = linkedMapOf(NDK_28 to Ndk28, NDK_27 to Ndk27)
+
     val Curl = RuntimeTool("curl", "curl", "Downloads over HTTP and HTTPS", null, listOf("curl", "ca-certificates"))
     val Python = RuntimeTool(
         "python", "Python 3", "The interpreter, pip and venv", null, listOf("python3", "python3-pip", "python3-venv"),
@@ -52,12 +70,26 @@ object RuntimeTools {
         listOf("build-essential"),
     )
 
-    /** In the order the page lists them: iCode's own first. */
-    val all: List<RuntimeTool> = listOf(Git, SshClient, GnuPg, Ripgrep, AndroidSdk, Curl, Python, BuildTools)
+    /** In the order the page lists them: iCode's own first, and what a tool requires before it, so an install sets that up first. */
+    val all: List<RuntimeTool> = listOf(Git, SshClient, GnuPg, Ripgrep, AndroidSdk, Cmake, Ndk28, Ndk27, Curl, Python, BuildTools)
+
+    /** [id]'s tool; null for one this build does not offer. */
+    fun byId(id: String): RuntimeTool? = all.firstOrNull { it.id == id }
+
+    /** An NDK row's id — its setup's, and its pin's in the runtime manifest — by its major version: `android-ndk-28`. */
+    fun ndkId(revision: String) = "android-ndk-${revision.substringBefore('.')}"
+
+    /** An NDK row, as Android Studio's SDK Tools tab names it. */
+    private fun ndk(revision: String, use: String) = RuntimeTool(
+        ndkId(revision), "NDK (Side by side) $revision", "C and C++ for Android apps: $use, built for ARM64",
+        NATIVE_USE, emptyList(), setup = ndkId(revision), licence = AndroidSdk.licence, requires = listOf(Cmake.id, AndroidSdk.id),
+    )
 
     /** Standard's choice. */
     val standard: Set<String> = all.filter { it.recommended }.mapTo(linkedSetOf()) { it.id }
 }
+
+private const val NATIVE_USE = "Build & Run for apps with C or C++"
 
 /** What installing one tool would fetch now: each file's name and size — apt's archives, then its setup's. */
 data class RuntimeToolDownload(val archives: Map<String, Long>)
@@ -88,14 +120,35 @@ object RuntimeToolRules {
     fun initialChoice(installed: RuntimeInventory): Set<String> =
         RuntimeTools.standard + RuntimeTools.all.filter { isInstalled(it, installed) }.map { it.id }
 
+    /**
+     * [choice] with [id] ticked or unticked, kept whole (docs/android-ndk-plan.md §3.1): ticking a tool
+     * ticks what it requires, and unticking one unticks what requires it.
+     */
+    fun toggle(choice: Set<String>, id: String, catalog: List<RuntimeTool> = RuntimeTools.all): Set<String> =
+        if (id in choice) choice - catalog.filter { id in withRequirements(setOf(it.id), catalog) }.map { it.id }.toSet()
+        else withRequirements(choice + id, catalog)
+
+    /** [chosen], and what each chosen tool requires, however deep. */
+    fun withRequirements(chosen: Set<String>, catalog: List<RuntimeTool> = RuntimeTools.all): Set<String> {
+        val byId = catalog.associateBy { it.id }
+        val whole = linkedSetOf<String>()
+        fun add(id: String) {
+            if (whole.add(id)) byId[id]?.requires?.forEach(::add)
+        }
+        chosen.forEach(::add)
+        return whole
+    }
+
+    /** What Apply does for [chosen], read with its requirements: nothing is installed without what it needs. */
     fun plan(
         chosen: Set<String>,
         installed: RuntimeInventory,
         catalog: List<RuntimeTool> = RuntimeTools.all,
     ): RuntimeToolPlan {
-        val install = catalog.filter { it.id in chosen && !isInstalled(it, installed) }
-        val remove = catalog.filter { it.id !in chosen && isInstalled(it, installed) }
-        val kept = catalog.filter { it.id in chosen }.flatMapTo(hashSetOf()) { it.packages }
+        val whole = withRequirements(chosen, catalog)
+        val install = catalog.filter { it.id in whole && !isInstalled(it, installed) }
+        val remove = catalog.filter { it.id !in whole && isInstalled(it, installed) }
+        val kept = catalog.filter { it.id in whole }.flatMapTo(hashSetOf()) { it.packages }
         return RuntimeToolPlan(
             install = install,
             remove = remove,
@@ -185,6 +238,9 @@ data class RuntimeToolsState(
 ) {
     fun isInstalled(tool: RuntimeTool): Boolean =
         installed?.let { RuntimeToolRules.isInstalled(tool, it) } == true
+
+    /** CMake and an NDK are installed: Build & Run builds an app with C or C++ (docs/android-ndk-plan.md §3.5). */
+    val buildsNative: Boolean get() = isInstalled(RuntimeTools.Cmake) && RuntimeTools.ndks.values.any(::isInstalled)
 
     /** The run installing [tool] now, for a button that waits on it; null when none does. */
     fun installing(tool: RuntimeTool): RuntimeToolWork? =

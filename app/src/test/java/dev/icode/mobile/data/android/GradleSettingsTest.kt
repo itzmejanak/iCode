@@ -38,10 +38,25 @@ class GradleSettingsTest {
     }
 
     @Test
-    fun `the init script sets the default build tools of every kind of Android module`() {
+    fun `the init script sets the default build tools and CMake of every kind of Android module`() {
         val script = GradleSettings.INIT_SCRIPT
         listOf("com.android.application", "com.android.library", "com.android.test", "com.android.dynamic-feature")
             .forEach { assertTrue(it, "'$it'" in script) }
         assertTrue("buildToolsVersion = '36.0.0'" in script)
+        assertTrue("def icodeCmake = '3.22.1'" in script)
+        assertTrue("android.externalNativeBuild.cmake.version = icodeCmake" in script)
+    }
+
+    @Test
+    fun `the init script checks a module's NDK and CMake against what Runtime Tools installs, before the Android plugin`() {
+        val script = GradleSettings.INIT_SCRIPT
+        assertTrue("def icodeSdk = new File('/root/Android/Sdk')" in script)
+        assertTrue("def icodeNdks = ['28.2.13676358', '27.0.12077973']" in script)
+        // Registered for every project before its build script runs: ahead of the plugin's own afterEvaluate.
+        assertTrue("project.afterEvaluate { if (project.state.failure == null) icodeCheck(project) }" in script)
+        // Set aside before it stops, so the plugin's afterEvaluate, which still runs, resolves no NDK or CMake.
+        assertTrue("nativeBuild.cmake.path = null" in script && "nativeBuild.ndkBuild.path = null" in script)
+        assertTrue("(head[18] & 0xff) == 183" in script)
+        assertTrue('$' !in script)
     }
 }

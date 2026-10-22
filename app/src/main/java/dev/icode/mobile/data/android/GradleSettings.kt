@@ -1,5 +1,7 @@
 package dev.icode.mobile.data.android
 
+import dev.icode.mobile.domain.RuntimeTools
+
 /**
  * What the Android SDK tool sets for Gradle (docs/android-toolchain-plan.md §4.3), each setting
  * once, in the place Gradle documents for it:
@@ -8,7 +10,10 @@ package dev.icode.mobile.data.android
  *   own file takes precedence over a project's, so a project asking for more memory than a phone has
  *   gets the phone's figure. The rest of the file is the user's and is never touched.
  * - **`~/.gradle/init.d/icode-android.gradle`**: the build tools an Android module uses when its
- *   build names none — the ARM64 ones. A build that names its own keeps them.
+ *   build names none — the ARM64 ones — and the CMake a module with C or C++ uses when it names
+ *   none (docs/android-ndk-plan.md §3.4). A build that names its own keeps them. A module whose NDK
+ *   or CMake is not installed here for ARM64 stops with what to do, before the Android Gradle
+ *   plugin would download Google's: built for x86-64, hundreds of megabytes that cannot run.
  */
 internal object GradleSettings {
     const val BEGIN = "# >>> iCode: Android SDK (Settings › Runtime Tools), removed with it >>>"
@@ -44,13 +49,107 @@ internal object GradleSettings {
 
     const val INIT_SCRIPT_NAME = "icode-android.gradle"
 
-    /** Sets the default when a module's plugin is applied, before its own `android { }` runs. */
+    /**
+     * The defaults are set when a module's plugin is applied, before its own `android { }` runs. The
+     * check is registered for every project before its build script applies any plugin, so it runs
+     * before the Android Gradle plugin's own `afterEvaluate`, where it resolves an NDK and CMake.
+     * An NDK or CMake counts as installed when its program is an ARM64 ELF (e_machine 183): Google's
+     * x86-64 one, fetched by a build before, does not.
+     */
     val INIT_SCRIPT = """
         // iCode: Android SDK (Settings › Runtime Tools), removed with it. An Android module that names
-        // no build tools uses ${AndroidSdk.BUILD_TOOLS}, whose host programs run on ARM64.
-        allprojects {
+        // no build tools uses ${AndroidSdk.BUILD_TOOLS}, whose host programs run on ARM64, and one with C or C++
+        // that names no CMake uses ${RuntimeTools.CMAKE_VERSION}. One whose NDK or CMake is not installed here
+        // for ARM64 stops before the Android Gradle plugin downloads Google's, built for x86-64 only.
+        def icodeSdk = new File('${AndroidSdk.GUEST_ROOT}')
+        def icodeNdks = [${RuntimeTools.ndks.keys.joinToString { "'$it'" }}]
+        def icodeCmake = '${RuntimeTools.CMAKE_VERSION}'
+        def icodeWhere = 'in Settings › Runtime Environment › Runtime Tools'
+
+        def icodeArm64 = { File program ->
+            if (!program.isFile()) return false
+            def head = new byte[20]
+            def read = program.withInputStream { it.read(head) }
+            read == 20 && (head[0] & 0xff) == 0x7f && head[1] == 0x45 && head[2] == 0x4c && head[3] == 0x46 && (head[18] & 0xff) == 183 && head[19] == 0
+        }
+
+        // The NDK the Android Gradle plugin picks when a module names none: its release notes' (§2.3).
+        def icodeDefaultNdk = { android ->
+            def agp = null
+            try {
+                agp = android.getClass().classLoader.loadClass('com.android.Version').getField('ANDROID_GRADLE_PLUGIN_VERSION').get(null)
+            } catch (Throwable ignored) {
+            }
+            def parts = agp?.tokenize('.-')
+            if (parts == null || parts.size() < 2) return null
+            def major = parts[0] as int
+            def minor = parts[1] as int
+            if (major == 9 && minor <= 4) return '${RuntimeTools.NDK_28}'
+            if (major == 8 && minor >= 7 && minor <= 13) return '${RuntimeTools.NDK_27}'
+            null
+        }
+
+        def icodeAtLeast = { String have, String least ->
+            def a = have.tokenize('.').collect { it as int }
+            def b = least.tokenize('.').collect { it as int }
+            for (int i = 0; i < Math.max(a.size(), b.size()); i++) {
+                def x = i < a.size() ? a[i] : 0
+                def y = i < b.size() ? b[i] : 0
+                if (x != y) return x > y
+            }
+            true
+        }
+
+        // The module's C and C++ build is set aside before it stops: Gradle still runs the Android Gradle
+        // plugin's afterEvaluate after this one fails, and with it in place that would resolve — and
+        // download — the NDK and CMake.
+        def icodeStop = { nativeBuild, String message ->
+            nativeBuild.cmake.path = null
+            nativeBuild.ndkBuild.path = null
+            throw new GradleException('iCode: ' + message)
+        }
+
+        def icodeCheck = { project ->
+            def android = project.extensions.findByName('android')
+            if (android == null) return
+            def nativeBuild = android.externalNativeBuild
+            if (nativeBuild.cmake.path == null && nativeBuild.ndkBuild.path == null) return
+            if (android.ndkPath == null) {
+                def ndk = android.ndkVersion ?: icodeDefaultNdk(android)
+                if (ndk == null) {
+                    icodeStop(nativeBuild, project.path + ' names no NDK, and the Android Gradle plugin\'s own is not one iCode knows. ' +
+                        'Set android.ndkVersion to ' + icodeNdks.join(' or ') + ', which Runtime Tools installs.')
+                }
+                if (!icodeArm64(new File(icodeSdk, 'ndk/' + ndk + '/toolchains/llvm/prebuilt/linux-x86_64/bin/clang'))) {
+                    if (ndk in icodeNdks) icodeStop(nativeBuild, 'NDK ' + ndk + ' is not installed for this phone. Install NDK (Side by side) ' + ndk + ' ' + icodeWhere + '.')
+                    icodeStop(nativeBuild, 'NDK ' + ndk + ' cannot run on this phone. Runtime Tools installs NDK ' + icodeNdks.join(' and ') +
+                        ': set android.ndkVersion to one of them.')
+                }
+            }
+            def local = new Properties()
+            def localFile = project.rootProject.file('local.properties')
+            if (localFile.isFile()) localFile.withInputStream { local.load(it) }
+            if (nativeBuild.cmake.path != null && !local.getProperty('cmake.dir')) {
+                def wanted = nativeBuild.cmake.version ?: icodeCmake
+                def matches = wanted.endsWith('+') ? icodeAtLeast(icodeCmake, wanted - '+') : wanted == icodeCmake
+                if (!matches) {
+                    icodeStop(nativeBuild, 'CMake ' + wanted + ' cannot run on this phone. Runtime Tools installs CMake ' + icodeCmake +
+                        ': set externalNativeBuild.cmake.version to it.')
+                }
+                if (!icodeArm64(new File(icodeSdk, 'cmake/' + icodeCmake + '/bin/cmake'))) {
+                    icodeStop(nativeBuild, 'CMake ' + icodeCmake + ' is not installed for this phone. Install CMake ' + icodeCmake + ' ' + icodeWhere + '.')
+                }
+            }
+        }
+
+        allprojects { project ->
+            project.afterEvaluate { if (project.state.failure == null) icodeCheck(project) }
             ['com.android.application', 'com.android.library', 'com.android.test', 'com.android.dynamic-feature'].each { plugin ->
-                plugins.withId(plugin) { extensions.getByName('android').buildToolsVersion = '${AndroidSdk.BUILD_TOOLS}' }
+                project.plugins.withId(plugin) {
+                    def android = project.extensions.getByName('android')
+                    android.buildToolsVersion = '${AndroidSdk.BUILD_TOOLS}'
+                    android.externalNativeBuild.cmake.version = icodeCmake
+                }
             }
         }
     """.trimIndent() + "\n"

@@ -21,7 +21,7 @@ class RuntimeManifestTest {
         val hostTools = shipped.archive("android-host-tools-arm64")
         assertEquals(DigestAlgorithm.Sha256, hostTools.checksum.algorithm)
         assertEquals("db1cea2c4454d5f9c5a802646b2d1cf560b4ee7badbe23e51ab8e1881bb50fc2", hostTools.checksum.hex)
-        assertEquals(setOf("platforms;android-36", "build-tools;36.0.0"), shipped.packageBytes.keys)
+        assertEquals(setOf("platforms;android-36", "build-tools;36.0.0", "cmake;3.22.1"), shipped.packageBytes.keys)
     }
 
     @Test

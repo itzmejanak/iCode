@@ -94,7 +94,10 @@ internal fun ToolList(tools: RuntimeToolsState, choice: Set<String>, onToggle: (
     }
 }
 
-/** One tool, flat as a table row: the tick (the whole row takes the tap), its name and use, and its status. */
+/**
+ * One tool, flat as a table row: the tick (the whole row takes the tap), its name and use, what it
+ * needs — ticked with it (docs/android-ndk-plan.md §3.1) — and its status.
+ */
 @Composable
 private fun ToolRow(tool: RuntimeTool, ticked: Boolean, status: RuntimeToolStatus, onToggle: () -> Unit) {
     Row(
@@ -111,6 +114,9 @@ private fun ToolRow(tool: RuntimeTool, ticked: Boolean, status: RuntimeToolStatu
             Text(tool.name, style = IcodeType.Body)
             Text(tool.summary, style = IcodeType.Caption)
             tool.usedBy?.let { Text("Used by $it", style = IcodeType.Caption.copy(color = IcodeColors.TextMuted)) }
+            if (tool.requires.isNotEmpty()) {
+                Text("Needs ${spoken(tool.requires.mapNotNull { RuntimeTools.byId(it)?.name })}", style = IcodeType.Caption.copy(color = IcodeColors.TextMuted))
+            }
         }
         Text(
             label(status),
