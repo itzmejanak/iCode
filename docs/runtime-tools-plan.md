@@ -354,7 +354,8 @@ The Android SDK tool ([android-toolchain-plan.md](./android-toolchain-plan.md) �
 CMake 3.22.1 and the NDKs ([android-ndk-plan.md](./android-ndk-plan.md) §3.1) need the Android SDK, and
 each NDK needs CMake:
 
-- **`RuntimeTool.requires`** names them, and the row says so: "Needs Android SDK and CMake 3.22.1".
+- **`RuntimeTool.requires`** names them, and the row says what no row above it says (§8.7): the NDK's
+  "Needs CMake 3.22.1".
 - **Ticking** a tool ticks what it requires; **unticking** one unticks what requires it
   (`RuntimeToolRules.toggle`). `plan` reads a choice with its requirements, so nothing is installed
   without what it needs.
@@ -362,3 +363,50 @@ each NDK needs CMake:
 - **A tool with no apt packages** (CMake) is measured, installed and removed by its setup alone.
 - **A setup's failure names its step** ("Unpacking NDK 27.0.12077973 failed: …"), and each step it starts
   is a line of Details ([android-ndk-plan.md](./android-ndk-plan.md) §7.6).
+
+### 8.7 The list is a tree (2026-10-22)
+
+The owner asked for the flat list to become a hierarchy that reads well to the user. CMake and the two NDK rows sat
+level with Git, each with its own "Needs …" line, and read as three unrelated tools. Android Studio's SDK
+Manager (SDK Tools, Show Package Details) lists NDK (Side by side) as one row with each revision beneath it.
+Select Tools now lists:
+
+```
+Android SDK
+  ├ CMake 3.22.1
+  └ NDK (Side by side)          Needs CMake 3.22.1
+      ├ 28.2.13676358           For Android Gradle plugin 9.0–9.4
+      └ 27.0.12077973           For Android Gradle plugin 8.7–8.13
+```
+
+- **The catalog says where a tool is listed**, so there is no second list to keep in step:
+  - `RuntimeTool.within` names the tool it is listed beneath (CMake and the NDKs: the Android SDK). It is
+    always one the tool `requires`, and a test holds it to that.
+  - `RuntimeTool.family` and `version` make a family: `RuntimeTools.Ndk`, "NDK (Side by side)", "C and C++
+    for Android apps, built for ARM64". Each NDK is a version of it, its row titled by its revision.
+  - Adding an NDK stays one pin and one catalog row; it appears beneath the family.
+- **`RuntimeToolTree`** (`domain/RuntimeToolTree.kt`, pure) builds the tree from the catalog:
+  - `sections`: "Used by iCode" and "More tools" by each top row's use, each tool beneath the one it is
+    within, in the catalog's order.
+  - A row says only what no row above it says. CMake keeps its "Used by"; the family says the NDKs' "Used by"
+    and "Needs CMake 3.22.1" once, and the revisions say neither. The Android SDK they are beneath is
+    never named as a need.
+  - `tick`: a tool's row is on or off. A family's is on, off, or partly while some of its versions are
+    ticked (Android Studio's indeterminate box).
+  - `toggle`: a tool's row is `RuntimeToolRules.toggle`. A family's row ticks its newest version (with
+    CMake and the SDK, as any NDK), as ticking Android Studio's NDK (Side by side) gets the latest; with any
+    version ticked, it unticks them all and leaves what they needed.
+- **The design system** gained the pieces, not the screen:
+  - `IcodeTriStateCheckbox`, with `IcodeCheckbox`'s colours (one `tickColors`).
+  - `IcodeTickBranch`: the rows beneath a row, `IcodeSpacing.IndentStep` in, a 1 dp rail in the outline
+    colour down from the middle of the tick above. `IcodeSizes.Tick` (24 dp, Material's 20 dp box and
+    2 dp around it, from `Checkbox.kt`) pins each tick's width, so every level's rail meets its tick.
+  - A row's text now starts level with its tick (`IcodeSpacing.Micro`, as `IcodeOptionRow`); it sat a
+    `Space2` lower.
+- **Unchanged:** the full names ("NDK (Side by side) 28.2.13676358") everywhere a tool is named alone (the
+  License Agreement, Confirm Changes, the run, the Run tab's message), the choice, `plan` and the install
+  order.
+- **Checked here:** `RuntimeToolTreeTest`; every data and domain test (896, one known root-only failure,
+  `TreeSizeTest`); the UI type-check; both guards. The list was drawn with Compose Desktop 1.7.3 at a
+  phone's 411 dp, dark and light, in four states: nothing native ticked; an NDK ticked; installed; both
+  revisions ticked. It has not yet been seen on the phone.

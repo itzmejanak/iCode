@@ -98,11 +98,12 @@ publisher has rebuilt both since, at the same URLs; §7.2 has the archives pinne
 
 | Row | id | apt | Setup | Licence | Requires |
 |---|---|---|---|---|---|
-| NDK (Side by side) 28.2.13676358: "C and C++ for Android apps: Android Gradle plugin 9's NDK, built for ARM64" | `android-ndk-28` | — | `android-ndk-28` | `android-sdk-license` | `cmake`, `android-sdk` |
-| NDK (Side by side) 27.0.12077973: "…: Android Gradle plugin 8.7–8.13's NDK, built for ARM64" | `android-ndk-27` | — | `android-ndk-27` | `android-sdk-license` | `cmake`, `android-sdk` |
+| NDK (Side by side) 28.2.13676358: "For Android Gradle plugin 9.0–9.4" | `android-ndk-28` | `xz-utils` | `android-ndk-28` | `android-sdk-license` | `cmake`, `android-sdk` |
+| NDK (Side by side) 27.0.12077973: "For Android Gradle plugin 8.7–8.13" | `android-ndk-27` | `xz-utils` | `android-ndk-27` | `android-sdk-license` | `cmake`, `android-sdk` |
 | CMake 3.22.1: "CMake and Ninja for C and C++ builds, built for ARM64" | `cmake` | — | `cmake` | `android-sdk-license` | `android-sdk` |
 
 - They sit under "Used by iCode" ("Build & Run for apps with C or C++"), are not in Standard, and come after the Android SDK in the catalog's order.
+- **The page lists them beneath the Android SDK** ([runtime-tools-plan.md](./runtime-tools-plan.md) §8.7), the NDKs as versions of one family, "NDK (Side by side)": "C and C++ for Android apps, built for ARM64". Each revision's row is titled by its revision and says which Android Gradle plugins use it. (The NDKs' apt package is `xz-utils`, §7.6.)
 - **`RuntimeTool.requires`** (ids) is the one new idea in the catalog, and the one pure rule `RuntimeToolRules.toggle(choice, id)` keeps a choice whole:
   - ticking a tool ticks what it requires;
   - unticking one unticks what requires it;

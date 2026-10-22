@@ -23,6 +23,14 @@ data class RuntimeTool(
     val licence: String? = null,
     /** The tools it needs, by id (docs/android-ndk-plan.md §3.1): ticked with it, and it goes when they go. */
     val requires: List<String> = emptyList(),
+    /**
+     * The tool the page lists it beneath, by id — one it [requires] — as Android Studio's SDK Manager
+     * lists CMake and the NDK among the SDK's tools (docs/runtime-tools-plan.md §8.7). Null at the top.
+     */
+    val within: String? = null,
+    /** The family it is a version of, listed beneath the family's row, titled by [version]: an NDK's revision. */
+    val family: RuntimeToolFamily? = null,
+    val version: String? = null,
 )
 
 /** Every tool iCode offers. A feature names the one it needs, never a package or a path. */
@@ -53,10 +61,13 @@ object RuntimeTools {
 
     val Cmake = RuntimeTool(
         "cmake", "CMake $CMAKE_VERSION", "CMake and Ninja for C and C++ builds, built for ARM64", NATIVE_USE, emptyList(),
-        setup = "cmake", licence = AndroidSdk.licence, requires = listOf(AndroidSdk.id),
+        setup = "cmake", licence = AndroidSdk.licence, requires = listOf(AndroidSdk.id), within = AndroidSdk.id,
     )
-    val Ndk28 = ndk(NDK_28, "Android Gradle plugin 9's NDK")
-    val Ndk27 = ndk(NDK_27, "Android Gradle plugin 8.7–8.13's NDK")
+
+    /** Android Studio's NDK (Side by side): revisions installed side by side, each a row beneath it. */
+    val Ndk = RuntimeToolFamily("android-ndk", "NDK (Side by side)", "C and C++ for Android apps, built for ARM64")
+    val Ndk28 = ndk(NDK_28, "For Android Gradle plugin 9.0–9.4")
+    val Ndk27 = ndk(NDK_27, "For Android Gradle plugin 8.7–8.13")
 
     /** The NDKs by revision, newest first: a build with C or C++ needs one of them. */
     val ndks: Map<String, RuntimeTool> = linkedMapOf(NDK_28 to Ndk28, NDK_27 to Ndk27)
@@ -80,12 +91,13 @@ object RuntimeTools {
     fun ndkId(revision: String) = "android-ndk-${revision.substringBefore('.')}"
 
     /**
-     * An NDK row, as Android Studio's SDK Tools tab names it. Its package is xz: the runtime unpacks the
-     * NDK's tar.xz itself, out of the app's memory (docs/android-ndk-plan.md §7.6).
+     * An NDK, named as Android Studio's SDK Tools tab names it; [use] is the Android Gradle plugins that
+     * pick it. Its package is xz: the runtime unpacks the NDK's tar.xz itself, out of the app's memory
+     * (docs/android-ndk-plan.md §7.6).
      */
     private fun ndk(revision: String, use: String) = RuntimeTool(
-        ndkId(revision), "NDK (Side by side) $revision", "C and C++ for Android apps: $use, built for ARM64",
-        NATIVE_USE, listOf("xz-utils"), setup = ndkId(revision), licence = AndroidSdk.licence, requires = listOf(Cmake.id, AndroidSdk.id),
+        ndkId(revision), "${Ndk.name} $revision", use, NATIVE_USE, listOf("xz-utils"), setup = ndkId(revision),
+        licence = AndroidSdk.licence, requires = listOf(Cmake.id, AndroidSdk.id), within = AndroidSdk.id, family = Ndk, version = revision,
     )
 
     /** Standard's choice. */
@@ -248,50 +260,4 @@ data class RuntimeToolsState(
     /** The run installing [tool] now, for a button that waits on it; null when none does. */
     fun installing(tool: RuntimeTool): RuntimeToolWork? =
         work?.takeIf { it.failure == null && it.action == RuntimeToolAction.Install && it.includes(tool) }
-}
-
-enum class RuntimeToolAction { Install, Remove }
-
-/**
- * A tool's setup as it goes, in its own words: "Downloading Android SDK Command-line Tools", how
- * far, the file in hand, and whether stopping now leaves nothing half done.
- */
-data class ToolSetupProgress(val step: String, val fraction: Float? = null, val item: String? = null, val cancellable: Boolean)
-
-/** The one run for tools — apt, then any setup: what the page, a button waiting on it and its notification show. */
-data class RuntimeToolWork(
-    val action: RuntimeToolAction,
-    val tools: List<RuntimeTool>,
-    val progress: AptProgress = AptProgress(),
-    /** The setup in hand, once apt is done; null while apt runs. */
-    val setup: ToolSetupProgress? = null,
-    /** apt's, or the setup's, last lines, for Details. */
-    val log: List<String> = emptyList(),
-    /** Why it stopped, in apt's or the setup's words; null while it runs. */
-    val failure: String? = null,
-) {
-    /** "Installing Git, SSH client". */
-    val title: String
-        get() = (if (action == RuntimeToolAction.Install) "Installing " else "Removing ") + tools.joinToString { it.name }
-
-    /**
-     * Stopping apt while it reads the lists or downloads leaves nothing half done; once dpkg
-     * unpacks, stopping leaves an interrupted package database, so there is no Cancel. A setup
-     * says for itself.
-     */
-    val cancellable: Boolean
-        get() = failure == null &&
-            (setup?.cancellable ?: (progress.phase == AptPhase.Preparing || progress.phase == AptPhase.Downloading))
-
-    /** The step in hand: apt's, or the setup's once apt is done. */
-    val step: String get() = setup?.step ?: progress.step
-    val item: String? get() = if (setup != null) setup.item else progress.item
-    val fraction: Float? get() = if (setup != null) setup.fraction else progress.fraction
-    /** "4 / 6" while dpkg works; a setup says its share by [fraction] alone. */
-    val counts: String? get() = if (setup != null) null else progress.counts
-
-    fun includes(tool: RuntimeTool): Boolean = tools.any { it.id == tool.id }
-
-    /** "Installing SSH client · Setting up 3 of 6": what a button waiting on it says. */
-    val status: String get() = "$title · $step"
 }

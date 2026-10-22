@@ -108,7 +108,7 @@ fun RuntimeToolsScreen(actions: NavigationActions) {
                     PageHeading(heading.first, description = heading.second)
                     when (step) {
                         RuntimeToolStep.InstallType -> InstallTypeChoice(custom, tools, initial) { custom = it }
-                        RuntimeToolStep.Select -> ToolList(tools, choice) { id -> chosen = RuntimeToolRules.toggle(chosen.orEmpty(), id) }
+                        RuntimeToolStep.Select -> ToolList(tools, choice) { chosen = it }
                         RuntimeToolStep.Verify -> VerifyChanges(plan, tools)
                         RuntimeToolStep.Licence -> plan?.let {
                             LicenceAgreement(it, tools, accepted.orEmpty()) { id, yes ->

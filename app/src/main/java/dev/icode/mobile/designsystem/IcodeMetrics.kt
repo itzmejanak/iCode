@@ -67,6 +67,8 @@ object IcodeSizes {
     val BadgeMd = 36.dp
     val Tile = 74.dp
     val TouchTarget = 48.dp
+    /** A tick in a row that takes the tap: Material's checkbox, its 20 dp box and 2 dp around it. */
+    val Tick = 24.dp
     /** Room under a list's last row for the floating + (56 dp) and the margin around it. */
     val FabClearance = 88.dp
     val MenuWidth = 200.dp
