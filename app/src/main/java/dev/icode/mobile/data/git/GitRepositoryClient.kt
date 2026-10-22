@@ -3,6 +3,7 @@ package dev.icode.mobile.data.git
 import dev.icode.mobile.domain.GitStatusCodes
 import dev.icode.mobile.domain.GitInProgress
 import dev.icode.mobile.domain.GitFileDiff
+import dev.icode.mobile.domain.GitHistoryCommit
 import dev.icode.mobile.domain.GitIdentityRules
 import dev.icode.mobile.domain.GitOutcome
 import java.io.File
@@ -18,7 +19,7 @@ import kotlinx.coroutines.withContext
  * (PR-GIT-12). Nothing here reimplements Git behaviour.
  */
 internal class GitRepositoryClient(private val cli: CliGitService) :
-    GitWorkspaceOperations, GitTransferOperations, GitConfigOperations, GitCheckoutOperations {
+    GitWorkspaceOperations, GitHistoryOperations, GitTransferOperations, GitConfigOperations, GitCheckoutOperations {
 
     override suspend fun isAvailable(): Boolean = cli.isAvailable()
 
@@ -173,6 +174,12 @@ internal class GitRepositoryClient(private val cli: CliGitService) :
         val result = cli.run(workspacePath, arguments)
         if (!result.succeeded) throw IOException(result.errorMessage)
         return GitDiffParser.parse(result.stdout, staged).firstOrNull()
+    }
+
+    override suspend fun history(workspacePath: String, skip: Int, count: Int): List<GitHistoryCommit> {
+        val result = cli.run(workspacePath, GitHistoryParser.arguments(skip, count))
+        if (!result.succeeded) throw IOException(result.errorMessage)
+        return GitHistoryParser.parse(result.stdout)
     }
 
     /**

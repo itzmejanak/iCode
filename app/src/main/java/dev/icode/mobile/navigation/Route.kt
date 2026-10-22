@@ -43,6 +43,8 @@ enum class Route(
     // Owner's request (2026-10-01): the repository is chosen as the branch is, from Source Control's
     // bottom bar (workspace-destinations-plan.md D7).
     RepositorySelector(null, "Repository selector", RouteGroup.TOOLS, sheet = true),
+    // Owner's request (2026-10-22): HEAD's history from Last Commit's corner (docs/git-history-plan.md).
+    GitHistory(null, "Commit history", RouteGroup.TOOLS, sheet = true),
     EditorFind("3:835", "Editor find", RouteGroup.TOOLS),
     TerminalExpanded("3:1070", "Terminal expanded", RouteGroup.TOOLS),
     ProblemsPanel("3:1127", "Problems panel", RouteGroup.TOOLS),

@@ -9,6 +9,7 @@ import dev.icode.mobile.data.git.GitAuthCoordinator
 import dev.icode.mobile.data.git.GitAuthenticator
 import dev.icode.mobile.data.git.GitConflictCoordinator
 import dev.icode.mobile.data.git.GitCredentialStore
+import dev.icode.mobile.data.git.GitHistoryCoordinator
 import dev.icode.mobile.data.git.GitRepositoryClient
 import dev.icode.mobile.data.git.GitTransferCoordinator
 import dev.icode.mobile.data.git.GitTransferLedger
@@ -33,6 +34,7 @@ import dev.icode.mobile.data.tasks.BackgroundWork
 import dev.icode.mobile.data.tasks.TaskRunner
 import dev.icode.mobile.domain.BackgroundWorkRules
 import dev.icode.mobile.domain.GitAuthWorkIntent
+import dev.icode.mobile.domain.GitHistoryIntent
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.NoticeIntent
 import dev.icode.mobile.domain.RuntimeInstallReason
@@ -94,15 +96,13 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     )
     private val tree = WorkspaceTree(stateHolder, source)
     private val gitWorkspace: GitWorkspaceCoordinator = GitWorkspaceCoordinator(
-        stateHolder,
-        scope,
-        git,
-        tree,
+        stateHolder, scope, git, tree,
         activeRoot = { session.activeRoot },
         workspaces = library::workspaces,
         recentDocuments = library::recentDocuments,
         onInstalled = { gitAuth.refresh() },
     )
+    private val gitHistory = GitHistoryCoordinator(stateHolder, scope, git) { session.activeRoot }
     private val transferLedger = GitTransferLedger(appContext)
     /** Read before any transfer can start, or it would report the one just started. */
     private val interruptedTransfer = transferLedger.takeInterrupted()
@@ -128,9 +128,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
         ledger = transferLedger,
     )
     private val gitAuth: GitAuthCoordinator = GitAuthCoordinator(
-        stateHolder,
-        git,
-        authenticator,
+        stateHolder, git, authenticator,
         activeRoot = { session.activeRoot },
         actInRepository = gitWorkspace::act,
         refreshRepository = { root -> gitWorkspace.refresh(root) },
@@ -210,6 +208,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
             is ICodeIntent.SelectLanguageService -> languages.select(intent.id)
             ICodeIntent.ProvisionGit -> scope.launch { gitWorkspace.provision() }
             is GitAuthWorkIntent -> scope.launch { gitAuth.handle(intent) }
+            is GitHistoryIntent -> gitHistory.handle(intent)
             // A task's dialog must answer while the task runs.
             is ICodeIntent.TaskIntent -> tasks.handle(intent)
             is ICodeIntent.RuntimeToolsIntent -> runtimeTools.handle(intent)

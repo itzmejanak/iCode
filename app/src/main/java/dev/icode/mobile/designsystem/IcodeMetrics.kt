@@ -66,6 +66,11 @@ object IcodeSizes {
     val BadgeMd = 36.dp
     val Tile = 74.dp
     val TouchTarget = 48.dp
+    /**
+     * An icon action's ripple in a card's top corner ([SectionHeader]): it spreads into the card's
+     * padding, the narrowest of which it fits, and touch still finds it a [TouchTarget] wide.
+     */
+    val CornerAction = 40.dp
     /** A tree row's leading slot, its expand arrow or nothing: the rail beneath the row runs down its middle. */
     val Disclosure = 24.dp
     /** Room under a list's last row for the floating + (56 dp) and the margin around it. */
@@ -73,6 +78,10 @@ object IcodeSizes {
     val MenuWidth = 200.dp
     val DialogMaxWidth = 400.dp
     val DotMd = 12.dp
+    /** A commit graph's lane (History sheet), its dot and the lines between them. */
+    val GraphLane = 14.dp
+    val GraphDot = 8.dp
+    val GraphLine = 2.dp
     val TopBar = 56.dp
     val TopBarWithSubtitle = 64.dp
     val TabStrip = 38.dp

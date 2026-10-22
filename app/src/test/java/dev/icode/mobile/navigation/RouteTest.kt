@@ -30,6 +30,7 @@ class RouteTest {
         Route.RuntimeTools, // 2026-09-30: choose the runtime's tools, as Android Studio's setup (runtime-tools-plan.md §3.5)
         Route.ChooseDestination, // 2026-10-01: the file explorer choosing where a project goes (workspace-destinations-plan.md)
         Route.RepositorySelector, // 2026-10-01: the repository chosen as the branch is (workspace-destinations-plan.md D7)
+        Route.GitHistory, // 2026-10-22: HEAD's history from Last Commit's corner (git-history-plan.md)
         Route.Assistant, // 2026-10-01: iCode's own assistant, on Koog (assistant-koog-plan.md §3)
         Route.AssistantSettings, // 2026-10-01: the assistant's providers (assistant-koog-plan.md §13 P3)
         Route.AssistantProvider, // 2026-10-01: one provider — its key, address and models (assistant-koog-plan.md §13 P3)

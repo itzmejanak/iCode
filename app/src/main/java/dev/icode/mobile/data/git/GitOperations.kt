@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.git
 
 import dev.icode.mobile.domain.GitFileDiff
+import dev.icode.mobile.domain.GitHistoryCommit
 import dev.icode.mobile.domain.GitInProgress
 import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.GitSigningKey
@@ -47,6 +48,12 @@ internal interface GitWorkspaceOperations : GitIndexOperations {
     suspend fun compareWithBytes(workspacePath: String, path: String, editorBytes: ByteArray): GitOutcome<GitFileDiff?>
     suspend fun discard(workspacePath: String, path: String, status: String)
     suspend fun abortInProgress(workspacePath: String, inProgress: GitInProgress)
+}
+
+/** HEAD's history, which Source Control's History sheet reads a page at a time; tests put a fake in its place. */
+internal interface GitHistoryOperations {
+    /** [count] commits of HEAD's history after its first [skip], each before its parents. */
+    suspend fun history(workspacePath: String, skip: Int, count: Int): List<GitHistoryCommit>
 }
 
 /**

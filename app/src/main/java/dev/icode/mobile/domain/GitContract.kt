@@ -220,13 +220,19 @@ data class GitChange(
 }
 
 data class GitCommitSummary(
+    /** Its id's first [ID_LENGTH] characters. */
     val id: String,
     val message: String,
     val author: String,
     val authoredAtEpochMillis: Long,
     /** Git's verdict on its signature; null where GnuPG is not installed to check one. */
     val signature: GitCommitSignature? = null,
-)
+) {
+    companion object {
+        /** How much of a commit's id Source Control writes out: one line, and still one commit's in any repository. */
+        const val ID_LENGTH = 12
+    }
+}
 
 data class GitRepositoryState(
     val workTreePath: String,

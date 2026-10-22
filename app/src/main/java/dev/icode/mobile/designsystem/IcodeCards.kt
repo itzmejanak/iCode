@@ -6,17 +6,23 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 
@@ -92,6 +98,35 @@ fun SectionHeader(
                 style = IcodeType.Label.copy(color = IcodeColors.Accent),
                 modifier = if (onAction == null) Modifier else Modifier.clickable(onClick = onAction),
             )
+        }
+    }
+}
+
+/**
+ * Section label with an icon action at its end: the top corner of the card it heads (Last Commit's
+ * history). The icon takes no more of the row than its own size, its ripple spreading into the card's
+ * padding, so the header is no taller than its label; touch finds it a full touch target wide.
+ */
+@Composable
+fun SectionHeader(
+    title: String,
+    icon: ImageVector,
+    actionLabel: String,
+    onAction: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        SectionLabel(title, Modifier.weight(1f))
+        Box(
+            Modifier
+                .size(IcodeSizes.IconMd)
+                .wrapContentSize(unbounded = true)
+                .size(IcodeSizes.CornerAction)
+                .clip(IcodeShapes.Pill)
+                .clickable(role = Role.Button, onClickLabel = actionLabel, onClick = onAction),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(icon, contentDescription = actionLabel, tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconMd))
         }
     }
 }
