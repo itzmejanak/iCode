@@ -27,12 +27,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import dev.icode.mobile.designsystem.ActivityRail
 import dev.icode.mobile.designsystem.ActivityRailEntry
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeMenuAction
-import dev.icode.mobile.designsystem.IcodeShapes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
@@ -113,7 +111,6 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
                 Modifier
                     .weight(1f)
                     .fillMaxSize()
-                    .clip(IcodeShapes.RailContent)
                     .background(IcodeColors.Background),
             ) {
                 SectionLabel("Workspace Explorer", Modifier.padding(IcodeSpacing.Space3))

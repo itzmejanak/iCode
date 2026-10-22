@@ -49,7 +49,6 @@ object IcodeSpacing {
 /** Shape tokens shared by every surface. */
 object IcodeShapes {
     val Small = RoundedCornerShape(4.dp)
-    val RailContent = RoundedCornerShape(topStart = 4.dp, bottomStart = 4.dp)
     val AppIcon = RoundedCornerShape(22)
     val Chip = RoundedCornerShape(3.dp)
     val Pill = RoundedCornerShape(50)
