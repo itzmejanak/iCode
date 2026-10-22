@@ -14,6 +14,8 @@ data class RuntimeToolSection(val title: String, val nodes: List<RuntimeToolNode
 
 /** A row of the tree, saying only what no row above it says, and the rows beneath it. */
 sealed interface RuntimeToolNode {
+    /** Stable: what the page keeps the row open by. */
+    val id: String
     /** What the row shows: a tool's name, or within its family its version. */
     val title: String
     /** What it is called alone, as a screen reader says the row: "NDK (Side by side) 28.2.13676358". */
@@ -31,6 +33,7 @@ sealed interface RuntimeToolNode {
         override val needs: List<RuntimeTool>,
         override val children: List<RuntimeToolNode>,
     ) : RuntimeToolNode {
+        override val id: String get() = tool.id
         override val title: String get() = tool.versionOf?.version ?: tool.name
         override val name: String get() = tool.name
         override val summary: String get() = tool.summary
@@ -43,6 +46,7 @@ sealed interface RuntimeToolNode {
         override val needs: List<RuntimeTool>,
         override val children: List<Tool>,
     ) : RuntimeToolNode {
+        override val id: String get() = family.id
         override val title: String get() = family.name
         override val name: String get() = family.name
         override val summary: String get() = family.summary
@@ -83,6 +87,22 @@ object RuntimeToolTree {
             node.children.map { it.tool.id }.filter { it in choice }.fold(choice) { left, id -> RuntimeToolRules.toggle(left, id, catalog) }
         }
     }
+
+    /**
+     * The rows the page opens with, by id: each with a ticked tool beneath it, so nothing ticked starts
+     * hidden. The rest open and close at the user's tap.
+     */
+    fun opened(choice: Set<String>, catalog: List<RuntimeTool> = RuntimeTools.all): Set<String> {
+        fun open(node: RuntimeToolNode): List<String> =
+            listOfNotNull(node.id.takeIf { tickedBeneath(node, choice) > 0 }) + node.children.flatMap(::open)
+        return sections(catalog).flatMap { it.nodes }.flatMapTo(linkedSetOf(), ::open)
+    }
+
+    /** How many tools beneath [node], however deep, are ticked: what its row says while it is closed. */
+    fun tickedBeneath(node: RuntimeToolNode, choice: Set<String>): Int = beneath(node).count { it.id in choice }
+
+    private fun beneath(node: RuntimeToolNode): List<RuntimeTool> =
+        node.children.flatMap { child -> listOfNotNull((child as? RuntimeToolNode.Tool)?.tool) + beneath(child) }
 
     /** What the rows above a row say: the tools they are and need, by id, and what in iCode uses them. */
     private data class Above(val named: Set<String> = emptySet(), val usedBy: String? = null) {

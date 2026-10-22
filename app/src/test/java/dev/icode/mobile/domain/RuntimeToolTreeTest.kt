@@ -65,6 +65,26 @@ class RuntimeToolTreeTest {
         assertEquals(setOf("git"), RuntimeToolTree.toggle(both, sdk))
     }
 
+    @Test fun `the page opens each row with a ticked tool beneath it, and no other`() {
+        assertEquals(emptySet<String>(), RuntimeToolTree.opened(RuntimeTools.standard + "android-sdk"))
+        assertEquals(setOf("android-sdk"), RuntimeToolTree.opened(setOf("android-sdk", "cmake")))
+        assertEquals(setOf("android-sdk", "android-ndk"), RuntimeToolTree.opened(setOf("android-sdk", "cmake", "android-ndk-27")))
+    }
+
+    @Test fun `a closed row counts the ticked tools beneath it, however deep`() {
+        val choice = setOf("android-sdk", "cmake", "android-ndk-28")
+        assertEquals(2, RuntimeToolTree.tickedBeneath(sdk, choice))
+        assertEquals(1, RuntimeToolTree.tickedBeneath(ndk, choice))
+        assertEquals(0, RuntimeToolTree.tickedBeneath(ndk, setOf("android-sdk", "cmake")))
+    }
+
+    @Test fun `every row has its own id`() {
+        fun ids(node: RuntimeToolNode): List<String> = listOf(node.id) + node.children.flatMap(::ids)
+        val all = sections.flatMap { it.nodes }.flatMap(::ids)
+        assertEquals(all.size, all.toSet().size)
+        assertEquals("android-ndk", ndk.id)
+    }
+
     @Test fun `each tool is beneath one it requires, and a family's versions share their place, use and needs`() {
         RuntimeTools.all.forEach { tool ->
             tool.within?.let { assertTrue("${tool.id} is beneath $it, which it does not require", it in tool.requires) }
