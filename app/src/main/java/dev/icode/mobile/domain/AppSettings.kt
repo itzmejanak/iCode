@@ -144,6 +144,18 @@ enum class EditorKey(val text: String? = null) {
 /** A key of the terminal's extra keys row; how each is drawn is the UI's (KeyFaces.kt). */
 enum class TerminalExtraKey { Escape, Tab, Ctrl, Alt, Left, Up, Down, Right }
 
+/**
+ * A keys row as Settings arranges it (docs/editor-plan.md §4.1), the editor's or the terminal's: the
+ * keys it shows, in the order the user put them, which is the order the row shows them.
+ */
+object KeyRows {
+    /** [keys] with [key] taken out, or, when it is not among them, added at their end. */
+    fun <K> toggled(keys: List<K>, key: K): List<K> = if (key in keys) keys - key else keys + key
+
+    /** The keys of [all] that [keys] leaves out, in [all]'s order: what can be added. */
+    fun <K> others(all: List<K>, keys: List<K>): List<K> = all.filterNot { it in keys }
+}
+
 /** How the terminal draws its cursor. Programs may still change it while they run. */
 enum class TerminalCursorStyle(val label: String) { Block("Block"), Underline("Underline"), Bar("Bar") }
 

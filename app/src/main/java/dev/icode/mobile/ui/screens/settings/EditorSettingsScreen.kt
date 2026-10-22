@@ -1,12 +1,8 @@
 package dev.icode.mobile.ui.screens.settings
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -14,8 +10,6 @@ import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodePageColumn
 import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSelect
-import dev.icode.mobile.designsystem.IcodeSizes
-import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeToggle
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
@@ -32,7 +26,6 @@ import dev.icode.mobile.ui.LocalWorkspacePreferences
 import dev.icode.mobile.ui.LocalWorkspacePreferencesRepository
 
 /** Application editor preferences. Values come from the same store as workspace overrides. */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun EditorSettingsScreen(actions: NavigationActions) {
     val preferences = LocalWorkspacePreferences.current
@@ -92,14 +85,8 @@ fun EditorSettingsScreen(actions: NavigationActions) {
                         }
                     }
                     IcodeSection("Keys Row") {
-                        Text("Tap a key to show or hide it above the keyboard.", style = IcodeType.Caption)
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1), verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
-                            EditorKey.entries.forEach { key ->
-                                EditorKeyChip(key, Modifier.heightIn(min = IcodeSizes.TouchTarget), active = key in editor.keys, onClick = {
-                                    val chosen = EditorKey.entries.filter { if (it == key) it !in editor.keys else it in editor.keys }
-                                    saver.save { repository.setEditorKeys(chosen) }
-                                })
-                            }
+                        KeyRowSettings(EditorKey.entries, editor.keys, { keys -> saver.save { repository.setEditorKeys(keys) } }) { key, modifier, active, onClick ->
+                            EditorKeyChip(key, modifier, active, compact = true, onClick = onClick)
                         }
                     }
                     IcodeSection("Save") {

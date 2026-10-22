@@ -99,7 +99,47 @@ The bottom bar shows "3 changes" while the file has any; a tap opens the sheet a
 | Undo, Redo | `undo`, `redo` |
 | A symbol | Typed as from the keyboard (`commitText`): Auto-Close Brackets applies |
 
-One row of `KeyChip`s, scrolling sideways, between the code and the keyboard, shown only while the keyboard is open, in place of the bottom bar. Not shown for a read-only file or the Markdown preview. Editor Settings › Keys Row chooses its keys, as Terminal Settings › Extra Keys Row does: tap a key to show or hide it.
+One row of `KeyChip`s, scrolling sideways, between the code and the keyboard, shown only while the keyboard is open, in place of the bottom bar. Not shown for a read-only file or the Markdown preview. Editor Settings › Keys Row chooses its keys and their order, as Terminal Settings › Extra Keys Row does for the terminal's (§4.1).
+
+### 4.1 Arranging a keys row (2026-10-22)
+
+The owner asked for the keys to be put in order by holding and dragging them, for every key card to be the same, and for the section to open and close. Both settings pages now use one card, `KeyRowSettings`, and the row above the keyboard shows the keys in the order it keeps.
+
+| | Before | Now |
+|---|---|---|
+| Order | Fixed: a tap rebuilt the list in the built-in order | The user's. `editor_keys` and `terminal_extra_keys` already stored an ordered list, so nothing changes in storage |
+| Key cards | `FlowRow` chips as wide as their labels (ESC and CTRL wider than an arrow), rows ending ragged | `IcodeKeyGrid`: as many 48 dp columns as fit, stretched to fill the width, every key the same size, the columns lined up |
+| The page | 42 editor keys always shown | `IcodeExpandableCard`, closed at first, drawn as a settings select (arrow at its end, accent edge while open). Closed it reads "42 of 42 keys" over the row as it stands |
+
+Open, the card holds:
+- **The row's keys, in order:**
+  - **Hold** one: it lifts (larger, accent edge, a haptic tick) and follows the finger, and the others slide out of its way. Letting go saves the order once.
+  - **Hold and let go without moving:** nothing changes.
+  - **Tap** one: it is taken out.
+  - **TalkBack:** Move earlier and Move later on each key.
+- **More keys:** the keys left out, in the built-in order. A tap adds one at the row's end.
+- **Reset to Default:** every key, in the built-in order. It is enabled only when the row differs.
+
+An empty row says "No keys: the row is not shown", which is what the editor and the terminal already do with no keys.
+
+**Built as:**
+- `KeyRows.toggled` and `KeyRows.others` (domain).
+- `IcodeKeyGrid` and its pure geometry `KeyGridLayout` (design system). The keys are composed in a fixed order and placed by offset, so a held key stays the same node while the others move.
+- `IcodeExpandableCard` (design system).
+- `KeyRowSettings` (settings), used by both pages with their own chips.
+
+**Checked here:**
+- `KeyRowsTest` and `KeyGridLayoutTest`.
+- Every data and domain test: 902, with the one known root-only failure.
+- The UI type-check (Terminal Settings now in it too), and both guards.
+- Extra Keys Row driven by touch in a Compose Desktop 1.7.3 scene, the saved row read after each step:
+  1. The card opens on a tap.
+  2. A tap takes ESC out, and a tap under More keys puts it back at the end.
+  3. Holding CTRL and dragging it onto the first key saves `Ctrl Tab …`.
+  4. Holding ALT and letting go changes nothing, and saves nothing.
+  5. Move later moves the first key.
+  6. Reset to Default restores the built-in order.
+- Both cards drawn, closed and open.
 
 ## 5. Settings
 
