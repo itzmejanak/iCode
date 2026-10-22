@@ -232,6 +232,9 @@ may leave it. `.git` is never written. **Ask** offers the reading tools only.
 | `process_status(id)` | read | `RuntimeProcesses` | the output since the last look, 16 KB |
 | `send_process_input(id, text, newline)` | command | `RuntimeProcesses` | answers what it printed in the next second |
 | `stop_process(id)` | command | `RuntimeProcesses` | SIGTERM, SIGKILL after 3 s |
+| `run_android_app()` | command | `RunCoordinator`: Build & Run, as the Run tab's ▶ ([run-tab-plan.md](./run-tab-plan.md)) | answers the build's process ID |
+| `list_run_commands()` | read | `RunCoordinator`: the Run tab's apps and saved commands ([run-tab-plan.md](./run-tab-plan.md) §2.5) | — |
+| `save_run_command(command, name, id)` / `delete_run_command(id)` | change | `RunCoordinator`, as the Run tab's dialogs | an id the workspace has no command by is refused |
 
 A write or an edit answers how many lines it added and removed, as `git diff --numstat` counts
 them (`LineChanges.between`, Myers' shortest edit): "Created src/App.kt: +2 lines", "Edited a.kt in

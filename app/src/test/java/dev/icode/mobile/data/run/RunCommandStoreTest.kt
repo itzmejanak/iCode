@@ -47,6 +47,17 @@ class RunCommandStoreTest {
         assertEquals(listOf(test), store.of("/w/a"))
     }
 
+    @Test fun `a blank command, and an id the workspace has no command by, are refused and nothing is written`() {
+        val dev = store.save("/w/a", null, "dev", "npm run dev")
+        assertEquals("The command is empty", runCatching { store.save("/w/a", null, "blank", "  ") }.exceptionOrNull()?.message)
+        val unknown = "No command saved in this workspace has the id gone"
+        assertEquals(unknown, runCatching { store.save("/w/a", "gone", "x", "ls") }.exceptionOrNull()?.message)
+        assertEquals(unknown, runCatching { store.delete("/w/a", "gone") }.exceptionOrNull()?.message)
+        // A command's id is its workspace's: another's is not changed through it.
+        assertEquals("No command saved in this workspace has the id ${dev.id}", runCatching { store.delete("/w/b", dev.id) }.exceptionOrNull()?.message)
+        assertEquals(listOf(dev), RunCommandStore(file).of("/w/a"))
+    }
+
     @Test fun `a workspace renamed keeps its commands, and one deleted forgets them`() {
         store.save("/w/a", null, "dev", "npm run dev")
         store.save("/w/b", null, "serve", "python3 -m http.server")

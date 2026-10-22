@@ -10,31 +10,38 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * The commands the user saved on the Run tab (docs/run-tab-plan.md §2.2), per workspace, in iCode's
- * own storage rather than the project: `{"<workspace>": [{"id", "name", "command"}]}`. A file that
- * cannot be read holds nothing; the next save writes it whole again.
+ * The commands saved on the Run tab (docs/run-tab-plan.md §2.2), by the user or the assistant, per
+ * workspace, in iCode's own storage rather than the project: `{"<workspace>": [{"id", "name",
+ * "command"}]}`. A file that cannot be read holds nothing; the next save writes it whole again.
  */
 internal class RunCommandStore(private val file: File) {
     private val lock = Any()
 
     fun of(workspace: String): List<RunConfiguration.Command> = synchronized(lock) { read()[workspace].orEmpty() }
 
-    /** Saves a new command when [id] is null, else changes that one; a blank name is the command's first word. */
+    /**
+     * Saves a new command when [id] is null, else changes that one; a blank name is the command's
+     * first word. Refuses a blank command, and an [id] the workspace has no command by.
+     */
     fun save(workspace: String, id: String?, name: String, command: String): RunConfiguration.Command = synchronized(lock) {
+        require(command.isNotBlank()) { "The command is empty" }
         val all = read()
+        if (id != null) known(all, workspace, id)
         val saved = RunConfiguration.Command(
             id = id ?: UUID.randomUUID().toString(),
             name = name.trim().ifEmpty { RuntimeProcesses.nameOf(command) },
             command = command.trim(),
         )
         val commands = all[workspace].orEmpty()
-        val updated = if (commands.any { it.id == saved.id }) commands.map { if (it.id == saved.id) saved else it } else commands + saved
+        val updated = if (id != null) commands.map { if (it.id == id) saved else it } else commands + saved
         write(all + (workspace to updated))
         saved
     }
 
+    /** Deletes [workspace]'s command [id]; refuses an id it has no command by. */
     fun delete(workspace: String, id: String) = synchronized(lock) {
         val all = read()
+        known(all, workspace, id)
         write(all + (workspace to all[workspace].orEmpty().filterNot { it.id == id }))
     }
 
@@ -49,6 +56,10 @@ internal class RunCommandStore(private val file: File) {
     fun forget(workspace: String) = synchronized(lock) {
         val all = read()
         if (workspace in all) write(all - workspace)
+    }
+
+    private fun known(all: Map<String, List<RunConfiguration.Command>>, workspace: String, id: String) {
+        if (all[workspace].orEmpty().none { it.id == id }) throw NoSuchElementException("No command saved in this workspace has the id $id")
     }
 
     private fun read(): Map<String, List<RunConfiguration.Command>> {

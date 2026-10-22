@@ -207,6 +207,17 @@ class RunCoordinatorTest {
         assertEquals(emptyList<RunConfiguration>(), commands.of("/w/renamed"))
     }
 
+    @Test fun `a command saved or deleted the assistant's way is on the open Run tab at once, and its id must be the workspace's`() {
+        open(hello)
+        val dev = runs.saveCommand(hello, null, "dev", "npm run dev")
+        assertEquals(listOf("android:app", dev.id), stateHolder.current.run.configurations.map { it.id })
+        runs.saveCommand(hello, dev.id, "web", "npm run dev -- --host")
+        assertEquals(listOf<RunConfiguration>(RunConfiguration.Command(dev.id, "web", "npm run dev -- --host")), commands.of(hello))
+        assertTrue(runCatching { runs.deleteCommand(hello, "gone") }.isFailure)
+        runs.deleteCommand(hello, dev.id)
+        assertEquals(listOf("android:app"), stateHolder.current.run.configurations.map { it.id })
+    }
+
     @Test fun `a saved command deleted takes its record with it`() {
         val dev = commands.save(hello, null, "dev", "npm run dev")
         open(hello)
