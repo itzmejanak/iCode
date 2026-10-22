@@ -242,8 +242,8 @@ parser or layout would end iCode's process, not just fail one formula.
   - Formulas are laid out in black. What is drawn black takes the text's colour, so a theme change
     lays nothing out again.
   - `\color{…}` keeps its own colour.
-- **Copy**: a selection that includes a formula copies its LaTeX source (`$…$`), the formula's
-  alternate text.
+- **Copy**: a selection that includes a formula copies its LaTeX source (`$…$`, `$$…$$`), the
+  formula's alternate text, on one line (§7.1).
 - **Errors**: LaTeX the engine refuses shows as its source in the mono face, amber, its message
   given to TalkBack.
 - **Limits**: a formula over 4,000 characters, or one that lays out wider than 300 em or taller than
@@ -322,7 +322,7 @@ decoded, and a line's inline content needs it before layout.
 | Paragraph, lists | Body type; nested lists indented by the gutter; task items with read-only checkboxes |
 | Quote | A 2 dp rule in the outline colour, text secondary |
 | Alerts | A card with the tone's icon and colour (Note: accent, Tip: green, Important: blue, Warning: amber, Caution: red), the design system's tones |
-| Tables | A grid that scrolls sideways; a column as wide as its widest cell, at most three quarters of the page; header bold on the elevated surface, every other row shaded; alignment from the separator row; cell lines follow Border Lines |
+| Tables | A grid that scrolls sideways; a column as wide as its widest cell, at most three quarters of the page; a row as tall as its tallest cell, the others centred in it; header bold on the elevated surface, every other row shaded; alignment from the separator row; cell lines follow Border Lines |
 | Rule | 1 dp in the outline colour |
 | HTML | A safe set drawn natively: `<br>`, `<b>`/`<strong>`, `<i>`/`<em>`, `<s>`/`<del>`, `<code>`, `<kbd>`, `<sub>`, `<sup>`, `<a href>`, `<img src alt width>`, `<details><summary>` (collapsible), `<p align>`/`<div align>` (centred), `<hr>`. Comments are hidden. Any other tag shows as its source, muted: nothing vanishes |
 | Front matter (files only) | A collapsible "Front matter" code block (YAML) at the top |
@@ -443,3 +443,21 @@ Left for a phone, since this environment has neither a device nor Android's buil
    - TalkBack on a heading, a formula and a checkbox;
    - taps on a web link, a relative file, `#L10`, an anchor, and a footnote and back;
    - an answer's `https` image: its alt text and host, and a tap opens the browser.
+
+### 7.1 Found on the phone (2026-10-22, the owner)
+
+Screenshots of the owner's time-and-wage file, in the preview and as an answer:
+
+- **Display math was blank**: a tall empty space where each `$$…$$` formula should be. Inline
+  math and the table's formulas were drawn.
+  - **Cause**: a formula is a placeholder in a line of text, and its alternate text was
+    `$$⏎latex⏎$$`. Those line breaks put the placeholder's text on several lines. Compose counts a
+    placeholder whose text runs past its line's end as cut off (`AndroidParagraph.placeholderRects`,
+    `end > layout.getLineEnd(line)`) and places nothing there, while the lines keep their height.
+    Inline LaTeX that runs over lines in its paragraph had the same flaw.
+  - **Fix**: `formulaText` writes every formula's text on one line, `$…$` or `$$…$$`.
+  - **Test**: `MarkdownMathDrawnTest` (instrumented) checks that a display formula, and an inline
+    one running over lines, are on screen.
+- **Table cells sat at the top of their rows**: "A" and "Total" sat beside fractions twice their
+  height. Cells are now centred vertically in their row, as a browser centres them.
+

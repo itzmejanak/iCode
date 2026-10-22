@@ -154,7 +154,7 @@ private class MarkdownLine(
         ) {
             MathCanvas(layout, size, ink, top = half + textCenter - above, description = latex)
         }
-        text.appendInlineContent(id, "\$$latex\$")
+        text.appendInlineContent(id, formulaText(latex, display = false))
     }
 
     private fun span(style: MarkdownStyle): SpanStyle = when (style) {

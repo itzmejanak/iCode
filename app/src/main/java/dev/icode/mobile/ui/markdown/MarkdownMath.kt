@@ -52,8 +52,8 @@ internal fun layOutMath(document: MarkdownDocument) =
 
 /**
  * Display math: centred, scrolling sideways when wider than the screen. It is a line of text holding
- * the formula, so it is selected with the text around it and copied as its LaTeX, `$$…$$`. LaTeX RaTeX
- * refuses is shown as written, amber, and TalkBack reads why.
+ * the formula, so it is selected with the text around it and copied as its LaTeX ([formulaText]).
+ * LaTeX RaTeX refuses is shown as written, amber, and TalkBack reads why.
  */
 @Composable
 internal fun MarkdownMathBlock(latex: String, type: MarkdownType, modifier: Modifier = Modifier) {
@@ -64,7 +64,7 @@ internal fun MarkdownMathBlock(latex: String, type: MarkdownType, modifier: Modi
             val size = with(density) { type.body.fontSize.toPx() } * MATH_SCALE
             val ink = type.body.color
             val line = remember(latex, layout, size, ink) {
-                val text = buildAnnotatedString { appendInlineContent(FORMULA, "\$\$\n$latex\n\$\$") }
+                val text = buildAnnotatedString { appendInlineContent(FORMULA, formulaText(latex, display = true)) }
                 val placeholder = with(density) {
                     Placeholder((layout.width * size).toFloat().toSp(), ((layout.height + layout.depth) * size).toFloat().toSp(), PlaceholderVerticalAlign.Top)
                 }
@@ -81,6 +81,16 @@ internal fun MarkdownMathBlock(latex: String, type: MarkdownType, modifier: Modi
             Text(outcome.reason, style = type.small)
         }
     }
+}
+
+/**
+ * A formula as the text holding it reads, and as a selection copies it: `$…$`, or `$$…$$` for display
+ * math. On one line: a placeholder whose text runs onto another line is one Compose counts as cut off
+ * (AndroidParagraph.placeholderRects), and it then draws nothing in the space it keeps.
+ */
+internal fun formulaText(latex: String, display: Boolean): String {
+    val fence = if (display) "\$\$" else "\$"
+    return fence + latex.lines().joinToString(" ") + fence
 }
 
 /**

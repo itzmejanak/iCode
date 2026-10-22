@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -26,9 +27,10 @@ import dev.icode.mobile.domain.markdown.MarkdownBlock
 
 /**
  * A table (docs/markdown-rendering-plan.md §3.5): each column as wide as its widest cell, up to three
- * quarters of the page, its cells wrapping past that; each row as tall as its tallest cell. Wider than
- * the page, it scrolls sideways. The header is bold on a raised ground; cell lines follow Border Lines,
- * and every other row is shaded, as GitHub shades them, so rows read apart without lines too.
+ * quarters of the page, its cells wrapping past that; each row as tall as its tallest cell, the others
+ * centred in it, as a browser centres them. Wider than the page, it scrolls sideways. The header is
+ * bold on a raised ground; cell lines follow Border Lines, and every other row is shaded, as GitHub
+ * shades them, so rows read apart without lines too.
  */
 @Composable
 internal fun MarkdownTable(block: MarkdownBlock.Table, context: MarkdownContext, type: MarkdownType, modifier: Modifier = Modifier) {
@@ -65,6 +67,7 @@ internal fun MarkdownTable(block: MarkdownBlock.Table, context: MarkdownContext,
                                         if (c < columns - 1) drawLine(line, Offset(size.width - stroke / 2, 0f), Offset(size.width - stroke / 2, size.height), stroke)
                                     }
                                     .padding(horizontal = IcodeSpacing.Space2, vertical = IcodeSpacing.Space1),
+                                contentAlignment = Alignment.CenterStart,
                             ) {
                                 CompositionLocalProvider(LocalMarkdownAlign provides block.alignments[c].textAlign) {
                                     MarkdownText(cell, if (heading) type.body.copy(fontWeight = FontWeight.Bold) else type.body, context, type, Modifier.fillMaxWidth())
