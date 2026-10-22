@@ -1,13 +1,8 @@
 package dev.icode.mobile.ui.screens.settings
 
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -21,8 +16,6 @@ import dev.icode.mobile.designsystem.IcodeConfirmDialog
 import dev.icode.mobile.designsystem.IcodePageColumn
 import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSelect
-import dev.icode.mobile.designsystem.IcodeSizes
-import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTextField
 import dev.icode.mobile.designsystem.IcodeToggle
 import dev.icode.mobile.designsystem.IcodeTopBar
@@ -102,14 +95,8 @@ fun TerminalSettingsScreen(actions: NavigationActions) {
                 )
             }
             IcodeSection("Extra Keys Row") {
-                Text("Tap a key to show or hide it in the terminal.", style = IcodeType.Caption)
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
-                    TerminalExtraKey.entries.forEach { key ->
-                        TerminalKeyChip(key, Modifier.heightIn(min = IcodeSizes.TouchTarget), active = key in settings.extraKeys, onClick = {
-                            val selected = TerminalExtraKey.entries.filter { if (it == key) it !in settings.extraKeys else it in settings.extraKeys }
-                            saver.save { repository.setTerminalExtraKeys(selected) }
-                        })
-                    }
+                KeyRowSettings(TerminalExtraKey.entries, settings.extraKeys, { keys -> saver.save { repository.setTerminalExtraKeys(keys) } }) { key, modifier, active, onClick ->
+                    TerminalKeyChip(key, modifier, active, compact = true, onClick = onClick)
                 }
             }
             IcodeSection("Cursor Style") {
