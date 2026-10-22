@@ -81,6 +81,8 @@ data class ICodeSnapshot(
     val lineChanges: Map<String, DocumentLineChanges> = emptyMap(),
     /** The diff currently being viewed, or null when no file is open in the diff surface. */
     val activeDiff: GitFileDiff? = null,
+    /** HEAD's history as the History sheet last read it (docs/git-history-plan.md); null before it first opens. */
+    val gitHistory: GitHistory? = null,
     /** The conflicted file currently open for resolution. */
     val activeConflict: GitConflictFile? = null,
     /**

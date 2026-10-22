@@ -19,6 +19,7 @@ import androidx.compose.ui.text.font.FontWeight
 import dev.icode.mobile.designsystem.DetailRow
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodeIcons
 import dev.icode.mobile.designsystem.IcodePageColumn
 import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSpacing
@@ -29,6 +30,7 @@ import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.NoticeCard
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SecondaryButton
+import dev.icode.mobile.designsystem.SectionHeader
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.designsystem.TwoColumnActions
@@ -37,7 +39,6 @@ import dev.icode.mobile.domain.GitCommitSignature
 import dev.icode.mobile.domain.GitRepositoryState
 import dev.icode.mobile.domain.GitSignatureStatus
 import dev.icode.mobile.domain.GitSyncAction
-import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.countOf
 import dev.icode.mobile.navigation.NavigationActions
@@ -118,29 +119,24 @@ fun CommitPushScreen(actions: NavigationActions) {
             }
             IcodeCard(Modifier.fillMaxWidth(), elevated = true) {
                 Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1 + IcodeSpacing.Micro)) {
-                    SectionLabel("Last Commit")
                     if (lastCommit == null) {
+                        SectionLabel("Last Commit")
                         MonoLine("No commits yet", color = IcodeColors.TextMuted)
                     } else {
-                        MonoLine("commit ${lastCommit.id}", color = IcodeColors.Accent)
-                        Text(lastCommit.message, style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold))
-                        DetailRow("Author", lastCommit.author, valueStyle = IcodeType.MonoSmall)
-                        DetailRow(
-                            "Time",
-                            RelativeTime.since(lastCommit.authoredAtEpochMillis),
-                            valueStyle = IcodeType.MonoSmall,
-                            valueColor = IcodeColors.TextSecondary,
-                        )
-                        lastCommit.signature?.let { signature ->
-                            val (verdict, color) = verdictOf(signature)
-                            DetailRow(
-                                "Signature",
-                                verdict,
-                                valueStyle = IcodeType.MonoSmall,
-                                valueColor = color,
-                                valueIcon = Icons.Outlined.Verified.takeIf { signature.status == GitSignatureStatus.Verified },
-                            )
-                            signature.keyId?.let { DetailRow("Key", it, valueStyle = IcodeType.MonoSmall, valueColor = IcodeColors.TextSecondary) }
+                        // Its corner opens the branch's whole history (docs/git-history-plan.md).
+                        SectionHeader("Last Commit", IcodeIcons.Expand, "Commit history", { actions.navigate(Route.GitHistory) })
+                        CommitFacts(lastCommit.id, lastCommit.message, lastCommit.author, lastCommit.authoredAtEpochMillis) {
+                            lastCommit.signature?.let { signature ->
+                                val (verdict, color) = verdictOf(signature)
+                                DetailRow(
+                                    "Signature",
+                                    verdict,
+                                    valueStyle = IcodeType.MonoSmall,
+                                    valueColor = color,
+                                    valueIcon = Icons.Outlined.Verified.takeIf { signature.status == GitSignatureStatus.Verified },
+                                )
+                                signature.keyId?.let { DetailRow("Key", it, valueStyle = IcodeType.MonoSmall, valueColor = IcodeColors.TextSecondary) }
+                            }
                         }
                     }
                 }

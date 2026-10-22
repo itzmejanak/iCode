@@ -19,6 +19,7 @@ fun ToolScreenHost(screen: Route, actions: NavigationActions) {
         Route.QuickOpen -> WorkspaceFindScreen(actions, FindMode.Files)
         Route.BranchSelector -> BranchSelectorScreen(actions)
         Route.RepositorySelector -> RepositorySelectorScreen(actions)
+        Route.GitHistory -> GitHistoryScreen(actions)
         Route.EditorFind -> EditorFindScreen(actions)
         Route.TerminalExpanded, Route.ProblemsPanel, Route.OutputPanel -> TerminalScreen(actions)
         Route.ConflictResolution -> ConflictResolutionScreen(actions)

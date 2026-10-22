@@ -109,7 +109,7 @@ internal object GitInspectParser {
         val fields = section.split('\n', limit = 7)
         if (fields.size < 7 || fields[0].isBlank()) return null
         return GitCommitSummary(
-            id = fields[0].take(SHORT_ID_LENGTH),
+            id = fields[0].take(GitCommitSummary.ID_LENGTH),
             message = fields[6].removeSuffix("\n"),
             author = fields[2],
             authoredAtEpochMillis = (fields[1].trim().toLongOrNull() ?: 0L) * 1000L,
@@ -117,7 +117,6 @@ internal object GitInspectParser {
         )
     }
 
-    private const val SHORT_ID_LENGTH = 12
     /** What `git branch` shows for a detached HEAD. */
     private const val DETACHED_ID_LENGTH = 7
     /** See GitCommandLine: bind-mounted Android paths never match ownership. */

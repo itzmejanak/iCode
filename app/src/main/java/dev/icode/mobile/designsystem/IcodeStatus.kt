@@ -10,11 +10,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.offset
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.getValue
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -81,6 +83,29 @@ fun StatusLabel(text: String, color: Color, modifier: Modifier = Modifier) {
         Text(text, style = IcodeType.Label.copy(color = color, fontSize = 11.sp))
     }
 }
+
+/**
+ * A name a thing carries — a branch, a tag — in [color], on one line, tinted; a long one is cut short.
+ * [filled] is for the accent's own tag, the one that marks where you are: the accent behind
+ * [IcodeColors.OnAccent].
+ */
+@Composable
+fun IcodeTag(text: String, color: Color, modifier: Modifier = Modifier, filled: Boolean = false) {
+    Text(
+        text,
+        modifier = modifier
+            .widthIn(max = TAG_MAX_WIDTH)
+            .background(if (filled) color else color.copy(alpha = TAG_TINT), IcodeShapes.Chip)
+            .padding(horizontal = IcodeSpacing.Space1, vertical = IcodeSpacing.Micro),
+        style = IcodeType.Badge.copy(color = if (filled) IcodeColors.OnAccent else color),
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
+private const val TAG_TINT = 0.16f
+/** A long name is cut short, leaving room for what the tag stands beside. */
+private val TAG_MAX_WIDTH = 96.dp
 
 /** Horizontal progress track with accent fill by default. */
 @Composable
