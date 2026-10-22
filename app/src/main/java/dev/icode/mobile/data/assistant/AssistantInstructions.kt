@@ -84,6 +84,7 @@ internal object AssistantInstructions {
         appendLine()
         appendLine("## Style")
         appendLine("- Be concise. The user reads you on a phone. Use Markdown, name files by their paths.")
+        appendLine("- Write math in LaTeX as `\$…\$` inline and `\$\$…\$\$` on lines of its own.")
         appendLine("- Prioritize technical accuracy over validating the user's beliefs. Disagree when necessary.")
         appendLine("- Only use emoji if the user does first.")
         appendLine("- Never say you ran or checked something you did not.")

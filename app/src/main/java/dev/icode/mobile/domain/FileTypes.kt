@@ -103,6 +103,15 @@ object FileTypes {
         return PlainText
     }
 
+    /**
+     * A Markdown code fence's language — ```` ```kotlin ````, ```` ```kt ````, ```` ```py ```` — as a
+     * type: by its id, else as an extension, as GitHub reads fences by language name and extension.
+     */
+    fun ofLanguage(language: String): FileType {
+        val lower = language.lowercase()
+        return rules.firstOrNull { it.type.id == lower }?.type ?: byExtension[lower] ?: PlainText
+    }
+
     /** As [of], and when the name says nothing — a script without an extension — its first line. */
     fun of(name: String, firstLine: String): FileType =
         of(name).takeIf { it != PlainText } ?: rules.firstOrNull { it.firstLine?.containsMatchIn(firstLine) == true }?.type ?: PlainText

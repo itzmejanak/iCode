@@ -101,10 +101,12 @@ internal class WorkspaceLifecycleCoordinator(
      * What is at [location], shown, from wherever it was asked — Quick Open, search, the file
      * explorer, a finished clone or import. A file opens in the editor, its workspace opened for it
      * first, or in a viewer of its own, the workspace as it is (docs/file-viewers-plan.md); a folder
-     * opens its workspace with it selected in the Explorer — or, in the open one, shows it.
+     * opens its workspace with it selected in the Explorer — or, in the open one, shows it. One that
+     * is not there — a link to a file since moved — is said so.
      */
     suspend fun reveal(location: String, lineNumber: Int? = null, column: Int? = null) {
         val workspace = source.workspaceOf(location) ?: return
+        if (!File(location).exists()) return stateHolder.notify(NoticeTone.HeadsUp, "${File(location).name} is not there")
         val file = File(location).isFile
         if (file) {
             FileViewer.of(File(location).name)?.let { return stateHolder.emit(ICodeEffect.ViewFile(location, it)) }

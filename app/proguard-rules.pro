@@ -5,14 +5,6 @@
 # has been checked on a device (§9 D9); then trimmed to what is reflective.
 -keep class ai.koog.** { *; }
 
-# Markwon tables (MarkdownPreview.kt): ScalableMarkdownTextView lays each TableRowSpan out at the
-# view's real width before setText, via private members whose names R8 would otherwise rename.
--keepclassmembers class io.noties.markwon.ext.tables.TableRowSpan {
-    private int width;
-    private android.text.TextPaint textPaint;
-    private void makeNewLayouts();
-}
-
 # Code the assistant's libraries carry for the JVM only, never reached on Android: Typesafe Config
 # (through ktor-server-core) reads java.beans; the coroutines debug agent uses java.lang.management
 # and java.lang.instrument; kotlin-logging can bind to Logback; OkHttp has Conscrypt and OpenJSSE

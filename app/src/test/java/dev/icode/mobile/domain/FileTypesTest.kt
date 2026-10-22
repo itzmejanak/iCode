@@ -12,6 +12,17 @@ class FileTypesTest {
         assertEquals("source.js.jsx", FileTypes.of("View.jsx").grammar)
     }
 
+    @Test fun `a fence's language by id or extension`() {
+        val cases = mapOf(
+            "kotlin" to "source.kotlin", "kt" to "source.kotlin", "Python" to "source.python", "py" to "source.python",
+            "bash" to "source.shell", "sh" to "source.shell", "shell" to "source.shell", "ts" to "source.ts", "tsx" to "source.tsx",
+            "json" to "source.json", "yml" to "source.yaml", "c++" to "source.cpp", "diff" to "source.diff", "dockerfile" to "source.dockerfile",
+        )
+        cases.forEach { (language, grammar) -> assertEquals(language, grammar, FileTypes.ofLanguage(language).grammar) }
+        assertEquals(FileTypes.PlainText, FileTypes.ofLanguage("text"))
+        assertEquals(FileTypes.PlainText, FileTypes.ofLanguage("mermaid"))
+    }
+
     @Test fun `unknown names are plain text`() {
         listOf("notes.txt", "LICENSE", "archive.", "Makefile.txt.bak").forEach { name ->
             assertEquals(name, FileTypes.PlainText, FileTypes.of(name))

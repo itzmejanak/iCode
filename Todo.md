@@ -339,7 +339,8 @@ Next delivery phase — one existing demo page and its full user lifecycle at a 
       operations; invalid regex is visible. Native pinch zoom is enabled with bounded text
       sizes. TextMate grammars are bundled offline for Java, Kotlin, Python, XML, HTML,
       JavaScript/JSX, TypeScript/TSX, JSON, CSS, shell, Rust, Go, YAML and Markdown; unknown
-      text stays editable without a guessed language. Markwon provides Markdown preview.
+      text stays editable without a guessed language. iCode's own renderer draws the Markdown
+      preview ([markdown-rendering-plan.md](docs/markdown-rendering-plan.md)).
 - [x] Real ordered file tabs: opening another file preserves dirty tabs; select, horizontal
       swipe, long-press drag reorder, close, close others and close saved work through the
       shared gateway. Each open file retains its editor undo/caret/scroll/zoom session.

@@ -52,6 +52,8 @@ android {
     sourceSets {
         getByName("test").java.srcDir("src/sharedTest/java")
         getByName("androidTest").java.srcDir("src/sharedTest/java")
+        // RaTeX's prebuilt native library, with its provenance (third_party/ratex/README.md).
+        getByName("main").jniLibs.srcDir("../third_party/ratex/jniLibs")
     }
 
     buildFeatures {
@@ -143,10 +145,9 @@ dependencies {
     // Without it tm4e falls back to joni, which rejects variable-length lookbehinds and
     // dropped CSS selectors, TypeScript's `export default`, C#'s `await` (editor-colors-plan).
     implementation("io.github.rosemoe:oniguruma-native")
-    implementation("io.noties.markwon:core:4.6.2")
-    implementation("io.noties.markwon:ext-tables:4.6.2")
-    implementation("io.noties.markwon:ext-strikethrough:4.6.2")
-    implementation("io.noties.markwon:ext-tasklist:4.6.2")
+    // Markdown as GitHub reads it, math included, for the preview and the assistant's answers
+    // (docs/markdown-rendering-plan.md §2.1). Pure Kotlin; depends only on kotlin-stdlib.
+    implementation("org.jetbrains:markdown:0.7.17")
     // The assistant's agent runtime (docs/assistant-koog-plan.md §2, §4.9): the modules it uses,
     // not the koog-agents umbrella (Bedrock's AWS SDK, OpenTelemetry…). Not the DeepSeek client:
     // its Android build calls List.removeLast(), which Android 11–14 lack; DeepSeek is reached as

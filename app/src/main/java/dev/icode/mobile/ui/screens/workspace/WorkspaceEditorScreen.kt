@@ -26,7 +26,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -62,7 +61,8 @@ import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.LocalCodeEditorSessions
 import dev.icode.mobile.ui.LocalWorkspacePreferences
 import dev.icode.mobile.ui.editor.EditorCanvas
-import dev.icode.mobile.ui.editor.MarkdownPreview
+import dev.icode.mobile.domain.markdown.MarkdownPlace
+import dev.icode.mobile.ui.markdown.MarkdownPreview
 
 /** Editor with tab strip, syntax-highlighted document and panel bar. */
 @OptIn(ExperimentalLayoutApi::class)
@@ -75,7 +75,6 @@ fun WorkspaceEditorScreen(actions: NavigationActions) {
     val document = state.activeDocument
     val activeSession = document?.let { editorSessions.get(it.location) }
     var markdownPreview by rememberSaveable(document?.location) { mutableStateOf(false) }
-    var markdownScale by rememberSaveable { mutableFloatStateOf(1f) }
     var handledRevealVersion by rememberSaveable(document?.location) { mutableIntStateOf(0) }
     LaunchedEffect(activeSession?.revealVersion) {
         val version = activeSession?.revealVersion ?: 0
@@ -173,9 +172,8 @@ fun WorkspaceEditorScreen(actions: NavigationActions) {
                 if (markdownPreview && isMarkdown) {
                     MarkdownPreview(
                         text = document.text,
+                        place = MarkdownPlace.ofFile(document.location, state.activeWorkspaceLocation),
                         fontSizeSp = editorPreferences.fontSizeSp,
-                        fontScale = markdownScale,
-                        onScale = { markdownScale = (markdownScale * it).coerceIn(0.6f, 2.4f) },
                         modifier = Modifier.weight(1f),
                     )
                 } else {
