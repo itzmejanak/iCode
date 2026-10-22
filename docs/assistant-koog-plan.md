@@ -554,6 +554,7 @@ files, photos and others, from shared storage or from internal"; "fill all such 
 | P13 | A message needed words | A photo or a file alone is a message; its chat is named after it |
 | P14 | Back on a provider's page lost what was typed | Back with changes asks: **Discard**, or stay |
 | P15 | Picks past five were dropped without a word; a phone without a camera offered one | Said ("2 not attached"); the Camera tile shows only where there is a camera |
+| P16 | The meter stopped short of the composer's right edge, by a gap that changed with the workspace's name (owner's screenshot, 2026-10-22: 24 dp after "9.9k tokens" for "Voids"). The footer weighted two children, the workspace's name (`fill = false`) and the spacer before the meter, so half the free space went to the name, and what it left unused fell after the meter. A long name was cut at half the free space | The footer's left side (the workspace and the permissions) is one weighted group, in which only the name gives way. The meter ends at the box's right edge, 4 dp in, as the workspace starts 4 dp in at its left, whatever the name. Measured on the composer itself in a Compose Desktop scene at 1080 px and 2.75: before, 14.2 dp short with "Voids" and 0 with a 37-letter name; after, 0 with both. The long name now runs until it meets the permissions (143 dp, where it had 70) |
 
 ### 13.3 Cycles
 

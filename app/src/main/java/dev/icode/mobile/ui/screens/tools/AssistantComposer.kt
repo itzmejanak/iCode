@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -154,31 +153,33 @@ internal fun AssistantComposer(
                 }
             }
         }
-        // Under the box: where it works and what it may do unasked; how full the context is, at the right.
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
-            Row(
-                Modifier.weight(1f, fill = false).minimumInteractiveComponentSize().clip(IcodeShapes.Small)
-                    .clickable(onClickLabel = "Show the workspace's files", onClick = onWorkspace)
-                    .padding(horizontal = IcodeSpacing.Space1),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
-            ) {
-                Icon(Icons.Outlined.FolderOpen, contentDescription = null, tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconSm))
-                Text(
-                    AssistantRules.workspaceName(state.workspace.orEmpty()),
-                    style = IcodeType.Caption.copy(color = IcodeColors.TextMuted),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+        // Under the box, level with its edges: where it works and what it may do unasked at its left, how full
+        // the context is at its right. Only the workspace's name gives way, cut short; the rest keep their width.
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
+            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
+                Row(
+                    Modifier.weight(1f, fill = false).minimumInteractiveComponentSize().clip(IcodeShapes.Small)
+                        .clickable(onClickLabel = "Show the workspace's files", onClick = onWorkspace)
+                        .padding(horizontal = IcodeSpacing.Space1),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
+                ) {
+                    Icon(Icons.Outlined.FolderOpen, contentDescription = null, tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconSm))
+                    Text(
+                        AssistantRules.workspaceName(state.workspace.orEmpty()),
+                        style = IcodeType.Caption.copy(color = IcodeColors.TextMuted),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                // Permissions are the chat's, chosen here as VS Code's are.
+                Choice(
+                    if (settings.askBeforeChanges) ASK_FIRST else ALLOW_ALL, "Permissions", listOf(true, false), settings.askBeforeChanges,
+                    { if (it) ASK_FIRST else ALLOW_ALL },
+                    { if (it) "Each file change and command waits for Allow" else "Changes and commands run without asking" },
+                    icon = true,
+                ) { gateway.dispatch(ICodeIntent.SetAssistantAskFirst(it)) }
             }
-            // Permissions are the chat's, chosen here as VS Code's are.
-            Choice(
-                if (settings.askBeforeChanges) ASK_FIRST else ALLOW_ALL, "Permissions", listOf(true, false), settings.askBeforeChanges,
-                { if (it) ASK_FIRST else ALLOW_ALL },
-                { if (it) "Each file change and command waits for Allow" else "Changes and commands run without asking" },
-                icon = true,
-            ) { gateway.dispatch(ICodeIntent.SetAssistantAskFirst(it)) }
-            Spacer(Modifier.weight(1f))
             ContextMeter(state)
         }
     }
