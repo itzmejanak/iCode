@@ -1,6 +1,6 @@
 # C and C++ in Android Apps, Built on the Phone — NDK Plan
 
-Status: **plan, decisions taken (2026-10-18), for the owner's review**. Nothing is built yet. It extends
+Status: **built (2026-10-22)**, as §7 records: N1–N6, with the changes §7 lists. It extends
 [android-toolchain-plan.md](./android-toolchain-plan.md), whose §4.7 left native code out (L9), and uses its
 tool setups, pinned downloads, Gradle settings and Build & Run.
 
@@ -45,7 +45,8 @@ complex and hard so clean implementation is needed"
 
 It is built in GitHub Actions, and each release asset carries GitHub's SHA-256.
 
-**The two archives iCode pins** (`aarch64-linux-musl`, static), downloaded and checked here:
+**The two archives iCode pinned at first** (`aarch64-linux-musl`, static), downloaded and checked here. The
+publisher has rebuilt both since, at the same URLs; §7.2 has the archives pinned now:
 
 | | r27 | r28c |
 |---|---|---|
@@ -115,7 +116,7 @@ It is built in GitHub Actions, and each release asset carries GitHub's SHA-256.
 
 **CMake 3.22.1 (`CmakeSetup`)**, the pattern of the ARM64 build tools: Google's package, with programs built for ARM64 from the same upstream version.
 1. `sdkmanager --install "cmake;3.22.1"`: Google's package, its `package.xml` and its checksum.
-2. Every x86-64 program in `cmake/3.22.1/bin` is replaced by its ARM64 build. `cmake`, `ctest` and `cpack` come from Kitware's 3.22.1, and `ninja` from Ninja 1.12.1. A program with no ARM64 counterpart is removed, so nothing is left that cannot run.
+2. Google's `bin` and `share` are replaced by Kitware's 3.22.1 for ARM64: its `cmake`, `ctest` and `cpack`, and its modules (`share/cmake-3.22`), the tree §2.4 measured. `ninja` comes from Ninja 1.12.1. Nothing else is left in `bin`, so nothing is left that cannot run.
 3. **Verify:** `cmake --version` says 3.22.1, and `ninja --version` exits with 0.
 
 **NDK (Side by side) r28c and r27 (`AndroidNdkSetup`, one class, one instance per pin):**
@@ -126,11 +127,15 @@ It is built in GitHub Actions, and each release asset carries GitHub's SHA-256.
    - the NDK's `clang --target=aarch64-linux-android24 -c` compiles a one-line C file, which proves the compiler and the sysroot;
    - `sdkmanager --list_installed` lists `ndk;<revision>`.
 
+**Whatever is at `ndk/<revision>` before the NDK is put there is replaced**: Google's x86-64 NDK, fetched by
+a build before iCode installed its own, or a setup cut short. The same holds for `cmake/3.22.1`, whose
+programs and modules are replaced whatever they were.
+
 **What neither installs:**
 - **Nothing through apt.** An Android native build needs no host compiler.
 - **Host tools a project's own CMake scripts call.** iCode's build runs `patch`, for example. Those come from the Build tools row: `build-essential` depends on `dpkg-dev`, which depends on `patch`. That is the project's requirement, said by CMake's own error.
 
-**Extraction:** `ArchiveExtractor` gains `.tar.xz` (commons-compress with `org.tukaani:xz`, its documented optional dependency) and a placement filter for tar.gz, as zip has. It unpacks from the app, never through PRoot, which crawls on many small files (`ArchiveExtractor`'s own reason).
+**Extraction:** the runtime's own GNU tar and xz unpack an NDK (`xz-utils` is the NDK rows' package), not the app: its archives need a 257 MiB decoder (§7.6). `ArchiveExtractor` gains a placement filter for tar.gz, as zip has, for CMake.
 
 ### 3.3 Pins
 
@@ -228,3 +233,130 @@ The stash is dropped: nothing in it is applied.
 - [Install and configure the NDK and CMake](https://developer.android.com/studio/projects/install-ndk) and [Configure the NDK for AGP](https://developer.android.com/studio/projects/configure-agp-ndk): side-by-side `sdk/ndk/<version>`, `ndkVersion` and `ndkPath`, CMake from `cmake.dir` or `PATH`, automatic installs once licences are accepted.
 - [Kitware CMake v3.22.1](https://github.com/Kitware/CMake/releases/tag/v3.22.1) and its `cmake-3.22.1-SHA-256.txt`; [Ninja v1.12.1](https://github.com/ninja-build/ninja/releases/tag/v1.12.1).
 - Google's `cmake` and `ndk` package records, from nixpkgs' `androidenv/repo.json` (as in the toolchain plan).
+
+## 7. As built (2026-10-22)
+
+The owner's phone showed what not building this cost: building iCode there, the Android Gradle plugin had
+downloaded Google's CMake (e_machine 62, x86-64) and NDK r27 host toolchain, because the Android SDK's
+accepted licence lets it fetch any missing package, and §3.4's guard was not built.
+
+### 7.1 What was built
+
+| Where | What |
+|---|---|
+| `domain/RuntimeTools.kt` | `RuntimeTool.requires`; the CMake 3.22.1 and two NDK rows after the Android SDK; `CMAKE_VERSION`, `NDK_28`, `NDK_27`, `ndks` (by revision) and `ndkId`, the one place each is spelled; `RuntimeToolRules.toggle` and `withRequirements`; `plan` reads the choice with its requirements; `RuntimeToolsState.buildsNative` |
+| `data/runtime/ArchiveExtractor.kt` | A placement filter for tar.gz, hard links mapped the same way (an NDK's tar.xz is the runtime's to unpack, §7.6) |
+| `data/runtime/RuntimePackageInstaller.kt` | A tool apt has nothing for (CMake) runs no apt: measured, installed and removed by its setup alone. A setup's failure names its step, and each step is a line of Details (§7.6) |
+| `data/runtime/RuntimeToolSetup.kt`, `data/android/SdkManager.kt` | `fetchPinned` and `SdkManager` (install, `--list_installed`), shared by the three setups that had copies |
+| `data/android/CmakeSetup.kt`, `AndroidNdkSetup.kt` | §3.2, registered in `RuntimeToolsCoordinator` |
+| `data/android/GradleSettings.kt` | §3.4, with §7.3's changes |
+| `data/android/AndroidProjects.kt`, `domain/AndroidApps.kt` | `AndroidProject.native`: a module of its build names a CMake or ndk-build script; clang's diagnostics in Problems |
+| `data/android/AndroidApps.kt` | Build & Run refuses an app with C or C++ until CMake and an NDK are installed, for the Run tab and `run_android_app` alike |
+| UI | Runtime Tools: the rows, "Needs Android SDK and CMake 3.22.1", ticking by `toggle`. The Run tab's ▶: **NDK and CMake Needed**, with Open Runtime Tools |
+
+### 7.2 The NDK archives are rebuilt in place
+
+android-ndk-custom's release workflow publishes with `allowUpdates: true` and `replacesArtifacts: true`
+(`.github/workflows/make-ndk.yml`): every run replaces the r27 and r28 assets at the same URLs. Between this
+plan (2026-10-18) and the build, both were rebuilt (2026-10-21):
+
+| | Planned | Pinned now |
+|---|---|---|
+| r27 | 132,302,760 bytes, `1708a617…` | 122,823,308 bytes, `10a851646fe065895c40becb9b7b9f8480d9ad44b7d77322706689fca9fd0bf8` |
+| r28c | 133,286,584 bytes, `cefa41c4…` | 138,348,396 bytes, `a6bf9a01e2838a943c14686c595f9d4e6b2475ff2209f470c2287a2634b90c66` |
+
+- Checked here, each: `source.properties` names its revision, `package.xml` is sdkmanager's
+  (`ndk;27.0.12077973`, `ndk;28.2.13676358`), `toolchains/llvm/prebuilt/linux-arm64` holds a static ARM64
+  clang (18 and 19) and `linux-x86_64` links to it.
+- **Not run here:** these new builds' compilers, under emulation as §2.4 ran the old ones. This
+  environment refused registering qemu for ARM64 programs. The install's own verification compiles a C
+  file with the NDK on the phone, so a broken archive fails there, and is never recorded as installed.
+- **What it means:** a pinned SHA-256 holds only until the publisher's next run, after which the download
+  fails its checksum and is not used (§3.6's trust model). Each rebuild needs a new pin and an iCode
+  release. **For the owner to decide** (§7.5): the archives from a place that does not change.
+
+### 7.3 The Gradle guard, run with Gradle 8.14.3
+
+The init script ran here against a stand-in for the Android plugin: the `android` extension under the
+plugin's id, its own `afterEvaluate` logging what it sees, as the plugin's resolves the NDK and CMake. Two
+things changed from §3.4:
+
+- **Gradle runs every `afterEvaluate` hook even after one fails.** iCode's check runs first (it is
+  registered for every project before its build script applies any plugin), but failing alone would not
+  stop the plugin's hook from resolving, and downloading, the NDK and CMake. So before it stops, the check
+  sets the module's C and C++ build aside (`externalNativeBuild.cmake.path` and `.ndkBuild.path` to
+  null): the plugin's hook then has nothing to resolve, and the build fails with iCode's message.
+- **Installed means ARM64.** Google's x86-64 NDK fetched by a build sits where iCode's goes, so a folder's
+  presence proves nothing. An NDK counts when its `clang`, and CMake when its `cmake`, is an ARM64 ELF
+  (e_machine 183).
+
+| Module | Result |
+|---|---|
+| No C or C++ | Builds; build tools 36.0.0 by default |
+| NDK 27.0.12077973 installed for ARM64; CMake by default | Builds, with CMake 3.22.1 |
+| NDK 28.2.13676358 at `ndk/` but x86-64 | "NDK 28.2.13676358 is not installed for this phone. Install NDK (Side by side) 28.2.13676358 in Settings › Runtime Environment › Runtime Tools." |
+| NDK 26.1.10909125 | "NDK 26.1.10909125 cannot run on this phone. Runtime Tools installs NDK 28.2.13676358 and 27.0.12077973: set android.ndkVersion to one of them." |
+| No `ndkVersion`, plugin 8.13 / 9.2 / 8.4 | 8.13: r27, builds; 9.2: r28c, said as not installed; 8.4: "names no NDK…, set android.ndkVersion to 28.2.13676358 or 27.0.12077973" |
+| CMake 3.18.1 / `3.10.2+` / not installed | 3.18.1: "cannot run on this phone… set externalNativeBuild.cmake.version to it"; `3.10.2+`: builds; not installed: said |
+| `ndkPath`, or `cmake.dir` in `local.properties` | Left to the project |
+
+In every failing case the plugin's hook saw no CMake path.
+
+### 7.4 Checked here
+
+- **Unit tests:** 889, all passing but `TreeSizeTest`'s unreadable folder, which root can still list. New:
+  - `RuntimeToolsTest`: the rows, their order, toggle, plan with requirements;
+  - `RuntimePackageInstallerTest`: a tool with no packages runs no apt;
+  - `NativeToolSetupsTest`: ids, pins, Kitware's placement, an NDK's top, sdkmanager's list;
+  - `ArchiveExtractorTest`: tar.xz with links and hard links placed;
+  - `GradleSettingsTest`, `AndroidProjectsTest` (C or C++ in any module), `GradleIssuesTest` (clang).
+- **The real archives through iCode's extractor:**
+  - NDK r27 and r28c unpack identical to GNU tar's extraction (`diff -r`, links included): 14,760 and
+    14,780 entries in 19 s and 23 s here.
+  - Kitware's CMake and Ninja over a stand-in for Google's package leave `bin` with exactly `cmake`,
+    `cpack`, `ctest` and `ninja`, all ARM64, Kitware's 2,976 module files, and Google's `package.xml`.
+- **Type-checks** of `data/`, `domain/` and the screens; both **guards**; **API 30** (Animal Sniffer)
+  over the new classes and xz 1.10: nothing above it.
+
+### 7.5 Left for the phone, and the owner
+
+1. On this phone first: delete what the plugin fetched, `~/Android/Sdk/cmake/3.22.1` and
+   `~/Android/Sdk/ndk/27.0.12077973`. Installing the rows replaces them anyway (§3.2), so this only
+   saves the space until then.
+2. §5's checks, all of them, now with these archives.
+3. That the real plugin takes `externalNativeBuild.cmake.path = null`, as the stand-in did.
+4. **The owner's decision:** where the NDK archives come from. As now, each publisher rebuild breaks the
+   install until iCode pins the new one. A copy the owner controls (a release of iCode's own, or iCode's
+   CI building them from the same scripts, as §3.6 foresaw) would not change; it would mean the owner
+   redistributing the NDK, which §3.6 left to the owner.
+
+### 7.6 Found on the phone: the NDK needs more memory than the app has (2026-10-22, the owner)
+
+Installing an NDK stopped with "Installation Failed" and only the runtime's words: "Failed to allocate a
+268435472 byte allocation with 29592783 free bytes and 227MB until OOM, target footprint 59185567, growth
+limit 268435456". Details said "Nothing has been printed yet".
+
+- **Cause.** Both NDK archives are XZ with a 256 MiB LZMA2 window (`xz -lvv`: `--lzma2=dict=256MiB`,
+  "Memory needed: 257 MiB"). The decoder holds the window whole, as one array. The app decoded them in its
+  own heap, which Android limits to 256 MiB on this phone ("growth limit 268435456"): it could never
+  fit. §7.4's check passed because a desktop JVM's heap is far larger. The check did not hold the
+  phone's limits.
+- **Fix, by where the work belongs.** Unpacking 1.3 GB is the runtime's work, not the app's. The NDK rows
+  now list `xz-utils` as their apt package, measured, installed and removed like any other. The setup
+  downloads the archive into the SDK folder, and the runtime's GNU tar and xz unpack it there
+  (`tar -xvJf … --strip-components=1 --no-same-owner`). The decoder's memory is native, in a process of
+  its own, and the app's heap stays the app's. In-app XZ (`extractTarXz`, `org.tukaani:xz`) is gone.
+  Checked here with GNU tar 1.35 and XZ Utils 5.4.5, Ubuntu 24.04's:
+  - the setup's own command gives a tree identical to the reference: 14,760 entries, one line each, which
+    the progress counts;
+  - 17 s on this machine;
+  - xz's peak is 258 MiB.
+- **What the user sees, whatever fails.**
+  - A setup's failure names the step it stopped at: "Unpacking NDK 27.0.12077973 failed: …".
+  - The phone's own limits are said as such: "There is not enough free memory to unpack NDK
+    27.0.12077973. Close other apps, then Retry."; not enough storage, "… Free some space, then Retry."
+  - Each step a setup starts is a line of Details, so Details shows what was done before the failure,
+    never "Nothing has been printed yet" after one.
+  - Stopping or failing an unpack leaves no staging folder. Retry downloads nothing again, and what
+    installed before the failure (the Android SDK, CMake) stays installed.
+

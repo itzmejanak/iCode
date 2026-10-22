@@ -10,17 +10,21 @@ import org.json.JSONObject
  * wrapper and `settings.gradle(.kts)` at the top — and each module, the top or a folder in it, that
  * holds `src/main/AndroidManifest.xml` and applies the Android application plugin, by its id
  * (`com.android.application`) or its version-catalog alias (`libs.plugins.android.application`).
+ * Its build compiles C or C++ when any of its modules names a CMake or ndk-build script.
  */
 internal object AndroidProjects {
     fun apps(root: File, workspace: String): List<AndroidProject> {
         if (!File(root, "gradlew").isFile || SETTINGS.none { File(root, it).isFile }) return emptyList()
         val modules = listOf(root) + root.listFiles().orEmpty().filter { it.isDirectory && !it.name.startsWith(".") }.sortedBy { it.name }
-        return modules.filter(::isApplication).map { AndroidProject(workspace, if (it == root) "" else it.name) }
+        val native = modules.any { module -> buildFile(module)?.readText()?.let(NATIVE_BUILD::containsMatchIn) == true }
+        return modules.filter(::isApplication).map { AndroidProject(workspace, if (it == root) "" else it.name, native) }
     }
+
+    private fun buildFile(module: File): File? = BUILD_FILES.map { File(module, it) }.firstOrNull(File::isFile)
 
     private fun isApplication(module: File): Boolean {
         if (!File(module, "src/main/AndroidManifest.xml").isFile) return false
-        val build = BUILD_FILES.map { File(module, it) }.firstOrNull(File::isFile) ?: return false
+        val build = buildFile(module) ?: return false
         return APPLICATION_PLUGIN.containsMatchIn(build.readText())
     }
 
@@ -42,4 +46,6 @@ internal object AndroidProjects {
     private val SETTINGS = listOf("settings.gradle", "settings.gradle.kts")
     private val BUILD_FILES = listOf("build.gradle.kts", "build.gradle")
     private val APPLICATION_PLUGIN = Regex("""com\.android\.application|plugins\.android\.application\b""")
+    /** `externalNativeBuild { cmake { path = file("src/main/cpp/CMakeLists.txt") } }`, in either DSL; `defaultConfig`'s, with no path, is only flags. */
+    private val NATIVE_BUILD = Regex("""externalNativeBuild\s*\{\s*(cmake|ndkBuild)\s*\{[^}]*\bpath\b""")
 }

@@ -5,7 +5,12 @@ package dev.icode.mobile.domain
 // Terminal panel's Run tab (docs/run-tab-plan.md).
 
 /** An Android app of a workspace: the Gradle module that builds it, by its folder ("" for the top). */
-data class AndroidProject(val workspace: String, val module: String) {
+data class AndroidProject(
+    val workspace: String,
+    val module: String,
+    /** Its build compiles C or C++ (docs/android-ndk-plan.md §3.5): it needs CMake and an NDK. */
+    val native: Boolean,
+) {
     /** `:app:assembleDebug`, or `assembleDebug` for a project that is one module. */
     val task: String get() = if (module.isEmpty()) "assembleDebug" else ":${module.replace('/', ':')}:assembleDebug"
 }
@@ -25,6 +30,8 @@ object GradleIssues {
             Diagnostic(if (kind == "e") Severity.Error else Severity.Warning, relative(path, workspaceGuestPath), message, "$row:$column", SOURCE)
         } ?: JAVAC.find(line)?.destructured?.let { (path, row, kind, message) ->
             Diagnostic(if (kind == "error") Severity.Error else Severity.Warning, relative(path, workspaceGuestPath), message, row, SOURCE)
+        } ?: CLANG.find(line)?.destructured?.let { (path, row, column, kind, message) ->
+            Diagnostic(if (kind == "warning") Severity.Warning else Severity.Error, relative(path, workspaceGuestPath), message, "$row:$column", SOURCE)
         }
     }.distinct().toList()
 
@@ -43,4 +50,6 @@ object GradleIssues {
     private const val MAX_FAILURE = 300
     private val KOTLIN = Regex("""^([ew]): file://(/[^:]+):(\d+):(\d+) (.+)$""")
     private val JAVAC = Regex("""^(/[^:]+\.java):(\d+): (error|warning): (.+)$""")
+    /** clang's, as the Android plugin's C and C++ tasks print it, with or without their `C/C++: ` prefix (docs/android-ndk-plan.md §3.5). */
+    private val CLANG = Regex("""^(?:C/C\+\+: )?(/[^:]+):(\d+):(\d+): (error|fatal error|warning): (.+)$""")
 }

@@ -415,13 +415,16 @@ class RuntimePackageInstallerTest {
         assertFalse(installer.isInstalled(kit))
     }
 
-    @Test fun `a setup's failure is said in its words and kept, without a receipt`() = runBlocking {
+    @Test fun `a setup's failure is said in its words, after the step it stopped at, and kept without a receipt`() = runBlocking {
         val apt = FakeApt()
-        val setup = FakeSetup().apply { fails = "sdkmanager could not install the SDK packages: Connection refused" }
+        val setup = FakeSetup().apply { fails = "Download failed with HTTP 503" }
         val installer = apt.installer(setups = listOf(setup))
         val outcome = installer.apply(planFor(installer, setOf("kit")), setOf("kit-licence"))
-        assertEquals(RuntimePackageInstaller.Outcome.Failed("sdkmanager could not install the SDK packages: Connection refused"), outcome)
-        assertEquals("sdkmanager could not install the SDK packages: Connection refused", installer.work.value?.failure)
+        assertEquals(RuntimePackageInstaller.Outcome.Failed("Downloading the kit failed: Download failed with HTTP 503"), outcome)
+        val failed = installer.work.value!!
+        assertEquals("Downloading the kit failed: Download failed with HTTP 503", failed.failure)
+        // Details: the step the setup started, then what it printed.
+        assertEquals(listOf("Downloading the kit", "kit: fetched"), failed.log.takeLast(2))
         assertFalse(File(receipts, "kit").exists())
     }
 
@@ -435,6 +438,21 @@ class RuntimePackageInstallerTest {
         assertTrue(calls.contains("apt-get remove -y git"))
         assertFalse(File(receipts, "kit").exists())
         assertEquals(RuntimeInventory(emptySet()), installer.installed.value)
+    }
+
+    @Test fun `a tool apt has nothing for is its setup alone, measured, installed and removed without apt`() = runBlocking {
+        val apt = FakeApt()
+        val setup = FakeSetup()
+        val files = RuntimeTool("kit", "Kit", "", null, emptyList(), setup = "kit", licence = "kit-licence")
+        val installer = apt.installer(setups = listOf(setup))
+        assertEquals(mapOf("kit.zip" to 5_000L), installer.measure(listOf(files)).downloads.getValue("kit").archives)
+        val install = RuntimeToolRules.plan(setOf("kit"), installer.run { refresh(); installed.value!! }, listOf(files))
+        assertEquals(RuntimePackageInstaller.Outcome.Ready, installer.apply(install, setOf("kit-licence")))
+        assertEquals(listOf("setup install", "setup configure"), calls)
+        val remove = RuntimeToolRules.plan(emptySet(), installer.run { refresh(); installed.value!! }, listOf(files))
+        assertEquals(RuntimePackageInstaller.Outcome.Ready, installer.apply(remove, emptySet()))
+        assertEquals(listOf("setup install", "setup configure", "setup remove"), calls)
+        assertFalse(File(receipts, "kit").exists())
     }
 
     @Test fun `a tool's download is apt's archives and its setup's pinned files, until its receipt matches`() = runBlocking {

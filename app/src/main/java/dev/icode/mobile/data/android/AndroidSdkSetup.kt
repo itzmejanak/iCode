@@ -8,14 +8,11 @@ import dev.icode.mobile.data.io.deleteTree
 import dev.icode.mobile.data.io.hexDigest
 import dev.icode.mobile.data.runtime.ArchiveExtractor
 import dev.icode.mobile.data.runtime.GuestCommand
-import dev.icode.mobile.data.runtime.PinnedDownload
-import dev.icode.mobile.data.runtime.PinnedFile
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.runtime.RuntimeLicences
 import dev.icode.mobile.data.runtime.RuntimeToolSetup
+import dev.icode.mobile.data.runtime.fetchPinned
 import dev.icode.mobile.data.runtime.readManifest
-import dev.icode.mobile.data.runtime.shellQuote
-import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.ToolSetupProgress
 import java.io.File
 import java.io.IOException
@@ -39,6 +36,7 @@ internal class AndroidSdkSetup(private val layout: RuntimeLayout, private val co
     override val id: String = ID
 
     private val guest = GuestCommand(layout)
+    private val sdkmanager = SdkManager(guest)
     private val sdk = AndroidSdk.host(layout)
     private val manifest by lazy { readManifest(context) }
     private val commandLineTools by lazy { manifest.archive(COMMAND_LINE_TOOLS) }
@@ -57,15 +55,15 @@ internal class AndroidSdkSetup(private val layout: RuntimeLayout, private val co
     }
 
     override fun measure(): Map<String, Long> =
-        listOf(commandLineTools, hostTools).associate { it.name to (it.bytes ?: error("The runtime manifest pins no size for ${it.name}")) } +
+        listOf(commandLineTools, hostTools).associate { it.fileName to (it.bytes ?: error("The runtime manifest pins no size for ${it.fileName}")) } +
             AndroidSdk.PACKAGES.associateWith { manifest.packageBytes[it] ?: error("The runtime manifest pins no size for $it") }
 
     override suspend fun install(onProgress: (ToolSetupProgress) -> Unit, onLine: (String) -> Unit) {
         // Kept until the whole setup has succeeded: a retry after a later step fails downloads nothing again.
         val toolsZip = File(context.cacheDir, "$COMMAND_LINE_TOOLS.zip")
         val hostZip = File(context.cacheDir, "$HOST_TOOLS.zip")
-        fetch(commandLineTools, toolsZip, "Downloading Android SDK Command-line Tools", onProgress)
-        fetch(hostTools, hostZip, "Downloading build tools for ARM64", onProgress)
+        fetchPinned(commandLineTools, toolsZip, "Downloading Android SDK Command-line Tools", onProgress)
+        fetchPinned(hostTools, hostZip, "Downloading build tools for ARM64", onProgress)
         withContext(NonCancellable) {
             onProgress(ToolSetupProgress("Unpacking Android SDK Command-line Tools", cancellable = false))
             unpackCommandLineTools(toolsZip)
@@ -73,7 +71,11 @@ internal class AndroidSdkSetup(private val layout: RuntimeLayout, private val co
             File(sdk, "licenses").mkdirs()
             File(sdk, "licenses/${AndroidSdk.LICENCE}").writeText("\n$licenceHash")
         }
-        installPackages(onProgress, onLine)
+        val step = "Installing SDK Platform 36 and Build-Tools ${AndroidSdk.BUILD_TOOLS}"
+        sdkmanager.install(AndroidSdk.PACKAGES, step, onProgress, onLine)
+        if (!File(sdk, "platforms/${AndroidSdk.PLATFORM}/android.jar").isFile || !File(sdk, "build-tools/${AndroidSdk.BUILD_TOOLS}").isDirectory) {
+            throw IOException("sdkmanager did not install SDK Platform 36 and Build-Tools ${AndroidSdk.BUILD_TOOLS}")
+        }
         withContext(NonCancellable) {
             onProgress(ToolSetupProgress("Setting up build tools for ARM64", cancellable = false))
             replaceHostTools(hostZip)
@@ -102,22 +104,6 @@ internal class AndroidSdkSetup(private val layout: RuntimeLayout, private val co
         File(gradle, "init.d/${GradleSettings.INIT_SCRIPT_NAME}").delete()
     }
 
-    private suspend fun fetch(file: PinnedFile, target: File, step: String, onProgress: (ToolSetupProgress) -> Unit) {
-        onProgress(ToolSetupProgress(step, cancellable = true))
-        if (PinnedDownload.isVerified(target, file)) return
-        target.delete()
-        PinnedDownload.download(file, target) { received, total ->
-            onProgress(
-                ToolSetupProgress(
-                    step,
-                    fraction = if (total > 0) received.toFloat() / total else null,
-                    item = if (total > 0) "${ByteSize.format(received)} of ${ByteSize.format(total)}" else ByteSize.format(received),
-                    cancellable = true,
-                ),
-            )
-        }
-    }
-
     /** The zip holds one folder, `cmdline-tools/`; sdkmanager expects to find itself at `cmdline-tools/latest`. */
     private fun unpackCommandLineTools(zip: File) {
         val folder = File(sdk, "cmdline-tools")
@@ -127,35 +113,6 @@ internal class AndroidSdkSetup(private val layout: RuntimeLayout, private val co
         val latest = File(folder, "latest")
         deleteTree(latest.toPath())
         if (!staging.renameTo(latest)) throw IOException("Could not unpack Android SDK Command-line Tools")
-    }
-
-    /** sdkmanager, its stdin closed: a licence it does not find accepted is declined, never waited on. */
-    private suspend fun installPackages(onProgress: (ToolSetupProgress) -> Unit, onLine: (String) -> Unit) {
-        val step = "Installing SDK Platform 36 and Build-Tools ${AndroidSdk.BUILD_TOOLS}"
-        onProgress(ToolSetupProgress(step, cancellable = true))
-        val command = (listOf(AndroidSdk.GUEST_SDKMANAGER, "--sdk_root=${AndroidSdk.GUEST_ROOT}", "--install") + AndroidSdk.PACKAGES)
-            .joinToString(" ", transform = ::shellQuote)
-        var said: String? = null
-        // sdkmanager redraws its progress bar with carriage returns.
-        val result = guest.streamRecords(null, listOf("/bin/sh", "-c", "$command </dev/null"), "sdkmanager", '\r'.code) { record ->
-            record.decodeToString().split('\n').map(String::trim).filter(String::isNotEmpty).forEach { line ->
-                val progress = SDKMANAGER_PROGRESS.find(line)
-                if (progress == null) {
-                    said = line
-                    onLine(line)
-                } else {
-                    val (percent, doing) = progress.destructured
-                    onProgress(ToolSetupProgress(step, percent.toInt() / PERCENT, doing.ifBlank { null }, cancellable = true))
-                }
-            }
-            true
-        }
-        if (result.exitCode != 0) {
-            throw IOException("sdkmanager could not install the SDK packages: ${result.failureDetail() ?: said ?: "exit ${result.exitCode}"}")
-        }
-        if (!File(sdk, "platforms/${AndroidSdk.PLATFORM}/android.jar").isFile || !File(sdk, "build-tools/${AndroidSdk.BUILD_TOOLS}").isDirectory) {
-            throw IOException("sdkmanager did not install SDK Platform 36 and Build-Tools ${AndroidSdk.BUILD_TOOLS}${said?.let { ": $it" }.orEmpty()}")
-        }
     }
 
     private fun replaceHostTools(zip: File) {
@@ -187,8 +144,6 @@ internal class AndroidSdkSetup(private val layout: RuntimeLayout, private val co
     private fun totalMemory(): Long =
         ActivityManager.MemoryInfo().also { context.getSystemService(ActivityManager::class.java).getMemoryInfo(it) }.totalMem
 
-    private val PinnedFile.name: String get() = url.substringAfterLast('/')
-
     companion object {
         /** [dev.icode.mobile.domain.RuntimeTools.AndroidSdk]'s setup. */
         const val ID = "android-sdk"
@@ -203,10 +158,6 @@ internal class AndroidSdkSetup(private val layout: RuntimeLayout, private val co
             export ANDROID_HOME=${AndroidSdk.GUEST_ROOT}
             export PATH="${'$'}PATH:${'$'}ANDROID_HOME/cmdline-tools/latest/bin:${'$'}ANDROID_HOME/build-tools/${AndroidSdk.BUILD_TOOLS}"
         """.trimIndent() + "\n"
-
-        /** `[=====     ] 41% Downloading platform-36_r02.zip...`. */
-        private val SDKMANAGER_PROGRESS = Regex("""^\[[= ]*]\s*(\d+)%\s*(.*)$""")
-        private const val PERCENT = 100f
 
         /** What sdkmanager writes for an accepted licence: the SHA-1 of its text, exactly as Google publishes it. */
         fun licenceHash(text: String): String = hexDigest(text.toByteArray(Charsets.UTF_8), DigestAlgorithm.Sha1)

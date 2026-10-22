@@ -5,6 +5,7 @@ import java.nio.file.Files
 import java.util.zip.GZIPOutputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
+import org.apache.commons.compress.archivers.tar.TarConstants
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
 import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream
 import org.junit.Assert.assertEquals
@@ -135,6 +136,36 @@ class ArchiveExtractorTest {
         val written = ArchiveExtractor().extractTarGz(source, out) { lastReported = it }
         assertEquals(5L, written)
         assertEquals(5L, lastReported)
+    }
+
+    @Test
+    fun `a tar gz unpacks where its entries are placed, its links and hard links mapped the same way`() {
+        val file = temporaryFolder.newFile("tool-${System.nanoTime()}.tar.gz")
+        TarArchiveOutputStream(GZIPOutputStream(file.outputStream())).use { tar ->
+            tar.setLongFileMode(TarArchiveOutputStream.LONGFILE_POSIX)
+            tar.putArchiveEntry(TarArchiveEntry("android-ndk-r27/"))
+            tar.closeArchiveEntry()
+            tar.file("android-ndk-r27/source.properties", "Pkg.Revision = 27.0.12077973\n")
+            tar.file("android-ndk-r27/toolchains/llvm/prebuilt/linux-arm64/bin/clang", "elf", mode = 0b111_101_101)
+            tar.putArchiveEntry(TarArchiveEntry("android-ndk-r27/toolchains/llvm/prebuilt/linux-x86_64", TarConstants.LF_SYMLINK).apply { linkName = "linux-arm64" })
+            tar.closeArchiveEntry()
+            tar.putArchiveEntry(
+                TarArchiveEntry("android-ndk-r27/toolchains/llvm/prebuilt/linux-arm64/bin/clang++", TarConstants.LF_LINK)
+                    .apply { linkName = "android-ndk-r27/toolchains/llvm/prebuilt/linux-arm64/bin/clang" },
+            )
+            tar.closeArchiveEntry()
+            tar.finish()
+        }
+        val out = target()
+        val written = ArchiveExtractor().extractTarGz(file, out, { it.substringAfter('/', "").takeIf(String::isNotEmpty) }) {}
+        assertEquals(4L, written)
+        assertEquals("Pkg.Revision = 27.0.12077973\n", File(out, "source.properties").readText())
+        val clang = File(out, "toolchains/llvm/prebuilt/linux-arm64/bin/clang")
+        assertTrue(clang.canExecute())
+        assertEquals("linux-arm64", Files.readSymbolicLink(File(out, "toolchains/llvm/prebuilt/linux-x86_64").toPath()).toString())
+        assertEquals("elf", File(out, "toolchains/llvm/prebuilt/linux-x86_64/bin/clang").readText())
+        assertEquals("elf", File(out, "toolchains/llvm/prebuilt/linux-arm64/bin/clang++").readText())
+        assertFalse(File(out, "android-ndk-r27").exists())
     }
 
     private fun zip(vararg entries: Pair<String, Int>): File {

@@ -11,8 +11,10 @@ import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.archivers.zip.ZipFile
 
 /**
- * Unpacks a pinned archive directly, without PRoot: the root filesystem (a tar.gz), and the zips a
- * runtime tool's setup downloads.
+ * Unpacks a pinned archive directly, without PRoot: the root filesystem (a tar.gz), and the zips and
+ * tar.gz a runtime tool's setup downloads. Only archives whose decoder is small: gzip's and zip's
+ * window is 32 KB. An NDK's tar.xz needs a 256 MiB one, and the runtime unpacks it
+ * ([dev.icode.mobile.data.android.AndroidNdkSetup]).
  *
  * Extracting through PRoot means every syscall is intercepted with ptrace, and
  * unpacking a base system is thousands of small files — open, write, close,
@@ -31,31 +33,30 @@ import org.apache.commons.compress.archivers.zip.ZipFile
 internal class ArchiveExtractor {
 
     /**
-     * Extracts the tar.gz [archive] into [target], reporting entries as it goes,
-     * and returns how many it wrote.
+     * Extracts the tar.gz [archive] into [target], reporting entries as it goes, and returns how many
+     * it wrote: each entry [place] gives a path for, at that path under [target] — null leaves it out.
      */
-    fun extractTarGz(archive: File, target: File, onEntry: (Long) -> Unit): Long {
+    fun extractTarGz(archive: File, target: File, place: (String) -> String? = { it }, onEntry: (Long) -> Unit): Long =
+        archive.inputStream().buffered().use { raw -> GZIPInputStream(raw).use { extractTar(it, target, place, onEntry) } }
+
+    private fun extractTar(input: InputStream, target: File, place: (String) -> String?, onEntry: (Long) -> Unit): Long {
         target.mkdirs()
         val root = target.canonicalFile
         var entries = 0L
         val deferredLinks = mutableListOf<Pair<File, String>>()
 
-        archive.inputStream().buffered().use { raw ->
-            GZIPInputStream(raw).use { gzip ->
-                TarArchiveInputStream(gzip).use { tar ->
-                    while (true) {
-                        val entry = tar.nextEntry ?: break
-                        val destination = resolve(root, entry.name) ?: continue
-                        write(entry, destination, tar, deferredLinks)
-                        if (++entries % ENTRY_REPORT_STEP == 0L) onEntry(entries)
-                    }
-                }
+        TarArchiveInputStream(input).use { tar ->
+            while (true) {
+                val entry = tar.nextEntry ?: break
+                val destination = place(entry.name)?.let { resolve(root, it) } ?: continue
+                write(entry, destination, tar, deferredLinks)
+                if (++entries % ENTRY_REPORT_STEP == 0L) onEntry(entries)
             }
         }
         // Hard links can point at an entry that appears later in the archive,
         // so they are made once everything else exists.
         deferredLinks.forEach { (destination, source) ->
-            val origin = resolve(root, source) ?: return@forEach
+            val origin = place(source)?.let { resolve(root, it) } ?: return@forEach
             if (origin.isFile) {
                 destination.parentFile?.mkdirs()
                 origin.copyTo(destination, overwrite = true)

@@ -25,15 +25,23 @@ class RuntimeToolsCoordinatorTest {
     private val stateHolder = ICodeStateHolder()
     private val installed: MutableSet<String> = Collections.synchronizedSet(mutableSetOf("git"))
 
-    /** The catalog's one setup, as the page measures it. */
-    private val sdk = object : RuntimeToolSetup {
-        override val id = "android-sdk"
-        override val receipt = "sdk 1\n"
-        override fun measure() = mapOf("sdk.zip" to 7_000L)
+    /** A catalog setup, as the page measures it: [file] its one download. */
+    private fun setup(id: String, file: String, bytes: Long) = object : RuntimeToolSetup {
+        override val id = id
+        override val receipt = "$id 1\n"
+        override fun measure() = mapOf(file to bytes)
         override suspend fun install(onProgress: (ToolSetupProgress) -> Unit, onLine: (String) -> Unit) = Unit
         override fun configure() = Unit
         override suspend fun remove() = Unit
     }
+
+    /** The catalog's setups: the Android SDK, CMake and the NDKs. */
+    private val setups = listOf(
+        setup("android-sdk", "sdk.zip", 7_000L),
+        setup("cmake", "cmake.tar.gz", 3_000L),
+        setup("android-ndk-28", "ndk-r28c.tar.xz", 9_000L),
+        setup("android-ndk-27", "ndk-r27.tar.xz", 8_000L),
+    )
 
     /** apt as it answers the page: sizes for what is missing, and an install that lands. */
     private val installer = RuntimePackageInstaller(
@@ -50,7 +58,7 @@ class RuntimeToolsCoordinatorTest {
             }
             GuestCommand.Result(0, "", false)
         },
-        ToolSetups(listOf(sdk), File.createTempFile("receipts", "").apply { delete(); deleteOnExit() }),
+        ToolSetups(setups, File.createTempFile("receipts", "").apply { delete(); deleteOnExit() }),
     )
     private val offer: File = File.createTempFile("tools-offer", "").apply { deleteOnExit() }
     private val coordinator = RuntimeToolsCoordinator(stateHolder, scope, installer, offer) { "The text of $it" }
@@ -87,6 +95,8 @@ class RuntimeToolsCoordinatorTest {
             mapOf("openjdk-17-jdk-headless_1_arm64.deb" to 2000L, "sdk.zip" to 7_000L),
             tools().downloads.getValue("android-sdk").archives,
         )
+        assertEquals("a tool apt has nothing for is its setup's files", mapOf("cmake.tar.gz" to 3_000L), tools().downloads.getValue("cmake").archives)
+        assertEquals(mapOf("xz-utils_1_arm64.deb" to 2000L, "ndk-r27.tar.xz" to 8_000L), tools().downloads.getValue("android-ndk-27").archives)
 
         coordinator.handle(ICodeIntent.ApplyRuntimeTools(setOf("git", "ripgrep")))
         until { "ripgrep" in tools().installed?.packages.orEmpty() && tools().work == null }

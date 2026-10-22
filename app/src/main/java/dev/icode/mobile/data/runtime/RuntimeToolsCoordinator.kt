@@ -1,7 +1,9 @@
 package dev.icode.mobile.data.runtime
 
 import android.content.Context
+import dev.icode.mobile.data.android.AndroidNdkSetup
 import dev.icode.mobile.data.android.AndroidSdkSetup
+import dev.icode.mobile.data.android.CmakeSetup
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.RuntimeToolRules
 import dev.icode.mobile.domain.RuntimeTools
@@ -35,7 +37,11 @@ internal class RuntimeToolsCoordinator(
     constructor(stateHolder: ICodeStateHolder, scope: CoroutineScope, layout: RuntimeLayout, context: Context) : this(
         stateHolder,
         scope,
-        RuntimePackageInstaller(layout, scope, listOf(AndroidSdkSetup(layout, context))),
+        RuntimePackageInstaller(
+            layout,
+            scope,
+            listOf(AndroidSdkSetup(layout, context), CmakeSetup(layout, context)) + RuntimeTools.ndks.keys.map { AndroidNdkSetup(layout, context, it) },
+        ),
         layout.toolsOffer,
         licenceText = { RuntimeLicences.text(context, it) },
     )

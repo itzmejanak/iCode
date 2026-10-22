@@ -57,6 +57,7 @@ Owner ask (2026-10-18, verbatim): "Alo put the build icon on explorer left side 
   - a long press on a saved command offers Edit and Delete, and Delete asks first.
 - **Before an Android app runs, ▶ asks for what is missing,** as the Explorer's ▶ did:
   - without the Android SDK, a dialog offers Open Runtime Tools;
+  - for an app with C or C++, without CMake and an NDK, **NDK and CMake Needed** offers the same ([android-ndk-plan.md](./android-ndk-plan.md) §3.5);
   - without "Install unknown apps", the tab shows the shared permission explanation. Once Android's page grants it, the run starts.
 - **Empty:**
   - no workspace open: "Open a workspace to run its apps and commands";

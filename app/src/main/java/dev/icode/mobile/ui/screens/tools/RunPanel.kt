@@ -54,7 +54,7 @@ import dev.icode.mobile.ui.screens.entry.PermissionExplanation
 import kotlinx.coroutines.delay
 
 /** What an Android app's ▶ asks for before it builds. */
-private enum class RunNeed { AndroidSdk, InstallApps }
+private enum class RunNeed { AndroidSdk, NativeTools, InstallApps }
 
 /**
  * The Terminal panel's Run tab (docs/run-tab-plan.md §2.3): the open workspace's Android apps, then
@@ -100,6 +100,7 @@ internal fun RunPanelContent(
     fun run(configuration: RunConfiguration) {
         if (configuration is RunConfiguration.AndroidApp) {
             if (!state.runtimeTools.isInstalled(RuntimeTools.AndroidSdk)) return run { need = RunNeed.AndroidSdk }
+            if (configuration.project.native && !state.runtimeTools.buildsNative) return run { need = RunNeed.NativeTools }
             if (state.systemAccess?.installApps != true) return run { need = RunNeed.InstallApps; waiting = configuration.id }
         }
         gateway.dispatch(ICodeIntent.StartRun(configuration.id))
@@ -161,6 +162,20 @@ internal fun RunPanelContent(
             onDismiss = { need = null },
         ) {
             Text("Build & Run builds with the Android SDK: JDK 17, SDK Platform 36 and Build-Tools 36. Install it in Runtime Tools.", style = IcodeType.Body)
+        }
+    }
+    if (need == RunNeed.NativeTools) {
+        IcodeConfirmDialog(
+            title = "NDK and CMake Needed",
+            confirmLabel = "Open Runtime Tools",
+            onConfirm = { need = null; navigate(Route.RuntimeTools) },
+            onDismiss = { need = null },
+        ) {
+            Text(
+                "This app builds C or C++, with CMake ${RuntimeTools.CMAKE_VERSION} and an NDK built for this phone. " +
+                    "Install CMake and the NDK the app names in Runtime Tools: ${RuntimeTools.ndks.values.joinToString(" or ") { it.name }}.",
+                style = IcodeType.Body,
+            )
         }
     }
     val commands = state.run.configurations.filterIsInstance<RunConfiguration.Command>()

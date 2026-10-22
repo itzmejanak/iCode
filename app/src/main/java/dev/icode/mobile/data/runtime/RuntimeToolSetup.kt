@@ -1,5 +1,6 @@
 package dev.icode.mobile.data.runtime
 
+import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.RuntimeTool
 import dev.icode.mobile.domain.ToolSetupProgress
 import java.io.File
@@ -39,6 +40,26 @@ internal interface RuntimeToolSetup {
 
     /** Removes what [install] and [configure] added. */
     suspend fun remove()
+}
+
+/**
+ * A setup's pinned [file] into [target], said as [step] with how much has arrived; a [target] that
+ * already holds it — a retry after a later step failed — is not downloaded again.
+ */
+internal suspend fun fetchPinned(file: PinnedFile, target: File, step: String, onProgress: (ToolSetupProgress) -> Unit) {
+    onProgress(ToolSetupProgress(step, cancellable = true))
+    if (PinnedDownload.isVerified(target, file)) return
+    target.delete()
+    PinnedDownload.download(file, target) { received, total ->
+        onProgress(
+            ToolSetupProgress(
+                step,
+                fraction = if (total > 0) received.toFloat() / total else null,
+                item = if (total > 0) "${ByteSize.format(received)} of ${ByteSize.format(total)}" else ByteSize.format(received),
+                cancellable = true,
+            ),
+        )
+    }
 }
 
 /**

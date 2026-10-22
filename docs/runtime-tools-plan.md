@@ -348,3 +348,17 @@ The Android SDK tool ([android-toolchain-plan.md](./android-toolchain-plan.md) �
 - **The progress of the setup after apt.** `RuntimeToolWork.step`, `fraction`, `item` and `counts` read apt's progress, then the setup's. Show Details shows the last lines of either.
   - Cancel follows the setup's step. While one runs that cannot be stopped, the line reads "This step can't be stopped".
 - **Installed** now reads `RuntimeInventory`: dpkg's packages and the setups whose receipt matches.
+
+### 8.6 Tools that need other tools (2026-10-22)
+
+CMake 3.22.1 and the NDKs ([android-ndk-plan.md](./android-ndk-plan.md) §3.1) need the Android SDK, and
+each NDK needs CMake:
+
+- **`RuntimeTool.requires`** names them, and the row says so: "Needs Android SDK and CMake 3.22.1".
+- **Ticking** a tool ticks what it requires; **unticking** one unticks what requires it
+  (`RuntimeToolRules.toggle`). `plan` reads a choice with its requirements, so nothing is installed
+  without what it needs.
+- **The catalog** lists what a tool requires before it, so one install sets that up first.
+- **A tool with no apt packages** (CMake) is measured, installed and removed by its setup alone.
+- **A setup's failure names its step** ("Unpacking NDK 27.0.12077973 failed: …"), and each step it starts
+  is a line of Details ([android-ndk-plan.md](./android-ndk-plan.md) §7.6).

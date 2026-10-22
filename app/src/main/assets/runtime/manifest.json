@@ -24,10 +24,35 @@
       "url": "https://github.com/lzhiyong/android-sdk-tools/releases/download/35.0.2/android-sdk-tools-static-aarch64.zip",
       "bytes": 14401170,
       "sha256": "db1cea2c4454d5f9c5a802646b2d1cf560b4ee7badbe23e51ab8e1881bb50fc2"
+    },
+    "cmake-arm64": {
+      "source": "Kitware's CMake 3.22.1 for Linux aarch64, with the SHA-256 Kitware publishes in cmake-3.22.1-SHA-256.txt",
+      "url": "https://github.com/Kitware/CMake/releases/download/v3.22.1/cmake-3.22.1-linux-aarch64.tar.gz",
+      "bytes": 46757098,
+      "sha256": "601443375aa1a48a1a076bda7e3cca73af88400463e166fffc3e1da3ce03540b"
+    },
+    "ninja-arm64": {
+      "source": "Ninja 1.12.1 for Linux aarch64, from the Ninja project's release",
+      "url": "https://github.com/ninja-build/ninja/releases/download/v1.12.1/ninja-linux-aarch64.zip",
+      "bytes": 121787,
+      "sha256": "5c25c6570b0155e95fce5918cb95f1ad9870df5768653afe128db822301a05a1"
+    },
+    "android-ndk-28": {
+      "source": "HomuHomu833/android-ndk-custom r28 (MIT): Google's NDK r28c (28.2.13676358) with its toolchain built statically for aarch64 Linux (musl). The release's assets are rebuilt in place; this is the asset of 2026-10-21",
+      "url": "https://github.com/HomuHomu833/android-ndk-custom/releases/download/r28/android-ndk-r28c-aarch64-linux-musl.tar.xz",
+      "bytes": 138348396,
+      "sha256": "a6bf9a01e2838a943c14686c595f9d4e6b2475ff2209f470c2287a2634b90c66"
+    },
+    "android-ndk-27": {
+      "source": "HomuHomu833/android-ndk-custom r27 (MIT): Google's NDK r27 (27.0.12077973) with its toolchain built statically for aarch64 Linux (musl). The release's assets are rebuilt in place; this is the asset of 2026-10-21",
+      "url": "https://github.com/HomuHomu833/android-ndk-custom/releases/download/r27/android-ndk-r27-aarch64-linux-musl.tar.xz",
+      "bytes": 122823308,
+      "sha256": "10a851646fe065895c40becb9b7b9f8480d9ad44b7d77322706689fca9fd0bf8"
     }
   },
   "packageBytes": {
     "platforms;android-36": 65878410,
-    "build-tools;36.0.0": 63737259
+    "build-tools;36.0.0": 63737259,
+    "cmake;3.22.1": 22308647
   }
 }

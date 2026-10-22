@@ -26,6 +26,25 @@ class GradleIssuesTest {
     }
 
     @Test
+    fun `clang's problems become Problems rows, with or without the C and C++ tasks' prefix`() {
+        val output = """
+            > Task :app:buildCMakeDebug[arm64-v8a] FAILED
+            C/C++: /workspace/hello/app/src/main/cpp/native-lib.cpp:12:5: error: use of undeclared identifier 'helo'
+            /workspace/hello/app/src/main/cpp/util.c:3:10: fatal error: 'missing.h' file not found
+            C/C++: /workspace/hello/app/src/main/cpp/native-lib.cpp:4:9: warning: unused variable 'x' [-Wunused-variable]
+            C/C++: ninja: build stopped: subcommand failed.
+        """.trimIndent()
+        assertEquals(
+            listOf(
+                Diagnostic(Severity.Error, "app/src/main/cpp/native-lib.cpp", "use of undeclared identifier 'helo'", "12:5", "Gradle"),
+                Diagnostic(Severity.Error, "app/src/main/cpp/util.c", "'missing.h' file not found", "3:10", "Gradle"),
+                Diagnostic(Severity.Warning, "app/src/main/cpp/native-lib.cpp", "unused variable 'x' [-Wunused-variable]", "4:9", "Gradle"),
+            ),
+            GradleIssues.parse(output, "/workspace/hello"),
+        )
+    }
+
+    @Test
     fun `a build that printed no problems has none`() {
         assertEquals(emptyList<Diagnostic>(), GradleIssues.parse("BUILD SUCCESSFUL in 41s\n34 actionable tasks: 34 executed", "/workspace/hello"))
     }

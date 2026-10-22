@@ -26,4 +26,8 @@ internal object AndroidSdk {
 
     const val GUEST_BUILD_TOOLS = "$GUEST_ROOT/build-tools/$BUILD_TOOLS"
     const val GUEST_SDKMANAGER = "$GUEST_ROOT/cmdline-tools/latest/bin/sdkmanager"
+
+    /** Side by side, as Android Studio installs them (docs/android-ndk-plan.md §3.2): `cmake/<version>`, `ndk/<revision>`. */
+    fun cmake(version: String) = "cmake/$version"
+    fun ndk(revision: String) = "ndk/$revision"
 }

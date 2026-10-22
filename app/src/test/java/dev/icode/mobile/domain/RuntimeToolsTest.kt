@@ -38,6 +38,42 @@ class RuntimeToolsTest {
         assertEquals(listOf("openjdk-17-jdk-headless"), sdk.packages)
     }
 
+    @Test fun `CMake and the NDKs are opt-in rows after the Android SDK, under its licence, each after what it requires`() {
+        val ids = RuntimeTools.all.map { it.id }
+        assertEquals(listOf("android-sdk", "cmake", "android-ndk-28", "android-ndk-27"), ids.subList(ids.indexOf("android-sdk"), ids.indexOf("android-sdk") + 4))
+        RuntimeTools.all.forEach { tool -> tool.requires.forEach { assertTrue("${tool.id} lists $it after it", ids.indexOf(it) in 0 until ids.indexOf(tool.id)) } }
+        listOf(RuntimeTools.Cmake, RuntimeTools.Ndk28, RuntimeTools.Ndk27).forEach { tool ->
+            assertFalse(tool.id in RuntimeTools.standard)
+            assertEquals("android-sdk-license", tool.licence)
+            assertEquals(tool.id, tool.setup)
+        }
+        assertEquals(emptyList<String>(), RuntimeTools.Cmake.packages)
+        // The runtime unpacks an NDK's tar.xz with its own xz, outside the app's memory.
+        assertEquals(listOf("xz-utils"), RuntimeTools.Ndk28.packages)
+        assertEquals("NDK (Side by side) 28.2.13676358", RuntimeTools.Ndk28.name)
+        assertEquals(listOf("cmake", "android-sdk"), RuntimeTools.Ndk27.requires)
+    }
+
+    @Test fun `ticking a tool ticks what it requires, and unticking one unticks what requires it`() {
+        val ticked = RuntimeToolRules.toggle(setOf("git"), "android-ndk-27")
+        assertEquals(setOf("git", "android-ndk-27", "cmake", "android-sdk"), ticked)
+        val both = RuntimeToolRules.toggle(ticked, "android-ndk-28")
+        assertEquals(setOf("git", "android-ndk-27", "cmake", "android-sdk", "android-ndk-28"), both)
+        // An NDK unticked leaves what it required: other tools may need it.
+        assertEquals(setOf("git", "cmake", "android-sdk", "android-ndk-28"), RuntimeToolRules.toggle(both, "android-ndk-27"))
+        assertEquals(setOf("git", "android-sdk"), RuntimeToolRules.toggle(both, "cmake"))
+        assertEquals(setOf("git"), RuntimeToolRules.toggle(both, "android-sdk"))
+    }
+
+    @Test fun `a plan reads the choice with its requirements, and installs in the catalog's order`() {
+        val jdk = RuntimeInventory(setOf("git"))
+        val plan = RuntimeToolRules.plan(setOf("git", "android-ndk-28"), jdk)
+        assertEquals(listOf(RuntimeTools.AndroidSdk, RuntimeTools.Cmake, RuntimeTools.Ndk28), plan.install)
+        assertEquals(listOf("android-sdk-license"), plan.licences)
+        val all = RuntimeInventory(setOf("git", "openjdk-17-jdk-headless", "xz-utils"), setOf("android-sdk", "cmake", "android-ndk-28"))
+        assertEquals(listOf(RuntimeTools.AndroidSdk, RuntimeTools.Cmake, RuntimeTools.Ndk28), RuntimeToolRules.plan(setOf("git"), all).remove)
+    }
+
     @Test fun `the page opens on Standard and on what is installed already`() {
         assertEquals(RuntimeTools.standard + "curl", RuntimeToolRules.initialChoice(RuntimeInventory(setOf("curl", "ca-certificates"))))
     }

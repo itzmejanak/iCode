@@ -38,7 +38,7 @@ Each claim names its evidence. "Reference" is Mobile Harness v1.0.7 (MIT), clone
 | L6 | **Launching the installed app**, with package visibility under API 30+ | AOSP `ResolveIntentHelper.getLaunchIntentSenderForPackage`: it checks only that the caller owns its own package, then resolves with `resolveForStart = true`, which skips app filtering | `getLaunchIntentSenderForPackage` on API 33+, `getLaunchIntentForPackage` below. Its API 28 target escapes the filtering |
 | L7 | **Logcat shows each app its own logs only** (`READ_LOGS` is not grantable to apps) | Platform permission | A "logcat available" flag. The limit remains |
 | L8 | **Android 12+ kills child processes beyond about 32 across all apps** (the phantom process killer) | Termux reports (§8); `runtime-foundation-findings.md:81`; `ProcessRules.MAX_RUNNING = 8` | Few workers, no daemon, the Kotlin compiler in-process |
-| L9 | **The NDK and CMake hosts are x86-64 only** | ADT's README (§8) | None: Android apps with native C/C++ code are not built |
+| L9 | **The NDK and CMake hosts are x86-64 only** | ADT's README (§8) | Built since in [android-ndk-plan.md](./android-ndk-plan.md): ARM64 NDK r28c and r27 and CMake 3.22.1 in Runtime Tools |
 | L10 | **The Android SDK licence must be accepted** before the SDK is used | sdkmanager and AGP check `licenses/android-sdk-license` | Its bundle includes an already-accepted licence |
 | L11 | **The debug signing key lives in the runtime.** A new key means the app on the phone cannot be updated (`INSTALL_FAILED_UPDATE_INCOMPATIBLE`) | `~/.android/debug.keystore` | Not handled |
 
@@ -221,7 +221,7 @@ There is no offline Maven repository: the first build downloads Gradle and the d
 
 | | Why |
 |---|---|
-| NDK / CMake (L9) | Google's NDK host is x86-64 only. Planned separately: [android-ndk-plan.md](./android-ndk-plan.md) (ARM64 NDK r28c and r27, CMake 3.22.1) |
+| NDK / CMake (L9) | Google's NDK host is x86-64 only. Built separately: [android-ndk-plan.md](./android-ndk-plan.md) (ARM64 NDK r28c and r27, CMake 3.22.1) |
 | `adb` and the built app's logcat (L7) | They need Wireless debugging paired on the same phone, after every reboot. That is a feature of its own, not part of the toolkit |
 | An offline Maven repository | It freezes versions (L4). Gradle's cache keeps what one build downloaded |
 | x86 emulators, release signing by iCode | Debug builds only. A project's own release signing still works through Gradle |
