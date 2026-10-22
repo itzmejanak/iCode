@@ -11,6 +11,8 @@ class RuntimeToolsTest {
     private val ssh = RuntimeTools.SshClient
     private val curl = RuntimeTools.Curl
     private val python = RuntimeTools.Python
+    private val ndk28 = RuntimeTools.ndks.getValue("28.2.13676358")
+    private val ndk27 = RuntimeTools.ndks.getValue("27.0.12077973")
 
     @Test fun `each tool has its own id, and Standard is what iCode's features use`() {
         assertEquals(RuntimeTools.all.size, RuntimeTools.all.map { it.id }.toSet().size)
@@ -42,16 +44,28 @@ class RuntimeToolsTest {
         val ids = RuntimeTools.all.map { it.id }
         assertEquals(listOf("android-sdk", "cmake", "android-ndk-28", "android-ndk-27"), ids.subList(ids.indexOf("android-sdk"), ids.indexOf("android-sdk") + 4))
         RuntimeTools.all.forEach { tool -> tool.requires.forEach { assertTrue("${tool.id} lists $it after it", ids.indexOf(it) in 0 until ids.indexOf(tool.id)) } }
-        listOf(RuntimeTools.Cmake, RuntimeTools.Ndk28, RuntimeTools.Ndk27).forEach { tool ->
+        listOf(RuntimeTools.Cmake, ndk28, ndk27).forEach { tool ->
             assertFalse(tool.id in RuntimeTools.standard)
             assertEquals("android-sdk-license", tool.licence)
             assertEquals(tool.id, tool.setup)
         }
         assertEquals(emptyList<String>(), RuntimeTools.Cmake.packages)
         // The runtime unpacks an NDK's tar.xz with its own xz, outside the app's memory.
-        assertEquals(listOf("xz-utils"), RuntimeTools.Ndk28.packages)
-        assertEquals("NDK (Side by side) 28.2.13676358", RuntimeTools.Ndk28.name)
-        assertEquals(listOf("cmake", "android-sdk"), RuntimeTools.Ndk27.requires)
+        assertEquals(listOf("xz-utils"), ndk28.packages)
+        assertEquals("NDK (Side by side) 28.2.13676358", ndk28.name)
+        assertEquals(listOf("cmake", "android-sdk"), ndk27.requires)
+    }
+
+    @Test fun `each NDK is one declaration, its row and the Android Gradle plugins that pick it`() {
+        assertEquals(RuntimeTools.ndkRevisions.map { it.revision }, RuntimeTools.ndks.keys.toList())
+        assertEquals(listOf("android-ndk-28", "android-ndk-27"), RuntimeTools.ndks.values.map { it.id })
+        assertEquals("For Android Gradle plugin 9.0–9.4", ndk28.summary)
+        assertEquals("For Android Gradle plugin 8.7–8.13", ndk27.summary)
+        assertEquals(RuntimeToolVersion(RuntimeTools.Ndk, "27.0.12077973"), ndk27.versionOf)
+        assertEquals(
+            "This app builds C or C++, with CMake 3.22.1 and NDK (Side by side) 28.2.13676358 or 27.0.12077973, built for this phone",
+            RuntimeTools.nativeNeed,
+        )
     }
 
     @Test fun `ticking a tool ticks what it requires, and unticking one unticks what requires it`() {
@@ -68,10 +82,10 @@ class RuntimeToolsTest {
     @Test fun `a plan reads the choice with its requirements, and installs in the catalog's order`() {
         val jdk = RuntimeInventory(setOf("git"))
         val plan = RuntimeToolRules.plan(setOf("git", "android-ndk-28"), jdk)
-        assertEquals(listOf(RuntimeTools.AndroidSdk, RuntimeTools.Cmake, RuntimeTools.Ndk28), plan.install)
+        assertEquals(listOf(RuntimeTools.AndroidSdk, RuntimeTools.Cmake, ndk28), plan.install)
         assertEquals(listOf("android-sdk-license"), plan.licences)
         val all = RuntimeInventory(setOf("git", "openjdk-17-jdk-headless", "xz-utils"), setOf("android-sdk", "cmake", "android-ndk-28"))
-        assertEquals(listOf(RuntimeTools.AndroidSdk, RuntimeTools.Cmake, RuntimeTools.Ndk28), RuntimeToolRules.plan(setOf("git"), all).remove)
+        assertEquals(listOf(RuntimeTools.AndroidSdk, RuntimeTools.Cmake, ndk28), RuntimeToolRules.plan(setOf("git"), all).remove)
     }
 
     @Test fun `the page opens on Standard and on what is installed already`() {

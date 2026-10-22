@@ -354,7 +354,8 @@ The Android SDK tool ([android-toolchain-plan.md](./android-toolchain-plan.md) �
 CMake 3.22.1 and the NDKs ([android-ndk-plan.md](./android-ndk-plan.md) §3.1) need the Android SDK, and
 each NDK needs CMake:
 
-- **`RuntimeTool.requires`** names them, and the row says so: "Needs Android SDK and CMake 3.22.1".
+- **`RuntimeTool.requires`** names them, and the row says what no row above it says (§8.7): the NDK's
+  "Needs CMake 3.22.1".
 - **Ticking** a tool ticks what it requires; **unticking** one unticks what requires it
   (`RuntimeToolRules.toggle`). `plan` reads a choice with its requirements, so nothing is installed
   without what it needs.
@@ -362,3 +363,121 @@ each NDK needs CMake:
 - **A tool with no apt packages** (CMake) is measured, installed and removed by its setup alone.
 - **A setup's failure names its step** ("Unpacking NDK 27.0.12077973 failed: …"), and each step it starts
   is a line of Details ([android-ndk-plan.md](./android-ndk-plan.md) §7.6).
+
+### 8.7 The list is a tree (2026-10-22)
+
+The owner asked for the flat list to become a hierarchy that reads well to the user. CMake and the two NDK rows sat
+level with Git, each with its own "Needs …" line, and read as three unrelated tools. Android Studio's SDK
+Manager (SDK Tools, Show Package Details) lists NDK (Side by side) as one row with each revision beneath it.
+Select Tools now lists:
+
+```
+Android SDK
+  ├ CMake 3.22.1
+  └ NDK (Side by side)          Needs CMake 3.22.1
+      ├ 28.2.13676358           For Android Gradle plugin 9.0–9.4
+      └ 27.0.12077973           For Android Gradle plugin 8.7–8.13
+```
+
+- **The catalog says where a tool is listed**, so there is no second list to keep in step:
+  - `RuntimeTool.within` names the tool it is listed beneath (CMake and the NDKs: the Android SDK). It is
+    always one the tool `requires`, and a test holds it to that.
+  - `RuntimeTool.versionOf` (a `RuntimeToolVersion`: a family and a version, one value, so neither is
+    ever set without the other) makes a family: `RuntimeTools.Ndk`, "NDK (Side by side)", "C and C++ for
+    Android apps, built for ARM64". Each NDK is a version of it, its row titled by its revision.
+  - Adding an NDK stays one pin and one catalog row; it appears beneath the family.
+- **`RuntimeToolTree`** (`domain/RuntimeToolTree.kt`, pure) builds the tree from the catalog:
+  - `sections`: "Used by iCode" and "More tools" by each top row's use, each tool beneath the one it is
+    within, in the catalog's order.
+  - A row says only what no row above it says. CMake keeps its "Used by"; the family says the NDKs' "Used by"
+    and "Needs CMake 3.22.1" once, and the revisions say neither. The Android SDK they are beneath is
+    never named as a need.
+  - `tick`: a tool's row is on or off. A family's is on, off, or partly while some of its versions are
+    ticked (Android Studio's indeterminate box).
+  - `toggle`: a tool's row is `RuntimeToolRules.toggle`. A family's row ticks its newest version (with
+    CMake and the SDK, as any NDK), as ticking Android Studio's NDK (Side by side) gets the latest; with any
+    version ticked, it unticks them all and leaves what they needed.
+- **The design system** gained the pieces, not the screen:
+  - `IcodeTriStateCheckbox`, with `IcodeCheckbox`'s colours (one `tickColors`).
+  - `IcodeTickBranch`: the rows beneath a row, `IcodeSpacing.IndentStep` in, a 1 dp rail in the outline
+    colour. Since §8.9 the rail runs down from the row's expand arrow (`IcodeSizes.Disclosure`).
+  - A row's text now starts level with its tick (`IcodeSpacing.Micro`, as `IcodeOptionRow`); it sat a
+    `Space2` lower.
+- **Unchanged:** the full names ("NDK (Side by side) 28.2.13676358") everywhere a tool is named alone (the
+  License Agreement, Confirm Changes, the run, the Run tab's message), the choice, `plan` and the install
+  order.
+- **Checked here:** `RuntimeToolTreeTest`; every data and domain test (896, one known root-only failure,
+  `TreeSizeTest`); the UI type-check; both guards. The list was drawn with Compose Desktop 1.7.3 at a
+  phone's 411 dp, dark and light, in four states: nothing native ticked; an NDK ticked; installed; both
+  revisions ticked. It has not yet been seen on the phone.
+
+### 8.8 One fact, one place (2026-10-22)
+
+The owner asked for the tree to be scalable and maintainable, the backend and the screens to say the same
+thing, and the page to feel right. Read for a fact written twice, each copy now comes from one place:
+
+| Fact | Was written | Now |
+|---|---|---|
+| Which NDK each Android Gradle plugin picks | Twice: the rows' summaries ("9.0–9.4") and the Gradle guard's `major == 9 && minor <= 4` | `RuntimeTools.ndkRevisions`: `NdkRevision(revision, firstAgp, lastAgp)`, newest first. The rows, their summaries, `ndks` and the guard's `icodeDefaults` table are made from it |
+| The NDK rows | Two constants, two rows, a map and the catalog's list | One entry in `ndkRevisions` (and its pin in the runtime manifest) |
+| "NDK (Side by side)" | The family, and the guard's message | `RuntimeTools.Ndk.name` |
+| Where the tools are chosen | Four copies of "Settings › Runtime Environment › Runtime Tools" | `RuntimeTools.PAGE` |
+| What a C or C++ build needs | The Run tab's dialog and Build & Run's refusal, worded apart | `RuntimeTools.nativeNeed`: "This app builds C or C++, with CMake 3.22.1 and NDK (Side by side) 28.2.13676358 or 27.0.12077973, built for this phone" |
+| What the Android SDK holds | The Run tab's dialog repeated "JDK 17, SDK Platform 36 and Build-Tools 36" | The SDK row's summary |
+
+- **The tree** builds its id index once per build (`RuntimeToolTree.Builder`), and `RuntimeTools.byId` is a
+  map, not a search.
+- **A screen reader** hears each row as one checkbox, on, off or partly, by the tool's whole name. A
+  revision, shown as "28.2.13676358" beneath its family, is said as "NDK (Side by side) 28.2.13676358"
+  (`RuntimeToolNode.name`).
+- **Checked here:**
+  - every data and domain test: 897, with the one known root-only failure (`TreeSizeTest`);
+  - the UI type-check and both guards;
+  - the Gradle guard, made from the catalog, under Gradle 8.14.3 against the stand-in plugin
+    ([android-ndk-plan.md](./android-ndk-plan.md) §7.3): the 12 earlier cases unchanged, and each range's
+    edges. 8.7.0, 9.0.0-alpha05 and 9.4.1 resolve their NDK; 8.6.1, 8.14.0 and 9.5.0 are told to set
+    `ndkVersion`;
+  - the merged semantics of every row, read from Compose Desktop 1.7.3;
+  - the list drawn again, unchanged.
+
+### 8.9 Rows open and close (2026-10-22)
+
+The owner asked for the tree to expand and collapse, and for its behaviour to be sure. iCode's own trees
+(the Explorer, Source Control, find results) and Android Studio's SDK Manager put the arrow before the row.
+Runtime Tools now does the same:
+
+- **Which rows:** a row with rows beneath it (the Android SDK, NDK (Side by side)) starts with an arrow,
+  down while open, right while closed. Every other row keeps the arrow's slot empty, so every tick on the
+  page lines up, as a file does in the Explorer.
+- **Two taps, two jobs:** the arrow opens and closes the row; the rest of the row is its tick, as before.
+  The arrow takes the tap the row's height down, and a screen reader hears it as a button, "Expand Android
+  SDK" or "Collapse Android SDK", apart from the row's checkbox.
+- **How the page opens:** each row with a ticked tool beneath it is open (`RuntimeToolTree.opened`), so
+  nothing ticked starts hidden. On a new runtime the Android SDK starts closed; once CMake or an NDK is
+  installed it starts open. From then on only the user's taps open or close a row. Ticking never opens or
+  closes one.
+- **A closed row says what it hides:** what is beneath it and how many tools there are ticked
+  (`RuntimeToolTree.tickedBeneath`): "CMake 3.22.1 and NDK (Side by side) · none ticked", "28.2.13676358
+  and 27.0.12077973 · 1 ticked". A tick made while a row is closed shows there at once, as do the closed
+  family's dash and the foot's download.
+- **Kept:** the open rows are saved with the page (rotation, a trip away) and a row beneath keeps its own
+  state while its parent is closed. Opening animates as the assistant's reasoning does (`AnimatedVisibility`).
+- **Built as:** `IcodeTickRow` (the arrow's slot, the tick, the row's lines and its end) and
+  `IcodeTickBranch` in `designsystem/IcodeTickTree.kt`, so the geometry is in one place: the slot is
+  `IcodeSizes.Disclosure` (24 dp) wide and the rail runs down its middle. The arrow is placed level with the
+  tick. The screen holds the open rows beside the choice.
+- **Checked here:**
+  - `RuntimeToolTreeTest`: which rows open, the closed rows' counts, every row's own id;
+  - every data and domain test: 900, with the one known root-only failure (`TreeSizeTest`);
+  - the UI type-check and both guards;
+  - the list driven by touch in a Compose Desktop 1.7.3 scene, the semantics read after each tap:
+    1. on a new runtime the SDK is closed: "CMake 3.22.1 and NDK (Side by side) · none ticked";
+    2. its arrow opens it, the NDK closed beneath;
+    3. ticking the closed NDK ticks 28.2.13676358, CMake and the SDK, the NDK partly ticked, "1 ticked";
+    4. its arrow opens it: 28.2 ticked, 27.0 not;
+    5. ticking 27.0 ticks the family;
+    6. the NDK's row unticks both, leaving CMake and the SDK;
+    7. the SDK's arrow closes it: "1 ticked";
+    8. unticking the SDK: "none ticked";
+    9. reopened, the NDK beneath is still open as it was left;
+  - each step drawn, and the installed page drawn open, dark and light.

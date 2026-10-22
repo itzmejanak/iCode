@@ -63,30 +63,16 @@ internal object GradleSettings {
         // for ARM64 stops before the Android Gradle plugin downloads Google's, built for x86-64 only.
         def icodeSdk = new File('${AndroidSdk.GUEST_ROOT}')
         def icodeNdks = [${RuntimeTools.ndks.keys.joinToString { "'$it'" }}]
+        // The NDK each Android Gradle plugin picks when a module names none, by its major.minor: [first, last, NDK].
+        def icodeDefaults = [${RuntimeTools.ndkRevisions.joinToString { "['${it.firstAgp}', '${it.lastAgp}', '${it.revision}']" }}]
         def icodeCmake = '${RuntimeTools.CMAKE_VERSION}'
-        def icodeWhere = 'in Settings › Runtime Environment › Runtime Tools'
+        def icodeWhere = 'in ${RuntimeTools.PAGE}'
 
         def icodeArm64 = { File program ->
             if (!program.isFile()) return false
             def head = new byte[20]
             def read = program.withInputStream { it.read(head) }
             read == 20 && (head[0] & 0xff) == 0x7f && head[1] == 0x45 && head[2] == 0x4c && head[3] == 0x46 && (head[18] & 0xff) == 183 && head[19] == 0
-        }
-
-        // The NDK the Android Gradle plugin picks when a module names none: its release notes' (§2.3).
-        def icodeDefaultNdk = { android ->
-            def agp = null
-            try {
-                agp = android.getClass().classLoader.loadClass('com.android.Version').getField('ANDROID_GRADLE_PLUGIN_VERSION').get(null)
-            } catch (Throwable ignored) {
-            }
-            def parts = agp?.tokenize('.-')
-            if (parts == null || parts.size() < 2) return null
-            def major = parts[0] as int
-            def minor = parts[1] as int
-            if (major == 9 && minor <= 4) return '${RuntimeTools.NDK_28}'
-            if (major == 8 && minor >= 7 && minor <= 13) return '${RuntimeTools.NDK_27}'
-            null
         }
 
         def icodeAtLeast = { String have, String least ->
@@ -98,6 +84,19 @@ internal object GradleSettings {
                 if (x != y) return x > y
             }
             true
+        }
+
+        // The NDK the Android Gradle plugin picks when a module names none: its release notes' (§2.3).
+        def icodeDefaultNdk = { android ->
+            def agp = null
+            try {
+                agp = android.getClass().classLoader.loadClass('com.android.Version').getField('ANDROID_GRADLE_PLUGIN_VERSION').get(null)
+            } catch (Throwable ignored) {
+            }
+            def parts = agp?.tokenize('.-')
+            if (parts == null || parts.size() < 2) return null
+            def release = parts[0] + '.' + parts[1]
+            icodeDefaults.find { icodeAtLeast(release, it[0]) && icodeAtLeast(it[1], release) }?.getAt(2)
         }
 
         // The module's C and C++ build is set aside before it stops: Gradle still runs the Android Gradle
@@ -121,7 +120,7 @@ internal object GradleSettings {
                         'Set android.ndkVersion to ' + icodeNdks.join(' or ') + ', which Runtime Tools installs.')
                 }
                 if (!icodeArm64(new File(icodeSdk, 'ndk/' + ndk + '/toolchains/llvm/prebuilt/linux-x86_64/bin/clang'))) {
-                    if (ndk in icodeNdks) icodeStop(nativeBuild, 'NDK ' + ndk + ' is not installed for this phone. Install NDK (Side by side) ' + ndk + ' ' + icodeWhere + '.')
+                    if (ndk in icodeNdks) icodeStop(nativeBuild, 'NDK ' + ndk + ' is not installed for this phone. Install ${RuntimeTools.Ndk.name} ' + ndk + ' ' + icodeWhere + '.')
                     icodeStop(nativeBuild, 'NDK ' + ndk + ' cannot run on this phone. Runtime Tools installs NDK ' + icodeNdks.join(' and ') +
                         ': set android.ndkVersion to one of them.')
                 }

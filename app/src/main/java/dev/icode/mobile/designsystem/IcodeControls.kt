@@ -21,6 +21,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TriStateCheckbox
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,6 +29,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.state.ToggleableState
 
 /**
  * Single binary setting control.
@@ -66,20 +68,31 @@ fun IcodeCheckbox(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    Checkbox(
-        checked = checked,
-        onCheckedChange = onCheckedChange,
-        modifier = modifier,
-        enabled = enabled,
-        colors = CheckboxDefaults.colors(
-            checkedColor = IcodeColors.Accent,
-            uncheckedColor = IcodeColors.Outline,
-            checkmarkColor = IcodeColors.OnAccent,
-            disabledCheckedColor = IcodeColors.TextMuted,
-            disabledUncheckedColor = IcodeColors.SurfaceTrack,
-        ),
-    )
+    Checkbox(checked = checked, onCheckedChange = onCheckedChange, modifier = modifier, enabled = enabled, colors = tickColors())
 }
+
+/**
+ * [IcodeCheckbox] for a row with rows beneath it: [ToggleableState.Indeterminate] while only some of
+ * them are ticked — the NDK (Side by side) with one of its revisions.
+ */
+@Composable
+fun IcodeTriStateCheckbox(
+    state: ToggleableState,
+    onClick: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    TriStateCheckbox(state = state, onClick = onClick, modifier = modifier, enabled = enabled, colors = tickColors())
+}
+
+@Composable
+private fun tickColors() = CheckboxDefaults.colors(
+    checkedColor = IcodeColors.Accent,
+    uncheckedColor = IcodeColors.Outline,
+    checkmarkColor = IcodeColors.OnAccent,
+    disabledCheckedColor = IcodeColors.TextMuted,
+    disabledUncheckedColor = IcodeColors.SurfaceTrack,
+)
 
 /**
  * Compact two-to-four option switch used inside settings rows. The chosen option

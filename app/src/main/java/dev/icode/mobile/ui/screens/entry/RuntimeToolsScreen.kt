@@ -28,6 +28,7 @@ import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.RuntimeToolPlan
 import dev.icode.mobile.domain.RuntimeToolRules
 import dev.icode.mobile.domain.RuntimeToolStep
+import dev.icode.mobile.domain.RuntimeToolTree
 import dev.icode.mobile.domain.RuntimeTools
 import dev.icode.mobile.domain.RuntimeToolsState
 import dev.icode.mobile.navigation.NavigationActions
@@ -53,6 +54,8 @@ fun RuntimeToolsScreen(actions: NavigationActions) {
     val setup by rememberSaveable { mutableStateOf(tools.offerPending) }
     var custom by rememberSaveable { mutableStateOf(false) }
     var chosen by rememberSaveable(stateSaver = ChoiceSaver) { mutableStateOf<Set<String>?>(null) }
+    // Select Tools' open rows, by id: those with a ticked tool beneath them when the page opens, then the user's.
+    var open by rememberSaveable(stateSaver = ChoiceSaver) { mutableStateOf<Set<String>?>(null) }
     // The licences accepted on the License Agreement, by id.
     var accepted by rememberSaveable(stateSaver = ChoiceSaver) { mutableStateOf<Set<String>?>(null) }
     var stepIndex by rememberSaveable { mutableStateOf(0) }
@@ -84,6 +87,7 @@ fun RuntimeToolsScreen(actions: NavigationActions) {
     LaunchedEffect(installed) {
         if (installed == null) return@LaunchedEffect
         if (chosen == null) chosen = initial
+        if (open == null) open = RuntimeToolTree.opened(initial)
         gateway.dispatch(ICodeIntent.MeasureRuntimeTools)
         gateway.dispatch(ICodeIntent.RefreshStorage)
     }
@@ -108,7 +112,7 @@ fun RuntimeToolsScreen(actions: NavigationActions) {
                     PageHeading(heading.first, description = heading.second)
                     when (step) {
                         RuntimeToolStep.InstallType -> InstallTypeChoice(custom, tools, initial) { custom = it }
-                        RuntimeToolStep.Select -> ToolList(tools, choice) { id -> chosen = RuntimeToolRules.toggle(chosen.orEmpty(), id) }
+                        RuntimeToolStep.Select -> ToolList(tools, choice, open.orEmpty(), onChoice = { chosen = it }, onOpen = { open = it })
                         RuntimeToolStep.Verify -> VerifyChanges(plan, tools)
                         RuntimeToolStep.Licence -> plan?.let {
                             LicenceAgreement(it, tools, accepted.orEmpty()) { id, yes ->
@@ -181,7 +185,7 @@ fun RuntimeToolsScreen(actions: NavigationActions) {
 /** Each step's title and what it asks, as Android Studio's wizard words them. */
 private fun headingOf(step: RuntimeToolStep, setup: Boolean): Pair<String, String> = when (step) {
     RuntimeToolStep.InstallType -> "Install Type" to
-        "Choose how the Linux runtime gets its tools. Change them any time in Settings › Runtime Environment › Runtime Tools."
+        "Choose how the Linux runtime gets its tools. Change them any time in ${RuntimeTools.PAGE}."
     RuntimeToolStep.Select -> "Select Tools" to
         if (setup) "Tick each tool to install." else "Ticked tools are installed. Tick to add one, untick to remove it."
     RuntimeToolStep.Verify -> if (setup) {

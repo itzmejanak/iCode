@@ -2,14 +2,12 @@ package dev.icode.mobile.ui.screens.entry
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CheckCircle
@@ -20,18 +18,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.semantics.Role
 import dev.icode.mobile.designsystem.CodeSurface
 import dev.icode.mobile.designsystem.DetailRow
-import dev.icode.mobile.designsystem.Divider
-import dev.icode.mobile.designsystem.IcodeCheckbox
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeOptionRow
 import dev.icode.mobile.designsystem.IcodeSection
-import dev.icode.mobile.designsystem.IcodeShapes
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTextButton
@@ -43,13 +35,11 @@ import dev.icode.mobile.designsystem.NoticeCard
 import dev.icode.mobile.designsystem.PageHeading
 import dev.icode.mobile.designsystem.ProgressTrack
 import dev.icode.mobile.domain.ByteSize
-import dev.icode.mobile.domain.RuntimeTool
 import dev.icode.mobile.domain.RuntimeToolAction
 import dev.icode.mobile.domain.RuntimeToolPlan
 import dev.icode.mobile.domain.RuntimeToolRules
 import dev.icode.mobile.domain.RuntimeToolStatus
 import dev.icode.mobile.domain.RuntimeToolWork
-import dev.icode.mobile.domain.RuntimeTools
 import dev.icode.mobile.domain.RuntimeToolsState
 
 /** Install Type: Standard, what iCode's own features use, with its download; or Custom, the list. */
@@ -74,54 +64,6 @@ internal fun InstallTypeChoice(custom: Boolean, tools: RuntimeToolsState, standa
             description = "Choose each tool the Linux runtime installs: Python, the build tools and the Android SDK among them.",
             selected = custom,
             onSelect = { onCustom(true) },
-        )
-    }
-}
-
-/** Select Tools: iCode's own first, then the rest; each row its tick, what it is, and its status. */
-@Composable
-internal fun ToolList(tools: RuntimeToolsState, choice: Set<String>, onToggle: (String) -> Unit) {
-    listOf("Used by iCode" to true, "More tools" to false).forEach { (label, own) ->
-        IcodeSection(label) {
-            Column {
-                RuntimeTools.all.filter { (it.usedBy != null) == own }.forEachIndexed { index, tool ->
-                    if (index > 0) Divider()
-                    val ticked = tool.id in choice
-                    ToolRow(tool, ticked, RuntimeToolRules.status(tool, ticked, tools)) { onToggle(tool.id) }
-                }
-            }
-        }
-    }
-}
-
-/**
- * One tool, flat as a table row: the tick (the whole row takes the tap), its name and use, what it
- * needs — ticked with it (docs/android-ndk-plan.md §3.1) — and its status.
- */
-@Composable
-private fun ToolRow(tool: RuntimeTool, ticked: Boolean, status: RuntimeToolStatus, onToggle: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(IcodeShapes.Small)
-            .toggleable(value = ticked, role = Role.Checkbox) { onToggle() }
-            .padding(vertical = IcodeSpacing.Space2),
-        verticalAlignment = Alignment.Top,
-        horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
-    ) {
-        IcodeCheckbox(checked = ticked, onCheckedChange = null)
-        Column(Modifier.weight(1f).padding(top = IcodeSpacing.Space2)) {
-            Text(tool.name, style = IcodeType.Body)
-            Text(tool.summary, style = IcodeType.Caption)
-            tool.usedBy?.let { Text("Used by $it", style = IcodeType.Caption.copy(color = IcodeColors.TextMuted)) }
-            if (tool.requires.isNotEmpty()) {
-                Text("Needs ${spoken(tool.requires.mapNotNull { RuntimeTools.byId(it)?.name })}", style = IcodeType.Caption.copy(color = IcodeColors.TextMuted))
-            }
-        }
-        Text(
-            label(status),
-            modifier = Modifier.padding(top = IcodeSpacing.Space2),
-            style = IcodeType.Caption.copy(color = color(status)),
         )
     }
 }
@@ -226,7 +168,7 @@ internal fun ToolsApplied(applied: Applied) {
 }
 
 /** What a row's status says. */
-private fun label(status: RuntimeToolStatus): String = when (status) {
+internal fun label(status: RuntimeToolStatus): String = when (status) {
     RuntimeToolStatus.Installed -> "Installed"
     RuntimeToolStatus.WillBeRemoved -> "Will be removed"
     is RuntimeToolStatus.Download -> ByteSize.format(status.bytes)
@@ -235,7 +177,7 @@ private fun label(status: RuntimeToolStatus): String = when (status) {
 }
 
 @Composable
-private fun color(status: RuntimeToolStatus) = when (status) {
+internal fun color(status: RuntimeToolStatus) = when (status) {
     RuntimeToolStatus.Installed -> IcodeColors.Green
     RuntimeToolStatus.WillBeRemoved -> IcodeColors.Amber
     is RuntimeToolStatus.Download -> IcodeColors.TextSecondary
