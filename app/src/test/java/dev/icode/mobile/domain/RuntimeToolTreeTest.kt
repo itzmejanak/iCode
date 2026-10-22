@@ -35,12 +35,15 @@ class RuntimeToolTreeTest {
         assertEquals(emptyList<RuntimeTool>(), cmake.needs)
         // The family names what its revisions need beyond the SDK it is beneath; the revisions repeat none of it.
         assertEquals(RuntimeTools.Ndk.summary, ndk.summary)
-        assertEquals(RuntimeTools.Ndk28.usedBy, ndk.usedBy)
+        assertEquals(RuntimeTools.Cmake.usedBy, ndk.usedBy)
         assertEquals(listOf(RuntimeTools.Cmake), ndk.needs)
         ndk.children.forEach { revision ->
             assertNull(revision.usedBy)
             assertEquals(emptyList<RuntimeTool>(), revision.needs)
+            // Shown as its revision beneath the family; said, alone, by its whole name.
+            assertEquals(revision.tool.name, revision.name)
         }
+        assertEquals("NDK (Side by side) 28.2.13676358", ndk.children.first().name)
         assertEquals("For Android Gradle plugin 9.0–9.4", ndk.children.first().summary)
     }
 
@@ -65,9 +68,8 @@ class RuntimeToolTreeTest {
     @Test fun `each tool is beneath one it requires, and a family's versions share their place, use and needs`() {
         RuntimeTools.all.forEach { tool ->
             tool.within?.let { assertTrue("${tool.id} is beneath $it, which it does not require", it in tool.requires) }
-            assertEquals("${tool.id} has a family and a version, or neither", tool.family == null, tool.version == null)
         }
-        RuntimeTools.all.filter { it.family != null }.groupBy { it.family }.values.forEach { versions ->
+        RuntimeTools.all.filter { it.versionOf != null }.groupBy { it.versionOf?.family }.values.forEach { versions ->
             assertEquals(1, versions.map { Triple(it.within, it.usedBy, it.requires) }.distinct().size)
         }
     }

@@ -14,7 +14,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.text
 import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.text.AnnotatedString
 import dev.icode.mobile.designsystem.Divider
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeSection
@@ -64,7 +67,7 @@ private fun ToolNode(node: RuntimeToolNode, tools: RuntimeToolsState, choice: Se
 
 /**
  * One row: its tick (the whole row takes the tap), what it is, what uses it and what it needs, and
- * — a tool's, not a family's — its status at the end.
+ * — a tool's, not a family's — its status at the end. A screen reader hears it as one checkbox.
  */
 @Composable
 private fun ToolRow(node: RuntimeToolNode, tick: RuntimeToolTick, status: RuntimeToolStatus?, onTap: () -> Unit) {
@@ -84,7 +87,8 @@ private fun ToolRow(node: RuntimeToolNode, tick: RuntimeToolTick, status: Runtim
     ) {
         IcodeTriStateCheckbox(state, onClick = null, modifier = Modifier.size(IcodeSizes.Tick))
         Column(Modifier.weight(1f).padding(top = IcodeSpacing.Micro)) {
-            Text(node.title, style = IcodeType.Body)
+            // Said by its whole name: a revision is shown as its number only beneath its family.
+            Text(node.title, Modifier.clearAndSetSemantics { text = AnnotatedString(node.name) }, style = IcodeType.Body)
             Text(node.summary, style = IcodeType.Caption)
             node.usedBy?.let { Text("Used by $it", style = IcodeType.Caption.copy(color = IcodeColors.TextMuted)) }
             if (node.needs.isNotEmpty()) {

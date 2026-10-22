@@ -6,12 +6,18 @@ package dev.icode.mobile.domain
 /** A tool with versions installed side by side, each its own row beneath the family's: the NDK. */
 data class RuntimeToolFamily(val id: String, val name: String, val summary: String)
 
+/** One of a [family]'s versions: NDK (Side by side) 28.2.13676358. */
+data class RuntimeToolVersion(val family: RuntimeToolFamily, val version: String)
+
 /** A group of the page: iCode's own tools, or the rest. */
 data class RuntimeToolSection(val title: String, val nodes: List<RuntimeToolNode>)
 
 /** A row of the tree, saying only what no row above it says, and the rows beneath it. */
 sealed interface RuntimeToolNode {
+    /** What the row shows: a tool's name, or within its family its version. */
     val title: String
+    /** What it is called alone, as a screen reader says the row: "NDK (Side by side) 28.2.13676358". */
+    val name: String
     val summary: String
     /** What in iCode needs it. */
     val usedBy: String?
@@ -19,14 +25,14 @@ sealed interface RuntimeToolNode {
     val needs: List<RuntimeTool>
     val children: List<RuntimeToolNode>
 
-    /** A tool; in a family, titled by its version. */
     data class Tool(
         val tool: RuntimeTool,
         override val usedBy: String?,
         override val needs: List<RuntimeTool>,
         override val children: List<RuntimeToolNode>,
     ) : RuntimeToolNode {
-        override val title: String get() = tool.version ?: tool.name
+        override val title: String get() = tool.versionOf?.version ?: tool.name
+        override val name: String get() = tool.name
         override val summary: String get() = tool.summary
     }
 
@@ -38,6 +44,7 @@ sealed interface RuntimeToolNode {
         override val children: List<Tool>,
     ) : RuntimeToolNode {
         override val title: String get() = family.name
+        override val name: String get() = family.name
         override val summary: String get() = family.summary
     }
 }
@@ -48,7 +55,7 @@ enum class RuntimeToolTick { Off, Partly, On }
 object RuntimeToolTree {
     /** [catalog] as the page lists it: by section, each tool beneath the one it is [RuntimeTool.within], in the catalog's order. */
     fun sections(catalog: List<RuntimeTool> = RuntimeTools.all): List<RuntimeToolSection> {
-        val roots = nodes(catalog, within = null, above = Above())
+        val roots = Builder(catalog).nodes(within = null, above = Above())
         return listOf("Used by iCode" to true, "More tools" to false)
             .map { (title, own) -> RuntimeToolSection(title, roots.filter { (it.usedBy != null) == own }) }
             .filter { it.nodes.isNotEmpty() }
@@ -82,32 +89,34 @@ object RuntimeToolTree {
         fun with(node: RuntimeToolNode, ids: List<String>) = Above(named + ids + node.needs.map { it.id }, node.usedBy ?: usedBy)
     }
 
-    private fun nodes(catalog: List<RuntimeTool>, within: String?, above: Above): List<RuntimeToolNode> {
-        val beneath = catalog.filter { it.within == within }
-        return beneath.mapNotNull { tool ->
-            val family = tool.family ?: return@mapNotNull node(catalog, tool, above)
-            if (beneath.first { it.family == family } != tool) return@mapNotNull null
-            val versions = beneath.filter { it.family == family }
-            val ids = versions.map { it.id }
-            val row = RuntimeToolNode.Family(
-                family,
-                usedBy(versions.map { it.usedBy }.distinct().single(), above),
-                needs(catalog, versions.flatMap { it.requires }, above.named + ids),
-                emptyList(),
-            )
-            row.copy(children = versions.map { node(catalog, it, above.with(row, ids)) })
+    private class Builder(private val catalog: List<RuntimeTool>) {
+        private val byId = catalog.associateBy { it.id }
+
+        fun nodes(within: String?, above: Above): List<RuntimeToolNode> {
+            val beneath = catalog.filter { it.within == within }
+            return beneath.mapNotNull { tool ->
+                val family = tool.versionOf?.family ?: return@mapNotNull node(tool, above)
+                if (beneath.first { it.versionOf?.family == family } != tool) return@mapNotNull null
+                val versions = beneath.filter { it.versionOf?.family == family }
+                val ids = versions.map { it.id }
+                val row = RuntimeToolNode.Family(
+                    family,
+                    usedBy(versions.map { it.usedBy }.distinct().single(), above),
+                    needs(versions.flatMap { it.requires }, above.named + ids),
+                    emptyList(),
+                )
+                row.copy(children = versions.map { node(it, above.with(row, ids)) })
+            }
         }
-    }
 
-    private fun node(catalog: List<RuntimeTool>, tool: RuntimeTool, above: Above): RuntimeToolNode.Tool {
-        val row = RuntimeToolNode.Tool(tool, usedBy(tool.usedBy, above), needs(catalog, tool.requires, above.named), emptyList())
-        return row.copy(children = nodes(catalog, tool.id, above.with(row, listOf(tool.id))))
-    }
+        private fun node(tool: RuntimeTool, above: Above): RuntimeToolNode.Tool {
+            val row = RuntimeToolNode.Tool(tool, usedBy(tool.usedBy, above), needs(tool.requires, above.named), emptyList())
+            return row.copy(children = nodes(tool.id, above.with(row, listOf(tool.id))))
+        }
 
-    private fun usedBy(usedBy: String?, above: Above) = usedBy?.takeIf { it != above.usedBy }
+        private fun usedBy(usedBy: String?, above: Above) = usedBy?.takeIf { it != above.usedBy }
 
-    private fun needs(catalog: List<RuntimeTool>, requires: List<String>, named: Set<String>): List<RuntimeTool> {
-        val byId = catalog.associateBy { it.id }
-        return requires.distinct().filterNot { it in named }.map(byId::getValue)
+        private fun needs(requires: List<String>, named: Set<String>): List<RuntimeTool> =
+            requires.distinct().filterNot { it in named }.map(byId::getValue)
     }
 }

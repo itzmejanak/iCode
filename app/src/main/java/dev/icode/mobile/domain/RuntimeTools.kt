@@ -28,13 +28,15 @@ data class RuntimeTool(
      * lists CMake and the NDK among the SDK's tools (docs/runtime-tools-plan.md §8.7). Null at the top.
      */
     val within: String? = null,
-    /** The family it is a version of, listed beneath the family's row, titled by [version]: an NDK's revision. */
-    val family: RuntimeToolFamily? = null,
-    val version: String? = null,
+    /** The family it is a version of, its row beneath the family's and titled by its version: an NDK. */
+    val versionOf: RuntimeToolVersion? = null,
 )
 
 /** Every tool iCode offers. A feature names the one it needs, never a package or a path. */
 object RuntimeTools {
+    /** Where the tools are chosen, as a message that sends the user there names it. */
+    const val PAGE = "Settings › Runtime Environment › Runtime Tools"
+
     val Git = RuntimeTool(
         "git", "Git", "Version control", "Source Control, Clone, Pull and Push", listOf("git"), recommended = true,
     )
@@ -54,10 +56,18 @@ object RuntimeTools {
         "Build & Run for Android apps", listOf("openjdk-17-jdk-headless"), setup = "android-sdk", licence = "android-sdk-license",
     )
 
-    /** The CMake and the NDKs it installs (docs/android-ndk-plan.md §2.3): Android Studio's CMake, and AGP 9's and AGP 8.7–8.13's NDKs. */
+    /** Android Studio's CMake (docs/android-ndk-plan.md §2.3). */
     const val CMAKE_VERSION = "3.22.1"
-    const val NDK_28 = "28.2.13676358"
-    const val NDK_27 = "27.0.12077973"
+
+    /**
+     * The NDKs it installs, newest first, each with the Android Gradle plugins that pick it by default
+     * (docs/android-ndk-plan.md §2.3). Each is one row, its summary, and the Gradle guard's default for those
+     * plugins; another is one entry here and one pin in the runtime manifest.
+     */
+    val ndkRevisions: List<NdkRevision> = listOf(
+        NdkRevision("28.2.13676358", firstAgp = "9.0", lastAgp = "9.4"),
+        NdkRevision("27.0.12077973", firstAgp = "8.7", lastAgp = "8.13"),
+    )
 
     val Cmake = RuntimeTool(
         "cmake", "CMake $CMAKE_VERSION", "CMake and Ninja for C and C++ builds, built for ARM64", NATIVE_USE, emptyList(),
@@ -66,11 +76,9 @@ object RuntimeTools {
 
     /** Android Studio's NDK (Side by side): revisions installed side by side, each a row beneath it. */
     val Ndk = RuntimeToolFamily("android-ndk", "NDK (Side by side)", "C and C++ for Android apps, built for ARM64")
-    val Ndk28 = ndk(NDK_28, "For Android Gradle plugin 9.0–9.4")
-    val Ndk27 = ndk(NDK_27, "For Android Gradle plugin 8.7–8.13")
 
-    /** The NDKs by revision, newest first: a build with C or C++ needs one of them. */
-    val ndks: Map<String, RuntimeTool> = linkedMapOf(NDK_28 to Ndk28, NDK_27 to Ndk27)
+    /** The NDKs' rows by revision, newest first: a build with C or C++ needs one of them. */
+    val ndks: Map<String, RuntimeTool> = ndkRevisions.associate { it.revision to ndk(it) }
 
     val Curl = RuntimeTool("curl", "curl", "Downloads over HTTP and HTTPS", null, listOf("curl", "ca-certificates"))
     val Python = RuntimeTool(
@@ -82,22 +90,31 @@ object RuntimeTools {
     )
 
     /** In the order the page lists them: iCode's own first, and what a tool requires before it, so an install sets that up first. */
-    val all: List<RuntimeTool> = listOf(Git, SshClient, GnuPg, Ripgrep, AndroidSdk, Cmake, Ndk28, Ndk27, Curl, Python, BuildTools)
+    val all: List<RuntimeTool> = listOf(Git, SshClient, GnuPg, Ripgrep, AndroidSdk, Cmake) + ndks.values + listOf(Curl, Python, BuildTools)
+
+    private val index = all.associateBy { it.id }
 
     /** [id]'s tool; null for one this build does not offer. */
-    fun byId(id: String): RuntimeTool? = all.firstOrNull { it.id == id }
+    fun byId(id: String): RuntimeTool? = index[id]
+
+    /**
+     * What a build with C or C++ needs (docs/android-ndk-plan.md §3.5), as Build & Run says it when it is
+     * missing: "This app builds C or C++, with CMake 3.22.1 and NDK (Side by side) 28.2.13676358 or
+     * 27.0.12077973, built for this phone".
+     */
+    val nativeNeed: String = "This app builds C or C++, with CMake $CMAKE_VERSION and ${Ndk.name} ${ndks.keys.joinToString(" or ")}, built for this phone"
 
     /** An NDK row's id — its setup's, and its pin's in the runtime manifest — by its major version: `android-ndk-28`. */
     fun ndkId(revision: String) = "android-ndk-${revision.substringBefore('.')}"
 
     /**
-     * An NDK, named as Android Studio's SDK Tools tab names it; [use] is the Android Gradle plugins that
-     * pick it. Its package is xz: the runtime unpacks the NDK's tar.xz itself, out of the app's memory
-     * (docs/android-ndk-plan.md §7.6).
+     * An NDK's row, named as Android Studio's SDK Tools tab names it. Its package is xz: the runtime unpacks
+     * the NDK's tar.xz itself, out of the app's memory (docs/android-ndk-plan.md §7.6).
      */
-    private fun ndk(revision: String, use: String) = RuntimeTool(
-        ndkId(revision), "${Ndk.name} $revision", use, NATIVE_USE, listOf("xz-utils"), setup = ndkId(revision),
-        licence = AndroidSdk.licence, requires = listOf(Cmake.id, AndroidSdk.id), within = AndroidSdk.id, family = Ndk, version = revision,
+    private fun ndk(ndk: NdkRevision) = RuntimeTool(
+        ndkId(ndk.revision), "${Ndk.name} ${ndk.revision}", "For Android Gradle plugin ${ndk.firstAgp}–${ndk.lastAgp}", NATIVE_USE,
+        listOf("xz-utils"), setup = ndkId(ndk.revision), licence = AndroidSdk.licence, requires = listOf(Cmake.id, AndroidSdk.id),
+        within = AndroidSdk.id, versionOf = RuntimeToolVersion(Ndk, ndk.revision),
     )
 
     /** Standard's choice. */
@@ -105,6 +122,12 @@ object RuntimeTools {
 }
 
 private const val NATIVE_USE = "Build & Run for apps with C or C++"
+
+/**
+ * An NDK iCode offers: its revision, and the Android Gradle plugins, by major.minor from [firstAgp] to
+ * [lastAgp], that pick it when a module names none, as their release notes say.
+ */
+data class NdkRevision(val revision: String, val firstAgp: String, val lastAgp: String)
 
 /** What installing one tool would fetch now: each file's name and size — apt's archives, then its setup's. */
 data class RuntimeToolDownload(val archives: Map<String, Long>)

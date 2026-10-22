@@ -161,7 +161,7 @@ internal fun RunPanelContent(
             onConfirm = { need = null; navigate(Route.RuntimeTools) },
             onDismiss = { need = null },
         ) {
-            Text("Build & Run builds with the Android SDK: JDK 17, SDK Platform 36 and Build-Tools 36. Install it in Runtime Tools.", style = IcodeType.Body)
+            Text("Build & Run builds with the Android SDK: ${RuntimeTools.AndroidSdk.summary}. Install it in Runtime Tools.", style = IcodeType.Body)
         }
     }
     if (need == RunNeed.NativeTools) {
@@ -171,11 +171,7 @@ internal fun RunPanelContent(
             onConfirm = { need = null; navigate(Route.RuntimeTools) },
             onDismiss = { need = null },
         ) {
-            Text(
-                "This app builds C or C++, with CMake ${RuntimeTools.CMAKE_VERSION} and an NDK built for this phone. " +
-                    "Install CMake and the NDK the app names in Runtime Tools: ${RuntimeTools.ndks.values.joinToString(" or ") { it.name }}.",
-                style = IcodeType.Body,
-            )
+            Text("${RuntimeTools.nativeNeed}. Install them in Runtime Tools.", style = IcodeType.Body)
         }
     }
     val commands = state.run.configurations.filterIsInstance<RunConfiguration.Command>()

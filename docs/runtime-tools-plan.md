@@ -382,8 +382,9 @@ Android SDK
 - **The catalog says where a tool is listed**, so there is no second list to keep in step:
   - `RuntimeTool.within` names the tool it is listed beneath (CMake and the NDKs: the Android SDK). It is
     always one the tool `requires`, and a test holds it to that.
-  - `RuntimeTool.family` and `version` make a family: `RuntimeTools.Ndk`, "NDK (Side by side)", "C and C++
-    for Android apps, built for ARM64". Each NDK is a version of it, its row titled by its revision.
+  - `RuntimeTool.versionOf` (a `RuntimeToolVersion`: a family and a version, one value, so neither is
+    ever set without the other) makes a family: `RuntimeTools.Ndk`, "NDK (Side by side)", "C and C++ for
+    Android apps, built for ARM64". Each NDK is a version of it, its row titled by its revision.
   - Adding an NDK stays one pin and one catalog row; it appears beneath the family.
 - **`RuntimeToolTree`** (`domain/RuntimeToolTree.kt`, pure) builds the tree from the catalog:
   - `sections`: "Used by iCode" and "More tools" by each top row's use, each tool beneath the one it is
@@ -410,3 +411,32 @@ Android SDK
   `TreeSizeTest`); the UI type-check; both guards. The list was drawn with Compose Desktop 1.7.3 at a
   phone's 411 dp, dark and light, in four states: nothing native ticked; an NDK ticked; installed; both
   revisions ticked. It has not yet been seen on the phone.
+
+### 8.8 One fact, one place (2026-10-22)
+
+The owner asked for the tree to be scalable and maintainable, the backend and the screens to say the same
+thing, and the page to feel right. Read for a fact written twice, each copy now comes from one place:
+
+| Fact | Was written | Now |
+|---|---|---|
+| Which NDK each Android Gradle plugin picks | Twice: the rows' summaries ("9.0–9.4") and the Gradle guard's `major == 9 && minor <= 4` | `RuntimeTools.ndkRevisions`: `NdkRevision(revision, firstAgp, lastAgp)`, newest first. The rows, their summaries, `ndks` and the guard's `icodeDefaults` table are made from it |
+| The NDK rows | Two constants, two rows, a map and the catalog's list | One entry in `ndkRevisions` (and its pin in the runtime manifest) |
+| "NDK (Side by side)" | The family, and the guard's message | `RuntimeTools.Ndk.name` |
+| Where the tools are chosen | Four copies of "Settings › Runtime Environment › Runtime Tools" | `RuntimeTools.PAGE` |
+| What a C or C++ build needs | The Run tab's dialog and Build & Run's refusal, worded apart | `RuntimeTools.nativeNeed`: "This app builds C or C++, with CMake 3.22.1 and NDK (Side by side) 28.2.13676358 or 27.0.12077973, built for this phone" |
+| What the Android SDK holds | The Run tab's dialog repeated "JDK 17, SDK Platform 36 and Build-Tools 36" | The SDK row's summary |
+
+- **The tree** builds its id index once per build (`RuntimeToolTree.Builder`), and `RuntimeTools.byId` is a
+  map, not a search.
+- **A screen reader** hears each row as one checkbox, on, off or partly, by the tool's whole name. A
+  revision, shown as "28.2.13676358" beneath its family, is said as "NDK (Side by side) 28.2.13676358"
+  (`RuntimeToolNode.name`).
+- **Checked here:**
+  - every data and domain test: 897, with the one known root-only failure (`TreeSizeTest`);
+  - the UI type-check and both guards;
+  - the Gradle guard, made from the catalog, under Gradle 8.14.3 against the stand-in plugin
+    ([android-ndk-plan.md](./android-ndk-plan.md) §7.3): the 12 earlier cases unchanged, and each range's
+    edges. 8.7.0, 9.0.0-alpha05 and 9.4.1 resolve their NDK; 8.6.1, 8.14.0 and 9.5.0 are told to set
+    `ndkVersion`;
+  - the merged semantics of every row, read from Compose Desktop 1.7.3;
+  - the list drawn again, unchanged.

@@ -198,7 +198,7 @@ The stash is dropped: nothing in it is applied.
 
 | | Why |
 |---|---|
-| NDK versions other than 28.2.13676358 and 27.0.12077973 | They are what AGP 8.7–9.4 use. A project pinning another gets §3.4's message. Adding one later is one manifest pin and one catalog row |
+| NDK versions other than 28.2.13676358 and 27.0.12077973 | They are what AGP 8.7–9.4 use. A project pinning another gets §3.4's message. Adding one later is one manifest pin and one `RuntimeTools.ndkRevisions` entry: its revision and the plugins that pick it ([runtime-tools-plan.md](./runtime-tools-plan.md) §8.8) |
 | CMake versions other than 3.22.1 | Same: one pin per version, of Kitware's build of that version |
 | `ndk-build` (Android.mk) projects | android-ndk-custom patches `ndk-build`'s host detection and ships ARM64 `make` and `python`, so they should build. That is not measured, so it is not claimed |
 | Native debugging (lldb, gdbserver) | It needs `adb` and Wireless debugging (toolchain plan §4.7) |
@@ -300,6 +300,7 @@ things changed from §3.4:
 | No `ndkVersion`, plugin 8.13 / 9.2 / 8.4 | 8.13: r27, builds; 9.2: r28c, said as not installed; 8.4: "names no NDK…, set android.ndkVersion to 28.2.13676358 or 27.0.12077973" |
 | CMake 3.18.1 / `3.10.2+` / not installed | 3.18.1: "cannot run on this phone… set externalNativeBuild.cmake.version to it"; `3.10.2+`: builds; not installed: said |
 | `ndkPath`, or `cmake.dir` in `local.properties` | Left to the project |
+| No `ndkVersion`, the ranges' edges (2026-10-22, the default table made from `RuntimeTools.ndkRevisions`) | 8.7.0: r27, builds; 9.0.0-alpha05 and 9.4.1: r28c; 8.6.1, 8.14.0 and 9.5.0: "names no NDK…, set android.ndkVersion to 28.2.13676358 or 27.0.12077973" |
 
 In every failing case the plugin's hook saw no CMake path.
 

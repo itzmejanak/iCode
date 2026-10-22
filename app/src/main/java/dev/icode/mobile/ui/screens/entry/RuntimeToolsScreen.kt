@@ -181,7 +181,7 @@ fun RuntimeToolsScreen(actions: NavigationActions) {
 /** Each step's title and what it asks, as Android Studio's wizard words them. */
 private fun headingOf(step: RuntimeToolStep, setup: Boolean): Pair<String, String> = when (step) {
     RuntimeToolStep.InstallType -> "Install Type" to
-        "Choose how the Linux runtime gets its tools. Change them any time in Settings › Runtime Environment › Runtime Tools."
+        "Choose how the Linux runtime gets its tools. Change them any time in ${RuntimeTools.PAGE}."
     RuntimeToolStep.Select -> "Select Tools" to
         if (setup) "Tick each tool to install." else "Ticked tools are installed. Tick to add one, untick to remove it."
     RuntimeToolStep.Verify -> if (setup) {

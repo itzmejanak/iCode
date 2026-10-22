@@ -52,6 +52,9 @@ class GradleSettingsTest {
         val script = GradleSettings.INIT_SCRIPT
         assertTrue("def icodeSdk = new File('/root/Android/Sdk')" in script)
         assertTrue("def icodeNdks = ['28.2.13676358', '27.0.12077973']" in script)
+        // Each NDK's Android Gradle plugins, from the catalog that names its row.
+        assertTrue("def icodeDefaults = [['9.0', '9.4', '28.2.13676358'], ['8.7', '8.13', '27.0.12077973']]" in script)
+        assertTrue("def icodeWhere = 'in Settings › Runtime Environment › Runtime Tools'" in script)
         // Registered for every project before its build script runs: ahead of the plugin's own afterEvaluate.
         assertTrue("project.afterEvaluate { if (project.state.failure == null) icodeCheck(project) }" in script)
         // Set aside before it stops, so the plugin's afterEvaluate, which still runs, resolves no NDK or CMake.
