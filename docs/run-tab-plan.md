@@ -41,7 +41,8 @@ Owner ask (2026-10-18, verbatim): "Alo put the build icon on explorer left side 
   - It follows the open workspace and lists its configurations.
   - It starts, stops and records runs.
   - It saves and deletes commands, and follows workspace renames and deletes.
-  - The Run tab and the assistant's `run_android_app` both start runs here.
+  - The Run tab and the assistant's `run_android_app` both start runs here. Both save and delete
+    commands here too (§2.5).
 - **`AndroidApps`** is the Android kind, with no state of its own. It starts the Gradle build as a managed process. When the build ends, it lists Gradle's problems in Problems, then installs and opens the APK, and reports each step back. Its failures include Gradle's own "What went wrong" line.
 - **`RunCommandStore`** keeps the saved commands, per workspace, in iCode's own storage (`files/run-commands.json`), not in the project. It is iCode's settings for that workspace, as Android Studio keeps run configurations in its own workspace files unless shared. A rename moves them and a delete forgets them, with the workspace's other settings.
 - **A saved command runs in bash at the workspace's top**, with the login environment, as `start_process` does.
@@ -70,6 +71,29 @@ Owner ask (2026-10-18, verbatim): "Alo put the build icon on explorer left side 
 | Commands shared through the project (`.run/`, `.vscode/tasks.json`) | The owner chose iCode's own commands; a project file is a separate decision |
 | Arguments, environment, working folder per command | A command line can set them (`cd sub && PORT=3000 npm run dev`) |
 
+### 2.5 The assistant manages the commands too (owner, 2026-10-22)
+
+The owner: the user adds, edits and deletes the Run tab's commands; the assistant should do the
+same on the user's word, with nothing built beside what the tab already has.
+
+- **One path.** `RunCoordinator.saveCommand` and `deleteCommand` are what the tab's dialogs
+  (`SaveRunCommand`, `DeleteRunCommand`) and the assistant's tools both call. A command the
+  assistant saves or deletes is on the open Run tab at once.
+- **The store refuses** a blank command, and an id its workspace has no command by. The tab's
+  dialog never sends either, and a model's call cannot slip one through.
+- **Three tools** (`data/assistant/tools/RunTools.kt`, beside `run_android_app`):
+
+  | Tool | Kind | What it does |
+  |---|---|---|
+  | `list_run_commands()` | read | The tab as the user sees it: each Android app found (never changed or deleted), then each saved command with its id, name and command line |
+  | `save_run_command(command, name, id)` | change | Without `id`, adds a command; with one, changes it, keeping its name or command line where not given. A blank name is the command's first word, as in the dialog. Saving does not run it |
+  | `delete_run_command(id)` | change | Deletes it. A run still going keeps running, in its Terminal tab, as when the user deletes one |
+
+- **Asked first, as a change.** With Ask Before Changes on, the approval reads "Run tab: add
+  “dev” · npm run dev" (or change, or delete). Plan and Ask modes offer only the list.
+- **Not added:** a tool to start a saved command. `run_command` and `start_process` already run any
+  command, and ▶ stays the user's.
+
 ## 3. As built
 
 | Where | What |
@@ -77,11 +101,12 @@ Owner ask (2026-10-18, verbatim): "Alo put the build icon on explorer left side 
 | `domain/RunConfigurations.kt` | `RunConfiguration`, `RunRecord`, `RunState`, `RunStatus`, `RunRules` |
 | `domain/AndroidApps.kt` | `AndroidProject`, `AndroidAppStep`, `GradleIssues` (problems, and `failure`: "What went wrong") |
 | `domain/ICodeIntent.kt` | `RunIntent`: `StartRun`, `StopRun`, `ConfirmAndroidAppInstall`, `SaveRunCommand`, `DeleteRunCommand` |
-| `data/run/RunCoordinator.kt`, `RunCommandStore.kt` | §2.2 |
+| `data/run/RunCoordinator.kt`, `RunCommandStore.kt` | §2.2, §2.5 |
+| `data/assistant/tools/RunTools.kt` | `run_android_app`, `list_run_commands`, `save_run_command`, `delete_run_command` (§2.5) |
 | `data/android/AndroidApps.kt` | The Android kind behind `AndroidBuilds`; `AndroidProjects.apps` lists every app module |
 | `ui/screens/tools/RunPanel.kt`, `TerminalScreen.kt` | §2.3; `ToolPanelTab.Run` |
 | Removed | `ui/screens/workspace/AndroidBuildAndRun.kt`, and the Explorer's ▶, notice, permission explanation and SDK dialog |
 
-Tests: `RunRulesTest`, `RunCommandStoreTest`, `RunCoordinatorTest` (with `RuntimeProcesses` and a fake Android kind), `GradleIssuesTest` (the owner's phone log), `AndroidProjectsTest`, `TerminalPanelLifecycleTest`.
+Tests: `RunRulesTest`, `RunCommandStoreTest`, `RunCoordinatorTest` (with `RuntimeProcesses` and a fake Android kind), `RunToolsTest` (the assistant's tools over the same coordinator), `GradleIssuesTest` (the owner's phone log), `AndroidProjectsTest`, `TerminalPanelLifecycleTest`.
 
-**On the phone, open:** a saved `npm run dev` runs, shows its port and stops; an Android app builds, Android's confirmation opens, Install opens it again after leaving iCode, and ■ abandons it; a rename keeps the commands.
+**On the phone, open:** a saved `npm run dev` runs, shows its port and stops; an Android app builds, Android's confirmation opens, Install opens it again after leaving iCode, and ■ abandons it; a rename keeps the commands; asked to, the assistant adds, changes and deletes a command, and the open Run tab shows each at once.

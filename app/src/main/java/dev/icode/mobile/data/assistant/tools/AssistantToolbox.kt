@@ -39,6 +39,9 @@ internal class AssistantToolbox(
             SendProcessInputTool(workspace, processes),
             StopProcessTool(workspace, processes),
             RunAndroidAppTool(workspace, runs),
+            ListRunCommandsTool(workspace, runs),
+            SaveRunCommandTool(workspace, runs),
+            DeleteRunCommandTool(workspace, runs),
         )
     }
 }

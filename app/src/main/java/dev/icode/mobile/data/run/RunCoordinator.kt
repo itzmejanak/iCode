@@ -25,8 +25,9 @@ import kotlinx.coroutines.launch
 
 /**
  * The Terminal panel's Run tab (docs/run-tab-plan.md §2.2): the open workspace's configurations —
- * its Android apps, then the commands the user saved — and each run's record. Every run is a
- * managed process; the Run tab and the assistant's `run_android_app` both start runs here.
+ * its Android apps, then the commands saved — and each run's record. Every run is a managed
+ * process; the Run tab and the assistant's `run_android_app` both start runs here, and both save
+ * and delete commands here (the assistant's `save_run_command`, `delete_run_command`).
  */
 internal class RunCoordinator(
     private val stateHolder: ICodeStateHolder,
@@ -82,24 +83,37 @@ internal class RunCoordinator(
             is ICodeIntent.StopRun -> workspace?.let { stop(it, intent.configuration) }
             is ICodeIntent.SaveRunCommand -> workspace?.let {
                 scope.launch {
-                    runCatching { commands.save(it, intent.id, intent.name, intent.command) }
-                        .onSuccess { _ -> listAgain(it) }
+                    runCatching { saveCommand(it, intent.id, intent.name, intent.command) }
                         .onFailure { error -> stateHolder.report("run", "Unable to save the command", error) }
                 }
             }
             is ICodeIntent.DeleteRunCommand -> workspace?.let {
                 scope.launch {
-                    runCatching { commands.delete(it, intent.id) }
-                        .onSuccess { _ ->
-                            stateHolder.update { snapshot ->
-                                snapshot.copy(run = snapshot.run.copy(records = snapshot.run.records.filterNot { r -> r.workspace == it && r.configuration == intent.id }))
-                            }
-                            listAgain(it)
-                        }
+                    runCatching { deleteCommand(it, intent.id) }
                         .onFailure { error -> stateHolder.report("run", "Unable to delete the command", error) }
                 }
             }
         }
+    }
+
+    /** [workspace]'s configurations, as its Run tab lists them: its Android apps, then its saved commands. */
+    fun configurationsOf(workspace: String): List<RunConfiguration> =
+        RunRules.configurations(AndroidProjects.apps(File(workspace), workspace), commands.of(workspace))
+
+    /**
+     * Saves a command for [workspace] — new when [id] is null, else that one changed — and lists it on
+     * its Run tab when it is open. Throws when the command is blank or [id] names none.
+     */
+    fun saveCommand(workspace: String, id: String?, name: String, command: String): RunConfiguration.Command =
+        commands.save(workspace, id, name, command).also { listAgain(workspace) }
+
+    /** Deletes [workspace]'s saved command [id], and its last run's record. Throws when [id] names none. */
+    fun deleteCommand(workspace: String, id: String) {
+        commands.delete(workspace, id)
+        stateHolder.update { snapshot ->
+            snapshot.copy(run = snapshot.run.copy(records = snapshot.run.records.filterNot { it.workspace == workspace && it.configuration == id }))
+        }
+        listAgain(workspace)
     }
 
     /** Starts [configuration] of [workspace]: its process, or why it did not start — said on its row too. */
@@ -167,9 +181,6 @@ internal class RunCoordinator(
         synchronized(following) { following.keys.filter { it.first == location }.mapNotNull(following::remove) }.forEach(Job::cancel)
         stateHolder.update { snapshot -> snapshot.copy(run = snapshot.run.copy(records = snapshot.run.records.filterNot { it.workspace == location })) }
     }
-
-    private fun configurationsOf(workspace: String): List<RunConfiguration> =
-        RunRules.configurations(AndroidProjects.apps(File(workspace), workspace), commands.of(workspace))
 
     private fun listAgain(workspace: String) {
         if (stateHolder.current.activeWorkspaceLocation != workspace) return
