@@ -63,7 +63,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val runtimeLayout = RuntimeLayout(appContext)
     private val execution = RuntimeExecution(runtimeLayout, scope, stateHolder)
-    private val source = WorkspaceFileSource(runtimeLayout.workspaces)
+    private val source = WorkspaceFileSource(runtimeLayout.paths)
     private val settings = AndroidWorkspacePreferencesRepository(appContext)
     /** The runtime's tools, one apt run at a time: Git, the SSH client and search install through it. */
     private val runtimeTools = RuntimeToolsCoordinator(stateHolder, scope, runtimeLayout, appContext)
@@ -171,7 +171,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
         appContext, stateHolder, scope,
         AssistantToolbox(source, ripgrep, gitCli, execution, runs, runtimeLayout::isInstalled, { documents.blockingEdits(it) != null }) { session.requestRefresh(rebuildIndex = true) },
         activeRoot = { session.activeRoot },
-        source = source, git = gitCli,
+        source = source, paths = runtimeLayout.paths, git = gitCli,
     )
 
     override val snapshot: StateFlow<ICodeSnapshot> = stateHolder.snapshot

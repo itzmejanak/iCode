@@ -101,7 +101,7 @@ class SearchCoordinatorTest {
             return provisioning.await().also { if (it == RipgrepAvailability.Ready) ready = true }
         }
 
-        override suspend fun index(rootLocation: String): RipgrepIndexOutcome {
+        override suspend fun index(rootLocation: String, ignored: Boolean): RipgrepIndexOutcome {
             if (rootLocation == "/one") {
                 firstIndexStarted.complete(Unit)
                 try {
@@ -123,6 +123,7 @@ class SearchCoordinatorTest {
             matchCase: Boolean,
             wholeWord: Boolean,
             regex: Boolean,
+            ignored: Boolean,
         ): RipgrepSearchOutcome {
             if (query == "first") {
                 firstSearchStarted.complete(Unit)

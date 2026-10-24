@@ -5,7 +5,6 @@ import dev.icode.mobile.data.search.RipgrepAvailability
 import dev.icode.mobile.data.search.RipgrepIndexOutcome
 import dev.icode.mobile.data.search.RipgrepSearchOutcome
 import dev.icode.mobile.data.search.WorkspaceSearchEngine
-import dev.icode.mobile.data.storage.WorkspacePaths
 import dev.icode.mobile.data.workspace.WorkspaceFileSource
 import dev.icode.mobile.domain.ContentMatch
 import dev.icode.mobile.domain.ContentSearchResult
@@ -26,10 +25,10 @@ import org.junit.rules.TemporaryFolder
 class AssistantToolsTest {
     @get:Rule val temp = TemporaryFolder()
 
-    private val workspaces by lazy { temp.newFolder("workspaces").canonicalFile }
-    private val root by lazy { File(workspaces, "app").apply { mkdirs() } }
-    private val workspace by lazy { AssistantWorkspace(root, "/workspace/app") }
-    private val source by lazy { WorkspaceFileSource(WorkspacePaths(workspaces)) }
+    private val runtime by lazy { TestRuntime(temp.root) }
+    private val root by lazy { runtime.root }
+    private val workspace by lazy { runtime.workspace }
+    private val source by lazy { WorkspaceFileSource(runtime.paths) }
     private var unsaved = emptySet<String>()
     private var changes = 0
     private val writer by lazy { WorkspaceWriter(workspace, source, { it in unsaved }) { changes++ } }
@@ -47,15 +46,40 @@ class AssistantToolsTest {
         }
     }
 
-    @Test fun `a path is the workspace's, relative or under its runtime path, and nothing leads out`() {
+    @Test fun `a path is the runtime's - relative from the workspace's top, absolute as written, ~ as root's home - its links followed as PRoot does`() {
         assertEquals(File(root, "src/a.kt"), workspace.resolve("src/a.kt"))
         assertEquals(File(root, "src/a.kt"), workspace.resolve("/workspace/app/src/a.kt"))
         assertEquals(root, workspace.resolve("."))
-        val outside = temp.newFolder("outside")
-        Files.createSymbolicLink(File(root, "escape").toPath(), outside.toPath())
-        listOf("../other", "/etc/passwd", "/workspace/other/a", "~/notes", "escape/x", "src/../../app2").forEach { path ->
-            assertTrue(path, refused { workspace.resolve(path) }.contains("outside this workspace"))
-        }
+        assertEquals(File(runtime.workspaces, "other/a"), workspace.resolve("../other/a"))
+        assertEquals(File(runtime.workspaces, "other/a"), workspace.resolve("/workspace/other/a"))
+        assertEquals(File(runtime.rootfs, "etc/passwd"), workspace.resolve("/etc/passwd"))
+        assertEquals(File(runtime.rootfs, "root/notes"), workspace.resolve("~/notes"))
+        assertEquals(File(runtime.rootfs, "root"), workspace.resolve("~"))
+        // A link made in the runtime names a runtime path.
+        Files.createSymbolicLink(File(root, "conf").toPath(), File("/etc").toPath())
+        assertEquals(File(runtime.rootfs, "etc/hosts"), workspace.resolve("conf/hosts"))
+        // Each told as the model writes it back.
+        assertEquals("src/a.kt", workspace.shown(File(root, "src/a.kt")))
+        assertEquals(".", workspace.shown(root))
+        assertEquals("/etc/passwd", workspace.shown(File(runtime.rootfs, "etc/passwd")))
+        assertEquals("/workspace/other/a", workspace.shown(File(runtime.workspaces, "other/a")))
+    }
+
+    @Test fun `a file anywhere in the runtime is read, and what is wrong is said as the system says it`() = runBlocking {
+        File(runtime.rootfs, "root/x").apply { parentFile!!.mkdirs(); writeText("home") }
+        File(runtime.workspaces, "other/y").apply { parentFile!!.mkdirs(); writeText("other") }
+        val read = ReadFileTool(workspace, source)
+        assertEquals("1\thome", read.run(args("path" to "/root/x")))
+        assertEquals("1\thome", read.run(args("path" to "~/x")))
+        assertEquals("1\tother", read.run(args("path" to "/workspace/other/y")))
+        // The page opens this workspace's files only.
+        assertEquals(null, read.file(args("path" to "/root/x")))
+        assertEquals("missing.kt does not exist", refused { read.run(args("path" to "missing.kt")) })
+        File(root, "src").mkdirs()
+        assertEquals("src is a folder", refused { read.run(args("path" to "src")) })
+        file("README.md", "")
+        assertEquals("README.md is not a folder", refused { ListFilesTool(workspace, FakeSearch(emptyList())).run(args("path" to "README.md")) })
+        assertEquals("/nowhere does not exist", refused { SearchTextTool(workspace, FakeSearch(emptyList())).run(args("query" to "x", "path" to "/nowhere")) })
     }
 
     @Test fun `a file is read with numbered lines, a window at a time`() = runBlocking {
@@ -64,7 +88,6 @@ class AssistantToolsTest {
         assertEquals("1\tline 1\n2\tline 2\n3\tline 3\n4\tline 4\n5\tline 5", read.run(args("path" to "notes.md")))
         assertEquals("2\tline 2\n3\tline 3\n(lines 2–3 of 5; read on with start_line)", read.run(args("path" to "notes.md", "start_line" to 2, "line_count" to 2)))
         assertEquals("Read notes.md", read.summary(args("path" to "notes.md")))
-        assertTrue(refused { read.run(args("path" to "missing.kt")) }.contains("is not a file"))
         assertTrue(refused { read.run(JSONObject()) }.contains("Missing the “path” argument"))
     }
 
@@ -81,17 +104,23 @@ class AssistantToolsTest {
         assertEquals(3, changes)
     }
 
-    @Test fun `nothing is written into Git's folder, over a folder, or under the user's unsaved edits`() {
+    @Test fun `a write reaches any file in the runtime, Git's folder included, never over a folder or the user's unsaved edits`() = runBlocking {
         val write = WriteFileTool(writer)
+        assertEquals("Created /root/x: +1 lines", write.run(args("path" to "/root/x", "content" to "x")))
+        assertEquals("x", File(runtime.rootfs, "root/x").readText())
+        assertEquals("Created /workspace/other/y: +1 lines", write.run(args("path" to "/workspace/other/y", "content" to "y")))
+        assertEquals("y", File(runtime.workspaces, "other/y").readText())
+        assertEquals(null, write.file(args("path" to "/root/x")))
         File(root, ".git").mkdirs()
-        assertTrue(refused { write.run(args("path" to ".git/config", "content" to "x")) }.contains("Git's own"))
+        assertEquals("Created .git/info/exclude: +1 lines", write.run(args("path" to ".git/info/exclude", "content" to "build/")))
+        assertEquals(".git/info/exclude", write.file(args("path" to ".git/info/exclude")))
         File(root, "src").mkdirs()
-        assertTrue(refused { write.run(args("path" to "src", "content" to "x")) }.contains("is a folder"))
+        assertEquals("src is a folder", refused { write.run(args("path" to "src", "content" to "x")) })
         val open = file("open.kt", "mine")
         unsaved = setOf(open.path)
         assertTrue(refused { write.run(args("path" to "open.kt", "content" to "theirs")) }.contains("unsaved changes in open.kt"))
         assertEquals("mine", open.readText())
-        assertEquals(0, changes)
+        assertEquals(3, changes)
     }
 
     @Test fun `an edit replaces exact text once, or everywhere when asked, and says when it cannot`() = runBlocking {
@@ -104,6 +133,10 @@ class AssistantToolsTest {
         assertEquals("Edited a.kt in 2 places: +2 −2 lines", edit.run(args("path" to "a.kt", "old_text" to "val", "new_text" to "var", "replace_all" to true)))
         assertEquals("a.kt", edit.file(args("path" to "a.kt")))
         assertEquals(null, edit.file(args("path" to "../elsewhere.kt")))
+        File(runtime.rootfs, "etc").mkdirs()
+        val hosts = File(runtime.rootfs, "etc/hosts").apply { writeText("127.0.0.1 localhost\n") }
+        assertEquals("Edited /etc/hosts: +1 −1 lines", edit.run(args("path" to "/etc/hosts", "old_text" to "localhost", "new_text" to "localhost phone")))
+        assertEquals("127.0.0.1 localhost phone\n", hosts.readText())
         assertEquals("var x = 3\nvar y = 1\n", kotlin.readText())
         assertTrue(refused { edit.run(args("path" to "new.kt", "old_text" to "a", "new_text" to "b")) }.contains("does not exist"))
     }
@@ -114,23 +147,31 @@ class AssistantToolsTest {
         assertEquals("1\r\n2\r\nthree\r\n", windows.readText())
     }
 
-    @Test fun `a folder lists its own entries, or every file Git sees under it`() = runBlocking {
+    @Test fun `a folder lists its own entries, Git's folder too, or every file under it, anywhere in the runtime`() = runBlocking {
         file("src/a.kt", "")
         file("README.md", "")
         File(root, ".git").mkdirs()
-        val engine = FakeSearch(listOf("src/a.kt", "src/b/c.kt", "README.md"))
+        val engine = FakeSearch(listOf("a.kt", "b/c.kt"))
         val list = ListFilesTool(workspace, engine)
-        assertEquals("src/\nREADME.md", list.run(JSONObject()))
+        assertEquals(".git/\nsrc/\nREADME.md", list.run(JSONObject()))
         assertEquals("src/a.kt\nsrc/b/c.kt", list.run(args("path" to "src", "recursive" to true)))
-        assertTrue(refused { list.run(args("path" to "README.md")) }.contains("is not a folder"))
+        assertEquals(File(root, "src").path to false, engine.lastRoot to engine.lastIgnored)
+        File(runtime.rootfs, "usr/lib").mkdirs()
+        assertEquals("/usr/lib/a.kt\n/usr/lib/b/c.kt", list.run(args("path" to "/usr/lib", "recursive" to true, "ignored" to true)))
+        assertEquals(File(runtime.rootfs, "usr/lib").path to true, engine.lastRoot to engine.lastIgnored)
     }
 
-    @Test fun `a search answers path, line and text, relative to the workspace`() = runBlocking {
+    @Test fun `a search answers path, line and text, from the workspace's top or any folder, ignored files when asked`() = runBlocking {
         val engine = FakeSearch(emptyList(), listOf(ContentSearchResult(File(root, "src/a.kt").path, "a.kt", listOf(ContentMatch(3, 4, "  val answer = 42  ")))))
         val search = SearchTextTool(workspace, engine)
         assertEquals("src/a.kt:3: val answer = 42", search.run(args("query" to "answer")))
-        assertEquals("No matches", SearchTextTool(workspace, FakeSearch(emptyList())).run(args("query" to "nothing")))
+        assertEquals(root.path to false, engine.lastRoot to engine.lastIgnored)
         assertFalse(engine.lastRegex)
+        File(runtime.rootfs, "etc").mkdirs()
+        val etc = FakeSearch(emptyList(), listOf(ContentSearchResult(File(runtime.rootfs, "etc/hosts").path, "hosts", listOf(ContentMatch(1, 0, "127.0.0.1 localhost")))))
+        assertEquals("/etc/hosts:1: 127.0.0.1 localhost", SearchTextTool(workspace, etc).run(args("query" to "localhost", "path" to "/etc", "ignored" to true)))
+        assertEquals(File(runtime.rootfs, "etc").path to true, etc.lastRoot to etc.lastIgnored)
+        assertEquals("No matches", SearchTextTool(workspace, FakeSearch(emptyList())).run(args("query" to "nothing")))
     }
 
     @Test fun `output too long keeps its start and its end`() {
@@ -142,16 +183,24 @@ class AssistantToolsTest {
     }
 
     private inner class FakeSearch(
+        /** Each file under the folder indexed, from that folder. */
         private val files: List<String>,
         private val results: List<ContentSearchResult> = emptyList(),
     ) : WorkspaceSearchEngine {
         var lastRegex = true
+        var lastRoot: String? = null
+        var lastIgnored: Boolean? = null
         override fun isAvailable() = true
         override suspend fun ensureAvailable(): RipgrepAvailability = RipgrepAvailability.Ready
-        override suspend fun index(rootLocation: String) =
-            RipgrepIndexOutcome(files.map { IndexedFile(File(it).name, File(rootLocation, it).path) }, truncated = false, warning = null)
-        override suspend fun search(rootLocation: String, query: String, matchCase: Boolean, wholeWord: Boolean, regex: Boolean): RipgrepSearchOutcome {
+        override suspend fun index(rootLocation: String, ignored: Boolean): RipgrepIndexOutcome {
+            lastRoot = rootLocation
+            lastIgnored = ignored
+            return RipgrepIndexOutcome(files.map { IndexedFile(File(it).name, File(rootLocation, it).path) }, truncated = false, warning = null)
+        }
+        override suspend fun search(rootLocation: String, query: String, matchCase: Boolean, wholeWord: Boolean, regex: Boolean, ignored: Boolean): RipgrepSearchOutcome {
             lastRegex = regex
+            lastRoot = rootLocation
+            lastIgnored = ignored
             return RipgrepSearchOutcome(results, searchedFiles = 1, truncated = false)
         }
     }

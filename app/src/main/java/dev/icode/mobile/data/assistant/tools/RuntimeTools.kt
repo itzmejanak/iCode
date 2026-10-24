@@ -10,7 +10,7 @@ import dev.icode.mobile.domain.ProcessRules
 import org.json.JSONObject
 
 // What runs in the Linux runtime for the assistant (§4.3): Git's read-only views without asking,
-// and any command — asked about first — in its workspace (docs/runtime-foundation-plan.md §3.3).
+// and any command — asked about first — anywhere in the runtime (docs/runtime-contract-plan.md §4.3).
 
 /** `git status` or `git diff`, in the repository that holds the path: read-only, so never asked about. */
 internal class GitReadTool(
@@ -25,7 +25,7 @@ internal class GitReadTool(
         "Shows Git's status of the repository holding the path: the branch, and the files changed, staged or untracked."
     }
     override val parameters = listOfNotNull(
-        AssistantParameter("path", "A file or folder, relative to the workspace's top; the top when absent", required = false),
+        AssistantParameter("path", "A file or folder; the workspace's top when absent", required = false),
         AssistantParameter("staged", "Show what is staged", AssistantParameterType.Boolean, required = false).takeIf { diff },
     )
     override val kind = AssistantToolKind.Read
@@ -36,7 +36,7 @@ internal class GitReadTool(
     override suspend fun run(arguments: JSONObject): String {
         if (!git.isAvailable()) throw AssistantToolException("Git is not installed in the runtime; it installs from Source Control")
         val target = workspace.resolve(arguments.textOrNull("path") ?: ".")
-        val guestTarget = if (target == workspace.root) workspace.guestPath else "${workspace.guestPath}/${workspace.relative(target)}"
+        val guestTarget = workspace.guestOf(target)
         val folder = if (target.isDirectory) target else target.parentFile ?: workspace.root
         val arguments = if (diff) {
             listOfNotNull("diff", "--no-color", "--no-ext-diff", "--staged".takeIf { arguments.flag("staged") }, "--", guestTarget)
@@ -54,8 +54,8 @@ internal class GitReadTool(
 }
 
 /**
- * A command in bash in the workspace's runtime (docs/runtime-foundation-plan.md §3.3): asked about
- * first, stopped with the turn or at its time limit, in the directory its chat's last command
+ * A command in bash in the runtime (docs/runtime-foundation-plan.md §3.3): asked about first,
+ * stopped with the turn or at the time the model gave it, in the directory its chat's last command
  * ended in, answered with its exit status in words.
  */
 internal class RunCommandTool(
@@ -72,11 +72,11 @@ internal class RunCommandTool(
         "It starts where the last command ended — the workspace's top at first — so `cd` carries over; `export` and `source` " +
         "do not, so set what a command needs in that command. Its input is closed. It is stopped after timeout_seconds, with " +
         "everything it started: run a server, a watcher or anything that must keep running with start_process. It reaches " +
-        "the whole runtime, every workspace under /workspace included; the file tools stay inside this workspace."
+        "the whole runtime, every workspace under /workspace included."
     override val parameters = listOf(
         AssistantParameter("command", "The command line, as typed in a terminal"),
         AssistantParameter(
-            "timeout_seconds", "Stop it after this many seconds: default $DEFAULT_TIMEOUT, at most $MAX_TIMEOUT",
+            "timeout_seconds", "Stop it after this many seconds: default $DEFAULT_TIMEOUT",
             AssistantParameterType.Integer, required = false,
         ),
     )
@@ -91,7 +91,7 @@ internal class RunCommandTool(
     override suspend fun run(arguments: JSONObject): String {
         val command = arguments.text("command").ifBlank { throw AssistantToolException("The command is empty") }
         if (!runtimeInstalled()) throw AssistantToolException("The Linux runtime is not installed")
-        val seconds = arguments.intOr("timeout_seconds", DEFAULT_TIMEOUT).coerceIn(1, MAX_TIMEOUT)
+        val seconds = arguments.intOr("timeout_seconds", DEFAULT_TIMEOUT).coerceAtLeast(1)
         val output = Output(MAX_CHARACTERS)
         try {
             val ran = shell.run(workspace, chat, command, seconds, output::add)
@@ -144,7 +144,6 @@ internal class RunCommandTool(
 
     private companion object {
         const val DEFAULT_TIMEOUT = 120
-        const val MAX_TIMEOUT = 600
         const val MAX_CHARACTERS = 32_000
     }
 }

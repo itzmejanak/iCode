@@ -3,7 +3,7 @@ package dev.icode.mobile.data.workspace
 import android.os.StatFs
 import dev.icode.mobile.data.io.Sha256
 import dev.icode.mobile.data.io.readAtMost
-import dev.icode.mobile.data.storage.WorkspacePaths
+import dev.icode.mobile.data.runtime.GuestPaths
 import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.FileKind
 import dev.icode.mobile.domain.LineEnding
@@ -38,11 +38,14 @@ internal data class WorkspaceDocument(
 internal class ChangedOnDiskException : IOException("The file changed on disk since it was opened")
 
 /**
- * The files of the workspaces in iCode's storage (docs/workspace-storage-plan.md): the Explorer's
- * listing, the editor's reading and saving, new files and folders. Nothing outside the workspaces
- * is read or written, and a link leading out of them is not shown.
+ * Files as iCode reads and writes them (docs/workspace-storage-plan.md): the Explorer's listing of a
+ * workspace, where a link leading out of it is not shown; the editor's and the assistant's reading
+ * and saving, the assistant's anywhere in the runtime (docs/runtime-contract-plan.md §4.3); new files
+ * and folders.
  */
-internal class WorkspaceFileSource(private val paths: WorkspacePaths) {
+internal class WorkspaceFileSource(private val guest: GuestPaths) {
+    private val paths = guest.workspaces
+
     /** The folder every workspace is in: watched, so one made from the terminal appears. */
     val workspacesRoot: File get() = paths.root
 
@@ -81,12 +84,13 @@ internal class WorkspaceFileSource(private val paths: WorkspacePaths) {
                 runCatching {
                     // A link (node_modules/.bin, a virtualenv's) is named where it is, so a rename,
                     // move or delete acts on the link and never on what it points to; it is shown
-                    // only while that stays inside this workspace.
-                    if (paths.workspaceOf(child.canonicalPath) != workspace) return@runCatching null
+                    // only while that stays inside this workspace, followed as the runtime follows it.
+                    val target = guest.follow(child.path)
+                    if (paths.workspaceOf(target.path) != workspace) return@runCatching null
                     DocumentNode(
                         name = child.name,
                         location = child.path,
-                        kind = if (child.isDirectory) FileKind.Folder else FileKind.File,
+                        kind = if (target.isDirectory) FileKind.Folder else FileKind.File,
                     )
                 }.getOrNull()
             }?.filterNotNull()?.toList().orEmpty().sortedWith(
@@ -97,9 +101,7 @@ internal class WorkspaceFileSource(private val paths: WorkspacePaths) {
     fun createDirectory(parentLocation: String, name: String): String {
         val parent = requireDirectory(parentLocation)
         val target = File(parent, name).canonicalFile
-        if (!isInsideWorkspaces(target) || target.parentFile?.canonicalFile != parent) {
-            throw IOException("Invalid folder destination")
-        }
+        if (target.parentFile?.canonicalFile != parent.canonicalFile) throw IOException("Invalid folder destination")
         if (target.exists()) throw IOException("A file or folder with this name already exists")
         if (!target.mkdir()) throw IOException("The folder could not be created")
         return target.path
@@ -109,9 +111,7 @@ internal class WorkspaceFileSource(private val paths: WorkspacePaths) {
     fun createFile(parentLocation: String, name: String): String {
         val parent = requireDirectory(parentLocation)
         val target = File(parent, name).canonicalFile
-        if (!isInsideWorkspaces(target) || target.parentFile?.canonicalFile != parent) {
-            throw IOException("Invalid file destination")
-        }
+        if (target.parentFile?.canonicalFile != parent.canonicalFile) throw IOException("Invalid file destination")
         if (!target.createNewFile()) throw IOException("A file or folder with this name already exists")
         return target.path
     }
@@ -170,24 +170,19 @@ internal class WorkspaceFileSource(private val paths: WorkspacePaths) {
         return directory
     }
 
+    /** [path], its links followed as the runtime follows them, as a folder that can be read. */
     private fun requireDirectory(path: String): File {
-        val directory = File(path).canonicalFile
-        if (!isInsideWorkspaces(directory) || !directory.isDirectory || !directory.canRead()) {
-            throw IOException("This directory is unavailable")
-        }
+        val directory = guest.follow(path)
+        if (!directory.isDirectory || !directory.canRead()) throw IOException("This directory is unavailable")
         return directory
     }
 
+    /** [path], its links followed as the runtime follows them, as a file that can be read. */
     private fun requireFile(path: String): File {
-        val file = File(path).canonicalFile
-        if (!isInsideWorkspaces(file) || !file.isFile || !file.canRead()) {
-            throw IOException("This file is unavailable")
-        }
+        val file = guest.follow(path)
+        if (!file.isFile || !file.canRead()) throw IOException("This file is unavailable")
         return file
     }
-
-    /** Inside a workspace: under the workspaces' folder, never that folder itself. */
-    private fun isInsideWorkspaces(file: File): Boolean = paths.workspaceOf(file.path) != null
 
     private fun readBounded(input: InputStream): ByteArray =
         input.readAtMost(MAX_TEXT_BYTES, TOO_LARGE)

@@ -15,7 +15,7 @@ import java.nio.file.Path
  * A link made in the runtime names a runtime path, and is followed inside the runtime. One PRoot made
  * for a hard link (`--link2symlink`) names the phone's path of its file, and is followed as it is.
  */
-internal class GuestPaths(rootfs: File, private val workspaces: WorkspacePaths) {
+internal class GuestPaths(rootfs: File, val workspaces: WorkspacePaths) {
     private val rootfs = rootfs.absoluteFile
 
     /** The root filesystem as PRoot is given it, and as it is behind Android's links: a stand-in may name either. */

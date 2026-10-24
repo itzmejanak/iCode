@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.workspace
 
 import dev.icode.mobile.data.git.GitWorkspaceSnapshot
+import dev.icode.mobile.data.runtime.GuestPaths
 import dev.icode.mobile.data.storage.WorkspacePaths
 import dev.icode.mobile.domain.FileKind
 import java.io.File
@@ -18,7 +19,7 @@ class WorkspaceTreeTest {
     @Test fun `folder tap expands and next tap collapses without gateway state`() = runBlocking {
         val stateHolder = ICodeStateHolder()
         stateHolder.update { it.copy(activeWorkspaceLocation = root) }
-        val tree = WorkspaceTree(stateHolder, WorkspaceFileSource(WorkspacePaths(File("/workspaces")))) { location ->
+        val tree = WorkspaceTree(stateHolder, WorkspaceFileSource(GuestPaths(File("/rootfs"), WorkspacePaths(File("/workspaces"))))) { location ->
             if (location == folder.location) listOf(child) else emptyList()
         }
         tree.reset(root, listOf(folder))
@@ -35,7 +36,7 @@ class WorkspaceTreeTest {
     @Test fun `late tap from previous workspace cannot replace current rows`() = runBlocking {
         val stateHolder = ICodeStateHolder()
         stateHolder.update { it.copy(activeWorkspaceLocation = "/new") }
-        val tree = WorkspaceTree(stateHolder, WorkspaceFileSource(WorkspacePaths(File("/workspaces")))) { listOf(child) }
+        val tree = WorkspaceTree(stateHolder, WorkspaceFileSource(GuestPaths(File("/rootfs"), WorkspacePaths(File("/workspaces"))))) { listOf(child) }
         tree.reset("/new", emptyList())
 
         tree.toggle(root, folder.location)

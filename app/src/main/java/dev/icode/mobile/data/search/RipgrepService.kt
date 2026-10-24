@@ -9,13 +9,15 @@ import dev.icode.mobile.domain.RuntimeTools
 internal interface WorkspaceSearchEngine {
     fun isAvailable(): Boolean
     suspend fun ensureAvailable(): RipgrepAvailability
-    suspend fun index(rootLocation: String): RipgrepIndexOutcome
+    /** Every file under [rootLocation], leaving out what ignore files ignore unless [ignored]. */
+    suspend fun index(rootLocation: String, ignored: Boolean = false): RipgrepIndexOutcome
     suspend fun search(
         rootLocation: String,
         query: String,
         matchCase: Boolean,
         wholeWord: Boolean,
         regex: Boolean,
+        ignored: Boolean = false,
     ): RipgrepSearchOutcome
 }
 
@@ -54,11 +56,11 @@ internal class RipgrepService(
         }
     }
 
-    override suspend fun index(rootLocation: String): RipgrepIndexOutcome {
+    override suspend fun index(rootLocation: String, ignored: Boolean): RipgrepIndexOutcome {
         val parser = RipgrepFileParser(rootLocation, MAX_INDEX_FILES)
         val result = guest.streamRecords(
             location = rootLocation,
-            argv = RipgrepCommand.files(),
+            argv = RipgrepCommand.files(ignored),
             stderrName = "rg-files",
             delimiter = 0,
             onRecord = parser::accept,
@@ -77,6 +79,7 @@ internal class RipgrepService(
         matchCase: Boolean,
         wholeWord: Boolean,
         regex: Boolean,
+        ignored: Boolean,
     ): RipgrepSearchOutcome {
         val parser = RipgrepJsonParser(rootLocation, MAX_MATCHES_PER_FILE, MAX_TOTAL_MATCHES)
         val result = guest.stream(
@@ -88,6 +91,7 @@ internal class RipgrepService(
                 regex = regex,
                 // One extra line proves a per-file cap really omitted something.
                 maxMatchingLinesPerFile = MAX_MATCHES_PER_FILE + 1,
+                ignored = ignored,
             ),
             stderrName = "rg-search",
             onLine = parser::accept,

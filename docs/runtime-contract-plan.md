@@ -1,6 +1,6 @@
 # Runtime Contract — one Linux environment, no iCode-made limits
 
-Status: **in progress.** RC2 and RC3 built (2026-10-24); RC4–RC7 planned. The cycles are §7, the cleanup is §8, the checks are §9.
+Status: **in progress.** RC2, RC3 and RC4 built (2026-10-24); RC5–RC7 planned. The cycles are §7, the cleanup is §8, the checks are §9.
 
 The owner's problem statement (2026-10-23), in short:
 - iCode is a native Android IDE around a genuine, user-controlled Linux environment.
@@ -153,7 +153,8 @@ This is the one new piece. Without it, removing A1 would read runtime links wron
   - the assistant's file tools;
   - `DocumentSessionCoordinator.kt:49`;
   - `WorkspaceItemsCoordinator.kt:254-255`;
-  - `WorkspaceLibraryCoordinator.kt:283`.
+  - `WorkspaceLibraryCoordinator.kt:283`;
+  - `WorkspaceFileSource`'s listing, folder and file checks (found in RC4): a runtime link in a workspace was hidden from the Explorer, drawn as a file when it named a folder, and could not be opened.
 
 ### 4.3 The assistant, unfenced
 
@@ -224,6 +225,16 @@ Each cycle runs the same gate before its push:
 | **RC6** iCode, visible | The marker on every written file; the README asset; `sudo` defers; `safe.directory` removed (after D2) | Each writer's test sees the marker. The `sudo` script test covers both branches |
 | **RC7** Cleanup and docs | §8, then the full gate | The guards' allowlists only shrink; no doc says what §2 no longer holds |
 
+### 7.1 RC4, as built (2026-10-24)
+
+- **Paths:** `AssistantWorkspace(root, GuestPaths)` resolves every path the model writes (§4.3, A1) and says each result as it can be written back: from the workspace's top inside it, its runtime path elsewhere (`shown`). `WorkspaceFileSource` no longer refuses files outside the workspaces, so a write anywhere is the editor's atomic, fingerprint-checked save.
+- **Errors (A9):** "`x` does not exist", "`x` is a folder", "`x` is not a folder", "`x`: Permission denied" — with the path as the model wrote it.
+- **Search (A4):** `WorkspaceSearchEngine.index` and `search` take `ignored` (ripgrep's `--no-ignore`); `.git` stays out of a recursive listing and a search either way, and `list_files` without `recursive` shows it.
+- **Processes (A7, A8):** `RuntimeProcesses.all()` lists every process; each is said with its workspace's name. `ProcessStatusTool`, `SendProcessInputTool` and `StopProcessTool` take no workspace.
+- **Kept, as none limits what the assistant can do:** `start_process`'s `wait_seconds` (30 s at most) is only how long it waits before answering — the process runs on and `process_status` reads it; `read_file`'s 5 MB is the editor's file service — `run_command` reads a file of any size; the page opens only this workspace's files (`AssistantTool.file`), and attachments are the workspace's, as the Attach sheet picks them.
+- **The README line** in the instructions ("PRoot's and Android's limits are in `/etc/icode/README.md`") lands with the file itself in RC6, so the model is never pointed at a file that is not there.
+- **Tested:** the tool tests read and write `/root/x` and `/workspace/other/y`, write in `.git`, edit `/etc/hosts`, search `/etc` with `ignored`, list `/usr/lib`, start nine processes, and see the error kinds. A 900 s timeout is the model's value passed through (`coerceAtLeast(1)`, no ceiling); no test waits 900 s.
+
 ## 8. Cleanup
 
 **Unused code found now**, each declared and referenced nowhere else in `app/src/main`, tests or resources:
@@ -243,6 +254,7 @@ Each cycle runs the same gate before its push:
 | `AssistantShell.COMMAND_ENVIRONMENT`, which becomes the `command` context's variables (one list, not two) | RC2 |
 | `prootCommand(workspace)`, `RuntimeLayout.bindable`, `BIND_LINKS`, the `workspace` bind in `GuestCommand` and `spawn`; `GuestCommand`'s workspaces-only folder check | RC3 |
 | The four `canonicalFile` link-followers (§4.2) | RC3 |
+| `WorkspaceFileSource`'s workspaces-only checks and its three `canonicalFile` link-followers; `RuntimeProcesses.of(workspace)`, replaced by `all()` | RC4 |
 | `AssistantWorkspace.resolve`'s refusals, `isGitInternal` and its refusal, `list_files`' `.git` filter, `AssistantShell.directory`'s outside-the-workspace rule, `RunCommandTool.MAX_TIMEOUT`, `ProcessRules.MAX_RUNNING` and its refusal, the process tools' workspace filters | RC4 |
 | `ShellPrompt.install`, `~/.icode-prompt.sh`, `ShellPromptTest`'s dotfile cases | RC5 |
 | `TerminalSettings.shellPath`, `TerminalSettingRules.validShellPath`, the Shell row, `terminalShellKey` | RC5 |

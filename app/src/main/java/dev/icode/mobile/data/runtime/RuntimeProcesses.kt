@@ -66,11 +66,6 @@ internal class RuntimeProcesses(
     /** Starts [command]; the process, or why it was not started. */
     fun start(workspace: String, directory: String, command: String, name: String?, environment: Map<String, String>): Result<ManagedProcess> {
         val entry = synchronized(lock) {
-            if (entries.values.count { it.info.running } >= ProcessRules.MAX_RUNNING) {
-                return Result.failure(
-                    IOException("${ProcessRules.MAX_RUNNING} processes run already: stop one first. Android ends apps' processes past a limit"),
-                )
-            }
             val spawned = try {
                 launch(Launch(workspace, directory, command, environment))
             } catch (failure: Exception) {
@@ -139,8 +134,8 @@ internal class RuntimeProcesses(
     /** [id] as it is now; null when there is no such process. Reading it moves nothing. */
     fun info(id: String): ManagedProcess? = synchronized(lock) { entries[id]?.info }
 
-    /** [workspace]'s processes, oldest first. */
-    fun of(workspace: String): List<ManagedProcess> = synchronized(lock) { entries.values.map { it.info }.filter { it.workspace == workspace } }
+    /** Every process, whichever workspace it runs for, oldest first. */
+    fun all(): List<ManagedProcess> = synchronized(lock) { entries.values.map { it.info } }
 
     /** [id], with what it printed since the assistant last read it; null when there is no such process. */
     fun read(id: String): Read? = synchronized(lock) {

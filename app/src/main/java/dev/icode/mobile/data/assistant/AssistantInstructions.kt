@@ -23,9 +23,10 @@ internal object AssistantInstructions {
         appendLine()
         appendLine("## Workspace")
         appendLine(
-            "You work in “${workspace.name}”. Its files are at ${workspace.guestPath} in an Ubuntu " +
-                "Linux runtime on the user's phone (ARM64, under PRoot: uid 0 without root's powers, no systemd; " +
-                "`apt` installs packages). Every workspace is under /workspace. File tool paths are relative to this one's folder.",
+            "You work in “${workspace.name}”, at ${workspace.guestPath} in the user's own Ubuntu Linux on their phone " +
+                "(ARM64, under PRoot: uid 0 without root's powers, no systemd; `apt` installs packages), on the user's behalf. " +
+                "Every workspace is under /workspace. The tools reach the whole runtime: a relative path starts at " +
+                "${workspace.guestPath}, `~` is /root. The user approves each change and command, unless they allowed them all.",
         )
         appendLine()
         when (mode) {

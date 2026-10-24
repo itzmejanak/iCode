@@ -1,45 +1,71 @@
 package dev.icode.mobile.data.assistant.tools
 
 import dev.icode.mobile.data.assistant.AssistantToolException
+import dev.icode.mobile.data.runtime.GuestPaths
+import dev.icode.mobile.data.runtime.RuntimeLayout
+import dev.icode.mobile.data.storage.WorkspacePaths
 import java.io.File
+import java.io.IOException
 import org.json.JSONObject
 
 /**
- * The workspace a turn works in, as its tools see it: every path the model writes is resolved here,
- * and none may leave it — not by `..`, an absolute path or a link (§4.3).
+ * The workspace a turn works in, and the runtime its tools reach (docs/runtime-contract-plan.md §4.3):
+ * a path the model writes is a path in the runtime — absolute as written, `~` as root's home, relative
+ * from this workspace's top — and names the file the runtime would, its links followed as PRoot
+ * follows them ([GuestPaths]).
  */
 internal class AssistantWorkspace(
     /** Its location in iCode's storage. */
     root: File,
-    /** Its path in the runtime, `/workspace/<name>`: the path the model is told. */
-    val guestPath: String,
+    private val paths: GuestPaths,
 ) {
     val root: File = root.canonicalFile
+
+    /** Its path in the runtime, `/workspace/<name>`: the path the model is told. */
+    val guestPath: String = requireNotNull(paths.guestOf(this.root.path)) { "${this.root} is not in the runtime" }
     val name: String get() = root.name
 
-    /** [path] as the model wrote it — relative, or under [guestPath] — as a file in this workspace. */
+    /** [path] as the model wrote it, as the file on the phone it names; it need not exist. */
     fun resolve(path: String): File {
         val written = path.trim().ifEmpty { "." }
-        val relative = when {
-            written == guestPath -> "."
-            written.startsWith("$guestPath/") -> written.removePrefix("$guestPath/")
-            written.startsWith("/") || written.startsWith("~") ->
-                throw AssistantToolException("$written is outside this workspace: paths are relative to $guestPath")
-            else -> written
+        val guest = when {
+            written.startsWith('/') -> written
+            written == "~" || written.startsWith("~/") -> RuntimeLayout.GUEST_HOME + written.removePrefix("~")
+            else -> "$guestPath/$written"
         }
-        // Canonical: `..` and links are followed before the check, so neither leads out.
-        val file = File(root, relative).canonicalFile
-        if (file != root && !file.path.startsWith(root.path + File.separator)) {
-            throw AssistantToolException("$written is outside this workspace")
+        return try {
+            paths.hostOf(guest)
+        } catch (failure: IOException) {
+            throw AssistantToolException(failure.message ?: "$written cannot be followed")
         }
-        return file
     }
 
-    /** [file]'s path from the workspace's top, as the model writes it: `src/App.kt`, or `.`. */
-    fun relative(file: File): String = file.relativeTo(root).path.ifEmpty { "." }
+    /** [file]'s path from the workspace's top, `src/App.kt` or `.`; null when it is not in this workspace. */
+    fun relative(file: File): String? = WorkspacePaths.relative(file.path, root.path)?.ifEmpty { "." }
 
-    /** [file] is inside a `.git` folder: Git's own, never written by the assistant. */
-    fun isGitInternal(file: File): Boolean = relative(file).split(File.separatorChar).contains(".git")
+    /** [file]'s path in the runtime. */
+    fun guestOf(file: File): String = paths.guestOf(file.path) ?: file.path
+
+    /** [file] as the model is told it, and can write it back: from the workspace's top inside it, its runtime path elsewhere. */
+    fun shown(file: File): String = relative(file) ?: guestOf(file)
+
+    /** [path], resolved, as a file that exists and is not a folder; said as the system says it when it is not. */
+    fun existingFile(path: String): File = resolve(path).also { file ->
+        when {
+            !file.exists() -> throw AssistantToolException("${path.trim()} does not exist")
+            file.isDirectory -> throw AssistantToolException("${path.trim()} is a folder")
+            !file.canRead() -> throw AssistantToolException("${path.trim()}: Permission denied")
+        }
+    }
+
+    /** [path], resolved, as a folder that exists; said as the system says it when it is not. */
+    fun existingFolder(path: String): File = resolve(path).also { folder ->
+        when {
+            !folder.exists() -> throw AssistantToolException("${path.trim()} does not exist")
+            !folder.isDirectory -> throw AssistantToolException("${path.trim()} is not a folder")
+            !folder.canRead() -> throw AssistantToolException("${path.trim()}: Permission denied")
+        }
+    }
 }
 
 /** A required text argument; the model is told which one it left out. */

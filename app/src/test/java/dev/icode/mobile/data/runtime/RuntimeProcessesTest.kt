@@ -2,7 +2,6 @@ package dev.icode.mobile.data.runtime
 
 import dev.icode.mobile.domain.ManagedProcess
 import dev.icode.mobile.domain.ManagedProcessState
-import dev.icode.mobile.domain.ProcessRules
 import dev.icode.mobile.domain.ICodeIntent
 import java.io.File
 import java.nio.file.Files
@@ -102,21 +101,20 @@ class RuntimeProcessesTest {
         assertFalse("an ended one is not stopped again", processes.stop(started.id))
     }
 
-    @Test fun `at most eight run at once, Stop All ends them, and the ended leave the list when forgotten`() {
-        repeat(ProcessRules.MAX_RUNNING) { start("worker $it") }
-        val refused = processes.start("/w/app", "/workspace/app", "one more", null, emptyMap())
-        assertEquals("8 processes run already: stop one first. Android ends apps' processes past a limit", refused.exceptionOrNull()?.message)
+    @Test fun `as many run as are started, Stop All ends them, and the ended leave the list when forgotten`() {
+        repeat(9) { start("worker $it") }
+        until { published.count { it.running } == 9 }
         processes.handle(ICodeIntent.StopAllProcesses)
         until { !processes.anyRunning() }
         processes.handle(ICodeIntent.ForgetProcess("p1"))
-        until { published.size == ProcessRules.MAX_RUNNING - 1 }
+        until { published.size == 8 }
         assertTrue(published.none { it.id == "p1" })
     }
 
     @Test fun `a running process is never forgotten, and a launch the runtime refuses is said`() {
         val started = start()
         processes.forget(started.id)
-        assertEquals(listOf(started.id), processes.of("/w/app").map { it.id })
+        assertEquals(listOf(started.id), processes.all().map { it.id })
         next = { throw IllegalArgumentException("/w/x is not in iCode's workspaces") }
         assertEquals(
             "Unable to start it: /w/x is not in iCode's workspaces",
@@ -131,9 +129,9 @@ class RuntimeProcessesTest {
         launched.single().second.exit(0)
         until { !processes.anyRunning() }
         processes.workspaceMoved("/w/app", "/w/renamed")
-        assertEquals(listOf(started.id), processes.of("/w/renamed").map { it.id })
+        assertEquals(listOf("/w/renamed"), processes.all().map { it.workspace })
         processes.workspaceForgotten("/w/renamed")
-        assertTrue(processes.of("/w/renamed").isEmpty())
+        assertTrue(processes.all().isEmpty())
         assertFalse(File(logDirectory, "${started.id}.log").exists())
     }
 

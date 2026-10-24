@@ -30,9 +30,6 @@ sealed interface ManagedProcessState {
 }
 
 object ProcessRules {
-    /** Processes that run at once, at most: Android ends apps' child processes past 32 in all (plan §1 F2). */
-    const val MAX_RUNNING = 8
-
     /** Ports a server on a phone can listen on: Android lets no app below 1024. */
     val LISTENABLE_PORTS = 1024..65535
 
