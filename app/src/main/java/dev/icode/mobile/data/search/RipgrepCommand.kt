@@ -9,7 +9,10 @@ internal object RipgrepCommand {
         "--glob=!.git",
     )
 
-    fun files(): List<String> = listOf("rg") + DISCOVERY + listOf("--files", "--null", ".")
+    /** Every file but Git's own folder, hidden ones included; what ignore files leave out only when [ignored]. */
+    private fun discovery(ignored: Boolean) = if (ignored) DISCOVERY + "--no-ignore" else DISCOVERY
+
+    fun files(ignored: Boolean): List<String> = listOf("rg") + discovery(ignored) + listOf("--files", "--null", ".")
 
     fun content(
         query: String,
@@ -17,9 +20,10 @@ internal object RipgrepCommand {
         wholeWord: Boolean,
         regex: Boolean,
         maxMatchingLinesPerFile: Int,
+        ignored: Boolean,
     ): List<String> = buildList {
         add("rg")
-        addAll(DISCOVERY)
+        addAll(discovery(ignored))
         add("--json")
         add("--max-count=$maxMatchingLinesPerFile")
         add(if (matchCase) "--case-sensitive" else "--ignore-case")

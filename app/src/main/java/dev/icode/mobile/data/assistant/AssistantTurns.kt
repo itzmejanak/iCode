@@ -2,6 +2,7 @@ package dev.icode.mobile.data.assistant
 
 import dev.icode.mobile.data.assistant.tools.AssistantWorkspace
 import dev.icode.mobile.data.log.BackendLog
+import dev.icode.mobile.data.runtime.GuestPaths
 import dev.icode.mobile.data.workspace.WorkspaceRoot
 import dev.icode.mobile.domain.AssistantAnswer
 import dev.icode.mobile.domain.AssistantApproval
@@ -44,6 +45,8 @@ internal class AssistantTurns(
     private val chats: AssistantChats,
     private val tools: (AssistantWorkspace, chat: String) -> List<AssistantTool>,
     private val describe: (String) -> WorkspaceRoot,
+    /** The runtime's paths: what the turn's workspace resolves the model's paths through. */
+    private val paths: GuestPaths,
     private val attachments: AssistantAttachments,
 ) {
     private val lock = Any()
@@ -199,7 +202,7 @@ internal class AssistantTurns(
             val connection = provider?.let { providers.connection(it.id) }
             if (model == null || connection == null) throw AssistantTurnException(NOT_SET_UP)
             val root = runCatching { describe(workspace) }.getOrElse { throw AssistantTurnException("This workspace no longer exists") }
-            return Setup(settings, connection, model, AssistantWorkspace(File(root.location), root.displayPath))
+            return Setup(settings, connection, model, AssistantWorkspace(File(root.location), paths))
         }
 
         override fun writing(reasoning: String, text: String) {

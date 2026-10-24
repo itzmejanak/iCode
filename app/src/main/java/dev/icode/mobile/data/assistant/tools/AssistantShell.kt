@@ -19,7 +19,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 internal class AssistantShell(
     /** The runtime's root filesystem: its `/tmp` takes the file a command leaves its directory in. */
     private val rootfs: File,
-    /** Runs bash's [script] seeing only the workspace at its location, each line of output to the callback. */
+    /** Runs bash's [script], started in the workspace at its location, each line of output to the callback. */
     private val bash: suspend (workspace: String, script: String, environment: Map<String, String>, onLine: (String) -> Unit) -> GuestCommand.Result,
     private val environment: GuestEnvironment,
     private val processes: RuntimeProcesses,
@@ -50,7 +50,7 @@ internal class AssistantShell(
         val ended = File.createTempFile("icode-cwd-", "", temp)
         try {
             // The trap runs on every way out but a kill, `exit` included; the command's own status stands.
-            // Its physical directory: a symlink's target is where it ended, inside the workspace or not.
+            // Its physical directory: a symlink's target is where it ended.
             val script = "cd -- ${shellQuote(start)} || exit 1\ntrap 'pwd -P > /tmp/${ended.name}' EXIT\n{ $command\n} </dev/null"
             val result = withTimeoutOrNull(seconds * 1_000L) { bash(workspace.root.path, script, MODEL_ENVIRONMENT, onLine) }
             val now = ended.readText().trim().takeIf { it.startsWith("/") }
@@ -76,20 +76,14 @@ internal class AssistantShell(
     }
 
     /**
-     * Where [chat]'s next command starts: where its last one ended, or the workspace's top when that
-     * is outside the workspace or gone — and then why.
+     * Where [chat]'s next command starts: where its last one ended, anywhere in the runtime, or the
+     * workspace's top when that folder is gone — and then why.
      */
     fun directory(workspace: AssistantWorkspace, chat: String): Pair<String, String?> {
-        val top = workspace.guestPath
-        val last = directories[keyOf(workspace, chat)] ?: return top to null
-        val inside = last == top || last.startsWith("$top/")
-        val reason = when {
-            !inside -> "The last command ended in $last, outside this workspace: this one ran at its top"
-            !File(workspace.root, last.removePrefix(top).removePrefix("/")).isDirectory -> "$last is gone: this ran at the workspace's top"
-            else -> return last to null
-        }
+        val last = directories[keyOf(workspace, chat)] ?: return workspace.guestPath to null
+        if (runCatching { workspace.resolve(last).isDirectory }.getOrDefault(false)) return last to null
         directories.remove(keyOf(workspace, chat))
-        return top to reason
+        return workspace.guestPath to "$last is gone: this ran at the workspace's top"
     }
 
     private fun keyOf(workspace: AssistantWorkspace, chat: String) = "${workspace.root.path}\u0000$chat"

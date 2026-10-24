@@ -1,5 +1,6 @@
 package dev.icode.mobile.data.assistant
 
+import dev.icode.mobile.data.assistant.tools.TestRuntime
 import dev.icode.mobile.data.git.CliGitService
 import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.workspace.ICodeStateHolder
@@ -68,7 +69,8 @@ class AssistantCoordinatorTest {
     private var listed: List<AssistantModel> = emptyList()
     private val chatsFolder by lazy { temp.newFolder("chats") }
     private val chats by lazy { AssistantChats(AssistantChatStore(chatsFolder)) }
-    private val app by lazy { temp.newFolder("app").path }
+    private val runtime by lazy { TestRuntime(temp.newFolder("runtime")) }
+    private val app by lazy { runtime.root.path }
     private var script: suspend (AssistantTurnRequest, AssistantEvents) -> Unit = { _, _ -> }
     private val requests = Collections.synchronizedList(mutableListOf<AssistantTurnRequest>())
     private val compactions = Collections.synchronizedList(mutableListOf<List<AssistantMessage>>())
@@ -110,6 +112,7 @@ class AssistantCoordinatorTest {
             tools = { _, _ -> listOf(FakeTool("read_file", AssistantToolKind.Read), FakeTool("edit_file", AssistantToolKind.Change)) },
             activeRoot = { app },
             describe = { WorkspaceRoot("app", it, "/workspace/app") },
+            paths = runtime.paths,
             // Images pass as they are: Android's decoding is not on a JVM.
             attachments = { openText -> AssistantAttachments({ phoneFiles[it] }, { bytes -> bytes }, openText, readText = { File(it).readText() }) },
             git = { _, arguments ->

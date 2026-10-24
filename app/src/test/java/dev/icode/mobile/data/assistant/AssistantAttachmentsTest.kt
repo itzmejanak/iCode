@@ -1,6 +1,6 @@
 package dev.icode.mobile.data.assistant
 
-import dev.icode.mobile.data.assistant.tools.AssistantWorkspace
+import dev.icode.mobile.data.assistant.tools.TestRuntime
 import dev.icode.mobile.domain.AssistantAttachment
 import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantModel
@@ -17,7 +17,7 @@ class AssistantAttachmentsTest {
 
     private val phone = mutableMapOf<String, PhoneFile>()
     private val keptFolder by lazy { temp.newFolder("kept") }
-    private val workspace by lazy { AssistantWorkspace(temp.newFolder("app"), "/workspace/app") }
+    private val workspace by lazy { TestRuntime(temp.newFolder("runtime")).workspace }
     private val reader = AssistantAttachments({ phone[it] }, prepareImage = { bytes -> if (bytes.first() == NOT_AN_IMAGE) null else bytes + 0 }, openText = { null }, readText = { File(it).readText() })
     private val seeing = AssistantModel("vision", images = true, documents = true)
     private val keep: (ByteArray, String) -> String = { bytes, extension -> File(keptFolder, "${bytes.size}.$extension").apply { writeBytes(bytes) }.path }

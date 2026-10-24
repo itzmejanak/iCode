@@ -14,8 +14,9 @@ import java.io.File
 import java.io.IOException
 import org.json.JSONObject
 
-// What the assistant changes (§4.3, §4.5): through the file service the editor saves with — atomic,
-// fingerprint-checked, the file's encoding kept — and never under the user's unsaved edits.
+// What the assistant changes (§4.3, §4.5): any file in the runtime (docs/runtime-contract-plan.md §4.3),
+// through the file service the editor saves with — atomic, fingerprint-checked, the file's encoding
+// kept — and never under the user's unsaved edits.
 
 /** Writes go through here, for both tools: the checks, the write, the refresh. */
 internal class WorkspaceWriter(
@@ -23,17 +24,15 @@ internal class WorkspaceWriter(
     private val source: WorkspaceFileSource,
     /** An open tab holds unsaved edits of this location. */
     private val unsavedEdits: (String) -> Boolean,
-    /** The workspace changed: its tree, Git and index refresh as after a terminal's edit. */
+    /** Files may have changed: the workspace's tree, Git and index refresh as after a terminal's edit. */
     private val changed: () -> Unit,
 ) {
-    /** [path] as a file the assistant may write: inside the workspace, not Git's, not under edits. */
+    /** [path] as a file the assistant may write: not a folder, not under the user's edits. */
     fun target(path: String): File {
         val file = workspace.resolve(path)
-        val shown = workspace.relative(file)
-        if (file == workspace.root || file.isDirectory) throw AssistantToolException("$shown is a folder")
-        if (workspace.isGitInternal(file)) throw AssistantToolException("$shown is Git's own; use git commands instead")
+        if (file.isDirectory) throw AssistantToolException("${path.trim()} is a folder")
         if (unsavedEdits(file.path)) {
-            throw AssistantToolException("The user has unsaved changes in $shown: ask them to save or discard first")
+            throw AssistantToolException("The user has unsaved changes in ${path.trim()}: ask them to save or discard first")
         }
         return file
     }
@@ -48,7 +47,7 @@ internal class WorkspaceWriter(
     fun write(file: File, current: WorkspaceDocument?, text: String) {
         val document = current ?: io(file) {
             val parent = file.parentFile ?: throw IOException("No folder for ${file.name}")
-            if (!parent.isDirectory && !parent.mkdirs()) throw IOException("Unable to make ${workspace.relative(parent)}")
+            if (!parent.isDirectory && !parent.mkdirs()) throw IOException("Unable to make ${workspace.shown(parent)}")
             source.readDocument(source.createFile(parent.path, file.name))
         }
         io(file) { source.writeDocument(document, text) }
@@ -58,16 +57,16 @@ internal class WorkspaceWriter(
     private fun <T> io(file: File, block: () -> T): T = try {
         block()
     } catch (failure: IOException) {
-        throw AssistantToolException("${workspace.relative(file)}: ${failure.message ?: "unable to write"}")
+        throw AssistantToolException("${workspace.shown(file)}: ${failure.message ?: "unable to write"}")
     }
 }
 
 internal class WriteFileTool(private val writer: WorkspaceWriter) : AssistantTool, AssistantFileChanger {
     override val name = "write_file"
-    override val description = "Writes a whole file of the workspace: creates it (and its folders), or " +
+    override val description = "Writes a whole file: creates it (and its folders), or " +
         "replaces what it holds. For a small change to an existing file, edit_file is better."
     override val parameters = listOf(
-        AssistantParameter("path", "The file, relative to the workspace's top"),
+        AssistantParameter("path", "The file"),
         AssistantParameter("content", "Everything the file will hold"),
     )
     override val kind = AssistantToolKind.Change
@@ -97,10 +96,10 @@ internal class WriteFileTool(private val writer: WorkspaceWriter) : AssistantToo
 
 internal class EditFileTool(private val writer: WorkspaceWriter) : AssistantTool, AssistantFileChanger {
     override val name = "edit_file"
-    override val description = "Replaces exact text in a file of the workspace. old_text must match the file " +
+    override val description = "Replaces exact text in a file. old_text must match the file " +
         "exactly, whitespace included, and only once unless replace_all; read the file first."
     override val parameters = listOf(
-        AssistantParameter("path", "The file, relative to the workspace's top"),
+        AssistantParameter("path", "The file"),
         AssistantParameter("old_text", "The text to replace, exactly as it is in the file"),
         AssistantParameter("new_text", "What replaces it"),
         AssistantParameter("replace_all", "Replace every match, not just one", AssistantParameterType.Boolean, required = false),

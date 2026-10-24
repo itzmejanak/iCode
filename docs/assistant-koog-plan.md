@@ -216,20 +216,23 @@ interface. The coordinator, tools, stores and screens do not change.
 ### 4.3 Tools (`data/assistant/tools`)
 
 Each tool is iCode code over an existing owner, with no second file, search or Git
-implementation. Paths are relative to the workspace (or its `/workspace/<name>/…` path), and none
-may leave it. `.git` is never written. **Ask** offers the reading tools only.
+implementation. A path is any path in the runtime: relative from the workspace's top, absolute as
+written, `~` as `/root`, its links followed as PRoot follows them (`GuestPaths`,
+[runtime-contract-plan.md](./runtime-contract-plan.md) §4.3); `.git` is a folder like any other. A
+result names a file from the workspace's top inside it, by its runtime path elsewhere. **Ask** offers
+the reading tools only.
 
 | Tool | Kind | Through | Bounds |
 |---|---|---|---|
-| `list_files(path)` | read | `java.io` under the workspace, `.git` hidden | 500 entries |
+| `list_files(path, recursive, ignored)` | read | `java.io`; recursive, `WorkspaceSearchEngine.index` of the folder (`.gitignore`'d files only with `ignored`) | 500 entries |
 | `read_file(path, start_line, line_count)` | read | `WorkspaceFileSource.readDocument` (encoding, 5 MB limit) | 2 000 lines, numbered |
-| `search_text(query, regex, path)` | read | `WorkspaceSearchEngine` (ripgrep; installs on first use as Search does) | 200 matches |
+| `search_text(query, path, regex, match_case, ignored)` | read | `WorkspaceSearchEngine` (ripgrep; installs on first use as Search does), in the folder given, the workspace's top by default | 200 matches |
 | `git_status()` / `git_diff(path, staged)` | read | `CliGitService.run` | 64 KB |
 | `write_file(path, content)` | change | `WorkspaceFileSource.createFile`/`writeDocument` (atomic, keeps encoding and line endings) | refused under unsaved edits |
 | `edit_file(path, old_text, new_text, replace_all)` | change | as above; `old_text` must match once unless `replace_all` | refused under unsaved edits |
-| `run_command(command, timeout_seconds)` | command | `AssistantShell`: bash with the login environment, in the chat's directory, seeing only this workspace under `/workspace` | 120 s default, 600 s at most; output's head and tail, 32 KB; its status in words |
-| `start_process(command, name, wait_seconds)` | command | `RuntimeProcesses`: a managed process, as `run_command` runs it, its input open | 8 at once; answers its ID, ports and first output |
-| `process_status(id)` | read | `RuntimeProcesses` | the output since the last look, 16 KB |
+| `run_command(command, timeout_seconds)` | command | `AssistantShell`: bash with the login environment, in the chat's directory — anywhere in the runtime — seeing every workspace under `/workspace` | 120 s by default, as long as the model asks; output's head and tail, 32 KB; its status in words |
+| `start_process(command, name, wait_seconds)` | command | `RuntimeProcesses`: a managed process, as `run_command` runs it, its input open | answers its ID, ports and first output |
+| `process_status(id)` | read | `RuntimeProcesses`: every managed process, each with its workspace | the output since the last look, 16 KB |
 | `send_process_input(id, text, newline)` | command | `RuntimeProcesses` | answers what it printed in the next second |
 | `stop_process(id)` | command | `RuntimeProcesses` | SIGTERM, SIGKILL after 3 s |
 | `run_android_app()` | command | `RunCoordinator`: Build & Run, as the Run tab's ▶ ([run-tab-plan.md](./run-tab-plan.md)) | answers the build's process ID |
@@ -247,8 +250,9 @@ both (`AssistantCall.file`, `.command`), none for arguments that could not be re
 After a change, the workspace refreshes the way a terminal edit does: tree, Git and the search
 index. Clean open tabs reload.
 
-Attachments (`AssistantAttachments`) pass through the same path check (`AssistantWorkspace`): a
-file outside the workspace, a folder or a binary file is refused before anything is sent.
+Attachments (`AssistantAttachments`) are the workspace's files the user picked, named from its top
+and followed as the tools follow them (`AssistantWorkspace`): a file outside the workspace, a folder
+or a binary file is refused before anything is sent.
 
 ### 4.4 Approvals and permissions
 

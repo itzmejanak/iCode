@@ -27,8 +27,9 @@ import org.junit.rules.TemporaryFolder
 class AssistantShellTest {
     @get:Rule val temp = TemporaryFolder()
 
-    private val rootfs by lazy { temp.newFolder("rootfs") }
-    private val workspace by lazy { AssistantWorkspace(temp.newFolder("app"), "/workspace/app") }
+    private val runtime by lazy { TestRuntime(temp.root) }
+    private val rootfs by lazy { runtime.rootfs }
+    private val workspace by lazy { runtime.workspace }
     private val scripts = mutableListOf<String>()
     private val environments = mutableListOf<Map<String, String>>()
     /** What the next command does: prints, ends somewhere, exits with a code — or never ends. */
@@ -78,19 +79,17 @@ class AssistantShellTest {
         assertTrue(scripts[2].startsWith("cd -- '/workspace/app' || exit 1"))
     }
 
-    @Test fun `a directory outside the workspace, or gone, sends the next command to the top, and says so`() {
-        next = { 0 to "/tmp" }
-        command("cd /tmp")
+    @Test fun `the next command starts where the last ended, anywhere in the runtime, or at the top once that is gone`() {
+        File(rootfs, "root/projects").mkdirs()
+        next = { 0 to "/root/projects" }
+        command("cd /root/projects")
         next = { 0 to null }
-        val result = command("ls")
-        assertTrue(scripts[1].startsWith("cd -- '/workspace/app' || exit 1"))
-        assertTrue(result, result.contains("The last command ended in /tmp, outside this workspace: this one ran at its top"))
-        File(workspace.root, "gone").mkdirs()
-        next = { 0 to "/workspace/app/gone" }
-        command("cd gone")
-        File(workspace.root, "gone").delete()
-        next = { 0 to null }
-        assertTrue(command("ls").contains("/workspace/app/gone is gone: this ran at the workspace's top"))
+        val kept = command("ls")
+        assertTrue(scripts[1].startsWith("cd -- '/root/projects' || exit 1"))
+        assertTrue(kept, kept.startsWith("Exit code 0 (succeeded)\nin /root/projects"))
+        File(rootfs, "root/projects").delete()
+        assertTrue(command("ls").contains("/root/projects is gone: this ran at the workspace's top"))
+        assertTrue(scripts[2].startsWith("cd -- '/workspace/app' || exit 1"))
     }
 
     @Test fun `a status is said in words, a command not found with the PATH searched`() {
@@ -132,11 +131,11 @@ class AssistantShellTest {
         spawned.single().say("INFO: Uvicorn running on http://127.0.0.1:8000\n")
         val text = started.await()
         assertTrue(text, text.startsWith("Started p1 · uvicorn · Running · "))
-        assertTrue(text, text.contains("`uvicorn app.main:app` in /workspace/app/backend"))
+        assertTrue(text, text.contains("`uvicorn app.main:app` in /workspace/app/backend · workspace “app”"))
         assertTrue(text, text.contains("Ports its output names: 8000 (answers)"))
         assertTrue(text, text.contains("INFO: Uvicorn running on http://127.0.0.1:8000"))
 
-        val status = ProcessStatusTool(workspace, processes, answers = { false })
+        val status = ProcessStatusTool(processes, answers = { false })
         assertTrue(status.run(JSONObject()).startsWith("p1 · uvicorn · Running"))
         assertTrue(status.run(JSONObject().put("id", "p1")).endsWith("No new output"))
         spawned.single().say("GET / 200\n")
@@ -144,22 +143,29 @@ class AssistantShellTest {
         Thread.sleep(100)
         assertTrue(status.run(JSONObject().put("id", "p1")).endsWith("GET / 200\n"))
 
-        assertTrue(SendProcessInputTool(workspace, processes).run(JSONObject().put("id", "p1").put("text", "y")).startsWith("Sent to p1."))
+        assertTrue(SendProcessInputTool(processes).run(JSONObject().put("id", "p1").put("text", "y")).startsWith("Sent to p1."))
         assertEquals("y\n", spawned.single().input.toString())
 
-        assertEquals("Stopped p1", StopProcessTool(workspace, processes).run(JSONObject().put("id", "p1")))
+        assertEquals("Stopped p1", StopProcessTool(processes).run(JSONObject().put("id", "p1")))
         assertEquals(listOf(PosixSignal.TERM), spawned.single().signals)
     }
 
-    @Test fun `another workspace's processes are not this one's`() = runBlocking {
-        processes.start("/w/other", "/workspace/other", "vite", null, emptyMap())
-        assertEquals("No processes in this workspace", ProcessStatusTool(workspace, processes).run(JSONObject()))
+    @Test fun `every workspace's processes are reached, each said with its workspace, and a ninth starts`() = runBlocking {
+        repeat(9) { processes.start("/w/other", "/workspace/other", "vite $it", null, emptyMap()).getOrThrow() }
+        val listed = ProcessStatusTool(processes, answers = { false }).run(JSONObject())
+        assertTrue(listed, listed.startsWith("p1 · vite · Running"))
+        assertTrue(listed, listed.contains("`vite 8` in /workspace/other · workspace “other”"))
+        assertEquals("Stopped p9", StopProcessTool(processes).run(JSONObject().put("id", "p9")))
         try {
-            StopProcessTool(workspace, processes).run(JSONObject().put("id", "p1"))
+            StopProcessTool(processes).run(JSONObject().put("id", "p10"))
             fail("expected a refusal")
         } catch (refused: AssistantToolException) {
-            assertEquals("There is no process p1 in this workspace", refused.message)
+            assertEquals("There is no process p10", refused.message)
         }
+    }
+
+    @Test fun `no process is said so`() = runBlocking {
+        assertEquals("No processes", ProcessStatusTool(processes).run(JSONObject()))
     }
 
     private fun <T> runAsync(block: suspend () -> T) = scope.async { block() }

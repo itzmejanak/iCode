@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.git
 
 import dev.icode.mobile.data.log.BackendLog
+import dev.icode.mobile.data.runtime.GuestPaths
 import dev.icode.mobile.data.storage.WorkspacePaths
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceFileSource
@@ -70,7 +71,7 @@ class GitWorkspaceCoordinatorTest {
             stateHolder,
             scope,
             git,
-            WorkspaceTree(stateHolder, WorkspaceFileSource(WorkspacePaths(File("/workspaces")))) { emptyList() },
+            WorkspaceTree(stateHolder, WorkspaceFileSource(GuestPaths(File("/rootfs"), WorkspacePaths(File("/workspaces"))))) { emptyList() },
             activeRoot = { root },
             workspaces = { emptyList() },
             recentDocuments = { emptyList() },

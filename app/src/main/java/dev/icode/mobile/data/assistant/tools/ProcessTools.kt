@@ -9,6 +9,7 @@ import dev.icode.mobile.domain.AssistantToolKind
 import dev.icode.mobile.domain.ManagedProcess
 import dev.icode.mobile.domain.ManagedProcessState
 import dev.icode.mobile.domain.ProcessRules
+import java.io.File
 import java.net.InetSocketAddress
 import java.net.Socket
 import kotlinx.coroutines.Dispatchers
@@ -17,7 +18,8 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 
 // Managed processes, as the assistant drives them (docs/runtime-foundation-plan.md §3.5): what must
-// keep running — a server, a watcher, a worker — started, read, written to and stopped by its ID.
+// keep running — a server, a watcher, a worker — started, read, written to and stopped by its ID,
+// whichever workspace it runs for (docs/runtime-contract-plan.md §4.3).
 
 /** A port on this phone accepts a connection: something listens there. */
 internal suspend fun localPortAnswers(port: Int): Boolean = withContext(Dispatchers.IO) {
@@ -26,11 +28,11 @@ internal suspend fun localPortAnswers(port: Int): Boolean = withContext(Dispatch
 
 private const val CONNECT_MILLIS = 300
 
-/** What the model reads of a process: its ID and name, its command, where and how it runs, and its ports. */
+/** What the model reads of a process: its ID and name, its command, where and how it runs, its workspace and its ports. */
 private suspend fun describe(process: ManagedProcess, answers: suspend (Int) -> Boolean, now: Long): String = buildString {
     append("${process.id} · ${process.name} · ${ProcessRules.stateLabel(process.state, now, process.startedAt)}")
     (process.state as? ManagedProcessState.Ended)?.let { append(" (exit code ${it.code}: ${ProcessRules.exitMeaning(it.code)})") }
-    append("\n`${process.command}` in ${process.directory}")
+    append("\n`${process.command}` in ${process.directory} · workspace “${File(process.workspace).name}”")
     if (process.ports.isNotEmpty()) {
         val ports = process.ports.map { port -> "$port " + if (process.running && answers(port)) "(answers)" else "(does not answer)" }
         append("\nPorts its output names: ").append(ports.joinToString())
@@ -50,7 +52,7 @@ internal class StartProcessTool(
     override val name = "start_process"
     override val description = "Starts a command that keeps running — a development server, a watcher, a worker — in bash, " +
         "where run_command is, with the login environment, seeing the whole runtime. It runs until stop_process, until it " +
-        "ends, or until iCode's process ends; ${ProcessRules.MAX_RUNNING} at most at once. Its output (stderr with stdout) is kept " +
+        "ends, or until iCode's process ends. Its output (stderr with stdout) is kept " +
         "for process_status, and its input stays open for send_process_input. Waits wait_seconds (less if it ends), then " +
         "answers its ID, its state, the ports its output names and what it printed. A server must listen on a port from 1024; " +
         "the user opens http://127.0.0.1:<port> in their browser."
@@ -97,16 +99,16 @@ internal class StartProcessTool(
     }
 }
 
-/** This workspace's processes, or one's state and its output since the assistant last looked: read-only. */
+/** Every process iCode runs, each with its workspace, or one's state and its output since the assistant last looked: read-only. */
 internal class ProcessStatusTool(
-    private val workspace: AssistantWorkspace,
     private val processes: RuntimeProcesses,
     private val answers: suspend (Int) -> Boolean = ::localPortAnswers,
     private val clock: () -> Long = System::currentTimeMillis,
 ) : AssistantTool {
     override val name = "process_status"
-    override val description = "Without an id, lists this workspace's processes started with start_process. With one, " +
-        "answers its state, whether the ports its output names answer, and the output it printed since you last looked."
+    override val description = "Without an id, lists every process iCode runs — start_process's, Build & Run's, the Run " +
+        "tab's — each with its workspace. With one, answers its state, whether the ports its output names answer, and the " +
+        "output it printed since you last looked."
     override val parameters = listOf(AssistantParameter("id", "A process's ID, as start_process answered it", required = false))
     override val kind = AssistantToolKind.Read
 
@@ -115,12 +117,11 @@ internal class ProcessStatusTool(
     override suspend fun run(arguments: JSONObject): String {
         val id = arguments.textOrNull("id")
         if (id == null) {
-            val mine = processes.of(workspace.root.path)
-            if (mine.isEmpty()) return "No processes in this workspace"
-            return mine.map { describe(it, answers, clock()) }.joinToString("\n\n")
+            val all = processes.all()
+            if (all.isEmpty()) return "No processes"
+            return all.map { describe(it, answers, clock()) }.joinToString("\n\n")
         }
-        val read = processes.read(id)?.takeIf { it.process.workspace == workspace.root.path }
-            ?: throw AssistantToolException("There is no process $id in this workspace")
+        val read = processes.read(id) ?: throw AssistantToolException("There is no process $id")
         return buildString {
             append(describe(read.process, answers, clock()))
             append("\n\n")
@@ -135,10 +136,7 @@ internal class ProcessStatusTool(
 }
 
 /** Writes to a running process's input; asked about first. */
-internal class SendProcessInputTool(
-    private val workspace: AssistantWorkspace,
-    private val processes: RuntimeProcesses,
-) : AssistantTool {
+internal class SendProcessInputTool(private val processes: RuntimeProcesses) : AssistantTool {
     override val name = "send_process_input"
     override val description = "Writes text to the input of a process started with start_process — an answer to its " +
         "prompt, a line for its console — then answers what it printed in the next second."
@@ -155,7 +153,7 @@ internal class SendProcessInputTool(
 
     override suspend fun run(arguments: JSONObject): String {
         val id = arguments.text("id")
-        if (processes.of(workspace.root.path).none { it.id == id }) throw AssistantToolException("There is no process $id in this workspace")
+        processes.info(id) ?: throw AssistantToolException("There is no process $id")
         val newline = !arguments.has("newline") || arguments.flag("newline")
         val text = arguments.text("text") + if (newline) "\n" else ""
         processes.write(id, text)?.let { throw AssistantToolException(it) }
@@ -172,7 +170,6 @@ internal class SendProcessInputTool(
 
 /** Stops a process; asked about first. */
 internal class StopProcessTool(
-    private val workspace: AssistantWorkspace,
     private val processes: RuntimeProcesses,
     private val clock: () -> Long = System::currentTimeMillis,
 ) : AssistantTool {
@@ -186,8 +183,7 @@ internal class StopProcessTool(
 
     override suspend fun run(arguments: JSONObject): String {
         val id = arguments.text("id")
-        val process = processes.of(workspace.root.path).firstOrNull { it.id == id }
-            ?: throw AssistantToolException("There is no process $id in this workspace")
+        val process = processes.info(id) ?: throw AssistantToolException("There is no process $id")
         if (!process.running) return "$id had ended already: ${ProcessRules.stateLabel(process.state, clock(), process.startedAt)}"
         processes.stop(id)
         // Its end, within the grace and a moment more.

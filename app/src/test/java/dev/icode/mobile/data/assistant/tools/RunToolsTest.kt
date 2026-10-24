@@ -36,8 +36,9 @@ class RunToolsTest {
     private val stateHolder = ICodeStateHolder()
 
     /** An Android Studio project: the wrapper, the settings, and an `app` module. */
+    private val runtime by lazy { TestRuntime(temp.root) }
     private val root by lazy {
-        temp.newFolder("app").canonicalFile.also { root ->
+        runtime.root.also { root ->
             mapOf(
                 "gradlew" to "#!/bin/sh",
                 "settings.gradle.kts" to "include(\":app\")",
@@ -46,7 +47,7 @@ class RunToolsTest {
             ).forEach { (path, text) -> File(root, path).apply { parentFile?.mkdirs() }.writeText(text) }
         }
     }
-    private val workspace by lazy { AssistantWorkspace(root, "/workspace/app") }
+    private val workspace by lazy { AssistantWorkspace(root, runtime.paths) }
     private val runs by lazy {
         val processes = RuntimeProcesses(scope, { FakeSpawnedProcess() }, { }, ProcessLogs(temp.newFolder("logs")), grace = 200)
         val builds = object : AndroidBuilds {
@@ -92,7 +93,7 @@ class RunToolsTest {
             "- app · Android app, found in the project: `./gradlew :app:assembleDebug`\n- dev · id ${dev.id}: `npm run dev`",
             list.run(JSONObject()),
         )
-        val empty = ListRunCommandsTool(AssistantWorkspace(temp.newFolder("empty"), "/workspace/empty"), runs)
+        val empty = ListRunCommandsTool(TestRuntime(temp.newFolder("other"), "empty").workspace, runs)
         assertEquals("The Run tab is empty: no Android app found, no command saved.", empty.run(JSONObject()))
     }
 

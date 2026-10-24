@@ -5,6 +5,7 @@ import dev.icode.mobile.data.assistant.koog.KoogAssistantEngine
 import dev.icode.mobile.data.assistant.tools.AssistantToolbox
 import dev.icode.mobile.data.assistant.tools.AssistantWorkspace
 import dev.icode.mobile.data.git.CliGitService
+import dev.icode.mobile.data.runtime.GuestPaths
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceFileSource
 import dev.icode.mobile.data.workspace.WorkspaceRoot
@@ -38,6 +39,8 @@ internal class AssistantCoordinator(
     private val activeRoot: () -> String?,
     /** A workspace by its location: its name and runtime path. Throws when it is gone. */
     describe: (String) -> WorkspaceRoot,
+    /** The runtime's paths, as the tools follow them. */
+    paths: GuestPaths,
     /** The files of a message: the workspace's and the phone's ([AssistantAttachments]). */
     attachments: (openText: (String) -> String?) -> AssistantAttachments,
     /** Git, for a workspace, in the repository it works in: what a commit message is written from. */
@@ -47,7 +50,7 @@ internal class AssistantCoordinator(
     private val settings = AssistantProviders(stateHolder, scope, engine, providers, page)
     private val commitMessages = AssistantCommitMessages(scope, engine, providers, settings::settings, page, git)
     private val turns = AssistantTurns(
-        page, scope, engine, providers, settings::settings, chats, tools, describe,
+        page, scope, engine, providers, settings::settings, chats, tools, describe, paths,
         attachments { location -> stateHolder.current.openDocuments.firstOrNull { it.location == location }?.text },
     )
 
@@ -170,11 +173,12 @@ internal class AssistantCoordinator(
             toolbox: AssistantToolbox,
             activeRoot: () -> String?,
             source: WorkspaceFileSource,
+            paths: GuestPaths,
             git: CliGitService,
         ) = AssistantCoordinator(
             icode, scope, KoogAssistantEngine.create(), SharedPreferencesAssistantProviderStore(context),
             AssistantChats(AssistantChatStore(File(context.applicationContext.filesDir, "assistant/chats"))),
-            toolbox::forWorkspace, activeRoot, source::describeRoot,
+            toolbox::forWorkspace, activeRoot, source::describeRoot, paths,
             attachments = { openText ->
                 AssistantAttachments(
                     ContentResolverPhoneFiles(context.applicationContext.contentResolver),

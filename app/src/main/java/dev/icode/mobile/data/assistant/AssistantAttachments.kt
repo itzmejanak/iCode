@@ -23,8 +23,8 @@ internal fun interface PhoneFiles {
 }
 
 /**
- * Files sent with a message (§12 R6, §13 P6–P8): the workspace's own — through the tools' path check,
- * an open tab's text as shown — and the phone's, from a picker or the camera. Text goes as text,
+ * Files sent with a message (§12 R6, §13 P6–P8): the workspace's own — its links followed as the tools
+ * follow them, an open tab's text as shown — and the phone's, from a picker or the camera. Text goes as text,
  * bounded; an image as JPEG ([prepareImage]); a PDF as itself. What the model cannot read is refused
  * before anything is read; whatever fails, in the words the page shows.
  */
@@ -83,10 +83,9 @@ internal class AssistantAttachments(
         if (location.startsWith(CONTENT)) phoneSource(location) else workspaceSource(workspace, location)
 
     private fun workspaceSource(workspace: AssistantWorkspace, location: String): Source {
-        // Through the tools' own check: no `..`, link or other location leads out of the workspace.
-        val file = runCatching { workspace.resolve(workspace.relative(File(location))) }
-            .getOrElse { throw AssistantTurnException("${File(location).name} is not in this workspace") }
-        val path = workspace.relative(file)
+        // Named from the workspace's top, where the page opens it again.
+        val path = workspace.relative(File(location)) ?: throw AssistantTurnException("${File(location).name} is not in this workspace")
+        val file = runCatching { workspace.resolve(path) }.getOrElse { throw AssistantTurnException("$path cannot be read") }
         if (!file.isFile) throw AssistantTurnException("$path is not a file")
         return Source(
             name = path,

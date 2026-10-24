@@ -12,19 +12,21 @@ import java.io.File
 import java.io.IOException
 import org.json.JSONObject
 
-// What the assistant reads (§4.3): never asked about, never written.
+// What the assistant reads (§4.3): never asked about, never written. Any path in the runtime
+// (docs/runtime-contract-plan.md §4.3), each answered as the model writes it back ([AssistantWorkspace.shown]).
 
-/** A folder's entries, or with `recursive` every file under it as Git sees them (ignored ones left out). */
+/** A folder's entries, or with `recursive` every file under it, ignored ones left out unless asked for. */
 internal class ListFilesTool(
     private val workspace: AssistantWorkspace,
     private val search: WorkspaceSearchEngine,
 ) : AssistantTool {
     override val name = "list_files"
-    override val description = "Lists a folder of the workspace: its folders (ending in /) and files. " +
-        "With recursive, every file under it instead, leaving out what .gitignore ignores (such as node_modules)."
+    override val description = "Lists a folder: its folders (ending in /) and files, Git's .git included. With recursive, " +
+        "every file under it instead, leaving out .git and what .gitignore ignores (such as node_modules) unless ignored."
     override val parameters = listOf(
-        AssistantParameter("path", "The folder, relative to the workspace's top; \".\" is the top", required = false),
+        AssistantParameter("path", "The folder; the workspace's top when absent", required = false),
         AssistantParameter("recursive", "List every file under the folder", AssistantParameterType.Boolean, required = false),
+        AssistantParameter("ignored", "With recursive, also what .gitignore ignores", AssistantParameterType.Boolean, required = false),
     )
     override val kind = AssistantToolKind.Read
 
@@ -32,24 +34,28 @@ internal class ListFilesTool(
         "List ${arguments.textOrNull("path") ?: "."}" + if (arguments.flag("recursive")) ", all files" else ""
 
     override suspend fun run(arguments: JSONObject): String {
-        val folder = workspace.resolve(arguments.textOrNull("path") ?: ".")
-        if (!folder.isDirectory) throw AssistantToolException("${workspace.relative(folder)} is not a folder")
-        val names = if (arguments.flag("recursive")) everything(folder) else entries(folder)
+        val folder = workspace.existingFolder(arguments.textOrNull("path") ?: ".")
+        val (names, cut) = if (arguments.flag("recursive")) everything(folder, arguments.flag("ignored")) else entries(folder) to false
         if (names.isEmpty()) return "(empty)"
         val shown = names.take(MAX_ENTRIES).joinToString("\n")
-        return if (names.size > MAX_ENTRIES) "$shown\n(${names.size - MAX_ENTRIES} more not shown)" else shown
+        val more = names.size - MAX_ENTRIES
+        return when {
+            more > 0 && cut -> "$shown\n(more than $more not shown; list a folder under it)"
+            more > 0 -> "$shown\n($more more not shown)"
+            else -> shown
+        }
     }
 
     private fun entries(folder: File): List<String> = folder.listFiles().orEmpty()
-        .filter { it.name != ".git" }
         .sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.name.lowercase() })
         .map { if (it.isDirectory) "${it.name}/" else it.name }
 
-    private suspend fun everything(folder: File): List<String> {
+    /** Every file under [folder], and whether ripgrep stopped before the last. */
+    private suspend fun everything(folder: File, ignored: Boolean): Pair<List<String>, Boolean> {
         (search.ensureAvailable() as? RipgrepAvailability.Failed)?.let { throw AssistantToolException(it.reason) }
-        val index = search.index(workspace.root.path)
-        val under = if (folder == workspace.root) "" else workspace.relative(folder) + "/"
-        return index.files.map { workspace.relative(File(it.path)) }.filter { it.startsWith(under) }
+        val index = search.index(folder.path, ignored)
+        index.warning?.let { if (index.files.isEmpty()) throw AssistantToolException(it) }
+        return index.files.map { workspace.shown(File(it.path)) } to index.truncated
     }
 
     private companion object {
@@ -63,10 +69,10 @@ internal class ReadFileTool(
     private val source: WorkspaceFileSource,
 ) : AssistantTool {
     override val name = "read_file"
-    override val description = "Reads a text file of the workspace. Lines are numbered; a long file is read " +
+    override val description = "Reads a text file. Lines are numbered; a long file is read " +
         "$MAX_LINES lines at a time from start_line."
     override val parameters = listOf(
-        AssistantParameter("path", "The file, relative to the workspace's top"),
+        AssistantParameter("path", "The file"),
         AssistantParameter("start_line", "The first line to read, from 1", AssistantParameterType.Integer, required = false),
         AssistantParameter("line_count", "How many lines, at most $MAX_LINES", AssistantParameterType.Integer, required = false),
     )
@@ -78,14 +84,14 @@ internal class ReadFileTool(
         arguments.textOrNull("path")?.let { path -> runCatching { workspace.relative(workspace.resolve(path)) }.getOrNull() }
 
     override suspend fun run(arguments: JSONObject): String {
-        val file = workspace.resolve(arguments.text("path"))
-        if (!file.isFile) throw AssistantToolException("${workspace.relative(file)} is not a file")
+        val path = arguments.text("path")
+        val file = workspace.existingFile(path)
         val text = try {
             source.readDocument(file.path).text
         } catch (failure: IOException) {
-            throw AssistantToolException(failure.message ?: "Unable to read ${workspace.relative(file)}")
+            throw AssistantToolException("$path: ${failure.message ?: "unable to read it"}")
         }
-        if ('\u0000' in text) throw AssistantToolException("${workspace.relative(file)} is a binary file")
+        if ('\u0000' in text) throw AssistantToolException("$path is a binary file")
         val lines = text.lines()
         val start = arguments.intOr("start_line", 1).coerceIn(1, lines.size.coerceAtLeast(1))
         val count = arguments.intOr("line_count", MAX_LINES).coerceIn(1, MAX_LINES)
@@ -105,30 +111,36 @@ internal class ReadFileTool(
     }
 }
 
-/** Text across the workspace, through ripgrep as Search uses it. */
+/** Text across a folder's files — the workspace's by default — through ripgrep as Search uses it. */
 internal class SearchTextTool(
     private val workspace: AssistantWorkspace,
     private val search: WorkspaceSearchEngine,
 ) : AssistantTool {
     override val name = "search_text"
-    override val description = "Searches the workspace's files for text (or a regular expression), " +
-        "leaving out what .gitignore ignores. Answers path:line: text for each match."
+    override val description = "Searches files for text (or a regular expression): the workspace's, or a folder's, " +
+        "leaving out .git and what .gitignore ignores unless ignored. Answers path:line: text for each match."
     override val parameters = listOf(
         AssistantParameter("query", "The text to find"),
+        AssistantParameter("path", "The folder to search; the workspace's top when absent", required = false),
         AssistantParameter("regex", "The query is a regular expression", AssistantParameterType.Boolean, required = false),
         AssistantParameter("match_case", "Upper and lower case differ", AssistantParameterType.Boolean, required = false),
+        AssistantParameter("ignored", "Also search what .gitignore ignores", AssistantParameterType.Boolean, required = false),
     )
     override val kind = AssistantToolKind.Read
 
-    override fun summary(arguments: JSONObject): String = "Search “${arguments.textOrNull("query").orEmpty()}”"
+    override fun summary(arguments: JSONObject): String =
+        "Search “${arguments.textOrNull("query").orEmpty()}”" + (arguments.textOrNull("path")?.let { " in $it" } ?: "")
 
     override suspend fun run(arguments: JSONObject): String {
         val query = arguments.text("query").ifEmpty { throw AssistantToolException("The query is empty") }
+        val folder = workspace.existingFolder(arguments.textOrNull("path") ?: ".")
         (search.ensureAvailable() as? RipgrepAvailability.Failed)?.let { throw AssistantToolException(it.reason) }
-        val outcome = search.search(workspace.root.path, query, arguments.flag("match_case"), wholeWord = false, regex = arguments.flag("regex"))
+        val outcome = search.search(
+            folder.path, query, arguments.flag("match_case"), wholeWord = false, regex = arguments.flag("regex"), ignored = arguments.flag("ignored"),
+        )
         outcome.warning?.let { if (outcome.results.isEmpty()) throw AssistantToolException(it) }
         val lines = outcome.results.flatMap { result ->
-            val path = workspace.relative(File(result.path))
+            val path = workspace.shown(File(result.path))
             result.matches.map { "$path:${it.lineNumber}: ${it.lineText.trim().take(MAX_LINE)}" }
         }
         if (lines.isEmpty()) return "No matches"
