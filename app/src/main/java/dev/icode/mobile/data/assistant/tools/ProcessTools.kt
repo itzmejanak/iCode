@@ -49,7 +49,7 @@ internal class StartProcessTool(
 ) : AssistantTool {
     override val name = "start_process"
     override val description = "Starts a command that keeps running — a development server, a watcher, a worker — in bash, " +
-        "where run_command is, with the login environment, seeing only this workspace. It runs until stop_process, until it " +
+        "where run_command is, with the login environment, seeing the whole runtime. It runs until stop_process, until it " +
         "ends, or until iCode's process ends; ${ProcessRules.MAX_RUNNING} at most at once. Its output (stderr with stdout) is kept " +
         "for process_status, and its input stays open for send_process_input. Waits wait_seconds (less if it ends), then " +
         "answers its ID, its state, the ports its output names and what it printed. A server must listen on a port from 1024; " +

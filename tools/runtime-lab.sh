@@ -76,6 +76,21 @@ check "the snapshot's marker comes before the variables" \
     "$(whole /usr/bin/env -i HOME=/root PATH=/usr/bin:/bin HISTFILE=/dev/null /bin/sh -c "{ $snapshot
 }" 2>/dev/null | tr '\0' '\n' | sed -n 2p)"
 
+# §4.1: one tree for every launch: what one writes under /workspace is the file every other sees.
+whole /usr/bin/env -i PATH=/usr/bin:/bin /bin/sh -c 'echo probe > /workspace/other/probe.txt'
+check "a file one launch writes in a workspace is on the phone where the Explorer reads it" \
+    "probe" "$(cat "$lab/workspaces/other/probe.txt")"
+check "and the next launch reads the same file" \
+    "probe" "$(whole /usr/bin/env -i PATH=/usr/bin:/bin /bin/cat /workspace/other/probe.txt)"
+
+# §1.3: links as GuestPaths follows them.
+whole /usr/bin/env -i PATH=/usr/bin:/bin /bin/sh -c 'ln -s /workspace/other/README.md /root/readme; echo data > /root/a; ln /root/a /root/b'
+check "a link made in the runtime keeps the runtime path it names" \
+    "/workspace/other/README.md" "$(readlink "$lab/rootfs/root/readme")"
+stand_in=$(readlink "$lab/rootfs/root/b")
+check "PRoot's stand-in for a hard link names the phone's path of its file" \
+    "under $lab/rootfs/root/" "$([[ $stand_in == "$lab/rootfs/root/.l2s."* ]] && echo "under $lab/rootfs/root/" || echo "$stand_in")"
+
 echo
 if [ "$failures" -gt 0 ]; then
     echo "$failures check(s) failed"

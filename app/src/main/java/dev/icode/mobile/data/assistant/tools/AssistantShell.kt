@@ -13,7 +13,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Where and how the assistant's commands run (docs/runtime-foundation-plan.md §3.3): bash with the
- * user's login environment, seeing only its workspace, in the directory its chat's last command
+ * user's login environment, seeing the whole runtime as a terminal does, in the directory its chat's last command
  * ended in. A command's `export`s end with it; its directory does not.
  */
 internal class AssistantShell(
@@ -27,7 +27,7 @@ internal class AssistantShell(
     constructor(rootfs: File, guest: GuestCommand, environment: GuestEnvironment, processes: RuntimeProcesses) : this(
         rootfs,
         { workspace, script, variables, onLine ->
-            guest.stream(workspace, listOf("/bin/bash", "-c", script), "assistant", variables, workspace = workspace) { line ->
+            guest.stream(workspace, listOf("/bin/bash", "-c", script), "assistant", variables) { line ->
                 onLine(line)
                 true
             }

@@ -72,7 +72,7 @@ internal class RunCommandTool(
         "It starts where the last command ended — the workspace's top at first — so `cd` carries over; `export` and `source` " +
         "do not, so set what a command needs in that command. Its input is closed. It is stopped after timeout_seconds, with " +
         "everything it started: run a server, a watcher or anything that must keep running with start_process. It reaches " +
-        "the whole runtime, but only this workspace under /workspace; the file tools stay inside the workspace."
+        "the whole runtime, every workspace under /workspace included; the file tools stay inside this workspace."
     override val parameters = listOf(
         AssistantParameter("command", "The command line, as typed in a terminal"),
         AssistantParameter(

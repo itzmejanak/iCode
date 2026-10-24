@@ -230,7 +230,7 @@ internal class RuntimeProcesses(
 }
 
 /**
- * [launch] in a PRoot of its own that sees only its workspace, its stderr joined to its stdout as a
+ * [launch] in a PRoot of its own that sees the whole runtime, its stderr joined to its stdout as a
  * terminal shows them, its stdin open for [SpawnedProcess.input].
  */
 internal fun RuntimeLayout.spawn(launch: RuntimeProcesses.Launch): SpawnedProcess {
@@ -240,7 +240,6 @@ internal fun RuntimeLayout.spawn(launch: RuntimeProcesses.Launch): SpawnedProces
             variables = launch.environment,
             guestWorkingDirectory = launch.directory,
             killOnExit = true,
-            workspace = launch.workspace,
         ),
         environment = hostEnvironment(),
         workingDirectory = runtimeRoot.absolutePath,

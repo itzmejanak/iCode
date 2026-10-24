@@ -1,5 +1,6 @@
 package dev.icode.mobile.data.workspace
 
+import dev.icode.mobile.data.runtime.GuestPaths
 import dev.icode.mobile.domain.ExternalChange
 import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.OpenDocument
@@ -22,6 +23,7 @@ internal class DocumentSessionCoordinator(
     private val source: WorkspaceFileSource,
     private val recovery: DocumentRecoveryCoordinator,
     private val library: WorkspaceLibraryCoordinator,
+    private val paths: GuestPaths,
     private val activeRoot: () -> String?,
     /** A save changed the worktree, so Git's view of it is stale. */
     private val onSaved: () -> Unit,
@@ -45,9 +47,7 @@ internal class DocumentSessionCoordinator(
             return
         }
         val root = activeRoot()
-        if (root == null || !runCatching {
-                File(location).canonicalFile.toPath().startsWith(File(root).canonicalFile.toPath())
-            }.getOrDefault(false)) {
+        if (root == null || paths.within(root, location) == null) {
             stateHolder.notify(NoticeTone.HeadsUp, "The selected file is outside the active workspace")
             return
         }

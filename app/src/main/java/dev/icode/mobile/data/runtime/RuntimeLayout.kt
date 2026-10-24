@@ -2,11 +2,8 @@ package dev.icode.mobile.data.runtime
 
 import android.content.Context
 import android.os.storage.StorageManager
-import dev.icode.mobile.data.io.Sha256
 import dev.icode.mobile.data.storage.WorkspacePaths
 import java.io.File
-import java.nio.file.FileAlreadyExistsException
-import java.nio.file.Files
 import org.json.JSONObject
 
 /**
@@ -32,6 +29,9 @@ internal class RuntimeLayout(context: Context) {
 
     /** Every workspace, bound whole at `/workspace` in every launch. */
     val workspaces = WorkspacePaths.of(appContext)
+
+    /** The runtime's paths, as the files on the phone that hold them ([GuestPaths]). */
+    val paths = GuestPaths(rootfs, workspaces)
 
     /** The guest home, `/root`: Repair keeps it ([RuntimeHomeBackup]). */
     val home: File = File(rootfs, GUEST_HOME.removePrefix("/"))
@@ -164,9 +164,9 @@ internal class RuntimeLayout(context: Context) {
     fun shellAvailable(shellPath: String): Boolean = shellAvailable(rootfs, shellPath)
 
     /**
-     * Builds the PRoot command line. A launch sees every workspace at `/workspace`
-     * (docs/workspace-storage-plan.md §4.2) — or, given [workspace], that one alone at its own
-     * path there: what the assistant runs reaches no other (docs/runtime-foundation-plan.md §3.2).
+     * Builds the PRoot command line. Every launch sees the same tree: the runtime's root, the
+     * phone's [GuestPaths.HOST_PATHS], and every workspace at `/workspace`
+     * (docs/runtime-contract-plan.md §4.1).
      */
     fun prootCommand(
         guestCommand: List<String>,
@@ -180,8 +180,6 @@ internal class RuntimeLayout(context: Context) {
          * background job would keep an exited shell's session open.
          */
         killOnExit: Boolean = false,
-        /** A workspace's location: only it is bound. */
-        workspace: String? = null,
     ): List<String> = buildList {
         add(proot.absolutePath)
         // Android refuses link(), and dpkg needs hard links, so they are
@@ -196,14 +194,8 @@ internal class RuntimeLayout(context: Context) {
         add("-0")
         add("-r")
         add(rootfs.absolutePath)
-        add("-b")
-        add("/dev")
-        add("-b")
-        add("/proc")
-        add("-b")
-        add("/sys")
-        // Host Android trees the bionic linker needs when guest tools call out.
-        HOST_BINDS.forEach { hostPath ->
+        // The kernel's trees, and the Android ones the bionic linker needs when guest tools call out.
+        GuestPaths.HOST_PATHS.forEach { hostPath ->
             if (File(hostPath).exists()) {
                 File(rootfs, hostPath.removePrefix("/")).mkdirs()
                 add("-b")
@@ -213,13 +205,8 @@ internal class RuntimeLayout(context: Context) {
         workspaces.root.mkdirs()
         File(rootfs, WorkspacePaths.GUEST_ROOT.removePrefix("/")).mkdirs()
         add("-b")
-        if (workspace == null) {
-            // A workspace's name never reaches this argument, so no name can split it.
-            add("${workspaces.root.path}:${WorkspacePaths.GUEST_ROOT}")
-        } else {
-            val guestPath = requireNotNull(workspaces.guestOf(workspace)) { "$workspace is not in iCode's workspaces" }
-            add("${bindable(workspace)}:$guestPath")
-        }
+        // A workspace's name never reaches this argument, so no name can split it.
+        add("${workspaces.root.path}:${WorkspacePaths.GUEST_ROOT}")
         add("-w")
         add(guestWorkingDirectory)
         // `env -i` starts the program with these variables alone, then replaces itself with it: PRoot's
@@ -230,28 +217,7 @@ internal class RuntimeLayout(context: Context) {
         addAll(guestCommand)
     }
 
-    /**
-     * [workspace] as the host side of a bind. PRoot splits `-b` at its first colon and resolves
-     * links in the host side, so a location with a colon in its name is bound through a link to it,
-     * named by the location's hash; the guest side may hold colons.
-     */
-    private fun bindable(workspace: String): String {
-        if (':' !in workspace) return workspace
-        val target = File(workspace).toPath()
-        val link = File(File(runtimeRoot, BIND_LINKS).apply { mkdirs() }, Sha256.hex(workspace).take(LINK_NAME_LENGTH)).toPath()
-        if (Files.isSymbolicLink(link) && Files.readSymbolicLink(link) == target) return link.toString()
-        Files.deleteIfExists(link)
-        try {
-            Files.createSymbolicLink(link, target)
-        } catch (made: FileAlreadyExistsException) {
-            // Another launch made it at the same moment, to the same place.
-        }
-        return link.toString()
-    }
-
     companion object {
-        private const val BIND_LINKS = "binds"
-        private const val LINK_NAME_LENGTH = 32
         const val GUEST_HOME = "/root"
         /**
          * The guest's search path, with the user's own bin directory first.
@@ -265,7 +231,6 @@ internal class RuntimeLayout(context: Context) {
          */
         const val GUEST_PATH =
             "$GUEST_HOME/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-        private val HOST_BINDS = listOf("/system", "/apex", "/vendor", "/product")
 
         /** [rootfs]'s login shell for root ([loginShell]). */
         fun loginShell(rootfs: File): String = recordedShell(rootfs)?.takeIf { shellAvailable(rootfs, it) } ?: DEFAULT_SHELL

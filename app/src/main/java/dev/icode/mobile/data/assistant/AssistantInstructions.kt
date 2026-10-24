@@ -25,7 +25,7 @@ internal object AssistantInstructions {
         appendLine(
             "You work in “${workspace.name}”. Its files are at ${workspace.guestPath} in an Ubuntu " +
                 "Linux runtime on the user's phone (ARM64, under PRoot: uid 0 without root's powers, no systemd; " +
-                "`apt` installs packages). Only this workspace is under /workspace. File tool paths are relative to its folder.",
+                "`apt` installs packages). Every workspace is under /workspace. File tool paths are relative to this one's folder.",
         )
         appendLine()
         when (mode) {
