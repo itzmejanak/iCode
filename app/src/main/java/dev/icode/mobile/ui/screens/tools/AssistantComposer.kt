@@ -50,6 +50,7 @@ import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.domain.AssistantMode
+import dev.icode.mobile.domain.AssistantPermission
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantState
 import dev.icode.mobile.domain.ICodeIntent
@@ -172,17 +173,23 @@ internal fun AssistantComposer(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                // Permissions are the chat's, chosen here as VS Code's are.
+                // Permissions are the chat's, chosen here as VS Code's are (docs/assistant-permissions-plan.md §4.1).
                 Choice(
-                    if (settings.askBeforeChanges) ASK_FIRST else ALLOW_ALL, "Permissions", listOf(true, false), settings.askBeforeChanges,
-                    { if (it) ASK_FIRST else ALLOW_ALL },
-                    { if (it) "Each file change and command waits for Allow" else "Changes and commands run without asking" },
+                    state.permission.label, "Permissions", AssistantPermission.entries, state.permission, AssistantPermission::label,
+                    { permissionLine(it, AssistantRules.workspaceName(state.workspace.orEmpty())) },
                     icon = true,
-                ) { gateway.dispatch(ICodeIntent.SetAssistantAskFirst(it)) }
+                ) { gateway.dispatch(ICodeIntent.SetAssistantPermission(it)) }
             }
             ContextMeter(state)
         }
     }
+}
+
+/** What [permission] lets run in [workspace], said where it is chosen. */
+internal fun permissionLine(permission: AssistantPermission, workspace: String): String = when (permission) {
+    AssistantPermission.AskFirst -> "Changes, commands and anything outside $workspace wait for Allow"
+    AssistantPermission.AutoInWorkspace -> "Runs in $workspace without asking; anything outside it waits for Allow"
+    AssistantPermission.FullAccess -> "Changes, commands and anything outside $workspace run without asking"
 }
 
 /** "o3 · High": the model, and its effort ("Auto" for the provider's own) where it offers one. */
@@ -286,6 +293,4 @@ private fun AttachedFile(file: DraftFile, onRemove: () -> Unit) {
 }
 
 internal const val AUTO = "Auto"
-private const val ASK_FIRST = "Ask before changes"
-private const val ALLOW_ALL = "Allow all changes"
 private const val MAX_LINES = 8

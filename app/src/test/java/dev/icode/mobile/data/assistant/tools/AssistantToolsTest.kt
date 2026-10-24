@@ -65,6 +65,26 @@ class AssistantToolsTest {
         assertEquals("/workspace/other/a", workspace.shown(File(runtime.workspaces, "other/a")))
     }
 
+    @Test fun `each tool reaches the path it is given, the workspace's top by default, and the gate sees what is outside`() {
+        val list = ListFilesTool(workspace, FakeSearch(emptyList()))
+        assertEquals(listOf(root), list.reach(JSONObject()))
+        assertEquals(listOf(File(runtime.rootfs, "etc")), list.reach(args("path" to "/etc")))
+        assertEquals(listOf(File(runtime.workspaces, "other/x")), WriteFileTool(writer).reach(args("path" to "../other/x")))
+        assertEquals(emptyList<File>(), WriteFileTool(writer).reach(JSONObject()))
+        assertEquals(listOf("/etc", "/workspace/other/x"), workspace.outside(listOf(root, File(root, "src"), File(runtime.rootfs, "etc"), File(runtime.workspaces, "other/x"))))
+    }
+
+    @Test fun `Allow in Chat opens another workspace whole, a repository at its top, else the folder`() {
+        File(runtime.rootfs, "root/projects/api/.git").mkdirs()
+        File(runtime.rootfs, "root/projects/api/lib").mkdirs()
+        File(runtime.rootfs, "etc").mkdirs()
+        assertEquals("/workspace/other", workspace.rootOf("/workspace/other/src/App.tsx"))
+        assertEquals("/root/projects/api", workspace.rootOf("/root/projects/api/lib/x.py"))
+        assertEquals("/etc", workspace.rootOf("/etc/hosts"))
+        assertEquals("/etc", workspace.rootOf("/etc"))
+        assertEquals(null, workspace.rootOf("/"))
+    }
+
     @Test fun `a file anywhere in the runtime is read, and what is wrong is said as the system says it`() = runBlocking {
         File(runtime.rootfs, "root/x").apply { parentFile!!.mkdirs(); writeText("home") }
         File(runtime.workspaces, "other/y").apply { parentFile!!.mkdirs(); writeText("other") }

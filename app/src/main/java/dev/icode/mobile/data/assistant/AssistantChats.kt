@@ -2,6 +2,7 @@ package dev.icode.mobile.data.assistant
 
 import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.domain.AssistantMessage
+import dev.icode.mobile.domain.AssistantPermissions
 import dev.icode.mobile.domain.AssistantResult
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantSession
@@ -20,7 +21,10 @@ internal class AssistantChats(
 
     private val lock = Any()
     private val loaded = mutableMapOf<Key, AssistantChat>()
-    private val allowingAll = mutableSetOf<Key>()
+    /** What each chat's answers allowed beyond the setting (docs/assistant-permissions-plan.md §4.4): until iCode closes. */
+    private class Answers(var inWorkspace: Boolean = false, val roots: MutableSet<String> = linkedSetOf())
+
+    private val answers = mutableMapOf<Key, Answers>()
 
     /** [workspace]'s chats, newest first; none when they cannot be read. */
     fun sessions(workspace: String): List<AssistantSession> =
@@ -87,25 +91,35 @@ internal class AssistantChats(
     fun delete(workspace: String, session: String) {
         synchronized(lock) {
             loaded -= Key(workspace, session)
-            allowingAll -= Key(workspace, session)
+            answers -= Key(workspace, session)
         }
         runCatching { store.delete(workspace, session) }.onFailure { warn("delete", it) }
     }
 
-    fun allowsAll(workspace: String, session: String): Boolean = synchronized(lock) { Key(workspace, session) in allowingAll }
+    /** The chat answered "Allow in" its workspace: it runs as Auto in workspace ([AssistantPermissions.effective]). */
+    fun allowedInWorkspace(workspace: String, session: String): Boolean = synchronized(lock) { answers[Key(workspace, session)]?.inWorkspace == true }
 
-    fun allowAll(workspace: String, session: String) {
-        synchronized(lock) { allowingAll += Key(workspace, session) }
+    fun allowInWorkspace(workspace: String, session: String) {
+        synchronized(lock) { answers.getOrPut(Key(workspace, session)) { Answers() }.inWorkspace = true }
+    }
+
+    /** The runtime folders outside its workspace this chat may reach without asking. */
+    fun roots(workspace: String, session: String): Set<String> = synchronized(lock) { answers[Key(workspace, session)]?.roots?.toSet().orEmpty() }
+
+    fun open(workspace: String, session: String, roots: List<String>) {
+        synchronized(lock) { answers.getOrPut(Key(workspace, session)) { Answers() }.roots += roots }
+    }
+
+    /** A mode chosen for the chat replaces its answers. */
+    fun forgetAnswers(workspace: String, session: String) {
+        synchronized(lock) { answers -= Key(workspace, session) }
     }
 
     /** The workspace was renamed or moved: its chats follow it. */
     fun moved(from: String, to: String) {
         synchronized(lock) {
             loaded.keys.filter { it.workspace == from }.forEach { key -> loaded.remove(key)?.let { loaded[key.copy(workspace = to)] = it } }
-            allowingAll.filter { it.workspace == from }.forEach { key ->
-                allowingAll -= key
-                allowingAll += key.copy(workspace = to)
-            }
+            answers.keys.filter { it.workspace == from }.forEach { key -> answers.remove(key)?.let { answers[key.copy(workspace = to)] = it } }
         }
         runCatching { store.move(from, to) }.onFailure { warn("move", it) }
     }
@@ -114,7 +128,7 @@ internal class AssistantChats(
     fun forgotten(workspace: String) {
         synchronized(lock) {
             loaded.keys.removeAll { it.workspace == workspace }
-            allowingAll.removeAll { it.workspace == workspace }
+            answers.keys.removeAll { it.workspace == workspace }
         }
         runCatching { store.forget(workspace) }.onFailure { warn("delete", it) }
     }

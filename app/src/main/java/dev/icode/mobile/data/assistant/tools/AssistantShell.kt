@@ -81,10 +81,29 @@ internal class AssistantShell(
      */
     fun directory(workspace: AssistantWorkspace, chat: String): Pair<String, String?> {
         val last = directories[keyOf(workspace, chat)] ?: return workspace.guestPath to null
-        if (runCatching { workspace.resolve(last).isDirectory }.getOrDefault(false)) return last to null
+        if (isFolder(workspace, last)) return last to null
         directories.remove(keyOf(workspace, chat))
         return workspace.guestPath to "$last is gone: this ran at the workspace's top"
     }
+
+    /**
+     * What [command] reaches for [chat], as far as its text shows (docs/assistant-permissions-plan.md
+     * §4.5): the directory it starts in, and each path it names ([CommandPaths]), from there.
+     */
+    fun reach(workspace: AssistantWorkspace, chat: String, command: String): List<File> {
+        val start = directories[keyOf(workspace, chat)]?.takeIf { isFolder(workspace, it) } ?: workspace.guestPath
+        val named = CommandPaths.of(command).map { path ->
+            when {
+                path.startsWith('/') -> path
+                path == "~" || path.startsWith("~/") -> RuntimeLayout.GUEST_HOME + path.removePrefix("~")
+                else -> "$start/$path"
+            }
+        }
+        return (listOf(start) + named).mapNotNull { runCatching { workspace.resolve(it) }.getOrNull() }
+    }
+
+    private fun isFolder(workspace: AssistantWorkspace, path: String): Boolean =
+        runCatching { workspace.resolve(path).isDirectory }.getOrDefault(false)
 
     private fun keyOf(workspace: AssistantWorkspace, chat: String) = "${workspace.root.path}\u0000$chat"
 

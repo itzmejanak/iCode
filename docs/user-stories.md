@@ -984,8 +984,9 @@ Acceptance criteria:
 Acceptance criteria:
 
 - A change shows its file and the text it replaces; a command shows its command line.
-- Allow runs it; Deny tells the assistant it was refused; Allow All stops this chat's questions.
-- The permissions are chosen on the chat page: "Ask before changes" (the default) or "Allow all changes"; reads never ask.
+- Allow runs it; Deny tells the assistant it was refused; "Allow in <workspace>" stops this chat's questions inside the workspace.
+- Reaching outside the chat's workspace — a read, a change or a command — asks, with what it reaches; "Allow in Chat" opens that folder's project for the chat until iCode closes.
+- The permissions are chosen on the chat page: "Ask first" (the default), "Auto in workspace" or "Full access"; reads inside the workspace never ask.
 
 ### US-ASSIST-004 — Stop the assistant
 

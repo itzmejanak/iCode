@@ -94,7 +94,7 @@ behaviour iCode relies on was run (§11).
    to build", or in Ask "Ask about RevPlayer"), and a toolbar — **+** (attach), the mode
    (**Agent**, or **Ask**: it reads and changes nothing), the model with its effort ("o3 · High",
    "Auto" for the provider's own), Send or Stop. Under it: the workspace, the permissions — **Ask
-   before changes** (default) or **Allow all changes** — and, at the right, always, the context
+   first** (default), **Auto in workspace** or **Full access** ([assistant-permissions-plan.md](./assistant-permissions-plan.md)) — and, at the right, always, the context
    meter ("0 / 200k" before the first message). A photo alone can be sent.
 6. **Choosing.** The model chip opens **Model**: the reasoning levels where the model has them
    (Auto, then the provider's: Minimal–High for OpenAI, Low–Max for Anthropic, Low/High or
@@ -114,8 +114,10 @@ behaviour iCode relies on was run (§11).
    has **Copy**. A turn that failed before any reply offers **Try Again**. Two fingers pinch the
    chat's text larger or smaller, as in the editor.
 9. **Approvals.** A change or a command waits on a card: the file and the text replaced, or the
-   command, with **Deny**, **Allow All** (this chat) and **Allow**. Deny tells the model it was
-   refused, so it can say so or try another way.
+   command, with **Deny**, **Allow in <workspace>** (this chat) and **Allow**. A call reaching outside
+   the workspace says what it reaches, with **Deny**, **Allow in Chat** (that folder's project, for
+   this chat) and **Allow Once**. Deny tells the model it was refused, so it can say so or try
+   another way.
 10. **Stop.** While it works, Send becomes **Stop**. What was said and done stays; steps that had
     not run are recorded as stopped, so the next message continues cleanly (§4.6).
 11. **Context.** The meter is the last request's share of the model's window (amber from 80 %); a
@@ -256,10 +258,12 @@ or a binary file is refused before anything is sent.
 
 ### 4.4 Approvals and permissions
 
-`AssistantTurns` wraps each change or command tool in a gate before handing it to the engine; the
-engine never knows. The gate publishes the pending call (`AssistantState.approval`), suspends on
-the user's answer, and is cancelled with the turn. The permissions on the chat page ("Allow all
-changes"), or **Allow All in This Chat**, skip it for writes and commands alike. Reads never ask.
+`AssistantTurns` wraps each tool in a gate before handing it to the engine; the engine never knows.
+What the call reaches outside its chat's workspace (`AssistantTool.reach`), less what the chat has
+opened, and the chat's mode decide whether it asks (`AssistantPermissions.ask`;
+[assistant-permissions-plan.md](./assistant-permissions-plan.md) §4.2). One card per call: the gate
+publishes it (`AssistantState.approval`, with its `reach`), suspends on the user's answer, and is
+cancelled with the turn. Reads inside the workspace never ask.
 
 ### 4.5 Edits and the editor
 
@@ -296,7 +300,8 @@ sealed interface AssistantMessage {
   result its line counts. A
   chat keeps its newest 400 messages from something the user said; its title, once given, stays.
   An empty chat is never saved. A chat ID is iCode's own UUID, never a path.
-- `AssistantChats` holds the chats read in this process and "Allow All in This Chat"; each change
+- `AssistantChats` holds the chats read in this process and each chat's answers (Allow in its
+  workspace, the folders it opened outside), until iCode closes; each change
   is saved under its lock, so two never reach a file in the other order. A killed process loses at
   most the reply in flight. The lifecycle's move and forget hooks carry the chats with a rename and
   remove them with a delete.
@@ -306,8 +311,8 @@ sealed interface AssistantMessage {
 `AssistantProviderStore` owns the preferences `icode.assistant`: `providers` (JSON: each one's ID,
 kind, name, address and models — an ID, and for a model Koog does not know what the user said of
 it), each provider's key (`key.<id>`), the chat's choice (`choice.provider`, `choice.model`, kept
-on a listed model: the chosen provider's first, else the first provider's), the permissions
-(`ask_before_changes`), effort and mode. Nothing reads round 2's keys (§13 P11).
+on a listed model: the chosen provider's first, else the first provider's), the permission mode
+(`permission`: [assistant-permissions-plan.md](./assistant-permissions-plan.md)), effort and mode. Nothing reads round 2's keys (§13 P11).
 Keys are stored encrypted (AES/GCM, a Keystore key of its own, alias `icode.assistant.key`, through
 `data/io/KeystoreCipher`, shared with `GitCredentialStore`). The snapshot carries only `hasKey`. A
 key this device can no longer decrypt reads as missing, and the page asks for it again.
@@ -381,11 +386,12 @@ lifecycle's check, and waits for its chat to be saved, before the chats move.
   address, `hasKey`, models), `AssistantChoice` (provider, model), `AssistantAvailable` (a
   server's models as listed, or why not), `AssistantAttachment` (name, kind — Text, Image,
   Document — text, or the kept file and its type).
-- `AssistantSettings` — the providers, the choice, `askBeforeChanges`, effort, mode; the chosen
+- `AssistantSettings` — the providers, the choice, `permission`, effort, mode; the chosen
   provider and model derived.
 - `AssistantState` — settings, catalogue, the provider being edited and its server's models, the
   workspace, its sessions, the open session and its messages, the last request's tokens, the turn
-  (workspace, name, session, step), the approval, Allow All, the last failure.
+  (workspace, name, session, step), the approval, whether the chat was allowed in its workspace,
+  the last failure.
 - Intents (`AssistantIntent`, lock-free, in order): `OpenAssistant`, `OpenAssistantSession`,
   `DeleteAssistantSession`, `NewAssistantChat`, `SendAssistantMessage(text, attachments)`,
   `StopAssistant`, `AnswerAssistant`, `CompactAssistantChat`, `ChooseAssistantModel`,

@@ -28,6 +28,10 @@ internal suspend fun localPortAnswers(port: Int): Boolean = withContext(Dispatch
 
 private const val CONNECT_MILLIS = 300
 
+/** What a call naming a process by its `id` reaches: that process's workspace (docs/assistant-permissions-plan.md §4.2). */
+private fun RuntimeProcesses.reach(arguments: JSONObject): List<File> =
+    arguments.textOrNull("id")?.let(::info)?.let { listOf(File(it.workspace)) }.orEmpty()
+
 /** What the model reads of a process: its ID and name, its command, where and how it runs, its workspace and its ports. */
 private suspend fun describe(process: ManagedProcess, answers: suspend (Int) -> Boolean, now: Long): String = buildString {
     append("${process.id} · ${process.name} · ${ProcessRules.stateLabel(process.state, now, process.startedAt)}")
@@ -69,6 +73,8 @@ internal class StartProcessTool(
     override fun summary(arguments: JSONObject): String = "Start `${arguments.textOrNull("command").orEmpty().lineSequence().first()}`"
 
     override fun command(arguments: JSONObject): String? = arguments.textOrNull("command")
+
+    override fun reach(arguments: JSONObject): List<File> = arguments.textOrNull("command")?.let { shell.reach(workspace, chat, it) }.orEmpty()
 
     override fun detail(arguments: JSONObject): String = arguments.textOrNull("command").orEmpty()
 
@@ -114,6 +120,8 @@ internal class ProcessStatusTool(
 
     override fun summary(arguments: JSONObject): String = arguments.textOrNull("id")?.let { "Check $it" } ?: "List processes"
 
+    override fun reach(arguments: JSONObject): List<File> = processes.reach(arguments)
+
     override suspend fun run(arguments: JSONObject): String {
         val id = arguments.textOrNull("id")
         if (id == null) {
@@ -149,6 +157,8 @@ internal class SendProcessInputTool(private val processes: RuntimeProcesses) : A
 
     override fun summary(arguments: JSONObject): String = "Send input to ${arguments.textOrNull("id").orEmpty()}"
 
+    override fun reach(arguments: JSONObject): List<File> = processes.reach(arguments)
+
     override fun detail(arguments: JSONObject): String = arguments.textOrNull("text").orEmpty()
 
     override suspend fun run(arguments: JSONObject): String {
@@ -180,6 +190,8 @@ internal class StopProcessTool(
     override val kind = AssistantToolKind.Command
 
     override fun summary(arguments: JSONObject): String = "Stop ${arguments.textOrNull("id").orEmpty()}"
+
+    override fun reach(arguments: JSONObject): List<File> = processes.reach(arguments)
 
     override suspend fun run(arguments: JSONObject): String {
         val id = arguments.text("id")

@@ -16,6 +16,11 @@ into this one system: what one installs, sets or writes, the others see.
   `grep -rl "Managed by iCode" /etc /usr/local /root 2>/dev/null` lists it all. Two things cannot
   say so: the `aid_*` groups in `/etc/group`, which name Android's groups for this app so
   `groups` and `ls -l` can, and `~/.icode/`, iCode's record of the Runtime Tools it set up.
+- **The assistant asks before it leaves its workspace.** In every mode but Full access, a read,
+  change or command that reaches beyond `/workspace/<name>` waits for you. A command is seen to
+  reach as far as where it starts and the paths its text names (`/…`, `~…`, `./…`, `../…`). It
+  cannot be seen to reach a path a variable alone names (`$HOME/x`), or what a script or a program
+  reaches by itself.
 
 ## Contexts
 

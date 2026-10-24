@@ -1,6 +1,6 @@
 # Assistant permissions — three modes, and the workspace as the boundary
 
-Status: **plan, for the owner's review** (2026-10-24). Nothing here is built yet.
+Status: **built** (2026-10-24), as the owner confirmed it (§7). Where the build differs from the plan, §8 says so.
 
 ## 1. The owner's intention
 
@@ -204,10 +204,35 @@ One rule, one gate, and each tool saying what it reaches. No tool decides for it
 | **P4** Screens | The chip's three modes; the card's words and paths; the empty-state line | UI type-check; renders of the three cards |
 | **P5** Docs and gate | This plan as built; `assistant-koog-plan.md` §4.3–4.4; `runtime-contract-plan.md` §4.3 pointer; README line on what a command's check can see | The full gate, then push the branch and `main` |
 
-## 7. For the owner to confirm
+## 7. Confirmed by the owner (2026-10-24: "yes go ahead with all three")
 
 1. **The names:** Ask first, Auto in workspace, Full access. They are close to Codex's and say
    where each one's line is.
 2. **The default:** Ask first, as today.
 3. **The middle answer on an inside card**, "Allow in Math", raises only this chat to Auto in
    workspace, until iCode closes, as "Allow All" does today.
+
+## 8. As built
+
+The rule, the gate and the tools are as §4–§5 describe. These are the differences:
+
+- **The card's answers** (`AssistantApprovalCard.kt`):
+  - Inside card: Deny · **Allow in Math** · Allow.
+  - Outside card: Deny · **Allow in Chat** · **Allow Once**. A root does not fit on a phone-width
+    button, so the folders it opens are in the caption shown when the card is opened. When nothing
+    smaller than `/` would do (a file directly under `/`), the middle answer is not offered.
+  - The card says the paths as they resolve in the runtime ("Reaches /workspace/portofolio"), not as written.
+- **The rule's inputs:** `AssistantPermissions.ask(permission, kind, outside)` takes the chat's
+  answers in two places, not as a fourth argument:
+  - the gate drops the paths under the chat's opened roots before it asks;
+  - "Allow in Math" raises the chat's mode through `AssistantPermissions.effective`, which
+    `AssistantState.permission` and the instructions both use.
+- **Deny's words** are the domain's (`AssistantPermissions.denied`), so the model's text and the tests read one source.
+- **What a tool reaches** is files on the phone (`AssistantTool.reach(arguments): List<File>`), as
+  the tools already resolve them; `AssistantWorkspace.outside` turns those outside into runtime paths.
+- **Choosing a mode** in the chip forgets the shown chat's answers, both the raise and the opened
+  roots, so the mode chosen is what that chat runs in. Other chats keep theirs.
+- **The setting** is stored under `permission`. The old `ask_before_changes` value is not read, so
+  every phone starts in Ask first.
+- **The instructions' sentence** for Ask first ends "… before it runs".
+- **The README** in the runtime says what a command's check cannot see (§4.5).

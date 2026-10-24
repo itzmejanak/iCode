@@ -40,6 +40,9 @@ internal class WorkspaceWriter(
     /** [path] as a file of the workspace, relative to its top; null for one outside it. */
     fun relative(path: String): String? = runCatching { workspace.relative(workspace.resolve(path)) }.getOrNull()
 
+    /** What writing [path] reaches ([AssistantWorkspace.reach]). */
+    fun reach(path: String?): List<File> = path?.let(workspace::reach).orEmpty()
+
     /** The file as it is now; null when there is none. */
     fun read(file: File): WorkspaceDocument? = if (!file.exists()) null else io(file) { source.readDocument(file.path) }
 
@@ -78,6 +81,8 @@ internal class WriteFileTool(private val writer: WorkspaceWriter) : AssistantToo
 
     override fun file(arguments: JSONObject): String? = arguments.textOrNull("path")?.let(writer::relative)
 
+    override fun reach(arguments: JSONObject): List<File> = writer.reach(arguments.textOrNull("path"))
+
     override fun detail(arguments: JSONObject): String {
         val content = arguments.textOrNull("content").orEmpty()
         return "${summary(arguments)} (${countOf(content.lines().size, "line")})\n\n${bounded(content, DETAIL_CHARACTERS)}"
@@ -112,6 +117,8 @@ internal class EditFileTool(private val writer: WorkspaceWriter) : AssistantTool
     override fun summary(arguments: JSONObject): String = "Edit ${arguments.textOrNull("path") ?: "a file"}"
 
     override fun file(arguments: JSONObject): String? = arguments.textOrNull("path")?.let(writer::relative)
+
+    override fun reach(arguments: JSONObject): List<File> = writer.reach(arguments.textOrNull("path"))
 
     override fun detail(arguments: JSONObject): String = summary(arguments) +
         "\n\n− ${bounded(arguments.optString("old_text"), DETAIL_CHARACTERS / 2)}" +

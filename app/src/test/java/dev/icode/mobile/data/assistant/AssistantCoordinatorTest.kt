@@ -1,5 +1,6 @@
 package dev.icode.mobile.data.assistant
 
+import dev.icode.mobile.data.assistant.tools.AssistantWorkspace
 import dev.icode.mobile.data.assistant.tools.TestRuntime
 import dev.icode.mobile.data.git.CliGitService
 import dev.icode.mobile.data.log.BackendLog
@@ -18,7 +19,9 @@ import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantMode
 import dev.icode.mobile.domain.AssistantModel
 import dev.icode.mobile.domain.AssistantModelSpec
+import dev.icode.mobile.domain.AssistantPermission
 import dev.icode.mobile.domain.AssistantProviderKind
+import dev.icode.mobile.domain.AssistantReach
 import dev.icode.mobile.domain.AssistantResult
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantState
@@ -109,7 +112,7 @@ class AssistantCoordinatorTest {
     private val coordinator by lazy {
         AssistantCoordinator(
             stateHolder, scope, engine, providers, chats,
-            tools = { _, _ -> listOf(FakeTool("read_file", AssistantToolKind.Read), FakeTool("edit_file", AssistantToolKind.Change)) },
+            tools = { workspace, _ -> listOf(FakeTool("read_file", AssistantToolKind.Read, workspace), FakeTool("edit_file", AssistantToolKind.Change, workspace)) },
             activeRoot = { app },
             describe = { WorkspaceRoot("app", it, "/workspace/app") },
             paths = runtime.paths,
@@ -160,21 +163,26 @@ class AssistantCoordinatorTest {
     private val edit = AssistantCall("c1", "edit_file", """{"path":"a.kt"}""", "Edit a.kt", AssistantToolKind.Change)
 
     /** A turn as the engine runs one: a reply calling [edit], its result as Koog's runner gives it, then "Done." */
-    private fun editTurn() {
+    private fun editTurn() = callTurn(edit)
+
+    /** A turn reading [path], a runtime path. */
+    private fun readTurn(path: String) = callTurn(AssistantCall("c1", "read_file", JSONObject().put("path", path).toString(), "Read $path", AssistantToolKind.Read))
+
+    private fun callTurn(call: AssistantCall) {
         script = { turn, events ->
             events.used(700)
-            events.replied(AssistantMessage.Reply("Let me edit.", listOf(edit)))
-            events.calling(edit)
-            val tool = turn.tools.single { it.name == "edit_file" }
+            events.replied(AssistantMessage.Reply("Let me look.", listOf(call)))
+            events.calling(call)
+            val tool = turn.tools.single { it.name == call.tool }
             // As Koog's runner does: a refusal is the result, a cancellation is not.
             val output = try {
-                tool.run(JSONObject(edit.arguments)) to false
+                tool.run(JSONObject(call.arguments)) to false
             } catch (stopped: CancellationException) {
                 throw stopped
             } catch (refused: Exception) {
                 refused.message!! to true
             }
-            events.answered(AssistantResult("c1", "edit_file", output.first, output.second))
+            events.answered(AssistantResult(call.id, call.tool, output.first, output.second))
             events.replied(AssistantMessage.Reply("Done."))
         }
     }
@@ -213,26 +221,88 @@ class AssistantCoordinatorTest {
         assertEquals("The user did not allow this change", result.output)
     }
 
-    @Test fun `Allow All answers this chat's next changes, a new chat asks again, and the chat page's permissions answer all`() {
+    @Test fun `Allow in the workspace answers this chat's next changes, a new chat asks again, and the mode chosen answers all`() {
         editTurn()
         coordinator.handle(ICodeIntent.SendAssistantMessage("one"))
         until { state().approval != null }
-        coordinator.handle(ICodeIntent.AnswerAssistant("c1", AssistantAnswer.AllowAll))
+        assertNull(state().approval!!.reach)
+        coordinator.handle(ICodeIntent.AnswerAssistant("c1", AssistantAnswer.AllowInChat))
         until { state().turn == null }
-        assertTrue(state().allowAll)
+        assertTrue(state().allowedInWorkspace)
+        assertEquals(AssistantPermission.AutoInWorkspace, state().permission)
         coordinator.handle(ICodeIntent.SendAssistantMessage("two"))
         until { requests.size == 2 && state().turn == null }
         assertEquals(listOf("edit_file", "edit_file"), ran)
 
         coordinator.handle(ICodeIntent.NewAssistantChat)
         until { state().session == null && state().messages.isEmpty() }
-        assertFalse(state().allowAll)
-        coordinator.handle(ICodeIntent.SetAssistantAskFirst(false))
-        until { !state().settings.askBeforeChanges }
+        assertFalse(state().allowedInWorkspace)
+        coordinator.handle(ICodeIntent.SetAssistantPermission(AssistantPermission.AutoInWorkspace))
+        until { state().settings.permission == AssistantPermission.AutoInWorkspace }
         coordinator.handle(ICodeIntent.SendAssistantMessage("three"))
         until { requests.size == 3 && state().turn == null }
         assertEquals(3, ran.size)
         assertEquals(2, state().sessions.size)
+    }
+
+    @Test fun `a mode chosen for the chat replaces its own answer`() {
+        editTurn()
+        coordinator.handle(ICodeIntent.SendAssistantMessage("one"))
+        until { state().approval != null }
+        coordinator.handle(ICodeIntent.AnswerAssistant("c1", AssistantAnswer.AllowInChat))
+        until { state().turn == null && state().allowedInWorkspace }
+        coordinator.handle(ICodeIntent.SetAssistantPermission(AssistantPermission.AskFirst))
+        until { !state().allowedInWorkspace }
+        coordinator.handle(ICodeIntent.SendAssistantMessage("two"))
+        until { state().approval != null }
+        assertEquals(listOf("edit_file"), ran)
+    }
+
+    @Test fun `a read outside the workspace asks, with what it reaches and the folder Allow in Chat opens`() {
+        readTurn("/etc/hosts")
+        coordinator.handle(ICodeIntent.SendAssistantMessage("hosts?"))
+        until { state().approval != null }
+        assertEquals(AssistantReach(listOf("/etc/hosts"), listOf("/etc")), state().approval!!.reach)
+        assertTrue(ran.isEmpty())
+        coordinator.handle(ICodeIntent.AnswerAssistant("c1", AssistantAnswer.Deny))
+        until { state().turn == null }
+        val result = (state().messages[2] as AssistantMessage.Results).results.single()
+        assertEquals("The user did not allow reaching /etc/hosts", result.output)
+        assertTrue(ran.isEmpty())
+    }
+
+    @Test fun `Allow in Chat opens that folder for the chat, and a reach elsewhere asks again`() {
+        readTurn("/etc/hosts")
+        coordinator.handle(ICodeIntent.SendAssistantMessage("hosts?"))
+        until { state().approval != null }
+        coordinator.handle(ICodeIntent.AnswerAssistant("c1", AssistantAnswer.AllowInChat))
+        until { state().turn == null }
+        readTurn("/etc/passwd")
+        coordinator.handle(ICodeIntent.SendAssistantMessage("passwd?"))
+        until { requests.size == 2 && state().turn == null }
+        assertEquals(listOf("read_file", "read_file"), ran)
+        readTurn("~/notes.txt")
+        coordinator.handle(ICodeIntent.SendAssistantMessage("notes?"))
+        until { state().approval != null }
+        assertEquals(listOf("/root"), state().approval!!.reach!!.roots)
+    }
+
+    @Test fun `a reach outside asks in Auto in workspace too, and in Full access nothing asks`() {
+        coordinator.handle(ICodeIntent.SetAssistantPermission(AssistantPermission.AutoInWorkspace))
+        until { state().settings.permission == AssistantPermission.AutoInWorkspace }
+        readTurn("/etc/hosts")
+        coordinator.handle(ICodeIntent.SendAssistantMessage("hosts?"))
+        until { state().approval != null }
+        coordinator.handle(ICodeIntent.AnswerAssistant("c1", AssistantAnswer.Allow))
+        until { state().turn == null }
+        coordinator.handle(ICodeIntent.SetAssistantPermission(AssistantPermission.FullAccess))
+        until { state().settings.permission == AssistantPermission.FullAccess }
+        coordinator.handle(ICodeIntent.SendAssistantMessage("again"))
+        until { requests.size == 2 && state().turn == null }
+        editTurn()
+        coordinator.handle(ICodeIntent.SendAssistantMessage("edit"))
+        until { requests.size == 3 && state().turn == null }
+        assertEquals(listOf("read_file", "read_file", "edit_file"), ran)
     }
 
     @Test fun `Stop ends the turn where it is, and an open call is answered as stopped`() {
@@ -465,7 +535,7 @@ class AssistantCoordinatorTest {
         assertEquals(listOf("User", "Reply", "Compacted", "User", "Reply"), kinds)
     }
 
-    @Test fun `a workspace's rename stops its turn first, then its chats follow, and its delete takes them`() = runBlocking {
+    @Test fun `a workspace's rename stops its turn first, then its chats and their answers follow, and its delete takes them`() = runBlocking {
         val asked = CompletableDeferred<Unit>()
         script = { _, events ->
             events.replied(AssistantMessage.Reply("Working"))
@@ -475,15 +545,20 @@ class AssistantCoordinatorTest {
         coordinator.handle(ICodeIntent.SendAssistantMessage("Hello"))
         asked.await()
         val session = state().session!!
+        chats.allowInWorkspace(app, session)
+        chats.open(app, session, listOf("/etc"))
         coordinator.workspaceMoved(app, "$app-renamed")
         assertNull(state().turn)
         assertEquals("$app-renamed", state().workspace)
         assertEquals(session, state().session)
         assertEquals(2, chats.of("$app-renamed", session).messages.size)
         assertTrue(chats.sessions(app).isEmpty())
+        assertTrue(chats.allowedInWorkspace("$app-renamed", session))
+        assertEquals(setOf("/etc"), chats.roots("$app-renamed", session))
         coordinator.workspaceForgotten("$app-renamed")
         assertNull(state().workspace)
         assertTrue(chats.sessions("$app-renamed").isEmpty())
+        assertFalse(chats.allowedInWorkspace("$app-renamed", session))
     }
 
     @Test fun `a provider is checked, saved with its models and its own key, and its server asked for its models`() {
@@ -618,8 +693,10 @@ class AssistantCoordinatorTest {
         until { state().commitMessage == null }
     }
 
-    private inner class FakeTool(override val name: String, override val kind: AssistantToolKind) : AssistantTool, AssistantFileChanger {
+    /** Reaching its `path`, as the file tools do. */
+    private inner class FakeTool(override val name: String, override val kind: AssistantToolKind, private val workspace: AssistantWorkspace) : AssistantTool, AssistantFileChanger {
         override val description = name
+        override fun reach(arguments: JSONObject) = workspace.reach(arguments.optString("path").ifEmpty { null })
         override val parameters = emptyList<AssistantParameter>()
         override var lastChanges: LineChanges? = null
         override fun summary(arguments: JSONObject) = name

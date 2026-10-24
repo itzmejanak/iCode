@@ -1,9 +1,11 @@
 package dev.icode.mobile.data.assistant.tools
 
+import dev.icode.mobile.data.assistant.AssistantTool
 import dev.icode.mobile.data.assistant.AssistantToolException
 import dev.icode.mobile.data.runtime.GuestPaths
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.storage.WorkspacePaths
+import dev.icode.mobile.domain.AssistantPermissions
 import java.io.File
 import java.io.IOException
 import org.json.JSONObject
@@ -48,6 +50,19 @@ internal class AssistantWorkspace(
 
     /** [file] as the model is told it, and can write it back: from the workspace's top inside it, its runtime path elsewhere. */
     fun shown(file: File): String = relative(file) ?: guestOf(file)
+
+    /** What [path], as the model wrote it, reaches ([AssistantTool.reach]): the workspace's top when absent. */
+    fun reach(path: String?): List<File> = listOfNotNull(runCatching { resolve(path ?: ".") }.getOrNull())
+
+    /** The runtime paths of [files] outside this workspace (docs/assistant-permissions-plan.md §4.2). */
+    fun outside(files: List<File>): List<String> = files.filter { relative(it) == null }.map(::guestOf).distinct()
+
+    /** The folder "Allow in this chat" opens for [path], a runtime path outside the workspace (§4.4). */
+    fun rootOf(path: String): String? = AssistantPermissions.rootOf(
+        path,
+        isFolder = { runCatching { paths.hostOf(it).isDirectory }.getOrDefault(false) },
+        isRepository = { runCatching { File(paths.hostOf(it), ".git").exists() }.getOrDefault(false) },
+    )
 
     /** [path], resolved, as a file that exists and is not a folder; said as the system says it when it is not. */
     fun existingFile(path: String): File = resolve(path).also { file ->
