@@ -44,7 +44,7 @@ class GuestGpgTest {
         val process: Process = ProcessBuilder(SH, File(root, PINENTRY).path).start().also { started += it }
         private val replies: BufferedReader = process.inputStream.bufferedReader()
         private val commands: Writer = process.outputStream.bufferedWriter()
-        val id = process.pid().toString()
+        val id = process.id()
 
         init {
             assertEquals("OK Pleased to meet you", replies.readLine())
@@ -154,7 +154,7 @@ class GuestGpgTest {
         listOf("0" to 0, "2" to 1).forEach { (status, exit) ->
             val program = ProcessBuilder(SH, File(root, AGENT).path, "--homedir", "/root/.gnupg", "--use-standard-socket", "--daemon")
                 .start().also { started += it }
-            val id = program.pid().toString()
+            val id = program.id()
             assertEquals(GpgRequest.StartAgent("/root/.gnupg"), GpgRequests.parse(id, request(id)))
             answer(id, status)
             assertTrue(program.waitFor(TIMEOUT_MILLIS, TimeUnit.MILLISECONDS))
@@ -171,3 +171,6 @@ class GuestGpgTest {
         const val POLL_MILLIS = 10L
     }
 }
+
+/** Its PID: the tests run on a desktop JDK, but compile against Android's Process, which has no pid(). */
+private fun Process.id(): String = Process::class.java.getMethod("pid").invoke(this).toString()
