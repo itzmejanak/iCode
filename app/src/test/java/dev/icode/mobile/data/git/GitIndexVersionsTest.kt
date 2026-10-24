@@ -48,7 +48,7 @@ class GitIndexVersionsTest {
             val odd = "it's \$HOME \"a b\" `x`.txt"
             run(root, bin, GitIndexVersions.script(listOf(odd), "$root/out") + "; " + GitIndexVersions.stageScript(odd, "100644", "$root/staged"))
             val calls = File(root, "args").readText().split("=end=\n").filter { it.isNotEmpty() }.map { it.lines().filter(String::isNotEmpty) }
-            val base = listOf("-c", "core.quotepath=false", "-c", "safe.directory=*", "--no-optional-locks")
+            val base = listOf("-c", "core.quotepath=false", "--no-optional-locks")
             assertEquals(base + listOf("--literal-pathspecs", "ls-files", "-s", "-z", "--", odd), calls[0])
             assertEquals(base + listOf("cat-file", "--filters", ":$odd"), calls[1])
             assertEquals(base + listOf("hash-object", "-w", "--path=$odd", "--", "$root/staged"), calls[2])

@@ -188,7 +188,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
         scope.launch { recovery.loadRecoverable() }
         terminal.follow(scope, settings.values(null).filter { it.loaded && it.loadError == null }.map { it.terminal })
         gitWorkspace.lineChanges.follow(settings.values(null).filter { it.loaded && it.loadError == null }.map { it.editor.changeMarkers })
-        scope.launch { runtime.reportState() }
+        scope.launch { runtime.start() }
         runtimeTools.start()
         runs.start()
         BackgroundWork.follow(appContext, scope, stateHolder.snapshot.map(BackgroundWorkRules::of), ::dispatch)

@@ -36,9 +36,6 @@ internal class GitRepositoryClient(private val cli: CliGitService) :
 
     /** Reads the whole repository picture in one process ([GitInspectParser]). */
     override suspend fun inspect(workspacePath: String): GitWorkspaceSnapshot {
-        // Also makes `git` usable from the user's own terminal in this
-        // workspace, not just from the commands this client runs.
-        cli.ensureSafeDirectoryConfigured()
         val result = cli.runScript(cli.workingFolderOf(workspacePath), GitInspectParser.SCRIPT)
         val snapshot = GitInspectParser.parse(result.stdout, cli::locationOf)
         // Status failing inside a repository (a corrupt index, say) is a real
@@ -52,7 +49,6 @@ internal class GitRepositoryClient(private val cli: CliGitService) :
      * modes and links: stopped anywhere before, the repository reads as it did.
      */
     override suspend fun restoreCheckout(top: String): GitCheckoutRepair.Restored {
-        cli.ensureSafeDirectoryConfigured()
         val reader = GitCheckoutRepair.Reader()
         val read = cli.streamScript(top, GitCheckoutRepair.SCRIPT, reader::accept)
         if (!read.succeeded) throw IOException(read.errorMessage)

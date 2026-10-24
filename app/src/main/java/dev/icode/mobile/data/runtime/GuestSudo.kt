@@ -13,23 +13,29 @@ import java.io.File
  * `curl … | sudo bash`) work exactly as written.
  *
  * It accepts the options scripts commonly pass and refuses plainly what cannot
- * be done: there is no other user to become.
+ * be done: there is no other user to become. A `sudo` the user installs with
+ * apt runs instead (docs/runtime-contract-plan.md F11): it is theirs to choose.
  */
 internal object GuestSudo {
     const val RELATIVE_PATH = "usr/local/bin/sudo"
 
+    /** Where apt installs the real `sudo`. */
+    private const val INSTALLED = "/usr/bin/sudo"
+
     fun install(rootfs: File) {
         val target = File(rootfs, RELATIVE_PATH)
         target.parentFile?.mkdirs()
-        target.writeText(SCRIPT)
+        target.writeText(script(INSTALLED))
         target.setExecutable(true, false)
     }
 
-    /** POSIX sh: the guest's `/bin/sh` is dash. Every shell `$` is written `\$`. */
-    val SCRIPT: String = listOf(
+    /** POSIX sh: the guest's `/bin/sh` is dash. Every shell `$` is written `\$`. [installed]: a real `sudo`'s path. */
+    fun script(installed: String): String = listOf(
         "#!/bin/sh",
-        "# Installed by iCode. The runtime's only user is root (inside the runtime,",
-        "# not on the device), so sudo runs the command as it is.",
+        "# ${RuntimeLayout.MANAGED} the runtime's only user is root (inside the runtime,",
+        "# not on the device), so sudo runs the command as it is. A sudo installed",
+        "# with apt ($installed) runs instead.",
+        "[ -x ${shellQuote(installed)} ] && exec ${shellQuote(installed)} \"\$@\"",
         "usage() {",
         "  echo 'usage: sudo [-EHnSbk] [-u root] [-i | -s] [VAR=value]... [command [argument]...]'",
         "}",

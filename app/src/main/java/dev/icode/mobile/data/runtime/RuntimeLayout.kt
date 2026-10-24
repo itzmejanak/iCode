@@ -90,6 +90,19 @@ internal class RuntimeLayout(context: Context) {
         get() = proot.canExecute() && prootLoader.exists()
 
     /**
+     * iCode's own files in the runtime's `/etc/icode`, brought to this build: the prompt
+     * ([ShellPrompt]) and the README ([README_PATH], the `runtime/README.md` asset). At install and
+     * at every iCode start, so an update reaches them; a runtime that cannot take them still runs.
+     */
+    fun writeOwnFiles() {
+        runCatching {
+            ShellPrompt.write(rootfs)
+            val readme = appContext.assets.open(README_ASSET).use { it.readBytes() }
+            File(rootfs, README_PATH.removePrefix("/")).apply { parentFile?.mkdirs() }.writeBytes(readme)
+        }
+    }
+
+    /**
      * Registers the process's Android supplementary groups inside the guest.
      *
      * An Android app runs with supplementary GIDs (inet, everybody, and
@@ -219,6 +232,16 @@ internal class RuntimeLayout(context: Context) {
 
     companion object {
         const val GUEST_HOME = "/root"
+
+        /**
+         * What every file iCode writes into the runtime says of itself, in a comment: the first line,
+         * or after a script's `#!` (docs/runtime-contract-plan.md §6). `grep -rl` finds them all.
+         */
+        const val MANAGED = "Managed by iCode:"
+
+        /** What the runtime is, its contexts, and what Android and PRoot cannot do: iCode's own file. */
+        const val README_PATH = "/etc/icode/README.md"
+        private const val README_ASSET = "runtime/README.md"
         /**
          * The guest's search path, with the user's own bin directory first.
          *

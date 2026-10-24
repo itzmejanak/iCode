@@ -45,7 +45,7 @@ class AndroidSdkSetupTest {
     fun `the environment points at the SDK and puts its tools on PATH after the system's`() {
         assertEquals(
             listOf(
-                "# iCode: Android SDK (Settings › Runtime Tools), removed with it.",
+                "# Managed by iCode: Android SDK (Settings › Runtime Tools), removed with it.",
                 "export ANDROID_HOME=/root/Android/Sdk",
                 "export PATH=\"\$PATH:\$ANDROID_HOME/cmdline-tools/latest/bin:\$ANDROID_HOME/build-tools/36.0.0\"",
             ),

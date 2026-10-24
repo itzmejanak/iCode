@@ -34,11 +34,6 @@ internal object GitCommandLine {
     private val BASE_ARGUMENTS = listOf(
         "git",
         "-c", "core.quotepath=false",
-        // The workspace is an Android directory bound into the guest, owned by
-        // a media uid while Git runs as fake-root. Ownership can never match,
-        // so Git's dubious-ownership check would refuse every command. The
-        // directory is one the user explicitly chose to open.
-        "-c", "safe.directory=*",
         "--no-optional-locks",
     )
 }

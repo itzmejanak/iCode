@@ -119,8 +119,6 @@ internal object GitInspectParser {
 
     /** What `git branch` shows for a detached HEAD. */
     private const val DETACHED_ID_LENGTH = 7
-    /** See GitCommandLine: bind-mounted Android paths never match ownership. */
-    private const val SAFE_DIRECTORY = "-c 'safe.directory=*'"
     private const val NUL = '\u0000'
     private const val LOCAL_REF_PREFIX = "refs/heads/"
     private const val REMOTE_REF_PREFIX = "refs/remotes/"
@@ -143,34 +141,25 @@ internal object GitInspectParser {
      * because an identity is unset, which is no failure.
      */
     val SCRIPT = buildString {
-        append("git ")
-        append(SAFE_DIRECTORY)
-        append(" rev-parse --show-toplevel 2>/dev/null; printf '\\0'; ")
-        append("git ")
-        append(SAFE_DIRECTORY)
+        append("git rev-parse --show-toplevel 2>/dev/null; printf '\\0'; ")
         // The full refname, not the short one: only `refs/heads/` versus
         // `refs/remotes/` distinguishes a local branch from a remote one.
-        append(" branch -a --format='%(refname)' 2>/dev/null; printf '\\0'; ")
+        append("git branch -a --format='%(refname)' 2>/dev/null; printf '\\0'; ")
         append("git remote 2>/dev/null; printf '\\0'; ")
         append("git config user.name 2>/dev/null; printf '\\0'; ")
         append("git config user.email 2>/dev/null; printf '\\0'; ")
         // The signature, in Git's own verdict, only where GnuPG can check one: without it Git says N
         // of a signed commit too.
-        append("S='-%n%n'; command -v gpg >/dev/null 2>&1 && S='%G?%n%GK%n%GS'; git ")
-        append(SAFE_DIRECTORY)
-        append(" log -1 --format=\"%H%n%at%n%an <%ae>%n\$S%n%s\" 2>/dev/null; printf '\\0'; ")
+        append("S='-%n%n'; command -v gpg >/dev/null 2>&1 && S='%G?%n%GK%n%GS'; ")
+        append("git log -1 --format=\"%H%n%at%n%an <%ae>%n\$S%n%s\" 2>/dev/null; printf '\\0'; ")
         // An interrupted merge, rebase, cherry-pick, revert or bisect is
         // recorded as a file in .git. Reading them is how Git itself knows,
         // and it costs nothing compared with another command.
-        append("G=\$(git ")
-        append(SAFE_DIRECTORY)
-        append(" rev-parse --git-dir 2>/dev/null); ")
+        append("G=\$(git rev-parse --git-dir 2>/dev/null); ")
         append("for f in MERGE_HEAD rebase-merge rebase-apply CHERRY_PICK_HEAD REVERT_HEAD BISECT_LOG; do ")
         append("[ -e \"\$G/\$f\" ] && printf '%s\\n' \"\$f\"; ")
         append("done; printf '\\0'; ")
-        append("git -c core.quotepath=false ")
-        append(SAFE_DIRECTORY)
         // Every new file, not one entry per new folder — as VS Code asks — so each can be seen and staged.
-        append(" --no-optional-locks status --porcelain=v2 --branch --untracked-files=all -z")
+        append("git -c core.quotepath=false --no-optional-locks status --porcelain=v2 --branch --untracked-files=all -z")
     }
 }

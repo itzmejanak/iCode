@@ -155,7 +155,7 @@ internal class AndroidSdkSetup(private val layout: RuntimeLayout, private val co
 
         const val PROFILE_PATH = "etc/profile.d/icode-android-sdk.sh"
         val PROFILE = """
-            # iCode: Android SDK (Settings › Runtime Tools), removed with it.
+            # ${RuntimeLayout.MANAGED} Android SDK (Settings › Runtime Tools), removed with it.
             export ANDROID_HOME=${AndroidSdk.GUEST_ROOT}
             export PATH="${'$'}PATH:${'$'}ANDROID_HOME/cmdline-tools/latest/bin:${'$'}ANDROID_HOME/build-tools/${AndroidSdk.BUILD_TOOLS}"
         """.trimIndent() + "\n"

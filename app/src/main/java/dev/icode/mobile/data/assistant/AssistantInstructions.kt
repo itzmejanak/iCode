@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.assistant
 
 import dev.icode.mobile.data.assistant.tools.AssistantWorkspace
+import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantMode
@@ -26,7 +27,8 @@ internal object AssistantInstructions {
             "You work in “${workspace.name}”, at ${workspace.guestPath} in the user's own Ubuntu Linux on their phone " +
                 "(ARM64, under PRoot: uid 0 without root's powers, no systemd; `apt` installs packages), on the user's behalf. " +
                 "Every workspace is under /workspace. The tools reach the whole runtime: a relative path starts at " +
-                "${workspace.guestPath}, `~` is /root. The user approves each change and command, unless they allowed them all.",
+                "${workspace.guestPath}, `~` is /root. The user approves each change and command, unless they allowed them all. " +
+                "What PRoot and Android cannot do here is in ${RuntimeLayout.README_PATH}.",
         )
         appendLine()
         when (mode) {

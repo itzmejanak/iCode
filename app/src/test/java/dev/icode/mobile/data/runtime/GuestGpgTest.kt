@@ -84,6 +84,10 @@ class GuestGpgTest {
         val agentConf = File(rootfs, "etc/gnupg/gpg-agent.conf").readLines().filterNot { it.startsWith("#") }
         assertEquals(listOf("pinentry-program /usr/local/bin/icode-pinentry", "default-cache-ttl 1800"), agentConf)
         assertEquals(listOf("agent-program /usr/local/bin/icode-gpg-agent"), File(rootfs, "etc/gnupg/gpg.conf").readLines().filterNot { it.startsWith("#") })
+        // Each says it is iCode's: the first line, or after the script's #!.
+        listOf("usr/local/bin/icode-pinentry", "etc/gnupg/gpg.conf", "etc/gnupg/gpg-agent.conf").forEach { path ->
+            assertTrue(path, File(rootfs, path).readLines().take(2).any { it.startsWith("# ${RuntimeLayout.MANAGED} ") })
+        }
     }
 
     @Test fun `a passphrase is asked of iCode in gpg-agent's words and passed on, and nothing is left behind`() {

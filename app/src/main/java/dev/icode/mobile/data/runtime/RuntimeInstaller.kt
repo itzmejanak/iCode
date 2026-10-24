@@ -181,40 +181,18 @@ internal class RuntimeInstaller(
     }
 
     /**
-     * Android gives the guest no resolver configuration; without this apt cannot resolve names. A
-     * [freshHome] — the base system's, not one Repair kept — gets iCode's prompt line
-     * ([ShellPrompt.addTo]); a kept one is the user's, and nothing is written into it.
+     * iCode's files in the base system ([GuestSystemFiles], [GuestSudo], [GuestGpg], its own in
+     * `/etc/icode`). A [freshHome] — the base system's, not one Repair kept — gets iCode's prompt
+     * line ([ShellPrompt.addTo]); a kept one is the user's, and nothing is written into it.
      */
     private fun configureGuest(freshHome: Boolean) {
-        File(layout.rootfs, "etc").mkdirs()
-        File(layout.rootfs, "etc/resolv.conf").writeText(
-            "nameserver 8.8.8.8\nnameserver 8.8.4.4\n",
-        )
-        File(layout.rootfs, "etc/hosts").writeText(
-            "127.0.0.1 localhost\n::1 localhost ip6-localhost ip6-loopback\n",
-        )
+        GuestSystemFiles.write(layout.rootfs)
         val home = File(layout.rootfs, RuntimeHomeBackup.HOME_RELATIVE).apply { mkdirs() }
-        ShellPrompt.write(layout.rootfs)
+        layout.writeOwnFiles()
         if (freshHome) ShellPrompt.addTo(home)
         layout.ensureGuestGroups()
         GuestSudo.install(layout.rootfs)
         GuestGpg.install(layout.rootfs)
-        // dpkg syncs every file it unpacks, and on the phone's flash those syncs
-        // dominate an install (measured: git 152 s with them, 84 s without).
-        // The package database is rebuildable — Repair Runtime exists for a
-        // lost write — and container images drop the syncs the same way. The
-        // standard dpkg.cfg.d place applies it to every dpkg run.
-        File(layout.rootfs, DPKG_UNSAFE_IO_RELATIVE).apply {
-            parentFile?.mkdirs()
-            writeText("force-unsafe-io\n")
-        }
-        // Android refuses link(), and PRoot's stand-in for a hard link is a symbolic link naming an
-        // absolute path: renaming the folder that holds one breaks it, both names at once
-        // (measured: a clone moved out of its staging folder read "bad object HEAD"). Git needs no
-        // hard link: told to, it renames its finished objects and packs into place — what it does
-        // anyway where link() fails. Its system file reaches every repository, iCode's commands and
-        // the terminal's alike.
-        File(layout.rootfs, GIT_SYSTEM_CONFIG_RELATIVE).writeText("[core]\n\tcreateObject = rename\n")
     }
 
     /** Runs a command in the guest and returns its release string, or null. */
@@ -242,8 +220,6 @@ internal class RuntimeInstaller(
     internal data class CommandResult(val exitCode: Int, val output: String)
 
     private companion object {
-        const val DPKG_UNSAFE_IO_RELATIVE = "etc/dpkg/dpkg.cfg.d/icode-unsafe-io"
-        const val GIT_SYSTEM_CONFIG_RELATIVE = "etc/gitconfig"
         const val EXTRACT_REPORT_INTERVAL_MILLIS = 250L
 
         /**

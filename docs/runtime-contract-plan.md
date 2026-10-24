@@ -1,6 +1,6 @@
 # Runtime Contract — one Linux environment, no iCode-made limits
 
-Status: **in progress.** RC2–RC5 built (2026-10-24); RC6 and RC7 planned. The cycles are §7, the cleanup is §8, the checks are §9.
+Status: **in progress.** RC2–RC6 built (2026-10-24); RC7 planned. D1–D3 passed on the owner's phone (§9.3). The cycles are §7, the cleanup is §8, the checks are §9.
 
 The owner's problem statement (2026-10-23), in short:
 - iCode is a native Android IDE around a genuine, user-controlled Linux environment.
@@ -244,6 +244,14 @@ Each cycle runs the same gate before its push:
 - **Tested:** three starts leave `~/.bashrc` and `~/.profile` byte-identical and write only the script; a fresh home gets exactly one line; in real bash a fresh home shows iCode's prompt and a `PROMPT_COMMAND` set after the line (Starship's) wins; `chsh`'s record is followed through a runtime link; the missing-shell line is printed before the login shell starts. The lab has no RC5 check: neither fact is PRoot's.
 - **On the owner's phone (D3):** the two old lines and `~/.icode-prompt.sh` stay until deleted by hand. This build neither reads nor removes them, and `/etc/icode/prompt.sh` arrives with the first terminal.
 
+### 7.3 RC6, as built (2026-10-24)
+
+- **The marker:** `RuntimeLayout.MANAGED` ("Managed by iCode:"), one constant for every writer. It is the first line of each base-system file (`GuestSystemFiles`: `resolv.conf`, `hosts`, dpkg's `icode-unsafe-io`, `/etc/gitconfig`, moved out of `RuntimeInstaller.configureGuest`), the line after `#!` in `sudo` and the gpg script, and the first line of `gpg.conf`, `gpg-agent.conf`, `prompt.sh`, the README, the Android SDK's `profile.d` file and init script, and both ends of its `gradle.properties` block. The receipts in `~/.icode/` and the `aid_*` groups cannot carry it; the README names them.
+- **The README:** the `runtime/README.md` asset, copied to `/etc/icode/README.md` with `prompt.sh` by `RuntimeLayout.writeOwnFiles`, at install and at every iCode start (`RuntimeCoordinator.start`), so it is there before the assistant's first command. Before RC6 the prompt was written as a terminal started; now it is written with the README instead. The instructions end: "What PRoot and Android cannot do here is in /etc/icode/README.md". A test keeps its contexts table naming every `GuestContext`.
+- **`sudo`:** `GuestSudo.script(installed)` opens with `[ -x '/usr/bin/sudo' ] && exec '/usr/bin/sudo' "$@"`. Whether a real `sudo` works under PRoot's fake root is sudo's to say; the stand-in no longer hides it.
+- **Git:** `safe.directory` is gone from `GitCommandLine`, from `GitInspectParser`'s script (five more places the plan had not listed), and with `ensureSafeDirectoryConfigured`, its marker and its two calls.
+- **Device:** D8 (§9.3) for an Android SDK set up before this build.
+
 ## 8. Cleanup
 
 **Unused code found now**, each declared and referenced nowhere else in `app/src/main`, tests or resources:
@@ -267,7 +275,7 @@ Each cycle runs the same gate before its push:
 | `AssistantWorkspace.resolve`'s refusals, `isGitInternal` and its refusal, `list_files`' `.git` filter, `AssistantShell.directory`'s outside-the-workspace rule, `RunCommandTool.MAX_TIMEOUT`, `ProcessRules.MAX_RUNNING` and its refusal, the process tools' workspace filters | RC4 |
 | `ShellPrompt.install`, `~/.icode-prompt.sh`, `ShellPromptTest`'s dotfile cases | RC5 |
 | `TerminalSettings.shellPath`, `TerminalSettingRules.validShellPath`, the Shell row and its dialog, `terminalShellKey`, `WorkspacePreferences.setTerminalShellPath`; `TerminalLaunch.failure`, never set once a missing shell falls back to bash | RC5 |
-| `GitCommandLine`'s `safe.directory`, `CliGitService.ensureSafeDirectoryConfigured`, `SAFE_DIRECTORY_MARKER` and its two calls | RC6 |
+| `GitCommandLine`'s and `GitInspectParser`'s `safe.directory`, `CliGitService.ensureSafeDirectoryConfigured`, `SAFE_DIRECTORY_MARKER` and its two calls; `RuntimeInstaller`'s base-system writes, now `GuestSystemFiles` | RC6 |
 
 **Docs brought to the contract (RC7):**
 - `runtime-foundation-plan.md`: D2 and D4, and §3.1–3.5, get a "superseded by runtime-contract-plan" note.
@@ -302,16 +310,27 @@ The guards' allowlists are re-baselined downward.
 
 | # | Step | Expect |
 |---|---|---|
-| D1 | **Before installing RC3**: in an assistant chat, `run_command` `find /workspace -mindepth 1 -maxdepth 1 ! -name <this workspace>`. After it, only from a computer: `adb shell run-as dev.icode.mobile ls -laR files/runtime/rootfs/workspace` (a debug build) | Leftovers listed (F8). Move any file in one into a workspace; empty folders may stay, hidden |
+| D1 | **Before installing RC3**: in an assistant chat, `run_command` `find /workspace -mindepth 1 -maxdepth 1 ! -name <this workspace>`. After it, only from a computer: `adb shell run-as dev.icode.mobile.debug ls -laR files/runtime/rootfs/workspace` (a debug build's package is `dev.icode.mobile.debug`) | Leftovers listed (F8). Move any file in one into a workspace; empty folders may stay, hidden |
 | D2 | **Before RC6's removal**: in the terminal, in a workspace: `git -c safe.directory= status` | It succeeds (F10 on the device) |
 | D3 | After RC5: `sed -i '/^# iCode prompt$/,+1d' ~/.bashrc ~/.profile; rm ~/.icode-prompt.sh`; open a tab; install Starship per its docs; open a tab | Ubuntu's prompt (the old home has no new line), then Starship's |
 | D4 | `env \| sort` in a tab, and the same through `run_command` | The same, but for the `command` context's variables and `PWD`/`SHLVL`/`_` |
 | D5 | A repository with a husky pre-commit hook and node from nvm: commit from Source Control | The hook runs (F6) |
 | D6 | From an assistant chat: `write_file` `/workspace/<other>/probe.txt`, then `~/.config/probe.txt`; `read_file` `/etc/os-release` | Each asked and done; the first shows in the terminal and the Explorer |
 | D7 | `chsh -s /usr/bin/zsh` (after `apt install zsh`), new tab; then `apt remove zsh`, new tab | zsh as a login shell; then bash with the explaining line |
+| D8 | After RC6, only where the Android SDK was set up before it: Runtime Tools offers it again (its settings changed: the marker); install it, then delete the old block between `# >>> iCode: Android SDK` and `# <<< iCode: Android SDK <<<` from `~/.gradle/gradle.properties` | One block, `# >>> Managed by iCode: Android SDK …` |
+
+**Results (2026-10-24, build `ad8a559`, checked over adb by the owner's local session):**
+- **D1 passed.** `rootfs/workspace` holds only `.` and `..`; `files/runtime/binds` is gone. RC3 was installed before the assistant-side `find` could run, but the root filesystem dates from a fresh install the day before.
+- **D2 passed.** `git -c safe.directory= status` exits 0 in the terminal in both workspaces, `portofolio` (cloned) and `Math` (no commits yet), both in `files/workspaces`. The `[safe] directory = *` in the owner's `~/.gitconfig` is theirs to keep or delete.
+- **D3 passed**, Starship not installed (third-party software: the owner's call). RC5's install and a terminal's start left both dotfiles untouched. The `sed` took out exactly the two lines of each, and the next tab was `/bin/bash -l` with Ubuntu's `PS1` and no `PROMPT_COMMAND`. Each dotfile keeps one trailing blank line the old append left.
+- **Found:** Ubuntu's root `~/.bashrc` colours its prompt only for `TERM=xterm-color`, so the prompt is plain under `xterm-256color` (Ubuntu's own behaviour). The runtime's time zone is UTC (`/etc/localtime` → `Etc/UTC`, no `TZ`) while the phone's is Asia/Kathmandu, so `date`, `ls -l` and Git's commit times read UTC. Open: §10.
 
 ## 10. Not in this plan
 
 - **The runtime's home as an Explorer place:** new UI rather than a removed limit. The assistant and the terminal reach the home, and `GuestPaths` is ready for it.
 - **A PTY for the assistant:** runtime-foundation-plan D3 stands; the `command` context's variables say there is no terminal.
 - **Removing leftovers in `rootfs/workspace` or `files/runtime/binds` by code:** no-compatibility rule; D1 instead.
+- **The runtime's time zone (open; found on the phone, 2026-10-24):** the phone's zone never reaches the runtime, which reads UTC. Two ways, neither built:
+  - `TZ` from the phone's zone in the base variables (§3), at every launch. It follows the phone, and a profile's own `TZ`, or `unset TZ`, wins as over every base variable. But `TZ=Asia/Kathmandu` needs `/usr/share/zoneinfo`, and whether the Ubuntu base has it without `tzdata` is unchecked.
+  - `/etc/localtime` from the phone's zone at install. That is Linux's own place, and `dpkg-reconfigure tzdata` changes it, but it is fixed at install.
+  - Recommended: the first, once `ls /usr/share/zoneinfo/Asia/Kathmandu` on the phone shows the zone file is there. Until then the README says how to set it.
