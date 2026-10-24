@@ -58,20 +58,27 @@ import dev.icode.mobile.ui.LocalICodeGateway
 import kotlinx.coroutines.launch
 
 /**
- * The chat: what was said and done, pinched larger or smaller with two fingers as the editor is;
- * then what the turn is doing and the question it waits on. A chat with nothing in it yet is the
- * home screen's: the logo, and what to ask.
+ * The chat: what was said and done — [rows], each run of steps one — pinched larger or smaller with
+ * two fingers as the editor is; then what the turn is doing and the question it waits on. A row with
+ * more behind it [onOpen]s it in a sheet, at a step for the question's details. A chat with nothing
+ * in it yet is the home screen's: the logo, and what to ask.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-internal fun AssistantChatView(state: AssistantState, modifier: Modifier, onSuggestion: (String) -> Unit, onDiff: (GitChange) -> Unit) {
+internal fun AssistantChatView(
+    state: AssistantState,
+    rows: List<AssistantEntry>,
+    modifier: Modifier,
+    onSuggestion: (String) -> Unit,
+    onOpen: (row: String, step: String?) -> Unit,
+    onDiff: (GitChange) -> Unit,
+) {
     val gateway = LocalICodeGateway.current
-    val entries = remember(state) { AssistantRules.entries(state) }
     Column(modifier) {
-        if (entries.isEmpty() && state.failure == null) {
+        if (rows.isEmpty() && state.failure == null) {
             AssistantWelcome(state, Modifier.weight(1f), onSuggestion)
         } else {
-            val count = entries.size + if (state.failure != null) 1 else 0
+            val count = rows.size + if (state.failure != null) 1 else 0
             // Each chat opens laid out at its end: never scrolled down through all it holds, drawing
             // every reply on the way, as it was.
             val list = remember(state.workspace, state.session) { LazyListState((count - 1).coerceAtLeast(0)) }
@@ -89,11 +96,13 @@ internal fun AssistantChatView(state: AssistantState, modifier: Modifier, onSugg
                     }
                 }
             }
-            LaunchedEffect(list, entries.size, state.failure, state.turn?.step) {
+            // A run of steps grows in its row: each step it takes is followed as a new row is.
+            val steps = (rows.lastOrNull() as? AssistantEntry.Steps)?.steps?.size
+            LaunchedEffect(list, rows.size, steps, state.failure, state.turn?.step) {
                 if (following) list.scrollToEnd()
             }
             // What the user just sent is shown, wherever they were, and what answers it followed.
-            val sent = entries.lastOrNull { it is AssistantEntry.Said }?.key
+            val sent = rows.lastOrNull { it is AssistantEntry.Said }?.key
             LaunchedEffect(list, sent) {
                 following = true
                 list.scrollToEnd()
@@ -119,10 +128,16 @@ internal fun AssistantChatView(state: AssistantState, modifier: Modifier, onSugg
                         contentPadding = PaddingValues(IcodeSpacing.Gutter),
                         verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
                     ) {
-                        itemsIndexed(entries, key = { _, entry -> entry.key }) { index, entry ->
+                        itemsIndexed(rows, key = { _, row -> row.key }) { index, row ->
                             // The answer a turn ends on; one still being worked on may yet go on to a step.
-                            val ends = entries.getOrNull(index + 1) !is AssistantEntry.Step && !(index == entries.lastIndex && state.runningHere)
-                            AssistantEntryRow(entry, copyable = ends, streaming = index == entries.lastIndex && state.runningHere, onDiff = onDiff)
+                            val ends = rows.getOrNull(index + 1) !is AssistantEntry.Steps && !(index == rows.lastIndex && state.runningHere)
+                            AssistantEntryRow(
+                                row,
+                                copyable = ends,
+                                streaming = index == rows.lastIndex && state.runningHere,
+                                onOpen = { onOpen(row.key, null) },
+                                onDiff = onDiff,
+                            )
                         }
                         state.failure?.let { failure ->
                             item(key = "failure") {
@@ -172,10 +187,17 @@ internal fun AssistantChatView(state: AssistantState, modifier: Modifier, onSugg
             }
         }
         state.approval?.takeIf { state.runningHere }?.let { approval ->
-            // Its gap to the composer is the composer's own top padding: one, not two.
-            AssistantApprovalCard(approval, AssistantRules.workspaceName(state.workspace.orEmpty()), Modifier.padding(start = IcodeSpacing.Space3, end = IcodeSpacing.Space3, top = IcodeSpacing.Space2)) { answer ->
-                gateway.dispatch(ICodeIntent.AnswerAssistant(approval.call.id, answer))
+            // Its details are its step's page, in the sheet of the run it is in.
+            val asked = rows.firstNotNullOfOrNull { row ->
+                (row as? AssistantEntry.Steps)?.steps?.firstOrNull { it.call.id == approval.call.id }?.let { row.key to it.key }
             }
+            // Its gap to the composer is the composer's own top padding: one, not two.
+            AssistantApprovalCard(
+                approval,
+                AssistantRules.workspaceName(state.workspace.orEmpty()),
+                Modifier.padding(start = IcodeSpacing.Space3, end = IcodeSpacing.Space3, top = IcodeSpacing.Space2),
+                onDetails = asked?.let { (row, step) -> { onOpen(row, step) } },
+            )
         }
     }
 }

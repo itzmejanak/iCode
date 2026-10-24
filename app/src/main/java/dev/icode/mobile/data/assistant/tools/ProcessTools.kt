@@ -6,6 +6,7 @@ import dev.icode.mobile.data.assistant.AssistantTool
 import dev.icode.mobile.data.assistant.AssistantToolException
 import dev.icode.mobile.data.runtime.RuntimeProcesses
 import dev.icode.mobile.domain.AssistantToolKind
+import dev.icode.mobile.domain.AssistantToolName
 import dev.icode.mobile.domain.ManagedProcess
 import dev.icode.mobile.domain.ManagedProcessState
 import dev.icode.mobile.domain.ProcessRules
@@ -53,7 +54,7 @@ internal class StartProcessTool(
     private val answers: suspend (Int) -> Boolean = ::localPortAnswers,
     private val clock: () -> Long = System::currentTimeMillis,
 ) : AssistantTool {
-    override val name = "start_process"
+    override val name = AssistantToolName.StartProcess.id
     override val description = "Starts a command that keeps running — a development server, a watcher, a worker — in bash, " +
         "where run_command is, with the login environment, seeing the whole runtime. It runs until stop_process, until it " +
         "ends, or until iCode's process ends. Its output (stderr with stdout) is kept " +
@@ -111,7 +112,7 @@ internal class ProcessStatusTool(
     private val answers: suspend (Int) -> Boolean = ::localPortAnswers,
     private val clock: () -> Long = System::currentTimeMillis,
 ) : AssistantTool {
-    override val name = "process_status"
+    override val name = AssistantToolName.ProcessStatus.id
     override val description = "Without an id, lists every process iCode runs — start_process's, Build & Run's, the Run " +
         "tab's — each with its workspace. With one, answers its state, whether the ports its output names answer, and the " +
         "output it printed since you last looked."
@@ -145,7 +146,7 @@ internal class ProcessStatusTool(
 
 /** Writes to a running process's input; asked about first. */
 internal class SendProcessInputTool(private val processes: RuntimeProcesses) : AssistantTool {
-    override val name = "send_process_input"
+    override val name = AssistantToolName.SendProcessInput.id
     override val description = "Writes text to the input of a process started with start_process — an answer to its " +
         "prompt, a line for its console — then answers what it printed in the next second."
     override val parameters = listOf(
@@ -183,7 +184,7 @@ internal class StopProcessTool(
     private val processes: RuntimeProcesses,
     private val clock: () -> Long = System::currentTimeMillis,
 ) : AssistantTool {
-    override val name = "stop_process"
+    override val name = AssistantToolName.StopProcess.id
     override val description = "Stops a process started with start_process: SIGTERM, then SIGKILL if it is still running after " +
         "${RuntimeProcesses.GRACE_MILLIS / 1000} s, with everything it started."
     override val parameters = listOf(AssistantParameter("id", "The process's ID"))

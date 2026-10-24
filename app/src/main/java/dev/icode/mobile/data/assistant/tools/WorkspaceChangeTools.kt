@@ -8,6 +8,7 @@ import dev.icode.mobile.data.assistant.AssistantToolException
 import dev.icode.mobile.data.workspace.WorkspaceDocument
 import dev.icode.mobile.data.workspace.WorkspaceFileSource
 import dev.icode.mobile.domain.AssistantToolKind
+import dev.icode.mobile.domain.AssistantToolName
 import dev.icode.mobile.domain.LineChanges
 import dev.icode.mobile.domain.countOf
 import java.io.File
@@ -65,7 +66,7 @@ internal class WorkspaceWriter(
 }
 
 internal class WriteFileTool(private val writer: WorkspaceWriter) : AssistantTool, AssistantFileChanger {
-    override val name = "write_file"
+    override val name = AssistantToolName.WriteFile.id
     override val description = "Writes a whole file: creates it (and its folders), or " +
         "replaces what it holds. For a small change to an existing file, edit_file is better."
     override val parameters = listOf(
@@ -100,7 +101,7 @@ internal class WriteFileTool(private val writer: WorkspaceWriter) : AssistantToo
 }
 
 internal class EditFileTool(private val writer: WorkspaceWriter) : AssistantTool, AssistantFileChanger {
-    override val name = "edit_file"
+    override val name = AssistantToolName.EditFile.id
     override val description = "Replaces exact text in a file. old_text must match the file " +
         "exactly, whitespace included, and only once unless replace_all; read the file first."
     override val parameters = listOf(

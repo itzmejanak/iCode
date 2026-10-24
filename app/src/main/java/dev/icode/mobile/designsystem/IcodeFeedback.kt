@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 
 /**
@@ -184,12 +186,16 @@ fun IcodeSaveDiscardDialog(
  * push the title off the top or the footer off the bottom. The footer — say a
  * field and the button that submits it — stays in view above the keyboard.
  * Content that fits that height instead — a picture — does not [scroll].
+ * [subtitle] says the state of what it shows; [onBack] leads back to the sheet's page before this
+ * one, by ← before the title (docs/assistant-sheets-plan.md §2.5).
  */
 @Composable
 fun IcodeBottomSheet(
     title: String,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    onBack: (() -> Unit)? = null,
     scroll: Boolean = true,
     footer: (@Composable ColumnScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
@@ -215,7 +221,15 @@ fun IcodeBottomSheet(
                 Modifier.fillMaxWidth().padding(vertical = IcodeSpacing.Space3),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(title, modifier = Modifier.weight(1f), style = IcodeType.Title)
+                onBack?.let { back ->
+                    IconButton(onClick = back) {
+                        Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back", tint = IcodeColors.TextSecondary)
+                    }
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(title, style = IcodeType.Title, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    subtitle?.let { Text(it, style = IcodeType.Caption) }
+                }
                 IconButton(onClick = onClose) {
                     Icon(Icons.Outlined.Close, contentDescription = "Close", tint = IcodeColors.TextSecondary)
                 }

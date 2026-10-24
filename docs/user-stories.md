@@ -965,10 +965,12 @@ Acceptance criteria:
 Acceptance criteria:
 
 - An empty chat shows the iCode mark over its letterpress, as the home screen does, with a few things to ask.
-- Each reply shows as Markdown when it comes; each step shows what it did ("Read src/App.kt", "Ran `npm test`") and how it went; its output is a tap away.
-- An opened command shows its command line and all the output the assistant read, with **Copy** at its corner; a tap on it closes it again.
-- A write or an edit shows how many lines it added and removed ("+12 −3"), as Git counts them.
-- A long press on a step about a file offers **Open in Editor**, **Show Changes** (when Source Control lists the file as changed) and **Copy Path**.
+- Each reply shows as Markdown when it comes. Steps one after another are one row saying what they did and how they went: one step by itself ("Read src/App.kt"), more by what each tool did ("Read 2 files, listed a folder, ran a command"), with ›.
+- A tap on the row opens a sheet: each step on a rail, and a tap on one opens its page, with ← back to the run. A step's page names its tool and how it went, then its command line or its file, and all the output the assistant read, selectable, each with **Copy** at its corner. A step still running shows its output there when it ends.
+- A write or an edit shows how many lines it added and removed ("+12 −3"), as Git counts them; a run shows its edits' lines together.
+- A step about a file offers **Open in Editor**, **Show Changes** (when Source Control lists the file as changed) and **Copy Path**: on its page, and on a long press on its row.
+- The reasoning ("Reasoning · 1.2k words") and a compaction's summary open in the same sheet, selectable, with **Copy All**; reasoning still being written shows under its row as it comes.
+- A long press on my message offers **Copy** and **Select text**, which opens the message in a sheet to select any part of it.
 - A chat opens at its end at once, never scrolling down through all it holds. At the end, the chat follows what comes; scrolled up to read, it stays where I am, and **↓** — the terminal's — brings me back.
 - The composer chooses the mode (Agent, or Ask: it reads and changes nothing), the model — every provider's, listed under its name — and its reasoning effort where the model has one ("Auto" sends the provider's default).
 - **+** opens **Attach**: Camera, Photos and Files (the phone's own pickers, no permission asked), then the workspace's files, the open one first; up to five in all. Text goes as its text then; a photo or a PDF goes to a model that reads it, and the composer says when the chosen model cannot. Photos show as thumbnails; a photo alone can be sent.
@@ -983,7 +985,7 @@ Acceptance criteria:
 
 Acceptance criteria:
 
-- A change shows its file and the text it replaces; a command shows its command line.
+- A change shows its file and the text it replaces; a command shows its command line. A tap on the question opens its step's page in the sheet: all it will do, what it reaches, what "Allow in" opens, and the same three answers.
 - Allow runs it; Deny tells the assistant it was refused; "Allow in <workspace>" stops this chat's questions inside the workspace.
 - Reaching outside the chat's workspace — a read, a change or a command — asks, with what it reaches; "Allow in Chat" opens that folder's project for the chat until iCode closes.
 - The permissions are chosen on the chat page: "Ask first" (the default), "Auto in workspace" or "Full access"; reads inside the workspace never ask.

@@ -18,6 +18,9 @@ import androidx.compose.ui.Modifier
  */
 @Composable
 fun IcodeSheetOverlay(onClose: () -> Unit, sheet: @Composable BoxScope.() -> Unit) {
+    // Composed after the screen below, so Back closes the sheet before any handler of that screen;
+    // and before the sheet, so one of the sheet's own — a page within it going back — comes first.
+    BackHandler(onBack = onClose)
     Box(Modifier.fillMaxSize()) {
         Box(
             Modifier.fillMaxSize().background(IcodeColors.SheetScrim).clickable(
@@ -28,6 +31,4 @@ fun IcodeSheetOverlay(onClose: () -> Unit, sheet: @Composable BoxScope.() -> Uni
         )
         sheet()
     }
-    // Composed after the screen below, so Back closes the sheet before any handler of that screen.
-    BackHandler(onBack = onClose)
 }

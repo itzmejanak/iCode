@@ -6,6 +6,7 @@ import dev.icode.mobile.data.assistant.AssistantTool
 import dev.icode.mobile.data.assistant.AssistantToolException
 import dev.icode.mobile.data.git.CliGitService
 import dev.icode.mobile.domain.AssistantToolKind
+import dev.icode.mobile.domain.AssistantToolName
 import dev.icode.mobile.domain.ProcessRules
 import java.io.File
 import org.json.JSONObject
@@ -19,7 +20,7 @@ internal class GitReadTool(
     private val git: CliGitService,
     private val diff: Boolean,
 ) : AssistantTool {
-    override val name = if (diff) "git_diff" else "git_status"
+    override val name = (if (diff) AssistantToolName.GitDiff else AssistantToolName.GitStatus).id
     override val description = if (diff) {
         "Shows Git's diff of uncommitted changes, of one file or folder or of the whole repository; staged shows what is staged instead."
     } else {
@@ -69,7 +70,7 @@ internal class RunCommandTool(
     /** The command may have changed files: the workspace refreshes as after a terminal command. */
     private val changed: () -> Unit,
 ) : AssistantTool {
-    override val name = "run_command"
+    override val name = AssistantToolName.RunCommand.id
     override val description = "Runs a command in bash in the Ubuntu runtime (ARM64, under PRoot: uid 0 without root's powers, " +
         "no systemd) with the user's login environment, and answers its exit code, the directory it ended in and its output. " +
         "It starts where the last command ended — the workspace's top at first — so `cd` carries over; `export` and `source` " +

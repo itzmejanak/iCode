@@ -117,6 +117,10 @@ The card's three answers keep their places, with words that say what each covers
 - **Deny:** the tool answers the model "The user did not allow reaching /workspace/portofolio", or
   "… this change" or "… this command" as today. The turn goes on, so the model can ask or try another way.
 - **Nothing on a card raises a chat to Full access.** Only the chip does.
+- **What it will do, a tap away.** The card shows the command's or the change's first line. A tap on
+  its question opens its step's page in the chat's sheet: all it will do, the paths it reaches, what
+  the middle answer opens, and the same three answers
+  ([assistant-sheets-plan.md](./assistant-sheets-plan.md) §2.3).
 
 ### 4.4 "Allow in this chat": what it opens, and for how long
 

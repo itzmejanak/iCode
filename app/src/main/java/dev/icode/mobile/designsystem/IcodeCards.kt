@@ -3,6 +3,7 @@ package dev.icode.mobile.designsystem
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -47,9 +48,21 @@ fun IcodeCard(
     borderColor: Color? = null,
     padding: PaddingValues = PaddingValues(IcodeSpacing.CardPadding),
     onClick: (() -> Unit)? = null,
+    /** What a long press does, said as [onLongClickLabel]: a message's Copy and Select Text. */
+    onLongClick: (() -> Unit)? = null,
+    onLongClickLabel: String? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val clickableModifier = if (onClick == null) Modifier else Modifier.clickable(role = Role.Button, onClick = onClick)
+    val clickableModifier = when {
+        onLongClick != null -> Modifier.combinedClickable(
+            role = onClick?.let { Role.Button },
+            onLongClickLabel = onLongClickLabel,
+            onLongClick = onLongClick,
+            onClick = onClick ?: {},
+        )
+        onClick != null -> Modifier.clickable(role = Role.Button, onClick = onClick)
+        else -> Modifier
+    }
     val line = borderColor ?: edgeLine
     Column(
         modifier = modifier

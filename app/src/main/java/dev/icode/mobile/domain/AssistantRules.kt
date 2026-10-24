@@ -28,6 +28,9 @@ sealed interface AssistantEntry {
 
     /** Where the chat was compacted: before it, the model reads only its summary. */
     data class Compacted(override val key: String, val summary: String) : AssistantEntry
+
+    /** Steps one after another, one row of the chat ([AssistantStepRules.rows]); keyed by its first. */
+    data class Steps(override val key: String, val steps: List<Step>) : AssistantEntry
 }
 
 enum class AssistantStepStatus { Asking, Running, Queued, Done, Failed }

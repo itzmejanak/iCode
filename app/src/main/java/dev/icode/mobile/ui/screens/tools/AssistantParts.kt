@@ -13,10 +13,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Compress
 import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -24,10 +29,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
+import dev.icode.mobile.designsystem.Divider
 import dev.icode.mobile.designsystem.EmptyState
+import dev.icode.mobile.designsystem.IcodeActionMenu
 import dev.icode.mobile.designsystem.IcodeBrandMark
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodeMenuAction
 import dev.icode.mobile.designsystem.IcodePageColumn
 import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeShapes
@@ -49,33 +57,64 @@ import dev.icode.mobile.ui.markdown.MarkdownAnswer
 import java.io.File
 
 /**
- * One row of the chat — what the user wrote, an answer, a step, a compaction — at the pinched size.
- * An answer that ends its turn ([copyable]) can be copied; the turn's last one may still be [streaming].
+ * One row of the chat — what the user wrote, an answer, a run of steps, the reasoning, a compaction —
+ * at the pinched size. An answer that ends its turn ([copyable]) can be copied; the turn's last one
+ * may still be [streaming]. A row with more behind it [onOpen]s it in a sheet
+ * (docs/assistant-sheets-plan.md §2); a message offers Copy and Select text on a long press (§2.4).
  */
 @Composable
-internal fun AssistantEntryRow(entry: AssistantEntry, copyable: Boolean, streaming: Boolean, onDiff: (GitChange) -> Unit) {
-    val scale = LocalCodeTextScale.current
+internal fun AssistantEntryRow(entry: AssistantEntry, copyable: Boolean, streaming: Boolean, onOpen: () -> Unit, onDiff: (GitChange) -> Unit) {
     when (entry) {
-        is AssistantEntry.Said -> Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-            IcodeCard(Modifier.fillMaxWidth(SAID_WIDTH), elevated = true) {
-                SaidFiles(entry.attachments)
-                if (entry.text.isNotBlank()) Text(entry.text, style = IcodeType.Body.scaledBy(scale))
-            }
-        }
+        is AssistantEntry.Said -> SaidRow(entry, onOpen)
         is AssistantEntry.Answer -> Column {
             MarkdownAnswer(entry.text, streaming, MarkdownPlace.ofAnswer(LocalICodeSnapshot.current.assistant.workspace))
             if (copyable) CopyAnswer(entry.text)
         }
-        is AssistantEntry.Reasoning -> AssistantReasoningRow(entry)
-        is AssistantEntry.Step -> AssistantStepRow(entry, onDiff)
-        is AssistantEntry.Compacted -> Disclosure(
-            key = entry.key,
-            icon = Icons.Outlined.Compress,
-            tint = IcodeColors.TextMuted,
-            label = "Chat compacted — the model goes on from this summary",
-            detail = entry.summary,
-            divided = true,
-        )
+        is AssistantEntry.Reasoning -> AssistantReasoningRow(entry, onOpen)
+        is AssistantEntry.Steps -> AssistantStepsRow(entry, onOpen, onDiff)
+        is AssistantEntry.Step -> AssistantStepsRow(AssistantEntry.Steps(entry.key, listOf(entry)), onOpen, onDiff)
+        is AssistantEntry.Compacted -> Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
+            Divider()
+            AssistantOpenRow(
+                icon = Icons.Outlined.Compress,
+                tint = IcodeColors.TextMuted,
+                label = "Chat compacted — the model goes on from this summary",
+                status = null,
+                onOpen = onOpen,
+            )
+            Divider()
+        }
+    }
+}
+
+/** What the user wrote, at the end: a long press offers Copy, and Select text in a sheet. */
+@Composable
+private fun SaidRow(entry: AssistantEntry.Said, onSelect: () -> Unit) {
+    val scale = LocalCodeTextScale.current
+    val context = LocalContext.current
+    val gateway = LocalICodeGateway.current
+    var menu by remember { mutableStateOf(false) }
+    val written = entry.text.isNotBlank()
+    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
+        Box(Modifier.fillMaxWidth(SAID_WIDTH)) {
+            IcodeCard(
+                Modifier.fillMaxWidth(),
+                elevated = true,
+                onLongClick = if (written) ({ menu = true }) else null,
+                onLongClickLabel = "Options for this message",
+            ) {
+                SaidFiles(entry.attachments)
+                if (written) Text(entry.text, style = IcodeType.Body.scaledBy(scale))
+            }
+            IcodeActionMenu(
+                expanded = menu,
+                onDismiss = { menu = false },
+                actions = listOf(
+                    IcodeMenuAction("Copy", Icons.Outlined.ContentCopy, { copyText(context, "Message", entry.text, "Message copied", gateway::dispatch) }),
+                    IcodeMenuAction("Select text", Icons.Outlined.SelectAll, onSelect),
+                ),
+            )
+        }
     }
 }
 
