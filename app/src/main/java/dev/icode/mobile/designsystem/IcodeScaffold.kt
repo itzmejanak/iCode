@@ -150,6 +150,30 @@ fun IcodeTopBar(
     IcodeTopBar(AnnotatedString(title), modifier, subtitle, onBack, dense, onTitleClick, titleMenu, actions)
 }
 
+/**
+ * A setup page — onboarding's, and a rebuild of the runtime — drawn one way, so they read as one flow
+ * (docs/onboarding-polish-plan.md §3.3): its [stage] in small capitals at the top, the page, and its
+ * [bar] at the foot ([IcodeActionBar], as every page's). The page sets its own [IcodeSpacing.Gutter],
+ * as [IcodePageColumn] does.
+ */
+@Composable
+fun IcodeSetupPage(
+    stage: String,
+    bar: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(modifier.fillMaxSize()) {
+        Text(
+            stage.uppercase(),
+            modifier = Modifier.padding(start = IcodeSpacing.Gutter, top = IcodeSpacing.Space6, end = IcodeSpacing.Gutter),
+            style = IcodeType.MonoSmall,
+        )
+        Column(Modifier.weight(1f).fillMaxWidth(), content = content)
+        bar()
+    }
+}
+
 /** Full-page heading used by setup and permission screens without a top bar. */
 @Composable
 fun PageHeading(

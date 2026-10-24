@@ -61,7 +61,7 @@ Off removes every line that marks where a surface ends, because tone now marks i
 | A card's outline, a dialog's | `IcodeCard` without a `borderColor`; `IcodeDialogCard` is one |
 | A popup menu's | The overflow and action menus, the dropdown field's menu: one surface, `IcodeDropdownMenu`; their shadow stays |
 | The top bar's line | `IcodeTopBar`, and the terminal panel's own header, which had none |
-| The line over a bar at the foot | The clipboard bar, the folder-choice bar, and the foot of Runtime Tools and Document Recovery (`IcodeFootBar`) |
+| The line over a bar at the foot | The clipboard bar, the folder-choice bar, and the setup pages' and Runtime Tools' bar (`IcodeActionBar`, since [onboarding-polish-plan.md](./onboarding-polish-plan.md)); Document Recovery's foot (`IcodeFootBar`) |
 
 Every line that says something stays:
 
@@ -194,7 +194,8 @@ Then, carrying the lines and the rhythm across every page:
   Its icons now sit on the gutter's keyline and its title, without Back, on the gutter — Material's
   top app bar's own measures.
 - **One foot bar**: Runtime Tools and Document Recovery each drew the same band at their foot;
-  Document Recovery's lacked the line. Both are `IcodeFootBar`.
+  Document Recovery's lacked the line. Both are `IcodeFootBar`. (Since 2026-10-24 Runtime Tools'
+  foot is the explorer's one-row bar, `IcodeActionBar`: [onboarding-polish-plan.md](./onboarding-polish-plan.md).)
 - **Source Control's three gates** each repeated their page; one `GatePage` holds it.
 - **Runtime Environment** did not scroll, its rebuilds pinned to its foot: it keeps both, on the
   rhythm.

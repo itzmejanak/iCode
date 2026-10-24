@@ -2,10 +2,8 @@ package dev.icode.mobile.ui.screens.entry
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -15,15 +13,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeFootBar
+import dev.icode.mobile.designsystem.IcodeActionBar
 import dev.icode.mobile.designsystem.IcodePageColumn
-import dev.icode.mobile.designsystem.IcodeSpacing
+import dev.icode.mobile.designsystem.IcodeSetupPage
 import dev.icode.mobile.designsystem.IcodeTopBar
-import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.PageHeading
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SecondaryButton
-import dev.icode.mobile.designsystem.TwoColumnActions
+import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.RuntimeToolPlan
 import dev.icode.mobile.domain.RuntimeToolRules
@@ -93,20 +90,13 @@ fun RuntimeToolsScreen(actions: NavigationActions) {
     }
     BackHandler(enabled = atStep && stepIndex > 0) { back() }
 
-    Column(Modifier.fillMaxSize()) {
-        if (setup) {
-            Column(Modifier.padding(start = IcodeSpacing.Gutter, end = IcodeSpacing.Gutter, top = IcodeSpacing.Space6)) {
-                Text("SET UP TOOLS · STEP ${if (atStep) stepIndex + 1 else steps.size} OF ${steps.size}", style = IcodeType.MonoSmall)
-            }
-        } else {
-            IcodeTopBar("Runtime Tools", subtitle = "Linux runtime · Ubuntu 24.04", onBack = { if (atStep) back() else leave() })
-        }
+    val page: @Composable ColumnScope.() -> Unit = {
         IcodePageColumn(Modifier.weight(1f)) {
             when {
                 work != null -> ToolProgress(work)
                 done -> applied?.let { ToolsApplied(it) }
                 // Asked, and apt has not published its run yet.
-                applied != null -> ToolsStarting()
+                applied != null -> ToolsStarting(tools.measuring)
                 else -> {
                     val heading = headingOf(step, setup)
                     PageHeading(heading.first, description = heading.second)
@@ -123,61 +113,63 @@ fun RuntimeToolsScreen(actions: NavigationActions) {
                 }
             }
         }
-        IcodeFootBar {
-            when {
-                work?.failure != null -> TwoColumnActions(
-                    left = {
-                        SecondaryButton("Back", {
-                            applied = null
-                            gateway.dispatch(ICodeIntent.DismissRuntimeTools)
-                        }, Modifier.fillMaxWidth())
-                    },
-                    right = { PrimaryButton("Retry", { plan?.let(::apply) }, Modifier.fillMaxWidth(), enabled = plan?.isEmpty == false) },
-                )
-                work != null || (applied != null && !done) -> {
-                    if (work != null && !work.cancellable) {
-                        Text(
-                            if (work.setup == null) "Packages being set up can't be stopped: dpkg would be left half done."
-                            else "This step can't be stopped: it would be left half done.",
-                            style = IcodeType.Caption,
-                        )
+    }
+    val bar: @Composable () -> Unit = {
+        when {
+            work?.failure != null -> IcodeActionBar(title = null) {
+                SecondaryButton("Back", {
+                    applied = null
+                    gateway.dispatch(ICodeIntent.DismissRuntimeTools)
+                })
+                PrimaryButton("Retry", { plan?.let(::apply) }, enabled = plan?.isEmpty == false)
+            }
+            work != null || (applied != null && !done) -> {
+                // A step that can't be stopped says why in Cancel's place.
+                val unstoppable = work?.takeUnless { it.cancellable }
+                IcodeActionBar(
+                    title = unstoppable?.let { if (it.setup == null) "Packages being set up can't be stopped" else "This step can't be stopped" },
+                    caption = unstoppable?.let { if (it.setup == null) "dpkg would be left half done." else "It would be left half done." },
+                ) {
+                    if (unstoppable == null) {
+                        SecondaryButton("Cancel", { gateway.dispatch(ICodeIntent.CancelRuntimeTools) }, enabled = work?.cancellable == true)
                     }
-                    TwoColumnActions(
-                        left = {
-                            SecondaryButton(
-                                "Cancel",
-                                { gateway.dispatch(ICodeIntent.CancelRuntimeTools) },
-                                Modifier.fillMaxWidth(),
-                                enabled = work?.cancellable == true,
-                            )
-                        },
-                        right = { PrimaryButton("Run in Background", ::leave, Modifier.fillMaxWidth()) },
-                    )
+                    PrimaryButton("Run in Background", ::leave)
                 }
-                done -> PrimaryButton(if (setup) "Finish" else "Done", {
+            }
+            done -> IcodeActionBar(title = null) {
+                PrimaryButton(if (setup) "Finish" else "Done", {
                     applied = null
                     stepIndex = 0
                     if (setup) leave()
-                }, Modifier.fillMaxWidth())
-                else -> StepActions(
-                    step,
-                    last = stepIndex >= steps.lastIndex,
-                    setup = setup,
-                    plan = plan,
-                    accepted = plan?.licences.orEmpty().all { it in accepted.orEmpty() },
-                    tools = tools,
-                    availableBytes = state.storage?.availableBytes,
-                    onBack = ::back,
-                    onSkip = ::finish,
-                ) {
-                    when {
-                        stepIndex < steps.lastIndex -> stepIndex++
-                        plan == null -> Unit
-                        plan.isEmpty -> finish()
-                        else -> apply(plan)
-                    }
+                })
+            }
+            else -> StepBar(
+                step,
+                last = stepIndex >= steps.lastIndex,
+                setup = setup,
+                plan = plan,
+                accepted = plan?.licences.orEmpty().all { it in accepted.orEmpty() },
+                tools = tools,
+                availableBytes = state.storage?.availableBytes,
+                onBack = ::back,
+                onSkip = ::finish,
+            ) {
+                when {
+                    stepIndex < steps.lastIndex -> stepIndex++
+                    plan == null -> Unit
+                    plan.isEmpty -> finish()
+                    else -> apply(plan)
                 }
             }
+        }
+    }
+    if (setup) {
+        IcodeSetupPage("Set Up Tools · Step ${if (atStep) stepIndex + 1 else steps.size} of ${steps.size}", bar, content = page)
+    } else {
+        Column(Modifier.fillMaxSize()) {
+            IcodeTopBar("Runtime Tools", subtitle = "Linux runtime · Ubuntu 24.04", onBack = { if (atStep) back() else leave() })
+            page()
+            bar()
         }
     }
 }
@@ -197,12 +189,13 @@ private fun headingOf(step: RuntimeToolStep, setup: Boolean): Pair<String, Strin
 }
 
 /**
- * The foot of a step: what it costs, then Back (Skip, on the first step of Set Up Tools) and the
- * way on — Next, then on the [last] step Install, Apply, or Finish when there is nothing to do; the
- * License Agreement's only once each licence is [accepted].
+ * The bar of a step: what it costs, the free space under it (or why a size could not be measured),
+ * then Back (Skip, on the first step of Set Up Tools) and the way on — Next, then on the [last] step
+ * Install, Apply, or Finish when there is nothing to do; the License Agreement's only once each
+ * licence is [accepted].
  */
 @Composable
-private fun StepActions(
+private fun StepBar(
     step: RuntimeToolStep,
     last: Boolean,
     setup: Boolean,
@@ -214,8 +207,6 @@ private fun StepActions(
     onSkip: () -> Unit,
     onNext: () -> Unit,
 ) {
-    Text(RuntimeToolRules.summary(plan, tools, availableBytes), style = IcodeType.Caption)
-    tools.measureFailure?.let { Text(it, style = IcodeType.Caption.copy(color = IcodeColors.Error), maxLines = 3) }
     val first = step == RuntimeToolStep.InstallType || (!setup && step == RuntimeToolStep.Select)
     val forward = when {
         // Runtime Tools' list moves on as Android Studio's SDK Manager does: Apply, then a confirmation.
@@ -228,16 +219,16 @@ private fun StepActions(
     // Runtime Tools moves on only with something to change; Set Up Tools may finish with nothing.
     val enabled = plan != null && (setup || step != RuntimeToolStep.Select || !plan.isEmpty) &&
         (step != RuntimeToolStep.Licence || accepted)
-    when {
-        setup && first -> TwoColumnActions(
-            left = { SecondaryButton("Skip", onSkip, Modifier.fillMaxWidth()) },
-            right = { PrimaryButton(forward, onNext, Modifier.fillMaxWidth(), enabled = enabled) },
-        )
-        first -> PrimaryButton(forward, onNext, Modifier.fillMaxWidth(), enabled = enabled)
-        else -> TwoColumnActions(
-            left = { SecondaryButton("Back", onBack, Modifier.fillMaxWidth()) },
-            right = { PrimaryButton(forward, onNext, Modifier.fillMaxWidth(), enabled = enabled) },
-        )
+    IcodeActionBar(
+        title = RuntimeToolRules.cost(plan, tools),
+        caption = tools.measureFailure ?: availableBytes?.let { "${ByteSize.format(it)} available" },
+        captionColor = if (tools.measureFailure != null) IcodeColors.Error else IcodeColors.TextSecondary,
+    ) {
+        when {
+            setup && first -> SecondaryButton("Skip", onSkip)
+            !first -> SecondaryButton("Back", onBack)
+        }
+        PrimaryButton(forward, onNext, enabled = enabled)
     }
 }
 

@@ -4,6 +4,7 @@ import dev.icode.mobile.domain.AptPhase
 import dev.icode.mobile.domain.RuntimeInventory
 import dev.icode.mobile.domain.RuntimeTool
 import dev.icode.mobile.domain.RuntimeToolAction
+import dev.icode.mobile.domain.RuntimeToolDownload
 import dev.icode.mobile.domain.RuntimeToolRules
 import dev.icode.mobile.domain.RuntimeTools
 import dev.icode.mobile.domain.ToolSetupProgress
@@ -56,8 +57,9 @@ class RuntimePackageInstallerTest {
     ) {
         val installed: MutableSet<String> = Collections.synchronizedSet(mutableSetOf())
         val auto: MutableSet<String> = Collections.synchronizedSet(mutableSetOf())
-        /** Held before a download prints its first archive, before an install unpacks, and once it has set up. */
+        /** Held before a download prints its first archive, before a size is printed, before an install unpacks, and once it has set up. */
         var downloadGate: CompletableDeferred<Unit>? = null
+        var printGate: CompletableDeferred<Unit>? = null
         var installGate: CompletableDeferred<Unit>? = null
         var installedGate: CompletableDeferred<Unit>? = null
 
@@ -108,6 +110,7 @@ class RuntimePackageInstallerTest {
                 }
                 missing != null -> unknown()
                 "--print-uris" in argv -> ok().also {
+                    printGate?.await()
                     packages.filterNot { it in installed }.forEach { onLine("'http://ports.ubuntu.com/$it.deb' ${it}_1_arm64.deb 1000 MD5Sum:0") }
                 }
                 "-d" in argv -> {
@@ -306,21 +309,61 @@ class RuntimePackageInstallerTest {
         assertEquals(setOf("libcurl4t64"), apt.installed.toSet())
     }
 
+    /** What [this] measures of [tools], as the page collects it, and why one could not be measured. */
+    private suspend fun RuntimePackageInstaller.measured(tools: List<RuntimeTool>, onLists: () -> Unit = {}): Pair<Map<String, RuntimeToolDownload>, String?> {
+        val found = Collections.synchronizedMap(mutableMapOf<String, RuntimeToolDownload>())
+        val failure = sizes.measure(tools, onLists, found::putAll)
+        return found.toMap() to failure
+    }
+
     @Test fun `measuring reads what each tool would download, reading the lists once when apt has none`() = runBlocking {
         val apt = FakeApt(listsFresh = false).apply { installed += "git" }
-        val measured = apt.installer().measure(listOf(RuntimeTools.Git, RuntimeTools.Ripgrep, RuntimeTools.Curl))
-        assertNull(measured.failure)
-        assertEquals(emptyMap<String, Long>(), measured.downloads.getValue("git").archives)
-        assertEquals(mapOf("ripgrep_1_arm64.deb" to 1000L), measured.downloads.getValue("ripgrep").archives)
-        assertEquals(2, measured.downloads.getValue("curl").archives.size)
+        var listsSaid = 0
+        val (sizes, failure) = apt.installer().measured(listOf(RuntimeTools.Git, RuntimeTools.Ripgrep, RuntimeTools.Curl)) { listsSaid++ }
+        assertNull(failure)
+        assertEquals(emptyMap<String, Long>(), sizes.getValue("git").archives)
+        assertEquals(mapOf("ripgrep_1_arm64.deb" to 1000L), sizes.getValue("ripgrep").archives)
+        assertEquals(2, sizes.getValue("curl").archives.size)
         assertEquals(1, calls.count { it == "apt-get update" })
+        assertEquals("the page is told once", 1, listsSaid)
     }
 
     @Test fun `a tool apt cannot find is not measured, and says why`() = runBlocking {
         val nope = RuntimeTool("nope", "Nope", "", null, listOf("nope"))
-        val measured = FakeApt().installer().measure(listOf(nope, RuntimeTools.Ripgrep))
-        assertEquals(setOf("ripgrep"), measured.downloads.keys)
-        assertEquals("Could not measure Nope: E: Unable to locate package nope", measured.failure)
+        val (sizes, failure) = FakeApt().installer().measured(listOf(nope, RuntimeTools.Ripgrep))
+        assertEquals(setOf("ripgrep"), sizes.keys)
+        assertEquals("Could not measure Nope: E: Unable to locate package nope", failure)
+    }
+
+    @Test fun `sizes are measured three at a time, once for tools naming the same packages, each said as it lands`() = runBlocking {
+        val apt = FakeApt(available = setOf("a", "b", "c", "d", "e", "x"))
+        val tools = listOf("a", "b", "c", "d", "e").map { RuntimeTool(it, it, "", null, listOf(it)) } +
+            listOf("x1", "x2").map { RuntimeTool(it, it, "", null, listOf("x")) }
+        val said = Collections.synchronizedList(mutableListOf<Set<String>>())
+        assertNull(apt.installer().sizes.measure(tools, onLists = {}) { said += it.keys })
+        assertEquals(3, mostAtOnce.get())
+        assertEquals("one run for x1 and x2", 1, calls.count { it.endsWith(" x") })
+        assertEquals(setOf(setOf("a"), setOf("b"), setOf("c"), setOf("d"), setOf("e"), setOf("x1", "x2")), said.toSet())
+        assertEquals(6, said.size)
+    }
+
+    @Test fun `an install never waits for sizes, and they stop once it begins`() = runBlocking {
+        val apt = FakeApt(available = setOf("git", "a", "b", "c", "d")).apply {
+            printGate = CompletableDeferred()
+            installGate = CompletableDeferred()
+        }
+        val installer = apt.installer()
+        val measuring = async { installer.measured(listOf("a", "b", "c", "d").map { RuntimeTool(it, it, "", null, listOf(it)) }) }
+        withTimeout(2_000) { while (calls.count { "--print-uris" in it } < 3) delay(5) }
+        val git = async { installer.ensure(RuntimeTools.Git) }
+        withTimeout(2_000) { while (installer.work.value == null) delay(5) }
+        apt.printGate?.complete(Unit)
+        val (sizes, failure) = withTimeout(2_000) { measuring.await() }
+        assertNull(failure)
+        assertEquals("the three in hand land; the fourth is not measured", setOf("a", "b", "c"), sizes.keys)
+        assertFalse(calls.any { it.endsWith("--print-uris -qq --no-install-recommends d") })
+        apt.installGate?.complete(Unit)
+        assertEquals(RuntimePackageInstaller.Outcome.Ready, withTimeout(2_000) { git.await() })
     }
 
     /** A scripted setup: it says a step, prints a line, and waits on [gate] where a test holds it. */
@@ -445,7 +488,7 @@ class RuntimePackageInstallerTest {
         val setup = FakeSetup()
         val files = RuntimeTool("kit", "Kit", "", null, emptyList(), setup = "kit", licence = "kit-licence")
         val installer = apt.installer(setups = listOf(setup))
-        assertEquals(mapOf("kit.zip" to 5_000L), installer.measure(listOf(files)).downloads.getValue("kit").archives)
+        assertEquals(mapOf("kit.zip" to 5_000L), installer.measured(listOf(files)).first.getValue("kit").archives)
         val install = RuntimeToolRules.plan(setOf("kit"), installer.run { refresh(); installed.value!! }, listOf(files))
         assertEquals(RuntimePackageInstaller.Outcome.Ready, installer.apply(install, setOf("kit-licence")))
         assertEquals(listOf("setup install", "setup configure"), calls)
@@ -459,8 +502,8 @@ class RuntimePackageInstallerTest {
         val apt = FakeApt()
         val setup = FakeSetup()
         val installer = apt.installer(setups = listOf(setup))
-        assertEquals(mapOf("git_1_arm64.deb" to 1000L, "kit.zip" to 5_000L), installer.measure(listOf(kit)).downloads.getValue("kit").archives)
+        assertEquals(mapOf("git_1_arm64.deb" to 1000L, "kit.zip" to 5_000L), installer.measured(listOf(kit)).first.getValue("kit").archives)
         File(receipts.apply { mkdirs() }, "kit").writeText(setup.receipt)
-        assertEquals(mapOf("git_1_arm64.deb" to 1000L), installer.measure(listOf(kit)).downloads.getValue("kit").archives)
+        assertEquals(mapOf("git_1_arm64.deb" to 1000L), installer.measured(listOf(kit)).first.getValue("kit").archives)
     }
 }

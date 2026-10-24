@@ -75,6 +75,13 @@ class BackgroundWorkRulesTest {
         assertEquals("Repairing the Linux runtime 50%", item.heading)
         assertEquals(BackgroundPlace.Runtime, item.place)
         assertTrue(item.cancel == null && item.running)
+
+        val extracting = snapshot.copy(runtime = RuntimeState.Installing("Extracting Ubuntu base", RuntimeInstallStep.Extracting, 1024, 4096))
+        val counted = BackgroundWorkRules.of(extracting).single()
+        assertEquals("Repairing the Linux runtime (1024 / 4096)", counted.heading)
+        assertEquals(0.25f, counted.fraction)
+        val configuring = snapshot.copy(runtime = RuntimeState.Installing("Configuring the runtime", RuntimeInstallStep.Configuring))
+        assertEquals("Repairing the Linux runtime", BackgroundWorkRules.of(configuring).single().heading)
     }
 
     @Test fun `a tools install is carried with apt's step and count, cancellable only while downloading`() {

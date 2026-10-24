@@ -14,6 +14,7 @@ class RuntimeManifestTest {
     fun `the shipped manifest pins the root filesystem and each Android SDK download`() {
         assertEquals("arm64-v8a", shipped.architecture)
         assertEquals(64, shipped.rootfs.sha256.length)
+        assertEquals("the pinned archive's entries, as tar lists them", 3_413L, shipped.rootfs.entries)
         val tools = shipped.archive("android-cmdline-tools")
         assertEquals(DigestAlgorithm.Sha1, tools.checksum.algorithm)
         assertEquals(40, tools.checksum.hex.length)
@@ -54,7 +55,7 @@ class RuntimeManifestTest {
 
     private fun manifest(archives: String) = """
         {"schemaVersion": 1, "architecture": "arm64-v8a",
-         "rootfs": {"id": "r", "base": "R", "url": "https://example.test/r.tar.gz", "sha256": "00", "minimumFreeBytes": 1},
+         "rootfs": {"id": "r", "base": "R", "url": "https://example.test/r.tar.gz", "sha256": "00", "minimumFreeBytes": 1, "entries": 1},
          "proot": {"version": "1"}, "archives": {$archives}}
     """.trimIndent()
 }

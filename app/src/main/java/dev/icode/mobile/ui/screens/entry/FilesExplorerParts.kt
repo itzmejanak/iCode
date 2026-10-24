@@ -1,11 +1,8 @@
 package dev.icode.mobile.ui.screens.entry
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -23,22 +20,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
-import dev.icode.mobile.designsystem.EdgeLine
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeActionMenu
+import dev.icode.mobile.designsystem.IcodeActionBar
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodeMenuAction
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
-import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.domain.BrowsedItem
 import dev.icode.mobile.domain.FileTypes
@@ -216,18 +211,11 @@ private fun FileRow(
 internal fun ChooseBar(browser: FilesBrowserState?, onChoose: (String?) -> Unit) {
     // A folder inside a workspace; at the top, none: a new workspace.
     val place = browser?.takeUnless { it.atRoot }
-    Column(Modifier.fillMaxWidth().background(IcodeColors.SurfaceElevated)) {
-        EdgeLine()
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = IcodeSpacing.Gutter, vertical = IcodeSpacing.Space2),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
-        ) {
-            Column(Modifier.weight(1f)) {
-                MonoLine(place?.runtimePathOf(place.path) ?: "/workspace/<name>", maxLines = 1)
-                Text(if (place == null) "It becomes a workspace of its own" else "It goes in this folder", style = IcodeType.Caption)
-            }
-            PrimaryButton(if (place == null) "New workspace" else "Place here", { onChoose(place?.path) }, enabled = browser != null)
-        }
+    IcodeActionBar(
+        title = place?.runtimePathOf(place.path) ?: "/workspace/<name>",
+        caption = if (place == null) "It becomes a workspace of its own" else "It goes in this folder",
+        titleStyle = IcodeType.Mono,
+    ) {
+        PrimaryButton(if (place == null) "New workspace" else "Place here", { onChoose(place?.path) }, enabled = browser != null)
     }
 }

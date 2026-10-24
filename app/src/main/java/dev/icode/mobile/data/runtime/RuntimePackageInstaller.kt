@@ -5,7 +5,6 @@ import dev.icode.mobile.domain.AptProgress
 import dev.icode.mobile.domain.RuntimeInventory
 import dev.icode.mobile.domain.RuntimeTool
 import dev.icode.mobile.domain.RuntimeToolAction
-import dev.icode.mobile.domain.RuntimeToolDownload
 import dev.icode.mobile.domain.RuntimeToolPlan
 import dev.icode.mobile.domain.RuntimeToolRules
 import dev.icode.mobile.domain.RuntimeToolWork
@@ -61,12 +60,12 @@ internal class RuntimePackageInstaller(
         data class Failed(val reason: String) : Outcome
     }
 
-    /** What each tool would download; [failure] says why one could not be measured. */
-    data class Measured(val downloads: Map<String, RuntimeToolDownload>, val failure: String?)
-
     private val dpkg = Mutex()
     private val inFlight = mutableMapOf<String, Deferred<Outcome>>()
     private val runs = ToolRuns()
+
+    /** What each tool would download: apt's `--print-uris`, and the lists it needs read here, under dpkg's lock. */
+    val sizes = RuntimeToolSizes(::printUris, setups, ::readLists, ::runInHand)
 
     /** The run in hand, or the page's last failure until it is dismissed. */
     val work: StateFlow<RuntimeToolWork?> = runs.work
@@ -123,37 +122,18 @@ internal class RuntimePackageInstaller(
     /** The page has shown a kept failure: it goes. */
     fun dismiss() = runs.dismiss()
 
-    /**
-     * What installing each of [tools] would download now: apt's archives, as apt computes them
-     * (`--print-uris`), and its setup's pinned files unless its receipt matches. The lists are read
-     * once first when apt has none that name a package.
-     */
-    suspend fun measure(tools: List<RuntimeTool>): Measured = dpkg.withLock {
-        var listsRead = false
-        var failure: String? = null
-        val downloads = buildMap {
-            tools.forEach { tool ->
-                // A tool apt has nothing for (CMake, an NDK) is its setup's files alone.
-                if (tool.packages.isEmpty()) {
-                    put(tool.id, RuntimeToolDownload(setups.download(tool)))
-                    return@forEach
-                }
-                val output = mutableListOf<String>()
-                val command = listOf("apt-get", "install", "--print-uris", "-qq", "--no-install-recommends") + tool.packages
-                var result = apt(command) { line -> output += line; true }
-                if (result.exitCode != 0 && !listsRead) {
-                    listsRead = true
-                    val update = apt(listOf("apt-get", "update")) { true }
-                    if (update.exitCode != 0) throw IOException(failure("Could not read the package lists", update, emptyList()))
-                    output.clear()
-                    result = apt(command) { line -> output += line; true }
-                }
-                if (result.exitCode == 0) put(tool.id, RuntimeToolDownload(output.mapNotNull(::archive).toMap() + setups.download(tool)))
-                else failure = failure ?: failure("Could not measure ${tool.name}", result, output)
-            }
-        }
-        Measured(downloads, failure)
+    /** What apt would fetch to install [packages], each archive a line; it takes no lock, and writes nothing. */
+    private suspend fun printUris(packages: List<String>, onLine: (String) -> Boolean): GuestCommand.Result =
+        apt(listOf("apt-get", "install", "--print-uris", "-qq", "--no-install-recommends") + packages, onLine)
+
+    /** apt reads the package lists, under dpkg's lock as every run that writes the runtime's apt state. */
+    private suspend fun readLists() = dpkg.withLock {
+        val update = apt(listOf("apt-get", "update")) { true }
+        if (update.exitCode != 0) throw IOException(aptFailure("Could not read the package lists", update, emptyList()))
     }
+
+    /** An install or a removal is running (a kept failure is not one). */
+    private fun runInHand(): Boolean = runs.work.value?.let { it.failure == null } == true
 
     /** A run of its own, queued behind any other; each of [tools] waits on it while it lasts. */
     private fun queue(tools: List<RuntimeTool>, body: suspend () -> Outcome): Deferred<Outcome> =
@@ -204,15 +184,15 @@ internal class RuntimePackageInstaller(
             // has: read them again, then try once more.
             run.progress = AptProgress(phase = AptPhase.Updating)
             val update = run.apt(listOf("apt-get", "update"), stoppable = true)
-            if (update.exitCode != 0) return Outcome.Failed(failure("Could not update runtime packages", update, run.output))
+            if (update.exitCode != 0) return Outcome.Failed(aptFailure("Could not update runtime packages", update, run.output))
             run.progress = AptProgress()
             fetched = run.apt(download, stoppable = true)
-            if (fetched.exitCode != 0) return Outcome.Failed(failure("Could not download ${run.names}", fetched, run.output))
+            if (fetched.exitCode != 0) return Outcome.Failed(aptFailure("Could not download ${run.names}", fetched, run.output))
         }
         run.progress = AptProgress(phase = AptPhase.Installing, total = run.progress.total)
         val installed = run.apt(listOf("apt-get", "install", "-y", "--no-install-recommends") + packages, stoppable = false)
         if (installed.exitCode != 0 || !readInstalled().containsAll(packages)) {
-            return Outcome.Failed(failure("Could not install ${run.names}", installed, run.output))
+            return Outcome.Failed(aptFailure("Could not install ${run.names}", installed, run.output))
         }
         return null
     }
@@ -234,7 +214,7 @@ internal class RuntimePackageInstaller(
         run.publish(run.work.copy(setup = null, progress = AptProgress(phase = AptPhase.Removing)))
         val before = simulatedRemovals()
         val mark = apt(listOf("apt-mark", "auto") + packages) { true }
-        if (mark.exitCode != 0) return Outcome.Failed(failure("Could not remove ${run.names}", mark, emptyList()))
+        if (mark.exitCode != 0) return Outcome.Failed(aptFailure("Could not remove ${run.names}", mark, emptyList()))
         val after = simulatedRemovals()
         val targets = after - before + packages.filter { it in after }
         val needed = packages.filterNot { it in targets }
@@ -242,7 +222,7 @@ internal class RuntimePackageInstaller(
         if (targets.isEmpty()) return Outcome.Failed("${run.names} cannot be removed: other installed packages need it")
         val removed = run.apt(listOf("apt-get", "remove", "-y") + targets.sorted(), stoppable = false)
         return if (removed.exitCode == 0) Outcome.Ready
-        else Outcome.Failed(failure("Could not remove ${run.names}", removed, run.output))
+        else Outcome.Failed(aptFailure("Could not remove ${run.names}", removed, run.output))
     }
 
     /** What `apt-get autoremove` would remove now, from its simulation: `Remv libcurl4t64 [8.5.0-2ubuntu10.15]`. */
@@ -252,7 +232,7 @@ internal class RuntimePackageInstaller(
             REMOVAL.find(line)?.let { names += it.groupValues[1].substringBefore(':') }
             true
         }
-        if (result.exitCode != 0) throw IOException(failure("Could not read what apt would remove", result, emptyList()))
+        if (result.exitCode != 0) throw IOException(aptFailure("Could not read what apt would remove", result, emptyList()))
         return names
     }
 
@@ -280,16 +260,13 @@ internal class RuntimePackageInstaller(
         setups.record(setup)
     }
 
-    private fun failure(fallback: String, result: GuestCommand.Result, output: Collection<String>): String {
-        val detail = result.failureDetail() ?: output.lastOrNull()
-        return if (detail == null) fallback else "$fallback: $detail"
-    }
-
     private companion object {
-        /** `'http://…/ripgrep_14.1.0-1_arm64.deb' ripgrep_14.1.0-1_arm64.deb 1455428 MD5Sum:…`. */
-        val URI = Regex("""^'[^']+' (\S+) (\d+) """)
         val REMOVAL = Regex("""^Remv (\S+)""")
-
-        fun archive(line: String): Pair<String, Long>? = URI.find(line)?.let { it.groupValues[1] to it.groupValues[2].toLong() }
     }
+}
+
+/** What apt's [result] says of a failure, after [fallback]: its stderr's explanation, else the last line of its [output]. */
+internal fun aptFailure(fallback: String, result: GuestCommand.Result, output: Collection<String>): String {
+    val detail = result.failureDetail() ?: output.lastOrNull()
+    return if (detail == null) fallback else "$fallback: $detail"
 }

@@ -116,6 +116,10 @@ object IcodeSizes {
      */
     val Watermark = 400.dp
 
+    /** The runtime install's ring ([ProgressRing]): about half a phone's width, inside the logo behind it. */
+    val ProgressRing = 176.dp
+    val RingStroke = 6.dp
+
     /** Round status marks: empty states, dialogs and health banners. */
     val MarkSm = 36.dp
     val MarkMd = 42.dp

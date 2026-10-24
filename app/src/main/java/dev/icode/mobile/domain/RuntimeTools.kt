@@ -220,26 +220,27 @@ object RuntimeToolRules {
     fun status(tool: RuntimeTool, ticked: Boolean, state: RuntimeToolsState): RuntimeToolStatus = when {
         state.isInstalled(tool) -> if (ticked) RuntimeToolStatus.Installed else RuntimeToolStatus.WillBeRemoved
         else -> state.downloads[tool.id]?.let { RuntimeToolStatus.Download(it.archives.values.sum()) }
-            ?: if (state.measuring) RuntimeToolStatus.Measuring else RuntimeToolStatus.SizeUnknown
+            ?: if (state.measuring != null) RuntimeToolStatus.Measuring else RuntimeToolStatus.SizeUnknown
     }
 
     /**
-     * What [plan] costs, as the page's foot says it: "Download 7.1 MB · Remove 1 tool · 42.3 GB
-     * available" — the download as apt measured it, never a figure written here.
+     * What [plan] costs, as the page's bar says it, the free space under it: "Download 7.1 MB · Remove
+     * 1 tool" — the download as apt measured it, never a figure written here.
      */
-    fun summary(plan: RuntimeToolPlan?, state: RuntimeToolsState, availableBytes: Long?): String {
-        val change = when {
-            plan == null -> "Reading what is installed…"
-            plan.isEmpty -> "Nothing to change"
-            else -> listOfNotNull(
-                plan.install.takeIf { it.isNotEmpty() }?.let {
-                    downloadBytes(it, state.downloads)?.let { bytes -> "Download ${ByteSize.format(bytes)}" }
-                        ?: if (state.measuring) "Measuring the download…" else "Download size unknown"
-                },
-                plan.remove.takeIf { it.isNotEmpty() }?.let { "Remove ${countOf(it.size, "tool")}" },
-            ).joinToString(" · ")
-        }
-        return listOfNotNull(change, availableBytes?.let { "${ByteSize.format(it)} available" }).joinToString(" · ")
+    fun cost(plan: RuntimeToolPlan?, state: RuntimeToolsState): String = when {
+        plan == null -> "Reading what is installed…"
+        plan.isEmpty -> "Nothing to change"
+        else -> listOfNotNull(
+            plan.install.takeIf { it.isNotEmpty() }?.let {
+                downloadBytes(it, state.downloads)?.let { bytes -> "Download ${ByteSize.format(bytes)}" }
+                    ?: when (state.measuring) {
+                        RuntimeToolMeasuring.Lists -> "Reading the package lists…"
+                        RuntimeToolMeasuring.Sizes -> "Measuring the download…"
+                        null -> "Download size unknown"
+                    }
+            },
+            plan.remove.takeIf { it.isNotEmpty() }?.let { "Remove ${countOf(it.size, "tool")}" },
+        ).joinToString(" · ")
     }
 }
 
@@ -257,14 +258,23 @@ sealed interface RuntimeToolStatus {
     data object SizeUnknown : RuntimeToolStatus
 }
 
+/** Where measuring the tools' downloads stands (docs/onboarding-polish-plan.md §3.4). */
+enum class RuntimeToolMeasuring {
+    /** apt is reading the package lists, once, before a size can be measured. */
+    Lists,
+
+    /** apt is measuring each tool's download. */
+    Sizes,
+}
+
 /** The runtime's tools, as their page and the features that need one see them. */
 data class RuntimeToolsState(
     /** What is installed; null until it has been read. */
     val installed: RuntimeInventory? = null,
     /** What each tool not installed would download, by id, once measured. */
     val downloads: Map<String, RuntimeToolDownload> = emptyMap(),
-    /** apt is reading the lists or measuring. */
-    val measuring: Boolean = false,
+    /** Where measuring the downloads stands; null when nothing is being measured. */
+    val measuring: RuntimeToolMeasuring? = null,
     /** Why a tool could not be measured. */
     val measureFailure: String? = null,
     /** The apt run in hand, or the page's last failure until read. */

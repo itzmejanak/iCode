@@ -4,10 +4,12 @@ import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.RuntimeInventory
+import dev.icode.mobile.domain.RuntimeToolMeasuring
 import dev.icode.mobile.domain.RuntimeToolsState
 import dev.icode.mobile.domain.ToolSetupProgress
 import java.io.File
 import java.util.Collections
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -43,6 +45,9 @@ class RuntimeToolsCoordinatorTest {
         setup("android-ndk-27", "ndk-r27.tar.xz", 8_000L),
     )
 
+    /** Held before a size is printed, where a test holds it. */
+    @Volatile private var printGate: CompletableDeferred<Unit>? = null
+
     /** apt as it answers the page: sizes for what is missing, and an install that lands. */
     private val installer = RuntimePackageInstaller(
         scope,
@@ -51,8 +56,10 @@ class RuntimeToolsCoordinatorTest {
         { argv, onLine ->
             val packages = argv.filterNot { it.startsWith("-") }.drop(2)
             when {
-                "--print-uris" in argv -> packages.filterNot { it in installed }
-                    .forEach { onLine("'http://ports.ubuntu.com/$it.deb' ${it}_1_arm64.deb 2000 MD5Sum:0") }
+                "--print-uris" in argv -> {
+                    printGate?.await()
+                    packages.filterNot { it in installed }.forEach { onLine("'http://ports.ubuntu.com/$it.deb' ${it}_1_arm64.deb 2000 MD5Sum:0") }
+                }
                 "-d" in argv -> Unit
                 argv[1] == "install" -> installed += packages
             }
@@ -87,7 +94,7 @@ class RuntimeToolsCoordinatorTest {
         until { tools().installed == RuntimeInventory(setOf("git")) }
 
         coordinator.handle(ICodeIntent.MeasureRuntimeTools)
-        until { !tools().measuring && tools().downloads.isNotEmpty() }
+        until { tools().measuring == null && tools().downloads.isNotEmpty() }
         assertFalse("an installed tool is not measured", "git" in tools().downloads)
         assertEquals(mapOf("ripgrep_1_arm64.deb" to 2000L), tools().downloads.getValue("ripgrep").archives)
         assertEquals(
@@ -101,6 +108,23 @@ class RuntimeToolsCoordinatorTest {
         coordinator.handle(ICodeIntent.ApplyRuntimeTools(setOf("git", "ripgrep")))
         until { "ripgrep" in tools().installed?.packages.orEmpty() && tools().work == null }
         assertTrue("what is installed changed: the sizes are measured again", tools().downloads.isEmpty())
+    }
+
+    @Test fun `a size measured against what was installed before is dropped, and the measure asked for meanwhile follows`() {
+        printGate = CompletableDeferred()
+        coordinator.start()
+        until { tools().installed == RuntimeInventory(setOf("git")) }
+        coordinator.handle(ICodeIntent.MeasureRuntimeTools)
+        until { tools().measuring == RuntimeToolMeasuring.Sizes }
+        // Installed elsewhere, as the terminal's apt would, while ripgrep's size is being measured.
+        installed += "ripgrep"
+        installer.refresh()
+        until { "ripgrep" in tools().installed?.packages.orEmpty() }
+        coordinator.handle(ICodeIntent.MeasureRuntimeTools)
+        printGate?.complete(Unit)
+        until { tools().measuring == null && "curl" in tools().downloads }
+        assertFalse("measured before ripgrep was installed: dropped", "ripgrep" in tools().downloads)
+        assertEquals(mapOf("openssh-client_1_arm64.deb" to 2000L), tools().downloads.getValue("ssh-client").archives)
     }
 
     @Test fun `each licence a tool accepts is read for the License Agreement`() {

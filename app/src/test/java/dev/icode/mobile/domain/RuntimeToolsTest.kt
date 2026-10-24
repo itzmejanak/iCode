@@ -189,21 +189,22 @@ class RuntimeToolsTest {
         assertEquals(RuntimeToolStatus.WillBeRemoved, RuntimeToolRules.status(git, ticked = false, state))
         assertEquals(RuntimeToolStatus.Download(1_500L), RuntimeToolRules.status(ssh, ticked = true, state))
         assertEquals(RuntimeToolStatus.SizeUnknown, RuntimeToolRules.status(curl, ticked = false, state))
-        assertEquals(RuntimeToolStatus.Measuring, RuntimeToolRules.status(curl, ticked = false, state.copy(measuring = true)))
+        assertEquals(RuntimeToolStatus.Measuring, RuntimeToolRules.status(curl, ticked = false, state.copy(measuring = RuntimeToolMeasuring.Lists)))
     }
 
-    @Test fun `the foot says what the change costs and the space there is`() {
+    @Test fun `the bar says what the change costs`() {
         val installed = RuntimeInventory(setOf("git", "curl", "ca-certificates"))
         val state = RuntimeToolsState(
             installed = installed,
             downloads = mapOf("ssh-client" to RuntimeToolDownload(mapOf("ssh.deb" to 2_048L))),
         )
         val plan = RuntimeToolRules.plan(setOf("git", "ssh-client"), installed)
-        assertEquals("Download 2.0 KB · Remove 1 tool · 1.0 KB available", RuntimeToolRules.summary(plan, state, 1_024L))
-        assertEquals("Nothing to change", RuntimeToolRules.summary(RuntimeToolRules.plan(setOf("git", "curl"), installed), state, null))
-        assertEquals("Reading what is installed…", RuntimeToolRules.summary(null, state, null))
+        assertEquals("Download 2.0 KB · Remove 1 tool", RuntimeToolRules.cost(plan, state))
+        assertEquals("Nothing to change", RuntimeToolRules.cost(RuntimeToolRules.plan(setOf("git", "curl"), installed), state))
+        assertEquals("Reading what is installed…", RuntimeToolRules.cost(null, state))
         val unmeasured = RuntimeToolRules.plan(setOf("git", "curl", "python"), installed)
-        assertEquals("Download size unknown", RuntimeToolRules.summary(unmeasured, state, null))
-        assertEquals("Measuring the download…", RuntimeToolRules.summary(unmeasured, state.copy(measuring = true), null))
+        assertEquals("Download size unknown", RuntimeToolRules.cost(unmeasured, state))
+        assertEquals("Reading the package lists…", RuntimeToolRules.cost(unmeasured, state.copy(measuring = RuntimeToolMeasuring.Lists)))
+        assertEquals("Measuring the download…", RuntimeToolRules.cost(unmeasured, state.copy(measuring = RuntimeToolMeasuring.Sizes)))
     }
 }

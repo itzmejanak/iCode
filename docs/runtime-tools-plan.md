@@ -91,10 +91,13 @@ are. It replaces the three binary-path checks.
 
 A component's size is its **download**, including dependencies not yet installed, as apt
 computes it: `apt-get install --print-uris -qq <packages>` lists each archive to fetch with its
-size. The selection's total is computed the same way on the whole selection, so a shared dependency
-counts once. It needs the package lists, which any install needs anyway: the page starts reading
-them (`apt-get update`) when it opens, shows the list at once, and fills in the sizes when they
-are known. It shows "…" until then, and never a number written in the code.
+size. The selection's total is its tools' archives together, each archive once, so a shared
+dependency counts once (`RuntimeToolRules.downloadBytes`). It needs the package lists, which any
+install needs anyway: the page reads them (`apt-get update`) once when apt has none, saying
+"Reading the package lists…", shows the list at once, and fills in each size as it lands, never a
+number written in the code. Since 2026-10-24 the sizes are measured three at a time, once per
+package list, without dpkg's lock, the Standard tools first; an install keeps lists being read and
+stops the sizes ([onboarding-polish-plan.md](./onboarding-polish-plan.md) §3.4).
 
 ### 3.4 One installer, with progress (`RuntimePackageInstaller`)
 

@@ -31,6 +31,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -109,6 +110,49 @@ fun IcodeFootBar(modifier: Modifier = Modifier, content: @Composable ColumnScope
             verticalArrangement = Arrangement.spacedBy(IcodeSpacing.ItemGap),
             content = content,
         )
+    }
+}
+
+/**
+ * A page's actions at its foot, one row, as the explorer's paste bar drew them first (owner,
+ * 2026-10-24: every page's foot alike): a [IcodeColors.SurfaceElevated] band under its [EdgeLine],
+ * [IcodeSpacing.Gutter] from the edges and a touch target tall — [leading], then what the actions are
+ * about ([title], and [caption] under it), and the [actions] on the right. [iconLast]: the last action
+ * is an icon button, its icon then at the gutter, as the top bar's are.
+ */
+@Composable
+fun IcodeActionBar(
+    title: String?,
+    modifier: Modifier = Modifier,
+    caption: String? = null,
+    titleStyle: TextStyle = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold),
+    captionColor: Color = IcodeColors.TextSecondary,
+    leading: (@Composable () -> Unit)? = null,
+    iconLast: Boolean = false,
+    actions: @Composable RowScope.() -> Unit = {},
+) {
+    Column(modifier.fillMaxWidth().background(IcodeColors.SurfaceElevated)) {
+        EdgeLine()
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(
+                    start = IcodeSpacing.Gutter,
+                    end = if (iconLast) IcodeSpacing.IconButtonGutter else IcodeSpacing.Gutter,
+                    top = IcodeSpacing.Space2,
+                    bottom = IcodeSpacing.Space2,
+                )
+                .defaultMinSize(minHeight = IcodeSizes.TouchTarget),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
+        ) {
+            leading?.invoke()
+            Column(Modifier.weight(1f)) {
+                title?.let { Text(it, style = titleStyle, maxLines = 2, overflow = TextOverflow.Ellipsis) }
+                caption?.let { Text(it, style = IcodeType.Caption.copy(color = captionColor), maxLines = 2, overflow = TextOverflow.Ellipsis) }
+            }
+            actions()
+        }
     }
 }
 
