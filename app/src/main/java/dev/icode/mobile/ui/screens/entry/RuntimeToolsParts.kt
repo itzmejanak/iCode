@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
@@ -36,6 +35,7 @@ import dev.icode.mobile.designsystem.PageHeading
 import dev.icode.mobile.designsystem.ProgressTrack
 import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.RuntimeToolAction
+import dev.icode.mobile.domain.RuntimeToolMeasuring
 import dev.icode.mobile.domain.RuntimeToolPlan
 import dev.icode.mobile.domain.RuntimeToolRules
 import dev.icode.mobile.domain.RuntimeToolStatus
@@ -145,10 +145,17 @@ internal fun LicenceAgreement(plan: RuntimeToolPlan, tools: RuntimeToolsState, a
     }
 }
 
-/** Asked: the run is starting, and apt has not said anything yet. */
+/**
+ * Asked, and the run has not begun: it waits for the package lists being read, which it needs
+ * (docs/onboarding-polish-plan.md §3.4), or for apt to say anything.
+ */
 @Composable
-internal fun ToolsStarting() {
-    PageHeading("Starting…", description = "Preparing the Linux runtime's package manager.")
+internal fun ToolsStarting(measuring: RuntimeToolMeasuring?) {
+    if (measuring == RuntimeToolMeasuring.Lists) {
+        PageHeading("Reading the package lists…", description = "apt reads them once; the install starts as soon as it has them.")
+    } else {
+        PageHeading("Starting…", description = "Preparing the Linux runtime's package manager.")
+    }
     IndeterminateProgressTrack(Modifier.fillMaxWidth())
 }
 

@@ -3,13 +3,18 @@ package dev.icode.mobile.data.runtime
 import dev.icode.mobile.data.io.DigestAlgorithm
 import org.json.JSONObject
 
-/** The root filesystem this build installs, read from the packaged manifest. */
+/**
+ * The root filesystem this build installs, read from the packaged manifest. [entries] is how many the
+ * pinned archive holds (`tar -tzf … | wc -l`), what extraction counts against
+ * (docs/onboarding-polish-plan.md §3.2).
+ */
 internal data class RootfsDescriptor(
     val id: String,
     val base: String,
     val url: String,
     val sha256: String,
     val minimumFreeBytes: Long,
+    val entries: Long,
 )
 
 /** A digest a pinned file must match: SHA-256 where iCode pins it, SHA-1 where Google's repository does. */
@@ -58,6 +63,7 @@ internal data class RuntimeManifest(
                     url = rootfs.getString("url"),
                     sha256 = rootfs.getString("sha256"),
                     minimumFreeBytes = rootfs.getLong("minimumFreeBytes"),
+                    entries = rootfs.getLong("entries"),
                 ),
                 prootVersion = manifest.getJSONObject("proot").getString("version"),
                 archives = archives?.keys()?.asSequence()?.associateWith { id -> pinnedFile(archives.getJSONObject(id)) }.orEmpty(),

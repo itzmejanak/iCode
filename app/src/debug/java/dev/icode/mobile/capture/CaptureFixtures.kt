@@ -5,6 +5,7 @@ import dev.icode.mobile.data.git.GitConflictParser
 import dev.icode.mobile.domain.BrowsedItem
 import dev.icode.mobile.domain.RuntimeInventory
 import dev.icode.mobile.domain.RuntimeToolDownload
+import dev.icode.mobile.domain.RuntimeToolMeasuring
 import dev.icode.mobile.domain.Diagnostic
 import dev.icode.mobile.domain.ExternalChange
 import dev.icode.mobile.domain.FileEntry
@@ -124,7 +125,7 @@ object CaptureFixtures {
         runtimeTools = RuntimeToolsState(
             installed = RuntimeInventory(setOf("git", "openssh-client", "curl", "ca-certificates")),
             downloads = mapOf("ripgrep" to RuntimeToolDownload(mapOf("ripgrep_14.1.0-1_arm64.deb" to 1_455_428L))),
-            measuring = true,
+            measuring = RuntimeToolMeasuring.Sizes,
         ),
         runtimeDetails = RuntimeDetails(
             inspected = true,

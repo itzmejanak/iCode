@@ -2,7 +2,6 @@ package dev.icode.mobile.ui.screens.entry
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -11,8 +10,8 @@ import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import dev.icode.mobile.designsystem.IcodeSetupPage
 import dev.icode.mobile.designsystem.IcodeSpacing
-import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.domain.SystemPermission
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeIntent
@@ -29,7 +28,7 @@ private val stepsSaver = listSaver<List<SystemPermission>, String>(
 /**
  * The permissions onboarding asks for, one at a time on this one screen. Both are optional:
  * workspaces live in iCode's own storage and need none; All Files Access is asked where the file
- * explorer's Shared needs it, in the same words ([PermissionExplanation]).
+ * explorer's Shared needs it, in the same words ([PermissionReasons]).
  *
  * The steps are fixed when the screen opens, so answering one does not
  * reshuffle the rest, and the position survives the trip to Android's own
@@ -54,22 +53,19 @@ fun PermissionScreen(actions: NavigationActions) {
         LaunchedEffect(Unit) { actions.replace(Route.LauncherHome) }
         return
     }
-    PermissionExplanation(
-        permission = current,
-        onAllow = { gateway.dispatch(ICodeIntent.RequestSystemPermission(current)) },
-        onNotNow = {
-            gateway.dispatch(ICodeIntent.DeclineSystemPermission(current))
-            position++
+    IcodeSetupPage(
+        stage = if (steps.size > 1) "Permissions · Step ${position + 1} of ${steps.size}" else "Permissions",
+        bar = {
+            PermissionBar(
+                current,
+                onAllow = { gateway.dispatch(ICodeIntent.RequestSystemPermission(current)) },
+                onNotNow = {
+                    gateway.dispatch(ICodeIntent.DeclineSystemPermission(current))
+                    position++
+                },
+            )
         },
-        modifier = Modifier.fillMaxSize().padding(IcodeSpacing.Gutter),
-        header = {
-            if (steps.size > 1) {
-                Text(
-                    "Step ${position + 1} of ${steps.size}",
-                    modifier = Modifier.padding(bottom = IcodeSpacing.Space2),
-                    style = IcodeType.MonoSmall,
-                )
-            }
-        },
-    )
+    ) {
+        PermissionReasons(current, Modifier.fillMaxSize().padding(IcodeSpacing.Gutter))
+    }
 }

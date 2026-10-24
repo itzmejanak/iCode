@@ -7,6 +7,7 @@ import dev.icode.mobile.data.io.deleteTree
 import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.RuntimeState
 import dev.icode.mobile.domain.RuntimeInstallReason
+import dev.icode.mobile.domain.RuntimeInstallStep
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -100,19 +101,19 @@ internal class RuntimeInstaller(
                 savedHome?.let(homeBackup::restore)
                 throw IOException("Unable to begin rebuilding the runtime")
             }
-            emit(RuntimeState.Installing("Extracting ${descriptor.base}"))
-            // Extracting a root filesystem through PRoot takes minutes. Without
-            // a count the screen sits on one line and reads as hung, so tar's
-            // own tally of entries is reported as it goes.
+            // Extraction takes minutes: the entries written, against the pinned archive's, are its
+            // progress as it goes.
+            val extracting = "Extracting ${descriptor.base}"
+            emit(RuntimeState.Installing(extracting, RuntimeInstallStep.Extracting, 0, descriptor.entries))
             extract(archive) { entries ->
-                emit(RuntimeState.Installing("Extracting ${descriptor.base} — $entries files"))
+                emit(RuntimeState.Installing(extracting, RuntimeInstallStep.Extracting, entries, descriptor.entries))
             }
 
             savedHome?.let(homeBackup::restore)
-            emit(RuntimeState.Installing("Configuring the runtime"))
+            emit(RuntimeState.Installing("Configuring the runtime", RuntimeInstallStep.Configuring))
             configureGuest(freshHome = savedHome == null)
 
-            emit(RuntimeState.Installing("Verifying the runtime"))
+            emit(RuntimeState.Installing("Verifying the runtime", RuntimeInstallStep.Verifying))
             val release = healthCheck()
                 ?: run {
                     emit(RuntimeState.Failed("The runtime did not answer a health check"))

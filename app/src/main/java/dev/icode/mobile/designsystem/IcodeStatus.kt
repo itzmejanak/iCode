@@ -1,6 +1,7 @@
 package dev.icode.mobile.designsystem
 
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -20,17 +21,21 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.runtime.getValue
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
@@ -148,6 +153,39 @@ fun IndeterminateProgressTrack(modifier: Modifier = Modifier, color: Color = Ico
 
 private const val SWEEP_WIDTH = 0.3f
 private const val SWEEP_MILLIS = 1100
+
+/**
+ * The ring a long setup step fills (docs/onboarding-polish-plan.md §3.1), the tracks' colours on a
+ * circle: [progress] 0..1 as the step measures it, or null while its share is unknown, the arc then
+ * sweeping. [content] sits at its centre. A new step should start a new ring (`key`), so the arc
+ * never runs back.
+ */
+@Composable
+fun ProgressRing(progress: Float?, modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit = {}) {
+    Box(modifier.size(IcodeSizes.ProgressRing), contentAlignment = Alignment.Center) {
+        if (progress == null) {
+            CircularProgressIndicator(
+                Modifier.fillMaxSize(),
+                color = IcodeColors.Accent,
+                strokeWidth = IcodeSizes.RingStroke,
+                trackColor = IcodeColors.SurfaceTrack,
+                strokeCap = StrokeCap.Round,
+            )
+        } else {
+            val shown by animateFloatAsState(progress.coerceIn(0f, 1f), label = "ring")
+            CircularProgressIndicator(
+                progress = { shown },
+                modifier = Modifier.fillMaxSize(),
+                color = IcodeColors.Accent,
+                strokeWidth = IcodeSizes.RingStroke,
+                trackColor = IcodeColors.SurfaceTrack,
+                strokeCap = StrokeCap.Round,
+                gapSize = 0.dp,
+            )
+        }
+        content()
+    }
+}
 
 /** Tone for a Git porcelain status code in change lists. */
 fun gitStatusTone(status: String): IcodeTone = when (status) {

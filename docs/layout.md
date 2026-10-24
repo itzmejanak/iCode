@@ -369,21 +369,25 @@ All Files Access is not an onboarding step: Import asks for it where it is neede
 
 ## 11. Runtime Installation and Health
 
-Runtime installation is a focused system surface, not a multi-page onboarding journey.
+Runtime installation is a focused system surface, not a multi-page onboarding journey. It is a
+setup page as onboarding's others are ([onboarding-polish-plan.md](./onboarding-polish-plan.md)):
+its stage line, its heading, and its bar at the foot.
 
 It contains:
 
-- current operation;
-- determinate progress where measurable;
-- downloaded and extracted size where useful;
-- available storage warning;
-- concise log or expandable technical details;
-- Retry, Diagnostics, or Close actions after failure;
-- explicit Repair and Reset differences.
+- the step in hand on a ring, over the logo as the launcher shows it: the download fills it by
+  bytes, extraction by the pinned archive's entries, with the percent at its centre; preparing,
+  configuring and verifying sweep it;
+- under it, the installer's own words for the step, and how much is done (`54 MB / 114 MB`,
+  `2048 / 3413 files`);
+- the free space, in its bar;
+- on failure, the installer's reason in the ring's place, and Retry and Skip (Back, for a rebuild)
+  in its bar;
+- Repair and Reset under their own titles.
 
 The user is taken to the requested workspace as soon as the runtime is ready. No provider or agent setup follows automatically.
 
-Once after a runtime is built (first install, repair or reset), **Set Up Tools** is offered — the owner's decision of 2026-09-30, after Android Studio's setup wizard, redesigned 2026-10-17 ([runtime-tools-plan.md](./runtime-tools-plan.md) §8). It forces nothing. **Install Type** offers **Standard** (the tools iCode itself uses: Git, the SSH client, ripgrep; recommended, with its download) or **Custom**, which opens **Select Tools**. **Verify Settings** lists what will be installed, each with its download, and **Skip** installs nothing: a feature that needs a tool installs it when used, its button saying so. Rows are flat, each with what uses it and its download as apt measures it. The cost and the free space sit in the page's foot. While apt runs, the page is its progress: the bar, the step, Show Details with apt's own lines, Cancel while it only downloads, and Run in Background. Finish says what was installed. From Runtime settings, **Runtime Tools** ticks what is installed: tick to add, untick to remove, then Apply and Confirm Changes. Ticking a tool with a licence — the **Android SDK** — adds a last step, **License Agreement**: the licence's text in a scrolling box with Decline and Accept, Install disabled until it is accepted ([android-toolchain-plan.md](./android-toolchain-plan.md) §4.1).
+Once after a runtime is built (first install, repair or reset), **Set Up Tools** is offered — the owner's decision of 2026-09-30, after Android Studio's setup wizard, redesigned 2026-10-17 ([runtime-tools-plan.md](./runtime-tools-plan.md) §8). It forces nothing. **Install Type** offers **Standard** (the tools iCode itself uses: Git, the SSH client, ripgrep; recommended, with its download) or **Custom**, which opens **Select Tools**. **Verify Settings** lists what will be installed, each with its download, and **Skip** installs nothing: a feature that needs a tool installs it when used, its button saying so. Rows are flat, each with what uses it and its download as apt measures it. The cost and the free space sit in the page's bar, one row as the explorer's paste bar, with Skip or Back and the way on. While apt runs, the page is its progress: the bar, the step, Show Details with apt's own lines, Cancel while it only downloads, and Run in Background. Finish says what was installed. From Runtime settings, **Runtime Tools** ticks what is installed: tick to add, untick to remove, then Apply and Confirm Changes. Ticking a tool with a licence — the **Android SDK** — adds a last step, **License Agreement**: the licence's text in a scrolling box with Decline and Accept, Install disabled until it is accepted ([android-toolchain-plan.md](./android-toolchain-plan.md) §4.1).
 
 An Android project is built and run from the Terminal panel's **Run** tab (§18.3).
 

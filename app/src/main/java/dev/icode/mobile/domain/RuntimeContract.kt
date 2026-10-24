@@ -10,6 +10,9 @@ enum class RuntimeInstallReason { Initial, Repair, Reset }
  * (architecture.md section 14.2). Every state is derived from a verified fact:
  * [Ready] means a health check passed, not that installation was attempted.
  */
+/** The steps of building the runtime once its base system is downloaded, in order. */
+enum class RuntimeInstallStep { Preparing, Extracting, Configuring, Verifying }
+
 sealed interface RuntimeState {
     /** Nothing has been checked yet. */
     data object Unknown : RuntimeState
@@ -31,7 +34,23 @@ sealed interface RuntimeState {
             else ByteSize.format(receivedBytes)
     }
 
-    data class Installing(val label: String) : RuntimeState
+    /**
+     * Building the runtime from its base system: [step], said as [label], and how far it has got
+     * where the step counts — [done] of the pinned archive's [total] entries while extracting
+     * (docs/onboarding-polish-plan.md §3.2).
+     */
+    data class Installing(
+        val label: String,
+        val step: RuntimeInstallStep,
+        val done: Long? = null,
+        val total: Long? = null,
+    ) : RuntimeState {
+        /** 0..1 where the step counts; null where it does not. */
+        val fraction: Float? get() = if (done != null && total != null && total > 0) (done.toFloat() / total).coerceAtMost(1f) else null
+
+        /** "2048 / 3413" where the step counts. */
+        val counts: String? get() = if (done != null && total != null) "$done / $total" else null
+    }
 
     /** A health check has run and the runtime answered. */
     data class Ready(val release: String) : RuntimeState

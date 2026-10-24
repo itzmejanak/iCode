@@ -6,6 +6,7 @@ import dev.icode.mobile.data.system.AndroidSystemAccess
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.RuntimeInstallReason
+import dev.icode.mobile.domain.RuntimeInstallStep
 import dev.icode.mobile.domain.RuntimeState
 import dev.icode.mobile.domain.SystemAccess
 import dev.icode.mobile.domain.SystemPermission
@@ -98,7 +99,7 @@ internal class RuntimeCoordinator(
             RuntimeInstallReason.Reset -> "Preparing runtime reset"
         }
         stateHolder.update { it.copy(
-            runtime = RuntimeState.Installing(label),
+            runtime = RuntimeState.Installing(label, RuntimeInstallStep.Preparing),
             runtimeHealthy = false,
             runtimeInstallReason = reason,
         ) }

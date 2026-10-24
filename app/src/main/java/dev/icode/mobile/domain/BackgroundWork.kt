@@ -239,7 +239,10 @@ object BackgroundWorkRules {
                 "runtime", title, "${state.label} · ${state.transferred}", fraction = state.fraction,
                 place = BackgroundPlace.Runtime, watched = true,
             )
-            is RuntimeState.Installing -> BackgroundItem("runtime", title, state.label, place = BackgroundPlace.Runtime, watched = true)
+            is RuntimeState.Installing -> BackgroundItem(
+                "runtime", title, state.label, counts = state.counts, fraction = state.fraction,
+                place = BackgroundPlace.Runtime, watched = true,
+            )
             is RuntimeState.Failed -> BackgroundItem(
                 "runtime", title, state.reason, place = BackgroundPlace.Runtime, watched = true, failure = state.reason,
             )

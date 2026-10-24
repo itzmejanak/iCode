@@ -1,5 +1,6 @@
 package dev.icode.mobile.navigation
 
+import dev.icode.mobile.domain.RuntimeInstallStep
 import dev.icode.mobile.domain.RuntimeState
 import dev.icode.mobile.domain.SystemAccess
 import dev.icode.mobile.domain.SystemPermission
@@ -33,7 +34,7 @@ class OnboardingRouteTest {
     fun `an install already under way is not restarted from the splash`() {
         val downloading = RuntimeState.Downloading(receivedBytes = 10, totalBytes = 100, label = "rootfs")
         assertEquals(Route.RuntimeInstalling, OnboardingRoute.next(downloading, everything, toolsPending = false))
-        assertEquals(Route.RuntimeInstalling, OnboardingRoute.next(RuntimeState.Installing("extracting"), everything, toolsPending = false))
+        assertEquals(Route.RuntimeInstalling, OnboardingRoute.next(RuntimeState.Installing("Extracting", RuntimeInstallStep.Extracting, 10, 3413), everything, toolsPending = false))
     }
 
     @Test

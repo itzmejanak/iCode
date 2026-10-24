@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import dev.icode.mobile.designsystem.IcodeActionBar
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
@@ -75,10 +76,8 @@ private fun stepOf(permission: SystemPermission): PermissionStep = when (permiss
 }
 
 /**
- * [permission]'s explanation and its two answers, as onboarding asks and as a feature asks where it
- * needs one (the file explorer's Shared asks for All Files Access): one text for each permission,
- * wherever it is asked.
- * [header] goes above the title — onboarding's step count.
+ * [permission]'s explanation and its two answers, where a feature asks for it in its own page (the
+ * file explorer's Shared asks for All Files Access, the Run tab for installing apps).
  */
 @Composable
 internal fun PermissionExplanation(
@@ -86,11 +85,19 @@ internal fun PermissionExplanation(
     onAllow: () -> Unit,
     onNotNow: () -> Unit,
     modifier: Modifier = Modifier,
-    header: @Composable () -> Unit = {},
 ) {
+    Column(modifier) {
+        PermissionReasons(permission, Modifier.weight(1f))
+        PrimaryButton(stepOf(permission).allowLabel, onAllow, Modifier.fillMaxWidth())
+        SecondaryButton("Not Now", onNotNow, Modifier.fillMaxWidth().padding(top = IcodeSpacing.Space3))
+    }
+}
+
+/** Why iCode asks for [permission], and what the user keeps control of: one text, wherever it is asked. */
+@Composable
+internal fun PermissionReasons(permission: SystemPermission, modifier: Modifier = Modifier) {
     val step = stepOf(permission)
     Column(modifier) {
-        header()
         PageHeading(title = step.title, description = step.description)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
             step.reasons.forEachIndexed { index, text ->
@@ -109,7 +116,14 @@ internal fun PermissionExplanation(
                 }
             }
         }
-        PrimaryButton(step.allowLabel, onAllow, Modifier.fillMaxWidth())
-        SecondaryButton("Not Now", onNotNow, Modifier.fillMaxWidth().padding(top = IcodeSpacing.Space3))
+    }
+}
+
+/** [permission]'s two answers in a setup page's bar, as onboarding asks: Not Now, or Android's own prompt. */
+@Composable
+internal fun PermissionBar(permission: SystemPermission, onAllow: () -> Unit, onNotNow: () -> Unit) {
+    IcodeActionBar(title = null) {
+        SecondaryButton("Not Now", onNotNow)
+        PrimaryButton(stepOf(permission).allowLabel, onAllow)
     }
 }
