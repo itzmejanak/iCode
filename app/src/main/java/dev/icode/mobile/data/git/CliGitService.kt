@@ -1,6 +1,8 @@
 package dev.icode.mobile.data.git
 
 import dev.icode.mobile.data.runtime.GuestCommand
+import dev.icode.mobile.data.runtime.GuestContext
+import dev.icode.mobile.data.runtime.GuestEnvironment
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.runtime.RuntimePackageInstaller
 import dev.icode.mobile.domain.GitFileDiff
@@ -22,7 +24,7 @@ internal class CliGitService(
     private val packages: RuntimePackageInstaller,
 ) {
 
-    private val guest = GuestCommand(layout)
+    private val guest = GuestCommand(layout, GuestContext.Git)
 
     /** Where a repository is on the host: its top, its branch (docs/workspace-storage-plan.md §4.2). */
     val locator = GitLocator(layout.workspaces)
@@ -33,7 +35,8 @@ internal class CliGitService(
     @Volatile
     private var configuredSafeDirectory = false
 
-    data class CommandResult(val exitCode: Int, val stdout: String, val stderr: String) {
+    /** [profileFailure]: why Git ran without the user's profile, its hooks and helpers with it. */
+    data class CommandResult(val exitCode: Int, val stdout: String, val stderr: String, val profileFailure: String? = null) {
         val succeeded: Boolean get() = exitCode == 0
 
         /**
@@ -56,9 +59,10 @@ internal class CliGitService(
                 val meaningful = explanation
                     ?: lines.firstOrNull { !it.startsWith("Warning:", ignoreCase = true) }
                     ?: stdout.trim().lines().firstOrNull { it.isNotBlank() }
-                return meaningful?.removePrefix("fatal: ")?.removePrefix("error: ")
+                val message = meaningful?.removePrefix("fatal: ")?.removePrefix("error: ")
                     ?.ifEmpty { null }
                     ?: "git exited with code $exitCode"
+                return profileFailure?.let { "$message. ${GuestEnvironment.withoutProfile(it)}" } ?: message
             }
     }
 
@@ -127,7 +131,7 @@ internal class CliGitService(
         config: List<String>,
     ): CommandResult {
         val result = guest.capture(location, GitCommandLine.argv(arguments, config), "git", onStderr = onStderr)
-        return CommandResult(result.exitCode, result.stdout, result.stderr)
+        return CommandResult(result.exitCode, result.stdout, result.stderr, result.profileFailure)
     }
 
     /**
@@ -139,7 +143,7 @@ internal class CliGitService(
      */
     suspend fun runScript(location: String?, script: String): CommandResult {
         val result = guest.captureScript(location, script, "git-script")
-        return CommandResult(result.exitCode, result.stdout, result.stderr)
+        return CommandResult(result.exitCode, result.stdout, result.stderr, result.profileFailure)
     }
 
     /**
@@ -151,7 +155,7 @@ internal class CliGitService(
             onRecord(record)
             true
         }
-        return CommandResult(result.exitCode, "", result.stderr)
+        return CommandResult(result.exitCode, "", result.stderr, result.profileFailure)
     }
 
     /** Installs git through the runtime's one package installer; apt's own words explain a failure. */

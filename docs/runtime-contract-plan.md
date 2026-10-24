@@ -1,6 +1,6 @@
 # Runtime Contract — one Linux environment, no iCode-made limits
 
-Status: **planned (2026-10-23)**. Nothing here is built yet. The cycles are §7, the cleanup is §8, the checks are §9.
+Status: **in progress.** RC2 built (2026-10-24); RC3–RC7 planned. The cycles are §7, the cleanup is §8, the checks are §9.
 
 The owner's problem statement (2026-10-23), in short:
 - iCode is a native Android IDE around a genuine, user-controlled Linux environment.
@@ -108,7 +108,7 @@ What every iCode surface holds to from now on. `/etc/icode/README.md` says it in
   - `env` replaces itself with the program, so its pid, the foreground-group reading (F13) and `--kill-on-exit` are unchanged.
   - Reproduced: in PRoot, `env -i HOME=… USER=root … /bin/bash -l` gives a shell whose `env` lists only those variables and what the profile adds.
 
-### 3.2 The variables (`domain/GuestEnvironmentRules`, pure, tested)
+### 3.2 The variables (`data/runtime/GuestContext.kt`: `GuestContext`, `GuestVariables`; pure, tested)
 
 | Layer | Variables |
 |---|---|
@@ -129,7 +129,7 @@ What every iCode surface holds to from now on. `/etc/icode/README.md` says it in
 
 - **Shell:** read with the user's login shell: `<shell> -l -i -c 'printf …; env -0'`, in context `install`. Today it is always `/bin/bash -lic`.
 - **Dropped:** only `PWD`, `OLDPWD`, `SHLVL`, `_`, and the context-owned names. F4's exclusions (`LD_LIBRARY_PATH`, `LD_PRELOAD`, `GLIBC_TUNABLES`, `PROOT_*`) go: those names no longer collide with PRoot's.
-- **Unchanged:** the fingerprint, the 10 s limit, and the fall-back to base. The fall-back's note reaches every result that used it, not only the assistant's.
+- **Unchanged:** the fingerprint (now also `/etc/passwd`, zsh's and fish's files, and the shell itself), the 10 s limit, and the fall-back to base. The fall-back's note (`GuestEnvironment.withoutProfile`) is in the assistant's results, as before, and now in Git's failures too (`CliGitService.CommandResult.errorMessage`).
 
 ## 4. One filesystem, no fences
 
@@ -217,7 +217,7 @@ Each cycle runs the same gate before its push:
 
 | Cycle | What | Done when |
 |---|---|---|
-| **RC2** One environment | `hostEnvironment` and `env -i`; `GuestContext` and `GuestEnvironmentRules`; the base with `USER`/`LOGNAME`/`SHELL`; the snapshot (§3.3); every caller on its context; `ICODE_CONTEXT` | Unit tests on each context's variables. Lab: no `PROOT_*` or host `LD_LIBRARY_PATH` in the guest; terminal and `command` differ only by their own variables |
+| **RC2** One environment | `hostEnvironment` and `env -i`; `GuestContext` and `GuestVariables`; the base with `USER`/`LOGNAME`/`SHELL`; the snapshot (§3.3); every caller on its context; `ICODE_CONTEXT` | Unit tests on each context's variables. Lab: no `PROOT_*` or host `LD_LIBRARY_PATH` in the guest; terminal and `command` differ only by their own variables |
 | **RC3** One filesystem | One bind everywhere; `bindable` gone; `GuestCommand` in any folder; `GuestPaths` and its four replacements (§4.1–4.2) | `GuestPaths` tests on a test tree: bind points, runtime links, PRoot's stand-ins, loops. Lab: a `command` launch's write under `/workspace/other` is seen by a `terminal` launch |
 | **RC4** The assistant, unfenced | §4.3, row by row; the instructions | Tool tests: read and write `/root/x` and `/workspace/other/y`; write in `.git`; `search_text` with `path` and `ignored`; a 900 s timeout taken as asked; a ninth process starts; the three error kinds |
 | **RC5** Shell and prompt | The passwd login shell with `-l`; its missing-shell line; Terminal › Shell removed; `/etc/icode/prompt.sh`; the fresh-home line; `ShellPrompt` replaced | Tests: N starts leave `~/.bashrc` and `~/.profile` byte-identical; a fresh home gets one line. Lab: Starship wins once added; `chsh` to a shell installed in the lab is honoured |

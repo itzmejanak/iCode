@@ -237,11 +237,12 @@ internal fun RuntimeLayout.spawn(launch: RuntimeProcesses.Launch): SpawnedProces
     val process = RuntimeProcess.start(
         argv = prootCommand(
             guestCommand = listOf("/bin/bash", "-c", "exec 2>&1\n${launch.command}"),
+            variables = launch.environment,
             guestWorkingDirectory = launch.directory,
             killOnExit = true,
             workspace = launch.workspace,
         ),
-        environment = prootEnvironment(launch.environment),
+        environment = hostEnvironment(),
         workingDirectory = runtimeRoot.absolutePath,
     )
     return object : SpawnedProcess {

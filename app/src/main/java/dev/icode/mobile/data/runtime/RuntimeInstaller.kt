@@ -219,12 +219,12 @@ internal class RuntimeInstaller(
     }
 
     private fun runGuest(command: List<String>): CommandResult =
-        execute(layout.prootCommand(guestCommand = command))
+        execute(layout.prootCommand(guestCommand = command, variables = GuestVariables.of(GuestContext.Install, layout.loginShell())))
 
     private fun execute(argv: List<String>): CommandResult {
         val process = RuntimeProcess.start(
             argv = argv,
-            environment = layout.prootEnvironment(),
+            environment = layout.hostEnvironment(),
             workingDirectory = appContext.filesDir.absolutePath,
         )
         val output = process.output.bufferedReader().use { it.readText() }

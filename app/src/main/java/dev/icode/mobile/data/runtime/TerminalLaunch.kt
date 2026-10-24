@@ -2,7 +2,6 @@ package dev.icode.mobile.data.runtime
 
 import dev.icode.mobile.domain.TerminalSettingRules
 import dev.icode.mobile.domain.TerminalSettings
-import java.io.File
 
 /**
  * Everything decided before a terminal session starts — which shell, where,
@@ -27,7 +26,7 @@ internal class TerminalLaunch private constructor(
             if (!layout.isInstalled) return null
             // The ids can change when Android reassigns the app's gids.
             layout.ensureGuestGroups()
-            if (!shellAvailable(layout.rootfs, settings.shellPath)) {
+            if (!TerminalSettingRules.validShellPath(settings.shellPath) || !layout.shellAvailable(settings.shellPath)) {
                 return TerminalLaunch(
                     workspaceHostPath = workspaceHostPath,
                     transcriptRows = settings.scrollbackLines,
@@ -37,6 +36,7 @@ internal class TerminalLaunch private constructor(
             prompt.install()
             val argv = layout.prootCommand(
                 guestCommand = shellCommand(settings.shellPath),
+                variables = GuestVariables.of(GuestContext.Terminal, settings.shellPath),
                 guestWorkingDirectory = workspaceHostPath?.let(layout.workspaces::guestOf) ?: RuntimeLayout.GUEST_HOME,
                 killOnExit = true,
             )
@@ -44,7 +44,7 @@ internal class TerminalLaunch private constructor(
                 workspaceHostPath = workspaceHostPath,
                 transcriptRows = settings.scrollbackLines,
                 argv = argv,
-                environment = layout.prootEnvironment().map { "${it.key}=${it.value}" },
+                environment = layout.hostEnvironment().map { "${it.key}=${it.value}" },
             )
         }
 
@@ -57,26 +57,20 @@ internal class TerminalLaunch private constructor(
             if (!layout.isInstalled) return null
             val argv = layout.prootCommand(
                 guestCommand = listOf(TAIL, "-n", settings.scrollbackLines.toString(), "-F", output.log),
+                variables = GuestVariables.of(GuestContext.Terminal, layout.loginShell()),
                 killOnExit = true,
             )
             return TerminalLaunch(
                 workspaceHostPath = output.workspaceHostPath,
                 transcriptRows = settings.scrollbackLines,
                 argv = argv,
-                environment = layout.prootEnvironment().map { "${it.key}=${it.value}" },
+                environment = layout.hostEnvironment().map { "${it.key}=${it.value}" },
                 title = output.title,
                 follows = output.key,
             )
         }
 
         private const val TAIL = "/usr/bin/tail"
-
-        /** A shell the settings allow, inside the runtime and not out of it through a link. */
-        fun shellAvailable(rootfs: File, shellPath: String): Boolean {
-            if (!TerminalSettingRules.validShellPath(shellPath)) return false
-            val shell = File(rootfs, shellPath.removePrefix("/"))
-            return shell.canonicalFile.toPath().startsWith(rootfs.canonicalFile.toPath()) && shell.isFile
-        }
 
         /** bash starts as a login shell, so the user's profile and ours are read. */
         fun shellCommand(shellPath: String): List<String> =

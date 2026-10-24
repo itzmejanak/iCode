@@ -8,6 +8,7 @@ import dev.icode.mobile.data.io.deleteTree
 import dev.icode.mobile.data.io.hexDigest
 import dev.icode.mobile.data.runtime.ArchiveExtractor
 import dev.icode.mobile.data.runtime.GuestCommand
+import dev.icode.mobile.data.runtime.GuestContext
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.runtime.RuntimeLicences
 import dev.icode.mobile.data.runtime.RuntimeToolSetup
@@ -35,7 +36,7 @@ import kotlinx.coroutines.withContext
 internal class AndroidSdkSetup(private val layout: RuntimeLayout, private val context: Context) : RuntimeToolSetup {
     override val id: String = ID
 
-    private val guest = GuestCommand(layout)
+    private val guest = GuestCommand(layout, GuestContext.Command)
     private val sdkmanager = SdkManager(guest)
     private val sdk = AndroidSdk.host(layout)
     private val manifest by lazy { readManifest(context) }

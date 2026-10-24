@@ -12,8 +12,8 @@ import kotlinx.coroutines.CoroutineScope
  */
 internal class RuntimeExecution(layout: RuntimeLayout, scope: CoroutineScope, stateHolder: ICodeStateHolder) {
     val rootfs: File = layout.rootfs
-    val guest = GuestCommand(layout)
-    val environment = GuestEnvironment(layout, guest)
+    val guest = GuestCommand(layout, GuestContext.Command)
+    val environment: GuestEnvironment = layout.environment
     val processes = RuntimeProcesses(scope, layout::spawn, { list -> stateHolder.update { it.copy(processes = list) } }, ProcessLogs.of(layout.rootfs))
     val gpg = GpgBridge(stateHolder, scope, layout)
 }

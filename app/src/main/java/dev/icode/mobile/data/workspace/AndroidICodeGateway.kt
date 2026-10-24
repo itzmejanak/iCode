@@ -82,7 +82,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     private val notices = NoticeBoard(appContext, stateHolder, terminals.screenVisible)
     /** Something runs in the runtime that rebuilding it, or clearing the cache PRoot works in, would break. */
     private val runtimeBusy = { terminals.hasRunningSessions() || languages.hasActiveProcesses() || execution.processes.anyRunning() }
-    private val languages: LanguageServiceCoordinator = LanguageServiceCoordinator(appContext, stateHolder, scope, runtimeLayout, { session.activeRoot }) { execution.environment.current().variables }
+    private val languages: LanguageServiceCoordinator = LanguageServiceCoordinator(appContext, stateHolder, scope, runtimeLayout) { session.activeRoot }
     private val runtime: RuntimeCoordinator = RuntimeCoordinator(
         appContext, stateHolder, scope, runtimeLayout, AndroidSystemAccess(appContext),
         sessionsRunning = runtimeBusy,

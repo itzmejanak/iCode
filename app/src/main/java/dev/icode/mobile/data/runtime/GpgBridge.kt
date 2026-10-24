@@ -94,30 +94,30 @@ internal class GpgBridge(private val stateHolder: ICodeStateHolder, private val 
      * gpg waits for the script to exit, then connects. Its answer is gpg-agent's own check once the
      * start is done: 0 when an agent answers — a second start exits 2 while one already runs.
      */
-    private fun startAgent(id: String, homedir: String) {
+    private fun startAgent(id: String, homedir: String) = scope.launch(Dispatchers.IO) {
         val home = shellQuote(homedir)
         val script = "gpg-agent --homedir $home --daemon >/dev/null 2>&1; gpg-agent --homedir $home >/dev/null 2>&1; " +
             "echo \$? 1<>${shellQuote("/${GuestGpg.REQUESTS}/$id${GuestGpg.ANSWER}")}"
         val agent = runCatching {
-            RuntimeProcess.start(layout.prootCommand(listOf("/bin/sh", "-c", script)), layout.prootEnvironment(), layout.runtimeRoot.absolutePath)
+            val variables = layout.environment.of(GuestContext.Git).variables
+            RuntimeProcess.start(layout.prootCommand(listOf("/bin/sh", "-c", script), variables), layout.hostEnvironment(), layout.runtimeRoot.absolutePath)
         }.getOrElse {
             BackendLog.w(TAG, "gpg-agent could not be started (${it.javaClass.simpleName})")
-            return reply(id, GpgRequests.answerLine(GpgAnswer.Cancel))
+            reply(id, GpgRequests.answerLine(GpgAnswer.Cancel))
+            return@launch
         }
         synchronized(agents) { agents += agent }
-        scope.launch(Dispatchers.IO) {
-            runCatching { agent.input.close() }
-            // Only PRoot writes here; the stream ends when the agent does.
-            runCatching {
-                agent.output.use { input ->
-                    val buffer = ByteArray(BUFFER)
-                    while (input.read(buffer) >= 0) Unit
-                }
+        runCatching { agent.input.close() }
+        // Only PRoot writes here; the stream ends when the agent does.
+        runCatching {
+            agent.output.use { input ->
+                val buffer = ByteArray(BUFFER)
+                while (input.read(buffer) >= 0) Unit
             }
-            runCatching { agent.waitFor() }
-            agent.destroy()
-            synchronized(agents) { agents -= agent }
         }
+        runCatching { agent.waitFor() }
+        agent.destroy()
+        synchronized(agents) { agents -= agent }
     }
 
     /** [line] into [id]'s pipe, without waiting: whoever asked may be gone, and the pipe with them. */

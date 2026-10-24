@@ -1,5 +1,6 @@
 package dev.icode.mobile.data.android
 
+import dev.icode.mobile.data.runtime.GuestContext
 import dev.icode.mobile.data.runtime.RuntimeExecution
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.workspace.ICodeStateHolder
@@ -54,7 +55,7 @@ internal class AndroidApps(
         val name = "Build ${project.module.ifEmpty { File(project.workspace).name }}"
         // The project's own wrapper, so its own Gradle; bash runs it whether or not it is executable.
         val command = "bash ./gradlew --console=plain ${project.task}"
-        val process = execution.processes.start(project.workspace, directory, command, name, execution.environment.current().variables)
+        val process = execution.processes.start(project.workspace, directory, command, name, execution.environment.of(GuestContext.Command).variables)
             .getOrElse { return Result.failure(it) }
         problems(project, emptyList())
         return Result.success(AndroidRun(process) { follow(project, process, directory, report) })

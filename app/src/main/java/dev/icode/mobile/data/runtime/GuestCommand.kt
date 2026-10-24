@@ -20,17 +20,21 @@ import kotlinx.coroutines.withContext
 internal fun shellQuote(value: String): String = "'" + value.replace("'", "'\\''") + "'"
 
 /**
- * One non-interactive command in the guest, with bounded streaming output.
+ * One non-interactive command in the guest, with bounded streaming output, run for [context]: it
+ * starts with that context's variables ([GuestEnvironment.of]), each call's own `environment` over them.
  *
  * The process bridge would mix stderr into stdout, so stderr goes to a private
  * guest `/tmp` file of its own and is read back, bounded. Cancelling the caller
  * kills the process and every child it started; every process is reaped.
  */
-internal class GuestCommand(private val layout: RuntimeLayout) {
-    /** Output read whole; a command that printed more than its bound was stopped and throws instead. */
-    data class Captured(val exitCode: Int, val stdout: String, val stderr: String)
+internal class GuestCommand(private val layout: RuntimeLayout, private val context: GuestContext) {
+    /**
+     * Output read whole; a command that printed more than its bound was stopped and throws instead.
+     * [profileFailure] says why the user's profile could not be read, when the command ran without it.
+     */
+    data class Captured(val exitCode: Int, val stdout: String, val stderr: String, val profileFailure: String? = null)
 
-    data class Result(val exitCode: Int, val stderr: String, val stoppedEarly: Boolean) {
+    data class Result(val exitCode: Int, val stderr: String, val stoppedEarly: Boolean, val profileFailure: String? = null) {
         /** The stderr line that explains a failure, bounded; null when there is none. */
         fun failureDetail(): String? {
             val lines = stderr.lineSequence().map(String::trim).filter(String::isNotEmpty).toList()
@@ -126,7 +130,7 @@ internal class GuestCommand(private val layout: RuntimeLayout) {
             stdout = input.readAtMost(maxStdoutBytes, "The command printed more than ${ByteSize.format(maxStdoutBytes.toLong())} and was stopped")
             false
         }
-        return Captured(result.exitCode, String(stdout, StandardCharsets.UTF_8), result.stderr)
+        return Captured(result.exitCode, String(stdout, StandardCharsets.UTF_8), result.stderr, result.profileFailure)
     }
 
     /**
@@ -150,14 +154,16 @@ internal class GuestCommand(private val layout: RuntimeLayout) {
         val prefix = "icode-${stderrName.replace(Regex("[^A-Za-z0-9_.-]"), "-")}-"
         val stderrFile = File.createTempFile(prefix, ".err", temp)
         val script = command + " 2>" + shellQuote("/tmp/${stderrFile.name}")
+        val launch = layout.environment.of(context)
         val process = RuntimeProcess.start(
             argv = layout.prootCommand(
                 guestCommand = listOf("/bin/sh", "-c", script),
+                variables = launch.variables + environment,
                 guestWorkingDirectory = workingDirectory,
                 killOnExit = true,
                 workspace = workspace,
             ),
-            environment = layout.prootEnvironment(environment),
+            environment = layout.hostEnvironment(),
             workingDirectory = layout.runtimeRoot.absolutePath,
         )
         var reaped = false
@@ -187,7 +193,7 @@ internal class GuestCommand(private val layout: RuntimeLayout) {
             val stderr = readTail(stderrFile)
             // The file is sampled, so its final state may never have been reported.
             onStderr?.invoke(stderr)
-            Result(exitCode, stderr, stopped)
+            Result(exitCode, stderr, stopped, launch.failure)
         } finally {
             if (!reaped) {
                 process.sendSignal(PosixSignal.KILL)
