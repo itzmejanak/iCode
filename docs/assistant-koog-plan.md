@@ -365,13 +365,15 @@ lifecycle's check, and waits for its chat to be saved, before the chats move.
   `LocalCodeTextScale`; the branded welcome (`IcodeWatermark`, `IcodeBrandMark`); the step line;
   the approval card. Each chat's list starts at its last row (§18); `JumpToLatestButton` — the
   terminal's ↓, now the design system's — brings it back to the end.
-- `AssistantSteps`: a step's row (`AssistantStepRow`) — its state's icon, what it did, and for a
-  write or an edit that is done, "+12 −3" in green and red. A tap opens all it answered, a
-  command's `$ line` above its output, Copy at its corner (the line and the output); a tap on what
-  opened closes it. A long press on a step about a file offers Open in Editor, Show Changes —
-  where Source Control lists the file as changed and can show its diff
+- `AssistantSteps`: a run of steps' row (`AssistantStepsRow`, [assistant-sheets-plan.md](./assistant-sheets-plan.md))
+  — its state's icon, what it did, and for writes and edits that are done, "+12 −3" in green and
+  red — and the row everything with more behind it is drawn as (`AssistantOpenRow`). A tap opens
+  the run in a sheet (`AssistantDetailSheets`): each step on a rail, a step's page with its command
+  or its file and all it answered, Copy at each part's corner. A step about a file offers Open in
+  Editor, Show Changes — where Source Control lists the file as changed and can show its diff
   (`AssistantRules.gitChangeOf`: not untracked, deleted or conflicted; the unstaged change first) —
-  and Copy Path. `Disclosure` is the same row for a compaction's summary.
+  and Copy Path, on its page and on a long press on a row of it alone. A compaction's row opens its
+  summary in the same sheet.
 - `AssistantComposer`, `AssistantSheets`, `AssistantParts` as named.
 - Design system, made once for every screen: `IcodeChoiceMenu` (the dropdown's menu, now shared by
   `IcodeDropdown`), `IcodeChoiceChip` (a toolbar choice), `IcodeSheetOverlay` (now
@@ -584,8 +586,9 @@ Koog had handed it over (`MessagePart.Reasoning`), but iCode kept only text and 
 
 - **Kept and shown.** A reply keeps its reasoning (`AssistantMessage.Reply.reasoning`, at most
   32 000 characters, its start and end), saved with the chat. The page shows it above the reply's
-  answer and steps as one quiet line, "Reasoning · 1.2k words", that opens on the thinking in
-  muted text beside a rule.
+  answer and steps as one quiet line, "Reasoning · 1.2k words". While it is written, the thinking
+  shows under it in muted text beside a rule; once recorded, a tap opens it in a sheet
+  ([assistant-sheets-plan.md](./assistant-sheets-plan.md) §2.3).
 - **Never sent back.** Later turns send the answer and the calls alone.
 - **Where it comes from.** It is what the provider sends as reasoning:
   - Anthropic's thinking, with a reasoning level chosen;
@@ -661,8 +664,9 @@ the composer's is — above it, at its edges, one gap between them (owner: no tr
 "Run this command?" or "Make this change?", a chevron, the command's — or the file's — first line,
 and Deny, Allow All and Allow as compact buttons at the end (`PrimaryButton`/`SecondaryButton`
 `compact`: a bar choice's height, Material keeping the touch target whole). Each new question
-starts closed; a tap on it opens all it will do, scrolling past a few lines
-(`IcodeSizes.ApprovalDetail`), with what Allow All means.
+starts closed; a tap on it opened all it will do, scrolling past a few lines, with what Allow All
+means. Since 2026-10-24 the tap opens its step's page in the chat's sheet instead
+([assistant-sheets-plan.md](./assistant-sheets-plan.md) §2.3).
 
 ## 16. Found on the phone (2026-10-02, the owner)
 

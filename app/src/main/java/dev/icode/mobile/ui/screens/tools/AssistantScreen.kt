@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -34,6 +35,8 @@ import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeWatermark
 import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantRules
+import dev.icode.mobile.domain.AssistantStepRules
+import dev.icode.mobile.domain.GitChange
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.NoticeIntent
 import dev.icode.mobile.domain.NoticeTone
@@ -42,8 +45,11 @@ import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 
-/** What is drawn over the chat: its history, the model picker, what to attach, or the processes it started. */
-internal enum class AssistantSheet { Chats, Models, Attach, Processes }
+/**
+ * What is drawn over the chat: its history, the model picker, what to attach, the processes it
+ * started, or what a row of it holds (docs/assistant-sheets-plan.md §2).
+ */
+internal enum class AssistantSheet { Chats, Models, Attach, Processes, Entry }
 
 /**
  * The assistant (docs/assistant-koog-plan.md §3, §12): a chat of the open workspace — VS Code's
@@ -59,6 +65,18 @@ fun AssistantScreen(actions: NavigationActions) {
     // The open workspace's chats, again when the workspace changes under the page.
     LaunchedEffect(snapshot.activeWorkspaceLocation) { gateway.dispatch(ICodeIntent.OpenAssistant) }
     var sheet by rememberSaveable { mutableStateOf<AssistantSheet?>(null) }
+    // The chat's rows, each run of steps one: drawn, and opened in a sheet by key, at a step of a run.
+    val rows = remember(state) { AssistantStepRules.rows(AssistantRules.entries(state)) }
+    var entryKey by rememberSaveable(state.workspace, state.session) { mutableStateOf<String?>(null) }
+    var stepKey by rememberSaveable(state.workspace, state.session) { mutableStateOf<String?>(null) }
+    val entry = rows.firstOrNull { it.key == entryKey }
+    // What a sheet showed has gone — another chat, a compaction — and its sheet with it.
+    LaunchedEffect(sheet, entry == null) { if (sheet == AssistantSheet.Entry && entry == null) sheet = null }
+    // As Source Control opens a change: its diff, a step forward from the chat.
+    val onDiff = { change: GitChange ->
+        gateway.dispatch(ICodeIntent.OpenDiff(change.path, change.staged))
+        actions.navigate(Route.DiffView)
+    }
     // The message being written and the files going with it: this page's own until sent.
     var draft by rememberSaveable(state.workspace) { mutableStateOf("") }
     var attached by rememberSaveable(state.workspace, stateSaver = DRAFT_SAVER) { mutableStateOf(emptyList<DraftFile>()) }
@@ -119,13 +137,15 @@ fun AssistantScreen(actions: NavigationActions) {
                 }
                 else -> AssistantChatView(
                     state,
+                    rows,
                     Modifier.weight(1f),
                     onSuggestion = { draft = it },
-                    // As Source Control opens a change: its diff, a step forward from the chat.
-                    onDiff = { change ->
-                        gateway.dispatch(ICodeIntent.OpenDiff(change.path, change.staged))
-                        actions.navigate(Route.DiffView)
+                    onOpen = { row, step ->
+                        entryKey = row
+                        stepKey = step
+                        sheet = AssistantSheet.Entry
                     },
+                    onDiff = onDiff,
                 )
             }
             // Above the composer on every state of the page: a process outlives the chat that started it.
@@ -158,6 +178,10 @@ fun AssistantScreen(actions: NavigationActions) {
                     AssistantSheet.Models -> AssistantModelsSheet(state, modifier, close, onProviders = { actions.navigate(Route.AssistantSettings) })
                     AssistantSheet.Attach -> AssistantAttachSheet(snapshot, attached, pickers, modifier, close, onAttached = { attached = it })
                     AssistantSheet.Processes -> AssistantProcessesSheet(snapshot.processes, state.workspace, modifier, close)
+                    AssistantSheet.Entry -> entry?.let {
+                        val approval = state.approval?.takeIf { state.runningHere }
+                        AssistantEntrySheet(it, stepKey, approval, AssistantRules.workspaceName(state.workspace.orEmpty()), modifier, close, onDiff)
+                    }
                 }
             }
         }

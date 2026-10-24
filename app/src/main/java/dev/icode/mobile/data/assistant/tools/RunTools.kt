@@ -5,6 +5,7 @@ import dev.icode.mobile.data.assistant.AssistantTool
 import dev.icode.mobile.data.assistant.AssistantToolException
 import dev.icode.mobile.data.run.RunCoordinator
 import dev.icode.mobile.domain.AssistantToolKind
+import dev.icode.mobile.domain.AssistantToolName
 import dev.icode.mobile.domain.RunConfiguration
 import org.json.JSONObject
 
@@ -14,7 +15,7 @@ import org.json.JSONObject
 
 /** Build & Run, as the Run tab's ▶ starts it (docs/run-tab-plan.md); asked about first. */
 internal class RunAndroidAppTool(private val workspace: AssistantWorkspace, private val runs: RunCoordinator) : AssistantTool {
-    override val name = "run_android_app"
+    override val name = AssistantToolName.RunAndroidApp.id
     override val description = "Builds this workspace's Android app with the project's own Gradle wrapper " +
         "(`./gradlew :app:assembleDebug`) as a process, and when the build succeeds installs the APK on this phone and opens " +
         "it; Android asks the user to confirm the install. Needs the Android SDK, installed from Runtime Tools. Answers the " +
@@ -33,7 +34,7 @@ internal class RunAndroidAppTool(private val workspace: AssistantWorkspace, priv
 
 /** What the Run tab lists: read, so never asked about. */
 internal class ListRunCommandsTool(private val workspace: AssistantWorkspace, private val runs: RunCoordinator) : AssistantTool {
-    override val name = "list_run_commands"
+    override val name = AssistantToolName.ListRunCommands.id
     override val description = "Lists this workspace's Run tab, where the user starts its apps and commands with ▶: each " +
         "Android app iCode finds in the project (Build & Run; found, so never changed or deleted), then each saved command " +
         "with its id, name and command line."
@@ -56,7 +57,7 @@ internal class ListRunCommandsTool(private val workspace: AssistantWorkspace, pr
 
 /** A command saved on the Run tab, new or changed; asked about first, as a change. */
 internal class SaveRunCommandTool(private val workspace: AssistantWorkspace, private val runs: RunCoordinator) : AssistantTool {
-    override val name = "save_run_command"
+    override val name = AssistantToolName.SaveRunCommand.id
     override val description = "Saves a command on this workspace's Run tab, for the user to start with ▶ whenever they want: " +
         "it runs in bash at the workspace's top with the user's login environment, as a process whose output is its own " +
         "Terminal tab. Without id it adds one; with a saved command's id (list_run_commands) it changes that one, keeping " +
@@ -100,7 +101,7 @@ internal class SaveRunCommandTool(private val workspace: AssistantWorkspace, pri
 
 /** A command saved on the Run tab, deleted; asked about first, as a change. */
 internal class DeleteRunCommandTool(private val workspace: AssistantWorkspace, private val runs: RunCoordinator) : AssistantTool {
-    override val name = "delete_run_command"
+    override val name = AssistantToolName.DeleteRunCommand.id
     override val description = "Deletes a saved command from this workspace's Run tab, by its id (list_run_commands). " +
         "A run of it still going keeps running, in its Terminal tab."
     override val parameters = listOf(AssistantParameter("id", "The saved command's id"))

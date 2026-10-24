@@ -8,6 +8,7 @@ import dev.icode.mobile.data.search.RipgrepAvailability
 import dev.icode.mobile.data.search.WorkspaceSearchEngine
 import dev.icode.mobile.data.workspace.WorkspaceFileSource
 import dev.icode.mobile.domain.AssistantToolKind
+import dev.icode.mobile.domain.AssistantToolName
 import java.io.File
 import java.io.IOException
 import org.json.JSONObject
@@ -20,7 +21,7 @@ internal class ListFilesTool(
     private val workspace: AssistantWorkspace,
     private val search: WorkspaceSearchEngine,
 ) : AssistantTool {
-    override val name = "list_files"
+    override val name = AssistantToolName.ListFiles.id
     override val description = "Lists a folder: its folders (ending in /) and files, Git's .git included. With recursive, " +
         "every file under it instead, leaving out .git and what .gitignore ignores (such as node_modules) unless ignored."
     override val parameters = listOf(
@@ -70,7 +71,7 @@ internal class ReadFileTool(
     private val workspace: AssistantWorkspace,
     private val source: WorkspaceFileSource,
 ) : AssistantTool {
-    override val name = "read_file"
+    override val name = AssistantToolName.ReadFile.id
     override val description = "Reads a text file. Lines are numbered; a long file is read " +
         "$MAX_LINES lines at a time from start_line."
     override val parameters = listOf(
@@ -120,7 +121,7 @@ internal class SearchTextTool(
     private val workspace: AssistantWorkspace,
     private val search: WorkspaceSearchEngine,
 ) : AssistantTool {
-    override val name = "search_text"
+    override val name = AssistantToolName.SearchText.id
     override val description = "Searches files for text (or a regular expression): the workspace's, or a folder's, " +
         "leaving out .git and what .gitignore ignores unless ignored. Answers path:line: text for each match."
     override val parameters = listOf(

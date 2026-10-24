@@ -94,8 +94,6 @@ object IcodeSizes {
     /** A choice's button in a bottom bar — the branch, the repository — and a compact action's height. */
     val BarChoice = 32.dp
 
-    /** An open approval's text, at most: a few lines of a command, then it scrolls. */
-    val ApprovalDetail = 200.dp
     /** A licence's text on the License Agreement, at most: then it scrolls, the Accept below it in sight. */
     val LicenceText = 320.dp
     val LineNumberGutter = 32.dp
