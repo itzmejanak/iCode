@@ -253,11 +253,8 @@ internal class WorkspaceItemsCoordinator(
     }
 
     /** Inside the workspace and outside `.git`, which belongs to Git alone. */
-    private fun isCreationParent(root: String, parent: String): Boolean = runCatching {
-        val rootPath = paths.follow(root).toPath()
-        val parentPath = paths.follow(parent).toPath()
-        parentPath.startsWith(rootPath) && !rootPath.relativize(parentPath).any { it.toString() == ".git" }
-    }.getOrDefault(false)
+    private fun isCreationParent(root: String, parent: String): Boolean =
+        paths.within(root, parent)?.none { it.toString() == ".git" } == true
 
     private suspend fun refreshAfterCreate(root: String, parent: String, kind: String, updateIndex: Boolean) {
         library.refreshFiles()

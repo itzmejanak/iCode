@@ -4,6 +4,7 @@ import dev.icode.mobile.data.storage.WorkspacePaths
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
+import java.nio.file.Path
 
 /**
  * The runtime's paths, followed as PRoot follows them (docs/runtime-contract-plan.md §4.2): which file
@@ -61,6 +62,12 @@ internal class GuestPaths(rootfs: File, private val workspaces: WorkspacePaths) 
 
     /** [location] with its links followed as in the runtime; a file the runtime does not hold, as the phone follows them. */
     fun follow(location: String): File = guestOf(location)?.let(::hostOf) ?: File(location).canonicalFile
+
+    /** [location]'s path from [root], both followed ([follow]); null when it is not at or under [root], or cannot be followed. */
+    fun within(root: String, location: String): Path? = runCatching {
+        val top = follow(root).toPath()
+        follow(location).toPath().takeIf { it.startsWith(top) }?.let(top::relativize)
+    }.getOrNull()
 
     /** The file on the phone at [segments] of a runtime path, no link followed. */
     private fun mounted(segments: List<String>): File {

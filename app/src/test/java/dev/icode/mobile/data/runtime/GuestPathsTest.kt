@@ -63,6 +63,16 @@ class GuestPathsTest {
         assertEquals(inRuntime, paths.hostOf("/usr/share/doc/x"))
     }
 
+    @Test fun `inside a workspace is decided with its links followed as in the runtime`() {
+        val app = File(workspaces, "app").apply { mkdirs() }
+        file(File(app, "src/real.kt"))
+        link(File(app, "alias.kt"), "/workspace/app/src/real.kt")
+        link(File(app, "away.kt"), "/etc/hosts")
+        assertEquals(File("src/real.kt").toPath(), paths.within(app.path, File(app, "alias.kt").path))
+        assertNull(paths.within(app.path, File(app, "away.kt").path))
+        assertNull(paths.within(app.path, File(workspaces, "other/x.kt").path))
+    }
+
     @Test fun `a loop is told as Linux tells it`() {
         link(File(rootfs, "tmp/a"), "/tmp/b")
         link(File(rootfs, "tmp/b"), "/tmp/a")

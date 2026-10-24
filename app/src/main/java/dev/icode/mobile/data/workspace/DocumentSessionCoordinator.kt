@@ -23,7 +23,6 @@ internal class DocumentSessionCoordinator(
     private val source: WorkspaceFileSource,
     private val recovery: DocumentRecoveryCoordinator,
     private val library: WorkspaceLibraryCoordinator,
-    /** Links followed as the runtime follows them: one naming `/workspace/app/src/x.kt` is in app. */
     private val paths: GuestPaths,
     private val activeRoot: () -> String?,
     /** A save changed the worktree, so Git's view of it is stale. */
@@ -48,9 +47,7 @@ internal class DocumentSessionCoordinator(
             return
         }
         val root = activeRoot()
-        if (root == null || !runCatching {
-                paths.follow(location).toPath().startsWith(paths.follow(root).toPath())
-            }.getOrDefault(false)) {
+        if (root == null || paths.within(root, location) == null) {
             stateHolder.notify(NoticeTone.HeadsUp, "The selected file is outside the active workspace")
             return
         }
