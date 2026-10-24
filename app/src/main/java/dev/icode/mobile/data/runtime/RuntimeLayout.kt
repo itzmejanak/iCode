@@ -126,24 +126,19 @@ internal class RuntimeLayout(context: Context) {
     }.getOrDefault(emptyList())
 
     /**
-     * Environment for every PRoot launch.
+     * PRoot's own environment, which no guest program inherits ([prootCommand] starts each with
+     * exactly its variables, docs/runtime-contract-plan.md §3.1).
      *
      * `PROOT_LOADER` is the load-bearing entry: without it PRoot writes its
      * loader into a temporary directory and executes it, which Android refuses.
      */
-    fun prootEnvironment(extra: Map<String, String> = emptyMap()): Map<String, String> {
+    fun hostEnvironment(): Map<String, String> {
         prootTemp.mkdirs()
-        return buildMap {
-            put("HOME", GUEST_HOME)
-            put("PATH", GUEST_PATH)
-            // True of the terminal emulator, which also draws 24-bit color.
-            put("TERM", "xterm-256color")
-            put("COLORTERM", "truecolor")
-            put("LANG", "C.UTF-8")
+        return mapOf(
             // Resolves libtalloc.so and libandroid-shmem.so for PRoot itself.
-            put("LD_LIBRARY_PATH", nativeLibraryDir.absolutePath)
-            put("PROOT_LOADER", prootLoader.absolutePath)
-            put("PROOT_TMP_DIR", prootTemp.absolutePath)
+            "LD_LIBRARY_PATH" to nativeLibraryDir.absolutePath,
+            "PROOT_LOADER" to prootLoader.absolutePath,
+            "PROOT_TMP_DIR" to prootTemp.absolutePath,
             // PROOT_NO_SECCOMP is deliberately absent. PRoot's seccomp filter
             // lets calls that need no path translation (read, write, poll…)
             // run natively; with it off, every one stopped in PRoot at ~50 µs
@@ -152,12 +147,21 @@ internal class RuntimeLayout(context: Context) {
             // 9") would land in the user's terminal and in captured git
             // output. Below zero PRoot keeps only its errors; how a command
             // ended reaches iCode through its exit status.
-            put("PROOT_VERBOSE", "-1")
-            // Guest glibc's restartable sequences misbehave under PRoot's tracing.
-            put("GLIBC_TUNABLES", "glibc.pthread.rseq=0")
-            putAll(extra)
-        }
+            "PROOT_VERBOSE" to "-1",
+        )
     }
+
+    /** The user's login environment, read once and again when a profile file changes, for every context that reads it. */
+    val environment: GuestEnvironment by lazy { GuestEnvironment(this) }
+
+    /**
+     * Root's login shell as the runtime's `/etc/passwd` records it — `chsh` changes it — while it is
+     * installed; `/bin/bash` otherwise.
+     */
+    fun loginShell(): String = loginShell(rootfs)
+
+    /** [shellPath] is a file in the runtime, not out of it through a link. */
+    fun shellAvailable(shellPath: String): Boolean = shellAvailable(rootfs, shellPath)
 
     /**
      * Builds the PRoot command line. A launch sees every workspace at `/workspace`
@@ -166,6 +170,8 @@ internal class RuntimeLayout(context: Context) {
      */
     fun prootCommand(
         guestCommand: List<String>,
+        /** Every variable the guest program starts with, and none other: a [GuestContext]'s ([GuestVariables.of]). */
+        variables: Map<String, String>,
         guestWorkingDirectory: String = GUEST_HOME,
         /**
          * Ends every process the command started when the command itself
@@ -216,6 +222,11 @@ internal class RuntimeLayout(context: Context) {
         }
         add("-w")
         add(guestWorkingDirectory)
+        // `env -i` starts the program with these variables alone, then replaces itself with it: PRoot's
+        // own never reach the guest, and the program keeps env's pid.
+        add(GUEST_ENV)
+        add("-i")
+        variables.forEach { (name, value) -> add("$name=$value") }
         addAll(guestCommand)
     }
 
@@ -255,5 +266,22 @@ internal class RuntimeLayout(context: Context) {
         const val GUEST_PATH =
             "$GUEST_HOME/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
         private val HOST_BINDS = listOf("/system", "/apex", "/vendor", "/product")
+
+        /** [rootfs]'s login shell for root ([loginShell]). */
+        fun loginShell(rootfs: File): String = recordedShell(rootfs)?.takeIf { shellAvailable(rootfs, it) } ?: DEFAULT_SHELL
+
+        /** The shell [rootfs]'s `/etc/passwd` gives root, installed or not; null where it records none. */
+        fun recordedShell(rootfs: File): String? = runCatching {
+            File(rootfs, "etc/passwd").useLines { lines -> lines.firstOrNull { it.startsWith("root:") } }
+        }.getOrNull()?.split(':')?.getOrNull(PASSWD_SHELL_FIELD)?.takeIf { it.startsWith('/') }
+
+        fun shellAvailable(rootfs: File, shellPath: String): Boolean {
+            val shell = File(rootfs, shellPath.removePrefix("/"))
+            return shell.canonicalFile.toPath().startsWith(rootfs.canonicalFile.toPath()) && shell.isFile
+        }
+        private const val GUEST_ENV = "/usr/bin/env"
+        private const val DEFAULT_SHELL = "/bin/bash"
+        /** `name:password:uid:gid:gecos:home:shell`. */
+        private const val PASSWD_SHELL_FIELD = 6
     }
 }

@@ -49,8 +49,8 @@ internal class RuntimePackageInstaller(
         scope,
         runtimeReady = { layout.isInstalled },
         readInstalled = DpkgStatus(layout.rootfs)::installed,
-        apt = GuestCommand(layout).let { guest ->
-            { argv, onLine -> guest.stream(null, argv, "apt", mapOf("DEBIAN_FRONTEND" to "noninteractive"), onLine = onLine) }
+        apt = GuestCommand(layout, GuestContext.Command).let { guest ->
+            { argv, onLine -> guest.stream(null, argv, "apt", onLine = onLine) }
         },
         setups = ToolSetups(setups, layout.toolReceipts),
     )

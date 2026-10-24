@@ -4,6 +4,7 @@ import android.content.Context
 import dev.icode.mobile.data.io.deleteTree
 import dev.icode.mobile.data.runtime.ArchiveExtractor
 import dev.icode.mobile.data.runtime.GuestCommand
+import dev.icode.mobile.data.runtime.GuestContext
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.runtime.RuntimeToolSetup
 import dev.icode.mobile.data.runtime.fetchPinned
@@ -25,7 +26,7 @@ import kotlinx.coroutines.withContext
 internal class CmakeSetup(private val layout: RuntimeLayout, private val context: Context) : RuntimeToolSetup {
     override val id: String = ID
 
-    private val guest = GuestCommand(layout)
+    private val guest = GuestCommand(layout, GuestContext.Command)
     private val sdkmanager = SdkManager(guest)
     private val folder = File(AndroidSdk.host(layout), AndroidSdk.cmake(RuntimeTools.CMAKE_VERSION))
     private val manifest by lazy { readManifest(context) }

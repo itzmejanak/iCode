@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.search
 
 import dev.icode.mobile.data.runtime.GuestCommand
+import dev.icode.mobile.data.runtime.GuestContext
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.runtime.RuntimePackageInstaller
 import dev.icode.mobile.domain.RuntimeTools
@@ -23,7 +24,7 @@ internal class RipgrepService(
     private val layout: RuntimeLayout,
     private val packages: RuntimePackageInstaller,
 ) : WorkspaceSearchEngine {
-    private val guest = GuestCommand(layout)
+    private val guest = GuestCommand(layout, GuestContext.Search)
 
     /** When the last install failed, and why: typing must not start apt again on every key. */
     @Volatile private var lastFailure: Pair<Long, String>? = null

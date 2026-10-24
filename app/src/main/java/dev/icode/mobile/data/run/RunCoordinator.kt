@@ -5,6 +5,7 @@ import dev.icode.mobile.data.android.AndroidApps
 import dev.icode.mobile.data.android.AndroidBuilds
 import dev.icode.mobile.data.android.AndroidProjects
 import dev.icode.mobile.data.android.ApkInstaller
+import dev.icode.mobile.data.runtime.GuestContext
 import dev.icode.mobile.data.runtime.RuntimeExecution
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.runtime.RuntimeProcesses
@@ -44,7 +45,7 @@ internal class RunCoordinator(
         stateHolder,
         scope,
         execution.processes,
-        { execution.environment.current().variables },
+        { execution.environment.of(GuestContext.Command).variables },
         layout.workspaces::guestOf,
         AndroidApps(stateHolder, layout, execution, ApkInstaller(context)),
         RunCommandStore(File(context.filesDir, "run-commands.json")),

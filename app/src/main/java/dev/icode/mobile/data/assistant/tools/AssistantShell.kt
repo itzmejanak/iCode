@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.assistant.tools
 
 import dev.icode.mobile.data.runtime.GuestCommand
+import dev.icode.mobile.data.runtime.GuestContext
 import dev.icode.mobile.data.runtime.GuestEnvironment
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.runtime.RuntimeProcesses
@@ -44,23 +45,22 @@ internal class AssistantShell(
     /** Runs [command] for [chat] for at most [seconds], each line of its output to [onLine]. */
     suspend fun run(workspace: AssistantWorkspace, chat: String, command: String, seconds: Int, onLine: (String) -> Unit): Ran {
         val (start, moved) = directory(workspace, chat)
-        val login = environment.current()
-        val variables = login.variables + COMMAND_ENVIRONMENT
+        val login = environment.of(GuestContext.Command)
         val temp = File(rootfs, "tmp").apply { mkdirs() }
         val ended = File.createTempFile("icode-cwd-", "", temp)
         try {
             // The trap runs on every way out but a kill, `exit` included; the command's own status stands.
             // Its physical directory: a symlink's target is where it ended, inside the workspace or not.
             val script = "cd -- ${shellQuote(start)} || exit 1\ntrap 'pwd -P > /tmp/${ended.name}' EXIT\n{ $command\n} </dev/null"
-            val result = withTimeoutOrNull(seconds * 1_000L) { bash(workspace.root.path, script, variables, onLine) }
+            val result = withTimeoutOrNull(seconds * 1_000L) { bash(workspace.root.path, script, MODEL_ENVIRONMENT, onLine) }
             val now = ended.readText().trim().takeIf { it.startsWith("/") }
             if (result != null && now != null) directories[keyOf(workspace, chat)] = now
             return Ran(
                 exitCode = result?.exitCode,
                 stderr = result?.stderr.orEmpty(),
                 directory = directories[keyOf(workspace, chat)] ?: start,
-                notes = listOfNotNull(moved, login.failure?.let(::environmentNote)),
-                path = variables["PATH"] ?: DEFAULT_PATH,
+                notes = listOfNotNull(moved, login.failure?.let(GuestEnvironment::withoutProfile)),
+                path = login.variables["PATH"] ?: RuntimeLayout.GUEST_PATH,
             )
         } finally {
             ended.delete()
@@ -70,9 +70,9 @@ internal class AssistantShell(
     /** Starts [command] as a managed process, in [chat]'s directory, with the login environment. */
     suspend fun start(workspace: AssistantWorkspace, chat: String, command: String, name: String?): Pair<Result<ManagedProcess>, List<String>> {
         val (start, moved) = directory(workspace, chat)
-        val login = environment.current()
-        val started = processes.start(workspace.root.path, start, command, name, login.variables + COMMAND_ENVIRONMENT)
-        return started to listOfNotNull(moved, login.failure?.let(::environmentNote))
+        val login = environment.of(GuestContext.Command)
+        val started = processes.start(workspace.root.path, start, command, name, login.variables + MODEL_ENVIRONMENT)
+        return started to listOfNotNull(moved, login.failure?.let(GuestEnvironment::withoutProfile))
     }
 
     /**
@@ -94,21 +94,8 @@ internal class AssistantShell(
 
     private fun keyOf(workspace: AssistantWorkspace, chat: String) = "${workspace.root.path}\u0000$chat"
 
-    private fun environmentNote(failure: String) =
-        "Your login environment could not be read ($failure): this ran with iCode's default environment"
-
-    companion object {
-        /** No pager, prompt or colour codes: the output is read, not watched. */
-        val COMMAND_ENVIRONMENT = mapOf(
-            "PAGER" to "cat",
-            "GIT_PAGER" to "cat",
-            "GIT_TERMINAL_PROMPT" to "0",
-            "DEBIAN_FRONTEND" to "noninteractive",
-            "NO_COLOR" to "1",
-            "TERM" to "dumb",
-        )
-
-        /** The search path a command gets when the login environment gives none. */
-        val DEFAULT_PATH = RuntimeLayout.GUEST_PATH
+    private companion object {
+        /** Over the `command` context's own: a model reads the output, so no colour codes. */
+        val MODEL_ENVIRONMENT = mapOf("NO_COLOR" to "1")
     }
 }

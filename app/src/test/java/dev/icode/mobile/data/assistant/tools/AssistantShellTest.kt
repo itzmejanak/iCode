@@ -51,7 +51,7 @@ class AssistantShellTest {
                 endedIn?.let { File(rootfs, "tmp/$marker").writeText("$it\n") }
                 GuestCommand.Result(code, stderr, stoppedEarly = false)
             },
-            GuestEnvironment(rootfs) { profile },
+            GuestEnvironment(rootfs, { "/bin/bash" }) { profile },
             processes,
         )
     }
@@ -71,10 +71,8 @@ class AssistantShellTest {
         next = { 0 to "/workspace/app/backend" }
         command("ls")
         assertTrue(scripts[1].startsWith("cd -- '/workspace/app/backend' || exit 1"))
-        // Its login environment, then what makes output plain.
-        assertEquals("/root/.nvm", environments[1]["NVM_DIR"])
-        assertEquals("dumb", environments[1]["TERM"])
-        assertEquals("cat", environments[1]["PAGER"])
+        // Over the `command` context's variables (the login environment, no terminal): no colour, a model reads it.
+        assertEquals(mapOf("NO_COLOR" to "1"), environments[1])
         // Another chat starts at the top.
         runBlocking { RunCommandTool(workspace, "chat-2", shell, { true }, { }).run(JSONObject().put("command", "pwd")) }
         assertTrue(scripts[2].startsWith("cd -- '/workspace/app' || exit 1"))

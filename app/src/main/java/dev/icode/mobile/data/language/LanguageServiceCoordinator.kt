@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.language
 
 import android.content.Context
+import dev.icode.mobile.data.runtime.GuestContext
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.LanguageServiceConfiguration
@@ -25,9 +26,9 @@ internal class LanguageServiceCoordinator(
     private val scope: CoroutineScope,
     runtimeLayout: RuntimeLayout,
     private val activeRoot: () -> String?,
-    /** The user's login environment, as a terminal's shell has it: a server installed through a profile is found. */
-    private val environment: suspend () -> Map<String, String>,
 ) {
+    /** The user's login environment, as a terminal's shell has it: a server installed through a profile is found. */
+    private val environment = runtimeLayout.environment
     private val store = LanguageServiceStore(appContext)
     private val loaded = runCatching { store.load() }
     private var configs = loaded.getOrDefault(emptyList())
@@ -136,7 +137,7 @@ internal class LanguageServiceCoordinator(
             stateHolder.notify(NoticeTone.HeadsUp, "Open a workspace before starting a language service")
             return
         }
-        processes.start(config, workspace, environment())?.let { error ->
+        processes.start(config, workspace, environment.of(GuestContext.LanguageServer).variables)?.let { error ->
             stateHolder.notify(NoticeTone.Problem, error)
         }
     }

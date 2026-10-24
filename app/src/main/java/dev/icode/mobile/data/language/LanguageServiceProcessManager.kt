@@ -42,10 +42,11 @@ internal class LanguageServiceProcessManager(
         val process = try {
             RuntimeProcess.start(
                 argv = layout.prootCommand(
-                    guestCommand = listOf("/usr/bin/env") + arguments,
+                    guestCommand = arguments,
+                    variables = environment,
                     guestWorkingDirectory = guestFolder,
                 ),
-                environment = layout.prootEnvironment(environment),
+                environment = layout.hostEnvironment(),
                 workingDirectory = layout.runtimeRoot.absolutePath,
             )
         } catch (error: Exception) {

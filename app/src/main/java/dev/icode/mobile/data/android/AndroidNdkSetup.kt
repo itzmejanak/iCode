@@ -3,6 +3,7 @@ package dev.icode.mobile.data.android
 import android.content.Context
 import dev.icode.mobile.data.io.deleteTree
 import dev.icode.mobile.data.runtime.GuestCommand
+import dev.icode.mobile.data.runtime.GuestContext
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.runtime.RuntimeToolSetup
 import dev.icode.mobile.data.runtime.fetchPinned
@@ -29,7 +30,7 @@ import kotlinx.coroutines.withContext
 internal class AndroidNdkSetup(private val layout: RuntimeLayout, private val context: Context, private val revision: String) : RuntimeToolSetup {
     override val id: String = RuntimeTools.ndkId(revision)
 
-    private val guest = GuestCommand(layout)
+    private val guest = GuestCommand(layout, GuestContext.Command)
     private val folder = File(AndroidSdk.host(layout), AndroidSdk.ndk(revision))
     private val pin by lazy { readManifest(context).archive(id) }
 
