@@ -1,6 +1,6 @@
 # Runtime Contract — one Linux environment, no iCode-made limits
 
-Status: **in progress.** RC2, RC3 and RC4 built (2026-10-24); RC5–RC7 planned. The cycles are §7, the cleanup is §8, the checks are §9.
+Status: **in progress.** RC2–RC5 built (2026-10-24); RC6 and RC7 planned. The cycles are §7, the cleanup is §8, the checks are §9.
 
 The owner's problem statement (2026-10-23), in short:
 - iCode is a native Android IDE around a genuine, user-controlled Linux environment.
@@ -187,8 +187,8 @@ The "Only this workspace is under /workspace" sentence goes.
   - If it is missing, the tab starts `/bin/bash -l`, and its first line says why: "iCode: your login shell /usr/bin/zsh (from /etc/passwd) is not installed — `apt install zsh`, or `chsh -s /bin/bash`".
 - **Terminal › Shell goes:** `TerminalSettings.shellPath`, its row, its DataStore key, `TerminalSettingRules.validShellPath`.
 - **The prompt:**
-  - `/etc/icode/prompt.sh` is iCode's, written at every runtime start so an app update reaches it. It holds today's function, unchanged, with the accent's colour slot `ACCENT_COLOR_INDEX`.
-  - When iCode creates a home, it appends to `~/.bashrc` only: `# Managed by iCode: its prompt — delete this line to use your own` then `. /etc/icode/prompt.sh`.
+  - `/etc/icode/prompt.sh` is iCode's, written at install and before every terminal starts, so an app update reaches it. It holds today's function, unchanged, with the accent's colour slot `ACCENT_COLOR_INDEX`.
+  - When iCode creates a home, it appends one line to `~/.bashrc` only: `. /etc/icode/prompt.sh  # Managed by iCode: its prompt — delete this line to use your own`.
   - Nothing else ever touches a dotfile. Repair keeps the home, so it writes none.
   - Reproduced: on a fresh home a login shell shows iCode's prompt. Once `eval "$(starship init bash)"` follows the line, Starship's.
 - **On the owner's phone:** device check D3 deletes the two old lines and `~/.icode-prompt.sh` once.
@@ -235,6 +235,15 @@ Each cycle runs the same gate before its push:
 - **The README line** in the instructions ("PRoot's and Android's limits are in `/etc/icode/README.md`") lands with the file itself in RC6, so the model is never pointed at a file that is not there.
 - **Tested:** the tool tests read and write `/root/x` and `/workspace/other/y`, write in `.git`, edit `/etc/hosts`, search `/etc` with `ignored`, list `/usr/lib`, start nine processes, and see the error kinds. A 900 s timeout is the model's value passed through (`coerceAtLeast(1)`, no ceiling); no test waits 900 s.
 
+### 7.2 RC5, as built (2026-10-24)
+
+- **The shell:** `TerminalLaunch.prepare` starts `RuntimeLayout.loginShell()` with `-l`, and `SHELL` is that shell. `recordedShell`, `loginShell` and `shellAvailable` read the runtime through `GuestPaths`, so a shell behind a link made in the runtime (`/usr/local/bin/fish` → `/opt/fish/bin/fish`) is found, as the runtime finds it.
+- **A missing shell:** the tab runs `/bin/sh -c 'printf …; exec "$@"'` with the line, then `/bin/bash -l`: "iCode: your login shell /usr/bin/zsh (from /etc/passwd) is not installed — `apt install zsh`, or `chsh -s /bin/bash`".
+- **The prompt:** `ShellPrompt` is an object: `write` puts the script at `/etc/icode/prompt.sh` (install, and before each terminal); `addTo` gives a fresh home's `~/.bashrc` its one line. `RuntimeInstaller.configureGuest(freshHome)` adds it only where no home was restored by Repair. The script's first line is its "Managed by iCode:" note.
+- **Terminal Settings:** the first section is "Display" (font, size, scrollback); the catalogue's words no longer offer a shell.
+- **Tested:** three starts leave `~/.bashrc` and `~/.profile` byte-identical and write only the script; a fresh home gets exactly one line; in real bash a fresh home shows iCode's prompt and a `PROMPT_COMMAND` set after the line (Starship's) wins; `chsh`'s record is followed through a runtime link; the missing-shell line is printed before the login shell starts. The lab has no RC5 check: neither fact is PRoot's.
+- **On the owner's phone (D3):** the two old lines and `~/.icode-prompt.sh` stay until deleted by hand. This build neither reads nor removes them, and `/etc/icode/prompt.sh` arrives with the first terminal.
+
 ## 8. Cleanup
 
 **Unused code found now**, each declared and referenced nowhere else in `app/src/main`, tests or resources:
@@ -257,7 +266,7 @@ Each cycle runs the same gate before its push:
 | `WorkspaceFileSource`'s workspaces-only checks and its three `canonicalFile` link-followers; `RuntimeProcesses.of(workspace)`, replaced by `all()` | RC4 |
 | `AssistantWorkspace.resolve`'s refusals, `isGitInternal` and its refusal, `list_files`' `.git` filter, `AssistantShell.directory`'s outside-the-workspace rule, `RunCommandTool.MAX_TIMEOUT`, `ProcessRules.MAX_RUNNING` and its refusal, the process tools' workspace filters | RC4 |
 | `ShellPrompt.install`, `~/.icode-prompt.sh`, `ShellPromptTest`'s dotfile cases | RC5 |
-| `TerminalSettings.shellPath`, `TerminalSettingRules.validShellPath`, the Shell row, `terminalShellKey` | RC5 |
+| `TerminalSettings.shellPath`, `TerminalSettingRules.validShellPath`, the Shell row and its dialog, `terminalShellKey`, `WorkspacePreferences.setTerminalShellPath`; `TerminalLaunch.failure`, never set once a missing shell falls back to bash | RC5 |
 | `GitCommandLine`'s `safe.directory`, `CliGitService.ensureSafeDirectoryConfigured`, `SAFE_DIRECTORY_MARKER` and its two calls | RC6 |
 
 **Docs brought to the contract (RC7):**
@@ -265,6 +274,7 @@ Each cycle runs the same gate before its push:
 - `architecture.md`: the runtime paragraph (line 155).
 - `assistant-koog-plan.md`: the tool table (line 230 on).
 - `runtime-foundation-findings.md`: row 6.
+- `terminal-separation-plan.md` §S6.2 and `accent-color-plan.md`'s test line: the shell-path check and the sourced-once prompt they describe are gone (RC5).
 
 The guards' allowlists are re-baselined downward.
 
@@ -274,7 +284,7 @@ The guards' allowlists are re-baselined downward.
 
 | Criterion | Shown by |
 |---|---|
-| User-installed and configured tools keep working across starts | RC5: dotfiles byte-identical across starts; lab: Starship kept; D3, D5 |
+| User-installed and configured tools keep working across starts | RC5: dotfiles byte-identical across starts; Starship's prompt wins in real bash (`ShellPromptTest`); D3, D5 |
 | iCode defaults never reverse a user change | RC5; RC6 (`sudo`); the marker finds every iCode file |
 | Terminal and assistant behave alike where their contexts are equal, and the difference is explained where not | RC2 tests and lab; D4 |
 | One filesystem state across interfaces | RC3 lab; D6 |

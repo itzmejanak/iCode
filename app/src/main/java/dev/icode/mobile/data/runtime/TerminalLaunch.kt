@@ -1,20 +1,17 @@
 package dev.icode.mobile.data.runtime
 
-import dev.icode.mobile.domain.TerminalSettingRules
 import dev.icode.mobile.domain.TerminalSettings
 
 /**
  * Everything decided before a terminal session starts — which shell, where,
- * with what PRoot command line — or why it cannot start. File work, so it is
- * prepared off the main thread and handed to it.
+ * with what PRoot command line. File work, so it is prepared off the main
+ * thread and handed to it.
  */
 internal class TerminalLaunch private constructor(
     val workspaceHostPath: String?,
     val transcriptRows: Int,
     val argv: List<String> = emptyList(),
     val environment: List<String> = emptyList(),
-    /** Set when no session can start; the tab shows it instead of a shell. */
-    val failure: String? = null,
     /** The tab's name, where it is not a shell's ("bash 2"). */
     val title: String? = null,
     /** The process whose output the tab shows; null for a shell. */
@@ -22,21 +19,15 @@ internal class TerminalLaunch private constructor(
 ) {
     companion object {
         /** Null when the runtime is not installed. */
-        fun prepare(layout: RuntimeLayout, prompt: ShellPrompt, settings: TerminalSettings, workspaceHostPath: String?): TerminalLaunch? {
+        fun prepare(layout: RuntimeLayout, settings: TerminalSettings, workspaceHostPath: String?): TerminalLaunch? {
             if (!layout.isInstalled) return null
             // The ids can change when Android reassigns the app's gids.
             layout.ensureGuestGroups()
-            if (!TerminalSettingRules.validShellPath(settings.shellPath) || !layout.shellAvailable(settings.shellPath)) {
-                return TerminalLaunch(
-                    workspaceHostPath = workspaceHostPath,
-                    transcriptRows = settings.scrollbackLines,
-                    failure = "The configured shell ${settings.shellPath} is unavailable in the runtime",
-                )
-            }
-            prompt.install()
+            ShellPrompt.write(layout.rootfs)
+            val shell = layout.loginShell()
             val argv = layout.prootCommand(
-                guestCommand = shellCommand(settings.shellPath),
-                variables = GuestVariables.of(GuestContext.Terminal, settings.shellPath),
+                guestCommand = shellCommand(layout.recordedShell(), shell),
+                variables = GuestVariables.of(GuestContext.Terminal, shell),
                 guestWorkingDirectory = workspaceHostPath?.let(layout.workspaces::guestOf) ?: RuntimeLayout.GUEST_HOME,
                 killOnExit = true,
             )
@@ -72,8 +63,17 @@ internal class TerminalLaunch private constructor(
 
         private const val TAIL = "/usr/bin/tail"
 
-        /** bash starts as a login shell, so the user's profile and ours are read. */
-        fun shellCommand(shellPath: String): List<String> =
-            if (shellPath == "/bin/bash") listOf(shellPath, "-l") else listOf(shellPath)
+        /**
+         * Root's login [shell] as a login shell (`-l`: bash, zsh, fish and dash all take it), so its
+         * profile is read. When it is not the shell `/etc/passwd` records ([recorded]) — that one is
+         * not installed — the tab's first line says so, and how to change it.
+         */
+        fun shellCommand(recorded: String?, shell: String): List<String> {
+            val login = listOf(shell, "-l")
+            if (recorded == null || recorded == shell) return login
+            val why = "iCode: your login shell $recorded (from /etc/passwd) is not installed — " +
+                "`apt install ${recorded.substringAfterLast('/')}`, or `chsh -s $shell`"
+            return listOf("/bin/sh", "-c", "printf '%s\\n' \"\$1\"; shift; exec \"\$@\"", "sh", why) + login
+        }
     }
 }

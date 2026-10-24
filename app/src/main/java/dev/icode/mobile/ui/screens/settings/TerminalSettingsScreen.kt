@@ -5,18 +5,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeConfirmDialog
 import dev.icode.mobile.designsystem.IcodePageColumn
 import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSelect
-import dev.icode.mobile.designsystem.IcodeTextField
 import dev.icode.mobile.designsystem.IcodeToggle
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
@@ -38,7 +31,10 @@ import dev.icode.mobile.ui.LocalWorkspacePreferences
 import dev.icode.mobile.ui.LocalWorkspacePreferencesRepository
 import dev.icode.mobile.ui.TerminalKeyChip
 
-/** App-wide terminal preferences; shell changes apply when the next session starts. */
+/**
+ * App-wide terminal preferences; the scrollback applies when the next session starts. The shell is
+ * root's login shell, as the runtime's `/etc/passwd` records it (`chsh` changes it).
+ */
 @Composable
 fun TerminalSettingsScreen(actions: NavigationActions) {
     val preferences = LocalWorkspacePreferences.current
@@ -47,8 +43,6 @@ fun TerminalSettingsScreen(actions: NavigationActions) {
     val access = LocalICodeSnapshot.current.systemAccess
     val settings = preferences.terminal
     val saver = rememberSettingSaver(preferences, "Could not save terminal setting")
-    var editingShell by remember { mutableStateOf(false) }
-    var shellDraft by rememberSaveable { mutableStateOf(settings.shellPath) }
 
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Terminal Settings", subtitle = settingsSubtitle(Route.TerminalSettings), onBack = actions.back)
@@ -58,20 +52,7 @@ fun TerminalSettingsScreen(actions: NavigationActions) {
                 Text("Settings unavailable: $it", style = IcodeType.Caption.copy(color = IcodeColors.Error))
             }
             saver.error?.let { Text(it, style = IcodeType.Caption.copy(color = IcodeColors.Error)) }
-            IcodeSection("Shell Path") {
-                SettingRow(
-                    settings.shellPath,
-                    Modifier.fillMaxWidth(),
-                    subtitle = "Used by new sessions; the executable must be installed in the runtime",
-                    onClick = {
-                        if (saver.ready) {
-                            shellDraft = settings.shellPath
-                            editingShell = true
-                        }
-                    },
-                ) {
-                    Text("EDIT", style = IcodeType.Label.copy(color = IcodeColors.Accent))
-                }
+            IcodeSection("Display") {
                 IcodeSelect(
                     options = EditorFontFamily.entries,
                     selected = settings.fontFamily,
@@ -156,27 +137,6 @@ fun TerminalSettingsScreen(actions: NavigationActions) {
                     }
                 }
             }
-        }
-    }
-
-    if (editingShell) {
-        IcodeConfirmDialog(
-            title = "Shell for new sessions",
-            confirmLabel = "Save path",
-            confirmEnabled = TerminalSettingRules.validShellPath(shellDraft),
-            onConfirm = {
-                saver.save { repository.setTerminalShellPath(shellDraft) }
-                editingShell = false
-            },
-            onDismiss = { editingShell = false },
-        ) {
-            IcodeTextField(
-                value = shellDraft,
-                onValueChange = { shellDraft = it },
-                placeholder = "/bin/bash",
-                modifier = Modifier.fillMaxWidth(),
-            )
-            Text("Enter an absolute path inside the Linux runtime. The next session reports a real failure if that shell is missing.", style = IcodeType.Caption)
         }
     }
 }

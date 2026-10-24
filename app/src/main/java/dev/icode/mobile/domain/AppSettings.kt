@@ -160,11 +160,11 @@ object KeyRows {
 enum class TerminalCursorStyle(val label: String) { Block("Block"), Underline("Underline"), Bar("Bar") }
 
 /**
- * App-wide defaults. The shell path and scrollback apply when a session
- * starts; the rest apply to running sessions too.
+ * App-wide defaults. The scrollback applies when a session starts; the rest
+ * apply to running sessions too. The shell is root's login shell, which the
+ * runtime's `/etc/passwd` records (`chsh` changes it).
  */
 data class TerminalSettings(
-    val shellPath: String = "/bin/bash",
     val fontSizeSp: Int = 13,
     val fontFamily: EditorFontFamily = EditorFontFamily.PlexMono,
     val scrollbackLines: Int = 10_000,
@@ -181,9 +181,4 @@ object TerminalSettingRules {
 
     /** How long a command must run before its end is worth an alert (owner's decision). */
     const val FINISH_ALERT_MILLIS = 30_000L
-
-    fun validShellPath(path: String): Boolean =
-        path.startsWith('/') && path.length in 2..256 &&
-            path.split('/').none { it == "." || it == ".." } &&
-            path.none { it == '\u0000' || it == '\n' || it == '\r' }
 }

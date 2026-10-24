@@ -110,7 +110,7 @@ internal class RuntimeInstaller(
 
             savedHome?.let(homeBackup::restore)
             emit(RuntimeState.Installing("Configuring the runtime"))
-            configureGuest()
+            configureGuest(freshHome = savedHome == null)
 
             emit(RuntimeState.Installing("Verifying the runtime"))
             val release = healthCheck()
@@ -180,8 +180,12 @@ internal class RuntimeInstaller(
         }
     }
 
-    /** Android gives the guest no resolver configuration; without this apt cannot resolve names. */
-    private fun configureGuest() {
+    /**
+     * Android gives the guest no resolver configuration; without this apt cannot resolve names. A
+     * [freshHome] — the base system's, not one Repair kept — gets iCode's prompt line
+     * ([ShellPrompt.addTo]); a kept one is the user's, and nothing is written into it.
+     */
+    private fun configureGuest(freshHome: Boolean) {
         File(layout.rootfs, "etc").mkdirs()
         File(layout.rootfs, "etc/resolv.conf").writeText(
             "nameserver 8.8.8.8\nnameserver 8.8.4.4\n",
@@ -189,7 +193,9 @@ internal class RuntimeInstaller(
         File(layout.rootfs, "etc/hosts").writeText(
             "127.0.0.1 localhost\n::1 localhost ip6-localhost ip6-loopback\n",
         )
-        File(layout.rootfs, RuntimeHomeBackup.HOME_RELATIVE).mkdirs()
+        val home = File(layout.rootfs, RuntimeHomeBackup.HOME_RELATIVE).apply { mkdirs() }
+        ShellPrompt.write(layout.rootfs)
+        if (freshHome) ShellPrompt.addTo(home)
         layout.ensureGuestGroups()
         GuestSudo.install(layout.rootfs)
         GuestGpg.install(layout.rootfs)
