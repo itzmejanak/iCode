@@ -43,7 +43,6 @@ class CapturePreferences : WorkspacePreferencesRepository {
     override suspend fun setKeyboardSuggestions(enabled: Boolean) = Unit
     override suspend fun setChangeMarkers(enabled: Boolean) = Unit
     override suspend fun setAutoCloseBrackets(enabled: Boolean) = Unit
-    override suspend fun setTerminalShellPath(path: String) = Unit
     override suspend fun setTerminalFontSize(sizeSp: Int) = Unit
     override suspend fun setTerminalFontFamily(family: EditorFontFamily) = Unit
     override suspend fun setTerminalScrollbackLimit(lines: Int) = Unit

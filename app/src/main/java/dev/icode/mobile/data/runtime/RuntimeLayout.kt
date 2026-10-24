@@ -158,10 +158,10 @@ internal class RuntimeLayout(context: Context) {
      * Root's login shell as the runtime's `/etc/passwd` records it — `chsh` changes it — while it is
      * installed; `/bin/bash` otherwise.
      */
-    fun loginShell(): String = loginShell(rootfs)
+    fun loginShell(): String = loginShell(paths)
 
-    /** [shellPath] is a file in the runtime, not out of it through a link. */
-    fun shellAvailable(shellPath: String): Boolean = shellAvailable(rootfs, shellPath)
+    /** The shell the runtime's `/etc/passwd` gives root, installed or not ([recordedShell]). */
+    fun recordedShell(): String? = recordedShell(paths)
 
     /**
      * Builds the PRoot command line. Every launch sees the same tree: the runtime's root, the
@@ -232,19 +232,19 @@ internal class RuntimeLayout(context: Context) {
         const val GUEST_PATH =
             "$GUEST_HOME/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
-        /** [rootfs]'s login shell for root ([loginShell]). */
-        fun loginShell(rootfs: File): String = recordedShell(rootfs)?.takeIf { shellAvailable(rootfs, it) } ?: DEFAULT_SHELL
+        /** Root's login shell in the runtime [paths] reach ([loginShell]). */
+        fun loginShell(paths: GuestPaths): String = recordedShell(paths)?.takeIf { shellAvailable(paths, it) } ?: DEFAULT_SHELL
 
-        /** The shell [rootfs]'s `/etc/passwd` gives root, installed or not; null where it records none. */
-        fun recordedShell(rootfs: File): String? = runCatching {
-            File(rootfs, "etc/passwd").useLines { lines -> lines.firstOrNull { it.startsWith("root:") } }
+        /** The shell the runtime's `/etc/passwd` gives root, installed or not; null where it records none. */
+        fun recordedShell(paths: GuestPaths): String? = runCatching {
+            paths.hostOf("/etc/passwd").useLines { lines -> lines.firstOrNull { it.startsWith("root:") } }
         }.getOrNull()?.split(':')?.getOrNull(PASSWD_SHELL_FIELD)?.takeIf { it.startsWith('/') }
 
-        fun shellAvailable(rootfs: File, shellPath: String): Boolean {
-            val shell = File(rootfs, shellPath.removePrefix("/"))
-            return shell.canonicalFile.toPath().startsWith(rootfs.canonicalFile.toPath()) && shell.isFile
-        }
+        /** [shellPath] is a file in the runtime, its links followed as the runtime follows them. */
+        fun shellAvailable(paths: GuestPaths, shellPath: String): Boolean = runCatching { paths.hostOf(shellPath).isFile }.getOrDefault(false)
+
         private const val GUEST_ENV = "/usr/bin/env"
+        /** What a terminal starts when the recorded shell is not installed, and every other context's `SHELL` then. */
         private const val DEFAULT_SHELL = "/bin/bash"
         /** `name:password:uid:gid:gecos:home:shell`. */
         private const val PASSWD_SHELL_FIELD = 6

@@ -35,8 +35,8 @@ internal val settingsCategories = listOf(
     SettingsCategory("Editor", "Font, indentation, keys, autosave, display", Icons.Outlined.Code, Route.SettingsEditor,
         "font family size tab indent word wrap auto close brackets keyboard suggestions autocorrect keys row home end " +
             "auto save line numbers minimap bracket matching git change markers"),
-    SettingsCategory("Terminal", "Shell, extra keys, scrollback, background", Icons.Outlined.Terminal, Route.TerminalSettings,
-        "shell path font family size scrollback extra keys keyboard cursor block underline bar " +
+    SettingsCategory("Terminal", "Font, extra keys, scrollback, background", Icons.Outlined.Terminal, Route.TerminalSettings,
+        "font family size scrollback extra keys keyboard cursor block underline bar " +
             "background notifications battery optimization bell alert long command"),
     SettingsCategory("Source Control", "Git credentials, commit message model", Icons.Outlined.AccountTree, Route.SourceControlSettings,
         "git identity name email credentials authentication https token ssh key provider commit message write generate ai model"),

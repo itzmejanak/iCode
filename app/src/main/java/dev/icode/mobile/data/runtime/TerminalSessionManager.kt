@@ -53,7 +53,6 @@ internal class TerminalSessionManager private constructor(
     private val entries = linkedMapOf<String, Entry>()
     private val sessionNames = TerminalSessionNames()
     private val mainHandler = Handler(Looper.getMainLooper())
-    private val prompt = ShellPrompt(layout.rootfs)
     private var nextId = 1
 
     /** Read on [open]'s background half, written on the main thread. */
@@ -98,7 +97,7 @@ internal class TerminalSessionManager private constructor(
         if (reuseExisting) {
             withContext(Dispatchers.Main.immediate) { selectRunning(workspaceHostPath) }?.let { return it }
         }
-        val launch = withContext(Dispatchers.IO) { TerminalLaunch.prepare(layout, prompt, settings, workspaceHostPath) } ?: return null
+        val launch = withContext(Dispatchers.IO) { TerminalLaunch.prepare(layout, settings, workspaceHostPath) } ?: return null
         return withContext(Dispatchers.Main.immediate) { start(launch) }
     }
 
@@ -191,40 +190,36 @@ internal class TerminalSessionManager private constructor(
         val title = launch.title ?: sessionNames.allocate(id)
         val entry = Entry(id, launch.workspaceHostPath, TerminalSessionState(id, title, TerminalStatus.Running, follows = launch.follows), launch.follows)
         entries[id] = entry
-        if (launch.failure != null) {
-            entry.state = entry.state.copy(status = TerminalStatus.Failed, failure = launch.failure)
-        } else {
-            val session = TerminalSession(
-                launch.argv.first(),
-                layout.runtimeRoot.absolutePath,
-                launch.argv.toTypedArray(),
-                launch.environment.toTypedArray(),
-                launch.transcriptRows,
-                TerminalSessionCallbacks(
-                    context = context,
-                    cursorStyle = { settings.cursorStyle },
-                    onScreenChanged = { entries[id]?.observer?.invoke() },
-                    onFinished = { exitStatus -> finished(id, exitStatus) },
-                    onBell = { mutableBells.tryEmit(id) },
-                ),
-            )
-            // Start now rather than on the view's first layout, so a session
-            // opened from elsewhere is already running when it is shown. The
-            // view resizes it to the real window when it attaches.
-            runCatching { session.initializeEmulator(INITIAL_COLUMNS, INITIAL_ROWS, INITIAL_CELL_PX, INITIAL_CELL_PX) }
-                .onSuccess {
-                    entry.session = session
-                    // Keeps this session alive while iCode is not on screen;
-                    // the service stops by itself once no session runs.
-                    RuntimeForegroundService.ensureRunning(context)
-                }
-                .onFailure { error ->
-                    entry.state = entry.state.copy(
-                        status = TerminalStatus.Failed,
-                        failure = "Unable to start the terminal: ${error.message ?: error.javaClass.simpleName}",
-                    )
-                }
-        }
+        val session = TerminalSession(
+            launch.argv.first(),
+            layout.runtimeRoot.absolutePath,
+            launch.argv.toTypedArray(),
+            launch.environment.toTypedArray(),
+            launch.transcriptRows,
+            TerminalSessionCallbacks(
+                context = context,
+                cursorStyle = { settings.cursorStyle },
+                onScreenChanged = { entries[id]?.observer?.invoke() },
+                onFinished = { exitStatus -> finished(id, exitStatus) },
+                onBell = { mutableBells.tryEmit(id) },
+            ),
+        )
+        // Start now rather than on the view's first layout, so a session
+        // opened from elsewhere is already running when it is shown. The
+        // view resizes it to the real window when it attaches.
+        runCatching { session.initializeEmulator(INITIAL_COLUMNS, INITIAL_ROWS, INITIAL_CELL_PX, INITIAL_CELL_PX) }
+            .onSuccess {
+                entry.session = session
+                // Keeps this session alive while iCode is not on screen;
+                // the service stops by itself once no session runs.
+                RuntimeForegroundService.ensureRunning(context)
+            }
+            .onFailure { error ->
+                entry.state = entry.state.copy(
+                    status = TerminalStatus.Failed,
+                    failure = "Unable to start the terminal: ${error.message ?: error.javaClass.simpleName}",
+                )
+            }
         publish(selectedId = id)
         return id
     }

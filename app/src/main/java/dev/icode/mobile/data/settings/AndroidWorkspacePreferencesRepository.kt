@@ -59,7 +59,6 @@ class AndroidWorkspacePreferencesRepository internal constructor(
     private val keyboardSuggestionsKey = booleanPreferencesKey("editor_keyboard_suggestions")
     private val changeMarkersKey = booleanPreferencesKey("editor_change_markers")
     private val autoCloseBracketsKey = booleanPreferencesKey("editor_auto_close_brackets")
-    private val terminalShellKey = stringPreferencesKey("terminal_shell_path")
     private val terminalFontSizeKey = intPreferencesKey("terminal_font_size_sp")
     private val terminalFontFamilyKey = stringPreferencesKey("terminal_font_family")
     private val terminalScrollbackKey = intPreferencesKey("terminal_scrollback_lines")
@@ -95,7 +94,6 @@ class AndroidWorkspacePreferencesRepository internal constructor(
                 autoCloseBrackets = prefs[autoCloseBracketsKey] ?: editorDefaults.autoCloseBrackets,
             ),
             terminal = TerminalSettings(
-                shellPath = prefs[terminalShellKey]?.takeIf(TerminalSettingRules::validShellPath) ?: terminalDefaults.shellPath,
                 fontSizeSp = prefs[terminalFontSizeKey]?.takeIf { it in SettingLimits.fontSizesSp } ?: terminalDefaults.fontSizeSp,
                 fontFamily = prefs[terminalFontFamilyKey]?.let { enumOrNull<EditorFontFamily>(it) } ?: terminalDefaults.fontFamily,
                 scrollbackLines = prefs[terminalScrollbackKey]
@@ -161,11 +159,6 @@ class AndroidWorkspacePreferencesRepository internal constructor(
     override suspend fun setMinimap(enabled: Boolean) { store.edit { it[minimapKey] = enabled } }
 
     override suspend fun setBracketMatching(enabled: Boolean) { store.edit { it[bracketKey] = enabled } }
-
-    override suspend fun setTerminalShellPath(path: String) {
-        require(TerminalSettingRules.validShellPath(path)) { "Enter an absolute guest shell path" }
-        store.edit { it[terminalShellKey] = path }
-    }
 
     override suspend fun setTerminalFontSize(sizeSp: Int) {
         require(sizeSp in SettingLimits.fontSizesSp)
