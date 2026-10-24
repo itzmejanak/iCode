@@ -2,6 +2,8 @@ package dev.icode.mobile.ui.screens.entry
 
 import dev.icode.mobile.domain.LostTerminalSession
 import dev.icode.mobile.domain.ProcessEndCause
+import dev.icode.mobile.ui.lostSessionsCause
+import dev.icode.mobile.ui.lostSessionsList
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
