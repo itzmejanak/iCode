@@ -1,5 +1,6 @@
 package dev.icode.mobile.data.workspace
 
+import dev.icode.mobile.data.runtime.GuestPaths
 import dev.icode.mobile.data.storage.PhoneStorage
 import dev.icode.mobile.data.tasks.TaskRunner
 import dev.icode.mobile.domain.ItemClipboard
@@ -28,6 +29,8 @@ internal class WorkspaceItemsCoordinator(
     private val usage: WorkspaceUsage,
     private val lifecycle: WorkspaceLifecycleCoordinator,
     private val storage: PhoneStorage,
+    /** Links followed as the runtime follows them. */
+    private val paths: GuestPaths,
     private val transfers: StorageTransfers,
     private val activeRoot: () -> String?,
     /** Tree rows, Git status and recents after the worktree changed. */
@@ -251,8 +254,8 @@ internal class WorkspaceItemsCoordinator(
 
     /** Inside the workspace and outside `.git`, which belongs to Git alone. */
     private fun isCreationParent(root: String, parent: String): Boolean = runCatching {
-        val rootPath = File(root).canonicalFile.toPath()
-        val parentPath = File(parent).canonicalFile.toPath()
+        val rootPath = paths.follow(root).toPath()
+        val parentPath = paths.follow(parent).toPath()
         parentPath.startsWith(rootPath) && !rootPath.relativize(parentPath).any { it.toString() == ".git" }
     }.getOrDefault(false)
 

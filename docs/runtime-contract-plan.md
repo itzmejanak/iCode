@@ -1,6 +1,6 @@
 # Runtime Contract — one Linux environment, no iCode-made limits
 
-Status: **in progress.** RC2 built (2026-10-24); RC3–RC7 planned. The cycles are §7, the cleanup is §8, the checks are §9.
+Status: **in progress.** RC2 and RC3 built (2026-10-24); RC4–RC7 planned. The cycles are §7, the cleanup is §8, the checks are §9.
 
 The owner's problem statement (2026-10-23), in short:
 - iCode is a native Android IDE around a genuine, user-controlled Linux environment.
@@ -280,7 +280,7 @@ The guards' allowlists are re-baselined downward.
 
 | # | Step | Expect |
 |---|---|---|
-| D1 | **Before installing RC3**: in an assistant chat, `run_command` `find /workspace -mindepth 1 -maxdepth 1 ! -name <this workspace>` | Leftovers listed (F8). Move any file in one into a workspace; empty folders may stay, hidden |
+| D1 | **Before installing RC3**: in an assistant chat, `run_command` `find /workspace -mindepth 1 -maxdepth 1 ! -name <this workspace>`. After it, only from a computer: `adb shell run-as dev.icode.mobile ls -laR files/runtime/rootfs/workspace` (a debug build) | Leftovers listed (F8). Move any file in one into a workspace; empty folders may stay, hidden |
 | D2 | **Before RC6's removal**: in the terminal, in a workspace: `git -c safe.directory= status` | It succeeds (F10 on the device) |
 | D3 | After RC5: `sed -i '/^# iCode prompt$/,+1d' ~/.bashrc ~/.profile; rm ~/.icode-prompt.sh`; open a tab; install Starship per its docs; open a tab | Ubuntu's prompt (the old home has no new line), then Starship's |
 | D4 | `env \| sort` in a tab, and the same through `run_command` | The same, but for the `command` context's variables and `PWD`/`SHLVL`/`_` |

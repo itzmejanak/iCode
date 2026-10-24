@@ -23,19 +23,19 @@ internal class WorkspacePaths(val root: File) {
     fun workspaceOf(location: String): String? =
         relative(location, rootPath)?.takeIf { it.isNotEmpty() }?.let { join(rootPath, it.substringBefore('/')) }
 
-    /** [path] from [base] ("" for [base] itself), or null when it is not at or under [base]. */
-    private fun relative(path: String, base: String): String? {
-        val trimmed = path.trimEnd('/')
-        return when {
-            trimmed == base -> ""
-            trimmed.startsWith("$base/") -> trimmed.substring(base.length + 1)
-            else -> null
-        }
-    }
-
-    private fun join(base: String, relative: String) = if (relative.isEmpty()) base else "$base/$relative"
-
     companion object {
+        /** [path] from [base] ("" for [base] itself), or null when it is not at or under [base]. */
+        fun relative(path: String, base: String): String? {
+            val trimmed = path.trimEnd('/')
+            return when {
+                trimmed == base -> ""
+                trimmed.startsWith("$base/") -> trimmed.substring(base.length + 1)
+                else -> null
+            }
+        }
+
+        fun join(base: String, relative: String) = if (relative.isEmpty()) base else "$base/$relative"
+
         /** Where the workspaces are in the runtime. */
         const val GUEST_ROOT = WorkspaceRuntimePath.ROOT
 

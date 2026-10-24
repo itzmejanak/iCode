@@ -141,7 +141,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     private val recovery: DocumentRecoveryCoordinator =
         DocumentRecoveryCoordinator(stateHolder, scope, DocumentDraftStore(File(appContext.filesDir, "document-drafts"))) { location -> documents.sourceOf(location) }
     private val documents: DocumentSessionCoordinator = DocumentSessionCoordinator(
-        stateHolder, source, recovery, library, activeRoot = { session.activeRoot }, onSaved = { gitWorkspace.scheduleRefresh() },
+        stateHolder, source, recovery, library, runtimeLayout.paths, activeRoot = { session.activeRoot }, onSaved = { gitWorkspace.scheduleRefresh() },
     )
     private val session: WorkspaceSessionCoordinator = WorkspaceSessionCoordinator(
         stateHolder, scope, source, tree, library, documents, recovery, gitWorkspace, search, terminal, languages,
@@ -154,7 +154,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
         forgetSettings = { location -> settings.forgetWorkspace(location).also { assistant.workspaceForgotten(location); execution.processes.workspaceForgotten(location); runs.workspaceForgotten(location) } },
     )
     private val items = WorkspaceItemsCoordinator(
-        stateHolder, tasks, source, tree, documents, library, usage, lifecycle, phoneStorage,
+        stateHolder, tasks, source, tree, documents, library, usage, lifecycle, phoneStorage, runtimeLayout.paths,
         StorageTransfers(
             stateHolder, tasks, runtimeLayout.workspaces, git, phoneStorage,
             reserveSpace = runtimeLayout::reserveSpace,

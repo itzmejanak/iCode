@@ -55,8 +55,6 @@ internal class GuestCommand(private val layout: RuntimeLayout, private val conte
         argv: List<String>,
         stderrName: String,
         environment: Map<String, String> = emptyMap(),
-        /** A workspace's location: the command sees only it ([RuntimeLayout.prootCommand]). */
-        workspace: String? = null,
         onLine: (String) -> Boolean,
     ): Result = streamRecords(
         location = location,
@@ -64,7 +62,6 @@ internal class GuestCommand(private val layout: RuntimeLayout, private val conte
         stderrName = stderrName,
         delimiter = '\n'.code,
         environment = environment,
-        workspace = workspace,
     ) { bytes ->
         val line = String(bytes, StandardCharsets.UTF_8).removeSuffix("\r")
         onLine(line)
@@ -80,12 +77,11 @@ internal class GuestCommand(private val layout: RuntimeLayout, private val conte
         stderrName: String,
         delimiter: Int,
         environment: Map<String, String> = emptyMap(),
-        workspace: String? = null,
         onRecord: (ByteArray) -> Boolean,
     ): Result {
         require(argv.isNotEmpty()) { "A guest command needs an executable" }
         require(delimiter in 0..255) { "Record delimiter must be one byte" }
-        return run(location, argv.joinToString(" ", transform = ::shellQuote), stderrName, environment, null, workspace) { input ->
+        return run(location, argv.joinToString(" ", transform = ::shellQuote), stderrName, environment, null) { input ->
             readRecords(input, delimiter, onRecord)
         }
     }
@@ -134,8 +130,8 @@ internal class GuestCommand(private val layout: RuntimeLayout, private val conte
     }
 
     /**
-     * Starts [command] in [location] — a folder in the workspaces, or the guest
-     * home when null — with its stderr in a private guest `/tmp` file, hands
+     * Starts [command] in [location] — any folder on the phone the runtime holds, a workspace's or
+     * the root filesystem's ([GuestPaths.guestOf]), or the guest home when null — with its stderr in a private guest `/tmp` file, hands
      * stdout to [read], and always kills and reaps the process: on cancellation,
      * on [read] stopping early (it returns true) and on [read] throwing.
      */
@@ -145,10 +141,9 @@ internal class GuestCommand(private val layout: RuntimeLayout, private val conte
         stderrName: String,
         environment: Map<String, String>,
         onStderr: ((String) -> Unit)?,
-        workspace: String? = null,
         read: (InputStream) -> Boolean,
     ): Result = withContext(Dispatchers.IO) {
-        val workingDirectory = location?.let { layout.workspaces.guestOf(it) ?: throw IOException("$it is not in iCode's workspaces") }
+        val workingDirectory = location?.let { layout.paths.guestOf(it) ?: throw IOException("$it is not in the runtime") }
             ?: RuntimeLayout.GUEST_HOME
         val temp = File(layout.rootfs, "tmp").apply { mkdirs() }
         val prefix = "icode-${stderrName.replace(Regex("[^A-Za-z0-9_.-]"), "-")}-"
@@ -161,7 +156,6 @@ internal class GuestCommand(private val layout: RuntimeLayout, private val conte
                 variables = launch.variables + environment,
                 guestWorkingDirectory = workingDirectory,
                 killOnExit = true,
-                workspace = workspace,
             ),
             environment = layout.hostEnvironment(),
             workingDirectory = layout.runtimeRoot.absolutePath,
