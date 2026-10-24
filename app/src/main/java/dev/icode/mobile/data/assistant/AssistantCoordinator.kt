@@ -89,7 +89,7 @@ internal class AssistantCoordinator(
             is ICodeIntent.ChooseAssistantModel -> settings.choose(AssistantChoice(intent.provider, intent.model))
             is ICodeIntent.ChooseAssistantEffort -> settings.remember { providers.chooseEffort(intent.effort) }
             is ICodeIntent.ChooseAssistantMode -> settings.remember { providers.chooseMode(intent.mode) }
-            is ICodeIntent.SetAssistantAskFirst -> settings.remember { providers.setAskFirst(intent.ask) }
+            is ICodeIntent.SetAssistantPermission -> setPermission(intent)
             is ICodeIntent.EditAssistantProvider -> settings.edit(intent.id)
             is ICodeIntent.SaveAssistantProvider -> settings.save(intent)
             is ICodeIntent.RemoveAssistantProvider -> settings.remove(intent.id)
@@ -126,6 +126,16 @@ internal class AssistantCoordinator(
         val workspace = shown.workspace ?: activeRoot() ?: return page.say(NoticeTone.HeadsUp, "Open a workspace to ask the assistant")
         val session = shown.session?.takeIf { shown.workspace == workspace } ?: chats.newSession()
         turns.send(workspace, session, input, attachments)
+    }
+
+    /** The mode chosen in the chip: the setting, and the chat shown's, whose own answers it replaces. */
+    private fun setPermission(intent: ICodeIntent.SetAssistantPermission) {
+        settings.remember { providers.setPermission(intent.permission) }
+        val shown = page.current
+        if (shown.workspace != null && shown.session != null) {
+            chats.forgetAnswers(shown.workspace, shown.session)
+            page.refresh(shown.workspace, shown.session)
+        }
     }
 
     private fun retry() {

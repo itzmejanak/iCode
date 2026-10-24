@@ -253,8 +253,8 @@ sealed interface ICodeIntent {
     /** Null: the provider's default. */
     data class ChooseAssistantEffort(val effort: AssistantEffort?) : AssistantIntent
     data class ChooseAssistantMode(val mode: AssistantMode) : AssistantIntent
-    /** Changes and commands ask first, or run without asking. */
-    data class SetAssistantAskFirst(val ask: Boolean) : AssistantIntent
+    /** The mode, saved as the setting and for the chat shown, whose own "Allow in" answer it replaces. */
+    data class SetAssistantPermission(val permission: AssistantPermission) : AssistantIntent
     /** The last message failed before any reply: it is sent again, its files as they were. */
     data object RetryAssistantMessage : AssistantIntent
     /** A provider's settings page opens on [id]; "" for one being added. */

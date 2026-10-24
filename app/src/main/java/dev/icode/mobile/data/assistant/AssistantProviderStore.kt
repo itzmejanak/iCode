@@ -8,6 +8,7 @@ import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantEffort
 import dev.icode.mobile.domain.AssistantMode
 import dev.icode.mobile.domain.AssistantModelSpec
+import dev.icode.mobile.domain.AssistantPermission
 import dev.icode.mobile.domain.AssistantProviderKind
 import java.util.UUID
 import org.json.JSONArray
@@ -27,7 +28,7 @@ internal data class StoredProvider(
 internal data class StoredSettings(
     val providers: List<StoredProvider> = emptyList(),
     val choice: AssistantChoice? = null,
-    val askBeforeChanges: Boolean = true,
+    val permission: AssistantPermission = AssistantPermission.AskFirst,
     val effort: AssistantEffort? = null,
     val mode: AssistantMode = AssistantMode.Code,
     /** The model that writes commit messages, while it is listed; null: the chat's. */
@@ -60,7 +61,7 @@ internal interface AssistantProviderStore {
 
     fun chooseMode(mode: AssistantMode)
 
-    fun setAskFirst(ask: Boolean)
+    fun setPermission(permission: AssistantPermission)
 
     /** Where [provider] is, with its key decrypted; null when it is gone. */
     fun connection(provider: String): AssistantConnection?
@@ -88,7 +89,8 @@ internal class SharedPreferencesAssistantProviderStore(
             choice = preferences.getString(KEY_CHOICE_PROVIDER, null)?.let { provider ->
                 preferences.getString(KEY_CHOICE_MODEL, null)?.let { AssistantChoice(provider, it) }
             },
-            askBeforeChanges = preferences.getBoolean(KEY_ASK, true),
+            permission = preferences.getString(KEY_PERMISSION, null)
+                ?.let { name -> AssistantPermission.entries.firstOrNull { it.name == name } } ?: AssistantPermission.AskFirst,
             effort = preferences.getString(KEY_EFFORT, null)?.let { name -> AssistantEffort.entries.firstOrNull { it.name == name } },
             mode = preferences.getString(KEY_MODE, null)?.let { name ->
                 // "Agent" was renamed to Code in 2026-10; a saved "Agent" reads as Code.
@@ -167,8 +169,8 @@ internal class SharedPreferencesAssistantProviderStore(
         preferences.commitOrFail("Unable to save the assistant's settings") { putString(KEY_MODE, mode.name) }
     }
 
-    override fun setAskFirst(ask: Boolean) {
-        preferences.commitOrFail("Unable to save the assistant's settings") { putBoolean(KEY_ASK, ask) }
+    override fun setPermission(permission: AssistantPermission) {
+        preferences.commitOrFail("Unable to save the assistant's settings") { putString(KEY_PERMISSION, permission.name) }
     }
 
     /** A key this device can no longer decrypt is removed: the provider's refusal then asks for it again. */
@@ -261,7 +263,7 @@ internal class SharedPreferencesAssistantProviderStore(
         const val KEY_CHOICE_MODEL = "choice.model"
         const val KEY_COMMIT_PROVIDER = "commit.provider"
         const val KEY_COMMIT_MODEL = "commit.model"
-        const val KEY_ASK = "ask_before_changes"
+        const val KEY_PERMISSION = "permission"
         const val KEY_EFFORT = "effort"
         const val KEY_MODE = "mode"
     }

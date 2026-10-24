@@ -9,6 +9,7 @@ import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.domain.AssistantResult
 import dev.icode.mobile.domain.AssistantToolKind
 import dev.icode.mobile.domain.LineChanges
+import java.io.File
 import org.json.JSONObject
 
 /**
@@ -114,6 +115,12 @@ internal interface AssistantTool {
 
     /** The command line [arguments] run, whole, for the page to show; null for a tool that runs none. Never throws. */
     fun command(arguments: JSONObject): String? = null
+
+    /**
+     * The files and folders [arguments] reach, as the runtime follows them: what the gate checks
+     * against the chat's workspace (docs/assistant-permissions-plan.md §4.2). Never throws.
+     */
+    fun reach(arguments: JSONObject): List<File> = emptyList()
 
     /** What the model reads back. A refusal is an [AssistantToolException]. */
     suspend fun run(arguments: JSONObject): String

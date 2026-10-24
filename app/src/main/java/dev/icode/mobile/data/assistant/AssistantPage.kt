@@ -32,12 +32,12 @@ internal class AssistantPage(
     /** [session] of [workspace] open; null for a new chat. */
     fun display(workspace: String, session: String?, sessions: List<AssistantSession> = chats.sessions(workspace)) {
         val chat = session?.let { chats.of(workspace, it) } ?: AssistantChat()
-        val allowAll = session != null && chats.allowsAll(workspace, session)
+        val allowed = session != null && chats.allowedInWorkspace(workspace, session)
         state {
             val same = it.workspace == workspace && it.session == session
             it.copy(
                 workspace = workspace, sessions = sessions, session = session, messages = chat.messages,
-                contextTokens = chat.contextTokens, allowAll = allowAll, failure = if (same) it.failure else null,
+                contextTokens = chat.contextTokens, allowedInWorkspace = allowed, failure = if (same) it.failure else null,
             )
         }
     }
@@ -48,11 +48,11 @@ internal class AssistantPage(
      */
     fun refresh(workspace: String, session: String, recorded: Boolean = false) {
         val chat = chats.of(workspace, session)
-        val allowAll = chats.allowsAll(workspace, session)
+        val allowed = chats.allowedInWorkspace(workspace, session)
         state {
             val turn = if (recorded) it.turn?.copy(live = null) else it.turn
             if (it.workspace != workspace || it.session != session) it.copy(turn = turn)
-            else it.copy(messages = chat.messages, contextTokens = chat.contextTokens, allowAll = allowAll, turn = turn)
+            else it.copy(messages = chat.messages, contextTokens = chat.contextTokens, allowedInWorkspace = allowed, turn = turn)
         }
     }
 
@@ -65,7 +65,7 @@ internal class AssistantPage(
     /** [workspace] was deleted: nothing of it stays on the page. */
     fun forgotten(workspace: String) = state {
         if (it.workspace != workspace) it
-        else it.copy(workspace = null, sessions = emptyList(), session = null, messages = emptyList(), contextTokens = null, allowAll = false)
+        else it.copy(workspace = null, sessions = emptyList(), session = null, messages = emptyList(), contextTokens = null, allowedInWorkspace = false)
     }
 
     fun state(change: (AssistantState) -> AssistantState) = stateHolder.update { it.copy(assistant = change(it.assistant)) }

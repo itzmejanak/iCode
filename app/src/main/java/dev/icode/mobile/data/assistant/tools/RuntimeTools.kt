@@ -7,6 +7,7 @@ import dev.icode.mobile.data.assistant.AssistantToolException
 import dev.icode.mobile.data.git.CliGitService
 import dev.icode.mobile.domain.AssistantToolKind
 import dev.icode.mobile.domain.ProcessRules
+import java.io.File
 import org.json.JSONObject
 
 // What runs in the Linux runtime for the assistant (§4.3): Git's read-only views without asking,
@@ -32,6 +33,8 @@ internal class GitReadTool(
 
     override fun summary(arguments: JSONObject): String =
         (if (diff) "Git diff" else "Git status") + (arguments.textOrNull("path")?.let { " $it" } ?: "")
+
+    override fun reach(arguments: JSONObject): List<File> = workspace.reach(arguments.textOrNull("path"))
 
     override suspend fun run(arguments: JSONObject): String {
         if (!git.isAvailable()) throw AssistantToolException("Git is not installed in the runtime; it installs from Source Control")
@@ -85,6 +88,8 @@ internal class RunCommandTool(
     override fun summary(arguments: JSONObject): String = "Run `${arguments.textOrNull("command").orEmpty().lineSequence().first()}`"
 
     override fun command(arguments: JSONObject): String? = arguments.textOrNull("command")
+
+    override fun reach(arguments: JSONObject): List<File> = arguments.textOrNull("command")?.let { shell.reach(workspace, chat, it) }.orEmpty()
 
     override fun detail(arguments: JSONObject): String = arguments.textOrNull("command").orEmpty()
 

@@ -33,6 +33,8 @@ internal class ListFilesTool(
     override fun summary(arguments: JSONObject): String =
         "List ${arguments.textOrNull("path") ?: "."}" + if (arguments.flag("recursive")) ", all files" else ""
 
+    override fun reach(arguments: JSONObject): List<File> = workspace.reach(arguments.textOrNull("path"))
+
     override suspend fun run(arguments: JSONObject): String {
         val folder = workspace.existingFolder(arguments.textOrNull("path") ?: ".")
         val (names, cut) = if (arguments.flag("recursive")) everything(folder, arguments.flag("ignored")) else entries(folder) to false
@@ -83,6 +85,8 @@ internal class ReadFileTool(
     override fun file(arguments: JSONObject): String? =
         arguments.textOrNull("path")?.let { path -> runCatching { workspace.relative(workspace.resolve(path)) }.getOrNull() }
 
+    override fun reach(arguments: JSONObject): List<File> = workspace.reach(arguments.textOrNull("path"))
+
     override suspend fun run(arguments: JSONObject): String {
         val path = arguments.text("path")
         val file = workspace.existingFile(path)
@@ -130,6 +134,8 @@ internal class SearchTextTool(
 
     override fun summary(arguments: JSONObject): String =
         "Search “${arguments.textOrNull("query").orEmpty()}”" + (arguments.textOrNull("path")?.let { " in $it" } ?: "")
+
+    override fun reach(arguments: JSONObject): List<File> = workspace.reach(arguments.textOrNull("path"))
 
     override suspend fun run(arguments: JSONObject): String {
         val query = arguments.text("query").ifEmpty { throw AssistantToolException("The query is empty") }

@@ -62,7 +62,7 @@ None of these come from Linux, Android or PRoot.
 | A9 | A missing path and a folder both read "is not a file" | `WorkspaceReadTools.kt:36,82` |
 
 What the assistant keeps, because none of it limits what it can do:
-- **Approvals:** every change and command is asked first, unless the user chose "Allow all changes".
+- **Approvals:** every change and command is asked first, unless the user chose otherwise. Since 2026-10-24, reaching outside the chat's workspace is asked too, in every mode but Full access ([assistant-permissions-plan.md](./assistant-permissions-plan.md)): one more question, not a fence.
 - **The user's modes:** Ask and Plan, chosen by the user.
 - **The unsaved-edits check:** it protects the user's unsaved text, and the model is told to ask.
 - **Output windows:** `read_file` pages by `start_line`; a long output keeps its head and tail, with the whole in the step's Copy; a list or search says what it left out.

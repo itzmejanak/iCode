@@ -36,7 +36,7 @@ internal class AssistantProviders(
                 AssistantProvider(provider.id, provider.kind, provider.name, provider.baseUrl, provider.hasKey, provider.models.map { engine.model(provider.kind, it) })
             },
             choice = stored.choice,
-            askBeforeChanges = stored.askBeforeChanges,
+            permission = stored.permission,
             effort = stored.effort,
             mode = stored.mode,
             commitChoice = stored.commitChoice,

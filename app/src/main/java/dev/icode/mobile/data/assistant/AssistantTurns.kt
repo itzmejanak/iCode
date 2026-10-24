@@ -6,12 +6,16 @@ import dev.icode.mobile.data.runtime.GuestPaths
 import dev.icode.mobile.data.workspace.WorkspaceRoot
 import dev.icode.mobile.domain.AssistantAnswer
 import dev.icode.mobile.domain.AssistantApproval
+import dev.icode.mobile.domain.AssistantAsk
 import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantHistory
 import dev.icode.mobile.domain.AssistantLive
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantMode
 import dev.icode.mobile.domain.AssistantModel
+import dev.icode.mobile.domain.AssistantPermission
+import dev.icode.mobile.domain.AssistantPermissions
+import dev.icode.mobile.domain.AssistantReach
 import dev.icode.mobile.domain.AssistantResult
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantSettings
@@ -115,6 +119,9 @@ internal class AssistantTurns(
 
     /** A turn in [session] of [workspace], and the events of its engine. */
     private inner class Turn(val workspace: String, val session: String) : AssistantEvents {
+        /** This chat's mode now: the setting, raised by its own answers. */
+        fun permission(): AssistantPermission = AssistantPermissions.effective(settings().permission, chats.allowedInWorkspace(workspace, session))
+
         suspend fun run(work: suspend Turn.() -> Unit) {
             var failure: String? = null
             try {
@@ -172,10 +179,10 @@ internal class AssistantTurns(
                 connection = setup.connection,
                 model = setup.model,
                 effort = AssistantRules.effortFor(setup.settings.effort, setup.model),
-                instructions = AssistantInstructions.of(setup.place, setup.settings.mode, history.summary),
+                instructions = AssistantInstructions.of(setup.place, setup.settings.mode, permission(), history.summary),
                 history = history.messages,
                 input = message,
-                tools = offered.map { Asking(it, this) },
+                tools = offered.map { Asking(it, this, setup.place) },
                 maxSteps = MAX_STEPS,
             )
             runWithRetry { attempt ->
@@ -190,7 +197,7 @@ internal class AssistantTurns(
         /** [history] summarized by the model and marked in the chat. */
         suspend fun compact(setup: Setup, history: AssistantHistory) =
             AssistantRetries.retryable(COMPACTING, step = ::step) {
-                val instructions = AssistantInstructions.of(setup.place, setup.settings.mode, history.summary)
+                val instructions = AssistantInstructions.of(setup.place, setup.settings.mode, permission(), history.summary)
                 chats.compacted(workspace, session, engine.compact(setup.connection, setup.model, instructions, history.messages))
                 page.refresh(workspace, session)
             }
@@ -240,22 +247,25 @@ internal class AssistantTurns(
         private fun step(text: String) = page.state { it.copy(turn = it.turn?.copy(step = text)) }
     }
 
-    /** A tool that asks first when it changes something or runs a command (§4.4). */
-    private inner class Asking(private val tool: AssistantTool, private val turn: Turn) : AssistantTool by tool {
+    /**
+     * The gate every call passes (docs/assistant-permissions-plan.md §5): what it reaches outside the
+     * chat's workspace, less what the chat opened, and the chat's mode decide whether it asks, once.
+     */
+    private inner class Asking(private val tool: AssistantTool, private val turn: Turn, private val place: AssistantWorkspace) : AssistantTool by tool {
         override suspend fun run(arguments: JSONObject): String {
-            val asks = tool.kind != AssistantToolKind.Read &&
-                page.current.settings.askBeforeChanges && !chats.allowsAll(turn.workspace, turn.session)
-            if (asks) {
+            val opened = chats.roots(turn.workspace, turn.session)
+            val outside = place.outside(tool.reach(arguments)).filterNot { path -> opened.any { AssistantPermissions.within(path, it) } }
+            val asks = AssistantPermissions.ask(turn.permission(), tool.kind, outside.isNotEmpty())
+            if (asks != null) {
                 val call = synchronized(lock) { calling } ?: throw AssistantToolException("Nothing to ask about")
-                when (ask(call, tool.detail(arguments))) {
+                val reach = if (asks == AssistantAsk.Outside) AssistantReach(outside, outside.mapNotNull(place::rootOf).distinct()) else null
+                when (ask(call, tool.detail(arguments), reach)) {
                     AssistantAnswer.Allow -> Unit
-                    AssistantAnswer.AllowAll -> {
-                        chats.allowAll(turn.workspace, turn.session)
+                    AssistantAnswer.AllowInChat -> {
+                        if (reach != null) chats.open(turn.workspace, turn.session, reach.roots) else chats.allowInWorkspace(turn.workspace, turn.session)
                         page.refresh(turn.workspace, turn.session)
                     }
-                    AssistantAnswer.Deny -> throw AssistantToolException(
-                        if (tool.kind == AssistantToolKind.Command) "The user did not allow this command" else "The user did not allow this change",
-                    )
+                    AssistantAnswer.Deny -> throw AssistantToolException(AssistantPermissions.denied(asks, outside))
                 }
             }
             return tool.run(arguments).also {
@@ -265,10 +275,10 @@ internal class AssistantTurns(
             }
         }
 
-        private suspend fun ask(call: AssistantCall, detail: String): AssistantAnswer {
+        private suspend fun ask(call: AssistantCall, detail: String, reach: AssistantReach?): AssistantAnswer {
             val answer = CompletableDeferred<AssistantAnswer>()
             synchronized(lock) { pending = answer }
-            page.state { it.copy(approval = AssistantApproval(call, detail), turn = it.turn?.copy(step = WAITING)) }
+            page.state { it.copy(approval = AssistantApproval(call, detail, reach), turn = it.turn?.copy(step = WAITING)) }
             try {
                 return answer.await()
             } finally {

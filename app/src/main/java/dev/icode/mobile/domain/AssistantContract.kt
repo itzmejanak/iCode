@@ -98,8 +98,8 @@ data class AssistantSettings(
     val providers: List<AssistantProvider> = emptyList(),
     /** Null until a provider has a model. */
     val choice: AssistantChoice? = null,
-    /** Changes and commands wait for an answer (on by default): the chat page's permissions. */
-    val askBeforeChanges: Boolean = true,
+    /** What runs without asking, every chat's to start with (docs/assistant-permissions-plan.md §4.1). */
+    val permission: AssistantPermission = AssistantPermission.AskFirst,
     /** Null: the provider's default ("Auto"). */
     val effort: AssistantEffort? = null,
     val mode: AssistantMode = AssistantMode.Code,
@@ -197,14 +197,21 @@ sealed interface AssistantMessage {
     data class Compacted(val summary: String) : AssistantMessage
 }
 
-/** A change or a command waiting for the user. */
+/** A call waiting for the user: a change, a command, or a reach outside the workspace. */
 data class AssistantApproval(
     val call: AssistantCall,
     /** What it will do, in full enough to judge: the command, or the file and the text it replaces. */
     val detail: String,
+    /** What it reaches outside the chat's workspace; null when it asks as a change or a command only. */
+    val reach: AssistantReach? = null,
 )
 
-enum class AssistantAnswer { Allow, AllowAll, Deny }
+/**
+ * The user's answer to an approval. [AllowInChat] opens, for this chat until iCode closes, the
+ * [AssistantReach.roots] of an outside call, or the chat's workspace (Auto in workspace) for a
+ * change or a command (docs/assistant-permissions-plan.md §4.3).
+ */
+enum class AssistantAnswer { Allow, AllowInChat, Deny }
 
 /** The turn in hand: one at a time, in the chat it started in. */
 data class AssistantTurn(
@@ -243,14 +250,17 @@ data class AssistantState(
     val contextTokens: Long? = null,
     val turn: AssistantTurn? = null,
     val approval: AssistantApproval? = null,
-    /** "Allow All in This Chat" was answered: this chat's changes and commands no longer ask. */
-    val allowAll: Boolean = false,
+    /** The chat shown answered "Allow in" its workspace: it runs as Auto in workspace until iCode closes. */
+    val allowedInWorkspace: Boolean = false,
     /** Why the last turn stopped short; the next one clears it. */
     val failure: String? = null,
     /** A commit message being written, or written and not yet in the commit field. */
     val commitMessage: AssistantCommitMessage? = null,
 ) {
     val running: Boolean get() = turn != null
+
+    /** The chat shown's mode: the setting, raised by its own answers. */
+    val permission: AssistantPermission get() = AssistantPermissions.effective(settings.permission, allowedInWorkspace)
 
     /** The turn in hand belongs to the chat shown, not to another one. */
     val runningHere: Boolean get() = turn != null && turn.workspace == workspace && turn.session == session

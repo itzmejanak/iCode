@@ -173,7 +173,7 @@ internal fun AssistantChatView(state: AssistantState, modifier: Modifier, onSugg
         }
         state.approval?.takeIf { state.runningHere }?.let { approval ->
             // Its gap to the composer is the composer's own top padding: one, not two.
-            AssistantApprovalCard(approval, Modifier.padding(start = IcodeSpacing.Space3, end = IcodeSpacing.Space3, top = IcodeSpacing.Space2)) { answer ->
+            AssistantApprovalCard(approval, AssistantRules.workspaceName(state.workspace.orEmpty()), Modifier.padding(start = IcodeSpacing.Space3, end = IcodeSpacing.Space3, top = IcodeSpacing.Space2)) { answer ->
                 gateway.dispatch(ICodeIntent.AnswerAssistant(approval.call.id, answer))
             }
         }
@@ -226,7 +226,7 @@ private fun AssistantWelcome(state: AssistantState, modifier: Modifier, onSugges
                     asking -> "It reads this workspace to answer, and changes nothing."
                     planning -> "It reads everything to understand and plan. It never changes files or runs commands."
                     orchestrating -> "It plans, implements and verifies step by step, reporting what it did."
-                    else -> "It reads and changes $workspace's files and runs commands in its terminal${if (state.settings.askBeforeChanges) ", asking first" else ""}."
+                    else -> "It reads and changes $workspace's files and runs commands in its terminal. ${permissionLine(state.permission, workspace)}."
                 },
                 mark = { IcodeBrandMark(Modifier.size(IcodeSizes.MarkLg)) },
             )

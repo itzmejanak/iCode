@@ -92,6 +92,18 @@ class AssistantShellTest {
         assertTrue(scripts[2].startsWith("cd -- '/workspace/app' || exit 1"))
     }
 
+    @Test fun `a command reaches where it starts and what it names, from there`() {
+        File(rootfs, "root/projects").mkdirs()
+        assertEquals(listOf(File(runtime.workspaces, "app")), shell.reach(workspace, "chat-1", "npm test"))
+        assertEquals(
+            listOf(File(runtime.workspaces, "app"), File(rootfs, "etc/hosts"), File(runtime.workspaces, "portofolio"), File(rootfs, "root/notes")),
+            shell.reach(workspace, "chat-1", "cat /etc/hosts ../portofolio ~/notes"),
+        )
+        next = { 0 to "/root/projects" }
+        command("cd /root/projects")
+        assertEquals(listOf(File(rootfs, "root/projects"), File(rootfs, "root/projects/src")), shell.reach(workspace, "chat-1", "ls ./src"))
+    }
+
     @Test fun `a status is said in words, a command not found with the PATH searched`() {
         next = { 127 to "/workspace/app" }
         stderr = "bash: line 3: uvicorn: command not found"
