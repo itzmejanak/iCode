@@ -1,5 +1,6 @@
 package dev.icode.mobile.data.android
 
+import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.domain.RuntimeTools
 
 /**
@@ -16,8 +17,8 @@ import dev.icode.mobile.domain.RuntimeTools
  *   plugin would download Google's: built for x86-64, hundreds of megabytes that cannot run.
  */
 internal object GradleSettings {
-    const val BEGIN = "# >>> iCode: Android SDK (Settings › Runtime Tools), removed with it >>>"
-    const val END = "# <<< iCode: Android SDK <<<"
+    const val BEGIN = "# >>> ${RuntimeLayout.MANAGED} Android SDK (Settings › Runtime Tools), removed with it >>>"
+    const val END = "# <<< ${RuntimeLayout.MANAGED} Android SDK <<<"
 
     /** The block, with the heap [heapMegabytes] sets. */
     fun block(heapMegabytes: Int): String = listOf(
@@ -57,7 +58,7 @@ internal object GradleSettings {
      * x86-64 one, fetched by a build before, does not.
      */
     val INIT_SCRIPT = """
-        // iCode: Android SDK (Settings › Runtime Tools), removed with it. An Android module that names
+        // ${RuntimeLayout.MANAGED} Android SDK (Settings › Runtime Tools), removed with it. An Android module that names
         // no build tools uses ${AndroidSdk.BUILD_TOOLS}, whose host programs run on ARM64, and one with C or C++
         // that names no CMake uses ${RuntimeTools.CMAKE_VERSION}. One whose NDK or CMake is not installed here
         // for ARM64 stops before the Android Gradle plugin downloads Google's, built for x86-64 only.

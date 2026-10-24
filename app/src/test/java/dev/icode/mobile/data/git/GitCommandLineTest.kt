@@ -50,11 +50,9 @@ class GitCommandLineTest {
     }
 
     @Test
-    fun `dubious ownership is waived for the bound workspace`() {
-        // Without this Git refuses every command with "detected dubious
-        // ownership", because the workspace is an Android directory whose
-        // owner can never match the guest's fake root.
-        assertTrue("safe.directory=*" in GitCommandLine.argv(listOf("status")))
+    fun `no ownership check is waived - under PRoot's fake root every repository is root's own`() {
+        // docs/runtime-contract-plan.md F10: the user's Git configuration decides, as on any Linux.
+        assertTrue(GitCommandLine.argv(listOf("status")).none { it.startsWith("safe.directory") })
     }
 
     @Test

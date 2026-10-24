@@ -32,9 +32,6 @@ internal class CliGitService(
     /** A location for a path Git reported inside the runtime; null when it is not in the workspaces. */
     fun locationOf(guestPath: String): String? = layout.workspaces.locationOf(guestPath)
 
-    @Volatile
-    private var configuredSafeDirectory = false
-
     /** [profileFailure]: why Git ran without the user's profile, its hooks and helpers with it. */
     data class CommandResult(val exitCode: Int, val stdout: String, val stderr: String, val profileFailure: String? = null) {
         val succeeded: Boolean get() = exitCode == 0
@@ -69,32 +66,6 @@ internal class CliGitService(
     /** True once `git` is present in the guest; false until it is provisioned. */
     suspend fun isAvailable(): Boolean =
         layout.isInstalled && packages.isInstalled(RuntimeTools.Git)
-
-    /**
-     * Records the workspace exception in the guest's own Git configuration.
-     *
-     * Our commands pass `-c safe.directory=*` themselves, but the user's
-     * terminal does not — without this, running `git status` by hand in the
-     * workspace fails with "detected dubious ownership". The workspace is a
-     * bound Android directory whose owner can never match the guest's root, so
-     * the exception is a property of this environment, not a per-command flag.
-     */
-    suspend fun ensureSafeDirectoryConfigured() {
-        if (configuredSafeDirectory) return
-        val marker = File(layout.rootfs, SAFE_DIRECTORY_MARKER)
-        if (marker.isFile) {
-            configuredSafeDirectory = true
-            return
-        }
-        val applied = runScript(null, "git config --global --add safe.directory '*'").succeeded
-        if (applied) {
-            runCatching {
-                marker.parentFile?.mkdirs()
-                marker.writeText("configured")
-            }
-            configuredSafeDirectory = true
-        }
-    }
 
     /**
      * The folder Git runs in for [workspacePath]: the top of the repository
@@ -226,7 +197,6 @@ internal class CliGitService(
         /** Index versions read or staged, each call under a name of its own beside it. */
         const val INDEX_SCRATCH_RELATIVE = "tmp/icode-index"
 
-        const val SAFE_DIRECTORY_MARKER = "root/.icode-git-configured"
         val EXPLANATORY_PREFIXES = listOf("fatal:", "error:")
         val EXPLANATORY_PHRASES = listOf("Permission denied", "Authentication failed", "could not read")
     }

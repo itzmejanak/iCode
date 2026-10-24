@@ -42,7 +42,7 @@ internal object GuestGpg {
      */
     fun script(requests: String): String = listOf(
         "#!/bin/sh",
-        "# Installed by iCode (docs/gpg-signing-plan.md), under two names.",
+        "# ${RuntimeLayout.MANAGED} under two names (docs/gpg-signing-plan.md).",
         "# icode-pinentry: gpg-agent's pinentry; it asks for a passphrase, or a yes or",
         "#   no, in iCode's own dialog.",
         "# icode-gpg-agent: gpg's agent program; it has iCode start gpg-agent in a",
@@ -118,13 +118,13 @@ internal object GuestGpg {
     ).joinToString("\n", postfix = "\n")
 
     private val GPG_CONF = """
-        # Installed by iCode. With no gpg-agent running, gpg has iCode start one in a session of
+        # ${RuntimeLayout.MANAGED} with no gpg-agent running, gpg has iCode start one in a session of
         # its own, where it outlives the command that needed it. ~/.gnupg/gpg.conf overrides this.
         agent-program $AGENT_PROGRAM
     """.trimIndent() + "\n"
 
     private val AGENT_CONF = """
-        # Installed by iCode. A passphrase is asked in iCode's own dialog, and kept until 30 minutes
+        # ${RuntimeLayout.MANAGED} a passphrase is asked in iCode's own dialog, and kept until 30 minutes
         # after it was last used (2 hours at most, gpg-agent's max-cache-ttl).
         # ~/.gnupg/gpg-agent.conf overrides these.
         pinentry-program $PINENTRY

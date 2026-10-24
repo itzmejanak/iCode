@@ -36,6 +36,12 @@ internal class RuntimeCoordinator(
     /** Whether an install, repair or reset is running now. */
     val installing: Boolean get() = installJob?.isActive == true
 
+    /** At iCode's start: its own files in an installed runtime brought to this build ([RuntimeLayout.writeOwnFiles]), then the state. */
+    fun start() {
+        if (layout.isInstalled) layout.writeOwnFiles()
+        reportState()
+    }
+
     /** Publishes what is actually on disk; never claims readiness it has not checked. */
     fun reportState() {
         val preservedHome = RuntimeHomeBackup(layout.rootfs, layout.runtimeRoot).hasPreservedHome

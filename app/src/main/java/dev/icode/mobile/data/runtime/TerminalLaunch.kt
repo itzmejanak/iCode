@@ -23,7 +23,6 @@ internal class TerminalLaunch private constructor(
             if (!layout.isInstalled) return null
             // The ids can change when Android reassigns the app's gids.
             layout.ensureGuestGroups()
-            ShellPrompt.write(layout.rootfs)
             val shell = layout.loginShell()
             val argv = layout.prootCommand(
                 guestCommand = shellCommand(layout.recordedShell(), shell),

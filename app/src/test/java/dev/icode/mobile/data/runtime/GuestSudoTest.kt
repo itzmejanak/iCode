@@ -15,14 +15,33 @@ import org.junit.Test
  */
 class GuestSudoTest {
 
+    private lateinit var root: File
     private lateinit var sudo: File
+
+    /** Where a real `sudo` would be: in this test's tree, never this machine's own. */
+    private val installed get() = File(root, "usr/bin/sudo")
 
     @Before
     fun install() {
         assumeTrue("needs a POSIX shell", File(SH).canExecute())
-        val root = Files.createTempDirectory("guest-sudo").toFile().apply { deleteOnExit() }
+        root = Files.createTempDirectory("guest-sudo").toFile().apply { deleteOnExit() }
+        sudo = File(root, GuestSudo.RELATIVE_PATH).apply { parentFile.mkdirs(); writeText(GuestSudo.script(installed.path)) }
+    }
+
+    @Test
+    fun `install writes the stand-in, which says it is iCode's and defers to apt's sudo`() {
         GuestSudo.install(root)
-        sudo = File(root, GuestSudo.RELATIVE_PATH)
+        val lines = sudo.readLines()
+        assertEquals("#!/bin/sh", lines[0])
+        assertTrue(lines[1], lines[1].startsWith("# ${RuntimeLayout.MANAGED} "))
+        assertTrue(sudo.canExecute())
+        assertTrue("[ -x '/usr/bin/sudo' ] && exec '/usr/bin/sudo' \"\$@\"" in lines)
+    }
+
+    @Test
+    fun `a sudo installed with apt runs instead, given every argument`() {
+        installed.apply { parentFile.mkdirs(); writeText("#!/bin/sh\necho \"real: \$*\"\n"); setExecutable(true) }
+        assertEquals(Run(0, "real: -u root -E echo hi\n", ""), run("-u", "root", "-E", "echo", "hi"))
     }
 
     private data class Run(val code: Int, val out: String, val err: String)
