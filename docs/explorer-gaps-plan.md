@@ -14,7 +14,8 @@ Nineteen problem statements, in six groups:
 - **Clipboard and transfer:** a direct "Move to…", Duplicate, and a choice when a paste meets a name
   already there.
 - **File information:** a Properties screen, and storage analysis (largest files, duplicates, space
-  by category).
+  by category). The owner then asked for a page to manage storage: Trash and each type of file,
+  each listed on its own (§3.10).
 - **View and display:** a grid view, a hidden-files switch, sorting by type. Note: "we can do it from
   application setting into storage ensuring that the storage page compact and clean new design
   removing unnecessary things keeping what really matters".
@@ -259,8 +260,9 @@ sheet on the same base (§3.1), for each item whose name is taken: the two side 
   - when it was deleted;
   - whether it is a folder, and its size;
   - whether it was a workspace.
-- **The Trash view** lists both places' items, newest first: the name, where it was, how long ago,
-  and the size.
+- **The Trash view** is one of the explorer's views (§3.10). It lists both places' items, newest
+  first: the name, where it was, how long ago, and the size. It opens from ▾, from Manage storage,
+  and from Settings › Storage.
   - A tap opens the item's sheet: Restore, Delete permanently, Properties.
   - Selection works as everywhere: Restore and Delete permanently, for many.
   - Its top bar has Empty Trash.
@@ -338,23 +340,100 @@ sheet on the same base (§3.1), for each item whose name is taken: the two side 
 - It is the action sheet's Properties page (§3.1), with ← back to the actions; from Trash and Recent
   too. Its rows are `DetailRow`s.
 
-### 3.10 Storage analysis
+### 3.10 Manage storage, and the explorer's views (owner, 2026-10-27)
 
-- **A page.** It opens from Settings › Storage (Analyze storage) and from the explorer's ⋮ (Analyze
-  this folder). It works on the folder shown, or a place's top.
-- **One walk:** links not followed, `.git` counted (it takes space). It shows "Scanned 12,340 files"
-  as it goes, and stops when the page is left. The result stays until the next run.
-- **What it shows:**
-  - The total, and a bar of **space by category**, with a legend: Images, Videos, Audio, Documents,
-    Archives, Apps, Code, Other.
-    - The categories come from one domain table, built on `FileTypes`, by extension. The archive
-      formats there are the ones Extract reads (§3.11).
-    - Their colours are design-system tokens.
-  - **The largest files,** the first 20. A tap shows the file in its folder, ticked.
-  - **Duplicates:** files of the same size, then the same SHA-256 (`hexDigestOf`), grouped, with the
-    space the extra copies take.
-    - A group opens its copies, to tick some and Delete them, to Trash.
-    - `.git` is left out: it is Git's.
+The owner, after the plan: "design the page for manage storage where user can see trash list and all
+and each type individually maintaining file explorer consistency and better consistent ui/ux and
+ensuring best user experience and application behavior".
+
+**The explorer's views.** The explorer shows a folder, or one of these lists of files gathered from
+anywhere. Each view is the explorer itself, not a page of its own.
+
+| View | What it lists |
+|---|---|
+| **Recent** | the files opened in iCode (§3.14) |
+| **Trash** | what was deleted, from both places (§3.7) |
+| **A category** | every file of one kind: Images, Videos, Audio, Documents, Archives, Apps, Code, Other |
+| **Largest files** | the 100 largest, the largest first |
+| **Duplicates** | files with the same contents, in groups |
+
+- **The same as a folder:**
+  - its rows and tiles;
+  - the ☰ panel's views and sorts (§3.12), so Images and Videos can be a grid of thumbnails;
+  - 🔍;
+  - selection and its bars;
+  - the action sheet;
+  - the floating stack.
+- **Different from a folder,** because a view gathers files from many folders:
+  - **Its title** is the view's name. Its subtitle says where it looked, and how much it found
+    ("All · 1,204 files · 3.2 GB").
+  - **Each row's detail** is the folder the file is in, with its size.
+  - **Not shown:** `..`, the +, the breadcrumb and the paste bar. Nothing is made or pasted into a
+    view.
+  - **The action sheet adds Show in folder,** which opens the folder with the file ticked.
+- **Each view keeps its own sort and view.** Categories open sorted by size; Images and Videos open
+  as a grid; Recent and Trash open newest first. Changing one is kept for that view only.
+- **Duplicates** shows each group under a label ("3 copies · 24 MB each"), the oldest first.
+  - Its ⋮ adds **Select extra copies**: every copy but the oldest in each group, ready to Delete.
+- **Trash** keeps §3.7's own actions: Restore and Delete permanently, and Empty Trash in its top bar.
+- **They update with iCode's own changes.** A file deleted, moved or renamed in iCode leaves or
+  changes its rows at once. A change made elsewhere (the terminal, another app) shows after ↻ on
+  Manage storage.
+
+**The Manage storage page:**
+
+```
+ ←  Manage storage                                   ↻
+    [  All  |  Private  |  Shared  ]
+    [█████████████▒▒▒▒▒▒▒░░░░░]
+    9.4 GB in 12,340 files                    Scanned now
+ CATEGORIES
+  ▣ Images        1,204 files      3.2 GB  ›
+  ▶ Videos           48 files      2.4 GB  ›
+  ♪ Audio           310 files      1.1 GB  ›
+  ▤ Documents       220 files      340 MB  ›
+  ▥ Archives         35 files      2.0 GB  ›
+  ▦ Apps             12 files      800 MB  ›
+  ⟨⟩ Code         8,000 files      600 MB  ›
+  ⋯ Other         2,100 files      1.5 GB  ›
+    Git history (.git)             700 MB
+ CLEAN UP
+  ⇣ Largest files                  9.8 GB  ›
+  ⧉ Duplicates    14 groups   1.2 GB extra  ›
+  🗑 Trash          23 items       120 MB  ›
+```
+
+- **Where it opens:**
+  - Settings › Storage (Manage storage);
+  - the explorer's ⋮ (Manage storage).
+- **Where it looks.** A segmented control: **All**, **Private** or **Shared**, All first.
+  - Without All Files Access, Shared's part is a line asking for it, as Shared asks in the
+    explorer.
+- **The bar** stacks the categories in their colours, design-system tokens, with the total and the
+  file count under it.
+- **Each row** is the view of the same name: its icon in the category's colour, how many, how much,
+  and ›.
+  - A category with no files is shown greyed, with no ›.
+  - **Git history** is the space `.git` takes in the workspaces. It is shown for the total to add
+    up, but opens nothing: it is Git's, and its files are in no category.
+- **Clean up:**
+  - **Largest files.**
+  - **Duplicates,** with the space the extra copies take.
+  - **Trash,** with how many it holds and their size.
+- **One scan for all of it.**
+  - One walk of where it looks, links not followed; the hidden-files setting does not apply.
+  - **It leaves out Trash's folders,** which have their own row. Shared's trash lies inside phone
+    storage, so otherwise trashed files would count twice.
+  - **`.git` is in no list:** not a category, not Largest files, not Duplicates. Its space is the Git
+    history row.
+  - It runs when the page first opens, and again on ↻.
+  - The line under the bar says "Scanning… 4,210 files" as it goes, with Stop; then when it last
+    scanned.
+  - The result stays, the views built from it, while iCode runs.
+- **How a file finds its category.** One domain table, built on `FileTypes`, by extension. The
+  archive formats in it are the ones Extract reads (§3.11).
+- **How duplicates are found.** Files of the same size are hashed, a first block and then the
+  whole, with SHA-256 (`hexDigestOf`). Empty files are left out.
 
 ### 3.11 Archives — on what iCode has
 
@@ -417,8 +496,9 @@ sheet on the same base (§3.1), for each item whose name is taken: the two side 
     name, with a label over each group (".kt · 12"), so files of one kind come together.
   - Folders always come first.
   - **Descending** flips the order of each.
-- **Remembered:** view, sort and order are kept app-wide in DataStore, beside the other settings. Now
-  they last only while the screen does.
+- **Remembered** in DataStore, beside the other settings. Now they last only while the screen does.
+  - Folders share one view, sort and order, app-wide.
+  - Each view of §3.10 keeps its own.
 
 ### 3.13 Hidden files
 
@@ -427,8 +507,8 @@ sheet on the same base (§3.1), for each item whose name is taken: the two side 
   - the panel's Hidden (the reference).
 - **Hidden** is a name starting with ".".
 - **It applies** to both explorers, the folder picker, and what Select all ticks.
-- **It does not apply** to Recent, Trash or storage analysis, which are about what you opened,
-  deleted or stored.
+- **It does not apply** to the views (§3.10) or Manage storage's scan, which are about what you
+  opened, deleted or stored.
 - **`.git` in a workspace stays unlisted,** whatever the setting: it is Git's.
 
 ### 3.14 Navigation
@@ -454,8 +534,8 @@ sheet on the same base (§3.1), for each item whose name is taken: the two side 
     opens, and a save in the editor moves a file to the top.
   - **What it leaves out:** a file that is gone.
   - **Using it:** a tap opens the file, as in its folder; its sheet adds Show in folder.
-- **⋮** (reference 2): Select, Undo *what*, Redo *what*, Analyze this folder, Storage settings. Create
-  is the +'s.
+- **⋮** (reference 2): Select, Undo *what*, Redo *what*, Manage storage, Storage settings. Create is
+  the +'s.
 
 ### 3.15 Settings › Storage, compact
 
@@ -466,7 +546,7 @@ sheet on the same base (§3.1), for each item whose name is taken: the two side 
  Runtime                   3.4 GB
  Trash                     120 MB  ›
  Cache                      80 MB  Clear
- Analyze storage                   ›
+ Manage storage                    ›
  FILES
  Show hidden files                [on]
  PHONE STORAGE
@@ -475,7 +555,8 @@ sheet on the same base (§3.1), for each item whose name is taken: the two side 
 
 - **The usage card and its sizes become one list.**
   - Workspaces opens Private.
-  - Trash opens Trash.
+  - Trash opens the Trash view.
+  - Manage storage opens its page (§3.10).
   - Cache's Clear asks first, as it does now.
 - **Removed:**
   - "Device storage, including other apps and files": the bar's line says it.
@@ -498,7 +579,7 @@ sheet on the same base (§3.1), for each item whose name is taken: the two side 
   | `data/files/FileArchives.kt` | Compress and extract, as tasks |
   | `data/io/Archives.kt` | Reading and writing; from `ArchiveExtractor`, which the runtime keeps using |
   | `data/files/FileFacts.kt` | Properties |
-  | `data/files/StorageAnalyzer.kt` | The walk: categories, the largest, duplicates |
+  | `data/files/StorageScan.kt` | Manage storage's walk: each category's files, the largest, duplicates, `.git`'s size; kept, and changed by iCode's own operations |
   | `data/files/ExplorerPreferences.kt` | Hidden, view, sort, order, favorites, in DataStore |
 
 - **Coordinators:**
@@ -509,7 +590,7 @@ sheet on the same base (§3.1), for each item whose name is taken: the two side 
     - Delete to Trash, and Trash's own actions;
     - undo and redo;
     - the question.
-  - `FileInsightsCoordinator` takes properties, analysis and favorites.
+  - `FileInsightsCoordinator` takes properties, Manage storage's scan, the views' lists and favorites.
   - The gateway hands them one intent group, `FilesIntent`, in its own file, in one line.
 - **Listings:** the hidden filter goes where each place is listed: `WorkspaceFileSource.listChildren`
   for Private and the tree, `PhoneStorage.list` for Shared.
@@ -521,7 +602,8 @@ sheet on the same base (§3.1), for each item whose name is taken: the two side 
   - the question waiting;
   - undo and redo, each with what it would do;
   - properties being measured;
-  - the analysis.
+  - the explorer's location: a folder, or a view (§3.10);
+  - Manage storage's scan.
 - **Removed:**
   - `DeleteWorkspaceItemDialog` and `DeleteWorkspace`'s confirm: Delete is to Trash now.
   - `RenameWorkspaceItemDialog`: Rename… is the sheet's page.
@@ -545,9 +627,9 @@ sheet on the same base (§3.1), for each item whose name is taken: the two side 
 |---|---|---|
 | **F2** Domain | The many-item clipboard; selection rules (ticks, a folder covering its items); batch rename rules; sort by Type with groups, and Descending; categories; explorer settings; the question; Trash and history models; `FilesIntent` | Tests: each rename rule and its refusals; covering; Type groups; both orders; categories |
 | **F3** Operations | `FileTrash`, `FileBatch`, `FileHistory`, `FileOperationsCoordinator`; Delete to Trash in every explorer, workspaces too; the question; the 30 days | Tests on temporary Private and Shared folders: many copied, moved and duplicated; each answer to the question; a merge leaving `.git`; trash and restore with folders gone and names taken; undo and redo of each operation, and the refusal when something changed |
-| **F4** Archives and facts | `Archives` (moved, with the guards), `FileArchives`, xz; `FileFacts`; `StorageAnalyzer`; `ExplorerPreferences`, favorites following moves; Recent across places; the hidden filter | Tests: every format both ways where §3.11 says so; an entry escaping, a link leading out, case twins on Shared; a 7z with its password; facts; categories, the largest and duplicates; favorites after a rename |
+| **F4** Archives and facts | `Archives` (moved, with the guards), `FileArchives`, xz; `FileFacts`; `StorageScan`; `ExplorerPreferences`, favorites following moves; Recent across places; the hidden filter | Tests: every format both ways where §3.11 says so; an entry escaping, a link leading out, case twins on Shared; a 7z with its password; facts; categories, the largest, duplicates and `.git` apart; a scan changed by a delete and a rename; favorites after a rename |
 | **F5** The explorer | `IcodeActionSheet` and `rememberSheetPages` (the assistant's run sheet onto the helper); the explorer's sheet and its pages; selection and its bars; the panel, three views, thumbnails; the breadcrumb; ▾ with Favorites, Recent, Trash; ⋮; the folder picker; the sheet's pages (Rename…, batch rename, Compress…, Properties) and the question's sheet; the Trash and Recent views | UI type-check; touch-driven checks in a desktop scene: select, select all, invert, cut and paste many, the question, rename many, the panel's choices; renders of each |
-| **F6** Everywhere else | The IDE tree's sheet and selection; every other item menu onto the sheet (§3.1: the home screen's workspaces, editor tabs, Source Control, the Run tab, the assistant's steps and message); the floating stack (the undo pill, the bell, the floors); Settings › Storage; the analysis page | UI type-check; the stack over a + and a foot bar; renders |
+| **F6** Everywhere else | The IDE tree's sheet and selection; every other item menu onto the sheet (§3.1: the home screen's workspaces, editor tabs, Source Control, the Run tab, the assistant's steps and message); the floating stack (the undo pill, the bell, the floors); Settings › Storage; the Manage storage page | UI type-check; the stack over a + and a foot bar; touch-driven checks of Manage storage into a category, a grid of Images, Select extra copies, Show in folder; renders |
 | **F7** Gate | Docs as built (PRD, user stories, layout, the two plans this follows); the full gate | Push the branch and `main` |
 
 ## 7. On the phone (the owner's walk-through, after F7)
@@ -558,3 +640,5 @@ sheet on the same base (§3.1), for each item whose name is taken: the two side 
 3. Paste a folder onto one of the same name: Merge, then Keep both.
 4. Extract a .7z and a .tar.gz; compress a workspace to .zip and open it in another app.
 5. Turn Show hidden files off in Settings › Storage, and see the panel's Hidden follow.
+6. Open Manage storage on All. Open Images as a grid and delete two; see the row's count follow.
+   In Duplicates, Select extra copies, then Delete.
