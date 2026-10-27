@@ -39,6 +39,9 @@ Then three screenshots of ZArchiver, "for UI/UX reference":
 | The explorer | `FilesScreen`, `FilesExplorerParts` | One folder at a time, Private (`/workspace`) or Shared (`/storage/emulated/0`). Title ▾ switches place; 🔍 filters by name; ⇅ sorts Name, Date (default) or Size, kept only while the screen lives; flat rows; `..`; a long press opens a dropdown; + for New folder/file; the paste bar |
 | An item's actions | `FileItemActions.of` | Open, Open with…, Share…, Open Terminal, Rename…, Cut, Copy, Paste *name*, Copy path, Delete…, one item, in every explorer |
 | The IDE tree | `WorkspaceExplorerScreen`, `explorerItemActions` | The same list, from a long press, as a dropdown |
+| Other item menus | editor tabs, Source Control's changes, the Run tab, the assistant's steps and messages, the home screen's workspaces | Dropdowns (`IcodeActionMenu`), from a long press or a row's ⋮ |
+| Sheets | `IcodeBottomSheet` over `IcodeSheetOverlay` | The one base of every sheet, in eleven files: title, subtitle, ← back, scrolling, foot |
+| Label and value rows | `DetailRow` | The Runtime and Language pages' facts |
 | The clipboard | `ItemClipboard(location, name, cut, folder, workspace)` | **One item** |
 | Paste | `WorkspaceItemsCoordinator.paste` (300 lines, the backend budget) | A copy takes a free name ("name copy"); a cut refuses a name already there; across the places, `StorageTransfers` |
 | Delete | `items.delete`, `lifecycle.delete` | **Permanent**, after a confirm dialog, as a task |
@@ -79,13 +82,70 @@ Facts the decisions stand on, each checked:
 
 ## 3. Decisions
 
-### 3.1 One action sheet, for one item or many (reference 1)
+### 3.1 One sheet for every item's actions, built once (reference 1; owner, 2026-10-27)
 
-- **A long press opens a sheet**, not a dropdown, in every explorer.
-  - Titled with the item's name, its detail under it ("12 items · main", "1.2 MB").
-  - For a selection: "3 selected", with "2 folders, 1 file" under it.
-- It is one component for both explorers and both cases, built by `FileItemActions`.
-- **Its rows, in this order:**
+The owner, after the plan: "the actions menu need to migrate from drop-down to sheet like zachiver
+design: the same sheet handles things like files folder info and others things scalable sheet
+(existing base sheet need to make reusable across the variety areas as per basis for 0 duplicacy)".
+
+- **The rule:**
+  - **A menu of actions on one thing, or on a selection, is a sheet.** It opens from a long press, a
+    row's ⋮, or a selection's ⋯, and is titled with what it acts on, as ZArchiver's.
+  - **A menu on a bar's own button stays a dropdown,** anchored to the button, as ZArchiver's ⋮ and
+    view panel (references 2 and 3):
+    - a top bar's ⋮;
+    - ▾;
+    - + (the explorer's and the tree's);
+    - the view panel;
+    - the assistant composer's choosers;
+    - the terminal's More… in its text-selection bar.
+- **One base, made reusable, nothing drawn twice:**
+  - **`IcodeBottomSheet` over `IcodeSheetOverlay` stays the one base.** It already gives every sheet
+    its title, subtitle, ← back, scrolling and foot. Every sheet in the app is drawn on it, from
+    eleven files: the assistant's chats, models, attachments, processes and steps; a notice; a
+    picture; the editor's changes; the branch and repository selectors; Git history; the
+    assistant's model settings.
+  - **New in the design system, on that base: `IcodeActionSheet`.**
+    - Its head: the item's icon or thumbnail, its name, and its detail ("12 items · main",
+      "1.2 MB"). For a selection: "3 selected", with "2 folders, 1 file".
+    - Then the actions, as rows: icon, label, a detail where one helps ("/workspace/app"), greyed when
+      not possible, ✓ when chosen.
+    - Groups have a line between them, and the destructive action comes last, in red.
+    - It takes the same `IcodeMenuAction` lists the dropdowns take: one action model for both, so
+      a list is never written twice.
+  - **Pages within the sheet.** An action that needs more than a tap opens its page in the same
+    sheet, with ← back to the actions:
+    - Properties (§3.9);
+    - Rename…, and batch rename (§3.4);
+    - Compress… (§3.11);
+    - Select text (the assistant's message).
+
+    Back steps back a page, then closes the sheet. One helper, `rememberSheetPages`, holds the page
+    stack and the Back handler. The assistant's run sheet does this by hand today; it moves onto the
+    helper.
+  - **Info pages** are `DetailRow`s, the design system's label and value row, already used by the
+    Runtime and Language pages. A path has Copy beside it.
+- **The forms that stay dialogs:**
+  - New file and New folder: they come from +, not from an item;
+  - the confirm before Delete permanently and Empty Trash: the design system's rule for what cannot
+    be undone.
+- **Every item menu moves to the sheet:**
+
+  | Where | Today | The sheet |
+  |---|---|---|
+  | The explorer's rows, the workspaces at Private's top | long press, dropdown | the item's actions (§3.3) |
+  | The home screen's workspace rows | ⋮ and long press, dropdown | the same workspace sheet as the explorer's |
+  | The IDE tree's rows | long press, dropdown | the item's actions |
+  | A selection, in either explorer | — | its ⋯ (§3.2) |
+  | Trash and Recent | — | Restore, Delete permanently, Properties; Show in folder and the item's actions |
+  | The editor's tabs | long press, dropdown | the tab's actions |
+  | Source Control's changes | long press, dropdown | Open file, Discard changes… |
+  | The Run tab's commands | long press, dropdown | Edit, Delete |
+  | The assistant's step rows | long press, dropdown | Open in Editor, Show Changes, Copy path |
+  | The assistant's message | long press, dropdown | Copy, and Select text as its page |
+
+  The `IcodeActionMenu` dropdowns those used are left only where the rule keeps them.
+- **The explorer's sheet, in this order:**
   1. Open, Open with…, Share…, Open Terminal — where each applies, as today;
   2. Cut, Copy, Paste *name*, Move to…, Copy to…, Duplicate;
   3. Rename…;
@@ -95,8 +155,6 @@ Facts the decisions stand on, each checked:
   6. Copy path, Properties;
   7. Select;
   8. Delete, last and apart.
-- The workspaces at Private's top use the same sheet, with a workspace's extras. The home screen's
-  workspace ⋮ is not an explorer and stays a dropdown.
 
 ### 3.2 Selection
 
@@ -127,7 +185,7 @@ Facts the decisions stand on, each checked:
 | Cut, Copy | held | all held, in one clipboard |
 | Move to…, Copy to… | the folder picker (§3.5) | all, in one operation |
 | Duplicate | "name copy" beside it | each beside itself |
-| Rename… | the rename dialog | batch rename (§3.4) |
+| Rename… | the sheet's Rename… page | batch rename (§3.4) |
 | Compress… | *name*.zip | one archive named after the folder shown ("Archive" at a place's top) |
 | Extract | into its folder | each archive into its own |
 | Add to Favorites | the folder | every folder ticked |
@@ -150,6 +208,7 @@ Facts the decisions stand on, each checked:
 - Rename is offered only when no name is refused.
 - The rules are pure domain code, tested.
 - **One step to undo.**
+- It is the selection sheet's Rename… page (§3.1), the preview scrolling above the rule's fields.
 
 ### 3.5 Clipboard, Move to, Copy to, Duplicate
 
@@ -168,7 +227,8 @@ Facts the decisions stand on, each checked:
 ### 3.6 When a name is already there
 
 Today a copy takes a free name without asking, and a cut refuses. Instead, the operation asks, in a
-sheet, for each item whose name is taken: the two side by side, with size and date.
+sheet on the same base (§3.1), for each item whose name is taken: the two side by side, as
+`DetailRow`s of size and date.
 
 | Meeting | Choices |
 |---|---|
@@ -223,7 +283,7 @@ sheet, for each item whose name is taken: the two side by side, with size and da
 
 ### 3.8 Undo and redo
 
-- **What can be undone.** Every file change made in iCode's explorers and their dialogs:
+- **What can be undone.** Every file change made in iCode's explorers and their sheets:
   - new folders and files;
   - renames, one or many;
   - moves;
@@ -275,7 +335,8 @@ sheet, for each item whose name is taken: the two side by side, with size and da
 - **Many:** "3 items · 2 folders, 1 file", their total size, measured, and the folder they are in.
 - **No "Created".** Android does not give it (§2). Showing the modified time under that name would be
   untrue.
-- It opens from the sheet and the Trash view (Properties), as a sheet over the explorer.
+- It is the action sheet's Properties page (§3.1), with ← back to the actions; from Trash and Recent
+  too. Its rows are `DetailRow`s.
 
 ### 3.10 Storage analysis
 
@@ -330,7 +391,7 @@ sheet, for each item whose name is taken: the two side by side, with size and da
   - **A name already there** asks, as §3.6.
 - **Compress:**
   - **"Compress to *name*.zip"** and **"Compress to *name*.7z":** one tap, as the reference.
-  - **"Compress…":** a dialog with the name, and the format: Zip, 7z or Tar.gz.
+  - **"Compress…":** the sheet's page (§3.1), with the name, and the format: Zip, 7z or Tar.gz.
   - It goes into the folder shown, under a free name.
   - **Links and executable bits:** zip and tar.gz keep both. A 7z entry can hold neither (§2), so a
     7z skips links and says so.
@@ -423,6 +484,10 @@ sheet, for each item whose name is taken: the two side by side, with size and da
 
 ## 4. Backend
 
+- **Design system** (§3.1), on the one base, `IcodeBottomSheet` over `IcodeSheetOverlay`:
+  - `IcodeActionSheet`: the head, the grouped `IcodeMenuAction` rows, the destructive last;
+  - `rememberSheetPages`: a sheet's page stack and its Back;
+  - the floating stack's floors (§3.8).
 - **New, each under the 300-line budget:**
 
   | File | What |
@@ -459,6 +524,8 @@ sheet, for each item whose name is taken: the two side by side, with size and da
   - the analysis.
 - **Removed:**
   - `DeleteWorkspaceItemDialog` and `DeleteWorkspace`'s confirm: Delete is to Trash now.
+  - `RenameWorkspaceItemDialog`: Rename… is the sheet's page.
+  - The item menus' dropdowns, and `WorkspaceActionsMenu`'s: the sheet draws their actions.
   - The single-item `CutItem` and `CopyItem`: they take a list.
   - `ChooseDestination`'s own picker: it is one use of the folder picker.
 
@@ -479,8 +546,8 @@ sheet, for each item whose name is taken: the two side by side, with size and da
 | **F2** Domain | The many-item clipboard; selection rules (ticks, a folder covering its items); batch rename rules; sort by Type with groups, and Descending; categories; explorer settings; the question; Trash and history models; `FilesIntent` | Tests: each rename rule and its refusals; covering; Type groups; both orders; categories |
 | **F3** Operations | `FileTrash`, `FileBatch`, `FileHistory`, `FileOperationsCoordinator`; Delete to Trash in every explorer, workspaces too; the question; the 30 days | Tests on temporary Private and Shared folders: many copied, moved and duplicated; each answer to the question; a merge leaving `.git`; trash and restore with folders gone and names taken; undo and redo of each operation, and the refusal when something changed |
 | **F4** Archives and facts | `Archives` (moved, with the guards), `FileArchives`, xz; `FileFacts`; `StorageAnalyzer`; `ExplorerPreferences`, favorites following moves; Recent across places; the hidden filter | Tests: every format both ways where §3.11 says so; an entry escaping, a link leading out, case twins on Shared; a 7z with its password; facts; categories, the largest and duplicates; favorites after a rename |
-| **F5** The explorer | The sheet; selection and its bars; the panel, three views, thumbnails; the breadcrumb; ▾ with Favorites, Recent, Trash; ⋮; the folder picker; the batch rename, compress, question and properties sheets; the Trash and Recent views | UI type-check; touch-driven checks in a desktop scene: select, select all, invert, cut and paste many, the question, rename many, the panel's choices; renders of each |
-| **F6** Everywhere else | The IDE tree's sheet and selection; the floating stack (the undo pill, the bell, the floors); Settings › Storage; the analysis page | UI type-check; the stack over a + and a foot bar; renders |
+| **F5** The explorer | `IcodeActionSheet` and `rememberSheetPages` (the assistant's run sheet onto the helper); the explorer's sheet and its pages; selection and its bars; the panel, three views, thumbnails; the breadcrumb; ▾ with Favorites, Recent, Trash; ⋮; the folder picker; the sheet's pages (Rename…, batch rename, Compress…, Properties) and the question's sheet; the Trash and Recent views | UI type-check; touch-driven checks in a desktop scene: select, select all, invert, cut and paste many, the question, rename many, the panel's choices; renders of each |
+| **F6** Everywhere else | The IDE tree's sheet and selection; every other item menu onto the sheet (§3.1: the home screen's workspaces, editor tabs, Source Control, the Run tab, the assistant's steps and message); the floating stack (the undo pill, the bell, the floors); Settings › Storage; the analysis page | UI type-check; the stack over a + and a foot bar; renders |
 | **F7** Gate | Docs as built (PRD, user stories, layout, the two plans this follows); the full gate | Push the branch and `main` |
 
 ## 7. On the phone (the owner's walk-through, after F7)
