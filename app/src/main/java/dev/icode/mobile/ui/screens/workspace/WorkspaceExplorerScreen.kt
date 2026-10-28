@@ -47,6 +47,7 @@ import dev.icode.mobile.ui.ClipboardBar
 import dev.icode.mobile.ui.FileItemActions
 import dev.icode.mobile.ui.NewItemButton
 import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.RenameDialog
 import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /** File tree with the workspace activity rail. */
@@ -140,7 +141,7 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
                                 entry = entry,
                                 selected = entry.path == selectedPath,
                                 actions = explorerItemActions(
-                                    entry, root, state.activePath, state.files, clipboard,
+                                    entry, root, state.activePath, state.files, state.explorer,
                                     onRename = { renaming = entry.path },
                                 ),
                                 menuOpen = menuFor == entry.path,
@@ -172,7 +173,7 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
         CreateWorkspaceItemDialog(type, createParent, onDismiss = { createType = null })
     }
     state.files.firstOrNull { it.path == renaming }?.let { entry ->
-        RenameWorkspaceItemDialog(entry.path, entry.name, entry.kind == FileKind.Folder, onDismiss = { renaming = null })
+        RenameDialog(entry.path, entry.name, entry.kind == FileKind.Folder, workspace = false, onDismiss = { renaming = null })
     }
 }
 

@@ -1,6 +1,5 @@
 package dev.icode.mobile.ui.screens.tools
 
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -14,10 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -28,6 +23,7 @@ import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SectionLabel
+import dev.icode.mobile.designsystem.rememberSheetPages
 import dev.icode.mobile.domain.AssistantApproval
 import dev.icode.mobile.domain.AssistantEntry
 import dev.icode.mobile.domain.AssistantStepRules
@@ -80,13 +76,11 @@ private fun AssistantStepsSheet(
     onClose: () -> Unit,
     onDiff: (GitChange) -> Unit,
 ) {
-    var opened by rememberSaveable(entry.key) { mutableStateOf(start ?: entry.steps.singleOrNull()?.key) }
-    val step = entry.steps.firstOrNull { it.key == opened }
+    // A run of one is its step's page, with nothing to go back to.
+    val pages = rememberSheetPages(entry.key, listOfNotNull(start.takeIf { entry.steps.size > 1 }))
+    val step = entry.steps.singleOrNull() ?: entry.steps.firstOrNull { it.key == pages.current }
     if (step != null) {
-        val back = if (entry.steps.size > 1) ({ opened = null }) else null
-        // Back leaves the step for its run before it closes the sheet.
-        BackHandler(enabled = back != null) { back?.invoke() }
-        StepPage(step, approval?.takeIf { it.call.id == step.call.id }, workspace, modifier, onClose, back, onDiff)
+        StepPage(step, approval?.takeIf { it.call.id == step.call.id }, workspace, modifier, onClose, pages.back, onDiff)
         return
     }
     IcodeBottomSheet(
@@ -104,7 +98,7 @@ private fun AssistantStepsSheet(
                     tint = tint,
                     label = each.call.summary,
                     status = each.status.word,
-                    onOpen = { opened = each.key },
+                    onOpen = { pages.open(each.key) },
                     mono = each.call.kind == AssistantToolKind.Command,
                     changes = AssistantStepRules.changes(listOf(each)),
                     rail = AssistantRail.of(index, entry.steps.size),

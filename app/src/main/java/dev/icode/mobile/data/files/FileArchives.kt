@@ -46,7 +46,7 @@ internal class FileArchives(
     /** [locations], of one folder, into one archive there: named as asked, or after the one item or the folder. */
     suspend fun compress(locations: List<String>, format: CompressFormat, name: String?) {
         val folder = locations.map { File(it).parent }.distinct().singleOrNull() ?: return tasks.said("Compress items of one folder at a time")
-        refusals.copies(locations)?.let { return tasks.said(it) }
+        (refusals.archiveInto(folder) ?: refusals.copies(locations))?.let { return tasks.said(it) }
         val only = locations.singleOrNull()?.let { File(it).name to Files.isDirectory(File(it).toPath(), LinkOption.NOFOLLOW_LINKS) }
         val archive = name?.trim()?.takeIf { it.isNotEmpty() } ?: ArchiveFormats.archiveName(only, File(folder).name.takeUnless { refusals.isPlaceTop(folder) })
         WorkspaceNameRules.fileValidationError(archive + format.extension)?.let { return tasks.said(it) }

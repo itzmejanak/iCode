@@ -14,10 +14,12 @@ import dev.icode.mobile.domain.percentOf
  * to the background has no dialog and no row inside iCode: its notification
  * carries it (§6), and a tap on it brings the dialog back, as does running into
  * the task in iCode. One that failed comes back to say why; one that ends at
- * once never shows ([WorkTask.quiet]).
+ * once never shows ([WorkTask.quiet]). While an explorer's question is [asking],
+ * its sheet is in front instead ([FileAsks]).
  */
 @Composable
-internal fun TaskDialogs(tasks: List<WorkTask>, gateway: ICodeGateway) {
+internal fun TaskDialogs(tasks: List<WorkTask>, gateway: ICodeGateway, asking: Boolean) {
+    if (asking) return
     val task = tasks.firstOrNull { !it.hidden && !it.quiet } ?: return
     val failure = task.failure
     if (failure != null) {

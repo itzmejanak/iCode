@@ -1,5 +1,6 @@
 package dev.icode.mobile.domain.files
 
+import dev.icode.mobile.domain.StorageMeasurement
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -29,5 +30,15 @@ class FileSelectionTest {
         assertEquals("1 folder", FileSelection.counted(1, 0))
         assertEquals("3 files", FileSelection.counted(0, 3))
         assertEquals("0 files", FileSelection.counted(0, 0))
+    }
+
+    @Test fun `a selection weighs its files, and the folders measured`() {
+        val items = listOf(
+            BrowsedItem("app", "/w/app", folder = true, changedAt = 0),
+            BrowsedItem("lib", "/w/lib", folder = true, changedAt = 0),
+            BrowsedItem("a.png", "/w/a.png", folder = false, bytes = 2048, changedAt = 0),
+        )
+        assertEquals("2 folders, 1 file · 2.0 KB", FileSelection.summary(items, emptyMap()))
+        assertEquals("2 folders, 1 file · 3.0 KB", FileSelection.summary(items, mapOf("/w/app" to StorageMeasurement(1024))))
     }
 }

@@ -24,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.ArrowDropDown
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -31,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
@@ -81,7 +83,8 @@ fun IcodePageColumn(modifier: Modifier = Modifier, content: @Composable ColumnSc
  * Its [EdgeLine] closes the header. Pass an [AnnotatedString] title to style parts of it (e.g.
  * the product wordmark) independently from the rest of the text. [onTitleClick]
  * makes the title a choice, marked ▾ (the file explorer's places), and
- * [titleMenu] is drawn anchored under it.
+ * [titleMenu] is drawn anchored under it. [leaving] says what [onBack]'s
+ * button does: ← back, or ✕ out of a mode.
  */
 @Composable
 fun IcodeTopBar(
@@ -92,6 +95,7 @@ fun IcodeTopBar(
     dense: Boolean = false,
     onTitleClick: (() -> Unit)? = null,
     titleMenu: @Composable () -> Unit = {},
+    leaving: BarLeave = BarLeave.Back,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     Column(modifier = modifier.fillMaxWidth()) {
@@ -109,7 +113,7 @@ fun IcodeTopBar(
         ) {
             if (onBack != null) {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back", tint = IcodeColors.TextPrimary)
+                    Icon(leaving.icon, contentDescription = leaving.label, tint = IcodeColors.TextPrimary)
                 }
             }
             // Without Back, the title starts at the page's gutter, as the content under it does.
@@ -145,9 +149,16 @@ fun IcodeTopBar(
     dense: Boolean = false,
     onTitleClick: (() -> Unit)? = null,
     titleMenu: @Composable () -> Unit = {},
+    leaving: BarLeave = BarLeave.Back,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
-    IcodeTopBar(AnnotatedString(title), modifier, subtitle, onBack, dense, onTitleClick, titleMenu, actions)
+    IcodeTopBar(AnnotatedString(title), modifier, subtitle, onBack, dense, onTitleClick, titleMenu, leaving, actions)
+}
+
+/** What a top bar's leading button does: ← back, or ✕ out of a mode — selection (docs/explorer-gaps-plan.md §3.2). */
+enum class BarLeave(val icon: ImageVector, val label: String) {
+    Back(Icons.AutoMirrored.Outlined.ArrowBack, "Back"),
+    Selection(Icons.Outlined.Close, "Leave selection"),
 }
 
 /**

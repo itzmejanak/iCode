@@ -35,14 +35,13 @@ fun WorkspaceActionsMenu(
 ) {
     val gateway = LocalICodeGateway.current
     val context = LocalContext.current
-    val clipboard = LocalICodeSnapshot.current.explorer.clipboard
+    val explorer = LocalICodeSnapshot.current.explorer
     var renaming by remember(item.location) { mutableStateOf(false) }
     val actions = FileItemActions.of(
         context = context,
         dispatch = gateway::dispatch,
-        location = item.location,
-        runtimePath = item.path,
-        clipboard = clipboard,
+        targets = listOf(ActionTarget(item.location, item.name, folder = true, runtimePath = item.path, workspace = true)),
+        explorer = explorer,
         open = IcodeMenuAction("Open", Icons.Outlined.FolderOpen, { gateway.dispatch(ICodeIntent.OpenWorkspace(item.location)) }),
         onRename = { renaming = true },
         onPaste = { gateway.dispatch(FilesIntent.Paste(item.location)) },
@@ -53,5 +52,5 @@ fun WorkspaceActionsMenu(
         if (overflow) IcodeOverflowMenu(contentDescription = "More options for ${item.name}", actions = actions)
         IcodeActionMenu(expanded = longPressed, onDismiss = onLongPressDismiss, actions = actions)
     }
-    if (renaming) RenameWorkspaceDialog(item) { renaming = false }
+    if (renaming) RenameDialog(item.location, item.name, folder = true, workspace = true) { renaming = false }
 }

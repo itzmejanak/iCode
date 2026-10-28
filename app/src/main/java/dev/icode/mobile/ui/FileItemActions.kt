@@ -3,8 +3,11 @@ package dev.icode.mobile.ui
 import android.content.Context
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.DriveFileMove
 import androidx.compose.material.icons.automirrored.outlined.OpenInNew
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.ContentCut
 import androidx.compose.material.icons.outlined.ContentPaste
@@ -12,10 +15,15 @@ import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.DriveFileRenameOutline
+import androidx.compose.material.icons.outlined.FileCopy
 import androidx.compose.material.icons.outlined.FolderCopy
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.Star
+import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material.icons.outlined.Terminal
+import androidx.compose.material.icons.outlined.Unarchive
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
@@ -28,56 +36,115 @@ import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeMenuAction
 import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.files.ArchiveFormats
+import dev.icode.mobile.domain.files.CompressFormat
+import dev.icode.mobile.domain.files.ExplorerState
 import dev.icode.mobile.domain.files.FileClipboard
+import dev.icode.mobile.domain.files.FolderPick
+import dev.icode.mobile.domain.files.HeldItem
+
+/** One item as its actions need it: where it is, its name, whether a folder or a whole workspace, and its runtime path. */
+data class ActionTarget(val location: String, val name: String, val folder: Boolean, val runtimePath: String, val workspace: Boolean = false) {
+    val held: HeldItem get() = HeldItem(location, name, folder, workspace)
+}
+
+/** What only a sheet offers, as pages of it (docs/explorer-gaps-plan.md §3.1): Compress… and Properties. */
+class SheetPageActions(val compress: () -> Unit, val properties: () -> Unit)
+
+/** What only the explorer's own screen offers: the folder picker (§3.5), and selection, starting with the items given (§3.2). */
+class ScreenActions(val pick: (FolderPick) -> Unit, val select: ((List<String>) -> Unit)?)
 
 /**
- * The one owner of a file's or a folder's actions (docs/file-explorer-unification-plan.md §3;
- * docs/storage-explorer-plan.md §3.2): the Explorer's tree and the file explorer — its workspaces,
- * their files, phone storage's — show the same list, in the same order, from a long press.
+ * The one owner of the actions on files and folders (docs/explorer-gaps-plan.md §3.1, §3.3): every
+ * explorer shows the same list, in the same order, in an item's sheet, a selection's, or a dropdown
+ * where one is left.
  */
 object FileItemActions {
     /** "Paste RevPlayer": what Paste would bring, named, so a clipboard from another page is never a surprise. */
     fun pasteLabel(clipboard: FileClipboard?): String = clipboard?.let { "Paste ${it.name}" } ?: "Paste"
 
     /**
-     * Open, Rename…, Cut, Copy, Paste, Copy path, Delete. [open] says what opening is here (a
-     * file into the editor, a folder into the list or open in the tree); none where there is
-     * nothing to open it in (a file on phone storage). A [file] adds Open with… and Share… after
-     * it, to hand it to another app (docs/open-with-plan.md). A workspace adds Open Terminal after
-     * Open, and where it is listed apart, [showInList]. Paste is always there, and named by what it
-     * holds; with nothing held it is there, greyed. [onPaste] puts it where this item is the place
-     * for it: into a folder, beside a file. Delete moves it to Trash at once: it can be undone
-     * (docs/explorer-gaps-plan.md §3.7).
+     * The actions on [targets] — one item, or a selection's many — in groups (§3.1, §3.3). Opening,
+     * for one: [open], what opening is here — a file into the editor, a folder into the list or open
+     * in the tree; none where there is nothing to open it in — and for a file Open with…; Share… for
+     * files, every one at once; a workspace's Open Terminal and, listed apart, [showInList]. Then Cut,
+     * Copy, one item's Paste — named by what is held, greyed with nothing held; [onPaste] puts it into
+     * a folder, or beside a file — the explorer's Move to… and Copy to…, and Duplicate. Rename…: one's
+     * name, or many by a rule ([onRename]). Archives extracted here, or to a folder; or Compress to a
+     * zip or a 7z — one item's name, or many's [folder] — and with [pages] Compress…: never at
+     * Private's top, where only workspaces are. Folders' Favorites. Copy path or paths, and with
+     * [pages] Properties. The explorer's Select. Delete last, to Trash: it can be undone (§3.7).
      */
     fun of(
         context: Context,
         dispatch: (ICodeIntent) -> Unit,
-        location: String,
-        runtimePath: String,
-        clipboard: FileClipboard?,
-        open: IcodeMenuAction?,
+        targets: List<ActionTarget>,
+        explorer: ExplorerState,
         onRename: () -> Unit,
-        onPaste: () -> Unit,
-        file: Boolean = false,
+        open: IcodeMenuAction? = null,
+        onPaste: (() -> Unit)? = null,
         openTerminal: (() -> Unit)? = null,
         showInList: (() -> Unit)? = null,
-    ): List<IcodeMenuAction> = listOfNotNull(
-        open,
-        if (file) IcodeMenuAction("Open with…", Icons.AutoMirrored.Outlined.OpenInNew, { SharedFiles.open(context, location, dispatch) }) else null,
-        if (file) IcodeMenuAction("Share…", Icons.Outlined.Share, { SharedFiles.share(context, location, dispatch) }) else null,
-        openTerminal?.let { IcodeMenuAction("Open Terminal", Icons.Outlined.Terminal, it) },
-        IcodeMenuAction("Rename…", Icons.Outlined.DriveFileRenameOutline, onRename),
-        IcodeMenuAction("Cut", Icons.Outlined.ContentCut, { dispatch(FilesIntent.Cut(listOf(location))) }),
-        IcodeMenuAction("Copy", Icons.Outlined.ContentCopy, { dispatch(FilesIntent.Copy(listOf(location))) }),
-        IcodeMenuAction(pasteLabel(clipboard), Icons.Outlined.ContentPaste, onPaste, enabled = clipboard != null),
-        showInList?.let { IcodeMenuAction("Show in Workspaces", Icons.Outlined.FolderCopy, it) },
-        copyPath(context, runtimePath, dispatch),
-        IcodeMenuAction("Delete", Icons.Outlined.DeleteOutline, { dispatch(FilesIntent.Trash(listOf(location))) }, destructive = true),
-    )
+        pages: SheetPageActions? = null,
+        screen: ScreenActions? = null,
+        folder: String? = null,
+    ): List<IcodeMenuAction> {
+        val one = targets.singleOrNull()
+        val locations = targets.map { it.location }
+        val files = targets.filterNot { it.folder }
+        val folders = targets.filter { it.folder }
+        val archives = files.mapNotNull { target -> ArchiveFormats.of(target.name)?.let { target to it } }
+        val compressible = archives.size < targets.size && targets.none { it.workspace }
+        return buildList {
+            open?.let(::add)
+            if (one != null && !one.folder) add(IcodeMenuAction("Open with…", Icons.AutoMirrored.Outlined.OpenInNew, { SharedFiles.open(context, one.location, dispatch) }))
+            if (files.isNotEmpty() && folders.isEmpty()) add(IcodeMenuAction("Share…", Icons.Outlined.Share, { SharedFiles.share(context, files.map { it.location }, dispatch) }))
+            openTerminal?.let { add(IcodeMenuAction("Open Terminal", Icons.Outlined.Terminal, it)) }
+            showInList?.let { add(IcodeMenuAction("Show in Workspaces", Icons.Outlined.FolderCopy, it)) }
+            add(IcodeMenuAction("Cut", Icons.Outlined.ContentCut, { dispatch(FilesIntent.Cut(locations)) }, beginsGroup = true))
+            add(IcodeMenuAction("Copy", Icons.Outlined.ContentCopy, { dispatch(FilesIntent.Copy(locations)) }))
+            onPaste?.let { add(IcodeMenuAction(pasteLabel(explorer.clipboard), Icons.Outlined.ContentPaste, it, enabled = explorer.clipboard != null)) }
+            screen?.let { screen ->
+                val held = targets.map { it.held }
+                add(IcodeMenuAction("Move to…", Icons.AutoMirrored.Outlined.DriveFileMove, { screen.pick(FolderPick.Transfer(held, move = true)) }))
+                add(IcodeMenuAction("Copy to…", Icons.Outlined.FolderCopy, { screen.pick(FolderPick.Transfer(held, move = false)) }))
+            }
+            add(IcodeMenuAction("Duplicate", Icons.Outlined.FileCopy, { dispatch(FilesIntent.Duplicate(locations)) }))
+            add(IcodeMenuAction("Rename…", Icons.Outlined.DriveFileRenameOutline, onRename, beginsGroup = true, opensPage = pages != null))
+            if (archives.size == targets.size) {
+                val unreadable = archives.firstNotNullOfOrNull { it.second.unreadable }
+                add(IcodeMenuAction("Extract here", Icons.Outlined.Unarchive, { locations.forEach { dispatch(FilesIntent.Extract(it)) } }, enabled = unreadable == null, detail = unreadable, beginsGroup = true))
+                screen?.let { add(IcodeMenuAction("Extract to…", Icons.Outlined.Unarchive, { it.pick(FolderPick.Extract(locations)) }, enabled = unreadable == null)) }
+            } else if (compressible) {
+                val stem = one?.let { ArchiveFormats.archiveName(it.name to it.folder, null) } ?: ArchiveFormats.archiveName(null, folder)
+                add(IcodeMenuAction("Compress to $stem${CompressFormat.Zip.extension}", Icons.Outlined.Archive, { dispatch(FilesIntent.Compress(locations, CompressFormat.Zip)) }, beginsGroup = true))
+                add(IcodeMenuAction("Compress to $stem${CompressFormat.SevenZ.extension}", Icons.Outlined.Archive, { dispatch(FilesIntent.Compress(locations, CompressFormat.SevenZ)) }))
+                pages?.let { add(IcodeMenuAction("Compress…", Icons.Outlined.Archive, it.compress, opensPage = true)) }
+            }
+            if (folders.isNotEmpty()) {
+                val unpinned = folders.filterNot { it.location in explorer.favorites }
+                add(
+                    if (unpinned.isEmpty()) {
+                        IcodeMenuAction("Remove from Favorites", Icons.Outlined.StarBorder, { folders.forEach { dispatch(FilesIntent.Favorite(it.location, pinned = false)) } }, beginsGroup = true)
+                    } else {
+                        IcodeMenuAction("Add to Favorites", Icons.Outlined.Star, { unpinned.forEach { dispatch(FilesIntent.Favorite(it.location, pinned = true)) } }, beginsGroup = true)
+                    },
+                )
+            }
+            add(copyPath(context, targets.joinToString("\n") { it.runtimePath }, dispatch, many = one == null).copy(beginsGroup = true))
+            pages?.let { add(IcodeMenuAction("Properties", Icons.Outlined.Info, it.properties, opensPage = true)) }
+            screen?.select?.let { select -> add(IcodeMenuAction("Select", Icons.Outlined.Checklist, { select(locations) }, beginsGroup = true)) }
+            add(IcodeMenuAction("Delete", Icons.Outlined.DeleteOutline, { dispatch(FilesIntent.Trash(locations)) }, destructive = true))
+        }
+    }
 
-    /** Copy path: the runtime path — what a terminal, a script or another workspace's config names it by. */
-    fun copyPath(context: Context, runtimePath: String, dispatch: (ICodeIntent) -> Unit) =
-        IcodeMenuAction("Copy path", Icons.Outlined.Link, { copyText(context, "Path", runtimePath, "Path copied", dispatch) })
+    /**
+     * Copy path: the runtime path — what a terminal, a script or another workspace's config names it
+     * by; for [many], their paths, one to a line.
+     */
+    fun copyPath(context: Context, runtimePath: String, dispatch: (ICodeIntent) -> Unit, many: Boolean = false) =
+        if (many) IcodeMenuAction("Copy paths", Icons.Outlined.Link, { copyText(context, "Paths", runtimePath, "Paths copied", dispatch) })
+        else IcodeMenuAction("Copy path", Icons.Outlined.Link, { copyText(context, "Path", runtimePath, "Path copied", dispatch) })
 
     /**
      * What + makes in the folder shown: New folder, and New file where a file can go. Paste is the
