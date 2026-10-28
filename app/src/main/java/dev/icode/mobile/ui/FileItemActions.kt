@@ -122,7 +122,7 @@ object FileItemActions {
                 pages?.let { add(IcodeMenuAction("Compress…", Icons.Outlined.Archive, it.compress, opensPage = true)) }
             }
             if (folders.isNotEmpty()) {
-                val unpinned = folders.filterNot { it.location in explorer.favorites }
+                val unpinned = folders.filterNot { folder -> explorer.favorites.any { it.location == folder.location } }
                 add(
                     if (unpinned.isEmpty()) {
                         IcodeMenuAction("Remove from Favorites", Icons.Outlined.StarBorder, { folders.forEach { dispatch(FilesIntent.Favorite(it.location, pinned = false)) } }, beginsGroup = true)

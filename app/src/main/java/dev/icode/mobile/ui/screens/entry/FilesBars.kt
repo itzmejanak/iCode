@@ -5,8 +5,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Redo
-import androidx.compose.material.icons.automirrored.outlined.Sort
 import androidx.compose.material.icons.automirrored.outlined.Undo
+import androidx.compose.material.icons.automirrored.outlined.ViewList
+import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.ContentCopy
@@ -14,6 +15,8 @@ import androidx.compose.material.icons.outlined.ContentCut
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.FlipToBack
 import androidx.compose.material.icons.outlined.FolderCopy
+import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.PhoneAndroid
@@ -21,8 +24,11 @@ import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material.icons.outlined.SortByAlpha
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Straighten
+import androidx.compose.material.icons.outlined.ViewHeadline
+import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
@@ -34,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.vector.ImageVector
 import dev.icode.mobile.designsystem.IcodeActionBar
 import dev.icode.mobile.designsystem.IcodeActionMenu
 import dev.icode.mobile.designsystem.IcodeColors
@@ -45,10 +52,13 @@ import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.domain.StorageMeasurement
 import dev.icode.mobile.domain.WorkspaceRuntimePath
 import dev.icode.mobile.domain.files.BrowsedItem
+import dev.icode.mobile.domain.files.FavoriteFolder
 import dev.icode.mobile.domain.files.FileHistoryState
 import dev.icode.mobile.domain.files.FileSelection
 import dev.icode.mobile.domain.files.FilesBrowserState
+import dev.icode.mobile.domain.files.FilesLook
 import dev.icode.mobile.domain.files.FilesSort
+import dev.icode.mobile.domain.files.FilesView
 import dev.icode.mobile.domain.files.FolderPick
 import dev.icode.mobile.domain.files.FolderPicks
 import dev.icode.mobile.domain.files.StoragePlace
@@ -131,41 +141,65 @@ internal fun ExplorerMenu(history: FileHistoryState, onSelect: () -> Unit, onUnd
     }
 }
 
-/** ▾'s menu: the two places, each with its path, the one shown checked. */
-internal fun places(browser: FilesBrowserState?, onChoose: (StoragePlace) -> Unit): List<IcodeMenuAction> =
+/**
+ * ▾, "go to" (docs/explorer-gaps-plan.md §3.14): the two places, each with its path, the one shown
+ * ticked; then each folder pinned to Favorites, with its path.
+ */
+internal fun goTo(browser: FilesBrowserState?, favorites: List<FavoriteFolder>, onPlace: (StoragePlace) -> Unit, onFolder: (String) -> Unit): List<IcodeMenuAction> =
     StoragePlace.entries.map { place ->
         IcodeMenuAction(
             label = place.label,
             icon = if (place == StoragePlace.Private) Icons.Outlined.FolderCopy else Icons.Outlined.PhoneAndroid,
-            onClick = { onChoose(place) },
+            onClick = { onPlace(place) },
             detail = if (place == StoragePlace.Private) WorkspaceRuntimePath.ROOT else browser?.sharedRoot?.takeIf { it.isNotEmpty() },
             checked = browser?.place == place,
         )
+    } + favorites.mapIndexed { index, favorite ->
+        IcodeMenuAction(favorite.name, Icons.Outlined.Star, { onFolder(favorite.location) }, detail = favorite.path, beginsGroup = index == 0)
     }
 
-/** ⇅: Name, Date or Size, the one in use checked; folders come first whichever it is. */
+/**
+ * ☰, the view panel (§3.12), as ZArchiver's: View — Detailed, Compact, Grid and, where it applies,
+ * Hidden files — and Sort — Name, Size, Date, Type, and Descending; those in use ticked. A new sort
+ * reads its own way first. Each choice is kept: [onLook] for the list shown, [onHidden] for every
+ * listing.
+ */
 @Composable
-internal fun SortButton(sort: FilesSort, onSort: (FilesSort) -> Unit) {
+internal fun ViewPanelButton(look: FilesLook, showHidden: Boolean, onLook: (FilesLook) -> Unit, onHidden: ((Boolean) -> Unit)?) {
     var open by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { open = true }) {
-            Icon(Icons.AutoMirrored.Outlined.Sort, contentDescription = "Sort by ${sort.name}", tint = IcodeColors.TextPrimary)
+            Icon(Icons.Outlined.Menu, contentDescription = "View and sort", tint = IcodeColors.TextPrimary)
         }
         IcodeActionMenu(
             expanded = open,
             onDismiss = { open = false },
-            actions = FilesSort.entries.map { option ->
-                val icon = when (option) {
-                    FilesSort.Name -> Icons.Outlined.SortByAlpha
-                    FilesSort.Date -> Icons.Outlined.Schedule
-                    FilesSort.Size -> Icons.Outlined.Straighten
-                    FilesSort.Type -> Icons.Outlined.Category
+            actions = buildList {
+                FilesView.entries.forEach { view -> add(IcodeMenuAction(view.name, view.icon, { onLook(look.copy(view = view)) }, checked = look.view == view)) }
+                onHidden?.let { add(IcodeMenuAction("Hidden files", Icons.Outlined.Visibility, { it(!showHidden) }, checked = showHidden)) }
+                FilesSort.entries.forEachIndexed { index, sort ->
+                    add(IcodeMenuAction(sort.name, sort.icon, { onLook(look.sortedBy(sort)) }, checked = look.sort == sort, beginsGroup = index == 0))
                 }
-                IcodeMenuAction(option.name, icon, { onSort(option) }, checked = option == sort)
+                add(IcodeMenuAction("Descending", Icons.Outlined.ArrowDownward, { onLook(look.copy(descending = !look.descending)) }, checked = look.descending))
             },
         )
     }
 }
+
+private val FilesView.icon: ImageVector
+    get() = when (this) {
+        FilesView.Detailed -> Icons.AutoMirrored.Outlined.ViewList
+        FilesView.Compact -> Icons.Outlined.ViewHeadline
+        FilesView.Grid -> Icons.Outlined.GridView
+    }
+
+private val FilesSort.icon: ImageVector
+    get() = when (this) {
+        FilesSort.Name -> Icons.Outlined.SortByAlpha
+        FilesSort.Date -> Icons.Outlined.Schedule
+        FilesSort.Size -> Icons.Outlined.Straighten
+        FilesSort.Type -> Icons.Outlined.Category
+    }
 
 /** 🔍's field, under the bar, ready to type in. */
 @Composable

@@ -84,7 +84,8 @@ fun IcodePageColumn(modifier: Modifier = Modifier, content: @Composable ColumnSc
  * the product wordmark) independently from the rest of the text. [onTitleClick]
  * makes the title a choice, marked ▾ (the file explorer's places), and
  * [titleMenu] is drawn anchored under it. [leaving] says what [onBack]'s
- * button does: ← back, or ✕ out of a mode.
+ * button does: ← back, or ✕ out of a mode. [subtitleContent] stands where
+ * [subtitle] would: a breadcrumb.
  */
 @Composable
 fun IcodeTopBar(
@@ -96,16 +97,18 @@ fun IcodeTopBar(
     onTitleClick: (() -> Unit)? = null,
     titleMenu: @Composable () -> Unit = {},
     leaving: BarLeave = BarLeave.Back,
+    subtitleContent: (@Composable () -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
+    val subtitled = subtitle != null || subtitleContent != null
     Column(modifier = modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(when {
-                    dense && subtitle == null -> IcodeSizes.TouchTarget
+                    dense && !subtitled -> IcodeSizes.TouchTarget
                     dense -> IcodeSizes.TopBar
-                    subtitle == null -> IcodeSizes.TopBar
+                    !subtitled -> IcodeSizes.TopBar
                     else -> IcodeSizes.TopBarWithSubtitle
                 })
                 .padding(horizontal = IcodeSpacing.IconButtonGutter),
@@ -127,8 +130,9 @@ fun IcodeTopBar(
                             Icon(Icons.Outlined.ArrowDropDown, contentDescription = "Choose", tint = IcodeColors.TextSecondary)
                         }
                     }
-                    if (subtitle != null) {
-                        Text(subtitle, style = IcodeType.Caption, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    when {
+                        subtitleContent != null -> subtitleContent()
+                        subtitle != null -> Text(subtitle, style = IcodeType.Caption, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
                 titleMenu()
@@ -150,9 +154,10 @@ fun IcodeTopBar(
     onTitleClick: (() -> Unit)? = null,
     titleMenu: @Composable () -> Unit = {},
     leaving: BarLeave = BarLeave.Back,
+    subtitleContent: (@Composable () -> Unit)? = null,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
-    IcodeTopBar(AnnotatedString(title), modifier, subtitle, onBack, dense, onTitleClick, titleMenu, leaving, actions)
+    IcodeTopBar(AnnotatedString(title), modifier, subtitle, onBack, dense, onTitleClick, titleMenu, leaving, subtitleContent, actions)
 }
 
 /** What a top bar's leading button does: ← back, or ✕ out of a mode — selection (docs/explorer-gaps-plan.md §3.2). */

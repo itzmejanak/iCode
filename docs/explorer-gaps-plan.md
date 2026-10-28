@@ -841,3 +841,24 @@ Descending.
 - **⋮** (`ExplorerMenu`): Select, Undo and Redo with what each would do, and Storage settings.
 - **Moved out of `FilesScreen`** to `FilesBars.kt`: the places' menu, the sort button and the search
   field.
+
+### F5c (the view panel, the grid and thumbnails, the breadcrumb, go to)
+
+- **☰, the view panel** (`ViewPanelButton`), in place of the sort button:
+  - **View:** Detailed, Compact, Grid, and Hidden files;
+  - **Sort:** Name, Size, Date, Type, and Descending; a new sort reads its own way first.
+  - **Kept:** the look by `setFilesLook(null, …)`, Hidden by `setShowHidden`, read back from
+    `explorer.settings`.
+- **The listing,** `FilesListing.kt`:
+  - **Detailed and Compact:** a list. **Grid:** `LazyVerticalGrid`, tiles of at least
+    `IcodeSizes.GridTileMin`.
+  - **Sorted by Type:** a label over each group, "*label* · *count*".
+  - **One item's taps** (`ListingTaps`, `itemActs`) are shared by its row and its tile.
+- **Thumbnails** (`Thumbnails.kt`), in every view and in the assistant's attachments:
+  - pictures, videos and an APK's own icon (`ThumbnailKind`);
+  - made off the main thread, four at a time;
+  - kept in memory, 200 of them, by path and modified time.
+- **The breadcrumb:** `FilesBrowserState.crumbs`, with a test, drawn by the design system's
+  `IcodeBreadcrumb` in the top bar's new `subtitleContent`. It scrolls with its end in view.
+- **▾, go to** (`goTo`): the two places, then each favorite with its path. Favorites are now
+  `FavoriteFolder`s (name, location, runtime path), published by `FileShortcuts`.

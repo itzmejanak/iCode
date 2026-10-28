@@ -408,7 +408,7 @@ class FileOperationsTest {
             shortcuts.handle(FilesIntent.Favorite(src.path, pinned = true))
         }
         fun recent() = stateHolder.current.explorer.recent.map { it.location }
-        fun favorites() = stateHolder.current.explorer.favorites
+        fun favorites() = stateHolder.current.explorer.favorites.map { it.location }
         perform(FilesIntent.Transfer(listOf(src.path), lib.path, move = true))
         assertEquals(listOf(File(lib, "src/Main.kt").path), recent())
         assertEquals(listOf(File(lib, "src").path), favorites())

@@ -79,4 +79,14 @@ class FilesRulesTest {
         assertEquals(sdcard, FilesBrowserState(StoragePlace.Shared, sdcard, "$sdcard/Download").parent)
         assertEquals(null, FilesBrowserState(StoragePlace.Shared, sdcard, sdcard).parent)
     }
+
+    @Test fun `the breadcrumb is the folder's path in segments, from the place's top as the runtime names it`() {
+        val private = FilesBrowserState(StoragePlace.Private, "/data/files/workspaces", "/data/files/workspaces/RevPlayer/src")
+        assertEquals(
+            listOf(Crumb("/workspace", "/data/files/workspaces"), Crumb("RevPlayer", "/data/files/workspaces/RevPlayer"), Crumb("src", "/data/files/workspaces/RevPlayer/src")),
+            private.crumbs,
+        )
+        val shared = FilesBrowserState(StoragePlace.Shared, "/storage/emulated/0", "/storage/emulated/0")
+        assertEquals(listOf(Crumb("/storage/emulated/0", "/storage/emulated/0")), shared.crumbs)
+    }
 }

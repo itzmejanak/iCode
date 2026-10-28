@@ -8,6 +8,7 @@ import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.files.CompressFormat
 import dev.icode.mobile.domain.files.ExplorerState
+import dev.icode.mobile.domain.files.FavoriteFolder
 import dev.icode.mobile.domain.files.FileClipboard
 import dev.icode.mobile.domain.files.FolderPick
 import dev.icode.mobile.domain.files.HeldItem
@@ -81,7 +82,7 @@ class FileItemActionsTest {
     }
 
     @Test fun `with nothing held, Paste is there and greyed, and a folder pinned can be let go`() {
-        val all = actions(explorer = ExplorerState(favorites = listOf("/w/app/src")))
+        val all = actions(explorer = ExplorerState(favorites = listOf(FavoriteFolder("src", "/w/app/src", "/workspace/app/src"))))
         val paste = all.single { it.label.startsWith("Paste") }
         assertEquals("Paste", paste.label)
         assertFalse(paste.enabled)

@@ -61,12 +61,26 @@ data class FilesBrowserState(
     val where: String get() = runtimePathOf(parent ?: path)
 
     /**
+     * The breadcrumb (docs/explorer-gaps-plan.md §3.14): the folder shown's path in segments, each
+     * where a tap goes — the place's top as the runtime names it, then each folder down to this one.
+     */
+    val crumbs: List<Crumb>
+        get() {
+            val names = path.removePrefix(rootPath).split('/').filter { it.isNotEmpty() }
+            val below = names.runningFold(rootPath) { above, name -> "$above/$name" }.drop(1)
+            return listOf(Crumb(runtimePathOf(rootPath), rootPath)) + names.zip(below) { name, location -> Crumb(name, location) }
+        }
+
+    /**
      * [location] as the runtime names it — `/workspace/tools/cli/README.md` — or, on phone storage,
      * as Android does: `/storage/emulated/0/Download/notes.txt`.
      */
     fun runtimePathOf(location: String): String =
         if (place == StoragePlace.Shared) location else WorkspaceRuntimePath.ROOT + location.removePrefix(rootPath)
 }
+
+/** One segment of the breadcrumb: what it says, and the folder it goes to. */
+data class Crumb(val label: String, val location: String)
 
 /**
  * What the explorer orders by (docs/explorer-gaps-plan.md §3.12), in the panel's order. Each has the

@@ -65,6 +65,9 @@ object IcodeSizes {
     val BadgeSm = 32.dp
     val BadgeMd = 36.dp
     val Tile = 74.dp
+    /** A grid of files (docs/explorer-gaps-plan.md §3.12): each tile at least this wide, its picture this big. */
+    val GridTileMin = 104.dp
+    val GridTilePicture = 56.dp
     val TouchTarget = 48.dp
     /**
      * An icon action's ripple in a card's top corner ([SectionHeader]): it spreads into the card's
