@@ -40,10 +40,11 @@ import dev.icode.mobile.designsystem.LabeledTextField
 import dev.icode.mobile.domain.FileEntry
 import dev.icode.mobile.domain.FileKind
 import dev.icode.mobile.domain.FileTypes
-import dev.icode.mobile.domain.ItemClipboard
+import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.WorkspaceNameRules
 import dev.icode.mobile.domain.WorkspaceRuntimePath
+import dev.icode.mobile.domain.files.FileClipboard
 import dev.icode.mobile.ui.FileItemActions
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.rememberPendingRequest
@@ -59,9 +60,8 @@ internal fun explorerItemActions(
     root: String?,
     rootPath: String,
     files: List<FileEntry>,
-    clipboard: ItemClipboard?,
+    clipboard: FileClipboard?,
     onRename: () -> Unit,
-    onDelete: () -> Unit,
 ): List<IcodeMenuAction> {
     val gateway = LocalICodeGateway.current
     val folder = entry.kind == FileKind.Folder
@@ -81,8 +81,7 @@ internal fun explorerItemActions(
             FileItemActions.openFile { gateway.dispatch(ICodeIntent.OpenFile(entry.path)) }
         },
         onRename = onRename,
-        onPaste = { creationParentLocation(root, entry.path, files)?.let { gateway.dispatch(ICodeIntent.PasteInto(it)) } },
-        onDelete = onDelete,
+        onPaste = { creationParentLocation(root, entry.path, files)?.let { gateway.dispatch(FilesIntent.Paste(it)) } },
         file = !folder,
     )
 }
@@ -111,27 +110,6 @@ internal fun RenameWorkspaceItemDialog(location: String, currentName: String, fo
         }
         request.failure?.let { Text(it, style = IcodeType.Caption, color = IcodeColors.Error) }
     }
-}
-
-/** Delete is final — there is no trash — so it is asked, and says what goes: [detail], its path as shown. */
-@Composable
-internal fun DeleteWorkspaceItemDialog(location: String, name: String, folder: Boolean, detail: String, onDismiss: () -> Unit) {
-    val gateway = LocalICodeGateway.current
-    IcodeConfirmDialog(
-        title = "Delete $name?",
-        message = if (folder) {
-            "The folder and everything in it are deleted. This cannot be undone."
-        } else {
-            "The file is deleted. This cannot be undone."
-        },
-        confirmLabel = "Delete",
-        onConfirm = {
-            gateway.dispatch(ICodeIntent.DeleteWorkspaceItem(location))
-            onDismiss()
-        },
-        onDismiss = onDismiss,
-        detail = detail,
-    )
 }
 
 /** One row of the Explorer's tree; its actions open from a long press ([menuOpen]), at its end. */

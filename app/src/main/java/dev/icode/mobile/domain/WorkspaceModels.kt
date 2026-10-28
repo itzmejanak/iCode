@@ -38,32 +38,6 @@ data class WorkspaceSummary(
     val location: String = path,
 )
 
-/**
- * What is cut or copied, anywhere in iCode's workspaces or on phone storage, waiting for Paste
- * (docs/workspaces-page-plan.md §2.7; docs/storage-explorer-plan.md §4). A cut item moves once; a
- * copied one pastes again.
- */
-data class ItemClipboard(
-    val location: String,
-    val name: String,
-    val cut: Boolean,
-    val folder: Boolean,
-    /** A whole workspace, not something in one. */
-    val workspace: Boolean,
-) {
-    /**
-     * Why it can never be pasted as a workspace of its own — at the top of the workspaces — or null
-     * when it can: a file is not a workspace, and a cut workspace already is one. The paste's own
-     * check and the paste bar's both read it.
-     */
-    val notAWorkspace: String?
-        get() = when {
-            !folder -> "A workspace is a folder: paste $name inside one"
-            cut && workspace -> "$name is a workspace already"
-            else -> null
-        }
-}
-
 data class StorageSummary(
     val availableBytes: Long,
     val totalBytes: Long,

@@ -98,15 +98,6 @@ internal class WorkspaceFileSource(private val guest: GuestPaths) {
             )
     }
 
-    fun createDirectory(parentLocation: String, name: String): String {
-        val parent = requireDirectory(parentLocation)
-        val target = File(parent, name).canonicalFile
-        if (target.parentFile?.canonicalFile != parent.canonicalFile) throw IOException("Invalid folder destination")
-        if (target.exists()) throw IOException("A file or folder with this name already exists")
-        if (!target.mkdir()) throw IOException("The folder could not be created")
-        return target.path
-    }
-
     /** Creates only a direct child and never truncates an existing document. */
     fun createFile(parentLocation: String, name: String): String {
         val parent = requireDirectory(parentLocation)

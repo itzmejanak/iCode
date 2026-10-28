@@ -4,6 +4,8 @@ import android.content.Context
 import com.termux.terminal.TerminalSession
 import dev.icode.mobile.data.assistant.AssistantCoordinator
 import dev.icode.mobile.data.assistant.tools.AssistantToolbox
+import dev.icode.mobile.data.files.FileHistory
+import dev.icode.mobile.data.files.FileOperationsCoordinator
 import dev.icode.mobile.data.git.CliGitService
 import dev.icode.mobile.data.git.GitAuthCoordinator
 import dev.icode.mobile.data.git.GitAuthenticator
@@ -33,6 +35,7 @@ import dev.icode.mobile.data.system.AndroidSystemAccess
 import dev.icode.mobile.data.tasks.BackgroundWork
 import dev.icode.mobile.data.tasks.TaskRunner
 import dev.icode.mobile.domain.BackgroundWorkRules
+import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.GitAuthWorkIntent
 import dev.icode.mobile.domain.GitHistoryIntent
 import dev.icode.mobile.domain.GitOperationState
@@ -148,22 +151,21 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     )
     /** What may change now, asked the same way by the lifecycle and the Explorer's items. */
     private val usage = WorkspaceUsage(stateHolder, tasks, terminal::runsIn, execution.processes::runsIn, documents::blockingEdits) { session.activeRoot }
+    private val history = FileHistory(stateHolder)
     private val lifecycle = WorkspaceLifecycleCoordinator(
-        stateHolder, tasks, source, library, session, usage, documents::open,
+        stateHolder, source, library, session, usage, history, documents::open,
         moveSettings = { from, to -> settings.moveWorkspace(from, to).also { assistant.workspaceMoved(from, to); execution.processes.workspaceMoved(from, to); runs.workspaceMoved(from, to) } },
         forgetSettings = { location -> settings.forgetWorkspace(location).also { assistant.workspaceForgotten(location); execution.processes.workspaceForgotten(location); runs.workspaceForgotten(location) } },
     )
-    private val items = WorkspaceItemsCoordinator(
-        stateHolder, tasks, source, tree, documents, library, usage, lifecycle, phoneStorage, runtimeLayout.paths,
-        StorageTransfers(
-            stateHolder, tasks, runtimeLayout.workspaces, git, phoneStorage,
-            reserveSpace = runtimeLayout::reserveSpace,
-            freeBytes = runtimeLayout::allocatableBytes,
-        ),
+    private val follower = FileChangeFollower(
+        stateHolder, source, documents, tree, library, lifecycle,
         activeRoot = { session.activeRoot },
         refreshWorkspaceState = { root -> gitWorkspace.refresh(root) },
         reindex = { root -> search.workspaceChanged(root) },
     )
+    /** The explorers' operations (docs/explorer-gaps-plan.md): each a task, the question it asks answered off the lock. */
+    private val files = FileOperationsCoordinator.create(appContext, stateHolder, scope, tasks, runtimeLayout, phoneStorage, git, usage, follower, history)
+    private val items = WorkspaceItemsCoordinator(stateHolder, source, documents, usage, lifecycle, files.places, runtimeLayout.paths, follower, history) { session.activeRoot }
     /** The Terminal panel's Run tab (docs/run-tab-plan.md): Android apps and saved commands, for the tab and the assistant. */
     private val runs = RunCoordinator(stateHolder, scope, runtimeLayout, execution, appContext)
     /** iCode's assistant (docs/assistant-koog-plan.md): its turns are its own jobs, its tools iCode's owners. */
@@ -194,6 +196,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
         BackgroundWork.follow(appContext, scope, stateHolder.snapshot.map(BackgroundWorkRules::of), ::dispatch)
         library.followAccess()
         assistant.start()
+        files.start()
     }
 
     /** The live session behind a terminal tab, for the view that draws it. Main thread. */
@@ -211,6 +214,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
             is GitHistoryIntent -> gitHistory.handle(intent)
             // A task's dialog must answer while the task runs.
             is ICodeIntent.TaskIntent -> tasks.handle(intent)
+            is FilesIntent -> files.handle(intent)
             is ICodeIntent.RuntimeToolsIntent -> runtimeTools.handle(intent)
             ICodeIntent.Refresh -> session.requestRefresh(rebuildIndex = true)
             is ICodeIntent.ScreenVisible -> session.screenVisible(intent.visible)
@@ -245,8 +249,6 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
                         is ICodeIntent.OpenSystemSettings -> stateHolder.emit(ICodeEffect.OpenSystemSettings(intent.permission))
                         ICodeIntent.RefreshSystemAccess -> runtime.refreshSystemAccess()
                         is ICodeIntent.CreateWorkspace -> lifecycle.create(intent)
-                        is ICodeIntent.RenameWorkspace -> lifecycle.rename(intent)
-                        is ICodeIntent.DeleteWorkspace -> lifecycle.delete(intent.location)
                         is ICodeIntent.OpenWorkspace -> session.open(intent.path, persist = true)
                         is ICodeIntent.OpenWorkspaceTerminal -> session.open(intent.path, persist = true, openTerminal = true)
                         is ICodeIntent.ResolveWorkspaceSwitch -> session.resolveSwitch(intent)
@@ -254,8 +256,6 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
                         is ICodeIntent.CreateFile -> items.createFile(intent)
                         is ICodeIntent.CreateWorkspaceFolder -> items.createFolder(intent)
                         is ICodeIntent.RenameWorkspaceItem -> items.rename(intent)
-                        is ICodeIntent.ClipboardIntent -> items.clipboard(intent)
-                        is ICodeIntent.DeleteWorkspaceItem -> items.delete(intent)
                         is ICodeIntent.SaveDocument -> documents.save(intent.location, intent.automatic, intent.expectedText, intent.expectedWorkspace)
                         is ICodeIntent.RestoreDraft -> recovery.restore(intent.location)
                         is ICodeIntent.OpenRecoverableDraft -> session.openRecoverableDraft(intent.location)

@@ -122,7 +122,7 @@ object BackgroundWorkRules {
      * managed processes that run, and gpg's question waiting on its dialog.
      */
     fun of(snapshot: ICodeSnapshot): List<BackgroundItem> = buildList {
-        snapshot.tasks.forEach { add(task(it)) }
+        snapshot.tasks.filterNot { it.quiet }.forEach { add(task(it)) }
         git(snapshot)?.let(::add)
         runtime(snapshot)?.let(::add)
         snapshot.runtimeTools.work?.let { add(runtimeTools(it)) }

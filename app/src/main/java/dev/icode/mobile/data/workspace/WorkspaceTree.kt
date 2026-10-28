@@ -1,6 +1,8 @@
 package dev.icode.mobile.data.workspace
 
 import dev.icode.mobile.data.git.GitWorkspaceSnapshot
+import dev.icode.mobile.data.io.isAtOrUnder
+import dev.icode.mobile.data.io.relocated
 import dev.icode.mobile.domain.FileEntry
 import dev.icode.mobile.domain.GitTreeStatus
 import java.io.File

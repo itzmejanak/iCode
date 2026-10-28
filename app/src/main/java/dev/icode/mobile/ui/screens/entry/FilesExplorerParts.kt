@@ -38,6 +38,7 @@ import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.domain.files.BrowsedItem
 import dev.icode.mobile.domain.FileTypes
 import dev.icode.mobile.domain.FileViewer
+import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.files.FilesBrowserState
 import dev.icode.mobile.domain.files.FilesRules
 import dev.icode.mobile.domain.files.FilesSort
@@ -66,7 +67,6 @@ internal fun FilesListing(
     foldersOnly: Boolean,
     browse: (String) -> Unit,
     onRename: (String) -> Unit,
-    onDelete: (String) -> Unit,
 ) {
     val state = LocalICodeSnapshot.current
     val here = if (foldersOnly) browser.items.filter { it.folder } else browser.items
@@ -101,7 +101,7 @@ internal fun FilesListing(
                 )
             }
             else -> items(shown, key = { it.location }) { item ->
-                if (top) WorkspaceItemRow(item, browse) else BrowsedItemRow(item, browser, browse, { onRename(item.location) }, { onDelete(item.location) })
+                if (top) WorkspaceItemRow(item, browse) else BrowsedItemRow(item, browser, browse) { onRename(item.location) }
             }
         }
     }
@@ -121,7 +121,7 @@ private fun UpRow(onClick: () -> Unit) {
  * ([FileItemActions]). Paste goes into a folder; beside a file, into the folder shown.
  */
 @Composable
-private fun BrowsedItemRow(item: BrowsedItem, browser: FilesBrowserState, browse: (String) -> Unit, onRename: () -> Unit, onDelete: () -> Unit) {
+private fun BrowsedItemRow(item: BrowsedItem, browser: FilesBrowserState, browse: (String) -> Unit, onRename: () -> Unit) {
     val gateway = LocalICodeGateway.current
     val context = LocalContext.current
     var menuOpen by remember(item.location) { mutableStateOf(false) }
@@ -137,11 +137,10 @@ private fun BrowsedItemRow(item: BrowsedItem, browser: FilesBrowserState, browse
         dispatch = gateway::dispatch,
         location = item.location,
         runtimePath = browser.runtimePathOf(item.location),
-        clipboard = LocalICodeSnapshot.current.clipboard,
+        clipboard = LocalICodeSnapshot.current.explorer.clipboard,
         open = open?.let { if (item.folder) IcodeMenuAction("Open", Icons.Outlined.FolderOpen, it) else FileItemActions.openFile(it) },
         onRename = onRename,
-        onPaste = { gateway.dispatch(ICodeIntent.PasteInto(if (item.folder) item.location else browser.path)) },
-        onDelete = onDelete,
+        onPaste = { gateway.dispatch(FilesIntent.Paste(if (item.folder) item.location else browser.path)) },
         file = !item.folder,
     )
     FileRow(

@@ -1,5 +1,6 @@
 package dev.icode.mobile.data.workspace
 
+import dev.icode.mobile.data.io.isAtOrUnder
 import dev.icode.mobile.data.tasks.TaskRunner
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.OpenDocument
@@ -31,9 +32,17 @@ internal class WorkspaceUsage(
             return "Git is working in $name — wait for it to finish"
         }
         if (whole && state.assistant.turn?.workspace == location) return "The assistant is working in $name. Stop it first"
+        return edited(location)
+    }
+
+    /**
+     * Why what is at or under [location] cannot be replaced or moved now — unsaved edits, or work
+     * waiting in Document Recovery — or null. An operation already running asks it of what it meets.
+     */
+    fun edited(location: String): String? {
         blockingEdits(location)?.let { return "${it.name} has unsaved edits. Save or close it first" }
-        if (state.recoverableDrafts.any { it.location.isAtOrUnder(location) }) {
-            return "$name has unsaved work waiting in Document Recovery. Restore or discard it first"
+        if (stateHolder.current.recoverableDrafts.any { it.location.isAtOrUnder(location) }) {
+            return "${File(location).name} has unsaved work waiting in Document Recovery. Restore or discard it first"
         }
         return null
     }
