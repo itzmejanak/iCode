@@ -3,6 +3,7 @@ package dev.icode.mobile.domain
 import dev.icode.mobile.domain.files.CompressFormat
 import dev.icode.mobile.domain.files.ConflictAnswer
 import dev.icode.mobile.domain.files.RenameRule
+import dev.icode.mobile.domain.files.ScanScope
 
 /**
  * What the explorers ask of their files (docs/explorer-gaps-plan.md §3.3–§3.8), each on as many
@@ -66,4 +67,17 @@ sealed interface FilesIntent : ICodeIntent {
     data object Undo : FilesIntent
 
     data object Redo : FilesIntent
+
+    /** What the explorers learn of their files (§3.9, §3.10): each on its own job, never behind the lock. */
+    sealed interface Insight : FilesIntent
+
+    /** Properties of [locations]: one item, or many; a folder's size measured while it is open. */
+    data class Properties(val locations: List<String>) : Insight
+
+    data object CloseProperties : Insight
+
+    /** Manage storage's scan of [scope], again; one already running is replaced. */
+    data class Scan(val scope: ScanScope) : Insight
+
+    data object StopScan : Insight
 }

@@ -151,7 +151,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     )
     /** What may change now, asked the same way by the lifecycle and the Explorer's items. */
     private val usage = WorkspaceUsage(stateHolder, tasks, terminal::runsIn, execution.processes::runsIn, documents::blockingEdits) { session.activeRoot }
-    private val history = FileHistory(stateHolder)
+    private val history: FileHistory = FileHistory(stateHolder) { steps -> files.follow(steps) }
     private val lifecycle = WorkspaceLifecycleCoordinator(
         stateHolder, source, library, session, usage, history, documents::open,
         moveSettings = { from, to -> settings.moveWorkspace(from, to).also { assistant.workspaceMoved(from, to); execution.processes.workspaceMoved(from, to); runs.workspaceMoved(from, to) } },
@@ -164,7 +164,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
         reindex = { root -> search.workspaceChanged(root) },
     )
     /** The explorers' operations (docs/explorer-gaps-plan.md): each a task, the question it asks answered off the lock. */
-    private val files = FileOperationsCoordinator.create(appContext, stateHolder, scope, tasks, runtimeLayout, phoneStorage, git, usage, follower, history)
+    private val files: FileOperationsCoordinator = FileOperationsCoordinator.create(appContext, stateHolder, scope, tasks, runtimeLayout, phoneStorage, git, usage, follower, history)
     private val items = WorkspaceItemsCoordinator(stateHolder, source, documents, usage, lifecycle, files.places, runtimeLayout.paths, follower, history) { session.activeRoot }
     /** The Terminal panel's Run tab (docs/run-tab-plan.md): Android apps and saved commands, for the tab and the assistant. */
     private val runs = RunCoordinator(stateHolder, scope, runtimeLayout, execution, appContext)

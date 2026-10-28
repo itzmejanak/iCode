@@ -716,3 +716,22 @@ Descending.
   `FileOperationsCoordinator` and `FileArchives`.
 - **`StorageTransfers.roomRefusal`:** one room check, on the workspaces' volume, which phone storage
   shares.
+
+### F4b (facts and the scan)
+
+- **`data/io/TreeSize.kt`:** `tallyTree`, one walk giving bytes, files and folders, and stopping
+  when told. `measureTree` is a view of it.
+- **Domain:**
+  - `FileFacts` and `TreeFacts`: Properties.
+  - `StorageInsights`: the overview, Largest, the same-size candidates, Select extra copies, and
+    `after`, where a path is once iCode's own steps are done.
+- **`data/files/StorageScan`:** the walk and the copies (same size, then the first 4 KB, then the
+  whole, by SHA-256).
+  - `.git` is apart; Trash is left out by `FileTrash.isTrash`, which unlike `holds` is false for
+    Trash's ancestors.
+  - It follows every change kept in `FileHistory`: what went, moved or arrived.
+- **`data/files/FileInsightsCoordinator`:** Properties and the scan (`FilesIntent.Insight`).
+  - Requests and changes are taken in order, off the main thread, through one channel. A failure in
+    one never stops the next.
+  - The snapshot gets `ExplorerState.facts` and `ExplorerState.storage`.
+- **The view lists** (a category's files, Largest, Duplicates) are published with the views in F6.

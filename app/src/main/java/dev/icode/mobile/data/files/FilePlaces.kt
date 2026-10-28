@@ -7,7 +7,7 @@ import java.io.File
  * iCode's two places (docs/storage-explorer-plan.md §4): Private, its workspaces, and Shared, phone
  * storage — the files of each, and which one a location is in.
  */
-internal class FilePlaces(workspaces: File, val storage: PhoneStorage) {
+internal class FilePlaces(val workspaces: File, val storage: PhoneStorage) {
     val privateFiles = PlaceFiles(workspaces, gitOwnsDotGit = true)
     val sharedFiles = PlaceFiles(storage.root, gitOwnsDotGit = false)
 
