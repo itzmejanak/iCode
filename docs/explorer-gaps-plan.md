@@ -691,3 +691,28 @@ Descending.
   - Trash's own folders, and a folder holding one, are never moved or put in Trash.
   - Delete for good and Empty Trash take an item's record first, so an item is never removed twice.
   - A record without its item goes when Trash is read. An item without its record goes at start.
+
+### F4a (archives)
+
+- **`data/io/Archives.kt`** replaces `ArchiveExtractor`. It is the one reader, for the runtime's
+  pinned downloads and the explorer's Extract alike: zip (and .jar, .apk), tar, .tar.gz, .tar.bz2,
+  .tar.xz, .gz, .bz2, .xz, and 7z with its password.
+  - It takes `ArchiveLinks`: `AsWritten` for a pinned download, `Inside` for the explorer in
+    Private, `None` on Shared.
+  - Case twins are left out on Shared. What was left out is counted.
+  - An encrypted zip says so.
+- **`data/io/ArchiveWriting.kt`** writes zip and tar.gz, which keep links and executable bits, and
+  7z, which leaves links out and counts them.
+- **`org.tukaani:xz:1.10`** is added; its checksum and 0BSD licence were checked against Maven
+  Central.
+- **`data/files/FileArchives`:** Compress and Extract as tasks.
+  - What is made is staged in `<trash>/staging/<id>` on the destination's volume, swept at start,
+    then put in place by `FileBatch.settle`: the question for Extract, a free name for Compress.
+    Both are kept as made, to undo.
+  - A 7z locked by a password sets `ExplorerState.password` (`PasswordAsk`) and waits for Extract
+    again with it. The password is never kept.
+  - The default name comes from `ArchiveFormats.archiveName`.
+- **`FileTasks`:** running an operation as a task, keeping it, refreshing. It is shared by
+  `FileOperationsCoordinator` and `FileArchives`.
+- **`StorageTransfers.roomRefusal`:** one room check, on the workspaces' volume, which phone storage
+  shares.

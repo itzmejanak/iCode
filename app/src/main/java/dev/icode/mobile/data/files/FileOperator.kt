@@ -7,6 +7,7 @@ import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.files.FileStep
 import dev.icode.mobile.domain.files.TrashedItem
 import java.io.File
+import java.io.IOException
 import java.nio.file.Files
 import java.nio.file.LinkOption
 import kotlinx.coroutines.NonCancellable
@@ -71,6 +72,15 @@ internal class FileOperator(
         progress.item(item.name)
         trash.restore(item, to)
         return FileStep.Restored(item.id, to)
+    }
+
+    /** What an operation [staged] — an archive, what one held — put in place at [to], on its own volume: made there. */
+    suspend fun settle(staged: String, to: String, progress: TaskRunner.Progress): FileStep.Made {
+        progress.item(File(to).name)
+        places.of(to).refusal(to)?.let { throw IOException(it) }
+        Files.createDirectories(File(to).toPath().parent)
+        Files.move(File(staged).toPath(), File(to).toPath())
+        return FileStep.Made(to)
     }
 
     /** The empty folder [location] removed: one a merge moved everything out of, or one made and undone. */

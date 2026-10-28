@@ -1,5 +1,6 @@
-package dev.icode.mobile.data.runtime
+package dev.icode.mobile.data.io
 
+import dev.icode.mobile.domain.files.ArchiveFormat
 import java.io.File
 import java.nio.file.Files
 import java.util.zip.GZIPOutputStream
@@ -15,7 +16,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
-class ArchiveExtractorTest {
+class ArchivesTest {
 
     @get:Rule
     val temporaryFolder = TemporaryFolder()
@@ -42,11 +43,14 @@ class ArchiveExtractorTest {
 
     private fun target() = File(temporaryFolder.root, "out-${System.nanoTime()}")
 
+    /** As the runtime unpacks its pinned root filesystem: links as written. */
+    private fun unpack(source: File, out: File) = Archives.unpack(source, ArchiveFormat.TarGz, out, Unpacking(ArchiveLinks.AsWritten))
+
     @Test
     fun `regular files land with their contents`() {
         val source = archive { file("etc/hostname", "icode\n") }
         val out = target()
-        ArchiveExtractor().extractTarGz(source, out) {}
+        unpack(source, out)
         assertEquals("icode\n", File(out, "etc/hostname").readText())
     }
 
@@ -54,7 +58,7 @@ class ArchiveExtractorTest {
     fun `directories are created even when only implied by a path`() {
         val source = archive { file("usr/lib/deep/thing.txt", "x") }
         val out = target()
-        ArchiveExtractor().extractTarGz(source, out) {}
+        unpack(source, out)
         assertTrue(File(out, "usr/lib/deep").isDirectory)
     }
 
@@ -62,7 +66,7 @@ class ArchiveExtractorTest {
     fun `an executable keeps its execute bit`() {
         val source = archive { file("bin/tool", "#!/bin/sh\n", mode = 0b111_101_101) }
         val out = target()
-        ArchiveExtractor().extractTarGz(source, out) {}
+        unpack(source, out)
         assertTrue(File(out, "bin/tool").canExecute())
     }
 
@@ -70,7 +74,7 @@ class ArchiveExtractorTest {
     fun `a plain file does not become executable`() {
         val source = archive { file("etc/passwd", "root:x:0:0\n") }
         val out = target()
-        ArchiveExtractor().extractTarGz(source, out) {}
+        unpack(source, out)
         assertFalse(File(out, "etc/passwd").canExecute())
     }
 
@@ -84,7 +88,7 @@ class ArchiveExtractorTest {
             closeArchiveEntry()
         }
         val out = target()
-        ArchiveExtractor().extractTarGz(source, out) {}
+        unpack(source, out)
         assertTrue(Files.isSymbolicLink(File(out, "bin/sh").toPath()))
     }
 
@@ -99,7 +103,7 @@ class ArchiveExtractorTest {
             closeArchiveEntry()
         }
         val out = target()
-        ArchiveExtractor().extractTarGz(source, out) {}
+        unpack(source, out)
         val copy = File(out, "usr/bin/perl5.38")
         assertTrue(copy.isFile)
         assertFalse(Files.isSymbolicLink(copy.toPath()))
@@ -116,7 +120,7 @@ class ArchiveExtractorTest {
             file("usr/bin/late", "arrived later")
         }
         val out = target()
-        ArchiveExtractor().extractTarGz(source, out) {}
+        unpack(source, out)
         assertEquals("arrived later", File(out, "usr/bin/early").readText())
     }
 
@@ -124,7 +128,7 @@ class ArchiveExtractorTest {
     fun `an entry escaping the target is refused`() {
         val source = archive { file("../escaped.txt", "nope") }
         val out = target()
-        ArchiveExtractor().extractTarGz(source, out) {}
+        unpack(source, out)
         assertFalse(File(temporaryFolder.root, "escaped.txt").exists())
     }
 
@@ -132,10 +136,10 @@ class ArchiveExtractorTest {
     fun `progress is reported and the final count is the entries written`() {
         val source = archive { repeat(5) { index -> file("file$index.txt", "$index") } }
         val out = target()
-        var lastReported = -1L
-        val written = ArchiveExtractor().extractTarGz(source, out) { lastReported = it }
-        assertEquals(5L, written)
-        assertEquals(5L, lastReported)
+        val reported = mutableListOf<String>()
+        val written = Archives.unpack(source, ArchiveFormat.TarGz, out, Unpacking(ArchiveLinks.AsWritten, onEntry = { reported += it }))
+        assertEquals(5L, written.entries)
+        assertEquals((0..4).map { "file$it.txt" }, reported)
     }
 
     @Test
@@ -157,8 +161,8 @@ class ArchiveExtractorTest {
             tar.finish()
         }
         val out = target()
-        val written = ArchiveExtractor().extractTarGz(file, out, { it.substringAfter('/', "").takeIf(String::isNotEmpty) }) {}
-        assertEquals(4L, written)
+        val written = Archives.unpack(file, ArchiveFormat.TarGz, out, Unpacking(ArchiveLinks.AsWritten, place = { it.substringAfter('/', "").takeIf(String::isNotEmpty) }))
+        assertEquals(4L, written.entries)
         assertEquals("Pkg.Revision = 27.0.12077973\n", File(out, "source.properties").readText())
         val clang = File(out, "toolchains/llvm/prebuilt/linux-arm64/bin/clang")
         assertTrue(clang.canExecute())
@@ -184,8 +188,8 @@ class ArchiveExtractorTest {
     fun `a zip's entries land where they are placed, executables kept executable, the rest left out`() {
         val source = zip("build-tools/aapt2" to 0b111_000_000, "build-tools/NOTICE" to 0b110_100_100, "others/veridex" to 0b111_101_101)
         val out = target()
-        val written = ArchiveExtractor().extractZip(source, out) { name -> name.removePrefix("build-tools/").takeIf { it != name } }
-        assertEquals(2L, written)
+        val written = Archives.unpack(source, ArchiveFormat.Zip, out, Unpacking(ArchiveLinks.AsWritten, place = { name -> name.removePrefix("build-tools/").takeIf { it != name } }))
+        assertEquals(2L, written.entries)
         assertEquals("build-tools/aapt2", File(out, "aapt2").readText())
         assertTrue(File(out, "aapt2").canExecute())
         assertFalse(File(out, "NOTICE").canExecute())
@@ -195,7 +199,7 @@ class ArchiveExtractorTest {
     @Test
     fun `a zip entry escaping the target is refused`() {
         val out = target()
-        ArchiveExtractor().extractZip(zip("../escaped.txt" to 0b110_100_100), out)
+        Archives.unpack(zip("../escaped.txt" to 0b110_100_100), ArchiveFormat.Zip, out, Unpacking(ArchiveLinks.AsWritten))
         assertFalse(File(temporaryFolder.root, "escaped.txt").exists())
     }
 }

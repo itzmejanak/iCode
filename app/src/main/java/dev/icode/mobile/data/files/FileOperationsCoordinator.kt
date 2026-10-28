@@ -8,12 +8,9 @@ import dev.icode.mobile.data.tasks.TaskRunner
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceUsage
 import dev.icode.mobile.domain.FilesIntent
-import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.files.BatchRename
-import dev.icode.mobile.domain.files.FileChange
 import dev.icode.mobile.domain.files.FileClipboard
 import dev.icode.mobile.domain.files.FileSelection
-import dev.icode.mobile.domain.files.FileStep
 import dev.icode.mobile.domain.files.FileWords
 import dev.icode.mobile.domain.files.HeldItem
 import dev.icode.mobile.domain.files.RenameRule
@@ -38,13 +35,13 @@ import kotlinx.coroutines.sync.withLock
 internal class FileOperationsCoordinator(
     private val stateHolder: ICodeStateHolder,
     private val scope: CoroutineScope,
-    private val tasks: TaskRunner,
-    private val usage: WorkspaceUsage,
     private val follower: FileFollower,
     private val history: FileHistory,
     private val operator: FileOperator,
     private val questions: FileQuestions,
     private val refusals: FileRefusals,
+    private val tasks: FileTasks,
+    private val archives: FileArchives,
 ) {
     val places = operator.places
     private val trash = operator.trash
@@ -56,7 +53,7 @@ internal class FileOperationsCoordinator(
     fun start() {
         scope.launch {
             runCatching { trash.purge(orphans = true) }
-            publishTrash()
+            tasks.publishTrash()
         }
     }
 
@@ -65,7 +62,7 @@ internal class FileOperationsCoordinator(
             is FilesIntent.Answer -> questions.answer(intent)
             FilesIntent.ReadTrash -> scope.launch {
                 runCatching { trash.purge(orphans = false) }
-                publishTrash()
+                tasks.publishTrash()
             }
             else -> scope.launch { stateHolder.mutations.withLock { act(intent) } }
         }
@@ -80,10 +77,13 @@ internal class FileOperationsCoordinator(
             is FilesIntent.Transfer -> transfer(FileSelection.covering(intent.locations).map(::held), intent.folder, intent.move, pasted = false)
             is FilesIntent.Duplicate -> duplicate(FileSelection.covering(intent.locations))
             is FilesIntent.RenameMany -> renameMany(intent.locations, intent.rule)
+            is FilesIntent.Compress -> archives.compress(FileSelection.covering(intent.locations), intent.format, intent.name)
+            is FilesIntent.Extract -> archives.extract(intent)
+            FilesIntent.DismissPassword -> archives.asking(null)
             is FilesIntent.Trash -> trash(FileSelection.covering(intent.locations))
             is FilesIntent.Restore -> restore(intent.ids.mapNotNull(trash::item))
-            is FilesIntent.DeleteForGood -> deleteForGood(intent.ids.mapNotNull(trash::item))
-            FilesIntent.EmptyTrash -> deleteForGood(trash.list())
+            is FilesIntent.DeleteForGood -> tasks.deleteForGood(intent.ids.mapNotNull(trash::item))
+            FilesIntent.EmptyTrash -> tasks.deleteForGood(trash.list())
             FilesIntent.Undo -> reverse(undo = true)
             FilesIntent.Redo -> reverse(undo = false)
             FilesIntent.ReadTrash, is FilesIntent.Answer -> Unit
@@ -103,7 +103,7 @@ internal class FileOperationsCoordinator(
         val names = items.map { it.name }
         val locations = items.map { it.location }
         val crossing = locations.any { operator.transfers.crosses(it, into) }
-        run(
+        tasks.run(
             title = if (move) "Moving…" else "Copying…",
             subject = FileWords.subject(names),
             paths = locations + into,
@@ -119,7 +119,7 @@ internal class FileOperationsCoordinator(
     private suspend fun duplicate(locations: List<String>) {
         refusals.copies(locations)?.let { return said(it) }
         val names = locations.map { File(it).name }
-        run("Duplicating…", FileWords.subject(names), locations, "Unable to duplicate", counted = locations, keep = kept(FileWords.duplicated(names))) {
+        tasks.run("Duplicating…", FileWords.subject(names), locations, "Unable to duplicate", counted = locations, keep = tasks.kept(FileWords.duplicated(names))) {
             duplicate(locations)
         }
     }
@@ -135,38 +135,20 @@ internal class FileOperationsCoordinator(
         if (problem != null || !BatchRename.ready(previews)) return said(problem ?: "Nothing would change")
         val renames = previews.filter { it.changes }.map { it.location to File(folder, it.to).path }
         val words = renames.singleOrNull()?.let { (from, to) -> FileWords.renamed(File(from).name, File(to).name) } ?: FileWords.renamedMany(renames.size)
-        run("Renaming…", FileWords.subject(renames.map { File(it.first).name }), locations, "Unable to rename", keep = kept(words)) { rename(renames) }
+        tasks.run("Renaming…", FileWords.subject(renames.map { File(it.first).name }), locations, "Unable to rename", keep = tasks.kept(words)) { rename(renames) }
     }
 
     private suspend fun trash(locations: List<String>) {
         refusals.changes(locations)?.let { return said(it) }
         val names = locations.map { File(it).name }
-        run("Moving to Trash…", FileWords.subject(names), locations, "Unable to move to Trash", keep = kept(FileWords.trashed(names))) { trash(locations) }
+        tasks.run("Moving to Trash…", FileWords.subject(names), locations, "Unable to move to Trash", keep = tasks.kept(FileWords.trashed(names))) { trash(locations) }
     }
 
     private suspend fun restore(items: List<TrashedItem>) {
         if (items.isEmpty()) return said("It is no longer in Trash")
         refusals.restore(items)?.let { return said(it) }
         val names = items.map { it.name }
-        run("Restoring…", FileWords.subject(names), items.map { it.from }, "Unable to restore", keep = kept(FileWords.restored(names))) { restore(items) }
-    }
-
-    /** Asked first: gone for good, without Cancel — stopped midway, it would leave half a folder — and not kept to undo. */
-    private fun deleteForGood(items: List<TrashedItem>) {
-        if (items.isEmpty()) return
-        val held = items.map(trash::locationOf)
-        tasks.start(
-            title = "Deleting…",
-            subject = FileWords.subject(items.map { it.name }),
-            paths = held,
-            cancellable = false,
-            failure = "Unable to delete",
-            work = { progress ->
-                progress.counted(held.sumOf { countEntries(File(it).toPath()) })
-                items.forEach { trash.delete(it, progress::item) }
-            },
-            finished = { publishTrash() },
-        )
+        tasks.run("Restoring…", FileWords.subject(names), items.map { it.from }, "Unable to restore", keep = tasks.kept(FileWords.restored(names))) { restore(items) }
     }
 
     /** The last change undone, or the last undone done again — once nothing it touches changed since. */
@@ -176,7 +158,7 @@ internal class FileOperationsCoordinator(
         val reversals = change.reversals
         refusals.reversal(change)?.let { return said(it) }
         reversing = true
-        run(
+        tasks.run(
             title = if (undo) "Undoing…" else "Redoing…",
             subject = if (undo) change.said else change.undoneSaid,
             paths = reversals.flatMap { it.paths },
@@ -188,54 +170,12 @@ internal class FileOperationsCoordinator(
         ) { reverse(reversals) }
     }
 
-    /**
-     * [work] as a task over [paths], [counted] first when it copies. Once it ends — done, stopped or
-     * failed — what it did is [keep]t, what it noted is said, Trash read again when it changed, and
-     * then every explorer.
-     */
-    private fun run(
-        title: String,
-        subject: String,
-        paths: List<String>,
-        failure: String,
-        counted: List<String>? = null,
-        keep: suspend (List<FileStep>) -> Unit,
-        work: suspend FileBatch.() -> Unit,
-    ) {
-        var batch: FileBatch? = null
-        tasks.start(
-            title = title,
-            subject = subject,
-            paths = paths,
-            cancellable = true,
-            failure = failure,
-            work = { progress ->
-                counted?.let { locations -> progress.counted(locations.sumOf { places.of(it).count(it) }) }
-                FileBatch(operator, questions, progress, usage::edited).also { batch = it }.work()
-            },
-            finished = {
-                val steps = batch?.steps?.toList().orEmpty()
-                keep(steps)
-                batch?.notes?.distinct()?.forEach { said(it) }
-                if (steps.any { it is FileStep.Trashed || it is FileStep.Restored }) publishTrash()
-                follower.refresh(steps.flatMap { it.paths } + paths)
-            },
-        )
-    }
-
-    private fun kept(words: FileChange): suspend (List<FileStep>) -> Unit = { steps -> history.record(words.copy(steps = steps)) }
-
     private fun clipboard(clipboard: FileClipboard?) = stateHolder.update { it.copy(explorer = it.explorer.copy(clipboard = clipboard)) }
-
-    private suspend fun publishTrash() {
-        val items = runCatching { trash.list() }.getOrDefault(emptyList())
-        stateHolder.update { it.copy(explorer = it.explorer.copy(trash = items)) }
-    }
 
     private fun held(location: String) =
         HeldItem(location, File(location).name, Files.isDirectory(File(location).toPath(), LinkOption.NOFOLLOW_LINKS), follower.isWorkspace(location))
 
-    private suspend fun said(words: String) = stateHolder.notify(NoticeTone.HeadsUp, words)
+    private suspend fun said(words: String) = tasks.said(words)
 
     companion object {
         fun create(
@@ -255,10 +195,11 @@ internal class FileOperationsCoordinator(
             // Shared's in the folder Android gives iCode on phone storage, and removes with it.
             val trash = FileTrash(File(context.filesDir, "trash"), File(storage.root, "Android/media/${context.packageName}/Trash"), storage)
             val operator = FileOperator(stateHolder, places, transfers, trash, follower)
-            return FileOperationsCoordinator(
-                stateHolder, scope, tasks, usage, follower, history, operator, FileQuestions(stateHolder),
-                FileRefusals(places, trash, tasks, usage, follower, layout.workspaces.root),
-            )
+            val questions = FileQuestions(stateHolder)
+            val refusals = FileRefusals(places, trash, tasks, usage, follower, layout.workspaces.root)
+            val operations = FileTasks(stateHolder, tasks, operator, questions, usage, follower, history)
+            val archives = FileArchives(stateHolder, places, trash, transfers, refusals, operations, history)
+            return FileOperationsCoordinator(stateHolder, scope, follower, history, operator, questions, refusals, operations, archives)
         }
     }
 }

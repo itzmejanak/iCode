@@ -60,6 +60,15 @@ internal class FileRefusals(
         return null
     }
 
+    /** What [archive] holds, into the folder [into]. */
+    fun extraction(archive: String, into: String): String? {
+        places.accessRefusal(listOf(archive, into))?.let { return it }
+        gone(archive)?.let { return it }
+        places.of(into).folderRefusal(into)?.let { return it }
+        if (trash.holds(into)) return "Only what is deleted goes in Trash"
+        return tasks.waitReason(archive) ?: tasks.waitReason(into)
+    }
+
     /** Each of [items] back where it was. */
     fun restore(items: List<TrashedItem>): String? =
         places.accessRefusal(items.map { it.from }) ?: items.firstNotNullOfOrNull { tasks.waitReason(it.from) }
@@ -92,6 +101,9 @@ internal class FileRefusals(
         places.storage.root.path -> StoragePlace.Shared.label
         else -> File(folder).name
     }
+
+    /** [folder] is a place's top: Private's workspaces, or phone storage's own. */
+    fun isPlaceTop(folder: String): Boolean = folder == workspaces.path || folder == places.storage.root.path
 
     /** [location] is gone, or is no item its place lets change. */
     private fun gone(location: String): String? =

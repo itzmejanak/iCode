@@ -1,8 +1,10 @@
 package dev.icode.mobile.data.android
 
 import android.content.Context
+import dev.icode.mobile.data.io.ArchiveLinks
+import dev.icode.mobile.data.io.Archives
+import dev.icode.mobile.data.io.Unpacking
 import dev.icode.mobile.data.io.deleteTree
-import dev.icode.mobile.data.runtime.ArchiveExtractor
 import dev.icode.mobile.data.runtime.GuestCommand
 import dev.icode.mobile.data.runtime.GuestContext
 import dev.icode.mobile.data.runtime.RuntimeLayout
@@ -11,6 +13,7 @@ import dev.icode.mobile.data.runtime.fetchPinned
 import dev.icode.mobile.data.runtime.readManifest
 import dev.icode.mobile.domain.RuntimeTools
 import dev.icode.mobile.domain.ToolSetupProgress
+import dev.icode.mobile.domain.files.ArchiveFormat
 import java.io.File
 import java.io.IOException
 import kotlinx.coroutines.NonCancellable
@@ -72,9 +75,8 @@ internal class CmakeSetup(private val layout: RuntimeLayout, private val context
     private fun replacePrograms(cmakeArchive: File, ninjaArchive: File) {
         val bin = File(folder, "bin")
         listOf(bin, File(folder, "share")).forEach { deleteTree(it.toPath()) }
-        val extractor = ArchiveExtractor()
-        extractor.extractTarGz(cmakeArchive, folder, ::kitware) {}
-        extractor.extractZip(ninjaArchive, bin) { it.takeIf { it == NINJA } }
+        Archives.unpack(cmakeArchive, ArchiveFormat.TarGz, folder, Unpacking(ArchiveLinks.AsWritten, place = ::kitware))
+        Archives.unpack(ninjaArchive, ArchiveFormat.Zip, bin, Unpacking(ArchiveLinks.AsWritten, place = { it.takeIf { it == NINJA } }))
         val placed = bin.list().orEmpty().toSet()
         if (placed != PROGRAMS) throw IOException("The pinned CMake and Ninja archives did not give ${PROGRAMS.sorted()}: ${placed.sorted()}")
     }
