@@ -1,5 +1,9 @@
 package dev.icode.mobile.domain.files
 
+import dev.icode.mobile.domain.ByteSize
+import dev.icode.mobile.domain.RelativeTime
+import dev.icode.mobile.domain.countOf
+
 /** One file Manage storage counted (docs/explorer-gaps-plan.md §3.10). */
 data class ScannedFile(val location: String, val bytes: Long, val changedAt: Long, val category: FileCategory)
 
@@ -11,6 +15,12 @@ data class DuplicateGroup(val bytes: Long, val locations: List<String>) {
     /** What every copy but the oldest takes. */
     val extraBytes: Long get() = bytes * (locations.size - 1)
 }
+
+/**
+ * One of Manage storage's views as its scan lists it, while it is shown (§3.10): its [rows] — for
+ * Duplicates, each set's copies, the oldest first, the sets in [groups].
+ */
+data class ScannedView(val view: ExplorerView, val rows: List<BrowsedItem>, val groups: List<DuplicateGroup> = emptyList())
 
 /**
  * What Manage storage shows (§3.10): every category's share, Git's history apart, the largest files'
@@ -52,6 +62,33 @@ object StorageInsights {
         )
 
     fun largest(files: List<ScannedFile>): List<ScannedFile> = files.sortedByDescending { it.bytes }.take(LARGEST)
+
+    /** Under Manage storage's bar: how much, in how many files — "9.4 GB in 12340 files". */
+    fun total(overview: StorageOverview): String = "${ByteSize.format(overview.bytes)} in ${countOf(overview.files, "file")}"
+
+    /** Beside it: how far the scan has got — "Scanning… 4210 files" — or when it last scanned. */
+    fun status(overview: StorageOverview, now: Long): String = when {
+        overview.scanning != null -> "Scanning… ${countOf(overview.scanning, "file")}"
+        overview.scannedAt != null -> "Scanned ${RelativeTime.since(overview.scannedAt, now)}"
+        else -> "Not scanned yet"
+    }
+
+    /** Each category's share of the bar, and Git's history last: fractions of all it found. */
+    fun shares(overview: StorageOverview): List<Pair<FileCategory?, Float>> {
+        val all = overview.bytes.takeIf { it > 0 } ?: return emptyList()
+        return overview.categories.map { it.category to it.bytes.toFloat() / all } + (null to overview.gitBytes.toFloat() / all)
+    }
+
+    /**
+     * What [view] lists of what the scan found: a category's files; the largest; every copy of each
+     * set of [duplicates], set by set. Null for a view that is not the scan's.
+     */
+    fun listed(view: ExplorerView, files: List<ScannedFile>, duplicates: List<DuplicateGroup>): List<ScannedFile>? = when (view) {
+        is ExplorerView.Category -> files.filter { it.category == view.category }
+        is ExplorerView.Largest -> largest(files)
+        is ExplorerView.Duplicates -> files.associateBy { it.location }.let { found -> duplicates.flatMap { it.locations }.mapNotNull(found::get) }
+        ExplorerView.Recent, ExplorerView.Trash -> null
+    }
 
     /** Files that may be copies of each other: more than one of the same size, none empty. Their contents decide. */
     fun sameSize(files: List<ScannedFile>): List<List<ScannedFile>> =

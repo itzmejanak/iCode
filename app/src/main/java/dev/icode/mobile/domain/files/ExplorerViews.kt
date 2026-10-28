@@ -15,9 +15,6 @@ sealed interface ExplorerView {
     val opensWith: FilesLook
     val scope: ScanScope?
 
-    /** As a screen keeps it while it is away: "recent", "category-Images:All". */
-    val encoded: String get() = listOfNotNull(key, scope?.name).joinToString(":")
-
     /** The files opened in iCode, newest first. */
     data object Recent : ExplorerView {
         override val key = "recent"
@@ -57,27 +54,34 @@ sealed interface ExplorerView {
         override val title = "Duplicates"
         override val opensWith = FilesLook(sort = FilesSort.Size)
     }
-
-    companion object {
-        /** What [encoded] kept; null for anything else. */
-        fun decode(text: String): ExplorerView? {
-            listOf(Recent, Trash).firstOrNull { it.encoded == text }?.let { return it }
-            val (key, scoped) = text.split(':').takeIf { it.size == 2 } ?: return null
-            val scope = ScanScope.entries.firstOrNull { it.name == scoped } ?: return null
-            return (listOf(Largest(scope), Duplicates(scope)) + FileCategory.entries.map { Category(it, scope) }).firstOrNull { it.key == key }
-        }
-    }
 }
 
 object ExplorerViews {
     /**
-     * What [view] lists, as the explorer's rows: Recent's files; Trash's items, each where it is held.
-     * Manage storage's views list what its scan publishes (docs/explorer-gaps-plan.md §6, F6).
+     * What [view] lists, as the explorer's rows: Recent's files; Trash's items, each where it is held;
+     * Manage storage's, what its scan lists for it while it is shown ([ExplorerState.scanned]).
      */
     fun rows(view: ExplorerView, explorer: ExplorerState): List<BrowsedItem> = when (view) {
         ExplorerView.Recent -> explorer.recent
         ExplorerView.Trash -> explorer.trash.map { it.row }
-        is ExplorerView.Category, is ExplorerView.Largest, is ExplorerView.Duplicates -> emptyList()
+        is ExplorerView.Category, is ExplorerView.Largest, is ExplorerView.Duplicates -> explorer.scanned?.takeIf { it.view == view }?.rows.orEmpty()
+    }
+
+    /** Whether [view]'s order is the panel's to choose: Duplicates keeps its own, set by set. */
+    fun sortable(view: ExplorerView): Boolean = view !is ExplorerView.Duplicates
+
+    /**
+     * How [view] groups its [shown] rows: Duplicates by its sets of copies ([groups]) — the largest
+     * waste first, each set's copies the oldest first, under "3 copies · 24 MB each"; any other as a
+     * folder is ([FilesRules.grouped]).
+     */
+    fun grouped(view: ExplorerView, shown: List<BrowsedItem>, sort: FilesSort, groups: List<DuplicateGroup>): List<RowGroup> {
+        if (view !is ExplorerView.Duplicates) return FilesRules.grouped(shown, sort)
+        val listed = shown.associateBy { it.location }
+        return groups.mapNotNull { group ->
+            val rows = group.locations.mapNotNull(listed::get).ifEmpty { return@mapNotNull null }
+            RowGroup("${countOf(group.locations.size, "copy", "copies")} · ${ByteSize.format(group.bytes)} each", rows)
+        }
     }
 
     /**

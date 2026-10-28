@@ -47,7 +47,7 @@ internal val settingsCategories = listOf(
     SettingsCategory("Runtime", "Ubuntu environment, health, repair", Icons.Outlined.Storage, Route.SettingsRuntime,
         "linux ubuntu proot packages architecture disk repair reset"),
     SettingsCategory("Storage", "Disk usage, workspaces, cleanup", Icons.Outlined.Folder, Route.StorageSettings,
-        "disk space usage files paths workspace workspaces folders size cache cleanup manage space uninstall keep data"),
+        "disk space usage files paths workspace workspaces folders size cache cleanup manage storage space uninstall keep data trash hidden dot files categories largest duplicates"),
     SettingsCategory("Application", "Version, build, and runtime", Icons.Outlined.Info, Route.About,
         "about version build editor engine android licenses source documentation"),
 )

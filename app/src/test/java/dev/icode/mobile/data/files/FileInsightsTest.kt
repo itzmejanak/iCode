@@ -8,6 +8,8 @@ import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.files.FactKind
 import dev.icode.mobile.domain.files.FileFacts
 import dev.icode.mobile.domain.files.FileStep
+import dev.icode.mobile.domain.files.StoragePlace
+import dev.icode.mobile.domain.files.ExplorerView
 import dev.icode.mobile.domain.files.ScanScope
 import dev.icode.mobile.domain.files.TreeFacts
 import java.io.File
@@ -54,7 +56,7 @@ class FileInsightsTest {
         val storage = PhoneStorage(phone) { true }
         val places = FilePlaces(workspaces, storage)
         val trash = FileTrash(File(workspaces.parentFile, "trash"), File(phone, "Android/media/dev.icode.mobile/Trash"), storage, WorkspacePaths(workspaces))
-        insights = FileInsightsCoordinator(stateHolder, scope, places, Follower, StorageScan(places, trash))
+        insights = FileInsightsCoordinator(stateHolder, scope, places, Follower, StorageScan(places, trash), WorkspacePaths(workspaces))
         insights.start()
         File(workspaces, "app/src").mkdirs()
         File(workspaces, "app/src/Main.kt").writeText("fun main() {}")
@@ -113,5 +115,21 @@ class FileInsightsTest {
         insights.handle(FilesIntent.Scan(ScanScope.Private))
         val overview = await { stateHolder.current.explorer.storage?.takeIf { it.scanning == null && it.scannedAt != null } }
         assertEquals(2, overview.files)
+    }
+
+    @Test fun `a view of the scan lists its files as the explorer does, follows a move, and lets go when closed`() {
+        insights.handle(FilesIntent.Scan(ScanScope.Private))
+        await { stateHolder.current.explorer.storage?.takeIf { it.scanning == null && it.scannedAt != null } }
+        val largest = ExplorerView.Largest(ScanScope.Private)
+        insights.handle(FilesIntent.ListView(largest))
+        val main = await { stateHolder.current.explorer.scanned?.rows?.firstOrNull { it.name == "Main.kt" } }
+        assertEquals("/workspace/app/src/Main.kt", main.path)
+        assertEquals(StoragePlace.Private, main.place)
+        assertEquals(13L, main.bytes)
+        File(workspaces, "app/src/Main.kt").renameTo(File(workspaces, "app/src/App.kt"))
+        insights.follow(listOf(FileStep.Moved(File(workspaces, "app/src/Main.kt").path, File(workspaces, "app/src/App.kt").path)))
+        await { stateHolder.current.explorer.scanned?.rows?.firstOrNull { it.path == "/workspace/app/src/App.kt" } }
+        insights.handle(FilesIntent.CloseView)
+        await { (stateHolder.current.explorer.scanned == null).takeIf { it } }
     }
 }

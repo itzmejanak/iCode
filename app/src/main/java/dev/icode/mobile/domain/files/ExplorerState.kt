@@ -26,6 +26,10 @@ data class ExplorerState(
     val recent: List<BrowsedItem> = emptyList(),
     /** Folders pinned app-wide, in the order pinned; one gone is kept, not shown. */
     val favorites: List<FavoriteFolder> = emptyList(),
+    /** The view the file explorer shows in place of a folder (§3.10); none, it shows a folder. */
+    val view: ExplorerView? = null,
+    /** One of Manage storage's views, listed from its scan while it is shown. */
+    val scanned: ScannedView? = null,
 )
 
 /** A folder pinned to Favorites (docs/explorer-gaps-plan.md §3.14): its name, where it is, and its path as the runtime names it. */

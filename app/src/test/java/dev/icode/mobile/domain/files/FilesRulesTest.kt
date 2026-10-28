@@ -31,6 +31,8 @@ class FilesRulesTest {
         val sorted = FilesRules.sorted(all + notes + makefile, FilesSort.Type, descending = false, emptyMap())
         assertEquals(listOf(docs, src, makefile, build, notes, readme), sorted)
         assertEquals(listOf("Folders", "Folders", "No extension", ".gradle", ".md", ".md"), sorted.map(FilesRules::typeGroup))
+        assertEquals(listOf("Folders · 2", "No extension · 1", ".gradle · 1", ".md · 2"), FilesRules.grouped(sorted, FilesSort.Type).map { it.label })
+        assertEquals(listOf(RowGroup(null, sorted)), FilesRules.grouped(sorted, FilesSort.Name))
         assertEquals("", FilesRules.extension(".gitignore"))
         assertEquals("gz", FilesRules.extension("site.tar.gz"))
     }

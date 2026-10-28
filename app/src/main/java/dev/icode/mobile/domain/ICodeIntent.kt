@@ -1,5 +1,6 @@
 package dev.icode.mobile.domain
 
+import dev.icode.mobile.domain.files.ExplorerView
 import dev.icode.mobile.domain.files.StoragePlace
 
 sealed interface ICodeIntent {
@@ -179,10 +180,12 @@ sealed interface ICodeIntent {
     data object RefreshRuntimeDetails : ICodeIntent
     /** Reading what storage holds: it changes nothing, so it never waits on the mutation lock. */
     sealed interface StorageIntent : ICodeIntent
-    /** The file explorer at [path], in whichever place it is — where it was when none, the workspaces folder at first. */
+    /** The file explorer at [path], in whichever place it is — where it was when none, the workspaces folder at first — and not in a view. */
     data class BrowseFiles(val path: String? = null) : StorageIntent
     /** The file explorer in [place], where it was last there; at its top the first time. */
     data class BrowsePlace(val place: StoragePlace) : StorageIntent
+    /** The file explorer showing [view] in place of a folder (docs/explorer-gaps-plan.md §3.10); a browse leaves it. */
+    data class BrowseView(val view: ExplorerView) : StorageIntent
     /** Where the next clone goes: the folder [path] of a workspace, or none — a new workspace. */
     data class ChooseDestination(val path: String?) : StorageIntent
     /** The device, the runtime and the cache. */

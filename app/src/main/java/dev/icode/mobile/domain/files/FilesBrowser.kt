@@ -86,6 +86,9 @@ data class FilesBrowserState(
         if (place == StoragePlace.Shared) location else WorkspaceRuntimePath.ROOT + location.removePrefix(rootPath)
 }
 
+/** A labelled run of a listing's rows (§3.10, §3.12): a type's — ".kt · 12" — or a set of copies; unlabelled, the whole listing. */
+data class RowGroup(val label: String?, val rows: List<BrowsedItem>)
+
 /** One segment of the breadcrumb: what it says, and the folder it goes to. */
 data class Crumb(val label: String, val location: String)
 
@@ -145,6 +148,11 @@ object FilesRules {
         item.folder -> "Folders"
         else -> extension(item.name).let { if (it.isEmpty()) "No extension" else ".$it" }
     }
+
+    /** [shown] as listed: sorted by Type, under a label for each type with how many it has — ".kt · 12"; else as one. */
+    fun grouped(shown: List<BrowsedItem>, sort: FilesSort): List<RowGroup> =
+        if (sort != FilesSort.Type) listOf(RowGroup(null, shown))
+        else shown.groupBy(::typeGroup).map { (type, rows) -> RowGroup("$type · ${rows.size}", rows) }
 
     /**
      * A row's detail: a file's size, or a folder's as Trash measured it; else a folder's "12 items" or

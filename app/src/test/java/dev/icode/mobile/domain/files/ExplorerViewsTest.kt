@@ -1,7 +1,6 @@
 package dev.icode.mobile.domain.files
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Test
 
 /** The explorer's views (docs/explorer-gaps-plan.md §3.10): what each lists, what it says it found, and how a screen keeps it. */
@@ -24,11 +23,25 @@ class ExplorerViewsTest {
         assertEquals("All · 2 files · 2.0 KB", ExplorerViews.found(ExplorerView.Largest(ScanScope.All), listOf(notes, notes)))
     }
 
-    @Test fun `each view is kept as it is and read back, anything else not`() {
-        val views = listOf(ExplorerView.Recent, ExplorerView.Trash, ExplorerView.Largest(ScanScope.Shared), ExplorerView.Duplicates(ScanScope.All)) +
-            FileCategory.entries.map { ExplorerView.Category(it, ScanScope.Private) }
-        views.forEach { assertEquals(it, ExplorerView.decode(it.encoded)) }
-        assertEquals("category-Images:Private", ExplorerView.Category(FileCategory.Images, ScanScope.Private).encoded)
-        listOf("", "recent:All", "largest", "largest:Nowhere", "category-Nothing:All").forEach { assertNull(it, ExplorerView.decode(it)) }
+    @Test fun `Manage storage's views list what the scan shows them, while it is theirs`() {
+        val largest = ExplorerView.Largest(ScanScope.All)
+        val explorer = ExplorerState(scanned = ScannedView(largest, listOf(notes)))
+        assertEquals(listOf(notes), ExplorerViews.rows(largest, explorer))
+        assertEquals(emptyList<BrowsedItem>(), ExplorerViews.rows(ExplorerView.Largest(ScanScope.Private), explorer))
+    }
+
+    @Test fun `Duplicates lists set by set, under how many copies and their size, its order its own`() {
+        val older = notes.copy(location = "/a/notes.txt")
+        val newer = notes.copy(location = "/b/notes.txt")
+        val lone = notes.copy(location = "/c/notes.txt")
+        val duplicates = ExplorerView.Duplicates(ScanScope.All)
+        val groups = listOf(DuplicateGroup(1024, listOf(older.location, newer.location)), DuplicateGroup(1024, listOf(lone.location, "/gone")))
+        assertEquals(
+            listOf(RowGroup("2 copies · 1.0 KB each", listOf(older, newer)), RowGroup("2 copies · 1.0 KB each", listOf(lone))),
+            ExplorerViews.grouped(duplicates, listOf(newer, lone, older), FilesSort.Name, groups),
+        )
+        assertEquals(listOf(RowGroup(null, listOf(notes))), ExplorerViews.grouped(ExplorerView.Recent, listOf(notes), FilesSort.Name, groups))
+        assertEquals(false, ExplorerViews.sortable(duplicates))
+        assertEquals(true, ExplorerViews.sortable(ExplorerView.Trash))
     }
 }

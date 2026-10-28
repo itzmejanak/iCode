@@ -15,7 +15,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -32,7 +31,6 @@ import dev.icode.mobile.designsystem.behindSheet
 import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.SystemPermission
-import dev.icode.mobile.domain.files.ExplorerView
 import dev.icode.mobile.domain.files.FileSelection
 import dev.icode.mobile.domain.files.FilesRules
 import dev.icode.mobile.domain.files.FolderPick
@@ -52,24 +50,32 @@ import kotlinx.coroutines.launch
 
 /**
  * The file explorer (docs/storage-explorer-plan.md §3; docs/explorer-gaps-plan.md), as ZArchiver's:
- * a folder ([FolderExplorer]) or one of its views (§3.10) — Recent, Trash — ([ViewExplorer]), ▾
- * going between them. The folder picker (§3.5), started from either, picks among folders; Show in
- * folder, from a view, opens the file's folder with it ticked. [choosing] is that picker from the
- * clone's page, in Private, choosing where the clone goes.
+ * where it is — a folder ([FolderExplorer]) or one of its views (§3.10) ([ViewExplorer]), ▾ going
+ * between them — as the snapshot says. The folder picker (§3.5), started from either, picks among
+ * folders; Show in folder, from a view, opens the file's folder with it ticked. [choosing] is that
+ * picker from the clone's page, in Private, choosing where the clone goes: always among folders.
  */
 @Composable
 fun FilesScreen(actions: NavigationActions, choosing: Boolean = false) {
-    var view by rememberSaveable(stateSaver = ViewSaver) { mutableStateOf<ExplorerView?>(null) }
+    val gateway = LocalICodeGateway.current
+    val view = LocalICodeSnapshot.current.explorer.view.takeUnless { choosing }
     var pick by remember { mutableStateOf<FolderPick?>(FolderPick.Clone.takeIf { choosing }) }
     var reveal by rememberSaveable { mutableStateOf<String?>(null) }
-    when (val shown = view) {
-        null -> FolderExplorer(actions, choosing, pick, { pick = it }, reveal, onRevealed = { reveal = null }, onView = { view = it })
-        else -> ViewExplorer(shown, actions, onView = { view = it }, onPick = { view = null; pick = it }, onReveal = { view = null; reveal = it })
+    // Opened onto a view — from Manage storage, Settings — its Back is the way out; once in a folder,
+    // a view's Back is to the folder.
+    var openedOnView by rememberSaveable { mutableStateOf(view != null) }
+    LaunchedEffect(view == null) { if (view == null) openedOnView = false }
+    when (view) {
+        null -> FolderExplorer(actions, choosing, pick, { pick = it }, reveal, onRevealed = { reveal = null })
+        else -> ViewExplorer(
+            view,
+            actions,
+            onPick = { pick = it },
+            onReveal = { reveal = it },
+            onLeave = if (openedOnView) actions.back else ({ gateway.dispatch(ICodeIntent.BrowseFiles()) }),
+        )
     }
 }
-
-/** A view as the screen keeps it while it is away. */
-private val ViewSaver = Saver<ExplorerView?, String>(save = { it?.encoded }, restore = ExplorerView::decode)
 
 /**
  * The folder shown and where it is, ▾ to the other place, a favorite or a view, 🔍 and ☰ for the
@@ -87,7 +93,6 @@ private fun FolderExplorer(
     onPick: (FolderPick?) -> Unit,
     reveal: String?,
     onRevealed: () -> Unit,
-    onView: (ExplorerView) -> Unit,
 ) {
     val state = LocalICodeSnapshot.current
     val gateway = LocalICodeGateway.current
@@ -111,13 +116,11 @@ private fun FolderExplorer(
     var selectionSheet by rememberSaveable(browser?.path) { mutableStateOf(false) }
     val browse = { path: String -> gateway.dispatch(ICodeIntent.BrowseFiles(path)) }
     val opening = opening(browse)
-    // Where it was when last shown, or the folder of the file to show; choosing, at the place chosen
-    // before, else in iCode's storage.
+    // Where it was when last shown; choosing, at the place chosen before, else in iCode's storage.
     LaunchedEffect(Unit) {
         val destination = state.projectDestination?.location
         gateway.dispatch(
             when {
-                reveal != null -> ICodeIntent.BrowseFiles(reveal.substringBeforeLast('/'))
                 !choosing -> ICodeIntent.BrowseFiles()
                 destination != null -> ICodeIntent.BrowseFiles(destination)
                 else -> ICodeIntent.BrowsePlace(StoragePlace.Private)
@@ -169,7 +172,7 @@ private fun FolderExplorer(
                     IcodeActionMenu(
                         expanded = placesOpen,
                         onDismiss = { placesOpen = false },
-                        actions = goTo(browser, state.explorer, view = null, onPlace = { gateway.dispatch(ICodeIntent.BrowsePlace(it)) }, onFolder = browse, onView = onView),
+                        actions = goTo(browser, state.explorer, view = null, onPlace = { gateway.dispatch(ICodeIntent.BrowsePlace(it)) }, onFolder = browse, onView = { gateway.dispatch(ICodeIntent.BrowseView(it)) }),
                     )
                 },
                 leaving = if (ticked != null) BarLeave.Selection else BarLeave.Back,
@@ -194,6 +197,7 @@ private fun FolderExplorer(
                                 onSelect = { ticked = emptyList() },
                                 onUndo = { gateway.dispatch(FilesIntent.Undo) },
                                 onRedo = { gateway.dispatch(FilesIntent.Redo) },
+                                onManage = { actions.navigate(Route.ManageStorage) },
                                 onStorage = { actions.navigate(Route.StorageSettings) },
                             )
                         }
@@ -218,7 +222,7 @@ private fun FolderExplorer(
                             onOpen = opening::tap,
                         )
                         FilesListing(
-                            shown,
+                            FilesRules.grouped(shown, look.sort),
                             look,
                             taps,
                             detail = FilesRules::detail,

@@ -30,8 +30,7 @@ import dev.icode.mobile.domain.files.BrowsedItem
 import dev.icode.mobile.domain.files.ExplorerView
 import dev.icode.mobile.domain.files.FilesBrowserState
 import dev.icode.mobile.domain.files.FilesLook
-import dev.icode.mobile.domain.files.FilesRules
-import dev.icode.mobile.domain.files.FilesSort
+import dev.icode.mobile.domain.files.RowGroup
 import dev.icode.mobile.domain.files.FilesView
 import dev.icode.mobile.domain.files.StoragePlace
 import dev.icode.mobile.domain.files.TrashRules
@@ -50,13 +49,13 @@ internal class ListingTaps(
 /**
  * What is listed, found and ordered (docs/storage-explorer-plan.md §3.2; docs/explorer-gaps-plan.md
  * §3.10, §3.12): [up] first — `..`, while there is a folder above and nothing is selected — then
- * [shown] in [look]'s view — rows with their [detail], single lines, or tiles — under a label for
- * each type when sorted by Type; or, nothing shown, why ([empty]). [focus] is brought into view once
- * it is listed: the file Show in folder ticked.
+ * [groups] in [look]'s view — rows with their [detail], single lines, or tiles — each under its label:
+ * a type's, sorted by Type, or a set of copies; or, nothing listed, why ([empty]). [focus] is brought
+ * into view once it is listed: the file Show in folder ticked.
  */
 @Composable
 internal fun FilesListing(
-    shown: List<BrowsedItem>,
+    groups: List<RowGroup>,
     look: FilesLook,
     taps: ListingTaps,
     detail: (BrowsedItem) -> String,
@@ -65,11 +64,11 @@ internal fun FilesListing(
     focus: String? = null,
 ) {
     val upShown = up?.takeIf { taps.selection == null }
-    val groups = if (look.sort == FilesSort.Type) shown.groupBy(FilesRules::typeGroup).toList() else listOf(null to shown)
+    val listed = groups.any { it.rows.isNotEmpty() }
     // Where [focus] is in the list, `..` and the labels counted.
     val at = if (focus == null) -1 else buildList {
         if (upShown != null) add("..")
-        groups.forEach { (label, items) -> label?.let { add("group:$it") }; items.forEach { add(it.location) } }
+        groups.forEachIndexed { index, (label, rows) -> label?.let { add("group:$index") }; rows.forEach { add(it.location) } }
     }.indexOf(focus)
     // A little air under the top bar, so the first row's selection does not touch its line.
     val above = IcodeSpacing.Space1
@@ -82,10 +81,10 @@ internal fun FilesListing(
             contentPadding = PaddingValues(start = IcodeSpacing.RowGutter, top = above, end = IcodeSpacing.RowGutter),
         ) {
             upShown?.let { item(key = "..") { UpTile(it) } }
-            if (shown.isEmpty()) item(key = "empty", span = { GridItemSpan(maxLineSpan) }) { empty() }
-            groups.forEach { (label, items) ->
-                label?.let { groupLabel(it, items.size) }
-                items(items, key = { it.location }) { item -> ItemTile(item, taps) }
+            if (!listed) item(key = "empty", span = { GridItemSpan(maxLineSpan) }) { empty() }
+            groups.forEachIndexed { index, (label, rows) ->
+                label?.let { groupLabel(it, index) }
+                items(rows, key = { it.location }) { item -> ItemTile(item, taps) }
             }
         }
     } else {
@@ -96,24 +95,24 @@ internal fun FilesListing(
         // Rows run edge to edge: their own gutter keeps the text in line, their selection reaches the sides.
         LazyColumn(state = state, contentPadding = PaddingValues(top = above)) {
             upShown?.let { item(key = "..") { UpRow(compact, it) } }
-            if (shown.isEmpty()) item(key = "empty") { Box(Modifier.padding(horizontal = IcodeSpacing.RowGutter)) { empty() } }
-            groups.forEach { (label, items) ->
-                label?.let { groupLabel(it, items.size, start = gutter) }
-                items(items, key = { it.location }) { item -> ItemRow(item, taps, compact, detail(item)) }
+            if (!listed) item(key = "empty") { Box(Modifier.padding(horizontal = IcodeSpacing.RowGutter)) { empty() } }
+            groups.forEachIndexed { index, (label, rows) ->
+                label?.let { groupLabel(it, index, start = gutter) }
+                items(rows, key = { it.location }) { item -> ItemRow(item, taps, compact, detail(item)) }
             }
         }
     }
 }
 
-/** A type's label over its items, sorted by Type (§3.12): ".kt · 12". */
-private fun LazyListScope.groupLabel(label: String, count: Int, start: Dp) = item(key = "group:$label") { TypeLabel(label, count, start) }
+/** A group's label over its rows (§3.10, §3.12): ".kt · 12", "3 copies · 24 MB each"; the [index]th, as two sets may read alike. */
+private fun LazyListScope.groupLabel(label: String, index: Int, start: Dp) = item(key = "group:$index") { GroupLabel(label, start) }
 
-private fun LazyGridScope.groupLabel(label: String, count: Int) = item(key = "group:$label", span = { GridItemSpan(maxLineSpan) }) { TypeLabel(label, count, IcodeSpacing.RowInset) }
+private fun LazyGridScope.groupLabel(label: String, index: Int) = item(key = "group:$index", span = { GridItemSpan(maxLineSpan) }) { GroupLabel(label, IcodeSpacing.RowInset) }
 
 /** [start] is in from the list's edge: a label stands where the text of the rows under it does. */
 @Composable
-private fun TypeLabel(label: String, count: Int, start: Dp) {
-    SectionLabel("$label · $count", Modifier.padding(start = start, top = IcodeSpacing.Space3, bottom = IcodeSpacing.Space1))
+private fun GroupLabel(label: String, start: Dp) {
+    SectionLabel(label, Modifier.padding(start = start, top = IcodeSpacing.Space3, bottom = IcodeSpacing.Space1))
 }
 
 /**

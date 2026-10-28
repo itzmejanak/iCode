@@ -4,31 +4,24 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
 import androidx.compose.material.icons.automirrored.outlined.Redo
 import androidx.compose.material.icons.automirrored.outlined.Undo
 import androidx.compose.material.icons.automirrored.outlined.ViewList
-import androidx.compose.material.icons.outlined.Android
-import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Checklist
-import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.ContentCut
+import androidx.compose.material.icons.outlined.DataUsage
 import androidx.compose.material.icons.outlined.DeleteOutline
-import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.FileCopy
 import androidx.compose.material.icons.outlined.FlipToBack
 import androidx.compose.material.icons.outlined.FolderCopy
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.History
-import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.MoreVert
-import androidx.compose.material.icons.outlined.Movie
-import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Search
@@ -70,7 +63,6 @@ import dev.icode.mobile.domain.countOf
 import dev.icode.mobile.domain.files.BrowsedItem
 import dev.icode.mobile.domain.files.ExplorerState
 import dev.icode.mobile.domain.files.ExplorerView
-import dev.icode.mobile.domain.files.FileCategory
 import dev.icode.mobile.domain.files.FileHistoryState
 import dev.icode.mobile.domain.files.FileSelection
 import dev.icode.mobile.domain.files.FilesBrowserState
@@ -80,6 +72,7 @@ import dev.icode.mobile.domain.files.FilesView
 import dev.icode.mobile.domain.files.FolderPick
 import dev.icode.mobile.domain.files.FolderPicks
 import dev.icode.mobile.domain.files.StoragePlace
+import dev.icode.mobile.ui.screens.workspace.icon
 
 /** In selection, the top bar's own (docs/explorer-gaps-plan.md §3.2): Select all and Invert, on what is [shown]. */
 @Composable
@@ -141,11 +134,19 @@ internal fun PickBar(pick: FolderPick, browser: FilesBrowserState?, top: Boolean
 }
 
 /**
- * The explorer's ⋮ (§3.14): Select, Undo and Redo — each with what it would do — and Storage
- * settings.
+ * The explorer's ⋮ (§3.14): Select — in Duplicates, Select extra copies too ([onExtraCopies]) — Undo
+ * and Redo, each with what it would do, Manage storage and Storage settings.
  */
 @Composable
-internal fun ExplorerMenu(history: FileHistoryState, onSelect: () -> Unit, onUndo: () -> Unit, onRedo: () -> Unit, onStorage: () -> Unit) {
+internal fun ExplorerMenu(
+    history: FileHistoryState,
+    onSelect: () -> Unit,
+    onUndo: () -> Unit,
+    onRedo: () -> Unit,
+    onManage: () -> Unit,
+    onStorage: () -> Unit,
+    onExtraCopies: (() -> Unit)? = null,
+) {
     var open by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { open = true }) {
@@ -154,11 +155,13 @@ internal fun ExplorerMenu(history: FileHistoryState, onSelect: () -> Unit, onUnd
         IcodeActionMenu(
             expanded = open,
             onDismiss = { open = false },
-            actions = listOf(
+            actions = listOfNotNull(
                 IcodeMenuAction("Select", Icons.Outlined.Checklist, onSelect),
+                onExtraCopies?.let { IcodeMenuAction("Select extra copies", Icons.Outlined.FileCopy, it, detail = "All but the oldest of each") },
                 IcodeMenuAction("Undo", Icons.AutoMirrored.Outlined.Undo, onUndo, enabled = history.undo != null, detail = history.undo, beginsGroup = true),
                 IcodeMenuAction("Redo", Icons.AutoMirrored.Outlined.Redo, onRedo, enabled = history.redo != null, detail = history.redo),
-                IcodeMenuAction("Storage settings", Icons.Outlined.Storage, onStorage, beginsGroup = true),
+                IcodeMenuAction("Manage storage", Icons.Outlined.DataUsage, onManage, beginsGroup = true),
+                IcodeMenuAction("Storage settings", Icons.Outlined.Storage, onStorage),
             ),
         )
     }
@@ -203,16 +206,22 @@ internal fun goTo(
  * [viewPanel] offers. Each choice is kept: [onLook] for the list shown, [onHidden] for every listing.
  */
 @Composable
-internal fun ViewPanelButton(look: FilesLook, showHidden: Boolean, onLook: (FilesLook) -> Unit, onHidden: ((Boolean) -> Unit)?) {
-    IcodeOptionPanelButton(Icons.Outlined.Menu, "View and sort", viewPanel(look, showHidden, onLook, onHidden))
+internal fun ViewPanelButton(look: FilesLook, showHidden: Boolean, onLook: (FilesLook) -> Unit, onHidden: ((Boolean) -> Unit)?, sortable: Boolean = true) {
+    IcodeOptionPanelButton(Icons.Outlined.Menu, if (sortable) "View and sort" else "View", viewPanel(look, showHidden, onLook, onHidden, sortable))
 }
 
 /**
  * What the view panel offers: View — Detailed, Compact, Grid and, set apart where it applies, Hidden
- * files — and Sort — Name, Size, Date, Type, and Descending; those in use marked. A new sort reads
- * its own way first.
+ * files — and, where the order is the panel's to choose ([sortable]), Sort — Name, Size, Date, Type,
+ * and Descending; those in use marked. A new sort reads its own way first.
  */
-internal fun viewPanel(look: FilesLook, showHidden: Boolean, onLook: (FilesLook) -> Unit, onHidden: ((Boolean) -> Unit)?): List<IcodeOptionGroup> = listOf(
+internal fun viewPanel(
+    look: FilesLook,
+    showHidden: Boolean,
+    onLook: (FilesLook) -> Unit,
+    onHidden: ((Boolean) -> Unit)?,
+    sortable: Boolean = true,
+): List<IcodeOptionGroup> = listOfNotNull(
     IcodeOptionGroup(
         title = "View",
         options = FilesView.entries.map { view -> IcodeOption(view.name, view.icon, look.view == view, { onLook(look.copy(view = view)) }) },
@@ -222,7 +231,7 @@ internal fun viewPanel(look: FilesLook, showHidden: Boolean, onLook: (FilesLook)
         title = "Sort",
         options = FilesSort.entries.map { sort -> IcodeOption(sort.name, sort.icon, look.sort == sort, { onLook(look.sortedBy(sort)) }) } +
             IcodeOption("Desc", Icons.Outlined.ArrowDownward, look.descending, { onLook(look.copy(descending = !look.descending)) }, description = "Descending"),
-    ),
+    ).takeIf { sortable },
 )
 
 /** What stands for each view (§3.10): in ▾, and over one with nothing in it. */
@@ -233,19 +242,6 @@ internal val ExplorerView.icon: ImageVector
         is ExplorerView.Category -> category.icon
         is ExplorerView.Largest -> FilesSort.Size.icon
         is ExplorerView.Duplicates -> Icons.Outlined.FileCopy
-    }
-
-/** What stands for each kind of file Manage storage counts (§3.10). */
-internal val FileCategory.icon: ImageVector
-    get() = when (this) {
-        FileCategory.Images -> Icons.Outlined.Image
-        FileCategory.Videos -> Icons.Outlined.Movie
-        FileCategory.Audio -> Icons.Outlined.MusicNote
-        FileCategory.Documents -> Icons.Outlined.Description
-        FileCategory.Archives -> Icons.Outlined.Archive
-        FileCategory.Apps -> Icons.Outlined.Android
-        FileCategory.Code -> Icons.Outlined.Code
-        FileCategory.Other -> Icons.AutoMirrored.Outlined.InsertDriveFile
     }
 
 private val FilesView.icon: ImageVector

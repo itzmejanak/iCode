@@ -227,7 +227,7 @@ internal class FileOperationsCoordinator(
             val refusals = FileRefusals(places, trash, tasks, usage, follower, layout.workspaces.root)
             val operations = FileTasks(stateHolder, tasks, operator, questions, usage, follower, history)
             val archives = FileArchives(stateHolder, places, trash, transfers, refusals, operations, history)
-            val insights = FileInsightsCoordinator(stateHolder, scope, places, follower, StorageScan(places, trash))
+            val insights = FileInsightsCoordinator(stateHolder, scope, places, follower, StorageScan(places, trash), layout.workspaces)
             return FileOperationsCoordinator(stateHolder, scope, follower, history, operator, questions, refusals, operations, archives, insights, shortcuts)
         }
     }
