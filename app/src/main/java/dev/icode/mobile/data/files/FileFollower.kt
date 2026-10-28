@@ -4,7 +4,7 @@ import dev.icode.mobile.data.workspace.WorkspaceLifecycleCoordinator.Reopen
 
 /**
  * What follows each change the operations make, in iCode's own state (docs/explorer-gaps-plan.md §4)
- * — tabs, the tree, recent files, a whole workspace closed, renamed or retired: the
+ * — tabs, the tree, a whole workspace closed, renamed or retired, the listings: the
  * FileChangeFollower's, called under the mutation lock as each change is made.
  */
 internal interface FileFollower {
@@ -24,4 +24,7 @@ internal interface FileFollower {
 
     /** Once a change is done, for what it [touched]. */
     suspend fun refresh(touched: Collection<String>)
+
+    /** Hidden files shown or not: every listing read again. */
+    suspend fun relist()
 }

@@ -9,6 +9,8 @@ import dev.icode.mobile.domain.TerminalCursorStyle
 import dev.icode.mobile.domain.TerminalExtraKey
 import dev.icode.mobile.domain.WorkspacePreferences
 import dev.icode.mobile.domain.WorkspacePreferencesRepository
+import dev.icode.mobile.domain.files.ExplorerView
+import dev.icode.mobile.domain.files.FilesLook
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 
@@ -50,6 +52,8 @@ class CapturePreferences : WorkspacePreferencesRepository {
     override suspend fun setTerminalCursorStyle(style: TerminalCursorStyle) = Unit
     override suspend fun setTerminalBellAlerts(enabled: Boolean) = Unit
     override suspend fun setTerminalFinishAlerts(enabled: Boolean) = Unit
+    override suspend fun setShowHidden(shown: Boolean) = Unit
+    override suspend fun setFilesLook(view: ExplorerView?, look: FilesLook) = Unit
     override suspend fun setGlobalIndentSize(size: Int) = Unit
     override suspend fun setIndentSizeOverride(workspaceLocation: String, size: Int?) = Unit
     override suspend fun setIndentTypeOverride(workspaceLocation: String, type: IndentType?) = Unit

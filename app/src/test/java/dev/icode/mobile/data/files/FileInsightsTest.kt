@@ -43,6 +43,7 @@ class FileInsightsTest {
         override suspend fun moved(from: String, to: String, reopen: Reopen?) = Unit
         override suspend fun removed(location: String) = Unit
         override suspend fun refresh(touched: Collection<String>) = Unit
+        override suspend fun relist() = Unit
     }
 
     @Before fun start() {

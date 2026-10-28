@@ -9,6 +9,7 @@ import dev.icode.mobile.domain.FileKind
 import dev.icode.mobile.domain.LineEnding
 import dev.icode.mobile.domain.StorageSummary
 import dev.icode.mobile.domain.TextEncoding
+import dev.icode.mobile.domain.files.ExplorerSettings
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -75,11 +76,12 @@ internal class WorkspaceFileSource(private val guest: GuestPaths) {
     /** [location] is a workspace: a folder right under the workspaces, there now. */
     fun isWorkspace(location: String): Boolean = runCatching { requireWorkspace(location) }.isSuccess
 
-    fun listChildren(parentLocation: String): List<DocumentNode> {
+    /** What the Explorer lists in a workspace's folder: never `.git`, which is Git's; hidden files only when [showHidden]. */
+    fun listChildren(parentLocation: String, showHidden: Boolean): List<DocumentNode> {
         val parent = requireDirectory(parentLocation)
         val workspace = paths.workspaceOf(parent.path)
         return parent.listFiles()?.asSequence()
-            ?.filterNot { it.name == ".git" }
+            ?.filterNot { it.name == ".git" || (!showHidden && ExplorerSettings.hidden(it.name)) }
             ?.mapNotNull { child ->
                 runCatching {
                     // A link (node_modules/.bin, a virtualenv's) is named where it is, so a rename,

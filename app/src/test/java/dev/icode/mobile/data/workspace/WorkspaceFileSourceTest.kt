@@ -25,11 +25,17 @@ class WorkspaceFileSourceTest {
         link("away", "/workspace/other")
         link("system", "/etc")
         link("lib", "/workspace/app/src")
-        val listed = source.listChildren(runtime.root.path)
+        val listed = source.listChildren(runtime.root.path, showHidden = true)
         assertEquals(listOf("docs", "lib", "src", "alias.kt"), listed.map { it.name })
         // Named where it is; opened as the file it names.
         assertEquals(File(runtime.root, "alias.kt").path, listed.last().location)
         assertEquals(File(runtime.root, "src/real.kt").path, source.readDocument(listed.last().location).location)
-        assertEquals(listOf("real.kt"), source.listChildren(File(runtime.root, "lib").path).map { it.name })
+        assertEquals(listOf("real.kt"), source.listChildren(File(runtime.root, "lib").path, showHidden = true).map { it.name })
+    }
+
+    @Test fun `hidden files are listed as the setting says, and Git's folder never`() {
+        listOf(".git/HEAD", ".env", ".github/ci.yml", "main.kt").forEach { File(runtime.root, it).apply { parentFile!!.mkdirs(); writeText("") } }
+        assertEquals(listOf(".github", ".env", "main.kt"), source.listChildren(runtime.root.path, showHidden = true).map { it.name })
+        assertEquals(listOf("main.kt"), source.listChildren(runtime.root.path, showHidden = false).map { it.name })
     }
 }

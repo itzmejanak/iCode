@@ -2,6 +2,7 @@ package dev.icode.mobile.data.storage
 
 import android.os.Environment
 import dev.icode.mobile.domain.files.BrowsedItem
+import dev.icode.mobile.domain.files.ExplorerSettings
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
@@ -22,13 +23,13 @@ internal class PhoneStorage(
     fun contains(path: String): Boolean = path == root.path || path.startsWith(root.path + "/")
 
     /**
-     * What is in the folder at [path], as the explorer lists it: every entry, a folder with how many
-     * it holds, a file with its size, each with when it changed. A link is listed as what it is,
-     * never followed.
+     * What is in the folder at [path], as the explorer lists it: every entry — hidden files only when
+     * [showHidden] — a folder with how many it holds, a file with its size, each with when it changed.
+     * A link is listed as what it is, never followed.
      */
-    fun list(path: String): List<BrowsedItem> {
+    fun list(path: String, showHidden: Boolean): List<BrowsedItem> {
         val folder = folder(path) ?: throw IOException("This folder is no longer on phone storage")
-        return folder.listFiles().orEmpty().map { child ->
+        return folder.listFiles().orEmpty().filter { showHidden || !ExplorerSettings.hidden(it.name) }.map { child ->
             val isFolder = !Files.isSymbolicLink(child.toPath()) && child.isDirectory
             BrowsedItem(
                 name = child.name,

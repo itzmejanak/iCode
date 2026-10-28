@@ -8,6 +8,11 @@ import dev.icode.mobile.domain.AppTheme
 import dev.icode.mobile.domain.AutoSaveMode
 import dev.icode.mobile.domain.EditorFontFamily
 import dev.icode.mobile.domain.IndentType
+import dev.icode.mobile.domain.files.ExplorerSettings
+import dev.icode.mobile.domain.files.ExplorerView
+import dev.icode.mobile.domain.files.FilesLook
+import dev.icode.mobile.domain.files.FilesSort
+import dev.icode.mobile.domain.files.FilesView
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -212,6 +217,33 @@ class AndroidWorkspacePreferencesRepositoryTest {
             assertEquals(AutoSaveMode.AfterOneSecond, current.editor.autoSave)
         } finally {
             scope.cancel()
+        }
+    }
+
+    @Test fun `the explorer's settings survive restart, each view's look apart`() = runBlocking {
+        val file = File(temporaryFolder.root, "explorer.preferences_pb")
+        val firstScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val repository = AndroidWorkspacePreferencesRepository(PreferenceDataStoreFactory.create(scope = firstScope, produceFile = { file }))
+            assertEquals(ExplorerSettings(), repository.values(null).first().explorer)
+            repository.setShowHidden(false)
+            repository.setFilesLook(null, FilesLook(FilesView.Compact, FilesSort.Name, descending = false))
+            repository.setFilesLook(ExplorerView.Trash, FilesLook(FilesView.Grid))
+        } finally {
+            firstScope.coroutineContext.job.cancelAndJoin()
+        }
+        val secondScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val store = PreferenceDataStoreFactory.create(scope = secondScope, produceFile = { file })
+            // A look that cannot be read is no choice: the view opens its own way.
+            store.edit { it[stringPreferencesKey("explorer_look_recent")] = "Tiles,Size,up" }
+            val explorer = AndroidWorkspacePreferencesRepository(store).values(null).first().explorer
+            assertFalse(explorer.showHidden)
+            assertEquals(FilesLook(FilesView.Compact, FilesSort.Name, descending = false), explorer.look(null))
+            assertEquals(FilesLook(FilesView.Grid), explorer.look(ExplorerView.Trash))
+            assertEquals(ExplorerView.Recent.opensWith, explorer.look(ExplorerView.Recent))
+        } finally {
+            secondScope.cancel()
         }
     }
 }

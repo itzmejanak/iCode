@@ -7,6 +7,7 @@ import dev.icode.mobile.data.storage.PhoneStorage
 import dev.icode.mobile.data.storage.WorkspacePaths
 import dev.icode.mobile.data.tasks.TaskRunner
 import dev.icode.mobile.data.workspace.ICodeStateHolder
+import dev.icode.mobile.data.workspace.MemoryWorkspaceStore
 import dev.icode.mobile.data.workspace.WorkspaceLifecycleCoordinator.Reopen
 import dev.icode.mobile.data.workspace.WorkspaceUsage
 import dev.icode.mobile.domain.FilesIntent
@@ -42,7 +43,7 @@ import org.junit.rules.TemporaryFolder
  * The explorers' operations on temporary Private and Shared folders (docs/explorer-gaps-plan.md §6,
  * F3): many copied, moved and duplicated; each answer to the question; a merge leaving `.git`;
  * Trash and restore with folders gone and names taken; undo and redo, and their refusal once
- * something changed.
+ * something changed; Recent and Favorites following.
  */
 class FileOperationsTest {
     @get:Rule val temp = TemporaryFolder()
@@ -57,8 +58,9 @@ class FileOperationsTest {
     private val phone by lazy { temp.newFolder("emulated", "0").canonicalFile }
     private val app by lazy { folder(workspaces, "app") }
     private val follower by lazy { RecordingFollower(workspaces) }
-    private val history by lazy { FileHistory(stateHolder) }
-    private val files by lazy {
+    private val shortcuts by lazy { FileShortcuts(stateHolder, MemoryWorkspaceStore(), WorkspacePaths(workspaces)) }
+    private val history: FileHistory by lazy { FileHistory(stateHolder) { steps -> files.follow(steps) } }
+    private val files: FileOperationsCoordinator by lazy {
         val storage = PhoneStorage(phone) { true }
         val places = FilePlaces(workspaces, storage)
         val trash = FileTrash(File(workspaces.parentFile, "trash"), File(phone, "Android/media/dev.icode.mobile/Trash"), storage)
@@ -70,7 +72,7 @@ class FileOperationsTest {
         val operations = FileTasks(stateHolder, tasks, operator, questions, usage, follower, history)
         val archives = FileArchives(stateHolder, places, trash, transfers, refusals, operations, history)
         val insights = FileInsightsCoordinator(stateHolder, scope, places, follower, StorageScan(places, trash))
-        FileOperationsCoordinator(stateHolder, scope, follower, history, operator, questions, refusals, operations, archives, insights)
+        FileOperationsCoordinator(stateHolder, scope, follower, history, operator, questions, refusals, operations, archives, insights, shortcuts)
     }
 
     private object NoGit : GitCheckoutOperations {
@@ -97,6 +99,9 @@ class FileOperationsTest {
         }
         override suspend fun refresh(touched: Collection<String>) {
             refreshes++
+        }
+        override suspend fun relist() {
+            calls += "relist"
         }
     }
 
@@ -384,6 +389,29 @@ class FileOperationsTest {
         tasks.handle(ICodeIntent.DismissTask(stateHolder.current.tasks.single().id))
         perform(FilesIntent.Extract(archive.path, password = "s3cret"))
         assertEquals("hidden", File(app, "secret/notes.md").readText())
+    }
+
+    @Test fun `Recent and Favorites follow a move and its undo, and what is in Trash is kept, not shown`() {
+        val src = folder(app, "src").also { file(it, "Main.kt") }
+        val lib = folder(app, "lib")
+        runBlocking {
+            shortcuts.opened(File(src, "Main.kt").path)
+            shortcuts.handle(FilesIntent.Favorite(src.path, pinned = true))
+        }
+        fun recent() = stateHolder.current.explorer.recent.map { it.location }
+        fun favorites() = stateHolder.current.explorer.favorites
+        perform(FilesIntent.Transfer(listOf(src.path), lib.path, move = true))
+        assertEquals(listOf(File(lib, "src/Main.kt").path), recent())
+        assertEquals(listOf(File(lib, "src").path), favorites())
+        perform(FilesIntent.Undo)
+        assertEquals(listOf(File(src, "Main.kt").path), recent())
+        assertEquals(listOf(src.path), favorites())
+        perform(FilesIntent.Trash(listOf(src.path)))
+        assertEquals(emptyList<String>(), recent())
+        assertEquals(emptyList<String>(), favorites())
+        perform(FilesIntent.Undo)
+        assertEquals(listOf(File(src, "Main.kt").path), recent())
+        assertEquals(listOf(src.path), favorites())
     }
 
     @Test fun `nothing starts when one item cannot go`() {

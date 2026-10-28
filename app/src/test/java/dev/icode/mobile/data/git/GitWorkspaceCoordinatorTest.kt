@@ -74,7 +74,6 @@ class GitWorkspaceCoordinatorTest {
             WorkspaceTree(stateHolder, WorkspaceFileSource(GuestPaths(File("/rootfs"), WorkspacePaths(File("/workspaces"))))) { emptyList() },
             activeRoot = { root },
             workspaces = { emptyList() },
-            recentDocuments = { emptyList() },
             onInstalled = { installed++ },
         )
     }

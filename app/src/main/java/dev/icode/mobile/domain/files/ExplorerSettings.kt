@@ -11,6 +11,28 @@ data class FilesLook(
 ) {
     /** Ordered by [sort] instead, the way it reads first: names A→Z, the largest and the newest first. */
     fun sortedBy(sort: FilesSort): FilesLook = copy(sort = sort, descending = sort.descendingFirst)
+
+    /** As settings keep it: "Grid,Size,desc". */
+    val encoded: String get() = "${view.name},${sort.name},${if (descending) DESCENDING else ASCENDING}"
+
+    companion object {
+        private const val DESCENDING = "desc"
+        private const val ASCENDING = "asc"
+
+        /** What [encoded] kept; null for anything else, which reads as no choice made. */
+        fun decode(text: String): FilesLook? {
+            val (view, sort, order) = text.split(',').takeIf { it.size == 3 } ?: return null
+            return FilesLook(
+                FilesView.entries.firstOrNull { it.name == view } ?: return null,
+                FilesSort.entries.firstOrNull { it.name == sort } ?: return null,
+                when (order) {
+                    DESCENDING -> true
+                    ASCENDING -> false
+                    else -> return null
+                },
+            )
+        }
+    }
 }
 
 /** Where Manage storage looks (§3.10): both places, or one. */

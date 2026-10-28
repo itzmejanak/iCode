@@ -1,5 +1,8 @@
 package dev.icode.mobile.domain
 
+import dev.icode.mobile.domain.files.ExplorerSettings
+import dev.icode.mobile.domain.files.ExplorerView
+import dev.icode.mobile.domain.files.FilesLook
 import kotlinx.coroutines.flow.Flow
 
 enum class IndentType { Spaces, Tabs }
@@ -10,6 +13,7 @@ data class WorkspacePreferences(
     val appearance: AppearanceSettings = AppearanceSettings(),
     val editor: EditorSettings = EditorSettings(),
     val terminal: TerminalSettings = TerminalSettings(),
+    val explorer: ExplorerSettings = ExplorerSettings(),
     val globalIndentSize: Int = 4,
     val indentSizeOverride: Int? = null,
     val indentTypeOverride: IndentType? = null,
@@ -49,6 +53,10 @@ interface WorkspacePreferencesRepository {
     suspend fun setTerminalCursorStyle(style: TerminalCursorStyle)
     suspend fun setTerminalBellAlerts(enabled: Boolean)
     suspend fun setTerminalFinishAlerts(enabled: Boolean)
+    /** Names starting with "." listed or not, in both explorers (docs/explorer-gaps-plan.md §3.13). */
+    suspend fun setShowHidden(shown: Boolean)
+    /** The panel's choices, for folders ([view] null) or for one view of its own (§3.12). */
+    suspend fun setFilesLook(view: ExplorerView?, look: FilesLook)
     suspend fun setGlobalIndentSize(size: Int)
     suspend fun setIndentSizeOverride(workspaceLocation: String, size: Int?)
     suspend fun setIndentTypeOverride(workspaceLocation: String, type: IndentType?)

@@ -590,7 +590,8 @@ anywhere. Each view is the explorer itself, not a page of its own.
     - Delete to Trash, and Trash's own actions;
     - undo and redo;
     - the question.
-  - `FileInsightsCoordinator` takes properties, Manage storage's scan, the views' lists and favorites.
+  - `FileInsightsCoordinator` takes properties, Manage storage's scan and the views' lists;
+    `FileShortcuts`, Recent and Favorites.
   - The gateway hands them one intent group, `FilesIntent`, in its own file, in one line.
 - **Listings:** the hidden filter goes where each place is listed: `WorkspaceFileSource.listChildren`
   for Private and the tree, `PhoneStorage.list` for Shared.
@@ -735,3 +736,35 @@ Descending.
     one never stops the next.
   - The snapshot gets `ExplorerState.facts` and `ExplorerState.storage`.
 - **The view lists** (a category's files, Largest, Duplicates) are published with the views in F6.
+
+### F4c (settings, Recent, Favorites, hidden files)
+
+- **Settings:** `WorkspacePreferences.explorer`, kept by `AndroidWorkspacePreferencesRepository`.
+  - Keys: `explorer_show_hidden`; `explorer_folders_look`; `explorer_look_<view key>`, one per
+    view changed.
+  - A look is kept as text (`FilesLook.encoded`: "Grid,Size,desc"). One that cannot be read is no
+    choice, and the view opens its own way.
+  - `FileOperationsCoordinator.start` follows them into `ExplorerState.settings`. Hidden files
+    shown or not, `FileFollower.relist` reads the explorer's folder and the open tree again.
+- **Hidden files:** filtered where each place is listed. `WorkspaceFileSource.listChildren` and
+  `PhoneStorage.list` take `showHidden`. The tree, the explorer and opening a workspace pass the
+  setting. `.git` stays unlisted either way.
+- **`data/files/FileShortcuts`:** Recent and Favorites, owned by the library (`library.shortcuts`)
+  and kept in the workspace store.
+  - **Recent:** the editor's opens and saves, and `FilesIntent.Opened` (a viewer, Open with), in
+    workspaces and on phone storage.
+    - At most 20 per workspace, 20 for phone storage, 100 in all.
+    - Each is stored by its location alone: its name, workspace and runtime path are derived.
+  - **Favorites:** `FilesIntent.Favorite(location, pinned)`, kept as `favorites_v1`, in the order
+    pinned.
+  - **Following changes:** both follow every move kept in `FileHistory`, in order, under the
+    mutation lock. What went to Trash is kept, not shown, so a restore or an undo shows it again.
+  - **Publishing:** to `ExplorerState.recent` and `ExplorerState.favorites` (what is there now), at
+    start, after each change, and on every library refresh. A refresh after a watcher event or a
+    terminal delete is one.
+- **Migrated:**
+  - `ICodeSnapshot.recentDocuments`, the library's recent-file code and `FileChangeFollower`'s
+    recent calls are gone.
+  - The editor's empty page reads `explorer.recent` for its workspace. A file gone leaves the list
+    there too, instead of showing "Missing".
+  - `WorkspaceStore.relocate` and `forget` no longer touch recent files: the moves do.

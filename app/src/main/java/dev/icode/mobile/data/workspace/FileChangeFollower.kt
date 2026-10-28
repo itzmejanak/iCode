@@ -7,11 +7,10 @@ import java.io.File
 
 /**
  * What follows a change to files in iCode's own state (docs/explorer-gaps-plan.md §4), whoever made
- * it — a rename, an operation, an undo. Inside one workspace, its tabs, tree and recent files follow
- * a move; out of it, its tabs close and its recent files go. A whole workspace is closed before it
- * moves or goes, opened again where it was renamed, and retired once it is no workspace any more —
- * the [lifecycle]'s steps. Each runs under the mutation lock as its change is made; [refresh] once
- * the whole change is done.
+ * it — a rename, an operation, an undo. Inside one workspace, its tabs and tree follow a move; out
+ * of it, its tabs close. A whole workspace is closed before it moves or goes, opened again where it
+ * was renamed, and retired once it is no workspace any more — the [lifecycle]'s steps. Each runs
+ * under the mutation lock as its change is made; [refresh] once the whole change is done.
  */
 internal class FileChangeFollower(
     private val stateHolder: ICodeStateHolder,
@@ -43,15 +42,12 @@ internal class FileChangeFollower(
         if (home != source.workspaceOf(to)) return removed(from)
         documents.relocate(from, to)
         tree.relocate(from, to)
-        library.relocateRecentDocuments(home, from, to)
     }
 
     /** After [location] went: to Trash, or an empty folder removed. */
     override suspend fun removed(location: String) {
         if (isWorkspace(location)) return lifecycle.retire(location)
-        val home = source.workspaceOf(location) ?: return
-        library.forgetRecentDocumentsUnder(home, location)
-        documents.closeDeleted(location)
+        if (source.workspaceOf(location) != null) documents.closeDeleted(location)
     }
 
     /** After a new file or folder at [location]: the explorer, and the open workspace's tree at its folder. */
@@ -82,5 +78,15 @@ internal class FileChangeFollower(
             refreshWorkspaceState(active)
             reindex(active)
         }.onFailure { error -> stateHolder.report("workspace", "The change was made, but the workspace could not refresh", error) }
+    }
+
+    /** Hidden files shown or not: the explorer's folder, and the open workspace's tree, read again. */
+    override suspend fun relist() {
+        library.refreshFiles()
+        val active = activeRoot() ?: return
+        runCatching {
+            tree.reload(active)
+            refreshWorkspaceState(active)
+        }.onFailure { error -> stateHolder.report("workspace", "Unable to list the workspace again", error) }
     }
 }

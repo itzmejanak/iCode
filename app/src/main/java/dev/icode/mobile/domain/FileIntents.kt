@@ -80,4 +80,13 @@ sealed interface FilesIntent : ICodeIntent {
     data class Scan(val scope: ScanScope) : Insight
 
     data object StopScan : Insight
+
+    /** The explorer's ways back (§3.14): Recent and Favorites. */
+    sealed interface Shortcut : FilesIntent
+
+    /** A file opened outside the editor — a viewer, Open with — kept in Recent as the editor's are. */
+    data class Opened(val location: String) : Shortcut
+
+    /** The folder at [location] pinned to Favorites, or let go. */
+    data class Favorite(val location: String, val pinned: Boolean) : Shortcut
 }

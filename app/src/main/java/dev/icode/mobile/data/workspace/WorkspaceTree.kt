@@ -9,7 +9,8 @@ import java.io.File
 
 /**
  * The Explorer's tree of the open workspace (S3): folders read so far, which
- * are expanded, and the rows that makes — each marked with its Git status.
+ * are expanded, and the rows that makes — each marked with its Git status;
+ * hidden files listed as the setting says.
  *
  * Its own lock keeps taps responsive outside the gateway's slow Git mutation
  * queue while still serializing two folder reads and a concurrent refresh.
@@ -17,7 +18,7 @@ import java.io.File
 internal class WorkspaceTree(
     private val stateHolder: ICodeStateHolder,
     source: WorkspaceFileSource,
-    private val listChildren: (String) -> List<DocumentNode> = source::listChildren,
+    private val listChildren: (String) -> List<DocumentNode> = { source.listChildren(it, stateHolder.current.explorer.settings.showHidden) },
 ) {
     private val treeLock = Any()
     private val childrenByParent = mutableMapOf<String, List<DocumentNode>>()
