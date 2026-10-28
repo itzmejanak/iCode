@@ -14,6 +14,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -42,6 +43,19 @@ data class IcodeMenuAction(
     val opensPage: Boolean = false,
 )
 
+/** ⋮: what opens a menu or a sheet of actions from a row's end. */
+@Composable
+fun IcodeMoreButton(contentDescription: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    IconButton(onClick = onClick, modifier = modifier.size(IcodeSizes.TouchTarget)) {
+        Icon(
+            Icons.Outlined.MoreVert,
+            contentDescription = contentDescription,
+            tint = IcodeColors.TextSecondary,
+            modifier = Modifier.size(IcodeSizes.IconMd),
+        )
+    }
+}
+
 @Composable
 fun IcodeOverflowMenu(
     contentDescription: String,
@@ -50,14 +64,7 @@ fun IcodeOverflowMenu(
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box(modifier) {
-        IconButton(onClick = { expanded = true }, modifier = Modifier.size(IcodeSizes.TouchTarget)) {
-            Icon(
-                Icons.Outlined.MoreVert,
-                contentDescription = contentDescription,
-                tint = IcodeColors.TextSecondary,
-                modifier = Modifier.size(IcodeSizes.IconMd),
-            )
-        }
+        IcodeMoreButton(contentDescription, onClick = { expanded = true })
         IcodeActionMenu(expanded = expanded, onDismiss = { expanded = false }, actions = actions)
     }
 }
@@ -109,6 +116,23 @@ fun IcodeActionMenu(
             )
         }
     }
+}
+
+/**
+ * The surface of a popup the design system draws itself — an option panel ([IcodeOptionPanel]) — as
+ * [IcodeDropdownMenu] gives Material's menu: so every popup looks the one.
+ */
+@Composable
+internal fun IcodePopupSurface(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    Surface(
+        modifier = modifier,
+        shape = IcodeShapes.Small,
+        color = IcodeColors.SurfaceElevated,
+        tonalElevation = 0.dp,
+        shadowElevation = 3.dp,
+        border = edgeLine?.let { BorderStroke(1.dp, it) },
+        content = content,
+    )
 }
 
 /** Every popup menu's surface: raised over the screen, its shadow kept, its [edgeLine] drawn. */

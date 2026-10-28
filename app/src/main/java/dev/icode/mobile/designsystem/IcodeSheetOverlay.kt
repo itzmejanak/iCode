@@ -10,9 +10,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 
 /**
- * A sheet over the screen it opens from: the screen dimmed — blur it where it is drawn — and a tap
+ * The screen's own content while a sheet is [shown] over it: blurred, as under every sheet. Put it
+ * on the content the [IcodeSheetOverlay] is a sibling of, never on a parent of the sheet.
+ */
+fun Modifier.behindSheet(shown: Boolean): Modifier = if (shown) blur(IcodeSizes.SheetBackdropBlur) else this
+
+/**
+ * A sheet over the screen it opens from: the screen dimmed — blur it with [behindSheet] — and a tap
  * outside the sheet, or Back, closes it. Sheet routes are drawn this way, and a screen's own sheets
  * that work on what the screen holds (a message's draft) are too.
  */

@@ -26,15 +26,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.ActivityRail
 import dev.icode.mobile.designsystem.ActivityRailEntry
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeMenuAction
+import dev.icode.mobile.designsystem.IcodeSheetOverlay
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.SectionLabel
+import dev.icode.mobile.designsystem.behindSheet
 import dev.icode.mobile.domain.FileEntry
 import dev.icode.mobile.domain.FileKind
 import dev.icode.mobile.domain.FilesIntent
@@ -47,7 +50,6 @@ import dev.icode.mobile.ui.ClipboardBar
 import dev.icode.mobile.ui.FileItemActions
 import dev.icode.mobile.ui.NewItemButton
 import dev.icode.mobile.ui.LocalICodeGateway
-import dev.icode.mobile.ui.RenameDialog
 import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /** File tree with the workspace activity rail. */
@@ -58,8 +60,8 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
     var selectedPath by rememberSaveable(state.activePath) { mutableStateOf(state.initialExplorerSelection.orEmpty()) }
     var createParent by rememberSaveable { mutableStateOf<String?>(null) }
     var createType by rememberSaveable { mutableStateOf<WorkspaceItemType?>(null) }
-    var menuFor by remember { mutableStateOf<String?>(null) }
-    var renaming by rememberSaveable { mutableStateOf<String?>(null) }
+    // The row whose sheet is shown; gone with the row (renamed, deleted, moved).
+    var actionsFor by rememberSaveable { mutableStateOf<String?>(null) }
     // iCode's one clipboard: cut or copied here, in another workspace, or on the Workspaces page.
     val clipboard = state.explorer.clipboard
     val rootSelectionInteraction = remember { MutableInteractionSource() }
@@ -69,83 +71,77 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
     val pasteHere = { selectedFolder?.let { gateway.dispatch(FilesIntent.Paste(it)) } }
     // Each path as the runtime names it, as Copy path gives it and the terminal shows it.
     val runtimePathOf = { location: String -> root?.let { WorkspaceRuntimePath.within(it, state.activePath, location) } ?: location }
-    Column(Modifier.fillMaxSize()) {
-        WorkspaceHeader(
-            actions = FileItemActions.creation(
-                onNewFile = { createParent = selectedFolder; createType = WorkspaceItemType.File },
-                onNewFolder = { createParent = selectedFolder; createType = WorkspaceItemType.Folder },
-            ),
-        )
-        Row(Modifier.weight(1f).background(IcodeColors.Surface)) {
-            ActivityRail(
-                entries = listOf(
-                    ActivityRailEntry(Icons.Outlined.FolderOpen, "Explorer", active = true),
-                    ActivityRailEntry(Icons.Outlined.Terminal, "Terminal", accented = true) {
-                        actions.openPanel(ToolPanelTab.Terminal)
-                    },
-                    ActivityRailEntry(Icons.Outlined.Search, "Search") { actions.navigate(Route.WorkspaceSearch) },
-                    ActivityRailEntry(
-                        Icons.Outlined.AccountTree,
-                        if (state.gitRepository == null) "Initialize Git" else "Source control",
-                        // One badge per changed file, counting a file staged and
-                        // modified once, the way VS Code counts it.
-                        badge = state.gitChanges.map { it.path }.distinct().size,
-                    ) {
-                        if (state.gitRepository == null) {
-                            gateway.dispatch(ICodeIntent.InitializeGit)
-                        } else {
-                            actions.navigate(Route.SourceControl)
-                        }
-                    },
-                    // Accented while it works, wherever the user went meanwhile.
-                    ActivityRailEntry(Icons.Outlined.AutoAwesome, "Assistant", accented = state.assistant.running) {
-                        actions.navigate(Route.Assistant)
-                    },
-                ),
-                bottomEntries = listOf(
-                    ActivityRailEntry(Icons.Outlined.Settings, "Workspace settings") {
-                        actions.navigate(Route.WorkspaceSettings)
-                    },
+    val sheetFor = state.files.firstOrNull { it.path == actionsFor }
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().behindSheet(sheetFor != null)) {
+            WorkspaceHeader(
+                actions = FileItemActions.creation(
+                    onNewFile = { createParent = selectedFolder; createType = WorkspaceItemType.File },
+                    onNewFolder = { createParent = selectedFolder; createType = WorkspaceItemType.Folder },
                 ),
             )
-            Column(
-                Modifier
-                    .weight(1f)
-                    .fillMaxSize()
-                    .background(IcodeColors.Background),
-            ) {
-                SectionLabel("Workspace Explorer", Modifier.padding(IcodeSpacing.Space3))
-                LazyColumn(
+            Row(Modifier.weight(1f).background(IcodeColors.Surface)) {
+                ActivityRail(
+                    entries = listOf(
+                        ActivityRailEntry(Icons.Outlined.FolderOpen, "Explorer", active = true),
+                        ActivityRailEntry(Icons.Outlined.Terminal, "Terminal", accented = true) {
+                            actions.openPanel(ToolPanelTab.Terminal)
+                        },
+                        ActivityRailEntry(Icons.Outlined.Search, "Search") { actions.navigate(Route.WorkspaceSearch) },
+                        ActivityRailEntry(
+                            Icons.Outlined.AccountTree,
+                            if (state.gitRepository == null) "Initialize Git" else "Source control",
+                            // One badge per changed file, counting a file staged and
+                            // modified once, the way VS Code counts it.
+                            badge = state.gitChanges.map { it.path }.distinct().size,
+                        ) {
+                            if (state.gitRepository == null) {
+                                gateway.dispatch(ICodeIntent.InitializeGit)
+                            } else {
+                                actions.navigate(Route.SourceControl)
+                            }
+                        },
+                        // Accented while it works, wherever the user went meanwhile.
+                        ActivityRailEntry(Icons.Outlined.AutoAwesome, "Assistant", accented = state.assistant.running) {
+                            actions.navigate(Route.Assistant)
+                        },
+                    ),
+                    bottomEntries = listOf(
+                        ActivityRailEntry(Icons.Outlined.Settings, "Workspace settings") {
+                            actions.navigate(Route.WorkspaceSettings)
+                        },
+                    ),
+                )
+                Column(
                     Modifier
                         .weight(1f)
-                        .fillMaxWidth()
-                        .clickable(
-                            interactionSource = rootSelectionInteraction,
-                            indication = null,
-                            onClickLabel = "Select workspace root",
-                        ) { selectedPath = "" },
+                        .fillMaxSize()
+                        .background(IcodeColors.Background),
                 ) {
-                    if (state.files.isEmpty() && state.activeWorkspaceLocation != null) {
-                        item {
-                            Text(
-                                "This folder is empty. Create a file or folder with +.",
-                                modifier = Modifier.padding(IcodeSpacing.Space3),
-                                style = IcodeType.Caption,
-                            )
+                    SectionLabel("Workspace Explorer", Modifier.padding(IcodeSpacing.Space3))
+                    LazyColumn(
+                        Modifier
+                            .weight(1f)
+                            .fillMaxWidth()
+                            .clickable(
+                                interactionSource = rootSelectionInteraction,
+                                indication = null,
+                                onClickLabel = "Select workspace root",
+                            ) { selectedPath = "" },
+                    ) {
+                        if (state.files.isEmpty() && state.activeWorkspaceLocation != null) {
+                            item {
+                                Text(
+                                    "This folder is empty. Create a file or folder with +.",
+                                    modifier = Modifier.padding(IcodeSpacing.Space3),
+                                    style = IcodeType.Caption,
+                                )
+                            }
                         }
-                    }
-                    items(state.files, key = { it.path }) { entry ->
-                        // The menu anchors to its row, where the long press was.
-                        Box {
+                        items(state.files, key = { it.path }) { entry ->
                             ExplorerRow(
                                 entry = entry,
                                 selected = entry.path == selectedPath,
-                                actions = explorerItemActions(
-                                    entry, root, state.activePath, state.files, state.explorer,
-                                    onRename = { renaming = entry.path },
-                                ),
-                                menuOpen = menuFor == entry.path,
-                                onMenuDismiss = { menuFor = null },
                                 onClick = {
                                     selectedPath = entry.path
                                     if (entry.kind == FileKind.Folder) {
@@ -156,24 +152,28 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
                                 },
                                 onLongClick = {
                                     selectedPath = entry.path
-                                    menuFor = entry.path
+                                    actionsFor = entry.path
                                 },
                             )
                         }
                     }
                 }
             }
+            // The Workspaces page's bar too: into the selected folder, as the header's Paste, and it says so.
+            if (clipboard != null && selectedFolder != null) {
+                ClipboardBar(clipboard, destination = runtimePathOf(selectedFolder), onPaste = { pasteHere() })
+            }
         }
-        // The Workspaces page's bar too: into the selected folder, as the header's Paste, and it says so.
-        if (clipboard != null && selectedFolder != null) {
-            ClipboardBar(clipboard, destination = runtimePathOf(selectedFolder), onPaste = { pasteHere() })
+        // One row's sheet, over the whole screen, as in the file explorer.
+        sheetFor?.let { entry ->
+            val close = { actionsFor = null }
+            IcodeSheetOverlay(onClose = close) {
+                ExplorerItemSheet(entry, onClose = close, modifier = Modifier.align(Alignment.BottomCenter))
+            }
         }
     }
     createType?.let { type ->
         CreateWorkspaceItemDialog(type, createParent, onDismiss = { createType = null })
-    }
-    state.files.firstOrNull { it.path == renaming }?.let { entry ->
-        RenameDialog(entry.path, entry.name, entry.kind == FileKind.Folder, workspace = false, onDismiss = { renaming = null })
     }
 }
 

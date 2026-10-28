@@ -3,16 +3,19 @@ package dev.icode.mobile.ui.screens.workspace
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Image
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodePalette
 import dev.icode.mobile.designsystem.LocalIcodePalette
 import dev.icode.mobile.designsystem.Oklch
 import dev.icode.mobile.designsystem.PaletteKind
 import dev.icode.mobile.domain.FileFamily
 import dev.icode.mobile.domain.FileType
+import dev.icode.mobile.domain.FileTypes
 import java.util.concurrent.ConcurrentHashMap
 
 /** The icon a file's type draws with, in the Explorer and in search results alike. */
@@ -25,6 +28,11 @@ internal fun fileTypeIcon(type: FileType): ImageVector = when (type.family) {
 /** That icon's colour on the current theme. */
 @Composable
 internal fun fileTypeTint(type: FileType): Color = LocalIcodePalette.current.fileTypeColor(type)
+
+/** What leads an item's sheet and its row in a list: a folder's icon in the accent; a file's by its type. */
+@Composable
+internal fun itemIcon(name: String, folder: Boolean): Pair<ImageVector, Color> =
+    if (folder) Icons.Outlined.Folder to IcodeColors.Accent else FileTypes.of(name).let { fileTypeIcon(it) to fileTypeTint(it) }
 
 /** [fileTypeTint] for a given palette. */
 internal fun IcodePalette.fileTypeColor(type: FileType): Color {

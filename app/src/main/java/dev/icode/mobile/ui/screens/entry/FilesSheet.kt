@@ -27,9 +27,9 @@ import dev.icode.mobile.ui.ScreenActions
 import dev.icode.mobile.ui.SheetFolder
 
 /**
- * The sheet of what the explorer acts on (docs/explorer-gaps-plan.md §3.1–§3.3): one item, from its
- * long press, or a selection's [items], from its ⋯ — every explorer's actions ([FileItemActions]),
- * with [ItemSheet]'s pages and the explorer's own [screen] actions. Open is what a tap does; at
+ * The file explorer's [ItemSheet] (docs/explorer-gaps-plan.md §3.1–§3.3): one item, from its long
+ * press, or a selection's [items], from its ⋯ — every explorer's actions ([FileItemActions]), with
+ * the explorer's own [screen] actions. Open is what a tap does; at
  * Private's top the items are workspaces, which Open opens in the IDE, with Open Terminal beside.
  * Paste goes into a folder, or beside a file into the folder shown. Each action but a page also does
  * [onActed]: a selection ends once it is acted on.
@@ -54,7 +54,6 @@ internal fun FilesSheet(
     val open = one?.let { if (top) ({ gateway.dispatch(ICodeIntent.OpenWorkspace(it.location)) }) else openOf(it, browser, browse) }
     ItemSheet(
         targets = targets,
-        folder = folder,
         title = one?.name ?: "${items.size} selected",
         detail = one?.let(FilesRules::detail) ?: FileSelection.summary(items, state.workspaceSizes),
         leading = {
@@ -63,6 +62,7 @@ internal fun FilesSheet(
         },
         onClose = onClose,
         modifier = modifier,
+        folder = folder,
         branch = one?.branch,
     ) { rename, pages ->
         FileItemActions.of(
@@ -71,12 +71,11 @@ internal fun FilesSheet(
             targets = targets,
             explorer = state.explorer,
             onRename = rename,
+            pages = pages,
             open = one?.let { item -> open?.let { if (item.folder) IcodeMenuAction("Open", Icons.Outlined.FolderOpen, it) else FileItemActions.openFile(it) } },
             onPaste = one?.let { item -> { gateway.dispatch(FilesIntent.Paste(if (item.folder) item.location else browser.path)) } },
             openTerminal = one?.takeIf { top }?.let { item -> { gateway.dispatch(ICodeIntent.OpenWorkspaceTerminal(item.location)) } },
-            pages = pages,
             screen = screen,
-            folder = folder.name,
         ).map { action -> if (action.opensPage) action else action.copy(onClick = { action.onClick(); onActed() }) }
     }
 }

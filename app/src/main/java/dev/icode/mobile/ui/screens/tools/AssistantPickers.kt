@@ -21,14 +21,12 @@ import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -44,10 +42,9 @@ import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.ui.LocalFileViewer
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.SharedFiles
-import dev.icode.mobile.ui.decodeImage
+import dev.icode.mobile.ui.rememberThumbnail
+import dev.icode.mobile.ui.ThumbnailKind
 import java.io.File
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 /** A file going with the message: a workspace file's location, or a phone file's `content://` URI. */
 internal data class DraftFile(val location: String, val name: String, val kind: AssistantAttachmentKind)
@@ -118,16 +115,12 @@ private fun describe(context: Context, uri: Uri): DraftFile? = runCatching {
 }.getOrNull()
 
 /**
- * An image file — kept with a message, or picked — drawn small, the way the camera held it
- * (`ImageDecoder` turns it), decoded off the main thread; its kind's icon until then, or if it
- * cannot be read.
+ * An image file — kept with a message, or picked — drawn small ([rememberThumbnail]), the way the
+ * camera held it; its kind's icon until then, or if it cannot be read.
  */
 @Composable
 internal fun AssistantThumbnail(location: String, kind: AssistantAttachmentKind, modifier: Modifier) {
-    val context = LocalContext.current
-    val image by produceState<ImageBitmap?>(null, location, kind) {
-        if (kind == AssistantAttachmentKind.Image) value = withContext(Dispatchers.IO) { runCatching { decodeImage(context, location, THUMBNAIL_PX) }.getOrNull() }
-    }
+    val image = rememberThumbnail(location, ThumbnailKind.Picture.takeIf { kind == AssistantAttachmentKind.Image })
     Box(modifier.clip(IcodeShapes.Small).background(IcodeColors.SurfaceElevated), contentAlignment = Alignment.Center) {
         val shown = image
         if (shown != null) {
@@ -171,8 +164,6 @@ internal val AssistantAttachmentKind.icon: ImageVector
         AssistantAttachmentKind.Text -> Icons.AutoMirrored.Outlined.InsertDriveFile
     }
 
-/** Thumbnail sides are at most this many pixels: sharp at the sizes the chat draws them. */
-private const val THUMBNAIL_PX = 384
 private const val CAMERA_FOLDER = "assistant-camera"
 private const val DAY_MILLIS = 24L * 60 * 60 * 1000
 

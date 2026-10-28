@@ -23,9 +23,12 @@ data class ExplorerState(
     val settings: ExplorerSettings = ExplorerSettings(),
     /** The files opened in iCode, in workspaces and on phone storage, newest first; a file gone left out. */
     val recent: List<RecentDocument> = emptyList(),
-    /** Folders pinned app-wide; one gone is kept, not shown. */
-    val favorites: List<String> = emptyList(),
+    /** Folders pinned app-wide, in the order pinned; one gone is kept, not shown. */
+    val favorites: List<FavoriteFolder> = emptyList(),
 )
+
+/** A folder pinned to Favorites (docs/explorer-gaps-plan.md §3.14): its name, where it is, and its path as the runtime names it. */
+data class FavoriteFolder(val name: String, val location: String, val path: String)
 
 /** Extract of [archive] into [folder] waits on its password, which is never kept: the answer is Extract again, with it. */
 data class PasswordAsk(val archive: String, val folder: String?)

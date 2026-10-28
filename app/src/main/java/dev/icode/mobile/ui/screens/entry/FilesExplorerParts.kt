@@ -1,144 +1,146 @@
 package dev.icode.mobile.ui.screens.entry
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DriveFolderUpload
-import androidx.compose.material.icons.outlined.Folder
-import androidx.compose.material.icons.outlined.FolderOpen
-import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import dev.icode.mobile.designsystem.EmptyState
+import androidx.compose.ui.unit.Dp
 import dev.icode.mobile.designsystem.IcodeCheckbox
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeListRow
+import dev.icode.mobile.designsystem.IcodeShapes
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
-import dev.icode.mobile.domain.files.BrowsedItem
-import dev.icode.mobile.domain.FileTypes
 import dev.icode.mobile.domain.FileViewer
 import dev.icode.mobile.domain.FilesIntent
-import dev.icode.mobile.domain.files.FilesBrowserState
-import dev.icode.mobile.domain.files.FilesRules
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.RelativeTime
+import dev.icode.mobile.domain.files.BrowsedItem
+import dev.icode.mobile.domain.files.FilesBrowserState
+import dev.icode.mobile.domain.files.FilesRules
 import dev.icode.mobile.domain.files.StoragePlace
 import dev.icode.mobile.ui.LocalFileViewer
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.SharedFiles
-import dev.icode.mobile.ui.screens.workspace.fileTypeIcon
-import dev.icode.mobile.ui.screens.workspace.fileTypeTint
-
-/** What the listing does with a tap, a long press and a tap on an item's icon (docs/explorer-gaps-plan.md §3.2). */
-internal class ListingTaps(
-    /** Ticked, in selection; null where nothing is selected — a folder picker. */
-    val selection: Set<String>?,
-    val onTick: ((BrowsedItem) -> Unit)?,
-    val onActions: ((BrowsedItem) -> Unit)?,
-)
-
-/**
- * What is here, found and ordered (docs/storage-explorer-plan.md §3.2): `..` first while there is a
- * folder above, then [shown] as flat rows — at Private's top, the workspaces. In selection a tap
- * ticks an item, and `..` is not there; otherwise a tap opens it, a tap on its icon starts selecting
- * with it, and a long press asks for its sheet ([taps]). Room is left under the last row for the +.
- */
-@Composable
-internal fun FilesListing(browser: FilesBrowserState, shown: List<BrowsedItem>, query: String, foldersOnly: Boolean, browse: (String) -> Unit, taps: ListingTaps) {
-    val top = browser.place == StoragePlace.Private && browser.atRoot
-    val here = if (foldersOnly) browser.items.filter { it.folder } else browser.items
-    LazyColumn(contentPadding = PaddingValues(start = IcodeSpacing.RowGutter, end = IcodeSpacing.RowGutter, bottom = IcodeSizes.FabClearance)) {
-        browser.parent?.takeIf { taps.selection == null }?.let { parent -> item(key = "..") { UpRow { browse(parent) } } }
-        when {
-            // Empty as far as this list goes: choosing, a folder of files has no place to offer.
-            here.isEmpty() -> item(key = "empty") {
-                EmptyState(
-                    title = when {
-                        top -> "No workspaces yet"
-                        browser.items.isEmpty() -> "${browser.name} is empty"
-                        else -> "No folders in ${browser.name}"
-                    },
-                    description = when {
-                        top && foldersOnly -> "What goes here becomes a workspace of its own."
-                        top -> "+ makes one, or copy a folder in from Shared."
-                        foldersOnly -> "The button below puts it in this folder; + makes a folder in it."
-                        else -> "+ makes a folder or a file here; Paste puts what you cut or copied here."
-                    },
-                    icon = if (top) Icons.Outlined.Folder else Icons.Outlined.FolderOpen,
-                    modifier = Modifier.fillMaxWidth().padding(top = IcodeSpacing.Space6),
-                )
-            }
-            shown.isEmpty() -> item(key = "none") {
-                EmptyState(
-                    title = "Nothing here matches “${query.trim()}”",
-                    icon = Icons.Outlined.Search,
-                    modifier = Modifier.fillMaxWidth().padding(top = IcodeSpacing.Space6),
-                )
-            }
-            else -> items(shown, key = { it.location }) { item -> ItemRow(item, browser, browse, taps) }
-        }
-    }
-}
+import dev.icode.mobile.ui.ThumbnailKind
+import dev.icode.mobile.ui.rememberThumbnail
+import dev.icode.mobile.ui.screens.workspace.itemIcon
 
 /** `..`: up a folder, as Back. */
 @Composable
-private fun UpRow(onClick: () -> Unit) {
+internal fun UpRow(compact: Boolean, onClick: () -> Unit) {
     FileRow(
-        leading = { Icon(Icons.Outlined.DriveFolderUpload, contentDescription = null, tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconXl)) },
+        leading = { UpIcon(if (compact) IcodeSizes.IconMd else IcodeSizes.IconXl) },
         name = "..",
         detail = null,
-        changedAt = null,
+        end = null,
+        compact = compact,
         onClick = onClick,
     )
 }
 
+/** `..` as a grid's tile. */
+@Composable
+internal fun UpTile(onClick: () -> Unit) {
+    FileTile(picture = { UpIcon(IcodeSizes.GridTilePicture) }, name = "..", selected = false, onClick = onClick)
+}
+
+@Composable
+private fun UpIcon(size: Dp) = Icon(Icons.Outlined.DriveFolderUpload, contentDescription = null, tint = IcodeColors.Accent, modifier = Modifier.size(size))
+
 /**
- * One folder or file, in a workspace or on phone storage — at Private's top, a workspace. Selecting,
- * a tap or a long press ticks it. Otherwise a tap does what opening it does ([openOf]) — a file with
- * nowhere in iCode to open goes to another app — a tap on its icon starts selecting with it, and a
- * long press asks for its sheet.
+ * One folder or file, in a workspace or on phone storage — at Private's top, a workspace — as a row
+ * with its detail, or [compact]: one line, a smaller icon, its size or count at the end. Selecting,
+ * a tap or a long press ticks it. Otherwise a tap does what opening it does ([openOf]) — a file
+ * with nowhere in iCode to open goes to another app — a tap on its icon starts selecting with it,
+ * and a long press asks for its sheet.
  */
 @Composable
-private fun ItemRow(item: BrowsedItem, browser: FilesBrowserState, browse: (String) -> Unit, taps: ListingTaps) {
-    val context = LocalContext.current
-    val gateway = LocalICodeGateway.current
-    val (icon, tint) = iconOf(item)
-    val ticked = taps.selection?.let { item.location in it }
-    val tick = taps.onTick?.let { { it(item) } }
+internal fun ItemRow(item: BrowsedItem, browser: FilesBrowserState, browse: (String) -> Unit, taps: ListingTaps, compact: Boolean) {
+    val acts = itemActs(item, browser, browse, taps)
+    val size = if (compact) IcodeSizes.IconMd else IcodeSizes.IconXl
     FileRow(
         leading = {
-            if (ticked != null) {
-                IcodeCheckbox(ticked, onCheckedChange = null, modifier = Modifier.size(IcodeSizes.IconXl))
-            } else {
-                Icon(
-                    icon,
-                    contentDescription = tick?.let { "Select ${item.name}" },
-                    tint = tint,
-                    modifier = Modifier.size(IcodeSizes.IconXl).then(if (tick != null) Modifier.clickable(onClick = tick) else Modifier),
-                )
-            }
+            if (acts.ticked != null) IcodeCheckbox(acts.ticked, onCheckedChange = null, modifier = Modifier.size(size))
+            else FileIcon(item, size, Modifier.then(acts.onIcon?.let { Modifier.clickable(onClickLabel = "Select ${item.name}", onClick = it) } ?: Modifier))
         },
         name = item.name,
         detail = FilesRules.detail(item),
-        changedAt = item.changedAt,
-        selected = ticked == true,
+        end = item.changedAt,
+        compact = compact,
+        selected = acts.ticked == true,
+        onClick = acts.onClick,
+        onLongClick = acts.onLongClick,
+    )
+}
+
+/** One item as a grid's tile (§3.12): its icon or thumbnail, and its name on two lines; ticked, in selection. */
+@Composable
+internal fun ItemTile(item: BrowsedItem, browser: FilesBrowserState, browse: (String) -> Unit, taps: ListingTaps) {
+    val acts = itemActs(item, browser, browse, taps)
+    FileTile(
+        picture = {
+            Box(contentAlignment = Alignment.TopEnd) {
+                FileIcon(item, IcodeSizes.GridTilePicture, Modifier.then(acts.onIcon?.let { Modifier.clickable(onClickLabel = "Select ${item.name}", onClick = it) } ?: Modifier))
+                if (acts.ticked != null) IcodeCheckbox(acts.ticked, onCheckedChange = null)
+            }
+        },
+        name = item.name,
+        selected = acts.ticked == true,
+        onClick = acts.onClick,
+        onLongClick = acts.onLongClick,
+    )
+}
+
+/** What [item]'s row or tile does with a tap, a long press, and a tap on its icon; whether it is ticked. */
+private class ItemActs(val ticked: Boolean?, val onClick: () -> Unit, val onLongClick: (() -> Unit)?, val onIcon: (() -> Unit)?)
+
+@Composable
+private fun itemActs(item: BrowsedItem, browser: FilesBrowserState, browse: (String) -> Unit, taps: ListingTaps): ItemActs {
+    val context = LocalContext.current
+    val gateway = LocalICodeGateway.current
+    val ticked = taps.selection?.let { item.location in it }
+    val tick = taps.onTick?.let { { it(item) } }
+    return ItemActs(
+        ticked = ticked,
         onClick = if (ticked != null && tick != null) tick else openOf(item, browser, browse) ?: { SharedFiles.open(context, item.location, gateway::dispatch) },
         onLongClick = if (ticked != null) tick else taps.onActions?.let { { it(item) } },
+        onIcon = tick.takeIf { ticked == null },
     )
+}
+
+/** [item]'s picture: a thumbnail of a picture, a video or an app package once made (§3.12); else its type's icon. */
+@Composable
+internal fun FileIcon(item: BrowsedItem, size: Dp, modifier: Modifier = Modifier) {
+    val thumbnail = rememberThumbnail(item.location, ThumbnailKind.of(item.name).takeUnless { item.folder }, item.changedAt)
+    if (thumbnail != null) {
+        Image(thumbnail, contentDescription = null, contentScale = ContentScale.Crop, modifier = modifier.size(size).clip(IcodeShapes.Small))
+    } else {
+        val (icon, tint) = iconOf(item)
+        Icon(icon, contentDescription = null, tint = tint, modifier = modifier.size(size))
+    }
 }
 
 /**
@@ -165,31 +167,59 @@ internal fun openOf(item: BrowsedItem, browser: FilesBrowserState, browse: (Stri
 
 /** A folder's icon in the accent; a file's by its type. */
 @Composable
-internal fun iconOf(item: BrowsedItem): Pair<ImageVector, Color> =
-    if (item.folder) Icons.Outlined.Folder to IcodeColors.Accent else FileTypes.of(item.name).let { fileTypeIcon(it) to fileTypeTint(it) }
+internal fun iconOf(item: BrowsedItem): Pair<ImageVector, Color> = itemIcon(item.name, item.folder)
 
-/** A flat row, as ZArchiver's: [leading] — the type's icon, or a tick — the name over its detail, when it changed at the end. */
+/**
+ * A flat row, as ZArchiver's: [leading] — the type's icon or thumbnail, or a tick — then the name
+ * over its detail, and when it changed ([end]) at the end; [compact], one line, the detail at the end.
+ * Ticked, it is drawn square and edge to edge, so rows ticked together are one band, as the IDE tree's.
+ */
 @Composable
 private fun FileRow(
     leading: @Composable () -> Unit,
     name: String,
     detail: String?,
-    changedAt: Long?,
+    end: Long?,
+    compact: Boolean,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
     selected: Boolean = false,
 ) {
     IcodeListRow(
         selected = selected,
+        rowShape = RectangleShape,
+        inset = IcodeSpacing.Gutter,
         onClick = onClick,
         onLongClick = onLongClick,
         leading = leading,
+        compact = compact,
         content = {
-            Column(Modifier.weight(1f)) {
+            Column(Modifier.weight(1f).then(if (compact) Modifier.padding(vertical = IcodeSpacing.Space2) else Modifier)) {
                 Text(name, style = IcodeType.Body, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                detail?.let { Text(it, style = IcodeType.Caption, maxLines = 1) }
+                if (!compact) detail?.let { Text(it, style = IcodeType.Caption, maxLines = 1) }
             }
         },
-        trailing = { changedAt?.let { Text(RelativeTime.since(it), style = IcodeType.Caption) } },
+        trailing = {
+            val said = if (compact) detail else end?.let(RelativeTime::since)
+            said?.let { Text(it, style = IcodeType.Caption) }
+        },
     )
+}
+
+/** A grid's tile: [picture] over the name on two lines, ticked when [selected]. */
+@Composable
+private fun FileTile(picture: @Composable () -> Unit, name: String, selected: Boolean, onClick: () -> Unit, onLongClick: (() -> Unit)? = null) {
+    Column(
+        Modifier
+            .padding(IcodeSpacing.Space1)
+            .clip(IcodeShapes.Small)
+            .background(if (selected) IcodeColors.SurfaceElevated else Color.Transparent)
+            .combinedClickable(role = Role.Button, onClick = onClick, onLongClick = onLongClick)
+            .padding(IcodeSpacing.Space2),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
+    ) {
+        picture()
+        Text(name, style = IcodeType.Caption.copy(color = IcodeColors.TextPrimary), maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
+    }
 }

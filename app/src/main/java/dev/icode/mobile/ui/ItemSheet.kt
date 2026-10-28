@@ -45,20 +45,22 @@ internal enum class ItemPage { Rename, Compress, Properties }
 internal class SheetFolder(val name: String?, val runtimePath: String, val names: Set<String>, val ignoreCase: Boolean)
 
 /**
- * One item's sheet, or a selection's (§3.1, §3.2): [leading], [title] and [detail] over the actions
- * [actions] lists ([FileItemActions]) with the sheet's own Rename… and pages. Rename… — one name,
- * or many by a rule — Compress… and Properties open within it, ← back to the actions. [branch] is
- * a workspace's, for Properties.
+ * The one sheet of actions on files and folders, wherever they are listed (§3.1, §3.2): the file
+ * explorer's, the IDE's tree, the home screen's workspaces. One item's, or a selection's: [leading],
+ * [title] and [detail] over the actions [actions] lists ([FileItemActions]) with the sheet's own
+ * Rename… and pages. Rename… — one name, or many by a rule — Compress… and Properties open within
+ * it, ← back to the actions. [folder] is where a selection of many is acted in; one item has none.
+ * [branch] is a workspace's, for Properties.
  */
 @Composable
 internal fun ItemSheet(
     targets: List<ActionTarget>,
-    folder: SheetFolder,
     title: String,
     detail: String,
     leading: @Composable () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
+    folder: SheetFolder? = null,
     branch: String? = null,
     actions: (rename: () -> Unit, pages: SheetPageActions) -> List<IcodeMenuAction>,
 ) {
@@ -73,9 +75,9 @@ internal fun ItemSheet(
             detail = detail,
             leading = leading,
         )
-        ItemPage.Rename -> if (one != null) RenamePage(one, pages.back, onClose, modifier) else BatchRenamePage(targets, folder, pages.back, onClose, modifier)
-        ItemPage.Compress -> CompressPage(targets, folder, title, pages.back, onClose, modifier)
-        ItemPage.Properties -> PropertiesPage(targets, one?.runtimePath ?: folder.runtimePath, title, branch, pages.back, onClose, modifier)
+        ItemPage.Rename -> if (one != null) RenamePage(one, pages.back, onClose, modifier) else folder?.let { BatchRenamePage(targets, it, pages.back, onClose, modifier) }
+        ItemPage.Compress -> CompressPage(targets, folder?.name, title, pages.back, onClose, modifier)
+        ItemPage.Properties -> PropertiesPage(targets, one?.runtimePath ?: folder?.runtimePath.orEmpty(), title, branch, pages.back, onClose, modifier)
     }
 }
 
@@ -101,12 +103,12 @@ private fun RenamePage(target: ActionTarget, onBack: (() -> Unit)?, onClose: () 
  * folder's; it goes into that folder, under a free name.
  */
 @Composable
-private fun CompressPage(targets: List<ActionTarget>, folder: SheetFolder, subject: String, onBack: (() -> Unit)?, onClose: () -> Unit, modifier: Modifier) {
+private fun CompressPage(targets: List<ActionTarget>, folderName: String?, subject: String, onBack: (() -> Unit)?, onClose: () -> Unit, modifier: Modifier) {
     val gateway = LocalICodeGateway.current
     val locations = targets.map { it.location }
     val one = targets.singleOrNull()
     var format by rememberSaveable(locations) { mutableStateOf(CompressFormat.Zip) }
-    var name by rememberSaveable(locations) { mutableStateOf(ArchiveFormats.archiveName(one?.let { it.name to it.folder }, folder.name)) }
+    var name by rememberSaveable(locations) { mutableStateOf(ArchiveFormats.archiveName(one?.let { it.name to it.folder }, folderName)) }
     val archive = name.trim() + format.extension
     val problem = WorkspaceNameRules.fileValidationError(archive)
     IcodeBottomSheet(

@@ -9,7 +9,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeConfirmDialog
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.LabeledTextField
 import dev.icode.mobile.designsystem.MonoLine
@@ -18,10 +17,10 @@ import dev.icode.mobile.domain.WorkspaceNameRules
 import dev.icode.mobile.domain.WorkspaceRuntimePath
 
 /**
- * Renaming one item, wherever it is asked: an item sheet's Rename… page, or a dialog where one is
- * left (docs/explorer-gaps-plan.md §3.1). It holds the new name, and why a name cannot be, as it is
- * typed: a workspace's rules, a folder's or a file's ([WorkspaceNameRules]). The request is answered
- * by its id; a refusal is said under the field.
+ * Renaming one item, wherever it is asked: the item sheet's Rename… page (docs/explorer-gaps-plan.md
+ * §3.1). It holds the new name, and why a name cannot be, as it is typed: a workspace's rules, a
+ * folder's or a file's ([WorkspaceNameRules]). The request is answered by its id; a refusal is said
+ * under the field.
  */
 @Stable
 internal class RenameForm(
@@ -78,23 +77,3 @@ internal fun NameFields(label: String, name: String, onName: (String) -> Unit, w
     problem?.takeIf { name.isNotEmpty() }?.let { Text(it, style = IcodeType.Caption, color = IcodeColors.Error) }
 }
 
-/** Renaming in a dialog, where an item's actions are a dropdown still: the IDE tree's rows, the home screen's workspaces. */
-@Composable
-internal fun RenameDialog(location: String, current: String, folder: Boolean, workspace: Boolean, onDismiss: () -> Unit) {
-    val gateway = LocalICodeGateway.current
-    val form = rememberRenameForm(location, current, folder, workspace, onDismiss)
-    IcodeConfirmDialog(
-        title = when {
-            workspace -> "Rename workspace"
-            folder -> "Rename folder"
-            else -> "Rename file"
-        },
-        confirmLabel = "Rename",
-        confirmEnabled = form.ready,
-        dismissEnabled = !form.request.waiting,
-        onDismiss = onDismiss,
-        onConfirm = { form.send(gateway::dispatch) },
-    ) {
-        RenameFields(form)
-    }
-}

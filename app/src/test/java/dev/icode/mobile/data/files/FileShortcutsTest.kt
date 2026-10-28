@@ -5,6 +5,7 @@ import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.data.workspace.MemoryWorkspaceStore
 import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.RecentDocument
+import dev.icode.mobile.domain.files.FavoriteFolder
 import dev.icode.mobile.domain.files.FileStep
 import java.io.File
 import kotlinx.coroutines.runBlocking
@@ -27,7 +28,7 @@ class FileShortcutsTest {
     private fun file(parent: File, name: String) = File(parent, name).apply { parentFile!!.mkdirs(); writeText(name) }
 
     private val recent get() = stateHolder.current.explorer.recent
-    private val favorites get() = stateHolder.current.explorer.favorites
+    private val favorites get() = stateHolder.current.explorer.favorites.map { it.location }
 
     @Test fun `files opened in a workspace and on phone storage, newest first, each by its runtime path`() = runBlocking {
         val main = file(workspaces, "app/src/Main.kt")
@@ -76,6 +77,7 @@ class FileShortcutsTest {
         assertEquals(listOf(File(renamed, "src/Main.kt").path), recent.map { it.location })
         assertEquals("/workspace/tool/src/Main.kt", recent.single().path)
         assertEquals(listOf(File(renamed, "src").path), favorites)
+        assertEquals(listOf(FavoriteFolder("src", File(renamed, "src").path, "/workspace/tool/src")), stateHolder.current.explorer.favorites)
         shortcuts.follow(listOf(FileStep.Trashed("id", File(renamed, "src").path)))
         assertEquals(listOf(File(renamed, "src").path), store.loadFavorites())
         assertEquals(listOf(File(renamed, "src/Main.kt").path), store.loadRecentDocuments().map { it.location })

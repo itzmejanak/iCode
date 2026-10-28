@@ -14,23 +14,25 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.BarLeave
 import dev.icode.mobile.designsystem.IcodeActionMenu
+import dev.icode.mobile.designsystem.IcodeBreadcrumb
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeFab
 import dev.icode.mobile.designsystem.IcodeSheetOverlay
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
+import dev.icode.mobile.designsystem.behindSheet
 import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.SystemPermission
 import dev.icode.mobile.domain.files.FileSelection
 import dev.icode.mobile.domain.files.FilesRules
-import dev.icode.mobile.domain.files.FilesSort
 import dev.icode.mobile.domain.files.FolderPick
 import dev.icode.mobile.domain.files.StoragePlace
 import dev.icode.mobile.navigation.NavigationActions
@@ -39,10 +41,12 @@ import dev.icode.mobile.ui.ClipboardBar
 import dev.icode.mobile.ui.FileItemActions
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
+import dev.icode.mobile.ui.LocalWorkspacePreferencesRepository
 import dev.icode.mobile.ui.NewWorkspaceDialog
 import dev.icode.mobile.ui.ScreenActions
 import dev.icode.mobile.ui.screens.workspace.CreateWorkspaceItemDialog
 import dev.icode.mobile.ui.screens.workspace.WorkspaceItemType
+import kotlinx.coroutines.launch
 
 /**
  * The file explorer (docs/storage-explorer-plan.md §3; docs/explorer-gaps-plan.md), as ZArchiver's:
@@ -61,7 +65,11 @@ fun FilesScreen(actions: NavigationActions, choosing: Boolean = false) {
     val state = LocalICodeSnapshot.current
     val gateway = LocalICodeGateway.current
     val browser = state.filesBrowser
-    var sort by rememberSaveable { mutableStateOf(FilesSort.Date) }
+    // Folders' one look, and hidden files listed or not, as kept (§3.12, §3.13).
+    val settings = state.explorer.settings
+    val look = settings.look(null)
+    val preferences = LocalWorkspacePreferencesRepository.current
+    val scope = rememberCoroutineScope()
     var searching by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable(browser?.path) { mutableStateOf("") }
     var creating by rememberSaveable { mutableStateOf<WorkspaceItemType?>(null) }
@@ -87,7 +95,7 @@ fun FilesScreen(actions: NavigationActions, choosing: Boolean = false) {
     // A workspace's size is measured on arrival, and again when the list of them changes: Size sorts by it.
     LaunchedEffect(state.workspaces.map { it.location }) { gateway.dispatch(ICodeIntent.MeasureWorkspaces) }
     val listed = browser?.items.orEmpty()
-    val shown = FilesRules.sorted(FilesRules.matching(if (pick != null) listed.filter { it.folder } else listed, query), sort, sort.descendingFirst, state.workspaceSizes)
+    val shown = FilesRules.sorted(FilesRules.matching(if (pick != null) listed.filter { it.folder } else listed, query), look.sort, look.descending, state.workspaceSizes)
     // What is ticked and still here; once all of it has gone — moved, renamed, deleted — the selection ends.
     val selected = ticked?.let { locations -> listed.filter { it.location in locations } }
     LaunchedEffect(selected?.isEmpty()) { if (selected?.isEmpty() == true && ticked?.isNotEmpty() == true) ticked = null }
@@ -116,15 +124,25 @@ fun FilesScreen(actions: NavigationActions, choosing: Boolean = false) {
         onNewFolder = { creating = WorkspaceItemType.Folder },
     )
 
+    // One item's sheet, or the selection's, over the whole screen; gone with what it is about.
+    val sheetItems = if (selectionSheet) selected.orEmpty() else listOfNotNull(listed.firstOrNull { it.location == actionsFor })
+    val sheetShown = browser != null && sheetItems.isNotEmpty()
     Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().behindSheet(sheetShown)) {
             IcodeTopBar(
                 browser?.name.orEmpty(),
-                subtitle = browser?.where,
                 onBack = back,
                 onTitleClick = { placesOpen = true }.takeUnless { choosing || ticked != null },
-                titleMenu = { IcodeActionMenu(expanded = placesOpen, onDismiss = { placesOpen = false }, actions = places(browser) { gateway.dispatch(ICodeIntent.BrowsePlace(it)) }) },
+                titleMenu = {
+                    IcodeActionMenu(
+                        expanded = placesOpen,
+                        onDismiss = { placesOpen = false },
+                        actions = goTo(browser, state.explorer.favorites, onPlace = { gateway.dispatch(ICodeIntent.BrowsePlace(it)) }, onFolder = browse),
+                    )
+                },
                 leaving = if (ticked != null) BarLeave.Selection else BarLeave.Back,
+                // The path in segments, each where a tap goes (§3.14).
+                subtitleContent = browser?.crumbs?.let { crumbs -> { IcodeBreadcrumb(crumbs.map { it.label }, onCrumb = { browse(crumbs[it].location) }) } },
                 actions = {
                     IconButton(onClick = { searching = !searching; query = "" }) {
                         Icon(Icons.Outlined.Search, contentDescription = if (searching) "Close search" else "Search", tint = IcodeColors.TextPrimary)
@@ -132,7 +150,12 @@ fun FilesScreen(actions: NavigationActions, choosing: Boolean = false) {
                     if (ticked != null) {
                         SelectionActions(shown.map { it.location }, ticked.orEmpty().toSet()) { ticked = it.toList() }
                     } else {
-                        SortButton(sort) { sort = it }
+                        ViewPanelButton(
+                            look,
+                            settings.showHidden,
+                            onLook = { scope.launch { preferences.setFilesLook(null, it) } },
+                            onHidden = { scope.launch { preferences.setShowHidden(it) } },
+                        )
                         if (pick == null) {
                             ExplorerMenu(
                                 state.explorer.history,
@@ -161,7 +184,7 @@ fun FilesScreen(actions: NavigationActions, choosing: Boolean = false) {
                             onTick = if (pick == null) ({ item -> ticked = FileSelection.toggled(ticked.orEmpty().toSet(), item.location).toList() }) else null,
                             onActions = if (pick == null) ({ item -> actionsFor = item.location }) else null,
                         )
-                        FilesListing(browser, shown, query, foldersOnly = pick != null, browse, taps)
+                        FilesListing(browser, shown, query, foldersOnly = pick != null, look, browse, taps)
                         if (ticked == null) {
                             IcodeFab(
                                 contentDescription = "New",
@@ -200,9 +223,7 @@ fun FilesScreen(actions: NavigationActions, choosing: Boolean = false) {
                 }
             }
         }
-        // One item's sheet, or the selection's, over the whole screen; gone with what it is about.
-        val sheetItems = if (selectionSheet) selected.orEmpty() else listOfNotNull(listed.firstOrNull { it.location == actionsFor })
-        if (browser != null && sheetItems.isNotEmpty()) {
+        if (browser != null && sheetShown) {
             val close = { actionsFor = null; selectionSheet = false }
             IcodeSheetOverlay(onClose = close) {
                 FilesSheet(
