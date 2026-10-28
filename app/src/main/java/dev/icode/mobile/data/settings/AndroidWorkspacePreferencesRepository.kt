@@ -25,6 +25,9 @@ import dev.icode.mobile.domain.TerminalExtraKey
 import dev.icode.mobile.domain.TerminalSettingRules
 import dev.icode.mobile.domain.WorkspacePreferences
 import dev.icode.mobile.domain.WorkspacePreferencesRepository
+import dev.icode.mobile.domain.files.ExplorerSettings
+import dev.icode.mobile.domain.files.ExplorerView
+import dev.icode.mobile.domain.files.FilesLook
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
@@ -66,6 +69,9 @@ class AndroidWorkspacePreferencesRepository internal constructor(
     private val terminalCursorStyleKey = stringPreferencesKey("terminal_cursor_style")
     private val terminalBellAlertsKey = booleanPreferencesKey("terminal_bell_alerts")
     private val terminalFinishAlertsKey = booleanPreferencesKey("terminal_finish_alerts")
+    private val explorerDefaults = ExplorerSettings()
+    private val showHiddenKey = booleanPreferencesKey("explorer_show_hidden")
+    private val foldersLookKey = stringPreferencesKey("explorer_folders_look")
 
     override fun values(workspaceLocation: String?): Flow<WorkspacePreferences> = store.data.map { prefs ->
         val indent = workspaceLocation?.let { prefs[indentSizeKey(it)] }?.takeIf { it in SettingLimits.indentSizes }
@@ -105,6 +111,14 @@ class AndroidWorkspacePreferencesRepository internal constructor(
                     ?: terminalDefaults.cursorStyle,
                 bellAlerts = prefs[terminalBellAlertsKey] ?: terminalDefaults.bellAlerts,
                 finishAlerts = prefs[terminalFinishAlertsKey] ?: terminalDefaults.finishAlerts,
+            ),
+            explorer = ExplorerSettings(
+                showHidden = prefs[showHiddenKey] ?: explorerDefaults.showHidden,
+                folders = prefs[foldersLookKey]?.let(FilesLook::decode) ?: explorerDefaults.folders,
+                views = prefs.asMap().mapNotNull { (key, value) ->
+                    val view = key.name.removePrefix(VIEW_LOOK_PREFIX).takeIf { it != key.name } ?: return@mapNotNull null
+                    (value as? String)?.let(FilesLook::decode)?.let { view to it }
+                }.toMap(),
             ),
             globalIndentSize = prefs[globalIndentKey]?.takeIf { it in SettingLimits.indentSizes } ?: preferenceDefaults.globalIndentSize,
             indentSizeOverride = indent,
@@ -191,6 +205,12 @@ class AndroidWorkspacePreferencesRepository internal constructor(
         store.edit { it[terminalExtraKeysKey] = keys.joinToString(",") { key -> key.name } }
     }
 
+    override suspend fun setShowHidden(shown: Boolean) { store.edit { it[showHiddenKey] = shown } }
+
+    override suspend fun setFilesLook(view: ExplorerView?, look: FilesLook) {
+        store.edit { it[if (view == null) foldersLookKey else stringPreferencesKey(VIEW_LOOK_PREFIX + view.key)] = look.encoded }
+    }
+
     override suspend fun setGlobalIndentSize(size: Int) {
         require(size in SettingLimits.indentSizes)
         store.edit { it[globalIndentKey] = size }
@@ -247,4 +267,9 @@ class AndroidWorkspacePreferencesRepository internal constructor(
 
     private inline fun <reified T : Enum<T>> enumOrNull(value: String): T? =
         enumValues<T>().firstOrNull { it.name == value }
+
+    private companion object {
+        /** A view's own look, by its key; stored, do not rename. */
+        const val VIEW_LOOK_PREFIX = "explorer_look_"
+    }
 }

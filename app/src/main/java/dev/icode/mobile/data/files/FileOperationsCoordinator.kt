@@ -9,6 +9,7 @@ import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceUsage
 import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.files.BatchRename
+import dev.icode.mobile.domain.files.ExplorerSettings
 import dev.icode.mobile.domain.files.FileClipboard
 import dev.icode.mobile.domain.files.FileSelection
 import dev.icode.mobile.domain.files.FileStep
@@ -22,6 +23,8 @@ import java.io.File
 import java.nio.file.Files
 import java.nio.file.LinkOption
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
 
@@ -31,7 +34,7 @@ import kotlinx.coroutines.sync.withLock
  * and redo. Each is checked whole first under the mutation lock — nothing starts that one of its
  * items would refuse ([FileRefusals]) — then runs as a task, off the lock, whose steps are kept to
  * undo as one change however it ends. The question a name already there asks is answered without
- * the lock.
+ * the lock. And what the explorers keep beside: their settings, Recent and Favorites.
  */
 internal class FileOperationsCoordinator(
     private val stateHolder: ICodeStateHolder,
@@ -44,6 +47,7 @@ internal class FileOperationsCoordinator(
     private val tasks: FileTasks,
     private val archives: FileArchives,
     private val insights: FileInsightsCoordinator,
+    private val shortcuts: FileShortcuts,
 ) {
     val places = operator.places
     private val trash = operator.trash
@@ -51,22 +55,38 @@ internal class FileOperationsCoordinator(
     /** An undo or a redo is running: the next waits for it. */
     private var reversing = false
 
-    /** At start: what has been in Trash 30 days goes, and what was left there without its record; then Trash is read. */
-    fun start() {
+    /**
+     * At start: what has been in Trash 30 days goes, and what was left there without its record; then
+     * Trash, Recent and Favorites are read. The explorers' [settings] are followed as they are kept;
+     * hidden files shown or not, every listing is read again.
+     */
+    fun start(settings: Flow<ExplorerSettings>) {
         insights.start()
         scope.launch {
             runCatching { trash.purge(orphans = true) }
             tasks.publishTrash()
+            shortcuts.publish()
+        }
+        scope.launch {
+            settings.distinctUntilChanged().collect { kept ->
+                val relist = kept.showHidden != stateHolder.current.explorer.settings.showHidden
+                stateHolder.update { it.copy(explorer = it.explorer.copy(settings = kept)) }
+                if (relist) stateHolder.mutations.withLock { follower.relist() }
+            }
         }
     }
 
-    /** iCode's own change, done, undone or redone: what is learnt of the files follows it. */
-    fun follow(steps: List<FileStep>) = insights.follow(steps)
+    /** iCode's own change, done, undone or redone: what is learnt of the files, Recent and Favorites follow it. */
+    fun follow(steps: List<FileStep>) {
+        insights.follow(steps)
+        shortcuts.follow(steps)
+    }
 
     fun handle(intent: FilesIntent) {
         when (intent) {
             is FilesIntent.Answer -> questions.answer(intent)
             is FilesIntent.Insight -> insights.handle(intent)
+            is FilesIntent.Shortcut -> scope.launch { shortcuts.handle(intent) }
             FilesIntent.ReadTrash -> scope.launch {
                 runCatching { trash.purge(orphans = false) }
                 tasks.publishTrash()
@@ -93,7 +113,7 @@ internal class FileOperationsCoordinator(
             FilesIntent.EmptyTrash -> tasks.deleteForGood(trash.list())
             FilesIntent.Undo -> reverse(undo = true)
             FilesIntent.Redo -> reverse(undo = false)
-            FilesIntent.ReadTrash, is FilesIntent.Answer, is FilesIntent.Insight -> Unit
+            FilesIntent.ReadTrash, is FilesIntent.Answer, is FilesIntent.Insight, is FilesIntent.Shortcut -> Unit
         }
     }
 
@@ -196,6 +216,7 @@ internal class FileOperationsCoordinator(
             usage: WorkspaceUsage,
             follower: FileFollower,
             history: FileHistory,
+            shortcuts: FileShortcuts,
         ): FileOperationsCoordinator {
             val places = FilePlaces(layout.workspaces.root, storage)
             val transfers = StorageTransfers(stateHolder, layout.workspaces, git, storage, layout::reserveSpace, layout::allocatableBytes)
@@ -207,7 +228,7 @@ internal class FileOperationsCoordinator(
             val operations = FileTasks(stateHolder, tasks, operator, questions, usage, follower, history)
             val archives = FileArchives(stateHolder, places, trash, transfers, refusals, operations, history)
             val insights = FileInsightsCoordinator(stateHolder, scope, places, follower, StorageScan(places, trash))
-            return FileOperationsCoordinator(stateHolder, scope, follower, history, operator, questions, refusals, operations, archives, insights)
+            return FileOperationsCoordinator(stateHolder, scope, follower, history, operator, questions, refusals, operations, archives, insights, shortcuts)
         }
     }
 }

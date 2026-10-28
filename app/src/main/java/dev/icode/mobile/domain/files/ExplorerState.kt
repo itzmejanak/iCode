@@ -1,5 +1,7 @@
 package dev.icode.mobile.domain.files
 
+import dev.icode.mobile.domain.RecentDocument
+
 /**
  * What every explorer shares (docs/explorer-gaps-plan.md §4): the one clipboard, the question an
  * operation waits on, what Undo and Redo would do, and what Trash holds.
@@ -17,6 +19,12 @@ data class ExplorerState(
     val facts: FileFacts? = null,
     /** Manage storage: its last scan, or the one running. */
     val storage: StorageOverview? = null,
+    /** The explorers' settings, as kept: what each listing hides, and each look. */
+    val settings: ExplorerSettings = ExplorerSettings(),
+    /** The files opened in iCode, in workspaces and on phone storage, newest first; a file gone left out. */
+    val recent: List<RecentDocument> = emptyList(),
+    /** Folders pinned app-wide; one gone is kept, not shown. */
+    val favorites: List<String> = emptyList(),
 )
 
 /** Extract of [archive] into [folder] waits on its password, which is never kept: the answer is Extract again, with it. */

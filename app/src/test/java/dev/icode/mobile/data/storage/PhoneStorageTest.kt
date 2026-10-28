@@ -26,17 +26,18 @@ class PhoneStorageTest {
         folder(".thumbnails")
         File(root, "notes.txt").writeText("a file")
         File(root, "notes.txt").setLastModified(1_600_000_000_000L)
-        val top = storage.list(root.path).associateBy { it.name }
+        val top = storage.list(root.path, showHidden = true).associateBy { it.name }
         assertEquals(setOf("Projects", "Download", ".thumbnails", "notes.txt"), top.keys)
         assertEquals(BrowsedItem("notes.txt", File(root, "notes.txt").path, folder = false, bytes = 6, changedAt = 1_600_000_000_000L), top["notes.txt"])
         assertEquals(0, top.getValue("Download").entries)
-        assertEquals(listOf(2), storage.list(File(root, "Projects").path).map { it.entries })
+        assertEquals(listOf(2), storage.list(File(root, "Projects").path, showHidden = true).map { it.entries })
+        assertEquals(setOf("Projects", "Download", "notes.txt"), storage.list(root.path, showHidden = false).map { it.name }.toSet())
     }
 
     @Test fun `a link is listed as what it is, never followed`() {
         val outside = temp.newFolder("outside").apply { File(this, "secret").writeText("x") }
         Files.createSymbolicLink(File(root, "escape").toPath(), outside.toPath())
-        val link = storage.list(root.path).single()
+        val link = storage.list(root.path, showHidden = true).single()
         assertEquals("escape", link.name)
         assertFalse(link.folder)
         assertNull(link.entries)
@@ -56,6 +57,6 @@ class PhoneStorageTest {
     }
 
     @Test fun `a folder gone since is said, not listed`() {
-        assertTrue(runCatching { storage.list(File(root, "gone").path) }.isFailure)
+        assertTrue(runCatching { storage.list(File(root, "gone").path, showHidden = true) }.isFailure)
     }
 }

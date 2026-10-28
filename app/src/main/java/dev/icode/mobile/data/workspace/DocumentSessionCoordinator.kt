@@ -1,5 +1,6 @@
 package dev.icode.mobile.data.workspace
 
+import dev.icode.mobile.data.files.FileShortcuts
 import dev.icode.mobile.data.io.isAtOrUnder
 import dev.icode.mobile.data.io.relocated
 import dev.icode.mobile.data.runtime.GuestPaths
@@ -16,15 +17,14 @@ import java.io.File
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * The editor's open files (S3): open, edit, save, select, reorder, close. A
- * save writes only over the version that was read — a file changed on disk
- * meanwhile is refused, never overwritten.
+ * The editor's open files (S3): open, edit, save, select, reorder, close. A save writes only over
+ * the version that was read — a file changed on disk meanwhile is refused, never overwritten.
  */
 internal class DocumentSessionCoordinator(
     private val stateHolder: ICodeStateHolder,
     private val source: WorkspaceFileSource,
     private val recovery: DocumentRecoveryCoordinator,
-    private val library: WorkspaceLibraryCoordinator,
+    private val shortcuts: FileShortcuts,
     private val paths: GuestPaths,
     private val activeRoot: () -> String?,
     /** A save changed the worktree, so Git's view of it is stale. */
@@ -44,7 +44,7 @@ internal class DocumentSessionCoordinator(
         val existing = stateHolder.current.openDocuments.firstOrNull { it.location == location }
         if (existing != null) {
             select(location)
-            activeRoot()?.let { library.recordRecentDocument(it, location) }
+            shortcuts.opened(location)
             stateHolder.emit(ICodeEffect.DocumentOpened(location, lineNumber, column))
             return
         }
@@ -68,7 +68,7 @@ internal class DocumentSessionCoordinator(
             )
             stateHolder.update { it.copy(openDocuments = it.openDocuments + opened, activeDocument = opened) }
             if (announce) {
-                activeRoot()?.let { library.recordRecentDocument(it, document.location) }
+                shortcuts.opened(document.location)
                 stateHolder.emit(ICodeEffect.DocumentOpened(location, lineNumber, column))
             }
             recovery.opened(document)
@@ -119,9 +119,9 @@ internal class DocumentSessionCoordinator(
             sources[location] = source.writeDocument(sourceDocument, textBeingSaved)
             savedTexts[location] = textBeingSaved
             stateHolder.update { state -> state.withDocument(location) { it.copy(dirty = it.text != textBeingSaved) } }
-            // Saving changes the worktree, so Source Control and the Explorer
-            // decorations are stale the moment the write lands.
+            // The worktree changed: Source Control and the Explorer's decorations are stale; the file goes to Recent's top.
             onSaved()
+            shortcuts.opened(location)
             true
         }.onFailure { error ->
             if (error is ChangedOnDiskException) changedUnderEdits(location, openDocument.name)

@@ -25,7 +25,6 @@ data class ICodeSnapshot(
     val activeDocument: OpenDocument? = null,
     /** Ordered editor tabs. [activeDocument] must be one of these when non-null. */
     val openDocuments: List<OpenDocument> = emptyList(),
-    val recentDocuments: List<RecentDocument> = emptyList(),
     /** Drafts found when iCode started, until each is restored or discarded; newest first. */
     val recoverableDrafts: List<RecoverableDraft> = emptyList(),
     /** Open files changed on disk under unsaved edits, oldest first; the screen answers the first. */

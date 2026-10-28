@@ -9,11 +9,9 @@ import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.GitRemoteRules
 import dev.icode.mobile.domain.GitStatusCodes
 import dev.icode.mobile.domain.NoticeTone
-import dev.icode.mobile.domain.RecentDocument
 import dev.icode.mobile.domain.StageLineChange
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.WorkspaceSummary
-import java.io.File
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -35,7 +33,6 @@ internal class GitWorkspaceCoordinator(
     private val activeRoot: () -> String?,
     /** The launcher names each workspace's branch, which a Git operation may have just changed. */
     private val workspaces: () -> List<WorkspaceSummary>,
-    private val recentDocuments: (root: String) -> List<RecentDocument>,
     /** Git was just installed; the credentials surface depends on it. */
     private val onInstalled: suspend () -> Unit,
 ) {
@@ -75,7 +72,7 @@ internal class GitWorkspaceCoordinator(
         val files = tree.rows(root, picture.state)
         stateHolder.update {
             if (it.activeWorkspaceLocation != root) return@update it
-            it.copy(workspaces = workspaces, files = files, recentDocuments = recentDocuments(root)).withGit(picture)
+            it.copy(workspaces = workspaces, files = files).withGit(picture)
         }
         lineChanges.repositoryRead()
     }

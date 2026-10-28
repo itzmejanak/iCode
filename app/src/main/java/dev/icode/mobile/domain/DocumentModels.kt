@@ -52,12 +52,12 @@ data class ExternalChange(
     val diskChangedAt: Long,
 )
 
-/** A file opened in the active workspace, including entries that have since gone missing. */
+/** A file opened in iCode, in a workspace or on phone storage (docs/explorer-gaps-plan.md §3.14). */
 data class RecentDocument(
     val name: String,
     val location: String,
+    /** As the runtime names it — `/workspace/app/src/Main.kt` — or, on phone storage, as Android does. */
     val path: String,
-    /** When it was last opened; screens say how long ago. */
+    /** When it was last opened, or saved; screens say how long ago. */
     val lastOpenedAt: Long,
-    val available: Boolean = true,
 )

@@ -82,11 +82,13 @@ fun EditorEmptyScreen(actions: NavigationActions) {
             "Recent Files",
             Modifier.padding(start = IcodeSpacing.Gutter, top = IcodeSpacing.SectionGap, end = IcodeSpacing.Gutter).weight(1f),
         ) {
-            if (state.recentDocuments.isEmpty()) {
+            // Recent's files in this workspace, each by its path in it.
+            val inWorkspace = state.explorer.recent.filter { it.location.startsWith("${state.activeWorkspaceLocation}/") }
+            if (inWorkspace.isEmpty()) {
                 Text("Files you open will appear here", style = IcodeType.Caption, color = IcodeColors.TextSecondary)
             }
-            state.recentDocuments.forEach { document ->
-                RecentFile(document.name, document.path, if (document.available) RelativeTime.since(document.lastOpenedAt) else "Missing") {
+            inWorkspace.forEach { document ->
+                RecentFile(document.name, document.location.removePrefix("${state.activeWorkspaceLocation}/"), RelativeTime.since(document.lastOpenedAt)) {
                     gateway.dispatch(ICodeIntent.OpenFile(document.location))
                 }
             }

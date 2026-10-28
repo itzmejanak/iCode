@@ -88,7 +88,7 @@ internal class WorkspaceSessionCoordinator(
         }
         runCatching {
             val root = source.describeRoot(location)
-            val children = source.listChildren(location)
+            val children = source.listChildren(location, stateHolder.current.explorer.settings.showHidden)
             val gitPicture = gitWorkspace.read(root.location)
             val closing = closingDocuments()
             languages.stopAll()
@@ -107,7 +107,6 @@ internal class WorkspaceSessionCoordinator(
                 activeWorkspaceLocation = root.location,
                 activeDocument = null,
                 openDocuments = emptyList(),
-                recentDocuments = library.recentDocuments(root.location),
                 fileIndex = emptyList(),
                 fileIndexTruncated = false,
                 contentSearch = ContentSearchState.Empty,
@@ -150,7 +149,6 @@ internal class WorkspaceSessionCoordinator(
             activeBranch = empty.activeBranch,
             activeDocument = null,
             openDocuments = emptyList(),
-            recentDocuments = emptyList(),
             fileIndex = emptyList(),
             fileIndexTruncated = false,
             contentSearch = ContentSearchState.Empty,

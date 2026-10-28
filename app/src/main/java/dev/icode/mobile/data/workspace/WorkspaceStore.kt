@@ -6,10 +6,9 @@ import dev.icode.mobile.data.io.relocated
 import org.json.JSONArray
 import org.json.JSONObject
 
+/** A file opened in iCode, in a workspace or on phone storage, and when. */
 internal data class StoredRecentDocument(
-    val name: String,
     val location: String,
-    val workspaceLocation: String,
     val lastOpenedAt: Long,
 )
 
@@ -20,28 +19,27 @@ internal data class StoredSession(
     val activeDocument: String?,
 )
 
-/** Most-recent-first, bounded per workspace and across all workspaces. */
+/**
+ * [touched] first, and once: at most [RECENT_PER_GROUP] of each group — a workspace, by [groupOf], or
+ * phone storage, null — so one never pushes out the others, and [RECENT_MOST] in all.
+ */
 internal fun touchRecentDocument(
     current: List<StoredRecentDocument>,
     touched: StoredRecentDocument,
+    groupOf: (location: String) -> String?,
 ): List<StoredRecentDocument> {
-    val counts = mutableMapOf<String, Int>()
-    return (listOf(touched) + current.filterNot { it.location == touched.location && it.workspaceLocation == touched.workspaceLocation })
+    val counts = mutableMapOf<String?, Int>()
+    return (listOf(touched) + current.filterNot { it.location == touched.location })
         .filter { item ->
-            val count = counts.getOrDefault(item.workspaceLocation, 0)
-            if (count >= 20) false else {
-                counts[item.workspaceLocation] = count + 1
-                true
-            }
+            val group = groupOf(item.location)
+            val count = counts.getOrDefault(group, 0)
+            (count < RECENT_PER_GROUP).also { if (it) counts[group] = count + 1 }
         }
-        .take(100)
+        .take(RECENT_MOST)
 }
 
-/** A whole workspace renamed from [from] to [to]: its recent files follow it, names kept. */
-internal fun List<StoredRecentDocument>.relocatedWorkspace(from: String, to: String): List<StoredRecentDocument> = map { item ->
-    if (item.workspaceLocation != from) item
-    else item.copy(location = item.location.relocated(from, to), workspaceLocation = to)
-}
+private const val RECENT_PER_GROUP = 20
+private const val RECENT_MOST = 100
 
 /** The session after its workspace was renamed; unchanged when it is another workspace's. */
 internal fun StoredSession.relocatedWorkspace(from: String, to: String): StoredSession =
@@ -49,22 +47,26 @@ internal fun StoredSession.relocatedWorkspace(from: String, to: String): StoredS
     else StoredSession(to, documents.map { it.relocated(from, to) }, activeDocument?.relocated(from, to))
 
 /**
- * What iCode remembers about workspaces, beyond the folders themselves: when each was last opened,
- * its recent files, and the session to reopen. The folders are the list of workspaces
- * (docs/workspace-storage-plan.md §4.3); nothing here can make one appear or go.
+ * What iCode remembers beyond the files themselves: when each workspace was last opened, and the
+ * session to reopen — the folders are the list of workspaces (docs/workspace-storage-plan.md §4.3),
+ * so nothing here can make one appear or go; and, app-wide, the files opened and the folders pinned
+ * (docs/explorer-gaps-plan.md §3.14).
  */
 internal interface WorkspaceStore {
     /** When each workspace was last opened in iCode, by location. */
     fun lastOpened(): Map<String, Long>
     fun touch(location: String, at: Long)
-    /** A workspace renamed: its last-opened time, recent files and saved session follow it. */
+    /** A workspace renamed: its last-opened time and saved session follow it. */
     fun relocate(from: String, to: String)
-    /** A workspace deleted: its last-opened time, recent files and saved session go. */
+    /** A workspace deleted: its last-opened time and saved session go. */
     fun forget(location: String)
-    fun loadRecentDocuments(workspaceLocation: String): List<StoredRecentDocument>
-    fun touchRecentDocument(document: StoredRecentDocument)
-    /** Rewrites every recent file entry at once: files renamed, moved or deleted in the Explorer. */
+    /** The files opened in iCode, newest first. */
+    fun loadRecentDocuments(): List<StoredRecentDocument>
+    /** Rewrites them all at once: one opened, files moved. */
     fun updateRecentDocuments(change: (List<StoredRecentDocument>) -> List<StoredRecentDocument>)
+    /** The folders pinned to Favorites, in the order pinned. */
+    fun loadFavorites(): List<String>
+    fun updateFavorites(change: (List<String>) -> List<String>)
     /** Null when there is none, or what was stored cannot be read. */
     fun loadSession(): StoredSession?
     fun saveSession(session: StoredSession?)
@@ -83,28 +85,33 @@ internal class SharedPreferencesWorkspaceStore(context: Context) : WorkspaceStor
     override fun relocate(from: String, to: String) {
         val times = lastOpened()
         times[from]?.let { writeLastOpened(times - from + (to to it)) }
-        saveRecentDocuments(loadAllRecentDocuments().relocatedWorkspace(from, to))
         loadSession()?.let { session -> saveSession(session.relocatedWorkspace(from, to)) }
     }
 
-    override fun forget(location: String) = forgetUnless { it != location }
-
-    /** Everything kept for a workspace [keep] rejects. */
-    private fun forgetUnless(keep: (workspaceLocation: String) -> Boolean) {
-        writeLastOpened(lastOpened().filterKeys(keep))
-        saveRecentDocuments(loadAllRecentDocuments().filter { keep(it.workspaceLocation) })
-        loadSession()?.takeUnless { keep(it.workspaceLocation) }?.let { saveSession(null) }
+    override fun forget(location: String) {
+        writeLastOpened(lastOpened() - location)
+        loadSession()?.takeIf { it.workspaceLocation == location }?.let { saveSession(null) }
     }
 
-    override fun loadRecentDocuments(workspaceLocation: String): List<StoredRecentDocument> =
-        loadAllRecentDocuments().filter { it.workspaceLocation == workspaceLocation }
-
-    override fun touchRecentDocument(document: StoredRecentDocument) {
-        saveRecentDocuments(touchRecentDocument(loadAllRecentDocuments(), document))
-    }
+    override fun loadRecentDocuments(): List<StoredRecentDocument> = runCatching {
+        val array = JSONArray(preferences.getString(KEY_RECENT_DOCUMENTS, "[]"))
+        (0 until array.length()).map { index ->
+            array.getJSONObject(index).let { StoredRecentDocument(it.getString("location"), it.getLong("lastOpenedAt")) }
+        }
+    }.getOrDefault(emptyList())
 
     override fun updateRecentDocuments(change: (List<StoredRecentDocument>) -> List<StoredRecentDocument>) {
-        saveRecentDocuments(change(loadAllRecentDocuments()))
+        val array = JSONArray()
+        change(loadRecentDocuments()).forEach { array.put(JSONObject().put("location", it.location).put("lastOpenedAt", it.lastOpenedAt)) }
+        preferences.commitOrFail("Unable to save recent files") { putString(KEY_RECENT_DOCUMENTS, array.toString()) }
+    }
+
+    override fun loadFavorites(): List<String> = runCatching {
+        JSONArray(preferences.getString(KEY_FAVORITES, "[]")).let { array -> (0 until array.length()).map(array::getString) }
+    }.getOrDefault(emptyList())
+
+    override fun updateFavorites(change: (List<String>) -> List<String>) {
+        preferences.commitOrFail("Unable to save Favorites") { putString(KEY_FAVORITES, JSONArray(change(loadFavorites())).toString()) }
     }
 
     override fun loadSession(): StoredSession? = runCatching {
@@ -133,42 +140,12 @@ internal class SharedPreferencesWorkspaceStore(context: Context) : WorkspaceStor
         preferences.commitOrFail("Unable to save the workspace list") { putString(KEY_LAST_OPENED, encoded) }
     }
 
-    private fun saveRecentDocuments(updated: List<StoredRecentDocument>) {
-        val array = JSONArray()
-        updated.forEach { item ->
-            array.put(
-                JSONObject()
-                    .put("name", item.name)
-                    .put("location", item.location)
-                    .put("workspaceLocation", item.workspaceLocation)
-                    .put("lastOpenedAt", item.lastOpenedAt),
-            )
-        }
-        preferences.commitOrFail("Unable to save recent files") { putString(KEY_RECENT_DOCUMENTS, array.toString()) }
-    }
-
-    private fun loadAllRecentDocuments(): List<StoredRecentDocument> = runCatching {
-        val array = JSONArray(preferences.getString(KEY_RECENT_DOCUMENTS, "[]"))
-        buildList {
-            for (index in 0 until array.length()) {
-                val item = array.getJSONObject(index)
-                add(
-                    StoredRecentDocument(
-                        name = item.getString("name"),
-                        location = item.getString("location"),
-                        workspaceLocation = item.getString("workspaceLocation"),
-                        lastOpenedAt = item.getLong("lastOpenedAt"),
-                    ),
-                )
-            }
-        }
-    }.getOrDefault(emptyList())
-
     private companion object {
         // Stored names; do not rename.
         const val PREFERENCES_NAME = "workspace_history"
         const val KEY_LAST_OPENED = "last_opened_v1"
         const val KEY_RECENT_DOCUMENTS = "recent_documents_v1"
+        const val KEY_FAVORITES = "favorites_v1"
         const val KEY_SESSION = "session_v1"
     }
 }

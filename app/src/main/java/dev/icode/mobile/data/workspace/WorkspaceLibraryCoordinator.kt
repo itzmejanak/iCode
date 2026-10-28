@@ -1,14 +1,12 @@
 package dev.icode.mobile.data.workspace
 
 import android.content.Context
-import dev.icode.mobile.data.io.isAtOrUnder
+import dev.icode.mobile.data.files.FileShortcuts
 import dev.icode.mobile.data.io.measureTree
-import dev.icode.mobile.data.io.relocated
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.storage.PhoneStorage
 import dev.icode.mobile.data.storage.WorkspacesProvider
 import dev.icode.mobile.domain.NoticeTone
-import dev.icode.mobile.domain.RecentDocument
 import dev.icode.mobile.domain.files.BrowsedItem
 import dev.icode.mobile.domain.FileKind
 import dev.icode.mobile.domain.files.FilesBrowserState
@@ -34,9 +32,9 @@ import kotlinx.coroutines.launch
 /**
  * The user's library of workspaces (docs/workspace-storage-plan.md §4.3): every folder in iCode's
  * workspaces, most recently opened first — the folder is the registry, so nothing in the list can
- * go stale — their recent files, as the one writer of the workspace store, and what they and the
- * runtime take up in storage. And the file explorer's listing, of iCode's storage and of phone
- * storage (docs/storage-explorer-plan.md §4.3).
+ * go stale — and what they and the runtime take up in storage. And the file explorer's listing, of
+ * iCode's storage and of phone storage (docs/storage-explorer-plan.md §4.3), with Recent and
+ * Favorites, kept in the same store.
  */
 internal class WorkspaceLibraryCoordinator(
     private val appContext: Context,
@@ -51,6 +49,9 @@ internal class WorkspaceLibraryCoordinator(
     /** Clearing the cache under a running task would pull files out from under it. */
     private val tasksRunning: () -> Boolean,
 ) {
+    /** Recent and Favorites (docs/explorer-gaps-plan.md §3.14). */
+    val shortcuts = FileShortcuts(stateHolder, store, runtimeLayout.workspaces)
+
     private var storageJob: Job? = null
     private var sizesJob: Job? = null
     private val paths get() = runtimeLayout.workspaces
@@ -65,7 +66,8 @@ internal class WorkspaceLibraryCoordinator(
 
     /**
      * After a workspace was made, renamed or deleted, and whenever iCode refreshes after a change —
-     * its own, or one its watcher saw — so Android's Files app reads its listings again too.
+     * its own, or one its watcher saw — so Android's Files app reads its listings again too, and
+     * Recent and Favorites leave out what went.
      */
     fun refresh() {
         // Computed before the update so the atomic section stays short and no
@@ -74,6 +76,7 @@ internal class WorkspaceLibraryCoordinator(
         val storage = runCatching(source::storageSummary).getOrNull()
         stateHolder.update { it.copy(workspaces = workspaces, storage = storage) }
         refreshFiles()
+        shortcuts.publish()
         runCatching { WorkspacesProvider.changed(appContext) }
     }
 
@@ -115,7 +118,7 @@ internal class WorkspaceLibraryCoordinator(
     /** [location] was opened: it moves to the top of the list. */
     fun remember(location: String) = store.touch(location, System.currentTimeMillis())
 
-    /** A workspace renamed: its place in the list, recent files and saved session follow. */
+    /** A workspace renamed: its place in the list and saved session follow. */
     suspend fun relocate(from: String, to: String) {
         runCatching { store.relocate(from, to) }
             .onFailure { error -> stateHolder.report("workspace", "The workspace's history could not follow the rename", error) }
@@ -166,21 +169,23 @@ internal class WorkspaceLibraryCoordinator(
     /**
      * What the explorer shows at [path]: on phone storage every entry, or nothing until All Files
      * Access; in iCode's storage the workspaces at the top, and inside one what the Explorer lists
-     * (not `.git`, no link that leads out). A folder gone meanwhile leaves it at its place's top.
+     * (not `.git`, no link that leads out). Hidden files, as the setting says. A folder gone
+     * meanwhile leaves it at its place's top.
      */
     private fun listing(path: String): FilesBrowserState {
         val shared = storage.root.path
+        val showHidden = stateHolder.current.explorer.settings.showHidden
         if (storage.contains(path)) {
             if (!storage.hasAccess()) return FilesBrowserState(StoragePlace.Shared, shared, path, access = false, sharedRoot = shared)
             val at = storage.folder(path)?.path ?: shared
-            return FilesBrowserState(StoragePlace.Shared, shared, at, runCatching { storage.list(at) }.getOrDefault(emptyList()), sharedRoot = shared)
+            return FilesBrowserState(StoragePlace.Shared, shared, at, runCatching { storage.list(at, showHidden) }.getOrDefault(emptyList()), sharedRoot = shared)
         }
         val root = paths.root.path
         val at = path.takeIf { it == root || (paths.workspaceOf(it) != null && File(it).isDirectory) } ?: root
         val items = if (at == root) {
             workspaces().map { BrowsedItem(it.name, it.location, folder = true, changedAt = it.lastOpenedAt, entries = File(it.location).list()?.size, branch = it.branch) }
         } else {
-            runCatching { source.listChildren(at) }.getOrDefault(emptyList()).map { node ->
+            runCatching { source.listChildren(at, showHidden) }.getOrDefault(emptyList()).map { node ->
                 val file = File(node.location)
                 val folder = node.kind == FileKind.Folder
                 BrowsedItem(node.name, node.location, folder, bytes = file.length().takeUnless { folder }, changedAt = file.lastModified(), entries = if (folder) file.list()?.size else null)
@@ -236,17 +241,6 @@ internal class WorkspaceLibraryCoordinator(
         }
     }
 
-    suspend fun recordRecentDocument(root: String, location: String) {
-        runCatching {
-            store.touchRecentDocument(
-                StoredRecentDocument(File(location).name, File(location).canonicalPath, root, System.currentTimeMillis()),
-            )
-            stateHolder.update { it.copy(recentDocuments = recentDocuments(root)) }
-        }.onFailure { error ->
-            stateHolder.report("documents", "File opened, but recent files could not be saved", error)
-        }
-    }
-
     fun lastSession(): StoredSession? = store.loadSession()
 
     /** Kept as it changes, so a process Android ends can reopen the same workspace and tabs. */
@@ -257,41 +251,6 @@ internal class WorkspaceLibraryCoordinator(
 
     /** The workspace [location] lies in, when it is there; null for anything outside the workspaces. */
     fun workspaceHolding(location: String): String? = paths.workspaceOf(location)?.takeIf { File(it).isDirectory }
-
-    /** Recent files follow a rename or move of the file or of a folder above it. */
-    suspend fun relocateRecentDocuments(root: String, from: String, to: String) = updateRecentDocuments(root) { all ->
-        all.map { item ->
-            if (!item.location.isAtOrUnder(from)) item
-            else item.relocated(from, to).let { location -> item.copy(location = location, name = File(location).name) }
-        }
-    }
-
-    /** Recent files a delete removed are dropped rather than shown missing. */
-    suspend fun forgetRecentDocumentsUnder(root: String, path: String) = updateRecentDocuments(root) { all ->
-        all.filterNot { it.location.isAtOrUnder(path) }
-    }
-
-    private fun StoredRecentDocument.relocated(from: String, to: String) = location.relocated(from, to)
-
-    private suspend fun updateRecentDocuments(root: String, change: (List<StoredRecentDocument>) -> List<StoredRecentDocument>) {
-        runCatching { store.updateRecentDocuments(change) }
-            .onFailure { error -> stateHolder.report("documents", "Recent files could not follow the change", error) }
-        stateHolder.update { it.copy(recentDocuments = recentDocuments(root)) }
-    }
-
-    /** Recent files of [root] only; an entry that has left the workspace is dropped. */
-    fun recentDocuments(root: String): List<RecentDocument> = store.loadRecentDocuments(root)
-        .mapNotNull { item ->
-            val relative = runtimeLayout.paths.within(root, item.location) ?: return@mapNotNull null
-            if (relative.any { it.toString() == ".git" }) return@mapNotNull null
-            RecentDocument(
-                name = item.name,
-                location = item.location,
-                path = relative.toString(),
-                lastOpenedAt = item.lastOpenedAt,
-                available = File(item.location).isFile,
-            )
-        }
 
     private companion object {
         /** A workspace's measurement stops here and says so: node_modules alone can hold 50,000. */

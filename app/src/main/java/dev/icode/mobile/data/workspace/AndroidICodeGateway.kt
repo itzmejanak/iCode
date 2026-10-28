@@ -102,7 +102,6 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
         stateHolder, scope, git, tree,
         activeRoot = { session.activeRoot },
         workspaces = library::workspaces,
-        recentDocuments = library::recentDocuments,
         onInstalled = { gitAuth.refresh() },
     )
     private val gitHistory = GitHistoryCoordinator(stateHolder, scope, git) { session.activeRoot }
@@ -144,7 +143,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     private val recovery: DocumentRecoveryCoordinator =
         DocumentRecoveryCoordinator(stateHolder, scope, DocumentDraftStore(File(appContext.filesDir, "document-drafts"))) { location -> documents.sourceOf(location) }
     private val documents: DocumentSessionCoordinator = DocumentSessionCoordinator(
-        stateHolder, source, recovery, library, runtimeLayout.paths, activeRoot = { session.activeRoot }, onSaved = { gitWorkspace.scheduleRefresh() },
+        stateHolder, source, recovery, library.shortcuts, runtimeLayout.paths, activeRoot = { session.activeRoot }, onSaved = { gitWorkspace.scheduleRefresh() },
     )
     private val session: WorkspaceSessionCoordinator = WorkspaceSessionCoordinator(
         stateHolder, scope, source, tree, library, documents, recovery, gitWorkspace, search, terminal, languages,
@@ -164,7 +163,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
         reindex = { root -> search.workspaceChanged(root) },
     )
     /** The explorers' operations (docs/explorer-gaps-plan.md): each a task, the question it asks answered off the lock. */
-    private val files: FileOperationsCoordinator = FileOperationsCoordinator.create(appContext, stateHolder, scope, tasks, runtimeLayout, phoneStorage, git, usage, follower, history)
+    private val files: FileOperationsCoordinator = FileOperationsCoordinator.create(appContext, stateHolder, scope, tasks, runtimeLayout, phoneStorage, git, usage, follower, history, library.shortcuts)
     private val items = WorkspaceItemsCoordinator(stateHolder, source, documents, usage, lifecycle, files.places, runtimeLayout.paths, follower, history) { session.activeRoot }
     /** The Terminal panel's Run tab (docs/run-tab-plan.md): Android apps and saved commands, for the tab and the assistant. */
     private val runs = RunCoordinator(stateHolder, scope, runtimeLayout, execution, appContext)
@@ -196,7 +195,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
         BackgroundWork.follow(appContext, scope, stateHolder.snapshot.map(BackgroundWorkRules::of), ::dispatch)
         library.followAccess()
         assistant.start()
-        files.start()
+        files.start(settings.values(null).filter { it.loaded && it.loadError == null }.map { it.explorer })
     }
 
     /** The live session behind a terminal tab, for the view that draws it. Main thread. */
