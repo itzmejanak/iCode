@@ -30,11 +30,8 @@ object FileProperties {
     }
 
     /** "3 items · 2 folders, 1 file". */
-    fun items(facts: FileFacts): String {
-        val files = facts.locations.size - facts.folders
-        val kinds = listOfNotNull(countOf(facts.folders, "folder").takeIf { facts.folders > 0 }, countOf(files, "file").takeIf { files > 0 })
-        return "${countOf(facts.locations.size, "item")} · ${kinds.joinToString(", ")}"
-    }
+    fun items(facts: FileFacts): String =
+        "${countOf(facts.locations.size, "item")} · ${FileSelection.counted(facts.folders, facts.locations.size - facts.folders)}"
 
     private fun kind(kind: FactKind, name: String, linkTarget: String?, branch: String?): String = when (kind) {
         FactKind.Folder -> "Folder"

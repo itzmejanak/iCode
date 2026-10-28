@@ -61,7 +61,7 @@ internal fun explorerItemActions(
     return FileItemActions.of(
         context = LocalContext.current,
         dispatch = gateway::dispatch,
-        target = ActionTarget(entry.path, entry.name, folder, root?.let { WorkspaceRuntimePath.within(it, rootPath, entry.path) } ?: entry.path),
+        targets = listOf(ActionTarget(entry.path, entry.name, folder, root?.let { WorkspaceRuntimePath.within(it, rootPath, entry.path) } ?: entry.path)),
         explorer = explorer,
         open = if (folder) {
             IcodeMenuAction(

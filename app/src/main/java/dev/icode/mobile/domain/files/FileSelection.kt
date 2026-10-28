@@ -1,5 +1,7 @@
 package dev.icode.mobile.domain.files
 
+import dev.icode.mobile.domain.ByteSize
+import dev.icode.mobile.domain.StorageMeasurement
 import dev.icode.mobile.domain.countOf
 
 /**
@@ -24,6 +26,16 @@ object FileSelection {
     fun covering(locations: List<String>): List<String> {
         val distinct = locations.distinct()
         return distinct.filter { location -> distinct.none { other -> other != location && location.startsWith("$other/") } }
+    }
+
+    /**
+     * What a selection of [items] holds, and weighs: "2 folders, 1 file · 12.4 MB" — the files' sizes,
+     * and folders' that [sizes] has measured (a workspace's).
+     */
+    fun summary(items: List<BrowsedItem>, sizes: Map<String, StorageMeasurement>): String {
+        val folders = items.count { it.folder }
+        val bytes = items.sumOf { if (it.folder) sizes[it.location]?.bytes ?: 0 else it.bytes ?: 0 }
+        return "${counted(folders, items.size - folders)} · ${ByteSize.format(bytes)}"
     }
 
     /** "2 folders, 1 file", "1 folder", "3 files": what a selection holds. */

@@ -803,3 +803,41 @@ Descending.
   (`FilesIntent.Opened`).
 - **Domain:** `FileProperties`, `PropertyRow`, `FileCategory.one`, `ConflictSide.said`,
   `FileConflict.forOthers`, `CompressFormat.note`, and a `Long` `countOf`.
+
+### F5b (selection, the folder picker, batch rename)
+
+- **Selection:**
+  - **Starting:** a tap on an item's icon, the sheet's Select, or ⋮ › Select.
+  - **While selecting:**
+    - a tap or a long press ticks;
+    - `..` and + go;
+    - ✕ (`BarLeave.Selection`, the top bar's new `leaving`) or Back leaves;
+    - the top bar adds Select all and Invert, on what is shown.
+  - **Foot bar** (`SelectionBar`): the count and `FileSelection.summary` ("2 folders, 1 file ·
+    12.4 MB"), with Cut, Copy, Delete and ⋯.
+  - **Ending:**
+    - Going to another folder ends it: its state is keyed by the folder shown.
+    - Every action from its bar or sheet ends it.
+    - It ends once all it ticked has gone.
+- **One list for one item or many:**
+  - `FileItemActions.of(targets, …)` follows §3.3: Share… sends every file in one share
+    (`SharedFiles.share`, `ACTION_SEND_MULTIPLE`).
+  - **Compress:** many are named after the folder shown, or "Archive" at a place's top.
+  - **Archives:** extracted all at once.
+  - **Favorites:** every folder ticked is added.
+  - **Copy paths:** one per line.
+  - **The explorer's own** (`ScreenActions`): Move to…, Copy to…, Extract to… and Select.
+- **The sheet:** `FilesSheet`, for an item or a selection, on `ItemSheet`, which takes many
+  `ActionTarget`s and a `SheetFolder`:
+  - Rename… for many is `BatchRenamePage`: the rule, its fields, and the preview with each refusal.
+  - Compress… and Properties take many.
+- **The folder picker** (`FolderPick`: Clone, Transfer, Extract):
+  - **Its bar:** `PickBar`, on `FolderPicks.bar`, says where, what goes there, and why it cannot:
+    - inside itself;
+    - already there;
+    - a file at Private's top.
+  - **What it lists:** the explorer, folders only, in both places. A clone stays in Private.
+  - **Choosing a clone's place** is this picker, in place of `ChooseBar`.
+- **⋮** (`ExplorerMenu`): Select, Undo and Redo with what each would do, and Storage settings.
+- **Moved out of `FilesScreen`** to `FilesBars.kt`: the places' menu, the sort button and the search
+  field.

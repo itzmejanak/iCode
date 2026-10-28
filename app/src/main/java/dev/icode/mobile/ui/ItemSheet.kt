@@ -16,8 +16,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import dev.icode.mobile.designsystem.DetailRow
 import dev.icode.mobile.designsystem.IcodeActionSheet
@@ -37,38 +35,47 @@ import dev.icode.mobile.domain.files.CompressFormat
 import dev.icode.mobile.domain.files.FileProperties
 import dev.icode.mobile.domain.files.PropertyRow
 
-/** The pages an item's sheet opens within itself (docs/explorer-gaps-plan.md §3.1). */
+/** The pages an item's or a selection's sheet opens within itself (docs/explorer-gaps-plan.md §3.1). */
 internal enum class ItemPage { Rename, Compress, Properties }
 
 /**
- * One item's sheet (§3.1): its [icon], name and [detail] over its actions, which [actions] lists
- * ([FileItemActions]) with the sheet's own Rename… and pages. Rename…, Compress… and Properties open
- * within it, ← back to the actions. [branch] is a workspace's, for Properties.
+ * The folder a sheet acts in (§3.3, §3.4): its name — null at a place's top — and runtime path, the
+ * names in it, and whether it ignores case, as phone storage does.
+ */
+internal class SheetFolder(val name: String?, val runtimePath: String, val names: Set<String>, val ignoreCase: Boolean)
+
+/**
+ * One item's sheet, or a selection's (§3.1, §3.2): [leading], [title] and [detail] over the actions
+ * [actions] lists ([FileItemActions]) with the sheet's own Rename… and pages. Rename… — one name,
+ * or many by a rule — Compress… and Properties open within it, ← back to the actions. [branch] is
+ * a workspace's, for Properties.
  */
 @Composable
 internal fun ItemSheet(
-    target: ActionTarget,
+    targets: List<ActionTarget>,
+    folder: SheetFolder,
+    title: String,
     detail: String,
-    icon: ImageVector,
-    tint: Color,
+    leading: @Composable () -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
     branch: String? = null,
     actions: (rename: () -> Unit, pages: SheetPageActions) -> List<IcodeMenuAction>,
 ) {
-    val pages = rememberSheetPages<ItemPage>(target.location)
+    val pages = rememberSheetPages<ItemPage>(targets.map { it.location })
+    val one = targets.singleOrNull()
     when (pages.current) {
         null -> IcodeActionSheet(
-            title = target.name,
+            title = title,
             actions = actions({ pages.open(ItemPage.Rename) }, SheetPageActions({ pages.open(ItemPage.Compress) }, { pages.open(ItemPage.Properties) })),
             onClose = onClose,
             modifier = modifier,
             detail = detail,
-            leading = { Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(IcodeSizes.IconXl)) },
+            leading = leading,
         )
-        ItemPage.Rename -> RenamePage(target, pages.back, onClose, modifier)
-        ItemPage.Compress -> CompressPage(target, pages.back, onClose, modifier)
-        ItemPage.Properties -> PropertiesPage(target, branch, pages.back, onClose, modifier)
+        ItemPage.Rename -> if (one != null) RenamePage(one, pages.back, onClose, modifier) else BatchRenamePage(targets, folder, pages.back, onClose, modifier)
+        ItemPage.Compress -> CompressPage(targets, folder, title, pages.back, onClose, modifier)
+        ItemPage.Properties -> PropertiesPage(targets, one?.runtimePath ?: folder.runtimePath, title, branch, pages.back, onClose, modifier)
     }
 }
 
@@ -89,25 +96,30 @@ private fun RenamePage(target: ActionTarget, onBack: (() -> Unit)?, onClose: () 
     }
 }
 
-/** Compress… (§3.11): the format, what it keeps, and the archive's name; it goes beside the item, under a free name. */
+/**
+ * Compress… (§3.11): the format, what it keeps, and the archive's name — one item's, or for many the
+ * folder's; it goes into that folder, under a free name.
+ */
 @Composable
-private fun CompressPage(target: ActionTarget, onBack: (() -> Unit)?, onClose: () -> Unit, modifier: Modifier) {
+private fun CompressPage(targets: List<ActionTarget>, folder: SheetFolder, subject: String, onBack: (() -> Unit)?, onClose: () -> Unit, modifier: Modifier) {
     val gateway = LocalICodeGateway.current
-    var format by rememberSaveable(target.location) { mutableStateOf(CompressFormat.Zip) }
-    var name by rememberSaveable(target.location) { mutableStateOf(ArchiveFormats.archiveName(target.name to target.folder, null)) }
+    val locations = targets.map { it.location }
+    val one = targets.singleOrNull()
+    var format by rememberSaveable(locations) { mutableStateOf(CompressFormat.Zip) }
+    var name by rememberSaveable(locations) { mutableStateOf(ArchiveFormats.archiveName(one?.let { it.name to it.folder }, folder.name)) }
     val archive = name.trim() + format.extension
     val problem = WorkspaceNameRules.fileValidationError(archive)
     IcodeBottomSheet(
         title = "Compress",
         onClose = onClose,
         modifier = modifier,
-        subtitle = target.name,
+        subtitle = subject,
         onBack = onBack,
         footer = {
             PrimaryButton(
                 "Compress",
                 {
-                    gateway.dispatch(FilesIntent.Compress(listOf(target.location), format, name.trim()))
+                    gateway.dispatch(FilesIntent.Compress(locations, format, name.trim()))
                     onClose()
                 },
                 Modifier.fillMaxWidth(),
@@ -122,20 +134,24 @@ private fun CompressPage(target: ActionTarget, onBack: (() -> Unit)?, onClose: (
     }
 }
 
-/** Properties (§3.9): what is known shown at once, a folder's size measured while the page is open. */
+/**
+ * Properties (§3.9): what is known shown at once, a folder's size — or many items' together —
+ * measured while the page is open. [path] is the one item's, or the folder the many are in.
+ */
 @Composable
-private fun PropertiesPage(target: ActionTarget, branch: String?, onBack: (() -> Unit)?, onClose: () -> Unit, modifier: Modifier) {
+private fun PropertiesPage(targets: List<ActionTarget>, path: String, subject: String, branch: String?, onBack: (() -> Unit)?, onClose: () -> Unit, modifier: Modifier) {
     val gateway = LocalICodeGateway.current
-    val facts = LocalICodeSnapshot.current.explorer.facts?.takeIf { it.locations == listOf(target.location) }
-    DisposableEffect(target.location) {
-        gateway.dispatch(FilesIntent.Properties(listOf(target.location)))
+    val locations = targets.map { it.location }
+    val facts = LocalICodeSnapshot.current.explorer.facts?.takeIf { it.locations == locations }
+    DisposableEffect(locations) {
+        gateway.dispatch(FilesIntent.Properties(locations))
         onDispose { gateway.dispatch(FilesIntent.CloseProperties) }
     }
-    IcodeBottomSheet(title = "Properties", onClose = onClose, modifier = modifier, subtitle = target.name, onBack = onBack) {
+    IcodeBottomSheet(title = "Properties", onClose = onClose, modifier = modifier, subtitle = subject, onBack = onBack) {
         if (facts == null) {
             Text("Reading…", style = IcodeType.Caption)
         } else {
-            FileProperties.rows(facts, target.name, target.runtimePath, branch, System.currentTimeMillis()).forEach { PropertyLine(it) }
+            FileProperties.rows(facts, subject, path, branch, System.currentTimeMillis()).forEach { PropertyLine(it) }
         }
     }
 }

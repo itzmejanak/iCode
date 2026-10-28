@@ -10,6 +10,7 @@ import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.NoticeIntent
 import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.files.FileWords
 import java.io.File
 
 /**
@@ -27,28 +28,33 @@ internal object SharedFiles {
      * said through [dispatch]. One handed out is in Recent (docs/explorer-gaps-plan.md §3.14).
      */
     fun open(context: Context, location: String, dispatch: (ICodeIntent) -> Unit) {
-        val handed = handOut(context, location, "Open", dispatch) { uri, type -> Intent(Intent.ACTION_VIEW).setDataAndType(uri, type) }
-        if (handed) dispatch(FilesIntent.Opened(location))
-    }
-
-    /** Android's share sheet, [location] attached; one it cannot hand out is said through [dispatch]. */
-    fun share(context: Context, location: String, dispatch: (ICodeIntent) -> Unit) {
-        handOut(context, location, "Share", dispatch) { uri, type ->
-            // The clip carries the grant through the chooser to the app chosen.
-            Intent(Intent.ACTION_SEND).setType(type).putExtra(Intent.EXTRA_STREAM, uri).apply { clipData = ClipData.newRawUri(null, uri) }
-        }
-    }
-
-    /** [location] handed to the app chosen; false, and said, when the provider cannot serve it. */
-    private fun handOut(context: Context, location: String, verb: String, dispatch: (ICodeIntent) -> Unit, intentOf: (Uri, String) -> Intent): Boolean {
         val file = File(location)
-        val uri = uriOf(context, file) ?: run {
-            dispatch(NoticeIntent.Notify(NoticeTone.HeadsUp, "${file.name} cannot be handed to another app"))
-            return false
-        }
-        // A kind Android does not name goes to every app that takes any file.
-        val intent = intentOf(uri, WorkspacesProvider.mimeTypeOf(file.name) ?: "*/*").addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        context.startActivity(Intent.createChooser(intent, "$verb ${file.name}"))
-        return true
+        val uri = handable(context, file, dispatch) ?: return
+        val intent = Intent(Intent.ACTION_VIEW).setDataAndType(uri, typeOf(file)).addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        context.startActivity(Intent.createChooser(intent, "Open ${file.name}"))
+        dispatch(FilesIntent.Opened(location))
     }
+
+    /**
+     * Android's share sheet, [locations] attached: many files in one share (§3.3). One it cannot hand
+     * out is said through [dispatch], and nothing is shared.
+     */
+    fun share(context: Context, locations: List<String>, dispatch: (ICodeIntent) -> Unit) {
+        val files = locations.map(::File)
+        val uris = files.map { handable(context, it, dispatch) ?: return }
+        val intent = if (uris.size == 1) Intent(Intent.ACTION_SEND).putExtra(Intent.EXTRA_STREAM, uris.single())
+        else Intent(Intent.ACTION_SEND_MULTIPLE).putParcelableArrayListExtra(Intent.EXTRA_STREAM, ArrayList(uris))
+        // One kind for all, or any; the clip carries the grant through the chooser to the app chosen.
+        intent.setType(files.map(::typeOf).distinct().singleOrNull() ?: "*/*")
+            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            .clipData = ClipData.newRawUri(null, uris.first()).apply { uris.drop(1).forEach { addItem(ClipData.Item(it)) } }
+        context.startActivity(Intent.createChooser(intent, "Share ${FileWords.subject(files.map { it.name })}"))
+    }
+
+    /** [file]'s URI to hand out; null, and said, when the provider does not serve it. */
+    private fun handable(context: Context, file: File, dispatch: (ICodeIntent) -> Unit): Uri? =
+        uriOf(context, file) ?: null.also { dispatch(NoticeIntent.Notify(NoticeTone.HeadsUp, "${file.name} cannot be handed to another app")) }
+
+    /** A kind Android does not name goes to every app that takes any file. */
+    private fun typeOf(file: File): String = WorkspacesProvider.mimeTypeOf(file.name) ?: "*/*"
 }

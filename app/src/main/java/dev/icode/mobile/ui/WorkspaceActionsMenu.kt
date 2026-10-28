@@ -40,7 +40,7 @@ fun WorkspaceActionsMenu(
     val actions = FileItemActions.of(
         context = context,
         dispatch = gateway::dispatch,
-        target = ActionTarget(item.location, item.name, folder = true, runtimePath = item.path, workspace = true),
+        targets = listOf(ActionTarget(item.location, item.name, folder = true, runtimePath = item.path, workspace = true)),
         explorer = explorer,
         open = IcodeMenuAction("Open", Icons.Outlined.FolderOpen, { gateway.dispatch(ICodeIntent.OpenWorkspace(item.location)) }),
         onRename = { renaming = true },
