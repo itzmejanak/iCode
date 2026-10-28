@@ -2,7 +2,7 @@ package dev.icode.mobile.capture
 
 import android.annotation.SuppressLint
 import dev.icode.mobile.data.git.GitConflictParser
-import dev.icode.mobile.domain.BrowsedItem
+import dev.icode.mobile.domain.files.BrowsedItem
 import dev.icode.mobile.domain.RuntimeInventory
 import dev.icode.mobile.domain.RuntimeToolDownload
 import dev.icode.mobile.domain.RuntimeToolMeasuring
@@ -10,7 +10,7 @@ import dev.icode.mobile.domain.Diagnostic
 import dev.icode.mobile.domain.ExternalChange
 import dev.icode.mobile.domain.FileEntry
 import dev.icode.mobile.domain.FileKind
-import dev.icode.mobile.domain.FilesBrowserState
+import dev.icode.mobile.domain.files.FilesBrowserState
 import dev.icode.mobile.domain.GitChange
 import dev.icode.mobile.domain.GitCommitSummary
 import dev.icode.mobile.domain.GitDiffHunk
@@ -32,7 +32,7 @@ import dev.icode.mobile.domain.RuntimeToolsState
 import dev.icode.mobile.domain.Severity
 import dev.icode.mobile.domain.StorageDetails
 import dev.icode.mobile.domain.StorageMeasurement
-import dev.icode.mobile.domain.StoragePlace
+import dev.icode.mobile.domain.files.StoragePlace
 import dev.icode.mobile.domain.StorageSummary
 import dev.icode.mobile.domain.SystemAccess
 import dev.icode.mobile.domain.TextEncoding

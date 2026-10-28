@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Sort
+import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.FolderCopy
 import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.Schedule
@@ -34,12 +35,12 @@ import dev.icode.mobile.designsystem.IcodeMenuAction
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTextField
 import dev.icode.mobile.designsystem.IcodeTopBar
-import dev.icode.mobile.domain.FilesBrowserState
-import dev.icode.mobile.domain.FilesSort
 import dev.icode.mobile.domain.ICodeIntent
-import dev.icode.mobile.domain.StoragePlace
 import dev.icode.mobile.domain.SystemPermission
 import dev.icode.mobile.domain.WorkspaceRuntimePath
+import dev.icode.mobile.domain.files.FilesBrowserState
+import dev.icode.mobile.domain.files.FilesSort
+import dev.icode.mobile.domain.files.StoragePlace
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.ui.ClipboardBar
 import dev.icode.mobile.ui.FileItemActions
@@ -202,6 +203,7 @@ private fun SortButton(sort: FilesSort, onSort: (FilesSort) -> Unit) {
                     FilesSort.Name -> Icons.Outlined.SortByAlpha
                     FilesSort.Date -> Icons.Outlined.Schedule
                     FilesSort.Size -> Icons.Outlined.Straighten
+                    FilesSort.Type -> Icons.Outlined.Category
                 }
                 IcodeMenuAction(option.name, icon, { onSort(option) }, checked = option == sort)
             },

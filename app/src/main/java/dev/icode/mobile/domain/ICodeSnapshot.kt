@@ -1,5 +1,7 @@
 package dev.icode.mobile.domain
 
+import dev.icode.mobile.domain.files.FilesBrowserState
+
 data class ICodeSnapshot(
     val workspaces: List<WorkspaceSummary>,
     val files: List<FileEntry>,

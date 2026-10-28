@@ -32,9 +32,9 @@ import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SettingRow
 import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.ICodeIntent
-import dev.icode.mobile.domain.StoragePlace
 import dev.icode.mobile.domain.SystemPermission
 import dev.icode.mobile.domain.WorkspaceListRules
+import dev.icode.mobile.domain.files.StoragePlace
 import dev.icode.mobile.domain.storageSizeLabel
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route

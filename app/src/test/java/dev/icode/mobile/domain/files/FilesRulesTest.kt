@@ -1,5 +1,6 @@
-package dev.icode.mobile.domain
+package dev.icode.mobile.domain.files
 
+import dev.icode.mobile.domain.StorageMeasurement
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -11,10 +12,31 @@ class FilesRulesTest {
     private val all = listOf(readme, src, build, docs)
 
     @Test fun `folders come first, then by name ignoring case, the newest, or the largest`() {
-        assertEquals(listOf(docs, src, build, readme), FilesRules.sorted(all, FilesSort.Name, emptyMap()))
-        assertEquals(listOf(docs, src, readme, build), FilesRules.sorted(all, FilesSort.Date, emptyMap()))
+        assertEquals(listOf(docs, src, build, readme), FilesRules.sorted(all, FilesSort.Name, descending = false, emptyMap()))
+        assertEquals(listOf(docs, src, readme, build), FilesRules.sorted(all, FilesSort.Date, descending = true, emptyMap()))
         val sizes = mapOf(src.location to StorageMeasurement(10_000))
-        assertEquals(listOf(src, docs, build, readme), FilesRules.sorted(all, FilesSort.Size, sizes))
+        assertEquals(listOf(src, docs, build, readme), FilesRules.sorted(all, FilesSort.Size, descending = true, sizes))
+    }
+
+    @Test fun `descending flips each order, folders still first and the unmeasured still last`() {
+        assertEquals(listOf(src, docs, readme, build), FilesRules.sorted(all, FilesSort.Name, descending = true, emptyMap()))
+        assertEquals(listOf(src, docs, build, readme), FilesRules.sorted(all, FilesSort.Date, descending = false, emptyMap()))
+        val sizes = mapOf(src.location to StorageMeasurement(10_000))
+        assertEquals(listOf(src, docs, readme, build), FilesRules.sorted(all, FilesSort.Size, descending = false, sizes))
+    }
+
+    @Test fun `by type, files of one extension come together, in groups named by it`() {
+        val notes = BrowsedItem("notes.md", "/w/app/notes.md", folder = false, bytes = 10, changedAt = 1)
+        val makefile = BrowsedItem("Makefile", "/w/app/Makefile", folder = false, bytes = 10, changedAt = 1)
+        val sorted = FilesRules.sorted(all + notes + makefile, FilesSort.Type, descending = false, emptyMap())
+        assertEquals(listOf(docs, src, makefile, build, notes, readme), sorted)
+        assertEquals(listOf("Folders", "Folders", "No extension", ".gradle", ".md", ".md"), sorted.map(FilesRules::typeGroup))
+        assertEquals("", FilesRules.extension(".gitignore"))
+        assertEquals("gz", FilesRules.extension("site.tar.gz"))
+    }
+
+    @Test fun `each sort reads its own way first`() {
+        assertEquals(listOf(false, true, true, false), FilesSort.entries.map { it.descendingFirst })
     }
 
     @Test fun `search finds by name, and a blank one finds all`() {

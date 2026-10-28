@@ -35,15 +35,15 @@ import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.PrimaryButton
-import dev.icode.mobile.domain.BrowsedItem
+import dev.icode.mobile.domain.files.BrowsedItem
 import dev.icode.mobile.domain.FileTypes
 import dev.icode.mobile.domain.FileViewer
-import dev.icode.mobile.domain.FilesBrowserState
-import dev.icode.mobile.domain.FilesRules
-import dev.icode.mobile.domain.FilesSort
+import dev.icode.mobile.domain.files.FilesBrowserState
+import dev.icode.mobile.domain.files.FilesRules
+import dev.icode.mobile.domain.files.FilesSort
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.RelativeTime
-import dev.icode.mobile.domain.StoragePlace
+import dev.icode.mobile.domain.files.StoragePlace
 import dev.icode.mobile.ui.FileItemActions
 import dev.icode.mobile.ui.LocalFileViewer
 import dev.icode.mobile.ui.LocalICodeGateway
@@ -70,7 +70,7 @@ internal fun FilesListing(
 ) {
     val state = LocalICodeSnapshot.current
     val here = if (foldersOnly) browser.items.filter { it.folder } else browser.items
-    val shown = FilesRules.sorted(FilesRules.matching(here, query), sort, state.workspaceSizes)
+    val shown = FilesRules.sorted(FilesRules.matching(here, query), sort, sort.descendingFirst, state.workspaceSizes)
     val top = browser.place == StoragePlace.Private && browser.atRoot
     LazyColumn(contentPadding = PaddingValues(start = IcodeSpacing.RowGutter, end = IcodeSpacing.RowGutter, bottom = IcodeSizes.FabClearance)) {
         browser.parent?.let { parent -> item(key = "..") { UpRow { browse(parent) } } }

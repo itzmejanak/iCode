@@ -1,6 +1,6 @@
 package dev.icode.mobile.data.storage
 
-import dev.icode.mobile.domain.BrowsedItem
+import dev.icode.mobile.domain.files.BrowsedItem
 import java.io.File
 import java.nio.file.Files
 import org.junit.Assert.assertEquals
