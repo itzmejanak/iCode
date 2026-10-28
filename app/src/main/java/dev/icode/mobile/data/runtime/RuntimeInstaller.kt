@@ -2,12 +2,16 @@ package dev.icode.mobile.data.runtime
 
 import android.content.Context
 import android.os.Build
+import dev.icode.mobile.data.io.ArchiveLinks
+import dev.icode.mobile.data.io.Archives
 import dev.icode.mobile.data.io.DigestAlgorithm
+import dev.icode.mobile.data.io.Unpacking
 import dev.icode.mobile.data.io.deleteTree
 import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.RuntimeState
 import dev.icode.mobile.domain.RuntimeInstallReason
 import dev.icode.mobile.domain.RuntimeInstallStep
+import dev.icode.mobile.domain.files.ArchiveFormat
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -161,7 +165,7 @@ internal class RuntimeInstaller(
         val counted = AtomicLong(0)
         coroutineScope {
             val work = async(Dispatchers.IO) {
-                ArchiveExtractor().extractTarGz(archive, layout.rootfs) { entries -> counted.set(entries) }
+                Archives.unpack(archive, ArchiveFormat.TarGz, layout.rootfs, Unpacking(ArchiveLinks.AsWritten, onEntry = { counted.incrementAndGet() }))
             }
             while (!work.isCompleted) {
                 delay(EXTRACT_REPORT_INTERVAL_MILLIS)
@@ -234,3 +238,6 @@ internal class RuntimeInstaller(
 /** The packaged manifest ([RuntimeManifest]): read wherever a pin is needed, never restated. */
 internal fun readManifest(context: Context): RuntimeManifest =
     RuntimeManifest.parse(context.assets.open(RuntimeManifest.ASSET).bufferedReader().use { it.readText() })
+
+/** Raised when an archive cannot be unpacked into a usable tree. */
+internal class ExtractionException(message: String) : IOException(message)

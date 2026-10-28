@@ -22,7 +22,8 @@ import org.json.JSONObject
  * iCode, a `.nomedia` keeping trashed pictures out of galleries. Each item is `files/<id>`, the item
  * itself, and `info/<id>.json`, what it was — written whole before the item moves, so nothing is in
  * Trash without one. An item without its record is removed at start; one 30 days old, at start and
- * when Trash is read.
+ * when Trash is read. Beside them, `staging/` holds what an operation makes before it is put in
+ * place, on the volume it goes to; what a stopped one left goes at start too.
  */
 internal class FileTrash(
     private val privateTrash: File,
@@ -43,7 +44,7 @@ internal class FileTrash(
      */
     fun put(location: String, bytes: Long?, workspace: Boolean): TrashedItem = synchronized(lock) {
         val source = File(location)
-        val place = if (storage.contains(location)) StoragePlace.Shared else StoragePlace.Private
+        val place = placeOf(location)
         val trash = trashOf(place)
         prepare(trash)
         val folder = Files.isDirectory(source.toPath(), LinkOption.NOFOLLOW_LINKS)
@@ -76,6 +77,11 @@ internal class FileTrash(
         }
     }
 
+    /** A new, empty folder on [location]'s own volume, for what an operation makes before it is put in place there. */
+    fun staging(location: String): File = synchronized(lock) {
+        File(trashOf(placeOf(location)).root, "$STAGING/${UUID.randomUUID()}").also { Files.createDirectories(it.toPath()) }
+    }
+
     /** Where [item] is held while in Trash. */
     fun locationOf(item: TrashedItem): String = itemOf(trashOf(item.place), item.id).path
 
@@ -99,7 +105,7 @@ internal class FileTrash(
         deleteTree(top) { entry -> top.relativize(entry).toString().let { onEntry(if (it.isEmpty()) item.name else "${item.name}/$it") } }
     }
 
-    /** Items [TrashRules.KEEP_DAYS] old, gone for good; and [orphans] too — at start, when nothing else works in Trash. */
+    /** Items [TrashRules.KEEP_DAYS] old, gone for good; and [orphans] too, and what was staged — at start, when nothing else works in Trash. */
     fun purge(orphans: Boolean) {
         val now = clock()
         list().filter { TrashRules.expired(it, now) }.forEach { runCatching { delete(it) } }
@@ -107,7 +113,7 @@ internal class FileTrash(
         val left = synchronized(lock) {
             trashes().flatMap { (_, trash) ->
                 trash.info.listFiles { file -> !file.name.endsWith(RECORD) }.orEmpty().forEach(File::delete)
-                trash.files.listFiles().orEmpty().filterNot { recordOf(trash, it.name).isFile }
+                trash.files.listFiles().orEmpty().filterNot { recordOf(trash, it.name).isFile } + File(trash.root, STAGING).listFiles().orEmpty()
             }
         }
         left.forEach { runCatching { deleteTree(it) } }
@@ -117,6 +123,8 @@ internal class FileTrash(
         val files = File(root, "files")
         val info = File(root, "info")
     }
+
+    private fun placeOf(location: String) = if (storage.contains(location)) StoragePlace.Shared else StoragePlace.Private
 
     private fun trashOf(place: StoragePlace) = when (place) {
         StoragePlace.Private -> Trash(privateTrash, shared = false)
@@ -167,5 +175,6 @@ internal class FileTrash(
     private companion object {
         const val RECORD = ".json"
         const val PART = ".part"
+        const val STAGING = "staging"
     }
 }

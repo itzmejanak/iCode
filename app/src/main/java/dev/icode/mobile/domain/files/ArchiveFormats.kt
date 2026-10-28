@@ -40,6 +40,16 @@ object ArchiveFormats {
         return bySuffix.firstOrNull { (suffix, _) -> lower.endsWith(suffix) && lower.length > suffix.length }?.second
     }
 
+    /**
+     * What Compress names its archive, before its ending (§3.3): the [only] item's name — a file's
+     * without its extension — or, for many, the [folder] they are in, or "Archive" at a place's top.
+     */
+    fun archiveName(only: Pair<String, Boolean>?, folder: String?): String = when {
+        only == null -> folder ?: "Archive"
+        only.second -> only.first
+        else -> only.first.substringBeforeLast('.').ifEmpty { only.first }
+    }
+
     /** [name] without its archive ending — "site.tar.gz" is "site" — what Extract here names a folder or a file after. */
     fun stem(name: String): String {
         val lower = name.lowercase()

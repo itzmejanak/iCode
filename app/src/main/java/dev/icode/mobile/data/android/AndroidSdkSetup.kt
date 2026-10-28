@@ -2,11 +2,13 @@ package dev.icode.mobile.data.android
 
 import android.app.ActivityManager
 import android.content.Context
+import dev.icode.mobile.data.io.ArchiveLinks
+import dev.icode.mobile.data.io.Archives
 import dev.icode.mobile.data.io.DigestAlgorithm
 import dev.icode.mobile.data.io.Sha256
 import dev.icode.mobile.data.io.deleteTree
+import dev.icode.mobile.data.io.Unpacking
 import dev.icode.mobile.data.io.hexDigest
-import dev.icode.mobile.data.runtime.ArchiveExtractor
 import dev.icode.mobile.data.runtime.GuestCommand
 import dev.icode.mobile.data.runtime.GuestContext
 import dev.icode.mobile.data.runtime.RuntimeLayout
@@ -15,6 +17,7 @@ import dev.icode.mobile.data.runtime.RuntimeToolSetup
 import dev.icode.mobile.data.runtime.fetchPinned
 import dev.icode.mobile.data.runtime.readManifest
 import dev.icode.mobile.domain.ToolSetupProgress
+import dev.icode.mobile.domain.files.ArchiveFormat
 import java.io.File
 import java.io.IOException
 import kotlinx.coroutines.NonCancellable
@@ -110,15 +113,15 @@ internal class AndroidSdkSetup(private val layout: RuntimeLayout, private val co
         val folder = File(sdk, "cmdline-tools")
         val staging = File(folder, ".latest-unpacking")
         deleteTree(staging.toPath())
-        ArchiveExtractor().extractZip(zip, staging) { name -> name.removePrefix("cmdline-tools/").takeIf { it != name && it.isNotEmpty() } }
+        Archives.unpack(zip, ArchiveFormat.Zip, staging, Unpacking(ArchiveLinks.AsWritten, place = { name -> name.removePrefix("cmdline-tools/").takeIf { it != name && it.isNotEmpty() } }))
         val latest = File(folder, "latest")
         deleteTree(latest.toPath())
         if (!staging.renameTo(latest)) throw IOException("Could not unpack Android SDK Command-line Tools")
     }
 
     private fun replaceHostTools(zip: File) {
-        val placed = ArchiveExtractor().extractZip(zip, File(sdk, "build-tools/${AndroidSdk.BUILD_TOOLS}"), ::hostTool)
-        if (placed != AndroidSdk.HOST_TOOLS.size.toLong()) throw IOException("The pinned ARM64 build tools archive lacks some of ${AndroidSdk.HOST_TOOLS}")
+        val placed = Archives.unpack(zip, ArchiveFormat.Zip, File(sdk, "build-tools/${AndroidSdk.BUILD_TOOLS}"), Unpacking(ArchiveLinks.AsWritten, place = ::hostTool))
+        if (placed.entries != AndroidSdk.HOST_TOOLS.size.toLong()) throw IOException("The pinned ARM64 build tools archive lacks some of ${AndroidSdk.HOST_TOOLS}")
     }
 
     private fun writeGradleSettings() {

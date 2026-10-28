@@ -41,6 +41,13 @@ internal class StorageTransfers(
 ) {
     private val staging = WorkspaceStaging(paths.root)
 
+    /**
+     * Why [bytes] cannot be written now, or null: room is made on the workspaces' volume, which phone
+     * storage shares (`/data/media`), Android clearing other apps' caches if need be.
+     */
+    fun roomRefusal(bytes: Long): String? =
+        if (reserveSpace(bytes)) null else "Not enough storage: ${ByteSize.format(bytes)} required, ${ByteSize.format(freeBytes())} free"
+
     /** [location] and [destination] are in different places: one in iCode's storage, the other on phone storage. */
     fun crosses(location: String, destination: String): Boolean = storage.contains(location) != storage.contains(destination)
 
@@ -58,9 +65,7 @@ internal class StorageTransfers(
         if (cut && plan.skipped.isNotEmpty()) {
             throw IOException("${source.name} holds ${notCarried(plan.skipped.size, toShared)} — copy it instead")
         }
-        if (!reserveSpace(plan.bytes)) {
-            throw IOException("Not enough storage: ${ByteSize.format(plan.bytes)} required, ${ByteSize.format(freeBytes())} free")
-        }
+        roomRefusal(plan.bytes)?.let { throw IOException(it) }
         // Into iCode's storage a folder is staged, as Import's was: Git's repair runs before it is seen,
         // and a process ended midway leaves only what the next start sweeps.
         val staged = if (!toShared && tree.top.folder) staging.reserve("import") else null

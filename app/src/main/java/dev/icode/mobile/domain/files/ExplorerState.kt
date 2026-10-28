@@ -11,4 +11,9 @@ data class ExplorerState(
     val history: FileHistoryState = FileHistoryState(),
     /** Both places' Trash, newest first; Shared's only with All Files Access. */
     val trash: List<TrashedItem> = emptyList(),
+    /** An archive Extract waits on the password of. */
+    val password: PasswordAsk? = null,
 )
+
+/** Extract of [archive] into [folder] waits on its password, which is never kept: the answer is Extract again, with it. */
+data class PasswordAsk(val archive: String, val folder: String?)

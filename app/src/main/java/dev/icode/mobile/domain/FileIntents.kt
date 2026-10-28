@@ -1,5 +1,6 @@
 package dev.icode.mobile.domain
 
+import dev.icode.mobile.domain.files.CompressFormat
 import dev.icode.mobile.domain.files.ConflictAnswer
 import dev.icode.mobile.domain.files.RenameRule
 
@@ -28,6 +29,21 @@ sealed interface FilesIntent : ICodeIntent {
 
     /** One [rule] renaming [locations], all in one folder, in the order shown (§3.4). */
     data class RenameMany(val locations: List<String>, val rule: RenameRule) : FilesIntent
+
+    /**
+     * [locations] into one archive of [format] in the folder they are in, under a free name: [name],
+     * or as [dev.icode.mobile.domain.files.ArchiveFormats.archiveName] says (§3.11).
+     */
+    data class Compress(val locations: List<String>, val format: CompressFormat, val name: String? = null) : FilesIntent
+
+    /**
+     * What the archive at [location] holds, into [folder] — the folder it is in by default — as one
+     * folder or file, a name already there asked about. A 7z that needs its [password] waits for it.
+     */
+    data class Extract(val location: String, val folder: String? = null, val password: String? = null) : FilesIntent
+
+    /** The archive waiting on its password is not extracted after all. */
+    data object DismissPassword : FilesIntent
 
     /** Delete: to Trash, without a dialog, since it can be undone (§3.7). */
     data class Trash(val locations: List<String>) : FilesIntent

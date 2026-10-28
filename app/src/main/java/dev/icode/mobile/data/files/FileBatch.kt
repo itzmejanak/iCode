@@ -17,16 +17,16 @@ import java.util.UUID
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * One operation on many items, inside its task (docs/explorer-gaps-plan.md §3.3–§3.8): each carried,
- * duplicated, renamed, put in Trash, restored or reversed in turn through [operator]. A name already
- * there is asked about through [questions] — Replace, Merge, Keep both, Skip, or stop — and in
- * Private a merge never touches Git's `.git`. Every step done is kept in [steps], in order: however
- * the operation ends, what it did stays, one change to undo.
+ * One operation on many items, inside its task (docs/explorer-gaps-plan.md §3.3–§3.8, §3.11): each
+ * carried, duplicated, renamed, put in Trash, restored, reversed, or — an archive's — settled in turn
+ * through [operator]. A name already there is asked about through [questions] — Replace, Merge, Keep
+ * both, Skip, or stop — and in Private a merge never touches Git's `.git`. Every step done is kept in
+ * [steps], in order: however the operation ends, what it did stays, one change to undo.
  */
 internal class FileBatch(
     private val operator: FileOperator,
     private val questions: FileQuestions,
-    private val progress: TaskRunner.Progress,
+    val progress: TaskRunner.Progress,
     /** Why what is at or under a location cannot be replaced now — unsaved edits — or null. */
     private val edited: (location: String) -> String?,
 ) {
@@ -38,21 +38,33 @@ internal class FileBatch(
     /** "Do this for the other N": the answer given for every question after. */
     private var always: ConflictAnswer? = null
 
+    /** How an item goes where it goes: moved, copied, or — what an archive operation staged — settled, kept as made. */
+    private enum class How { Move, Copy, Settle }
+
     /** [locations] into the folder [into], moved or copied; a copy into its own folder goes beside itself. */
-    suspend fun carry(locations: List<String>, into: String, move: Boolean) {
+    suspend fun carry(locations: List<String>, into: String, move: Boolean) = carry(locations, into, if (move) How.Move else How.Copy)
+
+    /**
+     * What an archive operation [staged] into the folder [into], under the name it has: a name there
+     * asked about when [asking] — Extract's — else a free one taken — Compress's. Kept as made.
+     */
+    suspend fun settle(staged: String, into: String, asking: Boolean) =
+        if (asking) carry(listOf(staged), into, How.Settle) else place(staged, freeTarget(staged, into), How.Settle)
+
+    private suspend fun carry(locations: List<String>, into: String, how: How) {
         locations.forEachIndexed { index, location ->
             val target = File(into, File(location).name).path
             when {
-                target == location -> if (!move) place(location, freeTarget(location, into), move = false)
-                !fileExists(target) -> place(location, target, move)
+                target == location -> if (how == How.Copy) place(location, freeTarget(location, into), how)
+                !fileExists(target) -> place(location, target, how)
                 else -> when (answer(location, target, others = locations.drop(index + 1).count { fileExists(File(into, File(it).name).path) })) {
                     ConflictAnswer.Skip -> Unit
-                    ConflictAnswer.KeepBoth -> place(location, freeTarget(location, into), move)
+                    ConflictAnswer.KeepBoth -> place(location, freeTarget(location, into), how)
                     ConflictAnswer.Replace -> {
                         replace(target)
-                        place(location, target, move)
+                        place(location, target, how)
                     }
-                    ConflictAnswer.Merge -> merge(location, target, move)
+                    ConflictAnswer.Merge -> merge(location, target, how)
                 }
             }
         }
@@ -60,7 +72,7 @@ internal class FileBatch(
 
     /** Each of [locations] beside itself, under a free name; it never asks. */
     suspend fun duplicate(locations: List<String>) = locations.forEach { location ->
-        place(location, freeTarget(location, File(location).parent ?: return@forEach), move = false)
+        place(location, freeTarget(location, File(location).parent ?: return@forEach), How.Copy)
     }
 
     /**
@@ -105,7 +117,7 @@ internal class FileBatch(
                     // Back beside the folder there, then moved into it as a merge moves.
                     val beside = freeTarget(item.name, folder, item.folder)
                     steps += operator.restore(item, beside, progress)
-                    merge(beside, target, move = true)
+                    merge(beside, target, How.Move)
                 }
             }
         }
@@ -125,17 +137,24 @@ internal class FileBatch(
         }
     }
 
-    private suspend fun place(location: String, target: String, move: Boolean) {
-        steps += if (move) operator.move(location, target, progress) else operator.copy(location, target, progress)
+    private suspend fun place(location: String, target: String, how: How) {
+        steps += when (how) {
+            How.Move -> operator.move(location, target, progress)
+            How.Copy -> operator.copy(location, target, progress)
+            How.Settle -> operator.settle(location, target, progress)
+        }
     }
 
-    /** What the folder [folder] holds into the folder [into], each name asked about as it meets one; a moved folder left empty goes. */
-    private suspend fun merge(folder: String, into: String, move: Boolean) {
+    /**
+     * What the folder [folder] holds into the folder [into], each name asked about as it meets one; a
+     * moved folder left empty goes. A staged one is its operation's to clear.
+     */
+    private suspend fun merge(folder: String, into: String, how: How) {
         val gitOwned = operator.places.of(into).gitOwnsDotGit
         val (git, rest) = File(folder).list().orEmpty().sorted().partition { gitOwned && it == ".git" }
         if (git.isNotEmpty()) notes += "${File(folder).name}'s .git was left where it was: Git's own folder is never merged"
-        carry(rest.map { File(folder, it).path }, into, move)
-        if (move && operator.isEmptyFolder(folder)) steps += operator.removeEmpty(folder, progress)
+        carry(rest.map { File(folder, it).path }, into, how)
+        if (how == How.Move && operator.isEmptyFolder(folder)) steps += operator.removeEmpty(folder, progress)
     }
 
     /** The one at [target] to Trash, so the one coming takes its place — refused while it holds unsaved edits. */

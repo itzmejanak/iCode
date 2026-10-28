@@ -126,6 +126,9 @@ dependencies {
     // Compose 1.10+; later ones need Kotlin 2.4 (docs/accent-color-plan.md).
     implementation("com.github.skydoves:colorpicker-compose:1.1.4")
     implementation("org.apache.commons:commons-compress:1.27.1")
+    // Commons Compress's own optional dependency for .7z and .xz (0BSD, pure Java;
+    // docs/explorer-gaps-plan.md §3.11).
+    implementation("org.tukaani:xz:1.10")
     // VT/xterm emulator, renderer and input view (brings terminal-emulator).
     // Apache-2.0 per termux-app LICENSE.md; see docs/terminal-maturity-plan.md §3.
     implementation("com.github.termux.termux-app:terminal-view:v0.118.3")

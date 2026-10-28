@@ -11,8 +11,11 @@ import dev.icode.mobile.data.workspace.WorkspaceLifecycleCoordinator.Reopen
 import dev.icode.mobile.data.workspace.WorkspaceUsage
 import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.GitOutcome
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.said
+import dev.icode.mobile.domain.files.CompressFormat
 import dev.icode.mobile.domain.files.ConflictAnswer
+import dev.icode.mobile.domain.files.PasswordAsk
 import dev.icode.mobile.domain.files.RenameRule
 import java.io.File
 import java.util.Collections
@@ -24,6 +27,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import org.apache.commons.compress.archivers.sevenz.SevenZOutputFile
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -60,11 +64,12 @@ class FileOperationsTest {
         val trash = FileTrash(File(workspaces.parentFile, "trash"), File(phone, "Android/media/dev.icode.mobile/Trash"), storage)
         val transfers = StorageTransfers(stateHolder, WorkspacePaths(workspaces), NoGit, storage, { true }, { Long.MAX_VALUE })
         val usage = WorkspaceUsage(stateHolder, tasks, { false }, { false }, { null }, { null })
-        FileOperationsCoordinator(
-            stateHolder, scope, tasks, usage, follower, history,
-            FileOperator(stateHolder, places, transfers, trash, follower), FileQuestions(stateHolder),
-            FileRefusals(places, trash, tasks, usage, follower, workspaces),
-        )
+        val operator = FileOperator(stateHolder, places, transfers, trash, follower)
+        val questions = FileQuestions(stateHolder)
+        val refusals = FileRefusals(places, trash, tasks, usage, follower, workspaces)
+        val operations = FileTasks(stateHolder, tasks, operator, questions, usage, follower, history)
+        val archives = FileArchives(stateHolder, places, trash, transfers, refusals, operations, history)
+        FileOperationsCoordinator(stateHolder, scope, follower, history, operator, questions, refusals, operations, archives)
     }
 
     private object NoGit : GitCheckoutOperations {
@@ -332,6 +337,52 @@ class FileOperationsTest {
         assertEquals("a.txt was moved or deleted since", messages.last())
         assertEquals("Moved a.txt to lib", undo)
         assertTrue(File(into, "b.txt").isFile)
+    }
+
+    @Test fun `Extract here gives the one folder an archive holds, or a folder named after it, and undoes to Trash`() {
+        val site = folder(app, "site").also { file(it, "index.html") }
+        perform(FilesIntent.Compress(listOf(site.path), CompressFormat.Zip))
+        assertTrue(File(app, "site.zip").isFile)
+        assertEquals("Compressed site into site.zip", undo)
+        site.deleteRecursively()
+        perform(FilesIntent.Extract(File(app, "site.zip").path))
+        assertEquals("index.html", File(app, "site/index.html").readText())
+        val loose = folder(app, "loose").also { file(it, "a.txt"); file(it, "b.txt") }
+        perform(FilesIntent.Compress(listOf(File(loose, "a.txt").path, File(loose, "b.txt").path), CompressFormat.TarGz))
+        perform(FilesIntent.Extract(File(loose, "loose.tar.gz").path, folder(app, "out").path))
+        assertEquals(setOf("a.txt", "b.txt"), File(app, "out/loose").list()!!.toSet())
+        assertEquals("Extracted loose.tar.gz", undo)
+        perform(FilesIntent.Undo)
+        assertFalse(File(app, "out/loose").exists())
+        assertTrue(File(workspaces.parentFile, "trash/staging").list().orEmpty().isEmpty())
+    }
+
+    @Test fun `Extract meeting a name asks, and Compress takes a free one`() {
+        val notes = file(app, "notes.txt", "kept")
+        perform(FilesIntent.Compress(listOf(notes.path), CompressFormat.SevenZ))
+        perform(FilesIntent.Compress(listOf(notes.path), CompressFormat.SevenZ))
+        assertTrue(File(app, "notes copy.7z").isFile)
+        file(app, "notes/older.txt")
+        perform(FilesIntent.Extract(File(app, "notes.7z").path), ConflictAnswer.KeepBoth to false)
+        assertEquals("kept", File(app, "notes copy/notes.txt").readText())
+        assertEquals(listOf("older.txt"), File(app, "notes").list()!!.toList())
+    }
+
+    @Test fun `a 7z locked by a password waits on it, never keeping it`() {
+        val archive = File(app, "secret.7z")
+        SevenZOutputFile(archive, "s3cret".toCharArray()).use { seven ->
+            val notes = file(temp.root, "notes.md", "hidden")
+            seven.putArchiveEntry(seven.createArchiveEntry(notes, "notes.md"))
+            seven.write(notes.toPath())
+            seven.closeArchiveEntry()
+        }
+        files.handle(FilesIntent.Extract(archive.path))
+        assertEquals(PasswordAsk(archive.path, null), await { stateHolder.current.explorer.password })
+        assertEquals("The password for secret.7z is wrong, or the archive is damaged", perform(FilesIntent.Extract(archive.path, password = "nope")))
+        assertNull(stateHolder.current.explorer.password)
+        tasks.handle(ICodeIntent.DismissTask(stateHolder.current.tasks.single().id))
+        perform(FilesIntent.Extract(archive.path, password = "s3cret"))
+        assertEquals("hidden", File(app, "secret/notes.md").readText())
     }
 
     @Test fun `nothing starts when one item cannot go`() {
