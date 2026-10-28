@@ -23,11 +23,14 @@ enum class ArchiveFormat(val suffixes: List<String>, val unreadable: String? = n
     val single: Boolean get() = this == Gz || this == Bz2 || this == Xz
 }
 
-/** What Compress makes (§3.11): a zip by default, a 7z, or a tar.gz that keeps links and executable bits. */
-enum class CompressFormat(val format: ArchiveFormat, val extension: String, val label: String) {
-    Zip(ArchiveFormat.Zip, ".zip", "Zip"),
-    SevenZ(ArchiveFormat.SevenZ, ".7z", "7z"),
-    TarGz(ArchiveFormat.TarGz, ".tar.gz", "Tar.gz"),
+/**
+ * What Compress makes (§3.11): a zip by default, a 7z, or a tar.gz. A zip and a tar.gz keep links and
+ * executable bits; a 7z entry can hold neither ([note], as Compress… says it).
+ */
+enum class CompressFormat(val format: ArchiveFormat, val extension: String, val label: String, val note: String) {
+    Zip(ArchiveFormat.Zip, ".zip", "Zip", "Opens anywhere, and keeps links and executable bits"),
+    SevenZ(ArchiveFormat.SevenZ, ".7z", "7z", "Smallest, but holds no links and no executable bits"),
+    TarGz(ArchiveFormat.TarGz, ".tar.gz", "Tar.gz", "As Linux keeps files, with links and executable bits"),
 }
 
 object ArchiveFormats {

@@ -16,17 +16,12 @@ import androidx.compose.material.icons.outlined.UnfoldMore
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
 import dev.icode.mobile.designsystem.IcodeActionMenu
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeConfirmDialog
 import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodeMenuAction
 import dev.icode.mobile.designsystem.IcodeSizes
@@ -36,18 +31,16 @@ import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.StatusDot
 import dev.icode.mobile.designsystem.gitStatusTone
 import dev.icode.mobile.designsystem.tint
-import dev.icode.mobile.designsystem.LabeledTextField
 import dev.icode.mobile.domain.FileEntry
 import dev.icode.mobile.domain.FileKind
 import dev.icode.mobile.domain.FileTypes
 import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.ICodeIntent
-import dev.icode.mobile.domain.WorkspaceNameRules
 import dev.icode.mobile.domain.WorkspaceRuntimePath
-import dev.icode.mobile.domain.files.FileClipboard
+import dev.icode.mobile.domain.files.ExplorerState
+import dev.icode.mobile.ui.ActionTarget
 import dev.icode.mobile.ui.FileItemActions
 import dev.icode.mobile.ui.LocalICodeGateway
-import dev.icode.mobile.ui.rememberPendingRequest
 
 /**
  * One Explorer row's actions, every explorer's ([FileItemActions]), from its ⋮ and a long press
@@ -60,7 +53,7 @@ internal fun explorerItemActions(
     root: String?,
     rootPath: String,
     files: List<FileEntry>,
-    clipboard: FileClipboard?,
+    explorer: ExplorerState,
     onRename: () -> Unit,
 ): List<IcodeMenuAction> {
     val gateway = LocalICodeGateway.current
@@ -68,9 +61,8 @@ internal fun explorerItemActions(
     return FileItemActions.of(
         context = LocalContext.current,
         dispatch = gateway::dispatch,
-        location = entry.path,
-        runtimePath = root?.let { WorkspaceRuntimePath.within(it, rootPath, entry.path) } ?: entry.path,
-        clipboard = clipboard,
+        target = ActionTarget(entry.path, entry.name, folder, root?.let { WorkspaceRuntimePath.within(it, rootPath, entry.path) } ?: entry.path),
+        explorer = explorer,
         open = if (folder) {
             IcodeMenuAction(
                 if (entry.expanded) "Collapse" else "Expand",
@@ -82,34 +74,7 @@ internal fun explorerItemActions(
         },
         onRename = onRename,
         onPaste = { creationParentLocation(root, entry.path, files)?.let { gateway.dispatch(FilesIntent.Paste(it)) } },
-        file = !folder,
     )
-}
-
-/**
- * The create form, for a new name: the same rules, the same answer by request id — for an item of
- * the Explorer's tree or of the workspaces' file explorer alike.
- */
-@Composable
-internal fun RenameWorkspaceItemDialog(location: String, currentName: String, folder: Boolean, onDismiss: () -> Unit) {
-    val gateway = LocalICodeGateway.current
-    var name by rememberSaveable(location) { mutableStateOf(currentName) }
-    val request = rememberPendingRequest(location, onDismiss)
-    val validationError = if (folder) WorkspaceNameRules.workspaceFolderValidationError(name) else WorkspaceNameRules.fileValidationError(name)
-    IcodeConfirmDialog(
-        title = if (folder) "Rename folder" else "Rename file",
-        confirmLabel = "Rename",
-        confirmEnabled = validationError == null && name.trim() != currentName && !request.waiting,
-        dismissEnabled = !request.waiting,
-        onDismiss = onDismiss,
-        onConfirm = { request.send { requestId -> gateway.dispatch(ICodeIntent.RenameWorkspaceItem(location, name.trim(), requestId)) } },
-    ) {
-        LabeledTextField(if (folder) "Folder name" else "File name", name, { name = it; request.failure = null })
-        if (validationError != null && name.isNotEmpty()) {
-            Text(validationError, style = IcodeType.Caption, color = IcodeColors.Error)
-        }
-        request.failure?.let { Text(it, style = IcodeType.Caption, color = IcodeColors.Error) }
-    }
 }
 
 /** One row of the Explorer's tree; its actions open from a long press ([menuOpen]), at its end. */

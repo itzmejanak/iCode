@@ -53,6 +53,10 @@ internal class FileRefusals(
         }
     }
 
+    /** An archive made in [folder]: never at Private's top, where every item is a workspace. */
+    fun archiveInto(folder: String): String? =
+        if (folder == workspaces.path) "Only workspaces are at Private's top: copy it to Shared, or into a workspace, and compress it there" else null
+
     /** Each of [locations] renamed, moved or put in Trash where it is. */
     suspend fun changes(locations: List<String>): String? {
         places.accessRefusal(locations)?.let { return it }

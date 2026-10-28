@@ -374,6 +374,15 @@ class FileOperationsTest {
         assertEquals(listOf("older.txt"), File(app, "notes").list()!!.toList())
     }
 
+    @Test fun `a workspace is not compressed at Private's top, where only workspaces are`() {
+        file(app, "a.txt")
+        assertEquals(
+            "Only workspaces are at Private's top: copy it to Shared, or into a workspace, and compress it there",
+            perform(FilesIntent.Compress(listOf(app.path), CompressFormat.Zip)) ?: messages.last(),
+        )
+        assertEquals(listOf("app"), workspaces.list()!!.toList())
+    }
+
     @Test fun `a 7z locked by a password waits on it, never keeping it`() {
         val archive = File(app, "secret.7z")
         SevenZOutputFile(archive, "s3cret".toCharArray()).use { seven ->

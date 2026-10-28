@@ -1,6 +1,5 @@
 package dev.icode.mobile.ui.screens.entry
 
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,21 +15,15 @@ import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import dev.icode.mobile.designsystem.EmptyState
-import dev.icode.mobile.designsystem.IcodeActionMenu
 import dev.icode.mobile.designsystem.IcodeActionBar
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeListRow
-import dev.icode.mobile.designsystem.IcodeMenuAction
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
@@ -45,19 +38,17 @@ import dev.icode.mobile.domain.files.FilesSort
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.domain.files.StoragePlace
-import dev.icode.mobile.ui.FileItemActions
 import dev.icode.mobile.ui.LocalFileViewer
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.SharedFiles
-import dev.icode.mobile.ui.WorkspaceActionsMenu
 import dev.icode.mobile.ui.screens.workspace.fileTypeIcon
 import dev.icode.mobile.ui.screens.workspace.fileTypeTint
 
 /**
  * What is here, found and ordered (docs/storage-explorer-plan.md §3.2): `..` first while there is a
- * folder above, then folders and files as flat rows — at Private's top, the workspaces. Room is
- * left under the last row for the floating +.
+ * folder above, then folders and files as flat rows — at Private's top, the workspaces. A long press
+ * asks for an item's sheet ([onActions]). Room is left under the last row for the floating +.
  */
 @Composable
 internal fun FilesListing(
@@ -66,7 +57,7 @@ internal fun FilesListing(
     sort: FilesSort,
     foldersOnly: Boolean,
     browse: (String) -> Unit,
-    onRename: (String) -> Unit,
+    onActions: (BrowsedItem) -> Unit,
 ) {
     val state = LocalICodeSnapshot.current
     val here = if (foldersOnly) browser.items.filter { it.folder } else browser.items
@@ -101,7 +92,7 @@ internal fun FilesListing(
                 )
             }
             else -> items(shown, key = { it.location }) { item ->
-                if (top) WorkspaceItemRow(item, browse) else BrowsedItemRow(item, browser, browse) { onRename(item.location) }
+                ItemRow(item, browser, browse) { onActions(item) }
             }
         }
     }
@@ -110,71 +101,58 @@ internal fun FilesListing(
 /** `..`: up a folder, as Back. */
 @Composable
 private fun UpRow(onClick: () -> Unit) {
-    FileRow(Icons.Outlined.DriveFolderUpload, IcodeColors.Accent, "..", detail = null, changedAt = null, onClick = onClick, onLongClick = null) {}
+    FileRow(Icons.Outlined.DriveFolderUpload, IcodeColors.Accent, "..", detail = null, changedAt = null, onClick = onClick, onLongClick = null)
 }
 
 /**
- * One folder or file, in a workspace or on phone storage. A tap goes into a folder, opens a file of
- * a workspace in the editor — one it cannot show in another app — and a file on phone storage, having
- * no editor to open in, in another app (docs/open-with-plan.md). A picture opens in iCode's image
- * viewer wherever it is (docs/file-viewers-plan.md). A long press shows every explorer's menu
- * ([FileItemActions]). Paste goes into a folder; beside a file, into the folder shown.
+ * One folder or file, in a workspace or on phone storage — at Private's top, a workspace. A tap does
+ * what opening it does ([openOf]); a file with nowhere in iCode to open goes to another app. A long
+ * press asks for its sheet.
  */
 @Composable
-private fun BrowsedItemRow(item: BrowsedItem, browser: FilesBrowserState, browse: (String) -> Unit, onRename: () -> Unit) {
-    val gateway = LocalICodeGateway.current
+private fun ItemRow(item: BrowsedItem, browser: FilesBrowserState, browse: (String) -> Unit, onLongClick: () -> Unit) {
     val context = LocalContext.current
-    var menuOpen by remember(item.location) { mutableStateOf(false) }
-    val type = FileTypes.of(item.name)
+    val gateway = LocalICodeGateway.current
+    val (icon, tint) = iconOf(item)
+    FileRow(
+        icon = icon,
+        tint = tint,
+        name = item.name,
+        detail = FilesRules.detail(item),
+        changedAt = item.changedAt,
+        onClick = openOf(item, browser, browse) ?: { SharedFiles.open(context, item.location, gateway::dispatch) },
+        onLongClick = onLongClick,
+    )
+}
+
+/**
+ * What opening [item] does: a folder goes into the list; a file of a workspace into the editor, which
+ * hands one it cannot show to another app (docs/open-with-plan.md); one on phone storage, having no
+ * editor, into iCode's viewer when it has one for it (docs/file-viewers-plan.md), and into Recent.
+ * Null for one with nowhere in iCode to open.
+ */
+@Composable
+internal fun openOf(item: BrowsedItem, browser: FilesBrowserState, browse: (String) -> Unit): (() -> Unit)? {
+    val gateway = LocalICodeGateway.current
     val viewer = LocalFileViewer.current
-    val open: (() -> Unit)? = when {
+    return when {
         item.folder -> { { browse(item.location) } }
         browser.place == StoragePlace.Private -> { { gateway.dispatch(ICodeIntent.OpenFile(item.location)) } }
-        else -> FileViewer.of(item.name)?.let { kind -> { viewer.show(item.location, item.name, kind) } }
-    }
-    val actions = FileItemActions.of(
-        context = context,
-        dispatch = gateway::dispatch,
-        location = item.location,
-        runtimePath = browser.runtimePathOf(item.location),
-        clipboard = LocalICodeSnapshot.current.explorer.clipboard,
-        open = open?.let { if (item.folder) IcodeMenuAction("Open", Icons.Outlined.FolderOpen, it) else FileItemActions.openFile(it) },
-        onRename = onRename,
-        onPaste = { gateway.dispatch(FilesIntent.Paste(if (item.folder) item.location else browser.path)) },
-        file = !item.folder,
-    )
-    FileRow(
-        icon = if (item.folder) Icons.Outlined.Folder else fileTypeIcon(type),
-        tint = if (item.folder) IcodeColors.Accent else fileTypeTint(type),
-        name = item.name,
-        detail = FilesRules.detail(item),
-        changedAt = item.changedAt,
-        onClick = open ?: { SharedFiles.open(context, item.location, gateway::dispatch) },
-        onLongClick = { menuOpen = true },
-    ) {
-        IcodeActionMenu(expanded = menuOpen, onDismiss = { menuOpen = false }, actions = actions)
+        else -> FileViewer.of(item.name)?.let { kind ->
+            {
+                viewer.show(item.location, item.name, kind)
+                gateway.dispatch(FilesIntent.Opened(item.location))
+            }
+        }
     }
 }
 
-/** A workspace at Private's top: a tap goes into it; a long press gives a workspace's menu (Open, Open Terminal…). */
+/** A folder's icon in the accent; a file's by its type. */
 @Composable
-private fun WorkspaceItemRow(item: BrowsedItem, browse: (String) -> Unit) {
-    val workspace = LocalICodeSnapshot.current.workspaces.firstOrNull { it.location == item.location }
-    var menuOpen by remember(item.location) { mutableStateOf(false) }
-    FileRow(
-        icon = Icons.Outlined.Folder,
-        tint = IcodeColors.Accent,
-        name = item.name,
-        detail = FilesRules.detail(item),
-        changedAt = item.changedAt,
-        onClick = { browse(item.location) },
-        onLongClick = { menuOpen = true }.takeIf { workspace != null },
-    ) {
-        workspace?.let { WorkspaceActionsMenu(it, menuOpen, onLongPressDismiss = { menuOpen = false }, onShowInList = null, overflow = false) }
-    }
-}
+internal fun iconOf(item: BrowsedItem): Pair<ImageVector, Color> =
+    if (item.folder) Icons.Outlined.Folder to IcodeColors.Accent else FileTypes.of(item.name).let { fileTypeIcon(it) to fileTypeTint(it) }
 
-/** A flat row, as ZArchiver's: the type's icon, the name over its detail, when it changed at the end; [menu] opens there. */
+/** A flat row, as ZArchiver's: the type's icon, the name over its detail, when it changed at the end. */
 @Composable
 private fun FileRow(
     icon: ImageVector,
@@ -184,7 +162,6 @@ private fun FileRow(
     changedAt: Long?,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)?,
-    menu: @Composable () -> Unit,
 ) {
     IcodeListRow(
         onClick = onClick,
@@ -196,12 +173,7 @@ private fun FileRow(
                 detail?.let { Text(it, style = IcodeType.Caption, maxLines = 1) }
             }
         },
-        trailing = {
-            Box {
-                changedAt?.let { Text(RelativeTime.since(it), style = IcodeType.Caption) }
-                menu()
-            }
-        },
+        trailing = { changedAt?.let { Text(RelativeTime.since(it), style = IcodeType.Caption) } },
     )
 }
 

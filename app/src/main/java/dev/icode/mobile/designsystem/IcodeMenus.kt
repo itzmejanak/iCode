@@ -25,8 +25,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 
 /**
- * Shared overflow action: app typography, color, surface, and destructive grouping. [detail] is a
- * second line under the label (a place's path); [checked] marks the one chosen of a set (a sort).
+ * One action, as a dropdown and an action sheet ([IcodeActionSheet]) both draw it: app typography,
+ * color, surface, and destructive grouping. [detail] is a second line under the label (a place's
+ * path); [checked] marks the one chosen of a set (a sort). [beginsGroup] puts a line before it.
+ * [opensPage]: in a sheet, it opens a page of the sheet (Rename…, Properties) instead of closing it.
  */
 data class IcodeMenuAction(
     val label: String,
@@ -36,6 +38,8 @@ data class IcodeMenuAction(
     val destructive: Boolean = false,
     val detail: String? = null,
     val checked: Boolean = false,
+    val beginsGroup: Boolean = false,
+    val opensPage: Boolean = false,
 )
 
 @Composable
@@ -72,8 +76,8 @@ fun IcodeActionMenu(
     actions: List<IcodeMenuAction>,
 ) {
     IcodeDropdownMenu(expanded, onDismiss, Modifier.width(IcodeSizes.MenuWidth)) {
-        actions.forEach { action ->
-            if (action.destructive) {
+        actions.forEachIndexed { index, action ->
+            if (action.destructive || (action.beginsGroup && index > 0)) {
                 Divider()
             }
             val color = when {

@@ -3,16 +3,19 @@ package dev.icode.mobile.domain.files
 import dev.icode.mobile.domain.FileFamily
 import dev.icode.mobile.domain.FileTypes
 
-/** The kinds Manage storage counts space by, each a view of its own (docs/explorer-gaps-plan.md §3.10). */
-enum class FileCategory(val label: String) {
-    Images("Images"),
-    Videos("Videos"),
-    Audio("Audio"),
-    Documents("Documents"),
-    Archives("Archives"),
-    Apps("Apps"),
-    Code("Code"),
-    Other("Other"),
+/**
+ * The kinds Manage storage counts space by, each a view of its own (docs/explorer-gaps-plan.md §3.10);
+ * [one] names one file of it, as Properties does.
+ */
+enum class FileCategory(val label: String, val one: String) {
+    Images("Images", "Image"),
+    Videos("Videos", "Video"),
+    Audio("Audio", "Audio"),
+    Documents("Documents", "Document"),
+    Archives("Archives", "Archive"),
+    Apps("Apps", "App"),
+    Code("Code", "Code"),
+    Other("Other", "File"),
 }
 
 object FileCategories {

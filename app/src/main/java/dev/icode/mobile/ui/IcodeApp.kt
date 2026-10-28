@@ -231,7 +231,7 @@ fun IcodeApp(
         }
 
         ICodeQuestionDialogs(questions, snapshot, gateway, navigation.current, navigation.actions.navigate)
-        TaskDialogs(snapshot.tasks, gateway)
+        TaskDialogs(snapshot.tasks, gateway, asking = snapshot.explorer.question != null)
         // A discard is confirmed over whatever asked for it, in the app's one confirmation dialog.
         snapshot.pendingDiscard?.let { DiscardChangesDialog(it, gateway) }
         // gpg-agent's question, over whatever asked it: a commit, the terminal, the assistant.
@@ -249,6 +249,7 @@ fun IcodeApp(
                 FileViewerHost(fileViewer) {
                     NoticeHost(notices, snapshot.notices, pageOpen = navigation.current == Route.Notifications, onAll = { navigation.actions.navigate(Route.Notifications) }) {
                         NavigationHost(navigation) { route -> ScreenHost(screen = route, actions = navigation.actions) }
+                        FileAsks(snapshot.explorer, gateway)
                     }
                 }
             }

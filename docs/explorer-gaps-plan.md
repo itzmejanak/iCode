@@ -768,3 +768,38 @@ Descending.
   - The editor's empty page reads `explorer.recent` for its workspace. A file gone leaves the list
     there too, instead of showing "Missing".
   - `WorkspaceStore.relocate` and `forget` no longer touch recent files: the moves do.
+
+### F5a (the action sheet, the item's sheet, the question)
+
+- **Design system:**
+  - `IcodeActionSheet`: a sheet of `IcodeMenuAction`s, the dropdowns' own model, with a head
+    (`IcodeBottomSheet`'s new `leading`, then the title and detail).
+  - `IcodeMenuAction` gained `beginsGroup`, a line before it in both the sheet and the dropdown, and
+    `opensPage`: in a sheet, it opens a page instead of closing.
+  - `rememberSheetPages`: a sheet's page stack and its Back, kept as the screen turns. The
+    assistant's steps sheet moved onto it.
+- **One list of an item's actions,** `FileItemActions.of(target, explorer, …)`, in §3.1's order and
+  groups:
+  - Duplicate, Compress to *name*.zip and *name*.7z, Extract here, and Add to or Remove from
+    Favorites are added, for the tree's and the home screen's dropdowns too.
+  - With `SheetPageActions`, the list is a sheet's: Compress… and Properties, and Rename… as a page.
+  - A whole workspace is not compressed at Private's top. Archives may not sit there:
+    `FileRefusals.archiveInto` refuses it, with a test.
+- **The explorer:**
+  - A long press opens the item's sheet (`FilesItemSheet` on `ItemSheet`), which has three pages:
+    - Rename…;
+    - Compress…, with the format, what it keeps, and the archive's name;
+    - Properties: `FileProperties.rows` from `FileFacts`, measured while it is open.
+  - The workspaces at Private's top have the same sheet, with Open (in the IDE) and Open Terminal.
+- **Renaming:**
+  - `RenameForm` holds one rename's rules and request, for the Rename… page and the dialog left to
+    the tree and the home screen (`RenameDialog`).
+  - The two former rename dialogs are gone. New workspace shares `NameFields`.
+- **Asked anywhere:** `FileAsks`, over every screen.
+  - The question (§3.6) shows both sides, the answers, and "Do this for the other N". While it is
+    open, `TaskDialogs` steps aside.
+  - A 7z's password is held in `remember` only, never saved.
+- **Recent:** Open with… (`SharedFiles.open`) and the viewer, from Shared, record the file
+  (`FilesIntent.Opened`).
+- **Domain:** `FileProperties`, `PropertyRow`, `FileCategory.one`, `ConflictSide.said`,
+  `FileConflict.forOthers`, `CompressFormat.note`, and a `Long` `countOf`.

@@ -32,6 +32,7 @@ import dev.icode.mobile.designsystem.IcodeActionMenu
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeFab
 import dev.icode.mobile.designsystem.IcodeMenuAction
+import dev.icode.mobile.designsystem.IcodeSheetOverlay
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTextField
 import dev.icode.mobile.designsystem.IcodeTopBar
@@ -49,13 +50,12 @@ import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.NewWorkspaceDialog
 import dev.icode.mobile.ui.screens.workspace.CreateWorkspaceItemDialog
-import dev.icode.mobile.ui.screens.workspace.RenameWorkspaceItemDialog
 import dev.icode.mobile.ui.screens.workspace.WorkspaceItemType
 
 /**
  * The file explorer (docs/storage-explorer-plan.md §3), as ZArchiver's: the folder shown and where it
  * is, ▾ to the other place — Private, iCode's storage where workspaces live, or Shared, phone
- * storage — 🔍 and ⇅ for the folder shown, `..` up, a long press for an item's menu, + to make
+ * storage — 🔍 and ⇅ for the folder shown, `..` up, a long press for an item's sheet, + to make
  * something here, and the paste bar while something is held. At Private's top the folders are the
  * workspaces. [choosing]: the same explorer, in Private and folders only, choosing where a clone
  * goes — Place here, or at the top a new workspace.
@@ -69,7 +69,7 @@ fun FilesScreen(actions: NavigationActions, choosing: Boolean = false) {
     var searching by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable(browser?.path) { mutableStateOf("") }
     var creating by rememberSaveable { mutableStateOf<WorkspaceItemType?>(null) }
-    var renaming by rememberSaveable { mutableStateOf<String?>(null) }
+    var actionsFor by rememberSaveable { mutableStateOf<String?>(null) }
     var placesOpen by remember { mutableStateOf(false) }
     var newOpen by remember { mutableStateOf(false) }
     val browse = { path: String -> gateway.dispatch(ICodeIntent.BrowseFiles(path)) }
@@ -105,50 +105,58 @@ fun FilesScreen(actions: NavigationActions, choosing: Boolean = false) {
         onNewFolder = { creating = WorkspaceItemType.Folder },
     )
 
-    Column(Modifier.fillMaxSize()) {
-        IcodeTopBar(
-            browser?.name.orEmpty(),
-            subtitle = browser?.where,
-            onBack = back,
-            onTitleClick = { placesOpen = true }.takeUnless { choosing },
-            titleMenu = { IcodeActionMenu(expanded = placesOpen, onDismiss = { placesOpen = false }, actions = places(browser) { gateway.dispatch(ICodeIntent.BrowsePlace(it)) }) },
-            actions = {
-                IconButton(onClick = { searching = !searching; query = "" }) {
-                    Icon(Icons.Outlined.Search, contentDescription = if (searching) "Close search" else "Search", tint = IcodeColors.TextPrimary)
-                }
-                SortButton(sort) { sort = it }
-            },
-        )
-        if (searching && browser != null) SearchField(query, "Search in ${browser.name}") { query = it }
-        Box(Modifier.weight(1f)) {
-            when {
-                browser == null -> Unit
-                !browser.access -> PermissionExplanation(
-                    permission = SystemPermission.Storage,
-                    onAllow = { gateway.dispatch(ICodeIntent.RequestSystemPermission(SystemPermission.Storage)) },
-                    onNotNow = actions.back,
-                    modifier = Modifier.fillMaxSize().padding(IcodeSpacing.Gutter),
-                )
-                else -> {
-                    FilesListing(browser, query, sort, choosing, browse) { renaming = it }
-                    IcodeFab(
-                        contentDescription = "New",
-                        // One choice is made at once; two are offered.
-                        onClick = { if (creation.size == 1) creation.single().onClick() else newOpen = true },
-                        modifier = Modifier.align(Alignment.BottomEnd).padding(IcodeSpacing.Space4),
-                        menu = { IcodeActionMenu(expanded = newOpen, onDismiss = { newOpen = false }, actions = creation) },
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize()) {
+            IcodeTopBar(
+                browser?.name.orEmpty(),
+                subtitle = browser?.where,
+                onBack = back,
+                onTitleClick = { placesOpen = true }.takeUnless { choosing },
+                titleMenu = { IcodeActionMenu(expanded = placesOpen, onDismiss = { placesOpen = false }, actions = places(browser) { gateway.dispatch(ICodeIntent.BrowsePlace(it)) }) },
+                actions = {
+                    IconButton(onClick = { searching = !searching; query = "" }) {
+                        Icon(Icons.Outlined.Search, contentDescription = if (searching) "Close search" else "Search", tint = IcodeColors.TextPrimary)
+                    }
+                    SortButton(sort) { sort = it }
+                },
+            )
+            if (searching && browser != null) SearchField(query, "Search in ${browser.name}") { query = it }
+            Box(Modifier.weight(1f)) {
+                when {
+                    browser == null -> Unit
+                    !browser.access -> PermissionExplanation(
+                        permission = SystemPermission.Storage,
+                        onAllow = { gateway.dispatch(ICodeIntent.RequestSystemPermission(SystemPermission.Storage)) },
+                        onNotNow = actions.back,
+                        modifier = Modifier.fillMaxSize().padding(IcodeSpacing.Gutter),
                     )
+                    else -> {
+                        FilesListing(browser, query, sort, choosing, browse) { actionsFor = it.location }
+                        IcodeFab(
+                            contentDescription = "New",
+                            // One choice is made at once; two are offered.
+                            onClick = { if (creation.size == 1) creation.single().onClick() else newOpen = true },
+                            modifier = Modifier.align(Alignment.BottomEnd).padding(IcodeSpacing.Space4),
+                            menu = { IcodeActionMenu(expanded = newOpen, onDismiss = { newOpen = false }, actions = creation) },
+                        )
+                    }
+                }
+            }
+            if (choosing) {
+                ChooseBar(browser?.takeIf { it.place == StoragePlace.Private }) { path ->
+                    gateway.dispatch(ICodeIntent.ChooseDestination(path))
+                    actions.back()
+                }
+            } else if (browser != null && browser.access) {
+                state.explorer.clipboard?.let { clipboard ->
+                    ClipboardBar(clipboard, destination = if (top) null else browser.runtimePathOf(browser.path), onPaste = { pasteHere() })
                 }
             }
         }
-        if (choosing) {
-            ChooseBar(browser?.takeIf { it.place == StoragePlace.Private }) { path ->
-                gateway.dispatch(ICodeIntent.ChooseDestination(path))
-                actions.back()
-            }
-        } else if (browser != null && browser.access) {
-            state.explorer.clipboard?.let { clipboard ->
-                ClipboardBar(clipboard, destination = if (top) null else browser.runtimePathOf(browser.path), onPaste = { pasteHere() })
+        // An item's sheet, over the whole screen; gone with the item.
+        browser?.items?.firstOrNull { it.location == actionsFor }?.let { item ->
+            IcodeSheetOverlay(onClose = { actionsFor = null }) {
+                FilesItemSheet(item, browser, browse, onClose = { actionsFor = null }, Modifier.align(Alignment.BottomCenter))
             }
         }
     }
@@ -165,9 +173,6 @@ fun FilesScreen(actions: NavigationActions, choosing: Boolean = false) {
                 shownAs = here.runtimePathOf(here.path),
             )
         }
-    }
-    browser?.items?.firstOrNull { it.location == renaming }?.let { item ->
-        RenameWorkspaceItemDialog(item.location, item.name, item.folder, onDismiss = { renaming = null })
     }
 }
 

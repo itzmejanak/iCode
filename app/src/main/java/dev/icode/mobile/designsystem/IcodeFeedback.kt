@@ -187,7 +187,8 @@ fun IcodeSaveDiscardDialog(
  * field and the button that submits it — stays in view above the keyboard.
  * Content that fits that height instead — a picture — does not [scroll].
  * [subtitle] says the state of what it shows; [onBack] leads back to the sheet's page before this
- * one, by ← before the title (docs/assistant-sheets-plan.md §2.5).
+ * one, by ← before the title (docs/assistant-sheets-plan.md §2.5). [leading] stands before the title:
+ * the icon or thumbnail of the item the sheet is about.
  */
 @Composable
 fun IcodeBottomSheet(
@@ -198,6 +199,7 @@ fun IcodeBottomSheet(
     onBack: (() -> Unit)? = null,
     scroll: Boolean = true,
     footer: (@Composable ColumnScope.() -> Unit)? = null,
+    leading: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     // Its cards stand a step above it, as a page's above the page.
@@ -226,6 +228,7 @@ fun IcodeBottomSheet(
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back", tint = IcodeColors.TextSecondary)
                     }
                 }
+                leading?.let { Box(Modifier.padding(end = IcodeSpacing.Space3)) { it() } }
                 Column(Modifier.weight(1f)) {
                     Text(title, style = IcodeType.Title, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     subtitle?.let { Text(it, style = IcodeType.Caption) }
