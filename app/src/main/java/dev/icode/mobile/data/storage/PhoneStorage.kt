@@ -1,7 +1,7 @@
 package dev.icode.mobile.data.storage
 
 import android.os.Environment
-import dev.icode.mobile.domain.BrowsedItem
+import dev.icode.mobile.domain.files.BrowsedItem
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files

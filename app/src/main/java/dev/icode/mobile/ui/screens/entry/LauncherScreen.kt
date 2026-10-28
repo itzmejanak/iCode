@@ -39,7 +39,7 @@ import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.StatusDot
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.domain.ICodeIntent
-import dev.icode.mobile.domain.StoragePlace
+import dev.icode.mobile.domain.files.StoragePlace
 import dev.icode.mobile.domain.WorkspaceListRules
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route

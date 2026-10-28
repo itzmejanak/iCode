@@ -5,9 +5,9 @@ import dev.icode.mobile.domain.FileKind
 import dev.icode.mobile.domain.LineEnding
 import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.domain.TextEncoding
+import dev.icode.mobile.domain.files.FilesBrowserState
+import dev.icode.mobile.domain.files.StoragePlace
 import dev.icode.mobile.domain.paletteReadySnapshot
-import dev.icode.mobile.domain.FilesBrowserState
-import dev.icode.mobile.domain.StoragePlace
 import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue

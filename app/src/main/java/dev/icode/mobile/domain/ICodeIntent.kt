@@ -1,5 +1,7 @@
 package dev.icode.mobile.domain
 
+import dev.icode.mobile.domain.files.StoragePlace
+
 sealed interface ICodeIntent {
     /** Shows Android's own prompt for [permission]. */
     data class RequestSystemPermission(val permission: SystemPermission) : ICodeIntent

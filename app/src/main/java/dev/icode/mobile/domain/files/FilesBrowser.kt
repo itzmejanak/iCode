@@ -1,4 +1,9 @@
-package dev.icode.mobile.domain
+package dev.icode.mobile.domain.files
+
+import dev.icode.mobile.domain.ByteSize
+import dev.icode.mobile.domain.StorageMeasurement
+import dev.icode.mobile.domain.WorkspaceRuntimePath
+import dev.icode.mobile.domain.countOf
 
 // The file explorer of iCode's storage and phone storage (docs/storage-explorer-plan.md §3): where
 // it is, what is there, and how it is ordered and found.
@@ -63,7 +68,16 @@ data class FilesBrowserState(
         if (place == StoragePlace.Shared) location else WorkspaceRuntimePath.ROOT + location.removePrefix(rootPath)
 }
 
-enum class FilesSort { Name, Date, Size }
+/**
+ * What the explorer orders by (docs/explorer-gaps-plan.md §3.12), in the panel's order. Each has the
+ * way it reads first — names A→Z, the largest and the newest first — which Descending flips.
+ */
+enum class FilesSort(val descendingFirst: Boolean) {
+    Name(false),
+    Size(true),
+    Date(true),
+    Type(false),
+}
 
 object FilesRules {
     /** Those whose name holds [query], ignoring case; all of them for a blank one. */
@@ -73,18 +87,33 @@ object FilesRules {
     }
 
     /**
-     * Folders first, as a file explorer lists them, then by [sort]: name ignoring case; the newest
-     * first; the largest first — a folder by its measured size in [sizes], the unmeasured last.
+     * Folders first, as a file explorer lists them, then by [sort], [descending] or not: the name
+     * ignoring case; the size — a folder's as measured in [sizes], the unmeasured last either way;
+     * when it changed; the type, by [extension], then the name. Ties go by name.
      */
-    fun sorted(items: List<BrowsedItem>, sort: FilesSort, sizes: Map<String, StorageMeasurement>): List<BrowsedItem> {
-        val folderFirst = compareBy<BrowsedItem> { !it.folder }
-        return items.sortedWith(
-            when (sort) {
-                FilesSort.Name -> folderFirst.thenBy(String.CASE_INSENSITIVE_ORDER) { it.name }
-                FilesSort.Date -> folderFirst.thenByDescending { it.changedAt }
-                FilesSort.Size -> folderFirst.thenByDescending { (if (it.folder) sizes[it.location]?.bytes else it.bytes) ?: -1L }
-            },
-        )
+    fun sorted(items: List<BrowsedItem>, sort: FilesSort, descending: Boolean, sizes: Map<String, StorageMeasurement>): List<BrowsedItem> {
+        val byName = compareBy(String.CASE_INSENSITIVE_ORDER) { item: BrowsedItem -> item.name }
+        val byKey: Comparator<BrowsedItem> = when (sort) {
+            FilesSort.Name -> byName
+            FilesSort.Date -> compareBy { it.changedAt }
+            FilesSort.Type -> compareBy<BrowsedItem> { extension(it.name) }.then(byName)
+            FilesSort.Size -> compareBy { if (it.folder) sizes[it.location]?.bytes else it.bytes }
+        }
+        val ordered = if (descending) byKey.reversed() else byKey
+        val unmeasuredLast = compareBy<BrowsedItem> { sort == FilesSort.Size && (if (it.folder) sizes[it.location]?.bytes else it.bytes) == null }
+        return items.sortedWith(compareBy<BrowsedItem> { !it.folder }.then(unmeasuredLast).then(ordered).then(byName))
+    }
+
+    /** A file's extension, lower case, without the dot — "kt", "gz" — or "" for none (`Makefile`, `.gitignore`). */
+    fun extension(name: String): String {
+        val dot = name.lastIndexOf('.')
+        return if (dot <= 0 || dot == name.length - 1) "" else name.substring(dot + 1).lowercase()
+    }
+
+    /** What sorting by type groups [item] under: "Folders", ".kt", or "No extension". */
+    fun typeGroup(item: BrowsedItem): String = when {
+        item.folder -> "Folders"
+        else -> extension(item.name).let { if (it.isEmpty()) "No extension" else ".$it" }
     }
 
     /**

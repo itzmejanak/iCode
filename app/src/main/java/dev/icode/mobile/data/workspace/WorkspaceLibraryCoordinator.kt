@@ -7,13 +7,13 @@ import dev.icode.mobile.data.storage.PhoneStorage
 import dev.icode.mobile.data.storage.WorkspacesProvider
 import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.RecentDocument
-import dev.icode.mobile.domain.BrowsedItem
+import dev.icode.mobile.domain.files.BrowsedItem
 import dev.icode.mobile.domain.FileKind
-import dev.icode.mobile.domain.FilesBrowserState
+import dev.icode.mobile.domain.files.FilesBrowserState
 import dev.icode.mobile.domain.ProjectDestination
 import dev.icode.mobile.domain.StorageDetails
 import dev.icode.mobile.domain.ICodeIntent
-import dev.icode.mobile.domain.StoragePlace
+import dev.icode.mobile.domain.files.StoragePlace
 import dev.icode.mobile.domain.WorkspaceSummary
 import java.io.File
 import java.nio.file.Files
