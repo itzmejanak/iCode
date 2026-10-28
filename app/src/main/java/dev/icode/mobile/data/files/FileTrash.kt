@@ -35,8 +35,10 @@ internal class FileTrash(
     private val lock = Any()
 
     /** [location] is a trash, is in one, or holds one: it is never put in Trash, nor moved. */
-    fun holds(location: String): Boolean =
-        listOf(privateTrash.path, sharedTrash.path).any { location.isAtOrUnder(it) || it.isAtOrUnder(location) }
+    fun holds(location: String): Boolean = isTrash(location) || listOf(privateTrash.path, sharedTrash.path).any { it.isAtOrUnder(location) }
+
+    /** [location] is a trash or in one: Trash's own, which nothing but Trash lists. */
+    fun isTrash(location: String): Boolean = listOf(privateTrash.path, sharedTrash.path).any { location.isAtOrUnder(it) }
 
     /**
      * [location] into its place's trash, measured at [bytes], [workspace] when it is a whole one.

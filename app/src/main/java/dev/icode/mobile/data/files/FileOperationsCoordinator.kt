@@ -11,6 +11,7 @@ import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.files.BatchRename
 import dev.icode.mobile.domain.files.FileClipboard
 import dev.icode.mobile.domain.files.FileSelection
+import dev.icode.mobile.domain.files.FileStep
 import dev.icode.mobile.domain.files.FileWords
 import dev.icode.mobile.domain.files.HeldItem
 import dev.icode.mobile.domain.files.RenameRule
@@ -42,6 +43,7 @@ internal class FileOperationsCoordinator(
     private val refusals: FileRefusals,
     private val tasks: FileTasks,
     private val archives: FileArchives,
+    private val insights: FileInsightsCoordinator,
 ) {
     val places = operator.places
     private val trash = operator.trash
@@ -51,15 +53,20 @@ internal class FileOperationsCoordinator(
 
     /** At start: what has been in Trash 30 days goes, and what was left there without its record; then Trash is read. */
     fun start() {
+        insights.start()
         scope.launch {
             runCatching { trash.purge(orphans = true) }
             tasks.publishTrash()
         }
     }
 
+    /** iCode's own change, done, undone or redone: what is learnt of the files follows it. */
+    fun follow(steps: List<FileStep>) = insights.follow(steps)
+
     fun handle(intent: FilesIntent) {
         when (intent) {
             is FilesIntent.Answer -> questions.answer(intent)
+            is FilesIntent.Insight -> insights.handle(intent)
             FilesIntent.ReadTrash -> scope.launch {
                 runCatching { trash.purge(orphans = false) }
                 tasks.publishTrash()
@@ -86,7 +93,7 @@ internal class FileOperationsCoordinator(
             FilesIntent.EmptyTrash -> tasks.deleteForGood(trash.list())
             FilesIntent.Undo -> reverse(undo = true)
             FilesIntent.Redo -> reverse(undo = false)
-            FilesIntent.ReadTrash, is FilesIntent.Answer -> Unit
+            FilesIntent.ReadTrash, is FilesIntent.Answer, is FilesIntent.Insight -> Unit
         }
     }
 
@@ -199,7 +206,8 @@ internal class FileOperationsCoordinator(
             val refusals = FileRefusals(places, trash, tasks, usage, follower, layout.workspaces.root)
             val operations = FileTasks(stateHolder, tasks, operator, questions, usage, follower, history)
             val archives = FileArchives(stateHolder, places, trash, transfers, refusals, operations, history)
-            return FileOperationsCoordinator(stateHolder, scope, follower, history, operator, questions, refusals, operations, archives)
+            val insights = FileInsightsCoordinator(stateHolder, scope, places, follower, StorageScan(places, trash))
+            return FileOperationsCoordinator(stateHolder, scope, follower, history, operator, questions, refusals, operations, archives, insights)
         }
     }
 }

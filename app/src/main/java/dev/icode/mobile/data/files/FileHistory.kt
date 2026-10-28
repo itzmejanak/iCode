@@ -13,7 +13,11 @@ import dev.icode.mobile.domain.files.FileStep
  * and changed under the mutation lock; the snapshot says what Undo and Redo would do, and the news
  * the undo pill tells.
  */
-internal class FileHistory(private val stateHolder: ICodeStateHolder) {
+internal class FileHistory(
+    private val stateHolder: ICodeStateHolder,
+    /** Every change's steps as they are kept — done, undone or redone: what follows them, Manage storage's scan. */
+    private val changed: (List<FileStep>) -> Unit = {},
+) {
     private val undo = ArrayDeque<FileChange>()
     private val redo = ArrayDeque<FileChange>()
     private var newsId = 0L
@@ -27,6 +31,7 @@ internal class FileHistory(private val stateHolder: ICodeStateHolder) {
     /** [change] made: kept to undo, unless it did nothing. */
     fun record(change: FileChange) {
         if (change.steps.isEmpty()) return
+        changed(change.steps)
         push(undo, change)
         redo.clear()
         publish(change.said, undone = false)
@@ -46,6 +51,7 @@ internal class FileHistory(private val stateHolder: ICodeStateHolder) {
         val left = change.steps.dropLast(steps.size)
         if (left.isNotEmpty()) from.add(at, change.copy(steps = left))
         if (steps.isEmpty()) return publish(null, undone)
+        changed(steps)
         val reversed = change.undoneBy(steps)
         push(to, reversed)
         publish(reversed.said, undone)

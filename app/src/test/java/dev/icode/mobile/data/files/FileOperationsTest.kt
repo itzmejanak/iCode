@@ -69,7 +69,8 @@ class FileOperationsTest {
         val refusals = FileRefusals(places, trash, tasks, usage, follower, workspaces)
         val operations = FileTasks(stateHolder, tasks, operator, questions, usage, follower, history)
         val archives = FileArchives(stateHolder, places, trash, transfers, refusals, operations, history)
-        FileOperationsCoordinator(stateHolder, scope, follower, history, operator, questions, refusals, operations, archives)
+        val insights = FileInsightsCoordinator(stateHolder, scope, places, follower, StorageScan(places, trash))
+        FileOperationsCoordinator(stateHolder, scope, follower, history, operator, questions, refusals, operations, archives, insights)
     }
 
     private object NoGit : GitCheckoutOperations {

@@ -13,6 +13,10 @@ data class ExplorerState(
     val trash: List<TrashedItem> = emptyList(),
     /** An archive Extract waits on the password of. */
     val password: PasswordAsk? = null,
+    /** Properties open, as far as they are known. */
+    val facts: FileFacts? = null,
+    /** Manage storage: its last scan, or the one running. */
+    val storage: StorageOverview? = null,
 )
 
 /** Extract of [archive] into [folder] waits on its password, which is never kept: the answer is Extract again, with it. */
