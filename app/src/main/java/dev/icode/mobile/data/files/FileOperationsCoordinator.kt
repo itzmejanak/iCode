@@ -221,7 +221,7 @@ internal class FileOperationsCoordinator(
             val places = FilePlaces(layout.workspaces.root, storage)
             val transfers = StorageTransfers(stateHolder, layout.workspaces, git, storage, layout::reserveSpace, layout::allocatableBytes)
             // Shared's in the folder Android gives iCode on phone storage, and removes with it.
-            val trash = FileTrash(File(context.filesDir, "trash"), File(storage.root, "Android/media/${context.packageName}/Trash"), storage)
+            val trash = FileTrash(File(context.filesDir, "trash"), File(storage.root, "Android/media/${context.packageName}/Trash"), storage, layout.workspaces)
             val operator = FileOperator(stateHolder, places, transfers, trash, follower)
             val questions = FileQuestions(stateHolder)
             val refusals = FileRefusals(places, trash, tasks, usage, follower, layout.workspaces.root)

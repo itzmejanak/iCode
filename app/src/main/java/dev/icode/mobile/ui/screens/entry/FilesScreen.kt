@@ -15,6 +15,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -31,6 +32,7 @@ import dev.icode.mobile.designsystem.behindSheet
 import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.SystemPermission
+import dev.icode.mobile.domain.files.ExplorerView
 import dev.icode.mobile.domain.files.FileSelection
 import dev.icode.mobile.domain.files.FilesRules
 import dev.icode.mobile.domain.files.FolderPick
@@ -50,18 +52,43 @@ import kotlinx.coroutines.launch
 
 /**
  * The file explorer (docs/storage-explorer-plan.md §3; docs/explorer-gaps-plan.md), as ZArchiver's:
- * the folder shown and where it is, ▾ to the other place — Private, iCode's storage where workspaces
- * live, or Shared, phone storage — 🔍 and ⇅ for the folder shown, ⋮, `..` up, a long press for an
- * item's sheet, + to make something here, and the paste bar while something is held. At Private's
- * top the folders are the workspaces.
- *
- * A tap on an item's icon, or Select, starts a selection (§3.2): the bars change to its own, and it
- * ends with Back, ✕, an action, or going elsewhere. Move to…, Copy to… and Extract to… make it a
- * folder picker (§3.5): folders only, and the picker's bar. [choosing] is the same picker from the
+ * a folder ([FolderExplorer]) or one of its views (§3.10) — Recent, Trash — ([ViewExplorer]), ▾
+ * going between them. The folder picker (§3.5), started from either, picks among folders; Show in
+ * folder, from a view, opens the file's folder with it ticked. [choosing] is that picker from the
  * clone's page, in Private, choosing where the clone goes.
  */
 @Composable
 fun FilesScreen(actions: NavigationActions, choosing: Boolean = false) {
+    var view by rememberSaveable(stateSaver = ViewSaver) { mutableStateOf<ExplorerView?>(null) }
+    var pick by remember { mutableStateOf<FolderPick?>(FolderPick.Clone.takeIf { choosing }) }
+    var reveal by rememberSaveable { mutableStateOf<String?>(null) }
+    when (val shown = view) {
+        null -> FolderExplorer(actions, choosing, pick, { pick = it }, reveal, onRevealed = { reveal = null }, onView = { view = it })
+        else -> ViewExplorer(shown, actions, onView = { view = it }, onPick = { view = null; pick = it }, onReveal = { view = null; reveal = it })
+    }
+}
+
+/** A view as the screen keeps it while it is away. */
+private val ViewSaver = Saver<ExplorerView?, String>(save = { it?.encoded }, restore = ExplorerView::decode)
+
+/**
+ * The folder shown and where it is, ▾ to the other place, a favorite or a view, 🔍 and ☰ for the
+ * folder shown, ⋮, `..` up, a long press for an item's sheet, + to make something here, and the paste
+ * bar while something is held. At Private's top the folders are the workspaces. A tap on an item's
+ * icon, or Select, starts a selection (§3.2): the bars change to its own, and it ends with Back, ✕,
+ * an action, or going elsewhere. [pick] makes it a folder picker (§3.5): folders only, and the
+ * picker's bar. [reveal] is the file Show in folder asked for, ticked once its folder is listed.
+ */
+@Composable
+private fun FolderExplorer(
+    actions: NavigationActions,
+    choosing: Boolean,
+    pick: FolderPick?,
+    onPick: (FolderPick?) -> Unit,
+    reveal: String?,
+    onRevealed: () -> Unit,
+    onView: (ExplorerView) -> Unit,
+) {
     val state = LocalICodeSnapshot.current
     val gateway = LocalICodeGateway.current
     val browser = state.filesBrowser
@@ -77,15 +104,20 @@ fun FilesScreen(actions: NavigationActions, choosing: Boolean = false) {
     var newOpen by remember { mutableStateOf(false) }
     // One item's sheet; or, selecting, the selection's. A selection belongs to the folder shown (§3.2).
     var actionsFor by rememberSaveable { mutableStateOf<String?>(null) }
-    var ticked by rememberSaveable(browser?.path) { mutableStateOf<List<String>?>(null) }
+    // Show in folder's file, once its folder is listed: ticked, and brought into view.
+    val focus by rememberSaveable(browser?.path) { mutableStateOf(reveal?.takeIf { it.substringBeforeLast('/') == browser?.path }) }
+    var ticked by rememberSaveable(browser?.path) { mutableStateOf<List<String>?>(focus?.let { listOf(it) }) }
+    LaunchedEffect(focus) { if (focus != null) onRevealed() }
     var selectionSheet by rememberSaveable(browser?.path) { mutableStateOf(false) }
-    var pick by remember { mutableStateOf<FolderPick?>(FolderPick.Clone.takeIf { choosing }) }
     val browse = { path: String -> gateway.dispatch(ICodeIntent.BrowseFiles(path)) }
-    // Where it was when last shown; choosing, at the place chosen before, else in iCode's storage.
+    val opening = opening(browse)
+    // Where it was when last shown, or the folder of the file to show; choosing, at the place chosen
+    // before, else in iCode's storage.
     LaunchedEffect(Unit) {
         val destination = state.projectDestination?.location
         gateway.dispatch(
             when {
+                reveal != null -> ICodeIntent.BrowseFiles(reveal.substringBeforeLast('/'))
                 !choosing -> ICodeIntent.BrowseFiles()
                 destination != null -> ICodeIntent.BrowseFiles(destination)
                 else -> ICodeIntent.BrowsePlace(StoragePlace.Private)
@@ -109,13 +141,13 @@ fun FilesScreen(actions: NavigationActions, choosing: Boolean = false) {
             ticked != null -> leave()
             searching -> { searching = false; query = "" }
             up != null -> browse(up)
-            pick != null && !choosing -> pick = null
+            pick != null && !choosing -> onPick(null)
             else -> actions.back()
         }
     }
     BackHandler(enabled = ticked != null || searching || up != null || (pick != null && !choosing)) { back() }
     val screen = ScreenActions(
-        pick = { chosen -> leave(); pick = chosen },
+        pick = { chosen -> leave(); onPick(chosen) },
         select = { locations -> ticked = locations },
     )
     val creation = FileItemActions.creation(
@@ -137,7 +169,7 @@ fun FilesScreen(actions: NavigationActions, choosing: Boolean = false) {
                     IcodeActionMenu(
                         expanded = placesOpen,
                         onDismiss = { placesOpen = false },
-                        actions = goTo(browser, state.explorer.favorites, onPlace = { gateway.dispatch(ICodeIntent.BrowsePlace(it)) }, onFolder = browse),
+                        actions = goTo(browser, state.explorer, view = null, onPlace = { gateway.dispatch(ICodeIntent.BrowsePlace(it)) }, onFolder = browse, onView = onView),
                     )
                 },
                 leaving = if (ticked != null) BarLeave.Selection else BarLeave.Back,
@@ -183,8 +215,17 @@ fun FilesScreen(actions: NavigationActions, choosing: Boolean = false) {
                             selection = ticked?.toSet(),
                             onTick = if (pick == null) ({ item -> ticked = FileSelection.toggled(ticked.orEmpty().toSet(), item.location).toList() }) else null,
                             onActions = if (pick == null) ({ item -> actionsFor = item.location }) else null,
+                            onOpen = opening::tap,
                         )
-                        FilesListing(browser, shown, query, foldersOnly = pick != null, look, browse, taps)
+                        FilesListing(
+                            shown,
+                            look,
+                            taps,
+                            detail = FilesRules::detail,
+                            empty = { FolderEmpty(browser, query, foldersOnly = pick != null) },
+                            up = up?.let { parent -> { browse(parent) } },
+                            focus = focus,
+                        )
                         if (ticked == null) {
                             IcodeFab(
                                 contentDescription = "New",
@@ -208,16 +249,9 @@ fun FilesScreen(actions: NavigationActions, choosing: Boolean = false) {
                         is FolderPick.Transfer -> gateway.dispatch(FilesIntent.Transfer(picking.items.map { it.location }, path, picking.move))
                         is FolderPick.Extract -> picking.archives.forEach { gateway.dispatch(FilesIntent.Extract(it, path)) }
                     }
-                    if (!choosing) pick = null
+                    if (!choosing) onPick(null)
                 }
-                selected != null -> SelectionBar(
-                    selected,
-                    state.workspaceSizes,
-                    onCut = { gateway.dispatch(FilesIntent.Cut(selected.map { it.location })); leave() },
-                    onCopy = { gateway.dispatch(FilesIntent.Copy(selected.map { it.location })); leave() },
-                    onDelete = { gateway.dispatch(FilesIntent.Trash(selected.map { it.location })); leave() },
-                    onMore = { selectionSheet = true },
-                )
+                selected != null -> SelectionBar(selected, state.workspaceSizes, selectionActions(selected.map { it.location }, gateway::dispatch, leave) { selectionSheet = true })
                 browser != null && browser.access -> state.explorer.clipboard?.let { clipboard ->
                     ClipboardBar(clipboard, destination = if (top) null else browser.runtimePathOf(browser.path), onPaste = { gateway.dispatch(FilesIntent.Paste(browser.path)) })
                 }
@@ -229,7 +263,7 @@ fun FilesScreen(actions: NavigationActions, choosing: Boolean = false) {
                 FilesSheet(
                     sheetItems,
                     browser,
-                    browse,
+                    opening,
                     if (selectionSheet) ScreenActions(screen.pick, select = null) else screen,
                     onActed = { if (selectionSheet) leave() },
                     onClose = close,

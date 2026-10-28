@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.files
 
 import dev.icode.mobile.data.storage.PhoneStorage
+import dev.icode.mobile.data.storage.WorkspacePaths
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceLifecycleCoordinator.Reopen
 import dev.icode.mobile.domain.FilesIntent
@@ -52,7 +53,7 @@ class FileInsightsTest {
         val phone = temp.newFolder("emulated", "0").canonicalFile
         val storage = PhoneStorage(phone) { true }
         val places = FilePlaces(workspaces, storage)
-        val trash = FileTrash(File(workspaces.parentFile, "trash"), File(phone, "Android/media/dev.icode.mobile/Trash"), storage)
+        val trash = FileTrash(File(workspaces.parentFile, "trash"), File(phone, "Android/media/dev.icode.mobile/Trash"), storage, WorkspacePaths(workspaces))
         insights = FileInsightsCoordinator(stateHolder, scope, places, Follower, StorageScan(places, trash))
         insights.start()
         File(workspaces, "app/src").mkdirs()

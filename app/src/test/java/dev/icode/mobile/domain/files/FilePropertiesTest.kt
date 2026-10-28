@@ -41,6 +41,24 @@ class FilePropertiesTest {
         assertEquals(mapOf("Items" to "3 items · 2 folders, 1 file", "Size" to "2.0 KB · 10 files, 3 folders", "In" to "/workspace/app/x"), rows(facts, "x"))
     }
 
+    @Test fun `many a view gathered from more than one folder are in none`() {
+        val facts = FileFacts(listOf("/w/a.txt", "/phone/b.txt"), kind = null, folders = 0, measured = TreeFacts(10, 2, 0))
+        assertEquals(listOf("Items", "Size"), FileProperties.rows(facts, "2 selected", null, null, now).map { it.label })
+    }
+
+    @Test fun `what Trash holds says where it was, when it went, and until when it is kept`() {
+        val item = TrashedItem("t1", "app", "/w/app", "/workspace/app", "/trash/files/t1", StoragePlace.Private, deletedAt = changed, folder = true, bytes = 3 * 1024 * 1024, workspace = true)
+        val rows = FileProperties.trashed(item, now, ZoneOffset.UTC)
+        assertEquals(listOf("Name", "Kind", "Deleted from", "Size", "Deleted", "Kept until"), rows.map { it.label })
+        assertEquals("Workspace", rows[1].value)
+        assertTrue(rows[2].path)
+        assertEquals("3.0 MB", rows[3].value)
+        assertTrue(rows[4].value, rows[4].value.endsWith("2026, 14:05 · 2h ago"))
+        assertEquals("27 Nov 2026, 14:05", rows[5].value)
+        assertEquals("Unknown, a folder could not be read", FileProperties.trashed(item.copy(bytes = null), now, ZoneOffset.UTC)[3].value)
+        assertEquals("12 B (12 bytes)", FileProperties.trashed(item.copy(folder = false, workspace = false, name = "a.txt", bytes = 12), now, ZoneOffset.UTC)[3].value)
+    }
+
     @Test fun `the question says each side, and offers the rest while there are others`() {
         assertEquals("1.2 MB · 2h ago", ConflictSide(folder = false, bytes = 1_234_567, changedAt = changed).said(now))
         assertEquals("Folder · 2h ago", ConflictSide(folder = true, bytes = null, changedAt = changed).said(now))

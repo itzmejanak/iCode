@@ -1,6 +1,6 @@
 package dev.icode.mobile.domain
 
-// Files and editing (S3): the tree, open documents, recents and recovery drafts.
+// Files and editing (S3): the tree, open documents and recovery drafts.
 
 data class FileEntry(
     val name: String,
@@ -50,14 +50,4 @@ data class ExternalChange(
     /** Relative to the workspace, as the screen and the comparison show it. */
     val path: String,
     val diskChangedAt: Long,
-)
-
-/** A file opened in iCode, in a workspace or on phone storage (docs/explorer-gaps-plan.md §3.14). */
-data class RecentDocument(
-    val name: String,
-    val location: String,
-    /** As the runtime names it — `/workspace/app/src/Main.kt` — or, on phone storage, as Android does. */
-    val path: String,
-    /** When it was last opened, or saved; screens say how long ago. */
-    val lastOpenedAt: Long,
 )

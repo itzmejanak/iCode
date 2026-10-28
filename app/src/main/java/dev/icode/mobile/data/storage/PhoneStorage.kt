@@ -3,6 +3,7 @@ package dev.icode.mobile.data.storage
 import android.os.Environment
 import dev.icode.mobile.domain.files.BrowsedItem
 import dev.icode.mobile.domain.files.ExplorerSettings
+import dev.icode.mobile.domain.files.StoragePlace
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
@@ -34,6 +35,8 @@ internal class PhoneStorage(
             BrowsedItem(
                 name = child.name,
                 location = child.path,
+                path = child.path,
+                place = StoragePlace.Shared,
                 folder = isFolder,
                 bytes = if (isFolder) null else child.length(),
                 changedAt = child.lastModified(),

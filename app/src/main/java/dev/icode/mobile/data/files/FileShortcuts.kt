@@ -6,10 +6,11 @@ import dev.icode.mobile.data.workspace.StoredRecentDocument
 import dev.icode.mobile.data.workspace.WorkspaceStore
 import dev.icode.mobile.data.workspace.touchRecentDocument
 import dev.icode.mobile.domain.FilesIntent
-import dev.icode.mobile.domain.RecentDocument
+import dev.icode.mobile.domain.files.BrowsedItem
 import dev.icode.mobile.domain.files.FavoriteFolder
 import dev.icode.mobile.domain.files.FileStep
 import dev.icode.mobile.domain.files.StorageInsights
+import dev.icode.mobile.domain.files.StoragePlace
 import java.io.File
 
 /**
@@ -58,15 +59,18 @@ internal class FileShortcuts(
         publish()
     }
 
-    /** As the screens show them: Recent's files and the pinned folders that are there now. */
+    /** As the screens show them: Recent's files, as the explorer lists them, and the pinned folders that are there now. */
     fun publish() {
         val (stored, pinned) = synchronized(lock) {
             runCatching { store.loadRecentDocuments() to store.loadFavorites() }.getOrDefault(emptyList<StoredRecentDocument>() to emptyList())
         }
-        val recent = stored.filter { File(it.location).isFile }.map {
-            RecentDocument(File(it.location).name, it.location, paths.guestOf(it.location) ?: it.location, it.lastOpenedAt)
+        // Opened in a workspace, or on phone storage by a viewer or Open with.
+        val recent = stored.mapNotNull { kept ->
+            val file = File(kept.location).takeIf { it.isFile } ?: return@mapNotNull null
+            val place = if (paths.workspaceOf(kept.location) != null) StoragePlace.Private else StoragePlace.Shared
+            BrowsedItem(file.name, kept.location, paths.runtimePathOf(kept.location), place, folder = false, bytes = file.length(), changedAt = kept.lastOpenedAt)
         }
-        val favorites = pinned.filter { File(it).isDirectory }.map { FavoriteFolder(File(it).name, it, paths.guestOf(it) ?: it) }
+        val favorites = pinned.filter { File(it).isDirectory }.map { FavoriteFolder(File(it).name, it, paths.runtimePathOf(it)) }
         stateHolder.update { it.copy(explorer = it.explorer.copy(recent = recent, favorites = favorites)) }
     }
 

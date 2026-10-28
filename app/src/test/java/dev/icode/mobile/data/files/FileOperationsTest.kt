@@ -63,7 +63,7 @@ class FileOperationsTest {
     private val files: FileOperationsCoordinator by lazy {
         val storage = PhoneStorage(phone) { true }
         val places = FilePlaces(workspaces, storage)
-        val trash = FileTrash(File(workspaces.parentFile, "trash"), File(phone, "Android/media/dev.icode.mobile/Trash"), storage)
+        val trash = FileTrash(File(workspaces.parentFile, "trash"), File(phone, "Android/media/dev.icode.mobile/Trash"), storage, WorkspacePaths(workspaces))
         val transfers = StorageTransfers(stateHolder, WorkspacePaths(workspaces), NoGit, storage, { true }, { Long.MAX_VALUE })
         val usage = WorkspaceUsage(stateHolder, tasks, { false }, { false }, { null }, { null })
         val operator = FileOperator(stateHolder, places, transfers, trash, follower)

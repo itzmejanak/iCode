@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.storage
 
 import dev.icode.mobile.domain.files.BrowsedItem
+import dev.icode.mobile.domain.files.StoragePlace
 import java.io.File
 import java.nio.file.Files
 import org.junit.Assert.assertEquals
@@ -28,7 +29,7 @@ class PhoneStorageTest {
         File(root, "notes.txt").setLastModified(1_600_000_000_000L)
         val top = storage.list(root.path, showHidden = true).associateBy { it.name }
         assertEquals(setOf("Projects", "Download", ".thumbnails", "notes.txt"), top.keys)
-        assertEquals(BrowsedItem("notes.txt", File(root, "notes.txt").path, folder = false, bytes = 6, changedAt = 1_600_000_000_000L), top["notes.txt"])
+        assertEquals(BrowsedItem("notes.txt", File(root, "notes.txt").path, File(root, "notes.txt").path, StoragePlace.Shared, folder = false, bytes = 6, changedAt = 1_600_000_000_000L), top["notes.txt"])
         assertEquals(0, top.getValue("Download").entries)
         assertEquals(listOf(2), storage.list(File(root, "Projects").path, showHidden = true).map { it.entries })
         assertEquals(setOf("Projects", "Download", "notes.txt"), storage.list(root.path, showHidden = false).map { it.name }.toSet())

@@ -1,5 +1,6 @@
 package dev.icode.mobile.ui.screens.entry
 
+import android.content.Context
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -35,12 +36,12 @@ import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.domain.FileViewer
 import dev.icode.mobile.domain.FilesIntent
+import dev.icode.mobile.domain.ICodeGateway
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.domain.files.BrowsedItem
-import dev.icode.mobile.domain.files.FilesBrowserState
-import dev.icode.mobile.domain.files.FilesRules
 import dev.icode.mobile.domain.files.StoragePlace
+import dev.icode.mobile.ui.FileViewerState
 import dev.icode.mobile.ui.LocalFileViewer
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.SharedFiles
@@ -71,15 +72,15 @@ internal fun UpTile(onClick: () -> Unit) {
 private fun UpIcon(size: Dp) = Icon(Icons.Outlined.DriveFolderUpload, contentDescription = null, tint = IcodeColors.Accent, modifier = Modifier.size(size))
 
 /**
- * One folder or file, in a workspace or on phone storage — at Private's top, a workspace — as a row
- * with its detail, or [compact]: one line, a smaller icon, its size or count at the end. Selecting,
- * a tap or a long press ticks it. Otherwise a tap does what opening it does ([openOf]) — a file
- * with nowhere in iCode to open goes to another app — a tap on its icon starts selecting with it,
- * and a long press asks for its sheet.
+ * One folder or file, in a workspace or on phone storage — at Private's top, a workspace; in a view,
+ * gathered from anywhere — as a row with its [detail], or [compact]: one line, a smaller icon, its
+ * size or count at the end. Selecting, a tap or a long press ticks it. Otherwise a tap opens it
+ * ([ListingTaps.onOpen]), a tap on its icon starts selecting with it, and a long press asks for its
+ * sheet.
  */
 @Composable
-internal fun ItemRow(item: BrowsedItem, browser: FilesBrowserState, browse: (String) -> Unit, taps: ListingTaps, compact: Boolean) {
-    val acts = itemActs(item, browser, browse, taps)
+internal fun ItemRow(item: BrowsedItem, taps: ListingTaps, compact: Boolean, detail: String) {
+    val acts = itemActs(item, taps)
     val size = if (compact) IcodeSizes.IconMd else IcodeSizes.IconXl
     FileRow(
         leading = {
@@ -87,7 +88,7 @@ internal fun ItemRow(item: BrowsedItem, browser: FilesBrowserState, browse: (Str
             else FileIcon(item, size, Modifier.then(acts.onIcon?.let { Modifier.clickable(onClickLabel = "Select ${item.name}", onClick = it) } ?: Modifier))
         },
         name = item.name,
-        detail = FilesRules.detail(item),
+        detail = detail,
         end = item.changedAt,
         compact = compact,
         selected = acts.ticked == true,
@@ -98,8 +99,8 @@ internal fun ItemRow(item: BrowsedItem, browser: FilesBrowserState, browse: (Str
 
 /** One item as a grid's tile (§3.12): its icon or thumbnail, and its name on two lines; ticked, in selection. */
 @Composable
-internal fun ItemTile(item: BrowsedItem, browser: FilesBrowserState, browse: (String) -> Unit, taps: ListingTaps) {
-    val acts = itemActs(item, browser, browse, taps)
+internal fun ItemTile(item: BrowsedItem, taps: ListingTaps) {
+    val acts = itemActs(item, taps)
     FileTile(
         picture = {
             Box(contentAlignment = Alignment.TopEnd) {
@@ -117,15 +118,12 @@ internal fun ItemTile(item: BrowsedItem, browser: FilesBrowserState, browse: (St
 /** What [item]'s row or tile does with a tap, a long press, and a tap on its icon; whether it is ticked. */
 private class ItemActs(val ticked: Boolean?, val onClick: () -> Unit, val onLongClick: (() -> Unit)?, val onIcon: (() -> Unit)?)
 
-@Composable
-private fun itemActs(item: BrowsedItem, browser: FilesBrowserState, browse: (String) -> Unit, taps: ListingTaps): ItemActs {
-    val context = LocalContext.current
-    val gateway = LocalICodeGateway.current
+private fun itemActs(item: BrowsedItem, taps: ListingTaps): ItemActs {
     val ticked = taps.selection?.let { item.location in it }
     val tick = taps.onTick?.let { { it(item) } }
     return ItemActs(
         ticked = ticked,
-        onClick = if (ticked != null && tick != null) tick else openOf(item, browser, browse) ?: { SharedFiles.open(context, item.location, gateway::dispatch) },
+        onClick = if (ticked != null && tick != null) tick else ({ taps.onOpen(item) }),
         onLongClick = if (ticked != null) tick else taps.onActions?.let { { it(item) } },
         onIcon = tick.takeIf { ticked == null },
     )
@@ -144,18 +142,21 @@ internal fun FileIcon(item: BrowsedItem, size: Dp, modifier: Modifier = Modifier
 }
 
 /**
- * What opening [item] does: a folder goes into the list; a file of a workspace into the editor, which
- * hands one it cannot show to another app (docs/open-with-plan.md); one on phone storage, having no
- * editor, into iCode's viewer when it has one for it (docs/file-viewers-plan.md), and into Recent.
- * Null for one with nowhere in iCode to open.
+ * What opening an item does, wherever it is listed: a folder goes into the list; a file of a
+ * workspace into the editor, which hands one it cannot show to another app (docs/open-with-plan.md);
+ * one on phone storage, having no editor, into iCode's viewer when it has one for it
+ * (docs/file-viewers-plan.md), and into Recent. [inIcode] is null for a file with nowhere in iCode
+ * to open, which a tap ([tap]) hands to another app.
  */
-@Composable
-internal fun openOf(item: BrowsedItem, browser: FilesBrowserState, browse: (String) -> Unit): (() -> Unit)? {
-    val gateway = LocalICodeGateway.current
-    val viewer = LocalFileViewer.current
-    return when {
+internal class Opening(
+    private val context: Context,
+    private val gateway: ICodeGateway,
+    private val viewer: FileViewerState,
+    private val browse: (String) -> Unit,
+) {
+    fun inIcode(item: BrowsedItem): (() -> Unit)? = when {
         item.folder -> { { browse(item.location) } }
-        browser.place == StoragePlace.Private -> { { gateway.dispatch(ICodeIntent.OpenFile(item.location)) } }
+        item.place == StoragePlace.Private -> { { gateway.dispatch(ICodeIntent.OpenFile(item.location)) } }
         else -> FileViewer.of(item.name)?.let { kind ->
             {
                 viewer.show(item.location, item.name, kind)
@@ -163,7 +164,13 @@ internal fun openOf(item: BrowsedItem, browser: FilesBrowserState, browse: (Stri
             }
         }
     }
+
+    fun tap(item: BrowsedItem) = (inIcode(item) ?: { SharedFiles.open(context, item.location, gateway::dispatch) }).invoke()
 }
+
+/** [Opening] on this screen's own: a folder opened goes to [browse]. */
+@Composable
+internal fun opening(browse: (String) -> Unit) = Opening(LocalContext.current, LocalICodeGateway.current, LocalFileViewer.current, browse)
 
 /** A folder's icon in the accent; a file's by its type. */
 @Composable

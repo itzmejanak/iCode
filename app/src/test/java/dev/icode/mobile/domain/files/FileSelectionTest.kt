@@ -32,13 +32,14 @@ class FileSelectionTest {
         assertEquals("0 files", FileSelection.counted(0, 0))
     }
 
-    @Test fun `a selection weighs its files, and the folders measured`() {
+    @Test fun `a selection weighs its files, and the folders measured — Trash's as they were deleted`() {
         val items = listOf(
-            BrowsedItem("app", "/w/app", folder = true, changedAt = 0),
-            BrowsedItem("lib", "/w/lib", folder = true, changedAt = 0),
-            BrowsedItem("a.png", "/w/a.png", folder = false, bytes = 2048, changedAt = 0),
+            BrowsedItem("app", "/w/app", "/workspace/app", StoragePlace.Private, folder = true, changedAt = 0),
+            BrowsedItem("lib", "/w/lib", "/workspace/lib", StoragePlace.Private, folder = true, changedAt = 0),
+            BrowsedItem("a.png", "/w/a.png", "/workspace/a.png", StoragePlace.Private, folder = false, bytes = 2048, changedAt = 0),
         )
         assertEquals("2 folders, 1 file · 2.0 KB", FileSelection.summary(items, emptyMap()))
         assertEquals("2 folders, 1 file · 3.0 KB", FileSelection.summary(items, mapOf("/w/app" to StorageMeasurement(1024))))
+        assertEquals("2 folders, 1 file · 4.0 KB", FileSelection.summary(items.map { if (it.name == "lib") it.copy(bytes = 2048) else it }, emptyMap()))
     }
 }

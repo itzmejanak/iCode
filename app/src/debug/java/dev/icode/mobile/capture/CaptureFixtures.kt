@@ -25,7 +25,6 @@ import dev.icode.mobile.domain.LanguageService
 import dev.icode.mobile.domain.LanguageServiceStatus
 import dev.icode.mobile.domain.LineEnding
 import dev.icode.mobile.domain.OpenDocument
-import dev.icode.mobile.domain.RecentDocument
 import dev.icode.mobile.domain.RecoverableDraft
 import dev.icode.mobile.domain.RuntimeDetails
 import dev.icode.mobile.domain.RuntimeState
@@ -147,8 +146,8 @@ object CaptureFixtures {
         ),
         explorer = ExplorerState(
             recent = listOf(
-                RecentDocument("auth-guard.tsx", "$ROOT/src/components/auth-guard.tsx", "$ROOT/src/components/auth-guard.tsx", ago(minutes = 10)),
-                RecentDocument("token-utils.ts", "$ROOT/src/utils/token-utils.ts", "$ROOT/src/utils/token-utils.ts", ago(hours = 2)),
+                BrowsedItem("auth-guard.tsx", "$ROOT/src/components/auth-guard.tsx", "$ROOT/src/components/auth-guard.tsx", StoragePlace.Private, folder = false, bytes = 3_120, changedAt = ago(minutes = 10)),
+                BrowsedItem("token-utils.ts", "$ROOT/src/utils/token-utils.ts", "$ROOT/src/utils/token-utils.ts", StoragePlace.Private, folder = false, bytes = 1_843, changedAt = ago(hours = 2)),
             ),
         ),
         externalChanges = listOf(
@@ -167,10 +166,10 @@ object CaptureFixtures {
             rootPath = PHONE_ROOT,
             path = "$PHONE_ROOT/Projects",
             items = listOf(
-                BrowsedItem("RevPlayer", "$PHONE_ROOT/Projects/RevPlayer", folder = true, changedAt = ago(hours = 2), entries = 16),
-                BrowsedItem("site", "$PHONE_ROOT/Projects/site", folder = true, changedAt = ago(hours = 26), entries = 17),
-                BrowsedItem("notes", "$PHONE_ROOT/Projects/notes", folder = true, changedAt = ago(hours = 50), entries = 7),
-                BrowsedItem("README.md", "$PHONE_ROOT/Projects/README.md", folder = false, bytes = 2_048, changedAt = ago(minutes = 40)),
+                BrowsedItem("RevPlayer", "$PHONE_ROOT/Projects/RevPlayer", "$PHONE_ROOT/Projects/RevPlayer", StoragePlace.Shared, folder = true, changedAt = ago(hours = 2), entries = 16),
+                BrowsedItem("site", "$PHONE_ROOT/Projects/site", "$PHONE_ROOT/Projects/site", StoragePlace.Shared, folder = true, changedAt = ago(hours = 26), entries = 17),
+                BrowsedItem("notes", "$PHONE_ROOT/Projects/notes", "$PHONE_ROOT/Projects/notes", StoragePlace.Shared, folder = true, changedAt = ago(hours = 50), entries = 7),
+                BrowsedItem("README.md", "$PHONE_ROOT/Projects/README.md", "$PHONE_ROOT/Projects/README.md", StoragePlace.Shared, folder = false, bytes = 2_048, changedAt = ago(minutes = 40)),
             ),
             sharedRoot = PHONE_ROOT,
         ),

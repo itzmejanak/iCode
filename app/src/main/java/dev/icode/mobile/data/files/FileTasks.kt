@@ -63,7 +63,7 @@ internal class FileTasks(
     /** Asked first: Trash's [items] gone for good, without Cancel — stopped midway, it would leave half a folder — and not kept to undo. */
     fun deleteForGood(items: List<TrashedItem>) {
         if (items.isEmpty()) return
-        val held = items.map(operator.trash::locationOf)
+        val held = items.map { it.heldAt }
         tasks.start(
             title = "Deleting…",
             subject = FileWords.subject(items.map { it.name }),

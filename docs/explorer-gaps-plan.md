@@ -630,7 +630,7 @@ anywhere. Each view is the explorer itself, not a page of its own.
 | **F3** Operations | `FileTrash`, `FileBatch`, `FileHistory`, `FileOperationsCoordinator`; Delete to Trash in every explorer, workspaces too; the question; the 30 days | Tests on temporary Private and Shared folders: many copied, moved and duplicated; each answer to the question; a merge leaving `.git`; trash and restore with folders gone and names taken; undo and redo of each operation, and the refusal when something changed |
 | **F4** Archives and facts | `Archives` (moved, with the guards), `FileArchives`, xz; `FileFacts`; `StorageScan`; `ExplorerPreferences`, favorites following moves; Recent across places; the hidden filter | Tests: every format both ways where §3.11 says so; an entry escaping, a link leading out, case twins on Shared; a 7z with its password; facts; categories, the largest, duplicates and `.git` apart; a scan changed by a delete and a rename; favorites after a rename |
 | **F5** The explorer | `IcodeActionSheet` and `rememberSheetPages` (the assistant's run sheet onto the helper); the explorer's sheet and its pages; selection and its bars; the panel, three views, thumbnails; the breadcrumb; ▾ with Favorites, Recent, Trash; ⋮; the folder picker; the sheet's pages (Rename…, batch rename, Compress…, Properties) and the question's sheet; the Trash and Recent views | UI type-check; touch-driven checks in a desktop scene: select, select all, invert, cut and paste many, the question, rename many, the panel's choices; renders of each |
-| **F6** Everywhere else | The IDE tree's sheet and selection; every other item menu onto the sheet (§3.1: the home screen's workspaces, editor tabs, Source Control, the Run tab, the assistant's steps and message); the floating stack (the undo pill, the bell, the floors); Settings › Storage; the Manage storage page | UI type-check; the stack over a + and a foot bar; touch-driven checks of Manage storage into a category, a grid of Images, Select extra copies, Show in folder; renders |
+| **F6** Everywhere else | The IDE tree's selection (its sheet, and the home screen's, are built: `91f0177`); every other item menu onto the sheet (§3.1: editor tabs, Source Control, the Run tab, the assistant's steps and message); the floating stack (the undo pill, the bell, the floors); Settings › Storage; the Manage storage page | UI type-check; the stack over a + and a foot bar; touch-driven checks of Manage storage into a category, a grid of Images, Select extra copies, Show in folder; renders |
 | **F7** Gate | Docs as built (PRD, user stories, layout, the two plans this follows); the full gate | Push the branch and `main` |
 
 ## 7. On the phone (the owner's walk-through, after F7)
@@ -862,3 +862,71 @@ Descending.
   `IcodeBreadcrumb` in the top bar's new `subtitleContent`. It scrolls with its end in view.
 - **▾, go to** (`goTo`): the two places, then each favorite with its path. Favorites are now
   `FavoriteFolder`s (name, location, runtime path), published by `FileShortcuts`.
+
+### One item sheet everywhere, and the option panel (the owner, `91f0177`)
+
+- **The item sheet** is the only place file actions are shown:
+  - on the home screen (`WorkspaceSheet`);
+  - in the IDE's tree (`ExplorerItemSheet`), where Expand and Collapse stay the tree's own;
+  - in the file explorer.
+- **What was removed:**
+  - `WorkspaceActionsMenu`, `RenameDialog`, and the "Compress to *name*.zip / .7z" shortcuts.
+  - Compress… is the one entry, and its page chooses the format and the name.
+  - `FileItemActions.of` always takes the sheet's pages.
+- `behindSheet()`: the screen under an item sheet is blurred, as under every sheet.
+- **The option panel kit** (`IcodeOptionPanel`) carries the ☰ View and Sort panel, with `ViewPanelTest`.
+- **Rows:** ticked rows are square and edge to edge, and nothing is reserved under the last row.
+
+### F5d (Recent and Trash, the explorer's views)
+
+- **One row model** for folders and views:
+  - `BrowsedItem` now carries its runtime `path` and its `place`.
+  - Recent is a list of rows (`RecentDocument` is gone); the editor's empty page reads the same list.
+  - Trash's rows are `TrashedItem.row`. Each is listed by where Trash holds it (`heldAt`), so a
+    trashed picture has a thumbnail. Restore and Delete permanently go by its id.
+  - `FileTrash.locationOf` gave way to `heldAt`.
+- **One path exchange:** `WorkspacePaths.runtimePathOf` serves listings, Recent, Favorites and
+  Trash (a trashed item's `path` is where it was).
+- **Domain rules:**
+  - **Views:** `ExplorerView` moved to `ExplorerViews.kt`, which also holds:
+    - `encoded`/`decode`, so the screen keeps its view;
+    - `ExplorerViews.rows`;
+    - `ExplorerViews.found`, the view's subtitle ("1 item · 3.0 KB · removed after 30 days").
+  - **Rows:**
+    - `FilesRules.gatheredDetail`: the folder a row is in, then its detail.
+    - `FilesRules.sizeOf`: one size rule, for sort and summary.
+    - `sorted(foldersFirst = false)` for views.
+  - **Trash:** `FileProperties.trashed` and `TrashRules.removedAt`. Properties of many gathered from
+    several folders have no "In" row.
+- **The screen:**
+  - **`FilesScreen`** holds:
+    - the view shown, kept as the screen turns;
+    - the folder picker, which either side can start;
+    - the file Show in folder asked for.
+  - **`FolderExplorer`** is the folder. The file Show in folder asked for comes ticked, and the
+    list scrolls to it (`FilesListing`'s `focus`).
+  - **`ViewExplorer`** (`FilesViewScreen.kt`) is the view:
+    - **Shared with folders:** the same listing, ☰ (each view's own look, no Hidden), 🔍, ⋮,
+      selection, and the item's sheet.
+    - **Left out:** `..`, +, the breadcrumb and the paste bar.
+    - **Back:** leaves the selection, then the search, then the view.
+- **Shared pieces:**
+  - **`Opening`** (replacing `openOf`): what a tap opens, by the row's own place, so a Recent
+    file opens as in its folder.
+  - **`ListingTaps.onOpen`** decides a tap; `FilesListing` takes its `detail`, its `empty` state
+    (`FolderEmpty`, `ViewEmpty`) and `up`.
+  - **`SelectionBar`** takes its actions: `selectionActions` for files, `trashActions` in Trash.
+  - **`SheetIcon`** leads every item sheet: the explorer's, Trash's, the tree's and the home screen's.
+- **Recent's sheet** is `FilesSheet` with no folder:
+  - "Show in folder" uses `showInList`, which a workspace calls "Show in Workspaces".
+  - `ItemSheet` offers Rename… and Compress… for many only when they share one folder, so a view's
+    selection gets neither.
+- **Trash:**
+  - **On open:** it is read again (`ReadTrash`).
+  - **Its sheet** (`TrashSheet`): Restore, Properties as it was deleted, and Delete permanently.
+  - **Its selection:** Restore and Delete permanently.
+  - **Its top bar:** Empty Trash.
+  - **Asking:** both deletes ask first (`ForGoodDialog`).
+- **▾ go to:** the places, Favorites, then Recent, and Trash with how many it holds.
+- **For Manage storage (F6):** `ExplorerView.icon` and `FileCategory.icon`. Its views list what its
+  scan will publish.

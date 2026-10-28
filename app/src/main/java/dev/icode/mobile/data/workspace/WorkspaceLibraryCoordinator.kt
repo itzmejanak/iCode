@@ -104,7 +104,7 @@ internal class WorkspaceLibraryCoordinator(
             .map { folder ->
                 WorkspaceSummary(
                     name = folder.name,
-                    path = paths.guestOf(folder.path) ?: folder.path,
+                    path = paths.runtimePathOf(folder.path),
                     // Reading .git/HEAD keeps the launcher instant; starting a Git
                     // process for every workspace would cost a PRoot launch each.
                     branch = runCatching { branchOf(folder.path) }.getOrNull(),
@@ -183,12 +183,12 @@ internal class WorkspaceLibraryCoordinator(
         val root = paths.root.path
         val at = path.takeIf { it == root || (paths.workspaceOf(it) != null && File(it).isDirectory) } ?: root
         val items = if (at == root) {
-            workspaces().map { BrowsedItem(it.name, it.location, folder = true, changedAt = it.lastOpenedAt, entries = File(it.location).list()?.size, branch = it.branch) }
+            workspaces().map { BrowsedItem(it.name, it.location, it.path, StoragePlace.Private, folder = true, changedAt = it.lastOpenedAt, entries = File(it.location).list()?.size, branch = it.branch) }
         } else {
             runCatching { source.listChildren(at, showHidden) }.getOrDefault(emptyList()).map { node ->
                 val file = File(node.location)
                 val folder = node.kind == FileKind.Folder
-                BrowsedItem(node.name, node.location, folder, bytes = file.length().takeUnless { folder }, changedAt = file.lastModified(), entries = if (folder) file.list()?.size else null)
+                BrowsedItem(node.name, node.location, paths.runtimePathOf(node.location), StoragePlace.Private, folder, bytes = file.length().takeUnless { folder }, changedAt = file.lastModified(), entries = if (folder) file.list()?.size else null)
             }
         }
         return FilesBrowserState(StoragePlace.Private, root, at, items, sharedRoot = shared)

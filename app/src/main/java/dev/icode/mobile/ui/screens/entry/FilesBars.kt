@@ -4,21 +4,31 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
 import androidx.compose.material.icons.automirrored.outlined.Redo
 import androidx.compose.material.icons.automirrored.outlined.Undo
 import androidx.compose.material.icons.automirrored.outlined.ViewList
+import androidx.compose.material.icons.outlined.Android
+import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Checklist
+import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.ContentCut
 import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.FileCopy
 import androidx.compose.material.icons.outlined.FlipToBack
 import androidx.compose.material.icons.outlined.FolderCopy
 import androidx.compose.material.icons.outlined.GridView
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Movie
+import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Search
@@ -52,10 +62,15 @@ import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTextField
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.PrimaryButton
+import dev.icode.mobile.domain.FilesIntent
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.StorageMeasurement
 import dev.icode.mobile.domain.WorkspaceRuntimePath
+import dev.icode.mobile.domain.countOf
 import dev.icode.mobile.domain.files.BrowsedItem
-import dev.icode.mobile.domain.files.FavoriteFolder
+import dev.icode.mobile.domain.files.ExplorerState
+import dev.icode.mobile.domain.files.ExplorerView
+import dev.icode.mobile.domain.files.FileCategory
 import dev.icode.mobile.domain.files.FileHistoryState
 import dev.icode.mobile.domain.files.FileSelection
 import dev.icode.mobile.domain.files.FilesBrowserState
@@ -77,28 +92,33 @@ internal fun SelectionActions(shown: List<String>, ticked: Set<String>, onTicked
     }
 }
 
-/** A selection's foot bar (§3.2): how many, what they are and weigh; Cut, Copy, Delete, and ⋯ for the selection's sheet. */
+/** A selection's foot bar (§3.2): how many, what they are and weigh, and what can be done to them ([actions]). */
 @Composable
-internal fun SelectionBar(
-    items: List<BrowsedItem>,
-    sizes: Map<String, StorageMeasurement>,
-    onCut: () -> Unit,
-    onCopy: () -> Unit,
-    onDelete: () -> Unit,
-    onMore: () -> Unit,
-) {
+internal fun SelectionBar(items: List<BrowsedItem>, sizes: Map<String, StorageMeasurement>, actions: List<IcodeMenuAction>) {
     val any = items.isNotEmpty()
     IcodeActionBar(
         title = "${items.size} selected",
         caption = if (any) FileSelection.summary(items, sizes) else "Tap items to tick them",
         iconLast = true,
     ) {
-        IconButton(onClick = onCut, enabled = any) { Icon(Icons.Outlined.ContentCut, contentDescription = "Cut", tint = tint(any)) }
-        IconButton(onClick = onCopy, enabled = any) { Icon(Icons.Outlined.ContentCopy, contentDescription = "Copy", tint = tint(any)) }
-        IconButton(onClick = onDelete, enabled = any) { Icon(Icons.Outlined.DeleteOutline, contentDescription = "Delete", tint = if (any) IcodeColors.Error else IcodeColors.TextMuted) }
-        IconButton(onClick = onMore, enabled = any) { Icon(Icons.Outlined.MoreHoriz, contentDescription = "More actions", tint = tint(any)) }
+        actions.forEach { action ->
+            IconButton(onClick = action.onClick, enabled = any) {
+                Icon(action.icon, contentDescription = action.label, tint = if (any && action.destructive) IcodeColors.Error else tint(any))
+            }
+        }
     }
 }
+
+/**
+ * What a selection of files does from its bar (§3.2): Cut, Copy and Delete — each ending it
+ * ([onActed]) — and ⋯ for the selection's sheet.
+ */
+internal fun selectionActions(locations: List<String>, dispatch: (ICodeIntent) -> Unit, onActed: () -> Unit, onMore: () -> Unit) = listOf(
+    IcodeMenuAction("Cut", Icons.Outlined.ContentCut, { dispatch(FilesIntent.Cut(locations)); onActed() }),
+    IcodeMenuAction("Copy", Icons.Outlined.ContentCopy, { dispatch(FilesIntent.Copy(locations)); onActed() }),
+    IcodeMenuAction("Delete", Icons.Outlined.DeleteOutline, { dispatch(FilesIntent.Trash(locations)); onActed() }, destructive = true),
+    IcodeMenuAction("More actions", Icons.Outlined.MoreHoriz, onMore),
+)
 
 @Composable
 private fun tint(enabled: Boolean) = if (enabled) IcodeColors.TextPrimary else IcodeColors.TextMuted
@@ -145,20 +165,37 @@ internal fun ExplorerMenu(history: FileHistoryState, onSelect: () -> Unit, onUnd
 }
 
 /**
- * ▾, "go to" (docs/explorer-gaps-plan.md §3.14): the two places, each with its path, the one shown
- * ticked; then each folder pinned to Favorites, with its path.
+ * ▾, "go to" (docs/explorer-gaps-plan.md §3.14): the two places, each with its path; each folder
+ * pinned to Favorites, with its path; then Recent, and Trash with how much it holds — what is shown
+ * ([view], or else [browser]'s place) ticked.
  */
-internal fun goTo(browser: FilesBrowserState?, favorites: List<FavoriteFolder>, onPlace: (StoragePlace) -> Unit, onFolder: (String) -> Unit): List<IcodeMenuAction> =
+internal fun goTo(
+    browser: FilesBrowserState?,
+    explorer: ExplorerState,
+    view: ExplorerView?,
+    onPlace: (StoragePlace) -> Unit,
+    onFolder: (String) -> Unit,
+    onView: (ExplorerView) -> Unit,
+): List<IcodeMenuAction> =
     StoragePlace.entries.map { place ->
         IcodeMenuAction(
             label = place.label,
             icon = if (place == StoragePlace.Private) Icons.Outlined.FolderCopy else Icons.Outlined.PhoneAndroid,
             onClick = { onPlace(place) },
             detail = if (place == StoragePlace.Private) WorkspaceRuntimePath.ROOT else browser?.sharedRoot?.takeIf { it.isNotEmpty() },
-            checked = browser?.place == place,
+            checked = view == null && browser?.place == place,
         )
-    } + favorites.mapIndexed { index, favorite ->
+    } + explorer.favorites.mapIndexed { index, favorite ->
         IcodeMenuAction(favorite.name, Icons.Outlined.Star, { onFolder(favorite.location) }, detail = favorite.path, beginsGroup = index == 0)
+    } + listOf(ExplorerView.Recent, ExplorerView.Trash).map { shown ->
+        IcodeMenuAction(
+            shown.title,
+            shown.icon,
+            { onView(shown) },
+            detail = countOf(explorer.trash.size, "item").takeIf { shown == ExplorerView.Trash },
+            checked = view == shown,
+            beginsGroup = shown == ExplorerView.Recent,
+        )
     }
 
 /**
@@ -187,6 +224,29 @@ internal fun viewPanel(look: FilesLook, showHidden: Boolean, onLook: (FilesLook)
             IcodeOption("Desc", Icons.Outlined.ArrowDownward, look.descending, { onLook(look.copy(descending = !look.descending)) }, description = "Descending"),
     ),
 )
+
+/** What stands for each view (§3.10): in ▾, and over one with nothing in it. */
+internal val ExplorerView.icon: ImageVector
+    get() = when (this) {
+        ExplorerView.Recent -> Icons.Outlined.History
+        ExplorerView.Trash -> Icons.Outlined.DeleteOutline
+        is ExplorerView.Category -> category.icon
+        is ExplorerView.Largest -> FilesSort.Size.icon
+        is ExplorerView.Duplicates -> Icons.Outlined.FileCopy
+    }
+
+/** What stands for each kind of file Manage storage counts (§3.10). */
+internal val FileCategory.icon: ImageVector
+    get() = when (this) {
+        FileCategory.Images -> Icons.Outlined.Image
+        FileCategory.Videos -> Icons.Outlined.Movie
+        FileCategory.Audio -> Icons.Outlined.MusicNote
+        FileCategory.Documents -> Icons.Outlined.Description
+        FileCategory.Archives -> Icons.Outlined.Archive
+        FileCategory.Apps -> Icons.Outlined.Android
+        FileCategory.Code -> Icons.Outlined.Code
+        FileCategory.Other -> Icons.AutoMirrored.Outlined.InsertDriveFile
+    }
 
 private val FilesView.icon: ImageVector
     get() = when (this) {

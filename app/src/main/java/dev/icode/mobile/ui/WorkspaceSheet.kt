@@ -1,16 +1,13 @@
 package dev.icode.mobile.ui
 
-import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FolderOpen
-import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeMenuAction
-import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.WorkspaceSummary
@@ -36,7 +33,7 @@ internal fun WorkspaceSheet(
         targets = targets,
         title = item.name,
         detail = listOfNotNull(item.path, item.branch).joinToString(" · "),
-        leading = { Icon(Icons.Outlined.Folder, contentDescription = null, tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconXl)) },
+        leading = { SheetIcon(Icons.Outlined.Folder, IcodeColors.Accent) },
         onClose = onClose,
         modifier = modifier,
         branch = item.branch,

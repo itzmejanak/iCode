@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.files
 
 import dev.icode.mobile.data.storage.PhoneStorage
+import dev.icode.mobile.data.storage.WorkspacePaths
 import dev.icode.mobile.domain.files.StoragePlace
 import java.io.File
 import java.io.IOException
@@ -24,7 +25,7 @@ class FileTrashTest {
     private val phone by lazy { temp.newFolder("emulated", "0").canonicalFile }
     private val privateTrash by lazy { File(workspaces.parentFile, "trash") }
     private val sharedTrash by lazy { File(phone, "Android/media/dev.icode.mobile/Trash") }
-    private val trash by lazy { FileTrash(privateTrash, sharedTrash, PhoneStorage(phone) { access }) { now } }
+    private val trash by lazy { FileTrash(privateTrash, sharedTrash, PhoneStorage(phone) { access }, WorkspacePaths(workspaces)) { now } }
     private val src by lazy {
         File(workspaces, "app/src").apply {
             mkdirs()
@@ -32,12 +33,13 @@ class FileTrashTest {
         }
     }
 
-    @Test fun `an item goes to its place's Trash whole, with what it was`() {
+    @Test fun `an item goes to its place's Trash whole, with what it was and where, as the runtime names it`() {
         val item = trash.put(src.path, bytes = 13, workspace = false)
         assertFalse(src.exists())
-        assertEquals("fun main() {}", File(trash.locationOf(item), "App.kt").readText())
+        assertEquals("fun main() {}", File(item.heldAt, "App.kt").readText())
         assertEquals(StoragePlace.Private, item.place)
-        assertTrue(trash.locationOf(item).startsWith(privateTrash.path))
+        assertEquals("/workspace/app/src", item.path)
+        assertTrue(item.heldAt.startsWith(privateTrash.path))
         assertEquals(listOf(item), trash.list())
         assertEquals(item, trash.item(item.id))
     }
@@ -46,7 +48,8 @@ class FileTrashTest {
         val photo = File(phone, "DCIM/beach.jpg").apply { parentFile!!.mkdirs(); writeText("jpg") }
         val item = trash.put(photo.path, bytes = 3, workspace = false)
         assertEquals(StoragePlace.Shared, item.place)
-        assertTrue(trash.locationOf(item).startsWith(sharedTrash.path))
+        assertEquals(photo.path, item.path)
+        assertTrue(item.heldAt.startsWith(sharedTrash.path))
         assertTrue(File(sharedTrash, ".nomedia").isFile)
     }
 
@@ -103,7 +106,7 @@ class FileTrashTest {
 
     @Test fun `a record whose item has gone is let go`() {
         val item = trash.put(src.path, bytes = 13, workspace = false)
-        File(trash.locationOf(item)).deleteRecursively()
+        File(item.heldAt).deleteRecursively()
         assertTrue(trash.list().isEmpty())
         assertFalse(File(privateTrash, "info/${item.id}.json").exists())
     }

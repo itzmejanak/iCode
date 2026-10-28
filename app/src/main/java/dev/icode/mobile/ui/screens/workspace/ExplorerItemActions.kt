@@ -40,6 +40,7 @@ import dev.icode.mobile.ui.FileItemActions
 import dev.icode.mobile.ui.ItemSheet
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
+import dev.icode.mobile.ui.SheetIcon
 
 /**
  * One Explorer row's [ItemSheet], from a long press: every explorer's actions ([FileItemActions]).
@@ -61,7 +62,7 @@ internal fun ExplorerItemSheet(entry: FileEntry, onClose: () -> Unit, modifier: 
         targets = targets,
         title = entry.name,
         detail = runtimePath,
-        leading = { Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(IcodeSizes.IconXl)) },
+        leading = { SheetIcon(icon, tint) },
         onClose = onClose,
         modifier = modifier,
     ) { rename, pages ->
