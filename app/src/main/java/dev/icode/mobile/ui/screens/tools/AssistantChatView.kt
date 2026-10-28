@@ -52,7 +52,6 @@ import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantMode
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantState
-import dev.icode.mobile.domain.GitChange
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.ui.LocalICodeGateway
 import kotlinx.coroutines.launch
@@ -60,7 +59,8 @@ import kotlinx.coroutines.launch
 /**
  * The chat: what was said and done — [rows], each run of steps one — pinched larger or smaller with
  * two fingers as the editor is; then what the turn is doing and the question it waits on. A row with
- * more behind it [onOpen]s it in a sheet, at a step for the question's details. A chat with nothing
+ * more behind it [onOpen]s it in a sheet, at a step for the question's details; a long press on one
+ * that offers actions [onHold]s it, for its actions' sheet. A chat with nothing
  * in it yet is the home screen's: the logo, and what to ask.
  */
 @OptIn(ExperimentalLayoutApi::class)
@@ -71,7 +71,7 @@ internal fun AssistantChatView(
     modifier: Modifier,
     onSuggestion: (String) -> Unit,
     onOpen: (row: String, step: String?) -> Unit,
-    onDiff: (GitChange) -> Unit,
+    onHold: (row: String) -> Unit,
 ) {
     val gateway = LocalICodeGateway.current
     Column(modifier) {
@@ -136,7 +136,7 @@ internal fun AssistantChatView(
                                 copyable = ends,
                                 streaming = index == rows.lastIndex && state.runningHere,
                                 onOpen = { onOpen(row.key, null) },
-                                onDiff = onDiff,
+                                onHold = { onHold(row.key) },
                             )
                         }
                         state.failure?.let { failure ->

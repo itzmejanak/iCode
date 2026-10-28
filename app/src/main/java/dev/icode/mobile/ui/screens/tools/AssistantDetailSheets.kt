@@ -11,14 +11,20 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
+import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import dev.icode.mobile.designsystem.CodeSurface
+import dev.icode.mobile.designsystem.IcodeActionSheet
 import dev.icode.mobile.designsystem.IcodeBottomSheet
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodeMenuAction
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.SecondaryButton
@@ -33,11 +39,13 @@ import dev.icode.mobile.domain.AssistantToolName
 import dev.icode.mobile.domain.GitChange
 import dev.icode.mobile.domain.word
 import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.SheetIcon
 import dev.icode.mobile.ui.copyText
+import dev.icode.mobile.ui.screens.workspace.itemIcon
 
 /**
- * What a row of the chat opens (docs/assistant-sheets-plan.md §2.2–§2.4): a run of steps, the
- * reasoning, a compaction's summary, or a message to select from. [entry] is the chat's as it is
+ * What a row of the chat opens (docs/assistant-sheets-plan.md §2.2–§2.3): a run of steps, the
+ * reasoning, or a compaction's summary. [entry] is the chat's as it is
  * now, so what a step does while its sheet is open shows there. [step] opens a run at that step;
  * [approval] is the question waiting, which its step's page shows and answers; [workspace] is its name.
  */
@@ -56,10 +64,64 @@ internal fun AssistantEntrySheet(
         is AssistantEntry.Step -> AssistantStepsSheet(AssistantEntry.Steps(entry.key, listOf(entry)), step, approval, workspace, modifier, onClose, onDiff)
         is AssistantEntry.Reasoning -> AssistantTextSheet("Reasoning", wordCount(entry.text), entry.text, modifier, onClose)
         is AssistantEntry.Compacted -> AssistantTextSheet("Chat compacted", "The model goes on from this summary", entry.summary, modifier, onClose)
-        is AssistantEntry.Said -> AssistantTextSheet("Select text", null, entry.text, modifier, onClose)
-        // An answer is selectable where it is, and copied under its turn.
-        is AssistantEntry.Answer -> Unit
+        // A message opens its actions' sheet; an answer is selectable where it is, and copied under its turn.
+        is AssistantEntry.Said, is AssistantEntry.Answer -> Unit
     }
+}
+
+/**
+ * What a long press on a row of the chat offers, as a sheet (docs/explorer-gaps-plan.md §3.1): for
+ * the user's message, Copy, and Select text as its page (§2.4); for a step about a file, Open in
+ * Editor, Show Changes where Git has some, and Copy path.
+ */
+@Composable
+internal fun AssistantActionsSheet(entry: AssistantEntry, modifier: Modifier, onClose: () -> Unit, onDiff: (GitChange) -> Unit) {
+    when (entry) {
+        is AssistantEntry.Said -> MessageSheet(entry, modifier, onClose)
+        is AssistantEntry.Steps -> entry.steps.singleOrNull()?.let { StepFileSheet(it, modifier, onClose, onDiff) }
+        is AssistantEntry.Step -> StepFileSheet(entry, modifier, onClose, onDiff)
+        is AssistantEntry.Answer, is AssistantEntry.Reasoning, is AssistantEntry.Compacted -> Unit
+    }
+}
+
+/** A message's sheet, which it heads: Copy, and Select text, its one page. */
+@Composable
+private fun MessageSheet(entry: AssistantEntry.Said, modifier: Modifier, onClose: () -> Unit) {
+    val context = LocalContext.current
+    val gateway = LocalICodeGateway.current
+    val pages = rememberSheetPages<MessagePage>(entry.key)
+    when (pages.current) {
+        null -> IcodeActionSheet(
+            title = entry.text,
+            actions = listOf(
+                IcodeMenuAction("Copy", Icons.Outlined.ContentCopy, { copyText(context, "Message", entry.text, "Message copied", gateway::dispatch) }),
+                IcodeMenuAction("Select text", Icons.Outlined.SelectAll, { pages.open(MessagePage.SelectText) }, opensPage = true),
+            ),
+            onClose = onClose,
+            modifier = modifier,
+            detail = wordCount(entry.text),
+            leading = { SheetIcon(Icons.Outlined.ChatBubbleOutline, IcodeColors.Accent) },
+        )
+        MessagePage.SelectText -> AssistantTextSheet("Select text", null, entry.text, modifier, onClose, pages.back)
+    }
+}
+
+private enum class MessagePage { SelectText }
+
+/** A step's file's sheet, titled with its name and the step: what [fileActions] offers. */
+@Composable
+private fun StepFileSheet(step: AssistantEntry.Step, modifier: Modifier, onClose: () -> Unit, onDiff: (GitChange) -> Unit) {
+    val file = fileActions(step, onDiff) ?: return
+    val name = step.call.file.orEmpty().substringAfterLast('/')
+    val (icon, tint) = itemIcon(name, folder = false)
+    IcodeActionSheet(
+        title = name,
+        actions = file.all,
+        onClose = onClose,
+        modifier = modifier,
+        detail = step.call.summary,
+        leading = { SheetIcon(icon, tint) },
+    )
 }
 
 /**
@@ -202,7 +264,7 @@ private fun StepSection(label: String, trailing: @Composable RowScope.() -> Unit
  * own handles and toolbar select and copy any part of it; Copy All takes it whole.
  */
 @Composable
-internal fun AssistantTextSheet(title: String, subtitle: String?, text: String, modifier: Modifier, onClose: () -> Unit) {
+internal fun AssistantTextSheet(title: String, subtitle: String?, text: String, modifier: Modifier, onClose: () -> Unit, onBack: (() -> Unit)? = null) {
     val context = LocalContext.current
     val gateway = LocalICodeGateway.current
     IcodeBottomSheet(
@@ -210,6 +272,7 @@ internal fun AssistantTextSheet(title: String, subtitle: String?, text: String, 
         onClose = onClose,
         modifier = modifier,
         subtitle = subtitle,
+        onBack = onBack,
         footer = { SecondaryButton("Copy All", { copyText(context, title, text, "Copied", gateway::dispatch) }, Modifier.fillMaxWidth()) },
     ) {
         SelectionContainer { Text(text, style = IcodeType.Body) }

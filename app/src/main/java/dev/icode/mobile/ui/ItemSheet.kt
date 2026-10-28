@@ -53,7 +53,8 @@ internal class SheetFolder(val name: String?, val runtimePath: String, val names
  * Rename… and pages. Rename… — one name, or many by a rule — Compress… and Properties open within
  * it, ← back to the actions. [folder] is where a selection of many is acted in; one item has none.
  * Many's Rename… and Compress… go by that folder: a view's selection, gathered from many folders
- * (§3.10), has none, and is not offered them. [branch] is a workspace's, for Properties.
+ * (§3.10), has none, and is not offered them. [branch] is a workspace's, for Properties. Each action
+ * but a page also does [onActed]: a selection ends once it is acted on.
  */
 @Composable
 internal fun ItemSheet(
@@ -65,6 +66,7 @@ internal fun ItemSheet(
     modifier: Modifier = Modifier,
     folder: SheetFolder? = null,
     branch: String? = null,
+    onActed: () -> Unit = {},
     actions: (rename: (() -> Unit)?, pages: SheetPageActions) -> List<IcodeMenuAction>,
 ) {
     val pages = rememberSheetPages<ItemPage>(targets.map { it.location })
@@ -76,7 +78,7 @@ internal fun ItemSheet(
             actions = actions(
                 { pages.open(ItemPage.Rename) }.takeIf { byFolder },
                 SheetPageActions({ pages.open(ItemPage.Compress) }.takeIf { byFolder }, { pages.open(ItemPage.Properties) }),
-            ),
+            ).map { action -> if (action.opensPage) action else action.copy(onClick = { action.onClick(); onActed() }) },
             onClose = onClose,
             modifier = modifier,
             detail = detail,

@@ -47,6 +47,7 @@ import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.MonoLine
+import dev.icode.mobile.designsystem.behindSheet
 import dev.icode.mobile.domain.FileTypes
 import dev.icode.mobile.domain.LineDiff
 import dev.icode.mobile.domain.StageLineChange
@@ -93,7 +94,9 @@ fun WorkspaceEditorScreen(actions: NavigationActions) {
         activeSession?.revealAt(changes[index].markedLine + 1, 0)
     }
     var pendingClose by rememberSaveable { mutableStateOf<String?>(null) }
-    var closeOthers by rememberSaveable { mutableStateOf(false) }
+    // The tab whose sheet is shown, and the one kept while Close other tabs asks about unsaved files.
+    var tabSheet by rememberSaveable { mutableStateOf<String?>(null) }
+    var closeOthers by rememberSaveable { mutableStateOf<String?>(null) }
     var showCreateFile by rememberSaveable { mutableStateOf(false) }
     val isMarkdown = document != null && FileTypes.of(document.name) == FileTypes.Markdown
     val title = document?.name ?: "No document"
@@ -113,24 +116,29 @@ fun WorkspaceEditorScreen(actions: NavigationActions) {
             onDismiss = { pendingClose = null },
         )
     }
-    if (closeOthers && document != null) {
-        val dirtyCount = state.openDocuments.count { it.location != document.location && it.dirty }
+    closeOthers?.let { keep ->
+        val dirtyCount = state.openDocuments.count { it.location != keep && it.dirty }
         IcodeSaveDiscardDialog(
             title = "Close other tabs?",
             description = "${countOf(dirtyCount, "other file has", "other files have")} unsaved changes.",
             onSave = {
-                gateway.dispatch(ICodeIntent.CloseOtherDocuments(document.location, saveChanges = true))
-                closeOthers = false
+                gateway.dispatch(ICodeIntent.CloseOtherDocuments(keep, saveChanges = true))
+                closeOthers = null
             },
             onDiscard = {
-                gateway.dispatch(ICodeIntent.CloseOtherDocuments(document.location, saveChanges = false))
-                closeOthers = false
+                gateway.dispatch(ICodeIntent.CloseOtherDocuments(keep, saveChanges = false))
+                closeOthers = null
             },
-            onDismiss = { closeOthers = false },
+            onDismiss = { closeOthers = null },
         )
     }
+    val closeTab = { location: String ->
+        if (state.openDocuments.any { it.location == location && it.dirty }) pendingClose = location
+        else gateway.dispatch(ICodeIntent.CloseDocument(location))
+    }
+    val tabFor = state.openDocuments.firstOrNull { it.location == tabSheet }
     Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().behindSheet(tabFor != null || shownChange != null)) {
             IcodeTopBar(
                 title = title,
                 actions = {
@@ -153,18 +161,8 @@ fun WorkspaceEditorScreen(actions: NavigationActions) {
                 selectedLocation = document?.location,
                 onSelect = { gateway.dispatch(ICodeIntent.SelectDocument(it)) },
                 onReorder = { moving, target -> gateway.dispatch(ICodeIntent.ReorderDocument(moving, target)) },
-                onClose = { location ->
-                    if (state.openDocuments.any { it.location == location && it.dirty }) pendingClose = location
-                    else gateway.dispatch(ICodeIntent.CloseDocument(location))
-                },
-                onCloseOthers = {
-                    if (document != null) {
-                        if (state.openDocuments.any { it.location != document.location && it.dirty }) closeOthers = true
-                        else gateway.dispatch(ICodeIntent.CloseOtherDocuments(document.location))
-                    }
-                },
-                onCloseSaved = { gateway.dispatch(ICodeIntent.CloseSavedDocuments) },
-                onNewFile = { showCreateFile = true },
+                onClose = closeTab,
+                onPress = { tabSheet = it },
             )
             if (document == null) {
                 NoDocumentContent(Modifier.weight(1f))
@@ -226,6 +224,25 @@ fun WorkspaceEditorScreen(actions: NavigationActions) {
                     onStage = { gateway.dispatch(StageLineChange(document.location, it)) },
                     onShow = showChange,
                     onClose = close,
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                )
+            }
+        }
+        tabFor?.let { tab ->
+            val close = { tabSheet = null }
+            IcodeSheetOverlay(onClose = close) {
+                TabSheet(
+                    document = tab,
+                    path = state.runtimePathOf(tab.location),
+                    documents = state.openDocuments,
+                    onClose = closeTab,
+                    onCloseOthers = { keep ->
+                        if (state.openDocuments.any { it.location != keep && it.dirty }) closeOthers = keep
+                        else gateway.dispatch(ICodeIntent.CloseOtherDocuments(keep))
+                    },
+                    onCloseSaved = { gateway.dispatch(ICodeIntent.CloseSavedDocuments) },
+                    onNewFile = { showCreateFile = true },
+                    onDismiss = close,
                     modifier = Modifier.align(Alignment.BottomCenter),
                 )
             }

@@ -70,11 +70,9 @@ fun IcodeOverflowMenu(
 }
 
 /**
- * The overflow menu's list, without the button that opens it.
- *
- * Lets a surface that already has a gesture for it — a long press on a tab —
- * show the same actions, styled identically, anchored to whatever it is placed
- * inside.
+ * The overflow menu's list, without the button that opens it: for a bar's own button that draws
+ * itself — ▾, + — anchored to whatever it is placed inside. A menu on an item is a sheet
+ * ([IcodeActionSheet], docs/explorer-gaps-plan.md §3.1).
  */
 @Composable
 fun IcodeActionMenu(

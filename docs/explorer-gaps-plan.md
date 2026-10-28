@@ -630,7 +630,7 @@ anywhere. Each view is the explorer itself, not a page of its own.
 | **F3** Operations | `FileTrash`, `FileBatch`, `FileHistory`, `FileOperationsCoordinator`; Delete to Trash in every explorer, workspaces too; the question; the 30 days | Tests on temporary Private and Shared folders: many copied, moved and duplicated; each answer to the question; a merge leaving `.git`; trash and restore with folders gone and names taken; undo and redo of each operation, and the refusal when something changed |
 | **F4** Archives and facts | `Archives` (moved, with the guards), `FileArchives`, xz; `FileFacts`; `StorageScan`; `ExplorerPreferences`, favorites following moves; Recent across places; the hidden filter | Tests: every format both ways where §3.11 says so; an entry escaping, a link leading out, case twins on Shared; a 7z with its password; facts; categories, the largest, duplicates and `.git` apart; a scan changed by a delete and a rename; favorites after a rename |
 | **F5** The explorer | `IcodeActionSheet` and `rememberSheetPages` (the assistant's run sheet onto the helper); the explorer's sheet and its pages; selection and its bars; the panel, three views, thumbnails; the breadcrumb; ▾ with Favorites, Recent, Trash; ⋮; the folder picker; the sheet's pages (Rename…, batch rename, Compress…, Properties) and the question's sheet; the Trash and Recent views | UI type-check; touch-driven checks in a desktop scene: select, select all, invert, cut and paste many, the question, rename many, the panel's choices; renders of each |
-| **F6** Everywhere else | The IDE tree's selection (its sheet, and the home screen's, are built: `91f0177`); every other item menu onto the sheet (§3.1: editor tabs, Source Control, the Run tab, the assistant's steps and message); the floating stack (built: F6b); Settings › Storage and the Manage storage page (built: F6a) | UI type-check; the stack over a + and a foot bar; touch-driven checks of Manage storage into a category, a grid of Images, Select extra copies, Show in folder; renders |
+| **F6** Everywhere else | The IDE tree's selection (built: F6c; its sheet, and the home screen's: `91f0177`); every other item menu onto the sheet (built: F6c; §3.1: editor tabs, Source Control, the Run tab, the assistant's steps and message); the floating stack (built: F6b); Settings › Storage and the Manage storage page (built: F6a) | UI type-check; the stack over a + and a foot bar; touch-driven checks of Manage storage into a category, a grid of Images, Select extra copies, Show in folder; renders |
 | **F7** Gate | Docs as built (PRD, user stories, layout, the two plans this follows); the full gate | Push the branch and `main` |
 
 ## 7. On the phone (the owner's walk-through, after F7)
@@ -997,3 +997,57 @@ Descending.
   - **After `HOLD_MILLIS`:** it goes.
 - **Its place:** `IcodeApp` provides `LocalIcodeFloors` and draws the stack beside `NoticeHost`,
   over every screen but the Notifications page.
+
+### F6c (every item menu on the sheet; the IDE tree's selection)
+
+- **Item menus, now sheets** (§3.1). Each is an `IcodeActionSheet` over the screen's own
+  `IcodeSheetOverlay`, with the screen blurred behind it (`behindSheet`):
+  - **The editor's tabs** (`TabSheet`): titled with the file, and where the runtime has it.
+    - Actions: New file, Close other tabs, Close saved tabs, and Close *name*, last.
+    - Close other tabs keeps the tab pressed, not the one selected.
+    - `IcodeTabStrip`'s `menu` slot is gone.
+  - **Source Control's changes** (`GitChangeSheet`), from a long press:
+    - A file: Open file, Stage or Unstage, and the discard that fits it.
+    - A folder: Stage or Unstage, and Discard changes.
+    - The rows keep only + or −. The screen holds the row by its list key (`changeRowKey`).
+  - **The Run tab's commands** (`RunCommands.kt`):
+    - One value, `RunCommandAsk`, holds what the tab asks: a new command, a command's sheet,
+      its edit or its delete.
+    - The tools panel draws it over the whole panel.
+    - The dialogs moved there from `RunPanel`.
+  - **The assistant** (`AssistantActionsSheet`):
+    - A step about a file: Open in Editor, Show Changes and Copy path (`fileActions`).
+    - The user's message: Copy, and Select text, which is the sheet's own page.
+    - The entry sheet no longer opens a message.
+- **One blur:** the assistant, the navigation host, the file viewer and two settings pages used
+  `behindSheet` by hand. They now call it.
+- **The IDE tree's selection** (§3.2):
+  - **One state for every explorer** (`Selection.kt`):
+    - `ExplorerSelection` holds what is ticked and whether its sheet is open, with
+      `rememberSelection` and `among`. The selection ends once what was ticked has gone.
+    - The file explorer, its views and the tree share it, with `SelectionActions`,
+      `SelectionBar` and `selectionActions`, which moved here from `FilesBars`.
+  - **Starting and using it:**
+    - Select in a row's sheet starts it. Rows then tick with a tap, their icon becomes the tick,
+      and a ticked row is drawn as the selected one.
+    - The + gives way to Select all and Invert, and ✕ or Back leaves the selection.
+    - The foot bar says what it acts on: a folder ticked covers what is in it (`FileSelection.covering`).
+  - **One sheet** (`ExplorerItemSheet`), for a row or for the selection. Many in one folder are
+    renamed and compressed in it; many across folders are not.
+  - **The folder picker is the file explorer's alone:** `ScreenActions.pick` is optional, so the
+    tree has no Move to…, Copy to… or Extract to….
+- **Fixed:** a sheet closes before its action runs. A selection's sheet read `sheet` as already
+  false, so Copy or Duplicate from ⋯ left the selection on. `ExplorerSelection.acted` decides
+  as the sheet is drawn. `ItemSheet.onActed` wraps every action but a page, so no screen repeats
+  that wrapper.
+- **One path rule:** `ICodeSnapshot.runtimePathOf` gives the open workspace's runtime path. The
+  tree, its sheet and the tab sheet once wrote it out each.
+- **Checked:**
+  - Tests: `FileItemActionsTest` (the tree's Select, with no folder picker), and
+    `WorkspaceNameRulesTest` (`runtimePathOf`).
+  - The UI type-check now covers the tools panel, with its terminal view stubbed.
+  - By touch, in a desktop scene:
+    - Holding a row opens its sheet, and Select ticks it.
+    - Ticking a folder and its file counts one folder and one file.
+    - ⋯ › Copy sends both locations and ends the selection.
+    - Select all, then ✕, leaves the selection.

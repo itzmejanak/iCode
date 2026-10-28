@@ -8,9 +8,8 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.saveable.SaveableStateHolder
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import dev.icode.mobile.designsystem.IcodeSheetOverlay
-import dev.icode.mobile.designsystem.IcodeSizes
+import dev.icode.mobile.designsystem.behindSheet
 import dev.icode.mobile.navigation.Route
 
 /**
@@ -29,7 +28,7 @@ internal fun NavigationHost(navigation: NavigationState, screen: @Composable (Ro
     Box(Modifier.fillMaxSize()) {
         base?.let {
             key(it) {
-                Box(Modifier.fillMaxSize().then(if (top.sheet) Modifier.blur(IcodeSizes.SheetBackdropBlur) else Modifier)) {
+                Box(Modifier.fillMaxSize().behindSheet(top.sheet)) {
                     Entry(kept, it, navigation) { screen(routeOf(it)) }
                 }
             }

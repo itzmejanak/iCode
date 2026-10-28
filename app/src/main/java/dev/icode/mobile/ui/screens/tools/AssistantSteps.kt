@@ -30,10 +30,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -41,7 +37,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
-import dev.icode.mobile.designsystem.IcodeActionMenu
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeMenuAction
 import dev.icode.mobile.designsystem.IcodeShapes
@@ -68,10 +63,10 @@ import java.io.File
 /**
  * A run of steps (docs/assistant-sheets-plan.md §2.1): how it went, what it did — one step by its
  * summary, more by what each tool did — what it changed, and › to its sheet. A long press on one
- * step about a file offers it: open it, see its changes, copy its path.
+ * step about a file [onHold]s it, for the file's sheet: open it, see its changes, copy its path.
  */
 @Composable
-internal fun AssistantStepsRow(entry: AssistantEntry.Steps, onOpen: () -> Unit, onDiff: (GitChange) -> Unit) {
+internal fun AssistantStepsRow(entry: AssistantEntry.Steps, onOpen: () -> Unit, onHold: () -> Unit) {
     val status = AssistantStepRules.status(entry.steps)
     val (icon, tint) = statusIcon(status)
     val single = entry.steps.singleOrNull()
@@ -83,16 +78,16 @@ internal fun AssistantStepsRow(entry: AssistantEntry.Steps, onOpen: () -> Unit, 
         onOpen = onOpen,
         mono = single?.call?.kind == AssistantToolKind.Command,
         changes = AssistantStepRules.changes(entry.steps),
-        actions = single?.let { fileActions(it, onDiff) }?.all.orEmpty(),
-        actionsLabel = single?.call?.file?.let { "Options for $it" },
+        onHold = onHold.takeIf { single?.let(::fileOf) != null },
+        holdLabel = single?.call?.file?.let { "Options for $it" },
     )
 }
 
 /**
  * A line of the chat with more behind it — a run of steps, the reasoning, a compaction — that
  * [onOpen]s it in a sheet (§2): its icon, what it is, [detail] after it, what it changed, and ›.
- * Without [onOpen] it is only the line, as reasoning still being written is. A long press offers
- * [actions] where there are some. On a sheet's [rail], a line joins its icon to its neighbours'.
+ * Without [onOpen] it is only the line, as reasoning still being written is. A long press goes to
+ * [onHold] where there is one, saying [holdLabel]. On a sheet's [rail], a line joins its icon to its neighbours'.
  */
 @Composable
 internal fun AssistantOpenRow(
@@ -105,43 +100,39 @@ internal fun AssistantOpenRow(
     detail: String? = null,
     changes: LineChanges? = null,
     rail: AssistantRail? = null,
-    actions: List<IcodeMenuAction> = emptyList(),
-    actionsLabel: String? = null,
+    onHold: (() -> Unit)? = null,
+    holdLabel: String? = null,
 ) {
     val scale = LocalCodeTextScale.current
-    var menu by remember { mutableStateOf(false) }
-    Box {
-        Row(
-            Modifier.fillMaxWidth().heightIn(min = IcodeSizes.TouchTarget).height(IntrinsicSize.Min).clip(IcodeShapes.Small)
-                .combinedClickable(
-                    enabled = onOpen != null || actions.isNotEmpty(),
-                    onClickLabel = "Show",
-                    onLongClickLabel = actionsLabel,
-                    onLongClick = if (actions.isEmpty()) null else ({ menu = true }),
-                    onClick = { onOpen?.invoke() },
-                ),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
-        ) {
-            Column(Modifier.fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
-                RailLine(rail?.before == true)
-                Icon(icon, contentDescription = status, tint = tint, modifier = Modifier.size(IcodeSizes.IconSm))
-                RailLine(rail?.after == true)
-            }
-            Text(
-                label,
-                modifier = Modifier.weight(1f, fill = false).padding(vertical = IcodeSpacing.Space1),
-                style = (if (mono) IcodeType.MonoSmall else IcodeType.Caption).scaledBy(scale).copy(color = IcodeColors.TextSecondary),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            detail?.let { Text(it, style = IcodeType.Caption.scaledBy(scale).copy(color = IcodeColors.TextMuted), maxLines = 1) }
-            changes?.let { ChangedLines(it) }
-            if (onOpen != null) {
-                Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconSm))
-            }
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = IcodeSizes.TouchTarget).height(IntrinsicSize.Min).clip(IcodeShapes.Small)
+            .combinedClickable(
+                enabled = onOpen != null || onHold != null,
+                onClickLabel = "Show",
+                onLongClickLabel = holdLabel,
+                onLongClick = onHold,
+                onClick = { onOpen?.invoke() },
+            ),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
+    ) {
+        Column(Modifier.fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally) {
+            RailLine(rail?.before == true)
+            Icon(icon, contentDescription = status, tint = tint, modifier = Modifier.size(IcodeSizes.IconSm))
+            RailLine(rail?.after == true)
         }
-        IcodeActionMenu(expanded = menu, onDismiss = { menu = false }, actions = actions)
+        Text(
+            label,
+            modifier = Modifier.weight(1f, fill = false).padding(vertical = IcodeSpacing.Space1),
+            style = (if (mono) IcodeType.MonoSmall else IcodeType.Caption).scaledBy(scale).copy(color = IcodeColors.TextSecondary),
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+        detail?.let { Text(it, style = IcodeType.Caption.scaledBy(scale).copy(color = IcodeColors.TextMuted), maxLines = 1) }
+        changes?.let { ChangedLines(it) }
+        if (onOpen != null) {
+            Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconSm))
+        }
     }
 }
 
@@ -171,18 +162,18 @@ private fun ColumnScope.RailLine(shown: Boolean) {
 
 /** What a step's file offers: open it, see its changes where Git has some, copy the path the runtime names it by. */
 internal class StepFileActions(val open: IcodeMenuAction, val changes: IcodeMenuAction?, val copyPath: IcodeMenuAction) {
-    /** As its row's long press lists them. */
+    /** As the file's sheet lists them. */
     val all: List<IcodeMenuAction> get() = listOfNotNull(open, changes, copyPath)
 }
 
-/** [step]'s file and what it offers, for its row's long press and its sheet; null for a step without one. */
+/** [step]'s file and what it offers, for the file's sheet and its step's page; null for a step without one. */
 @Composable
 internal fun fileActions(step: AssistantEntry.Step, onDiff: (GitChange) -> Unit): StepFileActions? {
     val context = LocalContext.current
     val gateway = LocalICodeGateway.current
     val snapshot = LocalICodeSnapshot.current
     val root = snapshot.assistant.workspace ?: return null
-    val file = step.call.file?.takeIf { it != "." } ?: return null
+    val file = fileOf(step) ?: return null
     val location = File(root, file).path
     val change = AssistantRules.gitChangeOf(location, snapshot.gitRepository, snapshot.gitChanges)
     return StepFileActions(
@@ -192,6 +183,9 @@ internal fun fileActions(step: AssistantEntry.Step, onDiff: (GitChange) -> Unit)
         copyPath = FileItemActions.copyPath(context, WorkspaceRuntimePath.within(root, WorkspaceRuntimePath.of(AssistantRules.workspaceName(root)), location), gateway::dispatch),
     )
 }
+
+/** [step]'s file, from the workspace's top; none for a step about none, or about the workspace itself. */
+private fun fileOf(step: AssistantEntry.Step): String? = step.call.file?.takeIf { it != "." }
 
 /** How a step went, as its icon and colour say it. */
 @Composable

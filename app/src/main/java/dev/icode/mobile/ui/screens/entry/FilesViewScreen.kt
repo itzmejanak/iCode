@@ -41,6 +41,11 @@ import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.LocalWorkspacePreferencesRepository
 import dev.icode.mobile.ui.ScreenActions
+import dev.icode.mobile.ui.SelectionActions
+import dev.icode.mobile.ui.SelectionBar
+import dev.icode.mobile.ui.among
+import dev.icode.mobile.ui.rememberSelection
+import dev.icode.mobile.ui.selectionActions
 import kotlinx.coroutines.launch
 
 /**
@@ -72,8 +77,7 @@ internal fun ViewExplorer(
     var query by rememberSaveable(view) { mutableStateOf("") }
     var goToOpen by remember { mutableStateOf(false) }
     var actionsFor by rememberSaveable(view) { mutableStateOf<String?>(null) }
-    var ticked by rememberSaveable(view) { mutableStateOf<List<String>?>(null) }
-    var selectionSheet by rememberSaveable(view) { mutableStateOf(false) }
+    val selection = rememberSelection(view)
     // Trash's items to delete for good, asked first; all of them, emptying it.
     var forGood by remember { mutableStateOf<List<TrashedItem>?>(null) }
     var emptying by remember { mutableStateOf(false) }
@@ -89,13 +93,11 @@ internal fun ViewExplorer(
     val found = FilesRules.matching(rows, query)
     val shown = if (ExplorerViews.sortable(view)) FilesRules.sorted(found, look.sort, look.descending, emptyMap(), foldersFirst = false) else found
     val groups = state.explorer.scanned?.groups.orEmpty()
-    // What is ticked and still here; once all of it has gone, the selection ends.
-    val selected = ticked?.let { locations -> rows.filter { it.location in locations } }
-    LaunchedEffect(selected?.isEmpty()) { if (selected?.isEmpty() == true && ticked?.isNotEmpty() == true) ticked = null }
-    val leave = { ticked = null; selectionSheet = false }
+    val selected = selection.among(rows) { it.location }
+    val leave = selection::leave
     val back = {
         when {
-            ticked != null -> leave()
+            selection.selecting -> leave()
             searching -> { searching = false; query = "" }
             else -> onLeave()
         }
@@ -105,7 +107,7 @@ internal fun ViewExplorer(
     val opening = opening { folder -> gateway.dispatch(ICodeIntent.BrowseFiles(folder)) }
     // Trash's rows are where its items are held; what is done to them goes by their ids.
     val trashed = { locations: Collection<String> -> state.explorer.trash.filter { it.heldAt in locations } }
-    val sheetItems = if (selectionSheet) selected.orEmpty() else listOfNotNull(rows.firstOrNull { it.location == actionsFor })
+    val sheetItems = if (selection.sheet) selected.orEmpty() else listOfNotNull(rows.firstOrNull { it.location == actionsFor })
     val sheetShown = sheetItems.isNotEmpty()
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().behindSheet(sheetShown)) {
@@ -113,7 +115,7 @@ internal fun ViewExplorer(
                 view.title,
                 subtitle = ExplorerViews.found(view, rows),
                 onBack = back,
-                onTitleClick = { goToOpen = true }.takeUnless { ticked != null },
+                onTitleClick = { goToOpen = true }.takeUnless { selection.selecting },
                 titleMenu = {
                     IcodeActionMenu(
                         expanded = goToOpen,
@@ -128,13 +130,13 @@ internal fun ViewExplorer(
                         ),
                     )
                 },
-                leaving = if (ticked != null) BarLeave.Selection else BarLeave.Back,
+                leaving = if (selection.selecting) BarLeave.Selection else BarLeave.Back,
                 actions = {
                     IconButton(onClick = { searching = !searching; query = "" }) {
                         Icon(Icons.Outlined.Search, contentDescription = if (searching) "Close search" else "Search", tint = IcodeColors.TextPrimary)
                     }
-                    if (ticked != null) {
-                        SelectionActions(shown.map { it.location }, ticked.orEmpty().toSet()) { ticked = it.toList() }
+                    if (selection.selecting) {
+                        SelectionActions(selection, shown.map { it.location })
                     } else {
                         ViewPanelButton(
                             look,
@@ -150,12 +152,12 @@ internal fun ViewExplorer(
                         }
                         ExplorerMenu(
                             state.explorer.history,
-                            onSelect = { ticked = emptyList() },
+                            onSelect = { selection.start() },
                             onUndo = { gateway.dispatch(FilesIntent.Undo) },
                             onRedo = { gateway.dispatch(FilesIntent.Redo) },
                             onManage = { actions.navigate(Route.ManageStorage) },
                             onStorage = { actions.navigate(Route.StorageSettings) },
-                            onExtraCopies = { ticked = StorageInsights.extraCopies(groups) }.takeIf { view is ExplorerView.Duplicates },
+                            onExtraCopies = { selection.start(StorageInsights.extraCopies(groups)) }.takeIf { view is ExplorerView.Duplicates },
                         )
                     }
                 },
@@ -163,8 +165,8 @@ internal fun ViewExplorer(
             if (searching) SearchField(query, "Search in ${view.title}") { query = it }
             Box(Modifier.weight(1f)) {
                 val taps = ListingTaps(
-                    selection = ticked?.toSet(),
-                    onTick = { item -> ticked = FileSelection.toggled(ticked.orEmpty().toSet(), item.location).toList() },
+                    selection = selection.ticked?.toSet(),
+                    onTick = { item -> selection.toggle(item.location) },
                     onActions = { item -> actionsFor = item.location },
                     onOpen = if (trash) ({ item -> actionsFor = item.location }) else opening::tap,
                 )
@@ -179,15 +181,15 @@ internal fun ViewExplorer(
             selected?.let { items ->
                 val locations = items.map { it.location }
                 SelectionBar(
-                    items,
-                    emptyMap(),
+                    items.size,
+                    FileSelection.summary(items, emptyMap()),
                     if (trash) trashActions(trashed(locations).map { it.id }, gateway::dispatch, onForGood = { forGood = trashed(locations) }, onActed = leave)
-                    else selectionActions(locations, gateway::dispatch, leave) { selectionSheet = true },
+                    else selectionActions(locations, gateway::dispatch, leave) { selection.sheet = true },
                 )
             }
         }
         if (sheetShown) {
-            val close = { actionsFor = null; selectionSheet = false }
+            val close = { actionsFor = null; selection.sheet = false }
             IcodeSheetOverlay(onClose = close) {
                 val one = sheetItems.singleOrNull()
                 val item = one?.let { trashed(listOf(it.location)).singleOrNull() }
@@ -203,9 +205,9 @@ internal fun ViewExplorer(
                                 onPick(chosen)
                                 gateway.dispatch(ICodeIntent.BrowseFiles())
                             },
-                            select = if (selectionSheet) null else ({ locations -> ticked = locations }),
+                            select = if (selection.sheet) null else selection::start,
                         ),
-                        onActed = { if (selectionSheet) leave() },
+                        onActed = selection.acted,
                         onClose = close,
                         modifier = Modifier.align(Alignment.BottomCenter),
                         showInFolder = one?.let { item ->

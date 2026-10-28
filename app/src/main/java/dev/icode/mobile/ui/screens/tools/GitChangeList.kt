@@ -1,7 +1,6 @@
 package dev.icode.mobile.ui.screens.tools
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
@@ -22,19 +21,15 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import dev.icode.mobile.designsystem.IcodeActionSheet
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodeMenuAction
-import dev.icode.mobile.designsystem.IcodeActionMenu
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
@@ -49,17 +44,20 @@ import dev.icode.mobile.domain.GitDiscard
 import dev.icode.mobile.domain.GitStatusCodes
 import dev.icode.mobile.domain.ICodeGateway
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.countOf
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
+import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.SheetIcon
 import dev.icode.mobile.ui.screens.workspace.fileTypeIcon
 import dev.icode.mobile.ui.screens.workspace.fileTypeTint
+import dev.icode.mobile.ui.screens.workspace.itemIcon
 
 /**
  * One section of Source Control's changes — staged, or not yet — as a tree (docs/workspace-
  * destinations-plan.md G14), compact as the Explorer's: its header with Stage all or Unstage all,
  * then [rows]. A tap opens: a folder expands and collapses, a file shows its diff (or itself, when
- * new). + or − stages. A long press gives the rest — Open file, Stage or Unstage, and the discard
- * that fits: Discard changes, Delete file, Restore file — for a file and for all a folder holds.
+ * new). + or − stages. A long press opens the row's sheet ([onHold], [GitChangeSheet]).
  */
 internal fun LazyListScope.gitChangeSection(
     title: String,
@@ -68,12 +66,11 @@ internal fun LazyListScope.gitChangeSection(
     rows: List<GitChangeRow>,
     workTreePath: String,
     onToggleFolder: (String) -> Unit,
+    onHold: (GitChangeRow) -> Unit,
     gateway: ICodeGateway,
     actions: NavigationActions,
 ) {
     val section = if (staged) "staged" else "changes"
-    val toggleStage = { path: String -> gateway.dispatch(if (staged) ICodeIntent.UnstageFile(path) else ICodeIntent.StageFile(path)) }
-    val discard = { path: String -> gateway.dispatch(ICodeIntent.RequestDiscardChanges(path)) }
     item(key = "$section:header") {
         SectionHeader(
             "$title (${changes.size})",
@@ -82,39 +79,82 @@ internal fun LazyListScope.gitChangeSection(
             onAction = { gateway.dispatch(if (staged) ICodeIntent.UnstageAllFiles else ICodeIntent.StageAllFiles) },
         )
     }
-    items(rows, key = { row -> "$section:" + if (row is GitChangeRow.Folder) "folder:${row.path}" else "file:${(row as GitChangeRow.File).change.path}" }) { row ->
+    items(rows, key = { row -> changeRowKey(staged, row) }) { row ->
         when (row) {
             is GitChangeRow.Folder -> ChangeFolderRow(
                 row,
                 staged,
                 onToggle = { onToggleFolder(row.path) },
-                onToggleStage = { toggleStage(row.path) },
-                // Only what can be thrown away: nothing staged, no conflict.
-                onDiscard = { discard(row.path) }.takeIf { GitDiscard.of(changes, row.path) != null },
+                onToggleStage = { gateway.dispatch(stageIntent(staged, row.path)) },
+                onHold = { onHold(row) },
             )
-            is GitChangeRow.File -> {
-                val openFile = { gateway.dispatch(ICodeIntent.OpenFile("$workTreePath/${row.change.path}")) }
-                ChangeFileRow(
-                    row,
-                    onOpen = { openChange(gateway, actions, row.change, openFile) },
-                    onToggleStage = { toggleStage(row.change.path) },
-                    onOpenFile = openFile,
-                    onDiscard = { discard(row.change.path) },
-                )
-            }
+            is GitChangeRow.File -> ChangeFileRow(
+                row,
+                onOpen = { openChange(gateway, actions, row.change, workTreePath) },
+                onToggleStage = { gateway.dispatch(stageIntent(staged, row.change.path)) },
+                onHold = { onHold(row) },
+            )
+        }
+    }
+}
+
+/** What names [row] in its section's list, and the row whose sheet is shown. */
+internal fun changeRowKey(staged: Boolean, row: GitChangeRow): String =
+    (if (staged) "staged:" else "changes:") + when (row) {
+        is GitChangeRow.Folder -> "folder:${row.path}"
+        is GitChangeRow.File -> "file:${row.change.path}"
+    }
+
+/**
+ * A change row's sheet (docs/explorer-gaps-plan.md §3.1), titled with it: for a file, Open file
+ * (unless it is deleted), Stage or Unstage, and the discard that fits — Discard changes, Delete file,
+ * Restore file; for a folder, Stage or Unstage and Discard changes, for all it holds. Each discard is
+ * destructive, so last, and confirmed before anything is lost; only what can be thrown away — nothing
+ * staged, no conflict — offers one. [changes] are the row's section's.
+ */
+@Composable
+internal fun GitChangeSheet(row: GitChangeRow, staged: Boolean, changes: List<GitChange>, workTreePath: String, onClose: () -> Unit, modifier: Modifier = Modifier) {
+    val gateway = LocalICodeGateway.current
+    val discard = { path: String -> gateway.dispatch(ICodeIntent.RequestDiscardChanges(path)) }
+    when (row) {
+        is GitChangeRow.Folder -> IcodeActionSheet(
+            title = row.name,
+            actions = listOfNotNull(
+                stageAction(staged) { gateway.dispatch(stageIntent(staged, row.path)) },
+                IcodeMenuAction("Discard changes", Icons.Outlined.DeleteOutline, { discard(row.path) }, destructive = true).takeIf { GitDiscard.of(changes, row.path) != null },
+            ),
+            onClose = onClose,
+            modifier = modifier,
+            detail = "${row.path} · ${countOf(row.changes, "change")}",
+            leading = { SheetIcon(Icons.Outlined.Folder, IcodeColors.Accent) },
+        )
+        is GitChangeRow.File -> {
+            val change = row.change
+            val (icon, tint) = itemIcon(change.name, folder = false)
+            IcodeActionSheet(
+                title = change.name,
+                actions = listOfNotNull(
+                    IcodeMenuAction("Open file", Icons.Outlined.Description, { gateway.dispatch(openFileIntent(workTreePath, change)) }).takeUnless { change.status == GitStatusCodes.DELETED },
+                    stageAction(change.staged) { gateway.dispatch(stageIntent(change.staged, change.path)) },
+                    IcodeMenuAction(discardLabel(change), Icons.Outlined.DeleteOutline, { discard(change.path) }, destructive = true).takeIf { change.discardable },
+                ),
+                onClose = onClose,
+                modifier = modifier,
+                detail = change.path,
+                leading = { SheetIcon(icon, tint) },
+            )
         }
     }
 }
 
 @Composable
-private fun ChangeFolderRow(folder: GitChangeRow.Folder, staged: Boolean, onToggle: () -> Unit, onToggleStage: () -> Unit, onDiscard: (() -> Unit)?) {
-    var held by remember(folder.path) { mutableStateOf(false) }
+private fun ChangeFolderRow(folder: GitChangeRow.Folder, staged: Boolean, onToggle: () -> Unit, onToggleStage: () -> Unit, onHold: () -> Unit) {
     IcodeListRow(
         rowShape = RectangleShape,
         compact = true,
         indent = IcodeSpacing.IndentStep * folder.depth,
         onClick = onToggle,
-        onLongClick = { held = true },
+        onLongClick = onHold,
         leading = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
                 Icon(
@@ -134,40 +174,23 @@ private fun ChangeFolderRow(folder: GitChangeRow.Folder, staged: Boolean, onTogg
         content = { Text(folder.name, Modifier.weight(1f), style = IcodeType.Body, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         trailing = {
             MonoLine(folder.changes.toString(), color = IcodeColors.TextMuted, style = IcodeType.MonoSmall)
-            Box {
-                StageButton(staged, folder.name, onToggleStage)
-                IcodeActionMenu(
-                    expanded = held,
-                    onDismiss = { held = false },
-                    actions = listOfNotNull(
-                        stageAction(staged, onToggleStage),
-                        onDiscard?.let { IcodeMenuAction("Discard changes", Icons.Outlined.DeleteOutline, it, destructive = true) },
-                    ),
-                )
-            }
+            StageButton(staged, folder.name, onToggleStage)
         },
     )
 }
 
 @Composable
-private fun ChangeFileRow(
-    file: GitChangeRow.File,
-    onOpen: () -> Unit,
-    onToggleStage: () -> Unit,
-    onOpenFile: () -> Unit,
-    onDiscard: () -> Unit,
-) {
+private fun ChangeFileRow(file: GitChangeRow.File, onOpen: () -> Unit, onToggleStage: () -> Unit, onHold: () -> Unit) {
     val change = file.change
     val tone = gitStatusTone(change.status).tint()
     val type = FileTypes.of(change.name)
     val deleted = change.status == GitStatusCodes.DELETED
-    var held by remember(change.path) { mutableStateOf(false) }
     IcodeListRow(
         rowShape = RectangleShape,
         compact = true,
         indent = IcodeSpacing.IndentStep * file.depth,
         onClick = onOpen,
-        onLongClick = { held = true },
+        onLongClick = onHold,
         leading = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
                 Spacer(Modifier.width(IcodeSizes.IconSm))
@@ -186,25 +209,18 @@ private fun ChangeFileRow(
         },
         trailing = {
             MonoLine(change.status, color = tone, style = IcodeType.MonoSmall)
-            Box {
-                StageButton(change.staged, change.name, onToggleStage)
-                IcodeActionMenu(
-                    expanded = held,
-                    onDismiss = { held = false },
-                    actions = listOfNotNull(
-                        IcodeMenuAction("Open file", Icons.Outlined.Description, onOpenFile).takeUnless { deleted },
-                        stageAction(change.staged, onToggleStage),
-                        // Destructive, so last, and confirmed before anything is lost.
-                        IcodeMenuAction(discardLabel(change), Icons.Outlined.DeleteOutline, onDiscard, destructive = true).takeIf { change.discardable },
-                    ),
-                )
-            }
+            StageButton(change.staged, change.name, onToggleStage)
         },
     )
 }
 
 private fun stageAction(staged: Boolean, onClick: () -> Unit) =
     IcodeMenuAction(if (staged) "Unstage" else "Stage", if (staged) Icons.Outlined.Remove else Icons.Outlined.Add, onClick)
+
+/** + or −: [path] — a file, or all a folder holds — staged, or unstaged when it is [staged]. */
+private fun stageIntent(staged: Boolean, path: String): ICodeIntent = if (staged) ICodeIntent.UnstageFile(path) else ICodeIntent.StageFile(path)
+
+private fun openFileIntent(workTreePath: String, change: GitChange) = ICodeIntent.OpenFile("$workTreePath/${change.path}")
 
 /** What discarding does to this change, as its menu says it. */
 private fun discardLabel(change: GitChange): String = when (change.status) {
@@ -235,9 +251,9 @@ private fun StageButton(staged: Boolean, name: String, onClick: () -> Unit) {
  * accident. The diff is requested before navigating so the diff surface renders
  * Git's own patch.
  */
-private fun openChange(gateway: ICodeGateway, actions: NavigationActions, change: GitChange, openFile: () -> Unit) {
+private fun openChange(gateway: ICodeGateway, actions: NavigationActions, change: GitChange, workTreePath: String) {
     when {
-        change.status == GitStatusCodes.UNTRACKED -> openFile()
+        change.status == GitStatusCodes.UNTRACKED -> gateway.dispatch(openFileIntent(workTreePath, change))
         change.status == GitStatusCodes.CONFLICTED -> {
             gateway.dispatch(ICodeIntent.OpenConflict(change.path))
             actions.navigate(Route.ConflictResolution)

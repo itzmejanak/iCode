@@ -11,10 +11,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.platform.LocalContext
 import dev.icode.mobile.designsystem.IcodeSheetOverlay
-import dev.icode.mobile.designsystem.IcodeSizes
+import dev.icode.mobile.designsystem.behindSheet
 import dev.icode.mobile.domain.FileViewer
 import dev.icode.mobile.domain.NoticeIntent
 import dev.icode.mobile.domain.NoticeTone
@@ -48,7 +47,7 @@ internal val LocalFileViewer = staticCompositionLocalOf<FileViewerState> { error
 internal fun FileViewerHost(state: FileViewerState, content: @Composable () -> Unit) {
     val shown = state.shown
     CompositionLocalProvider(LocalFileViewer provides state) {
-        Box(Modifier.fillMaxSize().then(if (shown != null) Modifier.blur(IcodeSizes.SheetBackdropBlur) else Modifier)) { content() }
+        Box(Modifier.fillMaxSize().behindSheet(shown != null)) { content() }
     }
     if (shown == null) return
     val context = LocalContext.current

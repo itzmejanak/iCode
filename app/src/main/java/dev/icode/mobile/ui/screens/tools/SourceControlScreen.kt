@@ -27,10 +27,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodeSheetOverlay
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTextField
@@ -39,6 +41,7 @@ import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SecondaryButton
+import dev.icode.mobile.designsystem.behindSheet
 import dev.icode.mobile.domain.GitInProgress
 import dev.icode.mobile.domain.GitStatusCodes
 import dev.icode.mobile.domain.ICodeIntent
@@ -93,117 +96,131 @@ fun SourceControlScreen(actions: NavigationActions) {
     var closedChanges by rememberSaveable(repository.workTreePath) { mutableStateOf(emptySet<String>()) }
     val stagedRows = remember(staged, closedStaged) { GitChangeTree.rows(staged, closedStaged) }
     val changeRows = remember(changes, closedChanges) { GitChangeTree.rows(changes, closedChanges) }
+    // The row whose sheet is shown, by its key; gone with the row (staged, committed, discarded).
+    var held by rememberSaveable(repository.workTreePath) { mutableStateOf<String?>(null) }
+    val sheetFor = held?.let { key ->
+        stagedRows.firstOrNull { changeRowKey(true, it) == key }?.let { it to true }
+            ?: changeRows.firstOrNull { changeRowKey(false, it) == key }?.let { it to false }
+    }
     val hasIdentity = !repository.authorName.isNullOrBlank() && !repository.authorEmail.isNullOrBlank()
-    Column(Modifier.fillMaxSize()) {
-        IcodeTopBar(
-            title = "Source Control",
-            actions = {
-                IconButton(onClick = { gateway.dispatch(ICodeIntent.RefreshGit) }) {
-                    Icon(Icons.Outlined.Refresh, contentDescription = "Refresh", tint = IcodeColors.TextPrimary)
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().behindSheet(sheetFor != null)) {
+            IcodeTopBar(
+                title = "Source Control",
+                actions = {
+                    IconButton(onClick = { gateway.dispatch(ICodeIntent.RefreshGit) }) {
+                        Icon(Icons.Outlined.Refresh, contentDescription = "Refresh", tint = IcodeColors.TextPrimary)
+                    }
+                },
+            )
+            // The tree's rows sit together, as the Explorer's; the parts above keep their space.
+            LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(IcodeSpacing.Gutter)) {
+                if (repository.inProgress != GitInProgress.None) {
+                    item {
+                        Box(Modifier.padding(bottom = IcodeSpacing.Space3)) {
+                            InProgressBanner(
+                                inProgress = repository.inProgress,
+                                conflicts = state.gitChanges.count { it.status == GitStatusCodes.CONFLICTED },
+                                onAbort = { gateway.dispatch(ICodeIntent.AbortInProgress) },
+                            )
+                        }
+                    }
                 }
-            },
-        )
-        // The tree's rows sit together, as the Explorer's; the parts above keep their space.
-        LazyColumn(modifier = Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(IcodeSpacing.Gutter)) {
-            if (repository.inProgress != GitInProgress.None) {
                 item {
-                    Box(Modifier.padding(bottom = IcodeSpacing.Space3)) {
-                        InProgressBanner(
-                            inProgress = repository.inProgress,
-                            conflicts = state.gitChanges.count { it.status == GitStatusCodes.CONFLICTED },
-                            onAbort = { gateway.dispatch(ICodeIntent.AbortInProgress) },
-                        )
-                    }
-                }
-            }
-            item {
-                IcodeCard(Modifier.fillMaxWidth()) {
-                    IcodeTextField(
-                        value = commitMessage,
-                        onValueChange = {
-                            commitMessage = it
-                            if (written?.failure != null) gateway.dispatch(ICodeIntent.CommitMessageTaken)
-                        },
-                        placeholder = "Commit message",
-                        modifier = Modifier.fillMaxWidth(),
-                        // A written message may have a body under its subject.
-                        singleLine = false,
-                        trailing = {
-                            WriteMessageButton(writing = written?.writing == true, enabled = staged.isNotEmpty()) {
-                                gateway.dispatch(ICodeIntent.WriteCommitMessage)
-                            }
-                        },
-                    )
-                    written?.failure?.let { failure ->
-                        Text(
-                            failure,
-                            modifier = Modifier.padding(top = IcodeSpacing.Space2),
-                            style = IcodeType.Caption.copy(color = IcodeColors.Error),
-                        )
-                    }
-                    Spacer(Modifier.height(IcodeSpacing.Space2))
-                    if (!hasIdentity) {
-                        MonoLine(
-                            "Set a Git author name and email before committing.",
-                            color = IcodeColors.TextMuted,
-                            style = IcodeType.MonoSmall,
-                        )
-                        PrimaryButton(
-                            "Set Git Identity",
-                            { actions.navigate(Route.GitAuth) },
-                            Modifier.fillMaxWidth().padding(top = IcodeSpacing.Space2),
-                        )
-                        // Fetch, pull and push need no identity; this is the one way to them here.
-                        SecondaryButton(
-                            "Sync with Remote",
-                            { actions.navigate(Route.CommitPush) },
-                            Modifier.fillMaxWidth().padding(top = IcodeSpacing.Space2),
-                        )
-                    } else {
-                        val committable = staged.isNotEmpty() && commitMessage.isNotBlank()
-                        PrimaryButton(
-                            "Commit",
-                            { send(ICodeIntent.CommitStaged(commitMessage)) },
-                            Modifier.fillMaxWidth(),
-                            enabled = committable,
-                        )
-                        Text(
-                            "Author: ${repository.authorName} <${repository.authorEmail}> · Edit",
-                            modifier = Modifier.clickable { actions.navigate(Route.GitAuth) }
-                                .padding(top = IcodeSpacing.Space2),
-                            style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary),
-                        )
-                        // One transfer — commit, then push — which the sync progress follows.
-                        SecondaryButton(
-                            "Commit & Push",
-                            {
-                                send(ICodeIntent.CommitAndPush(commitMessage))
-                                actions.navigate(Route.PullFetchProgress)
+                    IcodeCard(Modifier.fillMaxWidth()) {
+                        IcodeTextField(
+                            value = commitMessage,
+                            onValueChange = {
+                                commitMessage = it
+                                if (written?.failure != null) gateway.dispatch(ICodeIntent.CommitMessageTaken)
                             },
-                            Modifier.fillMaxWidth().padding(top = IcodeSpacing.Space2),
-                            enabled = committable,
+                            placeholder = "Commit message",
+                            modifier = Modifier.fillMaxWidth(),
+                            // A written message may have a body under its subject.
+                            singleLine = false,
+                            trailing = {
+                                WriteMessageButton(writing = written?.writing == true, enabled = staged.isNotEmpty()) {
+                                    gateway.dispatch(ICodeIntent.WriteCommitMessage)
+                                }
+                            },
+                        )
+                        written?.failure?.let { failure ->
+                            Text(
+                                failure,
+                                modifier = Modifier.padding(top = IcodeSpacing.Space2),
+                                style = IcodeType.Caption.copy(color = IcodeColors.Error),
+                            )
+                        }
+                        Spacer(Modifier.height(IcodeSpacing.Space2))
+                        if (!hasIdentity) {
+                            MonoLine(
+                                "Set a Git author name and email before committing.",
+                                color = IcodeColors.TextMuted,
+                                style = IcodeType.MonoSmall,
+                            )
+                            PrimaryButton(
+                                "Set Git Identity",
+                                { actions.navigate(Route.GitAuth) },
+                                Modifier.fillMaxWidth().padding(top = IcodeSpacing.Space2),
+                            )
+                            // Fetch, pull and push need no identity; this is the one way to them here.
+                            SecondaryButton(
+                                "Sync with Remote",
+                                { actions.navigate(Route.CommitPush) },
+                                Modifier.fillMaxWidth().padding(top = IcodeSpacing.Space2),
+                            )
+                        } else {
+                            val committable = staged.isNotEmpty() && commitMessage.isNotBlank()
+                            PrimaryButton(
+                                "Commit",
+                                { send(ICodeIntent.CommitStaged(commitMessage)) },
+                                Modifier.fillMaxWidth(),
+                                enabled = committable,
+                            )
+                            Text(
+                                "Author: ${repository.authorName} <${repository.authorEmail}> · Edit",
+                                modifier = Modifier.clickable { actions.navigate(Route.GitAuth) }
+                                    .padding(top = IcodeSpacing.Space2),
+                                style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary),
+                            )
+                            // One transfer — commit, then push — which the sync progress follows.
+                            SecondaryButton(
+                                "Commit & Push",
+                                {
+                                    send(ICodeIntent.CommitAndPush(commitMessage))
+                                    actions.navigate(Route.PullFetchProgress)
+                                },
+                                Modifier.fillMaxWidth().padding(top = IcodeSpacing.Space2),
+                                enabled = committable,
+                            )
+                        }
+                    }
+                }
+                gitChangeSection("Staged changes", staged, staged = true, stagedRows, repository.workTreePath, { path ->
+                    closedStaged = closedStaged.toggled(path)
+                }, { held = changeRowKey(true, it) }, gateway, actions)
+                gitChangeSection("Changes", changes, staged = false, changeRows, repository.workTreePath, { path ->
+                    closedChanges = closedChanges.toggled(path)
+                }, { held = changeRowKey(false, it) }, gateway, actions)
+                if (staged.isEmpty() && changes.isEmpty()) {
+                    item {
+                        EmptyState(
+                            title = "Working tree clean",
+                            description = "Changes in this folder will appear here.",
+                            icon = Icons.Outlined.AccountTree,
+                            modifier = Modifier.padding(vertical = IcodeSpacing.Space6),
                         )
                     }
                 }
             }
-            gitChangeSection("Staged changes", staged, staged = true, stagedRows, repository.workTreePath, { path ->
-                closedStaged = closedStaged.toggled(path)
-            }, gateway, actions)
-            gitChangeSection("Changes", changes, staged = false, changeRows, repository.workTreePath, { path ->
-                closedChanges = closedChanges.toggled(path)
-            }, gateway, actions)
-            if (staged.isEmpty() && changes.isEmpty()) {
-                item {
-                    EmptyState(
-                        title = "Working tree clean",
-                        description = "Changes in this folder will appear here.",
-                        icon = Icons.Outlined.AccountTree,
-                        modifier = Modifier.padding(vertical = IcodeSpacing.Space6),
-                    )
-                }
+            GitBottomBar(state, repository, actions, onSyncPage = false)
+        }
+        sheetFor?.let { (row, inStaged) ->
+            val close = { held = null }
+            IcodeSheetOverlay(onClose = close) {
+                GitChangeSheet(row, inStaged, if (inStaged) staged else changes, repository.workTreePath, close, Modifier.align(Alignment.BottomCenter))
             }
         }
-        GitBottomBar(state, repository, actions, onSyncPage = false)
     }
 }
 

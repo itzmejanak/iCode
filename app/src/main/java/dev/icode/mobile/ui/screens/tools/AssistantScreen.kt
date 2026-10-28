@@ -22,7 +22,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeBrandMark
 import dev.icode.mobile.designsystem.IcodeColors
@@ -32,6 +31,7 @@ import dev.icode.mobile.designsystem.IcodeSheetOverlay
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
+import dev.icode.mobile.designsystem.behindSheet
 import dev.icode.mobile.designsystem.IcodeWatermark
 import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantRules
@@ -47,9 +47,10 @@ import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
  * What is drawn over the chat: its history, the model picker, what to attach, the processes it
- * started, or what a row of it holds (docs/assistant-sheets-plan.md §2).
+ * started, what a row of it holds (docs/assistant-sheets-plan.md §2), or what a row offers, from a
+ * long press (docs/explorer-gaps-plan.md §3.1).
  */
-internal enum class AssistantSheet { Chats, Models, Attach, Processes, Entry }
+internal enum class AssistantSheet { Chats, Models, Attach, Processes, Entry, Actions }
 
 /**
  * The assistant (docs/assistant-koog-plan.md §3, §12): a chat of the open workspace — VS Code's
@@ -71,7 +72,7 @@ fun AssistantScreen(actions: NavigationActions) {
     var stepKey by rememberSaveable(state.workspace, state.session) { mutableStateOf<String?>(null) }
     val entry = rows.firstOrNull { it.key == entryKey }
     // What a sheet showed has gone — another chat, a compaction — and its sheet with it.
-    LaunchedEffect(sheet, entry == null) { if (sheet == AssistantSheet.Entry && entry == null) sheet = null }
+    LaunchedEffect(sheet, entry == null) { if ((sheet == AssistantSheet.Entry || sheet == AssistantSheet.Actions) && entry == null) sheet = null }
     // As Source Control opens a change: its diff, a step forward from the chat.
     val onDiff = { change: GitChange ->
         gateway.dispatch(ICodeIntent.OpenDiff(change.path, change.staged))
@@ -93,7 +94,7 @@ fun AssistantScreen(actions: NavigationActions) {
     val title = state.sessions.firstOrNull { it.id == state.session }?.title ?: "New chat"
 
     Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().then(if (sheet != null) Modifier.blur(IcodeSizes.SheetBackdropBlur) else Modifier)) {
+        Column(Modifier.fillMaxSize().behindSheet(sheet != null)) {
             IcodeTopBar(
                 if (ready) title else "Assistant",
                 subtitle = state.workspace?.let(AssistantRules::workspaceName),
@@ -145,7 +146,10 @@ fun AssistantScreen(actions: NavigationActions) {
                         stepKey = step
                         sheet = AssistantSheet.Entry
                     },
-                    onDiff = onDiff,
+                    onHold = { row ->
+                        entryKey = row
+                        sheet = AssistantSheet.Actions
+                    },
                 )
             }
             // Above the composer on every state of the page: a process outlives the chat that started it.
@@ -182,6 +186,7 @@ fun AssistantScreen(actions: NavigationActions) {
                         val approval = state.approval?.takeIf { state.runningHere }
                         AssistantEntrySheet(it, stepKey, approval, AssistantRules.workspaceName(state.workspace.orEmpty()), modifier, close, onDiff)
                     }
+                    AssistantSheet.Actions -> entry?.let { AssistantActionsSheet(it, modifier, close, onDiff) }
                 }
             }
         }

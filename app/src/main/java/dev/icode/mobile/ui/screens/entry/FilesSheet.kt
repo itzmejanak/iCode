@@ -30,8 +30,7 @@ import dev.icode.mobile.ui.SheetIcon
  * with the explorer's own [screen] actions. Open is what a tap does ([opening]); at Private's top the
  * items are workspaces, which Open opens in the IDE, with Open Terminal beside. In a folder ([here])
  * Paste goes into a folder, or beside a file into the folder shown; a view has none, gathering from
- * many, and [showInFolder] opens the one item's. Each action but a page also does [onActed]: a
- * selection ends once it is acted on.
+ * many, and [showInFolder] opens the one item's. Acted on, a selection ends ([onActed]).
  */
 @Composable
 internal fun FilesSheet(
@@ -66,6 +65,7 @@ internal fun FilesSheet(
         modifier = modifier,
         folder = folder,
         branch = one?.branch,
+        onActed = onActed,
     ) { rename, pages ->
         FileItemActions.of(
             context = context,
@@ -79,6 +79,6 @@ internal fun FilesSheet(
             openTerminal = one?.takeIf { top }?.let { item -> { gateway.dispatch(ICodeIntent.OpenWorkspaceTerminal(item.location)) } },
             showInList = showInFolder,
             screen = screen,
-        ).map { action -> if (action.opensPage) action else action.copy(onClick = { action.onClick(); onActed() }) }
+        )
     }
 }
