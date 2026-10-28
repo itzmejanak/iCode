@@ -128,4 +128,10 @@ val Reversal.paths: List<String>
 data class FileHistoryState(val undo: String? = null, val redo: String? = null, val news: FileNews? = null)
 
 /** A change just made ([undone] false) or undone, for the undo pill (§3.8). */
-data class FileNews(val id: Long, val line: String, val undone: Boolean)
+data class FileNews(val id: Long, val line: String, val undone: Boolean) {
+    companion object {
+        /** The pill's line shows this long, as a bell's does; then the pill stays [HOLD_MILLIS], and goes. */
+        const val LINE_MILLIS = 6_000L
+        const val HOLD_MILLIS = 10_000L
+    }
+}

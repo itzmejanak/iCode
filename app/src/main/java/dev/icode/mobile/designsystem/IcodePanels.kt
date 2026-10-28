@@ -75,6 +75,7 @@ fun IcodeBottomBar(
 ) {
     Row(
         modifier = modifier
+            .floor()
             .fillMaxWidth()
             .height(IcodeSizes.BottomBar)
             .background(IcodeColors.Surface)
@@ -103,7 +104,7 @@ fun IcodeBottomBar(
  */
 @Composable
 fun IcodeFootBar(modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
-    Column(modifier.fillMaxWidth().background(IcodeColors.Surface)) {
+    Column(modifier.floor().fillMaxWidth().background(IcodeColors.Surface)) {
         EdgeLine()
         Column(
             Modifier.fillMaxWidth().padding(IcodeSpacing.Gutter),
@@ -131,7 +132,7 @@ fun IcodeActionBar(
     iconLast: Boolean = false,
     actions: @Composable RowScope.() -> Unit = {},
 ) {
-    Column(modifier.fillMaxWidth().background(IcodeColors.SurfaceElevated)) {
+    Column(modifier.floor().fillMaxWidth().background(IcodeColors.SurfaceElevated)) {
         EdgeLine()
         Row(
             modifier = Modifier
