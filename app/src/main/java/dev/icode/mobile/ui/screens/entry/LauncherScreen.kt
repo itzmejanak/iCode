@@ -23,6 +23,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -30,6 +34,7 @@ import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeCard
 import androidx.compose.foundation.clickable
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodeSheetOverlay
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
@@ -38,6 +43,7 @@ import dev.icode.mobile.designsystem.IcodeWatermark
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.StatusDot
 import dev.icode.mobile.designsystem.StatusLabel
+import dev.icode.mobile.designsystem.behindSheet
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.files.StoragePlace
 import dev.icode.mobile.domain.WorkspaceListRules
@@ -46,6 +52,7 @@ import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.WorkspaceRow
+import dev.icode.mobile.ui.WorkspaceSheet
 
 /**
  * The launcher: the recently opened workspaces (docs/workspaces-page-plan.md §2.1), Import and
@@ -66,80 +73,96 @@ fun LauncherScreen(actions: NavigationActions, empty: Boolean) {
         gateway.dispatch(ICodeIntent.BrowseFiles(folder))
         actions.navigate(Route.Workspaces)
     }
-    Column(Modifier.fillMaxSize()) {
-        IcodeTopBar(
-            title = "iCode",
-            actions = {
-                // Unsaved work waiting in Document Recovery keeps the dot until it is resolved.
-                val unread = state.notices.any { !it.read } || state.recoverableDrafts.isNotEmpty()
-                IconButton(onClick = { actions.navigate(Route.Notifications) }) {
-                    Box {
-                        Icon(
-                            Icons.Outlined.Notifications,
-                            contentDescription = if (unread) "Notifications, unread" else "Notifications",
-                            tint = IcodeColors.TextPrimary,
-                        )
-                        if (unread) Box(Modifier.align(Alignment.TopEnd)) { StatusDot(IcodeColors.Accent) }
+    // The workspace whose sheet is shown; gone with the workspace.
+    var actionsFor by rememberSaveable { mutableStateOf<String?>(null) }
+    val sheetFor = workspaces.firstOrNull { it.location == actionsFor }
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().behindSheet(sheetFor != null)) {
+            IcodeTopBar(
+                title = "iCode",
+                actions = {
+                    // Unsaved work waiting in Document Recovery keeps the dot until it is resolved.
+                    val unread = state.notices.any { !it.read } || state.recoverableDrafts.isNotEmpty()
+                    IconButton(onClick = { actions.navigate(Route.Notifications) }) {
+                        Box {
+                            Icon(
+                                Icons.Outlined.Notifications,
+                                contentDescription = if (unread) "Notifications, unread" else "Notifications",
+                                tint = IcodeColors.TextPrimary,
+                            )
+                            if (unread) Box(Modifier.align(Alignment.TopEnd)) { StatusDot(IcodeColors.Accent) }
+                        }
                     }
-                }
-                IconButton(onClick = { actions.navigate(Route.SettingsRoot) }) {
-                    Icon(Icons.Outlined.Settings, contentDescription = "Settings", tint = IcodeColors.TextPrimary)
-                }
-            },
-        )
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(start = IcodeSpacing.Gutter, top = IcodeSpacing.Gutter, end = IcodeSpacing.Gutter),
-            horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.ItemGap),
-        ) {
-            // Import and Workspaces open the one file explorer, at phone storage and at iCode's (docs/storage-explorer-plan.md §1).
-            LauncherActionTile(Icons.Outlined.FolderOpen, "Import", Modifier.weight(1f)) { explore(StoragePlace.Shared) }
-            LauncherActionTile(Icons.Outlined.AccountTree, "Clone Repo", Modifier.weight(1f)) { actions.navigate(Route.CloneRepository) }
-            LauncherActionTile(Icons.Outlined.FolderCopy, "Workspaces", Modifier.weight(1f)) { explore(StoragePlace.Private) }
-        }
-        // The logo as a letterpress in the free space, as VS Code's empty editor: workspaces
-        // cover it as they fill the page.
-        Box(Modifier.fillMaxWidth().weight(1f)) {
-            IcodeWatermark(Modifier.align(Alignment.Center))
-            if (showEmpty) {
-                Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
-                    EmptyState(
-                        title = "No workspaces yet",
-                        description = "Copy a folder in from phone storage with Import, clone\na repository, or make a new one in Workspaces.",
-                        icon = Icons.Outlined.Folder,
-                        modifier = Modifier.padding(top = IcodeSpacing.Space6 + IcodeSpacing.Space2),
-                    )
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(start = IcodeSpacing.Gutter, top = IcodeSpacing.SectionGap, end = IcodeSpacing.Gutter),
-                    verticalArrangement = Arrangement.spacedBy(IcodeSpacing.ItemGap),
-                ) {
-                    item { SectionLabel("Recent") }
-                    items(WorkspaceListRules.recent(workspaces), key = { it.location }) { workspace ->
-                        // Shown where it is listed: the top of iCode's storage, the folder holding it.
-                        WorkspaceRow(workspace, onShowInList = { showIn(workspace.location.substringBeforeLast('/')) })
+                    IconButton(onClick = { actions.navigate(Route.SettingsRoot) }) {
+                        Icon(Icons.Outlined.Settings, contentDescription = "Settings", tint = IcodeColors.TextPrimary)
+                    }
+                },
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(start = IcodeSpacing.Gutter, top = IcodeSpacing.Gutter, end = IcodeSpacing.Gutter),
+                horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.ItemGap),
+            ) {
+                // Import and Workspaces open the one file explorer, at phone storage and at iCode's (docs/storage-explorer-plan.md §1).
+                LauncherActionTile(Icons.Outlined.FolderOpen, "Import", Modifier.weight(1f)) { explore(StoragePlace.Shared) }
+                LauncherActionTile(Icons.Outlined.AccountTree, "Clone Repo", Modifier.weight(1f)) { actions.navigate(Route.CloneRepository) }
+                LauncherActionTile(Icons.Outlined.FolderCopy, "Workspaces", Modifier.weight(1f)) { explore(StoragePlace.Private) }
+            }
+            // The logo as a letterpress in the free space, as VS Code's empty editor: workspaces
+            // cover it as they fill the page.
+            Box(Modifier.fillMaxWidth().weight(1f)) {
+                IcodeWatermark(Modifier.align(Alignment.Center))
+                if (showEmpty) {
+                    Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+                        EmptyState(
+                            title = "No workspaces yet",
+                            description = "Copy a folder in from phone storage with Import, clone\na repository, or make a new one in Workspaces.",
+                            icon = Icons.Outlined.Folder,
+                            modifier = Modifier.padding(top = IcodeSpacing.Space6 + IcodeSpacing.Space2),
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(start = IcodeSpacing.Gutter, top = IcodeSpacing.SectionGap, end = IcodeSpacing.Gutter),
+                        verticalArrangement = Arrangement.spacedBy(IcodeSpacing.ItemGap),
+                    ) {
+                        item { SectionLabel("Recent") }
+                        items(WorkspaceListRules.recent(workspaces), key = { it.location }) { workspace ->
+                            WorkspaceRow(workspace, onActions = { actionsFor = workspace.location })
+                        }
                     }
                 }
             }
+            // An unavailable runtime is something the user can act on, so the
+            // status is the way in rather than a label reporting a dead end. Healthy
+            // wears the accent the user chose (owner, 2026-09-30); unavailable stays a warning.
+            StatusLabel(
+                if (state.runtimeHealthy) "RUNTIME HEALTHY" else "RUNTIME UNAVAILABLE — INSTALL",
+                if (state.runtimeHealthy) IcodeColors.Accent else IcodeColors.Amber,
+                Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .then(
+                        if (state.runtimeHealthy) {
+                            Modifier
+                        } else {
+                            Modifier.clickable { actions.navigate(Route.RuntimeInstalling) }
+                        },
+                    )
+                    .padding(IcodeSpacing.Space5),
+            )
         }
-        // An unavailable runtime is something the user can act on, so the
-        // status is the way in rather than a label reporting a dead end. Healthy
-        // wears the accent the user chose (owner, 2026-09-30); unavailable stays a warning.
-        StatusLabel(
-            if (state.runtimeHealthy) "RUNTIME HEALTHY" else "RUNTIME UNAVAILABLE — INSTALL",
-            if (state.runtimeHealthy) IcodeColors.Accent else IcodeColors.Amber,
-            Modifier
-                .align(Alignment.CenterHorizontally)
-                .then(
-                    if (state.runtimeHealthy) {
-                        Modifier
-                    } else {
-                        Modifier.clickable { actions.navigate(Route.RuntimeInstalling) }
-                    },
+        sheetFor?.let { workspace ->
+            val close = { actionsFor = null }
+            IcodeSheetOverlay(onClose = close) {
+                WorkspaceSheet(
+                    workspace,
+                    // Shown where it is listed: the top of iCode's storage, the folder holding it.
+                    onShowInList = { showIn(workspace.location.substringBeforeLast('/')) },
+                    onClose = close,
+                    modifier = Modifier.align(Alignment.BottomCenter),
                 )
-                .padding(IcodeSpacing.Space5),
-        )
+            }
+        }
     }
 }
 

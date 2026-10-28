@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.DriveFolderUpload
-import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -19,6 +18,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -33,7 +33,6 @@ import dev.icode.mobile.designsystem.IcodeShapes
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
-import dev.icode.mobile.domain.FileTypes
 import dev.icode.mobile.domain.FileViewer
 import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.ICodeIntent
@@ -47,8 +46,7 @@ import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.SharedFiles
 import dev.icode.mobile.ui.ThumbnailKind
 import dev.icode.mobile.ui.rememberThumbnail
-import dev.icode.mobile.ui.screens.workspace.fileTypeIcon
-import dev.icode.mobile.ui.screens.workspace.fileTypeTint
+import dev.icode.mobile.ui.screens.workspace.itemIcon
 
 /** `..`: up a folder, as Back. */
 @Composable
@@ -169,12 +167,12 @@ internal fun openOf(item: BrowsedItem, browser: FilesBrowserState, browse: (Stri
 
 /** A folder's icon in the accent; a file's by its type. */
 @Composable
-internal fun iconOf(item: BrowsedItem): Pair<ImageVector, Color> =
-    if (item.folder) Icons.Outlined.Folder to IcodeColors.Accent else FileTypes.of(item.name).let { fileTypeIcon(it) to fileTypeTint(it) }
+internal fun iconOf(item: BrowsedItem): Pair<ImageVector, Color> = itemIcon(item.name, item.folder)
 
 /**
  * A flat row, as ZArchiver's: [leading] — the type's icon or thumbnail, or a tick — then the name
  * over its detail, and when it changed ([end]) at the end; [compact], one line, the detail at the end.
+ * Ticked, it is drawn square and edge to edge, so rows ticked together are one band, as the IDE tree's.
  */
 @Composable
 private fun FileRow(
@@ -189,6 +187,8 @@ private fun FileRow(
 ) {
     IcodeListRow(
         selected = selected,
+        rowShape = RectangleShape,
+        inset = IcodeSpacing.Gutter,
         onClick = onClick,
         onLongClick = onLongClick,
         leading = leading,

@@ -56,6 +56,8 @@ fun IcodeListRow(
     card: Boolean = false,
     cardPadding: PaddingValues = PaddingValues(IcodeSpacing.CardPadding),
     indent: Dp = 0.dp,
+    /** The row's content in from its edge, where its selection is drawn; a list that runs edge to edge sets the page's gutter. */
+    inset: Dp = IcodeSpacing.RowInset,
     onClick: (() -> Unit)? = null,
     /** Secondary, usually destructive action for the row. */
     onLongClick: (() -> Unit)? = null,
@@ -130,7 +132,7 @@ fun IcodeListRow(
                         else -> Modifier
                     },
                 )
-                .padding(horizontal = IcodeSpacing.RowInset, vertical = if (compact) 0.dp else IcodeSpacing.Space3),
+                .padding(horizontal = inset, vertical = if (compact) 0.dp else IcodeSpacing.Space3),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
             content = rowContent,

@@ -27,6 +27,7 @@ import dev.icode.mobile.designsystem.IcodeFab
 import dev.icode.mobile.designsystem.IcodeSheetOverlay
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
+import dev.icode.mobile.designsystem.behindSheet
 import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.SystemPermission
@@ -123,8 +124,11 @@ fun FilesScreen(actions: NavigationActions, choosing: Boolean = false) {
         onNewFolder = { creating = WorkspaceItemType.Folder },
     )
 
+    // One item's sheet, or the selection's, over the whole screen; gone with what it is about.
+    val sheetItems = if (selectionSheet) selected.orEmpty() else listOfNotNull(listed.firstOrNull { it.location == actionsFor })
+    val sheetShown = browser != null && sheetItems.isNotEmpty()
     Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().behindSheet(sheetShown)) {
             IcodeTopBar(
                 browser?.name.orEmpty(),
                 onBack = back,
@@ -219,9 +223,7 @@ fun FilesScreen(actions: NavigationActions, choosing: Boolean = false) {
                 }
             }
         }
-        // One item's sheet, or the selection's, over the whole screen; gone with what it is about.
-        val sheetItems = if (selectionSheet) selected.orEmpty() else listOfNotNull(listed.firstOrNull { it.location == actionsFor })
-        if (browser != null && sheetItems.isNotEmpty()) {
+        if (browser != null && sheetShown) {
             val close = { actionsFor = null; selectionSheet = false }
             IcodeSheetOverlay(onClose = close) {
                 FilesSheet(

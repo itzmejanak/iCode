@@ -1,5 +1,6 @@
 package dev.icode.mobile.ui.screens.entry
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -17,6 +18,7 @@ import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.Dp
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
@@ -42,7 +44,7 @@ internal class ListingTaps(
  * What is here, found and ordered (docs/storage-explorer-plan.md §3.2; docs/explorer-gaps-plan.md
  * §3.12): `..` first while there is a folder above, then [shown] in [look]'s view — rows with detail,
  * single lines, or tiles — under a label for each type when sorted by Type. At Private's top they are
- * the workspaces. In selection `..` is not there ([taps]). Room is left at the end for the +.
+ * the workspaces. In selection `..` is not there ([taps]).
  */
 @Composable
 internal fun FilesListing(
@@ -57,9 +59,13 @@ internal fun FilesListing(
     val up = browser.parent?.takeIf { taps.selection == null }
     val groups = if (look.sort == FilesSort.Type) shown.groupBy(FilesRules::typeGroup).toList() else listOf(null to shown)
     val empty = emptiness(browser, shown, query, foldersOnly)
-    val padding = PaddingValues(start = IcodeSpacing.RowGutter, end = IcodeSpacing.RowGutter, bottom = IcodeSizes.FabClearance)
+    // A little air under the top bar, so the first row's selection does not touch its line.
+    val above = IcodeSpacing.Space1
     if (look.view == FilesView.Grid) {
-        LazyVerticalGrid(GridCells.Adaptive(IcodeSizes.GridTileMin), contentPadding = padding) {
+        LazyVerticalGrid(
+            GridCells.Adaptive(IcodeSizes.GridTileMin),
+            contentPadding = PaddingValues(start = IcodeSpacing.RowGutter, top = above, end = IcodeSpacing.RowGutter),
+        ) {
             up?.let { parent -> item(key = "..") { UpTile { browse(parent) } } }
             if (empty != null) item(key = "empty", span = { GridItemSpan(maxLineSpan) }) { empty() }
             groups.forEach { (label, items) ->
@@ -69,11 +75,13 @@ internal fun FilesListing(
         }
     } else {
         val compact = look.view == FilesView.Compact
-        LazyColumn(contentPadding = padding) {
+        val gutter = IcodeSpacing.Gutter
+        // Rows run edge to edge: their own gutter keeps the text in line, their selection reaches the sides.
+        LazyColumn(contentPadding = PaddingValues(top = above)) {
             up?.let { parent -> item(key = "..") { UpRow(compact) { browse(parent) } } }
-            if (empty != null) item(key = "empty") { empty() }
+            if (empty != null) item(key = "empty") { Box(Modifier.padding(horizontal = IcodeSpacing.RowGutter)) { empty() } }
             groups.forEach { (label, items) ->
-                label?.let { groupLabel(it, items.size) }
+                label?.let { groupLabel(it, items.size, start = gutter) }
                 items(items, key = { it.location }) { item -> ItemRow(item, browser, browse, taps, compact) }
             }
         }
@@ -81,13 +89,14 @@ internal fun FilesListing(
 }
 
 /** A type's label over its items, sorted by Type (§3.12): ".kt · 12". */
-private fun LazyListScope.groupLabel(label: String, count: Int) = item(key = "group:$label") { TypeLabel(label, count) }
+private fun LazyListScope.groupLabel(label: String, count: Int, start: Dp) = item(key = "group:$label") { TypeLabel(label, count, start) }
 
-private fun LazyGridScope.groupLabel(label: String, count: Int) = item(key = "group:$label", span = { GridItemSpan(maxLineSpan) }) { TypeLabel(label, count) }
+private fun LazyGridScope.groupLabel(label: String, count: Int) = item(key = "group:$label", span = { GridItemSpan(maxLineSpan) }) { TypeLabel(label, count, IcodeSpacing.RowInset) }
 
+/** [start] is in from the list's edge: a label stands where the text of the rows under it does. */
 @Composable
-private fun TypeLabel(label: String, count: Int) {
-    SectionLabel("$label · $count", Modifier.padding(start = IcodeSpacing.RowInset, top = IcodeSpacing.Space3, bottom = IcodeSpacing.Space1))
+private fun TypeLabel(label: String, count: Int, start: Dp) {
+    SectionLabel("$label · $count", Modifier.padding(start = start, top = IcodeSpacing.Space3, bottom = IcodeSpacing.Space1))
 }
 
 /**

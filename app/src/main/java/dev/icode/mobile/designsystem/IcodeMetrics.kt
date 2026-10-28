@@ -76,9 +76,11 @@ object IcodeSizes {
     val CornerAction = 40.dp
     /** A tree row's leading slot, its expand arrow or nothing: the rail beneath the row runs down its middle. */
     val Disclosure = 24.dp
-    /** Room under a list's last row for the floating + (56 dp) and the margin around it. */
+    /** How far above the screen's bottom the floating + (56 dp) and the margin around it reach: what sits above it clears it by this. */
     val FabClearance = 88.dp
     val MenuWidth = 200.dp
+    /** An option panel's tile ([IcodeOptionTile]): wide enough for "Detailed" in caption type, and its pill. */
+    val OptionTile = 54.dp
     val DialogMaxWidth = 400.dp
     val DotMd = 12.dp
     /** A commit graph's lane (History sheet), its dot and the lines between them. */

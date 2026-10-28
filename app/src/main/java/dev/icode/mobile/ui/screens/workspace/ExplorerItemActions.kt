@@ -1,7 +1,6 @@
 package dev.icode.mobile.ui.screens.workspace
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
@@ -20,7 +19,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalContext
-import dev.icode.mobile.designsystem.IcodeActionMenu
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodeMenuAction
@@ -37,54 +35,62 @@ import dev.icode.mobile.domain.FileTypes
 import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.WorkspaceRuntimePath
-import dev.icode.mobile.domain.files.ExplorerState
 import dev.icode.mobile.ui.ActionTarget
 import dev.icode.mobile.ui.FileItemActions
+import dev.icode.mobile.ui.ItemSheet
 import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
- * One Explorer row's actions, every explorer's ([FileItemActions]), from its ⋮ and a long press
- * alike. Open is a file into the editor, a folder opened or closed in the tree; Paste goes into a
- * folder row itself, or beside a file row into the folder it sits in ([creationParentLocation]).
+ * One Explorer row's [ItemSheet], from a long press: every explorer's actions ([FileItemActions]).
+ * Open is a file into the editor; a folder's is Expand or Collapse, which only the tree has. Paste
+ * goes into a folder row itself, or beside a file row into the folder it sits in
+ * ([creationParentLocation]).
  */
 @Composable
-internal fun explorerItemActions(
-    entry: FileEntry,
-    root: String?,
-    rootPath: String,
-    files: List<FileEntry>,
-    explorer: ExplorerState,
-    onRename: () -> Unit,
-): List<IcodeMenuAction> {
+internal fun ExplorerItemSheet(entry: FileEntry, onClose: () -> Unit, modifier: Modifier = Modifier) {
+    val state = LocalICodeSnapshot.current
     val gateway = LocalICodeGateway.current
+    val context = LocalContext.current
+    val root = state.activeWorkspaceLocation
     val folder = entry.kind == FileKind.Folder
-    return FileItemActions.of(
-        context = LocalContext.current,
-        dispatch = gateway::dispatch,
-        targets = listOf(ActionTarget(entry.path, entry.name, folder, root?.let { WorkspaceRuntimePath.within(it, rootPath, entry.path) } ?: entry.path)),
-        explorer = explorer,
-        open = if (folder) {
-            IcodeMenuAction(
-                if (entry.expanded) "Collapse" else "Expand",
-                if (entry.expanded) Icons.Outlined.UnfoldLess else Icons.Outlined.UnfoldMore,
-                { gateway.dispatch(ICodeIntent.ToggleFolder(entry.path)) },
-            )
-        } else {
-            FileItemActions.openFile { gateway.dispatch(ICodeIntent.OpenFile(entry.path)) }
-        },
-        onRename = onRename,
-        onPaste = { creationParentLocation(root, entry.path, files)?.let { gateway.dispatch(FilesIntent.Paste(it)) } },
-    )
+    val runtimePath = root?.let { WorkspaceRuntimePath.within(it, state.activePath, entry.path) } ?: entry.path
+    val targets = listOf(ActionTarget(entry.path, entry.name, folder, runtimePath))
+    val (icon, tint) = itemIcon(entry.name, folder)
+    ItemSheet(
+        targets = targets,
+        title = entry.name,
+        detail = runtimePath,
+        leading = { Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(IcodeSizes.IconXl)) },
+        onClose = onClose,
+        modifier = modifier,
+    ) { rename, pages ->
+        FileItemActions.of(
+            context = context,
+            dispatch = gateway::dispatch,
+            targets = targets,
+            explorer = state.explorer,
+            onRename = rename,
+            pages = pages,
+            open = if (folder) {
+                IcodeMenuAction(
+                    if (entry.expanded) "Collapse" else "Expand",
+                    if (entry.expanded) Icons.Outlined.UnfoldLess else Icons.Outlined.UnfoldMore,
+                    { gateway.dispatch(ICodeIntent.ToggleFolder(entry.path)) },
+                )
+            } else {
+                FileItemActions.openFile { gateway.dispatch(ICodeIntent.OpenFile(entry.path)) }
+            },
+            onPaste = { creationParentLocation(root, entry.path, state.files)?.let { gateway.dispatch(FilesIntent.Paste(it)) } },
+        )
+    }
 }
 
-/** One row of the Explorer's tree; its actions open from a long press ([menuOpen]), at its end. */
+/** One row of the Explorer's tree; a long press asks for its sheet ([ExplorerItemSheet]). */
 @Composable
 internal fun ExplorerRow(
     entry: FileEntry,
     selected: Boolean,
-    actions: List<IcodeMenuAction>,
-    menuOpen: Boolean,
-    onMenuDismiss: () -> Unit,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
@@ -144,8 +150,6 @@ internal fun ExplorerRow(
                 entry.kind == FileKind.Folder -> StatusDot(gitStatusTone(status).tint())
                 else -> MonoLine(status, color = gitStatusTone(status).tint(), style = IcodeType.MonoSmall)
             }
-            // A long press opens the menu here, as in every explorer (docs/storage-explorer-plan.md §3.2).
-            Box { IcodeActionMenu(expanded = menuOpen, onDismiss = onMenuDismiss, actions = actions) }
         },
     )
 }

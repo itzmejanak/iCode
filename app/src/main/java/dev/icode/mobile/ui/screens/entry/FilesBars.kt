@@ -45,6 +45,9 @@ import dev.icode.mobile.designsystem.IcodeActionBar
 import dev.icode.mobile.designsystem.IcodeActionMenu
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeMenuAction
+import dev.icode.mobile.designsystem.IcodeOption
+import dev.icode.mobile.designsystem.IcodeOptionGroup
+import dev.icode.mobile.designsystem.IcodeOptionPanelButton
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTextField
 import dev.icode.mobile.designsystem.IcodeType
@@ -159,32 +162,31 @@ internal fun goTo(browser: FilesBrowserState?, favorites: List<FavoriteFolder>, 
     }
 
 /**
- * ☰, the view panel (§3.12), as ZArchiver's: View — Detailed, Compact, Grid and, where it applies,
- * Hidden files — and Sort — Name, Size, Date, Type, and Descending; those in use ticked. A new sort
- * reads its own way first. Each choice is kept: [onLook] for the list shown, [onHidden] for every
- * listing.
+ * ☰, the view panel (§3.12), as ZArchiver's: an option panel ([IcodeOptionPanelButton]) of what
+ * [viewPanel] offers. Each choice is kept: [onLook] for the list shown, [onHidden] for every listing.
  */
 @Composable
 internal fun ViewPanelButton(look: FilesLook, showHidden: Boolean, onLook: (FilesLook) -> Unit, onHidden: ((Boolean) -> Unit)?) {
-    var open by remember { mutableStateOf(false) }
-    Box {
-        IconButton(onClick = { open = true }) {
-            Icon(Icons.Outlined.Menu, contentDescription = "View and sort", tint = IcodeColors.TextPrimary)
-        }
-        IcodeActionMenu(
-            expanded = open,
-            onDismiss = { open = false },
-            actions = buildList {
-                FilesView.entries.forEach { view -> add(IcodeMenuAction(view.name, view.icon, { onLook(look.copy(view = view)) }, checked = look.view == view)) }
-                onHidden?.let { add(IcodeMenuAction("Hidden files", Icons.Outlined.Visibility, { it(!showHidden) }, checked = showHidden)) }
-                FilesSort.entries.forEachIndexed { index, sort ->
-                    add(IcodeMenuAction(sort.name, sort.icon, { onLook(look.sortedBy(sort)) }, checked = look.sort == sort, beginsGroup = index == 0))
-                }
-                add(IcodeMenuAction("Descending", Icons.Outlined.ArrowDownward, { onLook(look.copy(descending = !look.descending)) }, checked = look.descending))
-            },
-        )
-    }
+    IcodeOptionPanelButton(Icons.Outlined.Menu, "View and sort", viewPanel(look, showHidden, onLook, onHidden))
 }
+
+/**
+ * What the view panel offers: View — Detailed, Compact, Grid and, set apart where it applies, Hidden
+ * files — and Sort — Name, Size, Date, Type, and Descending; those in use marked. A new sort reads
+ * its own way first.
+ */
+internal fun viewPanel(look: FilesLook, showHidden: Boolean, onLook: (FilesLook) -> Unit, onHidden: ((Boolean) -> Unit)?): List<IcodeOptionGroup> = listOf(
+    IcodeOptionGroup(
+        title = "View",
+        options = FilesView.entries.map { view -> IcodeOption(view.name, view.icon, look.view == view, { onLook(look.copy(view = view)) }) },
+        aside = listOfNotNull(onHidden?.let { IcodeOption("Hidden", Icons.Outlined.Visibility, showHidden, { it(!showHidden) }, description = "Hidden files") }),
+    ),
+    IcodeOptionGroup(
+        title = "Sort",
+        options = FilesSort.entries.map { sort -> IcodeOption(sort.name, sort.icon, look.sort == sort, { onLook(look.sortedBy(sort)) }) } +
+            IcodeOption("Desc", Icons.Outlined.ArrowDownward, look.descending, { onLook(look.copy(descending = !look.descending)) }, description = "Descending"),
+    ),
+)
 
 private val FilesView.icon: ImageVector
     get() = when (this) {

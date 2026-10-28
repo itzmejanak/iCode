@@ -10,15 +10,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeListRow
+import dev.icode.mobile.designsystem.IcodeMoreButton
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
@@ -29,21 +26,20 @@ import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.WorkspaceSummary
 
 /**
- * One workspace in a list — the home screen's recent ones and the Workspaces page alike: its name,
- * `/workspace/` path, branch, [size] where the list measures it, when it was last opened, and its
- * menu, from ⋮ or a long press. A tap opens it. [onShowInList] leads to the Workspaces page.
+ * One workspace in a list: its name, `/workspace/` path, branch, [size] where the list measures it,
+ * when it was last opened, and its actions, from ⋮ or a long press — [onActions] asks the screen to
+ * show the workspace's sheet ([WorkspaceSheet]). A tap opens it.
  */
 @Composable
 fun WorkspaceRow(
     item: WorkspaceSummary,
+    onActions: () -> Unit,
     modifier: Modifier = Modifier,
     size: String? = null,
-    onShowInList: (() -> Unit)? = null,
     /** What a tap does; opening the workspace unless said otherwise (the file explorer goes into it). */
     onOpen: (() -> Unit)? = null,
 ) {
     val gateway = LocalICodeGateway.current
-    var longPressed by remember(item.location) { mutableStateOf(false) }
     IcodeListRow(
         modifier = modifier,
         card = true,
@@ -52,7 +48,7 @@ fun WorkspaceRow(
             vertical = (IcodeSizes.Tile - IcodeSizes.TouchTarget) / 2,
         ),
         onClick = onOpen ?: { gateway.dispatch(ICodeIntent.OpenWorkspace(item.location)) },
-        onLongClick = { longPressed = true },
+        onLongClick = onActions,
         leading = {
             IconBadge(
                 icon = Icons.Outlined.Folder,
@@ -78,7 +74,7 @@ fun WorkspaceRow(
         },
         trailing = {
             Box {
-                WorkspaceActionsMenu(item, longPressed, onLongPressDismiss = { longPressed = false }, onShowInList = onShowInList)
+                IcodeMoreButton("More options for ${item.name}", onClick = onActions)
                 Text(
                     RelativeTime.since(item.lastOpenedAt),
                     style = IcodeType.Caption,
