@@ -88,7 +88,7 @@ fun EditorEmptyScreen(actions: NavigationActions) {
                 Text("Files you open will appear here", style = IcodeType.Caption, color = IcodeColors.TextSecondary)
             }
             inWorkspace.forEach { document ->
-                RecentFile(document.name, document.location.removePrefix("${state.activeWorkspaceLocation}/"), RelativeTime.since(document.lastOpenedAt)) {
+                RecentFile(document.name, document.location.removePrefix("${state.activeWorkspaceLocation}/"), RelativeTime.since(document.changedAt)) {
                     gateway.dispatch(ICodeIntent.OpenFile(document.location))
                 }
             }

@@ -16,6 +16,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import dev.icode.mobile.designsystem.DetailRow
 import dev.icode.mobile.designsystem.IcodeActionSheet
@@ -50,7 +52,8 @@ internal class SheetFolder(val name: String?, val runtimePath: String, val names
  * [title] and [detail] over the actions [actions] lists ([FileItemActions]) with the sheet's own
  * Rename… and pages. Rename… — one name, or many by a rule — Compress… and Properties open within
  * it, ← back to the actions. [folder] is where a selection of many is acted in; one item has none.
- * [branch] is a workspace's, for Properties.
+ * Many's Rename… and Compress… go by that folder: a view's selection, gathered from many folders
+ * (§3.10), has none, and is not offered them. [branch] is a workspace's, for Properties.
  */
 @Composable
 internal fun ItemSheet(
@@ -62,14 +65,18 @@ internal fun ItemSheet(
     modifier: Modifier = Modifier,
     folder: SheetFolder? = null,
     branch: String? = null,
-    actions: (rename: () -> Unit, pages: SheetPageActions) -> List<IcodeMenuAction>,
+    actions: (rename: (() -> Unit)?, pages: SheetPageActions) -> List<IcodeMenuAction>,
 ) {
     val pages = rememberSheetPages<ItemPage>(targets.map { it.location })
     val one = targets.singleOrNull()
+    val byFolder = one != null || folder != null
     when (pages.current) {
         null -> IcodeActionSheet(
             title = title,
-            actions = actions({ pages.open(ItemPage.Rename) }, SheetPageActions({ pages.open(ItemPage.Compress) }, { pages.open(ItemPage.Properties) })),
+            actions = actions(
+                { pages.open(ItemPage.Rename) }.takeIf { byFolder },
+                SheetPageActions({ pages.open(ItemPage.Compress) }.takeIf { byFolder }, { pages.open(ItemPage.Properties) }),
+            ),
             onClose = onClose,
             modifier = modifier,
             detail = detail,
@@ -77,8 +84,14 @@ internal fun ItemSheet(
         )
         ItemPage.Rename -> if (one != null) RenamePage(one, pages.back, onClose, modifier) else folder?.let { BatchRenamePage(targets, it, pages.back, onClose, modifier) }
         ItemPage.Compress -> CompressPage(targets, folder?.name, title, pages.back, onClose, modifier)
-        ItemPage.Properties -> PropertiesPage(targets, one?.runtimePath ?: folder?.runtimePath.orEmpty(), title, branch, pages.back, onClose, modifier)
+        ItemPage.Properties -> PropertiesPage(targets, one?.runtimePath ?: folder?.runtimePath, title, branch, pages.back, onClose, modifier)
     }
+}
+
+/** What leads an item sheet's head (§3.1): the item's icon ([dev.icode.mobile.ui.screens.workspace.itemIcon]), or a selection's. */
+@Composable
+internal fun SheetIcon(icon: ImageVector, tint: Color) {
+    Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(IcodeSizes.IconXl))
 }
 
 /** Rename… (§3.1): the new name as it is typed, checked by the same rules as everywhere; done, the sheet closes. */
@@ -138,10 +151,11 @@ private fun CompressPage(targets: List<ActionTarget>, folderName: String?, subje
 
 /**
  * Properties (§3.9): what is known shown at once, a folder's size — or many items' together —
- * measured while the page is open. [path] is the one item's, or the folder the many are in.
+ * measured while the page is open. [path] is the one item's, or the folder the many are in — none for
+ * a view's, gathered from many.
  */
 @Composable
-private fun PropertiesPage(targets: List<ActionTarget>, path: String, subject: String, branch: String?, onBack: (() -> Unit)?, onClose: () -> Unit, modifier: Modifier) {
+private fun PropertiesPage(targets: List<ActionTarget>, path: String?, subject: String, branch: String?, onBack: (() -> Unit)?, onClose: () -> Unit, modifier: Modifier) {
     val gateway = LocalICodeGateway.current
     val locations = targets.map { it.location }
     val facts = LocalICodeSnapshot.current.explorer.facts?.takeIf { it.locations == locations }
@@ -160,7 +174,7 @@ private fun PropertiesPage(targets: List<ActionTarget>, path: String, subject: S
 
 /** One of Properties' rows; a path with Copy beside it. */
 @Composable
-private fun PropertyLine(row: PropertyRow) {
+internal fun PropertyLine(row: PropertyRow) {
     val context = LocalContext.current
     val gateway = LocalICodeGateway.current
     Row(verticalAlignment = Alignment.CenterVertically) {

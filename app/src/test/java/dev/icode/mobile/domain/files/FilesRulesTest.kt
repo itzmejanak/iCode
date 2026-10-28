@@ -5,10 +5,10 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class FilesRulesTest {
-    private val src = BrowsedItem("src", "/w/app/src", folder = true, changedAt = 10, entries = 4)
-    private val docs = BrowsedItem("Docs", "/w/app/Docs", folder = true, changedAt = 30, entries = 1)
-    private val readme = BrowsedItem("README.md", "/w/app/README.md", folder = false, bytes = 900, changedAt = 50)
-    private val build = BrowsedItem("build.gradle", "/w/app/build.gradle", folder = false, bytes = 4_000, changedAt = 20)
+    private val src = BrowsedItem("src", "/w/app/src", "/workspace/app/src", StoragePlace.Private, folder = true, changedAt = 10, entries = 4)
+    private val docs = BrowsedItem("Docs", "/w/app/Docs", "/workspace/app/Docs", StoragePlace.Private, folder = true, changedAt = 30, entries = 1)
+    private val readme = BrowsedItem("README.md", "/w/app/README.md", "/workspace/app/README.md", StoragePlace.Private, folder = false, bytes = 900, changedAt = 50)
+    private val build = BrowsedItem("build.gradle", "/w/app/build.gradle", "/workspace/app/build.gradle", StoragePlace.Private, folder = false, bytes = 4_000, changedAt = 20)
     private val all = listOf(readme, src, build, docs)
 
     @Test fun `folders come first, then by name ignoring case, the newest, or the largest`() {
@@ -26,13 +26,25 @@ class FilesRulesTest {
     }
 
     @Test fun `by type, files of one extension come together, in groups named by it`() {
-        val notes = BrowsedItem("notes.md", "/w/app/notes.md", folder = false, bytes = 10, changedAt = 1)
-        val makefile = BrowsedItem("Makefile", "/w/app/Makefile", folder = false, bytes = 10, changedAt = 1)
+        val notes = BrowsedItem("notes.md", "/w/app/notes.md", "/workspace/app/notes.md", StoragePlace.Private, folder = false, bytes = 10, changedAt = 1)
+        val makefile = BrowsedItem("Makefile", "/w/app/Makefile", "/workspace/app/Makefile", StoragePlace.Private, folder = false, bytes = 10, changedAt = 1)
         val sorted = FilesRules.sorted(all + notes + makefile, FilesSort.Type, descending = false, emptyMap())
         assertEquals(listOf(docs, src, makefile, build, notes, readme), sorted)
         assertEquals(listOf("Folders", "Folders", "No extension", ".gradle", ".md", ".md"), sorted.map(FilesRules::typeGroup))
+        assertEquals(listOf("Folders · 2", "No extension · 1", ".gradle · 1", ".md · 2"), FilesRules.grouped(sorted, FilesSort.Type).map { it.label })
+        assertEquals(listOf(RowGroup(null, sorted)), FilesRules.grouped(sorted, FilesSort.Name))
         assertEquals("", FilesRules.extension(".gitignore"))
         assertEquals("gz", FilesRules.extension("site.tar.gz"))
+    }
+
+    @Test fun `a view mixes folders in, and each row says the folder it is in with its size`() {
+        val trashed = src.copy(location = "t1", bytes = 2048, entries = null)
+        assertEquals(listOf(readme, build, trashed), FilesRules.sorted(listOf(build, trashed, readme), FilesSort.Date, descending = true, emptyMap(), foldersFirst = false))
+        assertEquals("/workspace/app · 900 B", FilesRules.gatheredDetail(readme))
+        assertEquals("/workspace/app · 2.0 KB", FilesRules.gatheredDetail(trashed))
+        assertEquals("/ · 900 B", FilesRules.gatheredDetail(readme.copy(path = "/README.md")))
+        assertEquals(2048L, FilesRules.sizeOf(trashed, mapOf("t1" to StorageMeasurement(1))))
+        assertEquals(10_000L, FilesRules.sizeOf(src, mapOf(src.location to StorageMeasurement(10_000))))
     }
 
     @Test fun `each sort reads its own way first`() {

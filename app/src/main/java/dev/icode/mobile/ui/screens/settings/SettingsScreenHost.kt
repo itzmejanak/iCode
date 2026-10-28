@@ -20,6 +20,7 @@ fun SettingsScreenHost(screen: Route, actions: NavigationActions) {
         Route.AppearanceSettings -> AppearanceScreen(actions)
         Route.TerminalSettings -> TerminalSettingsScreen(actions)
         Route.StorageSettings -> StorageSettingsScreen(actions)
+        Route.ManageStorage -> ManageStorageScreen(actions)
         Route.About -> AboutScreen(actions)
         Route.WorkspaceSettings -> WorkspaceSettingsScreen(actions)
         Route.AssistantSettings -> AssistantSettingsScreen(actions)

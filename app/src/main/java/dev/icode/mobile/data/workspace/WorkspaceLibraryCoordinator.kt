@@ -8,6 +8,7 @@ import dev.icode.mobile.data.storage.PhoneStorage
 import dev.icode.mobile.data.storage.WorkspacesProvider
 import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.files.BrowsedItem
+import dev.icode.mobile.domain.files.ExplorerView
 import dev.icode.mobile.domain.FileKind
 import dev.icode.mobile.domain.files.FilesBrowserState
 import dev.icode.mobile.domain.ProjectDestination
@@ -104,7 +105,7 @@ internal class WorkspaceLibraryCoordinator(
             .map { folder ->
                 WorkspaceSummary(
                     name = folder.name,
-                    path = paths.guestOf(folder.path) ?: folder.path,
+                    path = paths.runtimePathOf(folder.path),
                     // Reading .git/HEAD keeps the launcher instant; starting a Git
                     // process for every workspace would cost a PRoot launch each.
                     branch = runCatching { branchOf(folder.path) }.getOrNull(),
@@ -134,8 +135,15 @@ internal class WorkspaceLibraryCoordinator(
 
     fun read(intent: ICodeIntent.StorageIntent) {
         when (intent) {
-            is ICodeIntent.BrowseFiles -> browse(intent.path ?: browsing ?: paths.root.path)
-            is ICodeIntent.BrowsePlace -> browse(lastIn[intent.place] ?: if (intent.place == StoragePlace.Shared) storage.root.path else paths.root.path)
+            is ICodeIntent.BrowseFiles -> {
+                showing(null)
+                browse(intent.path ?: browsing ?: paths.root.path)
+            }
+            is ICodeIntent.BrowsePlace -> {
+                showing(null)
+                browse(lastIn[intent.place] ?: if (intent.place == StoragePlace.Shared) storage.root.path else paths.root.path)
+            }
+            is ICodeIntent.BrowseView -> showing(intent.view)
             is ICodeIntent.ChooseDestination -> scope.launch(Dispatchers.IO) { chooseDestination(intent.path) }
             ICodeIntent.RefreshStorage -> refreshStorage()
             ICodeIntent.MeasureWorkspaces -> measureWorkspaces()
@@ -150,6 +158,9 @@ internal class WorkspaceLibraryCoordinator(
         }
         stateHolder.update { it.copy(projectDestination = destination) }
     }
+
+    /** The explorer showing [view] in place of a folder (docs/explorer-gaps-plan.md §3.10); none, its folder again. */
+    private fun showing(view: ExplorerView?) = stateHolder.update { it.copy(explorer = it.explorer.copy(view = view)) }
 
     /** The explorer goes to [path]; an older listing still running stops, and is never shown after a newer one. */
     private fun browse(path: String): Unit = synchronized(browseLock) {
@@ -183,12 +194,12 @@ internal class WorkspaceLibraryCoordinator(
         val root = paths.root.path
         val at = path.takeIf { it == root || (paths.workspaceOf(it) != null && File(it).isDirectory) } ?: root
         val items = if (at == root) {
-            workspaces().map { BrowsedItem(it.name, it.location, folder = true, changedAt = it.lastOpenedAt, entries = File(it.location).list()?.size, branch = it.branch) }
+            workspaces().map { BrowsedItem(it.name, it.location, it.path, StoragePlace.Private, folder = true, changedAt = it.lastOpenedAt, entries = File(it.location).list()?.size, branch = it.branch) }
         } else {
             runCatching { source.listChildren(at, showHidden) }.getOrDefault(emptyList()).map { node ->
                 val file = File(node.location)
                 val folder = node.kind == FileKind.Folder
-                BrowsedItem(node.name, node.location, folder, bytes = file.length().takeUnless { folder }, changedAt = file.lastModified(), entries = if (folder) file.list()?.size else null)
+                BrowsedItem(node.name, node.location, paths.runtimePathOf(node.location), StoragePlace.Private, folder, bytes = file.length().takeUnless { folder }, changedAt = file.lastModified(), entries = if (folder) file.list()?.size else null)
             }
         }
         return FilesBrowserState(StoragePlace.Private, root, at, items, sharedRoot = shared)

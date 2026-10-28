@@ -8,14 +8,21 @@ import dev.icode.mobile.domain.countOf
 // The file explorer of iCode's storage and phone storage (docs/storage-explorer-plan.md §3): where
 // it is, what is there, and how it is ordered and found.
 
-/** One entry where the file explorer is: a folder — a workspace, at the top — or a file. */
+/**
+ * One entry the file explorer lists: in a folder, a folder — a workspace, at the top — or a file; in
+ * a view (docs/explorer-gaps-plan.md §3.10), a file gathered from anywhere, or what Trash holds,
+ * whose [location] is its id there.
+ */
 data class BrowsedItem(
     val name: String,
     val location: String,
+    /** As the runtime names it — `/workspace/app/src/Main.kt` — or, on phone storage, as Android does; in Trash, where it was. */
+    val path: String,
+    val place: StoragePlace,
     val folder: Boolean,
-    /** A file's size; a folder's is measured apart (a workspace's, by the Workspaces page). */
+    /** A file's size; a folder's is measured apart (a workspace's, by the Workspaces page), but in Trash, as it was deleted. */
     val bytes: Long? = null,
-    /** When it changed; for a workspace at the top, when it was last opened. */
+    /** The date its row says: when it changed; a workspace's at the top, and Recent's, when last opened; Trash's, when deleted. */
     val changedAt: Long,
     /** How many entries a folder holds. */
     val entries: Int? = null,
@@ -79,6 +86,9 @@ data class FilesBrowserState(
         if (place == StoragePlace.Shared) location else WorkspaceRuntimePath.ROOT + location.removePrefix(rootPath)
 }
 
+/** A labelled run of a listing's rows (§3.10, §3.12): a type's — ".kt · 12" — or a set of copies; unlabelled, the whole listing. */
+data class RowGroup(val label: String?, val rows: List<BrowsedItem>)
+
 /** One segment of the breadcrumb: what it says, and the folder it goes to. */
 data class Crumb(val label: String, val location: String)
 
@@ -101,22 +111,31 @@ object FilesRules {
     }
 
     /**
-     * Folders first, as a file explorer lists them, then by [sort], [descending] or not: the name
-     * ignoring case; the size — a folder's as measured in [sizes], the unmeasured last either way;
-     * when it changed; the type, by [extension], then the name. Ties go by name.
+     * Folders first, as a folder lists them — a view (§3.10) mixes them, by [foldersFirst] — then by
+     * [sort], [descending] or not: the name ignoring case; the size ([sizeOf]), the unmeasured last
+     * either way; the date its row says; the type, by [extension], then the name. Ties go by name.
      */
-    fun sorted(items: List<BrowsedItem>, sort: FilesSort, descending: Boolean, sizes: Map<String, StorageMeasurement>): List<BrowsedItem> {
+    fun sorted(
+        items: List<BrowsedItem>,
+        sort: FilesSort,
+        descending: Boolean,
+        sizes: Map<String, StorageMeasurement>,
+        foldersFirst: Boolean = true,
+    ): List<BrowsedItem> {
         val byName = compareBy(String.CASE_INSENSITIVE_ORDER) { item: BrowsedItem -> item.name }
         val byKey: Comparator<BrowsedItem> = when (sort) {
             FilesSort.Name -> byName
             FilesSort.Date -> compareBy { it.changedAt }
             FilesSort.Type -> compareBy<BrowsedItem> { extension(it.name) }.then(byName)
-            FilesSort.Size -> compareBy { if (it.folder) sizes[it.location]?.bytes else it.bytes }
+            FilesSort.Size -> compareBy { sizeOf(it, sizes) }
         }
         val ordered = if (descending) byKey.reversed() else byKey
-        val unmeasuredLast = compareBy<BrowsedItem> { sort == FilesSort.Size && (if (it.folder) sizes[it.location]?.bytes else it.bytes) == null }
-        return items.sortedWith(compareBy<BrowsedItem> { !it.folder }.then(unmeasuredLast).then(ordered).then(byName))
+        val unmeasuredLast = compareBy<BrowsedItem> { sort == FilesSort.Size && sizeOf(it, sizes) == null }
+        return items.sortedWith(compareBy<BrowsedItem> { foldersFirst && !it.folder }.then(unmeasuredLast).then(ordered).then(byName))
     }
+
+    /** [item]'s size: its own — a file's, or a folder's in Trash — else a folder's as measured in [sizes]; null until measured. */
+    fun sizeOf(item: BrowsedItem, sizes: Map<String, StorageMeasurement>): Long? = item.bytes ?: sizes[item.location]?.bytes
 
     /** A file's extension, lower case, without the dot — "kt", "gz" — or "" for none (`Makefile`, `.gitignore`). */
     fun extension(name: String): String {
@@ -130,17 +149,25 @@ object FilesRules {
         else -> extension(item.name).let { if (it.isEmpty()) "No extension" else ".$it" }
     }
 
+    /** [shown] as listed: sorted by Type, under a label for each type with how many it has — ".kt · 12"; else as one. */
+    fun grouped(shown: List<BrowsedItem>, sort: FilesSort): List<RowGroup> =
+        if (sort != FilesSort.Type) listOf(RowGroup(null, shown))
+        else shown.groupBy(::typeGroup).map { (type, rows) -> RowGroup("$type · ${rows.size}", rows) }
+
     /**
-     * A row's detail: a file's size; a folder's "12 items" or "Empty" — "Folder" when it cannot be
-     * read — and a workspace's branch after it.
+     * A row's detail: a file's size, or a folder's as Trash measured it; else a folder's "12 items" or
+     * "Empty" — "Folder" when it cannot be read — and a workspace's branch after it.
      */
     fun detail(item: BrowsedItem): String {
         val what = when {
-            !item.folder -> ByteSize.format(item.bytes ?: 0)
+            item.bytes != null || !item.folder -> ByteSize.format(item.bytes ?: 0)
             item.entries == null -> "Folder"
             item.entries == 0 -> "Empty"
             else -> countOf(item.entries, "item")
         }
-        return item.branch?.let { "$what · $it" } ?: what
+        return listOfNotNull(what, item.branch).joinToString(" · ")
     }
+
+    /** A view's row's detail (§3.10), gathered from many folders: the folder it is in — Trash's, was in — then [detail]. */
+    fun gatheredDetail(item: BrowsedItem): String = "${item.path.substringBeforeLast('/').ifEmpty { "/" }} · ${detail(item)}"
 }

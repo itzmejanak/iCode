@@ -29,12 +29,12 @@ object FileSelection {
     }
 
     /**
-     * What a selection of [items] holds, and weighs: "2 folders, 1 file · 12.4 MB" — the files' sizes,
-     * and folders' that [sizes] has measured (a workspace's).
+     * What a selection of [items] holds, and weighs: "2 folders, 1 file · 12.4 MB" — each one's size
+     * as far as it is known ([FilesRules.sizeOf]).
      */
     fun summary(items: List<BrowsedItem>, sizes: Map<String, StorageMeasurement>): String {
         val folders = items.count { it.folder }
-        val bytes = items.sumOf { if (it.folder) sizes[it.location]?.bytes ?: 0 else it.bytes ?: 0 }
+        val bytes = items.sumOf { FilesRules.sizeOf(it, sizes) ?: 0 }
         return "${counted(folders, items.size - folders)} · ${ByteSize.format(bytes)}"
     }
 

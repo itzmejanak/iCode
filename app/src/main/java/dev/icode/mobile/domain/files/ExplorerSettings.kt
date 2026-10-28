@@ -39,54 +39,6 @@ data class FilesLook(
 enum class ScanScope(val label: String) { All("All"), Private("Private"), Shared("Shared") }
 
 /**
- * A list the explorer shows that is no folder (§3.10): files gathered from anywhere. Each keeps its
- * own look, under [key], and opens with [opensWith] until it is changed.
- */
-sealed interface ExplorerView {
-    val key: String
-    val title: String
-    val opensWith: FilesLook
-
-    /** The files opened in iCode, newest first. */
-    data object Recent : ExplorerView {
-        override val key = "recent"
-        override val title = "Recent"
-        override val opensWith = FilesLook(sort = FilesSort.Date)
-    }
-
-    /** What was deleted, from both places, newest first. */
-    data object Trash : ExplorerView {
-        override val key = "trash"
-        override val title = "Trash"
-        override val opensWith = FilesLook(sort = FilesSort.Date)
-    }
-
-    /** Every file of [category] where Manage storage looked: pictures and videos as tiles, the largest first. */
-    data class Category(val category: FileCategory, val scope: ScanScope) : ExplorerView {
-        override val key get() = "category-${category.name}"
-        override val title get() = category.label
-        override val opensWith get() = FilesLook(
-            view = if (category == FileCategory.Images || category == FileCategory.Videos) FilesView.Grid else FilesView.Detailed,
-            sort = FilesSort.Size,
-        )
-    }
-
-    /** The largest files where Manage storage looked. */
-    data class Largest(val scope: ScanScope) : ExplorerView {
-        override val key = "largest"
-        override val title = "Largest files"
-        override val opensWith = FilesLook(sort = FilesSort.Size)
-    }
-
-    /** Files with the same contents, in groups. */
-    data class Duplicates(val scope: ScanScope) : ExplorerView {
-        override val key = "duplicates"
-        override val title = "Duplicates"
-        override val opensWith = FilesLook(sort = FilesSort.Size)
-    }
-}
-
-/**
  * The explorer's settings, app-wide (§3.12, §3.13): whether names starting with "." are listed, the
  * folders' one look, and each view's own once changed.
  */

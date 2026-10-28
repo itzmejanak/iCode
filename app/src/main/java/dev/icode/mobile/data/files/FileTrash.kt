@@ -3,6 +3,7 @@ package dev.icode.mobile.data.files
 import dev.icode.mobile.data.io.deleteTree
 import dev.icode.mobile.data.io.isAtOrUnder
 import dev.icode.mobile.data.storage.PhoneStorage
+import dev.icode.mobile.data.storage.WorkspacePaths
 import dev.icode.mobile.domain.files.StoragePlace
 import dev.icode.mobile.domain.files.TrashRules
 import dev.icode.mobile.domain.files.TrashedItem
@@ -29,6 +30,7 @@ internal class FileTrash(
     private val privateTrash: File,
     private val sharedTrash: File,
     private val storage: PhoneStorage,
+    private val paths: WorkspacePaths,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
     /** A record and its item change together; removing an item's files happens outside it. */
@@ -50,7 +52,7 @@ internal class FileTrash(
         val trash = trashOf(place)
         prepare(trash)
         val folder = Files.isDirectory(source.toPath(), LinkOption.NOFOLLOW_LINKS)
-        val item = TrashedItem(UUID.randomUUID().toString(), source.name, location, place, clock(), folder, bytes, workspace)
+        val item = UUID.randomUUID().toString().let { id -> TrashedItem(id, source.name, location, paths.runtimePathOf(location), itemOf(trash, id).path, place, clock(), folder, bytes, workspace) }
         write(trash, item)
         try {
             Files.move(source.toPath(), itemOf(trash, item.id).toPath(), StandardCopyOption.ATOMIC_MOVE)
@@ -84,15 +86,12 @@ internal class FileTrash(
         File(trashOf(placeOf(location)).root, "$STAGING/${UUID.randomUUID()}").also { Files.createDirectories(it.toPath()) }
     }
 
-    /** Where [item] is held while in Trash. */
-    fun locationOf(item: TrashedItem): String = itemOf(trashOf(item.place), item.id).path
-
     /** [item] back at [to], its folder made when gone; refused when [to] is taken. */
     fun restore(item: TrashedItem, to: String) = synchronized(lock) {
         val target = File(to).toPath()
         if (Files.exists(target, LinkOption.NOFOLLOW_LINKS)) throw IOException("“${target.fileName}” is already there")
         Files.createDirectories(target.parent)
-        Files.move(File(locationOf(item)).toPath(), target)
+        Files.move(File(item.heldAt).toPath(), target)
         recordOf(trashOf(item.place), item.id).delete()
     }
 
@@ -162,10 +161,13 @@ internal class FileTrash(
 
     private fun read(record: File, id: String, place: StoragePlace): TrashedItem? = runCatching {
         val json = JSONObject(record.readText())
+        val from = json.getString("from")
         TrashedItem(
             id = id,
             name = json.getString("name"),
-            from = json.getString("from"),
+            from = from,
+            path = paths.runtimePathOf(from),
+            heldAt = itemOf(trashOf(place), id).path,
             place = place,
             deletedAt = json.getLong("deletedAt"),
             folder = json.getBoolean("folder"),

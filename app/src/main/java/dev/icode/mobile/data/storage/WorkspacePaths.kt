@@ -16,6 +16,12 @@ internal class WorkspacePaths(val root: File) {
     /** [location]'s path in the runtime, or null when it is not in the workspaces. */
     fun guestOf(location: String): String? = relative(location, rootPath)?.let { join(GUEST_ROOT, it) }
 
+    /**
+     * [location] as the runtime names it and the screens show it: in the workspaces, its guest path;
+     * on phone storage, which the runtime sees at the same path, as it is.
+     */
+    fun runtimePathOf(location: String): String = guestOf(location) ?: location
+
     /** The location of [guestPath], or null when it is not under [GUEST_ROOT]. */
     fun locationOf(guestPath: String): String? = relative(guestPath, GUEST_ROOT)?.let { join(rootPath, it) }
 

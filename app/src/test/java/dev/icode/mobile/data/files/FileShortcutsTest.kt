@@ -4,9 +4,10 @@ import dev.icode.mobile.data.storage.WorkspacePaths
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.data.workspace.MemoryWorkspaceStore
 import dev.icode.mobile.domain.FilesIntent
-import dev.icode.mobile.domain.RecentDocument
+import dev.icode.mobile.domain.files.BrowsedItem
 import dev.icode.mobile.domain.files.FavoriteFolder
 import dev.icode.mobile.domain.files.FileStep
+import dev.icode.mobile.domain.files.StoragePlace
 import java.io.File
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -30,13 +31,16 @@ class FileShortcutsTest {
     private val recent get() = stateHolder.current.explorer.recent
     private val favorites get() = stateHolder.current.explorer.favorites.map { it.location }
 
-    @Test fun `files opened in a workspace and on phone storage, newest first, each by its runtime path`() = runBlocking {
+    @Test fun `files opened in a workspace and on phone storage, newest first, as the explorer lists them`() = runBlocking {
         val main = file(workspaces, "app/src/Main.kt")
         val notes = file(phone, "Download/notes.txt")
         shortcuts.opened(main.path)
         shortcuts.handle(FilesIntent.Opened(notes.path))
         assertEquals(
-            listOf(RecentDocument("notes.txt", notes.path, notes.path, 2), RecentDocument("Main.kt", main.path, "/workspace/app/src/Main.kt", 1)),
+            listOf(
+                BrowsedItem("notes.txt", notes.path, notes.path, StoragePlace.Shared, folder = false, bytes = notes.length(), changedAt = 2),
+                BrowsedItem("Main.kt", main.path, "/workspace/app/src/Main.kt", StoragePlace.Private, folder = false, bytes = main.length(), changedAt = 1),
+            ),
             recent,
         )
         // A save puts it on top again, once.
@@ -49,7 +53,7 @@ class FileShortcutsTest {
         shortcuts.opened(main.path)
         main.delete()
         shortcuts.publish()
-        assertEquals(emptyList<RecentDocument>(), recent)
+        assertEquals(emptyList<BrowsedItem>(), recent)
         file(workspaces, "app/Main.kt")
         shortcuts.publish()
         assertEquals(listOf(main.path), recent.map { it.location })

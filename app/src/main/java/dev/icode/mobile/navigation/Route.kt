@@ -63,6 +63,9 @@ enum class Route(
     AppearanceSettings("2003:438", "Appearance", RouteGroup.SETTINGS),
     TerminalSettings("2003:500", "Terminal settings", RouteGroup.SETTINGS),
     StorageSettings("2003:575", "Storage settings", RouteGroup.SETTINGS),
+    // Owner's request (2026-10-27): what storage holds, kind by kind, and the explorer's views of it
+    // (docs/explorer-gaps-plan.md §3.10).
+    ManageStorage(null, "Manage storage", RouteGroup.SETTINGS),
     About("2003:656", "About iCode", RouteGroup.SETTINGS),
     ExternalFileChange("2003:770", "External file change", RouteGroup.RECOVERY),
     DocumentRecovery("2003:813", "Document recovery", RouteGroup.RECOVERY),

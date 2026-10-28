@@ -104,7 +104,7 @@ internal class FileBatch(
         items.forEachIndexed { index, item ->
             val target = item.from
             val folder = File(target).parent.orEmpty()
-            val answer = if (!fileExists(target)) null else answer(operator.trash.locationOf(item), target, others = items.drop(index + 1).count { fileExists(it.from) })
+            val answer = if (!fileExists(target)) null else answer(item.heldAt, target, others = items.drop(index + 1).count { fileExists(it.from) })
             when (answer) {
                 null -> steps += operator.restore(item, target, progress)
                 ConflictAnswer.Skip -> Unit

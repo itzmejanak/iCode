@@ -47,8 +47,11 @@ data class ActionTarget(val location: String, val name: String, val folder: Bool
     val held: HeldItem get() = HeldItem(location, name, folder, workspace)
 }
 
-/** What opens a page of the item sheet (docs/explorer-gaps-plan.md §3.1): Compress… and Properties. */
-class SheetPageActions(val compress: () -> Unit, val properties: () -> Unit)
+/**
+ * What opens a page of the item sheet (docs/explorer-gaps-plan.md §3.1): Compress… — none where the
+ * sheet has no one folder for many — and Properties.
+ */
+class SheetPageActions(val compress: (() -> Unit)?, val properties: () -> Unit)
 
 /** What only the explorer's own screen offers: the folder picker (§3.5), and selection, starting with the items given (§3.2). */
 class ScreenActions(val pick: (FolderPick) -> Unit, val select: ((List<String>) -> Unit)?)
@@ -57,7 +60,8 @@ class ScreenActions(val pick: (FolderPick) -> Unit, val select: ((List<String>) 
  * The one owner of the actions on files and folders (docs/explorer-gaps-plan.md §3.1, §3.3): every
  * explorer and the home screen show the same list, in the same order, in the item's sheet
  * ([ItemSheet]) — an item's, or a selection's. What differs is only what a place has to offer:
- * [open] (Expand in the IDE's tree), [showInList] on the home screen, [screen] in the file explorer.
+ * [open] (Expand in the IDE's tree), [showInList] on the home screen and in a view, [screen] in the
+ * file explorer.
  */
 object FileItemActions {
     /** "Paste RevPlayer": what Paste would bring, named, so a clipboard from another page is never a surprise. */
@@ -67,21 +71,22 @@ object FileItemActions {
      * The actions on [targets] — one item, or a selection's many — in groups (§3.1, §3.3). Opening,
      * for one: [open], what opening is here — a file into the editor, a folder into the list or open
      * in the tree; none where there is nothing to open it in — and for a file Open with…; Share… for
-     * files, every one at once; a workspace's Open Terminal and, listed apart, [showInList]. Then Cut,
-     * Copy, one item's Paste — named by what is held, greyed with nothing held; [onPaste] puts it into
-     * a folder, or beside a file — the explorer's Move to… and Copy to…, and Duplicate. Rename…: one's
-     * name, or many by a rule ([onRename]). Archives extracted here, or to a folder; else Compress…,
-     * where the format and name are chosen, in one place: never at Private's top, where only
-     * workspaces are. Folders' Favorites. Copy path or paths, and Properties. The explorer's Select.
-     * Delete last, to Trash: it can be undone (§3.7). Rename…, Compress… and Properties open [pages]
-     * of the sheet.
+     * files, every one at once; a workspace's Open Terminal; and [showInList], the way to where it is
+     * listed — a workspace's Workspaces, a view's file's folder (§3.10). Then Cut, Copy, one item's
+     * Paste — named by what is held, greyed with nothing held; [onPaste] puts it into a folder, or
+     * beside a file — the explorer's Move to… and Copy to…, and Duplicate. Rename…: one's name, or
+     * many by a rule ([onRename], where there is one). Archives extracted here, or to a folder; else
+     * Compress…, where the format and name are chosen, in one place: never at Private's top, where
+     * only workspaces are. Folders' Favorites. Copy path or paths, and Properties. The explorer's
+     * Select. Delete last, to Trash: it can be undone (§3.7). Rename…, Compress… and Properties open
+     * [pages] of the sheet.
      */
     fun of(
         context: Context,
         dispatch: (ICodeIntent) -> Unit,
         targets: List<ActionTarget>,
         explorer: ExplorerState,
-        onRename: () -> Unit,
+        onRename: (() -> Unit)?,
         pages: SheetPageActions,
         open: IcodeMenuAction? = null,
         onPaste: (() -> Unit)? = null,
@@ -100,7 +105,7 @@ object FileItemActions {
             if (one != null && !one.folder) add(IcodeMenuAction("Open with…", Icons.AutoMirrored.Outlined.OpenInNew, { SharedFiles.open(context, one.location, dispatch) }))
             if (files.isNotEmpty() && folders.isEmpty()) add(IcodeMenuAction("Share…", Icons.Outlined.Share, { SharedFiles.share(context, files.map { it.location }, dispatch) }))
             openTerminal?.let { add(IcodeMenuAction("Open Terminal", Icons.Outlined.Terminal, it)) }
-            showInList?.let { add(IcodeMenuAction("Show in Workspaces", Icons.Outlined.FolderCopy, it)) }
+            showInList?.let { add(IcodeMenuAction(if (one?.workspace == true) "Show in Workspaces" else "Show in folder", Icons.Outlined.FolderCopy, it)) }
             add(IcodeMenuAction("Cut", Icons.Outlined.ContentCut, { dispatch(FilesIntent.Cut(locations)) }, beginsGroup = true))
             add(IcodeMenuAction("Copy", Icons.Outlined.ContentCopy, { dispatch(FilesIntent.Copy(locations)) }))
             onPaste?.let { add(IcodeMenuAction(pasteLabel(explorer.clipboard), Icons.Outlined.ContentPaste, it, enabled = explorer.clipboard != null)) }
@@ -110,13 +115,13 @@ object FileItemActions {
                 add(IcodeMenuAction("Copy to…", Icons.Outlined.FolderCopy, { screen.pick(FolderPick.Transfer(held, move = false)) }))
             }
             add(IcodeMenuAction("Duplicate", Icons.Outlined.FileCopy, { dispatch(FilesIntent.Duplicate(locations)) }))
-            add(IcodeMenuAction("Rename…", Icons.Outlined.DriveFileRenameOutline, onRename, beginsGroup = true, opensPage = true))
+            onRename?.let { add(IcodeMenuAction("Rename…", Icons.Outlined.DriveFileRenameOutline, it, beginsGroup = true, opensPage = true)) }
             if (archives.size == targets.size) {
                 val unreadable = archives.firstNotNullOfOrNull { it.second.unreadable }
                 add(IcodeMenuAction("Extract here", Icons.Outlined.Unarchive, { locations.forEach { dispatch(FilesIntent.Extract(it)) } }, enabled = unreadable == null, detail = unreadable, beginsGroup = true))
                 screen?.let { add(IcodeMenuAction("Extract to…", Icons.Outlined.Unarchive, { it.pick(FolderPick.Extract(locations)) }, enabled = unreadable == null)) }
             } else if (compressible) {
-                add(IcodeMenuAction("Compress…", Icons.Outlined.Archive, pages.compress, beginsGroup = true, opensPage = true))
+                pages.compress?.let { add(IcodeMenuAction("Compress…", Icons.Outlined.Archive, it, beginsGroup = true, opensPage = true)) }
             }
             if (folders.isNotEmpty()) {
                 val unpinned = folders.filterNot { folder -> explorer.favorites.any { it.location == folder.location } }

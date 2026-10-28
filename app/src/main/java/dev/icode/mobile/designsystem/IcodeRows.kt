@@ -140,13 +140,14 @@ fun IcodeListRow(
     }
 }
 
-/** Settings row: leading icon, title, optional subtitle and a trailing control. */
+/** Settings row: leading icon — in the accent, or its own [leadingTint] — title, optional subtitle and a trailing control. */
 @Composable
 fun SettingRow(
     title: String,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
     leadingIcon: ImageVector? = null,
+    leadingTint: Color = IcodeColors.Accent,
     onClick: (() -> Unit)? = null,
     trailing: @Composable RowScope.() -> Unit = {},
 ) {
@@ -159,7 +160,7 @@ fun SettingRow(
                         .background(IcodeColors.SurfaceElevated, IcodeShapes.Small),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Icon(leadingIcon, contentDescription = null, tint = IcodeColors.Accent, modifier = Modifier.size(20.dp))
+                    Icon(leadingIcon, contentDescription = null, tint = leadingTint, modifier = Modifier.size(20.dp))
                 }
             }
             Column(modifier = Modifier.weight(1f)) {

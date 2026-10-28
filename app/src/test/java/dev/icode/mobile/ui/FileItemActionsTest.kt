@@ -100,6 +100,23 @@ class FileItemActionsTest {
         )
     }
 
+    @Test fun `a view's file shows its folder, and many gathered from more than one folder are not renamed or compressed`() {
+        assertEquals("Show in folder", actions(notes, listed = true).single { it.label.startsWith("Show in") }.label)
+        val gathered = FileItemActions.of(
+            context = ContextWrapper(null),
+            dispatch = { sent += it },
+            targets = listOf(notes, notes.copy(location = "/phone/Download/b.txt", name = "b.txt")),
+            explorer = ExplorerState(),
+            onRename = null,
+            pages = SheetPageActions(compress = null, properties = {}),
+            screen = screen,
+        )
+        assertEquals(
+            listOf("Share…", "Cut", "Copy", "Move to…", "Copy to…", "Duplicate", "Copy paths", "Properties", "Select", "Delete"),
+            gathered.map { it.label },
+        )
+    }
+
     @Test fun `a file is handed to other apps, and an archive extracted, or said why not`() {
         assertEquals(
             listOf("Open", "Open with…", "Share…", "Cut", "Copy", "Paste README.md", "Duplicate", "Rename…", "Compress…", "Copy path", "Properties", "Delete"),

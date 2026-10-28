@@ -1,10 +1,15 @@
 package dev.icode.mobile.ui.screens.workspace
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.InsertDriveFile
+import androidx.compose.material.icons.outlined.Android
+import androidx.compose.material.icons.outlined.Archive
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Image
+import androidx.compose.material.icons.outlined.Movie
+import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -16,6 +21,7 @@ import dev.icode.mobile.designsystem.PaletteKind
 import dev.icode.mobile.domain.FileFamily
 import dev.icode.mobile.domain.FileType
 import dev.icode.mobile.domain.FileTypes
+import dev.icode.mobile.domain.files.FileCategory
 import java.util.concurrent.ConcurrentHashMap
 
 /** The icon a file's type draws with, in the Explorer and in search results alike. */
@@ -34,9 +40,39 @@ internal fun fileTypeTint(type: FileType): Color = LocalIcodePalette.current.fil
 internal fun itemIcon(name: String, folder: Boolean): Pair<ImageVector, Color> =
     if (folder) Icons.Outlined.Folder to IcodeColors.Accent else FileTypes.of(name).let { fileTypeIcon(it) to fileTypeTint(it) }
 
+/** What stands for each kind of file Manage storage counts (docs/explorer-gaps-plan.md §3.10). */
+internal val FileCategory.icon: ImageVector
+    get() = when (this) {
+        FileCategory.Images -> Icons.Outlined.Image
+        FileCategory.Videos -> Icons.Outlined.Movie
+        FileCategory.Audio -> Icons.Outlined.MusicNote
+        FileCategory.Documents -> Icons.Outlined.Description
+        FileCategory.Archives -> Icons.Outlined.Archive
+        FileCategory.Apps -> Icons.Outlined.Android
+        FileCategory.Code -> Icons.Outlined.Code
+        FileCategory.Other -> Icons.AutoMirrored.Outlined.InsertDriveFile
+    }
+
+/** Each kind's colour on the current theme, one of the file icons' own: its icon's, and its share of Manage storage's bar. */
+@Composable
+internal fun categoryTint(category: FileCategory): Color = LocalIcodePalette.current.setiColor(
+    when (category) {
+        FileCategory.Images -> SetiColour.Purple
+        FileCategory.Videos -> SetiColour.Pink
+        FileCategory.Audio -> SetiColour.Red
+        FileCategory.Documents -> SetiColour.Blue
+        FileCategory.Archives -> SetiColour.Yellow
+        FileCategory.Apps -> SetiColour.Green
+        FileCategory.Code -> SetiColour.Orange
+        FileCategory.Other -> SetiColour.Grey
+    },
+)
+
 /** [fileTypeTint] for a given palette. */
-internal fun IcodePalette.fileTypeColor(type: FileType): Color {
-    val seti = fileTypeColours.getValue(type.id)
+internal fun IcodePalette.fileTypeColor(type: FileType): Color = setiColor(fileTypeColours.getValue(type.id))
+
+/** [seti] as this palette draws it: Seti's own colour, its lightness moved only where it would not read; Grey, the neutral text. */
+internal fun IcodePalette.setiColor(seti: SetiColour): Color {
     val rgb = (if (kind == PaletteKind.Light) seti.light else seti.dark) ?: return textSecondary
     val behind = listOf(background, surface, surfaceElevated)
     // By what it is drawn on: one theme draws on other tones without border lines.

@@ -74,7 +74,7 @@ class FileHistoryTest {
 
     @Test fun `Trash keeps an item 30 days, and says how much it holds`() {
         val now = TimeUnit.DAYS.toMillis(100)
-        val item = TrashedItem("t1", "a", "/w/a", StoragePlace.Private, now - TimeUnit.DAYS.toMillis(29), false, 10, false)
+        val item = TrashedItem("t1", "a", "/w/a", "/workspace/a", "/trash/files/t1", StoragePlace.Private, now - TimeUnit.DAYS.toMillis(29), false, 10, false)
         assertFalse(TrashRules.expired(item, now))
         assertTrue(TrashRules.expired(item.copy(deletedAt = now - TimeUnit.DAYS.toMillis(30)), now))
         assertEquals(TrashSummary(2, 10), TrashRules.summary(listOf(item, item.copy(id = "t2", bytes = null))))

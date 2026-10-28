@@ -2,13 +2,18 @@ package dev.icode.mobile.data.files
 
 import dev.icode.mobile.data.io.isAtOrUnder
 import dev.icode.mobile.data.io.tallyTree
+import dev.icode.mobile.data.storage.WorkspacePaths
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.FilesIntent
+import dev.icode.mobile.domain.files.BrowsedItem
+import dev.icode.mobile.domain.files.ExplorerView
 import dev.icode.mobile.domain.files.FactKind
 import dev.icode.mobile.domain.files.FileFacts
 import dev.icode.mobile.domain.files.FileStep
 import dev.icode.mobile.domain.files.ScanScope
+import dev.icode.mobile.domain.files.ScannedView
 import dev.icode.mobile.domain.files.StorageInsights
+import dev.icode.mobile.domain.files.StoragePlace
 import dev.icode.mobile.domain.files.TreeFacts
 import dev.icode.mobile.domain.files.paths
 import java.io.File
@@ -26,7 +31,7 @@ import kotlinx.coroutines.launch
 /**
  * What the explorers learn of their files (docs/explorer-gaps-plan.md §3.9, §3.10): Properties of
  * one item or many — what is known at once shown at once, a folder's size measured while it stays
- * open — and Manage storage's scan. Requests and iCode's own changes are taken one after another,
+ * open — Manage storage's scan, and the scan's view shown, listed from it. Requests and iCode's own changes are taken one after another,
  * off the main thread and never behind the mutation lock; measuring and scanning run on jobs of
  * their own, a new one replacing the one before.
  */
@@ -36,17 +41,20 @@ internal class FileInsightsCoordinator(
     private val places: FilePlaces,
     private val follower: FileFollower,
     private val scan: StorageScan,
+    private val paths: WorkspacePaths,
 ) {
     /** What reaches it, handled one after another: a request, or iCode's own change. */
     private sealed interface Event {
         class Asked(val intent: FilesIntent.Insight) : Event
         class Changed(val steps: List<FileStep>) : Event
+        data object Scanned : Event
     }
 
     private val events = Channel<Event>(Channel.UNLIMITED)
     private var measuring: Job? = null
     @Volatile private var scanning: Job? = null
     @Volatile private var seen: Long? = null
+    private var viewing: ExplorerView? = null
 
     fun start() {
         scope.launch {
@@ -56,6 +64,7 @@ internal class FileInsightsCoordinator(
                     when (event) {
                         is Event.Asked -> asked(event.intent)
                         is Event.Changed -> changed(event.steps)
+                        Event.Scanned -> publishView()
                     }
                 }.onFailure { error -> stateHolder.failureText("files", "Unable to read what the files hold", error) }
             }
@@ -80,13 +89,24 @@ internal class FileInsightsCoordinator(
             }
             is FilesIntent.Scan -> scan(intent.scope)
             FilesIntent.StopScan -> scanning?.cancel()
+            is FilesIntent.ListView -> {
+                viewing = intent.view
+                publishView()
+            }
+            FilesIntent.CloseView -> {
+                viewing = null
+                stateHolder.update { it.copy(explorer = it.explorer.copy(scanned = null)) }
+            }
         }
     }
 
     /** The scan follows the change; Properties of what it moved or took away are read again. */
     private fun changed(steps: List<FileStep>) {
         scan.follow(steps)
-        if (scan.found != null) publishScan()
+        if (scan.found != null) {
+            publishScan()
+            publishView()
+        }
         val facts = stateHolder.current.explorer.facts ?: return
         if (facts.locations.none { location -> steps.any { step -> step.paths.any { location.isAtOrUnder(it) || it.isAtOrUnder(location) } } }) return
         properties(facts.locations.mapNotNull { StorageInsights.after(it, steps) })
@@ -155,6 +175,7 @@ internal class FileInsightsCoordinator(
             if (scanning === mine) {
                 seen = null
                 publishScan(where)
+                events.trySend(Event.Scanned)
             }
         }
         scanning = job
@@ -169,5 +190,18 @@ internal class FileInsightsCoordinator(
         val shown = scan.overview()?.takeIf { it.scope == scope }
             ?: StorageInsights.overview(scope, emptyList(), 0, emptyList(), scannedAt = null, sharedUnread = scope != ScanScope.Private && !places.storage.hasAccess())
         stateHolder.update { it.copy(explorer = it.explorer.copy(storage = shown.copy(scanning = seen))) }
+    }
+
+    /** The scan's view shown, as it lists it: each file as the explorer lists one; Duplicates' sets beside. */
+    private fun publishView() {
+        val view = viewing ?: return
+        val found = scan.found?.takeIf { it.scope == view.scope }
+        val files = found?.let { StorageInsights.listed(view, it.files, it.duplicates) }.orEmpty()
+        val rows = files.map { file ->
+            val place = if (places.storage.contains(file.location)) StoragePlace.Shared else StoragePlace.Private
+            BrowsedItem(File(file.location).name, file.location, paths.runtimePathOf(file.location), place, folder = false, bytes = file.bytes, changedAt = file.changedAt)
+        }
+        val groups = found?.duplicates.orEmpty().takeIf { view is ExplorerView.Duplicates }.orEmpty()
+        stateHolder.update { it.copy(explorer = it.explorer.copy(scanned = ScannedView(view, rows, groups))) }
     }
 }

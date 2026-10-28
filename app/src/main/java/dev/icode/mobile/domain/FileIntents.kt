@@ -2,6 +2,7 @@ package dev.icode.mobile.domain
 
 import dev.icode.mobile.domain.files.CompressFormat
 import dev.icode.mobile.domain.files.ConflictAnswer
+import dev.icode.mobile.domain.files.ExplorerView
 import dev.icode.mobile.domain.files.RenameRule
 import dev.icode.mobile.domain.files.ScanScope
 
@@ -80,6 +81,11 @@ sealed interface FilesIntent : ICodeIntent {
     data class Scan(val scope: ScanScope) : Insight
 
     data object StopScan : Insight
+
+    /** One of Manage storage's views (§3.10) listed from its scan while it is shown, following iCode's own changes. */
+    data class ListView(val view: ExplorerView) : Insight
+
+    data object CloseView : Insight
 
     /** The explorer's ways back (§3.14): Recent and Favorites. */
     sealed interface Shortcut : FilesIntent

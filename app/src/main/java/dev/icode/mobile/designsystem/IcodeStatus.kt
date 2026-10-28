@@ -31,6 +31,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -117,6 +119,19 @@ private val TAG_MAX_WIDTH = 96.dp
 fun ProgressTrack(progress: Float, modifier: Modifier = Modifier, color: Color = IcodeColors.Accent) {
     Box(modifier.height(5.dp).background(IcodeColors.SurfaceTrack, IcodeShapes.Track)) {
         Box(Modifier.fillMaxWidth(progress.coerceIn(0f, 1f)).height(5.dp).background(color, IcodeShapes.Track))
+    }
+}
+
+/**
+ * A track filled by [shares] of it side by side, each a fraction in its colour, the rest left empty:
+ * what a storage holds, kind by kind.
+ */
+@Composable
+fun ShareTrack(shares: List<Pair<Float, Color>>, modifier: Modifier = Modifier) {
+    Row(modifier.height(IcodeSpacing.Space2).clip(IcodeShapes.Track).background(IcodeColors.SurfaceTrack)) {
+        shares.filter { (share, _) -> share > 0f }.forEach { (share, color) -> Box(Modifier.weight(share).fillMaxHeight().background(color)) }
+        val rest = 1f - shares.sumOf { (share, _) -> share.coerceAtLeast(0f).toDouble() }.toFloat()
+        if (rest > 0f) Spacer(Modifier.weight(rest))
     }
 }
 

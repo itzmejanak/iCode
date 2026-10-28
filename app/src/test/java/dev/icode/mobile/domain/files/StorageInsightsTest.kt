@@ -34,4 +34,16 @@ class StorageInsightsTest {
         assertNull(StorageInsights.after("/s/Music/b.mp3", listOf(FileStep.Removed("/s/Music/b.mp3"))))
         assertNull(StorageInsights.after(DuplicateGroup(10, listOf(photo.location, copy.location)), listOf(FileStep.Trashed("t2", photo.location))))
     }
+
+    @Test fun `each of the scan's views lists its own files, the others none of them`() {
+        val picture = ScannedFile("/w/a/photo.png", 300, 1, FileCategory.Images)
+        val main = ScannedFile("/w/a/Main.kt", 100, 2, FileCategory.Code)
+        val twin = ScannedFile("/w/b/Main.kt", 100, 3, FileCategory.Code)
+        val files = listOf(main, picture, twin)
+        val groups = listOf(DuplicateGroup(100, listOf(main.location, twin.location)))
+        assertEquals(listOf(main, twin), StorageInsights.listed(ExplorerView.Category(FileCategory.Code, ScanScope.All), files, groups))
+        assertEquals(listOf(picture, main, twin), StorageInsights.listed(ExplorerView.Largest(ScanScope.All), files, groups))
+        assertEquals(listOf(main, twin), StorageInsights.listed(ExplorerView.Duplicates(ScanScope.All), files, groups))
+        assertEquals(null, StorageInsights.listed(ExplorerView.Trash, files, groups))
+    }
 }

@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.files
 
 import dev.icode.mobile.data.storage.PhoneStorage
+import dev.icode.mobile.data.storage.WorkspacePaths
 import dev.icode.mobile.domain.files.FileCategory
 import dev.icode.mobile.domain.files.FileStep
 import dev.icode.mobile.domain.files.ScanScope
@@ -34,7 +35,7 @@ class StorageScanTest {
         workspaces = temp.newFolder("files", "workspaces").canonicalFile
         phone = temp.newFolder("emulated", "0").canonicalFile
         val storage = PhoneStorage(phone) { access }
-        trash = FileTrash(File(workspaces.parentFile, "trash"), File(phone, "Android/media/dev.icode.mobile/Trash"), storage)
+        trash = FileTrash(File(workspaces.parentFile, "trash"), File(phone, "Android/media/dev.icode.mobile/Trash"), storage, WorkspacePaths(workspaces))
         scan = StorageScan(FilePlaces(workspaces, storage), trash) { 42 }
         file(workspaces, "app/src/Main.kt", "fun main() {}")
         file(workspaces, "app/.git/objects/pack", "x".repeat(700))

@@ -15,17 +15,38 @@ object FileProperties {
      * Properties of [facts]. One item: its [name], kind — a workspace with its [branch], a link with
      * where it points, a file by its kind and extension — where it is, its size, when it changed and,
      * a file in Private, whether it runs. Many: how many, their size, and the folder they are in.
-     * [path] is the one item's runtime path, or that folder's. No creation time: Android keeps none.
+     * [path] is the one item's runtime path, or that folder's — none for many a view gathered from
+     * more than one (§3.10). No creation time: Android keeps none.
      */
-    fun rows(facts: FileFacts, name: String, path: String, branch: String?, now: Long, zone: ZoneId = ZoneId.systemDefault()): List<PropertyRow> {
-        if (facts.kind == null) return listOf(PropertyRow("Items", items(facts)), PropertyRow("Size", size(facts)), PropertyRow("In", path, path = true))
+    fun rows(facts: FileFacts, name: String, path: String?, branch: String?, now: Long, zone: ZoneId = ZoneId.systemDefault()): List<PropertyRow> {
+        if (facts.kind == null) return listOfNotNull(PropertyRow("Items", items(facts)), PropertyRow("Size", size(facts)), path?.let { PropertyRow("In", it, path = true) })
         return listOfNotNull(
             PropertyRow("Name", name),
             PropertyRow("Kind", kind(facts.kind, name, facts.linkTarget, branch)),
-            PropertyRow("Location", path, path = true),
+            path?.let { PropertyRow("Location", it, path = true) },
             PropertyRow("Size", size(facts)),
-            facts.modifiedAt?.let { PropertyRow("Modified", "${DATE.withZone(zone).format(Instant.ofEpochMilli(it))} · ${RelativeTime.since(it, now)}") },
+            facts.modifiedAt?.let { PropertyRow("Modified", said(it, now, zone)) },
             facts.executable?.let { PropertyRow("Executable", if (it) "Yes" else "No") },
+        )
+    }
+
+    /**
+     * Properties of what Trash holds (§3.7), as it was deleted: its name, kind, where it was — where
+     * Restore puts it — its size, when it was deleted, and until when Trash keeps it.
+     */
+    fun trashed(item: TrashedItem, now: Long, zone: ZoneId = ZoneId.systemDefault()): List<PropertyRow> {
+        val kind = when {
+            item.workspace -> FactKind.Workspace
+            item.folder -> FactKind.Folder
+            else -> FactKind.File
+        }
+        return listOf(
+            PropertyRow("Name", item.name),
+            PropertyRow("Kind", kind(kind, item.name, null, null)),
+            PropertyRow("Deleted from", item.path, path = true),
+            PropertyRow("Size", item.bytes?.let { bytes(it, single = !item.folder) } ?: UNREAD),
+            PropertyRow("Deleted", said(item.deletedAt, now, zone)),
+            PropertyRow("Kept until", DATE.withZone(zone).format(Instant.ofEpochMilli(TrashRules.removedAt(item)))),
         )
     }
 
@@ -44,10 +65,17 @@ object FileProperties {
     private fun size(facts: FileFacts): String {
         val measured = facts.measured ?: return "Measuring…"
         val single = facts.kind == FactKind.File || facts.kind == FactKind.Link
-        val bytes = measured.bytes?.let { if (single) "${ByteSize.format(it)} (${"%,d".format(it)} bytes)" else ByteSize.format(it) }
-            ?: "Unknown, a folder could not be read"
+        val bytes = measured.bytes?.let { bytes(it, single) } ?: UNREAD
         return if (single) bytes else "$bytes · ${countOf(measured.files, "file")}, ${countOf(measured.folders, "folder")}"
     }
+
+    /** One file's "1.2 MB (1,234,567 bytes)"; else "340 MB". */
+    private fun bytes(bytes: Long, single: Boolean) = if (single) "${ByteSize.format(bytes)} (${"%,d".format(bytes)} bytes)" else ByteSize.format(bytes)
+
+    /** "28 Oct 2026, 14:05 · 2h ago". */
+    private fun said(at: Long, now: Long, zone: ZoneId) = "${DATE.withZone(zone).format(Instant.ofEpochMilli(at))} · ${RelativeTime.since(at, now)}"
+
+    private const val UNREAD = "Unknown, a folder could not be read"
 
     private val DATE: DateTimeFormatter = DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm")
 }
