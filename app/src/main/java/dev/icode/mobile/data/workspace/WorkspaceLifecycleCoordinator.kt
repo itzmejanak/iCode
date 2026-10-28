@@ -1,35 +1,41 @@
 package dev.icode.mobile.data.workspace
 
-import dev.icode.mobile.data.tasks.TaskRunner
+import dev.icode.mobile.data.files.FileHistory
+import dev.icode.mobile.data.io.relocated
 import dev.icode.mobile.domain.FileViewer
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.WorkspaceNameRules
+import dev.icode.mobile.domain.files.FileStep
+import dev.icode.mobile.domain.files.FileWords
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
 
 /**
- * Whole workspaces made, renamed and deleted (docs/workspace-storage-plan.md §4.3): New Folder,
- * and the Workspaces page's Rename and Delete. A workspace in use is not pulled from under what
- * uses it ([WorkspaceUsage]). The open workspace is closed first, and a renamed one opens again
- * with its tabs. A workspace that stops being one — deleted, or cut into another — is released
- * before and retired after, the same two steps either way.
+ * Whole workspaces made and renamed (docs/workspace-storage-plan.md §4.3): New Folder, and Rename
+ * from any list. A workspace in use is not pulled from under what uses it ([WorkspaceUsage]). The
+ * open workspace is closed first, and a renamed one opens again with its tabs. A workspace that
+ * moves or goes — renamed, cut into another, put in Trash — is [release]d before, and [renamed] or
+ * [retire]d after, the same steps whoever moves it (FileChangeFollower). Each is kept to undo.
  */
 internal class WorkspaceLifecycleCoordinator(
     private val stateHolder: ICodeStateHolder,
-    private val tasks: TaskRunner,
     private val source: WorkspaceFileSource,
     private val library: WorkspaceLibraryCoordinator,
     private val session: WorkspaceSessionCoordinator,
     private val usage: WorkspaceUsage,
+    private val history: FileHistory,
     /** A file opened in the editor, in the open workspace. */
     private val openFile: suspend (location: String, lineNumber: Int?, column: Int?) -> Unit,
-    /** A workspace's own settings follow a rename, and go with a delete. */
+    /** A workspace's own settings follow a rename, and go when it is no workspace any more. */
     private val moveSettings: suspend (from: String, to: String) -> Unit,
     private val forgetSettings: suspend (location: String) -> Unit,
 ) {
+    /** What to open again once a workspace closed for a move is back: its tabs, and the one selected. */
+    class Reopen(val tabs: List<String>, val selected: String?)
+
     /** New Folder: an empty workspace, which appears in the list as a file manager's new folder does. */
     suspend fun create(intent: ICodeIntent.CreateWorkspace) {
         val name = intent.name.trim()
@@ -39,62 +45,28 @@ internal class WorkspaceLifecycleCoordinator(
             source.workspacesRoot.mkdirs()
             if (!target.mkdir()) throw IOException(WorkspaceNameRules.newWorkspaceError(name, ::exists) ?: "The workspace could not be created")
         }.onSuccess {
+            history.record(FileWords.made(name, folder = true).copy(steps = listOf(FileStep.Made(target.path))))
             library.refresh()
             stateHolder.emit(ICodeEffect.WorkspaceItemChanged(intent.requestId, target.path))
         }.onFailure { error -> fail(intent.requestId, stateHolder.failureText("workspace", "Unable to create the workspace", error)) }
     }
 
-    suspend fun rename(intent: ICodeIntent.RenameWorkspace) {
-        val from = intent.location
-        val name = intent.newName.trim()
-        if (!source.isWorkspace(from)) return fail(intent.requestId, "This workspace no longer exists")
+    /** The workspace [from] renamed [newName], in one step on its one filesystem; the dialog that asked is answered by [requestId]. */
+    suspend fun rename(from: String, newName: String, requestId: String) {
+        val name = newName.trim()
+        if (!source.isWorkspace(from)) return fail(requestId, "This workspace no longer exists")
         val to = File(source.workspacesRoot, name).path
-        if (to == from) return stateHolder.emit(ICodeEffect.WorkspaceItemChanged(intent.requestId, from))
-        WorkspaceNameRules.newWorkspaceError(name, ::exists)?.let { return fail(intent.requestId, it) }
-        usage.holding(from, whole = true)?.let { return fail(intent.requestId, it) }
-        val open = session.activeRoot == from
-        val tabs = if (open) stateHolder.current.openDocuments.map { it.location } else emptyList()
-        val selected = if (open) stateHolder.current.activeDocument?.location else null
-        if (open) session.close()
-        // One filesystem: the folder is renamed whole, in one step.
-        val renamed = runCatching { Files.move(File(from).toPath(), File(to).toPath()) }
-        if (renamed.isFailure) {
-            if (open) session.openWithTabs(from, tabs, selected)
-            val cause = renamed.exceptionOrNull() ?: IOException("Unable to rename the workspace")
-            return fail(intent.requestId, stateHolder.failureText("workspace", "Unable to rename the workspace", cause))
+        if (to == from) return stateHolder.emit(ICodeEffect.WorkspaceItemChanged(requestId, from))
+        WorkspaceNameRules.newWorkspaceError(name, ::exists)?.let { return fail(requestId, it) }
+        usage.holding(from, whole = true)?.let { return fail(requestId, it) }
+        val reopen = release(from)
+        runCatching { Files.move(File(from).toPath(), File(to).toPath()) }.exceptionOrNull()?.let { error ->
+            stayed(from, reopen)
+            return fail(requestId, stateHolder.failureText("workspace", "Unable to rename the workspace", error))
         }
-        runCatching { moveSettings(from, to) }
-            .onFailure { error -> stateHolder.report("workspace", "The workspace's settings could not follow the rename", error) }
-        library.relocate(from, to)
-        stateHolder.emit(ICodeEffect.WorkspaceItemChanged(intent.requestId, to))
-        if (open) session.openWithTabs(to, tabs.map { it.relocated(from, to) }, selected?.relocated(from, to))
-    }
-
-    /** Confirmed on the launcher first: this cannot be undone. Runs as the delete task, without Cancel. */
-    suspend fun delete(location: String) {
-        if (!source.isWorkspace(location)) {
-            stateHolder.notify(NoticeTone.HeadsUp, "This workspace no longer exists")
-            library.refresh()
-            return
-        }
-        usage.holding(location, whole = true)?.let { return stateHolder.notify(NoticeTone.HeadsUp, it) }
-        release(location)
-        val files = WorkspaceFiles(source.workspacesRoot)
-        tasks.start(
-            title = "Deleting…",
-            subject = File(location).name,
-            paths = listOf(location),
-            cancellable = false,
-            failure = "Unable to delete the workspace",
-            work = { progress ->
-                progress.counted(files.count(location))
-                files.delete(location, progress::item)
-            },
-            finished = { failure ->
-                // Part of it may be gone after a failure: show what is left.
-                if (failure == null) retire(location) else library.refresh()
-            },
-        )
+        renamed(from, to, reopen)
+        history.record(FileWords.renamed(File(from).name, name).copy(steps = listOf(FileStep.Moved(from, to))))
+        stateHolder.emit(ICodeEffect.WorkspaceItemChanged(requestId, to))
     }
 
     /**
@@ -119,12 +91,29 @@ internal class WorkspaceLifecycleCoordinator(
         stateHolder.emit(ICodeEffect.WorkspaceOpened(workspace))
     }
 
-    /** Before [location] stops being a workspace: closed, if it is the open one. */
-    suspend fun release(location: String) {
-        if (session.activeRoot == location) session.close()
+    /** Before [location] moves or goes: closed, if it is the open one. What to open again, or null. */
+    suspend fun release(location: String): Reopen? {
+        if (session.activeRoot != location) return null
+        val state = stateHolder.current
+        val reopen = Reopen(state.openDocuments.map { it.location }, state.activeDocument?.location)
+        session.close()
+        return reopen
     }
 
-    /** After [location] stopped being a workspace: its settings and its history go. */
+    /** [location] stayed where it was: opened again as it was, when it was closed for the move. */
+    suspend fun stayed(location: String, reopen: Reopen?) {
+        reopen?.let { session.openWithTabs(location, it.tabs, it.selected) }
+    }
+
+    /** After [from] was renamed [to] at the workspaces' top: its settings and history follow, and it opens again as it was. */
+    suspend fun renamed(from: String, to: String, reopen: Reopen?) {
+        runCatching { moveSettings(from, to) }
+            .onFailure { error -> stateHolder.report("workspace", "The workspace's settings could not follow the rename", error) }
+        library.relocate(from, to)
+        reopen?.let { session.openWithTabs(to, it.tabs.map { tab -> tab.relocated(from, to) }, it.selected?.relocated(from, to)) }
+    }
+
+    /** After [location] stopped being a workspace — moved into a folder, or gone: its settings and its history go. */
     suspend fun retire(location: String) {
         runCatching { forgetSettings(location) }
             .onFailure { error -> stateHolder.report("workspace", "The workspace's settings could not be cleared", error) }

@@ -194,7 +194,7 @@ internal class WorkspaceSessionCoordinator(
      */
     suspend fun openRecoverableDraft(location: String) {
         val root = activeRoot
-        if (root == null || !location.isAtOrUnder(root)) {
+        if (root == null || source.workspaceOf(location) != root) {
             val home = library.workspaceHolding(location) ?: run {
                 stateHolder.notify(NoticeTone.HeadsUp, "${File(location).name} is outside iCode's workspaces: import its folder, or discard the draft")
                 return

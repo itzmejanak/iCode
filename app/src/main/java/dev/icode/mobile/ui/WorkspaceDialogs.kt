@@ -36,7 +36,7 @@ internal fun RenameWorkspaceDialog(item: WorkspaceSummary, onDismiss: () -> Unit
     initial = item.name,
     current = item.name,
     onDismiss = onDismiss,
-) { name, requestId -> ICodeIntent.RenameWorkspace(item.location, name, requestId) }
+) { name, requestId -> ICodeIntent.RenameWorkspaceItem(item.location, name, requestId) }
 
 /**
  * A workspace's name, as New Folder and Rename ask for it: the name, the `/workspace/<name>` it will

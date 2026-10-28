@@ -1,4 +1,4 @@
-package dev.icode.mobile.data.workspace
+package dev.icode.mobile.data.files
 
 import dev.icode.mobile.data.git.GitCheckoutOperations
 import dev.icode.mobile.data.io.deleteTree
@@ -8,10 +8,9 @@ import dev.icode.mobile.data.storage.StorageTransfer
 import dev.icode.mobile.data.storage.WorkspacePaths
 import dev.icode.mobile.data.storage.WorkspaceStaging
 import dev.icode.mobile.data.tasks.TaskRunner
+import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.GitOutcome
-import dev.icode.mobile.domain.ItemClipboard
-import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.countOf
 import java.io.File
 import java.io.IOException
@@ -22,16 +21,16 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
 /**
- * Copy and cut between iCode's storage and phone storage (docs/storage-explorer-plan.md §4.1), as a
- * task with Import's engine: counted first, and refused before anything is written when it would not
- * fit — or, for a cut, when not all of it can go. Into iCode's storage a folder is staged and put in
- * place once complete, a repository's checkout restored as Git recorded it; onto phone storage,
- * links and names that differ only in case are skipped and counted. A cut deletes its source only
- * once all of it was copied. Stopped or failed, nothing of the copy is left, and the source is as it was.
+ * Copy and cut between iCode's storage and phone storage (docs/storage-explorer-plan.md §4.1), one
+ * item at a time inside the operation's task, with Import's engine: refused before anything is
+ * written when it would not fit — or, for a cut, when not all of it can go. Into iCode's storage a
+ * folder is staged and put in place once complete, a repository's checkout restored as Git
+ * recorded it; onto phone storage, links and names that differ only in case are skipped and
+ * counted. A cut deletes its source only once all of it was copied. Stopped or failed, nothing of
+ * the copy is left, and the source is as it was.
  */
 internal class StorageTransfers(
     private val stateHolder: ICodeStateHolder,
-    private val tasks: TaskRunner,
     paths: WorkspacePaths,
     private val git: GitCheckoutOperations,
     private val storage: PhoneStorage,
@@ -46,49 +45,33 @@ internal class StorageTransfers(
     fun crosses(location: String, destination: String): Boolean = storage.contains(location) != storage.contains(destination)
 
     /**
-     * [held] into the folder [destination], in the other place. [landed] runs under the mutation lock
-     * when the task ends: with where it is now when all of it was carried, else with null.
+     * [source] carried to [target], in the other place, its entries reported to [progress] as paths
+     * from the folder [source] is in; a [cut] removes [source] once all of it is there.
      */
-    fun paste(held: ItemClipboard, destination: String, landed: suspend (target: File?) -> Unit) {
-        val toShared = storage.contains(destination)
-        val source = File(held.location)
-        // A cut keeps its name — refused before when it is taken — and a copy takes the first free one.
-        val target = if (held.cut) File(destination, held.name) else freeName(File(destination).toPath(), held.name, held.folder).toFile()
+    suspend fun carry(source: File, target: File, cut: Boolean, progress: TaskRunner.Progress): Carried {
+        val context = currentCoroutineContext()
+        if (!storage.hasAccess()) throw IOException(FilePlaces.NO_ACCESS)
+        val toShared = storage.contains(target.path)
+        val tree = FileTransferTree(source)
+        if (!tree.top.copyable) throw IOException("${source.name} is a link: links cannot be copied to or from phone storage")
+        val plan = StorageTransfer.plan(tree, caseInsensitive = toShared) { context.ensureActive() }
+        if (cut && plan.skipped.isNotEmpty()) {
+            throw IOException("${source.name} holds ${notCarried(plan.skipped.size, toShared)} — copy it instead")
+        }
+        if (!reserveSpace(plan.bytes)) {
+            throw IOException("Not enough storage: ${ByteSize.format(plan.bytes)} required, ${ByteSize.format(freeBytes())} free")
+        }
         // Into iCode's storage a folder is staged, as Import's was: Git's repair runs before it is seen,
         // and a process ended midway leaves only what the next start sweeps.
-        val staged = if (!toShared && held.folder) staging.reserve("import") else null
-        var done: Transferred? = null
-        tasks.start(
-            title = if (held.cut) "Moving…" else "Copying…",
-            subject = held.name,
-            paths = listOfNotNull(held.location, target.path, staged?.path),
-            cancellable = true,
-            failure = "Unable to ${if (held.cut) "move" else "copy"} ${held.name}",
-            work = { progress ->
-                val context = currentCoroutineContext()
-                if (!storage.hasAccess()) throw IOException(NO_ACCESS)
-                val tree = FileTransferTree(source)
-                if (!tree.top.copyable) throw IOException("${held.name} is a link: links cannot be copied to or from phone storage")
-                val plan = StorageTransfer.plan(tree, caseInsensitive = toShared) { context.ensureActive() }
-                if (held.cut && plan.skipped.isNotEmpty()) {
-                    throw IOException("${held.name} holds ${notCarried(plan.skipped.size, toShared)} — copy it instead")
-                }
-                if (!reserveSpace(plan.bytes)) {
-                    throw IOException("Not enough storage: ${ByteSize.format(plan.bytes)} required, ${ByteSize.format(freeBytes())} free")
-                }
-                progress.counted(if (tree.top.folder) plan.entries.size.toLong() else 1L)
-                // Each item as a path from the folder it is in, as a copy or a delete says it.
-                StorageTransfer.copy(tree, plan, staged ?: target) { progress.item(if (it.isEmpty()) held.name else "${held.name}/$it") }
-                val unrepaired = staged?.let { settle(it, target, progress) }
-                done = Transferred(target, plan.skipped.size, toShared, unrepaired, if (held.cut) removeSource(source, progress) else null)
-            },
-            finished = {
-                val result = done
-                if (result == null) staged?.let { runCatching { staging.discard(it) } }
-                result?.summary(held)?.let { stateHolder.notify(NoticeTone.HeadsUp, it) }
-                landed(result?.target)
-            },
-        )
+        val staged = if (!toShared && tree.top.folder) staging.reserve("import") else null
+        try {
+            StorageTransfer.copy(tree, plan, staged ?: target) { progress.item(if (it.isEmpty()) source.name else "${source.name}/$it") }
+            val unrepaired = staged?.let { settle(it, target, progress) }
+            return Carried(target, plan.skipped.size, toShared, unrepaired, if (cut) removeSource(source, progress) else null)
+        } catch (stopped: Throwable) {
+            staged?.let { withContext(NonCancellable) { runCatching { staging.discard(it) } } }
+            throw stopped
+        }
     }
 
     /** [staged], a repository's checkout restored, put in place as [target]; why Git could not restore it, or null. */
@@ -124,7 +107,8 @@ internal class StorageTransfers(
         stateHolder.failureText("git", "Git could not restore the checkout", error)
     }
 
-    private class Transferred(
+    /** One item carried: where it is now, and what of it was not. */
+    class Carried(
         val target: File,
         val skipped: Int,
         val toShared: Boolean,
@@ -136,10 +120,10 @@ internal class StorageTransfers(
          * What was not carried, if anything: "Copied app without 3 items phone storage cannot hold (…)".
          * A transfer that carried everything says nothing, as a paste in one place does.
          */
-        fun summary(held: ItemClipboard): String? {
+        fun summary(cut: Boolean): String? {
             if (skipped == 0 && unrepaired == null && leftBehind == null) return null
             return buildString {
-                append(if (held.cut) "Moved " else "Copied ").append(target.name)
+                append(if (cut) "Moved " else "Copied ").append(target.name)
                 if (skipped > 0) append(" without ").append(notCarried(skipped, toShared))
                 if (unrepaired != null) append(". Git's executables and links were not restored: ").append(unrepaired)
                 if (leftBehind != null) append(". The original could not be removed entirely: ").append(leftBehind)
@@ -148,8 +132,6 @@ internal class StorageTransfers(
     }
 
     private companion object {
-        const val NO_ACCESS = "Allow access to phone storage first"
-
         /** "3 items phone storage cannot hold (links, or names that differ only in case)". */
         fun notCarried(count: Int, toShared: Boolean) = countOf(count, "item") +
             if (toShared) " phone storage cannot hold (links, or names that differ only in case)" else " that cannot be copied (links, or names a folder cannot hold)"

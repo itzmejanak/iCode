@@ -37,6 +37,7 @@ import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.domain.FileEntry
 import dev.icode.mobile.domain.FileKind
+import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
@@ -58,14 +59,13 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
     var createType by rememberSaveable { mutableStateOf<WorkspaceItemType?>(null) }
     var menuFor by remember { mutableStateOf<String?>(null) }
     var renaming by rememberSaveable { mutableStateOf<String?>(null) }
-    var deleting by rememberSaveable { mutableStateOf<String?>(null) }
     // iCode's one clipboard: cut or copied here, in another workspace, or on the Workspaces page.
-    val clipboard = state.clipboard
+    val clipboard = state.explorer.clipboard
     val rootSelectionInteraction = remember { MutableInteractionSource() }
     val root = state.activeWorkspaceLocation
     // The folder + makes in and the bar's Paste goes into: the selected folder, or the selected file's.
     val selectedFolder = creationParentLocation(root, selectedPath, state.files)
-    val pasteHere = { selectedFolder?.let { gateway.dispatch(ICodeIntent.PasteInto(it)) } }
+    val pasteHere = { selectedFolder?.let { gateway.dispatch(FilesIntent.Paste(it)) } }
     // Each path as the runtime names it, as Copy path gives it and the terminal shows it.
     val runtimePathOf = { location: String -> root?.let { WorkspaceRuntimePath.within(it, state.activePath, location) } ?: location }
     Column(Modifier.fillMaxSize()) {
@@ -142,7 +142,6 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
                                 actions = explorerItemActions(
                                     entry, root, state.activePath, state.files, clipboard,
                                     onRename = { renaming = entry.path },
-                                    onDelete = { deleting = entry.path },
                                 ),
                                 menuOpen = menuFor == entry.path,
                                 onMenuDismiss = { menuFor = null },
@@ -174,9 +173,6 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
     }
     state.files.firstOrNull { it.path == renaming }?.let { entry ->
         RenameWorkspaceItemDialog(entry.path, entry.name, entry.kind == FileKind.Folder, onDismiss = { renaming = null })
-    }
-    state.files.firstOrNull { it.path == deleting }?.let { entry ->
-        DeleteWorkspaceItemDialog(entry.path, entry.name, entry.kind == FileKind.Folder, runtimePathOf(entry.path), onDismiss = { deleting = null })
     }
 }
 

@@ -35,6 +35,7 @@ import dev.icode.mobile.designsystem.IcodeMenuAction
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTextField
 import dev.icode.mobile.designsystem.IcodeTopBar
+import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.SystemPermission
 import dev.icode.mobile.domain.WorkspaceRuntimePath
@@ -48,7 +49,6 @@ import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.NewWorkspaceDialog
 import dev.icode.mobile.ui.screens.workspace.CreateWorkspaceItemDialog
-import dev.icode.mobile.ui.screens.workspace.DeleteWorkspaceItemDialog
 import dev.icode.mobile.ui.screens.workspace.RenameWorkspaceItemDialog
 import dev.icode.mobile.ui.screens.workspace.WorkspaceItemType
 
@@ -70,7 +70,6 @@ fun FilesScreen(actions: NavigationActions, choosing: Boolean = false) {
     var query by rememberSaveable(browser?.path) { mutableStateOf("") }
     var creating by rememberSaveable { mutableStateOf<WorkspaceItemType?>(null) }
     var renaming by rememberSaveable { mutableStateOf<String?>(null) }
-    var deleting by rememberSaveable { mutableStateOf<String?>(null) }
     var placesOpen by remember { mutableStateOf(false) }
     var newOpen by remember { mutableStateOf(false) }
     val browse = { path: String -> gateway.dispatch(ICodeIntent.BrowseFiles(path)) }
@@ -99,7 +98,7 @@ fun FilesScreen(actions: NavigationActions, choosing: Boolean = false) {
     BackHandler(enabled = searching || up != null) { back() }
     // At Private's top a folder is a workspace, and Paste makes one.
     val top = browser == null || (browser.place == StoragePlace.Private && browser.atRoot)
-    val pasteHere = { browser?.let { gateway.dispatch(if (top) ICodeIntent.PasteAsWorkspace else ICodeIntent.PasteInto(it.path)) } }
+    val pasteHere = { browser?.let { gateway.dispatch(FilesIntent.Paste(it.path)) } }
     val creation = FileItemActions.creation(
         // Choosing a place, only folders are made.
         onNewFile = { creating = WorkspaceItemType.File }.takeUnless { choosing || top },
@@ -131,7 +130,7 @@ fun FilesScreen(actions: NavigationActions, choosing: Boolean = false) {
                     modifier = Modifier.fillMaxSize().padding(IcodeSpacing.Gutter),
                 )
                 else -> {
-                    FilesListing(browser, query, sort, choosing, browse, { renaming = it }, { deleting = it })
+                    FilesListing(browser, query, sort, choosing, browse) { renaming = it }
                     IcodeFab(
                         contentDescription = "New",
                         // One choice is made at once; two are offered.
@@ -148,7 +147,7 @@ fun FilesScreen(actions: NavigationActions, choosing: Boolean = false) {
                 actions.back()
             }
         } else if (browser != null && browser.access) {
-            state.clipboard?.let { clipboard ->
+            state.explorer.clipboard?.let { clipboard ->
                 ClipboardBar(clipboard, destination = if (top) null else browser.runtimePathOf(browser.path), onPaste = { pasteHere() })
             }
         }
@@ -169,9 +168,6 @@ fun FilesScreen(actions: NavigationActions, choosing: Boolean = false) {
     }
     browser?.items?.firstOrNull { it.location == renaming }?.let { item ->
         RenameWorkspaceItemDialog(item.location, item.name, item.folder, onDismiss = { renaming = null })
-    }
-    browser?.items?.firstOrNull { it.location == deleting }?.let { item ->
-        DeleteWorkspaceItemDialog(item.location, item.name, item.folder, browser.runtimePathOf(item.location), onDismiss = { deleting = null })
     }
 }
 

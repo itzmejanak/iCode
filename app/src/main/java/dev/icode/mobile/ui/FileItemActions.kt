@@ -26,8 +26,9 @@ import androidx.compose.runtime.setValue
 import dev.icode.mobile.designsystem.IcodeActionMenu
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeMenuAction
+import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.ICodeIntent
-import dev.icode.mobile.domain.ItemClipboard
+import dev.icode.mobile.domain.files.FileClipboard
 
 /**
  * The one owner of a file's or a folder's actions (docs/file-explorer-unification-plan.md §3;
@@ -36,27 +37,27 @@ import dev.icode.mobile.domain.ItemClipboard
  */
 object FileItemActions {
     /** "Paste RevPlayer": what Paste would bring, named, so a clipboard from another page is never a surprise. */
-    fun pasteLabel(clipboard: ItemClipboard?): String = clipboard?.let { "Paste ${it.name}" } ?: "Paste"
+    fun pasteLabel(clipboard: FileClipboard?): String = clipboard?.let { "Paste ${it.name}" } ?: "Paste"
 
     /**
-     * Open, Rename…, Cut, Copy, Paste, Copy path, Delete…. [open] says what opening is here (a
+     * Open, Rename…, Cut, Copy, Paste, Copy path, Delete. [open] says what opening is here (a
      * file into the editor, a folder into the list or open in the tree); none where there is
      * nothing to open it in (a file on phone storage). A [file] adds Open with… and Share… after
      * it, to hand it to another app (docs/open-with-plan.md). A workspace adds Open Terminal after
      * Open, and where it is listed apart, [showInList]. Paste is always there, and named by what it
      * holds; with nothing held it is there, greyed. [onPaste] puts it where this item is the place
-     * for it: into a folder, beside a file.
+     * for it: into a folder, beside a file. Delete moves it to Trash at once: it can be undone
+     * (docs/explorer-gaps-plan.md §3.7).
      */
     fun of(
         context: Context,
         dispatch: (ICodeIntent) -> Unit,
         location: String,
         runtimePath: String,
-        clipboard: ItemClipboard?,
+        clipboard: FileClipboard?,
         open: IcodeMenuAction?,
         onRename: () -> Unit,
         onPaste: () -> Unit,
-        onDelete: () -> Unit,
         file: Boolean = false,
         openTerminal: (() -> Unit)? = null,
         showInList: (() -> Unit)? = null,
@@ -66,12 +67,12 @@ object FileItemActions {
         if (file) IcodeMenuAction("Share…", Icons.Outlined.Share, { SharedFiles.share(context, location, dispatch) }) else null,
         openTerminal?.let { IcodeMenuAction("Open Terminal", Icons.Outlined.Terminal, it) },
         IcodeMenuAction("Rename…", Icons.Outlined.DriveFileRenameOutline, onRename),
-        IcodeMenuAction("Cut", Icons.Outlined.ContentCut, { dispatch(ICodeIntent.CutItem(location)) }),
-        IcodeMenuAction("Copy", Icons.Outlined.ContentCopy, { dispatch(ICodeIntent.CopyItem(location)) }),
+        IcodeMenuAction("Cut", Icons.Outlined.ContentCut, { dispatch(FilesIntent.Cut(listOf(location))) }),
+        IcodeMenuAction("Copy", Icons.Outlined.ContentCopy, { dispatch(FilesIntent.Copy(listOf(location))) }),
         IcodeMenuAction(pasteLabel(clipboard), Icons.Outlined.ContentPaste, onPaste, enabled = clipboard != null),
         showInList?.let { IcodeMenuAction("Show in Workspaces", Icons.Outlined.FolderCopy, it) },
         copyPath(context, runtimePath, dispatch),
-        IcodeMenuAction("Delete…", Icons.Outlined.DeleteOutline, onDelete, destructive = true),
+        IcodeMenuAction("Delete", Icons.Outlined.DeleteOutline, { dispatch(FilesIntent.Trash(listOf(location))) }, destructive = true),
     )
 
     /** Copy path: the runtime path — what a terminal, a script or another workspace's config names it by. */

@@ -1,4 +1,4 @@
-package dev.icode.mobile.data.workspace
+package dev.icode.mobile.data.files
 
 import dev.icode.mobile.data.git.GitCheckoutOperations
 import dev.icode.mobile.data.git.GitCheckoutRepair
@@ -6,10 +6,9 @@ import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.storage.PhoneStorage
 import dev.icode.mobile.data.storage.WorkspacePaths
 import dev.icode.mobile.data.tasks.TaskRunner
+import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.ICodeIntent
-import dev.icode.mobile.domain.ItemClipboard
-import dev.icode.mobile.domain.said
 import java.io.File
 import java.nio.file.Files
 import java.util.Collections
@@ -20,7 +19,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
@@ -40,7 +38,6 @@ class StorageTransfersTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val stateHolder = ICodeStateHolder()
     private val tasks = TaskRunner(stateHolder, scope)
-    private val messages = Collections.synchronizedList(mutableListOf<String>())
     private val git = FakeGit()
     private var room = true
     private var access = true
@@ -66,7 +63,6 @@ class StorageTransfersTest {
     private val transfers by lazy {
         StorageTransfers(
             stateHolder = stateHolder,
-            tasks = tasks,
             paths = WorkspacePaths(root),
             git = git,
             storage = PhoneStorage(phone) { access },
@@ -89,11 +85,8 @@ class StorageTransfersTest {
         }
     }
 
-    @Before fun collect() {
+    @Before fun quiet() {
         BackendLog.writer = { _, _, _ -> }
-        scope.launch(Dispatchers.Unconfined) {
-            stateHolder.effects.collect { effect -> effect.said()?.let { messages += it.title } }
-        }
     }
 
     @After fun stop() {
@@ -101,13 +94,21 @@ class StorageTransfersTest {
         BackendLog.writer = originalWriter
     }
 
-    private fun held(item: File, cut: Boolean = false) = ItemClipboard(item.path, item.name, cut, folder = item.isDirectory, workspace = false)
-
-    /** [held] pasted into [into]; where it landed once the task ended, or null. */
-    private fun paste(held: ItemClipboard, into: File): File? {
-        val landed = CompletableDeferred<File?>()
-        transfers.paste(held, into.path) { landed.complete(it) }
-        return runBlocking { withTimeout(5_000) { landed.await() } }
+    /** [source] carried to [target] inside a task, as an operation carries each item; what was carried once it ended, or null. */
+    private fun carry(source: File, target: File, cut: Boolean = false, started: (Long) -> Unit = {}): StorageTransfers.Carried? {
+        val ended = CompletableDeferred<StorageTransfers.Carried?>()
+        var carried: StorageTransfers.Carried? = null
+        val id = tasks.start(
+            title = "Copying…",
+            subject = source.name,
+            paths = listOf(source.path, target.path),
+            cancellable = true,
+            failure = "Unable to copy",
+            work = { progress -> carried = transfers.carry(source, target, cut, progress) },
+            finished = { ended.complete(carried) },
+        )
+        started(id)
+        return runBlocking { withTimeout(5_000) { ended.await() } }
     }
 
     private fun failure() = stateHolder.current.tasks.singleOrNull()?.failure
@@ -120,18 +121,18 @@ class StorageTransfersTest {
     }
 
     @Test fun `a folder from phone storage comes in as Import's did — staged, then in place — and the original stays`() {
-        val target = paste(held(picked), root)
-        assertEquals(File(root, "app"), target)
+        val carried = carry(picked, File(root, "app"))!!
+        assertEquals(File(root, "app"), carried.target)
         assertEquals("fun main() {}", File(root, "app/src/App.kt").readText())
         assertEquals(listOf("app"), root.list()!!.toList())
         assertTrue(File(picked, "src/App.kt").isFile)
-        assertTrue("everything was carried: nothing to say", messages.isEmpty())
+        assertNull("everything was carried: nothing to say", carried.summary(cut = false))
         assertTrue("not a repository: Git is not asked", git.restored.isEmpty())
     }
 
     @Test fun `a repository's checkout is restored while staged, before it is in place`() {
         File(picked, ".git").mkdirs()
-        paste(held(picked), workspace)
+        carry(picked, File(workspace, "app"))
         assertTrue(File(workspace, "app/.git").isDirectory)
         assertEquals(1, git.restored.size)
         assertTrue(git.restored.single().startsWith(".import-"))
@@ -140,66 +141,66 @@ class StorageTransfersTest {
     @Test fun `without Git it still comes in, and says the checkout was not restored`() {
         File(picked, ".git").mkdirs()
         git.available = false
-        assertEquals(File(root, "app"), paste(held(picked), root))
-        assertEquals(listOf("Copied app. Git's executables and links were not restored: The runtime is not installed"), messages.toList())
+        val carried = carry(picked, File(root, "app"))!!
+        assertEquals(File(root, "app"), carried.target)
+        assertEquals("Copied app. Git's executables and links were not restored: The runtime is not installed", carried.summary(cut = false))
     }
 
     @Test fun `onto phone storage links and names that differ only in case are left out, and said`() {
         Files.createSymbolicLink(File(tool, "latest").toPath(), File(tool, "run.sh").toPath())
         File(tool, "README.md").writeText("upper")
         File(tool, "readme.md").writeText("lower")
-        val target = paste(held(tool), download)!!
-        assertEquals(setOf("README.md", "notes.md", "run.sh"), target.list()!!.toSet())
-        assertEquals("upper", File(target, "README.md").readText())
-        assertEquals(listOf("Copied tool without 2 items phone storage cannot hold (links, or names that differ only in case)"), messages.toList())
+        val carried = carry(tool, File(download, "tool"))!!
+        assertEquals(setOf("README.md", "notes.md", "run.sh"), carried.target.list()!!.toSet())
+        assertEquals("upper", File(carried.target, "README.md").readText())
+        assertEquals("Copied tool without 2 items phone storage cannot hold (links, or names that differ only in case)", carried.summary(cut = false))
     }
 
     @Test fun `a cut that cannot carry all of it is refused before anything is written`() {
         Files.createSymbolicLink(File(tool, "latest").toPath(), File(tool, "run.sh").toPath())
-        assertNull(paste(held(tool, cut = true), download))
+        assertNull(carry(tool, File(download, "tool"), cut = true))
         assertEquals("tool holds 1 item phone storage cannot hold (links, or names that differ only in case) — copy it instead", failure())
         assertTrue(download.list()!!.isEmpty())
         assertTrue(File(tool, "run.sh").isFile)
     }
 
     @Test fun `a cut carries all of it, then removes the original`() {
-        val target = paste(held(tool, cut = true), download)
-        assertEquals(File(download, "tool"), target)
+        val carried = carry(tool, File(download, "tool"), cut = true)!!
+        assertEquals(File(download, "tool"), carried.target)
         assertEquals("echo run", File(download, "tool/run.sh").readText())
         assertFalse(tool.exists())
-        assertTrue(messages.isEmpty())
+        assertNull(carried.summary(cut = true))
     }
 
-    @Test fun `a file goes too, and a copy takes a free name rather than overwrite`() {
+    @Test fun `a file goes too, under the name it is given`() {
         val note = File(phone, "notes.txt").apply { writeText("new") }
         File(workspace, "notes.txt").writeText("kept")
-        assertEquals(File(workspace, "notes copy.txt"), paste(held(note), workspace))
+        assertEquals(File(workspace, "notes copy.txt"), carry(note, File(workspace, "notes copy.txt"))!!.target)
         assertEquals("kept", File(workspace, "notes.txt").readText())
         assertEquals("new", File(workspace, "notes copy.txt").readText())
     }
 
     @Test fun `too little space refuses it before anything is copied, and nothing is left`() {
         room = false
-        assertNull(paste(held(picked), root))
+        assertNull(carry(picked, File(root, "app")))
         assertTrue(failure()!!.startsWith("Not enough storage"))
         assertTrue(root.list()!!.isEmpty())
     }
 
     @Test fun `without All Files Access nothing is copied`() {
         access = false
-        assertNull(paste(held(tool), download))
+        assertNull(carry(tool, File(download, "tool")))
         assertEquals("Allow access to phone storage first", failure())
         assertTrue(download.list()!!.isEmpty())
     }
 
     @Test fun `a cancelled copy leaves nothing behind, and a cancelled cut leaves the original`() {
         copying = CountDownLatch(1)
-        val landed = CompletableDeferred<File?>()
-        transfers.paste(held(picked, cut = true), root.path) { landed.complete(it) }
-        val task = stateHolder.current.tasks.single()
-        tasks.handle(ICodeIntent.CancelTask(task.id))
-        copying!!.countDown()
-        assertNull(runBlocking { withTimeout(5_000) { landed.await() } })
+        val carried = carry(picked, File(root, "app"), cut = true) { id ->
+            tasks.handle(ICodeIntent.CancelTask(id))
+            copying!!.countDown()
+        }
+        assertNull(carried)
         assertTrue(root.list()!!.isEmpty())
         assertTrue(File(picked, "src/App.kt").isFile)
     }

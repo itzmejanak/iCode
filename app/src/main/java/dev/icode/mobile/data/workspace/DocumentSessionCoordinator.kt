@@ -1,5 +1,7 @@
 package dev.icode.mobile.data.workspace
 
+import dev.icode.mobile.data.io.isAtOrUnder
+import dev.icode.mobile.data.io.relocated
 import dev.icode.mobile.data.runtime.GuestPaths
 import dev.icode.mobile.domain.ExternalChange
 import dev.icode.mobile.domain.NoticeTone
@@ -197,16 +199,14 @@ internal class DocumentSessionCoordinator(
 
     /** Tabs follow a rename or move of their file or of a folder above it. */
     fun relocate(from: String, to: String) {
+        fun moved(document: OpenDocument) = if (!document.location.isAtOrUnder(from)) document
+        else document.location.relocated(from, to).let { target -> document.copy(location = target, name = File(target).name) }
         val moving = stateHolder.current.openDocuments.filter { it.location.isAtOrUnder(from) }
         if (moving.isEmpty()) return
         moving.forEach { document ->
-            val target = document.location.relocated(from, to)
-            sources.remove(document.location)?.let { sources[target] = it.copy(location = target, name = File(target).name) }
-            savedTexts.remove(document.location)?.let { savedTexts[target] = it }
-        }
-        fun moved(document: OpenDocument) = if (!document.location.isAtOrUnder(from)) document else {
-            val target = document.location.relocated(from, to)
-            document.copy(location = target, name = File(target).name)
+            val target = moved(document)
+            sources.remove(document.location)?.let { sources[target.location] = it.copy(location = target.location, name = target.name) }
+            savedTexts.remove(document.location)?.let { savedTexts[target.location] = it }
         }
         stateHolder.update { state ->
             state.copy(openDocuments = state.openDocuments.map(::moved), activeDocument = state.activeDocument?.let(::moved))

@@ -3,6 +3,7 @@ package dev.icode.mobile.domain.files
 import java.util.concurrent.TimeUnit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -30,6 +31,29 @@ class FileHistoryTest {
         assertEquals("Restored 3 items", undone.said)
         assertEquals("Moved 3 items to Trash", undone.undoneSaid)
         assertEquals(listOf(Reversal.TrashMade("/w/a")), undone.reversals)
+    }
+
+    @Test fun `an empty folder taken away is made again, and one made is taken away again`() {
+        assertEquals(Reversal.MakeFolder("/w/src"), FileChange.reversal(FileStep.Removed("/w/src")))
+        assertEquals(listOf("/w/a", "/w/b"), FileStep.Moved("/w/a", "/w/b").paths)
+        assertEquals(listOf("/w/b"), Reversal.Restore("t1", "/w/b").paths)
+    }
+
+    @Test fun `undo is checked against what is there, as the reversals before it leave things`() {
+        val change = FileChange(
+            "Moved 2 items to src", "Moved 2 items back",
+            listOf(FileStep.Trashed("t1", "/w/src/a"), FileStep.Moved("/w/a", "/w/src/a"), FileStep.Moved("/w/b", "/w/src/b")),
+        )
+        val there = mutableSetOf("/w/src/a", "/w/src/b")
+        val trashed = mutableSetOf("t1")
+        assertNull(change.refusal({ it in there }) { it in trashed })
+        there -= "/w/src/b"
+        assertEquals("b was moved or deleted since", change.refusal({ it in there }) { it in trashed })
+        there += setOf("/w/src/b", "/w/a")
+        assertEquals("“a” is already in w", change.refusal({ it in there }) { it in trashed })
+        there -= "/w/a"
+        trashed.clear()
+        assertEquals("a is no longer in Trash", change.refusal({ it in there }) { it in trashed })
     }
 
     @Test fun `one item is said by its name, more by how many`() {

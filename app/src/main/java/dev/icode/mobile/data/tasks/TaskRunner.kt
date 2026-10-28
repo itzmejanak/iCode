@@ -1,7 +1,7 @@
 package dev.icode.mobile.data.tasks
 
+import dev.icode.mobile.data.io.isAtOrUnder
 import dev.icode.mobile.data.workspace.ICodeStateHolder
-import dev.icode.mobile.data.workspace.isAtOrUnder
 import dev.icode.mobile.domain.WorkTask
 import dev.icode.mobile.domain.ICodeIntent
 import java.util.concurrent.ConcurrentHashMap
@@ -12,6 +12,7 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
 
@@ -20,7 +21,8 @@ import kotlinx.coroutines.sync.withLock
  * own job, outside the mutation lock, so opening, saving and Git do not wait
  * behind a large delete. A task claims the paths it works on until it ends;
  * its result is applied under the lock. Progress reaches the snapshot a few
- * times a second, however fast the work goes.
+ * times a second, however fast the work goes, and a task shows only once it
+ * has run [QUIET_MILLIS].
  */
 internal class TaskRunner(
     private val stateHolder: ICodeStateHolder,
@@ -78,7 +80,7 @@ internal class TaskRunner(
      */
     fun waitReason(location: String): String? {
         val task = claimedBy(location) ?: return null
-        if (task.hidden) update(task.id) { it.copy(hidden = false) }
+        if (task.hidden || task.quiet) update(task.id) { it.copy(hidden = false, quiet = false) }
         return "${task.title.removeSuffix("…")} ${task.subject} — wait for it to finish"
     }
 
@@ -111,8 +113,13 @@ internal class TaskRunner(
         job.invokeOnCompletion { cause -> settle(id, failed ?: cause, failure, finished) }
         // Registered before the task can be seen, so a Cancel on its first frame reaches it.
         jobs[id] = job
-        stateHolder.update { it.copy(tasks = it.tasks + WorkTask(id, title, subject, cancellable = cancellable)) }
+        stateHolder.update { it.copy(tasks = it.tasks + WorkTask(id, title, subject, cancellable = cancellable, quiet = true)) }
         job.start()
+        // Still running a moment later: now its dialog and notification show.
+        scope.launch {
+            delay(QUIET_MILLIS)
+            update(id) { it.copy(quiet = false) }
+        }
         return id
     }
 
@@ -125,7 +132,7 @@ internal class TaskRunner(
             else -> {
                 val reason = stateHolder.failureText("tasks", failure, outcome)
                 // Said in the dialog: a hidden task comes back to say why it stopped.
-                update(id) { it.copy(failure = reason, hidden = false) }
+                update(id) { it.copy(failure = reason, hidden = false, quiet = false) }
             }
         }
         scope.launch(NonCancellable) { stateHolder.mutations.withLock { finished(outcome) } }
@@ -151,5 +158,8 @@ internal class TaskRunner(
     private companion object {
         /** A few updates a second: fast enough to move, slow enough not to flood the screen. */
         const val PUBLISH_INTERVAL_MILLIS = 150L
+
+        /** What ends sooner never shows a dialog: a rename, a move to Trash, a small copy. */
+        const val QUIET_MILLIS = 500L
     }
 }

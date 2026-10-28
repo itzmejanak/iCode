@@ -1,5 +1,6 @@
 package dev.icode.mobile.domain
 
+import dev.icode.mobile.domain.files.ExplorerState
 import dev.icode.mobile.domain.files.FilesBrowserState
 
 data class ICodeSnapshot(
@@ -62,8 +63,8 @@ data class ICodeSnapshot(
     val notices: List<AppNotice> = emptyList(),
     /** Where the next clone goes; none, a new workspace (docs/workspace-destinations-plan.md). */
     val projectDestination: ProjectDestination? = null,
-    /** What is cut or copied, waiting for Paste — every explorer's one clipboard, across both places. */
-    val clipboard: ItemClipboard? = null,
+    /** Every explorer's clipboard, question, undo and redo, and Trash (docs/explorer-gaps-plan.md §4). */
+    val explorer: ExplorerState = ExplorerState(),
     /** Long operations running, or failed and not yet seen (docs/long-operations-plan.md). */
     val tasks: List<WorkTask> = emptyList(),
     /** The runtime's tools: what dpkg has, what each would download, and the apt run in hand. */

@@ -20,6 +20,11 @@ data class WorkTask(
     val hidden: Boolean = false,
     /** Why it stopped short; null while it runs. */
     val failure: String? = null,
+    /**
+     * Just started: no dialog and no notification yet, so what ends at once — a rename, a move to
+     * Trash — never flashes one.
+     */
+    val quiet: Boolean = false,
 ) {
     val fraction: Float? get() = total?.takeIf { it > 0 }?.let { (done.toFloat() / it).coerceIn(0f, 1f) }
 

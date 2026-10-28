@@ -4,8 +4,10 @@ import android.content.ContextWrapper
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.FolderOpen
 import dev.icode.mobile.designsystem.IcodeMenuAction
+import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.ICodeIntent
-import dev.icode.mobile.domain.ItemClipboard
+import dev.icode.mobile.domain.files.FileClipboard
+import dev.icode.mobile.domain.files.HeldItem
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -14,9 +16,9 @@ import org.junit.Test
 /** Every explorer's actions are one list, in one order (docs/file-explorer-unification-plan.md §3; storage-explorer-plan.md §3). */
 class FileItemActionsTest {
     private val sent = mutableListOf<ICodeIntent>()
-    private val held = ItemClipboard("/w/app/README.md", "README.md", cut = true, folder = false, workspace = false)
+    private val held = FileClipboard(listOf(HeldItem("/w/app/README.md", "README.md", folder = false, workspace = false)), cut = true)
 
-    private fun actions(clipboard: ItemClipboard?, workspace: Boolean = false, listed: Boolean = false, openable: Boolean = true) = FileItemActions.of(
+    private fun actions(clipboard: FileClipboard?, workspace: Boolean = false, listed: Boolean = false, openable: Boolean = true) = FileItemActions.of(
         context = ContextWrapper(null),
         dispatch = { sent += it },
         location = "/w/app/src",
@@ -25,14 +27,13 @@ class FileItemActionsTest {
         open = IcodeMenuAction("Open", Icons.Outlined.FolderOpen, {}).takeIf { openable },
         onRename = {},
         onPaste = {},
-        onDelete = {},
         openTerminal = if (workspace) ({}) else null,
         showInList = if (listed) ({}) else null,
     )
 
     @Test fun `a file's or a folder's actions, in the one order, Paste named by what it holds`() {
         assertEquals(
-            listOf("Open", "Rename…", "Cut", "Copy", "Paste README.md", "Copy path", "Delete…"),
+            listOf("Open", "Rename…", "Cut", "Copy", "Paste README.md", "Copy path", "Delete"),
             actions(held).map { it.label },
         )
         assertTrue(actions(held).single { it.label.startsWith("Paste") }.enabled)
@@ -47,20 +48,24 @@ class FileItemActionsTest {
 
     @Test fun `a workspace adds Open Terminal after Open, and Show in Workspaces where it is listed apart`() {
         assertEquals(
-            listOf("Open", "Open Terminal", "Rename…", "Cut", "Copy", "Paste README.md", "Show in Workspaces", "Copy path", "Delete…"),
+            listOf("Open", "Open Terminal", "Rename…", "Cut", "Copy", "Paste README.md", "Show in Workspaces", "Copy path", "Delete"),
             actions(held, workspace = true, listed = true).map { it.label },
         )
     }
 
-    @Test fun `Cut and Copy hold the item itself`() {
+    @Test fun `Cut and Copy hold the item itself, and Delete moves it to Trash at once`() {
         actions(held).single { it.label == "Cut" }.onClick()
         actions(held).single { it.label == "Copy" }.onClick()
-        assertEquals(listOf<ICodeIntent>(ICodeIntent.CutItem("/w/app/src"), ICodeIntent.CopyItem("/w/app/src")), sent)
+        actions(held).single { it.label == "Delete" }.onClick()
+        assertEquals(
+            listOf<ICodeIntent>(FilesIntent.Cut(listOf("/w/app/src")), FilesIntent.Copy(listOf("/w/app/src")), FilesIntent.Trash(listOf("/w/app/src"))),
+            sent,
+        )
     }
 
     @Test fun `a file with nothing to open it in has no Open, and the rest as any other`() {
         assertEquals(
-            listOf("Rename…", "Cut", "Copy", "Paste README.md", "Copy path", "Delete…"),
+            listOf("Rename…", "Cut", "Copy", "Paste README.md", "Copy path", "Delete"),
             actions(held, openable = false).map { it.label },
         )
     }

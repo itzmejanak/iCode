@@ -60,4 +60,11 @@ class WorkspaceNameRulesTest {
         assertEquals("/workspace/tools/api", WorkspaceRuntimePath.of("api", tools))
         assertEquals("/workspace/api", WorkspaceRuntimePath.of("api", null))
     }
+
+    @Test
+    fun `a path in a workspace is named as the runtime names it`() {
+        val root = "/data/user/0/dev.icode.mobile/files/workspaces/app"
+        assertEquals("/workspace/app/src/Main.kt", WorkspaceRuntimePath.within(root, "/workspace/app", "$root/src/Main.kt"))
+        assertEquals("/workspace/app", WorkspaceRuntimePath.within(root, "/workspace/app", root))
+    }
 }

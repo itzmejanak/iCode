@@ -642,3 +642,52 @@ anywhere. Each view is the explorer itself, not a page of its own.
 5. Turn Show hidden files off in Settings › Storage, and see the panel's Hidden follow.
 6. Open Manage storage on All. Open Images as a grid and delete two; see the row's count follow.
    In Duplicates, Select extra copies, then Delete.
+
+## 8. As built
+
+### F2 (domain, `1df72ba`)
+
+`domain/files`: `FileSelection`, `BatchRename`, `ArchiveFormats`, `FileCategories`, `ExplorerSettings`,
+`FileConflicts`, `FileHistory`, `FileWords`, `Trash`; `FilesBrowser` moved there; sort by Type and
+Descending.
+
+### F3 (operations)
+
+- **Domain:**
+  - `FileClipboard` of `HeldItem`s replaces `ItemClipboard`.
+  - The snapshot's `clipboard` became `explorer: ExplorerState`: the clipboard, the question
+    waiting, undo and redo, and Trash.
+  - `FilesIntent` (`domain/FileIntents.kt`) replaces `ClipboardIntent`, `DeleteWorkspaceItem` and
+    `DeleteWorkspace`.
+  - `RenameWorkspace` went: `RenameWorkspaceItem` renames a whole workspace too, through the
+    lifecycle.
+  - `FileChange.refusal` is the check before an undo or redo.
+  - `FileStep.Removed` and `Reversal.MakeFolder` cover an empty folder taken away: a merge's
+    emptied source, or a new folder undone. An empty folder is removed, not put in Trash, since it
+    holds nothing to lose.
+- **`data/files`:**
+  - `PlaceFiles` (was `WorkspaceFiles`): one per place, Private rooted at the workspaces'
+    folder. Copy and move take an exact target, and a move makes the folders that went.
+  - `StorageTransfers.carry`: one item between the places, inside the operation's task.
+  - `FileTrash`, `FileHistory`, `FileQuestions`, `FilePlaces`.
+  - `FileOperator`: one step, its follow-ups under the lock.
+  - `FileBatch`: many items, the question, merges, renames.
+  - `FileRefusals`: everything checked before anything starts.
+  - `FileOperationsCoordinator`: one line in the gateway; the answer goes off the lock.
+- **`data/workspace`:**
+  - `FileChangeFollower` holds what followed a move or delete in the items coordinator. It
+    implements `FileFollower`, so the operations are tested on temporary folders.
+  - The lifecycle's `release` / `stayed` / `renamed` / `retire` are the one way a workspace moves
+    or goes.
+  - `WorkspaceUsage.edited` is asked by a running operation before Replace.
+  - The items coordinator keeps new and rename. Both are kept to undo.
+- **`data/io/PathRules.kt`:** `isAtOrUnder` and `relocated`, out of the workspace package.
+- **Every task starts `quiet`:** no dialog and no notification for its first 500 ms, so a rename
+  or a move to Trash never flashes one.
+- **Rules settled while building:**
+  - Names swapped by one rule go through a passing name, "name (renaming 1a2b3c4d)". It is never
+    a dot name, so it stays seen if iCode stops midway.
+  - A restore meeting a folder can Merge: back beside it as "name copy", then merged in.
+  - Trash's own folders, and a folder holding one, are never moved or put in Trash.
+  - Delete for good and Empty Trash take an item's record first, so an item is never removed twice.
+  - A record without its item goes when Trash is read. An item without its record goes at start.

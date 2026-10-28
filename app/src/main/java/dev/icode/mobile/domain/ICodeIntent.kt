@@ -15,10 +15,6 @@ sealed interface ICodeIntent {
     data object RefreshSystemAccess : ICodeIntent
     /** New Folder on the Workspaces page: answered by [requestId], and not opened — it appears in the list. */
     data class CreateWorkspace(val name: String, val requestId: String) : ICodeIntent
-    /** A whole workspace renamed; the dialog that asked is answered by [requestId]. */
-    data class RenameWorkspace(val location: String, val newName: String, val requestId: String) : ICodeIntent
-    /** A whole workspace deleted, once its menu confirmed it; runs as a task. */
-    data class DeleteWorkspace(val location: String) : ICodeIntent
     data class OpenWorkspace(val path: String) : ICodeIntent
     data class OpenWorkspaceTerminal(val path: String) : ICodeIntent
     data class ResolveWorkspaceSwitch(val path: String, val openTerminal: Boolean, val saveChanges: Boolean) : ICodeIntent
@@ -37,22 +33,11 @@ sealed interface ICodeIntent {
         val expectedWorkspace: String,
         val requestId: String,
     ) : ICodeIntent
-    /** Explorer file operations, inside the open workspace. */
-    data class RenameWorkspaceItem(val location: String, val newName: String, val requestId: String) : ICodeIntent
-    data class DeleteWorkspaceItem(val location: String) : ICodeIntent
     /**
-     * One clipboard across iCode (docs/workspaces-page-plan.md §2.7): a whole workspace, or a folder
-     * or file in one, cut or copied from any list, pasted wherever folders are.
+     * An item renamed in its folder — a whole workspace, or anything in one or on phone storage; the
+     * dialog that asked is answered by [requestId].
      */
-    sealed interface ClipboardIntent : ICodeIntent
-    data class CutItem(val location: String) : ClipboardIntent
-    data class CopyItem(val location: String) : ClipboardIntent
-    /** Into a folder of a workspace. */
-    data class PasteInto(val folder: String) : ClipboardIntent
-    /** Beside the workspaces, as one of them: a copy as "<name> copy", a cut folder as its own. */
-    data object PasteAsWorkspace : ClipboardIntent
-    /** Nothing is waiting to be pasted any more. */
-    data object ClearClipboard : ClipboardIntent
+    data class RenameWorkspaceItem(val location: String, val newName: String, val requestId: String) : ICodeIntent
     /** A long operation's dialog: Hide sends it to the background, Show brings it back. */
     sealed interface TaskIntent : ICodeIntent { val id: Long }
     data class HideTask(override val id: Long) : TaskIntent
