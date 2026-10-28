@@ -27,10 +27,13 @@ import dev.icode.mobile.navigation.ToolPanelTab
 import dev.icode.mobile.ui.terminal.TerminalSessionSource
 import dev.icode.mobile.data.settings.AndroidWorkspacePreferencesRepository
 import dev.icode.mobile.data.workspace.DocumentAutoSaveCoordinator
+import dev.icode.mobile.designsystem.IcodeFloatingStack
+import dev.icode.mobile.designsystem.IcodeFloors
 import dev.icode.mobile.designsystem.IcodeScreen
 import dev.icode.mobile.designsystem.IcodeTheme
 import dev.icode.mobile.designsystem.IcodePalette
 import dev.icode.mobile.designsystem.PaletteKind
+import dev.icode.mobile.designsystem.LocalIcodeFloors
 import dev.icode.mobile.designsystem.withAccent
 import dev.icode.mobile.domain.AppTheme
 import dev.icode.mobile.navigation.NavigationActions
@@ -169,6 +172,8 @@ fun IcodeApp(
             terminalWasShown = terminalShown
         }
         val notices = remember { NoticeHostState() }
+        val undo = rememberUndoPill(snapshot.explorer.history.news)
+        val floors = remember { IcodeFloors() }
         ArrivalEffect(arrival, navigation, pastOnboarding = navigation.current !in ONBOARDING_SCREENS, gateway, notices, onArrived)
         val systemPrompts = rememberSystemPrompts(gateway)
         val fileViewer = remember { FileViewerState() }
@@ -244,12 +249,20 @@ fun IcodeApp(
             LocalTerminalSessions provides terminalSessions,
             LocalWorkspacePreferencesRepository provides preferencesRepository,
             LocalWorkspacePreferences provides preferences,
+            LocalIcodeFloors provides floors,
         ) {
             IcodeScreen {
                 FileViewerHost(fileViewer) {
-                    NoticeHost(notices, snapshot.notices, pageOpen = navigation.current == Route.Notifications, onAll = { navigation.actions.navigate(Route.Notifications) }) {
+                    val pageOpen = navigation.current == Route.Notifications
+                    val toAll = { navigation.actions.navigate(Route.Notifications) }
+                    NoticeHost(notices, snapshot.notices, pageOpen, onAll = toAll) {
                         NavigationHost(navigation) { route -> ScreenHost(screen = route, actions = navigation.actions) }
                         FileAsks(snapshot.explorer, gateway)
+                    }
+                    // The undo pill above the bell, over every screen but the Notifications page (docs/explorer-gaps-plan.md §3.8).
+                    IcodeFloatingStack(floors, visible = !pageOpen) { lineWidth ->
+                        UndoPill(undo, snapshot.explorer.history, lineWidth)
+                        NoticeBell(notices, snapshot.notices, lineWidth, onAll = toAll)
                     }
                 }
             }

@@ -630,7 +630,7 @@ anywhere. Each view is the explorer itself, not a page of its own.
 | **F3** Operations | `FileTrash`, `FileBatch`, `FileHistory`, `FileOperationsCoordinator`; Delete to Trash in every explorer, workspaces too; the question; the 30 days | Tests on temporary Private and Shared folders: many copied, moved and duplicated; each answer to the question; a merge leaving `.git`; trash and restore with folders gone and names taken; undo and redo of each operation, and the refusal when something changed |
 | **F4** Archives and facts | `Archives` (moved, with the guards), `FileArchives`, xz; `FileFacts`; `StorageScan`; `ExplorerPreferences`, favorites following moves; Recent across places; the hidden filter | Tests: every format both ways where §3.11 says so; an entry escaping, a link leading out, case twins on Shared; a 7z with its password; facts; categories, the largest, duplicates and `.git` apart; a scan changed by a delete and a rename; favorites after a rename |
 | **F5** The explorer | `IcodeActionSheet` and `rememberSheetPages` (the assistant's run sheet onto the helper); the explorer's sheet and its pages; selection and its bars; the panel, three views, thumbnails; the breadcrumb; ▾ with Favorites, Recent, Trash; ⋮; the folder picker; the sheet's pages (Rename…, batch rename, Compress…, Properties) and the question's sheet; the Trash and Recent views | UI type-check; touch-driven checks in a desktop scene: select, select all, invert, cut and paste many, the question, rename many, the panel's choices; renders of each |
-| **F6** Everywhere else | The IDE tree's selection (its sheet, and the home screen's, are built: `91f0177`); every other item menu onto the sheet (§3.1: editor tabs, Source Control, the Run tab, the assistant's steps and message); the floating stack (the undo pill, the bell, the floors); Settings › Storage and the Manage storage page (built: F6a) | UI type-check; the stack over a + and a foot bar; touch-driven checks of Manage storage into a category, a grid of Images, Select extra copies, Show in folder; renders |
+| **F6** Everywhere else | The IDE tree's selection (its sheet, and the home screen's, are built: `91f0177`); every other item menu onto the sheet (§3.1: editor tabs, Source Control, the Run tab, the assistant's steps and message); the floating stack (built: F6b); Settings › Storage and the Manage storage page (built: F6a) | UI type-check; the stack over a + and a foot bar; touch-driven checks of Manage storage into a category, a grid of Images, Select extra copies, Show in folder; renders |
 | **F7** Gate | Docs as built (PRD, user stories, layout, the two plans this follows); the full gate | Push the branch and `main` |
 
 ## 7. On the phone (the owner's walk-through, after F7)
@@ -973,3 +973,27 @@ Descending.
 - **Shared pieces:**
   - `SettingRow` takes its icon's tint.
   - `FileCategory.icon` and `categoryTint` sit beside the file-type icons, which share `setiColor`.
+
+### F6b (the floating stack: the undo pill above the bell)
+
+- **The design system's stack** (`IcodeFloatingStack.kt`):
+  - **`IcodeFloors`:** each `IcodeFab`, `IcodeActionBar`, `IcodeFootBar` and `IcodeBottomBar`
+    reports its top edge (`floor()`), and each `IcodeSheetOverlay` that it is open (`SheetOpen`).
+    No screen wires either.
+  - **`IcodeFloatingStack`:** a column at the bottom end, above the highest floor, at least
+    `FabClearance` up, and gone while a sheet is open. The bell no longer meets the explorer's +.
+  - **The pill's parts,** shared by the bell and the undo pill: `IcodeFloatingPill`,
+    `IcodeFloatingLine` (with an optional action), `IcodeFloatingAway` and `FLOATING_SLIDE_MILLIS`.
+  - **Tested:** `IcodeFloorsTest`.
+- **The bell:**
+  - `NoticeHost` keeps the bell's state, its timing and its sheet.
+  - `NoticeBell` draws it in the stack, on the shared parts.
+- **The undo pill** (`UndoPill.kt`):
+  - **Its state:** `UndoPillState`, with `rememberUndoPill`, lives at the app's root, like the bell's.
+  - **Each change** in `FileHistoryState.news` is told once, and is not told again as the screen
+    turns.
+  - **Unfolded:** ↶, then the change's line with Undo — or, after an undo, what came back with Redo.
+  - **After `FileNews.LINE_MILLIS`:** ↶, ↷ when something can be redone, and ×.
+  - **After `HOLD_MILLIS`:** it goes.
+- **Its place:** `IcodeApp` provides `LocalIcodeFloors` and draws the stack beside `NoticeHost`,
+  over every screen but the Notifications page.

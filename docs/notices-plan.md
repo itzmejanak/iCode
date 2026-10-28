@@ -70,9 +70,11 @@ the repository, as with the terminal bar's.
 
 ### 2.2 The bell (on every screen)
 
-- At the bottom right, 88 dp above the screen's foot (`IcodeSizes.FabClearance`). That clears
-  every foot bar (48 dp), the keys rows (64 dp, or 72 dp with Compact Layout off) and the file
-  explorer's + (56 dp, 16 dp from the edge). Over the keyboard while it is up, as everything is.
+- At the bottom right, in the floating stack it shares with the undo pill
+  (docs/explorer-gaps-plan.md §3.8): above the highest + or foot bar on screen, each of which
+  reports its top edge, and at least 88 dp above the screen's foot (`IcodeSizes.FabClearance`),
+  which clears the keys rows (64 dp, or 72 dp with Compact Layout off). Over the keyboard while it
+  is up, as everything is. Gone while a sheet is open.
 - **When a notice comes**, a pill: the bell in the tone's colour, then the notice's one line, cut
   with "…" to the width it has (at most 75% of the screen). A tap opens that notice's sheet. A
   Done has nothing more to say, so a tap on it only folds the bell away.

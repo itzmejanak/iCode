@@ -248,11 +248,11 @@ fun JumpToLatestButton(visible: Boolean, contentDescription: String, onClick: ()
 
 /**
  * The floating + of a list (docs/storage-explorer-plan.md §3.3): what can be made where the list is,
- * from a menu anchored on it ([menu]).
+ * from a menu anchored on it ([menu]). The floating stack stands above it.
  */
 @Composable
 fun IcodeFab(contentDescription: String, onClick: () -> Unit, modifier: Modifier = Modifier, menu: @Composable () -> Unit = {}) {
-    Box(modifier) {
+    Box(modifier.floor()) {
         FloatingActionButton(
             onClick = onClick,
             shape = IcodeShapes.Pill,

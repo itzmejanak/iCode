@@ -20,14 +20,16 @@ fun Modifier.behindSheet(shown: Boolean): Modifier = if (shown) blur(IcodeSizes.
 
 /**
  * A sheet over the screen it opens from: the screen dimmed — blur it with [behindSheet] — and a tap
- * outside the sheet, or Back, closes it. Sheet routes are drawn this way, and a screen's own sheets
- * that work on what the screen holds (a message's draft) are too.
+ * outside the sheet, or Back, closes it; the floating stack steps aside while it is open. Sheet routes
+ * are drawn this way, and a screen's own sheets that work on what the screen holds (a message's draft)
+ * are too.
  */
 @Composable
 fun IcodeSheetOverlay(onClose: () -> Unit, sheet: @Composable BoxScope.() -> Unit) {
     // Composed after the screen below, so Back closes the sheet before any handler of that screen;
     // and before the sheet, so one of the sheet's own — a page within it going back — comes first.
     BackHandler(onBack = onClose)
+    SheetOpen()
     Box(Modifier.fillMaxSize()) {
         Box(
             Modifier.fillMaxSize().background(IcodeColors.SheetScrim).clickable(
