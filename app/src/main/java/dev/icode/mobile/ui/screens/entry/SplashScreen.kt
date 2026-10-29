@@ -31,9 +31,9 @@ fun SplashScreen(actions: NavigationActions) {
     // runtime installer cannot disagree about it. Each step replaces this one
     // rather than stacking on it, so Back from the launcher leaves the app
     // instead of walking back through onboarding.
-    LaunchedEffect(actions.captureMode, state.runtime, state.systemAccess, state.runtimeTools.offerPending) {
+    LaunchedEffect(actions.captureMode, state.runtime, state.systemAccess, state.runtimeTools.offerPending, state.web.consentPending) {
         if (actions.captureMode) return@LaunchedEffect
-        val destination = OnboardingRoute.next(state.runtime, state.systemAccess, state.runtimeTools.offerPending)
+        val destination = OnboardingRoute.next(state.runtime, state.systemAccess, state.runtimeTools.offerPending, state.web.consentPending)
             ?: return@LaunchedEffect
         delay(SPLASH_MINIMUM_MILLIS)
         actions.replace(destination)

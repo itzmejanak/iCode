@@ -16,7 +16,7 @@ import dev.icode.mobile.domain.SystemPermission
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
-import dev.icode.mobile.navigation.Route
+import dev.icode.mobile.navigation.OnboardingRoute
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 
@@ -39,6 +39,7 @@ private val stepsSaver = listSaver<List<SystemPermission>, String>(
 fun PermissionScreen(actions: NavigationActions) {
     val gateway = LocalICodeGateway.current
     val access = LocalICodeSnapshot.current.systemAccess
+    val deviceInfoPending = LocalICodeSnapshot.current.web.consentPending
     val steps = rememberSaveable(saver = stepsSaver) { access?.onboardingSteps.orEmpty() }
     var position by rememberSaveable { mutableIntStateOf(0) }
 
@@ -50,7 +51,7 @@ fun PermissionScreen(actions: NavigationActions) {
 
     val current = steps.getOrNull(position)
     if (current == null) {
-        LaunchedEffect(Unit) { actions.replace(Route.LauncherHome) }
+        LaunchedEffect(Unit) { actions.replace(OnboardingRoute.home(deviceInfoPending)) }
         return
     }
     IcodeSetupPage(

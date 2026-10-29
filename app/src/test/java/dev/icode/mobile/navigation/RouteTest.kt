@@ -35,6 +35,7 @@ class RouteTest {
         Route.AssistantSettings, // 2026-10-01: the assistant's providers (assistant-koog-plan.md §13 P3)
         Route.AssistantProvider, // 2026-10-01: one provider — its key, address and models (assistant-koog-plan.md §13 P3)
         Route.SourceControlSettings, // 2026-10-08: Git's credentials and the commit messages' model (commit-message-generator-plan.md M8)
+        Route.DeviceInfoConsent, // 2026-10-29: onboarding's optional device-info question (device-telemetry-plan.md §4)
         Route.ManageStorage, // 2026-10-27: what storage holds, kind by kind, and the explorer's views of it (explorer-gaps-plan.md §3.10)
     )
 

@@ -17,6 +17,7 @@ fun EntryScreenHost(screen: Route, actions: NavigationActions) {
         Route.RuntimeInstalling -> RuntimeInstallingScreen(actions)
         Route.RuntimeTools -> RuntimeToolsScreen(actions)
         Route.PermissionExplanation -> PermissionScreen(actions)
+        Route.DeviceInfoConsent -> DeviceInfoConsentScreen(actions)
         Route.LauncherHome -> LauncherScreen(actions, empty = false)
         Route.LauncherEmpty -> LauncherScreen(actions, empty = true)
         Route.Workspaces -> FilesScreen(actions)
