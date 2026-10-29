@@ -23,7 +23,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import dev.icode.mobile.designsystem.DangerButton
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
@@ -42,6 +41,7 @@ import dev.icode.mobile.designsystem.LabeledTextField
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.StatusLabel
+import dev.icode.mobile.designsystem.behindSheet
 import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantModelSpec
 import dev.icode.mobile.domain.AssistantProviderKind
@@ -90,7 +90,7 @@ fun AssistantProviderScreen(actions: NavigationActions) {
     fun knownOf(model: String) = catalogue.firstOrNull { it.id == model }
 
     Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().then(if (adding || options != null) Modifier.blur(IcodeSizes.SheetBackdropBlur) else Modifier)) {
+        Column(Modifier.fillMaxSize().behindSheet(adding || options != null)) {
             IcodeTopBar(saved?.name ?: "Add Provider", subtitle = saved?.kind?.label, onBack = { if (changed) leaving = true else actions.back() })
             IcodePageColumn(Modifier.weight(1f)) {
                 if (saved == null) {

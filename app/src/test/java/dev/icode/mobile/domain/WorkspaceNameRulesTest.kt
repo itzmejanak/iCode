@@ -67,4 +67,12 @@ class WorkspaceNameRulesTest {
         assertEquals("/workspace/app/src/Main.kt", WorkspaceRuntimePath.within(root, "/workspace/app", "$root/src/Main.kt"))
         assertEquals("/workspace/app", WorkspaceRuntimePath.within(root, "/workspace/app", root))
     }
+
+    @Test
+    fun `the open workspace's paths are named as the runtime names them, and without one as they are`() {
+        val root = "/data/user/0/dev.icode.mobile/files/workspaces/app"
+        val open = paletteReadySnapshot.copy(activePath = "/workspace/app", activeWorkspaceLocation = root)
+        assertEquals("/workspace/app/src/Main.kt", open.runtimePathOf("$root/src/Main.kt"))
+        assertEquals("$root/src/Main.kt", open.copy(activeWorkspaceLocation = null).runtimePathOf("$root/src/Main.kt"))
+    }
 }

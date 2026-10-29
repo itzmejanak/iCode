@@ -10,22 +10,17 @@ import androidx.compose.material.icons.automirrored.outlined.ViewList
 import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Checklist
-import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.ContentCut
 import androidx.compose.material.icons.outlined.DataUsage
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.FileCopy
-import androidx.compose.material.icons.outlined.FlipToBack
 import androidx.compose.material.icons.outlined.FolderCopy
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Menu
-import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material.icons.outlined.SortByAlpha
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material.icons.outlined.Storage
@@ -55,16 +50,11 @@ import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTextField
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.PrimaryButton
-import dev.icode.mobile.domain.FilesIntent
-import dev.icode.mobile.domain.ICodeIntent
-import dev.icode.mobile.domain.StorageMeasurement
 import dev.icode.mobile.domain.WorkspaceRuntimePath
 import dev.icode.mobile.domain.countOf
-import dev.icode.mobile.domain.files.BrowsedItem
 import dev.icode.mobile.domain.files.ExplorerState
 import dev.icode.mobile.domain.files.ExplorerView
 import dev.icode.mobile.domain.files.FileHistoryState
-import dev.icode.mobile.domain.files.FileSelection
 import dev.icode.mobile.domain.files.FilesBrowserState
 import dev.icode.mobile.domain.files.FilesLook
 import dev.icode.mobile.domain.files.FilesSort
@@ -73,48 +63,6 @@ import dev.icode.mobile.domain.files.FolderPick
 import dev.icode.mobile.domain.files.FolderPicks
 import dev.icode.mobile.domain.files.StoragePlace
 import dev.icode.mobile.ui.screens.workspace.icon
-
-/** In selection, the top bar's own (docs/explorer-gaps-plan.md §3.2): Select all and Invert, on what is [shown]. */
-@Composable
-internal fun SelectionActions(shown: List<String>, ticked: Set<String>, onTicked: (Set<String>) -> Unit) {
-    IconButton(onClick = { onTicked(FileSelection.all(shown)) }) {
-        Icon(Icons.Outlined.SelectAll, contentDescription = "Select all", tint = IcodeColors.TextPrimary)
-    }
-    IconButton(onClick = { onTicked(FileSelection.inverted(ticked, shown)) }) {
-        Icon(Icons.Outlined.FlipToBack, contentDescription = "Invert selection", tint = IcodeColors.TextPrimary)
-    }
-}
-
-/** A selection's foot bar (§3.2): how many, what they are and weigh, and what can be done to them ([actions]). */
-@Composable
-internal fun SelectionBar(items: List<BrowsedItem>, sizes: Map<String, StorageMeasurement>, actions: List<IcodeMenuAction>) {
-    val any = items.isNotEmpty()
-    IcodeActionBar(
-        title = "${items.size} selected",
-        caption = if (any) FileSelection.summary(items, sizes) else "Tap items to tick them",
-        iconLast = true,
-    ) {
-        actions.forEach { action ->
-            IconButton(onClick = action.onClick, enabled = any) {
-                Icon(action.icon, contentDescription = action.label, tint = if (any && action.destructive) IcodeColors.Error else tint(any))
-            }
-        }
-    }
-}
-
-/**
- * What a selection of files does from its bar (§3.2): Cut, Copy and Delete — each ending it
- * ([onActed]) — and ⋯ for the selection's sheet.
- */
-internal fun selectionActions(locations: List<String>, dispatch: (ICodeIntent) -> Unit, onActed: () -> Unit, onMore: () -> Unit) = listOf(
-    IcodeMenuAction("Cut", Icons.Outlined.ContentCut, { dispatch(FilesIntent.Cut(locations)); onActed() }),
-    IcodeMenuAction("Copy", Icons.Outlined.ContentCopy, { dispatch(FilesIntent.Copy(locations)); onActed() }),
-    IcodeMenuAction("Delete", Icons.Outlined.DeleteOutline, { dispatch(FilesIntent.Trash(locations)); onActed() }, destructive = true),
-    IcodeMenuAction("More actions", Icons.Outlined.MoreHoriz, onMore),
-)
-
-@Composable
-private fun tint(enabled: Boolean) = if (enabled) IcodeColors.TextPrimary else IcodeColors.TextMuted
 
 /**
  * The folder picker's foot bar (§3.5): where it is, what goes there, and the button that puts it

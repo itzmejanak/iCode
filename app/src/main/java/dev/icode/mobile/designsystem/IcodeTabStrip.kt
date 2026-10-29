@@ -45,8 +45,7 @@ import kotlin.math.abs
  * The tab strip of the editor's documents and the terminal's sessions (layout.md §13.1): tabs
  * scrolling sideways, the selected one on the editor's background and brought into view, each with
  * its [mark] — drawn in the title's colour unless it has its own — its title and a close button.
- * A long press that moves reorders; one that does not goes to [onPress] (a tab's actions, hung from
- * the tab by [menu]).
+ * A long press that moves reorders; one that does not goes to [onPress] (the tab's sheet).
  */
 @Composable
 fun <T> IcodeTabStrip(
@@ -61,7 +60,6 @@ fun <T> IcodeTabStrip(
     onClose: (String) -> Unit,
     onPress: ((String) -> Unit)? = null,
     mark: @Composable (tab: T, color: Color) -> Unit = { _, _ -> },
-    menu: @Composable (T) -> Unit = {},
 ) {
     val scrollState = rememberScrollState()
     val tabBounds = remember { mutableMapOf<String, Rect>() }
@@ -135,7 +133,6 @@ fun <T> IcodeTabStrip(
                                 mark(tab, titleColor)
                                 Text(title(tab), style = IcodeType.Mono.copy(color = titleColor), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
-                            menu(tab)
                         }
                         Box(
                             modifier = Modifier

@@ -16,15 +16,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodePageColumn
 import dev.icode.mobile.designsystem.IcodeSection
-import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSheetOverlay
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SettingRow
+import dev.icode.mobile.designsystem.behindSheet
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
@@ -49,7 +48,7 @@ fun SourceControlSettingsScreen(actions: NavigationActions) {
     val hint = effectiveChoice?.let { choice -> settings.providers.firstOrNull { it.id == choice.provider }?.name }
         ?: "No model yet"
     Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().then(if (picking) Modifier.blur(IcodeSizes.SheetBackdropBlur) else Modifier)) {
+        Column(Modifier.fillMaxSize().behindSheet(picking)) {
             IcodeTopBar("Source Control", subtitle = settingsSubtitle(Route.SourceControlSettings), onBack = actions.back)
             IcodePageColumn(Modifier.weight(1f)) {
                 IcodeSection {

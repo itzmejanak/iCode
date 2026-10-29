@@ -108,4 +108,7 @@ data class ICodeSnapshot(
     val processes: List<ManagedProcess> = emptyList(),
     /** iCode's assistant: its settings, the shown workspace's chat and the turn in hand. */
     val assistant: AssistantState = AssistantState(),
-)
+) {
+    /** [location], in the open workspace, as the runtime names it: what Copy path gives. */
+    fun runtimePathOf(location: String): String = activeWorkspaceLocation?.let { WorkspaceRuntimePath.within(it, activePath, location) } ?: location
+}

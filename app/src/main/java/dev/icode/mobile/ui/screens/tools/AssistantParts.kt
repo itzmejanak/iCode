@@ -13,15 +13,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Compress
 import androidx.compose.material.icons.outlined.ContentCopy
-import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,11 +26,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import dev.icode.mobile.designsystem.Divider
 import dev.icode.mobile.designsystem.EmptyState
-import dev.icode.mobile.designsystem.IcodeActionMenu
 import dev.icode.mobile.designsystem.IcodeBrandMark
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeMenuAction
 import dev.icode.mobile.designsystem.IcodePageColumn
 import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeShapes
@@ -48,7 +41,6 @@ import dev.icode.mobile.designsystem.scaledBy
 import dev.icode.mobile.domain.AssistantAttachment
 import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantEntry
-import dev.icode.mobile.domain.GitChange
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.copyText
@@ -60,19 +52,20 @@ import java.io.File
  * One row of the chat — what the user wrote, an answer, a run of steps, the reasoning, a compaction —
  * at the pinched size. An answer that ends its turn ([copyable]) can be copied; the turn's last one
  * may still be [streaming]. A row with more behind it [onOpen]s it in a sheet
- * (docs/assistant-sheets-plan.md §2); a message offers Copy and Select text on a long press (§2.4).
+ * (docs/assistant-sheets-plan.md §2); a long press on a message, or on a step about a file,
+ * [onHold]s it, for its actions' sheet ([AssistantActionsSheet]).
  */
 @Composable
-internal fun AssistantEntryRow(entry: AssistantEntry, copyable: Boolean, streaming: Boolean, onOpen: () -> Unit, onDiff: (GitChange) -> Unit) {
+internal fun AssistantEntryRow(entry: AssistantEntry, copyable: Boolean, streaming: Boolean, onOpen: () -> Unit, onHold: () -> Unit) {
     when (entry) {
-        is AssistantEntry.Said -> SaidRow(entry, onOpen)
+        is AssistantEntry.Said -> SaidRow(entry, onHold)
         is AssistantEntry.Answer -> Column {
             MarkdownAnswer(entry.text, streaming, MarkdownPlace.ofAnswer(LocalICodeSnapshot.current.assistant.workspace))
             if (copyable) CopyAnswer(entry.text)
         }
         is AssistantEntry.Reasoning -> AssistantReasoningRow(entry, onOpen)
-        is AssistantEntry.Steps -> AssistantStepsRow(entry, onOpen, onDiff)
-        is AssistantEntry.Step -> AssistantStepsRow(AssistantEntry.Steps(entry.key, listOf(entry)), onOpen, onDiff)
+        is AssistantEntry.Steps -> AssistantStepsRow(entry, onOpen, onHold)
+        is AssistantEntry.Step -> AssistantStepsRow(AssistantEntry.Steps(entry.key, listOf(entry)), onOpen, onHold)
         is AssistantEntry.Compacted -> Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
             Divider()
             AssistantOpenRow(
@@ -87,33 +80,20 @@ internal fun AssistantEntryRow(entry: AssistantEntry, copyable: Boolean, streami
     }
 }
 
-/** What the user wrote, at the end: a long press offers Copy, and Select text in a sheet. */
+/** What the user wrote, at the end: a long press, on one with words, opens its sheet: Copy, and Select text. */
 @Composable
-private fun SaidRow(entry: AssistantEntry.Said, onSelect: () -> Unit) {
+private fun SaidRow(entry: AssistantEntry.Said, onHold: () -> Unit) {
     val scale = LocalCodeTextScale.current
-    val context = LocalContext.current
-    val gateway = LocalICodeGateway.current
-    var menu by remember { mutableStateOf(false) }
     val written = entry.text.isNotBlank()
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-        Box(Modifier.fillMaxWidth(SAID_WIDTH)) {
-            IcodeCard(
-                Modifier.fillMaxWidth(),
-                elevated = true,
-                onLongClick = if (written) ({ menu = true }) else null,
-                onLongClickLabel = "Options for this message",
-            ) {
-                SaidFiles(entry.attachments)
-                if (written) Text(entry.text, style = IcodeType.Body.scaledBy(scale))
-            }
-            IcodeActionMenu(
-                expanded = menu,
-                onDismiss = { menu = false },
-                actions = listOf(
-                    IcodeMenuAction("Copy", Icons.Outlined.ContentCopy, { copyText(context, "Message", entry.text, "Message copied", gateway::dispatch) }),
-                    IcodeMenuAction("Select text", Icons.Outlined.SelectAll, onSelect),
-                ),
-            )
+        IcodeCard(
+            Modifier.fillMaxWidth(SAID_WIDTH),
+            elevated = true,
+            onLongClick = onHold.takeIf { written },
+            onLongClickLabel = "Options for this message",
+        ) {
+            SaidFiles(entry.attachments)
+            if (written) Text(entry.text, style = IcodeType.Body.scaledBy(scale))
         }
     }
 }

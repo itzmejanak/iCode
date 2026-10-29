@@ -46,7 +46,7 @@ The product should feel intentionally designed for phones and tablets while pres
 
 ### 5.1 Direct workspace ownership
 
-A workspace is one folder in the application's storage, and the only copy of it. The user creates, clones or imports it, edits it in place, and reaches it from other applications through Android's Files app. The application never mirrors or synchronises it, never copies a folder in without the user's Import, and never deletes a workspace without the user's confirmed Delete.
+A workspace is one folder in the application's storage (Private), and the only copy of it. The user creates or clones it, or copies a folder in from phone storage (Shared) in the application's own file explorer, edits it in place, and reaches it from other applications through Android's Files app. The application never mirrors or synchronises it and never copies a folder in unless the user does. A deleted workspace goes to Trash, where it can be restored for 30 days.
 
 ### 5.2 Complete everyday development loop
 
@@ -215,7 +215,7 @@ The platform provides execution, files, processes, environment variables, packag
 
 | ID | Requirement |
 |---|---|
-| PR-ENTRY-01 | The application shall open on the recently opened workspaces with Import, Clone Repository and Workspaces; the Workspaces page shall present every workspace in its storage, with New Folder. |
+| PR-ENTRY-01 | The application shall open on the recently opened workspaces with Import, Clone Repository and Workspaces. Workspaces shall open the file explorer at Private, where every workspace is and + makes a new one; Import shall open it at Shared. |
 | PR-ENTRY-02 | The application shall not require account, provider, agent, or language configuration before a workspace can be opened. |
 | PR-ENTRY-03 | Initial runtime installation shall show truthful progress, failure, retry, and storage information. |
 | PR-ENTRY-04 | Returning users shall be able to reopen the last or a recent workspace. |
@@ -224,10 +224,10 @@ The platform provides execution, files, processes, environment variables, packag
 
 | ID | Requirement |
 |---|---|
-| PR-WS-01 | Workspaces shall live in the application's own storage and need no storage permission; All Files Access is asked only where phone storage is read (Import), never at onboarding. |
-| PR-WS-02 | A folder from phone storage shall come in only by the user's Import — chosen in the application's own browser of phone storage, and copied once, never writing the original — with a repository's executable bits and links restored from Git's own record. |
-| PR-WS-03 | New Folder, Clone and Import shall name the workspace; it is created at `/workspace/<name>`, and a taken name is refused inline. |
-| PR-WS-04 | Rename and Delete shall act on a whole workspace, refused while a terminal session or task runs in it; Delete shall be confirmed and cannot be undone. |
+| PR-WS-01 | Workspaces shall live in the application's own storage and need no storage permission; All Files Access is asked only where phone storage (Shared) is opened, never at onboarding. |
+| PR-WS-02 | A folder from phone storage shall come in only by the user's copy or move into Private, in the application's own file explorer; at Private's top it becomes a workspace. A repository's executable bits and links shall be restored from Git's own record. |
+| PR-WS-03 | A new workspace and a clone shall be named; it is created at `/workspace/<name>`, and a taken name is refused inline. |
+| PR-WS-04 | Rename and Delete shall act on a whole workspace, refused while a terminal session, a process, Git or the assistant works in it. Delete shall move it to Trash, and can be undone. |
 | PR-WS-05 | Other applications shall reach workspaces through the application's document provider (Android's Files app and pickers), never through a link that leads out of the workspaces. |
 | PR-WS-06 | The runtime, editor, Git service, search service, language services and document provider shall resolve the same workspace contents through one path model. |
 | PR-WS-07 | Uninstalling shall offer to keep the application's data. App info keeps Android's Clear storage (owner, 2026-09-30). |
@@ -237,11 +237,18 @@ The platform provides execution, files, processes, environment variables, packag
 | ID | Requirement |
 |---|---|
 | PR-FILE-01 | The Explorer shall display a lazily loaded directory hierarchy. |
-| PR-FILE-02 | Users shall be able to create, rename, move, copy, and delete files and directories. |
-| PR-FILE-03 | Consequential file operations shall identify the exact target and request confirmation where recovery is uncertain. |
+| PR-FILE-02 | Users shall be able to create, rename, move, copy, duplicate and delete files and folders — one, or many at once — in Private, in Shared, and between them, with a folder picker for Move to… and Copy to…. |
+| PR-FILE-03 | Consequential file operations shall identify the exact target. Delete shall move to Trash, where an item is kept 30 days and can be restored; only Delete permanently and Empty Trash shall ask first. A name already taken shall ask: Replace, Keep both, Skip, or Merge for two folders. |
 | PR-FILE-04 | The Explorer shall refresh after native, terminal, Git, or external application changes. |
 | PR-FILE-05 | File rows shall communicate Git and diagnostic state without requiring the file to be opened. |
 | PR-FILE-06 | Binary, unsupported, and oversized files shall open through an appropriate safe state instead of corrupting content. |
+| PR-FILE-07 | The actions on an item, or on a selection, shall be one sheet titled with what they act on — the same list, in the same order, in every explorer and on the home screen. Rename…, Compress… and Properties shall open within it. A menu on a bar's own button (⋮, ▾, +) stays a dropdown (docs/explorer-gaps-plan.md). |
+| PR-FILE-08 | Selection shall start from an item's sheet, the explorer's ⋮ or a tap on an item's icon, with Select all and Invert; every action on one item shall work on many, and many shall be renamed by a rule. In the IDE's tree, a folder ticked covers what is in it. |
+| PR-FILE-09 | The explorers' changes — new items, renames, moves, copies, deletes to Trash and restores, compress and extract — shall be undone and redone, the last 50 while the application runs, each checked first against what it touches. The undo pill shall say what each did. |
+| PR-FILE-10 | Archives shall be extracted from .zip (.jar, .apk), .tar and its gzip, bzip2 and xz forms, single-file .gz, .bz2 and .xz, and .7z, asking for its password; no entry shall land outside the destination. Files and folders shall be compressed to Zip, 7z or Tar.gz. |
+| PR-FILE-11 | Properties shall show an item's kind, runtime path, measured size and when it changed, or a selection's count and total size. |
+| PR-FILE-12 | Manage storage shall scan All, Private or Shared, and show each kind of file's share, the largest files, duplicates and Trash, each opening as a view of the file explorer; Git's history is counted apart. |
+| PR-FILE-13 | The file explorer shall offer Detailed, Compact and Grid views with thumbnails; sorting by name, date, size or type in either order; hidden files on or off; favorites, Recent and a tappable path. |
 
 ### 10.4 Editing
 
@@ -466,7 +473,7 @@ Empty states explain why no content exists and provide one relevant next action.
 - Workspaces live in app-private storage: other applications reach them only through the document provider, and they have no `/sdcard` path.
 - Uninstalling deletes app-private storage unless the user keeps the application's data when Android asks.
 - Protected Android directories and other applications' private data remain inaccessible without operating-system privileges.
-- All Files Access (`MANAGE_EXTERNAL_STORAGE`) is requested for Import alone; a store listing must declare that use.
+- All Files Access (`MANAGE_EXTERNAL_STORAGE`) is requested for Shared, the file explorer's phone storage, alone; a store listing must declare that use.
 - Foreground processes require a visible Android notification.
 - Device vendors may terminate long-running processes despite application lifecycle handling.
 - Native dependencies and runtime binaries must support the device architecture.
@@ -552,5 +559,6 @@ Implementation phases, task steps, dependency groups, effort, and completion tra
 | Language service | User-installed LSP-compatible process providing code intelligence |
 | Source Control | Native presentation and control of Git repository state |
 | Recovery buffer | App-private protection for unsaved document content |
-| Import | The user's one-time copy of a phone-storage folder into a new workspace; the original is never written |
+| Private, Shared | The file explorer's two places: the application's own storage, where workspaces are (`/workspace`), and phone storage (`/storage/emulated/0`) |
+| Trash | Where Delete moves an item, one per place; it is kept 30 days and can be restored |
 | External browser | Browser selected by Android to open an activated HTTP or HTTPS link |

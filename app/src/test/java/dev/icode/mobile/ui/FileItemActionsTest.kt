@@ -173,6 +173,15 @@ class FileItemActionsTest {
         assertTrue(archives.none { it.label.startsWith("Compress") })
     }
 
+    @Test fun `the IDE tree has Select and no folder picker, so no Move to, Copy to or Extract to`() {
+        val zip = ActionTarget("/w/app/a.zip", "a.zip", folder = false, runtimePath = "/workspace/app/a.zip")
+        val tree = ScreenActions(pick = null, select = { selected += it })
+        val all = FileItemActions.of(ContextWrapper(null), { sent += it }, listOf(zip), ExplorerState(), onRename = {}, pages = pages, screen = tree)
+        assertTrue(all.none { it.label in setOf("Move to…", "Copy to…", "Extract to…") })
+        all.single { it.label == "Select" }.onClick()
+        assertEquals(listOf(listOf(zip.location)), selected)
+    }
+
     @Test fun `+ makes a folder, and a file where one can go, and Paste is the paste bar's`() {
         assertEquals(listOf("New folder", "New file"), FileItemActions.creation({}, {}).map { it.label })
         assertEquals(listOf("New folder"), FileItemActions.creation(null, {}).map { it.label })

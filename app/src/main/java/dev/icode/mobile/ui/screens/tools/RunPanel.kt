@@ -12,8 +12,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material3.Icon
@@ -32,14 +30,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import dev.icode.mobile.designsystem.Divider
 import dev.icode.mobile.designsystem.EmptyState
-import dev.icode.mobile.designsystem.IcodeActionMenu
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeConfirmDialog
-import dev.icode.mobile.designsystem.IcodeMenuAction
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTextButton
 import dev.icode.mobile.designsystem.IcodeType
-import dev.icode.mobile.designsystem.LabeledTextField
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.RunConfiguration
@@ -59,13 +54,12 @@ private enum class RunNeed { AndroidSdk, NativeTools, InstallApps }
 /**
  * The Terminal panel's Run tab (docs/run-tab-plan.md §2.3): the open workspace's Android apps, then
  * the commands the user saved, as flat rows — name and kind, the command, the state, and ▶ or ■. A
- * tap opens the run's output ([onShowOutput]); a long press on a saved command edits or deletes it.
- * [adding] is the header's +.
+ * tap opens the run's output ([onShowOutput]); a long press on a saved command opens its sheet
+ * ([onHold], [RunCommandAsks]).
  */
 @Composable
 internal fun RunPanelContent(
-    adding: Boolean,
-    onAddingDone: () -> Unit,
+    onHold: (String) -> Unit,
     onShowOutput: (String) -> Unit,
     navigate: (Route) -> Unit,
     modifier: Modifier = Modifier,
@@ -73,9 +67,6 @@ internal fun RunPanelContent(
     val state = LocalICodeSnapshot.current
     val gateway = LocalICodeGateway.current
     val workspace = state.activeWorkspaceLocation
-    var editing by rememberSaveable { mutableStateOf<String?>(null) }
-    var deleting by rememberSaveable { mutableStateOf<String?>(null) }
-    var menuFor by remember { mutableStateOf<String?>(null) }
     // What an Android app's ▶ asked for, and the configuration it waits to start.
     var need by rememberSaveable { mutableStateOf<RunNeed?>(null) }
     var waiting by rememberSaveable { mutableStateOf<String?>(null) }
@@ -130,25 +121,15 @@ internal fun RunPanelContent(
                     val record = state.run.recordOf(workspace, configuration.id)
                     val process = record?.process?.let { id -> state.processes.firstOrNull { it.id == id } }
                     val status = RunRules.status(configuration, record, process, now)
-                    Box {
-                        RunRow(
-                            configuration = configuration,
-                            status = status,
-                            onRun = { run(configuration) },
-                            onStop = { gateway.dispatch(ICodeIntent.StopRun(configuration.id)) },
-                            onConfirmInstall = { gateway.dispatch(ICodeIntent.ConfirmAndroidAppInstall) },
-                            onOpen = { process?.let { onShowOutput(it.id) } },
-                            onLongPress = { if (configuration is RunConfiguration.Command) menuFor = configuration.id },
-                        )
-                        IcodeActionMenu(
-                            expanded = menuFor == configuration.id,
-                            onDismiss = { menuFor = null },
-                            actions = listOf(
-                                IcodeMenuAction("Edit", Icons.Outlined.Edit, { menuFor = null; editing = configuration.id }),
-                                IcodeMenuAction("Delete", Icons.Outlined.Delete, { menuFor = null; deleting = configuration.id }, destructive = true),
-                            ),
-                        )
-                    }
+                    RunRow(
+                        configuration = configuration,
+                        status = status,
+                        onRun = { run(configuration) },
+                        onStop = { gateway.dispatch(ICodeIntent.StopRun(configuration.id)) },
+                        onConfirmInstall = { gateway.dispatch(ICodeIntent.ConfirmAndroidAppInstall) },
+                        onOpen = { process?.let { onShowOutput(it.id) } },
+                        onLongPress = { if (configuration is RunConfiguration.Command) onHold(configuration.id) },
+                    )
                 }
             }
         }
@@ -172,20 +153,6 @@ internal fun RunPanelContent(
             onDismiss = { need = null },
         ) {
             Text("${RuntimeTools.nativeNeed}. Install them in Runtime Tools.", style = IcodeType.Body)
-        }
-    }
-    val commands = state.run.configurations.filterIsInstance<RunConfiguration.Command>()
-    if (adding) RunCommandDialog(existing = null, onDismiss = onAddingDone)
-    commands.firstOrNull { it.id == editing }?.let { RunCommandDialog(existing = it, onDismiss = { editing = null }) }
-    commands.firstOrNull { it.id == deleting }?.let { command ->
-        IcodeConfirmDialog(
-            title = "Delete ${command.name}?",
-            confirmLabel = "Delete",
-            destructive = true,
-            onConfirm = { gateway.dispatch(ICodeIntent.DeleteRunCommand(command.id)); deleting = null },
-            onDismiss = { deleting = null },
-        ) {
-            MonoLine(command.command, style = IcodeType.MonoSmall, maxLines = 2)
         }
     }
 }
@@ -227,28 +194,6 @@ private fun RunRow(
                 tint = if (stoppable) IcodeColors.Error else IcodeColors.Accent,
             )
         }
-    }
-}
-
-/** A saved command, new or changed: a name, which may be left to the command's first word, and the command line. */
-@Composable
-private fun RunCommandDialog(existing: RunConfiguration.Command?, onDismiss: () -> Unit) {
-    val gateway = LocalICodeGateway.current
-    var name by rememberSaveable(existing?.id) { mutableStateOf(existing?.name.orEmpty()) }
-    var command by rememberSaveable(existing?.id) { mutableStateOf(existing?.command.orEmpty()) }
-    IcodeConfirmDialog(
-        title = if (existing == null) "New command" else "Edit command",
-        confirmLabel = "Save",
-        confirmEnabled = command.isNotBlank(),
-        onConfirm = {
-            gateway.dispatch(ICodeIntent.SaveRunCommand(existing?.id, name, command))
-            onDismiss()
-        },
-        onDismiss = onDismiss,
-    ) {
-        Text("It runs in bash at the workspace's top, with your login environment.", style = IcodeType.Body, color = IcodeColors.TextSecondary)
-        LabeledTextField("Command", command, { command = it }, placeholder = "npm run dev", literal = true)
-        LabeledTextField("Name", name, { name = it }, placeholder = "dev server")
     }
 }
 

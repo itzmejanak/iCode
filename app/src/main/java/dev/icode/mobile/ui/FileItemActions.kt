@@ -53,15 +53,18 @@ data class ActionTarget(val location: String, val name: String, val folder: Bool
  */
 class SheetPageActions(val compress: (() -> Unit)?, val properties: () -> Unit)
 
-/** What only the explorer's own screen offers: the folder picker (§3.5), and selection, starting with the items given (§3.2). */
-class ScreenActions(val pick: (FolderPick) -> Unit, val select: ((List<String>) -> Unit)?)
+/**
+ * What only an explorer's own screen offers: the file explorer's folder picker (§3.5), and selection,
+ * starting with the items given (§3.2) — the file explorer's, and the IDE tree's.
+ */
+class ScreenActions(val pick: ((FolderPick) -> Unit)?, val select: ((List<String>) -> Unit)?)
 
 /**
  * The one owner of the actions on files and folders (docs/explorer-gaps-plan.md §3.1, §3.3): every
  * explorer and the home screen show the same list, in the same order, in the item's sheet
  * ([ItemSheet]) — an item's, or a selection's. What differs is only what a place has to offer:
  * [open] (Expand in the IDE's tree), [showInList] on the home screen and in a view, [screen] in the
- * file explorer.
+ * explorers' own screens.
  */
 object FileItemActions {
     /** "Paste RevPlayer": what Paste would bring, named, so a clipboard from another page is never a surprise. */
@@ -109,17 +112,17 @@ object FileItemActions {
             add(IcodeMenuAction("Cut", Icons.Outlined.ContentCut, { dispatch(FilesIntent.Cut(locations)) }, beginsGroup = true))
             add(IcodeMenuAction("Copy", Icons.Outlined.ContentCopy, { dispatch(FilesIntent.Copy(locations)) }))
             onPaste?.let { add(IcodeMenuAction(pasteLabel(explorer.clipboard), Icons.Outlined.ContentPaste, it, enabled = explorer.clipboard != null)) }
-            screen?.let { screen ->
+            screen?.pick?.let { pick ->
                 val held = targets.map { it.held }
-                add(IcodeMenuAction("Move to…", Icons.AutoMirrored.Outlined.DriveFileMove, { screen.pick(FolderPick.Transfer(held, move = true)) }))
-                add(IcodeMenuAction("Copy to…", Icons.Outlined.FolderCopy, { screen.pick(FolderPick.Transfer(held, move = false)) }))
+                add(IcodeMenuAction("Move to…", Icons.AutoMirrored.Outlined.DriveFileMove, { pick(FolderPick.Transfer(held, move = true)) }))
+                add(IcodeMenuAction("Copy to…", Icons.Outlined.FolderCopy, { pick(FolderPick.Transfer(held, move = false)) }))
             }
             add(IcodeMenuAction("Duplicate", Icons.Outlined.FileCopy, { dispatch(FilesIntent.Duplicate(locations)) }))
             onRename?.let { add(IcodeMenuAction("Rename…", Icons.Outlined.DriveFileRenameOutline, it, beginsGroup = true, opensPage = true)) }
             if (archives.size == targets.size) {
                 val unreadable = archives.firstNotNullOfOrNull { it.second.unreadable }
                 add(IcodeMenuAction("Extract here", Icons.Outlined.Unarchive, { locations.forEach { dispatch(FilesIntent.Extract(it)) } }, enabled = unreadable == null, detail = unreadable, beginsGroup = true))
-                screen?.let { add(IcodeMenuAction("Extract to…", Icons.Outlined.Unarchive, { it.pick(FolderPick.Extract(locations)) }, enabled = unreadable == null)) }
+                screen?.pick?.let { pick -> add(IcodeMenuAction("Extract to…", Icons.Outlined.Unarchive, { pick(FolderPick.Extract(locations)) }, enabled = unreadable == null)) }
             } else if (compressible) {
                 pages.compress?.let { add(IcodeMenuAction("Compress…", Icons.Outlined.Archive, it, beginsGroup = true, opensPage = true)) }
             }

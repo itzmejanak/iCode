@@ -1,5 +1,6 @@
 package dev.icode.mobile.ui.screens.workspace
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.clickable
@@ -30,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.ActivityRail
 import dev.icode.mobile.designsystem.ActivityRailEntry
+import dev.icode.mobile.designsystem.BarLeave
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeMenuAction
 import dev.icode.mobile.designsystem.IcodeSheetOverlay
@@ -42,17 +44,28 @@ import dev.icode.mobile.domain.FileEntry
 import dev.icode.mobile.domain.FileKind
 import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.files.FileSelection
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.navigation.ToolPanelTab
-import dev.icode.mobile.domain.WorkspaceRuntimePath
 import dev.icode.mobile.ui.ClipboardBar
+import dev.icode.mobile.ui.ExplorerSelection
 import dev.icode.mobile.ui.FileItemActions
-import dev.icode.mobile.ui.NewItemButton
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
+import dev.icode.mobile.ui.NewItemButton
+import dev.icode.mobile.ui.SelectionActions
+import dev.icode.mobile.ui.SelectionBar
+import dev.icode.mobile.ui.among
+import dev.icode.mobile.ui.rememberSelection
+import dev.icode.mobile.ui.selectionActions
 
-/** File tree with the workspace activity rail. */
+/**
+ * File tree with the workspace activity rail. Select in a row's sheet starts a selection
+ * (docs/explorer-gaps-plan.md §3.2): rows tick with a tap, the + gives way to Select all and Invert,
+ * and its foot bar to the selection's. A folder ticked covers what is in it, so nothing is acted on
+ * twice. Back, or ✕, leaves it; so does going to another workspace.
+ */
 @Composable
 fun WorkspaceExplorerScreen(actions: NavigationActions) {
     val state = LocalICodeSnapshot.current
@@ -62,6 +75,12 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
     var createType by rememberSaveable { mutableStateOf<WorkspaceItemType?>(null) }
     // The row whose sheet is shown; gone with the row (renamed, deleted, moved).
     var actionsFor by rememberSaveable { mutableStateOf<String?>(null) }
+    val selection = rememberSelection(state.activePath)
+    // What the selection acts on: none under a folder that is itself ticked.
+    val covered = selection.among(state.files) { it.path }?.let { ticked ->
+        FileSelection.covering(ticked.map { it.path }).mapNotNull { path -> ticked.firstOrNull { it.path == path } }
+    }
+    BackHandler(enabled = selection.selecting) { selection.leave() }
     // iCode's one clipboard: cut or copied here, in another workspace, or on the Workspaces page.
     val clipboard = state.explorer.clipboard
     val rootSelectionInteraction = remember { MutableInteractionSource() }
@@ -69,13 +88,13 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
     // The folder + makes in and the bar's Paste goes into: the selected folder, or the selected file's.
     val selectedFolder = creationParentLocation(root, selectedPath, state.files)
     val pasteHere = { selectedFolder?.let { gateway.dispatch(FilesIntent.Paste(it)) } }
-    // Each path as the runtime names it, as Copy path gives it and the terminal shows it.
-    val runtimePathOf = { location: String -> root?.let { WorkspaceRuntimePath.within(it, state.activePath, location) } ?: location }
-    val sheetFor = state.files.firstOrNull { it.path == actionsFor }
+    // One row's sheet, or the selection's; gone with what it is about.
+    val sheetEntries = if (selection.sheet) covered.orEmpty() else listOfNotNull(state.files.firstOrNull { it.path == actionsFor })
     Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().behindSheet(sheetFor != null)) {
+        Column(Modifier.fillMaxSize().behindSheet(sheetEntries.isNotEmpty())) {
             WorkspaceHeader(
-                actions = FileItemActions.creation(
+                selection,
+                creation = FileItemActions.creation(
                     onNewFile = { createParent = selectedFolder; createType = WorkspaceItemType.File },
                     onNewFolder = { createParent = selectedFolder; createType = WorkspaceItemType.Folder },
                 ),
@@ -139,36 +158,52 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
                             }
                         }
                         items(state.files, key = { it.path }) { entry ->
+                            val ticked = selection.ticked?.let { entry.path in it }
                             ExplorerRow(
                                 entry = entry,
                                 selected = entry.path == selectedPath,
+                                ticked = ticked,
                                 onClick = {
-                                    selectedPath = entry.path
-                                    if (entry.kind == FileKind.Folder) {
-                                        gateway.dispatch(ICodeIntent.ToggleFolder(entry.path))
-                                    } else {
-                                        gateway.dispatch(ICodeIntent.OpenFile(entry.path))
+                                    when {
+                                        ticked != null -> selection.toggle(entry.path)
+                                        entry.kind == FileKind.Folder -> gateway.dispatch(ICodeIntent.ToggleFolder(entry.path))
+                                        else -> gateway.dispatch(ICodeIntent.OpenFile(entry.path))
                                     }
+                                    selectedPath = entry.path
                                 },
                                 onLongClick = {
+                                    if (ticked != null) selection.toggle(entry.path) else actionsFor = entry.path
                                     selectedPath = entry.path
-                                    actionsFor = entry.path
                                 },
                             )
                         }
                     }
                 }
             }
-            // The Workspaces page's bar too: into the selected folder, as the header's Paste, and it says so.
-            if (clipboard != null && selectedFolder != null) {
-                ClipboardBar(clipboard, destination = runtimePathOf(selectedFolder), onPaste = { pasteHere() })
+            when {
+                covered != null -> {
+                    val folders = covered.count { it.kind == FileKind.Folder }
+                    SelectionBar(
+                        covered.size,
+                        FileSelection.counted(folders, covered.size - folders),
+                        selectionActions(covered.map { it.path }, gateway::dispatch, selection::leave) { selection.sheet = true },
+                    )
+                }
+                // The Workspaces page's bar too: into the selected folder, as the header's Paste, and it says so.
+                clipboard != null && selectedFolder != null -> ClipboardBar(clipboard, destination = state.runtimePathOf(selectedFolder), onPaste = { pasteHere() })
             }
         }
-        // One row's sheet, over the whole screen, as in the file explorer.
-        sheetFor?.let { entry ->
-            val close = { actionsFor = null }
+        // One row's sheet, or the selection's, over the whole screen, as in the file explorer.
+        if (sheetEntries.isNotEmpty()) {
+            val close = { actionsFor = null; selection.sheet = false }
             IcodeSheetOverlay(onClose = close) {
-                ExplorerItemSheet(entry, onClose = close, modifier = Modifier.align(Alignment.BottomCenter))
+                ExplorerItemSheet(
+                    sheetEntries,
+                    onSelect = selection::start.takeUnless { selection.sheet },
+                    onActed = selection.acted,
+                    onClose = close,
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                )
             }
         }
     }
@@ -177,14 +212,22 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
     }
 }
 
-/** Workspace header used by the explorer family: its + offers [actions] ([FileItemActions.creation]). */
+/**
+ * The tree's header: the workspace, and its + offering [creation] ([FileItemActions.creation]); in
+ * [selection], ✕ to leave it, and Select all and Invert over the rows shown.
+ */
 @Composable
-private fun WorkspaceHeader(actions: List<IcodeMenuAction>) {
+private fun WorkspaceHeader(selection: ExplorerSelection, creation: List<IcodeMenuAction>) {
     val state = LocalICodeSnapshot.current
     IcodeTopBar(
         title = state.activeWorkspace,
         subtitle = state.activePath,
-        actions = { NewItemButton(contentDescription = "Create in workspace", actions = actions) },
+        onBack = if (selection.selecting) selection::leave else null,
+        leaving = BarLeave.Selection,
+        actions = {
+            if (selection.selecting) SelectionActions(selection, state.files.map { it.path })
+            else NewItemButton(contentDescription = "Create in workspace", actions = creation)
+        },
     )
 }
 
