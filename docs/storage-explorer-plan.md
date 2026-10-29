@@ -4,6 +4,11 @@ Status: **built (2026-10-14), X1–X4; the walk-through on the phone is the owne
 (shared item actions, E1–E3) and changes [workspace-storage-plan.md](./workspace-storage-plan.md) §1 and §4.5,
 where Import was the only way between phone storage and iCode's and phone storage was never written.
 
+> Followed by [explorer-gaps-plan.md](./explorer-gaps-plan.md) (built 2026-10-28). An item's long press
+> opens a sheet, not a dropdown; Delete goes to Trash without a dialog, and can be undone; there is
+> selection, batch rename, Move to… and Copy to…, archives, Properties, three views and four sorts,
+> favorites, Recent, a tappable path, and Manage storage.
+
 Owner ask (2026-10-14, verbatim, with three ZArchiver screenshots): "Do that plan cover: user can perform
 action eg: copy, cut from private to shared ? And do we design ui with consistency of both explore something
 like reference design so both explore have constant design I think it's better to integration of native

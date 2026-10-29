@@ -1,6 +1,6 @@
 # File explorer — selection, safety, archives and the rest (Plan)
 
-Status: **plan** (2026-10-27). It follows [storage-explorer-plan.md](./storage-explorer-plan.md) and
+Status: **built (2026-10-28), F2–F7; the walk-through on the phone is the owner's (§7)**. It follows [storage-explorer-plan.md](./storage-explorer-plan.md) and
 [file-explorer-unification-plan.md](./file-explorer-unification-plan.md), and lifts what both left out:
 multi-select, a "show hidden" switch, and one item at a time.
 
@@ -1051,3 +1051,25 @@ Descending.
     - Ticking a folder and its file counts one folder and one file.
     - ⋯ › Copy sends both locations and ends the selection.
     - Select all, then ✕, leaves the selection.
+
+### F7 (docs as built; the gate)
+
+- **[prd.md](./prd.md):**
+  - §5.1, PR-ENTRY-01, PR-WS-01 to 04 and §13 say what is there: Private and Shared; a folder from
+    phone storage copied or moved in; Delete to Trash, which can be undone.
+  - PR-FILE-02 and 03 are rewritten, and PR-FILE-07 to 13 added: the one sheet, selection, undo,
+    archives, Properties, Manage storage, and view and sort.
+  - The glossary's Import is gone; Private, Shared and Trash replace it.
+- **[user-stories.md](./user-stories.md):**
+  - Entry, storage and workspace stories as built.
+  - US-FILE-003 and 004 rewritten for Rename…, Move to… and Trash.
+  - US-FILE-007 to 013 added: the one sheet, many at once, undo, archives, properties, Manage
+    storage, and the views.
+- **[layout.md](./layout.md):**
+  - The sitemap, and §9.3 the file explorer, in place of the Workspaces page.
+  - §12.2 the sheet's order, and the tree's selection.
+  - The tab and Run tab sheets.
+  - §19.6 Settings › Storage and Manage storage.
+  - §21 sheets and menus, and the floating stack with the undo pill.
+- **The two plans this follows** point here, and say what changed.
+- **Gate:** the full gate, the UI type-check, the UI tests and the guards pass.

@@ -4,7 +4,9 @@ Status: **built (2026-10-14), E1–E3; E4 on the device (§7)**
 
 > Followed by [storage-explorer-plan.md](./storage-explorer-plan.md) (2026-10-14). There are no row ⋮ in any explorer
 > (a long press opens the menu), + no longer offers Paste (the paste bar does), and the Workspaces page and
-> the Import browser are one explorer with two places.
+> the Import browser are one explorer with two places. Then [explorer-gaps-plan.md](./explorer-gaps-plan.md)
+> (built 2026-10-28): the shared actions are one sheet, in one order, in every explorer; Delete goes
+> to Trash; and many items are acted on at once.
 Owner ask: "plan for the file explorer the current user explorer and ICode explore feels different system which is good somehow but if we make the better ui/Ux and better logic regarding files actions can be done eg: copy cut and other which are matter most if we make them flexible user can perform across the explorer among both by understanding what behavior currently exit and how things need to be aligned and how we can make things better without limitations but 100% accurate design let's plan for it"
 
 ## 1. Evidence — current behavior (read, not guessed)

@@ -44,8 +44,8 @@ The following rules apply to every story:
 
 Acceptance criteria:
 
-- The Launcher shows Import, Clone Repository, and Workspaces.
-- The five most recently opened workspaces appear below the primary actions; the Workspaces page lists every one, with search, sort and sizes, and New Folder.
+- The Launcher shows Import, Clone Repository, and Workspaces: Workspaces opens the file explorer at Private, Import at Shared.
+- The five most recently opened workspaces appear below the primary actions; the file explorer at Private lists every one, with search, sort and sizes, and + for a new one.
 - The screen does not require account, provider, language, or agent configuration.
 - Runtime attention appears only when installation, update, or repair affects the requested action.
 - Settings and About remain accessible without competing with workspace actions.
@@ -59,8 +59,8 @@ Acceptance criteria:
 - Each row identifies the workspace by name and its `/workspace/<name>` path, with its branch when it is a repository.
 - Selecting a row opens the workspace.
 - The list is the application's workspaces folder itself: nothing in it can be stale, and a workspace made from the terminal in `/workspace` appears.
-- Each row's menu, from ⋮ or a long press, offers Open, Open Terminal, Rename, Cut, Copy, Copy path and Delete, and on the home screen Show in Workspaces.
-- What is cut or copied pastes on the Workspaces page as a workspace, or in a workspace's Explorer inside the chosen folder, from a bar that names it.
+- Each row's sheet, from ⋮ or a long press, is the one the file explorer shows a workspace with: Open, Open Terminal, Show in Workspaces, then every action on a folder (US-FILE-007).
+- What is cut or copied pastes at Private's top as a workspace, or in a folder of either explorer, from a bar that names it.
 
 ### US-ENTRY-003 — Continue after runtime preparation
 
@@ -83,25 +83,25 @@ Acceptance criteria:
 
 Acceptance criteria:
 
-- The Workspaces page lists every workspace with its size; Storage settings shows their count and total and says that workspaces live in the application's storage.
+- The file explorer at Private lists every workspace with its size. Settings › Storage shows their count and total, the runtime, Trash and the cache, and says workspaces are removed with iCode unless its data is kept.
 - Uninstalling offers to keep the application's data.
 - App info offers Android's own Clear storage, which removes the workspaces with the rest of the application's data (owner, 2026-09-30).
 - Runtime Repair and Reset state that workspaces are kept, and keep them.
-- Workspaces need no storage permission; All Files Access is asked only when I import from phone storage.
+- Workspaces need no storage permission; All Files Access is asked only when I open Shared, phone storage.
 
 ### US-STORAGE-002 — Bring a folder in from phone storage
 
-**As a developer with a project on phone storage, I want to import it, so that I can work on it with every tool.**
+**As a developer with a project on phone storage, I want to bring it into iCode, so that I can work on it with every tool.**
 
 Acceptance criteria:
 
-- Import opens iCode's browser of phone storage. Without All Files Access it explains why it is needed and opens Android's page; once granted, the folders are listed.
-- I choose a folder by going into it and tapping Import; the folder is only read.
-- The workspace name is proposed from the folder and can be changed; a taken name is refused inline.
-- An import that would not fit in the free space is refused before anything is copied.
+- Import opens the file explorer at Shared. Without All Files Access it explains why it is needed and opens Android's page; once granted, the folders are listed.
+- I copy or cut a folder, or several, and paste them at Private's top, where each becomes a workspace; or I choose Copy to… or Move to… and a folder in Private.
+- A name already there asks: Replace, Keep both, Skip, or Merge for two folders.
+- A copy that would not fit in the free space writes nothing.
 - Progress is shown as a task that can be hidden; cancelling or a failure leaves nothing behind.
-- The original folder is never written.
-- A repository's executable bits and links are restored from Git's own record, and its status reads as before the import; when Git cannot be had, the result says what was not restored.
+- A copy never writes the original; a cut removes it once everything has arrived.
+- A repository's executable bits and links are restored from Git's own record, and its status reads as before; when Git cannot be had, the result says what was not restored.
 
 ### US-STORAGE-003 — Reach my workspaces from other applications
 
@@ -175,10 +175,10 @@ Acceptance criteria:
 
 Acceptance criteria:
 
-- Rename and Delete are refused, with the reason, while a terminal session or a task runs in the workspace, or a file in it has unsaved edits.
+- Rename and Delete are refused, with the reason, while a terminal session, a process, a task, Git or the assistant works in the workspace, or a file in it has unsaved edits.
 - A renamed workspace keeps its settings, recent files, and — when open — its tabs and tree.
-- Delete names the workspace and its path, says it cannot be undone, and runs as a task.
-- A deleted workspace's settings and recent files are forgotten.
+- Delete moves the workspace to Trash at once; the undo pill can undo it, and Trash restores it, a workspace again, for 30 days.
+- A deleted workspace's tabs close, and its recent files are forgotten.
 
 ## 7. Explorer and File Operations
 
@@ -211,20 +211,21 @@ Acceptance criteria:
 
 Acceptance criteria:
 
-- The target path is shown before applying the operation.
+- Rename… is a page of the item's sheet, checking the name as I type; many are renamed by a rule (US-FILE-008).
+- Move to… chooses the folder in a picker that shows where it goes before anything moves.
 - Open-document paths update after a successful move or rename.
 - Git state refreshes and recognizes eligible renames.
 - Failure leaves the original item and document mapping intact.
 
 ### US-FILE-004 — Delete an item deliberately
 
-**As a developer, I want deletion to identify what will be removed, so that touch mistakes do not destroy project content.**
+**As a developer, I want deletion to be recoverable, so that touch mistakes do not destroy project content.**
 
 Acceptance criteria:
 
-- Deletion identifies the exact path.
-- Non-empty directory deletion communicates its breadth.
-- Confirmation is required when the operation is not safely recoverable.
+- Delete moves to Trash at once, in every explorer; the undo pill says what went ("Moved 3 items to Trash") and offers Undo.
+- Trash lists what each place deleted, newest first, with where it was and how long ago; Restore puts it back, making folders gone meanwhile again.
+- An item is kept 30 days. Delete permanently and Empty Trash ask first, naming what goes.
 - Open documents referencing a deleted path receive a clear state.
 - Git state refreshes after successful deletion.
 
@@ -249,6 +250,81 @@ Acceptance criteria:
 - Binary content does not pass through a normal text save path.
 - Large-file mode clearly states which expensive features are disabled.
 - The user can view metadata, open with another Android application, or cancel.
+
+### US-FILE-007 — One sheet of actions everywhere
+
+**As a developer, I want an item's actions in one place, the same in every explorer, so that I never hunt for them.**
+
+Acceptance criteria:
+
+- A long press, a row's ⋮ or a selection's ⋯ opens a sheet titled with what it acts on, its icon or thumbnail, and its detail.
+- The actions come in one order: open; Cut, Copy, Paste, Move to…, Copy to…, Duplicate; Rename…; Compress… or Extract; Favorites; Copy path, Properties; Select; Delete, last and in red.
+- Rename…, Compress… and Properties open within the sheet, with ← back to the actions.
+- The editor's tabs, Source Control's changes, the Run tab's commands, and the assistant's steps and my messages open their actions in the same sheet.
+
+### US-FILE-008 — Act on many at once
+
+**As a developer, I want to select many items and act on all of them, so that reorganizing a project takes one step.**
+
+Acceptance criteria:
+
+- Select, from an item's sheet or ⋮, or a tap on an item's icon, starts a selection; a tap then ticks and unticks.
+- Select all and Invert work on what is shown; the foot bar says how many, what they are and weigh, with Cut, Copy, Delete and ⋯.
+- Every action on one item works on many; Share… sends every file at once.
+- Batch rename renames many by a rule — find and replace, add text before or after, a name with a number, or a new extension — showing each new name, and refusing names that clash.
+- In the IDE's tree, a folder ticked covers what is in it, so nothing is acted on twice.
+- Acted on, or when all of it has gone, the selection ends; Back or ✕ leaves it.
+
+### US-FILE-009 — Undo what I did to files
+
+**As a developer, I want to undo and redo file changes, so that a wrong move is never final.**
+
+Acceptance criteria:
+
+- New items, renames, moves, copies, deletes and restores, compress and extract can be undone and redone, the last 50 while iCode runs.
+- The undo pill, above the bell, says what each change did, with Undo, then what came back, with Redo.
+- Undo checks first that what it touches is as it was left, and says what changed when it is not.
+
+### US-FILE-010 — Compress and extract archives
+
+**As a developer, I want to open and make archives in iCode, so that I need no other app for them.**
+
+Acceptance criteria:
+
+- Extract here, and Extract to…, read .zip, .jar, .apk, .tar with its gzip, bzip2 and xz forms, and .7z, asking for its password.
+- .rar, .zst and an encrypted zip say why they cannot be read.
+- No entry lands outside the folder it is extracted into; a stopped or failed extract leaves nothing.
+- Compress… makes a Zip, a 7z or a Tar.gz under the name I give.
+
+### US-FILE-011 — Know what an item is and weighs
+
+**As a developer, I want an item's properties, so that I know what I am about to change.**
+
+Acceptance criteria:
+
+- Properties shows the kind, the runtime path with Copy, the size — a folder's measured, with how many files and folders — and when it changed.
+- For a selection, it shows how many, and their total size.
+
+### US-FILE-012 — Find what fills my storage
+
+**As a developer, I want to see what takes space, so that I can clean up safely.**
+
+Acceptance criteria:
+
+- Manage storage scans All, Private or Shared, with ↻ and Stop, and draws each kind of file's share on one bar.
+- Each kind, the largest files, duplicates and Trash open as views of the file explorer, where everything an explorer does works.
+- Duplicates are grouped, with Select extra copies; Git's history is counted apart.
+
+### US-FILE-013 — See files my way
+
+**As a developer, I want to choose how files are shown, so that each folder reads well.**
+
+Acceptance criteria:
+
+- Detailed, Compact and Grid, with thumbnails of pictures, videos and app packages.
+- Sort by name, date, size or type, in either order; type groups its files.
+- Hidden files shown or not, in both explorers.
+- Favorites, Recent and Trash in ▾, and a path whose every part is a tap away.
 
 ## 8. Editing
 

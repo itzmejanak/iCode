@@ -190,11 +190,13 @@ Width-class changes preserve selected routes, open documents, editor state, and 
 ```text
 Application
 ├── Launcher
-│   ├── Workspaces (every workspace in iCode's storage)
-│   ├── Import (from phone storage)
-│   ├── New folder
+│   ├── Workspaces (the file explorer at Private: every workspace in iCode's storage)
+│   ├── Import (the file explorer at Shared: phone storage)
 │   ├── Clone repository
 │   └── Application settings
+├── File explorer
+│   ├── Private and Shared, a folder at a time
+│   └── Views: Recent, Trash, and Manage storage's (each kind of file, Largest, Duplicates)
 ├── Workspace
 │   ├── Explorer
 │   ├── Search
@@ -341,20 +343,35 @@ Each row may show:
 - its `/workspace/<name>` path;
 - repository branch when cheaply available;
 - last-opened time;
-- its actions, from ⋮ or a long press, one list: Open, Open Terminal, Rename, Cut, Copy, Show in
-  Workspaces (from the home screen's recent rows), Copy path, Delete. Cut and Copy use iCode's one
-  clipboard; what waits on it shows as a bar with Paste on the Workspaces page and in the Explorer.
+- its sheet, from ⋮ or a long press: the one the file explorer shows a workspace with (§12.2) —
+  Open, Open Terminal, Show in Workspaces, then every action on a folder. Cut and Copy use iCode's
+  one clipboard; what waits on it shows as a bar with Paste in both explorers.
 
 The launcher does not display a dashboard of counts or unrelated product cards. Nothing on it can be stale: the list is the workspaces folder itself.
 
-### 9.3 Workspaces page
+### 9.3 File explorer
 
-Every workspace is managed in one place, reached by the Workspaces tile (where New Folder was) and
-from Storage settings: the count and total size under its title, **New Folder** in its top bar (a
-dialog, as a file manager's: the new workspace appears in the list, unopened), a
-search by name or path, **Recent · Name · Size**, and each workspace in the same row as the
-launcher's, with its size once measured. The home screen shows the recent five of this same list;
-Storage settings shows its summary, not a second list.
+One explorer, modelled on ZArchiver, for two places: **Private**, iCode's storage, whose top lists
+every workspace with its size, and **Shared**, phone storage ([storage-explorer-plan.md](./storage-explorer-plan.md),
+[explorer-gaps-plan.md](./explorer-gaps-plan.md)). Workspaces opens it at Private, Import at Shared.
+
+- **Top bar:** the folder's name, whose ▾ goes to the places, the favorites, Recent and Trash; the
+  path under it, each part a tap away; 🔍 to filter by name; ☰, the view panel (Detailed, Compact
+  or Grid, hidden files; Name, Date, Size or Type, Descending); and ⋮: Select, Undo and Redo, each
+  saying what it would do, Manage storage, Storage settings.
+- **Rows:** the icon, or a picture's, video's or app's thumbnail; the name; what it holds or weighs;
+  when it changed. Type groups the rows under each kind. `..` goes up. A tap opens; a tap on the
+  icon selects; a long press opens the item's sheet (§12.2).
+- **+:** New folder, and New file where a file can go; at Private's top, a new workspace.
+- **Selection:** a tap ticks. The top bar has ✕, Select all and Invert; the foot bar says "3
+  selected", what they are and weigh, with Cut, Copy, Delete and ⋯ for the selection's sheet.
+- **Foot bars:** what the clipboard holds, with Paste; or, choosing a folder for Move to…, Copy to…,
+  Extract to… or a clone, where it goes and the button that puts it there.
+- **A name already there** asks in a sheet: the two side by side, Replace, Keep both, Skip, or
+  Merge for two folders, and "Do this for the other N".
+- **Views** list files gathered from anywhere, with the same rows, sheet and selection: Recent; Trash,
+  with Restore, Delete permanently and Empty Trash; and Manage storage's (§19.6).
+- **Delete** moves to Trash at once, and the **undo pill** says what went (§21.5).
 
 ## 10. Permission Experience
 
@@ -365,7 +382,7 @@ iCode asks for no storage permission: workspaces live in its own storage ([works
 
 Each step states why, what the user keeps control of, and opens Android's own prompt. Returning rechecks what Android allows instead of assuming it. A declined step is not asked again; Terminal Settings is the way back.
 
-All Files Access is not an onboarding step: Import asks for it where it is needed, with the same explanation a step would give (why, what the user keeps control of, Android's own page), and the listing follows once it is granted. Other applications reach workspaces through Android's Files app, which needs no permission.
+All Files Access is not an onboarding step: the file explorer asks for it at Shared, with the same explanation a step would give (why, what the user keeps control of, Android's own page), and the listing follows once it is granted. Other applications reach workspaces through Android's Files app, which needs no permission.
 
 ## 11. Runtime Installation and Health
 
@@ -409,19 +426,27 @@ Long paths truncate from the middle or end according to context, while the full 
 
 ### 12.2 File actions
 
-Common actions:
+An item's actions, or a selection's, are one sheet in every explorer and on the home screen
+([explorer-gaps-plan.md](./explorer-gaps-plan.md) §3.1): titled with what it acts on, with its icon or
+thumbnail and its detail, then in this order, a line between groups:
 
-- new file;
-- new folder;
-- rename;
-- move;
-- copy;
-- delete;
-- copy path;
-- open terminal here;
-- open with another app, and share ([open-with-plan.md](./open-with-plan.md)): a file the editor cannot show opens with another app on a tap;
-- a picture opens on a tap in iCode's image viewer, a sheet over the screen, pinched larger ([file-viewers-plan.md](./file-viewers-plan.md));
-- refresh.
+1. Open (Expand or Collapse, a folder in the tree), Open with…, Share…, Open Terminal (a workspace),
+   Show in folder or Show in Workspaces;
+2. Cut, Copy, Paste *name*, Move to…, Copy to…, Duplicate;
+3. Rename… — one name, or many by a rule;
+4. Compress…, or Extract here and Extract to… on archives;
+5. Add to Favorites, on folders;
+6. Copy path, Properties;
+7. Select;
+8. Delete, last, in red.
+
+Rename…, Compress… and Properties open within the sheet, ← back to the actions. A file the editor
+cannot show opens with another app on a tap ([open-with-plan.md](./open-with-plan.md)); a picture opens
+in iCode's image viewer, a sheet over the screen, pinched larger ([file-viewers-plan.md](./file-viewers-plan.md)).
+
+In the tree, Select starts a selection: rows tick with a tap, their icon becomes the tick, the + gives
+way to Select all and Invert, and the foot bar to the selection's. A folder ticked covers what is in
+it, so the bar counts what will be acted on.
 
 Touch uses long press or overflow. Mouse and trackpad may use secondary click. Hardware keyboard users receive command and navigation shortcuts.
 
@@ -441,7 +466,7 @@ Each tab communicates:
 - active state;
 - close action with adequate touch behavior.
 
-Tabs scroll horizontally on compact devices. Long press opens actions such as Close Others, Close Saved, Copy Path, and Reveal in Explorer.
+Tabs scroll horizontally on compact devices. A long press that does not move opens the tab's sheet: New file, Close other tabs (all but this one), Close saved tabs, and Close *name*; one that moves reorders.
 
 A dirty file's tab shows a dot before its name; the editor's title shows the name alone. The close button is the Close icon. The terminal's tabs are the same strip (`IcodeTabStrip`, [icons-plan.md §4](./icons-plan.md)), each marked by its state: the Terminal icon in the accent while the shell runs, the error icon in red once it ended or failed.
 
@@ -630,7 +655,7 @@ Output is reserved for structured application-owned streams such as language-ser
 
 ### 18.3 Run
 
-The Run tab ([run-tab-plan.md](./run-tab-plan.md)) lists what the open workspace can start: each Android app iCode finds in it, then the commands the user saved, as flat rows divided by hairlines. A row has its name and kind, the command in mono, its state line ("Never run", "Building · 1m", "Running · 1m · port 5173", "Installing · Android asks you to confirm" with **Install**, "Opened", "Exited 0", "Stopped", "Failed · " and the reason), and a trailing ▶, or ■ while it runs. A tap opens the run's output, its tab in Terminal; a long press on a saved command offers Edit and Delete, and Delete asks first. The header's **+** saves a command: the command line, and a name that may be left to its first word. Before an Android app builds, ▶ asks for the Android SDK (Open Runtime Tools) and for "Install unknown apps" (the shared permission explanation, in place of the rows); the build's errors are listed in Problems.
+The Run tab ([run-tab-plan.md](./run-tab-plan.md)) lists what the open workspace can start: each Android app iCode finds in it, then the commands the user saved, as flat rows divided by hairlines. A row has its name and kind, the command in mono, its state line ("Never run", "Building · 1m", "Running · 1m · port 5173", "Installing · Android asks you to confirm" with **Install**, "Opened", "Exited 0", "Stopped", "Failed · " and the reason), and a trailing ▶, or ■ while it runs. A tap opens the run's output, its tab in Terminal; a long press on a saved command opens its sheet, Edit… and Delete, and Delete asks first. The header's **+** saves a command: the command line, and a name that may be left to its first word. Before an Android app builds, ▶ asks for the Android SDK (Open Runtime Tools) and for "Install unknown apps" (the shared permission explanation, in place of the rows); the build's errors are listed in Problems.
 
 ## 19. Settings Layout
 
@@ -676,6 +701,19 @@ Application and workspace settings clearly show their scope. Workspace overrides
 
 Settings search returns matching leaf settings and shows their category path. Selecting a result opens the real detail location instead of rendering an isolated duplicate control.
 
+### 19.6 Storage, and Manage storage
+
+**Settings › Storage** is one list ([explorer-gaps-plan.md](./explorer-gaps-plan.md) §3.15): the device's
+use on one bar, then what iCode keeps — Workspaces (opening Private), the runtime, Trash (opening its
+view), the cache with Clear, asked first — and **Manage storage**; then Show Hidden Files, and All Files
+Access, Android's own setting, shown and opened. Sizes are measured, never guessed.
+
+**Manage storage** (§3.10) scans All, Private or Shared, on opening and on ↻, with Stop while it runs.
+One bar stacks each kind of file's share in its colour; under it, how much in how many files, and when
+it scanned. Each kind, then Largest files, Duplicates and Trash, opens the file explorer's view of the
+same name; one holding nothing is greyed. Git's history is counted and opens nothing. Without All
+Files Access, Shared's part is a line asking for it.
+
 ## 20. Appearance and Themes
 
 The application ships with the approved dark visual direction as its default. Theme tokens cover:
@@ -705,7 +743,8 @@ Use for:
 
 Use on compact screens for:
 
-- contextual action lists;
+- the actions on one thing or a selection (`IcodeActionSheet`): an explorer's items, the editor's tabs,
+  Source Control's changes, the Run tab's commands, the assistant's steps and messages;
 - file details;
 - branch selection;
 - session selection;
@@ -717,7 +756,8 @@ Use when the user must inspect or edit structured information, compare content, 
 
 ### 21.4 Menu
 
-Use for a short set of immediate actions. Do not hide the single primary action in overflow.
+Use for a short set of immediate actions on a bar's own button — ⋮, ▾, +, the view panel, the
+composer's choosers — anchored to it. Do not hide the single primary action in overflow.
 
 ### 21.5 Notices: the bell, the Notifications page and Android's shade
 
@@ -730,11 +770,12 @@ iCode shows no toasts ([notices-plan.md](./notices-plan.md)); `tools/check-ui-co
 | Info | Accent, info icon | Something happened |
 | Done | Green, check icon | The user's own action, done |
 
-- **The bell** floats at the bottom right of every screen, 88 dp above the foot (`FabClearance`), over the keyboard while it is up. A new notice unfolds its line beside the bell; a tap on the line opens that notice's sheet. After 3 s for Done, 4 s for Heads-up and Info, or 6 s for a Problem, the line slides away from left to right, and the bell rings once with the unread count on it (`CountBadge`, as the rail's Source Control count) and × beside it. It stays 10 s, then slides away; × puts it away sooner. A tap on it opens the one unread notice, or the Notifications page. The bell is hidden while the page or a sheet is open.
+- **The bell** floats at the bottom right of every screen in the floating stack, under the undo pill: above the highest + or foot bar on screen, and at least 88 dp up (`FabClearance`), over the keyboard while it is up. A new notice unfolds its line beside the bell; a tap on the line opens that notice's sheet. After 3 s for Done, 4 s for Heads-up and Info, or 6 s for a Problem, the line slides away from left to right, and the bell rings once with the unread count on it (`CountBadge`, as the rail's Source Control count) and × beside it. It stays 10 s, then slides away; × puts it away sooner. A tap on it opens the one unread notice, or the Notifications page. The bell is hidden while the page or a sheet is open.
 - **A notice's sheet**: the title, when, the detail (a failure's words in the mono face), **Copy**, **Delete**, and **All Notifications**. Opening it marks the notice read.
 - **The Notifications page** (the launcher's bell): every notice as one row (icon, title, first line, time, unread dot), newest first, up to 100. A tap opens the sheet.
 - **Android's shade**: the unread notices, the newest 20, silent under one summary. A Problem that comes while iCode is out of view pops up. A tap opens the notice's sheet; read in iCode, it leaves the shade.
 - Done is on the bell only: never kept, never posted.
+- **The undo pill**, drawn as the bell: after an explorer's change, ↶, its line ("Moved 3 items to Trash") and **Undo**; undone, what came back and **Redo**. After 6 s the line folds, leaving ↶, ↷ when something can be redone, and ×; 10 s later it goes. Like the bell, it steps aside while a sheet is open.
 
 ## 22. Loading, Empty, Error, and Read-Only States
 
