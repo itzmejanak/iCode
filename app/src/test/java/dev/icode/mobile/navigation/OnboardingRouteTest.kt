@@ -88,4 +88,22 @@ class OnboardingRouteTest {
         assertEquals(Route.LauncherHome, OnboardingRoute.afterTools(everything))
         assertNull(OnboardingRoute.afterTools(null))
     }
+
+    @Test
+    fun `an unanswered device-info question comes last, before the launcher`() {
+        assertEquals(Route.DeviceInfoConsent, OnboardingRoute.next(ready, everything, toolsPending = false, deviceInfoPending = true))
+        assertEquals(Route.DeviceInfoConsent, OnboardingRoute.home(deviceInfoPending = true))
+    }
+
+    @Test
+    fun `permissions and tools still come before the device-info question`() {
+        assertEquals(Route.PermissionExplanation, OnboardingRoute.next(ready, everything.copy(notifications = false), toolsPending = false, deviceInfoPending = true))
+        assertEquals(Route.RuntimeTools, OnboardingRoute.afterRuntime(everything, toolsPending = true, deviceInfoPending = true))
+    }
+
+    @Test
+    fun `an answered device-info question goes straight to the launcher`() {
+        assertEquals(Route.LauncherHome, OnboardingRoute.home(deviceInfoPending = false))
+        assertEquals(Route.LauncherHome, OnboardingRoute.next(ready, everything, toolsPending = false, deviceInfoPending = false))
+    }
 }

@@ -19,6 +19,8 @@ enum class Route(
     Splash("3:11", "Splash", RouteGroup.ENTRY),
     RuntimeInstalling("3:27", "Runtime installing", RouteGroup.ENTRY),
     PermissionExplanation("3:90", "Permission explanation", RouteGroup.ENTRY),
+    // Owner's request (2026-10-29): ask once whether to share anonymous device info (docs/device-telemetry-plan.md).
+    DeviceInfoConsent(null, "Device info", RouteGroup.ENTRY),
     LauncherHome("3:124", "Launcher home", RouteGroup.ENTRY),
     LauncherEmpty("3:202", "Launcher empty", RouteGroup.ENTRY),
     // Owner's request (2026-09-25): notices move off the launcher onto their own page.

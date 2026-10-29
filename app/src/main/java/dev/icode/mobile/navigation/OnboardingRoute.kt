@@ -22,10 +22,10 @@ object OnboardingRoute {
      * decides the rest, and until it has been read there is nothing honest to
      * show.
      */
-    fun next(runtime: RuntimeState, access: SystemAccess?, toolsPending: Boolean): Route? = when {
+    fun next(runtime: RuntimeState, access: SystemAccess?, toolsPending: Boolean, deviceInfoPending: Boolean = false): Route? = when {
         access == null -> null
         runtime.needsInstallStep -> Route.RuntimeInstalling
-        else -> afterRuntime(access, toolsPending)
+        else -> afterRuntime(access, toolsPending, deviceInfoPending)
     }
 
     /**
@@ -34,17 +34,23 @@ object OnboardingRoute {
      * Skips the runtime step, which is the one just completed — otherwise a
      * finished install would route straight back into itself.
      */
-    fun afterRuntime(access: SystemAccess?, toolsPending: Boolean): Route? = when {
+    fun afterRuntime(access: SystemAccess?, toolsPending: Boolean, deviceInfoPending: Boolean = false): Route? = when {
         access == null -> null
         // A runtime just built has no tools yet: Set Up Tools comes first, once.
         toolsPending -> Route.RuntimeTools
-        else -> afterTools(access)
+        else -> afterTools(access, deviceInfoPending)
     }
 
     /** Where to go once Set Up Tools is answered: what Android allows decides. */
-    fun afterTools(access: SystemAccess?): Route? = when {
+    fun afterTools(access: SystemAccess?, deviceInfoPending: Boolean = false): Route? = when {
         access == null -> null
-        access.onboardingSteps.isEmpty() -> Route.LauncherHome
+        access.onboardingSteps.isEmpty() -> home(deviceInfoPending)
         else -> Route.PermissionExplanation
     }
+
+    /**
+     * Where onboarding ends: the device-info question, asked once and last — after everything
+     * iCode needs to work — then the launcher (docs/device-telemetry-plan.md §4).
+     */
+    fun home(deviceInfoPending: Boolean): Route = if (deviceInfoPending) Route.DeviceInfoConsent else Route.LauncherHome
 }

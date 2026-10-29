@@ -34,6 +34,7 @@ import dev.icode.mobile.data.storage.WorkspaceStaging
 import dev.icode.mobile.data.system.AndroidSystemAccess
 import dev.icode.mobile.data.tasks.BackgroundWork
 import dev.icode.mobile.data.tasks.TaskRunner
+import dev.icode.mobile.data.web.WebCoordinator
 import dev.icode.mobile.domain.BackgroundWorkRules
 import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.GitAuthWorkIntent
@@ -47,6 +48,7 @@ import dev.icode.mobile.domain.GpgIntent
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.ICodeSnapshot
 import dev.icode.mobile.domain.StageLineChange
+import dev.icode.mobile.domain.WebIntent
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -82,6 +84,8 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
         openWorkspaceTerminal = { location -> session.open(location, persist = true, openTerminal = true) },
         workspaceChanged = { session.requestRefresh(rebuildIndex = true) },
     )
+    /** The website: never on the editing path; offline it changes nothing (docs/device-telemetry-plan.md). */
+    private val web = WebCoordinator(appContext, stateHolder, scope)
     private val notices = NoticeBoard(appContext, stateHolder, terminals.screenVisible)
     /** Something runs in the runtime that rebuilding it, or clearing the cache PRoot works in, would break. */
     private val runtimeBusy = { terminals.hasRunningSessions() || languages.hasActiveProcesses() || execution.processes.anyRunning() }
@@ -181,6 +185,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     init {
         notices.start(scope) { listOfNotNull(terminals.ledger.takePrevious(), interruptedTransfer) }
         languages.publish()
+        web.start()
         scope.launch {
             WorkspaceStaging(runtimeLayout.workspaces.root).sweep()
             library.refresh()
@@ -216,7 +221,8 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
             is FilesIntent -> files.handle(intent)
             is ICodeIntent.RuntimeToolsIntent -> runtimeTools.handle(intent)
             ICodeIntent.Refresh -> session.requestRefresh(rebuildIndex = true)
-            is ICodeIntent.ScreenVisible -> session.screenVisible(intent.visible)
+            is ICodeIntent.ScreenVisible -> session.screenVisible(intent.visible).also { if (intent.visible) web.onForeground() }
+            is WebIntent -> web.handle(intent)
             is NoticeIntent -> scope.launch { notices.handle(intent) }
             is ICodeIntent.StorageIntent -> library.read(intent)
             // Reading the runtime's own files changes nothing, so it does not wait
@@ -326,13 +332,6 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
         }
     }
 
-    /**
-     * No screen is left: what serves one stops — the folder watcher and language servers. Work
-     * goes on (terminal sessions, tasks, Git transfers, installs), kept alive by
-     * RuntimeForegroundService, and the next screen finds it as it is.
-     */
-    internal fun screensGone() {
-        session.stopWatching()
-        languages.stopAll()
-    }
+    /** No screen is left: what serves one stops, while the work the user started goes on. */
+    internal fun screensGone() = session.stopWatching().also { languages.stopAll() }
 }

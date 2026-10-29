@@ -69,7 +69,7 @@ fun RuntimeToolsScreen(actions: NavigationActions) {
     val atStep = work == null && applied == null
 
     fun leave() {
-        if (actions.canGoBack) actions.back() else OnboardingRoute.afterTools(state.systemAccess)?.let(actions.replace)
+        if (actions.canGoBack) actions.back() else OnboardingRoute.afterTools(state.systemAccess, state.web.consentPending)?.let(actions.replace)
     }
     fun apply(plan: RuntimeToolPlan) {
         applied = Applied(plan.install.map { it.name }, plan.remove.map { it.name })

@@ -69,7 +69,7 @@ fun RuntimeInstallingScreen(actions: NavigationActions) {
         if (actions.captureMode) return@LaunchedEffect
         when (runtime) {
             is RuntimeState.NotInstalled -> gateway.dispatch(installIntent(reason))
-            is RuntimeState.Ready -> leave(actions, state.systemAccess, state.runtimeTools.offerPending)
+            is RuntimeState.Ready -> leave(actions, state.systemAccess, state.runtimeTools.offerPending, state.web.consentPending)
             else -> Unit
         }
     }
@@ -87,7 +87,7 @@ fun RuntimeInstallingScreen(actions: NavigationActions) {
                 // File browsing and search never needed the runtime: a failure offers to carry on
                 // without it, or back to Runtime settings, instead of holding the whole app hostage.
                 if (failed != null) {
-                    SecondaryButton(if (rebuilding) "Back" else "Skip", { leave(actions, state.systemAccess, toolsPending = false) })
+                    SecondaryButton(if (rebuilding) "Back" else "Skip", { leave(actions, state.systemAccess, toolsPending = false, deviceInfoPending = state.web.consentPending) })
                     if (failed.recoverable) PrimaryButton("Retry", { gateway.dispatch(installIntent(reason)) })
                 }
             }
@@ -135,7 +135,7 @@ fun RuntimeInstallingScreen(actions: NavigationActions) {
  * Runtime settings there is something to return to; reached as the first step of onboarding
  * there is not, and this screen must route onward.
  */
-private fun leave(actions: NavigationActions, access: SystemAccess?, toolsPending: Boolean) {
+private fun leave(actions: NavigationActions, access: SystemAccess?, toolsPending: Boolean, deviceInfoPending: Boolean) {
     if (toolsPending) {
         actions.replace(Route.RuntimeTools)
         return
@@ -145,7 +145,7 @@ private fun leave(actions: NavigationActions, access: SystemAccess?, toolsPendin
         return
     }
     // What Android allows has not been read yet; the next state change routes.
-    OnboardingRoute.afterRuntime(access, toolsPending = false)?.let { actions.replace(it) }
+    OnboardingRoute.afterRuntime(access, toolsPending = false, deviceInfoPending = deviceInfoPending)?.let { actions.replace(it) }
 }
 
 /** The ring's centre: how far the step has got where it counts, a tick once ready, and the step. */

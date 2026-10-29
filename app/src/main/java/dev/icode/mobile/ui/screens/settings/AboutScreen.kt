@@ -10,6 +10,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.TextStyle
 import dev.icode.mobile.designsystem.DetailRow
 import dev.icode.mobile.designsystem.IcodeBrandMark
 import dev.icode.mobile.designsystem.IcodeCard
@@ -19,30 +21,54 @@ import dev.icode.mobile.designsystem.IcodePageColumn
 import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
+import dev.icode.mobile.designsystem.IcodeToggle
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.BuildConfig
+import dev.icode.mobile.domain.AppLinks
+import dev.icode.mobile.domain.DeviceInfoConsent
+import dev.icode.mobile.domain.NoticeLevel
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.UpdateCheck
+import dev.icode.mobile.domain.WebIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 
-// Destinations these rows will open once they exist: an update source, a
-// diagnostics export, the licence notices, the project's source and pages.
-// Until then each says so instead of answering a tap with nothing.
-private val diagnosticActions = listOf("Check for Updates", "Export Diagnostics", "View Licenses", "View Source")
-
-private val resources = listOf("Documentation", "Release Notes", "Report Issue")
-
 private const val NOT_AVAILABLE = "Not available yet"
+
+/** A row's title and the link the website's admin set for it (icode-web › App config). */
+private fun diagnosticLinks(links: AppLinks?) = listOf(
+    "View Licenses" to links?.licenses,
+    "View Source" to links?.source,
+)
+
+private fun resourceLinks(links: AppLinks?) = listOf(
+    "Documentation" to links?.documentation,
+    "Release Notes" to links?.releaseNotes,
+    "Report Issue" to links?.reportIssue,
+)
+
+private fun updateSubtitle(check: UpdateCheck): String = when (check) {
+    UpdateCheck.Idle -> "Tap to check"
+    UpdateCheck.Checking -> "Checking…"
+    UpdateCheck.UpToDate -> "You're on the latest version"
+    is UpdateCheck.Available -> if (check.required) "Update required: ${check.versionName} — tap to download" else "${check.versionName} available — tap to download"
+    is UpdateCheck.Failed -> check.reason
+}
 
 /** About iCode: what this build and this phone's runtime actually are. */
 @Composable
 fun AboutScreen(actions: NavigationActions) {
     val state = LocalICodeSnapshot.current
     val gateway = LocalICodeGateway.current
-    LaunchedEffect(Unit) { gateway.dispatch(ICodeIntent.RefreshRuntimeDetails) }
+    val uri = LocalUriHandler.current
+    val web = state.web
+    LaunchedEffect(Unit) {
+        gateway.dispatch(ICodeIntent.RefreshRuntimeDetails)
+        gateway.dispatch(WebIntent.RefreshAppConfig)
+    }
     val runtime = state.runtimeDetails
     val buildSpecs = listOf(
         "App Version" to BuildConfig.VERSION_NAME,
@@ -69,34 +95,86 @@ fun AboutScreen(actions: NavigationActions) {
                 )
                 Text("NATIVE ANDROID IDE", style = IcodeType.MonoSmall.copy(color = IcodeColors.Accent))
             }
+            if (web.notices.isNotEmpty()) {
+                IcodeSection("Notices") {
+                    web.notices.forEach { notice ->
+                        IcodeListRow(
+                            card = true,
+                            title = notice.title,
+                            subtitle = notice.body + "  ·  Tap to dismiss",
+                            titleColor = when (notice.level) {
+                                NoticeLevel.Critical -> IcodeColors.Error
+                                NoticeLevel.Warning -> IcodeColors.Accent
+                                NoticeLevel.Info -> IcodeColors.TextPrimary
+                            },
+                            subtitleStyle = IcodeType.Caption,
+                            onClick = { gateway.dispatch(WebIntent.DismissNotice(notice.id)) },
+                        )
+                    }
+                }
+            }
             IcodeSection("Build Specifications") {
                 IcodeCard(Modifier.fillMaxWidth()) {
                     buildSpecs.forEach { (label, value) -> DetailRow(label, value) }
                 }
             }
             IcodeSection("Diagnostics") {
-                diagnosticActions.forEach { action ->
-                    IcodeListRow(
-                        card = true,
-                        title = action,
-                        subtitle = NOT_AVAILABLE,
-                        titleColor = IcodeColors.TextSecondary,
-                        subtitleStyle = IcodeType.Caption,
-                    )
-                }
+                val update = web.update
+                IcodeListRow(
+                    card = true,
+                    title = "Check for Updates",
+                    subtitle = updateSubtitle(update),
+                    subtitleStyle = IcodeType.Caption,
+                    onClick = when (update) {
+                        is UpdateCheck.Available -> ({ uri.openUri(update.downloadUrl) })
+                        UpdateCheck.Checking -> null
+                        else -> ({ gateway.dispatch(WebIntent.CheckForUpdates) })
+                    },
+                )
+                IcodeListRow(
+                    card = true,
+                    title = "Export Diagnostics",
+                    subtitle = NOT_AVAILABLE,
+                    titleColor = IcodeColors.TextSecondary,
+                    subtitleStyle = IcodeType.Caption,
+                )
+                diagnosticLinks(web.links).forEach { (title, url) -> LinkRow(title, url) { uri.openUri(it) } }
             }
             IcodeSection("Resources") {
-                resources.forEach { title ->
-                    IcodeListRow(
-                        card = true,
-                        title = title,
-                        subtitle = NOT_AVAILABLE,
-                        titleStyle = IcodeType.Body,
-                        titleColor = IcodeColors.TextSecondary,
-                        subtitleStyle = IcodeType.Caption,
-                    )
+                resourceLinks(web.links).forEach { (title, url) -> LinkRow(title, url, titleStyle = IcodeType.Body) { uri.openUri(it) } }
+                if (web.supportText.isNotBlank()) {
+                    Text(web.supportText, modifier = Modifier.padding(top = IcodeSpacing.Space2), style = IcodeType.Caption)
                 }
+            }
+            IcodeSection("Privacy") {
+                IcodeListRow(
+                    card = true,
+                    title = "Share Device Info",
+                    subtitle = "Anonymous: app and Android version, phone model. Never your files.",
+                    subtitleStyle = IcodeType.Caption,
+                    onClick = { gateway.dispatch(WebIntent.SetDeviceInfoConsent(web.consent != DeviceInfoConsent.Shared)) },
+                    trailing = {
+                        IcodeToggle(checked = web.consent == DeviceInfoConsent.Shared) { shared ->
+                            gateway.dispatch(WebIntent.SetDeviceInfoConsent(shared))
+                        }
+                    },
+                )
+                web.links?.privacy?.let { LinkRow("Privacy Policy", it) { url -> uri.openUri(url) } }
             }
         }
     }
+}
+
+/** A row the website's admin can point somewhere; until it does, it says so instead of answering a tap with nothing. */
+@Composable
+private fun LinkRow(title: String, url: String?, titleStyle: TextStyle = IcodeType.Body, open: (String) -> Unit) {
+    IcodeListRow(
+        card = true,
+        title = title,
+        subtitle = if (url == null) NOT_AVAILABLE else url.removePrefix("https://"),
+        titleStyle = titleStyle,
+        titleColor = if (url == null) IcodeColors.TextSecondary else IcodeColors.TextPrimary,
+        subtitleStyle = IcodeType.Caption,
+        onClick = url?.let { { open(it) } },
+    )
 }

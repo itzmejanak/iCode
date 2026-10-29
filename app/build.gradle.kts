@@ -32,6 +32,10 @@ android {
 
         buildConfigField("String", "EDITOR_ENGINE_VERSION", "\"$soraEditorVersion\"")
         buildConfigField("int", "MIN_SDK", "$minSdk")
+        // The iCode website (icode-web): Settings › Application, update checks, opt-in device info.
+        // Set with -PicodeWebUrl=https://… or in gradle.properties; empty turns every web feature off.
+        val icodeWebUrl = (project.findProperty("icodeWebUrl") as String?).orEmpty()
+        buildConfigField("String", "ICODE_WEB_URL", "\"$icodeWebUrl\"")
     }
 
     externalNativeBuild {
@@ -137,6 +141,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.10.0")
     implementation("androidx.datastore:datastore-preferences:1.2.1")
+    // The opt-in device heartbeat (docs/device-telemetry-plan.md): periodic, network-constrained, survives restarts.
+    implementation("androidx.work:work-runtime-ktx:2.10.5")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.foundation:foundation")

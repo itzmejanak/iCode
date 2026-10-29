@@ -68,6 +68,8 @@ data class ICodeSnapshot(
     val tasks: List<WorkTask> = emptyList(),
     /** The runtime's tools: what dpkg has, what each would download, and the apt run in hand. */
     val runtimeTools: RuntimeToolsState = RuntimeToolsState(),
+    /** The iCode website: Settings › Application's links, update check, device-info consent. */
+    val web: WebState = WebState(),
     /** The Run tab: what the open workspace can start, and how each run went. */
     val run: RunState = RunState(),
     /** What gpg-agent asks through iCode's pinentry, oldest first: the dialog shows the first. */

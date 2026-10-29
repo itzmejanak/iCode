@@ -666,3 +666,9 @@ Checked with unit tests, build, lint, the consistency guard, the 39-route captur
 - Provider-specific agent integrations beyond ordinary user-installed commands.
 - Filesystem, process, Git, IPC, or database work on the UI thread.
 - Silent overwrites, stale-state publication, false success, or credential exposure.
+
+## Website integration (2026-10-29, owner's request)
+
+- [ ] Device-info consent and Settings › Application wired to icode-web — implemented, not yet
+  built or tested on device ([device-telemetry-plan.md](./docs/device-telemetry-plan.md) §7).
+  Build with `-PicodeWebUrl=https://<site>`.
