@@ -34,6 +34,38 @@ sealed interface UpdateCheck {
     data class Failed(val reason: String) : UpdateCheck
 }
 
+enum class ReportKind(val wire: String, val label: String) { Bug("bug", "Bug"), Issue("issue", "Issue"), Suggestion("suggestion", "Suggestion") }
+
+/**
+ * What the Report a Bug sheet holds (Settings › About iCode). [attachments] are content URIs the
+ * photo picker granted; device info is attached only when [attachDevice] — never workspace content.
+ */
+data class ReportDraft(
+    val kind: ReportKind = ReportKind.Bug,
+    val title: String = "",
+    val description: String = "",
+    val email: String = "",
+    val attachments: List<String> = emptyList(),
+    val attachDevice: Boolean = false,
+)
+
+/** The website's answer about reports (GET /api/v1/reports/config); null until read. */
+data class ReportPolicy(val enabled: Boolean, val mediaEnabled: Boolean, val maxFiles: Int, val maxImageBytes: Long, val maxVideoBytes: Long)
+
+sealed interface ReportSending {
+    data object Idle : ReportSending
+    data class Sending(val step: String) : ReportSending
+    data class Sent(val number: Int) : ReportSending
+    /** The draft stays as typed, so Send tries again. */
+    data class Failed(val reason: String) : ReportSending
+}
+
+data class ReportState(
+    val draft: ReportDraft = ReportDraft(),
+    val policy: ReportPolicy? = null,
+    val sending: ReportSending = ReportSending.Idle,
+)
+
 data class WebState(
     val consent: DeviceInfoConsent = DeviceInfoConsent.Unanswered,
     /** Null until the website answered once (or a cached answer was read). */
@@ -42,6 +74,7 @@ data class WebState(
     val update: UpdateCheck = UpdateCheck.Idle,
     /** Active notices the user hasn't dismissed. */
     val notices: List<Notice> = emptyList(),
+    val report: ReportState = ReportState(),
 ) {
     /** Onboarding still has to ask. */
     val consentPending: Boolean get() = consent == DeviceInfoConsent.Unanswered
@@ -55,4 +88,11 @@ sealed interface WebIntent : ICodeIntent {
     data class DismissNotice(val id: String) : WebIntent
     /** Onboarding's answer or Settings' toggle. Turning it off deletes the server's record. */
     data class SetDeviceInfoConsent(val shared: Boolean) : WebIntent
+    /** The Report a Bug sheet opened: read the website's report policy. */
+    data object OpenReport : WebIntent
+    /** Every edit of the sheet; the draft is kept on the phone until it is sent. */
+    data class EditReport(val draft: ReportDraft) : WebIntent
+    data object SendReport : WebIntent
+    /** After Sent: an empty draft for the next one. */
+    data object NewReport : WebIntent
 }

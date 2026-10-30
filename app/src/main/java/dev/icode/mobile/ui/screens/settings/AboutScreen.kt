@@ -1,5 +1,6 @@
 package dev.icode.mobile.ui.screens.settings
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -8,6 +9,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
@@ -19,11 +24,13 @@ import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodePageColumn
 import dev.icode.mobile.designsystem.IcodeSection
+import dev.icode.mobile.designsystem.IcodeSheetOverlay
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeToggle
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
+import dev.icode.mobile.designsystem.behindSheet
 import dev.icode.mobile.BuildConfig
 import dev.icode.mobile.domain.AppLinks
 import dev.icode.mobile.domain.DeviceInfoConsent
@@ -47,7 +54,6 @@ private fun diagnosticLinks(links: AppLinks?) = listOf(
 private fun resourceLinks(links: AppLinks?) = listOf(
     "Documentation" to links?.documentation,
     "Release Notes" to links?.releaseNotes,
-    "Report Issue" to links?.reportIssue,
 )
 
 private fun updateSubtitle(check: UpdateCheck): String = when (check) {
@@ -80,86 +86,101 @@ fun AboutScreen(actions: NavigationActions) {
         "Editor Engine" to "Sora Editor ${BuildConfig.EDITOR_ENGINE_VERSION}",
         "Min Android API" to "API ${BuildConfig.MIN_SDK}",
     )
-    Column(Modifier.fillMaxSize()) {
-        IcodeTopBar("About iCode", subtitle = settingsSubtitle(Route.About), onBack = actions.back)
-        IcodePageColumn {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(vertical = IcodeSpacing.Space4 + IcodeSpacing.Micro),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                IcodeBrandMark(Modifier.size(IcodeSizes.Tile))
-                Text(
-                    "iCode Mobile IDE",
-                    modifier = Modifier.padding(top = IcodeSpacing.Space2 + IcodeSpacing.Micro),
-                    style = IcodeType.Heading,
-                )
-                Text("NATIVE ANDROID IDE", style = IcodeType.MonoSmall.copy(color = IcodeColors.Accent))
-            }
-            if (web.notices.isNotEmpty()) {
-                IcodeSection("Notices") {
-                    web.notices.forEach { notice ->
-                        IcodeListRow(
-                            card = true,
-                            title = notice.title,
-                            subtitle = notice.body + "  ·  Tap to dismiss",
-                            titleColor = when (notice.level) {
-                                NoticeLevel.Critical -> IcodeColors.Error
-                                NoticeLevel.Warning -> IcodeColors.Accent
-                                NoticeLevel.Info -> IcodeColors.TextPrimary
-                            },
-                            subtitleStyle = IcodeType.Caption,
-                            onClick = { gateway.dispatch(WebIntent.DismissNotice(notice.id)) },
-                        )
+    var reporting by rememberSaveable { mutableStateOf(false) }
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().behindSheet(reporting)) {
+            IcodeTopBar("About iCode", subtitle = settingsSubtitle(Route.About), onBack = actions.back)
+            IcodePageColumn {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = IcodeSpacing.Space4 + IcodeSpacing.Micro),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    IcodeBrandMark(Modifier.size(IcodeSizes.Tile))
+                    Text(
+                        "iCode Mobile IDE",
+                        modifier = Modifier.padding(top = IcodeSpacing.Space2 + IcodeSpacing.Micro),
+                        style = IcodeType.Heading,
+                    )
+                    Text("NATIVE ANDROID IDE", style = IcodeType.MonoSmall.copy(color = IcodeColors.Accent))
+                }
+                if (web.notices.isNotEmpty()) {
+                    IcodeSection("Notices") {
+                        web.notices.forEach { notice ->
+                            IcodeListRow(
+                                card = true,
+                                title = notice.title,
+                                subtitle = notice.body + "  ·  Tap to dismiss",
+                                titleColor = when (notice.level) {
+                                    NoticeLevel.Critical -> IcodeColors.Error
+                                    NoticeLevel.Warning -> IcodeColors.Accent
+                                    NoticeLevel.Info -> IcodeColors.TextPrimary
+                                },
+                                subtitleStyle = IcodeType.Caption,
+                                onClick = { gateway.dispatch(WebIntent.DismissNotice(notice.id)) },
+                            )
+                        }
                     }
                 }
-            }
-            IcodeSection("Build Specifications") {
-                IcodeCard(Modifier.fillMaxWidth()) {
-                    buildSpecs.forEach { (label, value) -> DetailRow(label, value) }
+                IcodeSection("Build Specifications") {
+                    IcodeCard(Modifier.fillMaxWidth()) {
+                        buildSpecs.forEach { (label, value) -> DetailRow(label, value) }
+                    }
+                }
+                IcodeSection("Diagnostics") {
+                    val update = web.update
+                    IcodeListRow(
+                        card = true,
+                        title = "Check for Updates",
+                        subtitle = updateSubtitle(update),
+                        subtitleStyle = IcodeType.Caption,
+                        onClick = when (update) {
+                            is UpdateCheck.Available -> ({ uri.openUri(update.downloadUrl) })
+                            UpdateCheck.Checking -> null
+                            else -> ({ gateway.dispatch(WebIntent.CheckForUpdates) })
+                        },
+                    )
+                    IcodeListRow(
+                        card = true,
+                        title = "Export Diagnostics",
+                        subtitle = NOT_AVAILABLE,
+                        titleColor = IcodeColors.TextSecondary,
+                        subtitleStyle = IcodeType.Caption,
+                    )
+                    diagnosticLinks(web.links).forEach { (title, url) -> LinkRow(title, url) { uri.openUri(it) } }
+                }
+                IcodeSection("Resources") {
+                    IcodeListRow(
+                        card = true,
+                        title = "Report a Bug",
+                        subtitle = if (web.report.draft.title.isNotBlank()) "Draft saved — tap to finish" else "Screenshots welcome; device info only if you choose",
+                        subtitleStyle = IcodeType.Caption,
+                        onClick = { reporting = true },
+                    )
+                    resourceLinks(web.links).forEach { (title, url) -> LinkRow(title, url, titleStyle = IcodeType.Body) { uri.openUri(it) } }
+                    if (web.supportText.isNotBlank()) {
+                        Text(web.supportText, modifier = Modifier.padding(top = IcodeSpacing.Space2), style = IcodeType.Caption)
+                    }
+                }
+                IcodeSection("Privacy") {
+                    IcodeListRow(
+                        card = true,
+                        title = "Share Device Info",
+                        subtitle = "Anonymous: app and Android version, phone model. Never your files.",
+                        subtitleStyle = IcodeType.Caption,
+                        onClick = { gateway.dispatch(WebIntent.SetDeviceInfoConsent(web.consent != DeviceInfoConsent.Shared)) },
+                        trailing = {
+                            IcodeToggle(checked = web.consent == DeviceInfoConsent.Shared) { shared ->
+                                gateway.dispatch(WebIntent.SetDeviceInfoConsent(shared))
+                            }
+                        },
+                    )
+                    web.links?.privacy?.let { LinkRow("Privacy Policy", it) { url -> uri.openUri(url) } }
                 }
             }
-            IcodeSection("Diagnostics") {
-                val update = web.update
-                IcodeListRow(
-                    card = true,
-                    title = "Check for Updates",
-                    subtitle = updateSubtitle(update),
-                    subtitleStyle = IcodeType.Caption,
-                    onClick = when (update) {
-                        is UpdateCheck.Available -> ({ uri.openUri(update.downloadUrl) })
-                        UpdateCheck.Checking -> null
-                        else -> ({ gateway.dispatch(WebIntent.CheckForUpdates) })
-                    },
-                )
-                IcodeListRow(
-                    card = true,
-                    title = "Export Diagnostics",
-                    subtitle = NOT_AVAILABLE,
-                    titleColor = IcodeColors.TextSecondary,
-                    subtitleStyle = IcodeType.Caption,
-                )
-                diagnosticLinks(web.links).forEach { (title, url) -> LinkRow(title, url) { uri.openUri(it) } }
-            }
-            IcodeSection("Resources") {
-                resourceLinks(web.links).forEach { (title, url) -> LinkRow(title, url, titleStyle = IcodeType.Body) { uri.openUri(it) } }
-                if (web.supportText.isNotBlank()) {
-                    Text(web.supportText, modifier = Modifier.padding(top = IcodeSpacing.Space2), style = IcodeType.Caption)
-                }
-            }
-            IcodeSection("Privacy") {
-                IcodeListRow(
-                    card = true,
-                    title = "Share Device Info",
-                    subtitle = "Anonymous: app and Android version, phone model. Never your files.",
-                    subtitleStyle = IcodeType.Caption,
-                    onClick = { gateway.dispatch(WebIntent.SetDeviceInfoConsent(web.consent != DeviceInfoConsent.Shared)) },
-                    trailing = {
-                        IcodeToggle(checked = web.consent == DeviceInfoConsent.Shared) { shared ->
-                            gateway.dispatch(WebIntent.SetDeviceInfoConsent(shared))
-                        }
-                    },
-                )
-                web.links?.privacy?.let { LinkRow("Privacy Policy", it) { url -> uri.openUri(url) } }
+        }
+        if (reporting) {
+            IcodeSheetOverlay(onClose = { reporting = false }) {
+                ReportSheet(web.report, Modifier.align(Alignment.BottomCenter)) { reporting = false }
             }
         }
     }

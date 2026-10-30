@@ -3,6 +3,9 @@ package dev.icode.mobile.data.web
 import android.content.Context
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.DeviceInfoConsent
+import dev.icode.mobile.domain.ReportDraft
+import dev.icode.mobile.domain.ReportSending
+import dev.icode.mobile.domain.ReportState
 import dev.icode.mobile.domain.UpdateCheck
 import dev.icode.mobile.domain.WebIntent
 import kotlinx.coroutines.CoroutineScope
@@ -18,11 +21,19 @@ internal class WebCoordinator(
     private val prefs = WebPreferences(context)
     private val client = ICodeWebClient()
     private val reporter = DeviceInfoReporter(context.applicationContext, prefs, client)
+    private val reports = ReportSender(context.applicationContext, client)
 
     /** Publishes what is known offline, then refreshes from the site. */
     fun start() {
         stateHolder.update {
-            it.copy(web = it.web.copy(consent = prefs.consent, links = prefs.cachedLinks, supportText = prefs.cachedSupportText))
+            it.copy(
+                web = it.web.copy(
+                    consent = prefs.consent,
+                    links = prefs.cachedLinks,
+                    supportText = prefs.cachedSupportText,
+                    report = ReportState(draft = prefs.reportDraft),
+                ),
+            )
         }
         scope.launch(Dispatchers.IO) {
             refreshConfig()
@@ -46,7 +57,47 @@ internal class WebCoordinator(
             }
             WebIntent.CheckForUpdates -> scope.launch(Dispatchers.IO) { checkForUpdates() }
             is WebIntent.SetDeviceInfoConsent -> scope.launch(Dispatchers.IO) { setConsent(intent.shared) }
+            WebIntent.OpenReport -> scope.launch(Dispatchers.IO) { refreshReportPolicy() }
+            is WebIntent.EditReport -> {
+                prefs.reportDraft = intent.draft
+                updateReport { it.copy(draft = intent.draft, sending = if (it.sending is ReportSending.Sending) it.sending else ReportSending.Idle) }
+            }
+            WebIntent.SendReport -> scope.launch(Dispatchers.IO) { sendReport() }
+            WebIntent.NewReport -> {
+                prefs.reportDraft = ReportDraft()
+                updateReport { it.copy(draft = ReportDraft(), sending = ReportSending.Idle) }
+            }
         }
+    }
+
+    private fun updateReport(change: (ReportState) -> ReportState) =
+        stateHolder.update { it.copy(web = it.web.copy(report = change(it.web.report))) }
+
+    private fun refreshReportPolicy() {
+        if (!client.configured) return
+        runCatching { client.reportPolicy() }.onSuccess { policy -> updateReport { it.copy(policy = policy) } }
+    }
+
+    private fun sendReport() {
+        val state = stateHolder.current.web.report
+        if (state.sending is ReportSending.Sending) return
+        val failed = { reason: String -> updateReport { it.copy(sending = ReportSending.Failed(reason)) } }
+        if (!client.configured) return failed("Reports are not available in this build")
+        updateReport { it.copy(sending = ReportSending.Sending("Connecting…")) }
+        val policy = state.policy ?: runCatching { client.reportPolicy() }.getOrNull()
+            ?: return failed("Couldn't reach the iCode website — your report is saved, try again")
+        if (!policy.enabled) return failed("Reports are closed right now")
+        runCatching {
+            reports.send(state.draft, policy) { step -> updateReport { it.copy(sending = ReportSending.Sending(step)) } }
+        }.fold(
+            onSuccess = { number ->
+                prefs.reportDraft = ReportDraft()
+                updateReport { it.copy(draft = ReportDraft(), policy = policy, sending = ReportSending.Sent(number)) }
+            },
+            onFailure = { e ->
+                failed((e as? ICodeWebClient.WebException)?.message ?: "Couldn't send — your report is saved, try again")
+            },
+        )
     }
 
     private fun refreshConfig() {
