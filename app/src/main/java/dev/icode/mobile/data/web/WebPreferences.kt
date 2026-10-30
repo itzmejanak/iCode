@@ -3,6 +3,7 @@ package dev.icode.mobile.data.web
 import android.content.Context
 import dev.icode.mobile.domain.AppLinks
 import dev.icode.mobile.domain.DeviceInfoConsent
+import dev.icode.mobile.domain.ReportDraft
 import java.util.UUID
 import org.json.JSONObject
 
@@ -57,7 +58,13 @@ internal class WebPreferences(context: Context) {
 
     fun dismissNotice(id: String) = prefs.edit().putStringSet(KEY_DISMISSED, dismissedNotices + id).apply()
 
+    /** The Report a Bug draft, kept until sent so an offline or failed send loses nothing. */
+    var reportDraft: ReportDraft
+        get() = prefs.getString(KEY_REPORT_DRAFT, null)?.let { runCatching { WebJson.draft(JSONObject(it)) }.getOrNull() } ?: ReportDraft()
+        set(value) = prefs.edit().putString(KEY_REPORT_DRAFT, WebJson.draftJson(value).toString()).apply()
+
     companion object {
+        private const val KEY_REPORT_DRAFT = "report_draft"
         const val DEFAULT_CHECK_INTERVAL_HOURS = 24L
         private const val KEY_CHECK_INTERVAL = "check_interval_hours"
         private const val KEY_LAST_CHECK = "last_update_check_at"

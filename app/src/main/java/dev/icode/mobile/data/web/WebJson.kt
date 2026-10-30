@@ -3,6 +3,10 @@ package dev.icode.mobile.data.web
 import dev.icode.mobile.domain.AppLinks
 import dev.icode.mobile.domain.Notice
 import dev.icode.mobile.domain.NoticeLevel
+import dev.icode.mobile.domain.ReportDraft
+import dev.icode.mobile.domain.ReportKind
+import dev.icode.mobile.domain.ReportPolicy
+import org.json.JSONArray
 import org.json.JSONObject
 
 /** The website's JSON (contracts/api-v1.md) read into iCode's types: the one place field names live. */
@@ -75,4 +79,44 @@ internal object WebJson {
         .put("abi", facts.abi)
         .put("locale", facts.locale)
         .put("runtimeInstalled", facts.runtimeInstalled)
+
+    fun reportPolicy(json: JSONObject) = ReportPolicy(
+        enabled = json.optBoolean("enabled", false),
+        mediaEnabled = json.optBoolean("mediaEnabled", false),
+        maxFiles = json.optInt("maxFiles", 3),
+        maxImageBytes = json.optLong("maxImageBytes", 8L * 1024 * 1024),
+        maxVideoBytes = json.optLong("maxVideoBytes", 50L * 1024 * 1024),
+    )
+
+    /** POST /api/v1/reports: [media] are Cloudinary (publicId, resourceType) pairs; [device] only when attached. */
+    fun reportJson(draft: ReportDraft, media: List<Pair<String, String>>, device: DeviceFacts?): JSONObject = JSONObject()
+        .put("kind", draft.kind.wire)
+        .put("title", draft.title.trim())
+        .put("description", draft.description.trim())
+        .put("email", draft.email.trim())
+        .put("source", "app")
+        .put("device", device?.let { deviceFactsJson(it) } ?: JSONObject.NULL)
+        .put("media", JSONArray(media.map { (id, type) -> JSONObject().put("publicId", id).put("resourceType", type) }))
+
+    private fun deviceFactsJson(f: DeviceFacts): JSONObject = JSONObject()
+        .put("appVersionName", f.appVersionName).put("appVersionCode", f.appVersionCode)
+        .put("androidRelease", f.androidRelease).put("sdkInt", f.sdkInt)
+        .put("manufacturer", f.manufacturer).put("model", f.model)
+        .put("abi", f.abi).put("locale", f.locale).put("runtimeInstalled", f.runtimeInstalled)
+
+    fun draftJson(d: ReportDraft): JSONObject = JSONObject()
+        .put("kind", d.kind.name).put("title", d.title).put("description", d.description)
+        .put("email", d.email).put("attachments", JSONArray(d.attachments)).put("attachDevice", d.attachDevice)
+
+    fun draft(json: JSONObject): ReportDraft {
+        val files = json.optJSONArray("attachments") ?: JSONArray()
+        return ReportDraft(
+            kind = runCatching { ReportKind.valueOf(json.optString("kind")) }.getOrDefault(ReportKind.Bug),
+            title = json.optString("title"),
+            description = json.optString("description"),
+            email = json.optString("email"),
+            attachments = List(files.length()) { files.getString(it) },
+            attachDevice = json.optBoolean("attachDevice", false),
+        )
+    }
 }
