@@ -6,6 +6,7 @@ import androidx.core.content.edit
 import dev.icode.mobile.domain.AppNotice
 import dev.icode.mobile.domain.LostTerminalSession
 import dev.icode.mobile.domain.LostTerminalSessions
+import dev.icode.mobile.domain.NoticeLink
 import dev.icode.mobile.domain.NoticeRules
 import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.ProcessEndCause
@@ -25,11 +26,11 @@ internal class NoticeStore(private val preferences: SharedPreferences) {
     private val mutableNotices = MutableStateFlow(read())
     val notices: StateFlow<List<AppNotice>> = mutableNotices.asStateFlow()
 
-    /** Stores [notice] unless one with its id is already kept. */
+    /** Stores [notice] unless one with its id is already kept, or is a website notice the user deleted. */
     @Synchronized
     fun add(notice: AppNotice) {
         val current = mutableNotices.value
-        if (current.any { it.id == notice.id }) return
+        if (current.any { it.id == notice.id } || notice.id in forgotten()) return
         save((listOf(notice) + current).sortedByDescending { it.at }.take(NoticeRules.MAX_KEPT))
     }
 
@@ -47,16 +48,32 @@ internal class NoticeStore(private val preferences: SharedPreferences) {
         save(current.map { it.markedRead() })
     }
 
+    /** Whether the website notice [id] is kept or was deleted: either way, it is not new. */
+    fun knows(id: String): Boolean = mutableNotices.value.any { it.id == id } || id in forgotten()
+
     @Synchronized
     fun delete(id: String) {
         val current = mutableNotices.value
         if (current.none { it.id == id }) return
+        forget(listOf(id))
         save(current.filterNot { it.id == id })
     }
 
     @Synchronized
     fun clear() {
-        if (mutableNotices.value.isNotEmpty()) save(emptyList())
+        if (mutableNotices.value.isEmpty()) return
+        forget(mutableNotices.value.map { it.id })
+        save(emptyList())
+    }
+
+    private fun forgotten(): Set<String> = preferences.getStringSet(KEY_FORGOTTEN, emptySet()).orEmpty()
+
+    /** A deleted website notice never comes back: its id is kept (the newest [NoticeRules.MAX_KEPT]). */
+    private fun forget(ids: List<String>) {
+        val website = ids.filter { it.startsWith(AppNotice.WEBSITE_PREFIX) }
+        if (website.isEmpty()) return
+        val kept = (forgotten() + website).toList().takeLast(NoticeRules.MAX_KEPT).toSet()
+        preferences.edit { putStringSet(KEY_FORGOTTEN, kept) }
     }
 
     private fun save(notices: List<AppNotice>) {
@@ -108,7 +125,8 @@ internal class NoticeStore(private val preferences: SharedPreferences) {
                         .put(KEY_READ, notice.read)
                         .put(KEY_TONE, notice.tone.name)
                         .put(KEY_TITLE, notice.title)
-                        .put(KEY_DETAIL, notice.detail ?: JSONObject.NULL),
+                        .put(KEY_DETAIL, notice.detail ?: JSONObject.NULL)
+                        .apply { notice.link?.let { put(KEY_LINK_URL, it.url).put(KEY_LINK_LABEL, it.label) } },
                 )
             }
         }
@@ -148,6 +166,7 @@ internal class NoticeStore(private val preferences: SharedPreferences) {
             tone = NoticeTone.valueOf(item.getString(KEY_TONE)),
             title = item.getString(KEY_TITLE),
             detail = if (item.isNull(KEY_DETAIL)) null else item.getString(KEY_DETAIL),
+            link = item.optString(KEY_LINK_URL).takeIf { it.isNotEmpty() }?.let { NoticeLink(it, item.optString(KEY_LINK_LABEL, "Open link")) },
         )
         else -> null
     }
@@ -172,6 +191,9 @@ internal class NoticeStore(private val preferences: SharedPreferences) {
         private const val KIND_MESSAGE = "message"
         private const val KEY_TONE = "tone"
         private const val KEY_DETAIL = "detail"
+        private const val KEY_LINK_URL = "linkUrl"
+        private const val KEY_LINK_LABEL = "linkLabel"
+        private const val KEY_FORGOTTEN = "forgotten_website_notices"
 
         @Volatile
         private var instance: NoticeStore? = null

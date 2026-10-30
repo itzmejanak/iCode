@@ -20,10 +20,11 @@ data class AppLinks(
     val privacy: String? = null,
 )
 
-enum class NoticeLevel { Info, Warning, Critical }
-
-/** An announcement the website's admin published for this version (Admin › Notices). */
-data class Notice(val id: String, val title: String, val body: String, val level: NoticeLevel)
+/**
+ * Which runtime manifest this phone uses (contracts/api-v1.md § Runtime): the website's published
+ * one, [revision], when it has one that passes the app's checks; otherwise the one built into iCode.
+ */
+data class ManifestOrigin(val fromWebsite: Boolean = false, val revision: Int? = null)
 
 sealed interface UpdateCheck {
     data object Idle : UpdateCheck
@@ -72,8 +73,8 @@ data class WebState(
     val links: AppLinks? = null,
     val supportText: String = "",
     val update: UpdateCheck = UpdateCheck.Idle,
-    /** Active notices the user hasn't dismissed. */
-    val notices: List<Notice> = emptyList(),
+    /** The runtime manifest in use: the website's override, or the built-in one. */
+    val manifest: ManifestOrigin = ManifestOrigin(),
     val report: ReportState = ReportState(),
 ) {
     /** Onboarding still has to ask. */
@@ -84,8 +85,6 @@ sealed interface WebIntent : ICodeIntent {
     /** Reads Settings › Application's links and policy; cheap, cached by ETag. */
     data object RefreshAppConfig : WebIntent
     data object CheckForUpdates : WebIntent
-    /** Hides a notice on this phone for good. */
-    data class DismissNotice(val id: String) : WebIntent
     /** Onboarding's answer or Settings' toggle. Turning it off deletes the server's record. */
     data class SetDeviceInfoConsent(val shared: Boolean) : WebIntent
     /** The Report a Bug sheet opened: read the website's report policy. */

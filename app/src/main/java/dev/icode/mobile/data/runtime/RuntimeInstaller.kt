@@ -235,9 +235,11 @@ internal class RuntimeInstaller(
     }
 }
 
-/** The packaged manifest ([RuntimeManifest]): read wherever a pin is needed, never restated. */
-internal fun readManifest(context: Context): RuntimeManifest =
-    RuntimeManifest.parse(context.assets.open(RuntimeManifest.ASSET).bufferedReader().use { it.readText() })
+/**
+ * The manifest in use ([RuntimeManifest]): the website's published override when one passed the
+ * app's checks, else the packaged one ([ManifestSource]). Read wherever a pin is needed, never restated.
+ */
+internal fun readManifest(context: Context): RuntimeManifest = ManifestSource.read(context)
 
 /** Raised when an archive cannot be unpacked into a usable tree. */
 internal class ExtractionException(message: String) : IOException(message)

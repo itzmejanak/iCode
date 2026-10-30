@@ -87,6 +87,7 @@ fun RuntimeSettingsScreen(actions: NavigationActions) {
                     DetailRow("Installed Packages", checking ?: packageCount(details))
                     DetailRow("Disk Usage", checking ?: diskUsage(details))
                     DetailRow("PRoot Version", checking ?: details.prootVersion ?: UNKNOWN)
+                    DetailRow("Manifest", state.web.manifest.let { if (it.fromWebsite) "iCode website · rev ${it.revision ?: 1}" else "Built-in" })
                 }
                 SettingRow(
                     "Runtime Tools",

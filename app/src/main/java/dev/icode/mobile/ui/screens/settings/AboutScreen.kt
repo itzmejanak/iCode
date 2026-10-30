@@ -34,7 +34,6 @@ import dev.icode.mobile.designsystem.behindSheet
 import dev.icode.mobile.BuildConfig
 import dev.icode.mobile.domain.AppLinks
 import dev.icode.mobile.domain.DeviceInfoConsent
-import dev.icode.mobile.domain.NoticeLevel
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.UpdateCheck
 import dev.icode.mobile.domain.WebIntent
@@ -102,24 +101,6 @@ fun AboutScreen(actions: NavigationActions) {
                         style = IcodeType.Heading,
                     )
                     Text("NATIVE ANDROID IDE", style = IcodeType.MonoSmall.copy(color = IcodeColors.Accent))
-                }
-                if (web.notices.isNotEmpty()) {
-                    IcodeSection("Notices") {
-                        web.notices.forEach { notice ->
-                            IcodeListRow(
-                                card = true,
-                                title = notice.title,
-                                subtitle = notice.body + "  ·  Tap to dismiss",
-                                titleColor = when (notice.level) {
-                                    NoticeLevel.Critical -> IcodeColors.Error
-                                    NoticeLevel.Warning -> IcodeColors.Accent
-                                    NoticeLevel.Info -> IcodeColors.TextPrimary
-                                },
-                                subtitleStyle = IcodeType.Caption,
-                                onClick = { gateway.dispatch(WebIntent.DismissNotice(notice.id)) },
-                            )
-                        }
-                    }
                 }
                 IcodeSection("Build Specifications") {
                     IcodeCard(Modifier.fillMaxWidth()) {

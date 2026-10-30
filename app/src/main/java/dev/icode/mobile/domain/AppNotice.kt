@@ -43,8 +43,21 @@ sealed interface AppNotice {
         val tone: NoticeTone,
         val title: String,
         val detail: String? = null,
-    ) : AppNotice
+        /** A notice the website's admin wrote: its button, when it has one. */
+        val link: NoticeLink? = null,
+    ) : AppNotice {
+        /** Said by the iCode website (Admin › Notices), not by this phone. */
+        val fromWebsite: Boolean get() = id.startsWith(AppNotice.WEBSITE_PREFIX)
+    }
+
+    companion object {
+        /** A website notice's id here: `web:` and the website's id, so it is stored once and never twice. */
+        const val WEBSITE_PREFIX = "web:"
+    }
 }
+
+/** A website notice's button: [label] opens [url] in the user's browser. */
+data class NoticeLink(val url: String, val label: String)
 
 /**
  * How a message reads: its colour and icon on the bell, the page and the sheet (docs/notices-plan.md

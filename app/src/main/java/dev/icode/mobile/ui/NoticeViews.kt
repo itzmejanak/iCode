@@ -34,11 +34,13 @@ import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTextButton
 import dev.icode.mobile.designsystem.IcodeType
+import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.StatusDot
 import dev.icode.mobile.designsystem.TwoColumnActions
 import dev.icode.mobile.domain.AppNotice
 import dev.icode.mobile.domain.GitTransferLabel
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.LostTerminalSession
 import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.ProcessEndCause
@@ -121,6 +123,9 @@ internal fun NoticeSheet(notice: AppNotice, modifier: Modifier, onDelete: () -> 
         onClose = onClose,
         modifier = modifier,
         footer = {
+            (notice as? AppNotice.Message)?.link?.let { link ->
+                PrimaryButton(link.label, { gateway.dispatch(ICodeIntent.OpenExternalUrl(link.url)) }, Modifier.fillMaxWidth())
+            }
             TwoColumnActions(
                 left = {
                     val text = listOfNotNull(view.title, view.detail).joinToString("\n\n")
@@ -134,6 +139,9 @@ internal fun NoticeSheet(notice: AppNotice, modifier: Modifier, onDelete: () -> 
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
             Icon(view.icon, contentDescription = null, tint = view.tint, modifier = Modifier.size(IcodeSizes.IconMd))
             Text(noticeTime(context, notice.at), style = IcodeType.Caption)
+            if ((notice as? AppNotice.Message)?.fromWebsite == true) {
+                Text("·  iCode website", style = IcodeType.Caption.copy(color = IcodeColors.TextMuted))
+            }
         }
         view.detail?.let { detail ->
             SelectionContainer {
