@@ -3,6 +3,7 @@ package dev.icode.mobile.data.web
 import dev.icode.mobile.BuildConfig
 import java.net.HttpURLConnection
 import java.net.URL
+import dev.icode.mobile.domain.ReportPolicy
 import org.json.JSONObject
 
 /**
@@ -39,6 +40,37 @@ internal class ICodeWebClient(private val baseUrl: String = BuildConfig.ICODE_WE
 
     fun forget(installId: String) {
         send("DELETE", "/api/v1/devices/$installId", null).expect(204)
+    }
+
+    fun reportPolicy(): ReportPolicy = WebJson.reportPolicy(getJson("/api/v1/reports/config"))
+
+    /** A signed Cloudinary upload for one attachment: (upload URL, form fields). */
+    fun signReportUpload(): Pair<String, Map<String, String>> {
+        val json = postForJson("/api/v1/reports/uploads", null, 200)
+        val fields = json.getJSONObject("fields")
+        return json.getString("uploadUrl") to fields.keys().asSequence().associateWith { fields.getString(it) }
+    }
+
+    /** Files the report; the website's report number. */
+    fun fileReport(body: JSONObject): Int = postForJson("/api/v1/reports", body, 201).optInt("number")
+
+    private fun postForJson(path: String, body: JSONObject?, ok: Int): JSONObject {
+        if (!configured) throw WebException("No website configured")
+        val connection = open(path, "POST")
+        try {
+            connection.doOutput = true
+            connection.setRequestProperty("Content-Type", "application/json")
+            connection.outputStream.use { it.write((body ?: JSONObject()).toString().toByteArray()) }
+            val status = connection.responseCode
+            if (status != ok) {
+                val message = connection.errorStream?.bufferedReader()?.use { it.readText() }
+                    ?.let { runCatching { JSONObject(it).getJSONObject("error").getString("message") }.getOrNull() }
+                throw WebException(if (status == 429) "Too many reports — try again in a few minutes" else message ?: "HTTP $status")
+            }
+            return JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+        } finally {
+            connection.disconnect()
+        }
     }
 
     private fun Int.expect(code: Int) {
