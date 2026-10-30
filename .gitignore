@@ -18,8 +18,3 @@ __pycache__/
 .freebuff/
 
 # Screenshots: only the canonical set that tools/capture-figma-screens.sh writes is versioned.
-artifacts/*
-!artifacts/screens/
-!artifacts/review/
-artifacts/review/*
-!artifacts/review/contact-sheet-*.png
