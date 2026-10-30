@@ -19,8 +19,32 @@ internal class ICodeWebClient(private val baseUrl: String = BuildConfig.ICODE_WE
     fun latestRelease(channel: String = "stable"): WebJson.Latest =
         WebJson.latest(getJson("/api/v1/app/releases/latest?channel=$channel&abi=arm64-v8a&versionCode=${BuildConfig.VERSION_CODE}"))
 
-    fun notices(): List<dev.icode.mobile.domain.Notice> =
-        WebJson.notices(getJson("/api/v1/app/notices?versionCode=${BuildConfig.VERSION_CODE}"))
+    fun notices(): List<dev.icode.mobile.domain.AppNotice.Message> =
+        WebJson.notices(getJson("/api/v1/app/notices?placement=app&versionCode=${BuildConfig.VERSION_CODE}"))
+
+    /** What the website says of the runtime manifest; [etag] is the one last kept, for a 304. */
+    sealed interface ManifestFetch {
+        data object NotModified : ManifestFetch
+        /** Nothing published for this architecture: the built-in manifest applies. */
+        data object NotPublished : ManifestFetch
+        data class Fetched(val json: String, val etag: String?) : ManifestFetch
+    }
+
+    fun runtimeManifest(abi: String, etag: String?): ManifestFetch {
+        if (!configured) throw WebException("No website configured")
+        val connection = open("/api/v1/runtime/manifest?abi=$abi", "GET")
+        try {
+            etag?.let { connection.setRequestProperty("If-None-Match", it) }
+            return when (val status = connection.responseCode) {
+                200 -> ManifestFetch.Fetched(connection.inputStream.bufferedReader().use { it.readText() }, connection.getHeaderField("ETag"))
+                304 -> ManifestFetch.NotModified
+                404 -> ManifestFetch.NotPublished
+                else -> throw WebException("HTTP $status")
+            }
+        } finally {
+            connection.disconnect()
+        }
+    }
 
     fun register(installId: String, facts: DeviceFacts) {
         send("POST", "/api/v1/devices/register", WebJson.deviceJson(installId, facts)).expect(204)

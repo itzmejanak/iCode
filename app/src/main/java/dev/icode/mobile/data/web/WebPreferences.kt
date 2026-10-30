@@ -54,9 +54,10 @@ internal class WebPreferences(context: Context) {
         get() = prefs.getLong(KEY_LAST_CHECK, 0L)
         set(value) = prefs.edit().putLong(KEY_LAST_CHECK, value).apply()
 
-    val dismissedNotices: Set<String> get() = prefs.getStringSet(KEY_DISMISSED, emptySet()).orEmpty()
-
-    fun dismissNotice(id: String) = prefs.edit().putStringSet(KEY_DISMISSED, dismissedNotices + id).apply()
+    /** When notices and the runtime manifest were last asked for: a foreground refresh waits [REFRESH_MILLIS]. */
+    var lastRefreshAt: Long
+        get() = prefs.getLong(KEY_LAST_REFRESH, 0L)
+        set(value) = prefs.edit().putLong(KEY_LAST_REFRESH, value).apply()
 
     /** The Report a Bug draft, kept until sent so an offline or failed send loses nothing. */
     var reportDraft: ReportDraft
@@ -68,7 +69,9 @@ internal class WebPreferences(context: Context) {
         const val DEFAULT_CHECK_INTERVAL_HOURS = 24L
         private const val KEY_CHECK_INTERVAL = "check_interval_hours"
         private const val KEY_LAST_CHECK = "last_update_check_at"
-        private const val KEY_DISMISSED = "dismissed_notices"
+        private const val KEY_LAST_REFRESH = "last_refresh_at"
+        /** Notices and the manifest are asked for again on coming to the foreground, at most this often. */
+        const val REFRESH_MILLIS = 15 * 60_000L
         /** WorkManager's floor for periodic work. */
         const val DEFAULT_HEARTBEAT_MINUTES = 15L
         private const val KEY_CONSENT = "device_info_consent"
