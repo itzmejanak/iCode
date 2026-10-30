@@ -1,8 +1,11 @@
 package dev.icode.mobile.data.web
 
 import android.content.Context
+import dev.icode.mobile.data.notices.NoticeStore
+import dev.icode.mobile.data.runtime.ManifestSource
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.DeviceInfoConsent
+import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ReportDraft
 import dev.icode.mobile.domain.ReportSending
 import dev.icode.mobile.domain.ReportState
@@ -14,7 +17,7 @@ import kotlinx.coroutines.launch
 
 /** The website's part of the gateway: Settings › Application, update checks and the consent answer. */
 internal class WebCoordinator(
-    context: Context,
+    private val context: Context,
     private val stateHolder: ICodeStateHolder,
     private val scope: CoroutineScope,
 ) {
@@ -22,6 +25,7 @@ internal class WebCoordinator(
     private val client = ICodeWebClient()
     private val reporter = DeviceInfoReporter(context.applicationContext, prefs, client)
     private val reports = ReportSender(context.applicationContext, client)
+    private val notices = NoticeStore.get(context)
 
     /** Publishes what is known offline, then refreshes from the site. */
     fun start() {
@@ -32,12 +36,13 @@ internal class WebCoordinator(
                     links = prefs.cachedLinks,
                     supportText = prefs.cachedSupportText,
                     report = ReportState(draft = prefs.reportDraft),
+                    manifest = ManifestSource.origin(context.applicationContext),
                 ),
             )
         }
         scope.launch(Dispatchers.IO) {
             refreshConfig()
-            refreshNotices()
+            refreshFromWebsite()
             if (updateCheckDue()) checkForUpdates()
             reporter.schedule()
         }
@@ -45,16 +50,15 @@ internal class WebCoordinator(
 
     /** iCode came to the foreground: a heartbeat now, so the website's "active now" is current. */
     fun onForeground() {
-        scope.launch(Dispatchers.IO) { reporter.report() }
+        scope.launch(Dispatchers.IO) {
+            reporter.report()
+            if (System.currentTimeMillis() - prefs.lastRefreshAt >= WebPreferences.REFRESH_MILLIS) refreshFromWebsite()
+        }
     }
 
     fun handle(intent: WebIntent) {
         when (intent) {
-            WebIntent.RefreshAppConfig -> scope.launch(Dispatchers.IO) { refreshConfig(); refreshNotices() }
-            is WebIntent.DismissNotice -> {
-                prefs.dismissNotice(intent.id)
-                stateHolder.update { it.copy(web = it.web.copy(notices = it.web.notices.filterNot { n -> n.id == intent.id })) }
-            }
+            WebIntent.RefreshAppConfig -> scope.launch(Dispatchers.IO) { refreshConfig(); refreshFromWebsite() }
             WebIntent.CheckForUpdates -> scope.launch(Dispatchers.IO) { checkForUpdates() }
             is WebIntent.SetDeviceInfoConsent -> scope.launch(Dispatchers.IO) { setConsent(intent.shared) }
             WebIntent.OpenReport -> scope.launch(Dispatchers.IO) { refreshReportPolicy() }
@@ -112,11 +116,25 @@ internal class WebCoordinator(
         }
     }
 
-    private fun refreshNotices() {
+    /** Notices and the runtime manifest: asked for at start, on coming to the foreground, and on request. */
+    private suspend fun refreshFromWebsite() {
         if (!client.configured) return
-        runCatching { client.notices() }.onSuccess { notices ->
-            val dismissed = prefs.dismissedNotices
-            stateHolder.update { it.copy(web = it.web.copy(notices = notices.filterNot { n -> n.id in dismissed })) }
+        prefs.lastRefreshAt = System.currentTimeMillis()
+        refreshNotices()
+        val origin = ManifestSource.refresh(context.applicationContext, client)
+        stateHolder.update { it.copy(web = it.web.copy(manifest = origin)) }
+    }
+
+    /**
+     * The website's notices join the Notifications page as the app's own (docs/notices-plan.md):
+     * kept first, so none is lost before the bell listens, then said, so the bell's line unfolds.
+     * One already kept, or one the user deleted, is left alone.
+     */
+    private suspend fun refreshNotices() {
+        val fresh = runCatching { client.notices() }.getOrNull()?.filterNot { notices.knows(it.id) } ?: return
+        fresh.sortedBy { it.at }.forEach { notice ->
+            notices.add(notice)
+            stateHolder.emit(ICodeEffect.Notice(notice))
         }
     }
 
