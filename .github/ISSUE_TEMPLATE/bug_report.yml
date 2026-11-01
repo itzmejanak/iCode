@@ -1,0 +1,46 @@
+name: Bug report
+description: Something in iCode doesn't work as expected.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting. Please remove emails, keys and tokens from logs and screenshots.
+  - type: input
+    id: app-version
+    attributes:
+      label: iCode version
+      description: Settings › Application
+      placeholder: "0.1.0"
+    validations: { required: true }
+  - type: input
+    id: device
+    attributes:
+      label: Device and Android version
+      placeholder: "Pixel 8, Android 15"
+    validations: { required: true }
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options: [Setup / runtime install, Workspaces / storage, Editor, Terminal, Git, AI assistant, Settings, Other]
+    validations: { required: true }
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: "1. …\n2. …\n3. …"
+    validations: { required: true }
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected and what happened
+    validations: { required: true }
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      render: text
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots or recordings
