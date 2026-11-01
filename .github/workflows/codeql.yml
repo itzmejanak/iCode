@@ -9,6 +9,7 @@ on:
     - cron: "0 3 * * 1"
 
 permissions:
+  actions: read
   contents: read
   security-events: write
 
@@ -30,5 +31,6 @@ jobs:
         with:
           languages: java-kotlin
           build-mode: manual
-      - run: ./gradlew :app:compileDebugKotlin --stacktrace
+      # CodeQL must observe compilation, not reuse Gradle's cached task outputs.
+      - run: ./gradlew :app:compileDebugKotlin --no-build-cache --rerun-tasks --stacktrace
       - uses: github/codeql-action/analyze@v3
