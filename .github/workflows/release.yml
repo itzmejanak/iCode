@@ -1,0 +1,102 @@
+# Push a tag like v0.2.0 (it must equal versionName in app/build.gradle.kts).
+# The workflow builds and signs the APK, publishes a GitHub Release with its SHA-256,
+# and registers the release on the iCode website so the app's update check sees it.
+#
+# Repository secrets: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS,
+#   ANDROID_KEY_PASSWORD, ICODE_WEB_RELEASE_TOKEN (same value as the website's RELEASE_PUBLISH_TOKEN).
+# Repository variable: ICODE_WEB_URL (e.g. https://icodze.vercel.app).
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Install SDK parts
+        run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;27.0.12077973" "platforms;android-36" "build-tools;36.0.0" > /dev/null
+
+      - name: Read version
+        id: version
+        run: |
+          name=$(sed -nE 's/^\s*versionName = "([^"]+)".*/\1/p' app/build.gradle.kts | head -1)
+          code=$(sed -nE 's/^\s*versionCode = ([0-9]+).*/\1/p' app/build.gradle.kts | head -1)
+          min=$(sed -nE 's/^\s*minSdk = ([0-9]+).*/\1/p' app/build.gradle.kts | head -1)
+          if [ "v$name" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::Tag $GITHUB_REF_NAME does not match versionName $name"; exit 1
+          fi
+          case "$name" in *-*) channel=beta ;; *) channel=stable ;; esac
+          { echo "name=$name"; echo "code=$code"; echo "min=$min"; echo "channel=$channel"; } >> "$GITHUB_OUTPUT"
+
+      - name: Build release APK
+        run: ./gradlew :app:assembleRelease -PicodeWebUrl="${{ vars.ICODE_WEB_URL }}" --stacktrace
+
+      - name: Sign APK
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          out="iCode-${{ steps.version.outputs.name }}-arm64-v8a.apk"
+          tools="$ANDROID_HOME/build-tools/36.0.0"
+          "$tools/zipalign" -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk "$RUNNER_TEMP/aligned.apk"
+          "$tools/apksigner" sign --ks "$RUNNER_TEMP/release.jks" --ks-pass env:KEYSTORE_PASSWORD \
+            --ks-key-alias "$KEY_ALIAS" --key-pass env:KEY_PASSWORD --out "$out" "$RUNNER_TEMP/aligned.apk"
+          "$tools/apksigner" verify "$out"
+          sha256sum "$out" > "$out.sha256"
+          rm -f "$RUNNER_TEMP/release.jks"
+          echo "APK=$out" >> "$GITHUB_ENV"
+
+      - name: Release notes from CHANGELOG
+        run: |
+          awk -v v="${{ steps.version.outputs.name }}" '
+            $0 ~ "^## \\[" v "\\]" {on=1; next}
+            on && /^## \[/ {exit}
+            on {print}' CHANGELOG.md > notes.md
+          [ -s notes.md ] || echo "iCode ${{ steps.version.outputs.name }}" > notes.md
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          flag=""; [ "${{ steps.version.outputs.channel }}" = beta ] && flag="--prerelease"
+          gh release create "$GITHUB_REF_NAME" "$APK" "$APK.sha256" \
+            --title "iCode ${{ steps.version.outputs.name }}" --notes-file notes.md $flag
+
+      - name: Register on the iCode website
+        env:
+          TOKEN: ${{ secrets.ICODE_WEB_RELEASE_TOKEN }}
+          WEB: ${{ vars.ICODE_WEB_URL }}
+        run: |
+          if [ -z "$TOKEN" ] || [ -z "$WEB" ]; then
+            echo "::warning::ICODE_WEB_URL or ICODE_WEB_RELEASE_TOKEN not set; skipped the website."; exit 0
+          fi
+          jq -n \
+            --arg versionName "${{ steps.version.outputs.name }}" \
+            --argjson versionCode "${{ steps.version.outputs.code }}" \
+            --arg channel "${{ steps.version.outputs.channel }}" \
+            --argjson minSdk "${{ steps.version.outputs.min }}" \
+            --arg fileUrl "https://github.com/${{ github.repository }}/releases/download/$GITHUB_REF_NAME/$APK" \
+            --arg sha256 "$(cut -d' ' -f1 "$APK.sha256")" \
+            --rawfile notes notes.md \
+            '{versionName:$versionName, versionCode:$versionCode, channel:$channel, abi:"arm64-v8a",
+              minSdk:$minSdk, fileUrl:$fileUrl, sha256:$sha256, notes:$notes, publish:true}' > body.json
+          status=$(curl -sS -o resp.json -w '%{http_code}' -X POST "${WEB%/}/api/v1/ci/releases" \
+            -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" --data @body.json)
+          cat resp.json; echo
+          case "$status" in 200|201) ;; *) echo "::error::Website returned $status"; exit 1 ;; esac
