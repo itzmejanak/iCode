@@ -44,11 +44,17 @@ internal class ModelSpeaker(private val models: VoiceModels, private val voice: 
             }
             withContext(Dispatchers.Default) {
                 val making = coroutineContext.job
-                // Returning 0 stops the model between sentences once the speech is stopped.
-                tts.generateWithCallback(text, voice.speaker, SPEED) { samples ->
-                    sentences.trySend(samples.copyOf())
-                    if (making.isActive) 1 else 0
+                // An object, not a lambda: sherpa's JNI looks up invoke([F)Ljava/lang/Integer;
+                // on the callback's class, which Kotlin 2's indy lambda + desugaring no longer
+                // provides (a NoSuchMethodError aborts the process when a sample is played).
+                val onSamples = object : (FloatArray) -> Int {
+                    // Returning 0 stops the model between sentences once the speech is stopped.
+                    override fun invoke(samples: FloatArray): Int {
+                        sentences.trySend(samples.copyOf())
+                        return if (making.isActive) 1 else 0
+                    }
                 }
+                tts.generateWithCallback(text, voice.speaker, SPEED, onSamples)
                 ensureActive()
             }
             sentences.close()
