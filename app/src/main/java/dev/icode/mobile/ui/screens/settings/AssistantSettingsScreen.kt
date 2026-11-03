@@ -88,6 +88,19 @@ fun AssistantSettingsScreen(actions: NavigationActions) {
                     }
                 }
             }
+            IcodeSection("On the phone") {
+                val phone = LocalICodeSnapshot.current.phone
+                IcodeListRow(
+                    card = true,
+                    title = "Phone control",
+                    subtitle = if (phone.service) "On" else "Off · read and act in other apps from a phone chat",
+                    onClick = { actions.navigate(Route.PhoneControl) },
+                    trailing = {
+                        if (phone.service) StatusLabel("On", IcodeColors.Green)
+                        Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = IcodeColors.TextSecondary)
+                    },
+                )
+            }
             Text(
                 "What the assistant reads — files, search results, command output, what you attach — is sent to the provider of " +
                     "the chat's model. API keys are kept encrypted on this phone and never shown again.",
