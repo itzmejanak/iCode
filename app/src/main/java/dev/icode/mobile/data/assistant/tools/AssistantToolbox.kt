@@ -23,9 +23,10 @@ internal class AssistantToolbox(
     private val shell = AssistantShell(execution.rootfs, execution.guest, execution.environment, execution.processes)
     private val processes = execution.processes
 
+    /** The tools of a chat in [workspace]; the phone's chats have no Run tab, which is a workspace's. */
     fun forWorkspace(workspace: AssistantWorkspace, chat: String): List<AssistantTool> {
         val writer = WorkspaceWriter(workspace, source, unsavedEdits, changed)
-        return listOf(
+        val files = listOf(
             ListFilesTool(workspace, search),
             ReadFileTool(workspace, source),
             SearchTextTool(workspace, search),
@@ -38,6 +39,9 @@ internal class AssistantToolbox(
             ProcessStatusTool(processes),
             SendProcessInputTool(processes),
             StopProcessTool(processes),
+        )
+        if (workspace.phone) return files
+        return files + listOf(
             RunAndroidAppTool(workspace, runs),
             ListRunCommandsTool(workspace, runs),
             SaveRunCommandTool(workspace, runs),

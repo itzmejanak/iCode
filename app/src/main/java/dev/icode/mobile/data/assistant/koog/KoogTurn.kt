@@ -14,10 +14,14 @@ import ai.koog.http.client.KoogHttpClientException
 import io.ktor.client.plugins.sse.SSEClientException
 import ai.koog.prompt.llm.LLMCapability
 import ai.koog.prompt.llm.LLModel
+import ai.koog.prompt.message.AttachmentContent
+import ai.koog.prompt.message.AttachmentSource
 import ai.koog.prompt.message.Message
+import ai.koog.prompt.message.MessagePart
 import ai.koog.prompt.streaming.IncompleteStreamException
 import ai.koog.serialization.JSONPrimitive
 import dev.icode.mobile.data.assistant.AssistantEvents
+import dev.icode.mobile.data.assistant.AssistantPicture
 import dev.icode.mobile.data.assistant.AssistantTool
 import dev.icode.mobile.data.assistant.AssistantTurnException
 import dev.icode.mobile.domain.AssistantCall
@@ -48,13 +52,31 @@ internal object KoogTurn {
      * work) unrun, as it already does after the first request. Its requests are [stream]'s where it
      * is given; Koog's whole-reply request otherwise.
      */
-    fun strategy(stream: KoogRequest?): AIAgentGraphStrategy<String, String> = strategy("icode-turn") {
+    fun strategy(
+        stream: KoogRequest?,
+        picture: () -> AssistantPicture? = { null },
+        place: PicturePlace = PicturePlace.None,
+    ): AIAgentGraphStrategy<String, String> = strategy("icode-turn") {
         val request by node<String, Message.Assistant> { llm.writeSession { stream?.invoke(this) ?: requestLLM() } }
         val runTools by nodeExecuteTools()
-        // Koog's nodeLLMSendToolResults: the results as one user message, then the next request.
-        val sendResults by node<ReceivedToolResults, Message.Assistant> { results ->
+        // Koog's nodeLLMSendToolResults: the results as one user message, then the next request. The
+        // screen the step's calls left goes with them, where the client takes a picture (L2).
+        val sendResults by node<ReceivedToolResults, Message.Assistant> { received ->
+            // Taken whether or not it is sent, so a later step never sends an older one.
+            val screen = picture()?.takeIf { place != PicturePlace.None }?.let(::screenPart)
             llm.writeSession {
-                appendPrompt { user { results.toolResults.forEach { toolResult(it.toMessagePart()) } } }
+                // Only the latest screen is ever in the prompt; the user's own photos stay.
+                if (screen != null) rewritePrompt { prompt -> prompt.withMessages { messages -> messages.map(::withoutScreens) } }
+                val results = received.toolResults.map { it.toMessagePart() }
+                appendPrompt {
+                    user {
+                        results.forEachIndexed { index, result ->
+                            val last = index == results.lastIndex
+                            toolResult(if (screen != null && place == PicturePlace.InResult && last) result.copy(parts = result.parts + screen) else result)
+                        }
+                        if (screen != null && place == PicturePlace.Beside) attachment(screen.source)
+                    }
+                }
                 stream?.invoke(this) ?: requestLLM()
             }
         }
@@ -64,6 +86,43 @@ internal object KoogTurn {
         edge(runTools forwardTo sendResults)
         edge(sendResults forwardTo runTools onToolCalls { true })
         edge(sendResults forwardTo nodeFinish onTextMessage { true })
+    }
+
+    /** Where a step's picture goes for the model a turn asks (docs/phone-agent-plan.md §3.6, read in Koog's clients). */
+    enum class PicturePlace {
+        /** A model that sees no pictures: it is dropped. */
+        None,
+
+        /** In the message with the results: Chat Completions (a user message after the tool messages), Anthropic, Gemini, Ollama. */
+        Beside,
+
+        /** In the last result itself: OpenAI's Responses API, whose results take an image and whose messages beside them do not. */
+        InResult,
+    }
+
+    /** [kind]'s client for [model], which [sees] pictures or not: where a step's picture goes. */
+    fun picturePlace(kind: AssistantProviderKind, model: LLModel, sees: Boolean): PicturePlace = when {
+        !sees -> PicturePlace.None
+        kind == AssistantProviderKind.OpenAI && !model.supports(LLMCapability.OpenAIEndpoint.Completions) &&
+            model.supports(LLMCapability.OpenAIEndpoint.Responses) -> PicturePlace.InResult
+        else -> PicturePlace.Beside
+    }
+
+    /** [picture] as the part a prompt carries, named so an older one is known again ([withoutScreens]). */
+    private fun screenPart(picture: AssistantPicture) = MessagePart.Attachment(
+        AttachmentSource.Image(AttachmentContent.Binary.Bytes(picture.bytes), KoogHistory.FORMAT_JPEG, picture.mimeType, SCREEN_NAME),
+    )
+
+    private fun MessagePart.isScreen(): Boolean = ((this as? MessagePart.Attachment)?.source as? AttachmentSource.Image)?.fileName == SCREEN_NAME
+
+    /** [message] without a step's screen: a request's own, or one in a tool's result. */
+    private fun withoutScreens(message: Message): Message = when (message) {
+        is Message.User -> message.copy(
+            parts = message.parts.filterNot { it.isScreen() }.map { part ->
+                if (part is MessagePart.Tool.Result && part.parts.any { it.isScreen() }) part.copy(parts = part.parts.filterNot { it.isScreen() }) else part
+            },
+        )
+        else -> message
     }
 
     /**
@@ -205,6 +264,9 @@ internal object KoogTurn {
 
         private fun callOf(id: String?): AssistantCall? = open.firstOrNull { it.id == id } ?: open.firstOrNull()
     }
+
+    /** A step's screen, as its picture is named in the prompt: never a name a user's photo has, which is its own file's. */
+    private const val SCREEN_NAME = "icode-screen.jpg"
 
     /** A streamed reply is shown at most this often. */
     private const val LIVE_MILLIS = 100L

@@ -2,8 +2,11 @@ package dev.icode.mobile.data.runtime
 
 import android.content.Context
 import android.os.storage.StorageManager
+import dev.icode.mobile.data.storage.PhoneStorage
 import dev.icode.mobile.data.storage.WorkspacePaths
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.LinkOption
 import org.json.JSONObject
 
 /**
@@ -31,7 +34,7 @@ internal class RuntimeLayout(context: Context) {
     val workspaces = WorkspacePaths.of(appContext)
 
     /** The runtime's paths, as the files on the phone that hold them ([GuestPaths]). */
-    val paths = GuestPaths(rootfs, workspaces)
+    val paths = GuestPaths(rootfs, workspaces, PhoneStorage.top())
 
     /** The guest home, `/root`: Repair keeps it ([RuntimeHomeBackup]). */
     val home: File = File(rootfs, GUEST_HOME.removePrefix("/"))
@@ -215,6 +218,15 @@ internal class RuntimeLayout(context: Context) {
                 add(hostPath)
             }
         }
+        // Phone storage where Android has it, readable with All Files Access, and `/sdcard` naming it
+        // (docs/phone-agent-plan.md L8). Bound in every launch, so a terminal opened before the access
+        // was given reads it once it is.
+        paths.shared?.takeIf { it.isDirectory }?.let { shared ->
+            File(rootfs, shared.path.removePrefix("/")).mkdirs()
+            linkSdcard(shared)
+            add("-b")
+            add(shared.path)
+        }
         workspaces.root.mkdirs()
         File(rootfs, WorkspacePaths.GUEST_ROOT.removePrefix("/")).mkdirs()
         add("-b")
@@ -228,6 +240,13 @@ internal class RuntimeLayout(context: Context) {
         add("-i")
         variables.forEach { (name, value) -> add("$name=$value") }
         addAll(guestCommand)
+    }
+
+    /** `/sdcard` in the root filesystem, a link to [shared]; something the user put there is left as it is. */
+    private fun linkSdcard(shared: File) {
+        val link = File(rootfs, GuestPaths.SDCARD.removePrefix("/")).toPath()
+        if (Files.exists(link, LinkOption.NOFOLLOW_LINKS)) return
+        runCatching { Files.createSymbolicLink(link, shared.toPath()) }
     }
 
     companion object {

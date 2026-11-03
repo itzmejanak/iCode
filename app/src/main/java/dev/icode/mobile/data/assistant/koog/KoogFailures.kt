@@ -6,6 +6,7 @@ import ai.koog.http.client.KoogHttpClientException
 import ai.koog.prompt.executor.clients.LLMClientException
 import ai.koog.prompt.streaming.IncompleteStreamException
 import dev.icode.mobile.data.assistant.AssistantConnection
+import dev.icode.mobile.data.assistant.AssistantStepLimitException
 import dev.icode.mobile.data.assistant.AssistantTurnException
 import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.domain.AssistantModel
@@ -37,6 +38,8 @@ internal object KoogFailures {
         val chain = generateSequence(failure) { it.cause }.take(MAX_DEPTH).toList()
         // iCode's own reason, however deep Koog's runner wrapped it.
         chain.firstNotNullOfOrNull { it as? AssistantTurnException }?.let { return it }
+        // The standard agent's own limit (§12 R1): the turn asks whether it goes on.
+        if (chain.any { it is AIAgentMaxNumberOfIterationsReachedException }) return AssistantStepLimitException()
         val host = host(connection)
         // Koog's clients wrap what failed on the way to and from the server; a file read is not that.
         val fromServer = chain.any { it is LLMClientException || it is KoogHttpClientException }
@@ -54,8 +57,6 @@ internal object KoogFailures {
                 is IncompleteStreamException -> CONNECTION_ENDED
                 // An answer Ktor could not read as the API's: a page, or JSON of another shape.
                 is NoTransformationFoundException, is ContentConvertException -> notTheApi(connection)
-                // The standard agent's own limit (§12 R1).
-                is AIAgentMaxNumberOfIterationsReachedException -> "Stopped at the step limit — send a message to continue"
                 // Its only way to stick: a reply with neither text nor a tool call.
                 is AIAgentStuckInTheNodeException -> "The model sent an empty reply — send a message to continue"
                 // OkHttp's refusal of plain http:// under Android's network security config.

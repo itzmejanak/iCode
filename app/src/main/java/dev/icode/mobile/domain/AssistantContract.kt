@@ -207,6 +207,18 @@ data class AssistantApproval(
 )
 
 /**
+ * A question a turn asks between its steps, about no call (docs/phone-agent-plan.md L5, §5.5): whether
+ * it goes on past its step limit, or, on the phone, a step only the user can take. Continue goes on;
+ * Stop ends the turn.
+ */
+data class AssistantPause(val kind: Kind, /** What the card says under its question. */ val detail: String) {
+    enum class Kind(val question: String, val proceed: String) {
+        StepLimit("Keep going?", "Continue"),
+        HandOver("Your turn", "Done"),
+    }
+}
+
+/**
  * The user's answer to an approval. [AllowInChat] opens, for this chat until iCode closes, the
  * [AssistantReach.roots] of an outside call, or the chat's workspace (Auto in workspace) for a
  * change or a command (docs/assistant-permissions-plan.md §4.3).
@@ -215,6 +227,7 @@ enum class AssistantAnswer { Allow, AllowInChat, Deny }
 
 /** The turn in hand: one at a time, in the chat it started in. */
 data class AssistantTurn(
+    /** Its place: a workspace's location, or [AssistantPlace.PHONE]. */
     val workspace: String,
     val workspaceName: String,
     val session: String,
@@ -239,9 +252,9 @@ data class AssistantState(
     val editing: String? = null,
     /** The models its server lists, once asked. */
     val available: AssistantAvailable? = null,
-    /** The workspace whose chats are shown; null until the page opens on one. */
+    /** The place whose chats are shown — a workspace's location, or [AssistantPlace.PHONE]; null until the page opens. */
     val workspace: String? = null,
-    /** That workspace's chats, newest first. */
+    /** That place's chats, newest first. */
     val sessions: List<AssistantSession> = emptyList(),
     /** The chat shown; null for a new one, not yet written to. */
     val session: String? = null,
@@ -250,6 +263,8 @@ data class AssistantState(
     val contextTokens: Long? = null,
     val turn: AssistantTurn? = null,
     val approval: AssistantApproval? = null,
+    /** The turn waits between steps for the user to go on (docs/phone-agent-plan.md L5). */
+    val pause: AssistantPause? = null,
     /** The chat shown answered "Allow in" its workspace: it runs as Auto in workspace until iCode closes. */
     val allowedInWorkspace: Boolean = false,
     /** Why the last turn stopped short; the next one clears it. */

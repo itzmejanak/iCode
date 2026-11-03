@@ -3,6 +3,7 @@ package dev.icode.mobile.data.web
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
+import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.ReportDraft
 import dev.icode.mobile.domain.ReportPolicy
 import java.io.DataOutputStream
@@ -37,7 +38,7 @@ internal class ReportSender(private val context: Context, private val client: IC
             if (c.moveToFirst()) (c.getString(0) ?: "attachment") to c.getLong(1) else null
         } ?: ("attachment" to -1L)
         val max = if (video) policy.maxVideoBytes else policy.maxImageBytes
-        if (size > max) throw ICodeWebClient.WebException("$name is over ${max / (1024 * 1024)} MB")
+        if (size > max) throw ICodeWebClient.WebException("$name is over ${ByteSize.format(max)}")
 
         val (uploadUrl, fields) = client.signReportUpload()
         val boundary = "icode-" + UUID.randomUUID()

@@ -9,14 +9,25 @@ import java.nio.file.Path
 /**
  * The runtime's paths, followed as PRoot follows them (docs/runtime-contract-plan.md §4.2): which file
  * on the phone a path in the runtime is, and back. Every launch sees the same tree
- * ([RuntimeLayout.prootCommand]): the workspaces at `/workspace`, the phone's own [HOST_PATHS] where
- * they are, the root filesystem everywhere else.
+ * ([RuntimeLayout.prootCommand]): the workspaces at `/workspace`, the phone's own [HOST_PATHS] and
+ * phone storage ([shared]) where they are, the root filesystem everywhere else.
  *
  * A link made in the runtime names a runtime path, and is followed inside the runtime. One PRoot made
  * for a hard link (`--link2symlink`) names the phone's path of its file, and is followed as it is.
  */
-internal class GuestPaths(rootfs: File, val workspaces: WorkspacePaths) {
+internal class GuestPaths(
+    rootfs: File,
+    val workspaces: WorkspacePaths,
+    /**
+     * Phone storage's top, `/storage/emulated/0`, bound where it is (docs/phone-agent-plan.md L8), with
+     * `/sdcard` naming it as on Android; null where there is none.
+     */
+    val shared: File? = null,
+) {
     private val rootfs = rootfs.absoluteFile
+
+    /** The phone's trees bound where they are: [HOST_PATHS], and phone storage. */
+    private val bound = HOST_PATHS + listOfNotNull(shared?.path)
 
     /** The root filesystem as PRoot is given it, and as it is behind Android's links: a stand-in may name either. */
     private val rootfsPaths = listOf(this.rootfs.path, this.rootfs.canonicalPath).distinct()
@@ -24,7 +35,7 @@ internal class GuestPaths(rootfs: File, val workspaces: WorkspacePaths) {
     /** [location], a file on the phone, as its path in the runtime; null where the runtime does not hold it. */
     fun guestOf(location: String): String? {
         workspaces.guestOf(location)?.let { return it }
-        HOST_PATHS.firstOrNull { WorkspacePaths.relative(location, it) != null }?.let { return location.trimEnd('/') }
+        bound.firstOrNull { WorkspacePaths.relative(location, it) != null }?.let { return location.trimEnd('/') }
         return rootfsPaths.firstNotNullOfOrNull { WorkspacePaths.relative(location, it) }?.let { "/$it" }
     }
 
@@ -69,17 +80,23 @@ internal class GuestPaths(rootfs: File, val workspaces: WorkspacePaths) {
         follow(location).toPath().takeIf { it.startsWith(top) }?.let(top::relativize)
     }.getOrNull()
 
+    /** [file], on the phone, is phone storage or in it. */
+    fun inShared(file: File): Boolean = shared != null && WorkspacePaths.relative(file.path, shared.path) != null
+
     /** The file on the phone at [segments] of a runtime path, no link followed. */
     private fun mounted(segments: List<String>): File {
         val path = "/" + segments.joinToString("/")
         workspaces.locationOf(path)?.let { return File(it) }
-        if (HOST_PATHS.any { WorkspacePaths.relative(path, it) != null }) return File(path)
+        if (bound.any { WorkspacePaths.relative(path, it) != null }) return File(path)
         return if (segments.isEmpty()) rootfs else File(rootfs, path)
     }
 
     private fun segments(path: String): List<String> = path.split('/').filter { it.isNotEmpty() && it != "." }
 
     companion object {
+        /** `/sdcard`, as Android names phone storage: a link in the root filesystem to [shared]. */
+        const val SDCARD = "/sdcard"
+
         /** The phone's own trees every launch binds where they are: the kernel's, and those the bionic linker reads. */
         val HOST_PATHS = listOf("/dev", "/proc", "/sys", "/system", "/apex", "/vendor", "/product")
 

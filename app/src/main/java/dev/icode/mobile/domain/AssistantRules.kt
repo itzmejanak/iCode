@@ -237,9 +237,6 @@ object AssistantRules {
     fun storedBaseUrl(kind: AssistantProviderKind, typed: String): String? =
         if (!kind.asksBaseUrl) null else typed.trim().trimEnd('/').ifEmpty { null }
 
-    /** The last part of a workspace's location: the name it is shown by. */
-    fun workspaceName(location: String): String = location.trimEnd('/').substringAfterLast('/')
-
     /**
      * The results of the reply at [index]: those right after it. Matched there, not across the chat,
      * since a provider may give the same ID to calls of different replies (Ollama's are a hash).

@@ -51,6 +51,9 @@ internal class PhoneStorage(
     }.getOrNull()
 
     companion object {
-        fun of() = PhoneStorage(Environment.getExternalStorageDirectory().canonicalFile, Environment::isExternalStorageManager)
+        fun of() = PhoneStorage(top(), Environment::isExternalStorageManager)
+
+        /** Phone storage's top, canonical: `/storage/emulated/0` for the phone's first user. */
+        fun top(): File = Environment.getExternalStorageDirectory().canonicalFile
     }
 }

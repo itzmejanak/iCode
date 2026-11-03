@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.assistant
 
 import android.content.Context
+import android.os.Environment
 import dev.icode.mobile.data.assistant.koog.KoogAssistantEngine
 import dev.icode.mobile.data.assistant.tools.AssistantToolbox
 import dev.icode.mobile.data.assistant.tools.AssistantWorkspace
@@ -12,6 +13,7 @@ import dev.icode.mobile.data.workspace.WorkspaceRoot
 import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantExports
 import dev.icode.mobile.domain.AssistantMessage
+import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantSession
 import dev.icode.mobile.domain.ICodeEffect
@@ -45,6 +47,8 @@ internal class AssistantCoordinator(
     attachments: (openText: (String) -> String?) -> AssistantAttachments,
     /** Git, for a workspace, in the repository it works in: what a commit message is written from. */
     git: suspend (workspace: String, arguments: List<String>) -> CliGitService.CommandResult,
+    /** All Files Access, as Android answers it now: phone storage is read with it (docs/phone-agent-plan.md L8). */
+    storageAccess: () -> Boolean,
 ) {
     private val page = AssistantPage(stateHolder, scope, chats)
     private val settings = AssistantProviders(stateHolder, scope, engine, providers, page)
@@ -52,6 +56,7 @@ internal class AssistantCoordinator(
     private val turns = AssistantTurns(
         page, scope, engine, providers, settings::settings, chats, tools, describe, paths,
         attachments { location -> stateHolder.current.openDocuments.firstOrNull { it.location == location }?.text },
+        storageAccess,
     )
 
     /**
@@ -76,14 +81,16 @@ internal class AssistantCoordinator(
 
     private suspend fun apply(intent: ICodeIntent.AssistantIntent) {
         when (intent) {
-            ICodeIntent.OpenAssistant -> page.show(activeRoot(), turns.running)
+            ICodeIntent.OpenAssistant -> page.show(place(), turns.running)
+            is ICodeIntent.ShowAssistantPlace -> page.show(intent.place, turns.running)
             is ICodeIntent.OpenAssistantSession -> page.current.workspace?.let { page.display(it, intent.id) }
             is ICodeIntent.DeleteAssistantSession -> delete(intent.id)
             is ICodeIntent.ExportAssistantSession -> export(intent.id)
-            ICodeIntent.NewAssistantChat -> (page.current.workspace ?: activeRoot())?.let { page.display(it, null) }
+            ICodeIntent.NewAssistantChat -> page.display(page.current.workspace ?: place(), null)
             is ICodeIntent.SendAssistantMessage -> send(intent.text, intent.attachments)
             ICodeIntent.StopAssistant -> turns.stop()
             is ICodeIntent.AnswerAssistant -> turns.answer(intent.callId, intent.answer)
+            ICodeIntent.ContinueAssistant -> turns.resume()
             ICodeIntent.CompactAssistantChat -> compact()
             ICodeIntent.RetryAssistantMessage -> retry()
             is ICodeIntent.ChooseAssistantModel -> settings.choose(AssistantChoice(intent.provider, intent.model))
@@ -123,10 +130,17 @@ internal class AssistantCoordinator(
         val input = text.trim()
         if (input.isEmpty() && attachments.isEmpty()) return
         val shown = page.current
-        val workspace = shown.workspace ?: activeRoot() ?: return page.say(NoticeTone.HeadsUp, "Open a workspace to ask the assistant")
+        val workspace = shown.workspace ?: place()
         val session = shown.session?.takeIf { shown.workspace == workspace } ?: chats.newSession()
         turns.send(workspace, session, input, attachments)
     }
+
+    /**
+     * The place the page opens on (docs/phone-agent-plan.md L1): the phone's chats while the user keeps
+     * them shown; else the open workspace's; the phone's on the home screen.
+     */
+    private fun place(): String =
+        page.current.workspace.takeIf { it == AssistantPlace.PHONE } ?: activeRoot() ?: AssistantPlace.PHONE
 
     /** The mode chosen in the chip: the setting, and the chat shown's, whose own answers it replaces. */
     private fun setPermission(intent: ICodeIntent.SetAssistantPermission) {
@@ -168,7 +182,7 @@ internal class AssistantCoordinator(
         val title = listed?.title ?: AssistantRules.sessionTitle(
             chat.messages.firstNotNullOfOrNull { it as? AssistantMessage.User }?.text.orEmpty(),
         )
-        scope.launch { stateHolder.emit(ICodeEffect.ShareChat(title, AssistantExports.transcript(AssistantSession(session, title, listed?.updatedAt ?: 0L), AssistantRules.workspaceName(workspace), chat.messages))) }
+        scope.launch { stateHolder.emit(ICodeEffect.ShareChat(title, AssistantExports.transcript(AssistantSession(session, title, listed?.updatedAt ?: 0L), AssistantPlace.name(workspace), chat.messages))) }
     }
 
     companion object {
@@ -198,6 +212,7 @@ internal class AssistantCoordinator(
                 )
             },
             git = { workspace, arguments -> git.run(workspace, arguments) },
+            storageAccess = Environment::isExternalStorageManager,
         )
     }
 }

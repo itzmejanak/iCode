@@ -30,11 +30,38 @@ internal object AssistantInstructions {
     fun of(workspace: AssistantWorkspace, mode: AssistantMode, permission: AssistantPermission, summary: String?): String = buildString {
         appendLine("You are the assistant built into iCode, a code editor on an Android phone.")
         appendLine()
+        if (workspace.phone) phone(workspace, mode, permission) else workspace(workspace, mode, permission)
+        appendLine()
+        appendLine("## Style")
+        appendLine("- Be concise. The user reads you on a phone. Use Markdown, name files by their paths.")
+        appendLine("- Write math in LaTeX as `\$…\$` inline and `\$\$…\$\$` on lines of its own.")
+        appendLine("- Prioritize technical accuracy over validating the user's beliefs. Disagree when necessary.")
+        appendLine("- Only use emoji if the user does first.")
+        appendLine("- Never say you ran or checked something you did not.")
+        appendLine()
+        appendLine("## Tool use")
+        appendLine("- Call multiple independent tools at once (e.g. read several files in parallel).")
+        appendLine("- When one result is needed for the next, use tools one at a time.")
+        appendLine("- Never guess parameters or use placeholders. If information is missing, tell the user what is needed.")
+        if (!workspace.phone) projectNotes(workspace.root)?.let { notes ->
+            appendLine()
+            appendLine("The project's own instructions, from its AGENTS.md:")
+            appendLine(notes)
+        }
+        summary?.let {
+            appendLine()
+            appendLine("This chat was compacted. Your summary of it until then:")
+            appendLine(it)
+        }
+    }
+
+    /** Where a workspace's chat works, and its mode's role (docs/assistant-koog-plan.md §12 R8). */
+    private fun StringBuilder.workspace(workspace: AssistantWorkspace, mode: AssistantMode, permission: AssistantPermission) {
         appendLine("## Workspace")
         appendLine(
             "You work in “${workspace.name}”, at ${workspace.guestPath} in the user's own Ubuntu Linux on their phone " +
                 "(ARM64, under PRoot: uid 0 without root's powers, no systemd; `apt` installs packages), on the user's behalf. " +
-                "Every workspace is under /workspace. The tools reach the whole runtime: a relative path starts at " +
+                "Every workspace is under /workspace. $STORAGE The tools reach the whole runtime: a relative path starts at " +
                 "${workspace.guestPath}, `~` is /root. ${approvals(workspace.name, permission)} " +
                 "What PRoot and Android cannot do here is in ${RuntimeLayout.README_PATH}.",
         )
@@ -92,27 +119,31 @@ internal object AssistantInstructions {
                 appendLine("- Report what you did, what each step produced, and what remains open.")
             }
         }
+    }
+
+    /**
+     * Where a phone chat works (docs/phone-agent-plan.md L1): from root's home, in no workspace, for
+     * whatever the user asks of their phone; a mode that only reads keeps to reading.
+     */
+    private fun StringBuilder.phone(workspace: AssistantWorkspace, mode: AssistantMode, permission: AssistantPermission) {
+        appendLine("## Where you work")
+        appendLine(
+            "You work on the user's phone, from ${workspace.guestPath} — root's home in the user's own Ubuntu Linux on it " +
+                "(ARM64, under PRoot: uid 0 without root's powers, no systemd; `apt` installs packages) — on the user's behalf. " +
+                "The user's workspaces are under /workspace. $STORAGE The tools reach the whole runtime: a relative path " +
+                "starts at ${workspace.guestPath}. ${approvals(workspace.guestPath, permission)} " +
+                "What PRoot and Android cannot do here is in ${RuntimeLayout.README_PATH}.",
+        )
         appendLine()
-        appendLine("## Style")
-        appendLine("- Be concise. The user reads you on a phone. Use Markdown, name files by their paths.")
-        appendLine("- Write math in LaTeX as `\$…\$` inline and `\$\$…\$\$` on lines of its own.")
-        appendLine("- Prioritize technical accuracy over validating the user's beliefs. Disagree when necessary.")
-        appendLine("- Only use emoji if the user does first.")
-        appendLine("- Never say you ran or checked something you did not.")
+        appendLine("## Your role")
+        appendLine("You are the user's assistant on their phone: you answer, find and read their files, and do what they ask with the tools you have.")
         appendLine()
-        appendLine("## Tool use")
-        appendLine("- Call multiple independent tools at once (e.g. read several files in parallel).")
-        appendLine("- When one result is needed for the next, use tools one at a time.")
-        appendLine("- Never guess parameters or use placeholders. If information is missing, tell the user what is needed.")
-        projectNotes(workspace.root)?.let { notes ->
-            appendLine()
-            appendLine("The project's own instructions, from its AGENTS.md:")
-            appendLine(notes)
-        }
-        summary?.let {
-            appendLine()
-            appendLine("This chat was compacted. Your summary of it until then:")
-            appendLine(it)
+        appendLine("## How you work")
+        appendLine("- Look before you act: list, search and read what a task touches first.")
+        appendLine("- Say what you changed, and where, in a sentence or two.")
+        appendLine("- When you need more information, tell the user what is missing and ask.")
+        if (mode == AssistantMode.Plan || mode == AssistantMode.Ask) {
+            appendLine("- You CANNOT change files or run commands in this mode. You only read, then answer or propose.")
         }
     }
 
@@ -162,4 +193,9 @@ internal object AssistantInstructions {
     }
 
     private const val MAX_NOTES = 16_000
+
+    /** Phone storage, as every chat is told of it (docs/phone-agent-plan.md L8). */
+    private const val STORAGE =
+        "Phone storage — the user's Download, Documents, Pictures, DCIM, Music — is at /sdcard (/storage/emulated/0), " +
+            "read with All Files Access."
 }

@@ -8,7 +8,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 /**
- * What the Assistant page shows (§12 R5): a workspace's chats and the one open, read from [chats].
+ * What the Assistant page shows (§12 R5): a place's chats and the one open, read from [chats].
  * Everything is read before the state is changed: no file is read inside an update.
  */
 internal class AssistantPage(
@@ -18,9 +18,11 @@ internal class AssistantPage(
 ) {
     val current: AssistantState get() = stateHolder.current.assistant
 
-    /** [workspace]'s chats: the one open stays; else [running], the turn's chat there; else the newest. */
-    fun show(workspace: String?, running: Pair<String, String>?) {
-        if (workspace == null) return state { it.copy(workspace = null, sessions = emptyList(), session = null, messages = emptyList(), contextTokens = null) }
+    /**
+     * [workspace]'s chats — a place: a workspace's location, or the phone — the one open stays; else
+     * [running], the turn's chat there; else the newest.
+     */
+    fun show(workspace: String, running: Pair<String, String>?) {
         val sessions = chats.sessions(workspace)
         val session = when {
             current.workspace == workspace -> current.session

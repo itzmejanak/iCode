@@ -65,6 +65,8 @@ object IcodeSizes {
     val BadgeSm = 32.dp
     val BadgeMd = 36.dp
     val Tile = 74.dp
+    /** The × that takes a picture off, in a [Tile]'s corner. */
+    val TileRemove = 28.dp
     /** A grid of files (docs/explorer-gaps-plan.md §3.12): each tile at least this wide, its picture this big. */
     val GridTileMin = 104.dp
     val GridTilePicture = 56.dp

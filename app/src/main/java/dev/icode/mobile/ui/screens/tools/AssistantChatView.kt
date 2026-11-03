@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -30,16 +29,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import dev.icode.mobile.designsystem.EmptyState
-import dev.icode.mobile.designsystem.IcodeBrandMark
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeListRow
-import dev.icode.mobile.designsystem.IcodeSection
-import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTone
 import dev.icode.mobile.designsystem.IcodeType
-import dev.icode.mobile.designsystem.IcodeWatermark
 import dev.icode.mobile.designsystem.IndeterminateProgressTrack
 import dev.icode.mobile.designsystem.JumpToLatestButton
 import dev.icode.mobile.designsystem.LocalCodeTextScale
@@ -49,8 +42,7 @@ import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.scaledBy
 import dev.icode.mobile.domain.AssistantEntry
 import dev.icode.mobile.domain.AssistantMessage
-import dev.icode.mobile.domain.AssistantMode
-import dev.icode.mobile.domain.AssistantRules
+import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantState
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.ui.LocalICodeGateway
@@ -194,10 +186,13 @@ internal fun AssistantChatView(
             // Its gap to the composer is the composer's own top padding: one, not two.
             AssistantApprovalCard(
                 approval,
-                AssistantRules.workspaceName(state.workspace.orEmpty()),
+                AssistantPlace.bound(state.workspace.orEmpty()),
                 Modifier.padding(start = IcodeSpacing.Space3, end = IcodeSpacing.Space3, top = IcodeSpacing.Space2),
                 onDetails = asked?.let { (row, step) -> { onOpen(row, step) } },
             )
+        }
+        state.pause?.takeIf { state.runningHere }?.let { pause ->
+            AssistantPauseCard(pause, Modifier.padding(start = IcodeSpacing.Space3, end = IcodeSpacing.Space3, top = IcodeSpacing.Space2))
         }
     }
 }
@@ -222,70 +217,3 @@ private suspend fun LazyListState.scrollToEnd() {
     val below = last.offset + last.size - (layoutInfo.viewportEndOffset - layoutInfo.afterContentPadding)
     if (below > 0) scrollBy(below.toFloat())
 }
-
-/** An empty chat: the logo over its letterpress, as on the home screen, and a few things to ask. */
-@Composable
-private fun AssistantWelcome(state: AssistantState, modifier: Modifier, onSuggestion: (String) -> Unit) {
-    val workspace = AssistantRules.workspaceName(state.workspace.orEmpty())
-    val asking = state.settings.mode == AssistantMode.Ask
-    val planning = state.settings.mode == AssistantMode.Plan
-    val orchestrating = state.settings.mode == AssistantMode.Orchestrator
-    Box(modifier.fillMaxWidth()) {
-        IcodeWatermark(Modifier.align(Alignment.Center))
-        Column(
-            Modifier.align(Alignment.Center).widthIn(max = IcodeSizes.ContentMaxWidth).padding(IcodeSpacing.Gutter),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.SectionGap),
-        ) {
-            EmptyState(
-                title = when {
-                    asking -> "Ask about $workspace"
-                    planning -> "Plan for $workspace"
-                    orchestrating -> "Build with orchestration"
-                    else -> "Build with the assistant"
-                },
-                description = when {
-                    asking -> "It reads this workspace to answer, and changes nothing."
-                    planning -> "It reads everything to understand and plan. It never changes files or runs commands."
-                    orchestrating -> "It plans, implements and verifies step by step, reporting what it did."
-                    else -> "It reads and changes $workspace's files and runs commands in its terminal. ${permissionLine(state.permission, workspace)}."
-                },
-                mark = { IcodeBrandMark(Modifier.size(IcodeSizes.MarkLg)) },
-            )
-            IcodeSection {
-                when {
-                    asking -> ASK_SUGGESTIONS
-                    planning -> PLAN_SUGGESTIONS
-                    orchestrating -> ORCHESTRATOR_SUGGESTIONS
-                    else -> CODE_SUGGESTIONS
-                }.forEach { suggestion ->
-                    IcodeListRow(title = suggestion, card = true, onClick = { onSuggestion(suggestion) }, modifier = Modifier.fillMaxWidth())
-                }
-            }
-        }
-    }
-}
-
-private val CODE_SUGGESTIONS = listOf(
-    "Explain how this project is organized",
-    "Review my uncommitted changes",
-    "Add a README for this project",
-)
-
-private val PLAN_SUGGESTIONS = listOf(
-    "Analyze the architecture and suggest improvements",
-    "Plan how to add authentication",
-    "What would it take to add dark mode?",
-)
-
-private val ASK_SUGGESTIONS = listOf(
-    "Explain how this project is organized",
-    "Where does the app start?",
-    "What do my uncommitted changes do?",
-)
-
-private val ORCHESTRATOR_SUGGESTIONS = listOf(
-    "Add a new settings screen with search",
-    "Refactor the gateway into smaller coordinators",
-    "Set up CI with GitHub Actions",
-)
