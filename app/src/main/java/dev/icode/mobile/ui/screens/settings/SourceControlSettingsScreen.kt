@@ -71,7 +71,7 @@ fun SourceControlSettingsScreen(actions: NavigationActions) {
                         Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = IcodeColors.TextSecondary)
                     }
                     if (settings.providers.isEmpty()) {
-                        SecondaryButton("Add a Model Provider", { actions.navigate(Route.AssistantSettings) }, Modifier.fillMaxWidth())
+                        SecondaryButton("Add a Model Provider", { actions.navigate(Route.AssistantProviders) }, Modifier.fillMaxWidth())
                     }
                 }
             }
@@ -83,7 +83,7 @@ fun SourceControlSettingsScreen(actions: NavigationActions) {
                     state,
                     Modifier.align(Alignment.BottomCenter),
                     onClose = close,
-                    onProviders = { actions.navigate(Route.AssistantSettings) },
+                    onProviders = { actions.navigate(Route.AssistantProviders) },
                     title = "Commit Message Model",
                     chosen = { it == effectiveChoice },
                     onChoose = { gateway.dispatch(ICodeIntent.ChooseCommitModel(it)) },

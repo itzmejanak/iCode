@@ -52,6 +52,7 @@ import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantState
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.phone.PhoneOverlay
+import dev.icode.mobile.data.voice.Voice
 
 /** What the bubble does, as its window and the backend answer it. */
 internal class PhoneBubbleActions(
@@ -103,6 +104,7 @@ private fun Panel(overlay: PhoneOverlay, assistant: AssistantState, actions: Pho
         if (text.isNotEmpty()) {
             // The bubble talks in the phone's chats, whatever iCode's page shows.
             actions.dispatch(ICodeIntent.ShowAssistantPlace(AssistantPlace.PHONE))
+            Voice.bubbleTurn = true
             actions.dispatch(ICodeIntent.SendAssistantMessage(text))
             draft = ""
         }
@@ -133,7 +135,11 @@ private fun Panel(overlay: PhoneOverlay, assistant: AssistantState, actions: Pho
                     }
                 }
                 if (overlay.working && draft.isBlank()) {
-                    IconButton(onClick = { actions.dispatch(ICodeIntent.StopAssistant) }) {
+                    IconButton(onClick = {
+                        Voice.stopped = true
+                        Voice.stopSpeaking()
+                        actions.dispatch(ICodeIntent.StopAssistant)
+                    }) {
                         Icon(Icons.Outlined.Stop, contentDescription = "Stop", tint = IcodeColors.Error, modifier = Modifier.size(IcodeSizes.IconLg))
                     }
                 } else {

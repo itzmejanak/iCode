@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -29,7 +30,6 @@ import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeConfirmDialog
 import dev.icode.mobile.designsystem.IcodePageColumn
 import dev.icode.mobile.designsystem.IcodeSection
-import dev.icode.mobile.designsystem.IcodeSelect
 import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodeSheetOverlay
 import dev.icode.mobile.designsystem.IcodeSizes
@@ -65,7 +65,7 @@ fun AssistantProviderScreen(actions: NavigationActions) {
     LaunchedEffect(Unit) { if (state.editing == null) gateway.dispatch(ICodeIntent.EditAssistantProvider("")) }
     val id = state.editing.orEmpty()
     val saved = state.settings.providers.firstOrNull { it.id == id }
-    var kind by rememberSaveable(id) { mutableStateOf(saved?.kind ?: AssistantProviderKind.entries.first()) }
+    var kind by rememberSaveable(id) { mutableStateOf(saved?.kind ?: state.adding ?: AssistantProviderKind.entries.first()) }
     var name by rememberSaveable(id) { mutableStateOf(saved?.name.orEmpty()) }
     var baseUrl by rememberSaveable(id, kind) { mutableStateOf(saved?.baseUrl ?: kind.defaultBaseUrl.orEmpty()) }
     var models by rememberSaveable(id, kind, stateSaver = SPECS_SAVER) { mutableStateOf(saved?.models?.map { it.spec }.orEmpty()) }
@@ -75,6 +75,7 @@ fun AssistantProviderScreen(actions: NavigationActions) {
     var replacingKey by remember(id) { mutableStateOf(false) }
     var adding by rememberSaveable { mutableStateOf(false) }
     var options by rememberSaveable { mutableStateOf<String?>(null) }
+    var kinds by rememberSaveable { mutableStateOf(false) }
     var removing by remember { mutableStateOf(false) }
     var leaving by remember { mutableStateOf(false) }
     // What Back would lose: anything typed on a new provider, any change to a saved one.
@@ -90,18 +91,20 @@ fun AssistantProviderScreen(actions: NavigationActions) {
     fun knownOf(model: String) = catalogue.firstOrNull { it.id == model }
 
     Box(Modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize().behindSheet(adding || options != null)) {
+        Column(Modifier.fillMaxSize().behindSheet(adding || options != null || kinds)) {
             IcodeTopBar(saved?.name ?: "Add Provider", subtitle = saved?.kind?.label, onBack = { if (changed) leaving = true else actions.back() })
             IcodePageColumn(Modifier.weight(1f)) {
                 if (saved == null) {
-                    IcodeSelect(
-                        options = AssistantProviderKind.entries,
-                        selected = kind,
-                        optionLabel = { it.label },
-                        onSelect = { kind = it },
-                        label = "Provider",
-                        optionDescription = { it.description },
-                    )
+                    IcodeSection("Provider") {
+                        IcodeListRow(
+                            card = true,
+                            title = kind.label,
+                            subtitle = kind.description,
+                            subtitleStyle = IcodeType.Caption,
+                            onClick = { kinds = true },
+                            trailing = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = "Change provider", tint = IcodeColors.TextSecondary) },
+                        )
+                    }
                 }
                 LabeledTextField("Name", name, { name = it }, placeholder = kind.label)
                 if (kind.asksBaseUrl) {
@@ -157,6 +160,14 @@ fun AssistantProviderScreen(actions: NavigationActions) {
                         enabled = problem == null,
                     )
                     if (saved != null) DangerButton("Remove Provider", { removing = true }, Modifier.fillMaxWidth())
+                }
+            }
+        }
+        if (kinds) {
+            IcodeSheetOverlay(onClose = { kinds = false }) {
+                ProviderKindSheet(selected = kind, modifier = Modifier.align(Alignment.BottomCenter), onClose = { kinds = false }) {
+                    kind = it
+                    kinds = false
                 }
             }
         }
@@ -218,13 +229,6 @@ fun AssistantProviderScreen(actions: NavigationActions) {
         )
     }
 }
-
-private val AssistantProviderKind.description: String
-    get() = when (this) {
-        AssistantProviderKind.Ollama -> "A model server; on this phone by default"
-        AssistantProviderKind.OpenAICompatible -> "DeepSeek, Groq, LM Studio and other servers"
-        else -> "Needs an API key"
-    }
 
 /** The models on the form, through a configuration change: five strings each. */
 private val SPECS_SAVER = listSaver<List<AssistantModelSpec>, String>(

@@ -27,6 +27,12 @@ All notable changes to iCode are documented here. The format follows
   puts away the bubble; turns off.
 - Settings › Assistant › Phone control › Shizuku: its state read live, the one step each state needs,
   and what it adds.
+- Settings › Assistant is a list of pages — Providers, Voice, Phone control; Providers lists the
+  model providers, and + opens a sheet of provider kinds.
+- Voice, with Android's engines: the microphone in the chat's composer and the bubble listens with
+  Android's speech recognition and puts what is heard in the message; Settings › Assistant › Voice
+  allows the microphone and chooses when answers are read aloud with Android's text-to-speech (Off,
+  In the bubble — the default — or Always), reading only the answer's words, without code or links.
 
 ## [0.1.0]
 

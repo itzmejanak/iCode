@@ -1,5 +1,6 @@
 package dev.icode.mobile.data.assistant
 
+import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.AssistantAvailable
@@ -52,7 +53,7 @@ internal class AssistantProviders(
     fun choose(choice: AssistantChoice) = remember { store.choose(choice) }
 
     /** Another provider's page, or a new one's: what was listed for the last one is not its. */
-    fun edit(id: String) = page.state { it.copy(editing = id, available = null) }
+    fun edit(id: String, kind: AssistantProviderKind? = null) = page.state { it.copy(editing = id, adding = kind.takeIf { id.isEmpty() }, available = null) }
 
     suspend fun save(intent: ICodeIntent.SaveAssistantProvider) {
         val saved = settings().providers.firstOrNull { it.id == intent.id }
