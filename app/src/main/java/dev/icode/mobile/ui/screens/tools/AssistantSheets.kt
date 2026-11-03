@@ -45,8 +45,7 @@ import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.ui.LocalICodeGateway
 
 /**
- * The place's chats, newest first: open one, delete one, or start another. With a workspace open
- * ([workspace]), its chats or the phone's (docs/phone-agent-plan.md L1).
+ * The workspace's chats, newest first: open one, delete one, or start another.
  */
 @Composable
 internal fun AssistantChatsSheet(state: AssistantState, workspace: String?, modifier: Modifier, onClose: () -> Unit) {
@@ -69,13 +68,6 @@ internal fun AssistantChatsSheet(state: AssistantState, workspace: String?, modi
             )
         },
     ) {
-        if (workspace != null) {
-            listOf(workspace, AssistantPlace.PHONE).forEach { place ->
-                IcodeChoiceRow(AssistantPlace.name(place), chosen = place == state.workspace, onChoose = {
-                    if (place != state.workspace) gateway.dispatch(ICodeIntent.ShowAssistantPlace(place))
-                })
-            }
-        }
         if (state.sessions.size > SEARCH_FROM) Search(query, "Search chats") { query = it }
         if (shown.isEmpty()) Hint(if (state.sessions.isEmpty()) "No chats in ${state.workspace?.let(AssistantPlace::name) ?: "here"} yet" else "No chat matches")
         shown.forEach { session ->

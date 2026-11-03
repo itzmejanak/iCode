@@ -6,7 +6,6 @@ import dev.icode.mobile.data.search.RipgrepIndexOutcome
 import dev.icode.mobile.data.search.RipgrepSearchOutcome
 import dev.icode.mobile.data.search.WorkspaceSearchEngine
 import dev.icode.mobile.data.workspace.WorkspaceFileSource
-import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.ContentMatch
 import dev.icode.mobile.domain.ContentSearchResult
 import dev.icode.mobile.domain.IndexedFile
@@ -79,16 +78,6 @@ class AssistantToolsTest {
         assertEquals(emptyList<File>(), ReadFileTool(withoutAccess, source).reach(args("path" to "/sdcard/Download/notes.txt")))
         // Elsewhere, nothing changes without it.
         assertEquals(File(root, "a.kt"), withoutAccess.resolve("a.kt"))
-    }
-
-    @Test fun `the phone's chats work from root's home, named Phone, with no Run tab`() {
-        val phone = AssistantWorkspace.phone(runtime.paths) { true }
-        assertEquals("/root", phone.guestPath)
-        assertEquals("Phone", phone.name)
-        assertEquals(AssistantPlace.PHONE, phone.place)
-        assertEquals(File(runtime.rootfs, "root/notes.md"), phone.resolve("notes.md"))
-        assertEquals(listOf("/workspace/app"), phone.outside(listOf(File(runtime.rootfs, "root/x"), root)))
-        assertEquals(root.path, workspace.place)
     }
 
     @Test fun `each tool reaches the path it is given, the workspace's top by default, and the gate sees what is outside`() {
