@@ -76,6 +76,9 @@ enum class Route(
     Assistant(null, "Assistant", RouteGroup.TOOLS),
     AssistantSettings(null, "Assistant settings", RouteGroup.SETTINGS),
     AssistantProvider(null, "Assistant provider", RouteGroup.SETTINGS),
+    // Owner's request (2026-11-03): the assistant on the whole phone (phone-agent-plan.md §5.9, P7).
+    PhoneControl(null, "Phone control", RouteGroup.SETTINGS),
+    ShizukuSetup(null, "Shizuku", RouteGroup.SETTINGS),
     // Owner's request (2026-10-08): Git's credentials and the commit messages' model (commit-message-generator-plan.md M8).
     SourceControlSettings(null, "Source control settings", RouteGroup.SETTINGS),
 }

@@ -22,6 +22,11 @@ All notable changes to iCode are documented here. The format follows
 - Shizuku: one tap turns phone control on, and real touches reach what accessibility is refused.
 - The bubble over every app — the question waiting, a field, Send and Stop, Open in iCode — and
   the screen's edges glowing in the accent while the assistant acts; dragged onto ✕, both go away.
+- Settings › Assistant › Phone control: off by default; says what is read and where it goes, walks
+  through Allow restricted settings and Accessibility, or turns on in one tap with Shizuku; shows or
+  puts away the bubble; turns off.
+- Settings › Assistant › Phone control › Shizuku: its state read live, the one step each state needs,
+  and what it adds.
 
 ## [0.1.0]
 
