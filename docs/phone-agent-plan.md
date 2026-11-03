@@ -205,7 +205,7 @@ Each is fixed where it is, not worked around beside it.
 | L4 | Questions wait on the chat page or a notification | The **bubble** shows the question and its answers, on any screen |
 | L5 | 40 steps, then a hard stop | At 40 steps the turn **pauses** and asks "Keep going?" (Continue, Stop); Continue gives 40 more |
 | L6 | The modes speak only of a workspace | **Apps are places too.** Reading never asks. Acting in an app asks under Ask first and Auto in workspace, with "Allow in *app* for this chat" — the same "outside" rule as a folder. Full access asks nothing |
-| L7 | The assistant lives only in iCode | **The bubble** over every app, and the accessibility button as a second way in |
+| L7 | The assistant lives only in iCode | **The bubble** over every app: one icon, iCode's own (§5.7) |
 | L8 | The assistant cannot reach phone storage: the runtime binds only workspaces and the system's trees; the explorer alone reads it | **Phone storage is in the runtime**, at its own path (`/storage/emulated/0`) with `/sdcard` naming it, as on Android. Every tool and command reaches it the way it reaches any folder outside the workspace: through the gate, "Allow in *folder* for this chat". Without All Files Access the tool says so, and what the user taps to give it |
 | L9 | The assistant only writes | **It speaks:** its answers and questions are read aloud, in a natural voice, when the user asks for that (§5.8) |
 
@@ -307,26 +307,48 @@ Each is fixed where it is, not worked around beside it.
 
 ### 5.7 The bubble
 
-- **Collapsed:** the iCode mark on a round button at the screen's edge.
-  - A ring round it while the agent works, and a dot when a question waits.
-  - Dragged anywhere; it snaps to the nearer edge.
-  - Hidden while iCode is on screen.
-- **Expanded:** a small panel over the app:
-  - what the agent is doing now ("Opening Settings…");
-  - the question waiting, with its answers;
-  - a text field, the microphone, Send, and Stop;
-  - **Open in iCode**, for the whole chat.
-- **One mark, one look:** it is drawn with iCode's design system, in a `TYPE_ACCESSIBILITY_OVERLAY`
-  window.
-- **The keyboard, proved first** (P5): the expanded panel takes focus so the keyboard can type
-  into it. If a phone's keyboard will not attach to an accessibility overlay, the field opens a small
-  floating iCode activity instead, the same panel.
-- **The accessibility button** (Android's own, in the navigation bar or floating) opens the panel
-  too.
-- **Put away** (the owner's word, 2026-11-03): dragging the bubble shows a ✕ at the bottom of the
-  screen; dropped there, the bubble goes and the glow goes with it. While a turn acts on the phone,
-  the target reads "Stop and hide", and dropping stops it. Phone control stays on: the bubble comes
-  back from the notification's **Show bubble**, the accessibility button, or the assistant page.
+The owner's design (2026-11-03): three things on screen — the **bubble**, a **compact bar** when text
+can be typed, and the **edge glow** — and everything else only when it is needed. No header, no
+cards of actions, no dashboard.
+
+- **One icon.** iCode does not ask for Android's accessibility button (`flagRequestAccessibilityButton`):
+  Android assigns a service that asks for it to its own floating button when the service is turned on,
+  a second icon beside the bubble that it draws itself and no app can animate or restyle. A phone
+  that still lists iCode there from an earlier build (`accessibility_button_targets`, readable by
+  apps) is told so on Phone Control, whose row opens iCode's accessibility page to turn it off: once
+  the flag is gone, a tap on that button would turn the service off.
+- **The bubble**, docked at the nearer edge as Android's floating button is: dragged anywhere, it
+  snaps back; idle for three seconds it tucks half behind the edge and fades; anything new brings it
+  out. Hidden while iCode is on screen. Its six states (`PhoneOverlay.Look`), the agent's before the
+  microphone's — muting never hides that the agent works, and it shows listening only while it
+  listens:
+
+  | State | Shows | A tap |
+  |---|---|---|
+  | Idle | The iCode mark | Opens the bar |
+  | Listening | A waveform in an accent ring, slightly larger; the words heard beside it | Mutes: listening stops, the words wait in the bar |
+  | Muted | The microphone off | Resumes listening |
+  | Thinking | A ring turning round the mark | Opens the bar (Stop is there) |
+  | Acting | A ring turning round a pointer; the glow on | Opens the bar (Stop is there) |
+  | Speaking | A waveform | Stops the reading |
+
+  A dot shows while a question waits.
+- **The bar**, beside the bubble towards the middle of the screen — iCode's floating pill: the field,
+  the microphone, Send (Stop while the agent works, Stop reading while it speaks), and ⋮ for New chat
+  and Open in iCode. Under it, in one card and only when there is something to say: what the agent is
+  doing, the question with its answers, why the microphone heard nothing (permission, a model to
+  download), or why the last turn failed, with Retry. It holds the keyboard; a touch outside, or on
+  the bubble, closes it. Sending closes it, so it covers nothing the agent may tap.
+- **Voice.** The bar's microphone hides the bar and the bubble listens; once the user stops talking,
+  what was heard is sent, answered aloud. Muted, the words wait in the bar to be edited or sent. Mute,
+  Stop, Close and Cancel are never one control: muting stops only the microphone, Stop (in the bar)
+  stops the agent, closing the bar stops nothing, and dragging onto ✕ puts everything away.
+- **Put away** (the owner's word): dragging the bubble shows a ✕ at the bottom of the screen; dropped
+  there, the bubble goes and the glow goes with it, and the voice is silenced. While a turn acts on
+  the phone, the target reads "Stop and hide", and dropping stops it. Phone control stays on: the
+  bubble comes back from the notification's **Show bubble**, or Phone Control's Bubble switch.
+- **One mark, one look:** drawn with iCode's design system, in `TYPE_ACCESSIBILITY_OVERLAY` windows.
+- **The keyboard, proved first:** the bar's window takes focus so the keyboard can type into it.
 
 ### 5.8 Voice
 
@@ -408,11 +430,14 @@ Each is fixed where it is, not worked around beside it.
 
 - **AppFunctions:** the caller permission is a system role's (§3.1).
 - **A wake word:** always listening drains the battery, and Blurr's (Porcupine) needs a vendor key.
-  The bubble's microphone and the accessibility button cover voice.
+  The bubble's microphone covers voice.
 - **sherpa-onnx 2.x:** it dropped the phonemizer that lets its voices speak beyond English and
   Chinese (§3.4); v1.13.8 is kept until an upgrade brings one back.
 - **Acting while the screen is locked:** Android's lock screen is not the agent's.
 - **Claiming to be an accessibility tool:** untrue for iCode, and blocked by Play Protect (§3.2).
+- **Android's accessibility button as the bubble:** Android draws it and gives the app only its tap;
+  it cannot show listening, thinking, acting or speaking, which the owner's design asks of the one
+  icon (§5.7).
 
 ## 7. Cycles
 
@@ -502,3 +527,4 @@ Central's libraries, runs the unit tests it touches, and leaves the Android buil
 | **P7** | `PhoneSetup` (the steps per state: restricted settings from API 33, then the service; one tap with Shizuku ready; the status line), Phone Control (the steps opening App info and Accessibility, Turn On With Shizuku, the bubble, Turn Off), Shizuku (state, its one step: Get, Open, Allow iCode; what it adds), routes `PhoneControl` and `ShizukuSetup`; both read again on resume. Settings › Assistant as pages: Providers, Voice, Phone Control | `PhoneSetupTest`, `RouteTest`; the guards |
 | **P6** | `VoiceCoordinator` (one per process, its state in the snapshot, `VoiceIntent`): Android's recognizer (on the phone where it can, API 31) and text-to-speech; on this phone, sherpa-onnx v1.13.8 — Whisper base or SenseVoice cut by Silero at each pause (`ModelListener`, recording at once while the models load), Kokoro or a Piper voice played sentence by sentence (`ModelSpeaker`). `VoiceCatalog`: 36 models pinned by size and SHA-256, read from the files; only kept files taken from each archive (`VoiceModels`). `SpokenText`: the answer and the questions without Markdown, a new turn hushes, a stopped or failed one says nothing; a turn is answered aloud by its `aloud` flag, set by the bubble and the microphone. `PhoneForegroundService` (`specialUse|microphone`): the microphone while iCode is away, started again with it each time iCode is on screen; Stop, Show bubble, Turn off. The microphone (`MicButton`, `HeardLine`, `OnHeard`) shared by the composer and the bubble: words as they are heard, sent once the user stops talking | `SpokenTextTest`, `VoiceCatalogTest`, `VoiceModelsTest` (kept files only, nothing outside the folder), `SherpaConfigsTest` (every file given is kept), `AssistantCoordinatorTest` (aloud); the app compiled against sherpa-onnx's classes; its arm64 libraries checked 16 KB aligned |
 | **Redesign** (owner's request) | The new pages as Settings › Terminal's: `SettingRow`s with an icon, a one-line subtitle and a state (`AccessState`) or control, `IcodeSelect` for choices, no paragraphs. Voice: microphone; listening and speaking, each Android's or a model here, its size said before Download, then Cancel or Remove; Play Sample; spoken replies; what else is on the phone. Shared settings helpers in `SystemPages.kt` | The UI guard (no Toasts, no screens reaching `data/`), the backend guard |
+| **The bubble's states** (owner's design) | One icon: Android's accessibility button no longer asked for, and a leftover one named on Phone Control with the way to remove it (`PhoneAccess.systemButton`, `PhoneIntent.OpenAccessibility` opening iCode's own accessibility page). `PhoneOverlay.Look`'s six states, the agent's before the microphone's; `BubblePlacement` (docked at an edge, tucked and faded when idle, dragged and snapped); `PhoneBubble` (the states, the waveform, the words heard), `PhoneBubbleBar` (the floating pill, and its one card of what there is to say); `PhoneOverlays` (Closed, Typing, Voice: tap to mute, resume, silence; sent once the user stops talking; muted, the words wait) | `PhoneRulesTest` (the states and which comes first); the guards |

@@ -14,6 +14,12 @@ sealed interface PhoneIntent : ICodeIntent {
     /** Shizuku asks the user to allow iCode. */
     data object RequestShizuku : PhoneIntent
 
+    /**
+     * Android's page for iCode's service: where it is turned on, and where its shortcut on Android's
+     * accessibility button is turned off; the Accessibility list where a phone has no such page.
+     */
+    data object OpenAccessibility : PhoneIntent
+
     /** The bubble out again, or put away with the glow (the owner's word, §5.7). */
     data class ShowBubble(val shown: Boolean) : PhoneIntent
 }

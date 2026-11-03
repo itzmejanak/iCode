@@ -2,6 +2,8 @@ package dev.icode.mobile.data.phone
 
 import android.content.ComponentName
 import android.content.Context
+import android.content.Intent
+import android.provider.Settings
 import androidx.core.content.edit
 import dev.icode.mobile.data.phone.shizuku.ShizukuShell
 import dev.icode.mobile.data.runtime.TerminalSessionManager
@@ -68,6 +70,7 @@ internal class PhoneCoordinator(
                 refresh()
             }
             PhoneIntent.TurnOff -> PhoneService.current.value?.disableSelf()
+            PhoneIntent.OpenAccessibility -> openAccessibility()
             is PhoneIntent.ShowBubble -> {
                 preferences.edit { putBoolean(BUBBLE, intent.shown) }
                 refresh()
@@ -77,12 +80,32 @@ internal class PhoneCoordinator(
 
     private fun refresh() = scope.launch(Dispatchers.IO) {
         val service = PhoneService.current.value != null
-        val access = PhoneAccess(service = service, shizuku = shizuku.state(), bubble = service && preferences.getBoolean(BUBBLE, true))
+        val access = PhoneAccess(service = service, shizuku = shizuku.state(), bubble = service && preferences.getBoolean(BUBBLE, true), systemButton = onSystemButton())
         stateHolder.update { it.copy(phone = access) }
     }
+
+    private fun openAccessibility() {
+        val pages = listOf(
+            Intent(ACCESSIBILITY_DETAILS).putExtra(Intent.EXTRA_COMPONENT_NAME, ComponentName(app, PhoneService::class.java)),
+            Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS),
+        )
+        pages.firstOrNull { page ->
+            runCatching { app.startActivity(page.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }.isSuccess
+        }
+    }
+
+    /** Android's accessibility button lists iCode's service: Settings.Secure's key, readable by apps (`@Readable`). */
+    private fun onSystemButton(): Boolean = runCatching {
+        val short = ComponentName(app, PhoneService::class.java).flattenToShortString()
+        Settings.Secure.getString(app.contentResolver, BUTTON_TARGETS).orEmpty().split(':').any { it == component || it == short }
+    }.getOrDefault(false)
 
     private companion object {
         const val PREFERENCES = "phone"
         const val BUBBLE = "bubble"
+        const val BUTTON_TARGETS = "accessibility_button_targets"
+
+        /** Settings' page of one service (`Settings.ACTION_ACCESSIBILITY_DETAILS_SETTINGS`, a system constant); it opens an app's own service. */
+        const val ACCESSIBILITY_DETAILS = "android.settings.ACCESSIBILITY_DETAILS_SETTINGS"
     }
 }

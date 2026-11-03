@@ -6,6 +6,9 @@ import dev.icode.mobile.domain.AssistantPause
 import dev.icode.mobile.domain.AssistantState
 import dev.icode.mobile.domain.AssistantToolKind
 import dev.icode.mobile.domain.AssistantTurn
+import dev.icode.mobile.domain.voice.Heard
+import dev.icode.mobile.domain.voice.VoiceFrom
+import dev.icode.mobile.domain.voice.VoiceState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -81,22 +84,45 @@ class PhoneRulesTest {
 
     private val call = AssistantCall("c1", "phone_tap", "{}", "Tap [3]", AssistantToolKind.Change)
 
+    private val quiet = VoiceState()
+
+    private fun of(assistant: AssistantState, access: PhoneAccess, front: Boolean = false, voice: VoiceState = quiet, muted: Boolean = false) =
+        PhoneOverlay.of(assistant, voice, access, front, muted)
+
     @Test fun `the bubble is out unless put away or iCode is in front, and the glow shows while a turn acts on the phone`() {
         val on = PhoneAccess(service = true, bubble = true)
         val idle = AssistantState()
-        assertEquals(PhoneOverlay(bubble = true, glow = PhoneOverlay.Glow.Off, working = false, asking = false, step = null), PhoneOverlay.of(idle, on, iCodeOnScreen = false))
-        assertFalse(PhoneOverlay.of(idle, on, iCodeOnScreen = true).bubble)
+        assertEquals(PhoneOverlay(bubble = true, glow = PhoneOverlay.Glow.Off, look = PhoneOverlay.Look.Idle, working = false, asking = false, step = null), of(idle, on))
+        assertFalse(of(idle, on, front = true).bubble)
         val acting = AssistantState(turn = AssistantTurn("/w/app", "app", "s1", "Tap [3]", onPhone = true))
-        assertEquals(PhoneOverlay.Glow.On, PhoneOverlay.of(acting, on, false).glow)
+        assertEquals(PhoneOverlay.Glow.On, of(acting, on).glow)
         val waiting = acting.copy(approval = AssistantApproval(call, "Tap [3]"))
-        assertEquals(PhoneOverlay.Glow.Dim, PhoneOverlay.of(waiting, on, false).glow)
-        assertTrue(PhoneOverlay.of(waiting, on, false).asking)
-        assertTrue(PhoneOverlay.of(acting.copy(pause = AssistantPause(AssistantPause.Kind.HandOver, "Type the password")), on, false).asking)
+        assertEquals(PhoneOverlay.Glow.Dim, of(waiting, on).glow)
+        assertTrue(of(waiting, on).asking)
+        assertTrue(of(acting.copy(pause = AssistantPause(AssistantPause.Kind.HandOver, "Type the password")), on).asking)
         val workspaceTurn = AssistantState(turn = AssistantTurn("/w/app", "app", "s1", "Thinking…"))
-        assertEquals(PhoneOverlay.Glow.Off, PhoneOverlay.of(workspaceTurn, on, false).glow)
+        assertEquals(PhoneOverlay.Glow.Off, of(workspaceTurn, on).glow)
         // Put away: the glow goes with the bubble.
         val away = on.copy(bubble = false)
-        assertFalse(PhoneOverlay.of(acting, away, false).bubble)
-        assertEquals(PhoneOverlay.Glow.Off, PhoneOverlay.of(acting, away, false).glow)
+        assertFalse(of(acting, away).bubble)
+        assertEquals(PhoneOverlay.Glow.Off, of(acting, away).glow)
+    }
+
+    @Test fun `the bubble shows the agent's activity before the microphone's, and listening only while it listens`() {
+        val on = PhoneAccess(service = true, bubble = true)
+        val idle = AssistantState()
+        val thinking = AssistantState(turn = AssistantTurn("/w/app", "app", "s1", "Thinking…"))
+        val acting = AssistantState(turn = AssistantTurn("/w/app", "app", "s1", "Tap [3]", onPhone = true))
+        val listening = VoiceState(heard = Heard(1, VoiceFrom.Bubble, "turn on", final = false))
+        assertEquals(PhoneOverlay.Look.Idle, of(idle, on).look)
+        assertEquals(PhoneOverlay.Look.Muted, of(idle, on, muted = true).look)
+        assertEquals(PhoneOverlay.Look.Thinking, of(thinking, on, muted = true).look)
+        assertEquals(PhoneOverlay.Look.Acting, of(acting, on, muted = true).look)
+        assertEquals(PhoneOverlay.Look.Speaking, of(acting, on, voice = VoiceState(speaking = true)).look)
+        assertEquals(PhoneOverlay.Look.Listening, of(acting, on, voice = listening).look)
+        // The chat's microphone is not the bubble's; a hearing over is not listening.
+        assertEquals(PhoneOverlay.Look.Idle, of(idle, on, voice = VoiceState(heard = Heard(1, VoiceFrom.Chat, "hi", final = false))).look)
+        assertEquals(PhoneOverlay.Look.Idle, of(idle, on, voice = VoiceState(heard = Heard(1, VoiceFrom.Bubble, "hi", final = true))).look)
+        assertTrue(of(thinking, on).working)
     }
 }
