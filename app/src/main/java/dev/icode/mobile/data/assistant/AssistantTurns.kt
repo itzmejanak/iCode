@@ -66,8 +66,8 @@ internal class AssistantTurns(
     /** The workspace and chat of the turn in hand; null when none runs. */
     val running: Pair<String, String>? get() = synchronized(lock) { place }
 
-    fun send(workspace: String, session: String, input: String, attachments: List<String>) =
-        launch(workspace, session) { converse(input, attachments) }
+    fun send(workspace: String, session: String, input: String, attachments: List<String>, aloud: Boolean = false) =
+        launch(workspace, session, aloud) { converse(input, attachments) }
 
     /** The last message, unanswered, sent again with its files as they were (§13 P9). */
     fun retry(workspace: String, session: String) = launch(workspace, session) {
@@ -99,13 +99,13 @@ internal class AssistantTurns(
     fun resume() = questions.resume()
 
     /** One turn at a time: the job, not the page, decides — a second Send in the same instant finds the first. */
-    private fun launch(workspace: String, session: String, work: suspend Turn.() -> Unit) = synchronized(lock) {
+    private fun launch(workspace: String, session: String, aloud: Boolean = false, work: suspend Turn.() -> Unit) = synchronized(lock) {
         if (job?.isActive == true) {
             val name = page.current.turn?.workspaceName ?: AssistantPlace.name(workspace)
             return@synchronized page.say(NoticeTone.HeadsUp, "The assistant is working in $name: stop it, or wait")
         }
         place = workspace to session
-        job = scope.launch { Turn(workspace, session).run(work) }
+        job = scope.launch { Turn(workspace, session, aloud).run(work) }
     }
 
     /** What a turn works with, as set when it starts: a change made while it runs is for the next one. */
@@ -117,7 +117,7 @@ internal class AssistantTurns(
     )
 
     /** A turn in [session] of [workspace], and the events of its engine. */
-    private inner class Turn(val workspace: String, val session: String) : AssistantEvents {
+    private inner class Turn(val workspace: String, val session: String, val aloud: Boolean) : AssistantEvents {
         /** The step its tools are on (L2, L3), and the hand-over its phone tools wait on (§5.5). */
         val step = AssistantStep { why -> questions.pause(AssistantPause(AssistantPause.Kind.HandOver, why), THINKING) }
 
@@ -131,7 +131,7 @@ internal class AssistantTurns(
                 page.state {
                     // A new chat on the page is this one from now: it is listed with its first message.
                     val shown = if (it.workspace == workspace && it.session == null) session else it.session
-                    it.copy(turn = AssistantTurn(workspace, name, session, THINKING), session = shown, failure = if (shows(it.workspace, shown)) null else it.failure)
+                    it.copy(turn = AssistantTurn(workspace, name, session, THINKING, aloud = aloud), session = shown, failure = if (shows(it.workspace, shown)) null else it.failure)
                 }
                 work()
             } catch (stopped: CancellationException) {

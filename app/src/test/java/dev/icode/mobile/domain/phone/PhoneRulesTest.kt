@@ -86,7 +86,7 @@ class PhoneRulesTest {
         val idle = AssistantState()
         assertEquals(PhoneOverlay(bubble = true, glow = PhoneOverlay.Glow.Off, working = false, asking = false, step = null), PhoneOverlay.of(idle, on, iCodeOnScreen = false))
         assertFalse(PhoneOverlay.of(idle, on, iCodeOnScreen = true).bubble)
-        val acting = AssistantState(turn = AssistantTurn("phone", "Phone", "s1", "Tap [3]", onPhone = true))
+        val acting = AssistantState(turn = AssistantTurn("/w/app", "app", "s1", "Tap [3]", onPhone = true))
         assertEquals(PhoneOverlay.Glow.On, PhoneOverlay.of(acting, on, false).glow)
         val waiting = acting.copy(approval = AssistantApproval(call, "Tap [3]"))
         assertEquals(PhoneOverlay.Glow.Dim, PhoneOverlay.of(waiting, on, false).glow)

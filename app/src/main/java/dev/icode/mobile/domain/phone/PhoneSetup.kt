@@ -6,14 +6,9 @@ package dev.icode.mobile.domain.phone
  * back from Android, so that step counts as done once the service is on.
  */
 enum class PhoneSetupStep(val title: String, val detail: String) {
-    Restricted(
-        "Allow restricted settings",
-        "Android 13 and later hold back accessibility for apps installed from a file. In iCode's App info, open ⋮ and tap Allow restricted settings.",
-    ),
-    Service(
-        "Turn on iCode's service",
-        "In Accessibility, open Installed apps › iCode and turn it on. iCode then reads the screen and acts on it while you ask.",
-    ),
+    /** Android 13 and later hold accessibility back for an app installed from a file. */
+    Restricted("Allow Restricted Settings", "App info › ⋮ › Allow restricted settings"),
+    Service("Turn On iCode's Service", "Accessibility › Installed apps › iCode"),
 }
 
 /** What the page shows for one step: done, or the one to do now. */
@@ -40,7 +35,7 @@ object PhoneSetup {
     /** The page's status line. */
     fun status(access: PhoneAccess): String = when {
         access.service && access.bubble -> "On · bubble shown"
-        access.service -> "On · bubble put away"
+        access.service -> "On · bubble hidden"
         else -> "Off"
     }
 }

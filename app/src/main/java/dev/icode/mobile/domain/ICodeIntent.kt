@@ -224,7 +224,7 @@ sealed interface ICodeIntent {
     sealed interface AssistantIntent : ICodeIntent
     /**
      * The Assistant page opened, or the workspace under it changed: that workspace's chats are shown;
-     * the phone's on the home screen, or while the user keeps them shown (docs/phone-agent-plan.md L1).
+     * away from any, those of the one shown last, else of the one opened last.
      */
     data object OpenAssistant : AssistantIntent
     /** One of the shown place's chats, from its history. */
@@ -235,7 +235,12 @@ sealed interface ICodeIntent {
     /** A new, empty chat; it is kept once something is said in it. */
     data object NewAssistantChat : AssistantIntent
     /** [attachments]: the files sent with it — a workspace file's location, or a phone file's `content://` URI. */
-    data class SendAssistantMessage(val text: String, val attachments: List<String> = emptyList()) : AssistantIntent
+    data class SendAssistantMessage(
+        val text: String,
+        val attachments: List<String> = emptyList(),
+        /** Sent by voice or from the bubble: answered aloud when Spoken replies says so (docs/phone-agent-plan.md §5.8). */
+        val aloud: Boolean = false,
+    ) : AssistantIntent
     /** Stops the turn in hand: the request, and a running command with everything it started. */
     data object StopAssistant : AssistantIntent
     data class AnswerAssistant(val callId: String, val answer: AssistantAnswer) : AssistantIntent

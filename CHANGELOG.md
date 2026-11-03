@@ -22,17 +22,20 @@ All notable changes to iCode are documented here. The format follows
 - Shizuku: one tap turns phone control on, and real touches reach what accessibility is refused.
 - The bubble over every app — the question waiting, a field, Send and Stop, Open in iCode — and
   the screen's edges glowing in the accent while the assistant acts; dragged onto ✕, both go away.
-- Settings › Assistant › Phone control: off by default; says what is read and where it goes, walks
-  through Allow restricted settings and Accessibility, or turns on in one tap with Shizuku; shows or
-  puts away the bubble; turns off.
-- Settings › Assistant › Phone control › Shizuku: its state read live, the one step each state needs,
-  and what it adds.
-- Settings › Assistant is a list of pages — Providers, Voice, Phone control; Providers lists the
-  model providers, and + opens a sheet of provider kinds.
-- Voice, with Android's engines: the microphone in the chat's composer and the bubble listens with
-  Android's speech recognition and puts what is heard in the message; Settings › Assistant › Voice
-  allows the microphone and chooses when answers are read aloud with Android's text-to-speech (Off,
-  In the bubble — the default — or Always), reading only the answer's words, without code or links.
+- Settings › Assistant is a list of pages — Providers, Voice, Phone Control — laid out as the rest of
+  Settings; Providers lists the model providers, and + opens a sheet of provider kinds.
+- Settings › Assistant › Phone Control: off by default; the steps through Allow restricted settings
+  and Accessibility, or one tap with Shizuku; the bubble; Turn Off. Its Shizuku page shows the state
+  read live, the one step each state needs, and what it adds.
+- Voice: the microphone in the chat's composer and the bubble shows the words as they are heard and
+  sends them once you stop talking. Listening is Android's speech recognition or, offline on the
+  phone, Whisper base (99 languages) or SenseVoice; answers and questions are read aloud with
+  Android's text-to-speech or, offline, Kokoro (eight languages) or a Piper voice for 32 more.
+  Models download from sherpa-onnx's releases when chosen, size shown first, checked by SHA-256.
+  Spoken replies: Off, In the bubble (the default: what is sent from the bubble or by voice), or
+  Always; a new message, Stop, or a tap on the bubble silences it.
+- Phone control keeps a notification with Stop, Show bubble and Turn off, and holds the microphone
+  for the bubble while iCode is away.
 
 ## [0.1.0]
 

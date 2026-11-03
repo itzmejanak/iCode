@@ -11,8 +11,10 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- Voice (docs/phone-agent-plan.md §5.8): the microphone, only while listening. -->
+    <!-- Voice (docs/phone-agent-plan.md §5.8): the microphone, only while listening; from the bubble
+         through phone control's service, which holds it while iCode is away. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <!-- The notification's wakelock toggle: keeps the CPU running for long
          terminal work with the screen off, only while the user asks. -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
@@ -120,6 +122,17 @@
             android:enabled="true"
             android:exported="true"
             android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
+
+        <!-- Phone control's service (docs/phone-agent-plan.md §5.8, §5.9): keeps the agent alive while
+             phone control is on, and the microphone for the bubble while iCode is away. -->
+        <service
+            android:name="dev.icode.mobile.data.phone.PhoneForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse|microphone">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Keeps the on-screen assistant the user turned on in Accessibility settings running, and able to hear the user, while they use other apps." />
+        </service>
 
         <service
             android:name="dev.icode.mobile.data.runtime.RuntimeForegroundService"

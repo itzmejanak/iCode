@@ -1,5 +1,8 @@
 package dev.icode.mobile.ui.screens.tools
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -18,33 +21,24 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Compress
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.StopCircle
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.style.TextOverflow
-
-import dev.icode.mobile.designsystem.IcodeActionMenu
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeSelect
 import dev.icode.mobile.designsystem.IcodeSelectVariant
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeMenuAction
 import dev.icode.mobile.designsystem.IcodeShapes
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
@@ -55,16 +49,14 @@ import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantState
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.VoiceIntent
+import dev.icode.mobile.domain.voice.VoiceFrom
 import dev.icode.mobile.ui.CONTENT_URI
+import dev.icode.mobile.ui.HeardLine
 import dev.icode.mobile.ui.LocalICodeGateway
-import android.Manifest
-import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.material.icons.outlined.Mic
-import androidx.compose.runtime.collectAsState
-import androidx.compose.ui.platform.LocalContext
-import dev.icode.mobile.data.voice.Voice
+import dev.icode.mobile.ui.LocalICodeSnapshot
+import dev.icode.mobile.ui.MicButton
+import dev.icode.mobile.ui.OnHeard
 
 /**
  * The composer, as VS Code's: the files going with the message, the message, and a toolbar — attach,
@@ -80,12 +72,24 @@ internal fun AssistantComposer(
     onDetach: (DraftFile) -> Unit,
     onAttach: () -> Unit,
     onModels: () -> Unit,
-    onSend: () -> Unit,
+    /** [aloud]: sent by voice, so answered aloud where Spoken replies says so. */
+    onSend: (aloud: Boolean) -> Unit,
     /** The workspace's files: where the assistant works, a tap away. */
     onWorkspace: () -> Unit,
 ) {
     val gateway = LocalICodeGateway.current
+    val voice = LocalICodeSnapshot.current.voice
     val settings = state.settings
+    // Asked once, from the microphone: allowed, it listens straight away.
+    val askMicrophone = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        gateway.dispatch(VoiceIntent.Refresh)
+        if (granted) gateway.dispatch(VoiceIntent.Listen(VoiceFrom.Chat))
+    }
+    // Once the user stops talking, what was heard is sent with what was typed; while a turn runs, it waits in the field.
+    OnHeard(voice, VoiceFrom.Chat) { words ->
+        onDraft(listOf(draft, words).filter { it.isNotBlank() }.joinToString(" "))
+        if (!state.running) onSend(true)
+    }
     // A file the chosen model cannot read waits for another model; nothing is sent to fail.
     val unreadable = AssistantRules.attachmentProblem(attached.map { it.kind }, settings.model)
     // Words, files or both: a photo alone is a question too.
@@ -122,6 +126,7 @@ internal fun AssistantComposer(
                     cursorBrush = SolidColor(IcodeColors.Accent),
                 )
             }
+            HeardLine(voice, VoiceFrom.Chat, Modifier.padding(horizontal = IcodeSpacing.Space1))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 // The choices take what the meter and Send leave; a long model ID is cut short, never them.
                 Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
@@ -152,17 +157,16 @@ internal fun AssistantComposer(
                         Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = null, tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconSm))
                     }
                 }
-                ComposerMicrophone(draft, onDraft)
-                if (state.runningHere) {
-                    IconButton(onClick = {
-                        Voice.stopped = true
-                        Voice.stopSpeaking()
-                        gateway.dispatch(ICodeIntent.StopAssistant)
-                    }) {
+                MicButton(voice, VoiceFrom.Chat, gateway::dispatch) { askMicrophone.launch(Manifest.permission.RECORD_AUDIO) }
+                when {
+                    state.runningHere -> IconButton(onClick = { gateway.dispatch(ICodeIntent.StopAssistant) }) {
                         Icon(Icons.Outlined.StopCircle, contentDescription = "Stop", tint = IcodeColors.Error)
                     }
-                } else {
-                    IconButton(onClick = onSend, enabled = canSend) {
+                    // An answer read aloud: Stop silences it; typing brings Send back.
+                    voice.speaking && draft.isBlank() -> IconButton(onClick = { gateway.dispatch(VoiceIntent.Silence) }) {
+                        Icon(Icons.Outlined.StopCircle, contentDescription = "Stop reading aloud", tint = IcodeColors.Accent)
+                    }
+                    else -> IconButton(onClick = { onSend(false) }, enabled = canSend) {
                         Icon(Icons.AutoMirrored.Outlined.Send, contentDescription = "Send", tint = if (canSend) IcodeColors.Accent else IcodeColors.TextMuted)
                     }
                 }
@@ -241,53 +245,6 @@ private fun <T> Choice(
 }
 
 /**
- * How full the model's context is — "84k / 200k" — as of the chat's last request, so it moves with
- * every step of a turn; always shown, its ring amber where compaction begins. Compact is a tap away.
- */
-@Composable
-private fun ContextMeter(state: AssistantState) {
-    val gateway = LocalICodeGateway.current
-    val window = state.settings.model?.contextWindow
-    val label = AssistantRules.contextLabel(state.contextTokens, window)
-    val share = AssistantRules.contextShare(state.contextTokens, window) ?: 0f
-    var open by remember { mutableStateOf(false) }
-    Box {
-        Row(
-            Modifier.minimumInteractiveComponentSize().clip(IcodeShapes.Small).clickable(onClickLabel = "Context") { open = true }
-                .padding(horizontal = IcodeSpacing.Space1),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
-        ) {
-            // A share of a window only where the window is known; the count alone otherwise.
-            if (window != null) {
-                CircularProgressIndicator(
-                    progress = { share },
-                    modifier = Modifier.size(IcodeSizes.IconSm),
-                    color = if (share >= AssistantRules.COMPACT_AT) IcodeColors.Amber else IcodeColors.Accent,
-                    trackColor = IcodeColors.SurfaceTrack,
-                    strokeWidth = IcodeSpacing.Micro,
-                )
-            }
-            Text(
-                label,
-                style = IcodeType.Caption.copy(color = IcodeColors.TextMuted),
-                maxLines = 1,
-            )
-        }
-        IcodeActionMenu(
-            expanded = open,
-            onDismiss = { open = false },
-            actions = listOf(
-                IcodeMenuAction(
-                    "Compact Chat", Icons.Outlined.Compress, { gateway.dispatch(ICodeIntent.CompactAssistantChat) },
-                    enabled = state.messages.isNotEmpty() && !state.running,
-                ),
-            ),
-        )
-    }
-}
-
-/**
  * A file going with the message — a photo as its thumbnail — and × to take it off. A tap shows a
  * photo, and opens a file of the workspace in the editor.
  */
@@ -309,33 +266,3 @@ private fun AttachedFile(file: DraftFile, onRemove: () -> Unit) {
 
 internal const val AUTO = "Auto"
 private const val MAX_LINES = 8
-
-/** The microphone (docs/phone-agent-plan.md §5.8): what is heard joins the message, for the user to send. */
-@Composable
-private fun ComposerMicrophone(draft: String, onDraft: (String) -> Unit) {
-    val context = LocalContext.current
-    if (!remember { Voice.canListen(context) }) return
-    val listening by Voice.listening.collectAsState()
-    val start = {
-        Voice.listen(
-            context,
-            onHeard = { heard -> onDraft(listOf(draft, heard).filter { it.isNotBlank() }.joinToString(" ")) },
-            onProblem = { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() },
-        )
-    }
-    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> if (granted) start() }
-    IconButton(onClick = {
-        when {
-            listening -> Voice.stopListening()
-            Voice.hasMicrophone(context) -> start()
-            else -> ask.launch(Manifest.permission.RECORD_AUDIO)
-        }
-    }) {
-        Icon(
-            if (listening) Icons.Outlined.StopCircle else Icons.Outlined.Mic,
-            contentDescription = if (listening) "Stop listening" else "Speak",
-            tint = if (listening) IcodeColors.Accent else IcodeColors.TextSecondary,
-            modifier = Modifier.size(IcodeSizes.IconMd),
-        )
-    }
-}

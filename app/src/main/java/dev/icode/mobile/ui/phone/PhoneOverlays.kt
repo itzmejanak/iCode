@@ -20,8 +20,6 @@ import dev.icode.mobile.data.phone.PhoneService
 import dev.icode.mobile.data.runtime.TerminalSessionManager
 import dev.icode.mobile.data.settings.AndroidWorkspacePreferencesRepository
 import dev.icode.mobile.data.tasks.WorkNotifications
-import dev.icode.mobile.data.voice.Voice
-import android.widget.Toast
 import dev.icode.mobile.data.workspace.ICodeProcess
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeTheme
@@ -29,8 +27,11 @@ import dev.icode.mobile.domain.AssistantState
 import dev.icode.mobile.domain.BackgroundPlace
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.PhoneIntent
+import dev.icode.mobile.domain.VoiceIntent
 import dev.icode.mobile.domain.WorkspacePreferences
 import dev.icode.mobile.domain.phone.PhoneOverlay
+import dev.icode.mobile.domain.voice.VoiceFrom
+import dev.icode.mobile.domain.voice.VoiceState
 import dev.icode.mobile.ui.appearancePalette
 import kotlin.math.hypot
 import kotlinx.coroutines.Dispatchers
@@ -62,6 +63,7 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
 
     private var overlay by mutableStateOf(PhoneOverlay(bubble = false, glow = PhoneOverlay.Glow.Off, working = false, asking = false, step = null))
     private var assistant by mutableStateOf(AssistantState())
+    private var voice by mutableStateOf(VoiceState())
     private var preferences by mutableStateOf(WorkspacePreferences(workspaceLocation = null, loaded = false))
     private var expanded by mutableStateOf(false)
     private var overTarget by mutableStateOf(false)
@@ -81,7 +83,7 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
             it.setViewTreeLifecycleOwner(owner)
             it.setViewTreeSavedStateRegistryOwner(owner)
         }
-        bubble.setContent { Themed { PhoneBubble(overlay, assistant, expanded, actions()) } }
+        bubble.setContent { Themed { PhoneBubble(overlay, assistant, voice, expanded, actions()) } }
         target.setContent { Themed { PhoneBubbleTarget(overlay.working, overTarget) } }
         bubble.setOnTouchListener(::outside)
         val visible = TerminalSessionManager.get(service).screenVisible
@@ -89,6 +91,7 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
         scope.launch {
             combine(gateway.snapshot, visible, appearance) { snapshot, onScreen, prefs -> Triple(snapshot, onScreen, prefs) }.collect { (snapshot, onScreen, prefs) ->
                 assistant = snapshot.assistant
+                voice = snapshot.voice
                 preferences = prefs
                 show(PhoneOverlay.of(snapshot.assistant, snapshot.phone, onScreen))
             }
@@ -146,14 +149,13 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
             // Started straight from the service: a bound accessibility service may start activities from the background.
             service.startActivity(WorkNotifications.intentFor(service, BackgroundPlace.Assistant))
         },
-        listen = { onHeard ->
-            Voice.listen(service, onHeard) { problem -> Toast.makeText(service, problem, Toast.LENGTH_SHORT).show() }
-        },
     )
 
     /** Open, the panel takes the keyboard; closed, the mark takes no focus from the app under it. */
     private fun expand(open: Boolean) {
         expanded = open
+        // Closed, the panel's microphone stops: nothing heard is sent behind the user's back.
+        if (!open && voice.listening(VoiceFrom.Bubble)) gateway.dispatch(VoiceIntent.CancelListening)
         if (!bubbleOut) return
         val metrics = service.resources.displayMetrics
         bubbleParams.flags = params(focusable = open).flags
@@ -193,11 +195,8 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
         }
         if (overTarget) {
             overTarget = false
-            if (overlay.working) {
-                Voice.stopped = true
-                gateway.dispatch(ICodeIntent.StopAssistant)
-            }
-            Voice.stopSpeaking()
+            if (overlay.working) gateway.dispatch(ICodeIntent.StopAssistant)
+            gateway.dispatch(VoiceIntent.Silence)
             gateway.dispatch(PhoneIntent.ShowBubble(false))
             return
         }

@@ -240,6 +240,23 @@ class AssistantCoordinatorTest {
         assertNull(state().failure)
     }
 
+    @Test fun `a message sent by voice or from the bubble marks its turn to be answered aloud, through its pauses`() {
+        script = { turn, events ->
+            if (turn.input != null) throw AssistantStepLimitException()
+            events.replied(AssistantMessage.Reply("Done."))
+        }
+        coordinator.handle(ICodeIntent.SendAssistantMessage("Turn on Wi-Fi", aloud = true))
+        until { state().pause != null }
+        assertTrue(state().turn!!.aloud)
+        coordinator.handle(ICodeIntent.ContinueAssistant)
+        until { state().turn == null }
+        coordinator.handle(ICodeIntent.SendAssistantMessage("And Bluetooth"))
+        until { state().pause != null }
+        assertFalse(state().turn!!.aloud)
+        coordinator.handle(ICodeIntent.StopAssistant)
+        until { state().turn == null }
+    }
+
     @Test fun `Stop at the step limit ends the turn, and what was done stays`() {
         script = { _, events ->
             events.replied(AssistantMessage.Reply("Working…"))

@@ -39,6 +39,6 @@ class PhoneSetupTest {
     fun `status names the bubble`() {
         assertEquals("Off", PhoneSetup.status(PhoneAccess()))
         assertEquals("On · bubble shown", PhoneSetup.status(PhoneAccess(service = true, bubble = true)))
-        assertEquals("On · bubble put away", PhoneSetup.status(PhoneAccess(service = true, bubble = false)))
+        assertEquals("On · bubble hidden", PhoneSetup.status(PhoneAccess(service = true, bubble = false)))
     }
 }
