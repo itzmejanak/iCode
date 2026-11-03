@@ -27,6 +27,25 @@ Then: "Make sure don't reject third-party most best you found just because of li
 So §3.7 ranks every candidate on what it does; a licence is a line saying what it requires, for the
 owner to accept or not, never a reason to drop it.
 
+Then, on this plan (2026-11-03), with "Let's implement end to end":
+
+> Shizuku will be part of our first implementation, so users can use it as per their need. We'll
+> include a one-page Shizuku setup & state guide inside the app. As for iCode's UI state outside the
+> app: the core behavior is as described above — when the user doesn't need the agent, they can
+> simply hide the icon from the edge of the screen, and the edge's accent glow goes away with it.
+> That's the best UI/UX behavior.
+>
+> The agent should also be able to **access shared storage** — something iCode currently lacks.
+>
+> **Speech recognition and voice speaking** are also key. "Voice speaking" means the agent responds
+> via **Text-to-Speech (TTS)** — a human-like voice — so it isn't just reading text. If any
+> open-source AI model supports this in **any language**, we should consider implementing it; this
+> improves **accuracy** and **user interaction**.
+
+So Shizuku moves from "later" into the first cut (§5.11), the bubble can be put away (§5.7), shared
+storage becomes the agent's too (L8), and voice goes both ways, with open-source models on the phone
+(§3.4, §5.8).
+
 ## 2. What is there now (read in the code, 2026-11-03)
 
 | Part | Where | Today |
@@ -94,6 +113,30 @@ owner to accept or not, never a reason to drop it.
   `createOnDeviceSpeechRecognizer` and `isOnDeviceRecognitionAvailable` (API 31) keep audio on the
   phone. "The application must have `RECORD_AUDIO`." A `<queries>` entry for
   `android.speech.RecognitionService` is required from API 30.
+- **Android's own voice out:** `TextToSpeech` speaks through the engine the user installed (Google's
+  speaks dozens of languages with neural voices on most phones). Nothing to download in iCode.
+- **Open-source models on the phone: sherpa-onnx** (k2-fsa, Apache-2.0). One Android library runs
+  speech recognition, voice activity detection and speech synthesis on ONNX Runtime, offline. It is
+  published for Android through JitPack (`com.github.k2-fsa.sherpa-onnx:sherpa-onnx`, as its own
+  demo app takes it), and its models are files on its GitHub releases, downloaded when the user
+  chooses one. Read in its sources and release lists (2026-11-03):
+  - **Version.** 2.0.0 (2026-10) removed espeak-ng and piper-phonemize: "Language is determined by
+    the lexicon files you provide", so its voices speak only English and Chinese without an outside
+    phonemizer. **v1.13.8** (2026-09-10) is the last with espeak-ng inside, and it is the one taken:
+    with it one Kokoro model speaks eight languages and Piper voices speak dozens more.
+  - **Speaking, Kokoro-82M v1.0** (Apache-2.0), `kokoro-int8-multi-lang-v1_0.tar.bz2`, 132 MB:
+    English (US and UK), Mandarin, Spanish, French, Hindi, Italian and Brazilian Portuguese
+    (`kokoro-lang`: "en, es, fr, hi, it, pt-br"), 54 voices. Among the most natural open voices.
+  - **Speaking, Piper voices** (VITS, `vits-piper-<language>-<voice>-<quality>.tar.bz2`, about 20 to
+    70 MB each): one voice per language for German, Russian, Arabic, Turkish, Dutch, Polish,
+    Ukrainian, Vietnamese and some 30 more. Each voice carries its own dataset's licence.
+  - **Listening, Whisper base** (OpenAI, MIT), `sherpa-onnx-whisper-base.tar.bz2`, 208 MB (its int8
+    encoder and decoder, 160 MB, are what is kept): 99 languages, the language found by itself.
+  - **Listening, SenseVoice** (FunAudioLLM, its own model licence),
+    `sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2025-09-09.tar.bz2`, 166 MB: Chinese, English,
+    Japanese, Korean and Cantonese, faster and more accurate than Whisper base in those.
+  - **The end of speech, Silero VAD** (MIT), `silero_vad.onnx`, 644 KB: when the user stops talking.
+  - **Size.** The library's AAR carries four ABIs (47 MB for 2.0.1); iCode ships `arm64-v8a` only.
 - **The microphone in the background.** A foreground service that needs a while-in-use permission
   must be started "while your app has a visible activity", unless an exemption applies; from
   Android 14 the start itself throws otherwise. The exemptions are: a system component, a widget,
@@ -137,7 +180,8 @@ So a screenshot goes where each client takes it (§4, L2).
 | **Mobilerun Portal** (DroidRun's on-phone app) | A mature accessibility service: numbered elements, a depth guard (128), its own keyboard for typing, screenshots, gestures | A separate app driven from a computer (ADB, WebSocket, cloud); 58,700 lines with cloud, WebRTC and SMS; declares `isAccessibilityTool="true"` (§3.2) | AGPL-3.0: can be combined with GPL-3.0; adds the AGPL's network-use term to that code |
 | **DroidRun** | The agent loop over the Portal, MIT | Python on a computer: not on the phone | MIT |
 | **Blurr / Panda** | The closest to the owner's picture: an edge glow, a floating button, voice in and out, the assistant role, intents | Gemini only; `TYPE_APPLICATION_OVERLAY` windows (untrusted, need `SYSTEM_ALERT_WINDOW`); a proprietary wake word (Porcupine); accounts and a freemium wall | Personal-use licence: commercial use needs a licence from Panda AI. iCode is GPL-3.0 and free; taking its code needs Panda AI's permission |
-| **Shizuku / Shizuku-API** | Shell identity on the phone: input and capture past accessibility's limits | The user starts it after each reboot | Apache-2.0 / MIT |
+| **Shizuku / Shizuku-API** (13.1.5, Maven Central) | Shell identity on the phone: real touches past accessibility's limits; turning iCode's own service on without the restricted-settings walk | The user starts it after each reboot. `Shizuku.newProcess` is private since API 13: commands run in a **UserService**, iCode's own class in a shell process | Apache-2.0 / MIT. **In the first cut** (§5.11) |
+| **sherpa-onnx** (v1.13.8, JitPack) | Speech in and out on the phone, offline, in many languages (§3.4) | Native code (ONNX Runtime) in the APK; models are downloads | Apache-2.0; each model its own (Kokoro Apache-2.0, Whisper MIT, Silero MIT, Piper voices per dataset, SenseVoice its own) |
 | **AppFunctions** | Apps' own functions, no screen at all | Not callable by iCode (§3.1) | Platform |
 
 **Decision.** Android's own `AccessibilityService` is the engine: native, on every supported version,
@@ -162,6 +206,8 @@ Each is fixed where it is, not worked around beside it.
 | L5 | 40 steps, then a hard stop | At 40 steps the turn **pauses** and asks "Keep going?" (Continue, Stop); Continue gives 40 more |
 | L6 | The modes speak only of a workspace | **Apps are places too.** Reading never asks. Acting in an app asks under Ask first and Auto in workspace, with "Allow in *app* for this chat" — the same "outside" rule as a folder. Full access asks nothing |
 | L7 | The assistant lives only in iCode | **The bubble** over every app, and the accessibility button as a second way in |
+| L8 | The assistant cannot reach phone storage: the runtime binds only workspaces and the system's trees; the explorer alone reads it | **Phone storage is in the runtime**, at its own path (`/storage/emulated/0`) with `/sdcard` naming it, as on Android. Every tool and command reaches it the way it reaches any folder outside the workspace: through the gate, "Allow in *folder* for this chat". Without All Files Access the tool says so, and what the user taps to give it |
+| L9 | The assistant only writes | **It speaks:** its answers and questions are read aloud, in a natural voice, when the user asks for that (§5.8) |
 
 ## 5. Decisions
 
@@ -278,12 +324,28 @@ Each is fixed where it is, not worked around beside it.
   floating iCode activity instead, the same panel.
 - **The accessibility button** (Android's own, in the navigation bar or floating) opens the panel
   too.
+- **Put away** (the owner's word, 2026-11-03): dragging the bubble shows a ✕ at the bottom of the
+  screen; dropped there, the bubble goes and the glow goes with it. While a turn acts on the phone,
+  the target reads "Stop and hide", and dropping stops it. Phone control stays on: the bubble comes
+  back from the notification's **Show bubble**, the accessibility button, or the assistant page.
 
 ### 5.8 Voice
 
-- The microphone in the panel listens through `SpeechRecognizer`: on the phone itself where
-  available (API 31+), else the user's recognition service. Words appear in the field as they are
-  heard; the user sends them, or says nothing for a moment to send.
+- **Two engines each way**, chosen in Settings › Assistant › Voice:
+  - **Listening:** *Android* (`SpeechRecognizer`: on the phone itself where available, API 31+,
+    else the user's recognition service; words appear as they are heard), or an **open-source model
+    on this phone**: Whisper base (99 languages) or SenseVoice (Chinese, English, Japanese, Korean,
+    Cantonese). Silero VAD ends the recording when the user stops talking.
+  - **Speaking:** *Android* (`TextToSpeech`, the user's engine and voice), or an **open-source
+    voice on this phone**: Kokoro (eight languages, 54 voices) or a Piper voice for another
+    language.
+  - A model is downloaded when it is chosen, with its size said first, into iCode's own storage;
+    Settings shows what each one takes and removes it.
+- **Spoken replies:** *Off*, *In the bubble* (the default: a turn started by voice or from the bubble
+  is answered aloud), or *Always*. What is spoken is the answer and the questions, without Markdown,
+  code blocks or links; a new message, Stop, or a tap on the bubble silences it.
+- The microphone in the panel and on the chat page's composer listens; the user sends what was
+  heard, or says nothing for a moment to send.
 - **Microphone access** comes from the foreground service, started with type `microphone` while
   iCode is on screen — when the user turns phone control on (§3.4). The microphone indicator shows
   only while listening.
@@ -298,6 +360,10 @@ Each is fixed where it is, not worked around beside it.
   2. walks through Allow restricted settings when Android asks for it (§3.2);
   3. opens Settings › Accessibility for iCode's service;
   4. asks for the microphone (optional).
+  With Shizuku ready (§5.11), steps 2 and 3 are one tap: iCode turns its own service on.
+- **Shizuku, one page** (Settings › Assistant › Phone control › Shizuku): its state, read live —
+  *not installed*, *installed, not running*, *running, iCode not allowed*, *ready* — the one step
+  that state needs (install it, start it with Wireless debugging, allow iCode), and what it adds.
 - **While it is on:**
   - the foreground service carries `specialUse|microphone` and keeps the agent alive;
   - the bubble shows whenever iCode is not on screen;
@@ -310,15 +376,31 @@ Each is fixed where it is, not worked around beside it.
 |---|---|
 | Screen and element models, the screen's text, the approval rules for apps | `domain/phone` |
 | `PhoneService`, `PhoneControl`, the settle wait, intents and Settings pages | `data/phone` |
+| Shizuku: its state, the UserService and its client | `data/phone/shizuku` |
 | The phone tools | `data/assistant/tools/PhoneTools.kt` |
+| Voice: the engines, the models' catalogue and downloads | `domain/voice`, `data/voice` |
 | The glow and the bubble | `ui/phone` |
 | Phone chats, the pause at 40 steps, the screen in a step | `data/assistant` (L1–L5) |
+| Phone storage in the runtime | `data/runtime` (`GuestPaths`, `RuntimeLayout`) (L8) |
 
-### 5.11 Optional, later
+### 5.11 Shizuku, in the first cut
 
-- **Shizuku privileged mode** (Apache-2.0 / MIT): taps and typing as ordinary input, past the
-  sensitive-view block. It also turns on iCode's accessibility service by `settings`, without the
-  restricted-settings walk. It is offered only when Shizuku is running.
+- **What it adds**, whenever it is ready, with nothing to switch on:
+  - iCode's accessibility service turned on, and restricted settings allowed, by one tap
+    (`appops set … ACCESS_RESTRICTED_SETTINGS allow`, `settings put secure
+    enabled_accessibility_services …`);
+  - taps, swipes, typing and keys as real input (`input`), where accessibility is refused: a
+    view the platform withholds (§3.2), or a gesture Android blocked;
+  - a screenshot (`screencap`) when the accessibility one fails for its rate.
+- **How:** `dev.rikka.shizuku:api` and `provider` 13.1.5. Commands run in a Shizuku **UserService**:
+  iCode's own class, started by Shizuku in a shell process, answering one call — a command line,
+  its exit code and its output — over a hand-written `Binder` (no AIDL), and the reserved destroy
+  call (`16777115`).
+- **Not a second engine:** the screen is still read through accessibility, which is fast and
+  complete; Shizuku covers what accessibility is refused.
+
+### 5.12 Optional, later
+
 - **iCode as the default assistant** (`VoiceInteractionService`): the assist gesture opens the
   panel, and the microphone's foreground service may start from any screen (§3.4). It ships only
   once phones are shown to list iCode.
@@ -326,32 +408,43 @@ Each is fixed where it is, not worked around beside it.
 ## 6. Not done, and why
 
 - **AppFunctions:** the caller permission is a system role's (§3.1).
-- **A wake word:** always listening drains the battery and needs a third-party model (Blurr uses
-  Porcupine, which needs a vendor key). The bubble's microphone covers voice.
+- **A wake word:** always listening drains the battery, and Blurr's (Porcupine) needs a vendor key.
+  The bubble's microphone and the accessibility button cover voice.
+- **sherpa-onnx 2.x:** it dropped the phonemizer that lets its voices speak beyond English and
+  Chinese (§3.4); v1.13.8 is kept until an upgrade brings one back.
 - **Acting while the screen is locked:** Android's lock screen is not the agent's.
 - **Claiming to be an accessibility tool:** untrue for iCode, and blocked by Play Protect (§3.2).
 
 ## 7. Cycles
 
+Each cycle ends as every cycle here does: `main` fetched and taken in, a commit, the branch pushed,
+then `main`. CI on `main` builds the APK and runs every test (this container cannot reach Google's
+Maven, §10).
+
 | Cycle | What | Done when |
 |---|---|---|
-| **P1** Places | L1: chats of a workspace or Phone; the page without a workspace; phone chats from `/root` | Tests: places, the store's keys, phone chats listed; UI type-check |
+| **P1** Places and storage | L1: chats of a workspace or Phone; the page without a workspace, and its place switch; phone chats from `/root`. L8: phone storage in the runtime, through the gate | Tests: places, the store's keys, phone chats listed, phone storage's paths and the gate; UI type-check |
 | **P2** Turns | L2, L3, L5: a screen in a step, placed per client; one screen per reply; the pause at 40 | Tests with a scripted provider: one screen after three calls; the picture where each client takes it; Continue after 40 |
-| **P3** The phone service | `PhoneService`, the screen's text, actions, the settle wait, intents and Settings pages | JVM tests of the screen's text and numbering from recorded trees; on a phone: read, tap, type, submit, scroll, back |
+| **P3** The phone service and Shizuku | `PhoneService`, the screen's text, actions, the settle wait, intents and Settings pages; Shizuku's state, its UserService and client | JVM tests of the screen's text and numbering from recorded trees; of Shizuku's states and commands |
 | **P4** Tools and approvals | `PhoneTools`; L6 per-app approvals; the refusals; hand-over | Tests: each tool's arguments and summaries; what each mode asks; refusals |
-| **P5** The bubble and the glow | Overlays on trusted windows; collapsed and expanded; the keyboard proved; the accessibility button | Renders; on a phone: drag, expand, type, answer a question, Stop, the glow on and dimmed |
-| **P6** Voice | `SpeechRecognizer` in the panel; the service's microphone type | On a phone: speak from another app; the indicator only while listening |
-| **P7** Setup | Settings › Assistant › Phone control, the walk through restricted settings, the service's description | On a phone installed from a downloaded APK: from off to working |
-| **P8** Optional | Shizuku mode; the default-assistant entry | On a phone with Shizuku; on two vendors' phones for the assistant list |
-| **P9** Gate | Docs as built (PRD, user stories, layout); the timings of §5.4 measured on three tasks | Push the branch and `main` |
+| **P5** The bubble and the glow | Overlays on trusted windows; collapsed, expanded, put away; the accessibility button | UI type-check; the bubble's state rules tested |
+| **P6** Voice | L9; both engines each way; the models' catalogue, download and removal; spoken replies | Tests: the catalogue, what is spoken of a reply, the download's checks |
+| **P7** Setup | Settings › Assistant › Phone control and Voice; the Shizuku page; the walk through restricted settings; the service's description | UI type-check; the setup's steps tested per state |
+| **P8** Gate | Docs as built (PRD, user stories, layout, CHANGELOG); the guards; CI green | Push the branch and `main` |
+
+On a phone (the owner's, §8): read, tap, type, submit, scroll, back; the bubble dragged, expanded,
+put away; voice both ways; Shizuku from not installed to ready; the timings of §5.4 on three tasks.
 
 ## 8. On the phone (the owner's walk-through)
 
 1. "Open Settings and turn on Wi-Fi": by intent, one toggle, done in two steps.
 2. "Reply 'on my way' to Alex in WhatsApp": asks before acting in WhatsApp; types and sends.
 3. A login page: the agent hands the password to the user.
-4. From the home screen, the bubble: speak a task, watch the glow, answer a question in the
-   bubble, Stop.
+4. From the home screen, the bubble: speak a task, watch the glow, hear the answer, answer a
+   question in the bubble, Stop.
+5. "Find the PDF I downloaded yesterday and summarize it": phone storage, asked once.
+6. Shizuku: from not installed to ready on its page; the service turned on by one tap.
+7. Put the bubble away: the glow goes with it; Show bubble brings it back.
 
 ## 9. Sources
 
@@ -379,7 +472,11 @@ Each is fixed where it is, not worked around beside it.
   - droidrun/droidrun (MIT);
   - droidrun/droidrun-portal (AGPL-3.0);
   - ayush0chaudhary/blurr (personal-use licence);
-  - RikkaApps/Shizuku (Apache-2.0) and Shizuku-API (MIT).
+  - RikkaApps/Shizuku (Apache-2.0) and Shizuku-API (MIT): `Shizuku.java` (`newProcess` private),
+    the UserService demo and its destroy code;
+  - k2-fsa/sherpa-onnx (Apache-2.0): `jitpack.yml`, the Kotlin API (`Tts.kt`), the 2.0.0
+    changelog, the Kokoro config at v1.13.8; the model archives' contents, listed from their
+    release downloads.
 - Papers, as search results report them:
   - MobileUse (the M3A ablation);
   - AndroidDaily (seconds per step);
@@ -388,3 +485,10 @@ Each is fixed where it is, not worked around beside it.
   search results report them. Google has no page on it yet.
 - Not reachable from this session, so read only through search results: arxiv.org,
   androidauthority.com, android-developers.googleblog.com.
+
+## 10. Record (as built)
+
+The checks that run in this container: Google's Maven redirects to a host it cannot reach, so no
+Android Gradle build runs here. Each cycle compiles what it changed with Kotlin 2.3.10 against
+Android 16's `android.jar` (its framework classes and resources, from a public mirror) and Maven
+Central's libraries, runs the unit tests it touches, and leaves the Android build to CI on `main`.
