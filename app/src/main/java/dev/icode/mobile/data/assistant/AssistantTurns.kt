@@ -127,8 +127,7 @@ internal class AssistantTurns(
         suspend fun run(work: suspend Turn.() -> Unit) {
             var failure: String? = null
             try {
-                val name = if (workspace == AssistantPlace.PHONE) AssistantPlace.name(workspace)
-                else runCatching { describe(workspace).name }.getOrElse { AssistantPlace.name(workspace) }
+                val name = runCatching { describe(workspace).name }.getOrElse { AssistantPlace.name(workspace) }
                 page.state {
                     // A new chat on the page is this one from now: it is listed with its first message.
                     val shown = if (it.workspace == workspace && it.session == null) session else it.session
@@ -226,7 +225,6 @@ internal class AssistantTurns(
             val model = settings.model
             val connection = provider?.let { providers.connection(it.id) }
             if (model == null || connection == null) throw AssistantTurnException(NOT_SET_UP)
-            if (workspace == AssistantPlace.PHONE) return Setup(settings, connection, model, AssistantWorkspace.phone(paths, storageAccess))
             val root = runCatching { describe(workspace) }.getOrElse { throw AssistantTurnException("This workspace no longer exists") }
             return Setup(settings, connection, model, AssistantWorkspace(File(root.location), paths, storageAccess))
         }

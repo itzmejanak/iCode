@@ -47,7 +47,6 @@ internal class AssistantToolbox(
             SendProcessInputTool(processes),
             StopProcessTool(processes),
         ) + (if (phone.on) PhoneTools(phone, step).all() else emptyList())
-        if (workspace.phone) return files
         return files + listOf(
             RunAndroidAppTool(workspace, runs),
             ListRunCommandsTool(workspace, runs),

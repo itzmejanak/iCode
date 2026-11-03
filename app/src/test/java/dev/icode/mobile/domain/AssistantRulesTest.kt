@@ -241,9 +241,8 @@ class AssistantRulesTest {
         assertNull(AssistantRules.storedBaseUrl(AssistantProviderKind.OpenAI, "https://elsewhere"))
     }
 
-    @Test fun `a place is named by its workspace, or is the phone`() {
+    @Test fun `a chat's place is named by its workspace`() {
         assertEquals("app", AssistantPlace.name("/data/files/workspaces/app/"))
-        assertEquals("Phone", AssistantPlace.name(AssistantPlace.PHONE))
     }
 
     @Test fun `a key never shows in an intent's text`() {

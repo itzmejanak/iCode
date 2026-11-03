@@ -14,7 +14,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountTree
-import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.FolderCopy
 import androidx.compose.material.icons.outlined.FolderOpen
@@ -82,14 +81,6 @@ fun LauncherScreen(actions: NavigationActions, empty: Boolean) {
             IcodeTopBar(
                 title = "iCode",
                 actions = {
-                    // The phone's chats live here, in no workspace (docs/phone-agent-plan.md L1).
-                    IconButton(onClick = { actions.navigate(Route.Assistant) }) {
-                        Icon(
-                            Icons.Outlined.AutoAwesome,
-                            contentDescription = if (state.assistant.running) "Assistant, working" else "Assistant",
-                            tint = if (state.assistant.running) IcodeColors.Accent else IcodeColors.TextPrimary,
-                        )
-                    }
                     // Unsaved work waiting in Document Recovery keeps the dot until it is resolved.
                     val unread = state.notices.any { !it.read } || state.recoverableDrafts.isNotEmpty()
                     IconButton(onClick = { actions.navigate(Route.Notifications) }) {

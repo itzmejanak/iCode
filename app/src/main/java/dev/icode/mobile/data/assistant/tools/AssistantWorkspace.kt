@@ -6,37 +6,34 @@ import dev.icode.mobile.data.runtime.GuestPaths
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.storage.WorkspacePaths
 import dev.icode.mobile.domain.AssistantPermissions
-import dev.icode.mobile.domain.AssistantPlace
 import java.io.File
 import java.io.IOException
 import org.json.JSONObject
 
 /**
  * The place a turn works in, and the runtime its tools reach (docs/runtime-contract-plan.md §4.3): a
- * workspace, or for the phone's chats the runtime's home (docs/phone-agent-plan.md L1). A path the
+ * workspace. A path the
  * model writes is a path in the runtime — absolute as written, `~` as root's home, relative from this
  * place's top — and names the file the runtime would, its links followed as PRoot follows them
  * ([GuestPaths]). Phone storage is in the runtime too (L8), read with All Files Access.
  */
 internal class AssistantWorkspace(
-    /** Its location in iCode's storage; the runtime's home for the phone's chats. */
+    /** Its location in iCode's storage. */
     root: File,
     private val paths: GuestPaths,
     /** All Files Access, as Android answers it now: phone storage is read with it. */
     private val storageAccess: () -> Boolean = { true },
-    /** The phone's chats' place, in no workspace. */
-    val phone: Boolean = false,
 ) {
     val root: File = root.canonicalFile
 
-    /** Its path in the runtime — `/workspace/<name>`, or `/root` for the phone's chats: the path the model is told. */
+    /** Its path in the runtime — `/workspace/<name>`: the path the model is told. */
     val guestPath: String = requireNotNull(paths.guestOf(this.root.path)) { "${this.root} is not in the runtime" }
 
-    /** "app"; "Phone" for the phone's chats. */
-    val name: String get() = if (phone) AssistantPlace.name(AssistantPlace.PHONE) else root.name
+    /** "app". */
+    val name: String get() = root.name
 
-    /** What the processes it starts belong to: the workspace's location, or [AssistantPlace.PHONE]. */
-    val place: String get() = if (phone) AssistantPlace.PHONE else root.path
+    /** What the processes it starts belong to: the workspace's location. */
+    val place: String get() = root.path
 
     /** [path] as the model wrote it, as the file on the phone it names; it need not exist. */
     fun resolve(path: String): File {
@@ -96,10 +93,6 @@ internal class AssistantWorkspace(
     }
 
     companion object {
-        /** The phone's chats' place: the runtime's home, `/root`. */
-        fun phone(paths: GuestPaths, storageAccess: () -> Boolean) =
-            AssistantWorkspace(paths.hostOf(RuntimeLayout.GUEST_HOME), paths, storageAccess, phone = true)
-
         /** What the model is told of phone storage without All Files Access: what the user can do. */
         const val NO_STORAGE_ACCESS =
             "Phone storage needs All Files Access, which iCode does not have. Ask the user to turn it on in " +
