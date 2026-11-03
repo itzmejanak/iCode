@@ -254,8 +254,8 @@ sealed interface ICodeIntent {
     data class SetAssistantPermission(val permission: AssistantPermission) : AssistantIntent
     /** The last message failed before any reply: it is sent again, its files as they were. */
     data object RetryAssistantMessage : AssistantIntent
-    /** A provider's settings page opens on [id]; "" for one being added. */
-    data class EditAssistantProvider(val id: String) : AssistantIntent
+    /** A provider's settings page opens on [id]; "" for one being added, of [kind] where the sheet of kinds chose one. */
+    data class EditAssistantProvider(val id: String, val kind: AssistantProviderKind? = null) : AssistantIntent
     /** Saves a provider ([id] "" adds one); [key] null keeps the saved key; [baseUrl] only where the kind asks; [models] in order. */
     data class SaveAssistantProvider(
         val id: String,

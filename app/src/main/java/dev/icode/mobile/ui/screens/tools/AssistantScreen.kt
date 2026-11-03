@@ -124,7 +124,7 @@ fun AssistantScreen(actions: NavigationActions) {
                 },
             )
             when {
-                !state.settings.ready -> AssistantSetUp(Modifier.weight(1f)) { actions.navigate(Route.AssistantSettings) }
+                !state.settings.ready -> AssistantSetUp(Modifier.weight(1f)) { actions.navigate(Route.AssistantProviders) }
                 // A place is always shown once the page has opened (docs/phone-agent-plan.md L1).
                 state.workspace == null -> Box(Modifier.weight(1f)) { IcodeWatermark(Modifier.align(Alignment.Center)) }
                 else -> AssistantChatView(
@@ -170,7 +170,7 @@ fun AssistantScreen(actions: NavigationActions) {
                 val modifier = Modifier.align(Alignment.BottomCenter)
                 when (open) {
                     AssistantSheet.Chats -> AssistantChatsSheet(state, snapshot.activeWorkspaceLocation, modifier, close)
-                    AssistantSheet.Models -> AssistantModelsSheet(state, modifier, close, onProviders = { actions.navigate(Route.AssistantSettings) })
+                    AssistantSheet.Models -> AssistantModelsSheet(state, modifier, close, onProviders = { actions.navigate(Route.AssistantProviders) })
                     AssistantSheet.Attach -> AssistantAttachSheet(snapshot, attached, pickers, modifier, close, onAttached = { attached = it })
                     AssistantSheet.Processes -> AssistantProcessesSheet(snapshot.processes, state.workspace, modifier, close)
                     AssistantSheet.Entry -> entry?.let {

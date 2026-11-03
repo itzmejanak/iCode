@@ -25,6 +25,8 @@ fun SettingsScreenHost(screen: Route, actions: NavigationActions) {
         Route.WorkspaceSettings -> WorkspaceSettingsScreen(actions)
         Route.AssistantSettings -> AssistantSettingsScreen(actions)
         Route.AssistantProvider -> AssistantProviderScreen(actions)
+        Route.AssistantProviders -> AssistantProvidersScreen(actions)
+        Route.VoiceSettings -> VoiceSettingsScreen(actions)
         Route.PhoneControl -> PhoneControlScreen(actions)
         Route.ShizukuSetup -> ShizukuScreen(actions)
         Route.SourceControlSettings -> SourceControlSettingsScreen(actions)

@@ -58,6 +58,14 @@ import dev.icode.mobile.domain.AssistantState
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.ui.CONTENT_URI
 import dev.icode.mobile.ui.LocalICodeGateway
+import android.Manifest
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.platform.LocalContext
+import dev.icode.mobile.data.voice.Voice
 
 /**
  * The composer, as VS Code's: the files going with the message, the message, and a toolbar — attach,
@@ -145,8 +153,13 @@ internal fun AssistantComposer(
                         Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = null, tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconSm))
                     }
                 }
+                ComposerMicrophone(draft, onDraft)
                 if (state.runningHere) {
-                    IconButton(onClick = { gateway.dispatch(ICodeIntent.StopAssistant) }) {
+                    IconButton(onClick = {
+                        Voice.stopped = true
+                        Voice.stopSpeaking()
+                        gateway.dispatch(ICodeIntent.StopAssistant)
+                    }) {
                         Icon(Icons.Outlined.StopCircle, contentDescription = "Stop", tint = IcodeColors.Error)
                     }
                 } else {
@@ -297,3 +310,33 @@ private fun AttachedFile(file: DraftFile, onRemove: () -> Unit) {
 
 internal const val AUTO = "Auto"
 private const val MAX_LINES = 8
+
+/** The microphone (docs/phone-agent-plan.md §5.8): what is heard joins the message, for the user to send. */
+@Composable
+private fun ComposerMicrophone(draft: String, onDraft: (String) -> Unit) {
+    val context = LocalContext.current
+    if (!remember { Voice.canListen(context) }) return
+    val listening by Voice.listening.collectAsState()
+    val start = {
+        Voice.listen(
+            context,
+            onHeard = { heard -> onDraft(listOf(draft, heard).filter { it.isNotBlank() }.joinToString(" ")) },
+            onProblem = { Toast.makeText(context, it, Toast.LENGTH_SHORT).show() },
+        )
+    }
+    val ask = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> if (granted) start() }
+    IconButton(onClick = {
+        when {
+            listening -> Voice.stopListening()
+            Voice.hasMicrophone(context) -> start()
+            else -> ask.launch(Manifest.permission.RECORD_AUDIO)
+        }
+    }) {
+        Icon(
+            if (listening) Icons.Outlined.StopCircle else Icons.Outlined.Mic,
+            contentDescription = if (listening) "Stop listening" else "Speak",
+            tint = if (listening) IcodeColors.Accent else IcodeColors.TextSecondary,
+            modifier = Modifier.size(IcodeSizes.IconMd),
+        )
+    }
+}

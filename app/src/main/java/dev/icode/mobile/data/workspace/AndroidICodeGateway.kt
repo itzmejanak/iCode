@@ -184,6 +184,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     init {
         notices.start(scope) { listOfNotNull(terminals.ledger.takePrevious(), interruptedTransfer) }
         phone.start()
+        dev.icode.mobile.data.voice.VoiceReplies(appContext, stateHolder.snapshot, scope).start()
         languages.publish()
         web.start()
         scope.launch {

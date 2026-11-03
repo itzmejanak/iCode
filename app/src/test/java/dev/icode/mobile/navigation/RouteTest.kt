@@ -36,6 +36,8 @@ class RouteTest {
         Route.AssistantProvider, // 2026-10-01: one provider — its key, address and models (assistant-koog-plan.md §13 P3)
         Route.SourceControlSettings, // 2026-10-08: Git's credentials and the commit messages' model (commit-message-generator-plan.md M8)
         Route.DeviceInfoConsent, // 2026-10-29: onboarding's optional device-info question (device-telemetry-plan.md §4)
+        Route.AssistantProviders, // 2026-11-03: the providers on their own page, from Settings › Assistant
+        Route.VoiceSettings, // 2026-11-03: speech in and out (phone-agent-plan.md §5.8)
         Route.PhoneControl, // 2026-11-03: phone control, off by default (phone-agent-plan.md §5.9)
         Route.ShizukuSetup, // 2026-11-03: Shizuku's one-page state and setup (phone-agent-plan.md §5.11)
         Route.ManageStorage, // 2026-10-27: what storage holds, kind by kind, and the explorer's views of it (explorer-gaps-plan.md §3.10)

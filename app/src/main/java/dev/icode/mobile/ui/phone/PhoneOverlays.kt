@@ -20,6 +20,8 @@ import dev.icode.mobile.data.phone.PhoneService
 import dev.icode.mobile.data.runtime.TerminalSessionManager
 import dev.icode.mobile.data.settings.AndroidWorkspacePreferencesRepository
 import dev.icode.mobile.data.tasks.WorkNotifications
+import dev.icode.mobile.data.voice.Voice
+import android.widget.Toast
 import dev.icode.mobile.data.workspace.ICodeProcess
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeTheme
@@ -144,7 +146,9 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
             // Started straight from the service: a bound accessibility service may start activities from the background.
             service.startActivity(WorkNotifications.intentFor(service, BackgroundPlace.Assistant))
         },
-        listen = null,
+        listen = { onHeard ->
+            Voice.listen(service, onHeard) { problem -> Toast.makeText(service, problem, Toast.LENGTH_SHORT).show() }
+        },
     )
 
     /** Open, the panel takes the keyboard; closed, the mark takes no focus from the app under it. */
@@ -189,7 +193,11 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
         }
         if (overTarget) {
             overTarget = false
-            if (overlay.working) gateway.dispatch(ICodeIntent.StopAssistant)
+            if (overlay.working) {
+                Voice.stopped = true
+                gateway.dispatch(ICodeIntent.StopAssistant)
+            }
+            Voice.stopSpeaking()
             gateway.dispatch(PhoneIntent.ShowBubble(false))
             return
         }

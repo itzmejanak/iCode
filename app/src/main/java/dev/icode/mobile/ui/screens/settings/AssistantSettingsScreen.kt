@@ -29,6 +29,19 @@ import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.domain.AssistantProvider
+import dev.icode.mobile.domain.AssistantProviderKind
+import dev.icode.mobile.data.voice.Voice
+import dev.icode.mobile.designsystem.IcodeSheetOverlay
+import dev.icode.mobile.designsystem.behindSheet
+import androidx.compose.foundation.layout.Box
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
@@ -36,76 +49,122 @@ import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
- * The assistant's providers (docs/assistant-koog-plan.md §13 P1), as Language Services lists its
- * servers: each with its models and whether the chat uses it; a tap opens its page, + adds one.
- * The chat's model, mode, effort and permissions are chosen on the chat page.
+ * Settings › Assistant: one row per page — Providers, Voice, Phone control — as Settings lists its
+ * categories (owner's request, 2026-11-03). The chat's model, mode, effort and permissions are chosen on
+ * the chat page.
  */
 @Composable
 fun AssistantSettingsScreen(actions: NavigationActions) {
-    val gateway = LocalICodeGateway.current
     val settings = LocalICodeSnapshot.current.assistant.settings
-    fun open(id: String) {
-        gateway.dispatch(ICodeIntent.EditAssistantProvider(id))
-        actions.navigate(Route.AssistantProvider)
-    }
+    val phone = LocalICodeSnapshot.current.phone
+    val context = LocalContext.current
+    remember { Voice.load(context) }
+    val replies by Voice.replies.collectAsState()
     Column(Modifier.fillMaxSize()) {
-        IcodeTopBar(
-            "Assistant",
-            subtitle = settingsSubtitle(Route.AssistantSettings),
-            onBack = actions.back,
-            actions = {
-                if (settings.providers.isNotEmpty()) {
-                    IconButton(onClick = { open("") }) {
-                        Icon(Icons.Outlined.Add, contentDescription = "Add provider", tint = IcodeColors.TextPrimary)
-                    }
-                }
-            },
-        )
+        IcodeTopBar("Assistant", subtitle = settingsSubtitle(Route.AssistantSettings), onBack = actions.back)
         IcodePageColumn(Modifier.weight(1f)) {
-            if (settings.providers.isEmpty()) {
-                IcodeSection {
-                    EmptyState(
-                        title = "Add a model provider",
-                        description = "OpenAI, Anthropic, Google Gemini, OpenRouter, Ollama, or any OpenAI-compatible server — " +
-                            "DeepSeek, Groq, LM Studio. Add several, each with the models you use: the chat lists them all.",
-                        mark = { IcodeBrandMark(Modifier.size(IcodeSizes.MarkLg)) },
-                        modifier = Modifier.padding(vertical = IcodeSpacing.Space6),
-                    )
-                    PrimaryButton("Add Provider", { open("") }, Modifier.fillMaxWidth())
-                }
-            } else {
-                IcodeSection("Providers") {
-                    settings.providers.forEach { provider ->
-                        ProviderRow(provider, inUse = provider.id == settings.choice?.provider) { open(provider.id) }
-                    }
-                    settings.provider?.let { provider ->
-                        settings.model?.let { model ->
-                            Text(
-                                "The chat uses ${model.id} from ${provider.name}. Choose another model on the chat page.",
-                                style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary),
-                            )
-                        }
-                    }
-                }
-            }
-            IcodeSection("On the phone") {
-                val phone = LocalICodeSnapshot.current.phone
-                IcodeListRow(
-                    card = true,
-                    title = "Phone control",
-                    subtitle = if (phone.service) "On" else "Off · read and act in other apps from a phone chat",
-                    onClick = { actions.navigate(Route.PhoneControl) },
-                    trailing = {
-                        if (phone.service) StatusLabel("On", IcodeColors.Green)
-                        Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = IcodeColors.TextSecondary)
+            IcodeSection {
+                HubRow(
+                    "Providers",
+                    when {
+                        settings.providers.isEmpty() -> "None yet · add OpenAI, Anthropic, Gemini, Ollama…"
+                        settings.model != null && settings.provider != null -> "${settings.providers.size} · the chat uses ${settings.model!!.id} from ${settings.provider!!.name}"
+                        else -> "${settings.providers.size} · models and API keys"
                     },
-                )
+                    status = if (settings.providers.isEmpty()) "Add" to IcodeColors.Amber else null,
+                ) { actions.navigate(Route.AssistantProviders) }
+                HubRow("Voice", "Speak to it · answers read aloud: ${replies.label}") { actions.navigate(Route.VoiceSettings) }
+                HubRow(
+                    "Phone control",
+                    if (phone.service) "On" else "Off · read and act in other apps from a phone chat",
+                    status = if (phone.service) "On" to IcodeColors.Green else null,
+                ) { actions.navigate(Route.PhoneControl) }
             }
             Text(
                 "What the assistant reads — files, search results, command output, what you attach — is sent to the provider of " +
                     "the chat's model. API keys are kept encrypted on this phone and never shown again.",
                 style = IcodeType.Caption.copy(color = IcodeColors.TextMuted),
             )
+        }
+    }
+}
+
+@Composable
+private fun HubRow(title: String, subtitle: String, status: Pair<String, androidx.compose.ui.graphics.Color>? = null, onClick: () -> Unit) {
+    IcodeListRow(
+        card = true,
+        title = title,
+        subtitle = subtitle,
+        onClick = onClick,
+        trailing = {
+            status?.let { (label, tint) -> StatusLabel(label, tint) }
+            Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = IcodeColors.TextSecondary)
+        },
+    )
+}
+
+/**
+ * Settings › Assistant › Providers (docs/assistant-koog-plan.md §13 P1), as Language Services lists its
+ * servers: each with its models and whether the chat uses it; a tap opens its page, + opens the sheet of
+ * provider kinds.
+ */
+@Composable
+fun AssistantProvidersScreen(actions: NavigationActions) {
+    val gateway = LocalICodeGateway.current
+    val settings = LocalICodeSnapshot.current.assistant.settings
+    var picking by rememberSaveable { mutableStateOf(false) }
+    fun open(id: String, kind: AssistantProviderKind? = null) {
+        picking = false
+        gateway.dispatch(ICodeIntent.EditAssistantProvider(id, kind))
+        actions.navigate(Route.AssistantProvider)
+    }
+    Box(Modifier.fillMaxSize()) {
+        Column(Modifier.fillMaxSize().behindSheet(picking)) {
+            IcodeTopBar(
+                "Providers",
+                subtitle = "Models and API keys",
+                onBack = actions.back,
+                actions = {
+                    if (settings.providers.isNotEmpty()) {
+                        IconButton(onClick = { picking = true }) {
+                            Icon(Icons.Outlined.Add, contentDescription = "Add provider", tint = IcodeColors.TextPrimary)
+                        }
+                    }
+                },
+            )
+            IcodePageColumn(Modifier.weight(1f)) {
+                if (settings.providers.isEmpty()) {
+                    IcodeSection {
+                        EmptyState(
+                            title = "Add a model provider",
+                            description = "OpenAI, Anthropic, Google Gemini, OpenRouter, Ollama, or any OpenAI-compatible server — " +
+                                "DeepSeek, Groq, LM Studio. Add several, each with the models you use: the chat lists them all.",
+                            mark = { IcodeBrandMark(Modifier.size(IcodeSizes.MarkLg)) },
+                            modifier = Modifier.padding(vertical = IcodeSpacing.Space6),
+                        )
+                        PrimaryButton("Add Provider", { picking = true }, Modifier.fillMaxWidth())
+                    }
+                } else {
+                    IcodeSection("Providers") {
+                        settings.providers.forEach { provider ->
+                            ProviderRow(provider, inUse = provider.id == settings.choice?.provider) { open(provider.id) }
+                        }
+                        settings.provider?.let { provider ->
+                            settings.model?.let { model ->
+                                Text(
+                                    "The chat uses ${model.id} from ${provider.name}. Choose another model on the chat page.",
+                                    style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        if (picking) {
+            IcodeSheetOverlay(onClose = { picking = false }) {
+                ProviderKindSheet(selected = null, modifier = Modifier.align(Alignment.BottomCenter), onClose = { picking = false }) { open("", it) }
+            }
         }
     }
 }
