@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.FolderOpen
+import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -32,6 +33,7 @@ import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.domain.AssistantAnswer
 import dev.icode.mobile.domain.AssistantApproval
 import dev.icode.mobile.domain.AssistantPause
+import dev.icode.mobile.domain.AssistantPermissions
 import dev.icode.mobile.domain.AssistantReach
 import dev.icode.mobile.domain.AssistantToolKind
 import dev.icode.mobile.domain.ICodeIntent
@@ -58,6 +60,7 @@ internal fun AssistantApprovalCard(approval: AssistantApproval, workspace: Strin
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
                     Icon(
                         when {
+                            reach?.app != null -> Icons.Outlined.PhoneAndroid
                             reach != null -> Icons.Outlined.FolderOpen
                             command -> Icons.Outlined.Terminal
                             else -> Icons.Outlined.EditNote
@@ -66,12 +69,12 @@ internal fun AssistantApprovalCard(approval: AssistantApproval, workspace: Strin
                         tint = IcodeColors.Amber,
                         modifier = Modifier.size(IcodeSizes.IconSm),
                     )
-                    Text(question(approval.call.kind, reach != null, workspace), style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.weight(1f))
+                    Text(AssistantPermissions.question(approval, workspace), style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.weight(1f))
                     if (onDetails != null) {
                         Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconMd))
                     }
                 }
-                reach?.let {
+                reach?.takeIf { it.app == null }?.let {
                     Text(
                         "Reaches ${it.paths.joinToString()}",
                         style = IcodeType.MonoSmall.copy(color = IcodeColors.TextSecondary),
@@ -114,29 +117,18 @@ internal fun AssistantPauseCard(pause: AssistantPause, modifier: Modifier) {
 @Composable
 internal fun ApprovalAnswers(approval: AssistantApproval, workspace: String, modifier: Modifier) {
     val gateway = LocalICodeGateway.current
-    val reach = approval.reach
     val answer = { it: AssistantAnswer -> gateway.dispatch(ICodeIntent.AnswerAssistant(approval.call.id, it)) }
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2, Alignment.End)) {
         SecondaryButton("Deny", { answer(AssistantAnswer.Deny) }, compact = true)
-        if (reach == null || reach.roots.isNotEmpty()) {
-            SecondaryButton(if (reach == null) "Allow in $workspace" else "Allow in Chat", { answer(AssistantAnswer.AllowInChat) }, compact = true)
-        }
-        PrimaryButton(if (reach == null) "Allow" else "Allow Once", { answer(AssistantAnswer.Allow) }, compact = true)
+        AssistantPermissions.allowIn(approval, workspace)?.let { SecondaryButton(it, { answer(AssistantAnswer.AllowInChat) }, compact = true) }
+        PrimaryButton(AssistantPermissions.allowOnce(approval), { answer(AssistantAnswer.Allow) }, compact = true)
     }
-}
-
-/** What the card asks: a change, a command, or either — or a read — reaching outside [workspace]. */
-private fun question(kind: AssistantToolKind, outside: Boolean, workspace: String): String = when {
-    !outside && kind == AssistantToolKind.Command -> "Run this command?"
-    !outside -> "Make this change?"
-    kind == AssistantToolKind.Command -> "Run this command outside $workspace?"
-    kind == AssistantToolKind.Change -> "Make this change outside $workspace?"
-    else -> "Read outside $workspace?"
 }
 
 /** What the middle answer opens, for this chat until iCode closes; null when it opens nothing. */
 internal fun allowInMeaning(reach: AssistantReach?, workspace: String): String? = when {
     reach == null -> "Allow in $workspace: this chat's changes and commands in $workspace stop asking, until iCode closes."
+    reach.app != null -> "Allow in ${reach.app}: this chat acts in ${reach.app} without asking, until iCode closes."
     reach.roots.isEmpty() -> null
     else -> "Allow in Chat: this chat may reach ${reach.roots.joinToString()} without asking, until iCode closes."
 }

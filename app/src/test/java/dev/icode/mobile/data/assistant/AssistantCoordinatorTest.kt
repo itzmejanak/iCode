@@ -118,7 +118,7 @@ class AssistantCoordinatorTest {
     private val coordinator by lazy {
         AssistantCoordinator(
             stateHolder, scope, engine, providers, chats,
-            tools = { workspace, _ ->
+            tools = { workspace, _, _ ->
                 places += workspace.name
                 listOf(FakeTool("read_file", AssistantToolKind.Read, workspace), FakeTool("edit_file", AssistantToolKind.Change, workspace))
             },

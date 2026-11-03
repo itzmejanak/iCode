@@ -159,13 +159,16 @@ internal class WorkNotifications(private val context: Context, private val notif
             context.getSystemService(NotificationManager::class.java).cancel(FAILURE_BASE + item.number)
         }
 
-        /** Opens iCode on [place]: the task's dialog, or the work's own page. */
+        /** iCode on [place]: the task's dialog, or the work's own page. */
+        fun intentFor(context: Context, place: BackgroundPlace): Intent = Intent(context, MainActivity::class.java)
+            .setAction(MainActivity.ACTION_SHOW_WORK)
+            .putExtra(MainActivity.EXTRA_WORK_PLACE, place.encoded())
+            .setData("icode://work/${place.encoded()}".toUri())
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+
+        /** Opens iCode on [place], from a notification. */
         fun open(context: Context, place: BackgroundPlace): PendingIntent {
-            val intent = Intent(context, MainActivity::class.java)
-                .setAction(MainActivity.ACTION_SHOW_WORK)
-                .putExtra(MainActivity.EXTRA_WORK_PLACE, place.encoded())
-                .setData("icode://work/${place.encoded()}".toUri())
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            val intent = intentFor(context, place)
             return PendingIntent.getActivity(
                 context,
                 // Distinct data keeps one pending intent per place.

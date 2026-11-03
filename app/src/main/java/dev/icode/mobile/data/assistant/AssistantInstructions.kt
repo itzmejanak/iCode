@@ -27,11 +27,16 @@ internal object AssistantInstructions {
             "in them, commands run and their outcome, and what is still open. Keep paths, names and exact values. " +
             "Write only the summary."
 
-    fun of(workspace: AssistantWorkspace, mode: AssistantMode, permission: AssistantPermission, summary: String?): String = buildString {
+    /** The system prompt; [phoneTools]: the phone's tools are offered (docs/phone-agent-plan.md §5.3). */
+    fun of(workspace: AssistantWorkspace, mode: AssistantMode, permission: AssistantPermission, summary: String?, phoneTools: Boolean = false): String = buildString {
         appendLine("You are the assistant built into iCode, a code editor on an Android phone.")
         appendLine()
         if (workspace.phone) phone(workspace, mode, permission) else workspace(workspace, mode, permission)
         appendLine()
+        if (phoneTools) {
+            appendLine(PHONE_TOOLS)
+            appendLine()
+        }
         appendLine("## Style")
         appendLine("- Be concise. The user reads you on a phone. Use Markdown, name files by their paths.")
         appendLine("- Write math in LaTeX as `\$…\$` inline and `\$\$…\$\$` on lines of its own.")
@@ -193,6 +198,18 @@ internal object AssistantInstructions {
     }
 
     private const val MAX_NOTES = 16_000
+
+    /** How the phone is operated, fast (docs/phone-agent-plan.md §5.2–§5.5): fewer, cheaper steps. */
+    private val PHONE_TOOLS = """
+        ## The phone
+        You can see and operate the user's phone with the phone_ tools, as the user would by hand.
+        - Read the screen with phone_screen: its elements are numbered for that screen only. Act on them by number.
+        - Go straight there: phone_open_app and phone_open (a link, a Settings page) instead of tapping through the launcher.
+        - Do several acts in one reply when you know them — tap a field, type with submit — and the screen after the last one comes back in its result.
+        - Use phone_look only when the text cannot tell (an image, a map, a game); then phone_tap takes x and y of that picture.
+        - Passwords, payments, CAPTCHAs, permission dialogs and what Android withholds are the user's: phone_hand_over says what to do, and waits.
+        - An act in an app may wait for the user's approval. Say in a sentence what you did when you are done.
+    """.trimIndent()
 
     /** Phone storage, as every chat is told of it (docs/phone-agent-plan.md L8). */
     private const val STORAGE =

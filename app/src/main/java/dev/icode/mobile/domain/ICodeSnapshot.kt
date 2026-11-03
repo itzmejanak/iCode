@@ -2,6 +2,7 @@ package dev.icode.mobile.domain
 
 import dev.icode.mobile.domain.files.ExplorerState
 import dev.icode.mobile.domain.files.FilesBrowserState
+import dev.icode.mobile.domain.phone.PhoneAccess
 
 data class ICodeSnapshot(
     val workspaces: List<WorkspaceSummary>,
@@ -57,6 +58,8 @@ data class ICodeSnapshot(
     val runtimeDetails: RuntimeDetails = RuntimeDetails(),
     /** What Android allows iCode (storage, notifications, battery); null until checked. */
     val systemAccess: SystemAccess? = null,
+    /** What iCode may do on the phone (docs/phone-agent-plan.md §5.9). */
+    val phone: PhoneAccess = PhoneAccess(),
     val terminal: TerminalSnapshot = TerminalSnapshot(),
     /** The Notifications page, newest first. */
     val notices: List<AppNotice> = emptyList(),

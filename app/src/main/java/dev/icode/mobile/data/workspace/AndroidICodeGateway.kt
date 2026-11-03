@@ -18,6 +18,7 @@ import dev.icode.mobile.data.git.GitTransferLedger
 import dev.icode.mobile.data.git.GitWorkspaceCoordinator
 import dev.icode.mobile.data.language.LanguageServiceCoordinator
 import dev.icode.mobile.data.notices.NoticeBoard
+import dev.icode.mobile.data.phone.PhoneCoordinator
 import dev.icode.mobile.data.run.RunCoordinator
 import dev.icode.mobile.data.runtime.RuntimeToolsCoordinator
 import dev.icode.mobile.data.runtime.RuntimeCoordinator
@@ -47,6 +48,7 @@ import dev.icode.mobile.domain.ICodeGateway
 import dev.icode.mobile.domain.GpgIntent
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.ICodeSnapshot
+import dev.icode.mobile.domain.PhoneIntent
 import dev.icode.mobile.domain.StageLineChange
 import dev.icode.mobile.domain.WebIntent
 import java.io.File
@@ -77,10 +79,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     private val authenticator = GitAuthenticator(runtimeLayout, gitCli, runtimeTools.installer, GitCredentialStore(appContext))
     private val terminals = TerminalSessionManager.get(appContext)
     private val terminal: TerminalCoordinator = TerminalCoordinator(
-        stateHolder,
-        terminals,
-        runtimeInstalled = { runtimeLayout.isInstalled },
-        activeRoot = { session.activeRoot },
+        stateHolder, terminals, runtimeInstalled = { runtimeLayout.isInstalled }, activeRoot = { session.activeRoot },
         openWorkspaceTerminal = { location -> session.open(location, persist = true, openTerminal = true) },
         workspaceChanged = { session.requestRefresh(rebuildIndex = true) },
     )
@@ -90,10 +89,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     /** Something runs in the runtime that rebuilding it, or clearing the cache PRoot works in, would break. */
     private val runtimeBusy = { terminals.hasRunningSessions() || languages.hasActiveProcesses() || execution.processes.anyRunning() }
     private val languages: LanguageServiceCoordinator = LanguageServiceCoordinator(appContext, stateHolder, scope, runtimeLayout) { session.activeRoot }
-    private val runtime: RuntimeCoordinator = RuntimeCoordinator(
-        appContext, stateHolder, scope, runtimeLayout, AndroidSystemAccess(appContext),
-        sessionsRunning = runtimeBusy,
-    )
+    private val runtime: RuntimeCoordinator = RuntimeCoordinator(appContext, stateHolder, scope, runtimeLayout, AndroidSystemAccess(appContext), sessionsRunning = runtimeBusy)
     /** Phone storage, the file explorer's Shared place (docs/storage-explorer-plan.md). */
     private val phoneStorage = PhoneStorage.of()
     private val library: WorkspaceLibraryCoordinator = WorkspaceLibraryCoordinator(
@@ -171,10 +167,13 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     private val items = WorkspaceItemsCoordinator(stateHolder, source, documents, usage, lifecycle, files.places, runtimeLayout.paths, follower, history) { session.activeRoot }
     /** The Terminal panel's Run tab (docs/run-tab-plan.md): Android apps and saved commands, for the tab and the assistant. */
     private val runs = RunCoordinator(stateHolder, scope, runtimeLayout, execution, appContext)
+    /** Phone control (docs/phone-agent-plan.md): the accessibility service, Shizuku, the bubble. */
+    private val phone = PhoneCoordinator(appContext, stateHolder, scope)
     /** iCode's assistant (docs/assistant-koog-plan.md): its turns are its own jobs, its tools iCode's owners. */
     private val assistant = AssistantCoordinator.create(
         appContext, stateHolder, scope,
-        AssistantToolbox(source, ripgrep, gitCli, execution, runs, runtimeLayout::isInstalled, { documents.blockingEdits(it) != null }) { session.requestRefresh(rebuildIndex = true) },
+        AssistantToolbox(source, ripgrep, gitCli, execution, runs, runtimeLayout::isInstalled, { documents.blockingEdits(it) != null },
+            changed = { session.requestRefresh(rebuildIndex = true) }, phone = phone.control),
         activeRoot = { session.activeRoot },
         source = source, paths = runtimeLayout.paths, git = gitCli,
     )
@@ -184,6 +183,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
 
     init {
         notices.start(scope) { listOfNotNull(terminals.ledger.takePrevious(), interruptedTransfer) }
+        phone.start()
         languages.publish()
         web.start()
         scope.launch {
@@ -240,6 +240,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
             // A transfer is its own job: nothing waits behind a slow remote.
             is ICodeIntent.TransferIntent -> gitTransfers.handle(intent)
             is ICodeIntent.AssistantIntent -> assistant.handle(intent)
+            is PhoneIntent -> phone.handle(intent)
             is ICodeIntent.ProcessIntent -> execution.processes.handle(intent)
             is ICodeIntent.RunIntent -> runs.handle(intent)
             is GpgIntent -> execution.gpg.handle(intent)

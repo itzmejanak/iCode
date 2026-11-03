@@ -24,10 +24,21 @@
          Distribution through Google Play requires declaring this use. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
+    <!-- Phone control (docs/phone-agent-plan.md): the apps the launcher lists, opened by name;
+         Shizuku, found to say its state. -->
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.MAIN" />
+            <category android:name="android.intent.category.LAUNCHER" />
+        </intent>
+        <package android:name="moe.shizuku.privileged.api" />
+    </queries>
+
     <!-- Every workspace lives in iCode's own storage (docs/workspace-storage-plan.md §4.7):
          uninstalling asks whether to keep that data. App info keeps Android's own Clear
          storage (owner, 2026-09-30). -->
     <application
+        android:name=".ICodeApplication"
         android:allowBackup="false"
         android:hasFragileUserData="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -74,6 +85,32 @@
                 android:name="android.support.FILE_PROVIDER_PATHS"
                 android:resource="@xml/shared_file_paths" />
         </provider>
+
+        <!-- The assistant on the whole phone (docs/phone-agent-plan.md §5.1): it reads and operates the
+             screen for the user's own requests, and hosts the bubble and the glow. Not an
+             accessibility tool, and never claims to be one (§3.2). -->
+        <service
+            android:name="dev.icode.mobile.data.phone.PhoneService"
+            android:exported="false"
+            android:label="@string/phone_service_label"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/phone_service" />
+        </service>
+
+        <!-- Shizuku hands iCode its binder through this provider; only system-level callers reach it
+             (Shizuku-API's README, §5.11). -->
+        <provider
+            android:name="rikka.shizuku.ShizukuProvider"
+            android:authorities="${applicationId}.shizuku"
+            android:multiprocess="false"
+            android:enabled="true"
+            android:exported="true"
+            android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
 
         <service
             android:name="dev.icode.mobile.data.runtime.RuntimeForegroundService"

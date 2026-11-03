@@ -5,7 +5,6 @@ import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.runtime.GuestPaths
 import dev.icode.mobile.data.workspace.WorkspaceRoot
 import dev.icode.mobile.domain.AssistantAnswer
-import dev.icode.mobile.domain.AssistantAsk
 import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantHistory
 import dev.icode.mobile.domain.AssistantLive
@@ -16,7 +15,6 @@ import dev.icode.mobile.domain.AssistantPause
 import dev.icode.mobile.domain.AssistantPermission
 import dev.icode.mobile.domain.AssistantPermissions
 import dev.icode.mobile.domain.AssistantPlace
-import dev.icode.mobile.domain.AssistantReach
 import dev.icode.mobile.domain.AssistantResult
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantSettings
@@ -32,7 +30,6 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
 
 /**
  * The assistant's work (§4.4, §12 R1, R4, R6, R8): one turn at a time, its own job, never behind the
@@ -47,7 +44,7 @@ internal class AssistantTurns(
     /** The settings as saved, each provider's models as the engine knows them. */
     private val settings: () -> AssistantSettings,
     private val chats: AssistantChats,
-    private val tools: (AssistantWorkspace, chat: String) -> List<AssistantTool>,
+    private val tools: (AssistantWorkspace, chat: String, step: AssistantStep) -> List<AssistantTool>,
     private val describe: (String) -> WorkspaceRoot,
     /** The runtime's paths: what the turn's workspace resolves the model's paths through. */
     private val paths: GuestPaths,
@@ -121,6 +118,9 @@ internal class AssistantTurns(
 
     /** A turn in [session] of [workspace], and the events of its engine. */
     private inner class Turn(val workspace: String, val session: String) : AssistantEvents {
+        /** The step its tools are on (L2, L3), and the hand-over its phone tools wait on (§5.5). */
+        val step = AssistantStep { why -> questions.pause(AssistantPause(AssistantPause.Kind.HandOver, why), THINKING) }
+
         /** This chat's mode now: the setting, raised by its own answers. */
         fun permission(): AssistantPermission = AssistantPermissions.effective(settings().permission, chats.allowedInWorkspace(workspace, session))
 
@@ -177,16 +177,22 @@ internal class AssistantTurns(
                 compact(setup, AssistantRules.forModel(before.messages))
             }
             val history = AssistantRules.forModel(chats.of(workspace, session).messages.dropLast(1))
-            val offered = tools(setup.place, session).filter { setup.settings.mode == AssistantMode.Code || setup.settings.mode == AssistantMode.Orchestrator || it.kind == AssistantToolKind.Read }
+            step.seesPictures = setup.model.images
+            val offered = tools(setup.place, session, step).filter { setup.settings.mode == AssistantMode.Code || setup.settings.mode == AssistantMode.Orchestrator || it.kind == AssistantToolKind.Read }
             val request = AssistantTurnRequest(
                 connection = setup.connection,
                 model = setup.model,
                 effort = AssistantRules.effortFor(setup.settings.effort, setup.model),
-                instructions = AssistantInstructions.of(setup.place, setup.settings.mode, permission(), history.summary),
+                instructions = AssistantInstructions.of(setup.place, setup.settings.mode, permission(), history.summary, offered.any { it.name.startsWith(PHONE_TOOLS) }),
                 history = history.messages,
                 input = message,
-                tools = offered.map { Asking(it, this, setup.place) },
+                tools = offered.map { tool ->
+                    AssistantGate(tool, setup.place, chats, page, questions, workspace, session, ::permission, { synchronized(lock) { calling } }) { call, changes ->
+                        synchronized(lock) { counted[call.id] = changes }
+                    }
+                },
                 maxSteps = MAX_STEPS,
+                picture = step::take,
             )
             var next = request
             while (true) {
@@ -230,13 +236,16 @@ internal class AssistantTurns(
         }
 
         override fun replied(reply: AssistantMessage.Reply) {
+            step.calls = reply.calls
             chats.append(workspace, session, reply)
             page.refresh(workspace, session, recorded = true)
         }
 
         override fun calling(call: AssistantCall) {
             synchronized(lock) { calling = call }
-            step(call.summary)
+            step.current = call
+            val acting = call.tool.startsWith(PHONE_TOOLS)
+            page.state { it.copy(turn = it.turn?.copy(step = call.summary, onPhone = it.turn.onPhone || acting)) }
         }
 
         override fun answered(result: AssistantResult) {
@@ -260,41 +269,14 @@ internal class AssistantTurns(
         private fun step(text: String) = page.state { it.copy(turn = it.turn?.copy(step = text)) }
     }
 
-    /**
-     * The gate every call passes (docs/assistant-permissions-plan.md §5): what it reaches outside the
-     * chat's workspace, less what the chat opened, and the chat's mode decide whether it asks, once.
-     */
-    private inner class Asking(private val tool: AssistantTool, private val turn: Turn, private val place: AssistantWorkspace) : AssistantTool by tool {
-        override suspend fun run(arguments: JSONObject): String {
-            val opened = chats.roots(turn.workspace, turn.session)
-            val outside = place.outside(tool.reach(arguments)).filterNot { path -> opened.any { AssistantPermissions.within(path, it) } }
-            val asks = AssistantPermissions.ask(turn.permission(), tool.kind, outside.isNotEmpty())
-            if (asks != null) {
-                val call = synchronized(lock) { calling } ?: throw AssistantToolException("Nothing to ask about")
-                val reach = if (asks == AssistantAsk.Outside) AssistantReach(outside, outside.mapNotNull(place::rootOf).distinct()) else null
-                when (questions.approve(call, tool.detail(arguments), reach)) {
-                    AssistantAnswer.Allow -> Unit
-                    AssistantAnswer.AllowInChat -> {
-                        if (reach != null) chats.open(turn.workspace, turn.session, reach.roots) else chats.allowInWorkspace(turn.workspace, turn.session)
-                        page.refresh(turn.workspace, turn.session)
-                    }
-                    AssistantAnswer.Deny -> throw AssistantToolException(AssistantPermissions.denied(asks, outside))
-                }
-            }
-            return tool.run(arguments).also {
-                (tool as? AssistantFileChanger)?.lastChanges?.let { changes ->
-                    synchronized(lock) { calling?.let { counted[it.id] = changes } }
-                }
-            }
-        }
-
-    }
-
     private companion object {
         const val TAG = "Assistant"
         const val MAX_STEPS = 40
         const val THINKING = "Thinking…"
         const val COMPACTING = "Compacting the chat…"
+
+        /** The phone tools' names start so: a turn that calls one acts on the phone (§5.6). */
+        const val PHONE_TOOLS = "phone_"
         const val NOT_SET_UP = "Set up the assistant first: add a provider and choose a model"
     }
 }
