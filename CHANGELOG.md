@@ -15,6 +15,13 @@ All notable changes to iCode are documented here. The format follows
 - Assistant: phone storage, at `/sdcard` in the runtime, for every tool and command (asked first, as
   anything outside the chat's place; read with All Files Access).
 - Assistant: at its step limit a turn asks "Keep going?" instead of stopping.
+- Assistant on the whole phone: iCode's accessibility service reads the screen as numbered
+  elements and operates it (tap, type, scroll, keys, apps, links and Settings pages by name),
+  asking before it acts in an app ("Allow in WhatsApp for this chat") and handing passwords,
+  payments and permission dialogs to the user.
+- Shizuku: one tap turns phone control on, and real touches reach what accessibility is refused.
+- The bubble over every app — the question waiting, a field, Send and Stop, Open in iCode — and
+  the screen's edges glowing in the accent while the assistant acts; dragged onto ✕, both go away.
 
 ## [0.1.0]
 

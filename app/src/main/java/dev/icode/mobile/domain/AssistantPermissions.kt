@@ -23,7 +23,12 @@ enum class AssistantAsk { Change, Command, Outside }
  * and the folders "Allow in this chat" opens ([AssistantPermissions.rootOf]); none where nothing
  * smaller than `/` would do.
  */
-data class AssistantReach(val paths: List<String>, val roots: List<String>)
+data class AssistantReach(
+    val paths: List<String>,
+    val roots: List<String>,
+    /** The app a phone act is in (docs/phone-agent-plan.md L6): its name; [roots] then hold its [AssistantPermissions.appRoot]. */
+    val app: String? = null,
+)
 
 object AssistantPermissions {
     /**
@@ -38,12 +43,40 @@ object AssistantPermissions {
         else -> AssistantAsk.Change
     }
 
-    /** What the model is told of a call the user denied, as it [asked], [outside] what it reached there. */
-    fun denied(asked: AssistantAsk, outside: List<String>): String = when (asked) {
-        AssistantAsk.Outside -> "The user did not allow reaching ${outside.joinToString()}"
+    /** What the model is told of a call the user denied, as it [asked], [outside] what it reached there, or [app] it acted in. */
+    fun denied(asked: AssistantAsk, outside: List<String>, app: String? = null): String = when (asked) {
+        AssistantAsk.Outside -> if (app != null) "The user did not allow acting in $app" else "The user did not allow reaching ${outside.joinToString()}"
         AssistantAsk.Command -> "The user did not allow this command"
         AssistantAsk.Change -> "The user did not allow this change"
     }
+
+    /** What [approval]'s card asks — in the chat and in the bubble — [bound] the chat's place as the page says it. */
+    fun question(approval: AssistantApproval, bound: String): String {
+        val reach = approval.reach
+        val kind = approval.call.kind
+        return when {
+            reach?.app != null -> "Act in ${reach.app}?"
+            reach == null && kind == AssistantToolKind.Command -> "Run this command?"
+            reach == null -> "Make this change?"
+            kind == AssistantToolKind.Command -> "Run this command outside $bound?"
+            kind == AssistantToolKind.Change -> "Make this change outside $bound?"
+            else -> "Read outside $bound?"
+        }
+    }
+
+    /** [approval]'s "Allow in" answer, for this chat: in its place, its app, or the folders it reaches; null where none would do. */
+    fun allowIn(approval: AssistantApproval, bound: String): String? {
+        val reach = approval.reach
+        return when {
+            reach == null -> "Allow in $bound"
+            reach.app != null -> "Allow in ${reach.app}"
+            reach.roots.isNotEmpty() -> "Allow in Chat"
+            else -> null
+        }
+    }
+
+    /** [approval]'s answer for this once. */
+    fun allowOnce(approval: AssistantApproval): String = if (approval.reach == null) "Allow" else "Allow Once"
 
     /** The chat's mode: the [setting], or Auto in workspace once the chat answered "Allow in" its workspace. */
     fun effective(setting: AssistantPermission, allowedInWorkspace: Boolean): AssistantPermission =
@@ -62,6 +95,12 @@ object AssistantPermissions {
         val top = (folder.size downTo 1).map { "/" + folder.take(it).joinToString("/") }.firstOrNull(isRepository)
         return top ?: folder.takeIf { it.isNotEmpty() }?.let { "/" + it.joinToString("/") }
     }
+
+    /**
+     * What "Allow in *app* for this chat" opens for an app on the phone (docs/phone-agent-plan.md L6),
+     * kept with the folders a chat opened: never a runtime path, which starts with `/`.
+     */
+    fun appRoot(packageName: String): String = "app:$packageName"
 
     /** [path] is [root] or under it, both runtime paths. */
     fun within(path: String, root: String): Boolean = path == root || path.startsWith("${root.trimEnd('/')}/")

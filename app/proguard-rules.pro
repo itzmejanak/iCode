@@ -16,3 +16,7 @@
 -dontwarn org.slf4j.impl.**
 -dontwarn org.conscrypt.**
 -dontwarn org.openjsse.**
+
+# Shizuku starts iCode's shell service by its class name, with either constructor
+# (docs/phone-agent-plan.md §5.11); its tag, not its name, identifies it after R8.
+-keep class dev.icode.mobile.data.phone.shizuku.ShellUserService { <init>(...); }

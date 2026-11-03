@@ -173,6 +173,10 @@ dependencies {
     implementation("ai.koog:http-client-ktor:$koogVersion")
     // The HTTP engine Koog's clients run on, handed to them explicitly; the Ktor Koog is built with.
     implementation("io.ktor:ktor-client-okhttp:3.3.3")
+    // Shizuku (docs/phone-agent-plan.md §5.11): its binder, the user's permission, and a UserService of
+    // iCode's own in a shell process. Apache-2.0 / MIT, on Maven Central.
+    implementation("dev.rikka.shizuku:api:13.1.5")
+    implementation("dev.rikka.shizuku:provider:13.1.5")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 
     debugImplementation("androidx.compose.ui:ui-tooling")

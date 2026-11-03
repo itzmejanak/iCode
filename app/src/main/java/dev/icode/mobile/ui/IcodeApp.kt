@@ -31,11 +31,8 @@ import dev.icode.mobile.designsystem.IcodeFloatingStack
 import dev.icode.mobile.designsystem.IcodeFloors
 import dev.icode.mobile.designsystem.IcodeScreen
 import dev.icode.mobile.designsystem.IcodeTheme
-import dev.icode.mobile.designsystem.IcodePalette
 import dev.icode.mobile.designsystem.PaletteKind
 import dev.icode.mobile.designsystem.LocalIcodeFloors
-import dev.icode.mobile.designsystem.withAccent
-import dev.icode.mobile.domain.AppTheme
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.RouteGroup
 import dev.icode.mobile.navigation.Route
@@ -88,7 +85,7 @@ fun IcodeApp(
     )
     val appearance = preferences.appearance.takeIf { preferences.loaded && preferences.loadError == null }
     val borderLines = appearance?.borderLines ?: true
-    val palette = IcodePalette.of(appearance?.theme ?: AppTheme.Dark, borderLines).withAccent(appearance?.accentColor)
+    val palette = appearancePalette(appearance)
     SideEffect {
         (context as? Activity)?.window?.let { window ->
             WindowCompat.getInsetsController(window, window.decorView).apply {

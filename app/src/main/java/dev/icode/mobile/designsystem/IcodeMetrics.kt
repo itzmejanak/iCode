@@ -67,6 +67,10 @@ object IcodeSizes {
     val Tile = 74.dp
     /** The × that takes a picture off, in a [Tile]'s corner. */
     val TileRemove = 28.dp
+    /** The assistant's bubble over other apps (docs/phone-agent-plan.md §5.7), its ring, and its panel's width at most. */
+    val Bubble = 52.dp
+    val BubbleRing = 3.dp
+    val BubblePanel = 380.dp
     /** A grid of files (docs/explorer-gaps-plan.md §3.12): each tile at least this wide, its picture this big. */
     val GridTileMin = 104.dp
     val GridTilePicture = 56.dp

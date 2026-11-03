@@ -235,6 +235,8 @@ data class AssistantTurn(
     val step: String,
     /** The reply being written, as far as it has come; null between replies, and where replies come whole. */
     val live: AssistantLive? = null,
+    /** It has acted on the phone: the screen's edges glow while it works (docs/phone-agent-plan.md §5.6). */
+    val onPhone: Boolean = false,
 )
 
 /** A streamed reply as far as it has come: what the model thought, and its answer so far. */
