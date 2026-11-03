@@ -97,7 +97,7 @@ internal class AssistantCoordinator(
             is ICodeIntent.ChooseAssistantEffort -> settings.remember { providers.chooseEffort(intent.effort) }
             is ICodeIntent.ChooseAssistantMode -> settings.remember { providers.chooseMode(intent.mode) }
             is ICodeIntent.SetAssistantPermission -> setPermission(intent)
-            is ICodeIntent.EditAssistantProvider -> settings.edit(intent.id)
+            is ICodeIntent.EditAssistantProvider -> settings.edit(intent.id, intent.kind)
             is ICodeIntent.SaveAssistantProvider -> settings.save(intent)
             is ICodeIntent.RemoveAssistantProvider -> settings.remove(intent.id)
             is ICodeIntent.ListAssistantModels -> settings.list(intent)

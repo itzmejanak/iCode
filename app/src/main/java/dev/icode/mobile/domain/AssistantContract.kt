@@ -252,6 +252,8 @@ data class AssistantState(
     val catalogue: Map<AssistantProviderKind, List<AssistantModel>> = emptyMap(),
     /** The provider its settings page shows: its ID, "" for one being added; null when none is. */
     val editing: String? = null,
+    /** The kind chosen for a provider being added, from the sheet of kinds. */
+    val adding: AssistantProviderKind? = null,
     /** The models its server lists, once asked. */
     val available: AssistantAvailable? = null,
     /** The place whose chats are shown — a workspace's location, or [AssistantPlace.PHONE]; null until the page opens. */
