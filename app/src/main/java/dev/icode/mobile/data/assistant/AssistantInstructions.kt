@@ -31,7 +31,7 @@ internal object AssistantInstructions {
     fun of(workspace: AssistantWorkspace, mode: AssistantMode, permission: AssistantPermission, summary: String?, phoneTools: Boolean = false): String = buildString {
         appendLine("You are the assistant built into iCode, a code editor on an Android phone.")
         appendLine()
-        if (workspace.phone) phone(workspace, mode, permission) else workspace(workspace, mode, permission)
+        workspace(workspace, mode, permission)
         appendLine()
         if (phoneTools) {
             appendLine(PHONE_TOOLS)
@@ -48,7 +48,7 @@ internal object AssistantInstructions {
         appendLine("- Call multiple independent tools at once (e.g. read several files in parallel).")
         appendLine("- When one result is needed for the next, use tools one at a time.")
         appendLine("- Never guess parameters or use placeholders. If information is missing, tell the user what is needed.")
-        if (!workspace.phone) projectNotes(workspace.root)?.let { notes ->
+        projectNotes(workspace.root)?.let { notes ->
             appendLine()
             appendLine("The project's own instructions, from its AGENTS.md:")
             appendLine(notes)
@@ -123,32 +123,6 @@ internal object AssistantInstructions {
                 )
                 appendLine("- Report what you did, what each step produced, and what remains open.")
             }
-        }
-    }
-
-    /**
-     * Where a phone chat works (docs/phone-agent-plan.md L1): from root's home, in no workspace, for
-     * whatever the user asks of their phone; a mode that only reads keeps to reading.
-     */
-    private fun StringBuilder.phone(workspace: AssistantWorkspace, mode: AssistantMode, permission: AssistantPermission) {
-        appendLine("## Where you work")
-        appendLine(
-            "You work on the user's phone, from ${workspace.guestPath} — root's home in the user's own Ubuntu Linux on it " +
-                "(ARM64, under PRoot: uid 0 without root's powers, no systemd; `apt` installs packages) — on the user's behalf. " +
-                "The user's workspaces are under /workspace. $STORAGE The tools reach the whole runtime: a relative path " +
-                "starts at ${workspace.guestPath}. ${approvals(workspace.guestPath, permission)} " +
-                "What PRoot and Android cannot do here is in ${RuntimeLayout.README_PATH}.",
-        )
-        appendLine()
-        appendLine("## Your role")
-        appendLine("You are the user's assistant on their phone: you answer, find and read their files, and do what they ask with the tools you have.")
-        appendLine()
-        appendLine("## How you work")
-        appendLine("- Look before you act: list, search and read what a task touches first.")
-        appendLine("- Say what you changed, and where, in a sentence or two.")
-        appendLine("- When you need more information, tell the user what is missing and ask.")
-        if (mode == AssistantMode.Plan || mode == AssistantMode.Ask) {
-            appendLine("- You CANNOT change files or run commands in this mode. You only read, then answer or propose.")
         }
     }
 

@@ -102,8 +102,8 @@ private fun Panel(overlay: PhoneOverlay, assistant: AssistantState, actions: Pho
     val send = {
         val text = draft.trim()
         if (text.isNotEmpty()) {
-            // The bubble talks in the phone's chats, whatever iCode's page shows.
-            actions.dispatch(ICodeIntent.ShowAssistantPlace(AssistantPlace.PHONE))
+            // The bubble talks in the chat iCode shows: "Open in iCode" opens that same chat.
+            if (assistant.workspace == null) actions.dispatch(ICodeIntent.OpenAssistant)
             Voice.bubbleTurn = true
             actions.dispatch(ICodeIntent.SendAssistantMessage(text))
             draft = ""
@@ -149,7 +149,7 @@ private fun Panel(overlay: PhoneOverlay, assistant: AssistantState, actions: Pho
                 }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                IcodeTextButton("New chat", { actions.dispatch(ICodeIntent.ShowAssistantPlace(AssistantPlace.PHONE)); actions.dispatch(ICodeIntent.NewAssistantChat) }, enabled = !overlay.working)
+                IcodeTextButton("New chat", { actions.dispatch(ICodeIntent.NewAssistantChat) }, enabled = !overlay.working)
                 IcodeTextButton("Open in iCode", actions.open)
             }
         }
@@ -166,7 +166,7 @@ private fun Question(assistant: AssistantState, dispatch: (ICodeIntent) -> Unit)
         Modifier.fillMaxWidth().background(IcodeColors.SurfaceElevated, IcodeShapes.Small).padding(IcodeSpacing.Space2),
         verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
     ) {
-        val bound = AssistantPlace.bound(assistant.turn?.workspace ?: AssistantPlace.PHONE)
+        val bound = AssistantPlace.name(assistant.turn?.workspace ?: assistant.workspace.orEmpty())
         Text(approval?.let { AssistantPermissions.question(it, bound) } ?: pause!!.kind.question, style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold))
         Text(approval?.call?.summary ?: pause!!.detail, style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary), maxLines = 2, overflow = TextOverflow.Ellipsis)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2, Alignment.End)) {

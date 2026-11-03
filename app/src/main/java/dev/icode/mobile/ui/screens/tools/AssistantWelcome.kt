@@ -24,7 +24,6 @@ import dev.icode.mobile.domain.AssistantState
 /** An empty chat: the logo over its letterpress, as on the home screen, and a few things to ask. */
 @Composable
 internal fun AssistantWelcome(state: AssistantState, modifier: Modifier, onSuggestion: (String) -> Unit) {
-    val phone = state.workspace == AssistantPlace.PHONE
     val workspace = AssistantPlace.name(state.workspace.orEmpty())
     val asking = state.settings.mode == AssistantMode.Ask
     val planning = state.settings.mode == AssistantMode.Plan
@@ -38,15 +37,12 @@ internal fun AssistantWelcome(state: AssistantState, modifier: Modifier, onSugge
         ) {
             EmptyState(
                 title = when {
-                    phone -> "Your phone's assistant"
                     asking -> "Ask about $workspace"
                     planning -> "Plan for $workspace"
                     orchestrating -> "Build with orchestration"
                     else -> "Build with the assistant"
                 },
                 description = when {
-                    phone && (asking || planning) -> "It reads your files and phone storage to answer, and changes nothing."
-                    phone -> "It reads your files and phone storage, and runs commands for you. ${permissionLine(state.permission, AssistantPlace.bound(AssistantPlace.PHONE))}."
                     asking -> "It reads this workspace to answer, and changes nothing."
                     planning -> "It reads everything to understand and plan. It never changes files or runs commands."
                     orchestrating -> "It plans, implements and verifies step by step, reporting what it did."
@@ -56,7 +52,6 @@ internal fun AssistantWelcome(state: AssistantState, modifier: Modifier, onSugge
             )
             IcodeSection {
                 when {
-                    phone -> PHONE_SUGGESTIONS
                     asking -> ASK_SUGGESTIONS
                     planning -> PLAN_SUGGESTIONS
                     orchestrating -> ORCHESTRATOR_SUGGESTIONS
@@ -68,12 +63,6 @@ internal fun AssistantWelcome(state: AssistantState, modifier: Modifier, onSugge
         }
     }
 }
-
-private val PHONE_SUGGESTIONS = listOf(
-    "What's taking space in my Downloads?",
-    "Find the PDFs I downloaded this week",
-    "Summarize the newest file in Documents",
-)
 
 private val CODE_SUGGESTIONS = listOf(
     "Explain how this project is organized",

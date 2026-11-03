@@ -227,7 +227,7 @@ enum class AssistantAnswer { Allow, AllowInChat, Deny }
 
 /** The turn in hand: one at a time, in the chat it started in. */
 data class AssistantTurn(
-    /** Its place: a workspace's location, or [AssistantPlace.PHONE]. */
+    /** Its workspace's location. */
     val workspace: String,
     val workspaceName: String,
     val session: String,
@@ -256,7 +256,7 @@ data class AssistantState(
     val adding: AssistantProviderKind? = null,
     /** The models its server lists, once asked. */
     val available: AssistantAvailable? = null,
-    /** The place whose chats are shown — a workspace's location, or [AssistantPlace.PHONE]; null until the page opens. */
+    /** The place whose chats are shown — a workspace's location; null until the page opens. */
     val workspace: String? = null,
     /** That place's chats, newest first. */
     val sessions: List<AssistantSession> = emptyList(),

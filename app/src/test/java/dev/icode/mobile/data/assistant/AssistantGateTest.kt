@@ -1,13 +1,11 @@
 package dev.icode.mobile.data.assistant
 
-import dev.icode.mobile.data.assistant.tools.AssistantWorkspace
 import dev.icode.mobile.data.assistant.tools.TestRuntime
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.AssistantAnswer
 import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantPermission
 import dev.icode.mobile.domain.AssistantPermissions
-import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantToolKind
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -48,7 +46,7 @@ class AssistantGateTest {
     }
 
     private fun gate(session: String = "s1") =
-        AssistantGate(actor, AssistantWorkspace.phone(runtime.paths) { true }, chats, page, questions, AssistantPlace.PHONE, session, { permission }, { tap }) { _, _ -> }
+        AssistantGate(actor, runtime.workspace, chats, page, questions, runtime.root.path, session, { permission }, { tap }) { _, _ -> }
 
     @After fun stop() = scope.cancel()
 

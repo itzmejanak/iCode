@@ -21,7 +21,6 @@ import dev.icode.mobile.domain.AssistantModel
 import dev.icode.mobile.domain.AssistantModelSpec
 import dev.icode.mobile.domain.AssistantPause
 import dev.icode.mobile.domain.AssistantPermission
-import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.domain.AssistantReach
 import dev.icode.mobile.domain.AssistantResult
@@ -197,27 +196,26 @@ class AssistantCoordinatorTest {
         }
     }
 
-    @Test fun `on the home screen the page shows the phone's chats, and a message starts one from root's home`() {
+    @Test fun `away from the workspace, the page and the bubble stay in the chat the user was in`() {
+        said("one")
+        val chat = state().session
         home = true
         coordinator.handle(ICodeIntent.OpenAssistant)
-        until { state().workspace == AssistantPlace.PHONE }
-        said("What's in my Downloads?")
-        assertEquals(listOf("Phone"), places)
-        assertTrue(requests.single().instructions.contains("You work on the user's phone, from /root"))
-        assertTrue(requests.single().instructions.contains("/sdcard"))
-        assertEquals(listOf("What's in my Downloads?"), chats.sessions(AssistantPlace.PHONE).map { it.title })
-        assertTrue(chats.sessions(app).isEmpty())
+        said("two")
+        assertEquals(app, state().workspace)
+        assertEquals(chat, state().session)
+        assertEquals(listOf("app", "app"), places)
+        assertEquals(1, chats.sessions(app).size)
     }
 
-    @Test fun `the phone's chats stay shown in a workspace until the user picks it again`() {
-        coordinator.handle(ICodeIntent.ShowAssistantPlace(AssistantPlace.PHONE))
-        until { state().workspace == AssistantPlace.PHONE }
-        coordinator.handle(ICodeIntent.OpenAssistant)
-        coordinator.handle(ICodeIntent.ShowAssistantPlace(app))
-        until { state().workspace == app }
-        said("hello")
-        assertEquals(listOf("app"), places)
-        assertEquals(1, chats.sessions(app).size)
+    @Test fun `a new chat away from the workspace starts in that same workspace`() {
+        said("one")
+        home = true
+        coordinator.handle(ICodeIntent.NewAssistantChat)
+        until { state().session == null }
+        said("two")
+        assertEquals(app, state().workspace)
+        assertEquals(2, chats.sessions(app).size)
     }
 
     @Test fun `at the step limit the turn asks to keep going, and Continue goes on from the chat with no new message`() {

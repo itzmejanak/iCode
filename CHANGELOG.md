@@ -10,8 +10,8 @@ All notable changes to iCode are documented here. The format follows
 - GPL-3.0 licence, contributing guide, security policy, privacy page and code of conduct.
 - Issue and pull request templates.
 - CI (unit tests and debug build), CodeQL scanning, Dependabot, and a tag-driven release workflow.
-- Assistant: phone chats, opened from the home screen or switched to from a workspace's Chats sheet;
-  they work from the runtime's home, in no workspace.
+- Assistant: chats belong only to workspaces. The bubble and "Open in iCode" stay in the chat the
+  user was in (the open workspace's, else the one shown last, else the most recently opened).
 - Assistant: phone storage, at `/sdcard` in the runtime, for every tool and command (asked first, as
   anything outside the chat's place; read with All Files Access).
 - Assistant: at its step limit a turn asks "Keep going?" instead of stopping.

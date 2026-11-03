@@ -227,8 +227,6 @@ sealed interface ICodeIntent {
      * the phone's on the home screen, or while the user keeps them shown (docs/phone-agent-plan.md L1).
      */
     data object OpenAssistant : AssistantIntent
-    /** The page's chats are [place]'s: the open workspace's location, or [AssistantPlace.PHONE]. */
-    data class ShowAssistantPlace(val place: String) : AssistantIntent
     /** One of the shown place's chats, from its history. */
     data class OpenAssistantSession(val id: String) : AssistantIntent
     data class DeleteAssistantSession(val id: String) : AssistantIntent

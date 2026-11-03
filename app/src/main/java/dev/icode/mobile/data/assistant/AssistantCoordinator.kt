@@ -81,12 +81,11 @@ internal class AssistantCoordinator(
 
     private suspend fun apply(intent: ICodeIntent.AssistantIntent) {
         when (intent) {
-            ICodeIntent.OpenAssistant -> page.show(place(), turns.running)
-            is ICodeIntent.ShowAssistantPlace -> page.show(intent.place, turns.running)
+            ICodeIntent.OpenAssistant -> place()?.let { page.show(it, turns.running) } ?: noWorkspace()
             is ICodeIntent.OpenAssistantSession -> page.current.workspace?.let { page.display(it, intent.id) }
             is ICodeIntent.DeleteAssistantSession -> delete(intent.id)
             is ICodeIntent.ExportAssistantSession -> export(intent.id)
-            ICodeIntent.NewAssistantChat -> page.display(page.current.workspace ?: place(), null)
+            ICodeIntent.NewAssistantChat -> (page.current.workspace ?: place())?.let { page.display(it, null) } ?: noWorkspace()
             is ICodeIntent.SendAssistantMessage -> send(intent.text, intent.attachments)
             ICodeIntent.StopAssistant -> turns.stop()
             is ICodeIntent.AnswerAssistant -> turns.answer(intent.callId, intent.answer)
@@ -130,17 +129,19 @@ internal class AssistantCoordinator(
         val input = text.trim()
         if (input.isEmpty() && attachments.isEmpty()) return
         val shown = page.current
-        val workspace = shown.workspace ?: place()
+        val workspace = shown.workspace ?: place() ?: return noWorkspace()
         val session = shown.session?.takeIf { shown.workspace == workspace } ?: chats.newSession()
         turns.send(workspace, session, input, attachments)
     }
 
     /**
-     * The place the page opens on (docs/phone-agent-plan.md L1): the phone's chats while the user keeps
-     * them shown; else the open workspace's; the phone's on the home screen.
+     * The workspace whose chats the page opens on: the open one; else the one shown last, so the
+     * bubble and "Open in iCode" stay in the chat the user was in; else the most recently opened.
      */
-    private fun place(): String =
-        page.current.workspace.takeIf { it == AssistantPlace.PHONE } ?: activeRoot() ?: AssistantPlace.PHONE
+    private fun place(): String? =
+        activeRoot() ?: page.current.workspace ?: stateHolder.current.workspaces.maxByOrNull { it.lastOpenedAt }?.location
+
+    private fun noWorkspace() = page.say(NoticeTone.HeadsUp, "Open a workspace in iCode first")
 
     /** The mode chosen in the chip: the setting, and the chat shown's, whose own answers it replaces. */
     private fun setPermission(intent: ICodeIntent.SetAssistantPermission) {
