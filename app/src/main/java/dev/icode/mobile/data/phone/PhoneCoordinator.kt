@@ -4,12 +4,16 @@ import android.content.ComponentName
 import android.content.Context
 import androidx.core.content.edit
 import dev.icode.mobile.data.phone.shizuku.ShizukuShell
+import dev.icode.mobile.data.runtime.TerminalSessionManager
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.PhoneIntent
 import dev.icode.mobile.domain.phone.PhoneAccess
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import rikka.shizuku.Shizuku
 
@@ -31,11 +35,28 @@ internal class PhoneCoordinator(
     /** iCode's service as Android's list of enabled services names it. */
     private val component = ComponentName(app, PhoneService::class.java).flattenToString()
 
-    /** Read again whenever the service connects or goes, and as Shizuku comes and goes. */
+    /**
+     * Read again whenever the service connects or goes, and as Shizuku comes and goes. While it is on,
+     * the foreground service runs, started again with the microphone each time iCode is on screen.
+     */
     fun start() {
         scope.launch { PhoneService.current.collect { refresh() } }
         Shizuku.addBinderReceivedListenerSticky { refresh() }
         Shizuku.addBinderDeadListener { refresh() }
+        val onScreen = TerminalSessionManager.get(app).screenVisible
+        val microphone = stateHolder.snapshot.map { it.voice.microphone }
+        scope.launch {
+            combine(PhoneService.current.map { it != null }, onScreen, microphone) { on, front, allowed -> Triple(on, front, allowed) }
+                .distinctUntilChanged()
+                .collect { (on, front, _) ->
+                    when {
+                        !on -> PhoneForegroundService.stop(app)
+                        front -> PhoneForegroundService.start(app, microphone = true)
+                        // Away, a running service keeps the microphone it holds; one Android stopped comes back without it.
+                        !PhoneForegroundService.running -> PhoneForegroundService.start(app, microphone = false)
+                    }
+                }
+        }
     }
 
     fun handle(intent: PhoneIntent) {

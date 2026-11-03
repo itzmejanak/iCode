@@ -5,11 +5,11 @@ package dev.icode.mobile.domain.phone
  * step it needs, for its page in Settings.
  */
 enum class ShizukuState(val label: String, val step: String) {
-    NotInstalled("Not installed", "Install Shizuku from Google Play or its GitHub releases."),
-    NotRunning("Not running", "Open Shizuku and start it with Wireless debugging. Android stops it at each restart."),
-    TooOld("Update Shizuku", "This Shizuku is older than version 11, which iCode needs: update it."),
-    NotAllowed("iCode not allowed", "Allow iCode when Shizuku asks."),
-    Ready("Ready", "iCode can turn on its own service, and act as real touches where Android refuses accessibility."),
+    NotInstalled("Not installed", "Install it from Google Play or GitHub"),
+    NotRunning("Not running", "Start it with Wireless debugging, after each restart"),
+    TooOld("Too old", "iCode needs Shizuku 11 or later"),
+    NotAllowed("Not allowed", "Allow iCode when Shizuku asks"),
+    Ready("Ready", "iCode can use it"),
 }
 
 /** What iCode may do on the phone right now: read from the system each time it may have changed, never stored. */

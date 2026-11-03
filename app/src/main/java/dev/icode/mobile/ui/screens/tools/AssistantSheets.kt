@@ -48,7 +48,7 @@ import dev.icode.mobile.ui.LocalICodeGateway
  * The workspace's chats, newest first: open one, delete one, or start another.
  */
 @Composable
-internal fun AssistantChatsSheet(state: AssistantState, workspace: String?, modifier: Modifier, onClose: () -> Unit) {
+internal fun AssistantChatsSheet(state: AssistantState, modifier: Modifier, onClose: () -> Unit) {
     val gateway = LocalICodeGateway.current
     var query by rememberSaveable { mutableStateOf("") }
     var deleting by remember { mutableStateOf<AssistantSession?>(null) }

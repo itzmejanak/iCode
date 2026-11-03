@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -102,7 +101,7 @@ fun AssistantProviderScreen(actions: NavigationActions) {
                             subtitle = kind.description,
                             subtitleStyle = IcodeType.Caption,
                             onClick = { kinds = true },
-                            trailing = { Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = "Change provider", tint = IcodeColors.TextSecondary) },
+                            trailing = { Chevron() },
                         )
                     }
                 }

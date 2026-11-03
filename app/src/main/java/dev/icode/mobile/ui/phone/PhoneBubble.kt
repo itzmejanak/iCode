@@ -16,8 +16,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.Close
-import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Stop
+import androidx.compose.material.icons.outlined.StopCircle
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -51,8 +51,13 @@ import dev.icode.mobile.domain.AssistantPermissions
 import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantState
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.VoiceIntent
 import dev.icode.mobile.domain.phone.PhoneOverlay
-import dev.icode.mobile.data.voice.Voice
+import dev.icode.mobile.domain.voice.VoiceFrom
+import dev.icode.mobile.domain.voice.VoiceState
+import dev.icode.mobile.ui.HeardLine
+import dev.icode.mobile.ui.MicButton
+import dev.icode.mobile.ui.OnHeard
 
 /** What the bubble does, as its window and the backend answer it. */
 internal class PhoneBubbleActions(
@@ -62,22 +67,21 @@ internal class PhoneBubbleActions(
     val dispatch: (ICodeIntent) -> Unit,
     /** The whole chat, in iCode. */
     val open: () -> Unit,
-    /** The microphone: words heard go to [onHeard]; null while voice is not set up. */
-    val listen: ((onHeard: (String) -> Unit) -> Unit)?,
 )
 
 /**
- * The bubble (docs/phone-agent-plan.md §5.7): the iCode mark at the screen's edge, a ring round it while
- * the agent works and a dot when a question waits; tapped, a small panel with what the agent is doing,
- * the question and its answers, a field, the microphone, Send and Stop, and the chat in iCode.
+ * The bubble (docs/phone-agent-plan.md §5.7, §5.8): the iCode mark at the screen's edge, a ring round it
+ * while the agent works and a dot when a question waits; tapped, a small panel with what the agent is
+ * doing, the question and its answers, a field, the microphone, Send and Stop, and the chat in iCode.
+ * While an answer is read aloud, a tap on the mark silences it.
  */
 @Composable
-internal fun PhoneBubble(overlay: PhoneOverlay, assistant: AssistantState, expanded: Boolean, actions: PhoneBubbleActions) {
-    if (expanded) Panel(overlay, assistant, actions) else Mark(overlay, actions)
+internal fun PhoneBubble(overlay: PhoneOverlay, assistant: AssistantState, voice: VoiceState, expanded: Boolean, actions: PhoneBubbleActions) {
+    if (expanded) Panel(overlay, assistant, voice, actions) else Mark(overlay, voice, actions)
 }
 
 @Composable
-private fun Mark(overlay: PhoneOverlay, actions: PhoneBubbleActions) {
+private fun Mark(overlay: PhoneOverlay, voice: VoiceState, actions: PhoneBubbleActions) {
     Box(
         Modifier.size(IcodeSizes.Bubble)
             .semantics { contentDescription = if (overlay.asking) "iCode assistant, a question waits" else "iCode assistant" }
@@ -87,7 +91,7 @@ private fun Mark(overlay: PhoneOverlay, actions: PhoneBubbleActions) {
                     actions.drag(amount.x, amount.y)
                 }
             }
-            .clickable { actions.expand(true) },
+            .clickable { if (voice.speaking) actions.dispatch(VoiceIntent.Silence) else actions.expand(true) },
         contentAlignment = Alignment.Center,
     ) {
         if (overlay.working) CircularProgressIndicator(Modifier.fillMaxSize(), color = IcodeColors.Accent, strokeWidth = IcodeSizes.BubbleRing)
@@ -97,18 +101,19 @@ private fun Mark(overlay: PhoneOverlay, actions: PhoneBubbleActions) {
 }
 
 @Composable
-private fun Panel(overlay: PhoneOverlay, assistant: AssistantState, actions: PhoneBubbleActions) {
+private fun Panel(overlay: PhoneOverlay, assistant: AssistantState, voice: VoiceState, actions: PhoneBubbleActions) {
     var draft by remember { mutableStateOf("") }
-    val send = {
-        val text = draft.trim()
+    val send = { words: String ->
+        val text = listOf(draft, words).filter { it.isNotBlank() }.joinToString(" ").trim()
         if (text.isNotEmpty()) {
-            // The bubble talks in the chat iCode shows: "Open in iCode" opens that same chat.
+            // The bubble talks in the chat iCode shows: "Open in iCode" opens that same chat. Its answer is read aloud.
             if (assistant.workspace == null) actions.dispatch(ICodeIntent.OpenAssistant)
-            Voice.bubbleTurn = true
-            actions.dispatch(ICodeIntent.SendAssistantMessage(text))
+            actions.dispatch(ICodeIntent.SendAssistantMessage(text, aloud = true))
             draft = ""
         }
     }
+    // While a turn runs, what was heard waits in the field.
+    OnHeard(voice, VoiceFrom.Bubble) { words -> if (overlay.working) draft = listOf(draft, words).filter { it.isNotBlank() }.joinToString(" ") else send(words) }
     IcodeCard(Modifier.widthIn(max = IcodeSizes.BubblePanel).fillMaxWidth(), elevated = true, padding = PaddingValues(IcodeSpacing.Space3)) {
         Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
@@ -129,25 +134,20 @@ private fun Panel(overlay: PhoneOverlay, assistant: AssistantState, actions: Pho
             Question(assistant, actions.dispatch)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
                 IcodeTextField(draft, { draft = it }, Modifier.weight(1f), placeholder = "Ask the assistant…", textStyle = IcodeType.Body, singleLine = false)
-                actions.listen?.let { listen ->
-                    IconButton(onClick = { listen { heard -> draft = listOf(draft, heard).filter { it.isNotBlank() }.joinToString(" ") } }) {
-                        Icon(Icons.Outlined.Mic, contentDescription = "Speak", tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconLg))
-                    }
-                }
-                if (overlay.working && draft.isBlank()) {
-                    IconButton(onClick = {
-                        Voice.stopped = true
-                        Voice.stopSpeaking()
-                        actions.dispatch(ICodeIntent.StopAssistant)
-                    }) {
+                MicButton(voice, VoiceFrom.Bubble, actions.dispatch, size = IcodeSizes.IconLg)
+                when {
+                    overlay.working && draft.isBlank() -> IconButton(onClick = { actions.dispatch(ICodeIntent.StopAssistant) }) {
                         Icon(Icons.Outlined.Stop, contentDescription = "Stop", tint = IcodeColors.Error, modifier = Modifier.size(IcodeSizes.IconLg))
                     }
-                } else {
-                    IconButton(onClick = send, enabled = draft.isNotBlank() && !overlay.working) {
+                    voice.speaking && draft.isBlank() -> IconButton(onClick = { actions.dispatch(VoiceIntent.Silence) }) {
+                        Icon(Icons.Outlined.StopCircle, contentDescription = "Stop reading aloud", tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconLg))
+                    }
+                    else -> IconButton(onClick = { send("") }, enabled = draft.isNotBlank() && !overlay.working) {
                         Icon(Icons.AutoMirrored.Outlined.Send, contentDescription = "Send", tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconLg))
                     }
                 }
             }
+            HeardLine(voice, VoiceFrom.Bubble)
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 IcodeTextButton("New chat", { actions.dispatch(ICodeIntent.NewAssistantChat) }, enabled = !overlay.working)
                 IcodeTextButton("Open in iCode", actions.open)

@@ -1019,7 +1019,7 @@ Acceptance criteria:
 
 ## 18. Assistant
 
-Owner's decision, 2026-10-01 ([assistant-koog-plan.md](./assistant-koog-plan.md); PR-ASSIST-01–17); its runtime foundation, 2026-10-02 ([runtime-foundation-plan.md](./runtime-foundation-plan.md); PR-ASSIST-18–21).
+Owner's decision, 2026-10-01 ([assistant-koog-plan.md](./assistant-koog-plan.md); PR-ASSIST-01–17); its runtime foundation, 2026-10-02 ([runtime-foundation-plan.md](./runtime-foundation-plan.md); PR-ASSIST-18–21); the phone and voice, 2026-11-03 ([phone-agent-plan.md](./phone-agent-plan.md); PR-ASSIST-22–25).
 
 ### US-ASSIST-001 — Set up the assistant
 
@@ -1136,6 +1136,30 @@ Acceptance criteria:
 - A reply cut short at the output limit, or stopped by the provider's content filter, is kept, and the page says so under it.
 - A reply whose connection broke, or whose provider failed while writing it, ends the turn with those words; **Try Again** is offered where nothing was answered.
 - The model's reasoning shows above its answer, folded; with OpenAI, an OpenAI-compatible server or OpenRouter, the answer and any reasoning the server sends appear as they are written. A server that cannot stream answers whole, and is not asked to stream again.
+
+### US-ASSIST-011 — Let the assistant use my phone
+
+**As a phone user, I want the assistant to do things in my other apps for me, so that I can ask from any screen instead of tapping through each app myself.**
+
+Acceptance criteria:
+
+- **Settings › Assistant › Phone Control** is off until I turn it on: through Android's Allow restricted settings and Accessibility, each step a row that opens its page, or in one tap when Shizuku is ready.
+- The **Shizuku** page shows its state as it is now and the one step that state needs.
+- The bubble shows over other apps whenever iCode is not on screen; tapped, it shows what the assistant is doing, the question waiting with its answers, a field, the microphone, Send and Stop, and Open in iCode.
+- The screen's edges glow while the assistant acts on the phone, dimmed while it waits for me; dragging the bubble onto ✕ puts both away, and stops the assistant if it is acting.
+- The assistant asks before it acts in an app ("Act in WhatsApp?"); passwords, payments, permission dialogs and Accessibility settings are handed to me.
+- While phone control is on, a notification has Stop, Show bubble and Turn off.
+
+### US-ASSIST-012 — Talk to the assistant and hear it answer
+
+**As a phone user, I want to speak to the assistant and hear its answer, so that I can use it without typing or reading.**
+
+Acceptance criteria:
+
+- The microphone in the chat and in the bubble shows my words as they are heard and sends them once I stop talking; tapping it again sends what was heard so far.
+- **Settings › Assistant › Voice** chooses who listens and who speaks: Android's own engines, or open-source models on this phone (Whisper or SenseVoice; Kokoro or a Piper voice in some 40 languages), each with its size shown before Download, then its progress, Cancel and Remove.
+- **Spoken replies**: Off, In the bubble (the default) or Always; the answer and the questions are read without code or links, and a new message, Stop or a tap on the bubble silences them.
+- Without the microphone allowed, or a model not downloaded, the place I tapped says what to do.
 
 ## 19. Public Website and Distribution
 

@@ -3,6 +3,7 @@ package dev.icode.mobile.domain
 import dev.icode.mobile.domain.files.ExplorerState
 import dev.icode.mobile.domain.files.FilesBrowserState
 import dev.icode.mobile.domain.phone.PhoneAccess
+import dev.icode.mobile.domain.voice.VoiceState
 
 data class ICodeSnapshot(
     val workspaces: List<WorkspaceSummary>,
@@ -60,6 +61,8 @@ data class ICodeSnapshot(
     val systemAccess: SystemAccess? = null,
     /** What iCode may do on the phone (docs/phone-agent-plan.md §5.9). */
     val phone: PhoneAccess = PhoneAccess(),
+    /** Voice in and out: its settings, models, the microphone and what is heard (docs/phone-agent-plan.md §5.8). */
+    val voice: VoiceState = VoiceState(),
     val terminal: TerminalSnapshot = TerminalSnapshot(),
     /** The Notifications page, newest first. */
     val notices: List<AppNotice> = emptyList(),

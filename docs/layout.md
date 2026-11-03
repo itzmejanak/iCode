@@ -668,6 +668,7 @@ Appearance
 Editor
 Terminal
 Source Control
+Assistant
 Languages
 Runtime
 Storage
@@ -687,7 +688,19 @@ Languages
 └── Language services
     ├── Service list
     └── Add language service
+
+Assistant
+├── Providers
+│   └── Provider (+ opens the sheet of provider kinds)
+├── Voice
+└── Phone Control
+    └── Shizuku
 ```
+
+Its rows are the root's: an icon, a title, a one-line subtitle, and at the end a state in capitals
+(ON, ALLOWED, NOT INSTALLED) or a control, with ›  where a row opens a page. A choice is a drop-down;
+a model to download shows its size first, then its progress, Cancel and Remove. No page carries a
+paragraph: what a row needs said is its subtitle ([phone-agent-plan.md](./phone-agent-plan.md) §10).
 
 ### 19.3 Detail page
 

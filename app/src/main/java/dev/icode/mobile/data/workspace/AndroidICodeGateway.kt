@@ -19,6 +19,7 @@ import dev.icode.mobile.data.git.GitWorkspaceCoordinator
 import dev.icode.mobile.data.language.LanguageServiceCoordinator
 import dev.icode.mobile.data.notices.NoticeBoard
 import dev.icode.mobile.data.phone.PhoneCoordinator
+import dev.icode.mobile.data.voice.VoiceCoordinator
 import dev.icode.mobile.data.run.RunCoordinator
 import dev.icode.mobile.data.runtime.RuntimeToolsCoordinator
 import dev.icode.mobile.data.runtime.RuntimeCoordinator
@@ -49,6 +50,7 @@ import dev.icode.mobile.domain.GpgIntent
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.ICodeSnapshot
 import dev.icode.mobile.domain.PhoneIntent
+import dev.icode.mobile.domain.VoiceIntent
 import dev.icode.mobile.domain.StageLineChange
 import dev.icode.mobile.domain.WebIntent
 import java.io.File
@@ -100,9 +102,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     private val tree = WorkspaceTree(stateHolder, source)
     private val gitWorkspace: GitWorkspaceCoordinator = GitWorkspaceCoordinator(
         stateHolder, scope, git, tree,
-        activeRoot = { session.activeRoot },
-        workspaces = library::workspaces,
-        onInstalled = { gitAuth.refresh() },
+        activeRoot = { session.activeRoot }, workspaces = library::workspaces, onInstalled = { gitAuth.refresh() },
     )
     private val gitHistory = GitHistoryCoordinator(stateHolder, scope, git) { session.activeRoot }
     private val transferLedger = GitTransferLedger(appContext)
@@ -117,10 +117,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
         refresh = { gitWorkspace.refreshActive() },
     )
     private val gitTransfers: GitTransferCoordinator = GitTransferCoordinator(
-        stateHolder,
-        scope,
-        git,
-        runtimeLayout.workspaces,
+        stateHolder, scope, git, runtimeLayout.workspaces,
         activeRoot = { session.activeRoot },
         withCredentials = { block -> authenticator.withHttpsCredentials(block) },
         // A transfer runs outside the lock; what it changes afterwards takes it.
@@ -167,8 +164,9 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     private val items = WorkspaceItemsCoordinator(stateHolder, source, documents, usage, lifecycle, files.places, runtimeLayout.paths, follower, history) { session.activeRoot }
     /** The Terminal panel's Run tab (docs/run-tab-plan.md): Android apps and saved commands, for the tab and the assistant. */
     private val runs = RunCoordinator(stateHolder, scope, runtimeLayout, execution, appContext)
-    /** Phone control (docs/phone-agent-plan.md): the accessibility service, Shizuku, the bubble. */
+    /** Phone control and voice (docs/phone-agent-plan.md): the accessibility service, Shizuku, the bubble; the microphone, spoken answers. */
     private val phone = PhoneCoordinator(appContext, stateHolder, scope)
+    private val voice = VoiceCoordinator(appContext, stateHolder, scope)
     /** iCode's assistant (docs/assistant-koog-plan.md): its turns are its own jobs, its tools iCode's owners. */
     private val assistant = AssistantCoordinator.create(
         appContext, stateHolder, scope,
@@ -184,7 +182,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     init {
         notices.start(scope) { listOfNotNull(terminals.ledger.takePrevious(), interruptedTransfer) }
         phone.start()
-        dev.icode.mobile.data.voice.VoiceReplies(appContext, stateHolder.snapshot, scope).start()
+        voice.start()
         languages.publish()
         web.start()
         scope.launch {
@@ -242,6 +240,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
             is ICodeIntent.TransferIntent -> gitTransfers.handle(intent)
             is ICodeIntent.AssistantIntent -> assistant.handle(intent)
             is PhoneIntent -> phone.handle(intent)
+            is VoiceIntent -> voice.handle(intent)
             is ICodeIntent.ProcessIntent -> execution.processes.handle(intent)
             is ICodeIntent.RunIntent -> runs.handle(intent)
             is GpgIntent -> execution.gpg.handle(intent)

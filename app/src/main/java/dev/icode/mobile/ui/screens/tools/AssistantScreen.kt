@@ -125,7 +125,7 @@ fun AssistantScreen(actions: NavigationActions) {
             )
             when {
                 !state.settings.ready -> AssistantSetUp(Modifier.weight(1f)) { actions.navigate(Route.AssistantProviders) }
-                // A place is always shown once the page has opened (docs/phone-agent-plan.md L1).
+                // A workspace's chats are always shown once the page has opened.
                 state.workspace == null -> Box(Modifier.weight(1f)) { IcodeWatermark(Modifier.align(Alignment.Center)) }
                 else -> AssistantChatView(
                     state,
@@ -154,8 +154,8 @@ fun AssistantScreen(actions: NavigationActions) {
                     onDetach = { file -> attached = attached - file },
                     onAttach = { sheet = AssistantSheet.Attach },
                     onModels = { sheet = AssistantSheet.Models },
-                    onSend = {
-                        gateway.dispatch(ICodeIntent.SendAssistantMessage(draft, attached.map { it.location }))
+                    onSend = { aloud ->
+                        gateway.dispatch(ICodeIntent.SendAssistantMessage(draft, attached.map { it.location }, aloud))
                         draft = ""
                         attached = emptyList()
                     },
@@ -169,7 +169,7 @@ fun AssistantScreen(actions: NavigationActions) {
             IcodeSheetOverlay(onClose = close) {
                 val modifier = Modifier.align(Alignment.BottomCenter)
                 when (open) {
-                    AssistantSheet.Chats -> AssistantChatsSheet(state, snapshot.activeWorkspaceLocation, modifier, close)
+                    AssistantSheet.Chats -> AssistantChatsSheet(state, modifier, close)
                     AssistantSheet.Models -> AssistantModelsSheet(state, modifier, close, onProviders = { actions.navigate(Route.AssistantProviders) })
                     AssistantSheet.Attach -> AssistantAttachSheet(snapshot, attached, pickers, modifier, close, onAttached = { attached = it })
                     AssistantSheet.Processes -> AssistantProcessesSheet(snapshot.processes, state.workspace, modifier, close)

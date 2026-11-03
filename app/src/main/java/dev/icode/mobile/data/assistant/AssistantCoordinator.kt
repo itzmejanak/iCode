@@ -86,7 +86,7 @@ internal class AssistantCoordinator(
             is ICodeIntent.DeleteAssistantSession -> delete(intent.id)
             is ICodeIntent.ExportAssistantSession -> export(intent.id)
             ICodeIntent.NewAssistantChat -> (page.current.workspace ?: place())?.let { page.display(it, null) } ?: noWorkspace()
-            is ICodeIntent.SendAssistantMessage -> send(intent.text, intent.attachments)
+            is ICodeIntent.SendAssistantMessage -> send(intent.text, intent.attachments, intent.aloud)
             ICodeIntent.StopAssistant -> turns.stop()
             is ICodeIntent.AnswerAssistant -> turns.answer(intent.callId, intent.answer)
             ICodeIntent.ContinueAssistant -> turns.resume()
@@ -124,14 +124,14 @@ internal class AssistantCoordinator(
         page.forgotten(location)
     }
 
-    private fun send(text: String, attachments: List<String>) {
+    private fun send(text: String, attachments: List<String>, aloud: Boolean) {
         // A photo alone is a message, as it is in any chat; nothing at all is not.
         val input = text.trim()
         if (input.isEmpty() && attachments.isEmpty()) return
         val shown = page.current
         val workspace = shown.workspace ?: place() ?: return noWorkspace()
         val session = shown.session?.takeIf { shown.workspace == workspace } ?: chats.newSession()
-        turns.send(workspace, session, input, attachments)
+        turns.send(workspace, session, input, attachments, aloud)
     }
 
     /**
