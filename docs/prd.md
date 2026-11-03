@@ -371,7 +371,7 @@ The platform provides execution, files, processes, environment variables, packag
 
 ### 10.14 Assistant
 
-Owner's decision, 2026-10-01 ([assistant-koog-plan.md](./assistant-koog-plan.md)); its runtime foundation, 2026-10-02 ([runtime-foundation-plan.md](./runtime-foundation-plan.md)).
+Owner's decision, 2026-10-01 ([assistant-koog-plan.md](./assistant-koog-plan.md)); its runtime foundation, 2026-10-02 ([runtime-foundation-plan.md](./runtime-foundation-plan.md)); the phone and voice, 2026-11-03 ([phone-agent-plan.md](./phone-agent-plan.md)).
 
 | ID | Requirement |
 |---|---|
@@ -396,6 +396,10 @@ Owner's decision, 2026-10-01 ([assistant-koog-plan.md](./assistant-koog-plan.md)
 | PR-ASSIST-19 | What must keep running — a server, a watcher — shall be a managed process the assistant starts, reads, writes to and stops by its ID, kept in the background until stopped; at most eight shall run at once. The Assistant page shall list them with their state, output and ports; a port shall open in the user's browser. |
 | PR-ASSIST-20 | A reply that stopped short — at the output limit, by a content filter, or because the connection or the provider failed — shall never pass for a finished one: the page shall say why. |
 | PR-ASSIST-21 | A model's reasoning shall be shown apart from its answer and never sent back; with OpenAI, OpenAI-compatible servers and OpenRouter, the answer and any reasoning the server sends shall appear as they are written, and a server that cannot stream shall still answer whole. |
+| PR-ASSIST-22 | Phone control, off until the user turns it on (Android's Accessibility, or one tap with Shizuku), shall let any chat read the screen and act in other apps, asking before it acts in each app and handing passwords, payments, permission dialogs and Accessibility settings to the user (docs/phone-agent-plan.md). Its bubble, with the edge glow while it acts, shall be put away by dragging it onto ✕. |
+| PR-ASSIST-23 | The microphone in the chat and the bubble shall listen with Android's speech recognition or, offline, with an open-source model on the phone; the words shall show as they are heard and be sent once the user stops talking. |
+| PR-ASSIST-24 | Answers and questions shall be read aloud as the user chooses — Off, In the bubble (the default: what was sent from the bubble or by voice), Always — with Android's text-to-speech or an open-source voice on the phone, without code or links; a new message, Stop or a tap on the bubble shall silence it. |
+| PR-ASSIST-25 | A voice model shall be downloaded only when chosen, its size said first, checked against its pinned SHA-256, and removable from Settings with what it takes. |
 
 ## 11. User Experience Requirements
 

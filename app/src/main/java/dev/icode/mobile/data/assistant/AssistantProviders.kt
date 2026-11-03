@@ -1,11 +1,11 @@
 package dev.icode.mobile.data.assistant
 
-import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.AssistantAvailable
 import dev.icode.mobile.domain.AssistantChoice
 import dev.icode.mobile.domain.AssistantProvider
+import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantSettings
 import dev.icode.mobile.domain.ICodeIntent

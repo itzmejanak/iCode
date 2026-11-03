@@ -11,6 +11,12 @@ assistant chats stay on your device.
 - **AI assistant and AI commit messages:** the prompt and the workspace content the assistant needs
   are sent to the AI provider you configured, using your own key. That provider's privacy policy
   applies.
+- **Phone control** (off until you turn it on): while the assistant works on your request, the text of
+  the screen in front, and a picture of it when the text is not enough, are sent to the chat's AI
+  provider. Nothing of the screen is kept or logged.
+- **Voice:** with Android's speech recognition, what you say goes to the recognition service your
+  phone uses; with a model on the phone, it stays on the phone. The microphone is on only while
+  iCode listens. Voice models are downloaded from sherpa-onnx's GitHub releases when you choose one.
 - **Runtime and tools:** the Ubuntu base image and optional tools are downloaded from the sources
   listed in `app/src/main/assets/runtime/manifest.json`.
 - **iCode website** (only in builds that set a website address): iCode reads app config, release
