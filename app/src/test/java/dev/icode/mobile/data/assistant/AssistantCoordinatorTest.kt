@@ -19,7 +19,9 @@ import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantMode
 import dev.icode.mobile.domain.AssistantModel
 import dev.icode.mobile.domain.AssistantModelSpec
+import dev.icode.mobile.domain.AssistantPause
 import dev.icode.mobile.domain.AssistantPermission
+import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.domain.AssistantReach
 import dev.icode.mobile.domain.AssistantResult
@@ -70,6 +72,10 @@ class AssistantCoordinatorTest {
     }
     private val phoneFiles = mutableMapOf<String, PhoneFile>()
     private var listed: List<AssistantModel> = emptyList()
+    /** No workspace is open: the home screen. */
+    private var home = false
+    /** The name of each place a turn's tools were made for. */
+    private val places = Collections.synchronizedList(mutableListOf<String>())
     private val chatsFolder by lazy { temp.newFolder("chats") }
     private val chats by lazy { AssistantChats(AssistantChatStore(chatsFolder)) }
     private val runtime by lazy { TestRuntime(temp.newFolder("runtime")) }
@@ -112,8 +118,11 @@ class AssistantCoordinatorTest {
     private val coordinator by lazy {
         AssistantCoordinator(
             stateHolder, scope, engine, providers, chats,
-            tools = { workspace, _ -> listOf(FakeTool("read_file", AssistantToolKind.Read, workspace), FakeTool("edit_file", AssistantToolKind.Change, workspace)) },
-            activeRoot = { app },
+            tools = { workspace, _ ->
+                places += workspace.name
+                listOf(FakeTool("read_file", AssistantToolKind.Read, workspace), FakeTool("edit_file", AssistantToolKind.Change, workspace))
+            },
+            activeRoot = { app.takeUnless { home } },
             describe = { WorkspaceRoot("app", it, "/workspace/app") },
             paths = runtime.paths,
             // Images pass as they are: Android's decoding is not on a JVM.
@@ -125,6 +134,7 @@ class AssistantCoordinatorTest {
                     else -> log
                 }
             },
+            storageAccess = { true },
         )
     }
 
@@ -185,6 +195,65 @@ class AssistantCoordinatorTest {
             events.answered(AssistantResult(call.id, call.tool, output.first, output.second))
             events.replied(AssistantMessage.Reply("Done."))
         }
+    }
+
+    @Test fun `on the home screen the page shows the phone's chats, and a message starts one from root's home`() {
+        home = true
+        coordinator.handle(ICodeIntent.OpenAssistant)
+        until { state().workspace == AssistantPlace.PHONE }
+        said("What's in my Downloads?")
+        assertEquals(listOf("Phone"), places)
+        assertTrue(requests.single().instructions.contains("You work on the user's phone, from /root"))
+        assertTrue(requests.single().instructions.contains("/sdcard"))
+        assertEquals(listOf("What's in my Downloads?"), chats.sessions(AssistantPlace.PHONE).map { it.title })
+        assertTrue(chats.sessions(app).isEmpty())
+    }
+
+    @Test fun `the phone's chats stay shown in a workspace until the user picks it again`() {
+        coordinator.handle(ICodeIntent.ShowAssistantPlace(AssistantPlace.PHONE))
+        until { state().workspace == AssistantPlace.PHONE }
+        coordinator.handle(ICodeIntent.OpenAssistant)
+        coordinator.handle(ICodeIntent.ShowAssistantPlace(app))
+        until { state().workspace == app }
+        said("hello")
+        assertEquals(listOf("app"), places)
+        assertEquals(1, chats.sessions(app).size)
+    }
+
+    @Test fun `at the step limit the turn asks to keep going, and Continue goes on from the chat with no new message`() {
+        script = { turn, events ->
+            if (turn.input != null) {
+                events.replied(AssistantMessage.Reply("Working…"))
+                throw AssistantStepLimitException()
+            }
+            events.replied(AssistantMessage.Reply("Done."))
+        }
+        coordinator.handle(ICodeIntent.SendAssistantMessage("Do the long thing"))
+        until { state().pause != null }
+        assertEquals(AssistantPause.Kind.StepLimit, state().pause!!.kind)
+        assertEquals("Waiting for your answer", state().turn!!.step)
+        coordinator.handle(ICodeIntent.ContinueAssistant)
+        until { state().turn == null }
+        assertEquals(2, requests.size)
+        assertNull(requests[1].input)
+        assertEquals(listOf(AssistantMessage.User("Do the long thing"), AssistantMessage.Reply("Working…")), requests[1].history)
+        assertEquals(AssistantMessage.Reply("Done."), state().messages.last())
+        assertNull(state().pause)
+        assertNull(state().failure)
+    }
+
+    @Test fun `Stop at the step limit ends the turn, and what was done stays`() {
+        script = { _, events ->
+            events.replied(AssistantMessage.Reply("Working…"))
+            throw AssistantStepLimitException()
+        }
+        coordinator.handle(ICodeIntent.SendAssistantMessage("Do the long thing"))
+        until { state().pause != null }
+        coordinator.handle(ICodeIntent.StopAssistant)
+        until { state().turn == null }
+        assertNull(state().pause)
+        assertEquals(1, requests.size)
+        assertEquals(AssistantMessage.Reply("Working…"), state().messages.last())
     }
 
     @Test fun `a change waits for Allow, runs, and the chat is kept and listed`() {
@@ -417,7 +486,7 @@ class AssistantCoordinatorTest {
         until { requests.size == 2 && state().turn == null }
         assertEquals(
             listOf(AssistantAttachment("a.kt", text = "val a = 1", inWorkspace = true), AssistantAttachment("b.kt", text = "val b = 2 // unsaved", inWorkspace = true)),
-            requests.last().input.attachments,
+            requests.last().input!!.attachments,
         )
 
         val outside = temp.newFile("secret.txt").apply { writeText("no") }
@@ -614,7 +683,7 @@ class AssistantCoordinatorTest {
         script = { _, events -> events.replied(AssistantMessage.Reply("A cat.")) }
         coordinator.handle(ICodeIntent.SendAssistantMessage("What is this?", listOf("content://photos/1")))
         until { requests.size == 2 && state().turn == null }
-        val photo = requests.last().input.attachments.single()
+        val photo = requests.last().input!!.attachments.single()
         assertEquals("IMG_1.jpg", photo.name)
         assertEquals(AssistantAttachmentKind.Image, photo.kind)
         assertEquals(listOf<Byte>(9, 9, 9), File(photo.file!!).readBytes().toList())
@@ -635,8 +704,8 @@ class AssistantCoordinatorTest {
         script = { _, events -> events.replied(AssistantMessage.Reply("A receipt.")) }
         coordinator.handle(ICodeIntent.SendAssistantMessage("", listOf("content://photos/2")))
         until { requests.size == 1 && state().turn == null }
-        assertEquals("", requests.single().input.text)
-        assertEquals("IMG_2.jpg", requests.single().input.attachments.single().name)
+        assertEquals("", requests.single().input!!.text)
+        assertEquals("IMG_2.jpg", requests.single().input!!.attachments.single().name)
         assertEquals("IMG_2.jpg", state().sessions.single().title)
     }
 

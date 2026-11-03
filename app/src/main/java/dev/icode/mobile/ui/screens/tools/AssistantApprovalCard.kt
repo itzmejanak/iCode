@@ -31,6 +31,7 @@ import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.domain.AssistantAnswer
 import dev.icode.mobile.domain.AssistantApproval
+import dev.icode.mobile.domain.AssistantPause
 import dev.icode.mobile.domain.AssistantReach
 import dev.icode.mobile.domain.AssistantToolKind
 import dev.icode.mobile.domain.ICodeIntent
@@ -86,6 +87,25 @@ internal fun AssistantApprovalCard(approval: AssistantApproval, workspace: Strin
                 )
             }
             ApprovalAnswers(approval, workspace, Modifier.fillMaxWidth())
+        }
+    }
+}
+
+/**
+ * A turn waiting between its steps (docs/phone-agent-plan.md L5): its question, why, and Stop or go on —
+ * Continue past the step limit, Done after a step the user took.
+ */
+@Composable
+internal fun AssistantPauseCard(pause: AssistantPause, modifier: Modifier) {
+    val gateway = LocalICodeGateway.current
+    IcodeCard(modifier.fillMaxWidth(), padding = PaddingValues(IcodeSpacing.Space2)) {
+        Column(Modifier.padding(horizontal = IcodeSpacing.Space1), verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
+            Text(pause.kind.question, style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold))
+            Text(pause.detail, style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2, Alignment.End)) {
+                SecondaryButton("Stop", { gateway.dispatch(ICodeIntent.StopAssistant) }, compact = true)
+                PrimaryButton(pause.kind.proceed, { gateway.dispatch(ICodeIntent.ContinueAssistant) }, compact = true)
+            }
         }
     }
 }

@@ -6,6 +6,7 @@ import dev.icode.mobile.data.search.RipgrepIndexOutcome
 import dev.icode.mobile.data.search.RipgrepSearchOutcome
 import dev.icode.mobile.data.search.WorkspaceSearchEngine
 import dev.icode.mobile.data.workspace.WorkspaceFileSource
+import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.ContentMatch
 import dev.icode.mobile.domain.ContentSearchResult
 import dev.icode.mobile.domain.IndexedFile
@@ -63,6 +64,31 @@ class AssistantToolsTest {
         assertEquals(".", workspace.shown(root))
         assertEquals("/etc/passwd", workspace.shown(File(runtime.rootfs, "etc/passwd")))
         assertEquals("/workspace/other/a", workspace.shown(File(runtime.workspaces, "other/a")))
+    }
+
+    @Test fun `phone storage is in the runtime where Android has it and at sdcard, outside the workspace, read only with All Files Access`() = runBlocking {
+        val shared = runtime.shared
+        File(shared, "Download/notes.txt").apply { parentFile!!.mkdirs(); writeText("from the phone\n") }
+        assertEquals(File(shared, "Download/notes.txt"), workspace.resolve("/sdcard/Download/notes.txt"))
+        assertEquals(File(shared, "Download/notes.txt"), workspace.resolve("${shared.path}/Download/notes.txt"))
+        assertEquals("${shared.path}/Download/notes.txt", workspace.shown(File(shared, "Download/notes.txt")))
+        assertEquals(listOf("${shared.path}/Download"), workspace.outside(listOf(File(shared, "Download"))))
+        assertTrue(ReadFileTool(workspace, source).run(args("path" to "/sdcard/Download/notes.txt")).contains("from the phone"))
+        val withoutAccess = AssistantWorkspace(root, runtime.paths, storageAccess = { false })
+        assertEquals(AssistantWorkspace.NO_STORAGE_ACCESS, refused { ReadFileTool(withoutAccess, source).run(args("path" to "/sdcard/Download/notes.txt")) })
+        assertEquals(emptyList<File>(), ReadFileTool(withoutAccess, source).reach(args("path" to "/sdcard/Download/notes.txt")))
+        // Elsewhere, nothing changes without it.
+        assertEquals(File(root, "a.kt"), withoutAccess.resolve("a.kt"))
+    }
+
+    @Test fun `the phone's chats work from root's home, named Phone, with no Run tab`() {
+        val phone = AssistantWorkspace.phone(runtime.paths) { true }
+        assertEquals("/root", phone.guestPath)
+        assertEquals("Phone", phone.name)
+        assertEquals(AssistantPlace.PHONE, phone.place)
+        assertEquals(File(runtime.rootfs, "root/notes.md"), phone.resolve("notes.md"))
+        assertEquals(listOf("/workspace/app"), phone.outside(listOf(File(runtime.rootfs, "root/x"), root)))
+        assertEquals(root.path, workspace.place)
     }
 
     @Test fun `each tool reaches the path it is given, the workspace's top by default, and the gate sees what is outside`() {

@@ -137,7 +137,7 @@ fun StorageSettingsScreen(actions: NavigationActions) {
                 SettingRow(
                     "All Files Access",
                     Modifier.fillMaxWidth(),
-                    subtitle = if (allowed) "The file explorer can open Shared, phone storage" else "Off: the file explorer asks for it at Shared",
+                    subtitle = if (allowed) "The file explorer and the assistant can read phone storage" else "Off: the file explorer asks for it at Shared",
                     onClick = { gateway.dispatch(ICodeIntent.OpenSystemSettings(SystemPermission.Storage)) },
                 ) {
                     AccessState(if (allowed) "ALLOWED" else "OFF", allowed = allowed)

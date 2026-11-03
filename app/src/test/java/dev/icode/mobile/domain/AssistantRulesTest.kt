@@ -239,7 +239,11 @@ class AssistantRulesTest {
     @Test fun `an address is stored trimmed, and only where the provider asks for one`() {
         assertEquals("https://api.groq.com/openai/v1", AssistantRules.storedBaseUrl(AssistantProviderKind.OpenAICompatible, " https://api.groq.com/openai/v1/ "))
         assertNull(AssistantRules.storedBaseUrl(AssistantProviderKind.OpenAI, "https://elsewhere"))
-        assertEquals("app", AssistantRules.workspaceName("/data/files/workspaces/app/"))
+    }
+
+    @Test fun `a place is named by its workspace, or is the phone`() {
+        assertEquals("app", AssistantPlace.name("/data/files/workspaces/app/"))
+        assertEquals("Phone", AssistantPlace.name(AssistantPlace.PHONE))
     }
 
     @Test fun `a key never shows in an intent's text`() {

@@ -33,6 +33,7 @@ import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SectionLabel
+import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.SearchEngineState
 import dev.icode.mobile.domain.ICodeIntent
@@ -55,7 +56,8 @@ internal fun AssistantAttachSheet(
     onAttached: (List<DraftFile>) -> Unit,
 ) {
     val gateway = LocalICodeGateway.current
-    val root = snapshot.activeWorkspaceLocation
+    // A workspace's files go with a chat of that workspace, not with the phone's.
+    val root = snapshot.activeWorkspaceLocation?.takeIf { it == snapshot.assistant.workspace }
     // As Quick Open does: the index is asked for when it is needed, not before.
     LaunchedEffect(root) { if (root != null) gateway.dispatch(ICodeIntent.PrepareWorkspaceSearch) }
     var query by rememberSaveable { mutableStateOf("") }
@@ -103,7 +105,7 @@ internal fun AssistantAttachSheet(
         Hint(if (full) "Five files go with a message at most: take one off to add another" else "Photos and PDFs go to models that read them; text files to any model")
         // The workspace's own files; the chat is only open on one.
         if (root != null) {
-            SectionLabel("From ${AssistantRules.workspaceName(root)}", Modifier.padding(top = IcodeSpacing.SectionBreak))
+            SectionLabel("From ${AssistantPlace.name(root)}", Modifier.padding(top = IcodeSpacing.SectionBreak))
             Search(query, "Search files", literal = true) { query = it }
             open?.let { document -> FileRow(document.name, document.location, "Open · ${pathOf(document.location)}") }
             listed.forEach { file -> FileRow(file.name, file.path, pathOf(file.path)) }

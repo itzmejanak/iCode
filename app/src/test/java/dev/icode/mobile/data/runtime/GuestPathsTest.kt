@@ -6,9 +6,11 @@ import java.io.IOException
 import java.nio.file.Files
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** Links as PRoot stores them on the phone (docs/runtime-contract-plan.md §1.3): runtime paths, and its hard-link stand-ins' phone paths. */
@@ -32,6 +34,18 @@ class GuestPathsTest {
         assertEquals(File(rootfs, "root/.bashrc"), paths.hostOf("/root/./x/../.bashrc"))
         assertEquals(rootfs, paths.hostOf("/"))
         assertEquals(File("/proc/version"), paths.hostOf("/proc/version"))
+    }
+
+    @Test fun `phone storage is bound where Android has it, and sdcard names it`() {
+        val shared = File(base, "storage/emulated/0").apply { mkdirs() }
+        val withStorage = GuestPaths(rootfs, WorkspacePaths(workspaces), shared)
+        link(File(rootfs, "sdcard"), shared.path)
+        assertEquals(File(shared, "DCIM/a.jpg"), withStorage.hostOf("${shared.path}/DCIM/a.jpg"))
+        assertEquals(File(shared, "DCIM/a.jpg"), withStorage.hostOf("/sdcard/DCIM/a.jpg"))
+        assertEquals("${shared.path}/DCIM", withStorage.guestOf("${shared.path}/DCIM/"))
+        assertTrue(withStorage.inShared(File(shared, "DCIM")))
+        assertFalse(withStorage.inShared(File(rootfs, "root")))
+        assertFalse(paths.inShared(File(shared, "DCIM")))
     }
 
     @Test fun `a link made in the runtime names a runtime path, and is followed inside the runtime`() {

@@ -7,6 +7,7 @@ import ai.koog.prompt.dsl.ModerationResult
 import ai.koog.prompt.executor.clients.LLMClient
 import ai.koog.prompt.executor.clients.LLMClientException
 import ai.koog.prompt.executor.clients.anthropic.AnthropicParams
+import ai.koog.prompt.llm.LLMCapability
 import ai.koog.prompt.llm.LLMProvider
 import ai.koog.prompt.llm.LLModel
 import ai.koog.prompt.message.AttachmentContent
@@ -21,6 +22,8 @@ import dev.icode.mobile.data.assistant.AssistantConnection
 import dev.icode.mobile.data.assistant.AssistantEvents
 import dev.icode.mobile.data.assistant.AssistantInstructions
 import dev.icode.mobile.data.assistant.AssistantParameter
+import dev.icode.mobile.data.assistant.AssistantPicture
+import dev.icode.mobile.data.assistant.AssistantStepLimitException
 import dev.icode.mobile.data.assistant.AssistantTool
 import dev.icode.mobile.data.assistant.AssistantToolException
 import dev.icode.mobile.data.assistant.AssistantTurnException
@@ -291,10 +294,47 @@ class KoogAssistantEngineTest {
         try {
             KoogAssistantEngine { client }.run(turn(ReadTool(), maxSteps = 2), Recorder())
             fail("expected the step limit")
-        } catch (stopped: AssistantTurnException) {
+        } catch (stopped: AssistantStepLimitException) {
             assertEquals("Stopped at the step limit — send a message to continue", stopped.message)
         }
         assertEquals(2, client.prompts.size)
+    }
+
+    @Test fun `a turn goes on from the chat as it is, with no new message`() = runBlocking {
+        val client = ScriptedClient(listOf(done))
+        val history = listOf(
+            AssistantMessage.User("Fix it"),
+            AssistantMessage.Reply("Reading", listOf(AssistantCall("call_1", "read_file", """{"path":"a.kt"}""", "Read a.kt", AssistantToolKind.Read))),
+            AssistantMessage.Results(listOf(AssistantResult("call_1", "read_file", "fun main() {}", failed = false))),
+        )
+        KoogAssistantEngine { client }.run(turn(ReadTool(), history).copy(input = null), Recorder())
+        val sent = client.prompts.single().messages
+        assertEquals(4, sent.size)
+        assertTrue((sent.last() as Message.User).parts.single() is MessagePart.Tool.Result)
+    }
+
+    @Test fun `a step's screen goes with its results where the model sees pictures, and only the latest stays`() = runBlocking {
+        val seeing = KoogModels.catalogue.getValue(AssistantProviderKind.OpenAI).first { it.images }
+        val screens = ArrayDeque(listOf(byteArrayOf(1), byteArrayOf(2)))
+        val client = ScriptedClient(listOf(callingRead, reply(MessagePart.Text("Again"), call("call_2")), done))
+        KoogAssistantEngine { client }.run(turn(ReadTool()).copy(model = seeing, picture = { screens.removeFirstOrNull()?.let(::AssistantPicture) }), Recorder())
+        fun pictures(prompt: Prompt) = prompt.messages.flatMap { it.parts }.flatMap { if (it is MessagePart.Tool.Result) it.parts else listOf(it) }
+            .filterIsInstance<MessagePart.Attachment>().map { (it.source.content as AttachmentContent.Binary).asBytes().toList() }
+        // Beside the results, in the same message: Chat Completions sends it after the tool messages.
+        val second = client.prompts[1].messages.last() as Message.User
+        assertTrue(second.parts.first() is MessagePart.Tool.Result)
+        assertEquals(listOf(listOf<Byte>(1)), pictures(client.prompts[1]))
+        assertEquals(listOf(listOf<Byte>(2)), pictures(client.prompts[2]))
+    }
+
+    @Test fun `a screen is dropped for a model that sees none, and goes in the result for OpenAI's Responses`() {
+        val blind = KoogModels.llModel(AssistantProviderKind.OpenAICompatible, AssistantModelSpec("local"))
+        assertEquals(KoogTurn.PicturePlace.None, KoogTurn.picturePlace(AssistantProviderKind.OpenAICompatible, blind, sees = false))
+        val responses = LLModel(LLMProvider.OpenAI, "gpt-x", listOf(LLMCapability.Vision.Image, LLMCapability.Tools, LLMCapability.OpenAIEndpoint.Responses), 400_000)
+        assertEquals(KoogTurn.PicturePlace.InResult, KoogTurn.picturePlace(AssistantProviderKind.OpenAI, responses, sees = true))
+        val both = responses.copy(capabilities = responses.capabilities.orEmpty() + LLMCapability.OpenAIEndpoint.Completions)
+        assertEquals(KoogTurn.PicturePlace.Beside, KoogTurn.picturePlace(AssistantProviderKind.OpenAI, both, sees = true))
+        assertEquals(KoogTurn.PicturePlace.Beside, KoogTurn.picturePlace(AssistantProviderKind.Anthropic, both, sees = true))
     }
 
     @Test fun `a reply with nothing in it ends the turn with a reason`() = runBlocking {

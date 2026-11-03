@@ -71,7 +71,7 @@ internal class AssistantShell(
     suspend fun start(workspace: AssistantWorkspace, chat: String, command: String, name: String?): Pair<Result<ManagedProcess>, List<String>> {
         val (start, moved) = directory(workspace, chat)
         val login = environment.of(GuestContext.Command)
-        val started = processes.start(workspace.root.path, start, command, name, login.variables + MODEL_ENVIRONMENT)
+        val started = processes.start(workspace.place, start, command, name, login.variables + MODEL_ENVIRONMENT)
         return started to listOfNotNull(moved, login.failure?.let(GuestEnvironment::withoutProfile))
     }
 

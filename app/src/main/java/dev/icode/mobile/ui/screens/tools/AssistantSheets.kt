@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.IcodeBottomSheet
+import dev.icode.mobile.designsystem.IcodeChoiceRow
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeConfirmDialog
 import dev.icode.mobile.designsystem.IcodeListRow
@@ -37,14 +38,18 @@ import dev.icode.mobile.domain.AssistantEffort
 import dev.icode.mobile.domain.AssistantModel
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantSession
+import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantState
 import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.ui.LocalICodeGateway
 
-/** The workspace's chats, newest first: open one, delete one, or start another. */
+/**
+ * The place's chats, newest first: open one, delete one, or start another. With a workspace open
+ * ([workspace]), its chats or the phone's (docs/phone-agent-plan.md L1).
+ */
 @Composable
-internal fun AssistantChatsSheet(state: AssistantState, modifier: Modifier, onClose: () -> Unit) {
+internal fun AssistantChatsSheet(state: AssistantState, workspace: String?, modifier: Modifier, onClose: () -> Unit) {
     val gateway = LocalICodeGateway.current
     var query by rememberSaveable { mutableStateOf("") }
     var deleting by remember { mutableStateOf<AssistantSession?>(null) }
@@ -64,8 +69,15 @@ internal fun AssistantChatsSheet(state: AssistantState, modifier: Modifier, onCl
             )
         },
     ) {
+        if (workspace != null) {
+            listOf(workspace, AssistantPlace.PHONE).forEach { place ->
+                IcodeChoiceRow(AssistantPlace.name(place), chosen = place == state.workspace, onChoose = {
+                    if (place != state.workspace) gateway.dispatch(ICodeIntent.ShowAssistantPlace(place))
+                })
+            }
+        }
         if (state.sessions.size > SEARCH_FROM) Search(query, "Search chats") { query = it }
-        if (shown.isEmpty()) Hint(if (state.sessions.isEmpty()) "No chats in this workspace yet" else "No chat matches")
+        if (shown.isEmpty()) Hint(if (state.sessions.isEmpty()) "No chats in ${state.workspace?.let(AssistantPlace::name) ?: "here"} yet" else "No chat matches")
         shown.forEach { session ->
             val working = state.turn?.let { it.workspace == state.workspace && it.session == session.id } == true
             IcodeListRow(

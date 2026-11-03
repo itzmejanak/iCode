@@ -492,3 +492,9 @@ The checks that run in this container: Google's Maven redirects to a host it can
 Android Gradle build runs here. Each cycle compiles what it changed with Kotlin 2.3.10 against
 Android 16's `android.jar` (its framework classes and resources, from a public mirror) and Maven
 Central's libraries, runs the unit tests it touches, and leaves the Android build to CI on `main`.
+
+| Cycle | As built | Checked here |
+|---|---|---|
+| **P1** | `AssistantPlace` (a chat's place: a workspace's location, or `phone`); `ShowAssistantPlace` and the Chats sheet's place rows; the home screen's Assistant button; phone chats from `/root` (`AssistantWorkspace.phone`), with no Run tab tools and their own instructions; their processes grouped under the phone. Phone storage bound at its own path in every launch, `/sdcard` linked to it (`GuestPaths.shared`, `RuntimeLayout`), refused with what the user can do when All Files Access is off | `AssistantCoordinatorTest` (phone chats on the home screen; kept shown in a workspace), `AssistantToolsTest` (storage paths and the refusal; the phone place), `GuestPathsTest`, `AssistantRulesTest`; the app compiled; the guards |
+| **P2** | `AssistantStepLimitException`; `AssistantPause` and `ContinueAssistant`, the pause card, the notification's question; `AssistantQuestions` (approvals and pauses); a turn going on from the chat as it is (`input = null`); `AssistantTurnRequest.picture`, sent with a step's results where each client takes one (`KoogTurn.PicturePlace`), only the latest screen kept in the prompt | `KoogAssistantEngineTest` (going on with no message; the screen beside the results, and only the latest; where each client takes one), `AssistantCoordinatorTest` (Continue and Stop at the limit); the whole suite: 1,220 tests, the 58 that fail here fail for this container (assets read from another folder, Compose's colour spaces without `androidx.collection`, Android stubs, root) |
+

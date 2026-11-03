@@ -35,7 +35,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import dev.icode.mobile.designsystem.IcodeBottomSheet
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeListRow
@@ -157,7 +156,7 @@ internal fun ReportSheet(state: ReportState, modifier: Modifier, onClose: () -> 
                 }
                 if (draft.attachments.size < maxFiles && !busy) {
                     Box(
-                        Modifier.size(ThumbSize).clip(IcodeShapes.Small).background(IcodeColors.SurfaceElevated),
+                        Modifier.size(IcodeSizes.Tile).clip(IcodeShapes.Small).background(IcodeColors.SurfaceElevated),
                         contentAlignment = Alignment.Center,
                     ) {
                         IconButton(onClick = { picker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)) }) {
@@ -180,8 +179,6 @@ internal fun ReportSheet(state: ReportState, modifier: Modifier, onClose: () -> 
     }
 }
 
-private val ThumbSize = 72.dp
-
 /** A picked screenshot's thumbnail (a film icon for a recording), with × to drop it. */
 @Composable
 private fun Attachment(uri: String, onRemove: (() -> Unit)?) {
@@ -191,10 +188,10 @@ private fun Attachment(uri: String, onRemove: (() -> Unit)?) {
     val thumb by produceState<Bitmap?>(null, uri) {
         value = withContext(Dispatchers.IO) { runCatching { context.contentResolver.loadThumbnail(parsed, Size(256, 256), null) }.getOrNull() }
     }
-    Box(Modifier.size(ThumbSize).clip(IcodeShapes.Small).background(IcodeColors.SurfaceElevated)) {
+    Box(Modifier.size(IcodeSizes.Tile).clip(IcodeShapes.Small).background(IcodeColors.SurfaceElevated)) {
         val bitmap = thumb
         if (bitmap != null) {
-            Image(bitmap.asImageBitmap(), contentDescription = "Attachment", contentScale = ContentScale.Crop, modifier = Modifier.size(ThumbSize))
+            Image(bitmap.asImageBitmap(), contentDescription = "Attachment", contentScale = ContentScale.Crop, modifier = Modifier.size(IcodeSizes.Tile))
         } else {
             Icon(
                 if (video) Icons.Outlined.Movie else Icons.Outlined.AddPhotoAlternate,
@@ -204,7 +201,7 @@ private fun Attachment(uri: String, onRemove: (() -> Unit)?) {
             )
         }
         onRemove?.let { remove ->
-            IconButton(onClick = remove, modifier = Modifier.align(Alignment.TopEnd).size(28.dp)) {
+            IconButton(onClick = remove, modifier = Modifier.align(Alignment.TopEnd).size(IcodeSizes.TileRemove)) {
                 Icon(Icons.Outlined.Close, contentDescription = "Remove attachment", tint = IcodeColors.TextPrimary, modifier = Modifier.size(IcodeSizes.IconSm))
             }
         }

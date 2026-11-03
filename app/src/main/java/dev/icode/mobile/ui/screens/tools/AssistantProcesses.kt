@@ -41,7 +41,7 @@ import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.StatusDot
-import dev.icode.mobile.domain.AssistantRules
+import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.ManagedProcess
 import dev.icode.mobile.domain.ManagedProcessState
 import dev.icode.mobile.domain.ProcessRules
@@ -129,7 +129,7 @@ private fun ProcessRow(process: ManagedProcess, elsewhere: Boolean, now: Long, o
             }
             Column(Modifier.padding(start = IcodeSizes.IconSm), verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Micro)) {
                 // Another workspace's says which.
-                val command = if (elsewhere) "${AssistantRules.workspaceName(process.workspace)} · ${process.command}" else process.command
+                val command = if (elsewhere) "${AssistantPlace.name(process.workspace)} · ${process.command}" else process.command
                 Text(command, style = IcodeType.MonoSmall.copy(color = IcodeColors.TextMuted), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 if (process.ports.isNotEmpty()) {
                     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3)) {

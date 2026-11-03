@@ -126,7 +126,7 @@ object BackgroundWorkRules {
         git(snapshot)?.let(::add)
         runtime(snapshot)?.let(::add)
         snapshot.runtimeTools.work?.let { add(runtimeTools(it)) }
-        snapshot.assistant.turn?.let { add(assistant(it, snapshot.assistant.approval)) }
+        snapshot.assistant.turn?.let { add(assistant(it, snapshot.assistant.approval, snapshot.assistant.pause)) }
         processes(snapshot.processes.filter { it.running })?.let(::add)
         snapshot.gpgPrompts.firstOrNull()?.let { add(gpg(it)) }
     }
@@ -170,14 +170,14 @@ object BackgroundWorkRules {
      * Its progress shows on the Assistant page. A failure is said on the page, where the chat is,
      * so it is not carried here; a question is, as it stops the turn until it is answered.
      */
-    private fun assistant(turn: AssistantTurn, approval: AssistantApproval?) = BackgroundItem(
+    private fun assistant(turn: AssistantTurn, approval: AssistantApproval?, pause: AssistantPause?) = BackgroundItem(
         key = "assistant",
         title = "Assistant is working…",
         detail = "${turn.workspaceName} · ${turn.step}",
         cancel = ICodeIntent.StopAssistant,
         place = BackgroundPlace.Assistant,
         watched = true,
-        question = approval?.let { "${it.call.summary}?" },
+        question = approval?.let { "${it.call.summary}?" } ?: pause?.kind?.question,
     )
 
     /** Its progress shows on the tools' page, and on a button waiting for it. */

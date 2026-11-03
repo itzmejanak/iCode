@@ -46,6 +46,7 @@ import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.LocalCodeTextScale
 import dev.icode.mobile.designsystem.scaledBy
 import dev.icode.mobile.domain.AssistantEntry
+import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantStepRules
 import dev.icode.mobile.domain.AssistantStepStatus
@@ -180,7 +181,7 @@ internal fun fileActions(step: AssistantEntry.Step, onDiff: (GitChange) -> Unit)
         open = IcodeMenuAction("Open in Editor", Icons.Outlined.Description, { gateway.dispatch(ICodeIntent.OpenFile(location)) }),
         changes = change?.let { IcodeMenuAction("Show Changes", Icons.Outlined.Difference, { onDiff(it) }) },
         // As every explorer's: the path the runtime names it by.
-        copyPath = FileItemActions.copyPath(context, WorkspaceRuntimePath.within(root, WorkspaceRuntimePath.of(AssistantRules.workspaceName(root)), location), gateway::dispatch),
+        copyPath = FileItemActions.copyPath(context, WorkspaceRuntimePath.within(root, WorkspaceRuntimePath.of(AssistantPlace.name(root)), location), gateway::dispatch),
     )
 }
 

@@ -5,7 +5,6 @@ import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.runtime.GuestPaths
 import dev.icode.mobile.data.workspace.WorkspaceRoot
 import dev.icode.mobile.domain.AssistantAnswer
-import dev.icode.mobile.domain.AssistantApproval
 import dev.icode.mobile.domain.AssistantAsk
 import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantHistory
@@ -13,8 +12,10 @@ import dev.icode.mobile.domain.AssistantLive
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantMode
 import dev.icode.mobile.domain.AssistantModel
+import dev.icode.mobile.domain.AssistantPause
 import dev.icode.mobile.domain.AssistantPermission
 import dev.icode.mobile.domain.AssistantPermissions
+import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantReach
 import dev.icode.mobile.domain.AssistantResult
 import dev.icode.mobile.domain.AssistantRules
@@ -25,7 +26,6 @@ import dev.icode.mobile.domain.LineChanges
 import dev.icode.mobile.domain.NoticeTone
 import java.io.File
 import kotlin.coroutines.cancellation.CancellationException
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
@@ -52,6 +52,8 @@ internal class AssistantTurns(
     /** The runtime's paths: what the turn's workspace resolves the model's paths through. */
     private val paths: GuestPaths,
     private val attachments: AssistantAttachments,
+    /** All Files Access, as Android answers it now: phone storage is read with it (docs/phone-agent-plan.md L8). */
+    private val storageAccess: () -> Boolean,
 ) {
     private val lock = Any()
     private var job: Job? = null
@@ -59,7 +61,7 @@ internal class AssistantTurns(
     private var place: Pair<String, String>? = null
     /** The call running now: what an approval is about. */
     private var calling: AssistantCall? = null
-    private var pending: CompletableDeferred<AssistantAnswer>? = null
+    private val questions = AssistantQuestions(page)
 
     /** The lines each change to a file added and removed, by call, until its result is recorded. */
     private val counted = mutableMapOf<String, LineChanges>()
@@ -94,15 +96,15 @@ internal class AssistantTurns(
         synchronized(lock) { job.takeIf { place?.first == workspace } }?.cancelAndJoin()
     }
 
-    fun answer(callId: String, answer: AssistantAnswer) {
-        if (page.current.approval?.call?.id != callId) return
-        synchronized(lock) { pending }?.complete(answer)
-    }
+    fun answer(callId: String, answer: AssistantAnswer) = questions.answer(callId, answer)
+
+    /** The turn's pause answered Continue (or Done): it goes on. */
+    fun resume() = questions.resume()
 
     /** One turn at a time: the job, not the page, decides — a second Send in the same instant finds the first. */
     private fun launch(workspace: String, session: String, work: suspend Turn.() -> Unit) = synchronized(lock) {
         if (job?.isActive == true) {
-            val name = page.current.turn?.workspaceName ?: AssistantRules.workspaceName(workspace)
+            val name = page.current.turn?.workspaceName ?: AssistantPlace.name(workspace)
             return@synchronized page.say(NoticeTone.HeadsUp, "The assistant is working in $name: stop it, or wait")
         }
         place = workspace to session
@@ -125,7 +127,8 @@ internal class AssistantTurns(
         suspend fun run(work: suspend Turn.() -> Unit) {
             var failure: String? = null
             try {
-                val name = runCatching { describe(workspace).name }.getOrElse { AssistantRules.workspaceName(workspace) }
+                val name = if (workspace == AssistantPlace.PHONE) AssistantPlace.name(workspace)
+                else runCatching { describe(workspace).name }.getOrElse { AssistantPlace.name(workspace) }
                 page.state {
                     // A new chat on the page is this one from now: it is listed with its first message.
                     val shown = if (it.workspace == workspace && it.session == null) session else it.session
@@ -147,12 +150,12 @@ internal class AssistantTurns(
                         job = null
                         place = null
                         calling = null
-                        pending = null
                         counted.clear()
                     }
+                    questions.clear()
                     page.listed(workspace)
                     page.refresh(workspace, session)
-                    page.state { it.copy(turn = null, approval = null, failure = if (shows(it.workspace, it.session)) failure else it.failure) }
+                    page.state { it.copy(turn = null, approval = null, pause = null, failure = if (shows(it.workspace, it.session)) failure else it.failure) }
                     if (failure != null && !page.current.let { shows(it.workspace, it.session) }) page.say(NoticeTone.Problem, "The assistant's turn failed", failure)
                 }
             }
@@ -185,9 +188,18 @@ internal class AssistantTurns(
                 tools = offered.map { Asking(it, this, setup.place) },
                 maxSteps = MAX_STEPS,
             )
-            runWithRetry { attempt ->
-                step(if (attempt == 0) THINKING else "Preparing to retry…")
-                engine.run(request, this)
+            var next = request
+            while (true) {
+                try {
+                    return runWithRetry { attempt ->
+                        step(if (attempt == 0) THINKING else "Preparing to retry…")
+                        engine.run(next, this)
+                    }
+                } catch (limit: AssistantStepLimitException) {
+                    // The user says whether it goes on; it goes on from the chat as it is (L5).
+                    questions.pause(AssistantPause(AssistantPause.Kind.StepLimit, "It has taken $MAX_STEPS steps on this message."), THINKING)
+                    next = next.copy(history = AssistantRules.forModel(chats.of(workspace, session).messages).messages, input = null)
+                }
             }
         }
 
@@ -208,8 +220,9 @@ internal class AssistantTurns(
             val model = settings.model
             val connection = provider?.let { providers.connection(it.id) }
             if (model == null || connection == null) throw AssistantTurnException(NOT_SET_UP)
+            if (workspace == AssistantPlace.PHONE) return Setup(settings, connection, model, AssistantWorkspace.phone(paths, storageAccess))
             val root = runCatching { describe(workspace) }.getOrElse { throw AssistantTurnException("This workspace no longer exists") }
-            return Setup(settings, connection, model, AssistantWorkspace(File(root.location), paths))
+            return Setup(settings, connection, model, AssistantWorkspace(File(root.location), paths, storageAccess))
         }
 
         override fun writing(reasoning: String, text: String) {
@@ -259,7 +272,7 @@ internal class AssistantTurns(
             if (asks != null) {
                 val call = synchronized(lock) { calling } ?: throw AssistantToolException("Nothing to ask about")
                 val reach = if (asks == AssistantAsk.Outside) AssistantReach(outside, outside.mapNotNull(place::rootOf).distinct()) else null
-                when (ask(call, tool.detail(arguments), reach)) {
+                when (questions.approve(call, tool.detail(arguments), reach)) {
                     AssistantAnswer.Allow -> Unit
                     AssistantAnswer.AllowInChat -> {
                         if (reach != null) chats.open(turn.workspace, turn.session, reach.roots) else chats.allowInWorkspace(turn.workspace, turn.session)
@@ -275,24 +288,12 @@ internal class AssistantTurns(
             }
         }
 
-        private suspend fun ask(call: AssistantCall, detail: String, reach: AssistantReach?): AssistantAnswer {
-            val answer = CompletableDeferred<AssistantAnswer>()
-            synchronized(lock) { pending = answer }
-            page.state { it.copy(approval = AssistantApproval(call, detail, reach), turn = it.turn?.copy(step = WAITING)) }
-            try {
-                return answer.await()
-            } finally {
-                synchronized(lock) { pending = null }
-                page.state { it.copy(approval = null, turn = it.turn?.copy(step = call.summary)) }
-            }
-        }
     }
 
     private companion object {
         const val TAG = "Assistant"
         const val MAX_STEPS = 40
         const val THINKING = "Thinking…"
-        const val WAITING = "Waiting for your answer"
         const val COMPACTING = "Compacting the chat…"
         const val NOT_SET_UP = "Set up the assistant first: add a provider and choose a model"
     }

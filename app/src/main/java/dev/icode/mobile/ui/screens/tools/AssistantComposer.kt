@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Compress
 import androidx.compose.material.icons.outlined.FolderOpen
+import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.StopCircle
@@ -51,6 +52,7 @@ import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.domain.AssistantMode
 import dev.icode.mobile.domain.AssistantPermission
+import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantState
 import dev.icode.mobile.domain.ICodeIntent
@@ -96,9 +98,9 @@ internal fun AssistantComposer(
                 if (draft.isEmpty()) {
                     Text(
                         when (settings.mode) {
-                            AssistantMode.Ask -> "Ask about ${AssistantRules.workspaceName(state.workspace.orEmpty())}"
+                            AssistantMode.Ask -> if (state.workspace == AssistantPlace.PHONE) "Ask anything" else "Ask about ${AssistantPlace.name(state.workspace.orEmpty())}"
                             AssistantMode.Plan -> "Plan what to build"
-                            AssistantMode.Code -> "Describe what to build"
+                            AssistantMode.Code -> if (state.workspace == AssistantPlace.PHONE) "What can I do for you?" else "Describe what to build"
                             AssistantMode.Orchestrator -> "What would you like to build?"
                         },
                         style = IcodeType.Body.copy(color = IcodeColors.TextMuted),
@@ -165,9 +167,10 @@ internal fun AssistantComposer(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
                 ) {
-                    Icon(Icons.Outlined.FolderOpen, contentDescription = null, tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconSm))
+                    val placeIcon = if (state.workspace == AssistantPlace.PHONE) Icons.Outlined.PhoneAndroid else Icons.Outlined.FolderOpen
+                    Icon(placeIcon, contentDescription = null, tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconSm))
                     Text(
-                        AssistantRules.workspaceName(state.workspace.orEmpty()),
+                        AssistantPlace.name(state.workspace.orEmpty()),
                         style = IcodeType.Caption.copy(color = IcodeColors.TextMuted),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -176,7 +179,7 @@ internal fun AssistantComposer(
                 // Permissions are the chat's, chosen here as VS Code's are (docs/assistant-permissions-plan.md §4.1).
                 Choice(
                     state.permission.label, "Permissions", AssistantPermission.entries, state.permission, AssistantPermission::label,
-                    { permissionLine(it, AssistantRules.workspaceName(state.workspace.orEmpty())) },
+                    { permissionLine(it, AssistantPlace.bound(state.workspace.orEmpty())) },
                     icon = true,
                 ) { gateway.dispatch(ICodeIntent.SetAssistantPermission(it)) }
             }

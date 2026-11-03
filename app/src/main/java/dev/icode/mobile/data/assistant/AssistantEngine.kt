@@ -64,10 +64,22 @@ internal data class AssistantTurnRequest(
     val instructions: String,
     /** The chat since its last compaction, every call answered ([dev.icode.mobile.domain.AssistantRules.forModel]). */
     val history: List<AssistantMessage>,
-    val input: AssistantMessage.User,
+    /** The new message; null when the turn goes on from [history] as it is, past a pause (docs/phone-agent-plan.md L5). */
+    val input: AssistantMessage.User?,
     val tools: List<AssistantTool>,
+    /** Requests at most; then [AssistantStepLimitException]. */
     val maxSteps: Int,
+    /**
+     * The picture a step's calls left for the model to see — the screen after them — taken once their
+     * results are sent, and sent with them where the provider takes one (docs/phone-agent-plan.md L2).
+     */
+    val picture: () -> AssistantPicture? = { null },
 )
+
+/** A picture a step sends the model, with its results: a JPEG of the phone's screen. Never kept in the chat. */
+internal class AssistantPicture(val bytes: ByteArray, val mimeType: String = "image/jpeg") {
+    override fun toString(): String = "AssistantPicture(${bytes.size} bytes, $mimeType)"
+}
 
 /** What a turn reports as it goes; called on the turn's coroutine, in order. */
 internal interface AssistantEvents {
@@ -91,7 +103,10 @@ internal interface AssistantEvents {
 internal class AssistantToolException(message: String) : Exception(message)
 
 /** A turn that could not go on, in the words the page shows. */
-internal class AssistantTurnException(message: String, cause: Throwable? = null) : Exception(message, cause)
+internal open class AssistantTurnException(message: String, cause: Throwable? = null) : Exception(message, cause)
+
+/** The turn reached its step limit: the user says whether it goes on (docs/phone-agent-plan.md L5). */
+internal class AssistantStepLimitException : AssistantTurnException("Stopped at the step limit — send a message to continue")
 
 /** One tool the model may call: iCode code over one of iCode's owners (§4.3). */
 internal interface AssistantTool {

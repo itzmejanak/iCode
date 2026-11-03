@@ -168,6 +168,6 @@ internal object KoogHistory {
     private val FILTER_REASONS = setOf("content_filter", "refusal", "safety", "recitation", "blocklist", "prohibited_content", "spii", "image_safety")
 
     /** Every image is sent as JPEG ([dev.icode.mobile.data.assistant.AssistantImages]). */
-    private const val FORMAT_JPEG = "jpeg"
+    const val FORMAT_JPEG = "jpeg"
     private const val FORMAT_PDF = "pdf"
 }

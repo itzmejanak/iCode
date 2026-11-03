@@ -22,18 +22,16 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import dev.icode.mobile.designsystem.EmptyState
-import dev.icode.mobile.designsystem.IcodeBrandMark
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeMenuAction
 import dev.icode.mobile.designsystem.IcodeOverflowMenu
 import dev.icode.mobile.designsystem.IcodeSheetOverlay
 import dev.icode.mobile.designsystem.IcodeSizes
-import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.behindSheet
 import dev.icode.mobile.designsystem.IcodeWatermark
 import dev.icode.mobile.domain.AssistantAttachmentKind
+import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantStepRules
 import dev.icode.mobile.domain.GitChange
@@ -97,7 +95,7 @@ fun AssistantScreen(actions: NavigationActions) {
         Column(Modifier.fillMaxSize().behindSheet(sheet != null)) {
             IcodeTopBar(
                 if (ready) title else "Assistant",
-                subtitle = state.workspace?.let(AssistantRules::workspaceName),
+                subtitle = state.workspace?.let(AssistantPlace::name),
                 onBack = actions.back,
                 actions = {
                     if (ready) {
@@ -127,15 +125,8 @@ fun AssistantScreen(actions: NavigationActions) {
             )
             when {
                 !state.settings.ready -> AssistantSetUp(Modifier.weight(1f)) { actions.navigate(Route.AssistantSettings) }
-                state.workspace == null -> Box(Modifier.weight(1f)) {
-                    IcodeWatermark(Modifier.align(Alignment.Center))
-                    EmptyState(
-                        title = "Open a workspace",
-                        description = "The assistant works in the open workspace: its files, its Git, its terminal.",
-                        mark = { IcodeBrandMark(Modifier.size(IcodeSizes.MarkLg)) },
-                        modifier = Modifier.padding(IcodeSpacing.Space6),
-                    )
-                }
+                // A place is always shown once the page has opened (docs/phone-agent-plan.md L1).
+                state.workspace == null -> Box(Modifier.weight(1f)) { IcodeWatermark(Modifier.align(Alignment.Center)) }
                 else -> AssistantChatView(
                     state,
                     rows,
@@ -178,13 +169,13 @@ fun AssistantScreen(actions: NavigationActions) {
             IcodeSheetOverlay(onClose = close) {
                 val modifier = Modifier.align(Alignment.BottomCenter)
                 when (open) {
-                    AssistantSheet.Chats -> AssistantChatsSheet(state, modifier, close)
+                    AssistantSheet.Chats -> AssistantChatsSheet(state, snapshot.activeWorkspaceLocation, modifier, close)
                     AssistantSheet.Models -> AssistantModelsSheet(state, modifier, close, onProviders = { actions.navigate(Route.AssistantSettings) })
                     AssistantSheet.Attach -> AssistantAttachSheet(snapshot, attached, pickers, modifier, close, onAttached = { attached = it })
                     AssistantSheet.Processes -> AssistantProcessesSheet(snapshot.processes, state.workspace, modifier, close)
                     AssistantSheet.Entry -> entry?.let {
                         val approval = state.approval?.takeIf { state.runningHere }
-                        AssistantEntrySheet(it, stepKey, approval, AssistantRules.workspaceName(state.workspace.orEmpty()), modifier, close, onDiff)
+                        AssistantEntrySheet(it, stepKey, approval, AssistantPlace.name(state.workspace.orEmpty()), modifier, close, onDiff)
                     }
                     AssistantSheet.Actions -> entry?.let { AssistantActionsSheet(it, modifier, close, onDiff) }
                 }
