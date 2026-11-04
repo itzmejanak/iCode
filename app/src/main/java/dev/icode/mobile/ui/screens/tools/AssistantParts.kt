@@ -1,7 +1,6 @@
 package dev.icode.mobile.ui.screens.tools
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,7 +8,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Compress
 import androidx.compose.material.icons.outlined.ContentCopy
@@ -26,7 +24,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextOverflow
 import dev.icode.mobile.designsystem.Divider
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeBrandMark
@@ -42,7 +39,6 @@ import dev.icode.mobile.designsystem.LocalCodeTextScale
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.scaledBy
 import dev.icode.mobile.domain.AssistantAttachment
-import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantEntry
 import dev.icode.mobile.domain.VoiceIntent
 import dev.icode.mobile.domain.markdown.MarkdownPlace
@@ -90,53 +86,44 @@ internal fun AssistantEntryRow(entry: AssistantEntry, copyable: Boolean, streami
     }
 }
 
-/** What the user wrote, at the end: a long press, on one with words, opens its sheet: Copy, and Select text. */
+/**
+ * What the user wrote, at the end. Its files ride a tab rising from the card's top end (the owner's
+ * design, 2026-11-04), small, so the words lead: a photo as itself, another file as its kind, each
+ * named for TalkBack; a tap shows a photo as it was sent and opens a file of the workspace as it is
+ * now. Files sent alone stay in the card. A long press, on one with words, opens its sheet.
+ */
 @Composable
 private fun SaidRow(entry: AssistantEntry.Said, onHold: () -> Unit) {
     val scale = LocalCodeTextScale.current
     val written = entry.text.isNotBlank()
+    val files = entry.attachments
     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
         IcodeCard(
             Modifier.fillMaxWidth(SAID_WIDTH),
             elevated = true,
             onLongClick = onHold.takeIf { written },
             onLongClickLabel = "Options for this message",
+            tab = if (written && files.isNotEmpty()) ({ SaidFiles(files) }) else null,
         ) {
-            SaidFiles(entry.attachments)
-            if (written) Text(entry.text, style = IcodeType.Body.scaledBy(scale))
+            if (written) {
+                Text(entry.text, style = IcodeType.Body.scaledBy(scale))
+            } else {
+                Row(horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) { SaidFiles(files) }
+            }
         }
     }
 }
 
-/**
- * What went with a message: its photos drawn small, its other files by name and kind. A tap shows a
- * photo as it was sent, and opens a file of the workspace as it is now.
- */
+/** A message's files, each a small tile: a photo as itself, another file as its kind. */
 @Composable
 private fun SaidFiles(files: List<AssistantAttachment>) {
-    val scale = LocalCodeTextScale.current
     val workspace = LocalICodeSnapshot.current.assistant.workspace
-    val photos = files.filter { it.kind == AssistantAttachmentKind.Image }.mapNotNull { photo -> photo.file?.let { photo to it } }
-    if (photos.isNotEmpty()) {
-        Row(
-            Modifier.horizontalScroll(rememberScrollState()).padding(bottom = IcodeSpacing.Space2),
-            horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
-        ) {
-            photos.forEach { (photo, file) ->
-                val open = openerOf(photo, workspace)
-                AssistantThumbnail(file, AssistantAttachmentKind.Image, Modifier.size(IcodeSizes.Tile).semantics { contentDescription = photo.name }.tappable(open))
-            }
-        }
-    }
-    files.filter { it.kind != AssistantAttachmentKind.Image || it.file == null }.forEach { file ->
-        Row(
-            Modifier.padding(bottom = IcodeSpacing.Space1).tappable(openerOf(file, workspace)),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
-        ) {
-            Icon(file.kind.icon, contentDescription = null, tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconSm))
-            Text(file.name, style = IcodeType.MonoSmall.scaledBy(scale), maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
+    files.forEach { file ->
+        AssistantThumbnail(
+            file.file.orEmpty(),
+            file.kind,
+            Modifier.size(IcodeSizes.TabTile).semantics { contentDescription = file.name }.tappable(openerOf(file, workspace)),
+        )
     }
 }
 

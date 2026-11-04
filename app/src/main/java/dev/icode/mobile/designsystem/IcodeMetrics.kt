@@ -48,12 +48,12 @@ object IcodeSpacing {
 
 /** Shape tokens shared by every surface. */
 object IcodeShapes {
-    val Small = RoundedCornerShape(4.dp)
+    /** A card's corners ([Small]), and its tab's ([IcodeCard]'s `tab`). */
+    val SmallCorner = 4.dp
+    val Small = RoundedCornerShape(SmallCorner)
     val AppIcon = RoundedCornerShape(22)
     val Chip = RoundedCornerShape(3.dp)
     val Pill = RoundedCornerShape(50)
-    /** A floating pill's corners ([IcodeFloatingPill]): a [Pill]'s at a touch target tall, kept as it grows. */
-    val FloatingPill = RoundedCornerShape(IcodeSizes.TouchTarget / 2)
     val Track = RoundedCornerShape(2.dp)
     val Sheet = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
 }
@@ -67,6 +67,8 @@ object IcodeSizes {
     val BadgeSm = 32.dp
     val BadgeMd = 36.dp
     val Tile = 74.dp
+    /** A photo on a message's tab ([IcodeCard]'s `tab`): small, so the words lead. */
+    val TabTile = 40.dp
     /** The × that takes a picture off, in a [Tile]'s corner. */
     val TileRemove = 28.dp
     /** The assistant's bubble over other apps (docs/phone-agent-plan.md §5.7), its ring, and its bar's width at most. */

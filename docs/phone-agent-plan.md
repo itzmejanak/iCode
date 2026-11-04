@@ -395,9 +395,12 @@ header, no cards of actions, no dashboard.
   before: one to three short sentences, the answer or outcome first; no Markdown, lists, tables,
   code or links unless asked; while it works, what it is about to do in a few words; code or long
   detail only when asked, saying first that it is on the screen.
-- **Spoken replies:** *Off*, *In the bubble* (the default: a turn started by voice or from the bubble
-  is answered aloud), or *Always*. What is spoken is the answer and the questions, without Markdown,
-  code blocks or links; a new message, Stop, or a tap on the bubble silences it.
+- **Spoken replies:** *Off*, or *In the bubble* (the default: a turn asked from the bubble is
+  answered aloud). The chat is read, not heard (the owner's call, 2026-11-04: there the user sees
+  the answer): *Always* went, the composer's microphone sends nothing to be read, and an answer in
+  the chat plays from its ▶ beside Copy (`VoiceIntent.Read`), ■ stopping it. What is spoken is the
+  answer and the questions, without Markdown, code blocks or links; a new message, Stop, or a tap on
+  the bubble silences it.
 - The microphone in the bubble and on the chat page's composer listens; the user sends what was
   heard, or says nothing for a moment to send.
 - **Microphone access** comes from the foreground service, started with type `microphone` while

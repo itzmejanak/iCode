@@ -33,7 +33,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,26 +41,14 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithCache
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Matrix
-import androidx.compose.ui.graphics.Outline
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.Shape
-import androidx.compose.ui.graphics.addOutline
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipPath
-import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 
 /**
@@ -154,25 +141,11 @@ fun IcodeFloatingPill(
     menu: List<IcodeMenuAction> = emptyList(),
     content: @Composable RowScope.() -> Unit,
 ) {
-    val line = edgeLine
-    val surface = IcodeColors.SurfaceElevated
     val tabbed = tab.isNotEmpty() || menu.isNotEmpty()
     var open by remember { mutableStateOf(false) }
-    // Written as the tab is measured, read as the pill is drawn: the outline follows the tab in the same frame.
-    val tabWidth = remember { mutableIntStateOf(0) }
+    val tabSize = remember { mutableStateOf(IntSize.Zero) }
     Column(
-        modifier.drawWithCache {
-            val shape = if (tabbed) TabbedPill(tabWidth.intValue.toFloat(), IcodeSizes.BarChoice.toPx()) else IcodeShapes.FloatingPill
-            val fill = Path().apply { addOutline(shape.createOutline(size, layoutDirection, this@drawWithCache)) }
-            val stroke = 1.dp.toPx()
-            // The edge line inside the outline, as Modifier.border draws it.
-            val edge = line?.let { Path().apply { addOutline(shape.createOutline(Size(size.width - stroke, size.height - stroke), layoutDirection, this@drawWithCache)) } }
-            onDrawWithContent {
-                drawPath(fill, surface)
-                clipPath(fill) { this@onDrawWithContent.drawContent() }
-                if (edge != null && line != null) translate(stroke / 2, stroke / 2) { drawPath(edge, line, style = Stroke(stroke)) }
-            }
-        },
+        modifier.tabbedSurface(tabSize.takeIf { tabbed }, IcodeSizes.TouchTarget / 2, IcodeColors.SurfaceElevated, edgeLine),
         horizontalAlignment = Alignment.End,
     ) {
         if (tabbed) {
@@ -180,7 +153,7 @@ fun IcodeFloatingPill(
                 Modifier
                     .height(IcodeSizes.BarChoice)
                     .animateContentSize(tween(TAB_MILLIS), alignment = Alignment.CenterEnd)
-                    .onSizeChanged { tabWidth.intValue = it.width },
+                    .onSizeChanged { tabSize.value = it },
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (open) {
@@ -237,36 +210,6 @@ private fun NamedTabAction(action: IcodeMenuAction, onClick: () -> Unit) {
     ) {
         Icon(action.icon, contentDescription = null, tint = if (action.enabled) IcodeColors.TextSecondary else IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconSm))
         Text(action.label, style = IcodeType.Body.copy(color = color), maxLines = 1)
-    }
-}
-
-/**
- * A floating pill with a tab [tabWidth] px wide rising [rise] px from its top at the end: the pill's
- * top edge curves up into the tab over as long a run as the tab is tall, and the tab's outer corner is
- * as round as the pill's. A tab too wide for the pill starts its curve at the pill's start corner.
- */
-private data class TabbedPill(val tabWidth: Float, val rise: Float) : Shape {
-    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline = with(density) {
-        val w = size.width
-        val h = size.height
-        val r = (IcodeSizes.TouchTarget / 2).toPx().coerceAtMost((h - rise) / 2)
-        val tabStart = (w - tabWidth).coerceAtLeast(r + rise)
-        val path = Path().apply {
-            moveTo(0f, rise + r)
-            arcTo(Rect(0f, rise, 2 * r, rise + 2 * r), 180f, 90f, false)
-            lineTo(tabStart - rise, rise)
-            cubicTo(tabStart - rise / 2, rise, tabStart - rise / 2, 0f, tabStart, 0f)
-            lineTo(w - r, 0f)
-            arcTo(Rect(w - 2 * r, 0f, w, 2 * r), 270f, 90f, false)
-            lineTo(w, h - r)
-            arcTo(Rect(w - 2 * r, h - 2 * r, w, h), 0f, 90f, false)
-            lineTo(r, h)
-            arcTo(Rect(0f, h - 2 * r, 2 * r, h), 90f, 90f, false)
-            close()
-        }
-        // Drawn with the tab at the right; read right to left, it is at the left.
-        if (layoutDirection == LayoutDirection.Rtl) path.transform(Matrix().apply { scale(-1f, 1f); translate(-w, 0f) })
-        Outline.Generic(path)
     }
 }
 

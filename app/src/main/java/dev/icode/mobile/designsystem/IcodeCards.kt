@@ -5,11 +5,12 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -18,13 +19,17 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 
 /** Appearance › Border Lines: whether a surface draws the line at its edge (docs/border-lines-plan.md). */
@@ -39,7 +44,9 @@ internal val edgeLine: Color? @Composable get() = IcodeColors.Outline.takeIf { L
 /**
  * Card surface used by every list, form and panel block, a step above what it stands on. Without a
  * [borderColor] it draws its [edgeLine]; a [borderColor] is a line that says something — a
- * control's edge, a selection, a tone — and is drawn either way.
+ * control's edge, a selection, a tone — and is drawn either way. With a [tab] (the owner's design,
+ * 2026-11-04: a message's files), the tab rises from its top at the end, of the card's own surface,
+ * its top edge curving up into it ([tabbedSurface]), as the bubble's bar holds its actions.
  */
 @Composable
 fun IcodeCard(
@@ -51,6 +58,7 @@ fun IcodeCard(
     /** What a long press does, said as [onLongClickLabel]: a message's Copy and Select Text. */
     onLongClick: (() -> Unit)? = null,
     onLongClickLabel: String? = null,
+    tab: (@Composable RowScope.() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val clickableModifier = when {
@@ -64,6 +72,20 @@ fun IcodeCard(
         else -> Modifier
     }
     val line = borderColor ?: edgeLine
+    val color = if (elevated) IcodeColors.SurfaceElevated else IcodeColors.Surface
+    if (tab != null) {
+        val tabSize = remember { mutableStateOf(IntSize.Zero) }
+        Column(modifier.tabbedSurface(tabSize, IcodeShapes.SmallCorner, color, line).then(clickableModifier), horizontalAlignment = Alignment.End) {
+            Row(
+                Modifier.onSizeChanged { tabSize.value = it }.padding(IcodeSpacing.Space1),
+                horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
+                verticalAlignment = Alignment.CenterVertically,
+                content = tab,
+            )
+            Column(Modifier.fillMaxWidth().padding(padding), content = content)
+        }
+        return
+    }
     Column(
         modifier = modifier
             .clip(IcodeShapes.Small)
