@@ -43,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
@@ -112,10 +113,15 @@ internal fun PhoneBubble(view: PhoneBubbleView, actions: PhoneBubbleActions) {
     val face = if (view.voiceUp) Face.Voice else if (view.bar) Face.Bar else Face.Bubble
     AnimatedContent(
         targetState = face,
+        // Drawn only, never laid out frame by frame: the window wraps its content, so a size that
+        // animated would resize and place the window on every frame — the bar drawn squeezed, and
+        // late. The size changes once; each face fades and grows from where the bubble sits.
         transitionSpec = {
-            (fadeIn(tween(MORPH_MILLIS)) + scaleIn(initialScale = MORPH_SCALE, animationSpec = tween(MORPH_MILLIS))) togetherWith
-                (fadeOut(tween(MORPH_MILLIS / 2)) + scaleOut(targetScale = MORPH_SCALE, animationSpec = tween(MORPH_MILLIS / 2)))
+            (fadeIn(tween(MORPH_MILLIS)) + scaleIn(initialScale = MORPH_SCALE, animationSpec = tween(MORPH_MILLIS), transformOrigin = FROM_BUBBLE)) togetherWith
+                (fadeOut(tween(MORPH_MILLIS / 2)) + scaleOut(targetScale = MORPH_SCALE, animationSpec = tween(MORPH_MILLIS / 2), transformOrigin = FROM_BUBBLE)) using
+                null
         },
+        contentAlignment = Alignment.BottomCenter,
         label = "face",
     ) { target ->
         when (target) {
@@ -264,6 +270,9 @@ private const val PRESSED_SCALE = 0.94f
 private const val TUCKED_ALPHA = 0.55f
 private const val MORPH_MILLIS = 220
 private const val MORPH_SCALE = 0.88f
+
+/** Where the bubble sits in its window, anchored at the bottom: each face grows from there. */
+private val FROM_BUBBLE = TransformOrigin(0.5f, 1f)
 private const val WAVE_MILLIS = 1_100
 private const val WAVE_FLOOR = 0.35f
 private const val WAVE_STEP = 1.3f
