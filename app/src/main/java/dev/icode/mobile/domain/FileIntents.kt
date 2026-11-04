@@ -47,7 +47,7 @@ sealed interface FilesIntent : ICodeIntent {
     /** The archive waiting on its password is not extracted after all. */
     data object DismissPassword : FilesIntent
 
-    /** Delete: to Trash, without a dialog, since it can be undone (§3.7). */
+    /** Delete: to Trash, without asking, since it can be undone (§3.7). */
     data class Trash(val locations: List<String>) : FilesIntent
 
     /** Trash's items back where they were. */

@@ -20,7 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeConfirmDialog
+import dev.icode.mobile.designsystem.IcodeConfirmSheet
 import dev.icode.mobile.designsystem.IcodePageColumn
 import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSpacing
@@ -147,7 +147,7 @@ fun StorageSettingsScreen(actions: NavigationActions) {
     }
 
     if (confirmClearCache) {
-        IcodeConfirmDialog(
+        IcodeConfirmSheet(
             title = "Clear runtime cache?",
             confirmLabel = "Clear cache",
             onConfirm = {

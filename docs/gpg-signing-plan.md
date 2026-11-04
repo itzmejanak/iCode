@@ -79,7 +79,7 @@ The keys and Git's settings are gpg's and Git's own, as on any computer. So the 
 | `domain/GpgPrompts.kt` | `GpgPrompt`, `GpgAnswer`, `GpgRequest`, `GpgIntent`, `GpgRequests`: the request kinds, parsing, Assuan's escapes, the answer line |
 | `data/runtime/GuestGpg.kt` | The script (`script`) and `/etc/gnupg`, written by `RuntimeInstaller.configureGuest` beside `GuestSudo` |
 | `data/runtime/GpgBridge.kt` | Watches the requests, starts the agent, answers; owned by `RuntimeExecution` |
-| `ui/GpgPromptDialog.kt`, `IcodeApp` | The dialog, over any screen; `IcodeConfirmDialog` gained `dismissLabel` |
+| `ui/GpgPromptSheet.kt`, `IcodeApp` | The dialog, over any screen; `IcodeConfirmSheet` gained `dismissLabel` |
 | `domain/GitSigning.kt` | §7: `GitSigningKey`, `GitSigningState`, `GitCommitSignature`, `SigningIntent`, `GitSigningRules`: gpg's listing, the key `user.signingkey` names, `%G?`, gpg's failure, the email GitHub matches |
 | `domain/GitProviders.kt` | `GitProvider` (moved from `GitContract.kt`), with `gpgKeyUrl` |
 | `data/git/GitAuthenticator.kt`, `GitAuthCoordinator.kt` | gpg's keys, a key made, its passphrase changed; Git's `user.signingkey`, `gpg.format`, `commit.gpgsign` |

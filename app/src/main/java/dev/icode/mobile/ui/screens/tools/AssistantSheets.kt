@@ -23,7 +23,7 @@ import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.IcodeBottomSheet
 import dev.icode.mobile.designsystem.IcodeChoiceRow
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeConfirmDialog
+import dev.icode.mobile.designsystem.IcodeConfirmSheet
 import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
@@ -105,7 +105,7 @@ internal fun AssistantChatsSheet(state: AssistantState, modifier: Modifier, onCl
         }
     }
     deleting?.let { session ->
-        IcodeConfirmDialog(
+        IcodeConfirmSheet(
             title = "Delete this chat?",
             message = "“${session.title}” is deleted from this phone. Every change the assistant made stays in the files.",
             confirmLabel = "Delete",

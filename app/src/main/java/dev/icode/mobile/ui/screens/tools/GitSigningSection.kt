@@ -13,7 +13,7 @@ import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.DetailRow
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeConfirmDialog
+import dev.icode.mobile.designsystem.IcodeConfirmSheet
 import dev.icode.mobile.designsystem.IcodeSelect
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeToggle
@@ -38,7 +38,7 @@ import java.time.ZoneId
 /**
  * The Signing step of Git Credentials (docs/gpg-signing-plan.md §7): the gpg key Git signs every
  * commit with — made here from the default identity, or one gpg already holds — its public half for
- * the provider's form, and its passphrase, which GnuPG asks in its own dialog.
+ * the provider's form, and its passphrase, which GnuPG asks in its own sheet.
  */
 @Composable
 internal fun SigningSection(
@@ -128,7 +128,7 @@ internal fun SigningSection(
         }
     }
     if (creating && identity != null) {
-        IcodeConfirmDialog(
+        IcodeConfirmSheet(
             title = "Create Key",
             confirmLabel = "Create",
             onConfirm = {
@@ -139,7 +139,7 @@ internal fun SigningSection(
         ) {
             DetailRow("Identity", identity, valueStyle = IcodeType.MonoSmall)
             Text("ed25519 · expires in 3 years", style = IcodeType.Body)
-            Text("The passphrase is asked in the GnuPG dialog.", style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary))
+            Text("The passphrase is asked in the GnuPG sheet.", style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary))
         }
     }
 }

@@ -31,7 +31,7 @@ import androidx.compose.ui.text.font.FontWeight
 import dev.icode.mobile.designsystem.Divider
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeConfirmDialog
+import dev.icode.mobile.designsystem.IcodeConfirmSheet
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTextButton
 import dev.icode.mobile.designsystem.IcodeType
@@ -136,7 +136,7 @@ internal fun RunPanelContent(
     }
 
     if (need == RunNeed.AndroidSdk) {
-        IcodeConfirmDialog(
+        IcodeConfirmSheet(
             title = "Android SDK Needed",
             confirmLabel = "Open Runtime Tools",
             onConfirm = { need = null; navigate(Route.RuntimeTools) },
@@ -146,7 +146,7 @@ internal fun RunPanelContent(
         }
     }
     if (need == RunNeed.NativeTools) {
-        IcodeConfirmDialog(
+        IcodeConfirmSheet(
             title = "NDK and CMake Needed",
             confirmLabel = "Open Runtime Tools",
             onConfirm = { need = null; navigate(Route.RuntimeTools) },

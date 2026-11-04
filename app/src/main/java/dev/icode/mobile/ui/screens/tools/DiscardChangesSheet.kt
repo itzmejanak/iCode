@@ -1,7 +1,7 @@
 package dev.icode.mobile.ui.screens.tools
 
 import androidx.compose.runtime.Composable
-import dev.icode.mobile.designsystem.IcodeConfirmDialog
+import dev.icode.mobile.designsystem.IcodeConfirmSheet
 import dev.icode.mobile.domain.GitChange
 import dev.icode.mobile.domain.GitDiscard
 import dev.icode.mobile.domain.GitStatusCodes
@@ -11,12 +11,12 @@ import dev.icode.mobile.domain.countOf
 
 /**
  * Confirms a discard — one file's unstaged change, or all a folder holds — in the app's one
- * confirmation dialog, over whatever asked for it. An edit returns to its staged or committed
+ * confirmation sheet, over whatever asked for it. An edit returns to its staged or committed
  * version and a new file is deleted: neither comes back, so the path and what happens to each
  * kind are said before the destructive button.
  */
 @Composable
-internal fun DiscardChangesDialog(discard: GitDiscard, gateway: ICodeGateway) {
+internal fun DiscardChangesSheet(discard: GitDiscard, gateway: ICodeGateway) {
     val single = if (discard.folder) null else discard.changes.single()
     val (title, confirm) = when {
         single == null -> "Discard ${countOf(discard.changes.size, "change")} in ${discard.name}?" to "Discard"
@@ -24,7 +24,7 @@ internal fun DiscardChangesDialog(discard: GitDiscard, gateway: ICodeGateway) {
         single.status == GitStatusCodes.DELETED -> "Restore ${discard.name}?" to "Restore"
         else -> "Discard changes to ${discard.name}?" to "Discard"
     }
-    IcodeConfirmDialog(
+    IcodeConfirmSheet(
         title = title,
         message = if (single == null) folderConsequence(discard.changes) else consequence(single),
         confirmLabel = confirm,

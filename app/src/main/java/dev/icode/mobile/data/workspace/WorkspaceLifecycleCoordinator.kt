@@ -51,7 +51,7 @@ internal class WorkspaceLifecycleCoordinator(
         }.onFailure { error -> fail(intent.requestId, stateHolder.failureText("workspace", "Unable to create the workspace", error)) }
     }
 
-    /** The workspace [from] renamed [newName], in one step on its one filesystem; the dialog that asked is answered by [requestId]. */
+    /** The workspace [from] renamed [newName], in one step on its one filesystem; the sheet that asked is answered by [requestId]. */
     suspend fun rename(from: String, newName: String, requestId: String) {
         val name = newName.trim()
         if (!source.isWorkspace(from)) return fail(requestId, "This workspace no longer exists")

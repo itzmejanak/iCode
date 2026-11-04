@@ -44,7 +44,7 @@ internal object GuestGpg {
         "#!/bin/sh",
         "# ${RuntimeLayout.MANAGED} under two names (docs/gpg-signing-plan.md).",
         "# icode-pinentry: gpg-agent's pinentry; it asks for a passphrase, or a yes or",
-        "#   no, in iCode's own dialog.",
+        "#   no, in iCode's own sheet.",
         "# icode-gpg-agent: gpg's agent program; it has iCode start gpg-agent in a",
         "#   session of its own, where it outlives the command that needed it and keeps",
         "#   the passphrase as long as /etc/gnupg/gpg-agent.conf says.",
@@ -57,7 +57,7 @@ internal object GuestGpg {
         "",
         "# ask KIND [LINE]...: hands iCode a request; \$reply is the one line it answers.",
         "# It runs in this shell, not a subshell, so gpg-agent's signal ends it through",
-        "# the trap, and iCode's dialog closes with the request.",
+        "# the trap, and iCode's sheet closes with the request.",
         "ask() {",
         "  mkdir -p \"\$dir\" && mkfifo -m 600 \"\$answer\" || return 1",
         "  # Read and write: opening never waits on iCode, and the answer waits in the pipe.",
@@ -124,7 +124,7 @@ internal object GuestGpg {
     """.trimIndent() + "\n"
 
     private val AGENT_CONF = """
-        # ${RuntimeLayout.MANAGED} a passphrase is asked in iCode's own dialog, and kept until 30 minutes
+        # ${RuntimeLayout.MANAGED} a passphrase is asked in iCode's own sheet, and kept until 30 minutes
         # after it was last used (2 hours at most, gpg-agent's max-cache-ttl).
         # ~/.gnupg/gpg-agent.conf overrides these.
         pinentry-program $PINENTRY

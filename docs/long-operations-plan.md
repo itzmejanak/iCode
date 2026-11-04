@@ -102,7 +102,7 @@ on a foundation with no gaps in how the features are wired.
 |---|---|
 | **The backend belongs to one screen.** `AndroidICodeViewModel` builds its own `AndroidICodeGateway` and `onCleared` calls `close()`, which cancels the gateway's scope. Leaving iCode with Back, or swiping it from Recents while work runs, cancels a running delete (half a folder left), an import, a clone or a sync, and the runtime install | `AndroidICodeViewModel`, `AndroidICodeGateway.close` |
 | **Nothing keeps the process for a task.** `RuntimeForegroundService` runs while a terminal session runs or the runtime installs (`RuntimeWork.installing`), nothing else: a task, a Git transfer or an apt install in the background dies with the process Android reclaims | `RuntimeForegroundService.idle` |
-| **A hidden task has no notification.** It shows as a row in the Explorer and the launcher (`BackgroundTasks`) — inside iCode only | `TaskDialogs.kt` |
+| **A hidden task has no notification.** It shows as a row in the Explorer and the launcher (`BackgroundTasks`) — inside iCode only | `TaskSheets.kt` |
 | **Two keep-alive signals.** Sessions, and `RuntimeWork` for the install alone | `RuntimeWork.kt` |
 | **A failure while away is silent** until iCode is opened again | — |
 
@@ -162,11 +162,11 @@ On success nothing new is posted (§5): the dialog or notification ends and the 
   rest). 8 tests. Gate: 474 tests; lint 0 errors / 11 warnings; both guards pass. The dialog
   (T2) is next: until it lands, a delete runs with no dialog, as before, but no longer blocks
   the workspace.
-- **T2** (2026-09-29): `IcodeProgressDialog` (design system): the title with HIDE at its right
+- **T2** (2026-09-29): `IcodeProgressSheet` (design system): the title with HIDE at its right
   (and CANCEL where the task allows it), the item in hand on one line, cut at its end, and a bar
   that sweeps while counting (a bar frozen at zero reads as a hang — the app's rule, where the
   reference shows an empty bar) and fills after; a tap outside does nothing, Back hides.
-  `IcodeProgressFailedDialog`: why it stopped, and OK. `TaskDialogs` (ui) draws the oldest
+  `IcodeProgressFailedSheet`: why it stopped, and OK. `TaskSheets` (ui) draws the oldest
   visible task over any screen; `BackgroundTasks` shows each hidden one in the Explorer as a thin
   row with its share, and a tap brings its dialog back. On the phone (fresh APK; a scratch
   folder of 12,061 entries in the scratch workspace): the dialog within 0.8 s of Delete, "…"

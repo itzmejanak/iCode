@@ -5,7 +5,7 @@ enum class RouteGroup(val label: String) {
     WORKSPACE("Workspace"),
     TOOLS("Tools & Git"),
     SETTINGS("Settings"),
-    RECOVERY("Recovery & dialogs"),
+    RECOVERY("Recovery & sheets"),
 }
 
 enum class Route(

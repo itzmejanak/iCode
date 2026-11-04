@@ -16,7 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.IcodeActionSheet
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeConfirmDialog
+import dev.icode.mobile.designsystem.IcodeConfirmSheet
 import dev.icode.mobile.designsystem.IcodeMenuAction
 import dev.icode.mobile.designsystem.IcodeSheetOverlay
 import dev.icode.mobile.designsystem.IcodeType
@@ -47,7 +47,7 @@ internal data class RunCommandAsk(val what: What, val id: String? = null) {
 
 /**
  * The Run tab's [ask], over the whole tools panel: a saved command's sheet (docs/explorer-gaps-plan.md
- * §3.1) — Edit…, and Delete, last — or the dialog that makes, changes or deletes one. [onAsk] moves on
+ * §3.1) — Edit…, and Delete, last — or the sheet that makes, changes or deletes one. [onAsk] moves on
  * to the next, or to none.
  */
 @Composable
@@ -58,7 +58,7 @@ internal fun BoxScope.RunCommandAsks(ask: RunCommandAsk?, onAsk: (RunCommandAsk?
     val done = { onAsk(null) }
     when (ask?.what) {
         null -> Unit
-        RunCommandAsk.What.New -> RunCommandDialog(existing = null, onDismiss = done)
+        RunCommandAsk.What.New -> RunCommandSheet(existing = null, onDismiss = done)
         RunCommandAsk.What.Sheet -> command?.let {
             IcodeSheetOverlay(onClose = done) {
                 IcodeActionSheet(
@@ -74,9 +74,9 @@ internal fun BoxScope.RunCommandAsks(ask: RunCommandAsk?, onAsk: (RunCommandAsk?
                 )
             }
         }
-        RunCommandAsk.What.Edit -> command?.let { RunCommandDialog(existing = it, onDismiss = done) }
+        RunCommandAsk.What.Edit -> command?.let { RunCommandSheet(existing = it, onDismiss = done) }
         RunCommandAsk.What.Delete -> command?.let {
-            IcodeConfirmDialog(
+            IcodeConfirmSheet(
                 title = "Delete ${it.name}?",
                 confirmLabel = "Delete",
                 destructive = true,
@@ -91,11 +91,11 @@ internal fun BoxScope.RunCommandAsks(ask: RunCommandAsk?, onAsk: (RunCommandAsk?
 
 /** A saved command, new or changed: a name, which may be left to the command's first word, and the command line. */
 @Composable
-private fun RunCommandDialog(existing: RunConfiguration.Command?, onDismiss: () -> Unit) {
+private fun RunCommandSheet(existing: RunConfiguration.Command?, onDismiss: () -> Unit) {
     val gateway = LocalICodeGateway.current
     var name by rememberSaveable(existing?.id) { mutableStateOf(existing?.name.orEmpty()) }
     var command by rememberSaveable(existing?.id) { mutableStateOf(existing?.command.orEmpty()) }
-    IcodeConfirmDialog(
+    IcodeConfirmSheet(
         title = if (existing == null) "New command" else "Edit command",
         confirmLabel = "Save",
         confirmEnabled = command.isNotBlank(),

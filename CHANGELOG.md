@@ -41,6 +41,10 @@ All notable changes to iCode are documented here. The format follows
   tab itself. Listening, it becomes a voice bubble: the words heard, Mute and Stop. It tucks half
   away when idle. Android's own accessibility button is no longer asked for, so there is one icon,
   not two; Phone Control says how to remove one an earlier build left.
+- iCode has no dialogs: every confirmation, question and long operation is a sheet, and every sheet
+  closes with a swipe down as well as ×, Back or a tap outside.
+- The bell and the undo pill say nothing in words: a notice rings the bell with the unread count, and
+  the undo pill shows ↶ and ↷; their × stands apart at the top end.
 
 ## [0.1.0]
 

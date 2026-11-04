@@ -12,8 +12,8 @@ import dev.icode.mobile.domain.ICodeEffect
 import java.util.UUID
 
 /**
- * A dialog's one request to the gateway, answered by its id: a new file or folder, a rename. The
- * dialog waits while it is sent, closes when it is done, and says why when it failed.
+ * A sheet's one request to the gateway, answered by its id: a new file or folder, a rename. The
+ * sheet waits while it is sent, closes when it is done, and says why when it failed.
  */
 @Stable
 class PendingRequest internal constructor() {
@@ -33,7 +33,7 @@ class PendingRequest internal constructor() {
     }
 }
 
-/** A [PendingRequest] for the dialog keyed by [key]; [onDone] runs once the gateway says it is done. */
+/** A [PendingRequest] for the sheet keyed by [key]; [onDone] runs once the gateway says it is done. */
 @Composable
 fun rememberPendingRequest(key: Any?, onDone: () -> Unit): PendingRequest {
     val gateway = LocalICodeGateway.current

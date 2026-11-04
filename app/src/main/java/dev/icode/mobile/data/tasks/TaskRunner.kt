@@ -115,7 +115,7 @@ internal class TaskRunner(
         jobs[id] = job
         stateHolder.update { it.copy(tasks = it.tasks + WorkTask(id, title, subject, cancellable = cancellable, quiet = true)) }
         job.start()
-        // Still running a moment later: now its dialog and notification show.
+        // Still running a moment later: now its sheet and notification show.
         scope.launch {
             delay(QUIET_MILLIS)
             update(id) { it.copy(quiet = false) }
@@ -131,7 +131,7 @@ internal class TaskRunner(
             null, is CancellationException -> stateHolder.update { state -> state.copy(tasks = state.tasks.filterNot { it.id == id }) }
             else -> {
                 val reason = stateHolder.failureText("tasks", failure, outcome)
-                // Said in the dialog: a hidden task comes back to say why it stopped.
+                // Said in the sheet: a hidden task comes back to say why it stopped.
                 update(id) { it.copy(failure = reason, hidden = false, quiet = false) }
             }
         }
@@ -159,7 +159,7 @@ internal class TaskRunner(
         /** A few updates a second: fast enough to move, slow enough not to flood the screen. */
         const val PUBLISH_INTERVAL_MILLIS = 150L
 
-        /** What ends sooner never shows a dialog: a rename, a move to Trash, a small copy. */
+        /** What ends sooner never shows a sheet: a rename, a move to Trash, a small copy. */
         const val QUIET_MILLIS = 500L
     }
 }

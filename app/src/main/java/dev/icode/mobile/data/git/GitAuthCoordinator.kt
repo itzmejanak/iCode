@@ -96,7 +96,7 @@ internal class GitAuthCoordinator(
         refresh()
     }
 
-    /** What never waits on the mutation lock: apt, ssh-keygen, gpg — and the GnuPG dialog — and the network. */
+    /** What never waits on the mutation lock: apt, ssh-keygen, gpg — and the GnuPG sheet — and the network. */
     suspend fun handle(intent: GitAuthWorkIntent) = when (intent) {
         ICodeIntent.GenerateSshKey -> generateSshKey()
         is ICodeIntent.TestGitConnection -> testConnection(intent.url)
@@ -117,7 +117,7 @@ internal class GitAuthCoordinator(
 
     /**
      * A key of gpg's defaults for the default commit identity — gpg asks its passphrase in the GnuPG
-     * dialog — then Git signs every commit with it.
+     * sheet — then Git signs every commit with it.
      */
     private suspend fun createSigningKey() = alone(GitAuthWork.CreatingSigningKey) {
         val name = config.readConfig(GitConfigScope.Global, "user.name")

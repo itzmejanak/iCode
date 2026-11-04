@@ -14,7 +14,7 @@ import java.io.File
 /**
  * New files and folders (S3), from the Explorer, the editor's tab menu and the file explorer, and an
  * item's rename — in a workspace and on phone storage alike (docs/storage-explorer-plan.md §4). The
- * dialog that asked is answered by request id; each change is kept to undo, and followed by
+ * sheet that asked is answered by request id; each change is kept to undo, and followed by
  * [follower]. A whole workspace is renamed by the [lifecycle]. Everything else an explorer does to
  * its files is the FileOperationsCoordinator's.
  */
@@ -64,7 +64,7 @@ internal class WorkspaceItemsCoordinator(
 
     /**
      * The workspace [parent] is in, when something may be made there: inside a workspace, outside
-     * `.git`, and — when the dialog named one — in the workspace it was opened for. On phone storage,
+     * `.git`, and — when the sheet named one — in the workspace it was opened for. On phone storage,
      * its top, once it may be changed.
      */
     private suspend fun creationRoot(parent: String, expectedWorkspace: String?, requestId: String?): String? {
@@ -107,15 +107,15 @@ internal class WorkspaceItemsCoordinator(
     private fun isCreationParent(root: String, parent: String): Boolean =
         paths.within(root, parent)?.none { it.toString() == ".git" } == true
 
-    /** Phone storage can be changed only with All Files Access: why not now, told to the dialog; null when it can. */
+    /** Phone storage can be changed only with All Files Access: why not now, told to the sheet; null when it can. */
     private suspend fun accessRefusal(location: String, requestId: String?): String? =
         places.accessRefusal(listOf(location))?.also { fail(requestId, it) }
 
-    /** What was refused: to the dialog that asked, by [requestId], else on the bell. */
+    /** What was refused: to the sheet that asked, by [requestId], else on the bell. */
     private suspend fun fail(requestId: String?, message: String) =
         if (requestId == null) stateHolder.notify(NoticeTone.HeadsUp, message) else stateHolder.emit(ICodeEffect.WorkspaceItemFailed(requestId, message))
 
-    /** What failed: to the dialog that asked, in the error's words, else on the bell as [fallback]. */
+    /** What failed: to the sheet that asked, in the error's words, else on the bell as [fallback]. */
     private suspend fun failed(requestId: String?, fallback: String, error: Throwable) = stateHolder.failureText("workspace", fallback, error).let { words ->
         if (requestId == null) stateHolder.failed(fallback, words) else stateHolder.emit(ICodeEffect.WorkspaceItemFailed(requestId, words))
     }

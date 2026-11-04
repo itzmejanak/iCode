@@ -1,28 +1,24 @@
 package dev.icode.mobile.designsystem
 
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
@@ -101,23 +97,13 @@ fun EmptyState(
     }
 }
 
-/** Shared elevated surface for compact modals and full-screen dialog routes. */
+/**
+ * A question with an answer to confirm, as a sheet (owner's request, 2026-11-04: no dialogs): its
+ * [title], [content], and Cancel beside the answer — red when it is [destructive]. Not
+ * [dismissEnabled], it must be answered: no ×, no swipe, no tap outside.
+ */
 @Composable
-fun IcodeDialogCard(
-    modifier: Modifier = Modifier,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    IcodeCard(
-        modifier = modifier,
-        elevated = true,
-        padding = PaddingValues(IcodeSpacing.Space4),
-        content = content,
-    )
-}
-
-/** Compact modal confirmation using the same surface and actions as screen dialogs. */
-@Composable
-fun IcodeConfirmDialog(
+fun IcodeConfirmSheet(
     title: String,
     confirmLabel: String,
     onConfirm: () -> Unit,
@@ -128,53 +114,70 @@ fun IcodeConfirmDialog(
     dismissLabel: String = "Cancel",
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Dialog(onDismissRequest = { if (dismissEnabled) onDismiss() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Box(Modifier.fillMaxWidth().padding(IcodeSpacing.Space4), contentAlignment = Alignment.Center) {
-            IcodeDialogCard(
-                modifier = Modifier.widthIn(max = IcodeSizes.DialogMaxWidth).fillMaxWidth(),
-            ) {
-                Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3)) {
-                    Text(
-                        title,
-                        style = IcodeType.Title.copy(color = if (destructive) IcodeColors.Error else IcodeColors.TextPrimary),
-                    )
-                    Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2), content = content)
-                    TwoColumnActions(
-                        left = { SecondaryButton(dismissLabel, onDismiss, Modifier.fillMaxWidth(), enabled = dismissEnabled) },
-                        right = {
-                            if (destructive) DangerButton(confirmLabel, onConfirm, Modifier.fillMaxWidth(), filled = true)
-                            else PrimaryButton(confirmLabel, onConfirm, Modifier.fillMaxWidth(), enabled = confirmEnabled)
-                        },
-                        modifier = Modifier.padding(top = IcodeSpacing.Space1),
-                    )
-                }
-            }
-        }
+    val dismiss = { if (dismissEnabled) onDismiss() }
+    IcodeModalSheet(onClose = dismiss) {
+        IcodeBottomSheet(
+            title = title,
+            onClose = dismiss,
+            modifier = Modifier.align(Alignment.BottomCenter),
+            closable = dismissEnabled,
+            footer = {
+                TwoColumnActions(
+                    left = { SecondaryButton(dismissLabel, onDismiss, Modifier.fillMaxWidth(), enabled = dismissEnabled) },
+                    right = {
+                        if (destructive) DangerButton(confirmLabel, onConfirm, Modifier.fillMaxWidth(), filled = true)
+                        else PrimaryButton(confirmLabel, onConfirm, Modifier.fillMaxWidth(), enabled = confirmEnabled)
+                    },
+                )
+            },
+            content = content,
+        )
     }
 }
 
-/** Three-way confirmation for an unsaved editor tab (or a set of tabs). */
+/**
+ * A confirmation for an action that cannot be undone: [message], the thing it acts on as [detail],
+ * and the action in red. Destructive actions get a visible control and this sheet rather than a
+ * hidden gesture: a long press gives no warning and no way back.
+ */
 @Composable
-fun IcodeSaveDiscardDialog(
+fun IcodeConfirmSheet(
+    title: String,
+    message: String,
+    confirmLabel: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    detail: String? = null,
+) {
+    IcodeConfirmSheet(title, confirmLabel, onConfirm, onDismiss, destructive = true) {
+        Text(message, style = IcodeType.Body, color = IcodeColors.TextSecondary)
+        if (detail != null) MonoLine(detail, color = IcodeColors.Accent, style = IcodeType.MonoSmall)
+    }
+}
+
+/** Three ways out of an unsaved editor tab (or a set of tabs), as a sheet: Discard, Save, or nothing (Cancel, ×). */
+@Composable
+fun IcodeSaveDiscardSheet(
     title: String,
     description: String,
     onSave: () -> Unit,
     onDiscard: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Box(Modifier.fillMaxWidth().padding(IcodeSpacing.Space4), contentAlignment = Alignment.Center) {
-            IcodeDialogCard(Modifier.widthIn(max = IcodeSizes.DialogMaxWidth).fillMaxWidth()) {
-                Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3)) {
-                    Text(title, style = IcodeType.Title)
-                    Text(description, style = IcodeType.Body, color = IcodeColors.TextSecondary)
-                    TwoColumnActions(
-                        left = { DangerButton("Discard", onDiscard, Modifier.fillMaxWidth()) },
-                        right = { PrimaryButton("Save", onSave, Modifier.fillMaxWidth()) },
-                    )
-                    SecondaryButton("Cancel", onDismiss, Modifier.fillMaxWidth())
-                }
-            }
+    IcodeModalSheet(onClose = onDismiss) {
+        IcodeBottomSheet(
+            title = title,
+            onClose = onDismiss,
+            modifier = Modifier.align(Alignment.BottomCenter),
+            footer = {
+                TwoColumnActions(
+                    left = { DangerButton("Discard", onDiscard, Modifier.fillMaxWidth()) },
+                    right = { PrimaryButton("Save", onSave, Modifier.fillMaxWidth()) },
+                )
+                SecondaryButton("Cancel", onDismiss, Modifier.fillMaxWidth())
+            },
+        ) {
+            Text(description, style = IcodeType.Body, color = IcodeColors.TextSecondary)
         }
     }
 }
@@ -189,6 +192,11 @@ fun IcodeSaveDiscardDialog(
  * [subtitle] says the state of what it shows; [onBack] leads back to the sheet's page before this
  * one, by ← before the title (docs/assistant-sheets-plan.md §2.5). [leading] stands before the title:
  * the icon or thumbnail of the item the sheet is about.
+ *
+ * Swiped down, it closes as × does (owner's request, 2026-11-04): the sheet follows the finger —
+ * from its title or footer, or from its content once that is at its top — and let go past a quarter
+ * of its height, or flung down, it slides away; short of that it springs back. Not [closable] (a
+ * question that must be answered), it has no × and does not move.
  */
 @Composable
 fun IcodeBottomSheet(
@@ -200,13 +208,16 @@ fun IcodeBottomSheet(
     scroll: Boolean = true,
     footer: (@Composable ColumnScope.() -> Unit)? = null,
     leading: (@Composable () -> Unit)? = null,
+    closable: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val swipe = rememberSheetSwipe(onClose)
     // Its cards stand a step above it, as a page's above the page.
     CompositionLocalProvider(LocalIcodeCardRaised provides true) {
         Column(
             modifier = modifier
                 .fillMaxWidth()
+                .then(if (closable) swipe.modifier else Modifier)
                 .background(IcodeColors.Surface, IcodeShapes.Sheet)
                 // A tap on the sheet stays on it, never reaching the screen it is over.
                 .pointerInput(Unit) {}
@@ -233,8 +244,10 @@ fun IcodeBottomSheet(
                     Text(title, style = IcodeType.Title, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     subtitle?.let { Text(it, style = IcodeType.Caption) }
                 }
-                IconButton(onClick = onClose) {
-                    Icon(Icons.Outlined.Close, contentDescription = "Close", tint = IcodeColors.TextSecondary)
+                if (closable) {
+                    IconButton(onClick = onClose) {
+                        Icon(Icons.Outlined.Close, contentDescription = "Close", tint = IcodeColors.TextSecondary)
+                    }
                 }
             }
             Column(
@@ -247,40 +260,6 @@ fun IcodeBottomSheet(
                     Modifier.padding(top = IcodeSpacing.Space3),
                     verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
                     content = footer,
-                )
-            }
-        }
-    }
-}
-
-/**
- * Modal confirmation for an action that cannot be undone.
- *
- * Destructive actions get a visible control and this dialog rather than a
- * hidden gesture: a long press gives no warning and no way back.
- */
-@Composable
-fun IcodeConfirmDialog(
-    title: String,
-    message: String,
-    confirmLabel: String,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-    detail: String? = null,
-) {
-    Dialog(onDismissRequest = onDismiss) {
-        IcodeDialogCard(Modifier.fillMaxWidth()) {
-            Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3)) {
-                Text(title, style = IcodeType.Title.copy(color = IcodeColors.Error))
-                Text(message, style = IcodeType.Body, color = IcodeColors.TextSecondary)
-                if (detail != null) {
-                    MonoLine(detail, color = IcodeColors.Accent, style = IcodeType.MonoSmall)
-                }
-                TwoColumnActions(
-                    left = { SecondaryButton("Cancel", onDismiss, Modifier.fillMaxWidth()) },
-                    right = {
-                        DangerButton(confirmLabel, onConfirm, Modifier.fillMaxWidth(), filled = true)
-                    },
                 )
             }
         }

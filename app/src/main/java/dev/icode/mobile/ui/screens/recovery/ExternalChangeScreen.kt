@@ -13,7 +13,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeConfirmDialog
+import dev.icode.mobile.designsystem.IcodeConfirmSheet
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.MonoLine
@@ -30,18 +30,18 @@ import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
  * A file changed on disk while it had unsaved edits here (US-EDIT-009): which
- * version wins. The same dialog as every other question the editor asks.
+ * version wins. The same sheet as every other question the editor asks.
  * Nothing is written until the user says; Cancel keeps both, and autosave waits.
  */
 @Composable
-fun ExternalChangeDialog(
+fun ExternalChangeSheet(
     change: ExternalChange,
     onReload: () -> Unit,
     onCompare: () -> Unit,
     onOverwrite: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    IcodeConfirmDialog(
+    IcodeConfirmSheet(
         title = "${change.name} changed on disk",
         confirmLabel = "Reload from disk",
         onConfirm = onReload,
@@ -80,7 +80,7 @@ fun ExternalChangePrompt(
         }
     }
     val change = snapshot.externalChanges.firstOrNull { it.location == asked } ?: return
-    ExternalChangeDialog(
+    ExternalChangeSheet(
         change = change,
         onReload = {
             gateway.dispatch(ICodeIntent.ReloadFromDisk(change.location))
@@ -100,7 +100,7 @@ fun ExternalChangePrompt(
     )
 }
 
-/** The captured frame: the dialog as it appears over the editor. */
+/** The captured frame: the sheet as it appears over the editor. */
 @Composable
 fun ExternalChangeScreen(actions: NavigationActions) {
     val state = LocalICodeSnapshot.current
@@ -114,7 +114,7 @@ fun ExternalChangeScreen(actions: NavigationActions) {
         )
         return
     }
-    ExternalChangeDialog(
+    ExternalChangeSheet(
         change = change,
         onReload = {
             gateway.dispatch(ICodeIntent.ReloadFromDisk(change.location))

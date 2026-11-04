@@ -9,48 +9,49 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.net.toUri
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.core.view.WindowCompat
-import dev.icode.mobile.domain.NoticeIntent
-import dev.icode.mobile.domain.NoticeTone
-import dev.icode.mobile.navigation.ToolPanelTab
-import dev.icode.mobile.ui.terminal.TerminalSessionSource
 import dev.icode.mobile.data.settings.AndroidWorkspacePreferencesRepository
 import dev.icode.mobile.data.workspace.DocumentAutoSaveCoordinator
 import dev.icode.mobile.designsystem.IcodeFloatingStack
 import dev.icode.mobile.designsystem.IcodeFloors
 import dev.icode.mobile.designsystem.IcodeScreen
+import dev.icode.mobile.designsystem.IcodeSheetHost
 import dev.icode.mobile.designsystem.IcodeTheme
-import dev.icode.mobile.designsystem.PaletteKind
 import dev.icode.mobile.designsystem.LocalIcodeFloors
-import dev.icode.mobile.navigation.NavigationActions
-import dev.icode.mobile.navigation.RouteGroup
-import dev.icode.mobile.navigation.Route
-import dev.icode.mobile.ui.screens.tools.DiscardChangesDialog
+import dev.icode.mobile.designsystem.PaletteKind
+import dev.icode.mobile.domain.GitActionRules
+import dev.icode.mobile.domain.GitSyncAction
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeGateway
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.NoticeIntent
+import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.WorkspacePreferences
 import dev.icode.mobile.domain.WorkspacePreferencesRepository
-import dev.icode.mobile.domain.GitActionRules
-import dev.icode.mobile.domain.GitSyncAction
+import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.navigation.Route
+import dev.icode.mobile.navigation.RouteGroup
+import dev.icode.mobile.navigation.ToolPanelTab
 import dev.icode.mobile.ui.editor.CodeEditorSessions
-import androidx.compose.runtime.withFrameNanos
 import dev.icode.mobile.ui.screens.entry.EntryScreenHost
 import dev.icode.mobile.ui.screens.recovery.RecoveryScreenHost
 import dev.icode.mobile.ui.screens.settings.SettingsScreenHost
+import dev.icode.mobile.ui.screens.tools.DiscardChangesSheet
 import dev.icode.mobile.ui.screens.tools.ToolScreenHost
 import dev.icode.mobile.ui.screens.workspace.WorkspaceScreenHost
+import dev.icode.mobile.ui.terminal.TerminalSessionSource
 import java.io.File
 
 @Composable
@@ -189,7 +190,7 @@ fun IcodeApp(
                         navigation.actions.navigate(Route.WorkspaceExplorer)
                     }
                     is ICodeEffect.WorkspaceTerminalOpened -> navigation.actions.navigate(Route.TerminalExpanded)
-                    // The creation dialog consumes these request-scoped results.
+                    // The creation sheet consumes these request-scoped results.
                     is ICodeEffect.WorkspaceItemChanged, is ICodeEffect.WorkspaceItemFailed -> Unit
                     is ICodeEffect.ConfirmWorkspaceSwitch -> questions.ask(effect)
                     is ICodeEffect.ConfirmDraftRecovery -> questions.ask(effect)
@@ -232,13 +233,6 @@ fun IcodeApp(
             navigation.actions.back()
         }
 
-        ICodeQuestionDialogs(questions, snapshot, gateway, navigation.current, navigation.actions.navigate)
-        TaskDialogs(snapshot.tasks, gateway, asking = snapshot.explorer.question != null)
-        // A discard is confirmed over whatever asked for it, in the app's one confirmation dialog.
-        snapshot.pendingDiscard?.let { DiscardChangesDialog(it, gateway) }
-        // gpg-agent's question, over whatever asked it: a commit, the terminal, the assistant.
-        snapshot.gpgPrompts.firstOrNull()?.let { GpgPromptDialog(it, gateway) }
-
         CompositionLocalProvider(
             LocalICodeSnapshot provides snapshot,
             LocalICodeGateway provides gateway,
@@ -249,17 +243,26 @@ fun IcodeApp(
             LocalIcodeFloors provides floors,
         ) {
             IcodeScreen {
-                FileViewerHost(fileViewer) {
-                    val pageOpen = navigation.current == Route.Notifications
-                    val toAll = { navigation.actions.navigate(Route.Notifications) }
-                    NoticeHost(notices, snapshot.notices, pageOpen, onAll = toAll) {
-                        NavigationHost(navigation) { route -> ScreenHost(screen = route, actions = navigation.actions) }
-                        FileAsks(snapshot.explorer, gateway)
-                    }
-                    // The undo pill above the bell, over every screen but the Notifications page (docs/explorer-gaps-plan.md §3.8).
-                    IcodeFloatingStack(floors, visible = !pageOpen) {
-                        UndoPill(undo, snapshot.explorer.history)
-                        NoticeBell(notices, snapshot.notices, onAll = toAll)
+                // Every sheet opened from anywhere — iCode has no sheets — is drawn over all of it.
+                IcodeSheetHost {
+                    ICodeQuestionSheets(questions, snapshot, gateway, navigation.current, navigation.actions.navigate)
+                    TaskSheets(snapshot.tasks, gateway, asking = snapshot.explorer.question != null)
+                    // A discard is confirmed over whatever asked for it, in the app's one confirmation sheet.
+                    snapshot.pendingDiscard?.let { DiscardChangesSheet(it, gateway) }
+                    // gpg-agent's question, over whatever asked it: a commit, the terminal, the assistant.
+                    snapshot.gpgPrompts.firstOrNull()?.let { GpgPromptSheet(it, gateway) }
+                    FileViewerHost(fileViewer) {
+                        val pageOpen = navigation.current == Route.Notifications
+                        val toAll = { navigation.actions.navigate(Route.Notifications) }
+                        NoticeHost(notices, snapshot.notices, pageOpen, onAll = toAll) {
+                            NavigationHost(navigation) { route -> ScreenHost(screen = route, actions = navigation.actions) }
+                            FileAsks(snapshot.explorer, gateway)
+                        }
+                        // The undo pill above the bell, over every screen but the Notifications page (docs/explorer-gaps-plan.md §3.8).
+                        IcodeFloatingStack(floors, visible = !pageOpen) {
+                            UndoPill(undo, snapshot.explorer.history)
+                            NoticeBell(notices, snapshot.notices, onAll = toAll)
+                        }
                     }
                 }
             }

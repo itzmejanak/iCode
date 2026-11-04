@@ -5,7 +5,7 @@ package dev.icode.mobile.domain
 
 /** Where iCode shows a piece of background work: what a tap on its notification opens. */
 sealed interface BackgroundPlace {
-    /** The task's own dialog. */
+    /** The task's own sheet. */
     data class Task(val id: Long) : BackgroundPlace
 
     /** Clone progress. */
@@ -26,7 +26,7 @@ sealed interface BackgroundPlace {
     /** The Assistant page, where a workspace's managed processes are listed. */
     data object Processes : BackgroundPlace
 
-    /** gpg's question: its GnuPG dialog shows over whatever screen is open. */
+    /** gpg's question: its GnuPG sheet shows over whatever screen is open. */
     data object Gpg : BackgroundPlace
 
     /** As a notification carries it: `task:12`, `clone`, `sync`, `runtime`, `runtime-tools`, `assistant`, `processes`, `gpg`. */
@@ -76,7 +76,7 @@ data class BackgroundItem(
     val cancel: ICodeIntent? = null,
     val place: BackgroundPlace,
     /**
-     * Whether iCode shows its progress while iCode is on screen: a task's dialog not hidden, or a
+     * Whether iCode shows its progress while iCode is on screen: a task's sheet not hidden, or a
      * page of its own. A failure the user was not watching pops up.
      */
     val watched: Boolean,
@@ -119,7 +119,7 @@ object BackgroundWorkRules {
     /**
      * Everything running in [snapshot], and what stopped short: each task, the Git transfer, the
      * runtime install, the tools apt is installing or removing, the assistant's turn, the
-     * managed processes that run, and gpg's question waiting on its dialog.
+     * managed processes that run, and gpg's question waiting on its sheet.
      */
     fun of(snapshot: ICodeSnapshot): List<BackgroundItem> = buildList {
         snapshot.tasks.filterNot { it.quiet }.forEach { add(task(it)) }
@@ -132,7 +132,7 @@ object BackgroundWorkRules {
     }
 
     /**
-     * gpg-agent asks through the GnuPG dialog, and the command that needed it — a commit, the
+     * gpg-agent asks through the GnuPG sheet, and the command that needed it — a commit, the
      * terminal's — waits: out of view, the question pops up, and Cancel answers it. Its text is
      * gpg's, a paragraph gpg wraps into lines.
      */

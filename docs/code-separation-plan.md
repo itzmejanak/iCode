@@ -428,7 +428,7 @@ compares every open file with disk (`decideOnDisk`, 5 tests): a clean file takes
 place; unsaved edits over a changed file raise a question; a deleted file is said once and its text
 stays. A save that finds a different file on disk (`ChangedOnDiskException`, before a generic
 error) raises the same question, and autosave then waits silently until it is answered. The
-question is the editor's standard dialog (`IcodeConfirmDialog`, as for draft recovery — owner:
+question is the editor's standard dialog (`IcodeConfirmSheet`, as for draft recovery — owner:
 "make it consistent with existing dialogs"), over the screen where it happens: Reload from disk,
 Compare versions (Git's `diff --no-index` of the disk file against the editor's text, written in
 the file's own encoding to the guest's /tmp and removed after; shown in the diff view, and the

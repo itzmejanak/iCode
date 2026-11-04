@@ -47,7 +47,7 @@ Runtime** and **Reset Runtime** with their explanatory captions.
 there is one install path, not a second one. The captions are corrected: repair
 does not preserve installed packages, and saying it does would be a lie.
 
-Both are destructive, so both confirm first through `IcodeConfirmDialog`.
+Both are destructive, so both confirm first through `IcodeConfirmSheet`.
 
 ## 2. The `sudo` hint
 

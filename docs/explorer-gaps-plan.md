@@ -796,7 +796,7 @@ Descending.
   - The two former rename dialogs are gone. New workspace shares `NameFields`.
 - **Asked anywhere:** `FileAsks`, over every screen.
   - The question (§3.6) shows both sides, the answers, and "Do this for the other N". While it is
-    open, `TaskDialogs` steps aside.
+    open, `TaskSheets` steps aside.
   - A 7z's password is held in `remember` only, never saved.
 - **Recent:** Open with… (`SharedFiles.open`) and the viewer, from Shared, record the file
   (`FilesIntent.Opened`).
@@ -925,7 +925,7 @@ Descending.
   - **Its sheet** (`TrashSheet`): Restore, Properties as it was deleted, and Delete permanently.
   - **Its selection:** Restore and Delete permanently.
   - **Its top bar:** Empty Trash.
-  - **Asking:** both deletes ask first (`ForGoodDialog`).
+  - **Asking:** both deletes ask first (`ForGoodSheet`).
 - **▾ go to:** the places, Favorites, then Recent, and Trash with how many it holds.
 - **For Manage storage (F6):** `ExplorerView.icon` and `FileCategory.icon`. Its views list what its
   scan will publish.

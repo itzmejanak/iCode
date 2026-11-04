@@ -78,7 +78,7 @@ The default theme is not a permanent dark-only restriction. Semantic tokens allo
 | `background` | `#0A0D0B` | Main application canvas |
 | `background.deep` | `#060807` | Deep editor and terminal ground |
 | `surface` | `#131812` | Cards, drawers, sidebars |
-| `surface.elevated` | `#1C231B` | Menus, dialogs, selected elevated regions |
+| `surface.elevated` | `#1C231B` | Menus, selected elevated regions |
 | `surface.track` | `#232B22` | Tracks and inactive fills |
 | `outline` | `#2A332A` | Dividers and boundaries |
 | `accent.primary` | `#FF6B2C` | Primary action and active focus |
@@ -117,7 +117,7 @@ Users can configure editor and terminal fonts independently. System font scaling
 ### 4.4 Shape and density
 
 - Cards and modal surfaces use restrained rounded corners.
-- Every line where a surface ends — a card's, a dialog's, a popup menu's, the line under the top bar and the terminal's header, the line over the clipboard, folder-choice and foot bars — is 1 dp and drawn while Appearance › Border Lines is on (the default). Off, surfaces stand apart by tone: the theme's surfaces are derived to sit at least 1.12 : 1 from the page, and nothing on them reads worse ([border-lines-plan.md](./border-lines-plan.md)). A line that says something — a control's edge, a selection, a warning or error tone — and the separators between rows are drawn either way.
+- Every line where a surface ends — a card's, a sheet's, a popup menu's, the line under the top bar and the terminal's header, the line over the clipboard, folder-choice and foot bars — is 1 dp and drawn while Appearance › Border Lines is on (the default). Off, surfaces stand apart by tone: the theme's surfaces are derived to sit at least 1.12 : 1 from the page, and nothing on them reads worse ([border-lines-plan.md](./border-lines-plan.md)). A line that says something — a control's edge, a selection, a warning or error tone — and the separators between rows are drawn either way.
 - A card stands one step above what it is on: the surface tone on a page, the raised tone on a sheet.
 - Editor, terminal, diff, and dense tree rows use minimal decoration.
 - Touch targets remain at least 48 dp even when the visual icon is smaller.
@@ -236,13 +236,13 @@ This tree defines hierarchy, not a permanent requirement that every node be visi
 1. **Application layer** — Launcher, global settings, runtime installation, permission explanation.
 2. **Workspace layer** — active workspace and its tools.
 3. **Document layer** — editor tabs, code, diff, and document-specific actions.
-4. **Panel layer** — terminal, problems, output, quick pickers, dialogs, and contextual sheets.
+4. **Panel layer** — terminal, problems, output, quick pickers, and sheets.
 
 ### 7.2 Back behavior
 
 Back resolves in this order:
 
-1. dismiss a menu, quick picker, or dialog;
+1. dismiss a menu, quick picker, or sheet;
 2. close a transient sheet or drawer;
 3. exit a focused detail route to its parent list;
 4. return from a diff to the originating file or change;
@@ -577,7 +577,7 @@ Each group is collapsible and shows a count. Each file row shows status, path, s
 
 The commit message field remains pinned near staged changes when space permits. Commit is disabled with an explanation when no eligible staged changes exist. It does not silently stage every file.
 
-When Git signs commits with a key that has a passphrase, gpg-agent's question appears over whatever screen asked it — Source Control, the terminal, the assistant — as one dialog titled **GnuPG** ([gpg-signing-plan.md](./gpg-signing-plan.md)): gpg's own text, its error after a wrong passphrase ("Bad Passphrase (try 2 of 3)") in red, a masked Passphrase field, and gpg's own button labels, Cancel and OK by default. A confirmation is the same dialog without the field. Cancel leaves the commit unsigned and unmade, with Git's "gpg failed to sign the data". While iCode is out of view, the question is a "Needs your answer" notification, "Enter your GnuPG passphrase", which opens the dialog.
+When Git signs commits with a key that has a passphrase, gpg-agent's question appears over whatever screen asked it — Source Control, the terminal, the assistant — as one sheet titled **GnuPG** ([gpg-signing-plan.md](./gpg-signing-plan.md)): gpg's own text, its error after a wrong passphrase ("Bad Passphrase (try 2 of 3)") in red, a masked Passphrase field, and gpg's own button labels, Cancel and OK by default. A confirmation is the same sheet without the field. Cancel leaves the commit unsigned and unmade, with Git's "gpg failed to sign the data". While iCode is out of view, the question is a "Needs your answer" notification, "Enter your GnuPG passphrase", which opens the sheet.
 
 Signing is set up in **Git Credentials**, whose steps are Identity, Authentication, **Signing** and Verify ([gpg-signing-plan.md §7](./gpg-signing-plan.md)). The Signing step shows one of:
 - **Install GnuPG**;
@@ -741,16 +741,31 @@ The application ships with the approved dark visual direction as its default. Th
 
 Feature code references semantic tokens only. A theme cannot remove contrast required to distinguish Git and diagnostic states.
 
-## 21. Dialogs, Sheets, and Menus
+## 21. Sheets and Menus
 
-### 21.1 Dialog
+iCode has no dialogs (owner's request, 2026-11-04): what a dialog would ask is asked in a sheet, so
+there is one kind of modal, drawn and dismissed one way. `tools/check-ui-consistency.sh` refuses a
+dialog.
 
-Use for:
+Every sheet is `IcodeBottomSheet`: the handle, the title with ×, the content, the footer. A tap
+outside it, Back, × or a swipe down closes it — swiped from its title or footer, or from its content
+once that is at its top; let go past a quarter of its height, or flung down, it slides away, short of
+that it springs back. A sheet that must be answered has no × and does not move. The screen under a
+sheet dims and blurs.
+
+### 21.1 A question to confirm
+
+`IcodeConfirmSheet`, opened from wherever the question arises and drawn by the app's one
+`IcodeSheetHost` over everything (`IcodeModalSheet`), with Cancel beside the answer — red when it
+destroys. Use for:
 
 - irreversible or difficult-to-recover actions;
 - conflict decisions;
 - short blocking input;
 - explicit repair/reset consequences.
+
+Work in hand (`IcodeProgressSheet`) and an unsaved tab's Save or Discard (`IcodeSaveDiscardSheet`)
+are drawn the same way.
 
 ### 21.2 Bottom sheet
 
@@ -837,7 +852,7 @@ Software-keyboard behavior includes:
 - editor viewport resizing rather than obscuring the cursor;
 - correct selection and composing-text behavior;
 - configurable accessory keys;
-- focus restoration after completion, dialog, search, or navigation dismissal.
+- focus restoration after completion, a sheet, search, or navigation dismissal.
 
 ## 25. Accessibility
 
@@ -865,7 +880,7 @@ The shared native design system owns:
 - choice controls and toggles;
 - expandable sections;
 - empty, loading, warning, error, and read-only states;
-- dialogs, sheets, menus, tooltips, and snackbars;
+- sheets, menus, tooltips, and snackbars;
 - progress indicators;
 - resizable panel handles;
 - technical metadata rows;
@@ -893,7 +908,7 @@ Screens compose these components and do not restyle raw controls independently.
 Every new screen or major surface must answer:
 
 - What hierarchy owns it?
-- Is it a root, list, detail, document, panel, picker, sheet, or dialog?
+- Is it a root, list, detail, document, panel, picker, or sheet?
 - How does it render in compact and expanded width?
 - What is its loading state?
 - What is its honest empty state?
