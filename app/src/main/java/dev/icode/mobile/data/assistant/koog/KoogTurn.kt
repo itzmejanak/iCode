@@ -282,8 +282,7 @@ internal object KoogTurn {
     }
 
     /** Told the model in place of the picture its server refused. */
-    private const val PICTURE_REFUSED =
-        "(The picture of the screen could not be sent: this model does not see pictures. Go on with the screen's text above.)"
+    private const val PICTURE_REFUSED = "(No picture: this model does not see them. Go on with the screen's text above.)"
 
     /** A step's screen, as its picture is named in the prompt: never a name a user's photo has, which is its own file's. */
     private const val SCREEN_NAME = "icode-screen.jpg"
