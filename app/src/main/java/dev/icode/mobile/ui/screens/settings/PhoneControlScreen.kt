@@ -1,9 +1,6 @@
 package dev.icode.mobile.ui.screens.settings
 
-import android.content.Context
-import android.content.Intent
 import android.os.Build
-import android.provider.Settings
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -52,6 +49,17 @@ fun PhoneControlScreen(actions: NavigationActions) {
                     SettingRow("Bubble", Modifier.fillMaxWidth(), subtitle = "Over other apps, with the edge glow", leadingIcon = Icons.Outlined.BubbleChart) {
                         IcodeToggle(access.bubble) { gateway.dispatch(PhoneIntent.ShowBubble(it)) }
                     }
+                    // A second icon from an earlier build: Android's button, whose tap turns phone control off.
+                    if (access.systemButton) {
+                        SettingRow(
+                            "Android's Accessibility Button",
+                            Modifier.fillMaxWidth(),
+                            subtitle = "Turn off its shortcut: the bubble replaces it",
+                            leadingIcon = Icons.Outlined.AccessibilityNew,
+                            leadingTint = IcodeColors.Amber,
+                            onClick = { gateway.dispatch(PhoneIntent.OpenAccessibility) },
+                        ) { AccessState("REMOVE", allowed = false) }
+                    }
                     SettingRow(
                         "Turn Off",
                         Modifier.fillMaxWidth(),
@@ -78,7 +86,7 @@ fun PhoneControlScreen(actions: NavigationActions) {
                             Modifier.fillMaxWidth(),
                             subtitle = line.step.detail,
                             leadingIcon = if (line.step == PhoneSetupStep.Restricted) Icons.Outlined.AdminPanelSettings else Icons.Outlined.AccessibilityNew,
-                            onClick = { context.openSetupPage(line.step) },
+                            onClick = { if (line.step == PhoneSetupStep.Restricted) context.openAppInfo() else gateway.dispatch(PhoneIntent.OpenAccessibility) },
                         ) { if (line.current) AccessState("NEXT", allowed = false) else Chevron() }
                     }
                     // Said where it is turned on: what it reads, and where that goes.
@@ -99,10 +107,4 @@ fun PhoneControlScreen(actions: NavigationActions) {
             }
         }
     }
-}
-
-/** Android's page for [step]: iCode's App info for restricted settings, Accessibility for the service. */
-private fun Context.openSetupPage(step: PhoneSetupStep) = when (step) {
-    PhoneSetupStep.Restricted -> openAppInfo()
-    PhoneSetupStep.Service -> openFirst(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS), Intent(Settings.ACTION_SETTINGS))
 }

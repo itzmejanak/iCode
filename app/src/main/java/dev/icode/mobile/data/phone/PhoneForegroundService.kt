@@ -73,7 +73,9 @@ class PhoneForegroundService : Service() {
             ACTION_STOP -> gateway.dispatch(ICodeIntent.StopAssistant)
             ACTION_SHOW_BUBBLE -> gateway.dispatch(PhoneIntent.ShowBubble(true))
             ACTION_TURN_OFF -> gateway.dispatch(PhoneIntent.TurnOff)
-            else -> foreground(intent?.getBooleanExtra(EXTRA_MICROPHONE, false) == true)
+            // Once asked for while iCode was on screen, the microphone is never given up: a start
+            // without it that was already in flight must not take it back (the bubble would lose it).
+            else -> foreground(intent?.getBooleanExtra(EXTRA_MICROPHONE, false) == true || wanted)
         }
         // A notification's button reaching a service Android had stopped: nothing to keep alive.
         if (!started) stopSelf(startId)
@@ -82,6 +84,7 @@ class PhoneForegroundService : Service() {
 
     override fun onDestroy() {
         heldMicrophone.value = false
+        wanted = false
         active = false
         scope.cancel()
         ICodeProcess.detach()
@@ -138,6 +141,9 @@ class PhoneForegroundService : Service() {
 
         private val heldMicrophone = MutableStateFlow(false)
 
+        /** Asked for while iCode was on screen: a later start without it must not take it back. */
+        @Volatile private var wanted = false
+
         @Volatile private var active = false
 
         /** It runs: created, and not yet destroyed. */
@@ -148,6 +154,7 @@ class PhoneForegroundService : Service() {
 
         /** Started, or started again with the microphone now that iCode is on screen. */
         internal fun start(context: Context, microphone: Boolean) {
+            if (microphone) wanted = true
             runCatching {
                 ContextCompat.startForegroundService(context, Intent(context, PhoneForegroundService::class.java).putExtra(EXTRA_MICROPHONE, microphone))
             }.onFailure { BackendLog.w(TAG, "Phone control's service could not start (${it.javaClass.simpleName})") }

@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- iCode's accessibility service (docs/phone-agent-plan.md §5.1): window content and gestures for the
-     assistant's phone tools, screenshots for what text cannot tell,
-     the accessibility button as a way into the bubble. Not an accessibility tool (§3.2). -->
+     assistant's phone tools, screenshots for what text cannot tell. Not an accessibility tool (§3.2).
+     No flagRequestAccessibilityButton: Android would add its own floating button beside the bubble,
+     one it draws itself and no app can animate (§5.7, owner's request 2026-11-03). -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:accessibilityEventTypes="typeWindowStateChanged|typeWindowContentChanged|typeWindowsChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
-    android:accessibilityFlags="flagRetrieveInteractiveWindows|flagReportViewIds|flagIncludeNotImportantViews|flagRequestAccessibilityButton"
+    android:accessibilityFlags="flagRetrieveInteractiveWindows|flagReportViewIds|flagIncludeNotImportantViews"
     android:canPerformGestures="true"
     android:canRetrieveWindowContent="true"
     android:canTakeScreenshot="true"

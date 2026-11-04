@@ -29,10 +29,12 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Voice in and out (docs/phone-agent-plan.md §5.8), one per process: the microphone for the chat and the
@@ -95,33 +97,48 @@ internal class VoiceCoordinator(
     private fun listen(from: VoiceFrom) {
         stopListening()
         hush()
-        val settings = voice.settings
-        val problem = when {
-            !microphone() -> "Allow the microphone in Settings › Assistant › Voice"
-            !iCodeOnScreen.value && !voice.away -> "Open iCode once to use the microphone"
-            settings.listenModels.any { !models.ready(it) } -> "Download ${VoiceCatalog.listener(settings.listenModel).name} in Settings › Assistant › Voice"
-            else -> null
-        }
         val id = ++hearing
-        if (problem != null) return update { it.copy(heard = Heard(id, from, "", final = true, problem = problem)) }
-        update { it.copy(heard = Heard(id, from, "", final = false)) }
-        val next = if (settings.listening == VoiceEngine.Android) AndroidListener(app)
-        else ModelListener(models, VoiceCatalog.listener(settings.listenModel), scope)
-        listener = next
-        next.start(
-            heard = { text, final ->
-                if (hearing == id) {
-                    if (final) listener = null
-                    update { it.copy(heard = Heard(id, from, text, final, problem = NOTHING_HEARD.takeIf { final && text.isBlank() })) }
+        scope.launch {
+            val settings = voice.settings
+            when {
+                !microphone() -> return@launch refused(id, from, "Allow the microphone in Settings › Assistant › Voice")
+                settings.listenModels.any { !models.ready(it) } ->
+                    return@launch refused(id, from, "Download ${VoiceCatalog.listener(settings.listenModel).name} in Settings › Assistant › Voice")
+            }
+            if (!iCodeOnScreen.value && !voice.away) {
+                // Android lets a background app take the microphone only through a foreground service
+                // that already holds it: the bubble asks phone control's service to take it now.
+                if (stateHolder.current.phone.bubble) {
+                    PhoneForegroundService.start(app, microphone = true)
+                    withTimeoutOrNull(MIC_WAIT_MILLIS) { PhoneForegroundService.microphone.first { it } }
                 }
-            },
-            problem = { words ->
-                if (hearing == id) {
-                    listener = null
-                    update { it.copy(heard = Heard(id, from, "", final = true, problem = words)) }
-                }
-            },
-        )
+                if (!iCodeOnScreen.value && !voice.away) return@launch refused(id, from, "Open iCode once to use the microphone")
+            }
+            if (hearing != id) return@launch
+            update { it.copy(heard = Heard(id, from, "", final = false)) }
+            val next = if (settings.listening == VoiceEngine.Android) AndroidListener(app)
+            else ModelListener(models, VoiceCatalog.listener(settings.listenModel), scope)
+            listener = next
+            next.start(
+                heard = { text, final ->
+                    if (hearing == id) {
+                        if (final) listener = null
+                        update { it.copy(heard = Heard(id, from, text, final, problem = NOTHING_HEARD.takeIf { final && text.isBlank() })) }
+                    }
+                },
+                problem = { words ->
+                    if (hearing == id) {
+                        listener = null
+                        update { it.copy(heard = Heard(id, from, "", final = true, problem = words)) }
+                    }
+                },
+            )
+        }
+    }
+
+    /** [id]'s hearing ended before it began, and why. A later tap has its own [id] and is left alone. */
+    private fun refused(id: Long, from: VoiceFrom, problem: String) {
+        if (hearing == id) update { it.copy(heard = Heard(id, from, "", final = true, problem = problem)) }
     }
 
     private fun stopListening() {
@@ -253,5 +270,6 @@ internal class VoiceCoordinator(
         const val NOTHING_HEARD = "Nothing was heard"
         const val VOICE_MISSING = "Download the voice in Settings › Assistant › Voice"
         const val IDLE_MILLIS = 120_000L
+        const val MIC_WAIT_MILLIS = 1_500L
     }
 }

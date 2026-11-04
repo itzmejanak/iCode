@@ -1,189 +1,285 @@
 package dev.icode.mobile.ui.phone
 
+import android.animation.ValueAnimator
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.Send
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.MicOff
 import androidx.compose.material.icons.outlined.Stop
-import androidx.compose.material.icons.outlined.StopCircle
+import androidx.compose.material.icons.outlined.TouchApp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
 import dev.icode.mobile.designsystem.IcodeBrandMark
-import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodeFloatingPill
 import dev.icode.mobile.designsystem.IcodeShapes
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
-import dev.icode.mobile.designsystem.IcodeTextButton
-import dev.icode.mobile.designsystem.IcodeTextField
 import dev.icode.mobile.designsystem.IcodeType
-import dev.icode.mobile.designsystem.PrimaryButton
-import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.StatusDot
-import dev.icode.mobile.domain.AssistantAnswer
-import dev.icode.mobile.domain.AssistantPermissions
-import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantState
 import dev.icode.mobile.domain.ICodeIntent
-import dev.icode.mobile.domain.VoiceIntent
 import dev.icode.mobile.domain.phone.PhoneOverlay
-import dev.icode.mobile.domain.voice.VoiceFrom
+import dev.icode.mobile.domain.phone.PhoneOverlay.Look
 import dev.icode.mobile.domain.voice.VoiceState
-import dev.icode.mobile.ui.HeardLine
-import dev.icode.mobile.ui.MicButton
-import dev.icode.mobile.ui.OnHeard
+import kotlin.math.PI
+import kotlin.math.absoluteValue
+import kotlin.math.sin
 
 /** What the bubble does, as its window and the backend answer it. */
 internal class PhoneBubbleActions(
-    val expand: (Boolean) -> Unit,
+    /** The bubble tapped: what that does follows its state (§5.7). */
+    val tap: () -> Unit,
     val drag: (dx: Float, dy: Float) -> Unit,
     val dragEnd: () -> Unit,
     val dispatch: (ICodeIntent) -> Unit,
+    /** The bar's microphone: the bar gives way to the voice bubble, listening. */
+    val listen: () -> Unit,
+    /** The bar's Send: what was typed goes to the chat iCode shows. */
+    val send: () -> Unit,
     /** The whole chat, in iCode. */
     val open: () -> Unit,
+    /** The voice bubble's microphone: listening stops, the words wait in the bar; the agent runs on. */
+    val mute: () -> Unit,
+    /** The voice bubble's Stop: the voice session ends and nothing heard is kept. */
+    val cancel: () -> Unit,
+)
+
+/** What the bubble's window shows now. */
+internal class PhoneBubbleView(
+    val overlay: PhoneOverlay,
+    val assistant: AssistantState,
+    val voice: VoiceState,
+    /** The bar is open: the bubble expanded into it. */
+    val bar: Boolean,
+    /** The voice bubble is up: the bar gave way to it. */
+    val voiceUp: Boolean,
+    val tucked: Boolean,
+    val draft: String,
+    val onDraft: (String) -> Unit,
 )
 
 /**
- * The bubble (docs/phone-agent-plan.md §5.7, §5.8): the iCode mark at the screen's edge, a ring round it
- * while the agent works and a dot when a question waits; tapped, a small panel with what the agent is
- * doing, the question and its answers, a field, the microphone, Send and Stop, and the chat in iCode.
- * While an answer is read aloud, a tap on the mark silences it.
+ * The bubble over other apps (docs/phone-agent-plan.md §5.7; redesigned 2026-11-04, after Gemini):
+ * one small bubble anchored at the bottom of the screen, which expands into a compact bar to type in,
+ * and while the microphone listens becomes a voice bubble — the words heard so far under a waveform,
+ * with a microphone to mute and a Stop to throw the hearing away. Nothing else: no header, no cards
+ * of actions, no dashboard.
  */
 @Composable
-internal fun PhoneBubble(overlay: PhoneOverlay, assistant: AssistantState, voice: VoiceState, expanded: Boolean, actions: PhoneBubbleActions) {
-    if (expanded) Panel(overlay, assistant, voice, actions) else Mark(overlay, voice, actions)
+internal fun PhoneBubble(view: PhoneBubbleView, actions: PhoneBubbleActions) {
+    val face = if (view.voiceUp) Face.Voice else if (view.bar) Face.Bar else Face.Bubble
+    AnimatedContent(
+        targetState = face,
+        transitionSpec = {
+            (fadeIn(tween(MORPH_MILLIS)) + scaleIn(initialScale = MORPH_SCALE, animationSpec = tween(MORPH_MILLIS))) togetherWith
+                (fadeOut(tween(MORPH_MILLIS / 2)) + scaleOut(targetScale = MORPH_SCALE, animationSpec = tween(MORPH_MILLIS / 2)))
+        },
+        label = "face",
+    ) { target ->
+        when (target) {
+            Face.Bubble -> Mark(view, actions)
+            Face.Bar -> PhoneBubbleBar(view, actions)
+            Face.Voice -> VoiceBubble(view, actions)
+        }
+    }
 }
 
+/** The window's three faces: the bubble, the bar it expands into, and the voice bubble. */
+private enum class Face { Bubble, Bar, Voice }
+
+/** How wide the bar and the voice bubble may grow: the panel, or the screen less its margins. */
 @Composable
-private fun Mark(overlay: PhoneOverlay, voice: VoiceState, actions: PhoneBubbleActions) {
+internal fun overlayPanelWidth(): Dp =
+    minOf(IcodeSizes.BubblePanel, (LocalConfiguration.current.screenWidthDp.dp - IcodeSpacing.Space4 * 2).coerceAtLeast(IcodeSizes.Bubble))
+
+/**
+ * The bubble itself (§5.7): the iCode mark at its smallest, growing a ring, a spinner or a waveform as
+ * the agent and the microphone get to work — pressed, it gives a little; dragged, it goes free.
+ */
+@Composable
+private fun Mark(view: PhoneBubbleView, actions: PhoneBubbleActions) {
+    val look = view.overlay.look
+    val scale by animateFloatAsState(if (look == Look.Listening) LISTENING_SCALE else 1f, label = "listening")
+    val fade by animateFloatAsState(if (view.tucked) TUCKED_ALPHA else 1f, label = "tucked")
+    val source = remember { MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
+    val press by animateFloatAsState(if (pressed) PRESSED_SCALE else 1f, label = "pressed")
     Box(
         Modifier.size(IcodeSizes.Bubble)
-            .semantics { contentDescription = if (overlay.asking) "iCode assistant, a question waits" else "iCode assistant" }
+            .graphicsLayer {
+                scaleX = scale * press
+                scaleY = scale * press
+                alpha = fade
+            }
+            .semantics { contentDescription = describe(look) + if (view.overlay.asking) ", a question waits" else "" }
             .pointerInput(Unit) {
                 detectDragGestures(onDragEnd = actions.dragEnd, onDragCancel = actions.dragEnd) { change, amount ->
                     change.consume()
                     actions.drag(amount.x, amount.y)
                 }
             }
-            .clickable { if (voice.speaking) actions.dispatch(VoiceIntent.Silence) else actions.expand(true) },
+            .clickable(interactionSource = source, indication = null) { actions.tap() },
         contentAlignment = Alignment.Center,
     ) {
-        if (overlay.working) CircularProgressIndicator(Modifier.fillMaxSize(), color = IcodeColors.Accent, strokeWidth = IcodeSizes.BubbleRing)
-        IcodeBrandMark(Modifier.padding(IcodeSizes.BubbleRing + IcodeSpacing.Micro).fillMaxSize())
-        if (overlay.asking) Box(Modifier.align(Alignment.TopEnd)) { StatusDot(IcodeColors.Amber) }
+        if (look == Look.Idle) {
+            IcodeBrandMark(Modifier.fillMaxSize().clip(IcodeShapes.Pill))
+        } else {
+            Box(Modifier.fillMaxSize().clip(IcodeShapes.Pill).background(IcodeColors.SurfaceElevated))
+        }
+        when (look) {
+            Look.Idle -> Unit
+            Look.Listening -> {
+                Ring(IcodeColors.Accent)
+                Waveform(IcodeColors.Accent)
+            }
+            Look.Muted -> {
+                Ring(IcodeColors.Outline)
+                Icon(Icons.Outlined.MicOff, contentDescription = null, tint = IcodeColors.TextSecondary, modifier = Modifier.size(IcodeSizes.IconLg))
+            }
+            Look.Thinking -> {
+                Spinner(IcodeColors.Accent)
+                IcodeBrandMark(Modifier.padding(IcodeSizes.BubbleRing + IcodeSpacing.Space1).fillMaxSize().clip(IcodeShapes.Pill))
+            }
+            Look.Acting -> {
+                Spinner(IcodeColors.Accent)
+                Icon(Icons.Outlined.TouchApp, contentDescription = null, tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconMd))
+            }
+            Look.Speaking -> Waveform(IcodeColors.Accent)
+        }
+        if (view.overlay.asking) Box(Modifier.align(Alignment.TopEnd)) { StatusDot(IcodeColors.Amber) }
+    }
+}
+
+/**
+ * The voice bubble (§5.7, redesigned 2026-11-04): the bar gives way to it while the microphone listens.
+ * The words heard so far live inside it — Gemini's live line — under a microphone that mutes and a Stop
+ * that throws the hearing away. The words themselves stay the bubble: tapped, they mute; dragged, they
+ * go where the finger goes. Muting never stops what the agent does.
+ */
+@Composable
+private fun VoiceBubble(view: PhoneBubbleView, actions: PhoneBubbleActions) {
+    val words = view.voice.heard?.text.orEmpty()
+    IcodeFloatingPill(Modifier.widthIn(max = overlayPanelWidth())) {
+        Row(
+            Modifier
+                .weight(1f, fill = words.isNotBlank())
+                .pointerInput(Unit) {
+                    detectDragGestures(onDragEnd = actions.dragEnd, onDragCancel = actions.dragEnd) { change, amount ->
+                        change.consume()
+                        actions.drag(amount.x, amount.y)
+                    }
+                }
+                .clickable { actions.mute() },
+            horizontalArrangement = if (words.isBlank()) Arrangement.Center else Arrangement.Start,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (words.isBlank()) {
+                // Nothing heard yet: the listening waveform alone, big enough to be the bubble's whole face.
+                Waveform(IcodeColors.Accent, IcodeSizes.WaveformVoice, IcodeSizes.WaveformBarVoice, VOICE_BARS)
+            } else {
+                Waveform(IcodeColors.Accent)
+                Text(
+                    words,
+                    style = IcodeType.Body.copy(color = IcodeColors.TextPrimary),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(start = IcodeSpacing.Space1, end = IcodeSpacing.Space1),
+                )
+            }
+        }
+        OverlayButton(Icons.Outlined.MicOff, "Mute, type instead", IcodeColors.TextSecondary, onClick = actions.mute)
+        OverlayButton(Icons.Outlined.Stop, "Stop listening", IcodeColors.Error, onClick = actions.cancel)
     }
 }
 
 @Composable
-private fun Panel(overlay: PhoneOverlay, assistant: AssistantState, voice: VoiceState, actions: PhoneBubbleActions) {
-    var draft by remember { mutableStateOf("") }
-    val send = { words: String ->
-        val text = listOf(draft, words).filter { it.isNotBlank() }.joinToString(" ").trim()
-        if (text.isNotEmpty()) {
-            // The bubble talks in the chat iCode shows: "Open in iCode" opens that same chat. Its answer is read aloud.
-            if (assistant.workspace == null) actions.dispatch(ICodeIntent.OpenAssistant)
-            actions.dispatch(ICodeIntent.SendAssistantMessage(text, aloud = true))
-            draft = ""
-        }
-    }
-    // While a turn runs, what was heard waits in the field.
-    OnHeard(voice, VoiceFrom.Bubble) { words -> if (overlay.working) draft = listOf(draft, words).filter { it.isNotBlank() }.joinToString(" ") else send(words) }
-    IcodeCard(Modifier.widthIn(max = IcodeSizes.BubblePanel).fillMaxWidth(), elevated = true, padding = PaddingValues(IcodeSpacing.Space3)) {
-        Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
-                IcodeBrandMark(Modifier.size(IcodeSizes.BadgeSm))
-                Column(Modifier.weight(1f)) {
-                    Text("Assistant", style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold))
-                    Text(
-                        overlay.step ?: "Ready",
-                        style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary),
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                IconButton(onClick = { actions.expand(false) }) {
-                    Icon(Icons.Outlined.Close, contentDescription = "Close", tint = IcodeColors.TextSecondary, modifier = Modifier.size(IcodeSizes.IconMd))
-                }
-            }
-            Question(assistant, actions.dispatch)
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
-                IcodeTextField(draft, { draft = it }, Modifier.weight(1f), placeholder = "Ask the assistant…", textStyle = IcodeType.Body, singleLine = false)
-                MicButton(voice, VoiceFrom.Bubble, actions.dispatch, size = IcodeSizes.IconLg)
-                when {
-                    overlay.working && draft.isBlank() -> IconButton(onClick = { actions.dispatch(ICodeIntent.StopAssistant) }) {
-                        Icon(Icons.Outlined.Stop, contentDescription = "Stop", tint = IcodeColors.Error, modifier = Modifier.size(IcodeSizes.IconLg))
-                    }
-                    voice.speaking && draft.isBlank() -> IconButton(onClick = { actions.dispatch(VoiceIntent.Silence) }) {
-                        Icon(Icons.Outlined.StopCircle, contentDescription = "Stop reading aloud", tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconLg))
-                    }
-                    else -> IconButton(onClick = { send("") }, enabled = draft.isNotBlank() && !overlay.working) {
-                        Icon(Icons.AutoMirrored.Outlined.Send, contentDescription = "Send", tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconLg))
-                    }
-                }
-            }
-            HeardLine(voice, VoiceFrom.Bubble)
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                IcodeTextButton("New chat", { actions.dispatch(ICodeIntent.NewAssistantChat) }, enabled = !overlay.working)
-                IcodeTextButton("Open in iCode", actions.open)
-            }
-        }
-    }
+internal fun Ring(color: Color) {
+    Box(Modifier.fillMaxSize().border(IcodeSizes.BubbleRing, color, IcodeShapes.Pill))
 }
 
-/** The question the turn waits on, with its answers: an approval, or a pause. Shared words with the chat's cards. */
 @Composable
-private fun Question(assistant: AssistantState, dispatch: (ICodeIntent) -> Unit) {
-    val approval = assistant.approval
-    val pause = assistant.pause
-    if (approval == null && pause == null) return
-    Column(
-        Modifier.fillMaxWidth().background(IcodeColors.SurfaceElevated, IcodeShapes.Small).padding(IcodeSpacing.Space2),
-        verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
-    ) {
-        val bound = AssistantPlace.name(assistant.turn?.workspace ?: assistant.workspace.orEmpty())
-        Text(approval?.let { AssistantPermissions.question(it, bound) } ?: pause!!.kind.question, style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold))
-        Text(approval?.call?.summary ?: pause!!.detail, style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary), maxLines = 2, overflow = TextOverflow.Ellipsis)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2, Alignment.End)) {
-            if (approval != null) {
-                val answer = { it: AssistantAnswer -> dispatch(ICodeIntent.AnswerAssistant(approval.call.id, it)) }
-                SecondaryButton("Deny", { answer(AssistantAnswer.Deny) }, compact = true)
-                AssistantPermissions.allowIn(approval, bound)?.let { SecondaryButton(it, { answer(AssistantAnswer.AllowInChat) }, compact = true) }
-                PrimaryButton(AssistantPermissions.allowOnce(approval), { answer(AssistantAnswer.Allow) }, compact = true)
-            } else if (pause != null) {
-                SecondaryButton("Stop", { dispatch(ICodeIntent.StopAssistant) }, compact = true)
-                PrimaryButton(pause.kind.proceed, { dispatch(ICodeIntent.ContinueAssistant) }, compact = true)
-            }
+internal fun Spinner(color: Color) {
+    CircularProgressIndicator(Modifier.fillMaxSize(), color = color, strokeWidth = IcodeSizes.BubbleRing)
+}
+
+/** Bars rising and falling while it listens or speaks; still where the system's animations are off. */
+@Composable
+internal fun Waveform(
+    color: Color,
+    height: Dp = IcodeSizes.Waveform,
+    barWidth: Dp = IcodeSizes.WaveformBar,
+    bars: List<Float> = BARS,
+) {
+    val moving = remember { ValueAnimator.areAnimatorsEnabled() }
+    val phase by rememberInfiniteTransition(label = "wave").animateFloat(
+        initialValue = 0f,
+        targetValue = (2 * PI).toFloat(),
+        animationSpec = infiniteRepeatable(tween(WAVE_MILLIS, easing = LinearEasing)),
+        label = "phase",
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Micro), verticalAlignment = Alignment.CenterVertically) {
+        bars.forEachIndexed { index, level ->
+            val share = if (moving) level * (WAVE_FLOOR + (1 - WAVE_FLOOR) * sin(phase + index * WAVE_STEP).absoluteValue) else level
+            Box(Modifier.width(barWidth).height(height * share).background(color, IcodeShapes.Pill))
         }
     }
 }
 
-/** The target dragging shows at the bottom: dropped on it, the bubble is put away with the glow (§5.7). */
+/** An icon button in the bar or the voice bubble, at the touch target a thumb needs. */
+@Composable
+internal fun OverlayButton(icon: ImageVector, description: String, tint: Color, enabled: Boolean = true, onClick: () -> Unit) {
+    IconButton(onClick = onClick, enabled = enabled) {
+        Icon(icon, contentDescription = description, tint = if (enabled) tint else IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconLg))
+    }
+}
+
+/** The target dragging shows at the top of the screen: dropped on it, the bubble is put away with the glow (§5.7). */
 @Composable
 internal fun PhoneBubbleTarget(working: Boolean, over: Boolean) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
@@ -196,3 +292,27 @@ internal fun PhoneBubbleTarget(working: Boolean, over: Boolean) {
         Text(if (working) "Stop and hide" else "Hide", style = IcodeType.Caption.copy(color = IcodeColors.TextPrimary))
     }
 }
+
+internal fun describe(look: Look): String = when (look) {
+    Look.Idle -> "iCode assistant"
+    Look.Listening -> "Listening, tap to mute"
+    Look.Muted -> "Microphone muted, tap to resume"
+    Look.Thinking -> "Assistant thinking"
+    Look.Acting -> "Assistant acting on the phone"
+    Look.Speaking -> "Reading aloud, tap to stop"
+}
+
+private const val LISTENING_SCALE = 1.1f
+private const val PRESSED_SCALE = 0.94f
+private const val TUCKED_ALPHA = 0.55f
+private const val MORPH_MILLIS = 220
+private const val MORPH_SCALE = 0.88f
+private const val WAVE_MILLIS = 1_100
+private const val WAVE_FLOOR = 0.35f
+private const val WAVE_STEP = 1.3f
+
+/** The waveform's bars, as a share of its height: low at the ends, high in the middle. */
+private val BARS = listOf(0.45f, 0.75f, 1f, 0.75f, 0.45f)
+
+/** The voice bubble's alone waveform: wider, so the listening face fills the pill. */
+private val VOICE_BARS = listOf(0.3f, 0.55f, 0.8f, 1f, 0.75f, 1f, 0.65f, 0.45f, 0.3f)

@@ -1,6 +1,5 @@
 package dev.icode.mobile.ui.phone
 
-import android.accessibilityservice.AccessibilityButtonController
 import android.annotation.SuppressLint
 import android.graphics.PixelFormat
 import android.view.Gravity
@@ -23,15 +22,15 @@ import dev.icode.mobile.data.tasks.WorkNotifications
 import dev.icode.mobile.data.workspace.ICodeProcess
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeTheme
-import dev.icode.mobile.domain.AssistantState
 import dev.icode.mobile.domain.BackgroundPlace
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.ICodeSnapshot
 import dev.icode.mobile.domain.PhoneIntent
 import dev.icode.mobile.domain.VoiceIntent
 import dev.icode.mobile.domain.WorkspacePreferences
 import dev.icode.mobile.domain.phone.PhoneOverlay
+import dev.icode.mobile.domain.phone.PhoneOverlay.Look
 import dev.icode.mobile.domain.voice.VoiceFrom
-import dev.icode.mobile.domain.voice.VoiceState
 import dev.icode.mobile.ui.appearancePalette
 import kotlin.math.hypot
 import kotlinx.coroutines.Dispatchers
@@ -43,11 +42,21 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * The glow and the bubble over every app (docs/phone-agent-plan.md §5.6, §5.7), in the phone service's
- * own trusted windows: no "draw over other apps" permission, and no touch of the screen blocked. They
- * show what the process's one backend says ([ICodeProcess]), so the assistant answers from any screen.
+ * The glow and the bubble over every app (docs/phone-agent-plan.md §5.6, §5.7; redesigned 2026-11-04,
+ * after Gemini), in the phone service's own trusted windows: no "draw over other apps" permission, and
+ * no touch of the screen blocked. One bubble, anchored at the bottom — and its states run here:
+ *
+ * - **Closed**: the bubble alone. A tap expands it into the bar; while it listens, a tap mutes; while
+ *   it speaks, a tap silences.
+ * - **Typing**: the bar the bubble became, holding the keyboard: the field, the microphone, Send — Stop
+ *   while the agent works. A tap on its mark closes it, or, muted, resumes listening.
+ * - **Voice**: the bar gives way to the voice bubble — the words heard so far under a waveform, with a
+ *   microphone to mute and a Stop to throw the hearing away. Once the user stops talking, what was
+ *   heard is sent; muted, it waits in the bar. Muting never stops what the agent does: Stop does.
  */
 internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHost {
+    private enum class Mode { Closed, Typing, Voice }
+
     private val gateway = ICodeProcess.attach(service)
     private val windows = service.getSystemService(WindowManager::class.java)
     private val owner = OverlayOwner()
@@ -56,26 +65,21 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
     private val bubble = ComposeView(service)
     private val target = ComposeView(service)
     private val density = service.resources.displayMetrics.density
-    private val bubbleParams = params(focusable = false).apply {
-        x = 0
-        y = service.resources.displayMetrics.heightPixels / 3
-    }
+    private val place = BubblePlacement(windows, bubble, density)
 
-    private var overlay by mutableStateOf(PhoneOverlay(bubble = false, glow = PhoneOverlay.Glow.Off, working = false, asking = false, step = null))
-    private var assistant by mutableStateOf(AssistantState())
-    private var voice by mutableStateOf(VoiceState())
+    private var snapshot by mutableStateOf<ICodeSnapshot?>(null)
+    private var onScreen = false
     private var preferences by mutableStateOf(WorkspacePreferences(workspaceLocation = null, loaded = false))
-    private var expanded by mutableStateOf(false)
+    private var mode by mutableStateOf(Mode.Closed)
+    private var muted by mutableStateOf(false)
+    private var draft by mutableStateOf("")
+    private var overlay by mutableStateOf(PhoneOverlay(bubble = false, glow = PhoneOverlay.Glow.Off, look = Look.Idle, working = false, asking = false, step = null))
     private var overTarget by mutableStateOf(false)
     private var bubbleOut = false
     private var targetOut = false
 
-    private val button = object : AccessibilityButtonController.AccessibilityButtonCallback() {
-        override fun onClicked(controller: AccessibilityButtonController) {
-            if (!overlay.bubble) gateway.dispatch(PhoneIntent.ShowBubble(true))
-            expand(true)
-        }
-    }
+    /** The last hearing for the bubble already acted on, so one is sent once. */
+    private var heardId = 0L
 
     init {
         owner.start()
@@ -83,24 +87,24 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
             it.setViewTreeLifecycleOwner(owner)
             it.setViewTreeSavedStateRegistryOwner(owner)
         }
-        bubble.setContent { Themed { PhoneBubble(overlay, assistant, voice, expanded, actions()) } }
+        bubble.setContent { Themed { snapshot?.let { PhoneBubble(view(it), actions()) } } }
         target.setContent { Themed { PhoneBubbleTarget(overlay.working, overTarget) } }
         bubble.setOnTouchListener(::outside)
         val visible = TerminalSessionManager.get(service).screenVisible
         val appearance = AndroidWorkspacePreferencesRepository(service).values(null)
         scope.launch {
-            combine(gateway.snapshot, visible, appearance) { snapshot, onScreen, prefs -> Triple(snapshot, onScreen, prefs) }.collect { (snapshot, onScreen, prefs) ->
-                assistant = snapshot.assistant
-                voice = snapshot.voice
+            combine(gateway.snapshot, visible, appearance) { snapshot, front, prefs -> Triple(snapshot, front, prefs) }.collect { (next, front, prefs) ->
+                if (snapshot == null) heardId = next.voice.heard?.id ?: 0L
+                snapshot = next
+                onScreen = front
                 preferences = prefs
-                show(PhoneOverlay.of(snapshot.assistant, snapshot.phone, onScreen))
+                heard(next)
+                show()
             }
         }
-        service.accessibilityButtonController.registerAccessibilityButtonCallback(button)
     }
 
     override fun detach() {
-        service.accessibilityButtonController.unregisterAccessibilityButtonCallback(button)
         scope.cancel()
         glow.hide()
         listOfNotNull(bubble.takeIf { bubbleOut }, target.takeIf { targetOut }).forEach { runCatching { windows.removeViewImmediate(it) } }
@@ -120,17 +124,163 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
         bubble.visibility = View.VISIBLE
     }
 
-    private fun show(next: PhoneOverlay) {
+    private fun view(snapshot: ICodeSnapshot) = PhoneBubbleView(
+        overlay, snapshot.assistant, snapshot.voice,
+        bar = mode == Mode.Typing, voiceUp = mode == Mode.Voice, tucked = place.tucked,
+        draft = draft, onDraft = { draft = it },
+    )
+
+    private fun actions() = PhoneBubbleActions(
+        tap = ::tap,
+        drag = ::drag,
+        dragEnd = ::dropped,
+        dispatch = gateway::dispatch,
+        listen = ::listen,
+        send = { send(draft) },
+        open = {
+            to(Mode.Closed)
+            // Started straight from the service: a bound accessibility service may start activities from the background.
+            service.startActivity(WorkNotifications.intentFor(service, BackgroundPlace.Assistant))
+        },
+        mute = ::mute,
+        cancel = ::cancelVoice,
+    )
+
+    /** The bubble tapped (§5.7): mute while it listens, silence while it speaks; else expand the bar, close it, or resume. */
+    private fun tap() {
+        when {
+            overlay.look == Look.Listening -> mute()
+            overlay.look == Look.Speaking -> gateway.dispatch(VoiceIntent.Silence)
+            mode == Mode.Typing && muted -> listen()
+            mode == Mode.Typing -> to(Mode.Closed)
+            else -> to(Mode.Typing)
+        }
+    }
+
+    private fun listen() {
+        muted = false
+        to(Mode.Voice)
+        gateway.dispatch(VoiceIntent.Listen(VoiceFrom.Bubble))
+    }
+
+    /** The voice bubble's microphone (§5.7): listening stops and the words wait in the bar — and what the agent does runs on. */
+    private fun mute() {
+        if (overlay.look != Look.Listening) return
+        muted = true
+        to(Mode.Typing)
+        gateway.dispatch(VoiceIntent.FinishListening)
+    }
+
+    /** The voice bubble's Stop: the voice session ends and nothing heard is kept; what runs goes on running. */
+    private fun cancelVoice() {
+        if (mode != Mode.Voice) return
+        to(Mode.Closed)
+    }
+
+    /** Sent to the chat iCode shows — "Open in iCode" opens the same one — and answered aloud. */
+    private fun send(text: String) {
+        if (text.isBlank()) return
+        if (snapshot?.assistant?.workspace == null) gateway.dispatch(ICodeIntent.OpenAssistant)
+        gateway.dispatch(ICodeIntent.SendAssistantMessage(text.trim(), aloud = true))
+        draft = ""
+        muted = false
+        // Closed, the bar covers nothing the agent may tap.
+        to(Mode.Closed)
+    }
+
+    /** A hearing for the bubble ended: its words sent in a voice session, else kept in the bar; nothing heard says why there. */
+    private fun heard(next: ICodeSnapshot) {
+        val heard = next.voice.heard?.takeIf { it.from == VoiceFrom.Bubble && it.final && it.id != heardId } ?: return
+        heardId = heard.id
+        val words = heard.sent
+        when {
+            words == null -> if (mode == Mode.Voice) to(Mode.Typing)
+            mode == Mode.Voice && next.assistant.turn == null -> send(listOf(draft, words).filter { it.isNotBlank() }.joinToString(" "))
+            else -> {
+                draft = listOf(draft, words).filter { it.isNotBlank() }.joinToString(" ")
+                if (mode == Mode.Voice) {
+                    muted = true
+                    to(Mode.Typing)
+                }
+            }
+        }
+    }
+
+    private fun to(next: Mode) {
+        enter(next)
+        show()
+    }
+
+    /** [next] taken, without showing it yet. */
+    private fun enter(next: Mode) {
+        // Leaving a voice session without a word sent: nothing heard is sent behind the user's back.
+        if (mode == Mode.Voice && next == Mode.Closed && overlay.look == Look.Listening) gateway.dispatch(VoiceIntent.CancelListening)
+        if (next == Mode.Closed) muted = false
+        mode = next
+        if (bubbleOut) place.focusable(next == Mode.Typing)
+    }
+
+    private fun show() {
+        val now = snapshot ?: return
+        val next = PhoneOverlay.of(now.assistant, now.voice, now.phone, onScreen, muted = muted && mode == Mode.Typing)
         overlay = next
         glow.show(next.glow, appearancePalette(preferences.appearance.takeIf { preferences.loaded }).accent.toArgb())
         if (next.bubble && !bubbleOut) {
-            windows.addView(bubble, bubbleParams)
+            windows.addView(bubble, place.params)
             bubbleOut = true
         } else if (!next.bubble && bubbleOut) {
-            expand(false)
+            enter(Mode.Closed)
             windows.removeViewImmediate(bubble)
             bubbleOut = false
         }
+        place.rest(next.look == Look.Idle && mode == Mode.Closed && !next.asking, scope)
+    }
+
+    private fun drag(dx: Float, dy: Float) {
+        if (mode == Mode.Typing) to(Mode.Closed)
+        place.drag(dx, dy)
+        if (!targetOut) {
+            windows.addView(target, WindowManager.LayoutParams(
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.WRAP_CONTENT,
+                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                PixelFormat.TRANSLUCENT,
+            ).apply {
+                gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                y = (TARGET_MARGIN_DP * density).toInt()
+                title = "iCode bubble target"
+            })
+            targetOut = true
+        }
+        val (width, _) = place.screen()
+        val (x, y) = place.centre()
+        val targetY = (TARGET_MARGIN_DP + IcodeSizes.Bubble.value / 2) * density
+        overTarget = hypot(x - width / 2f, y - targetY) < IcodeSizes.Bubble.value * density * TARGET_REACH
+    }
+
+    /** Let go: on the target at the top, put away — and a turn on the phone stopped, the voice silenced — else back to the bottom. */
+    private fun dropped() {
+        if (targetOut) {
+            windows.removeViewImmediate(target)
+            targetOut = false
+        }
+        place.drop()
+        if (overTarget) {
+            overTarget = false
+            to(Mode.Closed)
+            if (overlay.working) gateway.dispatch(ICodeIntent.StopAssistant)
+            gateway.dispatch(VoiceIntent.Silence)
+            gateway.dispatch(PhoneIntent.ShowBubble(false))
+        }
+        show()
+    }
+
+    /** A touch outside the open bar closes it, and goes on to the app under it. */
+    @SuppressLint("ClickableViewAccessibility")
+    private fun outside(view: View, event: MotionEvent): Boolean {
+        if (event.action == MotionEvent.ACTION_OUTSIDE && mode == Mode.Typing) to(Mode.Closed)
+        return false
     }
 
     @Composable
@@ -139,100 +289,9 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
         IcodeTheme(palette = appearancePalette(appearance), uiTextScalePercent = appearance?.uiTextScalePercent ?: 100, content = content)
     }
 
-    private fun actions() = PhoneBubbleActions(
-        expand = ::expand,
-        drag = ::drag,
-        dragEnd = ::dropped,
-        dispatch = gateway::dispatch,
-        open = {
-            expand(false)
-            // Started straight from the service: a bound accessibility service may start activities from the background.
-            service.startActivity(WorkNotifications.intentFor(service, BackgroundPlace.Assistant))
-        },
-    )
-
-    /** Open, the panel takes the keyboard; closed, the mark takes no focus from the app under it. */
-    private fun expand(open: Boolean) {
-        expanded = open
-        // Closed, the panel's microphone stops: nothing heard is sent behind the user's back.
-        if (!open && voice.listening(VoiceFrom.Bubble)) gateway.dispatch(VoiceIntent.CancelListening)
-        if (!bubbleOut) return
-        val metrics = service.resources.displayMetrics
-        bubbleParams.flags = params(focusable = open).flags
-        if (open) {
-            // The panel opens from the upper half, so it fits above the keyboard.
-            bubbleParams.x = (MARGIN_DP * density).toInt()
-            bubbleParams.y = bubbleParams.y.coerceIn(0, metrics.heightPixels / 2)
-        } else {
-            bubbleParams.x = snapped(bubbleParams.x, metrics.widthPixels)
-        }
-        windows.updateViewLayout(bubble, bubbleParams)
-    }
-
-    private fun drag(dx: Float, dy: Float) {
-        bubbleParams.x += dx.toInt()
-        bubbleParams.y += dy.toInt()
-        windows.updateViewLayout(bubble, bubbleParams)
-        if (!targetOut) {
-            windows.addView(target, params(focusable = false).apply {
-                gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-                y = (TARGET_MARGIN_DP * density).toInt()
-                flags = flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
-            })
-            targetOut = true
-        }
-        val metrics = service.resources.displayMetrics
-        val size = IcodeSizes.Bubble.value * density
-        val targetY = metrics.heightPixels - (TARGET_MARGIN_DP + IcodeSizes.Bubble.value / 2) * density
-        overTarget = hypot(bubbleParams.x + size / 2 - metrics.widthPixels / 2f, bubbleParams.y + size / 2 - targetY) < size * 1.5f
-    }
-
-    /** Let go: on the target, put away — and a turn on the phone stopped — else snapped to the nearer edge. */
-    private fun dropped() {
-        if (targetOut) {
-            windows.removeViewImmediate(target)
-            targetOut = false
-        }
-        if (overTarget) {
-            overTarget = false
-            if (overlay.working) gateway.dispatch(ICodeIntent.StopAssistant)
-            gateway.dispatch(VoiceIntent.Silence)
-            gateway.dispatch(PhoneIntent.ShowBubble(false))
-            return
-        }
-        bubbleParams.x = snapped(bubbleParams.x, service.resources.displayMetrics.widthPixels)
-        windows.updateViewLayout(bubble, bubbleParams)
-    }
-
-    private fun snapped(x: Int, width: Int): Int {
-        val size = (IcodeSizes.Bubble.value * density).toInt()
-        return if (x + size / 2 < width / 2) 0 else width - size
-    }
-
-    /** A touch outside the open panel closes it, and goes on to the app under it. */
-    @SuppressLint("ClickableViewAccessibility")
-    private fun outside(view: View, event: MotionEvent): Boolean {
-        if (event.action == MotionEvent.ACTION_OUTSIDE && expanded) expand(false)
-        return false
-    }
-
-    private fun params(focusable: Boolean) = WindowManager.LayoutParams(
-        WindowManager.LayoutParams.WRAP_CONTENT,
-        WindowManager.LayoutParams.WRAP_CONTENT,
-        WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-        WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
-            WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or
-            (if (focusable) 0 else WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE),
-        PixelFormat.TRANSLUCENT,
-    ).apply {
-        gravity = Gravity.TOP or Gravity.START
-        softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
-        title = "iCode bubble"
-    }
-
     private companion object {
-        const val MARGIN_DP = 12f
         const val TARGET_MARGIN_DP = 48f
+        const val TARGET_REACH = 1.5f
         const val FRAME_MILLIS = 50L
     }
 }

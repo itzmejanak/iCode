@@ -67,10 +67,16 @@ object IcodeSizes {
     val Tile = 74.dp
     /** The × that takes a picture off, in a [Tile]'s corner. */
     val TileRemove = 28.dp
-    /** The assistant's bubble over other apps (docs/phone-agent-plan.md §5.7), its ring, and its panel's width at most. */
+    /** The assistant's bubble over other apps (docs/phone-agent-plan.md §5.7), its ring, and its bar's width at most. */
     val Bubble = 52.dp
     val BubbleRing = 3.dp
     val BubblePanel = 380.dp
+    /** The bubble's waveform while it listens or speaks: its height at most, and each bar's width. */
+    val Waveform = 22.dp
+    val WaveformBar = 3.dp
+    /** The voice bubble's waveform while it listens with nothing heard yet: it stands alone, so it is bigger. */
+    val WaveformVoice = 30.dp
+    val WaveformBarVoice = 4.dp
     /** A grid of files (docs/explorer-gaps-plan.md §3.12): each tile at least this wide, its picture this big. */
     val GridTileMin = 104.dp
     val GridTilePicture = 56.dp

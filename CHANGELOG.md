@@ -36,6 +36,10 @@ All notable changes to iCode are documented here. The format follows
   Always; a new message, Stop, or a tap on the bubble silences it.
 - Phone control keeps a notification with Stop, Show bubble and Turn off, and holds the microphone
   for the bubble while iCode is away.
+- One bubble, in six states — idle, listening, muted, thinking, acting, speaking — with a compact bar
+  beside it when text can be typed; tap to mute, resume or stop the reading. It docks at an edge and
+  tucks half away when idle. Android's own accessibility button is no longer asked for, so there is
+  one icon, not two; Phone Control says how to remove one an earlier build left.
 
 ## [0.1.0]
 

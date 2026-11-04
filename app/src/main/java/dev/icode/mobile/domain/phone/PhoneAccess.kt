@@ -19,6 +19,11 @@ data class PhoneAccess(
     val shizuku: ShizukuState = ShizukuState.NotInstalled,
     /** The bubble is out over other apps: phone control is on and the user has not put it away. */
     val bubble: Boolean = false,
+    /**
+     * Android's own accessibility button still names iCode — an earlier build asked for it — and shows
+     * a second icon whose tap turns phone control off. iCode's bubble replaces it; the user removes it.
+     */
+    val systemButton: Boolean = false,
 ) {
     val shizukuReady: Boolean get() = shizuku == ShizukuState.Ready
 }
