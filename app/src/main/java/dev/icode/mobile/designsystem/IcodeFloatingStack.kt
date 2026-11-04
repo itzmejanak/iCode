@@ -19,12 +19,10 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -105,8 +103,9 @@ internal fun SheetOpen() {
 /**
  * The floating stack (§3.8): [content] — the undo pill above the bell — in one column at the bottom
  * end, above the highest of [floors] and at least [IcodeSizes.FabClearance] up; gone while a sheet is
- * open or the stack is not [visible]. Its pills say nothing in words (owner's request, 2026-11-04):
- * icons and counts only, so a long name never stretches them.
+ * open or the stack is not [visible]. Its pills ([IcodeDockedPill]) sit flush on the end edge and say
+ * nothing in words (owner's requests, 2026-11-04): icons and counts only, so a long name never
+ * stretches them.
  */
 @Composable
 fun IcodeFloatingStack(floors: IcodeFloors, visible: Boolean, content: @Composable ColumnScope.() -> Unit) {
@@ -115,7 +114,7 @@ fun IcodeFloatingStack(floors: IcodeFloors, visible: Boolean, content: @Composab
         val above = floors.highest?.let { with(LocalDensity.current) { (bottom - it).toDp() } + IcodeSpacing.Space2 }
         AnimatedVisibility(
             visible = visible && !floors.sheetOpen,
-            modifier = Modifier.align(Alignment.BottomEnd).padding(end = IcodeSpacing.Gutter, bottom = maxOf(IcodeSizes.FabClearance, above ?: 0.dp)),
+            modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = maxOf(IcodeSizes.FabClearance, above ?: 0.dp)),
             enter = slideInHorizontally { it } + fadeIn(),
             exit = slideOutHorizontally { it } + fadeOut(),
         ) {
@@ -125,8 +124,9 @@ fun IcodeFloatingStack(floors: IcodeFloors, visible: Boolean, content: @Composab
 }
 
 /**
- * One of the stack's pills: a touch target tall, raised, its [edgeLine] drawn. Its content may make it
- * taller — the bubble's bar, typed in at length — and its corners stay as round as at its least.
+ * A floating pill — the bubble's bar and its voice bubble: a touch target tall, raised, its [edgeLine]
+ * drawn. Its content may make it taller — the bar, typed in at length — and its corners stay as round
+ * as at its least.
  *
  * With a [tab] or a [menu] (the owner's design, 2026-11-04): a tab rises from its top at the end, of
  * the pill's own surface, its top edge curving up into it. On it, [tab]'s actions as icons, each in a
@@ -210,28 +210,6 @@ private fun NamedTabAction(action: IcodeMenuAction, onClick: () -> Unit) {
     ) {
         Icon(action.icon, contentDescription = null, tint = if (action.enabled) IcodeColors.TextSecondary else IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconSm))
         Text(action.label, style = IcodeType.Body.copy(color = color), maxLines = 1)
-    }
-}
-
-/**
- * A floating [pill] with its ×, apart from it on nothing just off its top end (owner's design,
- * 2026-11-04): × puts the pill away; touch finds it a touch target.
- */
-@Composable
-fun IcodeFloatingAway(label: String, onAway: () -> Unit, pill: @Composable () -> Unit) {
-    Box {
-        pill()
-        Box(
-            Modifier
-                .align(Alignment.TopEnd)
-                .offset(x = IcodeSpacing.Space1, y = -IcodeSpacing.Space1)
-                .size(IcodeSizes.IconXl)
-                .clip(IcodeShapes.Pill)
-                .clickable(role = Role.Button, onClickLabel = label, onClick = onAway),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(Icons.Outlined.Close, contentDescription = label, tint = IcodeColors.TextSecondary, modifier = Modifier.size(IcodeSizes.IconSm))
-        }
     }
 }
 

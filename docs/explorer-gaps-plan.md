@@ -312,9 +312,9 @@ sheet on the same base (§3.1), for each item whose name is taken: the two side 
       reports its top edge to the stack. So no screen wires it, and the bell's overlap with the +
       (§2) goes too.
   - **The pill**, as the bell (owner, "notification floating icon behavior"):
-    - after a change: ↶, and ↷ when there is something to redo, each saying what it would do, with
-      × apart at its top end — icons only since 2026-11-04 (owner's request: a long name stretched
-      the pill);
+    - after a change: ↶, and ↷ when there is something to redo, each saying what it would do —
+      icons only since 2026-11-04 (owner's request: a long name stretched the pill), docked flush on
+      the screen's edge, round on its open side with a grip, swiped into the edge to put it away;
     - 10 s later it goes, as the bell does.
     - Not shown while a sheet or the Notifications page is open.
     - TalkBack reads the change ("Moved 3 items to Trash", "Restored 3 items") as the bell's.
@@ -981,8 +981,8 @@ Descending.
     No screen wires either.
   - **`IcodeFloatingStack`:** a column at the bottom end, above the highest floor, at least
     `FabClearance` up, and gone while a sheet is open. The bell no longer meets the explorer's +.
-  - **The pill's parts,** shared by the bell and the undo pill: `IcodeFloatingPill`,
-    `IcodeFloatingLine` (with an optional action), `IcodeFloatingAway` and `FLOATING_SLIDE_MILLIS`.
+  - **The pill's parts,** shared by the bell and the undo pill: `IcodeDockedPill` and
+    `IcodeDockedAction` (since 2026-11-04, the owner's choice: docked on the edge, no line, no ×).
   - **Tested:** `IcodeFloorsTest`.
 - **The bell:**
   - `NoticeHost` keeps the bell's state, its timing and its sheet.
@@ -991,7 +991,7 @@ Descending.
   - **Its state:** `UndoPillState`, with `rememberUndoPill`, lives at the app's root, like the bell's.
   - **Each change** in `FileHistoryState.news` is told once, and is not told again as the screen
     turns.
-  - **Shown:** ↶, ↷ when something can be redone, and × apart (`IcodeFloatingAway`).
+  - **Shown:** ↶, and ↷ when something can be redone, docked on the edge (`IcodeDockedPill`).
   - **After `FileNews.HOLD_MILLIS`:** it goes.
 - **Its place:** `IcodeApp` provides `LocalIcodeFloors` and draws the stack beside `NoticeHost`,
   over every screen but the Notifications page.

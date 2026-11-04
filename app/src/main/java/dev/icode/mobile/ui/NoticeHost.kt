@@ -8,13 +8,11 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Notifications
-import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -32,11 +30,9 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
-import dev.icode.mobile.designsystem.CountBadge
-import dev.icode.mobile.designsystem.IcodeFloatingAway
-import dev.icode.mobile.designsystem.IcodeFloatingPill
+import dev.icode.mobile.designsystem.IcodeDockedAction
+import dev.icode.mobile.designsystem.IcodeDockedPill
 import dev.icode.mobile.designsystem.IcodeSheetOverlay
-import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.domain.AppNotice
 import dev.icode.mobile.domain.NoticeIntent
 import dev.icode.mobile.domain.NoticeRules
@@ -121,8 +117,8 @@ internal fun NoticeHost(state: NoticeHostState, notices: List<AppNotice>, pageOp
  * The bell in the floating stack (owner's design, 2026-10-21; no line since 2026-11-04, the owner's
  * request), while it has something to tell and has not gone: a notice rings it once, in the most
  * serious unread tone — or a success's green, which is not kept — with the unread count as the
- * Explorer's Source Control count is drawn. TalkBack reads what rang it. × stands apart, on nothing
- * at the bell's top end. A tap opens the one unread notice; with more, [onAll].
+ * Explorer's Source Control count is drawn. TalkBack reads what rang it. Docked on the edge, it is
+ * swiped into it to put away. A tap opens the one unread notice; with more, [onAll].
  */
 @Composable
 internal fun NoticeBell(state: NoticeHostState, notices: List<AppNotice>, onAll: () -> Unit) {
@@ -162,32 +158,24 @@ private fun Bell(told: AppNotice.Message, unread: List<AppNotice>, onTap: () -> 
         ring.animateTo(1f, tween(RING_MILLIS, easing = LinearEasing))
         ring.snapTo(0f)
     }
-    IcodeFloatingAway("Put the bell away", onAway) {
-        IcodeFloatingPill {
-            Box(
-                Modifier
-                    .size(IcodeSizes.TouchTarget)
-                    .clickable(onClickLabel = "Show notifications", onClick = onTap)
-                    .semantics {
-                        contentDescription = "${told.title}. Notifications, ${unread.size} unread"
-                        liveRegion = LiveRegionMode.Polite
-                    },
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.Outlined.Notifications,
-                    contentDescription = null,
-                    tint = tone.tint,
-                    // A bell swings from where it hangs: a swing that dies away, three times over.
-                    modifier = Modifier.size(IcodeSizes.IconLg).graphicsLayer {
-                        val p = ring.value
-                        rotationZ = MAX_SWING_DEGREES * (1 - p) * sin(p * SWINGS * 2 * PI.toFloat())
-                        transformOrigin = TransformOrigin(0.5f, 0f)
-                    },
-                )
-                if (unread.isNotEmpty()) CountBadge(unread.size, Modifier.align(Alignment.Center))
-            }
-        }
+    IcodeDockedPill("Put the bell away", onAway) {
+        IcodeDockedAction(
+            Icons.Outlined.Notifications,
+            description = null,
+            tint = tone.tint,
+            onClick = onTap,
+            modifier = Modifier.semantics {
+                contentDescription = "${told.title}. Notifications, ${unread.size} unread"
+                liveRegion = LiveRegionMode.Polite
+            },
+            // A bell swings from where it hangs: a swing that dies away, three times over.
+            iconModifier = Modifier.graphicsLayer {
+                val p = ring.value
+                rotationZ = MAX_SWING_DEGREES * (1 - p) * sin(p * SWINGS * 2 * PI.toFloat())
+                transformOrigin = TransformOrigin(0.5f, 0f)
+            },
+            badge = unread.size.takeIf { it > 0 },
+        )
     }
 }
 
