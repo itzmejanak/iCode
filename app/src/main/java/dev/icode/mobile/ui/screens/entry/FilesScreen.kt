@@ -42,13 +42,13 @@ import dev.icode.mobile.ui.FileItemActions
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.LocalWorkspacePreferencesRepository
-import dev.icode.mobile.ui.NewWorkspaceDialog
+import dev.icode.mobile.ui.NewWorkspaceSheet
 import dev.icode.mobile.ui.ScreenActions
 import dev.icode.mobile.ui.SelectionActions
 import dev.icode.mobile.ui.SelectionBar
 import dev.icode.mobile.ui.among
 import dev.icode.mobile.ui.rememberSelection
-import dev.icode.mobile.ui.screens.workspace.CreateWorkspaceItemDialog
+import dev.icode.mobile.ui.screens.workspace.CreateWorkspaceItemSheet
 import dev.icode.mobile.ui.screens.workspace.WorkspaceItemType
 import dev.icode.mobile.ui.selectionActions
 import kotlinx.coroutines.launch
@@ -280,9 +280,9 @@ private fun FolderExplorer(
     creating?.let { type ->
         val here = browser
         if (here == null || top) {
-            NewWorkspaceDialog { creating = null }
+            NewWorkspaceSheet { creating = null }
         } else {
-            CreateWorkspaceItemDialog(
+            CreateWorkspaceItemSheet(
                 type,
                 here.path,
                 onDismiss = { creating = null },

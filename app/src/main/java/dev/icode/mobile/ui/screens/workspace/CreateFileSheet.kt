@@ -7,7 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import dev.icode.mobile.designsystem.IcodeConfirmDialog
+import dev.icode.mobile.designsystem.IcodeConfirmSheet
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.LabeledTextField
@@ -21,8 +21,8 @@ internal enum class WorkspaceItemType { File, Folder }
 
 /** Existing editor entry points use the same creation form in file mode. */
 @Composable
-internal fun CreateFileDialog(parentLocation: String?, onDismiss: () -> Unit) {
-    CreateWorkspaceItemDialog(WorkspaceItemType.File, parentLocation, onDismiss)
+internal fun CreateFileSheet(parentLocation: String?, onDismiss: () -> Unit) {
+    CreateWorkspaceItemSheet(WorkspaceItemType.File, parentLocation, onDismiss)
 }
 
 /**
@@ -32,7 +32,7 @@ internal fun CreateFileDialog(parentLocation: String?, onDismiss: () -> Unit) {
  * file explorer shows it.
  */
 @Composable
-internal fun CreateWorkspaceItemDialog(
+internal fun CreateWorkspaceItemSheet(
     type: WorkspaceItemType,
     parentLocation: String?,
     onDismiss: () -> Unit,
@@ -50,7 +50,7 @@ internal fun CreateWorkspaceItemDialog(
         WorkspaceItemType.File -> WorkspaceNameRules.fileValidationError(name)
         WorkspaceItemType.Folder -> WorkspaceNameRules.workspaceFolderValidationError(name)
     }
-    IcodeConfirmDialog(
+    IcodeConfirmSheet(
         title = if (type == WorkspaceItemType.File) "New file" else "New folder",
         confirmLabel = "Create",
         confirmEnabled = validationError == null && parent != null && intended != null &&
@@ -58,8 +58,8 @@ internal fun CreateWorkspaceItemDialog(
         dismissEnabled = !request.waiting,
         onDismiss = onDismiss,
         onConfirm = {
-            val targetParent = parent ?: return@IcodeConfirmDialog
-            val targetWorkspace = intended ?: return@IcodeConfirmDialog
+            val targetParent = parent ?: return@IcodeConfirmSheet
+            val targetWorkspace = intended ?: return@IcodeConfirmSheet
             request.send { requestId ->
                 when (type) {
                     WorkspaceItemType.File -> gateway.dispatch(ICodeIntent.CreateFile(name.trim(), targetParent, targetWorkspace, requestId))

@@ -60,7 +60,7 @@ Upgrading Kotlin is a separate, app-wide decision.
   top), `setAccentColor`, DataStore key, `withAccent` in `IcodeApp`; JVM tests for the rules, the
   palette and the repository across a restart.
 - **Step 3:** `colorpicker-compose:1.1.4` (resolves Compose 1.11.0 from the BOM, stdlib 2.3.21);
-  `AccentColorDialog` (150 lines): presets are exact, only a drag reads the wheel back, typed hex
+  `AccentColorSheet` (150 lines): presets are exact, only a drag reads the wheel back, typed hex
   moves the wheel and brightness bar; Apply stores `null` when the choice equals the theme's own
   accent. The row reads "Theme accent" or "<preset|Custom> accent" with the hex. Lint's one new
   warning is the newer 1.3.0, pinned on purpose (§2).

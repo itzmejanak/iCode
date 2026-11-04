@@ -21,7 +21,7 @@ import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.DangerButton
 import dev.icode.mobile.designsystem.DetailRow
 import dev.icode.mobile.designsystem.IcodeCard
-import dev.icode.mobile.designsystem.IcodeConfirmDialog
+import dev.icode.mobile.designsystem.IcodeConfirmSheet
 import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTone
@@ -125,7 +125,7 @@ fun RuntimeSettingsScreen(actions: NavigationActions) {
     }
 
     pending?.let { rebuild ->
-        IcodeConfirmDialog(
+        IcodeConfirmSheet(
             title = if (rebuild == RuntimeRebuild.Repair) "Repair runtime" else "Reset runtime",
             message = if (rebuild == RuntimeRebuild.Repair) {
                 "The base system is downloaded and rebuilt. Your home directory and workspaces are kept; " +

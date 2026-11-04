@@ -124,8 +124,8 @@ internal interface GitCredentialOperations {
     suspend fun signingKeys(): List<GitSigningKey>
     /** [fingerprint]'s public half, armored; null when gpg has none. */
     suspend fun publicSigningKey(fingerprint: String): String?
-    /** A key of gpg's defaults for [userId] ("Name <email>"); gpg asks its passphrase in the GnuPG dialog. */
+    /** A key of gpg's defaults for [userId] ("Name <email>"); gpg asks its passphrase in the GnuPG sheet. */
     suspend fun createSigningKey(userId: String): GitOperationOutcome
-    /** gpg asks the current passphrase, then the new one twice, in the GnuPG dialog. */
+    /** gpg asks the current passphrase, then the new one twice, in the GnuPG sheet. */
     suspend fun changeSigningPassphrase(fingerprint: String): GitOperationOutcome
 }

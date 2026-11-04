@@ -95,7 +95,6 @@ object IcodeSizes {
     val MenuWidth = 200.dp
     /** An option panel's tile ([IcodeOptionTile]): wide enough for "Detailed" in caption type, and its pill. */
     val OptionTile = 54.dp
-    val DialogMaxWidth = 400.dp
     val DotMd = 12.dp
     /** A commit graph's lane (History sheet), its dot and the lines between them. */
     val GraphLane = 14.dp
@@ -137,7 +136,7 @@ object IcodeSizes {
     val ProgressRing = 176.dp
     val RingStroke = 6.dp
 
-    /** Round status marks: empty states, dialogs and health banners. */
+    /** Round status marks: empty states, sheets and health banners. */
     val MarkSm = 36.dp
     val MarkMd = 42.dp
     val MarkLg = 64.dp

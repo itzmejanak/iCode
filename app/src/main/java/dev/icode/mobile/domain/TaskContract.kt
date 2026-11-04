@@ -1,12 +1,12 @@
 package dev.icode.mobile.domain
 
 // Long operations (docs/long-operations-plan.md): one model for every operation a user starts
-// and may send to the background — its dialog, its notification and its result.
+// and may send to the background — its sheet, its notification and its result.
 
 /** A long operation the user started, while it runs, or after it failed until the user has seen why. */
 data class WorkTask(
     val id: Long,
-    /** "Deleting…" — what the dialog's title says it is doing. */
+    /** "Deleting…" — what the sheet's title says it is doing. */
     val title: String,
     /** What it works on, by the name the user chose it by: "node_modules". */
     val subject: String,
@@ -16,19 +16,19 @@ data class WorkTask(
     /** Null while it counts. */
     val total: Long? = null,
     val cancellable: Boolean = false,
-    /** Sent to the background: no dialog; the notification carries it. */
+    /** Sent to the background: no sheet; the notification carries it. */
     val hidden: Boolean = false,
     /** Why it stopped short; null while it runs. */
     val failure: String? = null,
     /**
-     * Just started: no dialog and no notification yet, so what ends at once — a rename, a move to
+     * Just started: no sheet and no notification yet, so what ends at once — a rename, a move to
      * Trash — never flashes one.
      */
     val quiet: Boolean = false,
 ) {
     val fraction: Float? get() = total?.takeIf { it > 0 }?.let { (done.toFloat() / it).coerceIn(0f, 1f) }
 
-    /** "1207 / 11813" once counted: the dialog and the notification say the same. */
+    /** "1207 / 11813" once counted: the sheet and the notification say the same. */
     val counts: String? get() = total?.let { "$done / $it" }
 }
 

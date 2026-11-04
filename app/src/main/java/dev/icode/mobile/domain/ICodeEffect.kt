@@ -6,7 +6,7 @@ sealed interface ICodeEffect {
     data class OpenSystemSettings(val permission: SystemPermission) : ICodeEffect
     data class WorkspaceOpened(val location: String) : ICodeEffect
     data class WorkspaceTerminalOpened(val location: String) : ICodeEffect
-    /** The answer to the dialog that asked, by request id: created or renamed, and where it is now. */
+    /** The answer to the sheet that asked, by request id: created or renamed, and where it is now. */
     data class WorkspaceItemChanged(val requestId: String, val location: String) : ICodeEffect
     data class WorkspaceItemFailed(val requestId: String, val message: String) : ICodeEffect
     data class ConfirmWorkspaceSwitch(val location: String, val openTerminal: Boolean, val dirtyCount: Int) : ICodeEffect

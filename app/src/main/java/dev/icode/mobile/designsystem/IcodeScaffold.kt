@@ -78,7 +78,7 @@ fun IcodePageColumn(modifier: Modifier = Modifier, content: @Composable ColumnSc
 }
 
 /**
- * Workspace, page and dialog header with optional back and action slots.
+ * Workspace, page and sheet header with optional back and action slots.
  *
  * Its [EdgeLine] closes the header. Pass an [AnnotatedString] title to style parts of it (e.g.
  * the product wordmark) independently from the rest of the text. [onTitleClick]

@@ -26,7 +26,7 @@ import dev.icode.mobile.domain.files.PasswordAsk
 /**
  * What an explorer's operation asks, over whatever screen is open, each a sheet on the one base
  * (docs/explorer-gaps-plan.md §3.6, §3.11): a name already there, which its task waits on, or a 7z's
- * password. The task's own dialog steps aside while the question is open ([TaskDialogs]).
+ * password. The task's own sheet steps aside while the question is open ([TaskSheets]).
  */
 @Composable
 internal fun FileAsks(explorer: ExplorerState, gateway: ICodeGateway) {

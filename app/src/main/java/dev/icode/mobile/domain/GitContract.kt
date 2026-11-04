@@ -192,7 +192,7 @@ data class GitAuthState(
 
 /**
  * Generating installs the SSH client first when it is missing: that shows as the client's install, as
- * GnuPG's does. Creating a signing key and changing its passphrase wait on the GnuPG dialog.
+ * GnuPG's does. Creating a signing key and changing its passphrase wait on the GnuPG sheet.
  */
 enum class GitAuthWork { GeneratingKey, Testing, InstallingGnuPg, CreatingSigningKey, ChangingPassphrase }
 

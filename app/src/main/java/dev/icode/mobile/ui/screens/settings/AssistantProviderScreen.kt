@@ -26,7 +26,7 @@ import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.DangerButton
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeConfirmDialog
+import dev.icode.mobile.designsystem.IcodeConfirmSheet
 import dev.icode.mobile.designsystem.IcodePageColumn
 import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeListRow
@@ -203,7 +203,7 @@ fun AssistantProviderScreen(actions: NavigationActions) {
         }
     }
     if (leaving) {
-        IcodeConfirmDialog(
+        IcodeConfirmSheet(
             title = "Leave without saving?",
             message = if (saved == null) "This provider is not added yet." else "The changes to ${saved.name} are not saved.",
             confirmLabel = "Discard",
@@ -215,7 +215,7 @@ fun AssistantProviderScreen(actions: NavigationActions) {
         )
     }
     if (removing && saved != null) {
-        IcodeConfirmDialog(
+        IcodeConfirmSheet(
             title = "Remove ${saved.name}?",
             message = "Its API key and models are forgotten on this phone. Chats stay.",
             confirmLabel = "Remove",

@@ -25,8 +25,8 @@ Kit (each file ≤ ~300 lines, all under `designsystem/`):
 - Inputs: `IcodeTextField/LabeledTextField/LabeledField`, `IcodeSelect` (card or chip), `IcodeToggle/IcodeCheckbox/SegmentedControl/IcodeSlider/Stepper`
 - Actions: `Primary/Secondary/DangerButton` (Primary with a leading icon), `IcodeTextButton`, `IcodeNavigationLink`, `KeyChip` (text or icon), `JumpToLatestButton`
 - Lists: `IcodeListRow (card+compact)`, `SettingRow`, `DetailRow`, `IconBadge`, `IcodeChoiceRow`
-- Feedback: `NoticeCard (tone→border/title)`, `EmptyState`, `IcodeDialogCard/IcodeConfirmDialog/IcodeSaveDiscardDialog/IcodeBottomSheet`
-- Navigation: `IcodeRail`, `IcodeTopBar`, `IcodeTabStrip`, `IcodeMenus (IcodeOverflowMenu/IcodeActionMenu, one IcodeDropdownMenu surface with IcodeSelect's)`, `IcodeStatus` (`ProgressTrack`, `ProgressRing`), `IcodeProgressDialog`, `IcodeDiff`, `IcodeZoom`
+- Feedback: `NoticeCard (tone→border/title)`, `EmptyState`, `IcodeDialogCard/IcodeConfirmSheet/IcodeSaveDiscardSheet/IcodeBottomSheet`
+- Navigation: `IcodeRail`, `IcodeTopBar`, `IcodeTabStrip`, `IcodeMenus (IcodeOverflowMenu/IcodeActionMenu, one IcodeDropdownMenu surface with IcodeSelect's)`, `IcodeStatus` (`ProgressTrack`, `ProgressRing`), `IcodeProgressSheet`, `IcodeDiff`, `IcodeZoom`
 
 ## 3. Findings — ID, category, severity, confidence, evidence
 

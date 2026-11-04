@@ -21,6 +21,8 @@
 #   orphan-route Route values with no navigate(...) entry point
 #   toast        android.widget.Toast anywhere: what iCode says is a notice, on the
 #                bell, the Notifications page and Android's shade (docs/notices-plan.md)
+#   dialog       a Compose or Android dialog anywhere: iCode asks and confirms in sheets
+#                (IcodeConfirmSheet, IcodeModalSheet; owner's request, 2026-11-04)
 
 set -euo pipefail
 
@@ -76,6 +78,12 @@ while read -r file count; do
     [[ -z "$file" ]] && continue
     emit "toast" "${file#"$repo_root/"}" "$count"
 done < <(count_matches 'android\.widget\.Toast|Toast\.makeText' "$src_root")
+
+# 4b. Dialogs anywhere in the app: none is allowed.
+while read -r file count; do
+    [[ -z "$file" ]] && continue
+    emit "dialog" "${file#"$repo_root/"}" "$count"
+done < <(count_matches 'androidx\.compose\.ui\.window\.Dialog|androidx\.compose\.material3\.(Basic)?AlertDialog|android\.app\.AlertDialog|androidx\.appcompat\.app\.AlertDialog|DialogFragment' "$src_root")
 
 # 5a. Capture forks inside product screens.
 #

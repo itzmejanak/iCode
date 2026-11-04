@@ -139,7 +139,7 @@ fun AppearanceScreen(actions: NavigationActions) {
         }
     }
     if (pickingAccent) {
-        AccentColorDialog(
+        AccentColorSheet(
             current = accentArgb,
             themeAccent = themeAccent,
             onApply = { argb ->

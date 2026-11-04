@@ -10,8 +10,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeConfirmDialog
-import dev.icode.mobile.designsystem.IcodeSaveDiscardDialog
+import dev.icode.mobile.designsystem.IcodeConfirmSheet
+import dev.icode.mobile.designsystem.IcodeSaveDiscardSheet
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.domain.ICodeEffect
@@ -52,7 +52,7 @@ internal fun rememberICodeQuestions(): ICodeQuestions = remember { ICodeQuestion
 
 /** The question waiting, drawn over the current screen. */
 @Composable
-internal fun ICodeQuestionDialogs(
+internal fun ICodeQuestionSheets(
     questions: ICodeQuestions,
     snapshot: ICodeSnapshot,
     gateway: ICodeGateway,
@@ -60,7 +60,7 @@ internal fun ICodeQuestionDialogs(
     navigate: (Route) -> Unit,
 ) {
     questions.workspaceSwitch?.let { switch ->
-        IcodeSaveDiscardDialog(
+        IcodeSaveDiscardSheet(
             title = "Switch workspace?",
             description = "${countOf(switch.dirtyCount, "file has", "files have")} unsaved changes.",
             onSave = {
@@ -76,7 +76,7 @@ internal fun ICodeQuestionDialogs(
     }
     questions.draftRecoveries.firstOrNull()?.let { recovery ->
         val answered = { questions.draftRecoveries = questions.draftRecoveries.drop(1) }
-        IcodeConfirmDialog(
+        IcodeConfirmSheet(
             title = "Recover ${recovery.name}?",
             confirmLabel = "Restore draft",
             onConfirm = {
@@ -111,7 +111,7 @@ internal fun ICodeQuestionDialogs(
         navigate = navigate,
     )
     questions.recoveredOverwrite?.let { overwrite ->
-        IcodeConfirmDialog(
+        IcodeConfirmSheet(
             title = "Overwrite newer file?",
             confirmLabel = "Overwrite file",
             destructive = true,

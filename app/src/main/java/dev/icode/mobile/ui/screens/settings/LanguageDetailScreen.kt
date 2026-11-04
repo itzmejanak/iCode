@@ -15,7 +15,7 @@ import dev.icode.mobile.designsystem.DangerButton
 import dev.icode.mobile.designsystem.DetailRow
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeConfirmDialog
+import dev.icode.mobile.designsystem.IcodeConfirmSheet
 import dev.icode.mobile.designsystem.IcodePageColumn
 import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSpacing
@@ -108,7 +108,7 @@ fun LanguageDetailScreen(actions: NavigationActions) {
         }
     }
     if (confirmRemove && service != null) {
-        IcodeConfirmDialog(
+        IcodeConfirmSheet(
             title = "Remove ${service.name}?",
             confirmLabel = "Remove",
             onConfirm = {

@@ -22,7 +22,7 @@ import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.IcodeBottomSheet
 import dev.icode.mobile.designsystem.IcodeChoiceRow
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeConfirmDialog
+import dev.icode.mobile.designsystem.IcodeConfirmSheet
 import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
@@ -129,7 +129,7 @@ fun BranchSelectorScreen(actions: NavigationActions) {
         }
     }
     branchPendingDelete?.let { branch ->
-        IcodeConfirmDialog(
+        IcodeConfirmSheet(
             title = "Delete branch",
             message = "Git refuses to delete a branch whose commits are not merged, " +
                 "so anything already merged is safe. This cannot be undone.",

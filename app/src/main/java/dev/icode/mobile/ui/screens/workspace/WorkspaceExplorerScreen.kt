@@ -208,7 +208,7 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
         }
     }
     createType?.let { type ->
-        CreateWorkspaceItemDialog(type, createParent, onDismiss = { createType = null })
+        CreateWorkspaceItemSheet(type, createParent, onDismiss = { createType = null })
     }
 }
 

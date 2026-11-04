@@ -20,7 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeConfirmDialog
+import dev.icode.mobile.designsystem.IcodeConfirmSheet
 import dev.icode.mobile.designsystem.IcodeFootBar
 import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodeSpacing
@@ -148,7 +148,7 @@ fun DocumentRecoveryScreen(actions: NavigationActions) {
     }
 
     if (discarding.isNotEmpty()) {
-        IcodeConfirmDialog(
+        IcodeConfirmSheet(
             title = if (discarding.size == 1) "Discard ${discarding.single().name}?" else "Discard ${discarding.size} drafts?",
             message = "The unsaved text is deleted. The files on disk stay as they are.",
             confirmLabel = "Discard",

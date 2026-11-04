@@ -40,7 +40,7 @@ import dev.icode.mobile.designsystem.BottomBarItem
 import dev.icode.mobile.designsystem.BottomPanelBar
 import dev.icode.mobile.designsystem.CodeSurface
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeSaveDiscardDialog
+import dev.icode.mobile.designsystem.IcodeSaveDiscardSheet
 import dev.icode.mobile.designsystem.IcodeSheetOverlay
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
@@ -102,7 +102,7 @@ fun WorkspaceEditorScreen(actions: NavigationActions) {
     val title = document?.name ?: "No document"
     val pendingDocument = state.openDocuments.firstOrNull { it.location == pendingClose }
     if (pendingDocument?.dirty == true) {
-        IcodeSaveDiscardDialog(
+        IcodeSaveDiscardSheet(
             title = "Close ${pendingDocument.name}?",
             description = "This file has unsaved changes.",
             onSave = {
@@ -118,7 +118,7 @@ fun WorkspaceEditorScreen(actions: NavigationActions) {
     }
     closeOthers?.let { keep ->
         val dirtyCount = state.openDocuments.count { it.location != keep && it.dirty }
-        IcodeSaveDiscardDialog(
+        IcodeSaveDiscardSheet(
             title = "Close other tabs?",
             description = "${countOf(dirtyCount, "other file has", "other files have")} unsaved changes.",
             onSave = {
@@ -248,7 +248,7 @@ fun WorkspaceEditorScreen(actions: NavigationActions) {
             }
         }
     }
-    if (showCreateFile) CreateFileDialog(parentLocation = null, onDismiss = { showCreateFile = false })
+    if (showCreateFile) CreateFileSheet(parentLocation = null, onDismiss = { showCreateFile = false })
 }
 
 @Composable

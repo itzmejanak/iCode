@@ -22,7 +22,7 @@ import kotlinx.coroutines.launch
  * hands over each request as `<pid>.request` in [GuestGpg.REQUESTS], beside the pipe `<pid>.answer`
  * it reads one line from. Asked for an agent, iCode starts gpg-agent in a PRoot session of its own,
  * without `--kill-on-exit`: it outlives the command that needed it and keeps the passphrase for as
- * long as gpg-agent's cache says. Asked a question, iCode shows it until the dialog answers, or until
+ * long as gpg-agent's cache says. Asked a question, iCode shows it until the sheet answers, or until
  * gpg-agent takes it back and the request goes.
  */
 internal class GpgBridge(private val stateHolder: ICodeStateHolder, private val scope: CoroutineScope, private val layout: RuntimeLayout) {

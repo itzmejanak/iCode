@@ -5,7 +5,7 @@ import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 
 /**
- * Recovery and dialog frames.
+ * Recovery and sheet frames.
  *
  * Each branch renders one screen file; `else`: the routes of the other groups, which their own
  * hosts draw.

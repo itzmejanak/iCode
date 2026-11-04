@@ -1,7 +1,7 @@
 package dev.icode.mobile.domain
 
 // Signed commits (docs/gpg-signing-plan.md): gpg-agent asks for a key's passphrase, or a yes or no,
-// through iCode's pinentry, and iCode asks in its own dialog. The passphrase is kept by gpg-agent alone.
+// through iCode's pinentry, and iCode asks in its own sheet. The passphrase is kept by gpg-agent alone.
 
 /** One question gpg-agent asks, in its own words. */
 data class GpgPrompt(
@@ -19,7 +19,7 @@ data class GpgPrompt(
     val cancel: String?,
 )
 
-/** What the dialog answers. */
+/** What the sheet answers. */
 sealed interface GpgAnswer {
     data class Passphrase(val value: String) : GpgAnswer {
         /** Never written out, should an answer ever be. */
@@ -39,7 +39,7 @@ sealed interface GpgRequest {
     data class Ask(val prompt: GpgPrompt) : GpgRequest
 }
 
-/** The dialog's answers. Never behind the mutation lock: the commit waiting on a passphrase holds it. */
+/** The sheet's answers. Never behind the mutation lock: the commit waiting on a passphrase holds it. */
 sealed interface GpgIntent : ICodeIntent {
     data class Answer(val id: String, val answer: GpgAnswer) : GpgIntent
 }

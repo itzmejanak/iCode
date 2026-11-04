@@ -5,7 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import dev.icode.mobile.designsystem.IcodeConfirmDialog
+import dev.icode.mobile.designsystem.IcodeConfirmSheet
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.WorkspaceNameRules
 
@@ -15,13 +15,13 @@ import dev.icode.mobile.domain.WorkspaceNameRules
  * here.
  */
 @Composable
-internal fun NewWorkspaceDialog(onDismiss: () -> Unit) {
+internal fun NewWorkspaceSheet(onDismiss: () -> Unit) {
     val gateway = LocalICodeGateway.current
     val workspaces = LocalICodeSnapshot.current.workspaces
     var name by rememberSaveable { mutableStateOf("") }
     val request = rememberPendingRequest(NEW, onDismiss)
     val problem = WorkspaceNameRules.newWorkspaceError(name) { taken -> workspaces.any { it.name == taken } }
-    IcodeConfirmDialog(
+    IcodeConfirmSheet(
         title = "New folder",
         confirmLabel = "Create",
         confirmEnabled = problem == null && !request.waiting,

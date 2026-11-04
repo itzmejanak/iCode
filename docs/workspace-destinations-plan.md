@@ -59,7 +59,7 @@ several repositories is not yet a place to work on them.
    Workspaces page, **New Folder** opens a small dialog — the name, the `/workspace/<name>` it will
    have and whether it can be used, as it is typed — and the new workspace appears in the list, as
    a file manager's new folder does, without opening it. The dialog is the Explorer's own "New
-   folder" dialog's shape (`IcodeConfirmDialog`, answered by request id: a refusal is said in the
+   folder" dialog's shape (`IcodeConfirmSheet`, answered by request id: a refusal is said in the
    dialog, as Rename's is). Its design frame (2003:77) becomes a state of the Workspaces page. The
    destination browser (2) has the same **New folder**, into the folder it shows: a place can be
    made while one is chosen.
@@ -255,7 +255,7 @@ open over the real Source Control, a little blurred, and be chosen from one bar 
   file, Stage or Unstage, and Discard changes, Delete file or Restore file; on a folder, Stage or
   Unstage and Discard changes for all it holds that can be (`GitDiscard`: nothing staged, no
   conflict), discarded only while Git still reports exactly those — each kind at once. The
-  confirmation is the app's one dialog (`IcodeConfirmDialog`) over what asked for it, not a page:
+  confirmation is the app's one dialog (`IcodeConfirmSheet`) over what asked for it, not a page:
   the route is gone, its frame (2003:731) a documented state, the capture counts 37 routes — as
   integration-plan.md had asked ("a destructive prompt should not be a back-stack entry"). 5 tests.
   Gate: 584 tests; lint 0 errors / 12 warnings; both guards pass.

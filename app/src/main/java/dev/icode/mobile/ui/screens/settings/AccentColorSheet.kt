@@ -32,7 +32,7 @@ import com.github.skydoves.colorpicker.compose.BrightnessSlider
 import com.github.skydoves.colorpicker.compose.HsvColorPicker
 import com.github.skydoves.colorpicker.compose.rememberColorPickerController
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeConfirmDialog
+import dev.icode.mobile.designsystem.IcodeConfirmSheet
 import dev.icode.mobile.designsystem.IcodeShapes
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
@@ -47,7 +47,7 @@ import dev.icode.mobile.domain.AccentColorRules
  * [onApply] receives null for the theme's own accent.
  */
 @Composable
-internal fun AccentColorDialog(current: Int, themeAccent: Int, onApply: (Int?) -> Unit, onDismiss: () -> Unit) {
+internal fun AccentColorSheet(current: Int, themeAccent: Int, onApply: (Int?) -> Unit, onDismiss: () -> Unit) {
     var chosen by remember { mutableIntStateOf(current) }
     var hexText by remember { mutableStateOf(AccentColorRules.hex(current)) }
     val controller = rememberColorPickerController()
@@ -59,7 +59,7 @@ internal fun AccentColorDialog(current: Int, themeAccent: Int, onApply: (Int?) -
         hexText = AccentColorRules.hex(chosen)
         controller.selectByColor(Color(chosen), fromUser = false)
     }
-    IcodeConfirmDialog(
+    IcodeConfirmSheet(
         title = "Accent color",
         confirmLabel = "Apply",
         onConfirm = { onApply(chosen.takeIf { it != themeAccent }) },

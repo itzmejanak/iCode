@@ -44,7 +44,7 @@ internal fun ArrivalEffect(arrival: Arrival?, navigation: NavigationState, pastO
                 BackgroundPlace.Runtime -> show(Route.RuntimeInstalling)
                 BackgroundPlace.RuntimeTools -> show(Route.RuntimeTools)
                 BackgroundPlace.Assistant, BackgroundPlace.Processes -> show(Route.Assistant)
-                // The GnuPG dialog is drawn over whatever is open.
+                // The GnuPG sheet is drawn over whatever is open.
                 BackgroundPlace.Gpg -> Unit
             }
             // A notice's sheet is drawn over whatever is open.

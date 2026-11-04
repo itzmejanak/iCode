@@ -215,7 +215,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
             ICodeIntent.ProvisionGit -> scope.launch { gitWorkspace.provision() }
             is GitAuthWorkIntent -> scope.launch { gitAuth.handle(intent) }
             is GitHistoryIntent -> gitHistory.handle(intent)
-            // A task's dialog must answer while the task runs.
+            // A task's sheet must answer while the task runs.
             is ICodeIntent.TaskIntent -> tasks.handle(intent)
             is FilesIntent -> files.handle(intent)
             is ICodeIntent.RuntimeToolsIntent -> runtimeTools.handle(intent)

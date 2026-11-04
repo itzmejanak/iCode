@@ -63,7 +63,7 @@ data class GitCommitSignature(
 /** Git Credentials' work that never waits on the mutation lock: apt, ssh-keygen, gpg and the network. */
 sealed interface GitAuthWorkIntent : ICodeIntent
 
-/** The Signing step. Creating a key and changing its passphrase wait on the GnuPG dialog. */
+/** The Signing step. Creating a key and changing its passphrase wait on the GnuPG sheet. */
 sealed interface SigningIntent : GitAuthWorkIntent {
     data object InstallGnuPg : SigningIntent
 

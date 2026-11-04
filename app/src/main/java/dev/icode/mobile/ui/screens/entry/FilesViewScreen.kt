@@ -221,6 +221,6 @@ internal fun ViewExplorer(
             }
         }
     }
-    forGood?.let { items -> ForGoodDialog(items, all = false, onActed = leave) { forGood = null } }
-    if (emptying) ForGoodDialog(state.explorer.trash, all = true, onActed = leave) { emptying = false }
+    forGood?.let { items -> ForGoodSheet(items, all = false, onActed = leave) { forGood = null } }
+    if (emptying) ForGoodSheet(state.explorer.trash, all = true, onActed = leave) { emptying = false }
 }

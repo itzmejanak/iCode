@@ -7,7 +7,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeConfirmDialog
+import dev.icode.mobile.designsystem.IcodeConfirmSheet
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.LabeledTextField
 import dev.icode.mobile.domain.GpgAnswer
@@ -21,14 +21,14 @@ import dev.icode.mobile.domain.ICodeGateway
  * given; iCode keeps nothing.
  */
 @Composable
-internal fun GpgPromptDialog(prompt: GpgPrompt, gateway: ICodeGateway) {
+internal fun GpgPromptSheet(prompt: GpgPrompt, gateway: ICodeGateway) {
     // Held only until it is sent, never saved with the screen's state: a question asked again starts empty.
     var passphrase by remember(prompt) { mutableStateOf("") }
     val answer = { value: GpgAnswer ->
         gateway.dispatch(GpgIntent.Answer(prompt.id, value))
         passphrase = ""
     }
-    IcodeConfirmDialog(
+    IcodeConfirmSheet(
         title = prompt.title ?: "GnuPG",
         confirmLabel = prompt.ok ?: "OK",
         dismissLabel = prompt.cancel ?: "Cancel",

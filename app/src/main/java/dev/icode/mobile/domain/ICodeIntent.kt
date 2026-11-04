@@ -36,10 +36,10 @@ sealed interface ICodeIntent {
     ) : ICodeIntent
     /**
      * An item renamed in its folder — a whole workspace, or anything in one or on phone storage; the
-     * dialog that asked is answered by [requestId].
+     * sheet that asked is answered by [requestId].
      */
     data class RenameWorkspaceItem(val location: String, val newName: String, val requestId: String) : ICodeIntent
-    /** A long operation's dialog: Hide sends it to the background, Show brings it back. */
+    /** A long operation's sheet: Hide sends it to the background, Show brings it back. */
     sealed interface TaskIntent : ICodeIntent { val id: Long }
     data class HideTask(override val id: Long) : TaskIntent
     data class ShowTask(override val id: Long) : TaskIntent

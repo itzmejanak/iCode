@@ -99,7 +99,7 @@ fun EditorEmptyScreen(actions: NavigationActions) {
             onProblems = { actions.openPanel(ToolPanelTab.Problems) },
         )
     }
-    if (showCreateFile) CreateFileDialog(parentLocation = null, onDismiss = { showCreateFile = false })
+    if (showCreateFile) CreateFileSheet(parentLocation = null, onDismiss = { showCreateFile = false })
 }
 
 @Composable

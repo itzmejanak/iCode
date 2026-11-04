@@ -105,7 +105,7 @@ internal class WorkNotifications(private val context: Context, private val notif
             // In the service's group, under its summary, with the sessions: one iCode card.
             .setGroup(TerminalNotifications.GROUP)
             .setContentIntent(open(context, item.place))
-        // Counting, or a step with no measure: the bar sweeps, as the dialog's does. What runs until stopped has none.
+        // Counting, or a step with no measure: the bar sweeps, as the sheet's does. What runs until stopped has none.
         if (item.progresses) builder.setProgress(PROGRESS_MAX, ((fraction ?: 0f) * PROGRESS_MAX).toInt(), fraction == null)
         if (item.cancel != null) builder.addAction(Notification.Action.Builder(null, item.cancelLabel, cancel(item)).build())
         return builder.build()
@@ -159,7 +159,7 @@ internal class WorkNotifications(private val context: Context, private val notif
             context.getSystemService(NotificationManager::class.java).cancel(FAILURE_BASE + item.number)
         }
 
-        /** iCode on [place]: the task's dialog, or the work's own page. */
+        /** iCode on [place]: the task's sheet, or the work's own page. */
         fun intentFor(context: Context, place: BackgroundPlace): Intent = Intent(context, MainActivity::class.java)
             .setAction(MainActivity.ACTION_SHOW_WORK)
             .putExtra(MainActivity.EXTRA_WORK_PLACE, place.encoded())

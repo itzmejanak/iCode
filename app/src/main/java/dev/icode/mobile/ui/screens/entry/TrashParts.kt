@@ -8,7 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.IcodeActionSheet
 import dev.icode.mobile.designsystem.IcodeBottomSheet
-import dev.icode.mobile.designsystem.IcodeConfirmDialog
+import dev.icode.mobile.designsystem.IcodeConfirmSheet
 import dev.icode.mobile.designsystem.IcodeMenuAction
 import dev.icode.mobile.designsystem.rememberSheetPages
 import dev.icode.mobile.domain.ByteSize
@@ -73,10 +73,10 @@ internal fun TrashSheet(item: TrashedItem, onForGood: () -> Unit, onClose: () ->
  * no way back. Confirmed, the selection it came from ends ([onActed]).
  */
 @Composable
-internal fun ForGoodDialog(items: List<TrashedItem>, all: Boolean, onActed: () -> Unit, onDismiss: () -> Unit) {
+internal fun ForGoodSheet(items: List<TrashedItem>, all: Boolean, onActed: () -> Unit, onDismiss: () -> Unit) {
     val gateway = LocalICodeGateway.current
     val what = FileWords.subject(items.map { it.name })
-    IcodeConfirmDialog(
+    IcodeConfirmSheet(
         title = if (all) "Empty Trash?" else "Delete permanently?",
         message = if (all) {
             "Everything in Trash — $what, ${ByteSize.format(TrashRules.summary(items).bytes)} — is deleted for good. It cannot be restored."
