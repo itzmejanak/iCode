@@ -27,9 +27,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 
 /**
- * One action, as a dropdown and an action sheet ([IcodeActionSheet]) both draw it: app typography,
- * color, surface, and destructive grouping. [detail] is a second line under the label (a place's
- * path); [checked] marks the one chosen of a set (a sort). [beginsGroup] puts a line before it.
+ * One action, as a dropdown, an action sheet ([IcodeActionSheet]) and a floating pill's tab draw it:
+ * app typography, color, surface, and destructive grouping. [detail] is a second line under the label
+ * (a place's path); [checked] marks the one chosen of a set (a sort). [beginsGroup] puts a line before it.
  * [opensPage]: in a sheet, it opens a page of the sheet (Rename…, Properties) instead of closing it.
  */
 data class IcodeMenuAction(

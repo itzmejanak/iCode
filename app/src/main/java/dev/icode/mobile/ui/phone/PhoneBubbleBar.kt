@@ -69,10 +69,11 @@ import dev.icode.mobile.ui.HeardLine
  * The bubble's bar (owner's design, 2026-11-03; redesigned bottom-anchored, 2026-11-04): the bubble
  * expanded into one floating pill where it sat — the mark that collapses it back, the field, the
  * microphone, Send — or Stop while the agent works. The field grows with what is typed up to
- * [BAR_LINES]; past them, expand — above the bar's end, on nothing — makes it an editor of
- * [EDITOR_LINES], and ⋮ beside it holds New chat and Open in iCode. Above, only when there is something
- * to say: what the agent is doing, the question it waits on with its answers, why the microphone heard
- * nothing, or why the last turn failed, with Retry. Anchored at its bottom, all of it grows upward.
+ * [BAR_LINES]. On the pill's tab, rising at its end as the owner drew it: ⋮, holding New chat and
+ * Open in iCode, and past [BAR_LINES] Expand, which makes the field an editor of [EDITOR_LINES]. Above,
+ * only when there is something to say: what the agent is doing, the question it waits on with its
+ * answers, why the microphone heard nothing, or why the last turn failed, with Retry. Anchored at its
+ * bottom, all of it grows upward.
  */
 @Composable
 internal fun PhoneBubbleBar(view: PhoneBubbleView, actions: PhoneBubbleActions) {
@@ -97,17 +98,14 @@ internal fun PhoneBubbleBar(view: PhoneBubbleView, actions: PhoneBubbleActions) 
                 onDismiss = { more = false },
             )
         }
-        Row {
-            if (editor || lines > BAR_LINES) {
-                OverlayButton(
-                    if (editor) Icons.Outlined.CloseFullscreen else Icons.Outlined.OpenInFull,
-                    if (editor) "Collapse" else "Expand",
-                    IcodeColors.TextSecondary,
-                ) { editor = !editor }
-            }
-            OverlayButton(Icons.Outlined.MoreVert, "More", IcodeColors.TextSecondary) { more = !more }
-        }
-        IcodeFloatingPill(Modifier.fillMaxWidth()) {
+        IcodeFloatingPill(
+            Modifier.fillMaxWidth(),
+            tab = listOfNotNull(
+                IcodeMenuAction(if (editor) "Collapse" else "Expand", if (editor) Icons.Outlined.CloseFullscreen else Icons.Outlined.OpenInFull, { editor = !editor })
+                    .takeIf { editor || lines > BAR_LINES },
+                IcodeMenuAction("More", Icons.Outlined.MoreVert, { more = !more }),
+            ),
+        ) {
             val bottom = Modifier.align(Alignment.Bottom)
             BarMark(view, actions, bottom)
             BasicTextField(

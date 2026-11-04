@@ -9,6 +9,20 @@ import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Matrix
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -127,19 +141,79 @@ fun IcodeFloatingStack(floors: IcodeFloors, visible: Boolean, content: @Composab
 /**
  * One of the stack's pills: a touch target tall, raised, its [edgeLine] drawn. Its content may make it
  * taller — the bubble's bar, typed in at length — and its corners stay as round as at its least.
+ *
+ * With a [tab] (the owner's design, 2026-11-04): a tab rises from its top at the end, of the pill's
+ * own surface, its top edge curving up into it, holding those actions small — each in a touch
+ * target's column, so they stand over what ends the pill.
  */
 @Composable
-fun IcodeFloatingPill(modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
+fun IcodeFloatingPill(modifier: Modifier = Modifier, tab: List<IcodeMenuAction> = emptyList(), content: @Composable RowScope.() -> Unit) {
     val line = edgeLine
-    Row(
+    val shape = if (tab.isEmpty()) IcodeShapes.FloatingPill else TabbedPill(IcodeSizes.TouchTarget * tab.size)
+    Column(
         modifier
-            .heightIn(min = IcodeSizes.TouchTarget)
-            .clip(IcodeShapes.FloatingPill)
+            .clip(shape)
             .background(IcodeColors.SurfaceElevated)
-            .then(if (line != null) Modifier.border(1.dp, line, IcodeShapes.FloatingPill) else Modifier),
-        verticalAlignment = Alignment.CenterVertically,
-        content = content,
-    )
+            .then(if (line != null) Modifier.border(1.dp, line, shape) else Modifier),
+        horizontalAlignment = Alignment.End,
+    ) {
+        if (tab.isNotEmpty()) {
+            Row(Modifier.height(IcodeSizes.CornerAction)) { tab.forEach { TabAction(it) } }
+        }
+        Row(Modifier.heightIn(min = IcodeSizes.TouchTarget), verticalAlignment = Alignment.CenterVertically, content = content)
+    }
+}
+
+/** One of a pill's tab actions: an icon a corner action wide, in a touch target's column; touch finds it a touch target. */
+@Composable
+private fun TabAction(action: IcodeMenuAction) {
+    Box(Modifier.width(IcodeSizes.TouchTarget).fillMaxHeight(), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier
+                .size(IcodeSizes.CornerAction)
+                .clip(IcodeShapes.Pill)
+                .clickable(enabled = action.enabled, role = Role.Button, onClickLabel = action.label, onClick = action.onClick),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                action.icon,
+                contentDescription = action.label,
+                tint = if (action.enabled) IcodeColors.TextSecondary else IcodeColors.TextMuted,
+                modifier = Modifier.size(IcodeSizes.IconMd),
+            )
+        }
+    }
+}
+
+/**
+ * A floating pill with a tab [tabWidth] wide rising [IcodeSizes.CornerAction] from its top at the end:
+ * the pill's top edge curves up into the tab over as long a run as the tab is tall, and the tab's
+ * outer corner is as round as the pill's.
+ */
+private data class TabbedPill(val tabWidth: Dp) : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline = with(density) {
+        val rise = IcodeSizes.CornerAction.toPx()
+        val tab = tabWidth.toPx()
+        val r = (IcodeSizes.TouchTarget / 2).toPx().coerceAtMost((size.height - rise) / 2)
+        val w = size.width
+        val h = size.height
+        val path = Path().apply {
+            moveTo(0f, rise + r)
+            arcTo(Rect(0f, rise, 2 * r, rise + 2 * r), 180f, 90f, false)
+            lineTo(w - tab - rise, rise)
+            cubicTo(w - tab - rise / 2, rise, w - tab - rise / 2, 0f, w - tab, 0f)
+            lineTo(w - r, 0f)
+            arcTo(Rect(w - 2 * r, 0f, w, 2 * r), 270f, 90f, false)
+            lineTo(w, h - r)
+            arcTo(Rect(w - 2 * r, h - 2 * r, w, h), 0f, 90f, false)
+            lineTo(r, h)
+            arcTo(Rect(0f, h - 2 * r, 2 * r, h), 90f, 90f, false)
+            close()
+        }
+        // Drawn with the tab at the right; read right to left, it is at the left.
+        if (layoutDirection == LayoutDirection.Rtl) path.transform(Matrix().apply { scale(-1f, 1f); translate(-w, 0f) })
+        Outline.Generic(path)
+    }
 }
 
 /**
