@@ -298,8 +298,11 @@ Each is fixed where it is, not worked around beside it.
 
 ### 5.6 The edge glow
 
-- **While a phone turn acts**, the screen's edges glow in the user's accent, faded towards the
-  middle, breathing slowly. Waiting on the user, it dims; idle, it is gone.
+- **While a phone turn acts**, the screen's edges glow in Claude's blue and orange — one continuous
+  light, blue at the top left warming to orange at the bottom right, faded towards the middle,
+  breathing slowly. Waiting on the user, it dims; idle, it is gone. *(Redesigned 2026-11-04, after
+  Claude: the glow was the user's accent alone; the pair it wears now is the same the bubble's states
+  share — blue for what goes into the agent, orange for what comes out of it.)*
 - **Drawn on four thin `TYPE_ACCESSIBILITY_OVERLAY` strips**, not touchable, so the middle of the
   screen is never covered.
 - **Hidden for a capture below API 34;** from 34 the capture is taken beneath it (§3.3).
@@ -307,9 +310,10 @@ Each is fixed where it is, not worked around beside it.
 
 ### 5.7 The bubble
 
-The owner's design (2026-11-03): three things on screen — the **bubble**, a **compact bar** when text
-can be typed, and the **edge glow** — and everything else only when it is needed. No header, no
-cards of actions, no dashboard.
+The owner's design (2026-11-03; **redesigned 2026-11-04, after Gemini**: the bubble anchored at the
+bottom, expanding in place): three things on screen — the **bubble**, a **compact bar** it expands
+into when text can be typed, and the **edge glow** — and everything else only when it is needed. No
+header, no cards of actions, no dashboard.
 
 - **One icon.** iCode does not ask for Android's accessibility button (`flagRequestAccessibilityButton`):
   Android assigns a service that asks for it to its own floating button when the service is turned on,
@@ -317,36 +321,44 @@ cards of actions, no dashboard.
   that still lists iCode there from an earlier build (`accessibility_button_targets`, readable by
   apps) is told so on Phone Control, whose row opens iCode's accessibility page to turn it off: once
   the flag is gone, a tap on that button would turn the service off.
-- **The bubble**, docked at the nearer edge as Android's floating button is: dragged anywhere, it
-  snaps back; idle for three seconds it tucks half behind the edge and fades; anything new brings it
-  out. Hidden while iCode is on screen. Its six states (`PhoneOverlay.Look`), the agent's before the
-  microphone's — muting never hides that the agent works, and it shows listening only while it
-  listens:
+- **The bubble**, anchored at the bottom of the screen, centred unless dragged aside along it —
+  Gemini's place, not Android's floating button: the window is centred on its own middle, so the bar
+  it expands into grows from that middle and the bubble stays put under it, clear of the gesture
+  area. Dragged anywhere, it drops back to the bottom; idle for three seconds it sinks half behind
+  the bottom edge and fades; anything new brings it out. Hidden while iCode is on screen. Its six
+  states (`PhoneOverlay.Look`), the agent's before the microphone's — muting never hides that the
+  agent works, and it shows listening only while it listens:
 
   | State | Shows | A tap |
   |---|---|---|
-  | Idle | The iCode mark | Opens the bar |
-  | Listening | A waveform in an accent ring, slightly larger; the words heard beside it | Mutes: listening stops, the words wait in the bar |
-  | Muted | The microphone off | Resumes listening |
-  | Thinking | A ring turning round the mark | Opens the bar (Stop is there) |
-  | Acting | A ring turning round a pointer; the glow on | Opens the bar (Stop is there) |
-  | Speaking | A waveform | Stops the reading |
+  | Idle | The iCode mark | Expands it into the bar |
+  | Listening | The voice bubble: the words heard so far under a blue waveform, with a microphone and a Stop | The microphone mutes; Stop throws the hearing away |
+  | Muted | The microphone off, the bar back | Resumes listening |
+  | Thinking | A blue ring turning round the mark | Opens the bar (Stop is there) |
+  | Acting | An orange ring turning round a pointer; the glow on | Opens the bar (Stop is there) |
+  | Speaking | A waveform in orange | Stops the reading |
 
-  A dot shows while a question waits.
-- **The bar**, beside the bubble towards the middle of the screen — iCode's floating pill: the field,
-  the microphone, Send (Stop while the agent works, Stop reading while it speaks), and ⋮ for New chat
-  and Open in iCode. Under it, in one card and only when there is something to say: what the agent is
-  doing, the question with its answers, why the microphone heard nothing (permission, a model to
-  download), or why the last turn failed, with Retry. It holds the keyboard; a touch outside, or on
-  the bubble, closes it. Sending closes it, so it covers nothing the agent may tap.
-- **Voice.** The bar's microphone hides the bar and the bubble listens; once the user stops talking,
-  what was heard is sent, answered aloud. Muted, the words wait in the bar to be edited or sent. Mute,
-  Stop, Close and Cancel are never one control: muting stops only the microphone, Stop (in the bar)
-  stops the agent, closing the bar stops nothing, and dragging onto ✕ puts everything away.
-- **Put away** (the owner's word): dragging the bubble shows a ✕ at the bottom of the screen; dropped
-  there, the bubble goes and the glow goes with it, and the voice is silenced. While a turn acts on
-  the phone, the target reads "Stop and hide", and dropping stops it. Phone control stays on: the
-  bubble comes back from the notification's **Show bubble**, or Phone Control's Bubble switch.
+  A dot shows while a question waits. The bar's leading mark carries the same states, so what the
+  agent does never hides behind the keyboard.
+- **The bar**, the bubble expanded into it, above where the bubble sat — one compact floating pill
+  holding the keyboard: the mark that collapses it back (or, muted, resumes listening), the field,
+  the microphone, Send (Stop while the agent works, Stop reading while it speaks), and ⋮ for New
+  chat and Open in iCode. Above it, in one card and only when there is something to say: what the
+  agent is doing, the question with its answers, why the microphone heard nothing (permission, a
+  model to download), or why the last turn failed, with Retry. It holds the keyboard — the window,
+  anchored above it as it opens, needs no lifting of its own — and a touch outside, or on the mark,
+  closes it. Sending closes it, so it covers nothing the agent may tap.
+- **Voice.** The bar's microphone hides the bar and shows the voice bubble: the words heard so far
+  in it, under an animated waveform, with a microphone and a Stop beside them. Once the user stops
+  talking, what was heard is sent, answered aloud. Muted, the words wait in the bar to be edited or
+  sent — and what the agent does runs on. Mute, Stop, Close and Cancel are never one control: muting
+  stops only the microphone, Stop in the voice bubble throws the hearing away, Stop in the bar stops
+  the agent, closing the bar stops nothing, and dragging onto ✕ puts everything away.
+- **Put away** (the owner's word): dragging the bubble shows a ✕ at the top of the screen — away
+  from where the bubble lives at the bottom; dropped there, the bubble goes and the glow goes with
+  it, and the voice is silenced. While a turn acts on the phone, the target reads "Stop and hide",
+  and dropping stops it. Phone control stays on: the bubble comes back from the notification's
+  **Show bubble**, or Phone Control's Bubble switch.
 - **One mark, one look:** drawn with iCode's design system, in `TYPE_ACCESSIBILITY_OVERLAY` windows.
 - **The keyboard, proved first:** the bar's window takes focus so the keyboard can type into it.
 

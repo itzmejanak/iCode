@@ -74,6 +74,9 @@ object IcodeSizes {
     /** The bubble's waveform while it listens or speaks: its height at most, and each bar's width. */
     val Waveform = 22.dp
     val WaveformBar = 3.dp
+    /** The voice bubble's waveform while it listens with nothing heard yet: it stands alone, so it is bigger. */
+    val WaveformVoice = 30.dp
+    val WaveformBarVoice = 4.dp
     /** A grid of files (docs/explorer-gaps-plan.md §3.12): each tile at least this wide, its picture this big. */
     val GridTileMin = 104.dp
     val GridTilePicture = 56.dp

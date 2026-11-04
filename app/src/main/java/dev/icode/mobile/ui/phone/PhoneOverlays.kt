@@ -42,16 +42,17 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * The glow and the bubble over every app (docs/phone-agent-plan.md §5.6, §5.7), in the phone service's
- * own trusted windows: no "draw over other apps" permission, and no touch of the screen blocked. One
- * bubble — Android's own accessibility button is not asked for — and its states run here:
+ * The glow and the bubble over every app (docs/phone-agent-plan.md §5.6, §5.7; redesigned 2026-11-04,
+ * after Gemini), in the phone service's own trusted windows: no "draw over other apps" permission, and
+ * no touch of the screen blocked. One bubble, anchored at the bottom — and its states run here:
  *
- * - **Closed**: the bubble alone. A tap opens the bar; while it listens, a tap mutes; while it speaks,
- *   a tap silences.
- * - **Typing**: the bar beside it, holding the keyboard. A tap on the bubble closes it, or, muted,
- *   resumes listening.
- * - **Voice**: the bar gives way to the bubble, listening. Once the user stops talking, what was heard
- *   is sent; muted, it waits in the bar. Muting never stops what the agent does: Stop does.
+ * - **Closed**: the bubble alone. A tap expands it into the bar; while it listens, a tap mutes; while
+ *   it speaks, a tap silences.
+ * - **Typing**: the bar the bubble became, holding the keyboard: the field, the microphone, Send — Stop
+ *   while the agent works. A tap on its mark closes it, or, muted, resumes listening.
+ * - **Voice**: the bar gives way to the voice bubble — the words heard so far under a waveform, with a
+ *   microphone to mute and a Stop to throw the hearing away. Once the user stops talking, what was
+ *   heard is sent; muted, it waits in the bar. Muting never stops what the agent does: Stop does.
  */
 internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHost {
     private enum class Mode { Closed, Typing, Voice }
@@ -124,7 +125,8 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
     }
 
     private fun view(snapshot: ICodeSnapshot) = PhoneBubbleView(
-        overlay, snapshot.assistant, snapshot.voice, bar = mode == Mode.Typing, dockRight = place.dockRight, tucked = place.tucked,
+        overlay, snapshot.assistant, snapshot.voice,
+        bar = mode == Mode.Typing, voiceUp = mode == Mode.Voice, tucked = place.tucked,
         draft = draft, onDraft = { draft = it },
     )
 
@@ -140,16 +142,14 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
             // Started straight from the service: a bound accessibility service may start activities from the background.
             service.startActivity(WorkNotifications.intentFor(service, BackgroundPlace.Assistant))
         },
+        mute = ::mute,
+        cancel = ::cancelVoice,
     )
 
-    /** The bubble tapped (§5.7): mute while it listens, silence while it speaks; else open the bar, close it, or resume. */
+    /** The bubble tapped (§5.7): mute while it listens, silence while it speaks; else expand the bar, close it, or resume. */
     private fun tap() {
         when {
-            overlay.look == Look.Listening -> {
-                muted = true
-                to(Mode.Typing)
-                gateway.dispatch(VoiceIntent.FinishListening)
-            }
+            overlay.look == Look.Listening -> mute()
             overlay.look == Look.Speaking -> gateway.dispatch(VoiceIntent.Silence)
             mode == Mode.Typing && muted -> listen()
             mode == Mode.Typing -> to(Mode.Closed)
@@ -161,6 +161,20 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
         muted = false
         to(Mode.Voice)
         gateway.dispatch(VoiceIntent.Listen(VoiceFrom.Bubble))
+    }
+
+    /** The voice bubble's microphone (§5.7): listening stops and the words wait in the bar — and what the agent does runs on. */
+    private fun mute() {
+        if (overlay.look != Look.Listening) return
+        muted = true
+        to(Mode.Typing)
+        gateway.dispatch(VoiceIntent.FinishListening)
+    }
+
+    /** The voice bubble's Stop: the voice session ends and nothing heard is kept; what runs goes on running. */
+    private fun cancelVoice() {
+        if (mode != Mode.Voice) return
+        to(Mode.Closed)
     }
 
     /** Sent to the chat iCode shows — "Open in iCode" opens the same one — and answered aloud. */
@@ -233,19 +247,19 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                 PixelFormat.TRANSLUCENT,
             ).apply {
-                gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+                gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
                 y = (TARGET_MARGIN_DP * density).toInt()
                 title = "iCode bubble target"
             })
             targetOut = true
         }
-        val (width, height) = place.screen()
+        val (width, _) = place.screen()
         val (x, y) = place.centre()
-        val targetY = height - (TARGET_MARGIN_DP + IcodeSizes.Bubble.value / 2) * density
+        val targetY = (TARGET_MARGIN_DP + IcodeSizes.Bubble.value / 2) * density
         overTarget = hypot(x - width / 2f, y - targetY) < IcodeSizes.Bubble.value * density * TARGET_REACH
     }
 
-    /** Let go: on the target, put away — and a turn on the phone stopped, the voice silenced — else to the nearer edge. */
+    /** Let go: on the target at the top, put away — and a turn on the phone stopped, the voice silenced — else back to the bottom. */
     private fun dropped() {
         if (targetOut) {
             windows.removeViewImmediate(target)
