@@ -27,8 +27,18 @@ internal object AssistantInstructions {
             "in them, commands run and their outcome, and what is still open. Keep paths, names and exact values. " +
             "Write only the summary."
 
-    /** The system prompt; [phoneTools]: the phone's tools are offered (docs/phone-agent-plan.md §5.3). */
-    fun of(workspace: AssistantWorkspace, mode: AssistantMode, permission: AssistantPermission, summary: String?, phoneTools: Boolean = false): String = buildString {
+    /**
+     * The system prompt; [phoneTools]: the phone's tools are offered (docs/phone-agent-plan.md §5.3);
+     * [aloud]: the answer is read aloud, so it is said short (§5.8).
+     */
+    fun of(
+        workspace: AssistantWorkspace,
+        mode: AssistantMode,
+        permission: AssistantPermission,
+        summary: String?,
+        phoneTools: Boolean = false,
+        aloud: Boolean = false,
+    ): String = buildString {
         appendLine("You are the assistant built into iCode, a code editor on an Android phone.")
         appendLine()
         workspace(workspace, mode, permission)
@@ -44,6 +54,10 @@ internal object AssistantInstructions {
         appendLine("- Only use emoji if the user does first.")
         appendLine("- Never say you ran or checked something you did not.")
         appendLine()
+        if (aloud) {
+            appendLine(READ_ALOUD)
+            appendLine()
+        }
         appendLine("## Tool use")
         appendLine("- Call multiple independent tools at once (e.g. read several files in parallel).")
         appendLine("- When one result is needed for the next, use tools one at a time.")
@@ -183,6 +197,16 @@ internal object AssistantInstructions {
         - Use phone_look only when the text cannot tell (an image, a map, a game); then phone_tap takes x and y of that picture.
         - Passwords, payments, CAPTCHAs, permission dialogs and what Android withholds are the user's: phone_hand_over says what to do, and waits.
         - An act in an app may wait for the user's approval. Say in a sentence what you did when you are done.
+    """.trimIndent()
+
+    /** A turn read aloud (docs/phone-agent-plan.md §5.8): heard sentence by sentence, as it is written. */
+    private val READ_ALOUD = """
+        ## Read aloud
+        This answer is read aloud to the user, sentence by sentence as you write it; they may not be looking at the screen.
+        - Answer in one to three short sentences, as you would say them. Lead with the answer or the outcome.
+        - No Markdown, lists, tables, code or links unless the user asks for them; spell out what a symbol would say.
+        - While you work, say in a few words what you are about to do, not how.
+        - Show code or long detail only when asked, and then say first that it is on the screen.
     """.trimIndent()
 
     /** Phone storage, as every chat is told of it (docs/phone-agent-plan.md L8). */

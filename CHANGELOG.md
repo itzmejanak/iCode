@@ -28,18 +28,18 @@ All notable changes to iCode are documented here. The format follows
   and Accessibility, or one tap with Shizuku; the bubble; Turn Off. Its Shizuku page shows the state
   read live, the one step each state needs, and what it adds.
 - Voice: the microphone in the chat's composer and the bubble shows the words as they are heard and
-  sends them once you stop talking. Listening is Android's speech recognition or, offline on the
-  phone, Whisper base (99 languages) or SenseVoice; answers and questions are read aloud with
-  Android's text-to-speech or, offline, Kokoro (eight languages) or a Piper voice for 32 more.
-  Models download from sherpa-onnx's releases when chosen, size shown first, checked by SHA-256.
+  sends them once you stop talking, with Android's speech recognition (on the phone where Android
+  can). Answers and questions are read aloud with Android's text-to-speech sentence by sentence as
+  they are written, and a turn to be read aloud asks the assistant for a short spoken answer.
   Spoken replies: Off, In the bubble (the default: what is sent from the bubble or by voice), or
   Always; a new message, Stop, or a tap on the bubble silences it.
 - Phone control keeps a notification with Stop, Show bubble and Turn off, and holds the microphone
   for the bubble while iCode is away.
-- One bubble, in six states — idle, listening, muted, thinking, acting, speaking — with a compact bar
-  beside it when text can be typed; tap to mute, resume or stop the reading. It docks at an edge and
-  tucks half away when idle. Android's own accessibility button is no longer asked for, so there is
-  one icon, not two; Phone Control says how to remove one an earlier build left.
+- One bubble at the bottom of the screen, in six states — idle, listening, muted, thinking, acting,
+  speaking. A tap opens a bar to type in, which grows with what is typed and expands into an editor;
+  ⋮ above it holds New chat and Open in iCode. Listening, it becomes a voice bubble: the words heard,
+  Mute and Stop. It tucks half away when idle. Android's own accessibility button is no longer asked
+  for, so there is one icon, not two; Phone Control says how to remove one an earlier build left.
 
 ## [0.1.0]
 

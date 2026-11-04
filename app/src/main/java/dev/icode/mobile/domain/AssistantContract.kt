@@ -237,7 +237,7 @@ data class AssistantTurn(
     val live: AssistantLive? = null,
     /** It has acted on the phone: the screen's edges glow while it works (docs/phone-agent-plan.md §5.6). */
     val onPhone: Boolean = false,
-    /** Its message was sent by voice or from the bubble: answered aloud when Spoken replies says so (§5.8). */
+    /** Read aloud, as Spoken replies said when it was sent (§5.8): its instructions ask for a short spoken answer. */
     val aloud: Boolean = false,
 )
 

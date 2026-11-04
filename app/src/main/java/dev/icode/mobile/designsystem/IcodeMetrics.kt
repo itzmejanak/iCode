@@ -52,6 +52,8 @@ object IcodeShapes {
     val AppIcon = RoundedCornerShape(22)
     val Chip = RoundedCornerShape(3.dp)
     val Pill = RoundedCornerShape(50)
+    /** A floating pill's corners ([IcodeFloatingPill]): a [Pill]'s at a touch target tall, kept as it grows. */
+    val FloatingPill = RoundedCornerShape(IcodeSizes.TouchTarget / 2)
     val Track = RoundedCornerShape(2.dp)
     val Sheet = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
 }

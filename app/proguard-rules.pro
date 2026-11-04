@@ -20,7 +20,3 @@
 # Shizuku starts iCode's shell service by its class name, with either constructor
 # (docs/phone-agent-plan.md §5.11); its tag, not its name, identifies it after R8.
 -keep class dev.icode.mobile.data.phone.shizuku.ShellUserService { <init>(...); }
-
-# sherpa-onnx (docs/phone-agent-plan.md §5.8): its native code reads its config classes' fields and
-# makes its results by their names over JNI, and its AAR ships no consumer rules.
--keep class com.k2fsa.sherpa.onnx.** { *; }

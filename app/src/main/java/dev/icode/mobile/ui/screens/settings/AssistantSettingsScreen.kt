@@ -77,7 +77,7 @@ fun AssistantSettingsScreen(actions: NavigationActions) {
                 SettingRow(
                     "Voice",
                     Modifier.fillMaxWidth(),
-                    subtitle = "Answers read aloud: ${snapshot.voice.settings.spoken.label.lowercase()}",
+                    subtitle = "Answers read aloud: ${snapshot.voice.spoken.label.lowercase()}",
                     leadingIcon = Icons.Outlined.Mic,
                     onClick = { actions.navigate(Route.VoiceSettings) },
                 ) { Chevron() }

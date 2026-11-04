@@ -12,34 +12,29 @@ import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.VoiceIntent
 import dev.icode.mobile.domain.voice.Heard
-import dev.icode.mobile.domain.voice.ModelState
 import dev.icode.mobile.domain.voice.SpokenReplies
-import dev.icode.mobile.domain.voice.SpokenText
-import dev.icode.mobile.domain.voice.VoiceCatalog
+import dev.icode.mobile.domain.voice.SpokenTurn
 import dev.icode.mobile.domain.voice.VoiceCue
-import dev.icode.mobile.domain.voice.VoiceEngine
 import dev.icode.mobile.domain.voice.VoiceFrom
-import dev.icode.mobile.domain.voice.VoiceSettings
 import dev.icode.mobile.domain.voice.VoiceState
 import java.io.File
-import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * Voice in and out (docs/phone-agent-plan.md §5.8), one per process: the microphone for the chat and the
- * bubble, the assistant's answers and questions read aloud as Spoken replies says, and the models on this
- * phone. What is heard and said is never logged; a failure logs its type only.
+ * Voice in and out (docs/phone-agent-plan.md §5.8), one per process, with Android's own engines: the
+ * microphone for the chat and the bubble, and the assistant read aloud as Spoken replies says — each
+ * sentence as soon as it is written ([SpokenTurn]), from one speech session per turn. What is heard and
+ * said is never logged; a failure logs its type only.
  */
 internal class VoiceCoordinator(
     context: Context,
@@ -48,32 +43,34 @@ internal class VoiceCoordinator(
 ) {
     private val app = context.applicationContext
     private val preferences = app.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
-    private val models = VoiceModels(File(app.noBackupFilesDir, FOLDER))
     private val iCodeOnScreen = TerminalSessionManager.get(app).screenVisible
-    private val downloads = ConcurrentHashMap<String, Job>()
-    private val speaking = Mutex()
+    private val reader = SpokenTurn()
+    private val lock = Any()
 
     @Volatile private var listener: VoiceListener? = null
 
     @Volatile private var hearing = 0L
 
-    @Volatile private var speech: Job? = null
+    /** The speech session: its sentences waiting to be said, the job saying them, and which one it is. */
+    private var sentences: Channel<String>? = null
+    private var speech: Job? = null
+    private var session = 0L
 
-    /** The engine that spoke last, by its key: "android", or a voice's id; let go after a while unused. */
-    private var speaker: Pair<String, VoiceSpeaker>? = null
+    /** Android's engine, kept while it speaks and a while after, then let go. */
+    private var speaker: VoiceSpeaker? = null
     private var idle: Job? = null
 
     private val voice: VoiceState get() = stateHolder.current.voice
 
     fun start() {
         scope.launch {
-            val settings = load()
-            update { it.copy(settings = settings, models = models.states(), microphone = microphone()) }
+            forgetModels()
+            update { it.copy(spoken = SpokenReplies.of(preferences.getString(REPLIES, null)), microphone = microphone()) }
         }
         scope.launch {
             var before = stateHolder.current.assistant
             stateHolder.snapshot.map { it.assistant }.distinctUntilChanged().collect { after ->
-                SpokenText.cue(before, after, voice.settings.spoken)?.let(::cue)
+                reader.next(before, after, voice.spoken).forEach(::cue)
                 before = after
             }
         }
@@ -87,10 +84,8 @@ internal class VoiceCoordinator(
             VoiceIntent.FinishListening -> listener?.finish()
             VoiceIntent.CancelListening -> stopListening()
             VoiceIntent.Silence -> hush()
-            VoiceIntent.Sample -> say(SAMPLE)
-            is VoiceIntent.Choose -> choose(intent.settings)
-            is VoiceIntent.Download -> download(intent.model)
-            is VoiceIntent.Remove -> remove(intent.model)
+            VoiceIntent.Sample -> listOf(VoiceCue.Begin, VoiceCue.Say(SAMPLE), VoiceCue.End).forEach(::cue)
+            is VoiceIntent.ChooseSpokenReplies -> choose(intent.spoken)
         }
     }
 
@@ -99,12 +94,7 @@ internal class VoiceCoordinator(
         hush()
         val id = ++hearing
         scope.launch {
-            val settings = voice.settings
-            when {
-                !microphone() -> return@launch refused(id, from, "Allow the microphone in Settings › Assistant › Voice")
-                settings.listenModels.any { !models.ready(it) } ->
-                    return@launch refused(id, from, "Download ${VoiceCatalog.listener(settings.listenModel).name} in Settings › Assistant › Voice")
-            }
+            if (!microphone()) return@launch refused(id, from, "Allow the microphone in Settings › Assistant › Voice")
             if (!iCodeOnScreen.value && !voice.away) {
                 // Android lets a background app take the microphone only through a foreground service
                 // that already holds it: the bubble asks phone control's service to take it now.
@@ -116,8 +106,7 @@ internal class VoiceCoordinator(
             }
             if (hearing != id) return@launch
             update { it.copy(heard = Heard(id, from, "", final = false)) }
-            val next = if (settings.listening == VoiceEngine.Android) AndroidListener(app)
-            else ModelListener(models, VoiceCatalog.listener(settings.listenModel), scope)
+            val next = VoiceListener(app)
             listener = next
             next.start(
                 heard = { text, final ->
@@ -148,109 +137,78 @@ internal class VoiceCoordinator(
         update { it.copy(heard = it.heard?.takeIf { heard -> heard.final }) }
     }
 
-    private fun cue(cue: VoiceCue) = when (cue) {
-        VoiceCue.Hush -> hush()
-        is VoiceCue.Say -> say(cue.text)
+    /** Cues come from the assistant's changes and from intents: one at a time. */
+    private fun cue(cue: VoiceCue) {
+        synchronized(lock) {
+            when (cue) {
+                VoiceCue.Begin -> begin()
+                is VoiceCue.Say -> (sentences ?: begin()).trySend(cue.text)
+                VoiceCue.End -> sentences = sentences?.let { it.close(); null }
+                VoiceCue.Hush -> hush()
+            }
+        }
     }
 
-    private fun hush() {
-        speech?.cancel()
-    }
-
-    /** Says [text] with the chosen engine, after what was being said stops. */
-    private fun say(text: String) {
+    /**
+     * A speech session: what was said before stops, Android's engine gets ready now — while the model
+     * still thinks — and each sentence queued is said in turn until the session ends.
+     */
+    private fun begin(): Channel<String> {
         val previous = speech
+        hush()
+        val queue = Channel<String>(Channel.UNLIMITED)
+        val id = ++session
+        sentences = queue
         speech = scope.launch {
             previous?.cancelAndJoin()
-            speaking.withLock {
-                val settings = voice.settings
-                if (settings.speakModels.any { !models.ready(it) }) return@withLock stateHolder.notify(NoticeTone.HeadsUp, "The answer was not read aloud", VOICE_MISSING)
-                idle?.cancel()
-                update { it.copy(speaking = true) }
-                try {
-                    speaker(settings).speak(text)
-                } catch (stopped: CancellationException) {
-                    throw stopped
-                } catch (failed: Exception) {
-                    BackendLog.w(TAG, "Speaking failed (${failed.javaClass.simpleName})")
-                    stateHolder.notify(NoticeTone.HeadsUp, "The answer was not read aloud", failed.message)
-                } finally {
+            idle?.cancel()
+            try {
+                engine().speak(queue) { playing -> if (session == id) update { it.copy(speaking = playing) } }
+            } catch (stopped: CancellationException) {
+                throw stopped
+            } catch (failed: Exception) {
+                BackendLog.w(TAG, "Speaking failed (${failed.javaClass.simpleName})")
+                stateHolder.notify(NoticeTone.HeadsUp, "The answer was not read aloud", failed.message)
+            } finally {
+                if (session == id) {
                     update { it.copy(speaking = false) }
                     idle = scope.launch {
                         delay(IDLE_MILLIS)
-                        speaking.withLock { release() }
+                        synchronized(lock) {
+                            speaker?.release()
+                            speaker = null
+                        }
                     }
                 }
             }
         }
+        return queue
     }
 
-    /** The engine [settings] speak with, made again when the choice changed. */
-    private fun speaker(settings: VoiceSettings): VoiceSpeaker {
-        val key = if (settings.speaking == VoiceEngine.Android) ANDROID else settings.voice
-        speaker?.takeIf { it.first == key }?.let { return it.second }
-        release()
-        val made = if (settings.speaking == VoiceEngine.Android) AndroidSpeaker(app) else ModelSpeaker(models, VoiceCatalog.voice(settings.voice))
-        speaker = key to made
-        return made
-    }
+    private fun engine(): VoiceSpeaker = synchronized(lock) { speaker ?: VoiceSpeaker(app).also { speaker = it } }
 
-    private fun release() {
-        speaker?.second?.release()
-        speaker = null
-    }
-
-    private fun choose(settings: VoiceSettings) {
-        preferences.edit {
-            putString(LISTENING, settings.listening.name)
-            putString(LISTEN_MODEL, settings.listenModel)
-            putString(SPEAKING, settings.speaking.name)
-            putString(VOICE, settings.voice)
-            putString(REPLIES, settings.spoken.name)
-        }
-        if (settings.spoken == SpokenReplies.Off) hush()
-        update { it.copy(settings = settings) }
-    }
-
-    private fun load() = VoiceSettings(
-        listening = VoiceEngine.entries.firstOrNull { it.name == preferences.getString(LISTENING, null) } ?: VoiceEngine.Android,
-        listenModel = VoiceCatalog.listener(preferences.getString(LISTEN_MODEL, null).orEmpty()).id,
-        speaking = VoiceEngine.entries.firstOrNull { it.name == preferences.getString(SPEAKING, null) } ?: VoiceEngine.Android,
-        voice = VoiceCatalog.voice(preferences.getString(VOICE, null).orEmpty()).id,
-        spoken = SpokenReplies.of(preferences.getString(REPLIES, null)),
-    )
-
-    private fun download(id: String) {
-        val model = VoiceCatalog.model(id) ?: return
-        if (downloads[id]?.isActive == true) return
-        downloads[id] = scope.launch {
-            state(id, ModelState.Downloading(0f))
-            try {
-                models.download(model, { state(id, ModelState.Downloading(it)) }, { state(id, ModelState.Unpacking) })
-                state(id, models.states()[id] ?: ModelState.Absent)
-            } catch (stopped: CancellationException) {
-                state(id, ModelState.Absent)
-                throw stopped
-            } catch (failed: Exception) {
-                BackendLog.w(TAG, "A voice model's download failed (${failed.javaClass.simpleName})")
-                val reason = failed.message?.takeIf { "No space left" in it }?.let { "Not enough free space on this phone" } ?: failed.message ?: "The download failed"
-                state(id, ModelState.Failed(reason))
-            }
+    private fun hush() {
+        synchronized(lock) {
+            sentences?.close()
+            sentences = null
+            speech?.cancel()
         }
     }
 
-    private fun remove(id: String) {
-        val model = VoiceCatalog.model(id) ?: return
-        scope.launch {
-            downloads.remove(id)?.cancelAndJoin()
-            // A voice's engine holds its files open: it is let go, and made again when next needed.
-            speaking.withLock { release() }
-            models.remove(model)
-            state(id, ModelState.Absent)
-        }
+    private fun choose(spoken: SpokenReplies) {
+        preferences.edit { putString(REPLIES, spoken.name) }
+        if (spoken == SpokenReplies.Off) hush()
+        update { it.copy(spoken = spoken) }
     }
 
-    private fun state(id: String, state: ModelState) = update { it.copy(models = it.models + (id to state)) }
+    /**
+     * Until 2026-11-04 iCode could download open-source voice models; the owner chose Android's engines
+     * alone. What an earlier build left — the models' files and their settings — is removed.
+     */
+    private fun forgetModels() {
+        File(app.noBackupFilesDir, OLD_MODELS).takeIf { it.exists() }?.deleteRecursively()
+        if (OLD_KEYS.any(preferences::contains)) preferences.edit { OLD_KEYS.forEach(::remove) }
+    }
 
     private fun microphone() = ContextCompat.checkSelfPermission(app, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
 
@@ -259,16 +217,11 @@ internal class VoiceCoordinator(
     private companion object {
         const val TAG = "Voice"
         const val PREFERENCES = "voice"
-        const val FOLDER = "voice"
-        const val LISTENING = "listening"
-        const val LISTEN_MODEL = "listenModel"
-        const val SPEAKING = "speaking"
-        const val VOICE = "voice"
         const val REPLIES = "replies"
-        const val ANDROID = "android"
+        const val OLD_MODELS = "voice"
+        val OLD_KEYS = listOf("listening", "listenModel", "speaking", "voice")
         const val SAMPLE = "Hello! This is how I read my answers aloud."
         const val NOTHING_HEARD = "Nothing was heard"
-        const val VOICE_MISSING = "Download the voice in Settings › Assistant › Voice"
         const val IDLE_MILLIS = 120_000L
         const val MIC_WAIT_MILLIS = 1_500L
     }

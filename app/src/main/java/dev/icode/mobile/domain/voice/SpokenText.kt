@@ -1,19 +1,9 @@
 package dev.icode.mobile.domain.voice
 
-import dev.icode.mobile.domain.AssistantMessage
-import dev.icode.mobile.domain.AssistantPermissions
-import dev.icode.mobile.domain.AssistantPlace
-import dev.icode.mobile.domain.AssistantState
-
-/** What a change in the assistant asks of the voice: say this, or hush. */
-sealed interface VoiceCue {
-    data class Say(val text: String) : VoiceCue
-    data object Hush : VoiceCue
-}
-
 /**
- * What is spoken of the assistant (docs/phone-agent-plan.md §5.8): its answer and its questions, read
- * as a person reads them — no Markdown, no code blocks, no links.
+ * What is spoken of the assistant (docs/phone-agent-plan.md §5.8): its replies and its questions, read
+ * as a person reads them — no Markdown, no code blocks, no links — sentence by sentence as they are
+ * written ([ready]).
  */
 object SpokenText {
     private val FENCE = Regex("(?ms)^\\s*(```|~~~).*?(^\\s*\\1\\s*$|\\z)")
@@ -27,6 +17,10 @@ object SpokenText {
     private val SPACE = Regex("[ \\t]+")
     private val STOPPED = Regex("[.!?…:;,。！？]$")
     private val SENTENCE = Regex("(?<=[.!?…。！？])\\s+")
+    private val FENCE_LINE = Regex("(?m)^\\s*(```|~~~)")
+
+    /** Where a sentence may end while text still comes: a stop after a word (not "1." of a list, nor "3.5"), or a line's end. */
+    private val BOUNDARY = Regex("(?<=[^\\s\\d][.!?…])\\s|(?<=[。！？])|\\n")
 
     /** [markdown] as it is read aloud; a line that ends without a stop gets one, so a heading or a list pauses. */
     fun of(markdown: String): String = markdown
@@ -40,14 +34,6 @@ object SpokenText {
         .map { line -> line.replace(LINE_MARK, "").replace('|', ' ').replace(EMPHASIS, "").replace(SPACE, " ").trim() }
         .filter { it.isNotEmpty() }
         .joinToString(" ") { if (STOPPED.containsMatchIn(it)) it else "$it." }
-
-    /** The answer of the last turn: the replies after the user's last message, as spoken; null when they say nothing. */
-    fun lastAnswer(messages: List<AssistantMessage>): String? {
-        val start = messages.indexOfLast { it is AssistantMessage.User } + 1
-        return messages.drop(start).filterIsInstance<AssistantMessage.Reply>()
-            .map { of(it.text) }.filter { it.isNotEmpty() }
-            .joinToString(" ").ifEmpty { null }
-    }
 
     /** [text] in parts of at most [max] characters, cut between sentences, else between words. */
     fun parts(text: String, max: Int): List<String> {
@@ -68,25 +54,18 @@ object SpokenText {
     }
 
     /**
-     * What [after] asks of the voice, from [before]: a new turn hushes it; a turn [spoken] aloud says
-     * each question it asks, and its answer once it ends. Stopped part-way or failed, it ends with no
-     * answer, and hushes.
+     * What of [raw] — a reply as far as it has been written — can be said now, and how much of it that
+     * takes: its whole sentences, never a code block not yet closed nor a sentence cut in a block; all of
+     * it once [final].
      */
-    fun cue(before: AssistantState, after: AssistantState, spoken: SpokenReplies): VoiceCue? {
-        if (before.turn == null && after.turn != null) return VoiceCue.Hush
-        val turn = before.turn ?: after.turn ?: return null
-        if (!spoken.speaks(turn.aloud)) return null
-        val approval = after.approval
-        if (approval != null && approval.call.id != before.approval?.call?.id) {
-            return VoiceCue.Say("${of(AssistantPermissions.question(approval, AssistantPlace.name(turn.workspace)))} ${of(approval.call.summary)}")
-        }
-        val pause = after.pause
-        if (pause != null && before.pause == null) return VoiceCue.Say("${of(pause.kind.question)} ${of(pause.detail)}")
-        if (after.turn != null || before.turn == null) return null
-        // An answer is read only while its chat is shown; one the user left is not read over another.
-        if (after.workspace != turn.workspace || after.session != turn.session) return null
-        val last = after.messages.lastOrNull()
-        val finished = after.failure == null && last is AssistantMessage.Reply && last.calls.isEmpty()
-        return (if (finished) lastAnswer(after.messages) else null)?.let { VoiceCue.Say(it) } ?: VoiceCue.Hush
+    fun ready(raw: String, final: Boolean): Ready {
+        val fences = FENCE_LINE.findAll(raw).map { it.range.first }.toList()
+        fun outsideCode(at: Int) = fences.count { it < at } % 2 == 0
+        val end = if (final) raw.length else BOUNDARY.findAll(raw).map { it.range.last + 1 }.lastOrNull(::outsideCode) ?: 0
+        if (end == 0) return Ready(emptyList(), 0)
+        return Ready(of(raw.substring(0, end)).split(SENTENCE).filter { it.isNotBlank() }, end)
     }
+
+    /** [sentences] to say, taken from the first [taken] characters of a reply. */
+    data class Ready(val sentences: List<String>, val taken: Int)
 }
