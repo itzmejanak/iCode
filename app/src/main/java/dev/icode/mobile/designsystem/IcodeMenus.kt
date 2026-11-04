@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
@@ -27,9 +26,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 
 /**
- * One action, as a dropdown and an action sheet ([IcodeActionSheet]) both draw it: app typography,
- * color, surface, and destructive grouping. [detail] is a second line under the label (a place's
- * path); [checked] marks the one chosen of a set (a sort). [beginsGroup] puts a line before it.
+ * One action, as a dropdown, an action sheet ([IcodeActionSheet]) and a floating pill's tab draw it:
+ * app typography, color, surface, and destructive grouping. [detail] is a second line under the label
+ * (a place's path); [checked] marks the one chosen of a set (a sort). [beginsGroup] puts a line before it.
  * [opensPage]: in a sheet, it opens a page of the sheet (Rename…, Properties) instead of closing it.
  */
 data class IcodeMenuAction(
@@ -81,54 +80,39 @@ fun IcodeActionMenu(
     onDismiss: () -> Unit,
     actions: List<IcodeMenuAction>,
 ) {
-    IcodeDropdownMenu(expanded, onDismiss, Modifier.width(IcodeSizes.MenuWidth)) { MenuItems(actions, onDismiss) }
-}
-
-/**
- * The menu's list drawn in place, on the popup surface: for a window no popup may open from — the
- * bubble's, over other apps, closes at a touch outside it, and a popup is outside it.
- */
-@Composable
-fun IcodeMenuPanel(actions: List<IcodeMenuAction>, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
-    IcodePopupSurface(modifier.width(IcodeSizes.MenuWidth)) {
-        Column(Modifier.padding(vertical = IcodeSpacing.Space2)) { MenuItems(actions, onDismiss) }
-    }
-}
-
-/** [actions] as a menu lists them, each closing it as it runs. */
-@Composable
-private fun MenuItems(actions: List<IcodeMenuAction>, onDismiss: () -> Unit) {
-    actions.forEachIndexed { index, action ->
-        if (action.destructive || (action.beginsGroup && index > 0)) {
-            Divider()
+    IcodeDropdownMenu(expanded, onDismiss, Modifier.width(IcodeSizes.MenuWidth)) {
+        actions.forEachIndexed { index, action ->
+            if (action.destructive || (action.beginsGroup && index > 0)) {
+                Divider()
+            }
+            val color = when {
+                !action.enabled -> IcodeColors.TextMuted
+                action.destructive -> IcodeColors.Error
+                else -> IcodeColors.TextPrimary
+            }
+            DropdownMenuItem(
+                text = {
+                    Column {
+                        Text(action.label, style = IcodeType.Body.copy(color = color))
+                        action.detail?.let { MonoLine(it, color = IcodeColors.TextSecondary, style = IcodeType.MonoSmall, maxLines = 1) }
+                    }
+                },
+                leadingIcon = {
+                    Icon(action.icon, contentDescription = null, tint = color, modifier = Modifier.size(IcodeSizes.IconMd))
+                },
+                trailingIcon = if (action.checked) {
+                    { Icon(Icons.Outlined.Check, contentDescription = "Chosen", tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconMd)) }
+                } else {
+                    null
+                },
+                enabled = action.enabled,
+                contentPadding = PaddingValues(horizontal = IcodeSpacing.Space3),
+                onClick = {
+                    onDismiss()
+                    action.onClick()
+                },
+            )
         }
-        val color = when {
-            !action.enabled -> IcodeColors.TextMuted
-            action.destructive -> IcodeColors.Error
-            else -> IcodeColors.TextPrimary
-        }
-        DropdownMenuItem(
-            text = {
-                Column {
-                    Text(action.label, style = IcodeType.Body.copy(color = color))
-                    action.detail?.let { MonoLine(it, color = IcodeColors.TextSecondary, style = IcodeType.MonoSmall, maxLines = 1) }
-                }
-            },
-            leadingIcon = {
-                Icon(action.icon, contentDescription = null, tint = color, modifier = Modifier.size(IcodeSizes.IconMd))
-            },
-            trailingIcon = if (action.checked) {
-                { Icon(Icons.Outlined.Check, contentDescription = "Chosen", tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconMd)) }
-            } else {
-                null
-            },
-            enabled = action.enabled,
-            contentPadding = PaddingValues(horizontal = IcodeSpacing.Space3),
-            onClick = {
-                onDismiss()
-                action.onClick()
-            },
-        )
     }
 }
 
