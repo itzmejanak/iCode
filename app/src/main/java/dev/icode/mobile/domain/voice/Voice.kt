@@ -6,16 +6,14 @@ package dev.icode.mobile.domain.voice
 /** When the assistant's answers are read aloud. */
 enum class SpokenReplies(val label: String, val description: String) {
     Off("Off", "Answers are only written"),
-    InBubble("In the bubble", "Answers to the bubble or the microphone"),
-    Always("Always", "Every answer"),
+    InBubble("In the bubble", "Answers to what is asked from the bubble"),
     ;
 
-    /** Whether a turn's answer is spoken; [aloud] when its message was sent by voice or from the bubble. */
-    fun speaks(aloud: Boolean): Boolean = when (this) {
-        Off -> false
-        InBubble -> aloud
-        Always -> true
-    }
+    /**
+     * Whether a turn's answer is spoken; [aloud] when its message was sent from the bubble. The chat
+     * is read, not heard (owner's request, 2026-11-04): an answer there plays from its own ▶.
+     */
+    fun speaks(aloud: Boolean): Boolean = this == InBubble && aloud
 
     companion object {
         val DEFAULT = InBubble
@@ -50,6 +48,8 @@ data class VoiceState(
     val away: Boolean = false,
     val heard: Heard? = null,
     val speaking: Boolean = false,
+    /** The answer read on request ([dev.icode.mobile.domain.VoiceIntent.Read]), by its key, while it is read. */
+    val reading: String? = null,
 ) {
     /** The microphone listens for [from]. */
     fun listening(from: VoiceFrom): Boolean = heard?.let { it.from == from && !it.final } == true

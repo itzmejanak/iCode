@@ -6,6 +6,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AssistantRulesTest {
+    @Test fun `only the last message, the user's, unanswered and with nothing running, can be retried or taken back`() {
+        val asked = AssistantMessage.User("turn on wifi")
+        assertEquals("m1", AssistantRules.unanswered(AssistantState(messages = listOf(AssistantMessage.User("hi"), asked))))
+        assertNull(AssistantRules.unanswered(AssistantState(messages = listOf(asked, AssistantMessage.Reply("Done.")))))
+        assertNull(AssistantRules.unanswered(AssistantState(messages = listOf(asked), turn = AssistantTurn("/w/app", "app", "s1", "Thinking…"))))
+        assertNull(AssistantRules.unanswered(AssistantState()))
+    }
+
     private fun call(id: String, kind: AssistantToolKind = AssistantToolKind.Read) =
         AssistantCall(id, "read_file", """{"path":"a.kt"}""", "Read a.kt", kind)
 

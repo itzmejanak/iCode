@@ -72,8 +72,7 @@ internal fun AssistantComposer(
     onDetach: (DraftFile) -> Unit,
     onAttach: () -> Unit,
     onModels: () -> Unit,
-    /** [aloud]: sent by voice, so answered aloud where Spoken replies says so. */
-    onSend: (aloud: Boolean) -> Unit,
+    onSend: () -> Unit,
     /** The workspace's files: where the assistant works, a tap away. */
     onWorkspace: () -> Unit,
 ) {
@@ -88,7 +87,7 @@ internal fun AssistantComposer(
     // Once the user stops talking, what was heard is sent with what was typed; while a turn runs, it waits in the field.
     OnHeard(voice, VoiceFrom.Chat) { words ->
         onDraft(listOf(draft, words).filter { it.isNotBlank() }.joinToString(" "))
-        if (!state.running) onSend(true)
+        if (!state.running) onSend()
     }
     // A file the chosen model cannot read waits for another model; nothing is sent to fail.
     val unreadable = AssistantRules.attachmentProblem(attached.map { it.kind }, settings.model)
@@ -166,7 +165,7 @@ internal fun AssistantComposer(
                     voice.speaking && draft.isBlank() -> IconButton(onClick = { gateway.dispatch(VoiceIntent.Silence) }) {
                         Icon(Icons.Outlined.StopCircle, contentDescription = "Stop reading aloud", tint = IcodeColors.Accent)
                     }
-                    else -> IconButton(onClick = { onSend(false) }, enabled = canSend) {
+                    else -> IconButton(onClick = onSend, enabled = canSend) {
                         Icon(Icons.AutoMirrored.Outlined.Send, contentDescription = "Send", tint = if (canSend) IcodeColors.Accent else IcodeColors.TextMuted)
                     }
                 }

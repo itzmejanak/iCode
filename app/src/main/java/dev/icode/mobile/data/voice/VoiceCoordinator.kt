@@ -13,6 +13,7 @@ import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.VoiceIntent
 import dev.icode.mobile.domain.voice.Heard
 import dev.icode.mobile.domain.voice.SpokenReplies
+import dev.icode.mobile.domain.voice.SpokenText
 import dev.icode.mobile.domain.voice.SpokenTurn
 import dev.icode.mobile.domain.voice.VoiceCue
 import dev.icode.mobile.domain.voice.VoiceFrom
@@ -85,6 +86,7 @@ internal class VoiceCoordinator(
             VoiceIntent.CancelListening -> stopListening()
             VoiceIntent.Silence -> hush()
             VoiceIntent.Sample -> listOf(VoiceCue.Begin, VoiceCue.Say(SAMPLE), VoiceCue.End).forEach(::cue)
+            is VoiceIntent.Read -> read(intent.key, intent.text)
             is VoiceIntent.ChooseSpokenReplies -> choose(intent.spoken)
         }
     }
@@ -137,6 +139,16 @@ internal class VoiceCoordinator(
         update { it.copy(heard = it.heard?.takeIf { heard -> heard.final }) }
     }
 
+    /** An answer read on request, as Spoken replies would say it, whatever they are set to: the user asked. */
+    private fun read(key: String, text: String) {
+        val sentences = SpokenText.ready(text, final = true).sentences
+        if (sentences.isEmpty()) return
+        cue(VoiceCue.Begin)
+        update { it.copy(reading = key) }
+        sentences.forEach { cue(VoiceCue.Say(it)) }
+        cue(VoiceCue.End)
+    }
+
     /** Cues come from the assistant's changes and from intents: one at a time. */
     private fun cue(cue: VoiceCue) {
         synchronized(lock) {
@@ -159,6 +171,7 @@ internal class VoiceCoordinator(
         val queue = Channel<String>(Channel.UNLIMITED)
         val id = ++session
         sentences = queue
+        update { it.copy(reading = null) }
         speech = scope.launch {
             previous?.cancelAndJoin()
             idle?.cancel()
@@ -171,7 +184,7 @@ internal class VoiceCoordinator(
                 stateHolder.notify(NoticeTone.HeadsUp, "The answer was not read aloud", failed.message)
             } finally {
                 if (session == id) {
-                    update { it.copy(speaking = false) }
+                    update { it.copy(speaking = false, reading = null) }
                     idle = scope.launch {
                         delay(IDLE_MILLIS)
                         synchronized(lock) {

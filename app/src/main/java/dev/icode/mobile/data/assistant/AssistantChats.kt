@@ -54,6 +54,18 @@ internal class AssistantChats(
         last
     }
 
+    /**
+     * Takes back [session]'s last message, unanswered and without files, for the user to edit, as the
+     * chat is kept: a chat left empty goes, as an empty one is never kept. Null when there is none.
+     */
+    fun takeBack(workspace: String, session: String): AssistantMessage.User? = synchronized(lock) {
+        val last = of(workspace, session).messages.lastOrNull() as? AssistantMessage.User
+        if (last == null || last.attachments.isNotEmpty()) return@synchronized null
+        withdraw(workspace, session)
+        if (of(workspace, session).messages.isEmpty()) delete(workspace, session) else change(workspace, session) { it }
+        last
+    }
+
     /** One call's result: with the others of its reply, which are right after it. */
     fun answer(workspace: String, session: String, result: AssistantResult) = change(workspace, session) { chat ->
         val last = chat.messages.lastOrNull()

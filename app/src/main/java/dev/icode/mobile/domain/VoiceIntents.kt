@@ -23,6 +23,9 @@ sealed interface VoiceIntent : ICodeIntent {
     /** Android's voice says a sample, so the user hears it before an answer. */
     data object Sample : VoiceIntent
 
+    /** An answer in the chat read aloud on request, from its ▶: [key] names it while it is read. */
+    data class Read(val key: String, val text: String) : VoiceIntent
+
     /** When answers are read aloud, as the user chose. */
     data class ChooseSpokenReplies(val spoken: SpokenReplies) : VoiceIntent
 }
