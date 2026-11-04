@@ -12,6 +12,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -39,20 +40,29 @@ import kotlinx.coroutines.delay
 internal class UndoPillState(private var seen: Long? = null) {
     var told: FileNews? by mutableStateOf(null)
         private set
-    var away by mutableStateOf(true)
+    var tucked by mutableStateOf(true)
         private set
 
-    /** [news] told: the pill comes; false when it was told before. */
+    /** One more each time the pill comes out: its time starts again. */
+    var outs by mutableIntStateOf(0)
+        private set
+
+    /** [news] told: the pill comes out; false when it was told before. */
     fun tell(news: FileNews): Boolean {
         if (news.id == seen) return false
         seen = news.id
         told = news
-        away = false
+        show()
         return true
     }
 
-    fun putAway() {
-        away = true
+    fun show() {
+        tucked = false
+        outs++
+    }
+
+    fun tuck() {
+        tucked = true
     }
 
     companion object {
@@ -60,36 +70,45 @@ internal class UndoPillState(private var seen: Long? = null) {
     }
 }
 
-/** The pill's state, telling each new change of [news]: the pill for its time, then gone. */
+/** The pill's state, telling each new change of [news]: the pill out for its time, then tucked. */
 @Composable
 internal fun rememberUndoPill(news: FileNews?): UndoPillState {
     val state = rememberSaveable(saver = UndoPillState.Saver) { UndoPillState() }
-    LaunchedEffect(news?.id) {
-        if (news == null || !state.tell(news)) return@LaunchedEffect
+    LaunchedEffect(news?.id) { if (news != null) state.tell(news) }
+    LaunchedEffect(state.outs) {
+        if (state.tucked) return@LaunchedEffect
         delay(FileNews.HOLD_MILLIS)
-        state.putAway()
+        state.tuck()
     }
     return state
 }
 
 /**
- * The undo pill in the floating stack, above the bell and drawn as it is: icons only (owner's request,
- * 2026-11-04 — a long name stretched the pill), ↶ to undo and ↷ when there is something to redo, docked
- * on the edge and swiped into it to put away. Each says what it would do; TalkBack reads the change told — "Moved 3 items to Trash".
+ * The undo pill in the floating stack, above the bell and drawn as it is (owner's requests,
+ * 2026-11-04): icons only, ↶ to undo and ↷ when there is something to redo, each saying what it would
+ * do; docked on the edge while anything can be undone or redone, out after a change and tucked to
+ * its grip on its time or swiped in, pulled or tapped out again. TalkBack reads the change told.
+ * The explorer's ⋮ has no Undo or Redo: this is at hand on every screen.
  */
 @Composable
 internal fun UndoPill(state: UndoPillState, history: FileHistoryState) {
     val gateway = LocalICodeGateway.current
     AnimatedVisibility(
-        visible = state.told != null && !state.away,
+        visible = history.undo != null || history.redo != null,
         enter = slideInHorizontally { it } + fadeIn(),
         exit = slideOutHorizontally { it } + fadeOut(),
     ) {
-        state.told?.let { news ->
-            IcodeDockedPill("Put the undo pill away", state::putAway, Modifier.semantics { contentDescription = news.line; liveRegion = LiveRegionMode.Polite }) {
-                Step(Icons.AutoMirrored.Outlined.Undo, history.undo?.let { "Undo: $it" }) { gateway.dispatch(FilesIntent.Undo) }
-                if (history.redo != null) Step(Icons.AutoMirrored.Outlined.Redo, "Redo: ${history.redo}") { gateway.dispatch(FilesIntent.Redo) }
-            }
+        IcodeDockedPill(
+            tucked = state.tucked,
+            onTucked = { if (it) state.tuck() else state.show() },
+            name = "the undo pill",
+            modifier = Modifier.semantics {
+                state.told?.let { contentDescription = it.line }
+                liveRegion = LiveRegionMode.Polite
+            },
+        ) {
+            Step(Icons.AutoMirrored.Outlined.Undo, history.undo?.let { "Undo: $it" }) { gateway.dispatch(FilesIntent.Undo) }
+            if (history.redo != null) Step(Icons.AutoMirrored.Outlined.Redo, "Redo: ${history.redo}") { gateway.dispatch(FilesIntent.Redo) }
         }
     }
 }

@@ -314,11 +314,13 @@ sheet on the same base (§3.1), for each item whose name is taken: the two side 
   - **The pill**, as the bell (owner, "notification floating icon behavior"):
     - after a change: ↶, and ↷ when there is something to redo, each saying what it would do —
       icons only since 2026-11-04 (owner's request: a long name stretched the pill), docked flush on
-      the screen's edge, round on its open side with a grip, swiped into the edge to put it away;
-    - 10 s later it goes, as the bell does.
+      the screen's edge, round on its open side with a grip;
+    - 10 s later it tucks into the edge to its grip, as the bell does, and is pulled or tapped out
+      again; it stays docked while anything can be undone or redone.
     - Not shown while a sheet or the Notifications page is open.
     - TalkBack reads the change ("Moved 3 items to Trash", "Restored 3 items") as the bell's.
-  - **The explorer's ⋮** keeps "Undo *what*" and "Redo *what*" for later.
+  - **The explorer's ⋮** has no Undo or Redo since 2026-11-04 (owner's request): the docked pill is
+    at hand on every screen.
 
 ### 3.9 Properties
 
@@ -837,7 +839,8 @@ Descending.
     - a file at Private's top.
   - **What it lists:** the explorer, folders only, in both places. A clone stays in Private.
   - **Choosing a clone's place** is this picker, in place of `ChooseBar`.
-- **⋮** (`ExplorerMenu`): Select, Undo and Redo with what each would do, and Storage settings.
+- **⋮** (`ExplorerMenu`): Select, Manage storage and Storage settings; Undo and Redo are the docked
+  undo pill's.
 - **Moved out of `FilesScreen`** to `FilesBars.kt`: the places' menu, the sort button and the search
   field.
 

@@ -4,8 +4,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.Redo
-import androidx.compose.material.icons.automirrored.outlined.Undo
 import androidx.compose.material.icons.automirrored.outlined.ViewList
 import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.Category
@@ -54,7 +52,6 @@ import dev.icode.mobile.domain.WorkspaceRuntimePath
 import dev.icode.mobile.domain.countOf
 import dev.icode.mobile.domain.files.ExplorerState
 import dev.icode.mobile.domain.files.ExplorerView
-import dev.icode.mobile.domain.files.FileHistoryState
 import dev.icode.mobile.domain.files.FilesBrowserState
 import dev.icode.mobile.domain.files.FilesLook
 import dev.icode.mobile.domain.files.FilesSort
@@ -82,15 +79,13 @@ internal fun PickBar(pick: FolderPick, browser: FilesBrowserState?, top: Boolean
 }
 
 /**
- * The explorer's ⋮ (§3.14): Select — in Duplicates, Select extra copies too ([onExtraCopies]) — Undo
- * and Redo, each with what it would do, Manage storage and Storage settings.
+ * The explorer's ⋮ (§3.14): Select — in Duplicates, Select extra copies too ([onExtraCopies]) —
+ * Manage storage and Storage settings. Undo and Redo are the docked undo pill's, at hand on every
+ * screen (owner's request, 2026-11-04).
  */
 @Composable
 internal fun ExplorerMenu(
-    history: FileHistoryState,
     onSelect: () -> Unit,
-    onUndo: () -> Unit,
-    onRedo: () -> Unit,
     onManage: () -> Unit,
     onStorage: () -> Unit,
     onExtraCopies: (() -> Unit)? = null,
@@ -106,8 +101,6 @@ internal fun ExplorerMenu(
             actions = listOfNotNull(
                 IcodeMenuAction("Select", Icons.Outlined.Checklist, onSelect),
                 onExtraCopies?.let { IcodeMenuAction("Select extra copies", Icons.Outlined.FileCopy, it, detail = "All but the oldest of each") },
-                IcodeMenuAction("Undo", Icons.AutoMirrored.Outlined.Undo, onUndo, enabled = history.undo != null, detail = history.undo, beginsGroup = true),
-                IcodeMenuAction("Redo", Icons.AutoMirrored.Outlined.Redo, onRedo, enabled = history.redo != null, detail = history.redo),
                 IcodeMenuAction("Manage storage", Icons.Outlined.DataUsage, onManage, beginsGroup = true),
                 IcodeMenuAction("Storage settings", Icons.Outlined.Storage, onStorage),
             ),

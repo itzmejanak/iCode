@@ -282,7 +282,7 @@ Acceptance criteria:
 Acceptance criteria:
 
 - New items, renames, moves, copies, deletes and restores, compress and extract can be undone and redone, the last 50 while iCode runs.
-- The undo pill, above the bell, says what each change did, with Undo, then what came back, with Redo.
+- The undo pill, above the bell and docked on the screen's edge, comes out after each change with Undo and Redo (TalkBack says what each change did), then tucks to its grip; I pull it out again whenever I need it.
 - Undo checks first that what it touches is as it was left, and says what changed when it is not.
 
 ### US-FILE-010 — Compress and extract archives

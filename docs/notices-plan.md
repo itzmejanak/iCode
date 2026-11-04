@@ -79,15 +79,17 @@ the repository, as with the terminal bar's.
   unread count on it, drawn as the Explorer's Source Control count is (`CountBadge`, one component
   for both). No line: the owner's request (2026-11-04) — the bell says nothing in words, so a long
   title never stretches it. It is docked flush on the screen's edge, round on its open side with a
-  grip (`IcodeDockedPill`, shared with the undo pill; the owner's choice, 2026-11-04), and swiped into
-  the edge to put it away — past half its width, or flung; TalkBack has it as an action.
+  grip (`IcodeDockedPill`, shared with the undo pill; the owner's choices, 2026-11-04), and never
+  goes: it tucks into the edge to its grip, and comes out again.
   - It takes the colour of the most serious unread notice (Problem, then Heads-up, then Info); a
     Done, never kept, rings it green with no count.
   - It stays **15 s** for a Problem, **10 s** for Heads-up and Info, and **3 s** for a Done (the
-    most serious unread tone's time, else the ringing one's), then slides away to the right. A
-    swipe into the edge puts it away at once. The notices stay unread on the page, with the launcher bell's dot.
-  - A tap on it opens the one unread notice's sheet; with several, the Notifications page; with
-    none (a Done rang it), it goes. Either way the bell goes.
+    most serious unread tone's time, else the ringing one's), then tucks to its grip, which
+    keeps the most serious unread tone. Swiped into the edge — past half its way, or flung — it tucks
+    at once; a tap on the grip, or a pull, brings it out (TalkBack: actions). The notices stay
+    unread on the page, with the launcher bell's dot.
+  - A tap on it opens the one unread notice's sheet; otherwise the Notifications page. Either way
+    the bell tucks.
 - TalkBack reads what rang it (a polite live region on the bell).
 - Not shown while the Notifications page or a notice's sheet is open: the notice is there already.
 
