@@ -312,8 +312,8 @@ Each is fixed where it is, not worked around beside it.
 
 ### 5.7 The bubble
 
-The owner's design (2026-11-03; **redesigned 2026-11-04, after Gemini**: the bubble anchored at the
-bottom, expanding in place): three things on screen — the **bubble**, a **bar** it expands
+The owner's design (2026-11-03; **redesigned 2026-11-04, after Gemini**: the bubble docked on an
+edge, expanding in place): three things on screen — the **bubble**, a **bar** it expands
 into when text can be typed, and the **edge glow** — and everything else only when it is needed. No
 header, no cards of actions, no dashboard.
 
@@ -323,11 +323,15 @@ header, no cards of actions, no dashboard.
   that still lists iCode there from an earlier build (`accessibility_button_targets`, readable by
   apps) is told so on Phone Control, whose row opens iCode's accessibility page to turn it off: once
   the flag is gone, a tap on that button would turn the service off.
-- **The bubble**, anchored at the bottom of the screen, centred unless dragged aside along it —
-  Gemini's place, not Android's floating button: the window is centred on its own middle, so the bar
-  it expands into grows from that middle and the bubble stays put under it, clear of the gesture
-  area. Dragged anywhere, it drops back to the bottom; idle for three seconds it sinks half behind
-  the bottom edge and fades; anything new brings it out. Hidden while iCode is on screen. Its six
+- **The bubble**, docked on an edge (the owner's request, 2026-11-04): first at the bottom of the
+  screen, centred — Gemini's place, not Android's floating button. Dragged anywhere, it docks on the
+  nearest of the bottom, left and right edges, where it was let go along it (not the top: the status
+  bar is there, and ✕), and that edge and place are kept (`BubblePlacement`, in the `phone_bubble`
+  preferences) for the next time it shows. At the bottom its window is centred on its own middle, so
+  the bar grows from that middle; on a side it grows away from the edge. The voice bubble opens where
+  the bubble sits; the bar, which holds the keyboard, opens at the bottom on the bubble's side, by the
+  keyboard. Clear of the system bars and the gesture area; idle for three seconds it sinks half
+  behind its edge and fades; anything new brings it out. Hidden while iCode is on screen. Its six
   states (`PhoneOverlay.Look`), the agent's before the microphone's — muting never hides that the
   agent works, and it shows listening only while it listens:
 
@@ -342,7 +346,7 @@ header, no cards of actions, no dashboard.
 
   A dot shows while a question waits. The bar's microphone carries the same states, so what the
   agent does never hides behind the keyboard.
-- **The bar**, the bubble expanded into it where it sat — one floating pill holding the keyboard:
+- **The bar**, the bubble expanded into it where it sat (from a side, at the bottom of it) — one floating pill holding the keyboard:
   the mark that collapses it back (or, muted, resumes listening), the field, the microphone, Send
   (Stop while the agent works, Stop reading while it speaks). What leads the pill sits as far in
   from its end as the last icon from the other. The field grows with what is typed up to four
@@ -366,7 +370,7 @@ header, no cards of actions, no dashboard.
   stops only the microphone, Stop in the voice bubble throws the hearing away, Stop in the bar stops
   the agent, closing the bar stops nothing, and dragging onto ✕ puts everything away.
 - **Put away** (the owner's word): dragging the bubble shows a ✕ at the top of the screen — away
-  from where the bubble lives at the bottom; dropped there, the bubble goes and the glow goes with
+  away from the edges the bubble docks on; dropped there, the bubble goes, keeping its place, and the glow goes with
   it, and the voice is silenced. While a turn acts on the phone, the target reads "Stop and hide",
   and dropping stops it. Phone control stays on: the bubble comes back from the notification's
   **Show bubble**, or Phone Control's Bubble switch.

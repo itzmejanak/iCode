@@ -64,9 +64,9 @@ import dev.icode.mobile.domain.voice.VoiceFrom
 import dev.icode.mobile.ui.HeardLine
 
 /**
- * The bubble's bar (owner's design, 2026-11-03; redesigned bottom-anchored, 2026-11-04): the bubble
- * expanded into one floating pill where it sat — the mark that collapses it back, the field, the
- * microphone, Send — or Stop while the agent works. The field grows with what is typed up to
+ * The bubble's bar (owner's design, 2026-11-03; redesigned 2026-11-04): the bubble expanded into one
+ * floating pill where it sat, or, from a side, at the bottom of it by the keyboard — the mark that
+ * collapses it back, the field, the microphone, Send — or Stop while the agent works. The field grows with what is typed up to
  * [BAR_LINES]. On the pill's tab, rising at its end as the owner drew it: past [BAR_LINES] Expand,
  * which makes the field an editor of [EDITOR_LINES], and ⋮, which opens New chat and Open in iCode in
  * the tab itself — no popup, which would be a touch outside the bar's window and close it. Above,

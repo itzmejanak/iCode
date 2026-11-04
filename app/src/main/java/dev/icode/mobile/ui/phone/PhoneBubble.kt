@@ -39,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -97,13 +98,15 @@ internal class PhoneBubbleView(
     /** The voice bubble is up: the bar gave way to it. */
     val voiceUp: Boolean,
     val tucked: Boolean,
+    /** The edge the bubble docks on: each face grows from where it sits there. */
+    val edge: BubbleEdge,
     val draft: String,
     val onDraft: (String) -> Unit,
 )
 
 /**
  * The bubble over other apps (docs/phone-agent-plan.md §5.7; redesigned 2026-11-04, after Gemini):
- * one small bubble anchored at the bottom of the screen, which expands into a compact bar to type in,
+ * one small bubble docked on the screen's edge, which expands into a compact bar to type in,
  * and while the microphone listens becomes a voice bubble — the words heard so far under a waveform,
  * with a microphone to mute and a Stop to throw the hearing away. Nothing else: no header, no cards
  * of actions, no dashboard.
@@ -111,17 +114,18 @@ internal class PhoneBubbleView(
 @Composable
 internal fun PhoneBubble(view: PhoneBubbleView, actions: PhoneBubbleActions) {
     val face = if (view.voiceUp) Face.Voice else if (view.bar) Face.Bar else Face.Bubble
+    val origin = view.edge.origin()
     AnimatedContent(
         targetState = face,
         // Drawn only, never laid out frame by frame: the window wraps its content, so a size that
         // animated would resize and place the window on every frame — the bar drawn squeezed, and
-        // late. The size changes once; each face fades and grows from where the bubble sits.
+        // late. The size changes once; each face fades and grows from where the bubble sits on its edge.
         transitionSpec = {
-            (fadeIn(tween(MORPH_MILLIS)) + scaleIn(initialScale = MORPH_SCALE, animationSpec = tween(MORPH_MILLIS), transformOrigin = FROM_BUBBLE)) togetherWith
-                (fadeOut(tween(MORPH_MILLIS / 2)) + scaleOut(targetScale = MORPH_SCALE, animationSpec = tween(MORPH_MILLIS / 2), transformOrigin = FROM_BUBBLE)) using
+            (fadeIn(tween(MORPH_MILLIS)) + scaleIn(initialScale = MORPH_SCALE, animationSpec = tween(MORPH_MILLIS), transformOrigin = origin)) togetherWith
+                (fadeOut(tween(MORPH_MILLIS / 2)) + scaleOut(targetScale = MORPH_SCALE, animationSpec = tween(MORPH_MILLIS / 2), transformOrigin = origin)) using
                 null
         },
-        contentAlignment = Alignment.BottomCenter,
+        contentAlignment = view.edge.corner(),
         label = "face",
     ) { target ->
         when (target) {
@@ -134,6 +138,20 @@ internal fun PhoneBubble(view: PhoneBubbleView, actions: PhoneBubbleActions) {
 
 /** The window's three faces: the bubble, the bar it expands into, and the voice bubble. */
 private enum class Face { Bubble, Bar, Voice }
+
+/** Where the bubble sits in its window, which grows up from it and away from its edge: on the screen, not the reading direction. */
+private fun BubbleEdge.corner(): Alignment = when (this) {
+    BubbleEdge.Bottom -> Alignment.BottomCenter
+    BubbleEdge.Left -> AbsoluteAlignment.BottomLeft
+    BubbleEdge.Right -> AbsoluteAlignment.BottomRight
+}
+
+/** The same corner, for a face to grow from. */
+private fun BubbleEdge.origin(): TransformOrigin = when (this) {
+    BubbleEdge.Bottom -> TransformOrigin(0.5f, 1f)
+    BubbleEdge.Left -> TransformOrigin(0f, 1f)
+    BubbleEdge.Right -> TransformOrigin(1f, 1f)
+}
 
 /** How wide the bar and the voice bubble may grow: the panel, or the screen less its margins. */
 @Composable
@@ -271,8 +289,6 @@ private const val TUCKED_ALPHA = 0.55f
 private const val MORPH_MILLIS = 220
 private const val MORPH_SCALE = 0.88f
 
-/** Where the bubble sits in its window, anchored at the bottom: each face grows from there. */
-private val FROM_BUBBLE = TransformOrigin(0.5f, 1f)
 private const val WAVE_MILLIS = 1_100
 private const val WAVE_FLOOR = 0.35f
 private const val WAVE_STEP = 1.3f

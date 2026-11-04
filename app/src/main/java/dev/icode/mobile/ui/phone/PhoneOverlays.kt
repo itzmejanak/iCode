@@ -1,6 +1,7 @@
 package dev.icode.mobile.ui.phone
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.graphics.PixelFormat
 import android.view.Gravity
 import android.view.MotionEvent
@@ -44,7 +45,7 @@ import kotlinx.coroutines.withContext
 /**
  * The glow and the bubble over every app (docs/phone-agent-plan.md §5.6, §5.7; redesigned 2026-11-04,
  * after Gemini), in the phone service's own trusted windows: no "draw over other apps" permission, and
- * no touch of the screen blocked. One bubble, anchored at the bottom — and its states run here:
+ * no touch of the screen blocked. One bubble, docked on an edge — and its states run here:
  *
  * - **Closed**: the bubble alone. A tap expands it into the bar; while it listens, a tap mutes; while
  *   it speaks, a tap silences.
@@ -65,7 +66,7 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
     private val bubble = ComposeView(service)
     private val target = ComposeView(service)
     private val density = service.resources.displayMetrics.density
-    private val place = BubblePlacement(windows, bubble, density)
+    private val place = BubblePlacement(windows, bubble, density, service.getSharedPreferences(PLACE_PREFERENCES, Context.MODE_PRIVATE))
 
     private var snapshot by mutableStateOf<ICodeSnapshot?>(null)
     private var onScreen = false
@@ -126,7 +127,7 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
 
     private fun view(snapshot: ICodeSnapshot) = PhoneBubbleView(
         overlay, snapshot.assistant, snapshot.voice,
-        bar = mode == Mode.Typing, voiceUp = mode == Mode.Voice, tucked = place.tucked,
+        bar = mode == Mode.Typing, voiceUp = mode == Mode.Voice, tucked = place.tucked, edge = place.edge,
         draft = draft, onDraft = { draft = it },
     )
 
@@ -259,13 +260,13 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
         overTarget = hypot(x - width / 2f, y - targetY) < IcodeSizes.Bubble.value * density * TARGET_REACH
     }
 
-    /** Let go: on the target at the top, put away — and a turn on the phone stopped, the voice silenced — else back to the bottom. */
+    /** Let go: on the target at the top, put away — and a turn on the phone stopped, the voice silenced — else docked on the nearest edge. */
     private fun dropped() {
         if (targetOut) {
             windows.removeViewImmediate(target)
             targetOut = false
         }
-        place.drop()
+        place.drop(away = overTarget)
         if (overTarget) {
             overTarget = false
             to(Mode.Closed)
@@ -293,5 +294,7 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
         const val TARGET_MARGIN_DP = 48f
         const val TARGET_REACH = 1.5f
         const val FRAME_MILLIS = 50L
+        /** Where the bubble was last docked, kept for the next time it shows. */
+        const val PLACE_PREFERENCES = "phone_bubble"
     }
 }
