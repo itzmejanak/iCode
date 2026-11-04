@@ -14,11 +14,11 @@ class NoticeRulesTest {
         listOf(NoticeTone.Problem, NoticeTone.HeadsUp, NoticeTone.Info).forEach { assertTrue(NoticeRules.kept(message(1, it))) }
     }
 
-    @Test fun `a problem stays longest on the bell, a done shortest`() {
-        assertEquals(listOf(6_000L, 4_000L, 4_000L, 3_000L), NoticeTone.entries.map(NoticeRules::lineMillis))
+    @Test fun `a problem keeps the bell longest, a done only rings it`() {
+        assertEquals(listOf(15_000L, 10_000L, 10_000L, 3_000L), NoticeTone.entries.map(NoticeRules::bellMillis))
     }
 
-    @Test fun `the folded bell takes the most serious unread tone`() {
+    @Test fun `the bell takes the most serious unread tone`() {
         assertNull(NoticeRules.bellTone(listOf(message(1, NoticeTone.Problem, read = true))))
         assertEquals(NoticeTone.Info, NoticeRules.bellTone(listOf(message(1, NoticeTone.Info), message(2, NoticeTone.Problem, read = true))))
         assertEquals(NoticeTone.Problem, NoticeRules.bellTone(listOf(message(1, NoticeTone.Info), message(2, NoticeTone.Problem))))

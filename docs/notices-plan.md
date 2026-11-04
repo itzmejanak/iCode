@@ -75,20 +75,19 @@ the repository, as with the terminal bar's.
   reports its top edge, and at least 88 dp above the screen's foot (`IcodeSizes.FabClearance`),
   which clears the keys rows (64 dp, or 72 dp with Compact Layout off). Over the keyboard while it
   is up, as everything is. Gone while a sheet is open.
-- **When a notice comes**, a pill: the bell in the tone's colour, then the notice's one line, cut
-  with "…" to the width it has (at most 75% of the screen). A tap opens that notice's sheet. A
-  Done has nothing more to say, so a tap on it only folds the bell away.
-- **After 3 s for Done, 4 s for Heads-up and Info, and 6 s for a Problem**, the line slides away
-  from left to right (0.35 s). Then the bell rings once, swinging from where it hangs (0.9 s), with
-  the unread count on it, drawn as the Explorer's Source Control count is (`CountBadge`, one
-  component for both), and × comes beside it.
-  - The bell stays **10 s** after the slide, whatever is unread, then slides away to the right. ×
+- **When a notice comes**, the bell rings once, swinging from where it hangs (0.9 s), with the
+  unread count on it, drawn as the Explorer's Source Control count is (`CountBadge`, one component
+  for both). No line: the owner's request (2026-11-04) — the bell says nothing in words, so a long
+  title never stretches it. × stands apart, on nothing just off the bell's top end
+  (`IcodeFloatingAway`, shared with the undo pill).
+  - It takes the colour of the most serious unread notice (Problem, then Heads-up, then Info); a
+    Done, never kept, rings it green with no count.
+  - It stays **15 s** for a Problem, **10 s** for Heads-up and Info, and **3 s** for a Done (the
+    most serious unread tone's time, else the ringing one's), then slides away to the right. ×
     puts it away at once. The notices stay unread on the page, with the launcher bell's dot.
-  - It takes the colour of the most serious unread notice (Problem, then Heads-up, then Info).
-  - A tap on it opens the one unread notice's sheet. Otherwise (several, or none after a Done) it
-    opens the Notifications page. Either way the bell goes.
-- A new notice unfolds the line again with its own words.
-- TalkBack reads each line as it reads a toast (a polite live region).
+  - A tap on it opens the one unread notice's sheet; with several, the Notifications page; with
+    none (a Done rang it), it goes. Either way the bell goes.
+- TalkBack reads what rang it (a polite live region on the bell).
 - Not shown while the Notifications page or a notice's sheet is open: the notice is there already.
 
 ### 2.3 A notice's sheet

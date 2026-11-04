@@ -10,8 +10,6 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
@@ -30,11 +28,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import dev.icode.mobile.designsystem.CountBadge
-import dev.icode.mobile.designsystem.FLOATING_SLIDE_MILLIS
 import dev.icode.mobile.designsystem.IcodeFloatingAway
-import dev.icode.mobile.designsystem.IcodeFloatingLine
 import dev.icode.mobile.designsystem.IcodeFloatingPill
 import dev.icode.mobile.designsystem.IcodeSheetOverlay
 import dev.icode.mobile.designsystem.IcodeSizes
@@ -46,35 +45,26 @@ import kotlin.math.sin
 import kotlinx.coroutines.delay
 
 /**
- * The bell and the sheet, over every screen (docs/notices-plan.md §2.2–2.3): what the bell last
- * told, whether its line still shows, whether it has gone (its time up, × or its notice opened), and
- * the notice in the sheet.
+ * The bell and the sheet, over every screen (docs/notices-plan.md §2.2–2.3): what last rang the bell,
+ * whether it has gone (its time up, × or its notice opened), and the notice in the sheet.
  */
 @Stable
 internal class NoticeHostState {
     var told: AppNotice.Message? by mutableStateOf(null)
-        private set
-    var unfolded by mutableStateOf(false)
         private set
     var away by mutableStateOf(false)
         private set
     var shown: String? by mutableStateOf(null)
         private set
 
-    /** A notice was said: its line unfolds, and the bell comes back if it had gone. */
+    /** A notice was said: the bell rings, and comes back if it had gone. */
     fun arrived(notice: AppNotice.Message) {
         told = notice
-        unfolded = true
         away = false
-    }
-
-    fun fold() {
-        unfolded = false
     }
 
     fun putAway() {
         away = true
-        unfolded = false
     }
 
     /** The notice [id] in its sheet; the bell, having led there, goes. */
@@ -91,20 +81,18 @@ internal class NoticeHostState {
 internal val LocalNotices = staticCompositionLocalOf<NoticeHostState> { error("NoticeHostState was not provided") }
 
 /**
- * [content] with [state] to open notices in, and the notice [state] shows in its sheet. The bell's
- * line folds, then the bell goes, on their times, wherever the bell is drawn ([NoticeBell]).
+ * [content] with [state] to open notices in, and the notice [state] shows in its sheet. The bell goes
+ * on its time, wherever it is drawn ([NoticeBell]): the time of the most serious unread tone, or of
+ * the tone that rang it.
  */
 @Composable
 internal fun NoticeHost(state: NoticeHostState, notices: List<AppNotice>, pageOpen: Boolean, onAll: () -> Unit, content: @Composable () -> Unit) {
     val gateway = LocalICodeGateway.current
     Box(Modifier.fillMaxSize()) {
         CompositionLocalProvider(LocalNotices provides state) { content() }
-        // The line, then the bell alone for its time once the line has slid away.
         LaunchedEffect(state.told) {
             val notice = state.told ?: return@LaunchedEffect
-            delay(NoticeRules.lineMillis(notice.tone))
-            state.fold()
-            delay(FLOATING_SLIDE_MILLIS + NoticeRules.BELL_MILLIS)
+            delay(NoticeRules.bellMillis(NoticeRules.bellTone(notices) ?: notice.tone))
             state.putAway()
         }
         state.shown?.let { id ->
@@ -130,14 +118,14 @@ internal fun NoticeHost(state: NoticeHostState, notices: List<AppNotice>, pageOp
 }
 
 /**
- * The bell in the floating stack (owner's design, 2026-10-21), while it has something to tell and
- * has not gone. Unfolded: the bell in its tone's colour and the told line, at most [lineWidth].
- * Folded: the line slides away from left to right, then the bell rings once, in the most serious
- * unread tone, with the unread count as the Explorer's Source Control count is drawn, and × beside
- * it. A tap opens the notice told, or the one unread; with more, [onAll].
+ * The bell in the floating stack (owner's design, 2026-10-21; no line since 2026-11-04, the owner's
+ * request), while it has something to tell and has not gone: a notice rings it once, in the most
+ * serious unread tone — or a success's green, which is not kept — with the unread count as the
+ * Explorer's Source Control count is drawn. TalkBack reads what rang it. × stands apart, on nothing
+ * at the bell's top end. A tap opens the one unread notice; with more, [onAll].
  */
 @Composable
-internal fun NoticeBell(state: NoticeHostState, notices: List<AppNotice>, lineWidth: Dp, onAll: () -> Unit) {
+internal fun NoticeBell(state: NoticeHostState, notices: List<AppNotice>, onAll: () -> Unit) {
     val unread = notices.filterNot { it.read }
     AnimatedVisibility(
         visible = state.told != null && !state.away,
@@ -147,14 +135,11 @@ internal fun NoticeBell(state: NoticeHostState, notices: List<AppNotice>, lineWi
         state.told?.let { notice ->
             Bell(
                 told = notice,
-                unfolded = state.unfolded,
                 unread = unread,
-                lineWidth = lineWidth,
                 onTap = {
-                    when {
-                        state.unfolded && NoticeRules.kept(notice) -> state.open(notice.id)
-                        state.unfolded -> state.fold()
-                        unread.size == 1 -> state.open(unread.single().id)
+                    when (unread.size) {
+                        0 -> state.putAway()
+                        1 -> state.open(unread.single().id)
                         else -> {
                             state.putAway()
                             onAll()
@@ -168,27 +153,30 @@ internal fun NoticeBell(state: NoticeHostState, notices: List<AppNotice>, lineWi
 }
 
 @Composable
-private fun Bell(told: AppNotice.Message, unfolded: Boolean, unread: List<AppNotice>, lineWidth: Dp, onTap: () -> Unit, onAway: () -> Unit) {
-    val tone = if (unfolded) told.tone else NoticeRules.bellTone(unread) ?: told.tone
+private fun Bell(told: AppNotice.Message, unread: List<AppNotice>, onTap: () -> Unit, onAway: () -> Unit) {
+    val tone = NoticeRules.bellTone(unread) ?: told.tone
     // 0 to 1 over one ring; at rest at both ends.
     val ring = remember { Animatable(0f) }
-    LaunchedEffect(unfolded) {
-        // A new line cuts a ring short: the bell hangs straight again.
-        if (unfolded) return@LaunchedEffect ring.snapTo(0f)
-        delay(FLOATING_SLIDE_MILLIS.toLong())
+    LaunchedEffect(told) {
         ring.snapTo(0f)
         ring.animateTo(1f, tween(RING_MILLIS, easing = LinearEasing))
         ring.snapTo(0f)
     }
-    IcodeFloatingPill {
-        Row(
-            Modifier.fillMaxHeight().clickable(onClickLabel = if (unfolded) "Show this notification" else "Show notifications", onClick = onTap),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(Modifier.size(IcodeSizes.TouchTarget), contentAlignment = Alignment.Center) {
+    IcodeFloatingAway("Put the bell away", onAway) {
+        IcodeFloatingPill {
+            Box(
+                Modifier
+                    .size(IcodeSizes.TouchTarget)
+                    .clickable(onClickLabel = "Show notifications", onClick = onTap)
+                    .semantics {
+                        contentDescription = "${told.title}. Notifications, ${unread.size} unread"
+                        liveRegion = LiveRegionMode.Polite
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
                 Icon(
                     Icons.Outlined.Notifications,
-                    contentDescription = if (unfolded) null else "Notifications, ${unread.size} unread",
+                    contentDescription = null,
                     tint = tone.tint,
                     // A bell swings from where it hangs: a swing that dies away, three times over.
                     modifier = Modifier.size(IcodeSizes.IconLg).graphicsLayer {
@@ -197,11 +185,9 @@ private fun Bell(told: AppNotice.Message, unfolded: Boolean, unread: List<AppNot
                         transformOrigin = TransformOrigin(0.5f, 0f)
                     },
                 )
-                if (!unfolded && unread.isNotEmpty()) CountBadge(unread.size, Modifier.align(Alignment.Center))
+                if (unread.isNotEmpty()) CountBadge(unread.size, Modifier.align(Alignment.Center))
             }
-            IcodeFloatingLine(unfolded, told.title, lineWidth)
         }
-        IcodeFloatingAway(!unfolded, "Put the bell away", onAway)
     }
 }
 
