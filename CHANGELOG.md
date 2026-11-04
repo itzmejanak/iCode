@@ -31,8 +31,9 @@ All notable changes to iCode are documented here. The format follows
   sends them once you stop talking, with Android's speech recognition (on the phone where Android
   can). Answers and questions are read aloud with Android's text-to-speech sentence by sentence as
   they are written, and a turn to be read aloud asks the assistant for a short spoken answer.
-  Spoken replies: Off, In the bubble (the default: what is sent from the bubble or by voice), or
-  Always; a new message, Stop, or a tap on the bubble silences it.
+  Spoken replies: Off, or In the bubble (the default: what is asked from the bubble); the chat is
+  read, not heard, and an answer there plays from ▶ beside Copy. A new message, Stop, or a tap on
+  the bubble silences it.
 - Phone control keeps a notification with Stop, Show bubble and Turn off, and holds the microphone
   for the bubble while iCode is away.
 - One bubble at the bottom of the screen, in six states — idle, listening, muted, thinking, acting,
@@ -45,6 +46,10 @@ All notable changes to iCode are documented here. The format follows
   closes with a swipe down as well as ×, Back or a tap outside.
 - The bell and the undo pill say nothing in words: a notice rings the bell with the unread count, and
   the undo pill shows ↶ and ↷; their × stands apart at the top end.
+- Assistant: a long press on your message offers Edit, and Retry when its turn failed; a message's
+  files ride a tab rising from its card, small.
+- Assistant: a model that turns out not to see pictures goes on with the screen's text and is set to
+  read none; every provider refusal is said plainly with what to do, never as the server's JSON.
 
 ## [0.1.0]
 

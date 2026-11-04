@@ -1160,7 +1160,7 @@ Acceptance criteria:
 
 - The microphone in the chat and in the bubble shows my words as they are heard and sends them once I stop talking; tapping it again sends what was heard so far.
 - Android's own engines listen and speak: **Settings › Assistant › Voice** allows the microphone, chooses when answers are read aloud, plays a sample, and opens Android's voice and speech recognition settings.
-- **Answers read aloud**: Off, In the bubble (the default) or Always. An answer read aloud is short, and each sentence is heard as soon as it is written, without code or links; a new message, Stop or a tap on the bubble silences it.
+- **Answers read aloud**: Off, or In the bubble (the default); in the chat, where I see it, an answer plays only from ▶ beside Copy. An answer read aloud is short, and each sentence is heard as soon as it is written, without code or links; a new message, Stop or a tap on the bubble silences it.
 - Without the microphone allowed, or with no speech engine on the phone, the place I tapped says what to do.
 
 ## 19. Public Website and Distribution
