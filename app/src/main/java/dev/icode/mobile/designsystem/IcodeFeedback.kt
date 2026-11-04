@@ -189,6 +189,11 @@ fun IcodeSaveDiscardDialog(
  * [subtitle] says the state of what it shows; [onBack] leads back to the sheet's page before this
  * one, by ← before the title (docs/assistant-sheets-plan.md §2.5). [leading] stands before the title:
  * the icon or thumbnail of the item the sheet is about.
+ *
+ * Swiped down, it closes as × does (owner's request, 2026-11-04): the sheet follows the finger —
+ * from its title or footer, or from its content once that is at its top — and let go past a quarter
+ * of its height, or flung down, it slides away; short of that it springs back. Not [closable] (a
+ * question that must be answered), it has no × and does not move.
  */
 @Composable
 fun IcodeBottomSheet(
@@ -200,13 +205,16 @@ fun IcodeBottomSheet(
     scroll: Boolean = true,
     footer: (@Composable ColumnScope.() -> Unit)? = null,
     leading: (@Composable () -> Unit)? = null,
+    closable: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val swipe = rememberSheetSwipe(onClose)
     // Its cards stand a step above it, as a page's above the page.
     CompositionLocalProvider(LocalIcodeCardRaised provides true) {
         Column(
             modifier = modifier
                 .fillMaxWidth()
+                .then(if (closable) swipe.modifier else Modifier)
                 .background(IcodeColors.Surface, IcodeShapes.Sheet)
                 // A tap on the sheet stays on it, never reaching the screen it is over.
                 .pointerInput(Unit) {}
@@ -233,8 +241,10 @@ fun IcodeBottomSheet(
                     Text(title, style = IcodeType.Title, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     subtitle?.let { Text(it, style = IcodeType.Caption) }
                 }
-                IconButton(onClick = onClose) {
-                    Icon(Icons.Outlined.Close, contentDescription = "Close", tint = IcodeColors.TextSecondary)
+                if (closable) {
+                    IconButton(onClick = onClose) {
+                        Icon(Icons.Outlined.Close, contentDescription = "Close", tint = IcodeColors.TextSecondary)
+                    }
                 }
             }
             Column(
