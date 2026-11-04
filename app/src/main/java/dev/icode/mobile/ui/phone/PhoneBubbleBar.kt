@@ -20,7 +20,6 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.CloseFullscreen
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.MicOff
-import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.OpenInFull
 import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material.icons.outlined.StopCircle
@@ -47,7 +46,6 @@ import dev.icode.mobile.designsystem.IcodeBrandMark
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeFloatingPill
 import dev.icode.mobile.designsystem.IcodeMenuAction
-import dev.icode.mobile.designsystem.IcodeMenuPanel
 import dev.icode.mobile.designsystem.IcodeShapes
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
@@ -69,15 +67,15 @@ import dev.icode.mobile.ui.HeardLine
  * The bubble's bar (owner's design, 2026-11-03; redesigned bottom-anchored, 2026-11-04): the bubble
  * expanded into one floating pill where it sat — the mark that collapses it back, the field, the
  * microphone, Send — or Stop while the agent works. The field grows with what is typed up to
- * [BAR_LINES]. On the pill's tab, rising at its end as the owner drew it: ⋮, holding New chat and
- * Open in iCode, and past [BAR_LINES] Expand, which makes the field an editor of [EDITOR_LINES]. Above,
+ * [BAR_LINES]. On the pill's tab, rising at its end as the owner drew it: past [BAR_LINES] Expand,
+ * which makes the field an editor of [EDITOR_LINES], and ⋮, which opens New chat and Open in iCode in
+ * the tab itself — no popup, which would be a touch outside the bar's window and close it. Above,
  * only when there is something to say: what the agent is doing, the question it waits on with its
  * answers, why the microphone heard nothing, or why the last turn failed, with Retry. Anchored at its
  * bottom, all of it grows upward.
  */
 @Composable
 internal fun PhoneBubbleBar(view: PhoneBubbleView, actions: PhoneBubbleActions) {
-    var more by remember { mutableStateOf(false) }
     var editor by remember { mutableStateOf(false) }
     var lines by remember { mutableIntStateOf(1) }
     val overlay = view.overlay
@@ -88,22 +86,15 @@ internal fun PhoneBubbleBar(view: PhoneBubbleView, actions: PhoneBubbleActions) 
         verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
     ) {
         Notes(view, actions)
-        // Drawn in place: a popup would be a touch outside the bar's window, which closes it.
-        if (more) {
-            IcodeMenuPanel(
-                listOf(
-                    IcodeMenuAction("New chat", Icons.Outlined.Add, { actions.dispatch(ICodeIntent.NewAssistantChat) }, enabled = !overlay.working),
-                    IcodeMenuAction("Open in iCode", Icons.AutoMirrored.Outlined.OpenInNew, actions.open),
-                ),
-                onDismiss = { more = false },
-            )
-        }
         IcodeFloatingPill(
             Modifier.fillMaxWidth(),
             tab = listOfNotNull(
                 IcodeMenuAction(if (editor) "Collapse" else "Expand", if (editor) Icons.Outlined.CloseFullscreen else Icons.Outlined.OpenInFull, { editor = !editor })
                     .takeIf { editor || lines > BAR_LINES },
-                IcodeMenuAction("More", Icons.Outlined.MoreVert, { more = !more }),
+            ),
+            menu = listOf(
+                IcodeMenuAction("New chat", Icons.Outlined.Add, { actions.dispatch(ICodeIntent.NewAssistantChat) }, enabled = !overlay.working),
+                IcodeMenuAction("Open in iCode", Icons.AutoMirrored.Outlined.OpenInNew, actions.open),
             ),
         ) {
             val bottom = Modifier.align(Alignment.Bottom)
