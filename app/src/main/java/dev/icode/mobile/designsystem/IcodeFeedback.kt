@@ -209,6 +209,8 @@ fun IcodeBottomSheet(
     footer: (@Composable ColumnScope.() -> Unit)? = null,
     leading: (@Composable () -> Unit)? = null,
     closable: Boolean = true,
+    /** Its title's lines at most: two for a name, all of it for a sheet whose title is what it says (a notice). */
+    titleLines: Int = 2,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val swipe = rememberSheetSwipe(onClose)
@@ -241,7 +243,7 @@ fun IcodeBottomSheet(
                 }
                 leading?.let { Box(Modifier.padding(end = IcodeSpacing.Space3)) { it() } }
                 Column(Modifier.weight(1f)) {
-                    Text(title, style = IcodeType.Title, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(title, style = IcodeType.Title, maxLines = titleLines, overflow = TextOverflow.Ellipsis)
                     subtitle?.let { Text(it, style = IcodeType.Caption) }
                 }
                 if (closable) {

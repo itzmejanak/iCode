@@ -45,7 +45,8 @@ All notable changes to iCode are documented here. The format follows
 - iCode has no dialogs: every confirmation, question and long operation is a sheet, and every sheet
   closes with a swipe down as well as ×, Back or a tap outside.
 - The bell and the undo pill say nothing in words: a notice rings the bell with the unread count, and
-  the undo pill shows ↶ and ↷; their × stands apart at the top end.
+  the undo pill shows ↶ and ↷. Both are docked flush on the screen's edge and never go: they tuck
+  to their grip, and a tap or a pull brings them out. The explorer's ⋮ has no Undo or Redo now.
 - Assistant: a long press on your message offers Edit, and Retry when its turn failed; a message's
   files ride a tab rising from its card, small.
 - Assistant: a model that turns out not to see pictures goes on with the screen's text and is set to

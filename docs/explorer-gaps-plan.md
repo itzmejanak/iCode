@@ -312,13 +312,15 @@ sheet on the same base (§3.1), for each item whose name is taken: the two side 
       reports its top edge to the stack. So no screen wires it, and the bell's overlap with the +
       (§2) goes too.
   - **The pill**, as the bell (owner, "notification floating icon behavior"):
-    - after a change: ↶, and ↷ when there is something to redo, each saying what it would do, with
-      × apart at its top end — icons only since 2026-11-04 (owner's request: a long name stretched
-      the pill);
-    - 10 s later it goes, as the bell does.
+    - after a change: ↶, and ↷ when there is something to redo, each saying what it would do —
+      icons only since 2026-11-04 (owner's request: a long name stretched the pill), docked flush on
+      the screen's edge, round on its open side with a grip;
+    - 10 s later it tucks into the edge to its grip, as the bell does, and is pulled or tapped out
+      again; it stays docked while anything can be undone or redone.
     - Not shown while a sheet or the Notifications page is open.
     - TalkBack reads the change ("Moved 3 items to Trash", "Restored 3 items") as the bell's.
-  - **The explorer's ⋮** keeps "Undo *what*" and "Redo *what*" for later.
+  - **The explorer's ⋮** has no Undo or Redo since 2026-11-04 (owner's request): the docked pill is
+    at hand on every screen.
 
 ### 3.9 Properties
 
@@ -837,7 +839,8 @@ Descending.
     - a file at Private's top.
   - **What it lists:** the explorer, folders only, in both places. A clone stays in Private.
   - **Choosing a clone's place** is this picker, in place of `ChooseBar`.
-- **⋮** (`ExplorerMenu`): Select, Undo and Redo with what each would do, and Storage settings.
+- **⋮** (`ExplorerMenu`): Select, Manage storage and Storage settings; Undo and Redo are the docked
+  undo pill's.
 - **Moved out of `FilesScreen`** to `FilesBars.kt`: the places' menu, the sort button and the search
   field.
 
@@ -981,8 +984,8 @@ Descending.
     No screen wires either.
   - **`IcodeFloatingStack`:** a column at the bottom end, above the highest floor, at least
     `FabClearance` up, and gone while a sheet is open. The bell no longer meets the explorer's +.
-  - **The pill's parts,** shared by the bell and the undo pill: `IcodeFloatingPill`,
-    `IcodeFloatingLine` (with an optional action), `IcodeFloatingAway` and `FLOATING_SLIDE_MILLIS`.
+  - **The pill's parts,** shared by the bell and the undo pill: `IcodeDockedPill` and
+    `IcodeDockedAction` (since 2026-11-04, the owner's choice: docked on the edge, no line, no ×).
   - **Tested:** `IcodeFloorsTest`.
 - **The bell:**
   - `NoticeHost` keeps the bell's state, its timing and its sheet.
@@ -991,7 +994,7 @@ Descending.
   - **Its state:** `UndoPillState`, with `rememberUndoPill`, lives at the app's root, like the bell's.
   - **Each change** in `FileHistoryState.news` is told once, and is not told again as the screen
     turns.
-  - **Shown:** ↶, ↷ when something can be redone, and × apart (`IcodeFloatingAway`).
+  - **Shown:** ↶, and ↷ when something can be redone, docked on the edge (`IcodeDockedPill`).
   - **After `FileNews.HOLD_MILLIS`:** it goes.
 - **Its place:** `IcodeApp` provides `LocalIcodeFloors` and draws the stack beside `NoticeHost`,
   over every screen but the Notifications page.

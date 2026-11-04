@@ -272,7 +272,7 @@ internal class AssistantTurns(
             runCatching { providers.saveProvider(provider.id, provider.kind, provider.name, provider.baseUrl, key = null, models) }
                 .onFailure { return }
             page.state { it.copy(settings = settings()) }
-            page.say(NoticeTone.HeadsUp, "${model.id} does not see pictures: it goes on with the screen's text, and is set to read none")
+            page.say(NoticeTone.HeadsUp, "${model.id} does not see pictures", "It goes on with the screen's text, and is set to read no images from now on.")
         }
 
         private fun shows(shownWorkspace: String?, shownSession: String?) = shownWorkspace == workspace && shownSession == session

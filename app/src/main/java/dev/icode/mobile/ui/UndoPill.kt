@@ -5,16 +5,14 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Redo
 import androidx.compose.material.icons.automirrored.outlined.Undo
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -26,9 +24,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeFloatingAway
-import dev.icode.mobile.designsystem.IcodeFloatingPill
-import dev.icode.mobile.designsystem.IcodeSizes
+import dev.icode.mobile.designsystem.IcodeDockedAction
+import dev.icode.mobile.designsystem.IcodeDockedPill
 import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.files.FileHistoryState
 import dev.icode.mobile.domain.files.FileNews
@@ -43,20 +40,29 @@ import kotlinx.coroutines.delay
 internal class UndoPillState(private var seen: Long? = null) {
     var told: FileNews? by mutableStateOf(null)
         private set
-    var away by mutableStateOf(true)
+    var tucked by mutableStateOf(true)
         private set
 
-    /** [news] told: the pill comes; false when it was told before. */
+    /** One more each time the pill comes out: its time starts again. */
+    var outs by mutableIntStateOf(0)
+        private set
+
+    /** [news] told: the pill comes out; false when it was told before. */
     fun tell(news: FileNews): Boolean {
         if (news.id == seen) return false
         seen = news.id
         told = news
-        away = false
+        show()
         return true
     }
 
-    fun putAway() {
-        away = true
+    fun show() {
+        tucked = false
+        outs++
+    }
+
+    fun tuck() {
+        tucked = true
     }
 
     companion object {
@@ -64,38 +70,45 @@ internal class UndoPillState(private var seen: Long? = null) {
     }
 }
 
-/** The pill's state, telling each new change of [news]: the pill for its time, then gone. */
+/** The pill's state, telling each new change of [news]: the pill out for its time, then tucked. */
 @Composable
 internal fun rememberUndoPill(news: FileNews?): UndoPillState {
     val state = rememberSaveable(saver = UndoPillState.Saver) { UndoPillState() }
-    LaunchedEffect(news?.id) {
-        if (news == null || !state.tell(news)) return@LaunchedEffect
+    LaunchedEffect(news?.id) { if (news != null) state.tell(news) }
+    LaunchedEffect(state.outs) {
+        if (state.tucked) return@LaunchedEffect
         delay(FileNews.HOLD_MILLIS)
-        state.putAway()
+        state.tuck()
     }
     return state
 }
 
 /**
- * The undo pill in the floating stack, above the bell and drawn as it is: icons only (owner's request,
- * 2026-11-04 — a long name stretched the pill), ↶ to undo and ↷ when there is something to redo, × apart
- * at its top end. Each says what it would do; TalkBack reads the change told — "Moved 3 items to Trash".
+ * The undo pill in the floating stack, above the bell and drawn as it is (owner's requests,
+ * 2026-11-04): icons only, ↶ to undo and ↷ when there is something to redo, each saying what it would
+ * do; docked on the edge while anything can be undone or redone, out after a change and tucked to
+ * its grip on its time or swiped in, pulled or tapped out again. TalkBack reads the change told.
+ * The explorer's ⋮ has no Undo or Redo: this is at hand on every screen.
  */
 @Composable
 internal fun UndoPill(state: UndoPillState, history: FileHistoryState) {
     val gateway = LocalICodeGateway.current
     AnimatedVisibility(
-        visible = state.told != null && !state.away,
+        visible = history.undo != null || history.redo != null,
         enter = slideInHorizontally { it } + fadeIn(),
         exit = slideOutHorizontally { it } + fadeOut(),
     ) {
-        state.told?.let { news ->
-            IcodeFloatingAway("Put the undo pill away", state::putAway) {
-                IcodeFloatingPill(Modifier.semantics { contentDescription = news.line; liveRegion = LiveRegionMode.Polite }) {
-                    Step(Icons.AutoMirrored.Outlined.Undo, history.undo?.let { "Undo: $it" }) { gateway.dispatch(FilesIntent.Undo) }
-                    if (history.redo != null) Step(Icons.AutoMirrored.Outlined.Redo, "Redo: ${history.redo}") { gateway.dispatch(FilesIntent.Redo) }
-                }
-            }
+        IcodeDockedPill(
+            tucked = state.tucked,
+            onTucked = { if (it) state.tuck() else state.show() },
+            name = "the undo pill",
+            modifier = Modifier.semantics {
+                state.told?.let { contentDescription = it.line }
+                liveRegion = LiveRegionMode.Polite
+            },
+        ) {
+            Step(Icons.AutoMirrored.Outlined.Undo, history.undo?.let { "Undo: $it" }) { gateway.dispatch(FilesIntent.Undo) }
+            if (history.redo != null) Step(Icons.AutoMirrored.Outlined.Redo, "Redo: ${history.redo}") { gateway.dispatch(FilesIntent.Redo) }
         }
     }
 }
@@ -103,7 +116,5 @@ internal fun UndoPill(state: UndoPillState, history: FileHistoryState) {
 /** ↶ or ↷, saying what it would do; greyed with nothing to do. */
 @Composable
 private fun Step(icon: ImageVector, what: String?, onClick: () -> Unit) {
-    IconButton(onClick = onClick, enabled = what != null) {
-        Icon(icon, contentDescription = what ?: "Nothing to undo", tint = if (what != null) IcodeColors.Accent else IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconMd))
-    }
+    IcodeDockedAction(icon, what ?: "Nothing to undo", IcodeColors.Accent, onClick, enabled = what != null)
 }

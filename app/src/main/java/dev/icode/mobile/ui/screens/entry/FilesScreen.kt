@@ -194,10 +194,7 @@ private fun FolderExplorer(
                         )
                         if (pick == null) {
                             ExplorerMenu(
-                                state.explorer.history,
                                 onSelect = { selection.start() },
-                                onUndo = { gateway.dispatch(FilesIntent.Undo) },
-                                onRedo = { gateway.dispatch(FilesIntent.Redo) },
                                 onManage = { actions.navigate(Route.ManageStorage) },
                                 onStorage = { actions.navigate(Route.StorageSettings) },
                             )
