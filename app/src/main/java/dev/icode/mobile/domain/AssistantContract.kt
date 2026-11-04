@@ -54,16 +54,16 @@ data class AssistantModel(
     val maxOutput: Long? = null,
     /** Empty: no choice to offer. */
     val efforts: List<AssistantEffort> = emptyList(),
-    /** It reads images sent with a message. */
+    /** It reasons before it answers; it reads images, and documents (PDF), sent with a message. Koog's word, or the user's. */
+    val reasons: Boolean = false,
     val images: Boolean = false,
-    /** It reads documents (PDF) sent with a message. */
     val documents: Boolean = false,
     /** Koog knows it, so these are Koog's facts; otherwise they are what the user said (§13 P4). */
     val known: Boolean = false,
 ) {
     /** What a provider keeps of it: its ID, and for a model Koog does not know, what the user said of it. */
     val spec: AssistantModelSpec
-        get() = if (known) AssistantModelSpec(id) else AssistantModelSpec(id, contextWindow, maxOutput, images, efforts.isNotEmpty())
+        get() = if (known) AssistantModelSpec(id) else AssistantModelSpec(id, contextWindow, maxOutput, images, reasons)
 }
 
 /** A model as a provider keeps it: its ID, and what the user says of one Koog does not know. */

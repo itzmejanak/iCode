@@ -195,6 +195,7 @@ internal object KoogFailures {
             status == 401 || status == 403 -> "The provider refused the API key — check it in the provider's settings"
             picturesRefused(lower) -> "$named does not see pictures — turn off Reads Images for it in the provider's settings"
             TOOL_WORDS.any { it in lower } -> "$named cannot call tools, which the assistant needs — choose another model"
+            "reasoning" in lower && REFUSED_WORDS.any { it in lower } -> "$host takes no reasoning effort for $named — choose Auto for its reasoning in the model picker"
             model != null && (status == 404 || ("model" in lower && ("not found" in lower || "does not exist" in lower))) ->
                 "$host does not serve $named for chat — it may be listed and still not answer: choose another model"
             status == 404 -> "$host has no such API — check the address in the provider's settings"
@@ -255,4 +256,5 @@ internal object KoogFailures {
     private val TOOL_WORDS = listOf("does not support tools", "tool use is not supported", "tools are not supported", "function calling is not supported", "does not support function")
     private val CREDIT_WORDS = listOf("insufficient_quota", "insufficient credit", "insufficient balance", "credit balance", "out of credits", "exceeded your current quota", "payment required")
     private val SAID_KEYS = listOf("error", "message", "msg", "detail", "title", "errors")
+    private val REFUSED_WORDS = listOf("unrecognized", "unsupported", "not supported", "unknown", "not allowed", "extra inputs are not permitted")
 }

@@ -127,7 +127,7 @@ object AssistantRules {
     /** "200k context · reasons · images · PDFs": what the model pickers say of a model; "" when nothing is known. */
     fun modelSummary(model: AssistantModel): String = listOfNotNull(
         model.contextWindow?.let { "${tokenCount(it)} context" },
-        "reasons".takeIf { model.efforts.isNotEmpty() },
+        "reasons".takeIf { model.reasons },
         "images".takeIf { model.images },
         "PDFs".takeIf { model.documents },
     ).joinToString(" · ")

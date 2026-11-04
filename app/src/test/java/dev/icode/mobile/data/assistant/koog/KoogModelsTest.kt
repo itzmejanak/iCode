@@ -16,6 +16,7 @@ import dev.icode.mobile.domain.AssistantEffort
 import dev.icode.mobile.domain.AssistantModel
 import dev.icode.mobile.domain.AssistantModelSpec
 import dev.icode.mobile.domain.AssistantProviderKind
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -70,8 +71,28 @@ class KoogModelsTest {
             val expected = if (model.id.startsWith("gemini-2")) 3 else 2
             assertEquals(model.id, expected, model.efforts.size)
         }
-        assertTrue(catalogue.getValue(AssistantProviderKind.OpenRouter).all { it.efforts.isEmpty() })
+        // Where Koog's client has no field, the API's own goes: a model there that reasons has its efforts.
+        val threeLevels = listOf(AssistantEffort.Low, AssistantEffort.Medium, AssistantEffort.High)
+        catalogue.getValue(AssistantProviderKind.OpenRouter).forEach { model ->
+            assertEquals(model.id, if (model.reasons) threeLevels else emptyList(), model.efforts)
+        }
         assertTrue(KoogModels.model(AssistantProviderKind.OpenAICompatible, AssistantModelSpec("o3")).efforts.isEmpty())
+        val reasoning = KoogModels.model(AssistantProviderKind.OpenAICompatible, AssistantModelSpec("deepseek-v4.1-flash", reasoning = true))
+        assertEquals(threeLevels, reasoning.efforts)
+        // What the user said of it is what the provider's page reads back: Reasons stays on.
+        assertTrue(reasoning.spec.reasoning)
+    }
+
+    @Test fun `an effort goes where OpenRouter and OpenAI-compatible servers read it`() {
+        val typed = KoogModels.llModel(AssistantProviderKind.OpenAICompatible, AssistantModelSpec("deepseek-v4.1-flash", reasoning = true))
+        val compatible = KoogParams.of(AssistantProviderKind.OpenAICompatible, typed, AssistantModel("deepseek-v4.1-flash", maxOutput = 4_000), AssistantEffort.Medium)
+        assertEquals(mapOf("max_tokens" to JsonPrimitive(4_000), "reasoning_effort" to JsonPrimitive("medium")), compatible.additionalProperties)
+        val routed = KoogModels.llModel(AssistantProviderKind.OpenRouter, AssistantModelSpec("some/reasoner", reasoning = true))
+        assertEquals(
+            mapOf("reasoning" to JsonObject(mapOf("effort" to JsonPrimitive("high")))),
+            KoogParams.of(AssistantProviderKind.OpenRouter, routed, AssistantModel("some/reasoner"), AssistantEffort.High).additionalProperties,
+        )
+        assertNull(KoogParams.of(AssistantProviderKind.OpenRouter, routed, AssistantModel("some/reasoner"), null).additionalProperties)
     }
 
     @Test fun `Anthropic always gets an output limit above Koog's 2 048, and a thinking budget inside it`() {
@@ -129,7 +150,7 @@ class KoogModelsTest {
     @Test fun `a typed model reads images and reasons when the user says so, and is the same model wherever made`() {
         val spec = AssistantModelSpec("claude-next", 200_000, 64_000, images = true, reasoning = true)
         val model = KoogModels.model(AssistantProviderKind.Anthropic, spec)
-        assertEquals(AssistantModel("claude-next", 200_000, 64_000, listOf(AssistantEffort.Low, AssistantEffort.Medium, AssistantEffort.High, AssistantEffort.Max), images = true), model)
+        assertEquals(AssistantModel("claude-next", 200_000, 64_000, listOf(AssistantEffort.Low, AssistantEffort.Medium, AssistantEffort.High, AssistantEffort.Max), reasons = true, images = true), model)
         assertEquals(spec, model.spec)
         assertEquals(KoogModels.llModel(AssistantProviderKind.Anthropic, spec), KoogModels.llModel(AssistantProviderKind.Anthropic, model.spec))
         // A catalogued model's facts are Koog's, whatever was typed; it keeps only its ID.

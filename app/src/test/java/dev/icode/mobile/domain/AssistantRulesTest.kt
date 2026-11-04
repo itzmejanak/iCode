@@ -167,7 +167,7 @@ class AssistantRulesTest {
     @Test fun `a model is summed up by what is known of it`() {
         assertEquals(
             "200k context · reasons · images · PDFs",
-            AssistantRules.modelSummary(AssistantModel("claude", 200_000, efforts = listOf(AssistantEffort.High), images = true, documents = true)),
+            AssistantRules.modelSummary(AssistantModel("claude", 200_000, efforts = listOf(AssistantEffort.High), reasons = true, images = true, documents = true)),
         )
         assertEquals("", AssistantRules.modelSummary(AssistantModel("custom")))
         assertEquals("128k context · reasons · images", AssistantRules.modelSummary(AssistantModelSpec("qwen", 128_000, reasoning = true, images = true)))
@@ -240,7 +240,7 @@ class AssistantRulesTest {
         assertEquals(AssistantModelSpec("gpt-5"), AssistantModel("gpt-5", 400_000, 128_000, known = true).spec)
         assertEquals(
             AssistantModelSpec("local", 32_000, 4_000, images = true, reasoning = true),
-            AssistantModel("local", 32_000, 4_000, listOf(AssistantEffort.On), images = true).spec,
+            AssistantModel("local", 32_000, 4_000, listOf(AssistantEffort.On), reasons = true, images = true).spec,
         )
     }
 

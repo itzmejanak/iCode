@@ -79,9 +79,10 @@ internal object KoogModels {
     }
 
     /**
-     * The efforts Koog 1.3.0 can send for [model] with [kind] (§12 R3): only for a model that
-     * reasons, and only where the client has a field for it — none for OpenRouter or an
-     * OpenAI-compatible server.
+     * The efforts iCode can send for [model] with [kind] (§12 R3): only for a model that reasons —
+     * Koog's word for it, or the user's for one it does not know. Koog's own fields where its client
+     * has one; for OpenRouter and an OpenAI-compatible server, the field their APIs read
+     * ([KoogParams]), so a model there that reasons has its effort too (owner's request, 2026-11-04).
      */
     fun efforts(kind: AssistantProviderKind, model: LLModel): List<AssistantEffort> {
         if (!model.supports(LLMCapability.Thinking)) return emptyList()
@@ -92,7 +93,7 @@ internal object KoogModels {
                 if (usesThinkingBudget(model)) listOf(AssistantEffort.Low, AssistantEffort.Medium, AssistantEffort.High)
                 else listOf(AssistantEffort.Low, AssistantEffort.High)
             AssistantProviderKind.Ollama -> listOf(AssistantEffort.On)
-            AssistantProviderKind.OpenRouter, AssistantProviderKind.OpenAICompatible -> emptyList()
+            AssistantProviderKind.OpenRouter, AssistantProviderKind.OpenAICompatible -> listOf(AssistantEffort.Low, AssistantEffort.Medium, AssistantEffort.High)
         }
     }
 
@@ -106,6 +107,7 @@ internal object KoogModels {
         contextWindow = model.contextLength,
         maxOutput = model.maxOutputTokens,
         efforts = efforts(kind, model),
+        reasons = model.supports(LLMCapability.Thinking),
         images = model.supports(LLMCapability.Vision.Image),
         documents = model.supports(LLMCapability.Document),
         known = known,

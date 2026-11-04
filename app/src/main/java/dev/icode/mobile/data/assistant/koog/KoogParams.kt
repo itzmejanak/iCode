@@ -16,6 +16,7 @@ import ai.koog.prompt.params.LLMParams
 import dev.icode.mobile.domain.AssistantEffort
 import dev.icode.mobile.domain.AssistantModel
 import dev.icode.mobile.domain.AssistantProviderKind
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 
 /**
@@ -36,12 +37,18 @@ internal object KoogParams {
             }
             AssistantProviderKind.Google -> GoogleParams(maxTokens = userLimit, thinkingConfig = effort?.let { google(it, model) })
             AssistantProviderKind.Ollama -> OllamaParams(maxTokens = userLimit, think = true.takeIf { effort == AssistantEffort.On })
-            AssistantProviderKind.OpenRouter -> LLMParams(maxTokens = userLimit)
+            // Koog's OpenRouter client has no field for it: OpenRouter's own, `reasoning.effort`.
+            AssistantProviderKind.OpenRouter -> LLMParams(
+                maxTokens = userLimit,
+                additionalProperties = effort?.let { mapOf(REASONING to JsonObject(mapOf(EFFORT to level(it)))) },
+            )
             // Koog sends the limit as `max_completion_tokens`; a server that reads only the older
-            // `max_tokens` would ignore it, so that goes too (docs/runtime-foundation-plan.md D9).
+            // `max_tokens` would ignore it, so that goes too (docs/runtime-foundation-plan.md D9). The
+            // effort as Chat Completions takes it, `reasoning_effort`.
             AssistantProviderKind.OpenAICompatible -> LLMParams(
                 maxTokens = userLimit,
-                additionalProperties = userLimit?.let { mapOf(MAX_TOKENS to JsonPrimitive(it)) },
+                additionalProperties = (userLimit?.let { mapOf(MAX_TOKENS to JsonPrimitive(it)) }.orEmpty() +
+                    effort?.let { mapOf(REASONING_EFFORT to level(it)) }.orEmpty()).ifEmpty { null },
             )
         }
     }
@@ -62,6 +69,9 @@ internal object KoogParams {
         }?.coerceAtMost(room)?.takeIf { it >= ANTHROPIC_MIN_BUDGET }
         return AnthropicParams(maxTokens = output, thinking = budget?.let { AnthropicThinking.Enabled(it) })
     }
+
+    /** [effort] as OpenAI's API spells it, which OpenRouter and OpenAI-compatible servers read too: "low". */
+    private fun level(effort: AssistantEffort): JsonPrimitive = JsonPrimitive(openAI(effort).name.lowercase())
 
     private fun openAI(effort: AssistantEffort): ReasoningEffort = when (effort) {
         AssistantEffort.Minimal -> ReasoningEffort.MINIMAL
@@ -93,5 +103,8 @@ internal object KoogParams {
 
     private const val ANSWER_ROOM = 4_096
     private const val MAX_TOKENS = "max_tokens"
+    private const val REASONING_EFFORT = "reasoning_effort"
+    private const val REASONING = "reasoning"
+    private const val EFFORT = "effort"
     private const val ANTHROPIC_MIN_BUDGET = 1_024
 }
