@@ -201,8 +201,11 @@ interface. The coordinator, tools, stores and screens do not change.
   (8 192 for one Koog does not know, unless the user set one), at most 32 000; a thinking budget of
   4 000 / 12 000 / 24 000 or, for Max, all but 4 096, at least 1 024. OpenAI: `reasoningEffort`
   (Chat Completions) or `reasoning` (a Responses-only model). Gemini 2.x: a budget of
-  1 024 / 8 192 / 24 576; Gemini 3: LOW or HIGH. Ollama: `think`. Elsewhere, a typed model's output
-  limit where the user set one — to an OpenAI-compatible server as `max_tokens` too.
+  1 024 / 8 192 / 24 576; Gemini 3: LOW or HIGH. Ollama: `think`. OpenRouter and an
+  OpenAI-compatible server, for a model that reasons (since 2026-11-04, the owner's request): Low,
+  Medium or High, as their APIs read it — `reasoning.effort` and `reasoning_effort` — where Koog's
+  clients have no field; Auto sends none, for a server that takes none. Elsewhere, a typed model's
+  output limit where the user set one — to an OpenAI-compatible server as `max_tokens` too.
 - **KoogModels**: the catalogue per provider (every model that chats and calls tools, with Koog's
   limits), a model by ID (Koog's instance, or a typed one with the user's limits), and the efforts
   each can take (§2).
@@ -383,7 +386,8 @@ lifecycle's check, and waits for its chat to be saved, before the chats move.
 
 - `AssistantProviderKind` — OpenAI, Anthropic, Google, OpenRouter, Ollama, OpenAICompatible.
 - `AssistantEffort` (Minimal, Low, Medium, High, Max, On), `AssistantMode` (Agent, Ask),
-  `AssistantModel` (id, context window, output limit, efforts, images, documents, known),
+  `AssistantModel` (id, context window, output limit, efforts, whether it reasons, images, documents,
+  known),
   `AssistantModelSpec` (what a provider keeps of one), `AssistantProvider` (id, kind, name,
   address, `hasKey`, models), `AssistantChoice` (provider, model), `AssistantAvailable` (a
   server's models as listed, or why not), `AssistantAttachment` (name, kind — Text, Image,

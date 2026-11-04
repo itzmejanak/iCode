@@ -50,6 +50,8 @@ All notable changes to iCode are documented here. The format follows
   files ride a tab rising from its card, small.
 - Assistant: a model that turns out not to see pictures goes on with the screen's text and is set to
   read none; every provider refusal is said plainly with what to do, never as the server's JSON.
+- Assistant: Reasons, set on a model of OpenRouter or an OpenAI-compatible server, stays on, and its
+  reasoning is chosen Low, Medium or High there too (Auto sends none).
 
 ## [0.1.0]
 

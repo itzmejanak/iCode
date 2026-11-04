@@ -37,6 +37,10 @@ class KoogFailuresTest {
         assertEquals("integrate.api.nvidia.com had a problem on its side (503) — try again shortly", said(503, "<html>Service Unavailable</html>"))
         assertEquals("integrate.api.nvidia.com took too long to answer — try again", said(504, ""))
         assertEquals("This request is larger than the provider takes — remove a file, or compact the chat", said(413, ""))
+        assertEquals(
+            "integrate.api.nvidia.com takes no reasoning effort for “mercury-3” — choose Auto for its reasoning in the model picker",
+            said(400, """{"error":{"message":"Unrecognized request argument supplied: reasoning_effort"}}"""),
+        )
     }
 
     @Test fun `the server's own words are read whatever shape its error takes`() {
