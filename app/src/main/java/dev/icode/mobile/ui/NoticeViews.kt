@@ -122,6 +122,8 @@ internal fun NoticeSheet(notice: AppNotice, modifier: Modifier, onDelete: () -> 
         title = view.title,
         onClose = onClose,
         modifier = modifier,
+        // What the notice says is its title: all of it, never cut.
+        titleLines = Int.MAX_VALUE,
         footer = {
             (notice as? AppNotice.Message)?.link?.let { link ->
                 PrimaryButton(link.label, { gateway.dispatch(ICodeIntent.OpenExternalUrl(link.url)) }, Modifier.fillMaxWidth())
