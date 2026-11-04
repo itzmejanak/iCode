@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
@@ -80,39 +81,54 @@ fun IcodeActionMenu(
     onDismiss: () -> Unit,
     actions: List<IcodeMenuAction>,
 ) {
-    IcodeDropdownMenu(expanded, onDismiss, Modifier.width(IcodeSizes.MenuWidth)) {
-        actions.forEachIndexed { index, action ->
-            if (action.destructive || (action.beginsGroup && index > 0)) {
-                Divider()
-            }
-            val color = when {
-                !action.enabled -> IcodeColors.TextMuted
-                action.destructive -> IcodeColors.Error
-                else -> IcodeColors.TextPrimary
-            }
-            DropdownMenuItem(
-                text = {
-                    Column {
-                        Text(action.label, style = IcodeType.Body.copy(color = color))
-                        action.detail?.let { MonoLine(it, color = IcodeColors.TextSecondary, style = IcodeType.MonoSmall, maxLines = 1) }
-                    }
-                },
-                leadingIcon = {
-                    Icon(action.icon, contentDescription = null, tint = color, modifier = Modifier.size(IcodeSizes.IconMd))
-                },
-                trailingIcon = if (action.checked) {
-                    { Icon(Icons.Outlined.Check, contentDescription = "Chosen", tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconMd)) }
-                } else {
-                    null
-                },
-                enabled = action.enabled,
-                contentPadding = PaddingValues(horizontal = IcodeSpacing.Space3),
-                onClick = {
-                    onDismiss()
-                    action.onClick()
-                },
-            )
+    IcodeDropdownMenu(expanded, onDismiss, Modifier.width(IcodeSizes.MenuWidth)) { MenuItems(actions, onDismiss) }
+}
+
+/**
+ * The menu's list drawn in place, on the popup surface: for a window no popup may open from — the
+ * bubble's, over other apps, closes at a touch outside it, and a popup is outside it.
+ */
+@Composable
+fun IcodeMenuPanel(actions: List<IcodeMenuAction>, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+    IcodePopupSurface(modifier.width(IcodeSizes.MenuWidth)) {
+        Column(Modifier.padding(vertical = IcodeSpacing.Space2)) { MenuItems(actions, onDismiss) }
+    }
+}
+
+/** [actions] as a menu lists them, each closing it as it runs. */
+@Composable
+private fun MenuItems(actions: List<IcodeMenuAction>, onDismiss: () -> Unit) {
+    actions.forEachIndexed { index, action ->
+        if (action.destructive || (action.beginsGroup && index > 0)) {
+            Divider()
         }
+        val color = when {
+            !action.enabled -> IcodeColors.TextMuted
+            action.destructive -> IcodeColors.Error
+            else -> IcodeColors.TextPrimary
+        }
+        DropdownMenuItem(
+            text = {
+                Column {
+                    Text(action.label, style = IcodeType.Body.copy(color = color))
+                    action.detail?.let { MonoLine(it, color = IcodeColors.TextSecondary, style = IcodeType.MonoSmall, maxLines = 1) }
+                }
+            },
+            leadingIcon = {
+                Icon(action.icon, contentDescription = null, tint = color, modifier = Modifier.size(IcodeSizes.IconMd))
+            },
+            trailingIcon = if (action.checked) {
+                { Icon(Icons.Outlined.Check, contentDescription = "Chosen", tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconMd)) }
+            } else {
+                null
+            },
+            enabled = action.enabled,
+            contentPadding = PaddingValues(horizontal = IcodeSpacing.Space3),
+            onClick = {
+                onDismiss()
+                action.onClick()
+            },
+        )
     }
 }
 

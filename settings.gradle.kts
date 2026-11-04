@@ -11,14 +11,10 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        // Termux publishes its terminal libraries, and sherpa-onnx its Android
-        // library, only through JitPack. The filter keeps every other
-        // dependency off this repository.
+        // Termux publishes its terminal libraries only through JitPack. The
+        // filter keeps every other dependency off this repository.
         maven("https://jitpack.io") {
-            content {
-                includeGroup("com.github.termux.termux-app")
-                includeGroup("com.github.k2-fsa.sherpa-onnx")
-            }
+            content { includeGroup("com.github.termux.termux-app") }
         }
     }
 }

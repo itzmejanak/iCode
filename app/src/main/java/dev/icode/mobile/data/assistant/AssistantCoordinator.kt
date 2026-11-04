@@ -131,7 +131,8 @@ internal class AssistantCoordinator(
         val shown = page.current
         val workspace = shown.workspace ?: place() ?: return noWorkspace()
         val session = shown.session?.takeIf { shown.workspace == workspace } ?: chats.newSession()
-        turns.send(workspace, session, input, attachments, aloud)
+        // Read aloud as Spoken replies says: decided once, so the turn's instructions and its voice agree.
+        turns.send(workspace, session, input, attachments, stateHolder.current.voice.spoken.speaks(aloud))
     }
 
     /**

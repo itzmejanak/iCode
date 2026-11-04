@@ -107,8 +107,6 @@ android {
             // CMake builds from the same source is 16 KB aligned and must be the
             // one packaged (third_party/termux-terminal-jni/README.md).
             pickFirsts += "lib/*/libtermux.so"
-            // sherpa-onnx's C and C++ APIs: its JNI library needs only ONNX Runtime.
-            excludes += setOf("lib/*/libsherpa-onnx-c-api.so", "lib/*/libsherpa-onnx-cxx-api.so")
         }
     }
 }
@@ -179,10 +177,6 @@ dependencies {
     // iCode's own in a shell process. Apache-2.0 / MIT, on Maven Central.
     implementation("dev.rikka.shizuku:api:13.1.5")
     implementation("dev.rikka.shizuku:provider:13.1.5")
-    // Voice on the phone (docs/phone-agent-plan.md §3.4, §5.8): speech recognition, voice activity
-    // detection and speech synthesis on ONNX Runtime, offline. v1.13.8 is the last with espeak-ng,
-    // which lets its voices speak beyond English and Chinese. Apache-2.0; its models are downloads.
-    implementation("com.github.k2-fsa.sherpa-onnx:sherpa-onnx:v1.13.8")
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
 
     debugImplementation("androidx.compose.ui:ui-tooling")

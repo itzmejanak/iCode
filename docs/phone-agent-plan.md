@@ -43,8 +43,9 @@ Then, on this plan (2026-11-03), with "Let's implement end to end":
 > improves **accuracy** and **user interaction**.
 
 So Shizuku moves from "later" into the first cut (§5.11), the bubble can be put away (§5.7), shared
-storage becomes the agent's too (L8), and voice goes both ways, with open-source models on the phone
-(§3.4, §5.8).
+storage becomes the agent's too (L8), and voice goes both ways (§3.4, §5.8). Open-source models on
+the phone were built (P6), and on 2026-11-04 the owner chose Android's own engines alone: "for the
+first time iCode will focus on Android".
 
 ## 2. What is there now (read in the code, 2026-11-03)
 
@@ -115,14 +116,15 @@ storage becomes the agent's too (L8), and voice goes both ways, with open-source
   `android.speech.RecognitionService` is required from API 30.
 - **Android's own voice out:** `TextToSpeech` speaks through the engine the user installed (Google's
   speaks dozens of languages with neural voices on most phones). Nothing to download in iCode.
-- **Open-source models on the phone: sherpa-onnx** (k2-fsa, Apache-2.0). One Android library runs
+- **Open-source models on the phone: sherpa-onnx** (k2-fsa, Apache-2.0) — built in P6, removed on
+  2026-11-04 (§5.8). One Android library runs
   speech recognition, voice activity detection and speech synthesis on ONNX Runtime, offline. It is
   published for Android through JitPack (`com.github.k2-fsa.sherpa-onnx:sherpa-onnx`, as its own
   demo app takes it), and its models are files on its GitHub releases, downloaded when the user
   chooses one. Read in its sources and release lists (2026-11-03):
   - **Version.** 2.0.0 (2026-10) removed espeak-ng and piper-phonemize: "Language is determined by
     the lexicon files you provide", so its voices speak only English and Chinese without an outside
-    phonemizer. **v1.13.8** (2026-09-10) is the last with espeak-ng inside, and it is the one taken:
+    phonemizer. **v1.13.8** (2026-09-10) is the last with espeak-ng inside, and it was the one taken:
     with it one Kokoro model speaks eight languages and Piper voices speak dozens more.
   - **Speaking, Kokoro-82M v1.0** (Apache-2.0), `kokoro-int8-multi-lang-v1_0.tar.bz2`, 132 MB:
     English (US and UK), Mandarin, Spanish, French, Hindi, Italian and Brazilian Portuguese
@@ -136,7 +138,7 @@ storage becomes the agent's too (L8), and voice goes both ways, with open-source
     `sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2025-09-09.tar.bz2`, 166 MB: Chinese, English,
     Japanese, Korean and Cantonese, faster and more accurate than Whisper base in those.
   - **The end of speech, Silero VAD** (MIT), `silero_vad.onnx`, 644 KB: when the user stops talking.
-  - **Size.** The library's AAR carries four ABIs (47 MB for 2.0.1); iCode ships `arm64-v8a` only.
+  - **Size.** The library's AAR carries four ABIs (47 MB for 2.0.1); iCode shipped `arm64-v8a` only.
 - **The microphone in the background.** A foreground service that needs a while-in-use permission
   must be started "while your app has a visible activity", unless an exemption applies; from
   Android 14 the start itself throws otherwise. The exemptions are: a system component, a widget,
@@ -181,7 +183,7 @@ So a screenshot goes where each client takes it (§4, L2).
 | **DroidRun** | The agent loop over the Portal, MIT | Python on a computer: not on the phone | MIT |
 | **Blurr / Panda** | The closest to the owner's picture: an edge glow, a floating button, voice in and out, the assistant role, intents | Gemini only; `TYPE_APPLICATION_OVERLAY` windows (untrusted, need `SYSTEM_ALERT_WINDOW`); a proprietary wake word (Porcupine); accounts and a freemium wall | Personal-use licence: commercial use needs a licence from Panda AI. iCode is GPL-3.0 and free; taking its code needs Panda AI's permission |
 | **Shizuku / Shizuku-API** (13.1.5, Maven Central) | Shell identity on the phone: real touches past accessibility's limits; turning iCode's own service on without the restricted-settings walk | The user starts it after each reboot. `Shizuku.newProcess` is private since API 13: commands run in a **UserService**, iCode's own class in a shell process | Apache-2.0 / MIT. **In the first cut** (§5.11) |
-| **sherpa-onnx** (v1.13.8, JitPack) | Speech in and out on the phone, offline, in many languages (§3.4) | Native code (ONNX Runtime) in the APK; models are downloads | Apache-2.0; each model its own (Kokoro Apache-2.0, Whisper MIT, Silero MIT, Piper voices per dataset, SenseVoice its own) |
+| **sherpa-onnx** (v1.13.8, JitPack; removed 2026-11-04) | Speech in and out on the phone, offline, in many languages (§3.4) | Native code (ONNX Runtime) in the APK; models of 130 to 210 MB to download; the owner chose Android's engines (§5.8) | Apache-2.0; each model its own (Kokoro Apache-2.0, Whisper MIT, Silero MIT, Piper voices per dataset, SenseVoice its own) |
 | **AppFunctions** | Apps' own functions, no screen at all | Not callable by iCode (§3.1) | Platform |
 
 **Decision.** Android's own `AccessibilityService` is the engine: native, on every supported version,
@@ -311,7 +313,7 @@ Each is fixed where it is, not worked around beside it.
 ### 5.7 The bubble
 
 The owner's design (2026-11-03; **redesigned 2026-11-04, after Gemini**: the bubble anchored at the
-bottom, expanding in place): three things on screen — the **bubble**, a **compact bar** it expands
+bottom, expanding in place): three things on screen — the **bubble**, a **bar** it expands
 into when text can be typed, and the **edge glow** — and everything else only when it is needed. No
 header, no cards of actions, no dashboard.
 
@@ -332,24 +334,29 @@ header, no cards of actions, no dashboard.
   | State | Shows | A tap |
   |---|---|---|
   | Idle | The iCode mark | Expands it into the bar |
-  | Listening | The voice bubble: the words heard so far under a blue waveform, with a microphone and a Stop | The microphone mutes; Stop throws the hearing away |
+  | Listening | The voice bubble: the words heard so far after a waveform in the accent, with a microphone and a Stop | The microphone mutes; Stop throws the hearing away |
   | Muted | The microphone off, the bar back | Resumes listening |
-  | Thinking | A blue ring turning round the mark | Opens the bar (Stop is there) |
-  | Acting | An orange ring turning round a pointer; the glow on | Opens the bar (Stop is there) |
-  | Speaking | A waveform in orange | Stops the reading |
+  | Thinking | A ring in the accent turning round the mark | Opens the bar (Stop is there) |
+  | Acting | A ring in the accent turning round a pointer; the glow on | Opens the bar (Stop is there) |
+  | Speaking | A waveform in the accent | Stops the reading |
 
-  A dot shows while a question waits. The bar's leading mark carries the same states, so what the
+  A dot shows while a question waits. The bar's microphone carries the same states, so what the
   agent does never hides behind the keyboard.
-- **The bar**, the bubble expanded into it, above where the bubble sat — one compact floating pill
-  holding the keyboard: the mark that collapses it back (or, muted, resumes listening), the field,
-  the microphone, Send (Stop while the agent works, Stop reading while it speaks), and ⋮ for New
-  chat and Open in iCode. Above it, in one card and only when there is something to say: what the
-  agent is doing, the question with its answers, why the microphone heard nothing (permission, a
-  model to download), or why the last turn failed, with Retry. It holds the keyboard — the window,
-  anchored above it as it opens, needs no lifting of its own — and a touch outside, or on the mark,
-  closes it. Sending closes it, so it covers nothing the agent may tap.
+- **The bar**, the bubble expanded into it where it sat — one floating pill holding the keyboard:
+  the mark that collapses it back (or, muted, resumes listening), the field, the microphone, Send
+  (Stop while the agent works, Stop reading while it speaks). What leads the pill sits as far in
+  from its end as the last icon from the other. The field grows with what is typed up to four
+  lines, its controls staying on its last line; past them, **Expand** appears above the bar's end,
+  on nothing — the owner's design, 2026-11-04 — and makes the field an editor of twelve lines
+  (Collapse brings it back). **⋮** beside it holds New chat and Open in iCode, drawn in the bar's own
+  window: a popup is a window of its own, and a touch on it would be a touch outside the bar, which
+  closes it. Above them, in one card and only when there is something to say: what the agent is
+  doing, the question with its answers, why the microphone heard nothing, or why the last turn
+  failed, with Retry. Anchored at its bottom, all of it grows upward and the pill stays put. A touch
+  outside, or on the mark, closes it; sending closes it, so it covers nothing the agent may tap.
 - **Voice.** The bar's microphone hides the bar and shows the voice bubble: the words heard so far
-  in it, under an animated waveform, with a microphone and a Stop beside them. Once the user stops
+  in it, after an animated waveform, with a microphone and a Stop beside them — the waveform as far
+  in from one end as Stop's icon from the other. Once the user stops
   talking, what was heard is sent, answered aloud. Muted, the words wait in the bar to be edited or
   sent — and what the agent does runs on. Mute, Stop, Close and Cancel are never one control: muting
   stops only the microphone, Stop in the voice bubble throws the hearing away, Stop in the bar stops
@@ -364,24 +371,34 @@ header, no cards of actions, no dashboard.
 
 ### 5.8 Voice
 
-- **Two engines each way**, chosen in Settings › Assistant › Voice:
-  - **Listening:** *Android* (`SpeechRecognizer`: on the phone itself where available, API 31+,
-    else the user's recognition service; words appear as they are heard), or an **open-source model
-    on this phone**: Whisper base (99 languages) or SenseVoice (Chinese, English, Japanese, Korean,
-    Cantonese). Silero VAD ends the recording when the user stops talking.
-  - **Speaking:** *Android* (`TextToSpeech`, the user's engine and voice), or an **open-source
-    voice on this phone**: Kokoro (eight languages, 54 voices) or a Piper voice for another
-    language.
-  - A model is downloaded when it is chosen, with its size said first, into iCode's own storage;
-    Settings shows what each one takes and removes it.
+- **Android's own engines, each way** — the owner's decision, 2026-11-04: iCode focuses on Android.
+  - **Listening:** `SpeechRecognizer`, on the phone itself where available (API 31+), else the
+    user's recognition service; the words appear as they are heard, and it ends when the user stops
+    talking.
+  - **Speaking:** `TextToSpeech`, with the engine and voice the user chose in Android's settings;
+    Settings › Assistant › Voice opens them, and Android's speech recognition settings.
+  - Open-source models on the phone (sherpa-onnx with Whisper, SenseVoice, Kokoro and Piper voices)
+    were built in P6 and removed on 2026-11-04, with the library. What an earlier build downloaded,
+    and its settings, are deleted when iCode starts.
+- **Read as it is written.** A turn to be read aloud is read while the model writes it
+  (`SpokenTurn`, `SpokenText.ready`): each sentence is said once it is whole, never from inside a
+  code block, and the rest of a reply once it is recorded. One speech session per turn: Android's
+  engine is made ready as the turn begins, while the model still thinks, and each sentence is queued
+  (`QUEUE_ADD`) the moment it is whole, so the first is heard while the rest is written. A question
+  the turn waits on is said in turn; a turn stopped or failed hushes it, and another chat shown is
+  not read.
+- **Short when spoken.** A turn read aloud adds one section to its instructions, everything else as
+  before: one to three short sentences, the answer or outcome first; no Markdown, lists, tables,
+  code or links unless asked; while it works, what it is about to do in a few words; code or long
+  detail only when asked, saying first that it is on the screen.
 - **Spoken replies:** *Off*, *In the bubble* (the default: a turn started by voice or from the bubble
   is answered aloud), or *Always*. What is spoken is the answer and the questions, without Markdown,
   code blocks or links; a new message, Stop, or a tap on the bubble silences it.
-- The microphone in the panel and on the chat page's composer listens; the user sends what was
+- The microphone in the bubble and on the chat page's composer listens; the user sends what was
   heard, or says nothing for a moment to send.
 - **Microphone access** comes from the foreground service, started with type `microphone` while
-  iCode is on screen — when the user turns phone control on (§3.4). The microphone indicator shows
-  only while listening.
+  iCode is on screen — when the user turns phone control on (§3.4) — and asked again by the bubble
+  before it listens. The microphone indicator shows only while listening.
 - **Restarted while iCode is away** (after a reboot, or when Android stopped it), the service runs
   without the microphone type, as Android requires. The bubble's microphone then says "Open iCode
   once to use the microphone", and typing works as before.
@@ -411,7 +428,7 @@ header, no cards of actions, no dashboard.
 | `PhoneService`, `PhoneControl`, the settle wait, intents and Settings pages | `data/phone` |
 | Shizuku: its state, the UserService and its client | `data/phone/shizuku` |
 | The phone tools | `data/assistant/tools/PhoneTools.kt` |
-| Voice: the engines, the models' catalogue and downloads | `domain/voice`, `data/voice` |
+| Voice: Android's engines, what of a turn is read aloud and when | `domain/voice`, `data/voice` |
 | The glow and the bubble | `ui/phone` |
 | The pause at 40 steps, the screen in a step | `data/assistant` (L2–L5) |
 | Phone storage in the runtime | `data/runtime` (`GuestPaths`, `RuntimeLayout`) (L8) |
@@ -443,8 +460,8 @@ header, no cards of actions, no dashboard.
 - **AppFunctions:** the caller permission is a system role's (§3.1).
 - **A wake word:** always listening drains the battery, and Blurr's (Porcupine) needs a vendor key.
   The bubble's microphone covers voice.
-- **sherpa-onnx 2.x:** it dropped the phonemizer that lets its voices speak beyond English and
-  Chinese (§3.4); v1.13.8 is kept until an upgrade brings one back.
+- **Open-source voice models on the phone:** built in P6 and removed on 2026-11-04 — the owner chose
+  Android's own speech recognition and text-to-speech alone (§5.8).
 - **Acting while the screen is locked:** Android's lock screen is not the agent's.
 - **Claiming to be an accessibility tool:** untrue for iCode, and blocked by Play Protect (§3.2).
 - **Android's accessibility button as the bubble:** Android draws it and gives the app only its tap;
@@ -540,3 +557,4 @@ Central's libraries, runs the unit tests it touches, and leaves the Android buil
 | **P6** | `VoiceCoordinator` (one per process, its state in the snapshot, `VoiceIntent`): Android's recognizer (on the phone where it can, API 31) and text-to-speech; on this phone, sherpa-onnx v1.13.8 — Whisper base or SenseVoice cut by Silero at each pause (`ModelListener`, recording at once while the models load), Kokoro or a Piper voice played sentence by sentence (`ModelSpeaker`). `VoiceCatalog`: 36 models pinned by size and SHA-256, read from the files; only kept files taken from each archive (`VoiceModels`). `SpokenText`: the answer and the questions without Markdown, a new turn hushes, a stopped or failed one says nothing; a turn is answered aloud by its `aloud` flag, set by the bubble and the microphone. `PhoneForegroundService` (`specialUse|microphone`): the microphone while iCode is away, started again with it each time iCode is on screen; Stop, Show bubble, Turn off. The microphone (`MicButton`, `HeardLine`, `OnHeard`) shared by the composer and the bubble: words as they are heard, sent once the user stops talking | `SpokenTextTest`, `VoiceCatalogTest`, `VoiceModelsTest` (kept files only, nothing outside the folder), `SherpaConfigsTest` (every file given is kept), `AssistantCoordinatorTest` (aloud); the app compiled against sherpa-onnx's classes; its arm64 libraries checked 16 KB aligned |
 | **Redesign** (owner's request) | The new pages as Settings › Terminal's: `SettingRow`s with an icon, a one-line subtitle and a state (`AccessState`) or control, `IcodeSelect` for choices, no paragraphs. Voice: microphone; listening and speaking, each Android's or a model here, its size said before Download, then Cancel or Remove; Play Sample; spoken replies; what else is on the phone. Shared settings helpers in `SystemPages.kt` | The UI guard (no Toasts, no screens reaching `data/`), the backend guard |
 | **The bubble's states** (owner's design) | One icon: Android's accessibility button no longer asked for, and a leftover one named on Phone Control with the way to remove it (`PhoneAccess.systemButton`, `PhoneIntent.OpenAccessibility` opening iCode's own accessibility page). `PhoneOverlay.Look`'s six states, the agent's before the microphone's; `BubblePlacement` (docked at an edge, tucked and faded when idle, dragged and snapped); `PhoneBubble` (the states, the waveform, the words heard), `PhoneBubbleBar` (the floating pill, and its one card of what there is to say); `PhoneOverlays` (Closed, Typing, Voice: tap to mute, resume, silence; sent once the user stops talking; muted, the words wait) | `PhoneRulesTest` (the states and which comes first); the guards |
+| **Android's voice, read as written** (owner's decision and design, 2026-11-04) | The open-source voice removed end to end: sherpa-onnx and its rule, `VoiceCatalog`, `VoiceModels`, `SherpaConfigs`, `ModelListener`, `ModelSpeaker` and their tests; `VoiceCoordinator.forgetModels` deletes what an earlier build downloaded and its settings. `SpokenTurn` turns the assistant's changes into `VoiceCue`s (Begin, Say, End, Hush): sentences said as they are written (`SpokenText.ready`, never inside code), the rest once recorded, the questions in turn; `VoiceSpeaker` queues each into one session per turn, the engine readied at Begin. `AssistantInstructions`: a turn read aloud asks for a short spoken answer, nothing else changed. Voice settings: Microphone, Read Aloud (answers, Play Sample), Android (Voice and Language, Speech Recognition). The bar (after the owner's bottom-anchored redesign): a field growing to four lines, Expand to a twelve-line editor and ⋮ above its end on nothing, ⋮'s New chat and Open in iCode drawn in the window (`IcodeMenuPanel`), the notes above it; `IcodeFloatingPill` grows taller with its corners kept; the voice bubble (`PhoneVoiceBubble`) and the bar with their ends inset alike | `SpokenTextTest` (7), `SpokenTurnTest` (4: a streamed turn, a turn not read, stopped and failed, questions and another chat); the domain, assistant and navigation suites; the app compiled; the guards |

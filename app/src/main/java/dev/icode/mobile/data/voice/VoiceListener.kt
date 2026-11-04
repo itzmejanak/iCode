@@ -10,35 +10,27 @@ import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 
-/** Hears the user once (docs/phone-agent-plan.md §5.8): the words as they come, then the last ones, final. */
-internal interface VoiceListener {
-    /** [heard] gets the words so far, final once the user stopped talking; [problem] ends it instead. */
-    fun start(heard: (text: String, final: Boolean) -> Unit, problem: (String) -> Unit)
-
-    /** The user is done: what was heard so far becomes final. */
-    fun finish()
-
-    /** Stops at once, reporting nothing more. */
-    fun cancel()
-}
-
 /**
- * Android's own recognizer: on the phone itself where it can (API 31), else the user's recognition
- * service; it ends by itself when the user stops talking. Used on the main thread, as Android requires.
+ * Hears the user once (docs/phone-agent-plan.md §5.8) with Android's own recognizer: on the phone itself
+ * where it can (API 31), else the user's recognition service; the words as they come, then the last ones,
+ * final, once the user stops talking. Used on the main thread, as Android requires.
  */
-internal class AndroidListener(private val context: Context) : VoiceListener {
+internal class VoiceListener(private val context: Context) {
     private val main = Handler(Looper.getMainLooper())
     private var recognizer: SpeechRecognizer? = null
 
-    override fun start(heard: (String, Boolean) -> Unit, problem: (String) -> Unit) {
+    /** [heard] gets the words so far, final once the user stopped talking; [problem] ends it instead. */
+    fun start(heard: (text: String, final: Boolean) -> Unit, problem: (String) -> Unit) {
         main.post { begin(onDevice = onDeviceAvailable(), heard, problem) }
     }
 
-    override fun finish() {
+    /** The user is done: what was heard so far becomes final. */
+    fun finish() {
         main.post { recognizer?.stopListening() }
     }
 
-    override fun cancel() {
+    /** Stops at once, reporting nothing more. */
+    fun cancel() {
         main.post {
             recognizer?.cancel()
             release()
@@ -98,7 +90,7 @@ internal class AndroidListener(private val context: Context) : VoiceListener {
     private fun words(results: Bundle?): String? = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()?.takeIf { it.isNotBlank() }
 
     private companion object {
-        const val NO_RECOGNIZER = "This phone has no speech recognition: choose a model on this phone in Settings › Assistant › Voice"
+        const val NO_RECOGNIZER = "This phone has no speech recognition"
 
         /** ERROR_LANGUAGE_NOT_SUPPORTED and ERROR_LANGUAGE_UNAVAILABLE, API 31. */
         val LANGUAGE_MISSING = setOf(12, 13)

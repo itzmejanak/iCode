@@ -28,11 +28,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.MicOff
-import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material.icons.outlined.TouchApp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -51,12 +49,10 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.icode.mobile.designsystem.IcodeBrandMark
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeFloatingPill
 import dev.icode.mobile.designsystem.IcodeShapes
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
@@ -125,7 +121,7 @@ internal fun PhoneBubble(view: PhoneBubbleView, actions: PhoneBubbleActions) {
         when (target) {
             Face.Bubble -> Mark(view, actions)
             Face.Bar -> PhoneBubbleBar(view, actions)
-            Face.Voice -> VoiceBubble(view, actions)
+            Face.Voice -> PhoneVoiceBubble(view, actions)
         }
     }
 }
@@ -196,48 +192,6 @@ private fun Mark(view: PhoneBubbleView, actions: PhoneBubbleActions) {
     }
 }
 
-/**
- * The voice bubble (§5.7, redesigned 2026-11-04): the bar gives way to it while the microphone listens.
- * The words heard so far live inside it — Gemini's live line — under a microphone that mutes and a Stop
- * that throws the hearing away. The words themselves stay the bubble: tapped, they mute; dragged, they
- * go where the finger goes. Muting never stops what the agent does.
- */
-@Composable
-private fun VoiceBubble(view: PhoneBubbleView, actions: PhoneBubbleActions) {
-    val words = view.voice.heard?.text.orEmpty()
-    IcodeFloatingPill(Modifier.widthIn(max = overlayPanelWidth())) {
-        Row(
-            Modifier
-                .weight(1f, fill = words.isNotBlank())
-                .pointerInput(Unit) {
-                    detectDragGestures(onDragEnd = actions.dragEnd, onDragCancel = actions.dragEnd) { change, amount ->
-                        change.consume()
-                        actions.drag(amount.x, amount.y)
-                    }
-                }
-                .clickable { actions.mute() },
-            horizontalArrangement = if (words.isBlank()) Arrangement.Center else Arrangement.Start,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (words.isBlank()) {
-                // Nothing heard yet: the listening waveform alone, big enough to be the bubble's whole face.
-                Waveform(IcodeColors.Accent, IcodeSizes.WaveformVoice, IcodeSizes.WaveformBarVoice, VOICE_BARS)
-            } else {
-                Waveform(IcodeColors.Accent)
-                Text(
-                    words,
-                    style = IcodeType.Body.copy(color = IcodeColors.TextPrimary),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(start = IcodeSpacing.Space1, end = IcodeSpacing.Space1),
-                )
-            }
-        }
-        OverlayButton(Icons.Outlined.MicOff, "Mute, type instead", IcodeColors.TextSecondary, onClick = actions.mute)
-        OverlayButton(Icons.Outlined.Stop, "Stop listening", IcodeColors.Error, onClick = actions.cancel)
-    }
-}
-
 @Composable
 internal fun Ring(color: Color) {
     Box(Modifier.fillMaxSize().border(IcodeSizes.BubbleRing, color, IcodeShapes.Pill))
@@ -271,11 +225,14 @@ internal fun Waveform(
     }
 }
 
-/** An icon button in the bar or the voice bubble, at the touch target a thumb needs. */
+/**
+ * An icon button in the bar or the voice bubble, at the touch target a thumb needs: its icon
+ * [IcodeSpacing.IconButtonInset] in from its edges, as what leads a pill is from the other end.
+ */
 @Composable
-internal fun OverlayButton(icon: ImageVector, description: String, tint: Color, enabled: Boolean = true, onClick: () -> Unit) {
-    IconButton(onClick = onClick, enabled = enabled) {
-        Icon(icon, contentDescription = description, tint = if (enabled) tint else IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconLg))
+internal fun OverlayButton(icon: ImageVector, description: String, tint: Color, modifier: Modifier = Modifier, enabled: Boolean = true, onClick: () -> Unit) {
+    IconButton(onClick = onClick, modifier = modifier, enabled = enabled) {
+        Icon(icon, contentDescription = description, tint = if (enabled) tint else IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconXl))
     }
 }
 
@@ -313,6 +270,3 @@ private const val WAVE_STEP = 1.3f
 
 /** The waveform's bars, as a share of its height: low at the ends, high in the middle. */
 private val BARS = listOf(0.45f, 0.75f, 1f, 0.75f, 0.45f)
-
-/** The voice bubble's alone waveform: wider, so the listening face fills the pill. */
-private val VOICE_BARS = listOf(0.3f, 0.55f, 0.8f, 1f, 0.75f, 1f, 0.65f, 0.45f, 0.3f)

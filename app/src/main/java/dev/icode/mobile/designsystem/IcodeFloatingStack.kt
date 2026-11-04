@@ -17,7 +17,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -124,16 +124,19 @@ fun IcodeFloatingStack(floors: IcodeFloors, visible: Boolean, content: @Composab
     }
 }
 
-/** One of the stack's pills: a touch target tall, raised, its [edgeLine] drawn. */
+/**
+ * One of the stack's pills: a touch target tall, raised, its [edgeLine] drawn. Its content may make it
+ * taller — the bubble's bar, typed in at length — and its corners stay as round as at its least.
+ */
 @Composable
 fun IcodeFloatingPill(modifier: Modifier = Modifier, content: @Composable RowScope.() -> Unit) {
     val line = edgeLine
     Row(
         modifier
-            .height(IcodeSizes.TouchTarget)
-            .clip(IcodeShapes.Pill)
+            .heightIn(min = IcodeSizes.TouchTarget)
+            .clip(IcodeShapes.FloatingPill)
             .background(IcodeColors.SurfaceElevated)
-            .then(if (line != null) Modifier.border(1.dp, line, IcodeShapes.Pill) else Modifier),
+            .then(if (line != null) Modifier.border(1.dp, line, IcodeShapes.FloatingPill) else Modifier),
         verticalAlignment = Alignment.CenterVertically,
         content = content,
     )

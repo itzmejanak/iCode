@@ -182,7 +182,7 @@ internal class AssistantTurns(
                 connection = setup.connection,
                 model = setup.model,
                 effort = AssistantRules.effortFor(setup.settings.effort, setup.model),
-                instructions = AssistantInstructions.of(setup.place, setup.settings.mode, permission(), history.summary, offered.any { it.name.startsWith(PHONE_TOOLS) }),
+                instructions = AssistantInstructions.of(setup.place, setup.settings.mode, permission(), history.summary, offered.any { it.name.startsWith(PHONE_TOOLS) }, aloud),
                 history = history.messages,
                 input = message,
                 tools = offered.map { tool ->

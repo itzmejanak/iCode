@@ -28,10 +28,6 @@ what is in this repository and `app/build.gradle.kts`. Check each project for it
 | XZ for Java | 0BSD |
 | colorpicker-compose | Apache-2.0 |
 | Shizuku API and provider 13.1.5 | MIT |
-| sherpa-onnx 1.13.8 (its Android library, with its native code) | Apache-2.0 |
-| ONNX Runtime (inside sherpa-onnx) | MIT |
-| espeak-ng (inside sherpa-onnx, the fork piper-phonemize builds) | GPL-3.0-or-later |
-| piper-phonemize (inside sherpa-onnx) | MIT |
 
 ## Fonts and assets
 
@@ -48,8 +44,3 @@ The Ubuntu base image and optional tools (for example the Android command-line t
 Ninja) are downloaded on the device from the sources in `app/src/main/assets/runtime/manifest.json`,
 under their own licences. The Android SDK licence is shown before it is installed
 (`app/src/main/assets/runtime/licences/android-sdk-license.txt`).
-
-The voice models are downloaded from sherpa-onnx's GitHub releases only when chosen in Settings ›
-Assistant › Voice (`domain/voice/VoiceCatalog.kt` pins each one): Silero VAD (MIT), Whisper base
-(MIT), SenseVoice (FunAudioLLM's model licence), Kokoro v1.0 (Apache-2.0), and Piper voices, each
-under its dataset's licence as its `MODEL_CARD` says.

@@ -1145,8 +1145,8 @@ Acceptance criteria:
 
 - **Settings › Assistant › Phone Control** is off until I turn it on: through Android's Allow restricted settings and Accessibility, each step a row that opens its page, or in one tap when Shizuku is ready.
 - The **Shizuku** page shows its state as it is now and the one step that state needs.
-- One bubble shows over other apps whenever iCode is not on screen — never a second icon — docked at an edge and tucked half away while nothing goes on. It shows whether the assistant is idle, listening, muted, thinking, acting on the phone or speaking.
-- Tapped, a compact bar opens beside it: a field, the microphone, Send (Stop while it works), and New chat and Open in iCode behind ⋮; under it, only when needed, what it is doing, the question waiting with its answers, or why it failed, with Retry.
+- One bubble shows over other apps whenever iCode is not on screen — never a second icon — at the bottom of the screen, tucked half away while nothing goes on. It shows whether the assistant is idle, listening, muted, thinking, acting on the phone or speaking.
+- Tapped, it opens into a bar: a field, the microphone, Send (Stop while it works). The field grows with what I type, and past four lines Expand above the bar's end makes it an editor; ⋮ beside Expand holds New chat and Open in iCode. Above, only when needed: what it is doing, the question waiting with its answers, or why it failed, with Retry.
 - The microphone hides the bar and sends what I said once I stop talking; tapping the bubble while it listens mutes it and keeps my words to edit; tapping it while it reads an answer aloud stops the reading. Muting never stops what the assistant is doing.
 - The screen's edges glow while the assistant acts on the phone, dimmed while it waits for me; dragging the bubble onto ✕ puts both away, and stops the assistant if it is acting.
 - The assistant asks before it acts in an app ("Act in WhatsApp?"); passwords, payments, permission dialogs and Accessibility settings are handed to me.
@@ -1159,9 +1159,9 @@ Acceptance criteria:
 Acceptance criteria:
 
 - The microphone in the chat and in the bubble shows my words as they are heard and sends them once I stop talking; tapping it again sends what was heard so far.
-- **Settings › Assistant › Voice** chooses who listens and who speaks: Android's own engines, or open-source models on this phone (Whisper or SenseVoice; Kokoro or a Piper voice in some 40 languages), each with its size shown before Download, then its progress, Cancel and Remove.
-- **Spoken replies**: Off, In the bubble (the default) or Always; the answer and the questions are read without code or links, and a new message, Stop or a tap on the bubble silences them.
-- Without the microphone allowed, or a model not downloaded, the place I tapped says what to do.
+- Android's own engines listen and speak: **Settings › Assistant › Voice** allows the microphone, chooses when answers are read aloud, plays a sample, and opens Android's voice and speech recognition settings.
+- **Answers read aloud**: Off, In the bubble (the default) or Always. An answer read aloud is short, and each sentence is heard as soon as it is written, without code or links; a new message, Stop or a tap on the bubble silences it.
+- Without the microphone allowed, or with no speech engine on the phone, the place I tapped says what to do.
 
 ## 19. Public Website and Distribution
 
