@@ -238,7 +238,7 @@ sealed interface ICodeIntent {
     data class SendAssistantMessage(
         val text: String,
         val attachments: List<String> = emptyList(),
-        /** Sent by voice or from the bubble: answered aloud when Spoken replies says so (docs/phone-agent-plan.md §5.8). */
+        /** Sent from the bubble: answered aloud when Spoken replies says so (docs/phone-agent-plan.md §5.8). */
         val aloud: Boolean = false,
     ) : AssistantIntent
     /** Stops the turn in hand: the request, and a running command with everything it started. */
@@ -257,6 +257,8 @@ sealed interface ICodeIntent {
     data class SetAssistantPermission(val permission: AssistantPermission) : AssistantIntent
     /** The last message failed before any reply: it is sent again, its files as they were. */
     data object RetryAssistantMessage : AssistantIntent
+    /** The last message, unanswered, taken back out of the chat: its words go back to the composer to edit. */
+    data object TakeBackAssistantMessage : AssistantIntent
     /** A provider's settings page opens on [id]; "" for one being added, of [kind] where the sheet of kinds chose one. */
     data class EditAssistantProvider(val id: String, val kind: AssistantProviderKind? = null) : AssistantIntent
     /** Saves a provider ([id] "" adds one); [key] null keeps the saved key; [baseUrl] only where the kind asks; [models] in order. */

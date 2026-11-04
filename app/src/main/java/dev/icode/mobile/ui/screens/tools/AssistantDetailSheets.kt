@@ -14,6 +14,8 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,13 +34,16 @@ import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.rememberSheetPages
 import dev.icode.mobile.domain.AssistantApproval
 import dev.icode.mobile.domain.AssistantEntry
+import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantStepRules
 import dev.icode.mobile.domain.AssistantStepStatus
 import dev.icode.mobile.domain.AssistantToolKind
 import dev.icode.mobile.domain.AssistantToolName
 import dev.icode.mobile.domain.GitChange
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.word
 import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.SheetIcon
 import dev.icode.mobile.ui.copyText
 import dev.icode.mobile.ui.screens.workspace.itemIcon
@@ -71,29 +76,39 @@ internal fun AssistantEntrySheet(
 
 /**
  * What a long press on a row of the chat offers, as a sheet (docs/explorer-gaps-plan.md §3.1): for
- * the user's message, Copy, and Select text as its page (§2.4); for a step about a file, Open in
+ * the user's message, Copy, Edit — its words back in the composer ([onEdit]) — Retry when it is the
+ * last and nothing answered it, and Select text as its page (§2.4); for a step about a file, Open in
  * Editor, Show Changes where Git has some, and Copy path.
  */
 @Composable
-internal fun AssistantActionsSheet(entry: AssistantEntry, modifier: Modifier, onClose: () -> Unit, onDiff: (GitChange) -> Unit) {
+internal fun AssistantActionsSheet(
+    entry: AssistantEntry,
+    modifier: Modifier,
+    onClose: () -> Unit,
+    onDiff: (GitChange) -> Unit,
+    onEdit: (AssistantEntry.Said) -> Unit,
+) {
     when (entry) {
-        is AssistantEntry.Said -> MessageSheet(entry, modifier, onClose)
+        is AssistantEntry.Said -> MessageSheet(entry, modifier, onClose, onEdit)
         is AssistantEntry.Steps -> entry.steps.singleOrNull()?.let { StepFileSheet(it, modifier, onClose, onDiff) }
         is AssistantEntry.Step -> StepFileSheet(entry, modifier, onClose, onDiff)
         is AssistantEntry.Answer, is AssistantEntry.Reasoning, is AssistantEntry.Compacted -> Unit
     }
 }
 
-/** A message's sheet, which it heads: Copy, and Select text, its one page. */
+/** A message's sheet, which it heads: Copy, Edit, Retry when its turn failed, and Select text, its one page. */
 @Composable
-private fun MessageSheet(entry: AssistantEntry.Said, modifier: Modifier, onClose: () -> Unit) {
+private fun MessageSheet(entry: AssistantEntry.Said, modifier: Modifier, onClose: () -> Unit, onEdit: (AssistantEntry.Said) -> Unit) {
     val context = LocalContext.current
     val gateway = LocalICodeGateway.current
+    val failed = AssistantRules.unanswered(LocalICodeSnapshot.current.assistant) == entry.key
     val pages = rememberSheetPages<MessagePage>(entry.key)
     when (pages.current) {
         null -> IcodeActionSheet(
             title = entry.text,
-            actions = listOf(
+            actions = listOfNotNull(
+                IcodeMenuAction("Retry", Icons.Outlined.Refresh, { gateway.dispatch(ICodeIntent.RetryAssistantMessage) }).takeIf { failed },
+                IcodeMenuAction("Edit", Icons.Outlined.Edit, { onEdit(entry) }),
                 IcodeMenuAction("Copy", Icons.Outlined.ContentCopy, { copyText(context, "Message", entry.text, "Message copied", gateway::dispatch) }),
                 IcodeMenuAction("Select text", Icons.Outlined.SelectAll, { pages.open(MessagePage.SelectText) }, opensPage = true),
             ),

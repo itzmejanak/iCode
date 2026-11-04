@@ -26,7 +26,6 @@ class SpokenTextTest {
         assertTrue(SpokenReplies.InBubble.speaks(aloud = true))
         assertFalse(SpokenReplies.InBubble.speaks(aloud = false))
         assertFalse(SpokenReplies.Off.speaks(aloud = true))
-        assertTrue(SpokenReplies.Always.speaks(aloud = false))
     }
 
     @Test fun `long text is cut between sentences, and a sentence too long between words`() {

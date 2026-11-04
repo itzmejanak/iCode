@@ -3,7 +3,6 @@ package dev.icode.mobile.ui.screens.tools
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Compress
@@ -28,8 +27,8 @@ import dev.icode.mobile.designsystem.IcodeOverflowMenu
 import dev.icode.mobile.designsystem.IcodeSheetOverlay
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeTopBar
-import dev.icode.mobile.designsystem.behindSheet
 import dev.icode.mobile.designsystem.IcodeWatermark
+import dev.icode.mobile.designsystem.behindSheet
 import dev.icode.mobile.domain.AssistantAttachmentKind
 import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantRules
@@ -154,8 +153,8 @@ fun AssistantScreen(actions: NavigationActions) {
                     onDetach = { file -> attached = attached - file },
                     onAttach = { sheet = AssistantSheet.Attach },
                     onModels = { sheet = AssistantSheet.Models },
-                    onSend = { aloud ->
-                        gateway.dispatch(ICodeIntent.SendAssistantMessage(draft, attached.map { it.location }, aloud))
+                    onSend = {
+                        gateway.dispatch(ICodeIntent.SendAssistantMessage(draft, attached.map { it.location }))
                         draft = ""
                         attached = emptyList()
                     },
@@ -177,7 +176,15 @@ fun AssistantScreen(actions: NavigationActions) {
                         val approval = state.approval?.takeIf { state.runningHere }
                         AssistantEntrySheet(it, stepKey, approval, AssistantPlace.name(state.workspace.orEmpty()), modifier, close, onDiff)
                     }
-                    AssistantSheet.Actions -> entry?.let { AssistantActionsSheet(it, modifier, close, onDiff) }
+                    AssistantSheet.Actions -> entry?.let {
+                        AssistantActionsSheet(it, modifier, close, onDiff) { said ->
+                            draft = said.text
+                            // The last message, whose turn failed: taken back, so what is sent replaces it.
+                            if (AssistantRules.unanswered(state) == said.key && said.attachments.isEmpty()) {
+                                gateway.dispatch(ICodeIntent.TakeBackAssistantMessage)
+                            }
+                        }
+                    }
                 }
             }
         }

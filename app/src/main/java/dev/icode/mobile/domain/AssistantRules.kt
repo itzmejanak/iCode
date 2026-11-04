@@ -48,6 +48,13 @@ object AssistantRules {
     /** Files sent with one message, at most (§12 R6). */
     const val MAX_ATTACHMENTS = 5
 
+    /**
+     * The key of [state]'s last message when it is the user's and nothing answered it — its turn
+     * failed — and no turn runs: it may be sent again, or taken back to edit. Null otherwise.
+     */
+    fun unanswered(state: AssistantState): String? =
+        if (!state.running && state.messages.lastOrNull() is AssistantMessage.User) "m${state.messages.lastIndex}" else null
+
     /** The page: what was said and done in [state]'s chat. */
     fun entries(state: AssistantState): List<AssistantEntry> = buildList {
         var firstOpen = true

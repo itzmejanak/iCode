@@ -92,6 +92,7 @@ internal class AssistantCoordinator(
             ICodeIntent.ContinueAssistant -> turns.resume()
             ICodeIntent.CompactAssistantChat -> compact()
             ICodeIntent.RetryAssistantMessage -> retry()
+            ICodeIntent.TakeBackAssistantMessage -> takeBack()
             is ICodeIntent.ChooseAssistantModel -> settings.choose(AssistantChoice(intent.provider, intent.model))
             is ICodeIntent.ChooseAssistantEffort -> settings.remember { providers.chooseEffort(intent.effort) }
             is ICodeIntent.ChooseAssistantMode -> settings.remember { providers.chooseMode(intent.mode) }
@@ -159,6 +160,17 @@ internal class AssistantCoordinator(
         val session = page.current.session ?: return
         if (chats.of(workspace, session).messages.lastOrNull() !is AssistantMessage.User) return page.say(NoticeTone.HeadsUp, "Nothing to send again")
         turns.retry(workspace, session)
+    }
+
+    /** The last message, unanswered, out of the chat for the user to edit; a chat left empty is a new one. */
+    private fun takeBack() {
+        val workspace = page.current.workspace ?: return
+        val session = page.current.session ?: return
+        if (turns.running != null) return
+        chats.takeBack(workspace, session) ?: return
+        page.state { it.copy(failure = null) }
+        if (chats.of(workspace, session).messages.isEmpty()) page.display(workspace, null) else page.refresh(workspace, session)
+        page.listed(workspace)
     }
 
     private fun compact() {
