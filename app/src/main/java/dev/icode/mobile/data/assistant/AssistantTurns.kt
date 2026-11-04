@@ -262,6 +262,19 @@ internal class AssistantTurns(
             page.refresh(workspace, session)
         }
 
+        /** Its model does not see after all: the rest of the turn sends no picture, and it is kept as reading none. */
+        override fun picturesRefused() {
+            step.seesPictures = false
+            val settings = settings()
+            val provider = settings.provider ?: return
+            val model = settings.model ?: return
+            val models = provider.models.map { if (it.id == model.id) it.spec.copy(images = false) else it.spec }
+            runCatching { providers.saveProvider(provider.id, provider.kind, provider.name, provider.baseUrl, key = null, models) }
+                .onFailure { return }
+            page.state { it.copy(settings = settings()) }
+            page.say(NoticeTone.HeadsUp, "${model.id} does not see pictures: it goes on with the screen's text, and is set to read none")
+        }
+
         private fun shows(shownWorkspace: String?, shownSession: String?) = shownWorkspace == workspace && shownSession == session
 
         private fun step(text: String) = page.state { it.copy(turn = it.turn?.copy(step = text)) }

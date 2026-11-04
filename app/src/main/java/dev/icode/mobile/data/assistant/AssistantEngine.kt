@@ -97,6 +97,9 @@ internal interface AssistantEvents {
 
     /** The tokens the last request used, read and written: how full the context is. */
     fun used(tokens: Long)
+
+    /** The server refused a picture to a model iCode was told sees them: the turn went on without it. */
+    fun picturesRefused() = Unit
 }
 
 /** A refusal the model reads as the tool's result: it can correct itself, ask, or explain. */

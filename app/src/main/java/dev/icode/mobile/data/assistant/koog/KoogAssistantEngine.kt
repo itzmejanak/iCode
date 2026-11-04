@@ -97,7 +97,7 @@ internal class KoogAssistantEngine(
             // Koog counts each node it runs: the start, a request, then a run of the tools and a
             // request per step, and the finish — so this allows exactly maxSteps requests.
             maxIterations = 2 * turn.maxSteps + 1,
-            strategy = KoogTurn.strategy(stream, turn.picture, KoogTurn.picturePlace(kind, KoogModels.llModel(kind, turn.model.spec), turn.model.images)),
+            strategy = KoogTurn.strategy(stream, turn.picture, KoogTurn.picturePlace(kind, KoogModels.llModel(kind, turn.model.spec), turn.model.images), events::picturesRefused),
         ) { report(reporter) }
         ran(stoppedShort = { reporter.cutShort || reporter.filtered }) { agent.use { it.run(START) } }
         if (reporter.cutShort) throw AssistantTurnException(KoogFailures.cutShort(turn.model))
