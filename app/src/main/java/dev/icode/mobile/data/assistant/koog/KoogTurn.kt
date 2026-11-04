@@ -56,6 +56,7 @@ internal object KoogTurn {
         stream: KoogRequest?,
         picture: () -> AssistantPicture? = { null },
         place: PicturePlace = PicturePlace.None,
+        picturesRefused: () -> Unit = {},
     ): AIAgentGraphStrategy<String, String> = strategy("icode-turn") {
         val request by node<String, Message.Assistant> { llm.writeSession { stream?.invoke(this) ?: requestLLM() } }
         val runTools by nodeExecuteTools()
@@ -77,7 +78,16 @@ internal object KoogTurn {
                         if (screen != null && place == PicturePlace.Beside) attachment(screen.source)
                     }
                 }
-                stream?.invoke(this) ?: requestLLM()
+                try {
+                    stream?.invoke(this) ?: requestLLM()
+                } catch (refused: Exception) {
+                    // A model said to see that cannot (owner's request, 2026-11-04): the screen goes,
+                    // the model is told, and it goes on with the screen's text.
+                    if (screen == null || !KoogFailures.refusesPictures(refused)) throw refused
+                    rewritePrompt { prompt -> prompt.withMessages { messages -> messages.map(::withoutScreens).withLastNote(PICTURE_REFUSED) } }
+                    picturesRefused()
+                    stream?.invoke(this) ?: requestLLM()
+                }
             }
         }
         edge(nodeStart forwardTo request)
@@ -116,6 +126,12 @@ internal object KoogTurn {
     private fun MessagePart.isScreen(): Boolean = ((this as? MessagePart.Attachment)?.source as? AttachmentSource.Image)?.fileName == SCREEN_NAME
 
     /** [message] without a step's screen: a request's own, or one in a tool's result. */
+    /** [note] added to the last message, the user's: the results the model reads next. */
+    private fun List<Message>.withLastNote(note: String): List<Message> {
+        val last = lastOrNull() as? Message.User ?: return this
+        return dropLast(1) + last.copy(parts = last.parts + MessagePart.Text(note))
+    }
+
     private fun withoutScreens(message: Message): Message = when (message) {
         is Message.User -> message.copy(
             parts = message.parts.filterNot { it.isScreen() }.map { part ->
@@ -264,6 +280,9 @@ internal object KoogTurn {
 
         private fun callOf(id: String?): AssistantCall? = open.firstOrNull { it.id == id } ?: open.firstOrNull()
     }
+
+    /** Told the model in place of the picture its server refused. */
+    private const val PICTURE_REFUSED = "(No picture: this model does not see them. Go on with the screen's text above.)"
 
     /** A step's screen, as its picture is named in the prompt: never a name a user's photo has, which is its own file's. */
     private const val SCREEN_NAME = "icode-screen.jpg"

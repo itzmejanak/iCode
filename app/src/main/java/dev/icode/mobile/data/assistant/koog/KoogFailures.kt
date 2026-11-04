@@ -26,6 +26,7 @@ import java.net.UnknownHostException
 import java.net.UnknownServiceException
 import javax.net.ssl.SSLException
 import kotlinx.serialization.SerializationException
+import org.json.JSONArray
 import org.json.JSONObject
 
 /**
@@ -177,33 +178,61 @@ internal object KoogFailures {
         }
     }
 
+    /**
+     * A server's refusal, said as what happened and what to do (owner's request, 2026-11-04: every kind
+     * of failure in plain words, never the server's JSON): its status, then its own words where they
+     * tell more.
+     */
     private fun http(failure: KoogHttpClientException, connection: AssistantConnection, model: String?): String {
         val said = providerMessage(failure.errorBody)
         val lower = (said ?: failure.errorBody ?: "").lowercase()
+        val status = failure.statusCode
+        val host = host(connection)
+        val named = model?.let { "“$it”" } ?: "This model"
         return when {
             // Koog's failure with a success status: the stream was not the API's (a page, sent with 200).
-            failure.statusCode in SUCCESS -> notTheApi(connection)
-            failure.statusCode == 401 || failure.statusCode == 403 -> "The provider refused the API key — check it in the provider's settings"
-            model != null && (failure.statusCode == 404 || ("model" in lower && ("not found" in lower || "does not exist" in lower))) ->
-                "The provider has no model “$model”"
-            failure.statusCode == 404 -> "${host(connection)} has no such API — check the address in the provider's settings"
-            failure.statusCode == 429 -> "The provider is limiting requests — try again shortly" + (said?.let { ": $it" } ?: "")
+            status in SUCCESS -> notTheApi(connection)
+            status == 401 || status == 403 -> "The provider refused the API key — check it in the provider's settings"
+            picturesRefused(lower) -> "$named does not see pictures — turn off Reads Images for it in the provider's settings"
+            TOOL_WORDS.any { it in lower } -> "$named cannot call tools, which the assistant needs — choose another model"
+            model != null && (status == 404 || ("model" in lower && ("not found" in lower || "does not exist" in lower))) ->
+                "$host does not serve $named for chat — it may be listed and still not answer: choose another model"
+            status == 404 -> "$host has no such API — check the address in the provider's settings"
+            status == 402 || CREDIT_WORDS.any { it in lower } -> "The provider's account has no credit left for this — add some with the provider"
+            status == 408 || status == 504 -> "$host took too long to answer — try again"
+            status == 413 -> "This request is larger than the provider takes — remove a file, or compact the chat"
+            status == 429 -> "The provider is limiting requests — try again shortly" + (said?.let { ": $it" } ?: "")
             CONTEXT_WORDS.any { it in lower } -> "This chat is longer than the model accepts — compact it or start a new chat"
-            said != null -> "The provider answered ${failure.statusCode ?: "an error"}: $said"
-            else -> "The provider answered ${failure.statusCode ?: "an error"}"
+            status != null && status >= 500 -> "$host had a problem on its side ($status) — try again shortly"
+            said != null -> "The provider refused the request: $said"
+            else -> "The provider refused the request (${status ?: "no status"})"
         }
     }
 
-    /** `{"error": {"message": …}}` and its variants, as OpenAI, Anthropic, Google and most others write it. */
+    /** A server refusing a picture to a model iCode was told sees them: the step goes on without it. */
+    fun refusesPictures(failure: Throwable): Boolean = generateSequence(failure) { it.cause }.take(MAX_DEPTH)
+        .filterIsInstance<KoogHttpClientException>()
+        .any { it.statusCode in 400..499 && picturesRefused((providerMessage(it.errorBody) ?: it.errorBody.orEmpty()).lowercase()) }
+
+    private fun picturesRefused(lower: String) = PICTURE_WORDS.any { it in lower } && "support" in lower
+
+    /**
+     * What the server said, in whatever shape its error takes: `{"error": {"message"}}` (OpenAI,
+     * Anthropic, Google, most others), `{"error": "…"}`, `{"message"}`, FastAPI's `{"detail"}` — words,
+     * or a list of `{"msg"}`, and that list bare — and RFC 9457's `{"title", "detail"}`. Pydantic's
+     * "Value error, " goes.
+     */
     private fun providerMessage(body: String?): String? = runCatching {
-        val json = JSONObject(body ?: return null)
-        val error = json.opt("error")
-        when (error) {
-            is JSONObject -> error.optString("message")
-            is String -> error
-            else -> json.optString("message")
-        }.trim().take(MAX_MESSAGE).ifEmpty { null }
-    }.getOrNull()
+        val text = body?.trim() ?: return null
+        said(if (text.startsWith("[")) JSONArray(text) else JSONObject(text))
+    }.getOrNull()?.removePrefix("Value error, ")?.trim()?.take(MAX_MESSAGE)?.ifEmpty { null }
+
+    private fun said(value: Any?): String? = when (value) {
+        is String -> value.ifBlank { null }
+        is JSONArray -> (0 until value.length()).firstNotNullOfOrNull { said(value.opt(it)) }
+        is JSONObject -> SAID_KEYS.firstNotNullOfOrNull { said(value.opt(it)) }
+        else -> null
+    }
 
     private fun host(connection: AssistantConnection): String = connection.baseUrl
         ?.let { runCatching { URI(it).host }.getOrNull() }
@@ -222,4 +251,8 @@ internal object KoogFailures {
     private const val TAG = "KoogFailures"
     private const val MAX_MESSAGE = 300
     private val CONTEXT_WORDS = listOf("context length", "context_length", "maximum context", "prompt is too long", "too many tokens")
+    private val PICTURE_WORDS = listOf("image", "vision", "multimodal")
+    private val TOOL_WORDS = listOf("does not support tools", "tool use is not supported", "tools are not supported", "function calling is not supported", "does not support function")
+    private val CREDIT_WORDS = listOf("insufficient_quota", "insufficient credit", "insufficient balance", "credit balance", "out of credits", "exceeded your current quota", "payment required")
+    private val SAID_KEYS = listOf("error", "message", "msg", "detail", "title", "errors")
 }
