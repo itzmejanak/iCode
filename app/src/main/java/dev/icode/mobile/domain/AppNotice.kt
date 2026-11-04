@@ -117,17 +117,18 @@ object NoticeRules {
     /** Kept on the page and posted: everything but what the user just did. */
     fun kept(message: AppNotice.Message): Boolean = message.tone != NoticeTone.Done
 
-    /** Once its line has folded away, the bell stays this long, unless × puts it away first. */
-    const val BELL_MILLIS = 10_000L
-
-    /** How long the bell shows a notice's line before it folds away. */
-    fun lineMillis(tone: NoticeTone): Long = when (tone) {
+    /**
+     * How long the bell stays once a notice rings it, by the tone it rings in, unless × puts it away
+     * first (owner's request, 2026-11-04: the bell rings and counts, no line): a problem longest; a
+     * success, which is not kept, only rings.
+     */
+    fun bellMillis(tone: NoticeTone): Long = when (tone) {
+        NoticeTone.Problem -> 15_000
+        NoticeTone.HeadsUp, NoticeTone.Info -> 10_000
         NoticeTone.Done -> 3_000
-        NoticeTone.HeadsUp, NoticeTone.Info -> 4_000
-        NoticeTone.Problem -> 6_000
     }
 
-    /** The folded bell's colour: the most serious unread tone; null with nothing unread. */
+    /** The bell's colour: the most serious unread tone; null with nothing unread. */
     fun bellTone(notices: List<AppNotice>): NoticeTone? = notices.filterNot { it.read }.minOfOrNull { it.tone }
 
     /** The messages Android's shade holds: the newest unread, at most [MAX_POSTED]. */

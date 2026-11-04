@@ -312,13 +312,12 @@ sheet on the same base (§3.1), for each item whose name is taken: the two side 
       reports its top edge to the stack. So no screen wires it, and the bell's overlap with the +
       (§2) goes too.
   - **The pill**, as the bell (owner, "notification floating icon behavior"):
-    - after a change: ↶, the change's line ("Moved 3 items to Trash") and **Undo**;
-    - after 6 s, the line slides away and the pill holds ↶, and ↷ when there is something to redo,
-      with × beside them;
+    - after a change: ↶, and ↷ when there is something to redo, each saying what it would do, with
+      × apart at its top end — icons only since 2026-11-04 (owner's request: a long name stretched
+      the pill);
     - 10 s later it goes, as the bell does.
-    - Undone, its line says what came back ("Restored 3 items"), with **Redo**.
     - Not shown while a sheet or the Notifications page is open.
-    - TalkBack reads its line as the bell's.
+    - TalkBack reads the change ("Moved 3 items to Trash", "Restored 3 items") as the bell's.
   - **The explorer's ⋮** keeps "Undo *what*" and "Redo *what*" for later.
 
 ### 3.9 Properties
@@ -992,9 +991,8 @@ Descending.
   - **Its state:** `UndoPillState`, with `rememberUndoPill`, lives at the app's root, like the bell's.
   - **Each change** in `FileHistoryState.news` is told once, and is not told again as the screen
     turns.
-  - **Unfolded:** ↶, then the change's line with Undo — or, after an undo, what came back with Redo.
-  - **After `FileNews.LINE_MILLIS`:** ↶, ↷ when something can be redone, and ×.
-  - **After `HOLD_MILLIS`:** it goes.
+  - **Shown:** ↶, ↷ when something can be redone, and × apart (`IcodeFloatingAway`).
+  - **After `FileNews.HOLD_MILLIS`:** it goes.
 - **Its place:** `IcodeApp` provides `LocalIcodeFloors` and draws the stack beside `NoticeHost`,
   over every screen but the Notifications page.
 

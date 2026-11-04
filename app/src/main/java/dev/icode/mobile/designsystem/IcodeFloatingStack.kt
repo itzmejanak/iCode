@@ -3,33 +3,30 @@ package dev.icode.mobile.designsystem
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -62,13 +59,8 @@ import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.liveRegion
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Density
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 
@@ -126,24 +118,21 @@ internal fun SheetOpen() {
 /**
  * The floating stack (§3.8): [content] — the undo pill above the bell — in one column at the bottom
  * end, above the highest of [floors] and at least [IcodeSizes.FabClearance] up; gone while a sheet is
- * open or the stack is not [visible]. A line in it takes at most [LINE_SHARE] of the screen's width,
- * given to [content].
+ * open or the stack is not [visible]. Its pills say nothing in words (owner's request, 2026-11-04):
+ * icons and counts only, so a long name never stretches them.
  */
 @Composable
-fun IcodeFloatingStack(floors: IcodeFloors, visible: Boolean, content: @Composable ColumnScope.(lineWidth: Dp) -> Unit) {
+fun IcodeFloatingStack(floors: IcodeFloors, visible: Boolean, content: @Composable ColumnScope.() -> Unit) {
     var bottom by remember { mutableFloatStateOf(0f) }
-    BoxWithConstraints(Modifier.fillMaxSize().onGloballyPositioned { bottom = it.boundsInRoot().bottom }) {
+    Box(Modifier.fillMaxSize().onGloballyPositioned { bottom = it.boundsInRoot().bottom }) {
         val above = floors.highest?.let { with(LocalDensity.current) { (bottom - it).toDp() } + IcodeSpacing.Space2 }
-        val lineWidth = maxWidth * LINE_SHARE
         AnimatedVisibility(
             visible = visible && !floors.sheetOpen,
             modifier = Modifier.align(Alignment.BottomEnd).padding(end = IcodeSpacing.Gutter, bottom = maxOf(IcodeSizes.FabClearance, above ?: 0.dp)),
             enter = slideInHorizontally { it } + fadeIn(),
             exit = slideOutHorizontally { it } + fadeOut(),
         ) {
-            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
-                content(lineWidth)
-            }
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2), content = content)
         }
     }
 }
@@ -207,7 +196,13 @@ fun IcodeFloatingPill(
                 if (menu.isNotEmpty()) TabAction(Icons.Outlined.MoreVert, "More", true, if (open) IcodeColors.Accent else IcodeColors.TextSecondary) { open = !open }
             }
         }
-        Row(Modifier.heightIn(min = IcodeSizes.TouchTarget), verticalAlignment = Alignment.CenterVertically, content = content)
+        // As tall as its content, at least a touch target: content filling its height (the bell's
+        // tap area) fills that, never the screen.
+        Row(
+            Modifier.heightIn(min = IcodeSizes.TouchTarget).height(IntrinsicSize.Min),
+            verticalAlignment = Alignment.CenterVertically,
+            content = content,
+        )
     }
 }
 
@@ -276,42 +271,22 @@ private data class TabbedPill(val tabWidth: Float, val rise: Float) : Shape {
 }
 
 /**
- * A pill's line, sliding out from beside its icon and back, at most [maxWidth], with its [action]
- * after it; TalkBack reads it as it read a toast.
+ * A floating [pill] with its ×, apart from it on nothing just off its top end (owner's design,
+ * 2026-11-04): × puts the pill away; touch finds it a touch target.
  */
 @Composable
-fun IcodeFloatingLine(visible: Boolean, text: String, maxWidth: Dp, action: (@Composable RowScope.() -> Unit)? = null) {
-    AnimatedVisibility(
-        visible = visible,
-        enter = expandHorizontally(tween(FLOATING_SLIDE_MILLIS), expandFrom = Alignment.End) + fadeIn(tween(FLOATING_SLIDE_MILLIS)),
-        exit = shrinkHorizontally(tween(FLOATING_SLIDE_MILLIS), shrinkTowards = Alignment.End) + fadeOut(tween(FLOATING_SLIDE_MILLIS)),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text,
-                style = IcodeType.Body,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .widthIn(max = maxWidth)
-                    .padding(end = if (action == null) IcodeSpacing.Space4 else IcodeSpacing.Space1)
-                    .semantics { liveRegion = LiveRegionMode.Polite },
-            )
-            action?.invoke(this)
-        }
-    }
-}
-
-/** ×, putting a pill away: it comes once the line has gone, so the pill does not jostle while it slides. */
-@Composable
-fun IcodeFloatingAway(visible: Boolean, label: String, onClick: () -> Unit) {
-    AnimatedVisibility(
-        visible = visible,
-        enter = expandHorizontally(tween(FLOATING_SLIDE_MILLIS, delayMillis = FLOATING_SLIDE_MILLIS), expandFrom = Alignment.Start) +
-            fadeIn(tween(FLOATING_SLIDE_MILLIS, delayMillis = FLOATING_SLIDE_MILLIS)),
-        exit = fadeOut(tween(FLOATING_SLIDE_MILLIS)),
-    ) {
-        IconButton(onClick = onClick) {
+fun IcodeFloatingAway(label: String, onAway: () -> Unit, pill: @Composable () -> Unit) {
+    Box {
+        pill()
+        Box(
+            Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = IcodeSpacing.Space1, y = -IcodeSpacing.Space1)
+                .size(IcodeSizes.IconXl)
+                .clip(IcodeShapes.Pill)
+                .clickable(role = Role.Button, onClickLabel = label, onClick = onAway),
+            contentAlignment = Alignment.Center,
+        ) {
             Icon(Icons.Outlined.Close, contentDescription = label, tint = IcodeColors.TextSecondary, modifier = Modifier.size(IcodeSizes.IconSm))
         }
     }
@@ -319,9 +294,3 @@ fun IcodeFloatingAway(visible: Boolean, label: String, onClick: () -> Unit) {
 
 /** A pill's tab grows and shrinks over this long, as ⋮ opens and closes its menu. */
 private const val TAB_MILLIS = 200
-
-/** A pill's line slides in and out over this long. */
-const val FLOATING_SLIDE_MILLIS = 350
-
-/** The line takes at most this share of the screen's width. */
-private const val LINE_SHARE = 0.75f

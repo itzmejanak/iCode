@@ -257,9 +257,9 @@ fun IcodeApp(
                         FileAsks(snapshot.explorer, gateway)
                     }
                     // The undo pill above the bell, over every screen but the Notifications page (docs/explorer-gaps-plan.md §3.8).
-                    IcodeFloatingStack(floors, visible = !pageOpen) { lineWidth ->
-                        UndoPill(undo, snapshot.explorer.history, lineWidth)
-                        NoticeBell(notices, snapshot.notices, lineWidth, onAll = toAll)
+                    IcodeFloatingStack(floors, visible = !pageOpen) {
+                        UndoPill(undo, snapshot.explorer.history)
+                        NoticeBell(notices, snapshot.notices, onAll = toAll)
                     }
                 }
             }
