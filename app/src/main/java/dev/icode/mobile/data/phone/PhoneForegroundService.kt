@@ -19,7 +19,6 @@ import dev.icode.mobile.data.tasks.WorkNotifications
 import dev.icode.mobile.data.workspace.AndroidICodeGateway
 import dev.icode.mobile.data.workspace.ICodeProcess
 import dev.icode.mobile.domain.BackgroundPlace
-import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.PhoneIntent
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
@@ -34,18 +33,17 @@ import kotlinx.coroutines.launch
  * Phone control's foreground service (docs/phone-agent-plan.md §5.8, §5.9): it keeps the agent alive
  * while phone control is on, and holds the microphone for the bubble while iCode is away. Android
  * gives that only to a service started while iCode is on screen; one started again without it runs
- * without the microphone ([microphone] false), and the bubble says so. Its notification has Stop, Show
- * bubble and Turn off.
+ * without the microphone ([microphone] false), and the bubble says so. Its notification says phone
+ * control is on, with Show bubble while the bubble is put away, and Turn off. A turn in hand is not
+ * repeated here: it is the work's own notification, with its step, Stop and its question.
  */
 class PhoneForegroundService : Service() {
     private val scope = MainScope()
     private lateinit var gateway: AndroidICodeGateway
     private lateinit var notifications: NotificationManager
-    private var shown = Shown(working = null, bubble = true)
+    /** The bubble is out: the notification offers Show bubble only while it is put away. */
+    private var bubble = true
     private var started = false
-
-    /** What the notification says: the step of a turn in hand, and whether the bubble is out. */
-    private data class Shown(val working: String?, val bubble: Boolean)
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -61,8 +59,8 @@ class PhoneForegroundService : Service() {
         gateway = ICodeProcess.attach(this)
         active = true
         scope.launch {
-            gateway.snapshot.map { Shown(it.assistant.turn?.step, it.phone.bubble) }.distinctUntilChanged().collect {
-                shown = it
+            gateway.snapshot.map { it.phone.bubble }.distinctUntilChanged().collect {
+                bubble = it
                 if (started) notifications.notify(NOTIFICATION, notification())
             }
         }
@@ -70,7 +68,6 @@ class PhoneForegroundService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_STOP -> gateway.dispatch(ICodeIntent.StopAssistant)
             ACTION_SHOW_BUBBLE -> gateway.dispatch(PhoneIntent.ShowBubble(true))
             ACTION_TURN_OFF -> gateway.dispatch(PhoneIntent.TurnOff)
             // Once asked for while iCode was on screen, the microphone is never given up: a start
@@ -116,14 +113,13 @@ class PhoneForegroundService : Service() {
         return Notification.Builder(this, CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
             .setColor(getColor(R.color.notification_accent))
-            .setContentTitle(if (shown.working != null) "Assistant working" else "Phone control is on")
-            .setContentText(shown.working ?: "The assistant can use this phone")
+            .setContentTitle("Phone control is on")
+            .setContentText("The assistant can use this phone")
             .setContentIntent(WorkNotifications.open(this, BackgroundPlace.Assistant))
             .setOngoing(true)
             .setCategory(Notification.CATEGORY_SERVICE)
             .apply {
-                if (shown.working != null) addAction(action("Stop", ACTION_STOP))
-                if (!shown.bubble) addAction(action("Show bubble", ACTION_SHOW_BUBBLE))
+                if (!bubble) addAction(action("Show bubble", ACTION_SHOW_BUBBLE))
                 addAction(action("Turn off", ACTION_TURN_OFF))
             }
             .build()
@@ -135,7 +131,6 @@ class PhoneForegroundService : Service() {
         // Clear of the terminal's (4711, 5000s, 6000s) and the work's (7000s to 9000s).
         private const val NOTIFICATION = 10_000
         private const val EXTRA_MICROPHONE = "microphone"
-        private const val ACTION_STOP = "dev.icode.mobile.phone.STOP"
         private const val ACTION_SHOW_BUBBLE = "dev.icode.mobile.phone.SHOW_BUBBLE"
         private const val ACTION_TURN_OFF = "dev.icode.mobile.phone.TURN_OFF"
 

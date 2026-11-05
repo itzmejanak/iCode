@@ -36,6 +36,7 @@ import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.said
 import java.io.File
 import java.util.Collections
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -63,7 +64,8 @@ class AssistantCoordinatorTest {
     private val originalWriter = BackendLog.writer
     private val stateHolder = ICodeStateHolder()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    private val effects = Collections.synchronizedList(mutableListOf<ICodeEffect>())
+    // Read while the coordinator still adds to it: iterated as a snapshot, never mid-change.
+    private val effects = CopyOnWriteArrayList<ICodeEffect>()
     /** The real store, over preferences in memory; a key "encrypted" as itself, marked. */
     private val providers = SharedPreferencesAssistantProviderStore(InMemoryPreferences(), { "enc:$it" }, { it.removePrefix("enc:") })
     private val openAI by lazy {

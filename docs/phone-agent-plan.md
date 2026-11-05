@@ -312,8 +312,8 @@ Each is fixed where it is, not worked around beside it.
 
 ### 5.7 The bubble
 
-The owner's design (2026-11-03; **redesigned 2026-11-04, after Gemini**: the bubble anchored at the
-bottom, expanding in place): three things on screen — the **bubble**, a **bar** it expands
+The owner's design (2026-11-03; **redesigned 2026-11-04, after Gemini**: the bubble docked on an
+edge, expanding in place): three things on screen — the **bubble**, a **bar** it expands
 into when text can be typed, and the **edge glow** — and everything else only when it is needed. No
 header, no cards of actions, no dashboard.
 
@@ -323,11 +323,15 @@ header, no cards of actions, no dashboard.
   that still lists iCode there from an earlier build (`accessibility_button_targets`, readable by
   apps) is told so on Phone Control, whose row opens iCode's accessibility page to turn it off: once
   the flag is gone, a tap on that button would turn the service off.
-- **The bubble**, anchored at the bottom of the screen, centred unless dragged aside along it —
-  Gemini's place, not Android's floating button: the window is centred on its own middle, so the bar
-  it expands into grows from that middle and the bubble stays put under it, clear of the gesture
-  area. Dragged anywhere, it drops back to the bottom; idle for three seconds it sinks half behind
-  the bottom edge and fades; anything new brings it out. Hidden while iCode is on screen. Its six
+- **The bubble**, docked on an edge (the owner's request, 2026-11-04): first at the bottom of the
+  screen, centred — Gemini's place, not Android's floating button. Dragged anywhere, it docks on the
+  nearest of the bottom, left and right edges, where it was let go along it (not the top: the status
+  bar is there, and ✕), and that edge and place are kept (`BubblePlacement`, in the `phone_bubble`
+  preferences) for the next time it shows. At the bottom its window is centred on its own middle, so
+  the bar grows from that middle; on a side it grows away from the edge. The voice bubble opens where
+  the bubble sits; the bar, which holds the keyboard, opens at the bottom, in the middle, by the
+  keyboard (the owner's correction, 2026-11-05). Clear of the system bars and the gesture area; idle for three seconds it sinks half
+  behind its edge and fades; anything new brings it out. Hidden while iCode is on screen. Its six
   states (`PhoneOverlay.Look`), the agent's before the microphone's — muting never hides that the
   agent works, and it shows listening only while it listens:
 
@@ -342,7 +346,7 @@ header, no cards of actions, no dashboard.
 
   A dot shows while a question waits. The bar's microphone carries the same states, so what the
   agent does never hides behind the keyboard.
-- **The bar**, the bubble expanded into it where it sat — one floating pill holding the keyboard:
+- **The bar**, the bubble expanded into it where it sat (from a side, in the middle of the bottom) — one floating pill holding the keyboard:
   the mark that collapses it back (or, muted, resumes listening), the field, the microphone, Send
   (Stop while the agent works, Stop reading while it speaks). What leads the pill sits as far in
   from its end as the last icon from the other. The field grows with what is typed up to four
@@ -366,7 +370,7 @@ header, no cards of actions, no dashboard.
   stops only the microphone, Stop in the voice bubble throws the hearing away, Stop in the bar stops
   the agent, closing the bar stops nothing, and dragging onto ✕ puts everything away.
 - **Put away** (the owner's word): dragging the bubble shows a ✕ at the top of the screen — away
-  from where the bubble lives at the bottom; dropped there, the bubble goes and the glow goes with
+  away from the edges the bubble docks on; dropped there, the bubble goes, keeping its place, and the glow goes with
   it, and the voice is silenced. While a turn acts on the phone, the target reads "Stop and hide",
   and dropping stops it. Phone control stays on: the bubble comes back from the notification's
   **Show bubble**, or Phone Control's Bubble switch.
@@ -424,7 +428,9 @@ header, no cards of actions, no dashboard.
 - **While it is on:**
   - the foreground service carries `specialUse|microphone` and keeps the agent alive;
   - the bubble shows whenever iCode is not on screen;
-  - the notification has Stop and Turn off.
+  - its notification says so, with Show bubble while the bubble is put away, and Turn off; the turn
+    in hand is the work's own notification (its step, Stop, the question it waits on), never a second
+    one here.
 - **Off:** the service's overlays go, the agent's tools go, and nothing is read.
 
 ### 5.10 Where it lives in the code
@@ -561,7 +567,7 @@ Central's libraries, runs the unit tests it touches, and leaves the Android buil
 | **P4** | `PhoneTools` (nine tools), `PhoneSummaries`, `AssistantStep` (the reply's calls, the picture, the hand-over), `AssistantGate` (an act asks about its app: "Act in WhatsApp?", "Allow in WhatsApp"), the instructions' phone section, the shared approval words (`AssistantPermissions.question`, `allowIn`, `allowOnce`) | `PhoneToolsTest`, `AssistantGateTest`; 533 domain and assistant tests pass |
 | **P5** | `PhoneGlow` (four strips, breathing, dimmed while waiting), `PhoneBubble` (mark, ring, dot; panel with the question, field, Send/Stop, New chat, Open in iCode; the ✕ target), `PhoneOverlays` (trusted windows, drag and snap, put away, the accessibility button, hidden for captures), `PhoneOverlay` rules, `appearancePalette` shared with the app | `PhoneRulesTest` (what shows when); the UI compiled; on a phone: the keyboard in the panel, the glow over secure apps |
 | **P7** | `PhoneSetup` (the steps per state: restricted settings from API 33, then the service; one tap with Shizuku ready; the status line), Phone Control (the steps opening App info and Accessibility, Turn On With Shizuku, the bubble, Turn Off), Shizuku (state, its one step: Get, Open, Allow iCode; what it adds), routes `PhoneControl` and `ShizukuSetup`; both read again on resume. Settings › Assistant as pages: Providers, Voice, Phone Control | `PhoneSetupTest`, `RouteTest`; the guards |
-| **P6** | `VoiceCoordinator` (one per process, its state in the snapshot, `VoiceIntent`): Android's recognizer (on the phone where it can, API 31) and text-to-speech; on this phone, sherpa-onnx v1.13.8 — Whisper base or SenseVoice cut by Silero at each pause (`ModelListener`, recording at once while the models load), Kokoro or a Piper voice played sentence by sentence (`ModelSpeaker`). `VoiceCatalog`: 36 models pinned by size and SHA-256, read from the files; only kept files taken from each archive (`VoiceModels`). `SpokenText`: the answer and the questions without Markdown, a new turn hushes, a stopped or failed one says nothing; a turn is answered aloud by its `aloud` flag, set by the bubble and the microphone. `PhoneForegroundService` (`specialUse|microphone`): the microphone while iCode is away, started again with it each time iCode is on screen; Stop, Show bubble, Turn off. The microphone (`MicButton`, `HeardLine`, `OnHeard`) shared by the composer and the bubble: words as they are heard, sent once the user stops talking | `SpokenTextTest`, `VoiceCatalogTest`, `VoiceModelsTest` (kept files only, nothing outside the folder), `SherpaConfigsTest` (every file given is kept), `AssistantCoordinatorTest` (aloud); the app compiled against sherpa-onnx's classes; its arm64 libraries checked 16 KB aligned |
+| **P6** | `VoiceCoordinator` (one per process, its state in the snapshot, `VoiceIntent`): Android's recognizer (on the phone where it can, API 31) and text-to-speech; on this phone, sherpa-onnx v1.13.8 — Whisper base or SenseVoice cut by Silero at each pause (`ModelListener`, recording at once while the models load), Kokoro or a Piper voice played sentence by sentence (`ModelSpeaker`). `VoiceCatalog`: 36 models pinned by size and SHA-256, read from the files; only kept files taken from each archive (`VoiceModels`). `SpokenText`: the answer and the questions without Markdown, a new turn hushes, a stopped or failed one says nothing; a turn is answered aloud by its `aloud` flag, set by the bubble and the microphone. `PhoneForegroundService` (`specialUse|microphone`): the microphone while iCode is away, started again with it each time iCode is on screen; Show bubble, Turn off (the turn in hand is the work's notification, with Stop). The microphone (`MicButton`, `HeardLine`, `OnHeard`) shared by the composer and the bubble: words as they are heard, sent once the user stops talking | `SpokenTextTest`, `VoiceCatalogTest`, `VoiceModelsTest` (kept files only, nothing outside the folder), `SherpaConfigsTest` (every file given is kept), `AssistantCoordinatorTest` (aloud); the app compiled against sherpa-onnx's classes; its arm64 libraries checked 16 KB aligned |
 | **Redesign** (owner's request) | The new pages as Settings › Terminal's: `SettingRow`s with an icon, a one-line subtitle and a state (`AccessState`) or control, `IcodeSelect` for choices, no paragraphs. Voice: microphone; listening and speaking, each Android's or a model here, its size said before Download, then Cancel or Remove; Play Sample; spoken replies; what else is on the phone. Shared settings helpers in `SystemPages.kt` | The UI guard (no Toasts, no screens reaching `data/`), the backend guard |
 | **The bubble's states** (owner's design) | One icon: Android's accessibility button no longer asked for, and a leftover one named on Phone Control with the way to remove it (`PhoneAccess.systemButton`, `PhoneIntent.OpenAccessibility` opening iCode's own accessibility page). `PhoneOverlay.Look`'s six states, the agent's before the microphone's; `BubblePlacement` (docked at an edge, tucked and faded when idle, dragged and snapped); `PhoneBubble` (the states, the waveform, the words heard), `PhoneBubbleBar` (the floating pill, and its one card of what there is to say); `PhoneOverlays` (Closed, Typing, Voice: tap to mute, resume, silence; sent once the user stops talking; muted, the words wait) | `PhoneRulesTest` (the states and which comes first); the guards |
 | **Android's voice, read as written** (owner's decision and design, 2026-11-04) | The open-source voice removed end to end: sherpa-onnx and its rule, `VoiceCatalog`, `VoiceModels`, `SherpaConfigs`, `ModelListener`, `ModelSpeaker` and their tests; `VoiceCoordinator.forgetModels` deletes what an earlier build downloaded and its settings. `SpokenTurn` turns the assistant's changes into `VoiceCue`s (Begin, Say, End, Hush): sentences said as they are written (`SpokenText.ready`, never inside code), the rest once recorded, the questions in turn; `VoiceSpeaker` queues each into one session per turn, the engine readied at Begin. `AssistantInstructions`: a turn read aloud asks for a short spoken answer, nothing else changed. Voice settings: Microphone, Read Aloud (answers, Play Sample), Android (Voice and Language, Speech Recognition). The bar (after the owner's bottom-anchored redesign): a field growing to four lines; the owner's paper design, a tab rising from the pill's end (`IcodeFloatingPill`'s `tab` and `menu`, its outline `TabbedPill` following the tab's width in the frame it is measured) with, past four lines, Expand to a twelve-line editor, and ⋮, which opens New chat and Open in iCode in the tab itself; the notes above it; `IcodeFloatingPill` grows taller with its corners kept; the voice bubble (`PhoneVoiceBubble`) and the bar with their ends inset alike | `SpokenTextTest` (7), `SpokenTurnTest` (4: a streamed turn, a turn not read, stopped and failed, questions and another chat); the domain, assistant and navigation suites; the app compiled; the guards |

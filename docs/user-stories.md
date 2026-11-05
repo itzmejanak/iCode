@@ -1145,7 +1145,7 @@ Acceptance criteria:
 
 - **Settings › Assistant › Phone Control** is off until I turn it on: through Android's Allow restricted settings and Accessibility, each step a row that opens its page, or in one tap when Shizuku is ready.
 - The **Shizuku** page shows its state as it is now and the one step that state needs.
-- One bubble shows over other apps whenever iCode is not on screen — never a second icon — at the bottom of the screen, tucked half away while nothing goes on. It shows whether the assistant is idle, listening, muted, thinking, acting on the phone or speaking.
+- One bubble shows over other apps whenever iCode is not on screen — never a second icon — on the edge of the screen where it was last left (the bottom, or either side), tucked half away while nothing goes on. It shows whether the assistant is idle, listening, muted, thinking, acting on the phone or speaking.
 - Tapped, it opens into a bar: a field, the microphone, Send (Stop while it works). The field grows with what I type. A tab rising from the bar's end holds, past four lines, Expand, which makes the field an editor, and ⋮, which opens New chat and Open in iCode in the tab itself, the tab growing to hold them. Above, only when needed: what it is doing, the question waiting with its answers, or why it failed, with Retry.
 - The microphone hides the bar and sends what I said once I stop talking; tapping the bubble while it listens mutes it and keeps my words to edit; tapping it while it reads an answer aloud stops the reading. Muting never stops what the assistant is doing.
 - The screen's edges glow while the assistant acts on the phone, dimmed while it waits for me; dragging the bubble onto ✕ puts both away, and stops the assistant if it is acting.
