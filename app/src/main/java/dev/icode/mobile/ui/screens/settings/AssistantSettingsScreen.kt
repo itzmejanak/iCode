@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.Hub
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.PhoneAndroid
@@ -48,7 +49,7 @@ import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
- * Settings › Assistant: its pages — Providers, Voice, Phone Control — as Settings lists its categories
+ * Settings › Assistant: its pages — Providers, MCP Servers, Voice, Phone Control — as Settings lists its categories
  * (owner's request, 2026-11-03). The chat's model, mode, effort and permissions are chosen on the chat page.
  */
 @Composable
@@ -74,6 +75,15 @@ fun AssistantSettingsScreen(actions: NavigationActions) {
                     if (settings.providers.isEmpty()) AccessState("NONE", allowed = false)
                     Chevron()
                 }
+                SettingRow(
+                    "MCP Servers",
+                    Modifier.fillMaxWidth(),
+                    subtitle = snapshot.mcp.servers.size.let { count ->
+                        if (count == 0) "Tools from other servers" else "${if (count == 1) "1 server" else "$count servers"} · ${snapshot.mcp.toolsOn} tools"
+                    },
+                    leadingIcon = Icons.Outlined.Extension,
+                    onClick = { actions.navigate(Route.McpServers) },
+                ) { Chevron() }
                 SettingRow(
                     "Voice",
                     Modifier.fillMaxWidth(),

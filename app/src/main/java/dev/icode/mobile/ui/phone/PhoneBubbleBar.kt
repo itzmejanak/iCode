@@ -187,7 +187,7 @@ private fun Notes(view: PhoneBubbleView, actions: PhoneBubbleActions) {
         verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
     ) {
         step?.let { Text(it, style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary), maxLines = 1, overflow = TextOverflow.Ellipsis) }
-        if (overlay.asking) Question(view, actions.dispatch)
+        if (overlay.asking) Question(view, actions)
         if (problem != null) HeardLine(view.voice, VoiceFrom.Bubble)
         failure?.let {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -198,15 +198,24 @@ private fun Notes(view: PhoneBubbleView, actions: PhoneBubbleActions) {
     }
 }
 
-/** The question the turn waits on, with its answers: an approval, or a pause. Shared words with the chat's cards. */
+/**
+ * The question the turn waits on, with its answers: an approval, or a pause. Shared words with the chat's
+ * cards. An MCP server's question shows its first line: its form is answered in iCode.
+ */
 @Composable
-private fun Question(view: PhoneBubbleView, dispatch: (ICodeIntent) -> Unit) {
+private fun Question(view: PhoneBubbleView, actions: PhoneBubbleActions) {
+    val dispatch = actions.dispatch
     val assistant = view.assistant
     val approval = assistant.approval
     val pause = assistant.pause
+    val asked = view.question?.takeIf { approval == null && pause == null }
     val bound = AssistantPlace.name(assistant.turn?.workspace ?: assistant.workspace.orEmpty())
-    Text(approval?.let { AssistantPermissions.question(it, bound) } ?: pause?.kind?.question.orEmpty(), style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold))
-    Text(approval?.call?.summary ?: pause?.detail.orEmpty(), style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary), maxLines = 2, overflow = TextOverflow.Ellipsis)
+    val title = approval?.let { AssistantPermissions.question(it, bound) } ?: pause?.kind?.question ?: asked?.let { "${it.server} asks" }
+    Text(title.orEmpty(), style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold))
+    Text(
+        approval?.call?.summary ?: pause?.detail ?: asked?.message?.lineSequence()?.firstOrNull().orEmpty(),
+        style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary), maxLines = 2, overflow = TextOverflow.Ellipsis,
+    )
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2, Alignment.End)) {
         if (approval != null) {
             val answer = { it: AssistantAnswer -> dispatch(ICodeIntent.AnswerAssistant(approval.call.id, it)) }
@@ -216,6 +225,8 @@ private fun Question(view: PhoneBubbleView, dispatch: (ICodeIntent) -> Unit) {
         } else if (pause != null) {
             SecondaryButton("Stop", { dispatch(ICodeIntent.StopAssistant) }, compact = true)
             PrimaryButton(pause.kind.proceed, { dispatch(ICodeIntent.ContinueAssistant) }, compact = true)
+        } else if (asked != null) {
+            PrimaryButton("Open in iCode", actions.open, compact = true)
         }
     }
 }

@@ -89,7 +89,9 @@ internal class McpServers(
             is McpIntent.SetServerEnabled -> server(intent.id)?.let { save(it.copy(enabled = intent.enabled)) }
             is McpIntent.SetToolChoice -> server(intent.id)?.let { store.save(it.copy(tools = it.tools + (intent.tool to intent.choice))); publish() }
             is McpIntent.RestartServer -> server(intent.id)?.let { stop(it.id); ensure(it) }
-            is McpIntent.ReadLog -> stateHolder.update { it.copy(mcp = it.mcp.copy(log = intent.id?.let { id -> McpLog(id, local.tail(id)) })) }
+            is McpIntent.Edit -> stateHolder.update {
+                it.copy(mcp = it.mcp.copy(editing = intent.server, log = intent.server?.id?.takeIf(String::isNotEmpty)?.let { id -> McpLog(id, local.tail(id)) }))
+            }
             is McpIntent.SignIn -> server(intent.id)?.let { server -> scope.launch { signingIn(server) { stateHolder.emit(ICodeEffect.OpenExternalUrl(signIn.begin(server))) } } }
             is McpIntent.SignOut -> server(intent.id)?.let { store.saveSignIn(it.id, null); stop(it.id); ensure(it) }
             is McpIntent.SignedIn -> scope.launch { signingIn(null) { server(signIn.finish(intent.uri))?.let { stop(it.id); ensure(it) } } }
@@ -114,6 +116,7 @@ internal class McpServers(
         val missed = waiting.filter { server -> connected.none { it.first.id == server.id } }
         if (missed.isNotEmpty()) step.progress("Going on without ${missed.joinToString { it.name }}")
         return McpTool.offer(connected, step, taken, room, questions::asking, offers).also { offered ->
+            stateHolder.update { it.copy(mcp = it.mcp.copy(leftOut = offered.leftOut)) }
             if (offered.leftOut > 0) step.progress("${offered.leftOut} MCP tools left out: over ${McpRules.MAX_TOOLS} a request")
         }
     }
@@ -259,7 +262,8 @@ internal class McpServers(
     private fun publish() {
         val servers = servers(activeRoot())
         val shown = synchronized(lock) { servers.associate { it.id to (states[it.id] ?: McpServerState()) } }
-        stateHolder.update { it.copy(mcp = it.mcp.copy(servers = servers, states = shown)) }
+        val signedIn = servers.filter { it.transport is McpTransport.Remote && store.signedIn(it.id) }.map { it.id }.toSet()
+        stateHolder.update { it.copy(mcp = it.mcp.copy(servers = servers, states = shown, signedIn = signedIn)) }
     }
 
     private suspend fun say(title: String, server: McpServer?, tone: NoticeTone = NoticeTone.HeadsUp) {

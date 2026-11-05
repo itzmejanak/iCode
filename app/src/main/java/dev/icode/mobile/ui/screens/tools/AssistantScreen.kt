@@ -35,6 +35,7 @@ import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantStepRules
 import dev.icode.mobile.domain.GitChange
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.McpIntent
 import dev.icode.mobile.domain.NoticeIntent
 import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.navigation.NavigationActions
@@ -78,6 +79,12 @@ fun AssistantScreen(actions: NavigationActions) {
     // The message being written and the files going with it: this page's own until sent.
     var draft by rememberSaveable(state.workspace) { mutableStateOf("") }
     var attached by rememberSaveable(state.workspace, stateSaver = DRAFT_SAVER) { mutableStateOf(emptyList<DraftFile>()) }
+    // An MCP server's prompt or resource, taken into the message for the user to read before sending (M8).
+    LaunchedEffect(snapshot.mcp.draft) {
+        val taken = snapshot.mcp.draft ?: return@LaunchedEffect
+        draft = listOf(draft, taken).filter(String::isNotBlank).joinToString("\n\n")
+        gateway.dispatch(McpIntent.DraftTaken)
+    }
     // Up to five, each once, in the order chosen; any past five are said to stay behind.
     val attach = { files: List<DraftFile> ->
         val all = (attached + files).distinctBy { it.location }

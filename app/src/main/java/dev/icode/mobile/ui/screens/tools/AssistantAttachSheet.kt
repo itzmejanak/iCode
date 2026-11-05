@@ -103,6 +103,7 @@ internal fun AssistantAttachSheet(
             AttachTile("Files", Icons.Outlined.FolderOpen, !full, Modifier.weight(1f)) { pick(pickers.files) }
         }
         Hint(if (full) "Five files go with a message at most: take one off to add another" else "Photos and PDFs go to models that read them; text files to any model")
+        McpOffers(snapshot.mcp, onTaken = onClose)
         // The workspace's own files; the chat is only open on one.
         if (root != null) {
             SectionLabel("From ${AssistantPlace.name(root)}", Modifier.padding(top = IcodeSpacing.SectionBreak))

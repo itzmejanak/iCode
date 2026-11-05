@@ -62,6 +62,7 @@ import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.StatusDot
 import dev.icode.mobile.domain.AssistantState
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.McpQuestion
 import dev.icode.mobile.domain.phone.PhoneOverlay
 import dev.icode.mobile.domain.phone.PhoneOverlay.Look
 import dev.icode.mobile.domain.voice.VoiceState
@@ -102,6 +103,8 @@ internal class PhoneBubbleView(
     val edge: BubbleEdge,
     val draft: String,
     val onDraft: (String) -> Unit,
+    /** An MCP server asks the user mid-call: answered in iCode, where its form is. */
+    val question: McpQuestion? = null,
 )
 
 /**

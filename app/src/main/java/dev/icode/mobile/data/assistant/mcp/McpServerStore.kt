@@ -89,6 +89,8 @@ internal class McpServerStore(
     /** A sign-in's tokens (M5), as [McpSignIn] keeps them; null when signed out. */
     fun signIn(id: String): String? = synchronized(lock) { preferences.getString(signInKey(id), null)?.let(decrypt) }
 
+    fun signedIn(id: String): Boolean = synchronized(lock) { preferences.contains(signInKey(id)) }
+
     fun saveSignIn(id: String, tokens: String?) = synchronized(lock) {
         preferences.commitOrFail("Unable to keep the sign-in") {
             if (tokens == null) remove(signInKey(id)) else putString(signInKey(id), encrypt(tokens))

@@ -22,8 +22,11 @@ sealed interface McpIntent : ICodeIntent.AssistantIntent {
     /** Stops a server and starts it again, its tools read anew. */
     data class RestartServer(val id: String) : McpIntent
 
-    /** Reads a server's log for its page; null when the page closes. */
-    data class ReadLog(val id: String?) : McpIntent
+    /**
+     * A server's page opens on [server] — one saved, or one to add ([McpServer.id] "") — and reads its
+     * log; again, the log is read anew. Null: the page closed.
+     */
+    data class Edit(val server: McpServer?) : McpIntent
 
     /** A remote server's sign-in (M5): the browser opens on its authorization page. */
     data class SignIn(val id: String) : McpIntent

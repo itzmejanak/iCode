@@ -46,6 +46,7 @@ import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantState
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 import kotlinx.coroutines.launch
 
 /**
@@ -193,6 +194,9 @@ internal fun AssistantChatView(
         }
         state.pause?.takeIf { state.runningHere }?.let { pause ->
             AssistantPauseCard(pause, Modifier.padding(start = IcodeSpacing.Space3, end = IcodeSpacing.Space3, top = IcodeSpacing.Space2))
+        }
+        LocalICodeSnapshot.current.mcp.question?.takeIf { state.runningHere }?.let { question ->
+            McpQuestionCard(question, Modifier.padding(start = IcodeSpacing.Space3, end = IcodeSpacing.Space3, top = IcodeSpacing.Space2))
         }
     }
 }
