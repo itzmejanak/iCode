@@ -114,7 +114,9 @@ internal class PhoneBubbleView(
 @Composable
 internal fun PhoneBubble(view: PhoneBubbleView, actions: PhoneBubbleActions) {
     val face = if (view.voiceUp) Face.Voice else if (view.bar) Face.Bar else Face.Bubble
-    val origin = view.edge.origin()
+    // The bar opens at the bottom, and from a side in the middle of it: it grows from there as from the bottom edge.
+    val from = if (view.bar) BubbleEdge.Bottom else view.edge
+    val origin = from.origin()
     AnimatedContent(
         targetState = face,
         // Drawn only, never laid out frame by frame: the window wraps its content, so a size that
@@ -125,7 +127,7 @@ internal fun PhoneBubble(view: PhoneBubbleView, actions: PhoneBubbleActions) {
                 (fadeOut(tween(MORPH_MILLIS / 2)) + scaleOut(targetScale = MORPH_SCALE, animationSpec = tween(MORPH_MILLIS / 2), transformOrigin = origin)) using
                 null
         },
-        contentAlignment = view.edge.corner(),
+        contentAlignment = from.corner(),
         label = "face",
     ) { target ->
         when (target) {

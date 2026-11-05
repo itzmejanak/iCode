@@ -34,8 +34,8 @@ All notable changes to iCode are documented here. The format follows
   Spoken replies: Off, or In the bubble (the default: what is asked from the bubble); the chat is
   read, not heard, and an answer there plays from ▶ beside Copy. A new message, Stop, or a tap on
   the bubble silences it.
-- Phone control keeps a notification with Stop, Show bubble and Turn off, and holds the microphone
-  for the bubble while iCode is away.
+- Phone control keeps a notification with Show bubble and Turn off, and holds the microphone for the
+  bubble while iCode is away. A turn in hand shows once, in its own notification with Stop.
 - One bubble on the screen's edge, in six states — idle, listening, muted, thinking, acting,
   speaking. A tap opens a bar to type in, which grows with what is typed; a tab rising from its end
   holds, for long text, Expand into an editor, and ⋮, which opens New chat and Open in iCode in the

@@ -118,7 +118,7 @@ class BackgroundWorkRulesTest {
         assertNull(BackgroundPlace.decode(null))
     }
 
-    @Test fun `the assistant's turn says its step, stops on Cancel, and carries the question it waits on`() {
+    @Test fun `the assistant's turn says its step, stops on Stop, and carries the question it waits on`() {
         val turn = AssistantTurn("/w/app", "app", "s1", "Run `npm test`")
         val working = empty.copy(assistant = AssistantState(turn = turn))
         val item = BackgroundWorkRules.of(working).single()
@@ -126,6 +126,7 @@ class BackgroundWorkRulesTest {
         assertEquals("Assistant is working…", item.heading)
         assertEquals("app · Run `npm test`", item.detail)
         assertEquals(ICodeIntent.StopAssistant, item.cancel)
+        assertEquals("Stop", item.cancelLabel)
         assertEquals(BackgroundPlace.Assistant, item.place)
         assertEquals(903, item.number)
         assertNull(item.question)

@@ -168,7 +168,8 @@ object BackgroundWorkRules {
 
     /**
      * Its progress shows on the Assistant page. A failure is said on the page, where the chat is,
-     * so it is not carried here; a question is, as it stops the turn until it is answered.
+     * so it is not carried here; a question is, as it stops the turn until it is answered. The one
+     * notification of a turn, phone control's included: Stop, the assistant's word everywhere.
      */
     private fun assistant(turn: AssistantTurn, approval: AssistantApproval?, pause: AssistantPause?) = BackgroundItem(
         key = "assistant",
@@ -178,6 +179,7 @@ object BackgroundWorkRules {
         place = BackgroundPlace.Assistant,
         watched = true,
         question = approval?.let { "${it.call.summary}?" } ?: pause?.kind?.question,
+        cancelLabel = "Stop",
     )
 
     /** Its progress shows on the tools' page, and on a button waiting for it. */

@@ -24,8 +24,8 @@ internal enum class BubbleEdge { Bottom, Left, Right }
  * Where the bubble's window sits (docs/phone-agent-plan.md §5.7): docked on the bottom edge or a side,
  * where it was let go along it, and kept there for the next time it shows. At the bottom the window
  * is centred on its own middle, so the bar the bubble expands into grows from that middle; on a side
- * it grows away from the edge. The bar holds the keyboard, so on a side it opens at the bottom, as on
- * the bottom edge: the keyboard is there. Idle a while, the bubble sinks half behind its edge and
+ * it grows away from the edge. The bar holds the keyboard, so from a side it opens at the bottom, in
+ * the middle, as on the bottom edge: the keyboard is there. Idle a while, the bubble sinks half behind its edge and
  * fades; anything new brings it out. Dragged anywhere, it docks on the nearest edge.
  */
 internal class BubblePlacement(private val windows: WindowManager, private val view: View, density: Float, private val saved: SharedPreferences) {
@@ -150,7 +150,7 @@ internal class BubblePlacement(private val windows: WindowManager, private val v
     /**
      * Docked on [edge], [along] it, clear of the system bars and the gesture area; tucked half behind
      * the edge when idle. The window grows up from the bubble's bottom and away from its edge, so the
-     * voice bubble opens from where it sits; the bar too at the bottom, and on a side at the bottom of it.
+     * voice bubble opens from where it sits; the bar too at the bottom, and from a side in the middle of it.
      */
     private fun apply() {
         val (width, height) = screen()
@@ -158,13 +158,14 @@ internal class BubblePlacement(private val windows: WindowManager, private val v
         val sunk = -size / 2
         // Off the bottom edge as the bubble sits there; the bar, holding the keyboard, sits there on any edge.
         val low = lift + insets.bottom
-        if (edge == BubbleEdge.Bottom) {
+        if (edge == BubbleEdge.Bottom || typing) {
             params.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
             // The bar may open wider than the bubble: the whole overlay, from its middle, stays on screen.
+            // From a side, the bar opens in the middle.
             val half = minOf(panel, (width - 2 * side).toFloat()).coerceAtLeast(size.toFloat()) / 2f
             val lowest = side + half
             val highest = width - side - half
-            val centre = if (highest > lowest) (along * width).coerceIn(lowest, highest) else width / 2f
+            val centre = if (edge == BubbleEdge.Bottom && highest > lowest) (along * width).coerceIn(lowest, highest) else width / 2f
             params.x = (centre - width / 2f).toInt()
             params.y = if (tucked) sunk else low
         } else {
@@ -172,7 +173,7 @@ internal class BubblePlacement(private val windows: WindowManager, private val v
             params.x = if (tucked) sunk else side + if (edge == BubbleEdge.Left) insets.left else insets.right
             // Its bottom, from the screen's: no lower than on the bottom edge, no higher than under the top's bars.
             val highest = (height - insets.top - side - size).coerceAtLeast(low)
-            params.y = if (typing) low else (height - along * height - size / 2f).toInt().coerceIn(low, highest)
+            params.y = (height - along * height - size / 2f).toInt().coerceIn(low, highest)
         }
         attached { windows.updateViewLayout(view, params) }
     }
