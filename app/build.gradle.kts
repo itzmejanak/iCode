@@ -171,8 +171,13 @@ dependencies {
     implementation("ai.koog:prompt-executor-openrouter-client:$koogVersion")
     implementation("ai.koog:prompt-executor-ollama-client:$koogVersion")
     implementation("ai.koog:http-client-ktor:$koogVersion")
-    // The HTTP engine Koog's clients run on, handed to them explicitly; the Ktor Koog is built with.
-    implementation("io.ktor:ktor-client-okhttp:3.3.3")
+    // The HTTP engine Koog's clients and the MCP client run on, handed to them explicitly. 3.5.2 is
+    // the Ktor the MCP SDK needs; Koog 1.3.0 was built with 3.3.3 (docs/mcp-plan.md M0).
+    implementation("io.ktor:ktor-client-okhttp:3.5.2")
+    // MCP servers' tools for the assistant (docs/mcp-plan.md): the official SDK's client only.
+    implementation("io.modelcontextprotocol:kotlin-sdk-client:0.16.0")
+    // The coroutines the MCP SDK runs on; Android's dispatcher at the same version.
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     // Shizuku (docs/phone-agent-plan.md §5.11): its binder, the user's permission, and a UserService of
     // iCode's own in a shell process. Apache-2.0 / MIT, on Maven Central.
     implementation("dev.rikka.shizuku:api:13.1.5")
@@ -183,6 +188,8 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     testImplementation("junit:junit:4.13.2")
+    // A real MCP server, in memory, for the client's tests (docs/mcp-plan.md M2).
+    testImplementation("io.modelcontextprotocol:kotlin-sdk-server:0.16.0")
     // Android provides org.json in production; this supplies the same API to local JVM parser tests.
     testImplementation("org.json:json:20260814")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")

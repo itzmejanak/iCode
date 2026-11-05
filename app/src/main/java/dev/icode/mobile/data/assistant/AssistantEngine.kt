@@ -149,7 +149,29 @@ internal interface AssistantFileChanger {
     val lastChanges: LineChanges?
 }
 
-internal enum class AssistantParameterType { Text, Integer, Boolean }
+/**
+ * A parameter's type: the JSON Schema shapes Koog carries to every provider (docs/mcp-plan.md §6.2).
+ * iCode's own tools use the first three; an MCP server's tool may use any of them, nested.
+ */
+internal sealed interface AssistantParameterType {
+    data object Text : AssistantParameterType
+    data object Integer : AssistantParameterType
+    data object Boolean : AssistantParameterType
+    data object Number : AssistantParameterType
+    data object Null : AssistantParameterType
+
+    /** One of [values], as text. */
+    data class Choice(val values: List<String>) : AssistantParameterType
+
+    /** A list of [of]. */
+    data class Items(val of: AssistantParameterType) : AssistantParameterType
+
+    /** An object of [fields]; [more] the type of any other field it takes, null when it names them all. */
+    data class Fields(val fields: List<AssistantParameter>, val more: AssistantParameterType? = null) : AssistantParameterType
+
+    /** Any one of [options]. */
+    data class OneOf(val options: List<AssistantParameter>) : AssistantParameterType
+}
 
 internal data class AssistantParameter(
     val name: String,

@@ -89,8 +89,19 @@ object RuntimeTools {
         listOf("build-essential"),
     )
 
+    /** Node.js's current LTS, from nodejs.org (docs/mcp-plan.md R1): Ubuntu's own is v18. */
+    const val NODE_VERSION = "26.13.0"
+
+    /** uv, from the wheel PyPI publishes (docs/mcp-plan.md R1). */
+    const val UV_VERSION = "0.13.7"
+
+    val NodeJs = RuntimeTool(
+        "nodejs", "Node.js $NODE_VERSION", "node, npm and npx", "MCP servers that start with npx", emptyList(), setup = "nodejs",
+    )
+    val Uv = RuntimeTool("uv", "uv $UV_VERSION", "Python's package runner: uv and uvx", "MCP servers that start with uvx", emptyList(), setup = "uv")
+
     /** In the order the page lists them: iCode's own first, and what a tool requires before it, so an install sets that up first. */
-    val all: List<RuntimeTool> = listOf(Git, SshClient, GnuPg, Ripgrep, AndroidSdk, Cmake) + ndks.values + listOf(Curl, Python, BuildTools)
+    val all: List<RuntimeTool> = listOf(Git, SshClient, GnuPg, Ripgrep, AndroidSdk, Cmake) + ndks.values + listOf(Curl, Python, BuildTools, NodeJs, Uv)
 
     private val index = all.associateBy { it.id }
 

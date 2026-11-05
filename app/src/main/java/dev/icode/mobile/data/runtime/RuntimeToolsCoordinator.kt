@@ -42,7 +42,8 @@ internal class RuntimeToolsCoordinator(
         RuntimePackageInstaller(
             layout,
             scope,
-            listOf(AndroidSdkSetup(layout, context), CmakeSetup(layout, context)) + RuntimeTools.ndks.keys.map { AndroidNdkSetup(layout, context, it) },
+            listOf(AndroidSdkSetup(layout, context), CmakeSetup(layout, context)) + RuntimeTools.ndks.keys.map { AndroidNdkSetup(layout, context, it) } +
+                listOf(PinnedToolSetup.node(layout, context), PinnedToolSetup.uv(layout, context)),
         ),
         layout.toolsOffer,
         licenceText = { RuntimeLicences.text(context, it) },

@@ -49,6 +49,18 @@
       "url": "https://github.com/HomuHomu833/android-ndk-custom/releases/download/r27/android-ndk-r27-aarch64-linux-musl.tar.xz",
       "bytes": 122823308,
       "sha256": "10a851646fe065895c40becb9b7b9f8480d9ad44b7d77322706689fca9fd0bf8"
+    },
+    "nodejs-arm64": {
+      "source": "Node.js 26.13.0 LTS (Lithium) for Linux arm64, with the SHA-256 nodejs.org publishes in SHASUMS256.txt",
+      "url": "https://nodejs.org/dist/v26.13.0/node-v26.13.0-linux-arm64.tar.xz",
+      "bytes": 33049732,
+      "sha256": "406fe3fbde1c054adff8b297c16fdb5af6659db327c1ac8acd46b56ef1af9a92"
+    },
+    "uv-arm64": {
+      "source": "uv 0.13.7 for Linux aarch64 (manylinux_2_28), the wheel on PyPI, with PyPI's SHA-256: its uv and uvx",
+      "url": "https://files.pythonhosted.org/packages/cf/c8/2d0da4535b8607cf224023724cbf8d4572d1a3e33c2c9629100af6b522bb/uv-0.13.7-py3-none-manylinux_2_28_aarch64.whl",
+      "bytes": 16636343,
+      "sha256": "08f16fd463926786b702b497473511deae4b3e17a2fa6d22180950d6059a120d"
     }
   },
   "packageBytes": {
