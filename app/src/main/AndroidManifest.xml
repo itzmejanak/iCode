@@ -71,6 +71,21 @@
             </intent-filter>
         </activity>
 
+        <!-- A remote MCP server's sign-in comes back here, on iCode's own scheme (docs/mcp-plan.md §8.2). -->
+        <activity
+            android:name=".SignInReturnActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="${applicationId}" />
+            </intent-filter>
+        </activity>
+
         <!-- The workspaces in Android's Files app, and to any app the user picks them for;
              only the system's documents UI binds it (docs/workspace-storage-plan.md §4.6). -->
         <provider

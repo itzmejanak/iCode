@@ -26,9 +26,17 @@ enum class AssistantAsk { Change, Command, Outside }
 data class AssistantReach(
     val paths: List<String>,
     val roots: List<String>,
-    /** The app a phone act is in (docs/phone-agent-plan.md L6): its name; [roots] then hold its [AssistantPermissions.appRoot]. */
-    val app: String? = null,
+    /** The place outside the files a call acts in — an app, an MCP server — when it is one; [roots] then hold its root. */
+    val place: AssistantElsewhere? = null,
 )
+
+/**
+ * A place outside the files a call acts in, asked about as a folder outside is (docs/phone-agent-plan.md
+ * L6, docs/mcp-plan.md §6.4): an app on the phone, or an MCP server. "Allow in" opens its [root].
+ */
+data class AssistantElsewhere(val name: String, val root: String, val kind: Kind) {
+    enum class Kind { App, Server }
+}
 
 object AssistantPermissions {
     /**
@@ -43,9 +51,13 @@ object AssistantPermissions {
         else -> AssistantAsk.Change
     }
 
-    /** What the model is told of a call the user denied, as it [asked], [outside] what it reached there, or [app] it acted in. */
-    fun denied(asked: AssistantAsk, outside: List<String>, app: String? = null): String = when (asked) {
-        AssistantAsk.Outside -> if (app != null) "The user did not allow acting in $app" else "The user did not allow reaching ${outside.joinToString()}"
+    /** What the model is told of a call the user denied, as it [asked], [outside] what it reached there, or the [place] it acted in. */
+    fun denied(asked: AssistantAsk, outside: List<String>, place: AssistantElsewhere? = null): String = when (asked) {
+        AssistantAsk.Outside -> when (place?.kind) {
+            AssistantElsewhere.Kind.App -> "The user did not allow acting in ${place.name}"
+            AssistantElsewhere.Kind.Server -> "The user did not allow using ${place.name}"
+            null -> "The user did not allow reaching ${outside.joinToString()}"
+        }
         AssistantAsk.Command -> "The user did not allow this command"
         AssistantAsk.Change -> "The user did not allow this change"
     }
@@ -55,7 +67,8 @@ object AssistantPermissions {
         val reach = approval.reach
         val kind = approval.call.kind
         return when {
-            reach?.app != null -> "Act in ${reach.app}?"
+            reach?.place?.kind == AssistantElsewhere.Kind.App -> "Act in ${reach.place.name}?"
+            reach?.place?.kind == AssistantElsewhere.Kind.Server -> "Use ${reach.place.name}?"
             reach == null && kind == AssistantToolKind.Command -> "Run this command?"
             reach == null -> "Make this change?"
             kind == AssistantToolKind.Command -> "Run this command outside $bound?"
@@ -69,7 +82,7 @@ object AssistantPermissions {
         val reach = approval.reach
         return when {
             reach == null -> "Allow in $bound"
-            reach.app != null -> "Allow in ${reach.app}"
+            reach.place != null -> "Allow in ${reach.place.name}"
             reach.roots.isNotEmpty() -> "Allow in Chat"
             else -> null
         }
@@ -101,6 +114,9 @@ object AssistantPermissions {
      * kept with the folders a chat opened: never a runtime path, which starts with `/`.
      */
     fun appRoot(packageName: String): String = "app:$packageName"
+
+    /** What "Allow in *server*" opens for an MCP server (docs/mcp-plan.md §6.4): never a runtime path either. */
+    fun serverRoot(id: String): String = "mcp:$id"
 
     /** [path] is [root] or under it, both runtime paths. */
     fun within(path: String, root: String): Boolean = path == root || path.startsWith("${root.trimEnd('/')}/")

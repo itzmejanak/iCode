@@ -9,7 +9,6 @@ import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantHistory
 import dev.icode.mobile.domain.AssistantLive
 import dev.icode.mobile.domain.AssistantMessage
-import dev.icode.mobile.domain.AssistantMode
 import dev.icode.mobile.domain.AssistantModel
 import dev.icode.mobile.domain.AssistantPause
 import dev.icode.mobile.domain.AssistantPermission
@@ -18,7 +17,6 @@ import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantResult
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantSettings
-import dev.icode.mobile.domain.AssistantToolKind
 import dev.icode.mobile.domain.AssistantTurn
 import dev.icode.mobile.domain.LineChanges
 import dev.icode.mobile.domain.NoticeTone
@@ -44,7 +42,7 @@ internal class AssistantTurns(
     /** The settings as saved, each provider's models as the engine knows them. */
     private val settings: () -> AssistantSettings,
     private val chats: AssistantChats,
-    private val tools: (AssistantWorkspace, chat: String, step: AssistantStep) -> List<AssistantTool>,
+    private val tools: AssistantTools,
     private val describe: (String) -> WorkspaceRoot,
     /** The runtime's paths: what the turn's workspace resolves the model's paths through. */
     private val paths: GuestPaths,
@@ -119,7 +117,10 @@ internal class AssistantTurns(
     /** A turn in [session] of [workspace], and the events of its engine. */
     private inner class Turn(val workspace: String, val session: String, val aloud: Boolean) : AssistantEvents {
         /** The step its tools are on (L2, L3), and the hand-over its phone tools wait on (§5.5). */
-        val step = AssistantStep { why -> questions.pause(AssistantPause(AssistantPause.Kind.HandOver, why), THINKING) }
+        val step = AssistantStep(
+            handOver = { why -> questions.pause(AssistantPause(AssistantPause.Kind.HandOver, why), THINKING) },
+            progress = { text -> step(text) },
+        )
 
         /** This chat's mode now: the setting, raised by its own answers. */
         fun permission(): AssistantPermission = AssistantPermissions.effective(settings().permission, chats.allowedInWorkspace(workspace, session))
@@ -152,6 +153,7 @@ internal class AssistantTurns(
                         counted.clear()
                     }
                     questions.clear()
+                    tools.done()
                     page.listed(workspace)
                     page.refresh(workspace, session)
                     page.state { it.copy(turn = null, approval = null, pause = null, failure = if (shows(it.workspace, it.session)) failure else it.failure) }
@@ -177,12 +179,13 @@ internal class AssistantTurns(
             }
             val history = AssistantRules.forModel(chats.of(workspace, session).messages.dropLast(1))
             step.seesPictures = setup.model.images
-            val offered = tools(setup.place, session, step).filter { setup.settings.mode == AssistantMode.Code || setup.settings.mode == AssistantMode.Orchestrator || it.kind == AssistantToolKind.Read }
+            val offer = tools.of(setup.place, session, step, setup.settings.mode)
+            val offered = offer.tools
             val request = AssistantTurnRequest(
                 connection = setup.connection,
                 model = setup.model,
                 effort = AssistantRules.effortFor(setup.settings.effort, setup.model),
-                instructions = AssistantInstructions.of(setup.place, setup.settings.mode, permission(), history.summary, offered.any { it.name.startsWith(PHONE_TOOLS) }, aloud),
+                instructions = AssistantInstructions.of(setup.place, setup.settings.mode, permission(), history.summary, offered.any { it.name.startsWith(PHONE_TOOLS) }, aloud) + offer.instructions,
                 history = history.messages,
                 input = message,
                 tools = offered.map { tool ->

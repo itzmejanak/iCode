@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material.icons.outlined.Extension
 import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.PhoneAndroid
 import androidx.compose.material.icons.outlined.Terminal
@@ -32,6 +33,7 @@ import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.domain.AssistantAnswer
 import dev.icode.mobile.domain.AssistantApproval
+import dev.icode.mobile.domain.AssistantElsewhere
 import dev.icode.mobile.domain.AssistantPause
 import dev.icode.mobile.domain.AssistantPermissions
 import dev.icode.mobile.domain.AssistantReach
@@ -60,7 +62,8 @@ internal fun AssistantApprovalCard(approval: AssistantApproval, workspace: Strin
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
                     Icon(
                         when {
-                            reach?.app != null -> Icons.Outlined.PhoneAndroid
+                            reach?.place?.kind == AssistantElsewhere.Kind.App -> Icons.Outlined.PhoneAndroid
+                            reach?.place?.kind == AssistantElsewhere.Kind.Server -> Icons.Outlined.Extension
                             reach != null -> Icons.Outlined.FolderOpen
                             command -> Icons.Outlined.Terminal
                             else -> Icons.Outlined.EditNote
@@ -128,7 +131,8 @@ internal fun ApprovalAnswers(approval: AssistantApproval, workspace: String, mod
 /** What the middle answer opens, for this chat until iCode closes; null when it opens nothing. */
 internal fun allowInMeaning(reach: AssistantReach?, workspace: String): String? = when {
     reach == null -> "Allow in $workspace: this chat's changes and commands in $workspace stop asking, until iCode closes."
-    reach.app != null -> "Allow in ${reach.app}: this chat acts in ${reach.app} without asking, until iCode closes."
+    reach.place?.kind == AssistantElsewhere.Kind.App -> "Allow in ${reach.place.name}: this chat acts in ${reach.place.name} without asking, until iCode closes."
+    reach.place?.kind == AssistantElsewhere.Kind.Server -> "Allow in ${reach.place.name}: this chat uses ${reach.place.name}'s tools without asking, until iCode closes."
     reach.roots.isEmpty() -> null
     else -> "Allow in Chat: this chat may reach ${reach.roots.joinToString()} without asking, until iCode closes."
 }

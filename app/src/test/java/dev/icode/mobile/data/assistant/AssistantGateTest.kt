@@ -4,6 +4,7 @@ import dev.icode.mobile.data.assistant.tools.TestRuntime
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.AssistantAnswer
 import dev.icode.mobile.domain.AssistantCall
+import dev.icode.mobile.domain.AssistantElsewhere
 import dev.icode.mobile.domain.AssistantPermission
 import dev.icode.mobile.domain.AssistantPermissions
 import dev.icode.mobile.domain.AssistantToolKind
@@ -35,13 +36,13 @@ class AssistantGateTest {
     private val tap = AssistantCall("c1", "phone_tap", "{}", "Tap [2] “Send”", AssistantToolKind.Change)
     private val ran = mutableListOf<String>()
 
-    private val actor = object : AssistantTool, AssistantAppActor {
+    private val actor = object : AssistantTool, AssistantPlaceActor {
         override val name = "phone_tap"
         override val description = "Taps"
         override val parameters = emptyList<AssistantParameter>()
         override val kind = AssistantToolKind.Change
         override fun summary(arguments: JSONObject) = "Tap [2] “Send”"
-        override fun app(arguments: JSONObject) = "WhatsApp" to "com.whatsapp"
+        override fun place(arguments: JSONObject) = AssistantElsewhere("WhatsApp", AssistantPermissions.appRoot("com.whatsapp"), AssistantElsewhere.Kind.App)
         override suspend fun run(arguments: JSONObject): String = "Tapped".also { ran += it }
     }
 
@@ -62,7 +63,7 @@ class AssistantGateTest {
         val first = scope.async { gate().run(JSONObject()) }
         until { stateHolder.current.assistant.approval != null }
         val approval = stateHolder.current.assistant.approval!!
-        assertEquals("WhatsApp", approval.reach!!.app)
+        assertEquals("WhatsApp", approval.reach!!.place?.name)
         assertEquals(listOf("app:com.whatsapp"), approval.reach!!.roots)
         assertEquals("Act in WhatsApp?", AssistantPermissions.question(approval, "Home"))
         assertEquals("Allow in WhatsApp", AssistantPermissions.allowIn(approval, "Home"))

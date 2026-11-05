@@ -5,6 +5,7 @@ import androidx.compose.runtime.LaunchedEffect
 import dev.icode.mobile.domain.BackgroundPlace
 import dev.icode.mobile.domain.ICodeGateway
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.McpIntent
 import dev.icode.mobile.navigation.Route
 
 /** What Android asked iCode's screen to show as it opened or came back to the front. */
@@ -17,6 +18,12 @@ sealed interface Arrival {
 
     /** A notice in Android's shade: its sheet; their summary, without [id]: the Notifications page (docs/notices-plan.md §2.5). */
     data class Notice(val id: String?) : Arrival
+
+    /** A remote MCP server's sign-in came back (docs/mcp-plan.md §8.2): finished, and its servers shown. */
+    data class SignedIn(val answer: String) : Arrival {
+        /** It holds a one-time code: never written out. */
+        override fun toString(): String = "SignedIn(…)"
+    }
 }
 
 /**
@@ -49,6 +56,10 @@ internal fun ArrivalEffect(arrival: Arrival?, navigation: NavigationState, pastO
             }
             // A notice's sheet is drawn over whatever is open.
             is Arrival.Notice -> if (asked.id != null) notices.open(asked.id) else show(Route.Notifications)
+            is Arrival.SignedIn -> {
+                gateway.dispatch(McpIntent.SignedIn(asked.answer))
+                show(Route.McpServers)
+            }
         }
         onArrived()
     }
