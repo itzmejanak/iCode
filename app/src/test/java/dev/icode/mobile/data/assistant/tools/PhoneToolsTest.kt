@@ -1,6 +1,6 @@
 package dev.icode.mobile.data.assistant.tools
 
-import dev.icode.mobile.data.assistant.AssistantAppActor
+import dev.icode.mobile.data.assistant.AssistantPlaceActor
 import dev.icode.mobile.data.assistant.AssistantStep
 import dev.icode.mobile.data.assistant.AssistantTool
 import dev.icode.mobile.data.assistant.AssistantToolException
@@ -99,7 +99,8 @@ class PhoneToolsTest {
 
     @Test fun `each act names the app it is in for the gate, from the screen or its own words`() = runBlocking {
         tool("phone_screen").run(JSONObject())
-        fun app(name: String, vararg pairs: Pair<String, Any>) = (tool(name) as AssistantAppActor).app(args(*pairs))
+        fun app(name: String, vararg pairs: Pair<String, Any>) =
+            (tool(name) as AssistantPlaceActor).place(args(*pairs))?.let { it.name to it.root.removePrefix("app:") }
         assertEquals("WhatsApp" to "com.whatsapp", app("phone_tap", "element" to 2))
         assertEquals("WhatsApp" to "com.whatsapp", app("phone_open_app", "name" to "WhatsApp"))
         assertEquals("Settings" to "com.android.settings", app("phone_open", "settings" to "Wi-Fi"))
@@ -108,7 +109,7 @@ class PhoneToolsTest {
         assertEquals("com.android.systemui", app("phone_key", "key" to "home")!!.second)
         assertEquals("Tap [2] “Send”", tool("phone_tap").summary(args("element" to 2)))
         assertEquals("Type “hi” into [1] “Alex” and submit", tool("phone_type").summary(args("element" to 1, "text" to "hi", "submit" to true)))
-        assertFalse(tools.values.filter { it.kind == AssistantToolKind.Read }.any { it is AssistantAppActor })
+        assertFalse(tools.values.filter { it.kind == AssistantToolKind.Read }.any { it is AssistantPlaceActor })
     }
 
     @Test fun `a refusal and phone control off reach the model as what the user can do`() = runBlocking {

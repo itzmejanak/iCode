@@ -10,7 +10,7 @@ import kotlinx.coroutines.CoroutineScope
  * started them, and gpg's agent, which outlives the command that needed it
  * (docs/gpg-signing-plan.md). One per process, as iCode's backend is.
  */
-internal class RuntimeExecution(layout: RuntimeLayout, scope: CoroutineScope, stateHolder: ICodeStateHolder) {
+internal class RuntimeExecution(val layout: RuntimeLayout, scope: CoroutineScope, stateHolder: ICodeStateHolder) {
     val rootfs: File = layout.rootfs
     val guest = GuestCommand(layout, GuestContext.Command)
     val environment: GuestEnvironment = layout.environment

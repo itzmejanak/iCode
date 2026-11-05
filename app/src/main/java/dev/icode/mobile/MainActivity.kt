@@ -74,6 +74,7 @@ class MainActivity : ComponentActivity() {
             ACTION_SHOW_TERMINAL_SESSION -> asked.getStringExtra(EXTRA_TERMINAL_SESSION_ID)?.let(Arrival::TerminalSession)
             ACTION_SHOW_WORK -> BackgroundPlace.decode(asked.getStringExtra(EXTRA_WORK_PLACE))?.let(Arrival::Work)
             ACTION_SHOW_NOTICE -> Arrival.Notice(asked.getStringExtra(EXTRA_NOTICE_ID))
+            ACTION_SIGNED_IN -> asked.getStringExtra(EXTRA_SIGN_IN)?.let(Arrival::SignedIn)
             else -> null
         }
     }
@@ -90,5 +91,9 @@ class MainActivity : ComponentActivity() {
         /** Opens iCode on a notice, from Android's shade: [EXTRA_NOTICE_ID]'s sheet, or the Notifications page without one. */
         const val ACTION_SHOW_NOTICE = "dev.icode.mobile.action.SHOW_NOTICE"
         const val EXTRA_NOTICE_ID = "notice"
+
+        /** A remote MCP server's sign-in came back ([SignInReturnActivity]): [EXTRA_SIGN_IN] is the browser's answer. */
+        const val ACTION_SIGNED_IN = "dev.icode.mobile.action.SIGNED_IN"
+        const val EXTRA_SIGN_IN = "sign_in"
     }
 }

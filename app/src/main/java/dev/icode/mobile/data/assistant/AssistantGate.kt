@@ -36,14 +36,14 @@ internal class AssistantGate(
     override suspend fun run(arguments: JSONObject): String {
         val opened = chats.roots(workspace, session)
         val outside = place.outside(tool.reach(arguments)).filterNot { path -> opened.any { AssistantPermissions.within(path, it) } }
-        val actor = tool as? AssistantAppActor
-        val app = actor?.app(arguments)?.takeIf { AssistantPermissions.appRoot(it.second) !in opened }
-        val asks = AssistantPermissions.ask(permission(), if (actor != null) AssistantToolKind.Read else tool.kind, outside.isNotEmpty() || app != null)
+        val actor = tool as? AssistantPlaceActor
+        val place = actor?.place(arguments)?.takeIf { it.root !in opened }
+        val asks = AssistantPermissions.ask(permission(), if (actor != null) AssistantToolKind.Read else tool.kind, outside.isNotEmpty() || place != null)
         if (asks != null) {
             val call = calling() ?: throw AssistantToolException("Nothing to ask about")
             val reach = when {
                 asks != AssistantAsk.Outside -> null
-                app != null -> AssistantReach(listOf(app.first), listOf(AssistantPermissions.appRoot(app.second)), app = app.first)
+                place != null -> AssistantReach(listOf(place.name), listOf(place.root), place = place)
                 else -> AssistantReach(outside, outside.mapNotNull(place::rootOf).distinct())
             }
             when (questions.approve(call, tool.detail(arguments), reach)) {
@@ -52,7 +52,7 @@ internal class AssistantGate(
                     if (reach != null) chats.open(workspace, session, reach.roots) else chats.allowInWorkspace(workspace, session)
                     page.refresh(workspace, session)
                 }
-                AssistantAnswer.Deny -> throw AssistantToolException(AssistantPermissions.denied(asks, outside, app?.first))
+                AssistantAnswer.Deny -> throw AssistantToolException(AssistantPermissions.denied(asks, outside, place))
             }
         }
         return tool.run(arguments).also {

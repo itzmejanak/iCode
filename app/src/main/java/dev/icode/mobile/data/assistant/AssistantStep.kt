@@ -10,6 +10,8 @@ import java.util.concurrent.atomic.AtomicReference
 internal class AssistantStep(
     /** The user takes a step themselves — a password, a payment — and the turn waits for Done (§5.5). */
     val handOver: suspend (why: String) -> Unit = {},
+    /** What a tool says it is doing now, for the turn's step: an MCP server's progress (docs/mcp-plan.md §6.5). */
+    val progress: (String) -> Unit = {},
 ) {
     @Volatile
     var calls: List<AssistantCall> = emptyList()
@@ -37,8 +39,11 @@ internal class AssistantStep(
     fun take(): AssistantPicture? = picture.getAndSet(null)
 }
 
-/** A tool that acts in an app on the phone (docs/phone-agent-plan.md L6): the gate asks about the app. */
-internal interface AssistantAppActor {
-    /** The app [arguments] act in, its name and its package; null when it cannot be known yet. Never throws. */
-    fun app(arguments: org.json.JSONObject): Pair<String, String>?
+/**
+ * A tool that acts in a place outside the files (docs/phone-agent-plan.md L6, docs/mcp-plan.md §6.4) —
+ * an app on the phone, an MCP server: the gate asks about the place, as about a folder outside.
+ */
+internal interface AssistantPlaceActor {
+    /** The place [arguments] act in; null when it cannot be known yet, or the call needs no asking. Never throws. */
+    fun place(arguments: org.json.JSONObject): dev.icode.mobile.domain.AssistantElsewhere?
 }

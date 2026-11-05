@@ -1,13 +1,15 @@
 package dev.icode.mobile.data.assistant.tools
 
-import dev.icode.mobile.data.assistant.AssistantAppActor
 import dev.icode.mobile.data.assistant.AssistantParameter
 import dev.icode.mobile.data.assistant.AssistantParameterType
 import dev.icode.mobile.data.assistant.AssistantPicture
+import dev.icode.mobile.data.assistant.AssistantPlaceActor
 import dev.icode.mobile.data.assistant.AssistantStep
 import dev.icode.mobile.data.assistant.AssistantTool
 import dev.icode.mobile.data.assistant.AssistantToolException
 import dev.icode.mobile.data.phone.PhoneControl
+import dev.icode.mobile.domain.AssistantElsewhere
+import dev.icode.mobile.domain.AssistantPermissions
 import dev.icode.mobile.domain.AssistantToolKind
 import dev.icode.mobile.domain.phone.PhoneAct
 import dev.icode.mobile.domain.phone.PhoneDirection
@@ -19,7 +21,7 @@ import org.json.JSONObject
 
 /**
  * The tools that see and operate the phone (docs/phone-agent-plan.md §5.3), offered while phone control
- * is on. Reading never asks; an act asks about the app it is in ([AssistantAppActor]). The last act of
+ * is on. Reading never asks; an act asks about the app it is in ([AssistantPlaceActor]). The last act of
  * a reply reads the settled screen into its own result, so the model sees what it did in the same
  * step (L3); a picture goes with it where the text cannot tell (§5.2).
  */
@@ -71,14 +73,16 @@ internal class PhoneTools(private val phone: PhoneControl, private val step: Ass
         override val description: String,
         override val parameters: List<AssistantParameter>,
         private val act: suspend (JSONObject) -> String,
-    ) : AssistantTool, AssistantAppActor {
+    ) : AssistantTool, AssistantPlaceActor {
         override val kind = AssistantToolKind.Change
 
         override fun summary(arguments: JSONObject): String = PhoneSummaries.of(name, arguments, phone.latest)
 
-        override fun app(arguments: JSONObject): Pair<String, String>? = runCatching {
-            PhoneSummaries.app(name, arguments, phone.latest)?.let { (label, packageName) -> (label ?: phone.label(packageName)) to packageName }
-                ?: if (name == "phone_open_app") phone.appNamed(arguments.optString("name")) else null
+        override fun place(arguments: JSONObject): AssistantElsewhere? = runCatching {
+            (
+                PhoneSummaries.app(name, arguments, phone.latest)?.let { (label, packageName) -> (label ?: phone.label(packageName)) to packageName }
+                    ?: if (name == "phone_open_app") phone.appNamed(arguments.optString("name")) else null
+                )?.let { (label, packageName) -> AssistantElsewhere(label, AssistantPermissions.appRoot(packageName), AssistantElsewhere.Kind.App) }
         }.getOrNull()
 
         override suspend fun run(arguments: JSONObject): String = guarded {

@@ -3,6 +3,7 @@ package dev.icode.mobile.data.assistant
 import android.content.Context
 import android.os.Environment
 import dev.icode.mobile.data.assistant.koog.KoogAssistantEngine
+import dev.icode.mobile.data.assistant.mcp.McpServers
 import dev.icode.mobile.data.assistant.tools.AssistantToolbox
 import dev.icode.mobile.data.assistant.tools.AssistantWorkspace
 import dev.icode.mobile.data.git.CliGitService
@@ -18,6 +19,7 @@ import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantSession
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.McpIntent
 import dev.icode.mobile.domain.NoticeTone
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
@@ -49,12 +51,14 @@ internal class AssistantCoordinator(
     git: suspend (workspace: String, arguments: List<String>) -> CliGitService.CommandResult,
     /** All Files Access, as Android answers it now: phone storage is read with it (docs/phone-agent-plan.md L8). */
     storageAccess: () -> Boolean,
+    /** The MCP servers, whose tools join a turn's after iCode's own (docs/mcp-plan.md); none in tests that need none. */
+    private val mcp: McpServers? = null,
 ) {
     private val page = AssistantPage(stateHolder, scope, chats)
     private val settings = AssistantProviders(stateHolder, scope, engine, providers, page)
     private val commitMessages = AssistantCommitMessages(scope, engine, providers, settings::settings, page, git)
     private val turns = AssistantTurns(
-        page, scope, engine, providers, settings::settings, chats, tools, describe, paths,
+        page, scope, engine, providers, settings::settings, chats, AssistantTools.of(tools, mcp), describe, paths,
         attachments { location -> stateHolder.current.openDocuments.firstOrNull { it.location == location }?.text },
         storageAccess,
     )
@@ -71,6 +75,7 @@ internal class AssistantCoordinator(
             val catalogue = engine.catalogue
             settings.shown()
             page.state { it.copy(catalogue = catalogue) }
+            mcp?.start()
             for (intent in intents) apply(intent)
         }
     }
@@ -81,7 +86,10 @@ internal class AssistantCoordinator(
 
     private suspend fun apply(intent: ICodeIntent.AssistantIntent) {
         when (intent) {
-            ICodeIntent.OpenAssistant -> place()?.let { page.show(it, turns.running) } ?: noWorkspace()
+            ICodeIntent.OpenAssistant -> {
+                place()?.let { page.show(it, turns.running) } ?: noWorkspace()
+                mcp?.handle(McpIntent.Connect)
+            }
             is ICodeIntent.OpenAssistantSession -> page.current.workspace?.let { page.display(it, intent.id) }
             is ICodeIntent.DeleteAssistantSession -> delete(intent.id)
             is ICodeIntent.ExportAssistantSession -> export(intent.id)
@@ -104,6 +112,7 @@ internal class AssistantCoordinator(
             ICodeIntent.WriteCommitMessage -> activeRoot()?.let(commitMessages::write) ?: page.say(NoticeTone.HeadsUp, "Open a workspace first")
             ICodeIntent.CommitMessageTaken -> commitMessages.taken()
             is ICodeIntent.ChooseCommitModel -> settings.remember { providers.chooseCommitModel(intent.choice) }
+            is McpIntent -> mcp?.handle(intent)
         }
     }
 
@@ -227,6 +236,7 @@ internal class AssistantCoordinator(
             },
             git = { workspace, arguments -> git.run(workspace, arguments) },
             storageAccess = Environment::isExternalStorageManager,
+            mcp = McpServers.create(context, icode, scope, toolbox.execution, toolbox.runtimeInstalled, activeRoot),
         )
     }
 }

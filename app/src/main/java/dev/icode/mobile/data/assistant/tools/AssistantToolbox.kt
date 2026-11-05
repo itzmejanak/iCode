@@ -14,9 +14,10 @@ internal class AssistantToolbox(
     private val source: WorkspaceFileSource,
     private val search: WorkspaceSearchEngine,
     private val git: CliGitService,
-    private val execution: RuntimeExecution,
+    /** The runtime the tools run in: also where the assistant's local MCP servers start (docs/mcp-plan.md §7). */
+    val execution: RuntimeExecution,
     private val runs: RunCoordinator,
-    private val runtimeInstalled: () -> Boolean,
+    val runtimeInstalled: () -> Boolean,
     /** An open tab holds unsaved edits at this location. */
     private val unsavedEdits: (String) -> Boolean,
     /** Files changed outside the editor: the tree, Git and the index refresh. */

@@ -8,11 +8,11 @@ import ai.koog.prompt.streaming.IncompleteStreamException
 import dev.icode.mobile.data.assistant.AssistantConnection
 import dev.icode.mobile.data.assistant.AssistantStepLimitException
 import dev.icode.mobile.data.assistant.AssistantTurnException
+import dev.icode.mobile.data.assistant.networkWords
 import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.domain.AssistantModel
 import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.domain.AssistantRetryKind
-import kotlin.coroutines.cancellation.CancellationException
 import io.ktor.client.call.NoTransformationFoundException
 import io.ktor.client.network.sockets.ConnectTimeoutException
 import io.ktor.client.plugins.HttpRequestTimeoutException
@@ -23,8 +23,7 @@ import java.net.ConnectException
 import java.net.SocketTimeoutException
 import java.net.URI
 import java.net.UnknownHostException
-import java.net.UnknownServiceException
-import javax.net.ssl.SSLException
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.serialization.SerializationException
 import org.json.JSONArray
 import org.json.JSONObject
@@ -52,7 +51,7 @@ internal object KoogFailures {
         // Its types only: a parser's message quotes the reply.
         if (broke >= 0) BackendLog.w(TAG, "A stream broke after it began: ${reasons.joinToString(" ← ") { it.javaClass.simpleName }}")
         val message = reasons.firstNotNullOfOrNull { cause ->
-            when (cause) {
+            networkWords(cause, host) ?: when (cause) {
                 // Without a status the server never answered: what failed is the cause, deeper in the chain.
                 is KoogHttpClientException -> cause.statusCode?.let { http(cause, connection, model) }
                 is IncompleteStreamException -> CONNECTION_ENDED
@@ -60,13 +59,6 @@ internal object KoogFailures {
                 is NoTransformationFoundException, is ContentConvertException -> notTheApi(connection)
                 // Its only way to stick: a reply with neither text nor a tool call.
                 is AIAgentStuckInTheNodeException -> "The model sent an empty reply — send a message to continue"
-                // OkHttp's refusal of plain http:// under Android's network security config.
-                is UnknownServiceException -> "Android blocks plain http:// to $host — use https://, or a server on this phone (127.0.0.1)"
-                is UnknownHostException -> "Unable to reach $host — check the address and the connection"
-                // Ktor's timeouts: a ConnectException and an IOException, so they come first.
-                is ConnectTimeoutException, is HttpRequestTimeoutException, is SocketTimeoutException -> "$host did not answer in time"
-                is ConnectException -> "Unable to connect to $host — is the server running?"
-                is SSLException -> "A secure connection to $host failed"
                 // A reply that is not what the provider's API sends: a parser's words mean nothing here.
                 is SerializationException -> UNREADABLE
                 // A connection that broke while the reply came: the stream's, or a whole reply's.
