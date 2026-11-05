@@ -10,6 +10,7 @@ import ai.koog.serialization.JSONElement
 import ai.koog.serialization.JSONPrimitive
 import ai.koog.serialization.JSONSerializer
 import ai.koog.serialization.typeToken
+import dev.icode.mobile.data.assistant.AssistantParameter
 import dev.icode.mobile.data.assistant.AssistantParameterType
 import dev.icode.mobile.data.assistant.AssistantTool
 import dev.icode.mobile.data.assistant.AssistantToolException
@@ -55,15 +56,26 @@ internal class KoogTool(private val tool: AssistantTool) : ToolBase<String, Stri
     /** The output as Koog's events carry it: the same text, read back with [JSONPrimitive.content]. */
     override fun encodeResult(result: String, serializer: JSONSerializer): JSONElement = JSONPrimitive(result)
 
-    private companion object {
-        fun descriptor(parameter: dev.icode.mobile.data.assistant.AssistantParameter) = ToolParameterDescriptor(
-            name = parameter.name,
-            description = parameter.description,
-            type = when (parameter.type) {
-                AssistantParameterType.Text -> ToolParameterType.String
-                AssistantParameterType.Integer -> ToolParameterType.Integer
-                AssistantParameterType.Boolean -> ToolParameterType.Boolean
-            },
-        )
+    internal companion object {
+        fun descriptor(parameter: AssistantParameter): ToolParameterDescriptor =
+            ToolParameterDescriptor(name = parameter.name, description = parameter.description, type = type(parameter.type))
+
+        /** Each of iCode's types as exactly one of Koog's (docs/mcp-plan.md §6.2). */
+        fun type(type: AssistantParameterType): ToolParameterType = when (type) {
+            AssistantParameterType.Text -> ToolParameterType.String
+            AssistantParameterType.Integer -> ToolParameterType.Integer
+            AssistantParameterType.Boolean -> ToolParameterType.Boolean
+            AssistantParameterType.Number -> ToolParameterType.Float
+            AssistantParameterType.Null -> ToolParameterType.Null
+            is AssistantParameterType.Choice -> ToolParameterType.Enum(type.values.toTypedArray())
+            is AssistantParameterType.Items -> ToolParameterType.List(type(type.of))
+            is AssistantParameterType.Fields -> ToolParameterType.Object(
+                properties = type.fields.map(::descriptor),
+                requiredProperties = type.fields.filter { it.required }.map { it.name },
+                additionalProperties = if (type.more != null) true else null,
+                additionalPropertiesType = type.more?.let(::type),
+            )
+            is AssistantParameterType.OneOf -> ToolParameterType.AnyOf(type.options.map(::descriptor).toTypedArray())
+        }
     }
 }

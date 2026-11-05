@@ -17,6 +17,10 @@
 -dontwarn org.conscrypt.**
 -dontwarn org.openjsse.**
 
+# The MCP SDK (docs/mcp-plan.md): its protocol types are kotlinx.serialization classes, their
+# serializers found at run time. Kept whole, as Koog is, until a release build is checked.
+-keep class io.modelcontextprotocol.** { *; }
+
 # Shizuku starts iCode's shell service by its class name, with either constructor
 # (docs/phone-agent-plan.md §5.11); its tag, not its name, identifies it after R8.
 -keep class dev.icode.mobile.data.phone.shizuku.ShellUserService { <init>(...); }
