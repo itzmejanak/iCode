@@ -437,8 +437,8 @@ lifecycle's check, and waits for its chat to be saved, before the chats move.
 
 ## 7. Not now (phase 2+, each its own plan)
 
-- **MCP servers** as tool sources: Koog's `agents-mcp` is beta, so it would sit behind an
-  `AssistantToolSource` of iCode's own.
+- **MCP servers** as tool sources: planned in [mcp-plan.md](./mcp-plan.md) — iCode's own client
+  over the official Kotlin SDK, through `AssistantGate`; not Koog's `agents-mcp`.
 - **External agents over ACP** (OpenCode and others) as a second `AssistantEngine`.
 - Streaming for Anthropic, Gemini, Ollama and OpenAI's Responses-only models: Koog 1.3.0's
   streams lose what a turn needs there — Anthropic's thinking signature, Gemini's thought
