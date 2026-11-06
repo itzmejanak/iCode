@@ -1,7 +1,6 @@
 package dev.icode.mobile.ui.phone
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
@@ -12,7 +11,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextOverflow
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeFloatingPill
@@ -23,9 +21,8 @@ import dev.icode.mobile.designsystem.IcodeType
 /**
  * The voice bubble (§5.7, redesigned 2026-11-04): the bar gives way to it while the microphone listens.
  * The words heard so far live inside it — Gemini's live line — under a microphone that mutes and a Stop
- * that throws the hearing away. The words themselves stay the bubble: tapped, they mute; dragged, they
- * go where the finger goes. Muting never stops what the agent does. Its waveform leads as far in from
- * one end as Stop's icon sits from the other.
+ * that throws the hearing away. The words themselves, tapped, mute. Muting never stops what the agent
+ * does. Its waveform leads as far in from one end as Stop's icon sits from the other.
  */
 @Composable
 internal fun PhoneVoiceBubble(view: PhoneBubbleView, actions: PhoneBubbleActions) {
@@ -34,12 +31,6 @@ internal fun PhoneVoiceBubble(view: PhoneBubbleView, actions: PhoneBubbleActions
         Row(
             Modifier
                 .weight(1f, fill = words.isNotBlank())
-                .pointerInput(Unit) {
-                    detectDragGestures(onDragEnd = actions.dragEnd, onDragCancel = actions.dragEnd) { change, amount ->
-                        change.consume()
-                        actions.drag(amount.x, amount.y)
-                    }
-                }
                 .clickable { actions.mute() }
                 .padding(start = IcodeSpacing.IconButtonInset),
             verticalAlignment = Alignment.CenterVertically,

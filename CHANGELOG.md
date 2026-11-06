@@ -39,9 +39,10 @@ All notable changes to iCode are documented here. The format follows
 - One bubble on the screen's edge, in six states — idle, listening, muted, thinking, acting,
   speaking. A tap opens a bar to type in, which grows with what is typed; a tab rising from its end
   holds, for long text, Expand into an editor, and ⋮, which opens New chat and Open in iCode in the
-  tab itself. Listening, it becomes a voice bubble: the words heard, Mute and Stop. Dragged, it
-  docks on the nearest of the bottom, left and right edges where it is let go, and shows there the
-  next time; idle, it tucks half behind that edge. Android's own accessibility button is no longer asked for, so there is one icon,
+  tab itself. Listening, it becomes a voice bubble: the words heard, Mute and Stop. The bar and the
+  voice bubble open at the bottom, by the keyboard, in a window of their own, so the bubble never
+  moves for them. Dragged, it follows the finger and glides to the nearest of the bottom, left and
+  right edges where it is let go, and shows there the next time; idle, it tucks half behind that edge. Android's own accessibility button is no longer asked for, so there is one icon,
   not two; Phone Control says how to remove one an earlier build left.
 - iCode has no dialogs: every confirmation, question and long operation is a sheet, and every sheet
   closes with a swipe down as well as ×, Back or a tap outside.

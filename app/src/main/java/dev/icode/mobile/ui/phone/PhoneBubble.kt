@@ -1,18 +1,12 @@
 package dev.icode.mobile.ui.phone
 
 import android.animation.ValueAnimator
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -39,16 +33,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
@@ -69,11 +62,12 @@ import kotlin.math.PI
 import kotlin.math.absoluteValue
 import kotlin.math.sin
 
-/** What the bubble does, as its window and the backend answer it. */
+/** What the bubble does, as its windows and the backend answer it. */
 internal class PhoneBubbleActions(
     /** The bubble tapped: what that does follows its state (§5.7). */
     val tap: () -> Unit,
-    val drag: (dx: Float, dy: Float) -> Unit,
+    /** The bubble dragged: it follows the finger on the screen. */
+    val drag: () -> Unit,
     val dragEnd: () -> Unit,
     val dispatch: (ICodeIntent) -> Unit,
     /** The bar's microphone: the bar gives way to the voice bubble, listening. */
@@ -88,17 +82,17 @@ internal class PhoneBubbleActions(
     val cancel: () -> Unit,
 )
 
-/** What the bubble's window shows now. */
+/** The bubble's states (§5.7): docked alone; expanded into the bar; the bar given way to the voice bubble. */
+internal enum class BubbleMode { Closed, Typing, Voice }
+
+/** What the bubble's windows show now. */
 internal class PhoneBubbleView(
     val overlay: PhoneOverlay,
     val assistant: AssistantState,
     val voice: VoiceState,
-    /** The bar is open: the bubble expanded into it. */
-    val bar: Boolean,
-    /** The voice bubble is up: the bar gave way to it. */
-    val voiceUp: Boolean,
+    val mode: BubbleMode,
     val tucked: Boolean,
-    /** The edge the bubble docks on: each face grows from where it sits there. */
+    /** The edge the bubble docks on: the bar grows from the end nearer it. */
     val edge: BubbleEdge,
     val draft: String,
     val onDraft: (String) -> Unit,
@@ -109,50 +103,27 @@ internal class PhoneBubbleView(
  * one small bubble docked on the screen's edge, which expands into a compact bar to type in,
  * and while the microphone listens becomes a voice bubble — the words heard so far under a waveform,
  * with a microphone to mute and a Stop to throw the hearing away. Nothing else: no header, no cards
- * of actions, no dashboard.
+ * of actions, no dashboard. This is the bubble's own window: the bubble alone, which gives way while
+ * the bar's window is open — it shrinks and fades where it sits, and comes back there.
  */
 @Composable
 internal fun PhoneBubble(view: PhoneBubbleView, actions: PhoneBubbleActions) {
-    val face = if (view.voiceUp) Face.Voice else if (view.bar) Face.Bar else Face.Bubble
-    // The bar opens at the bottom, and from a side in the middle of it: it grows from there as from the bottom edge.
-    val from = if (view.bar) BubbleEdge.Bottom else view.edge
-    val origin = from.origin()
-    AnimatedContent(
-        targetState = face,
-        // Drawn only, never laid out frame by frame: the window wraps its content, so a size that
-        // animated would resize and place the window on every frame — the bar drawn squeezed, and
-        // late. The size changes once; each face fades and grows from where the bubble sits on its edge.
-        transitionSpec = {
-            (fadeIn(tween(MORPH_MILLIS)) + scaleIn(initialScale = MORPH_SCALE, animationSpec = tween(MORPH_MILLIS), transformOrigin = origin)) togetherWith
-                (fadeOut(tween(MORPH_MILLIS / 2)) + scaleOut(targetScale = MORPH_SCALE, animationSpec = tween(MORPH_MILLIS / 2), transformOrigin = origin)) using
-                null
-        },
-        contentAlignment = from.corner(),
-        label = "face",
-    ) { target ->
-        when (target) {
-            Face.Bubble -> Mark(view, actions)
-            Face.Bar -> PhoneBubbleBar(view, actions)
-            Face.Voice -> PhoneVoiceBubble(view, actions)
+    Mark(view, actions)
+}
+
+/**
+ * Dragged, the bubble follows the finger; however the drag ends — let go, cancelled, or the bubble's
+ * window taken away under it — the bubble docks.
+ */
+private fun Modifier.bubbleDrag(actions: PhoneBubbleActions): Modifier = pointerInput(Unit) {
+    try {
+        detectDragGestures(onDragEnd = actions.dragEnd, onDragCancel = actions.dragEnd) { change, _ ->
+            change.consume()
+            actions.drag()
         }
+    } finally {
+        actions.dragEnd()
     }
-}
-
-/** The window's three faces: the bubble, the bar it expands into, and the voice bubble. */
-private enum class Face { Bubble, Bar, Voice }
-
-/** Where the bubble sits in its window, which grows up from it and away from its edge: on the screen, not the reading direction. */
-private fun BubbleEdge.corner(): Alignment = when (this) {
-    BubbleEdge.Bottom -> Alignment.BottomCenter
-    BubbleEdge.Left -> AbsoluteAlignment.BottomLeft
-    BubbleEdge.Right -> AbsoluteAlignment.BottomRight
-}
-
-/** The same corner, for a face to grow from. */
-private fun BubbleEdge.origin(): TransformOrigin = when (this) {
-    BubbleEdge.Bottom -> TransformOrigin(0.5f, 1f)
-    BubbleEdge.Left -> TransformOrigin(0f, 1f)
-    BubbleEdge.Right -> TransformOrigin(1f, 1f)
 }
 
 /** How wide the bar and the voice bubble may grow: the panel, or the screen less its margins. */
@@ -162,30 +133,32 @@ internal fun overlayPanelWidth(): Dp =
 
 /**
  * The bubble itself (§5.7): the iCode mark at its smallest, growing a ring, a spinner or a waveform as
- * the agent and the microphone get to work — pressed, it gives a little; dragged, it goes free.
+ * the agent and the microphone get to work — pressed, it gives a little; dragged, it goes free; while
+ * the bar is open, it shrinks away where it sits.
  */
 @Composable
 private fun Mark(view: PhoneBubbleView, actions: PhoneBubbleActions) {
     val look = view.overlay.look
+    val open = view.mode != BubbleMode.Closed
     val scale by animateFloatAsState(if (look == Look.Listening) LISTENING_SCALE else 1f, label = "listening")
     val fade by animateFloatAsState(if (view.tucked) TUCKED_ALPHA else 1f, label = "tucked")
+    val shown by animateFloatAsState(if (open) 0f else 1f, tween(MORPH_MILLIS), label = "shown")
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
     val press by animateFloatAsState(if (pressed) PRESSED_SCALE else 1f, label = "pressed")
     Box(
         Modifier.size(IcodeSizes.Bubble)
             .graphicsLayer {
-                scaleX = scale * press
-                scaleY = scale * press
-                alpha = fade
+                val gone = MORPH_SCALE + (1 - MORPH_SCALE) * shown
+                scaleX = scale * press * gone
+                scaleY = scale * press * gone
+                alpha = fade * shown
             }
-            .semantics { contentDescription = describe(look) + if (view.overlay.asking) ", a question waits" else "" }
-            .pointerInput(Unit) {
-                detectDragGestures(onDragEnd = actions.dragEnd, onDragCancel = actions.dragEnd) { change, amount ->
-                    change.consume()
-                    actions.drag(amount.x, amount.y)
-                }
-            }
+            .then(
+                if (open) Modifier.clearAndSetSemantics {}
+                else Modifier.semantics { contentDescription = describe(look) + if (view.overlay.asking) ", a question waits" else "" },
+            )
+            .bubbleDrag(actions)
             .clickable(interactionSource = source, indication = null) { actions.tap() },
         contentAlignment = Alignment.Center,
     ) {
@@ -288,8 +261,9 @@ internal fun describe(look: Look): String = when (look) {
 private const val LISTENING_SCALE = 1.1f
 private const val PRESSED_SCALE = 0.94f
 private const val TUCKED_ALPHA = 0.55f
-private const val MORPH_MILLIS = 220
-private const val MORPH_SCALE = 0.88f
+/** How long the bubble and the bar take to give way to each other, and how far they shrink doing it. */
+internal const val MORPH_MILLIS = 220
+internal const val MORPH_SCALE = 0.88f
 
 private const val WAVE_MILLIS = 1_100
 private const val WAVE_FLOOR = 0.35f

@@ -1,17 +1,24 @@
 package dev.icode.mobile.ui.phone
 
+import android.animation.ValueAnimator
+import android.content.Context
 import android.content.SharedPreferences
 import android.graphics.Insets
 import android.graphics.PixelFormat
 import android.view.Gravity
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowManager
+import android.view.animation.DecelerateInterpolator
+import android.widget.FrameLayout
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.edit
 import dev.icode.mobile.designsystem.IcodeSizes
+import kotlin.math.hypot
+import kotlin.math.roundToInt
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -21,14 +28,32 @@ import kotlinx.coroutines.launch
 internal enum class BubbleEdge { Bottom, Left, Right }
 
 /**
- * Where the bubble's window sits (docs/phone-agent-plan.md §5.7): docked on the bottom edge or a side,
- * where it was let go along it, and kept there for the next time it shows. At the bottom the window
- * is centred on its own middle, so the bar the bubble expands into grows from that middle; on a side
- * it grows away from the edge. The bar holds the keyboard, so from a side it opens at the bottom, in
- * the middle, as on the bottom edge: the keyboard is there. Idle a while, the bubble sinks half behind its edge and
- * fades; anything new brings it out. Dragged anywhere, it docks on the nearest edge.
+ * An overlay window's root, telling [touched] each touch before its content has it: where the finger
+ * is on the screen (`rawX`, `rawY`), which a window moved under it does not change.
  */
-internal class BubblePlacement(private val windows: WindowManager, private val view: View, density: Float, private val saved: SharedPreferences) {
+internal class OverlayFrame(context: Context, private val touched: (MotionEvent) -> Unit) : FrameLayout(context) {
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        touched(event)
+        return super.dispatchTouchEvent(event)
+    }
+}
+
+/**
+ * Where the bubble's window, the bar's and the target's sit (docs/phone-agent-plan.md §5.7), in the
+ * screen's own pixels — the finger's: what keeps them clear of the system bars is added here. The
+ * bubble docks on the bottom edge or a side, where it was let go along it, kept for the next time it
+ * shows. The bar and the voice bubble open in a window of their own at the bottom — where the bubble
+ * sits on the bottom edge, in the middle from a side, by the keyboard — so the bubble's window never
+ * moves for them. Dragged, the bubble follows the finger; let go, it glides to the nearest edge. Idle
+ * a while, it glides half behind its edge and fades; anything new brings it out.
+ */
+internal class BubblePlacement(
+    private val windows: WindowManager,
+    private val view: View,
+    private val bar: View,
+    private val density: Float,
+    private val saved: SharedPreferences,
+) {
     private val size = (IcodeSizes.Bubble.value * density).toInt()
     private val panel = IcodeSizes.BubblePanel.value * density
     private val side = (SIDE_MARGIN_DP * density).toInt()
@@ -45,38 +70,52 @@ internal class BubblePlacement(private val windows: WindowManager, private val v
     var tucked by mutableStateOf(false)
         private set
 
-    private var dragging = false
-
-    /** The bar is open, holding the keyboard. */
-    private var typing = false
+    /** Where the finger holds the window while it drags it, from the window's top left; null when none does. */
+    private var grip: Pair<Float, Float>? = null
+    val dragging: Boolean get() = grip != null
 
     /** Nothing goes on, and the bar is closed: it tucks after a while. */
     private var resting = false
     private var tucking: Job? = null
+    private var gliding: ValueAnimator? = null
 
-    val params = WindowManager.LayoutParams(
-        WindowManager.LayoutParams.WRAP_CONTENT,
-        WindowManager.LayoutParams.WRAP_CONTENT,
-        WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-        BASE or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-        PixelFormat.TRANSLUCENT,
-    ).apply {
+    val params = overlay(FLAGS).apply { title = "iCode bubble" }
+
+    /** The bar's window: above the keyboard and the navigation bar, which lift it — and only from the bottom. */
+    val barParams = overlay(BAR_FLAGS or CLOSED).apply {
+        fitInsetsTypes = WindowInsets.Type.navigationBars() or WindowInsets.Type.ime()
+        fitInsetsSides = WindowInsets.Side.BOTTOM
         softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
-        title = "iCode bubble"
+        gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+        title = "iCode bubble bar"
+    }
+
+    /** The target dragging shows, under the status bar: the bubble let go on it is put away. */
+    val targetParams = overlay(CLOSED or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS).apply {
+        gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+        title = "iCode bubble target"
     }
 
     init {
-        apply()
+        apply(animate = false)
     }
 
-    /** The bar takes the keyboard — the window resizes above it — otherwise it takes no focus from the app under it. */
-    fun focusable(focus: Boolean) {
-        typing = focus
-        params.flags = BASE or (
-            if (focus) 0
-            else WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
-            )
-        apply()
+    /**
+     * The bar's window opened for [mode], or closed: open, it takes touches — the keyboard only for the
+     * bar, not the voice bubble — while the bubble's window takes none and stays where it is.
+     */
+    fun open(mode: BubbleMode) {
+        params.flags = if (mode == BubbleMode.Closed) FLAGS else FLAGS or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+        barParams.flags = BAR_FLAGS or when (mode) {
+            BubbleMode.Closed -> CLOSED
+            BubbleMode.Typing -> 0
+            BubbleMode.Voice -> WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+        }
+        val (width, _) = screen()
+        barParams.x = (centre(width) - width / 2f).toInt()
+        barParams.y = lift
+        update(view, params)
+        update(bar, barParams)
     }
 
     /** Idle a while, it sinks half behind its edge, as Gemini's overlay recedes; anything new brings it out. */
@@ -97,36 +136,41 @@ internal class BubblePlacement(private val windows: WindowManager, private val v
         apply()
     }
 
-    fun drag(dx: Float, dy: Float) {
-        if (!dragging) {
-            // From the edge's offsets to the screen's: dragged, it goes where the finger goes; let go, it docks anew.
-            dragging = true
-            tucked = false
-            resting = false
+    /** The finger at ([x], [y]) on the screen: the window goes where it goes, held where it was taken. */
+    fun dragTo(x: Float, y: Float) {
+        if (grip == null) {
+            gliding?.cancel()
             tucking?.cancel()
-            val (width, height) = screen()
-            val (w, h) = measured()
+            resting = false
+            tucked = false
+            val (left, top) = topLeft()
+            grip = (x - left) to (y - top)
             params.gravity = Gravity.TOP or Gravity.LEFT
-            params.x = when (edge) {
-                BubbleEdge.Bottom -> (width - w) / 2 + params.x
-                BubbleEdge.Left -> params.x
-                BubbleEdge.Right -> width - w - params.x
-            }
-            params.y = height - h - params.y
+            targetParams.y = insets().top + (TARGET_MARGIN_DP * density).toInt()
         }
-        params.x += dx.toInt()
-        params.y = (params.y + dy.toInt()).coerceIn(0, screen().second - size)
-        attached { windows.updateViewLayout(view, params) }
+        val (heldX, heldY) = grip ?: return
+        params.x = (x - heldX).roundToInt()
+        params.y = (y - heldY).roundToInt().coerceIn(0, screen().second - size)
+        update(view, params)
+    }
+
+    /** While dragged: whether the bubble is over the target's circle, a bubble's size at its top. */
+    fun overTarget(): Boolean {
+        val (width, _) = screen()
+        val (w, h) = measured()
+        return hypot(params.x + w / 2f - width / 2f, params.y + h / 2f - targetParams.y - size / 2f) < size * TARGET_REACH
     }
 
     /**
-     * Let go: it docks on the nearest of the bottom and the sides, where it was let go along it, and
+     * Let go: it glides to the nearest of the bottom and the sides, where it was let go along it, and
      * keeps that for the next time — unless it was let go on the target, which puts it away: it comes
      * back where it was.
      */
     fun drop(away: Boolean) {
-        if (!dragging) return
-        dragging = false
+        if (grip == null) return
+        grip = null
+        // Rested again from now: what went on while it was held tucks it no sooner.
+        resting = false
         if (!away) {
             val (width, height) = screen()
             val (w, h) = measured()
@@ -135,38 +179,25 @@ internal class BubblePlacement(private val windows: WindowManager, private val v
                 BubbleEdge.Left to params.x,
                 BubbleEdge.Right to width - params.x - w,
             ).minBy { it.second }.first
-            // The bubble sits at the bottom of the window: its middle is half its size above the window's bottom.
-            along = if (edge == BubbleEdge.Bottom) (params.x + w / 2f) / width else (params.y + h - size / 2f) / height
+            along = if (edge == BubbleEdge.Bottom) (params.x + w / 2f) / width else (params.y + h / 2f) / height
             saved.edit { putString(KEY_EDGE, edge.name).putFloat(KEY_ALONG, along) }
         }
-        apply()
+        apply(animate = !away)
     }
-
-    /** While dragged: the window's centre, in screen pixels, to tell whether it is over the target. */
-    fun centre(): Pair<Int, Int> = (params.x + view.width / 2) to (params.y + view.height / 2)
-
-    fun screen(): Pair<Int, Int> = windows.currentWindowMetrics.bounds.let { it.width() to it.height() }
 
     /**
      * Docked on [edge], [along] it, clear of the system bars and the gesture area; tucked half behind
-     * the edge when idle. The window grows up from the bubble's bottom and away from its edge, so the
-     * voice bubble opens from where it sits; the bar too at the bottom, and from a side in the middle of it.
+     * the edge when idle. [animate], it glides there from where it is.
      */
-    private fun apply() {
+    private fun apply(animate: Boolean = true) {
         val (width, height) = screen()
         val insets = insets()
         val sunk = -size / 2
-        // Off the bottom edge as the bubble sits there; the bar, holding the keyboard, sits there on any edge.
         val low = lift + insets.bottom
-        if (edge == BubbleEdge.Bottom || typing) {
+        val from = topLeft()
+        if (edge == BubbleEdge.Bottom) {
             params.gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
-            // The bar may open wider than the bubble: the whole overlay, from its middle, stays on screen.
-            // From a side, the bar opens in the middle.
-            val half = minOf(panel, (width - 2 * side).toFloat()).coerceAtLeast(size.toFloat()) / 2f
-            val lowest = side + half
-            val highest = width - side - half
-            val centre = if (edge == BubbleEdge.Bottom && highest > lowest) (along * width).coerceIn(lowest, highest) else width / 2f
-            params.x = (centre - width / 2f).toInt()
+            params.x = (centre(width) - width / 2f).toInt()
             params.y = if (tucked) sunk else low
         } else {
             params.gravity = Gravity.BOTTOM or if (edge == BubbleEdge.Left) Gravity.LEFT else Gravity.RIGHT
@@ -175,8 +206,57 @@ internal class BubblePlacement(private val windows: WindowManager, private val v
             val highest = (height - insets.top - side - size).coerceAtLeast(low)
             params.y = (height - along * height - size / 2f).toInt().coerceIn(low, highest)
         }
-        attached { windows.updateViewLayout(view, params) }
+        gliding?.cancel()
+        if (!animate || !view.isAttachedToWindow || view.width == 0 || !ValueAnimator.areAnimatorsEnabled()) return update(view, params)
+        // In the gravity it docks in, from where it is to where it docks: it stays where it is until the glide moves it.
+        val to = topLeft()
+        place(from.first, from.second)
+        gliding = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = GLIDE_MILLIS
+            interpolator = DecelerateInterpolator()
+            addUpdateListener { glide ->
+                val t = glide.animatedValue as Float
+                place(from.first + (to.first - from.first) * t, from.second + (to.second - from.second) * t)
+                update(view, params)
+            }
+            start()
+        }
     }
+
+    /** The middle the bubble on the bottom edge, and the bar, sit on: the whole of the panel on screen. */
+    private fun centre(width: Int): Float {
+        val half = minOf(panel, (width - 2 * side).toFloat()).coerceAtLeast(size.toFloat()) / 2f
+        val lowest = side + half
+        val highest = width - side - half
+        return if (edge == BubbleEdge.Bottom && highest > lowest) (along * width).coerceIn(lowest, highest) else width / 2f
+    }
+
+    /** The window's top left on the screen, from its params in the gravity they hold, at its size as laid out. */
+    private fun topLeft(): Pair<Float, Float> {
+        val (width, height) = screen()
+        val (w, h) = measured()
+        val top = if (params.gravity and Gravity.VERTICAL_GRAVITY_MASK == Gravity.BOTTOM) height - params.y - h else params.y
+        val left = when (params.gravity and Gravity.HORIZONTAL_GRAVITY_MASK) {
+            Gravity.RIGHT -> width - params.x - w
+            Gravity.CENTER_HORIZONTAL -> width / 2 + params.x - w / 2
+            else -> params.x
+        }
+        return left.toFloat() to top.toFloat()
+    }
+
+    /** The params that put the window's top left at ([left], [top]), in the gravity they hold. */
+    private fun place(left: Float, top: Float) {
+        val (width, height) = screen()
+        val (w, h) = measured()
+        params.y = (if (params.gravity and Gravity.VERTICAL_GRAVITY_MASK == Gravity.BOTTOM) height - top - h else top).roundToInt()
+        params.x = when (params.gravity and Gravity.HORIZONTAL_GRAVITY_MASK) {
+            Gravity.RIGHT -> width - left - w
+            Gravity.CENTER_HORIZONTAL -> left + w / 2f - width / 2f
+            else -> left
+        }.roundToInt()
+    }
+
+    fun screen(): Pair<Int, Int> = windows.currentWindowMetrics.bounds.let { it.width() to it.height() }
 
     /** The window's size as laid out, or the bubble's before it is. */
     private fun measured(): Pair<Int, Int> = (view.width.takeIf { it > 0 } ?: size) to (view.height.takeIf { it > 0 } ?: size)
@@ -185,16 +265,36 @@ internal class BubblePlacement(private val windows: WindowManager, private val v
     private fun insets(): Insets = windows.currentWindowMetrics.windowInsets
         .getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
 
-    private fun attached(block: () -> Unit) {
-        if (view.isAttachedToWindow) block()
+    private fun update(window: View, params: WindowManager.LayoutParams) {
+        if (window.isAttachedToWindow) windows.updateViewLayout(window, params)
     }
 
     private companion object {
         const val SIDE_MARGIN_DP = 12f
         const val BOTTOM_MARGIN_DP = 10f
+        const val TARGET_MARGIN_DP = 48f
+        /** How near the target's middle the bubble's is put away, in bubbles. */
+        const val TARGET_REACH = 1.5f
         const val TUCK_MILLIS = 3_000L
-        const val BASE = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
+        const val GLIDE_MILLIS = 220L
+        const val FLAGS = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+        const val BAR_FLAGS = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
+        /** A window that takes nothing: no touch, no keyboard. */
+        const val CLOSED = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
         const val KEY_EDGE = "edge"
         const val KEY_ALONG = "along"
+
+        /** A window that wraps its content, laid out on the whole screen: no system bar or cutout moves it. */
+        fun overlay(flags: Int) = WindowManager.LayoutParams(
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.WRAP_CONTENT,
+            WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
+            flags,
+            PixelFormat.TRANSLUCENT,
+        ).apply {
+            fitInsetsTypes = 0
+            layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+        }
     }
 }
