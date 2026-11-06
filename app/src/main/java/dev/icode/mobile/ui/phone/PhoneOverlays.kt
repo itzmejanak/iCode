@@ -85,7 +85,8 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
 
     init {
         owner.start()
-        listOf(bubble, bar, target).forEach {
+        // On each window's root: Compose looks for them there, not on a view inside it.
+        listOf(bubbleWindow, bar, target).forEach {
             it.setViewTreeLifecycleOwner(owner)
             it.setViewTreeSavedStateRegistryOwner(owner)
         }
