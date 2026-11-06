@@ -24,7 +24,8 @@ import org.junit.rules.TemporaryFolder
 
 /**
  * An act in an app on the phone asks about the app, as a folder outside does (docs/phone-agent-plan.md L6);
- * an MCP server's tool asks about its server the same way (docs/mcp-plan.md §6.4).
+ * an MCP server's tool asks about its server the same way (docs/mcp-plan.md §6.4), and a command in the
+ * user's own terminal tab about that tab (docs/agent-control-plan.md §4.3).
  */
 class AssistantGateTest {
     @get:Rule val temp = TemporaryFolder()
@@ -104,5 +105,18 @@ class AssistantGateTest {
         // The user's Runs: no place to ask about, in any mode.
         elsewhere = null
         assertEquals("Tapped", gate("s5").run(JSONObject()))
+    }
+
+    @Test fun `a command in the user's terminal tab asks to use it`() = runBlocking {
+        elsewhere = AssistantElsewhere("bash 2", AssistantPermissions.terminalRoot("session-4"), AssistantElsewhere.Kind.Terminal)
+        val asked = scope.async { runCatching { gate("s6").run(JSONObject()) } }
+        until { stateHolder.current.assistant.approval != null }
+        val approval = stateHolder.current.assistant.approval!!
+        assertEquals(listOf("terminal:session-4"), approval.reach!!.roots)
+        assertEquals("Use your terminal bash 2?", AssistantPermissions.question(approval, "Home"))
+        assertEquals("Allow in bash 2", AssistantPermissions.allowIn(approval, "Home"))
+        questions.answer("c1", AssistantAnswer.Deny)
+        val refusal = asked.await().exceptionOrNull()
+        assertTrue(refusal is AssistantToolException && refusal.message == "The user did not allow using their terminal bash 2")
     }
 }

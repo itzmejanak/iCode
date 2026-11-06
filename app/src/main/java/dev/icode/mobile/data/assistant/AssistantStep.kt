@@ -10,6 +10,8 @@ import java.util.concurrent.atomic.AtomicReference
 internal class AssistantStep(
     /** What a tool says it is doing now, for the turn's step: an MCP server's progress (docs/mcp-plan.md §6.5). */
     val progress: (String) -> Unit = {},
+    /** The call [callId] runs in the terminal tab [session]: its step shows that tab live (docs/agent-control-plan.md §6). */
+    val terminal: (callId: String, session: String) -> Unit = { _, _ -> },
     /** The user takes a step themselves — a password, a payment — and the turn waits for Done (§5.5). Last: a trailing lambda is this. */
     val handOver: suspend (why: String) -> Unit = {},
 ) {
@@ -28,6 +30,15 @@ internal class AssistantStep(
         internal set
 
     private val picture = AtomicReference<AssistantPicture?>()
+
+    /** What each call's command printed, as printed: its result keeps it for the replay. */
+    private val printed = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    fun leavePrinted(callId: String, text: String) {
+        printed[callId] = text
+    }
+
+    fun takePrinted(callId: String): String? = printed.remove(callId)
 
     /** [call] is the last of this reply's calls to any of [tools]: the one after which the screen is read once. */
     fun lastOf(call: String, tools: Set<String>): Boolean = calls.lastOrNull { it.tool in tools }?.id == call

@@ -7,12 +7,11 @@ import dev.icode.mobile.data.assistant.AssistantToolException
 import dev.icode.mobile.data.git.CliGitService
 import dev.icode.mobile.domain.AssistantToolKind
 import dev.icode.mobile.domain.AssistantToolName
-import dev.icode.mobile.domain.ProcessRules
 import java.io.File
 import org.json.JSONObject
 
-// What runs in the Linux runtime for the assistant (§4.3): Git's read-only views without asking,
-// and any command — asked about first — anywhere in the runtime (docs/runtime-contract-plan.md §4.3).
+// Git's read-only views in the Linux runtime for the assistant (§4.3), without asking. Its commands
+// run in the terminal (TerminalTools, docs/agent-control-plan.md §4.3).
 
 /** `git status` or `git diff`, in the repository that holds the path: read-only, so never asked about. */
 internal class GitReadTool(
@@ -54,102 +53,5 @@ internal class GitReadTool(
 
     private companion object {
         const val MAX_CHARACTERS = 64_000
-    }
-}
-
-/**
- * A command in bash in the runtime (docs/runtime-foundation-plan.md §3.3): asked about first,
- * stopped with the turn or at the time the model gave it, in the directory its chat's last command
- * ended in, answered with its exit status in words.
- */
-internal class RunCommandTool(
-    private val workspace: AssistantWorkspace,
-    private val chat: String,
-    private val shell: AssistantShell,
-    private val runtimeInstalled: () -> Boolean,
-    /** The command may have changed files: the workspace refreshes as after a terminal command. */
-    private val changed: () -> Unit,
-) : AssistantTool {
-    override val name = AssistantToolName.RunCommand.id
-    override val description = "Runs a command in bash in the Ubuntu runtime (ARM64, under PRoot: uid 0 without root's powers, " +
-        "no systemd) with the user's login environment, and answers its exit code, the directory it ended in and its output. " +
-        "It starts where the last command ended — the workspace's top at first — so `cd` carries over; `export` and `source` " +
-        "do not, so set what a command needs in that command. Its input is closed. It is stopped after timeout_seconds, with " +
-        "everything it started: run a server, a watcher or anything that must keep running with start_process. It reaches " +
-        "the whole runtime, every workspace under /workspace included."
-    override val parameters = listOf(
-        AssistantParameter("command", "The command line, as typed in a terminal"),
-        AssistantParameter(
-            "timeout_seconds", "Stop it after this many seconds: default $DEFAULT_TIMEOUT",
-            AssistantParameterType.Integer, required = false,
-        ),
-    )
-    override val kind = AssistantToolKind.Command
-
-    override fun summary(arguments: JSONObject): String = "Run `${arguments.textOrNull("command").orEmpty().lineSequence().first()}`"
-
-    override fun command(arguments: JSONObject): String? = arguments.textOrNull("command")
-
-    override fun reach(arguments: JSONObject): List<File> = arguments.textOrNull("command")?.let { shell.reach(workspace, chat, it) }.orEmpty()
-
-    override fun detail(arguments: JSONObject): String = arguments.textOrNull("command").orEmpty()
-
-    override suspend fun run(arguments: JSONObject): String {
-        val command = arguments.text("command").ifBlank { throw AssistantToolException("The command is empty") }
-        if (!runtimeInstalled()) throw AssistantToolException("The Linux runtime is not installed")
-        val seconds = arguments.intOr("timeout_seconds", DEFAULT_TIMEOUT).coerceAtLeast(1)
-        val output = Output(MAX_CHARACTERS)
-        try {
-            val ran = shell.run(workspace, chat, command, seconds, output::add)
-            val stderr = ran.stderr.trim()
-            return buildString {
-                val code = ran.exitCode
-                if (code == null) {
-                    append("Stopped after $seconds s, still running: it ended with everything it started. ")
-                    append("Run a server, a watcher or anything that must keep running with start_process.")
-                } else {
-                    append("Exit code $code (${ProcessRules.exitMeaning(code)})")
-                }
-                append("\nin ").append(ran.directory)
-                ran.notes.forEach { append("\n").append(it) }
-                if (code == 127) append("\nPATH: ").append(ran.path)
-                output.text().takeIf { it.isNotBlank() }?.let { append("\n\n").append(it) }
-                if (stderr.isNotEmpty()) append("\n\nstderr:\n").append(bounded(stderr, MAX_CHARACTERS / 4))
-            }
-        } finally {
-            changed()
-        }
-    }
-
-    /** What a command printed, kept to its start and its end within [limit]. */
-    private class Output(private val limit: Int) {
-        private val head = StringBuilder()
-        private val tail = ArrayDeque<String>()
-        private var tailLength = 0
-        private var dropped = 0
-
-        fun add(line: String) {
-            if (head.length < limit / 2) {
-                head.append(line).append('\n')
-                return
-            }
-            tail.addLast(line)
-            tailLength += line.length + 1
-            while (tailLength > limit / 2 && tail.isNotEmpty()) {
-                tailLength -= tail.removeFirst().length + 1
-                dropped++
-            }
-        }
-
-        fun text(): String = buildString {
-            append(head)
-            if (dropped > 0) append("… ($dropped lines not shown) …\n")
-            tail.forEach { append(it).append('\n') }
-        }.trimEnd()
-    }
-
-    private companion object {
-        const val DEFAULT_TIMEOUT = 120
-        const val MAX_CHARACTERS = 32_000
     }
 }

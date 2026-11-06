@@ -195,7 +195,7 @@ internal class AssistantChatStore(private val folder: File) {
                 message.results.forEach { result ->
                     put(
                         JSONObject().put("callId", result.callId).put("tool", result.tool)
-                            .put("output", bounded(result.output, MAX_OUTPUT)).put("failed", result.failed)
+                            .put("output", bounded(result.output, MAX_OUTPUT)).put("failed", result.failed).put("printed", result.printed)
                             .apply { result.changes?.let { put("added", it.added).put("removed", it.removed) } },
                     )
                 }
@@ -226,6 +226,7 @@ internal class AssistantChatStore(private val folder: File) {
                 AssistantResult(
                     result.getString("callId"), result.getString("tool"), result.getString("output"), result.getBoolean("failed"),
                     changes = if (result.has("added")) LineChanges(result.getInt("added"), result.getInt("removed")) else null,
+                    printed = result.optString("printed").takeIf { result.has("printed") && !result.isNull("printed") },
                 )
             },
         )

@@ -171,7 +171,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     private val assistant = AssistantCoordinator.create(
         appContext, stateHolder, scope,
         AssistantToolbox(source, ripgrep, gitCli, execution, runs, runtimeLayout::isInstalled, { documents.blockingEdits(it) != null },
-            changed = { session.requestRefresh(rebuildIndex = true) }, phone = phone.control),
+            changed = { session.requestRefresh(rebuildIndex = true) }, phone = phone.control, terminals = terminals),
         activeRoot = { session.activeRoot },
         source = source, paths = runtimeLayout.paths, git = gitCli,
     )

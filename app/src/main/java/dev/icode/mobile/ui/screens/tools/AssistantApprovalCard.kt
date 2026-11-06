@@ -64,6 +64,7 @@ internal fun AssistantApprovalCard(approval: AssistantApproval, workspace: Strin
                         when {
                             reach?.place?.kind == AssistantElsewhere.Kind.App -> Icons.Outlined.PhoneAndroid
                             reach?.place?.kind == AssistantElsewhere.Kind.Server -> Icons.Outlined.Extension
+                            reach?.place?.kind == AssistantElsewhere.Kind.Terminal -> Icons.Outlined.Terminal
                             reach != null -> Icons.Outlined.FolderOpen
                             command -> Icons.Outlined.Terminal
                             else -> Icons.Outlined.EditNote
@@ -133,6 +134,7 @@ internal fun allowInMeaning(reach: AssistantReach?, workspace: String): String? 
     reach == null -> "Allow in $workspace: this chat's changes and commands in $workspace stop asking, until iCode closes."
     reach.place?.kind == AssistantElsewhere.Kind.App -> "Allow in ${reach.place.name}: this chat acts in ${reach.place.name} without asking, until iCode closes."
     reach.place?.kind == AssistantElsewhere.Kind.Server -> "Allow in ${reach.place.name}: this chat uses ${reach.place.name}'s tools without asking, until iCode closes."
+    reach.place?.kind == AssistantElsewhere.Kind.Terminal -> "Allow in ${reach.place.name}: this chat runs, reads and types in your ${reach.place.name} without asking, until iCode closes."
     reach.roots.isEmpty() -> null
     else -> "Allow in Chat: this chat may reach ${reach.roots.joinToString()} without asking, until iCode closes."
 }

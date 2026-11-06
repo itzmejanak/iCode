@@ -24,6 +24,8 @@ sealed interface AssistantEntry {
         val output: String? = null,
         /** For a change to a file, the lines it added and removed. */
         val changes: LineChanges? = null,
+        /** For a command, what it printed, as printed: its replay (docs/agent-control-plan.md §6). */
+        val printed: String? = null,
     ) : AssistantEntry
 
     /** Where the chat was compacted: before it, the model reads only its summary. */
@@ -75,7 +77,7 @@ object AssistantRules {
                             else -> AssistantStepStatus.Queued
                         }
                         if (result == null) firstOpen = false
-                        add(AssistantEntry.Step("m${index}c$position", call, status, result?.output ?: STOPPED.takeIf { !state.runningHere }, result?.changes))
+                        add(AssistantEntry.Step("m${index}c$position", call, status, result?.output ?: STOPPED.takeIf { !state.runningHere }, result?.changes, result?.printed))
                     }
                 }
                 is AssistantMessage.Results -> Unit

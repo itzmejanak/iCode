@@ -6,6 +6,8 @@ import dev.icode.mobile.data.git.CliGitService
 import dev.icode.mobile.data.phone.PhoneControl
 import dev.icode.mobile.data.run.RunCoordinator
 import dev.icode.mobile.data.runtime.RuntimeExecution
+import dev.icode.mobile.data.runtime.TerminalRuns
+import dev.icode.mobile.data.runtime.TerminalSessions
 import dev.icode.mobile.data.search.WorkspaceSearchEngine
 import dev.icode.mobile.data.workspace.WorkspaceFileSource
 
@@ -24,8 +26,11 @@ internal class AssistantToolbox(
     private val changed: () -> Unit,
     /** The phone, for every chat while phone control is on (docs/phone-agent-plan.md §5.3). */
     private val phone: PhoneControl,
+    /** The Terminal panel's own sessions, where the assistant's commands run (docs/agent-control-plan.md §4). */
+    terminals: TerminalSessions,
 ) {
-    private val shell = AssistantShell(execution.rootfs, execution.guest, execution.environment, execution.processes)
+    private val terminal = TerminalRuns(terminals)
+    private val shell = AssistantShell(execution.environment, execution.processes, terminal)
     private val processes = execution.processes
 
     /**
@@ -42,7 +47,10 @@ internal class AssistantToolbox(
             GitReadTool(workspace, git, diff = true),
             WriteFileTool(writer),
             EditFileTool(writer),
-            RunCommandTool(workspace, chat, shell, runtimeInstalled, changed),
+            RunCommandTool(workspace, chat, shell, terminal, step, runtimeInstalled, changed),
+            ListTerminalsTool(workspace, chat, terminal),
+            ReadTerminalTool(workspace, chat, terminal),
+            SendTerminalInputTool(workspace, chat, terminal),
             StartProcessTool(workspace, chat, shell, processes, runtimeInstalled),
             ProcessStatusTool(processes),
             SendProcessInputTool(processes),
