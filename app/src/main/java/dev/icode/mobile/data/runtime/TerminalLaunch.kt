@@ -16,6 +16,8 @@ internal class TerminalLaunch private constructor(
     val title: String? = null,
     /** The process whose output the tab shows; null for a shell. */
     val follows: String? = null,
+    /** The chat whose tab it is (docs/agent-control-plan.md §3 A4); null for the user's. */
+    val assistant: String? = null,
 ) {
     companion object {
         /** Null when the runtime is not installed. */
@@ -35,6 +37,28 @@ internal class TerminalLaunch private constructor(
                 transcriptRows = settings.scrollbackLines,
                 argv = argv,
                 environment = layout.hostEnvironment().map { "${it.key}=${it.value}" },
+            )
+        }
+
+        /**
+         * A chat's tab (docs/agent-control-plan.md §3 A4): bash with iCode's integration, whatever the
+         * login shell, in [workspaceHostPath], where nothing pages. Null when the runtime is not installed.
+         */
+        fun assistant(layout: RuntimeLayout, settings: TerminalSettings, workspaceHostPath: String, chat: String): TerminalLaunch? {
+            if (!layout.isInstalled) return null
+            layout.ensureGuestGroups()
+            val argv = layout.prootCommand(
+                guestCommand = ShellIntegration.command(BASH),
+                variables = GuestVariables.of(GuestContext.AssistantTerminal, layout.loginShell()),
+                guestWorkingDirectory = layout.workspaces.guestOf(workspaceHostPath) ?: RuntimeLayout.GUEST_HOME,
+                killOnExit = true,
+            )
+            return TerminalLaunch(
+                workspaceHostPath = workspaceHostPath,
+                transcriptRows = settings.scrollbackLines,
+                argv = argv,
+                environment = layout.hostEnvironment().map { "${it.key}=${it.value}" },
+                assistant = chat,
             )
         }
 
@@ -61,14 +85,16 @@ internal class TerminalLaunch private constructor(
         }
 
         private const val TAIL = "/usr/bin/tail"
+        private const val BASH = "/bin/bash"
 
         /**
          * Root's login [shell] as a login shell (`-l`: bash, zsh, fish and dash all take it), so its
-         * profile is read. When it is not the shell `/etc/passwd` records ([recorded]) — that one is
-         * not installed — the tab's first line says so, and how to change it.
+         * profile is read; bash reads it through iCode's rcfile, which adds its marks
+         * ([ShellIntegration]). When it is not the shell `/etc/passwd` records ([recorded]) — that one
+         * is not installed — the tab's first line says so, and how to change it.
          */
         fun shellCommand(recorded: String?, shell: String): List<String> {
-            val login = listOf(shell, "-l")
+            val login = if (ShellIntegration.isBash(shell)) ShellIntegration.command(shell) else listOf(shell, "-l")
             if (recorded == null || recorded == shell) return login
             val why = "iCode: your login shell $recorded (from /etc/passwd) is not installed — " +
                 "`apt install ${recorded.substringAfterLast('/')}`, or `chsh -s $shell`"

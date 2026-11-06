@@ -94,12 +94,13 @@ internal class RuntimeLayout(context: Context) {
 
     /**
      * iCode's own files in the runtime's `/etc/icode`, brought to this build: the prompt
-     * ([ShellPrompt]) and the README ([README_PATH], the `runtime/README.md` asset). At install and
+     * ([ShellPrompt]), the shell integration ([ShellIntegration]) and the README ([README_PATH], the `runtime/README.md` asset). At install and
      * at every iCode start, so an update reaches them; a runtime that cannot take them still runs.
      */
     fun writeOwnFiles() {
         runCatching {
             ShellPrompt.write(rootfs)
+            ShellIntegration.write(rootfs)
             val readme = appContext.assets.open(README_ASSET).use { it.readBytes() }
             File(rootfs, README_PATH.removePrefix("/")).apply { parentFile?.mkdirs() }.writeBytes(readme)
         }

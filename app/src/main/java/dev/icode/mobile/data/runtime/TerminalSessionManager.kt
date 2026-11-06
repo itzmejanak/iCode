@@ -4,8 +4,6 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
-import android.system.Os
-import android.system.OsConstants
 import androidx.annotation.MainThread
 import com.termux.terminal.TerminalSession
 import dev.icode.mobile.domain.LostTerminalSession
@@ -16,6 +14,7 @@ import dev.icode.mobile.domain.TerminalSnapshot
 import dev.icode.mobile.domain.TerminalStatus
 import dev.icode.mobile.domain.reorderTerminalIds
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,6 +50,8 @@ internal class TerminalSessionManager private constructor(
     private val layout: RuntimeLayout,
 ) : TerminalSessions {
     private val entries = linkedMapOf<String, Entry>()
+    /** Each running session's commands, for any thread (docs/agent-control-plan.md §4.1). */
+    private val records = ConcurrentHashMap<String, TerminalCommands>()
     private val sessionNames = TerminalSessionNames()
     private val mainHandler = Handler(Looper.getMainLooper())
     private var nextId = 1
@@ -77,9 +78,9 @@ internal class TerminalSessionManager private constructor(
     /** Sessions whose foreground command just ended: what it ran may have changed the workspace. */
     override val commandsFinished: SharedFlow<String> = mutableCommandsFinished.asSharedFlow()
 
-    /** Reported by the foreground service, which samples each session's program. */
+    /** Reported by the foreground service, which samples each session's program; a shell with marks says so itself. */
     fun commandFinished(sessionId: String) {
-        mutableCommandsFinished.tryEmit(sessionId)
+        if (records[sessionId]?.integrated != true) mutableCommandsFinished.tryEmit(sessionId)
     }
 
     private val attention = TerminalAttention()
@@ -93,21 +94,33 @@ internal class TerminalSessionManager private constructor(
      * Opens a session, or selects a running one for the same workspace when
      * [reuseExisting]. Returns null when the runtime is not installed.
      */
-    override suspend fun open(workspaceHostPath: String?, reuseExisting: Boolean): String? {
-        if (reuseExisting) {
-            withContext(Dispatchers.Main.immediate) { selectRunning(workspaceHostPath) }?.let { return it }
+    override suspend fun open(workspaceHostPath: String?, reuseExisting: Boolean): String? =
+        openOr({ if (reuseExisting) selectRunning(workspaceHostPath) else null }) { TerminalLaunch.prepare(layout, settings, workspaceHostPath) }
+
+    override suspend fun openAssistant(workspaceHostPath: String, chat: String, fresh: Boolean): String? =
+        openOr({ if (fresh) null else entries.values.firstOrNull { it.assistant == chat && it.state.isRunning }?.id }, select = false) {
+            TerminalLaunch.assistant(layout, settings, workspaceHostPath, chat)
         }
-        val launch = withContext(Dispatchers.IO) { TerminalLaunch.prepare(layout, settings, workspaceHostPath) } ?: return null
-        return withContext(Dispatchers.Main.immediate) { start(launch) }
+
+    override suspend fun follow(output: FollowedOutput): String? =
+        openOr({ entries.values.firstOrNull { it.follows == output.key && it.state.isRunning }?.also { publish(selectedId = it.id) }?.id }) {
+            TerminalLaunch.following(layout, settings, output)
+        }
+
+    /** The running tab [existing] finds, else one of [prepare]'s, prepared off the main thread; null without a runtime. */
+    private suspend fun openOr(existing: () -> String?, select: Boolean = true, prepare: () -> TerminalLaunch?): String? {
+        withContext(Dispatchers.Main.immediate) { existing() }?.let { return it }
+        val launch = withContext(Dispatchers.IO) { prepare() } ?: return null
+        return withContext(Dispatchers.Main.immediate) { start(launch, select) }
     }
 
-    override suspend fun follow(output: FollowedOutput): String? {
-        withContext(Dispatchers.Main.immediate) {
-            entries.values.firstOrNull { it.follows == output.key && it.state.isRunning }?.also { publish(selectedId = it.id) }?.id
-        }?.let { return it }
-        val launch = withContext(Dispatchers.IO) { TerminalLaunch.following(layout, settings, output) } ?: return null
-        return withContext(Dispatchers.Main.immediate) { start(launch) }
-    }
+    override fun commands(id: String): TerminalCommands? = records[id]
+
+    @MainThread
+    override fun write(id: String, text: String): Boolean = entries[id]?.session?.type(text) == true
+
+    @MainThread
+    override fun screen(id: String, lines: Int): String? = entries[id]?.session?.lastLines(lines)
 
     @MainThread
     override fun select(id: String) {
@@ -141,8 +154,9 @@ internal class TerminalSessionManager private constructor(
     @MainThread
     override fun close(id: String) {
         val entry = entries.remove(id) ?: return
+        records.remove(id)?.close()
         sessionNames.release(id)
-        entry.session?.let(::hangUp)
+        entry.session?.hangUp(mainHandler)
         val selected = mutableSnapshot.value.selectedId?.takeIf { it != id && entries.containsKey(it) }
         publish(selectedId = selected ?: entries.keys.lastOrNull())
     }
@@ -179,31 +193,27 @@ internal class TerminalSessionManager private constructor(
      * lands on that session — otherwise the first.
      */
     private fun selectRunning(workspaceHostPath: String?): String? {
-        val candidates = entries.values.filter { it.workspaceHostPath == workspaceHostPath && it.state.isRunning }
+        val candidates = entries.values.filter { it.workspaceHostPath == workspaceHostPath && it.state.isRunning && it.assistant == null }
         val chosen = candidates.firstOrNull { it.id == mutableSnapshot.value.selectedId } ?: candidates.firstOrNull()
         return chosen?.also { publish(selectedId = it.id) }?.id
     }
 
     @MainThread
-    private fun start(launch: TerminalLaunch): String {
+    private fun start(launch: TerminalLaunch, select: Boolean = true): String {
         val id = "session-${nextId++}"
-        val title = launch.title ?: sessionNames.allocate(id)
-        val entry = Entry(id, launch.workspaceHostPath, TerminalSessionState(id, title, TerminalStatus.Running, follows = launch.follows), launch.follows)
+        val title = launch.title ?: sessionNames.allocate(id, if (launch.assistant != null) TerminalSessionNames.ASSISTANT else TerminalSessionNames.SHELL)
+        val state = TerminalSessionState(id, title, TerminalStatus.Running, follows = launch.follows, assistant = launch.assistant)
+        val entry = Entry(id, launch.workspaceHostPath, state, launch.follows, launch.assistant)
         entries[id] = entry
-        val session = TerminalSession(
-            launch.argv.first(),
-            layout.runtimeRoot.absolutePath,
-            launch.argv.toTypedArray(),
-            launch.environment.toTypedArray(),
-            launch.transcriptRows,
-            TerminalSessionCallbacks(
-                context = context,
-                cursorStyle = { settings.cursorStyle },
-                onScreenChanged = { entries[id]?.observer?.invoke() },
-                onFinished = { exitStatus -> finished(id, exitStatus) },
-                onBell = { mutableBells.tryEmit(id) },
-            ),
+        val commands = TerminalCommands { mutableCommandsFinished.tryEmit(id) }.also { records[id] = it }
+        val callbacks = TerminalSessionCallbacks(
+            context = context,
+            cursorStyle = { settings.cursorStyle },
+            onScreenChanged = { entries[id]?.observer?.invoke() },
+            onFinished = { exitStatus -> finished(id, exitStatus) },
+            onBell = { mutableBells.tryEmit(id) },
         )
+        val session = terminalSession(launch, layout.runtimeRoot.absolutePath, callbacks, commands)
         // Start now rather than on the view's first layout, so a session
         // opened from elsewhere is already running when it is shown. The
         // view resizes it to the real window when it attaches.
@@ -220,20 +230,8 @@ internal class TerminalSessionManager private constructor(
                     failure = "Unable to start the terminal: ${error.message ?: error.javaClass.simpleName}",
                 )
             }
-        publish(selectedId = id)
+        publish(selectedId = if (select) id else mutableSnapshot.value.selectedId)
         return id
-    }
-
-    /**
-     * SIGHUP to PRoot, which passes it on to every program in the session and
-     * kills those that ignore it two seconds later (third_party/patches/proot/0002).
-     * Should PRoot itself still be running after that, it is killed, and
-     * PTRACE_O_EXITKILL takes its programs with it.
-     */
-    private fun hangUp(session: TerminalSession) {
-        if (!session.isRunning) return
-        runCatching { Os.kill(session.pid, OsConstants.SIGHUP) }
-        mainHandler.postDelayed({ session.finishIfRunning() }, HANG_UP_TIMEOUT_MILLIS)
     }
 
     @MainThread
@@ -243,6 +241,7 @@ internal class TerminalSessionManager private constructor(
         entry.observer?.invoke()
         // A process's output, closed with Ctrl-C: a view, whose ending is nothing to report.
         if (entry.follows != null) return close(id)
+        records.remove(id)?.close()
         if (exitStatus < 0) {
             // Killed by a signal: keep the tab, whose screen shows the end.
             entry.state = entry.state.copy(status = TerminalStatus.Exited, exitSignal = -exitStatus)
@@ -260,13 +259,13 @@ internal class TerminalSessionManager private constructor(
             ?: states.lastOrNull()?.id
         mutableSnapshot.value = TerminalSnapshot(sessions = states, selectedId = resolved)
         ledger.record(
-            entries.values.filter { it.state.isRunning && it.follows == null }
+            entries.values.filter { it.state.isRunning && it.follows == null && it.assistant == null }
                 .map { LostTerminalSession(it.state.title, it.workspaceHostPath?.let { path -> File(path).name }) },
         )
     }
 
-    /** [follows]: the process whose output it shows; null for a shell. */
-    private class Entry(val id: String, val workspaceHostPath: String?, var state: TerminalSessionState, val follows: String?) {
+    /** [follows]: the process whose output it shows; null for a shell. [assistant]: the chat whose tab it is. */
+    private class Entry(val id: String, val workspaceHostPath: String?, var state: TerminalSessionState, val follows: String?, val assistant: String?) {
         var session: TerminalSession? = null
         var observer: (() -> Unit)? = null
     }
@@ -286,7 +285,6 @@ internal class TerminalSessionManager private constructor(
         }
 
         private const val ENDINGS_BUFFER = 8
-        private const val HANG_UP_TIMEOUT_MILLIS = 5_000L
         private const val INITIAL_COLUMNS = 80
         private const val INITIAL_ROWS = 24
         private const val INITIAL_CELL_PX = 16

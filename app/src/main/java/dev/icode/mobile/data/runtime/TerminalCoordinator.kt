@@ -38,6 +38,21 @@ internal interface TerminalSessions {
     /** Selects the tab following [output], or opens one; null without a runtime. */
     suspend fun follow(output: FollowedOutput): String?
 
+    /**
+     * A chat's tab (docs/agent-control-plan.md §3 A4): its running one unless [fresh], else a new one;
+     * the user's own selection stays. Null without a runtime.
+     */
+    suspend fun openAssistant(workspaceHostPath: String, chat: String, fresh: Boolean): String?
+
+    /** [id]'s commands as its shell's marks bound them; null once it is gone. Any thread. */
+    fun commands(id: String): TerminalCommands?
+
+    /** Types [text] into [id] as its keyboard would; false when it no longer runs. */
+    @MainThread fun write(id: String, text: String): Boolean
+
+    /** What [id] shows: its last [lines] of screen and scrollback, as text; null once it is gone. */
+    @MainThread fun screen(id: String, lines: Int): String?
+
     @MainThread fun select(id: String)
     @MainThread fun reorder(movingId: String, targetId: String)
     @MainThread fun close(id: String)

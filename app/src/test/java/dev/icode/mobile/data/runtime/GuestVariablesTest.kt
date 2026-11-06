@@ -52,4 +52,13 @@ class GuestVariablesTest {
         assertFalse("PAGER" in terminal)
         assertEquals(GuestVariables.base("/bin/bash") + (GuestVariables.CONTEXT to "install"), GuestVariables.of(GuestContext.Install, "/bin/bash"))
     }
+
+    @Test fun `a chat's terminal is a terminal where nothing pages or waits`() {
+        val assistant = GuestVariables.of(GuestContext.AssistantTerminal, "/bin/bash")
+        assertEquals("xterm-256color", assistant["TERM"])
+        assertEquals("cat", assistant["PAGER"])
+        assertEquals("cat", assistant["GIT_PAGER"])
+        assertEquals("0", assistant["GIT_TERMINAL_PROMPT"])
+        assertEquals("noninteractive", assistant["DEBIAN_FRONTEND"])
+    }
 }

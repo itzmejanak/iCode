@@ -8,6 +8,8 @@ package dev.icode.mobile.data.runtime
 internal enum class GuestContext(val id: String, val readsProfile: Boolean) {
     /** A terminal tab: its login shell reads the profile itself. */
     Terminal("terminal", readsProfile = false),
+    /** A chat's terminal tab (docs/agent-control-plan.md §4.2): a terminal whose bash reads the profile itself, where nothing pages and nothing waits on a password the assistant cannot see. */
+    AssistantTerminal("assistant-terminal", readsProfile = false),
     /** What runs on the user's behalf without a terminal: the assistant's commands and processes, the Run tab, Build & Run, the Runtime Tools' installs. */
     Command("command", readsProfile = true),
     /** Source Control's Git, the assistant's Git views and the gpg agent signing needs: hooks, credential helpers and gpg are the user's programs. */
@@ -37,18 +39,21 @@ internal object GuestVariables {
     /** True of the terminal emulator, which also draws 24-bit colour. */
     private val TERMINAL = mapOf("TERM" to "xterm-256color", "COLORTERM" to "truecolor")
 
-    /** No terminal is attached and no one is there to answer: nothing pages, nothing waits on a prompt. */
-    private val NO_TERMINAL = mapOf(
-        "TERM" to "dumb",
+    /** No one is there to answer: nothing pages, nothing waits on a prompt. */
+    private val NO_WAITING = mapOf(
         "PAGER" to "cat",
         "GIT_PAGER" to "cat",
         "GIT_TERMINAL_PROMPT" to "0",
         "DEBIAN_FRONTEND" to "noninteractive",
     )
 
+    /** No terminal is attached either. */
+    private val NO_TERMINAL = mapOf("TERM" to "dumb") + NO_WAITING
+
     /** [context]'s own variables, over the base and the profile. */
     fun own(context: GuestContext): Map<String, String> = when (context) {
         GuestContext.Terminal -> TERMINAL
+        GuestContext.AssistantTerminal -> TERMINAL + NO_WAITING
         GuestContext.Install -> emptyMap()
         else -> NO_TERMINAL
     }

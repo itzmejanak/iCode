@@ -63,6 +63,10 @@ class TerminalCoordinatorTest {
         override fun close(id: String) { calls += "close $id" }
         override fun applySettings(next: TerminalSettings) { applied = next }
         override fun workspaceOf(id: String): String? = workspaces[id]
+        override suspend fun openAssistant(workspaceHostPath: String, chat: String, fresh: Boolean): String? = null
+        override fun commands(id: String): TerminalCommands? = null
+        override fun write(id: String, text: String): Boolean = false
+        override fun screen(id: String, lines: Int): String? = null
     }
 
     private inner class Harness(installed: Boolean = true) {

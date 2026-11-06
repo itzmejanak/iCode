@@ -58,6 +58,8 @@ android {
         getByName("androidTest").java.srcDir("src/sharedTest/java")
         // RaTeX's prebuilt native library, with its provenance (third_party/ratex/README.md).
         getByName("main").jniLibs.srcDir("../third_party/ratex/jniLibs")
+        // Termux's emulator, with iCode's output tap (third_party/termux-terminal-emulator/README.md).
+        getByName("main").java.srcDir("../third_party/termux-terminal-emulator/src/main/java")
     }
 
     buildFeatures {
@@ -133,9 +135,11 @@ dependencies {
     // Commons Compress's own optional dependency for .7z and .xz (0BSD, pure Java;
     // docs/explorer-gaps-plan.md §3.11).
     implementation("org.tukaani:xz:1.10")
-    // VT/xterm emulator, renderer and input view (brings terminal-emulator).
-    // Apache-2.0 per termux-app LICENSE.md; see docs/terminal-maturity-plan.md §3.
-    implementation("com.github.termux.termux-app:terminal-view:v0.118.3")
+    // The renderer and input view. Apache-2.0 per termux-app LICENSE.md; see docs/terminal-maturity-plan.md §3.
+    // Its emulator is built from third_party/termux-terminal-emulator, the same release with iCode's tap.
+    implementation("com.github.termux.termux-app:terminal-view:v0.118.3") {
+        exclude(module = "terminal-emulator")
+    }
     implementation("androidx.core:core-splashscreen:1.0.1")
     implementation("androidx.activity:activity-compose:1.12.4")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.10.0")
