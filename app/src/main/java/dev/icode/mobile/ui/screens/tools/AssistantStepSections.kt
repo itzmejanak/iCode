@@ -1,6 +1,8 @@
 package dev.icode.mobile.ui.screens.tools
 
+import android.view.inputmethod.InputMethodManager
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -8,14 +10,18 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Terminal
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -29,6 +35,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import dev.icode.mobile.designsystem.CodeSurface
 import dev.icode.mobile.designsystem.IcodeColors
@@ -66,38 +74,59 @@ internal fun StepText(label: String, text: String) {
 @Composable
 internal fun StepSection(label: String, trailing: @Composable RowScope.() -> Unit = {}, content: @Composable ColumnScope.() -> Unit) {
     Column(Modifier.padding(top = IcodeSpacing.Space2), verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
-        Row(
-            Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
-        ) {
-            SectionLabel(label, Modifier.weight(1f))
-            trailing()
-        }
+        StepHeading(label, trailing)
         content()
+    }
+}
+
+/** A step section's name in small capitals, [trailing] at its end. */
+@Composable
+private fun StepHeading(label: String, trailing: @Composable RowScope.() -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
+        SectionLabel(label, Modifier.weight(1f))
+        trailing()
     }
 }
 
 /**
  * The terminal tab [session] a running command runs in, live: the Terminal panel's own view, so what
  * is typed there goes to the command, with the panel's extra keys under it; Open in Terminal shows the
- * tab there, the sheet closed.
+ * tab there, the sheet closed. [onFocus] hears the view take the keyboard and let it go. [typing], it
+ * is the sheet (docs/agent-control-plan.md §6): [command] collapsed to its first line on top — a tap
+ * puts the keyboard away — the terminal in all the height there is, and the keys on the keyboard.
+ * One view throughout, so the shell and its keyboard stay as they are.
  */
 @Composable
-internal fun StepTerminal(session: String, onClose: () -> Unit) {
+internal fun StepTerminal(
+    session: String,
+    command: String,
+    typing: Boolean,
+    onFocus: (Boolean) -> Unit,
+    onClose: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val gateway = LocalICodeGateway.current
     val settings = LocalWorkspacePreferences.current.terminal
     val tab = LocalICodeSnapshot.current.terminal.sessions.firstOrNull { it.id == session }
     val keys = remember { TerminalKeys() }
     LaunchedEffect(settings.extraKeys) { keys.keepOnly(settings.extraKeys) }
     var fontScale by rememberSaveable { mutableFloatStateOf(1f) }
-    StepSection(listOfNotNull("Terminal", tab?.title).joinToString(" · "), trailing = {
+    val view = LocalView.current
+    val open: @Composable RowScope.() -> Unit = {
         CornerChip("Open in Terminal", Icons.Outlined.Terminal) {
             onClose()
             gateway.dispatch(ICodeIntent.ShowTerminalSession(session))
         }
-    }) {
-        TerminalFrame(IcodeSizes.StepTerminal) {
+    }
+    Column(modifier.padding(top = IcodeSpacing.Space2), verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
+        if (typing) {
+            CollapsedCommand(command, trailing = open) {
+                view.context.getSystemService(InputMethodManager::class.java)?.hideSoftInputFromWindow(view.windowToken, 0)
+            }
+        } else {
+            StepHeading(listOfNotNull("Terminal", tab?.title).joinToString(" · "), open)
+        }
+        TerminalFrame(IcodeSizes.StepTerminal.takeUnless { typing }, if (typing) Modifier.weight(1f) else Modifier) {
             TerminalHost(
                 sessionId = session,
                 settings = settings,
@@ -108,11 +137,34 @@ internal fun StepTerminal(session: String, onClose: () -> Unit) {
                 // The tab is the chat's; it closes from the Terminal panel.
                 onEndedEnter = {},
                 modifier = Modifier.fillMaxSize(),
+                onFocus = onFocus,
             )
         }
         if (settings.extraKeys.isNotEmpty()) {
             ExtraKeyRow(settings.extraKeys, enabled = tab?.isRunning == true, ctrlHeld = keys.ctrl, altHeld = keys.alt, onKey = keys::press)
         }
+    }
+}
+
+/** A running command's line, collapsed to its first while its terminal is typed into: a tap ([onShow]) shows it all again. */
+@Composable
+private fun CollapsedCommand(command: String, trailing: @Composable RowScope.() -> Unit, onShow: () -> Unit) {
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
+        Row(
+            Modifier.weight(1f).minimumInteractiveComponentSize().clip(IcodeShapes.Small)
+                .clickable(onClickLabel = "Show the command", onClick = onShow).padding(horizontal = IcodeSpacing.Space1),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
+        ) {
+            Icon(Icons.Outlined.Terminal, contentDescription = null, tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconSm))
+            Text(
+                command.lineSequence().first(),
+                style = IcodeType.MonoSmall.copy(color = IcodeColors.TextPrimary),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        trailing()
     }
 }
 
@@ -145,11 +197,11 @@ internal fun StepReplay(printed: String, output: String) {
     }
 }
 
-/** A terminal on a step's page: the terminal's own ground, [height] tall, its corners as a code block's. */
+/** A terminal on a step's page: the terminal's own ground, [height] tall or all [modifier] gives it, its corners as a code block's. */
 @Composable
-private fun TerminalFrame(height: Dp, content: @Composable () -> Unit) {
+private fun TerminalFrame(height: Dp?, modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Box(
-        Modifier.fillMaxWidth().clip(IcodeShapes.Small).background(IcodeColors.BackgroundDeep)
-            .padding(vertical = IcodeSpacing.Space1).height(height),
+        modifier.fillMaxWidth().clip(IcodeShapes.Small).background(IcodeColors.BackgroundDeep)
+            .padding(vertical = IcodeSpacing.Space1).then(if (height != null) Modifier.height(height) else Modifier.fillMaxHeight()),
     ) { content() }
 }

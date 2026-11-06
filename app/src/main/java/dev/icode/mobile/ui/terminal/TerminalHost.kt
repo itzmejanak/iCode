@@ -16,6 +16,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,10 +57,12 @@ fun TerminalHost(
     onUrl: (String) -> Unit,
     onEndedEnter: () -> Unit,
     modifier: Modifier = Modifier,
+    /** The view took the focus, or let it go: the keyboard types into it. */
+    onFocus: (Boolean) -> Unit = {},
 ) {
     val source = LocalTerminalSessions.current
     val observe = remember(source, sessionId) { { changed: () -> Unit -> source.observe(sessionId, changed) } }
-    TerminalPane(source.session(sessionId), settings, fontScale, keys, onScale, onUrl, onEndedEnter, modifier, observe = observe)
+    TerminalPane(source.session(sessionId), settings, fontScale, keys, onScale, onUrl, onEndedEnter, modifier, observe = observe, onFocus = onFocus)
 }
 
 /**
@@ -112,7 +115,9 @@ private fun TerminalPane(
     modifier: Modifier,
     observe: ((changed: () -> Unit) -> AutoCloseable)? = null,
     onEmulator: (TerminalView) -> Unit = {},
+    onFocus: (Boolean) -> Unit = {},
 ) {
+    val focusChanged by rememberUpdatedState(onFocus)
     val palette = LocalIcodePalette.current
     val context = LocalContext.current
     val textSizePx = with(LocalDensity.current) { (settings.fontSizeSp * fontScale).sp.roundToPx() }
@@ -143,6 +148,7 @@ private fun TerminalPane(
                         if (event.actionMasked == MotionEvent.ACTION_DOWN) touched.parent?.requestDisallowInterceptTouchEvent(true)
                         false
                     }
+                    created.setOnFocusChangeListener { _, focused -> focusChanged(focused) }
                     // The view has no scroll callback, but every scroll redraws
                     // it. The listener belongs to the window, so it is removed
                     // when the view leaves it.

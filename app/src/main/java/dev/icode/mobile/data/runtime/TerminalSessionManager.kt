@@ -189,12 +189,13 @@ internal class TerminalSessionManager private constructor(
 
     /**
      * A running session of [workspaceHostPath]: the selected one when it
-     * belongs there — which is how "open this session" from the notification
-     * lands on that session — otherwise the first.
+     * belongs there, whoever's it is — which is how "open this session", from
+     * its notification or a chat's Open in Terminal, lands on that session —
+     * otherwise the first of the user's own.
      */
     private fun selectRunning(workspaceHostPath: String?): String? {
-        val candidates = entries.values.filter { it.workspaceHostPath == workspaceHostPath && it.state.isRunning && it.assistant == null }
-        val chosen = candidates.firstOrNull { it.id == mutableSnapshot.value.selectedId } ?: candidates.firstOrNull()
+        val candidates = entries.values.filter { it.workspaceHostPath == workspaceHostPath && it.state.isRunning }
+        val chosen = candidates.firstOrNull { it.id == mutableSnapshot.value.selectedId } ?: candidates.firstOrNull { it.assistant == null }
         return chosen?.also { publish(selectedId = it.id) }?.id
     }
 

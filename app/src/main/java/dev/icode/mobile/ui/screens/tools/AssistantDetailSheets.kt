@@ -4,7 +4,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
@@ -14,6 +16,10 @@ import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import dev.icode.mobile.designsystem.IcodeActionSheet
@@ -195,16 +201,23 @@ private fun StepPage(
 ) {
     val command = step.call.command
     val file = fileActions(step, onDiff)
+    // The tab its command runs in, while it runs (docs/agent-control-plan.md §6): typed into, it is the sheet.
+    val live = LocalICodeSnapshot.current.assistant.turn?.terminal?.takeIf { it.callId == step.call.id && step.status == AssistantStepStatus.Running }
+    var terminalFocused by remember(step.key) { mutableStateOf(false) }
+    val typing = live != null && terminalFocused && WindowInsets.isImeVisible
     IcodeBottomSheet(
         title = AssistantToolName.of(step.call.tool)?.title ?: step.call.tool,
         onClose = onClose,
         modifier = modifier,
         subtitle = step.status.word,
         onBack = onBack,
+        scroll = !typing,
         footer = approval?.let { asked -> { ApprovalAnswers(asked, workspace, Modifier.fillMaxWidth()) } },
     ) {
-        Text(step.call.summary, style = IcodeType.Body)
-        command?.let { StepText("Command", it) }
+        if (!typing) {
+            Text(step.call.summary, style = IcodeType.Body)
+            command?.let { StepText("Command", it) }
+        }
         if (file != null) {
             StepSection("File", trailing = {
                 AssistantStepRules.changes(listOf(step))?.let { ChangedLines(it) }
@@ -218,8 +231,6 @@ private fun StepPage(
         }
         val output = step.output?.takeIf { it.isNotEmpty() }
         val printed = step.printed?.takeIf { it.isNotEmpty() }
-        // The tab its command runs in, while it runs (docs/agent-control-plan.md §6).
-        val live = LocalICodeSnapshot.current.assistant.turn?.terminal?.takeIf { it.callId == step.call.id && step.status == AssistantStepStatus.Running }
         when {
             approval != null -> {
                 // A command's whole line is its Command already.
@@ -229,7 +240,10 @@ private fun StepPage(
                 }
                 allowInMeaning(approval, workspace)?.let { Text(it, style = IcodeType.Caption.copy(color = IcodeColors.TextMuted)) }
             }
-            live != null -> StepTerminal(live.session, onClose)
+            live != null -> StepTerminal(
+                live.session, command ?: step.call.summary, typing, onFocus = { terminalFocused = it }, onClose,
+                if (typing) Modifier.weight(1f) else Modifier,
+            )
             output != null && printed != null -> StepReplay(printed, output)
             output != null -> StepText("Output", output)
             else -> Hint(

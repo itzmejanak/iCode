@@ -65,7 +65,8 @@ All notable changes to iCode are documented here. The format follows
 - Runtime Tools: Node.js and uv, pinned downloads, for MCP servers that start with npx or uvx.
 - Assistant: its commands run in a terminal tab of its own in the Terminal panel ("Assistant"), typed
   at a real bash prompt, so `cd` and `export` carry over and colours show. A running command's step
-  is that terminal, live: type an answer there, use the extra keys, or Open in Terminal; once it ends
+  is that terminal, live: type an answer there — the sheet becomes the terminal, the command folded to
+  one line and the extra keys on the keyboard — or Open in Terminal, on that tab; once it ends
   the step replays what it printed as the terminal drew it. At its time limit, or when the turn is
   stopped, it gets Ctrl-C. It can open another tab, read and type into tabs, and use one of yours
   once you allow it ("Use your terminal bash 2?"). Deleting a chat closes its tabs.

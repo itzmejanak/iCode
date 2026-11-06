@@ -174,6 +174,13 @@ in `start_process`: it has ports, a log and a row in the Processes sheet.
   (`IcodeSizes.StepTerminal`), with Jump to latest, the extra-keys row, and *Open in Terminal*. A
   touch on the terminal is the terminal's (the view claims it on its first touch), so the sheet
   neither scrolls nor moves under it; anywhere else it closes with a swipe, as every sheet does.
+- **Typing (the owner, 2026-11-06):** while the terminal has the keyboard, it is the sheet. The step's
+  line and its Command section fold into one row — the terminal icon and the command's first line;
+  a tap on it puts the keyboard away and shows them again — the terminal takes all the height down
+  to the keyboard, and the extra keys stand on the keyboard. It is the same view throughout, so the
+  shell, its scrollback and the keyboard are untouched by the change.
+- **Open in Terminal** shows that very tab: a workspace's terminal opens on the tab selected there,
+  a chat's included, and only a choice of its own skips the chats' tabs.
 - **Ended:** `TerminalReplay`, the same view over a replay session: the same font, palette and
   colours, links, selection and pinch, scrolled as a terminal is, in a frame that fits its rows up to
   the live terminal's height. How it ended is the line under it; Copy gives the text the model read.
