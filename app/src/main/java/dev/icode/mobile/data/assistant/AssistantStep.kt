@@ -10,7 +10,7 @@ import java.util.concurrent.atomic.AtomicReference
 internal class AssistantStep(
     /** What a tool says it is doing now, for the turn's step: an MCP server's progress (docs/mcp-plan.md §6.5). */
     val progress: (String) -> Unit = {},
-    /** The call [callId] runs in the terminal tab [session]: its step shows that tab live (docs/agent-control-plan.md §6). */
+    /** The call [callId] runs in the terminal tab [session]: its step shows that tab, live, while it is open (docs/agent-control-plan.md §6). */
     val terminal: (callId: String, session: String) -> Unit = { _, _ -> },
     /** The user takes a step themselves — a password, a payment — and the turn waits for Done (§5.5). Last: a trailing lambda is this. */
     val handOver: suspend (why: String) -> Unit = {},

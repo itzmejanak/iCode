@@ -66,7 +66,10 @@ All notable changes to iCode are documented here. The format follows
 - Assistant: its commands run in a terminal tab of its own in the Terminal panel ("Assistant"), typed
   at a real bash prompt, so `cd` and `export` carry over and colours show. A running command's step
   is that terminal, live: type an answer there — the whole sheet becomes the black terminal, the
-  extra keys on the keyboard, and ⓘ shows the command — or Open in Terminal, on that tab; once it ends
+  extra keys flush on the keyboard as in the Terminal panel, and ⓘ shows the command — or Open in
+  Terminal, on that tab. The tab stays live there after the command, for your own commands, each step
+  showing the tab it ran in as it is now; ⋮ › Terminal opens the chat's own tab in the same sheet, and
+  Compact Chat is the context meter's alone; once the tab is gone
   the step replays what it printed as the terminal drew it. At its time limit, or when the turn is
   stopped, it gets Ctrl-C. It can open another tab, read and type into tabs, and use one of yours
   once you allow it ("Use your terminal bash 2?"). Deleting a chat closes its tabs.

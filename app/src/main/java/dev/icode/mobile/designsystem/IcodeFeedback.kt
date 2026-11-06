@@ -200,7 +200,8 @@ fun IcodeSaveDiscardSheet(
  * question that must be answered), it has no × and does not move.
  *
  * [ground] is the sheet's own surface unless it shows something with a ground of its own — a terminal
- * typed into — and [action] stands at its title's end in place of × while it does.
+ * typed into — and [action] stands at its title's end in place of × while it does; [edgeToEdge], its
+ * content then reaches the sheet's sides and foot, as the Terminal panel's terminal and keys do.
  */
 @Composable
 fun IcodeBottomSheet(
@@ -217,9 +218,12 @@ fun IcodeBottomSheet(
     titleLines: Int = 2,
     ground: Color = IcodeColors.Surface,
     action: (@Composable () -> Unit)? = null,
+    edgeToEdge: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val swipe = rememberSheetSwipe(onClose)
+    val inset = IcodeSpacing.Space4
+    val contentInset = if (edgeToEdge) IcodeSpacing.None else inset
     // Its cards stand a step above it, as a page's above the page.
     CompositionLocalProvider(LocalIcodeCardRaised provides true) {
         Column(
@@ -229,7 +233,7 @@ fun IcodeBottomSheet(
                 .background(ground, IcodeShapes.Sheet)
                 // A tap on the sheet stays on it, never reaching the screen it is over.
                 .pointerInput(Unit) {}
-                .padding(IcodeSpacing.Space4),
+                .padding(top = inset, bottom = contentInset),
         ) {
             Box(
                 Modifier
@@ -239,7 +243,7 @@ fun IcodeBottomSheet(
                     .background(IcodeColors.Outline, IcodeShapes.Track),
             )
             Row(
-                Modifier.fillMaxWidth().padding(vertical = IcodeSpacing.Space3),
+                Modifier.fillMaxWidth().padding(horizontal = inset, vertical = IcodeSpacing.Space3),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 onBack?.let { back ->
@@ -261,13 +265,14 @@ fun IcodeBottomSheet(
                 }
             }
             Column(
-                Modifier.weight(1f, fill = false).then(if (scroll) Modifier.verticalScroll(rememberScrollState()) else Modifier),
+                Modifier.weight(1f, fill = false).padding(horizontal = contentInset)
+                    .then(if (scroll) Modifier.verticalScroll(rememberScrollState()) else Modifier),
                 verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
                 content = content,
             )
             if (footer != null) {
                 Column(
-                    Modifier.padding(top = IcodeSpacing.Space3),
+                    Modifier.padding(horizontal = inset).padding(top = IcodeSpacing.Space3),
                     verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
                     content = footer,
                 )

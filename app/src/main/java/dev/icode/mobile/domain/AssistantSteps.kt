@@ -4,7 +4,7 @@ package dev.icode.mobile.domain
  * The assistant's tools by the name the model calls them (docs/assistant-sheets-plan.md §2.1): what a
  * step's sheet is titled, and how a run of steps says what they did — [one] for one call, [many] with
  * its count. The data layer's tools take their names from here, so each is written once. Then each
- * call, its result, and the tab a running call's command runs in.
+ * call and its result.
  */
 enum class AssistantToolName(val id: String, val title: String, private val one: String, private val many: String) {
     ListFiles("list_files", "List files", "listed a folder", "listed %d folders"),
@@ -134,6 +134,3 @@ data class AssistantResult(
     /** What a command printed, as printed — colours and all, bounded: its step replays it as a terminal (docs/agent-control-plan.md §6). */
     val printed: String? = null,
 )
-
-/** A call's command running in a terminal tab: [session] is the tab's ID. */
-data class AssistantTerminal(val callId: String, val session: String)

@@ -17,7 +17,6 @@ import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantResult
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantSettings
-import dev.icode.mobile.domain.AssistantTerminal
 import dev.icode.mobile.domain.AssistantTurn
 import dev.icode.mobile.domain.LineChanges
 import dev.icode.mobile.domain.NoticeTone
@@ -121,7 +120,7 @@ internal class AssistantTurns(
         val step = AssistantStep(
             handOver = { why -> questions.pause(AssistantPause(AssistantPause.Kind.HandOver, why), THINKING) },
             progress = { text -> step(text) },
-            terminal = { callId, session -> page.state { it.copy(turn = it.turn?.copy(terminal = AssistantTerminal(callId, session))) } },
+            terminal = { callId, session -> page.state { it.copy(tabs = it.tabs + (callId to session)) } },
         )
 
         /** This chat's mode now: the setting, raised by its own answers. */
@@ -259,7 +258,7 @@ internal class AssistantTurns(
             }
             chats.answer(workspace, session, result.copy(changes = changes, printed = step.takePrinted(result.callId)))
             page.refresh(workspace, session)
-            page.state { it.copy(turn = it.turn?.copy(step = THINKING, terminal = null)) }
+            page.state { it.copy(turn = it.turn?.copy(step = THINKING)) }
         }
 
         override fun used(tokens: Long) {

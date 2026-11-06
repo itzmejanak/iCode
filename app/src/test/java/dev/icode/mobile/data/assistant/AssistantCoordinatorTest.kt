@@ -4,6 +4,7 @@ import dev.icode.mobile.data.assistant.tools.AssistantWorkspace
 import dev.icode.mobile.data.assistant.tools.TestRuntime
 import dev.icode.mobile.data.git.CliGitService
 import dev.icode.mobile.data.log.BackendLog
+import dev.icode.mobile.data.runtime.TerminalRuns
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceRoot
 import dev.icode.mobile.domain.AssistantAnswer
@@ -136,8 +137,16 @@ class AssistantCoordinatorTest {
                 }
             },
             storageAccess = { true },
+            forget = { workspace, chat -> forgotten += workspace to chat },
+            openTab = { workspace, chat ->
+                opened += workspace to chat
+                tabRefusal?.let { throw TerminalRuns.Refused(it) } ?: "session-1"
+            },
         )
     }
+    private val forgotten = CopyOnWriteArrayList<Pair<String, String>>()
+    private val opened = CopyOnWriteArrayList<Pair<String, String>>()
+    private var tabRefusal: String? = null
 
     @Before fun start() {
         BackendLog.writer = { _, _, _ -> }
@@ -794,4 +803,29 @@ class AssistantCoordinatorTest {
         }
     }
 
+    @Test fun `the menu's Terminal opens the chat's own tab, a new chat given its ID that its first message keeps`() {
+        assertNull(state().session)
+        coordinator.handle(ICodeIntent.OpenAssistantTerminal)
+        until { state().tab == "session-1" }
+        val chat = state().session!!
+        assertEquals(listOf(app to chat), opened)
+        said("one")
+        assertEquals(chat, state().session)
+        assertEquals(chat, chats.sessions(app).single().id)
+        // Another chat shown: not this one's tab.
+        coordinator.handle(ICodeIntent.NewAssistantChat)
+        until { state().session == null }
+        assertNull(state().tab)
+    }
+
+    @Test fun `a terminal that cannot open is said, and a deleted chat's tabs close with it`() {
+        tabRefusal = "The Linux runtime is not installed"
+        coordinator.handle(ICodeIntent.OpenAssistantTerminal)
+        until { effects.any { it.said()?.title == "The Linux runtime is not installed" } }
+        assertNull(state().tab)
+        said("one")
+        val chat = state().session!!
+        coordinator.handle(ICodeIntent.DeleteAssistantSession(chat))
+        until { forgotten.contains(app to chat) }
+    }
 }

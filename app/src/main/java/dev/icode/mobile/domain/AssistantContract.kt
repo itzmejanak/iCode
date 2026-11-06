@@ -213,8 +213,6 @@ data class AssistantTurn(
     val onPhone: Boolean = false,
     /** Read aloud, as Spoken replies said when it was sent (§5.8): its instructions ask for a short spoken answer. */
     val aloud: Boolean = false,
-    /** The terminal tab the running call's command runs in: its step shows it live (docs/agent-control-plan.md §6). */
-    val terminal: AssistantTerminal? = null,
 )
 
 /** A streamed reply as far as it has come: what the model thought, and its answer so far. */
@@ -249,6 +247,13 @@ data class AssistantState(
     val pause: AssistantPause? = null,
     /** The chat shown answered "Allow in" its workspace: it runs as Auto in workspace until iCode closes. */
     val allowedInWorkspace: Boolean = false,
+    /**
+     * The terminal tab each command ran in, by its call's ID, until iCode closes (tabs' IDs start again
+     * with it): a command's step shows its tab, live, while the tab is open (docs/agent-control-plan.md §6).
+     */
+    val tabs: Map<String, String> = emptyMap(),
+    /** The chat shown's own terminal tab, once the menu's Terminal opened it. */
+    val tab: String? = null,
     /** Why the last turn stopped short; the next one clears it. */
     val failure: String? = null,
     /** A commit message being written, or written and not yet in the commit field. */

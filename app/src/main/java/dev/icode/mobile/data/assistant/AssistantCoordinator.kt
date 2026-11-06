@@ -55,6 +55,8 @@ internal class AssistantCoordinator(
     private val mcp: McpServers? = null,
     /** A chat deleted: what it left in the runtime goes, its terminal tabs ([AssistantToolbox.forget]). */
     private val forget: suspend (workspace: String, chat: String) -> Unit = { _, _ -> },
+    /** A chat's own terminal tab, opened if it has none ([AssistantToolbox.openTab]); throws with why it cannot be. */
+    private val openTab: suspend (workspace: String, chat: String) -> String = { _, _ -> error("No terminal") },
 ) {
     private val page = AssistantPage(stateHolder, scope, chats)
     private val settings = AssistantProviders(stateHolder, scope, engine, providers, page)
@@ -101,6 +103,7 @@ internal class AssistantCoordinator(
             is ICodeIntent.AnswerAssistant -> turns.answer(intent.callId, intent.answer)
             ICodeIntent.ContinueAssistant -> turns.resume()
             ICodeIntent.CompactAssistantChat -> compact()
+            ICodeIntent.OpenAssistantTerminal -> openTerminal()
             ICodeIntent.RetryAssistantMessage -> retry()
             ICodeIntent.TakeBackAssistantMessage -> takeBack()
             is ICodeIntent.ChooseAssistantModel -> settings.choose(AssistantChoice(intent.provider, intent.model))
@@ -155,6 +158,17 @@ internal class AssistantCoordinator(
         activeRoot() ?: page.current.workspace ?: stateHolder.current.workspaces.maxByOrNull { it.lastOpenedAt }?.location
 
     private fun noWorkspace() = page.say(NoticeTone.HeadsUp, "Open a workspace in iCode first")
+
+    /** The shown chat's own tab — a new chat given its ID, as sending would — for the menu's Terminal sheet. */
+    private fun openTerminal() {
+        val workspace = page.current.workspace ?: place() ?: return noWorkspace()
+        val session = page.current.session?.takeIf { page.current.workspace == workspace } ?: chats.newSession().also { page.display(workspace, it) }
+        scope.launch {
+            runCatching { openTab(workspace, session) }
+                .onSuccess { id -> page.state { if (it.workspace == workspace && it.session == session) it.copy(tab = id) else it } }
+                .onFailure { page.say(NoticeTone.HeadsUp, it.message ?: "The terminal could not be opened") }
+        }
+    }
 
     /** The mode chosen in the chip: the setting, and the chat shown's, whose own answers it replaces. */
     private fun setPermission(intent: ICodeIntent.SetAssistantPermission) {
@@ -241,6 +255,7 @@ internal class AssistantCoordinator(
             storageAccess = Environment::isExternalStorageManager,
             mcp = McpServers.create(context, icode, scope, toolbox.execution, toolbox.runtimeInstalled, activeRoot),
             forget = toolbox::forget,
+            openTab = toolbox::openTab,
         )
     }
 }

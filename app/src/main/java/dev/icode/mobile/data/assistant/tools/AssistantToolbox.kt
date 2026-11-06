@@ -35,8 +35,14 @@ internal class AssistantToolbox(
     private val processes = execution.processes
 
     /** What a deleted chat leaves in the runtime goes: its terminal tabs, in the workspace at [location]. */
-    suspend fun forget(location: String, chat: String) =
-        terminal.close(AssistantShell.chatOf(AssistantWorkspace(File(location), execution.layout.paths), chat))
+    suspend fun forget(location: String, chat: String) = terminal.close(chatOf(location, chat))
+
+    /** [chat]'s own tab in the workspace at [location], opened if it has none. Throws [TerminalRuns.Refused]. */
+    suspend fun openTab(location: String, chat: String): String = terminal.tabOf(place(location).place, chatOf(location, chat), fresh = false)
+
+    private fun place(location: String) = AssistantWorkspace(File(location), execution.layout.paths)
+
+    private fun chatOf(location: String, chat: String) = AssistantShell.chatOf(place(location), chat)
 
     /**
      * The tools of a chat in [workspace], on [step]: the phone's while phone control is on; the Run

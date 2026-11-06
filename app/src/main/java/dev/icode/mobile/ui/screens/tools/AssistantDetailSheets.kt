@@ -4,9 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
@@ -204,10 +202,11 @@ private fun StepPage(
 ) {
     val command = step.call.command
     val file = fileActions(step, onDiff)
-    // The tab its command runs in, while it runs (docs/agent-control-plan.md §6): typed into, it is the sheet.
-    val live = LocalICodeSnapshot.current.assistant.turn?.terminal?.takeIf { it.callId == step.call.id && step.status == AssistantStepStatus.Running }
-    var terminalFocused by remember(step.key) { mutableStateOf(false) }
-    val typing = live != null && terminalFocused && WindowInsets.isImeVisible
+    // The tab its command ran in, live while that tab is open — its later commands' output too, and the
+    // user's own (docs/agent-control-plan.md §6). Typed into, it is the sheet.
+    val snapshot = LocalICodeSnapshot.current
+    val live = snapshot.assistant.tabs[step.call.id]?.takeIf { id -> snapshot.terminal.sessions.any { it.id == id && it.isRunning } }
+    val (typing, onFocus) = rememberTyping(step.key, live != null)
     var showCommand by remember(step.key) { mutableStateOf(false) }
     LaunchedEffect(typing) { if (!typing) showCommand = false }
     IcodeBottomSheet(
@@ -222,6 +221,7 @@ private fun StepPage(
         ground = if (typing) IcodeColors.BackgroundDeep else IcodeColors.Surface,
         // Typed into, the sheet is the terminal: ⓘ shows the command it runs, in place of ×.
         action = if (typing) ({ CommandToggle(showCommand) { showCommand = !showCommand } }) else null,
+        edgeToEdge = typing,
         footer = approval?.let { asked -> { ApprovalAnswers(asked, workspace, Modifier.fillMaxWidth()) } },
     ) {
         if (!typing) {
@@ -251,9 +251,9 @@ private fun StepPage(
                 }
                 allowInMeaning(approval, workspace)?.let { Text(it, style = IcodeType.Caption.copy(color = IcodeColors.TextMuted)) }
             }
-            live != null -> StepTerminal(
-                live.session, command ?: step.call.summary, typing, showCommand, onFocus = { terminalFocused = it }, onClose,
-                Modifier.weight(if (typing) 1f else 3f, fill = typing),
+            live != null -> ChatTerminal(
+                live, typing, onFocus, onClose, Modifier.weight(if (typing) 1f else 3f, fill = typing),
+                command = command ?: step.call.summary, showCommand = showCommand, ended = output,
             )
             output != null && printed != null -> StepReplay(printed, output)
             output != null -> StepText("Output", output)

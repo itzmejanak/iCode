@@ -248,6 +248,8 @@ sealed interface ICodeIntent {
     data object ContinueAssistant : AssistantIntent
     /** Summarizes the shown chat so later turns send less (§12 R4). */
     data object CompactAssistantChat : AssistantIntent
+    /** The shown chat's own terminal tab, opened if it has none, for the menu's Terminal (docs/agent-control-plan.md §6). */
+    data object OpenAssistantTerminal : AssistantIntent
     /** The chat's model: one of [provider]'s. */
     data class ChooseAssistantModel(val provider: String, val model: String) : AssistantIntent
     /** Null: the provider's default. */
