@@ -70,7 +70,8 @@ Status: **built** (2026-10-24). §4 says where the build differs from §2.
     and Copy Path);
   - **Output**, all of it, selectable, with Copy. A step not run yet says so.
   - A command run in a terminal tab ([agent-control-plan.md](./agent-control-plan.md) §6): while it
-    runs, **Terminal · Assistant**, that tab live with the extra keys and Open in Terminal; once it
+    runs, **Terminal · Assistant**, that tab live with Open in Terminal — typed into, the whole sheet,
+    black, with the extra keys on the keyboard and ⓘ in place of × for the command; once it
     has ended, **Output** replays what it printed as the terminal drew it, how it ended under it,
     and Copy takes the text the model read.
 - **Live.** The sheet reads the chat as it is, so a step that finishes while its sheet is open

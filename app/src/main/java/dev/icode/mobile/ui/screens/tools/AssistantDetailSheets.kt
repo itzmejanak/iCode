@@ -7,13 +7,20 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import dev.icode.mobile.designsystem.IcodeActionSheet
@@ -195,16 +202,34 @@ private fun StepPage(
 ) {
     val command = step.call.command
     val file = fileActions(step, onDiff)
+    // The tab its command runs in, live while it runs; then what it printed, its own input and output
+    // (docs/agent-control-plan.md §6). Typed into, the terminal is the sheet.
+    val snapshot = LocalICodeSnapshot.current
+    val live = snapshot.assistant.turn?.terminal?.takeIf { it.callId == step.call.id && step.status == AssistantStepStatus.Running }
+        ?.session?.takeIf { id -> snapshot.terminal.sessions.any { it.id == id && it.isRunning } }
+    val (typing, onFocus) = rememberTyping(step.key, live != null)
+    var showCommand by remember(step.key) { mutableStateOf(false) }
+    LaunchedEffect(typing) { if (!typing) showCommand = false }
     IcodeBottomSheet(
         title = AssistantToolName.of(step.call.tool)?.title ?: step.call.tool,
         onClose = onClose,
         modifier = modifier,
         subtitle = step.status.word,
         onBack = onBack,
+        // While its terminal runs, the page does not scroll, typed into or not: a scroll container is a
+        // focus group, and one added or taken away above the terminal would take its focus, and the keyboard's.
+        scroll = live == null,
+        ground = if (typing) IcodeColors.BackgroundDeep else IcodeColors.Surface,
+        // Typed into, the sheet is the terminal: ⓘ shows the command it runs, in place of ×.
+        action = if (typing) ({ CommandToggle(showCommand) { showCommand = !showCommand } }) else null,
+        edgeToEdge = typing,
         footer = approval?.let { asked -> { ApprovalAnswers(asked, workspace, Modifier.fillMaxWidth()) } },
     ) {
-        Text(step.call.summary, style = IcodeType.Body)
-        command?.let { StepText("Command", it) }
+        if (!typing) {
+            Text(step.call.summary, style = IcodeType.Body)
+            // Beside a live terminal, a long command scrolls in its quarter of what is left.
+            command?.let { StepText("Command", it, if (live != null) Modifier.weight(1f, fill = false) else Modifier, bounded = live != null) }
+        }
         if (file != null) {
             StepSection("File", trailing = {
                 AssistantStepRules.changes(listOf(step))?.let { ChangedLines(it) }
@@ -218,8 +243,6 @@ private fun StepPage(
         }
         val output = step.output?.takeIf { it.isNotEmpty() }
         val printed = step.printed?.takeIf { it.isNotEmpty() }
-        // The tab its command runs in, while it runs (docs/agent-control-plan.md §6).
-        val live = LocalICodeSnapshot.current.assistant.turn?.terminal?.takeIf { it.callId == step.call.id && step.status == AssistantStepStatus.Running }
         when {
             approval != null -> {
                 // A command's whole line is its Command already.
@@ -229,7 +252,10 @@ private fun StepPage(
                 }
                 allowInMeaning(approval, workspace)?.let { Text(it, style = IcodeType.Caption.copy(color = IcodeColors.TextMuted)) }
             }
-            live != null -> StepTerminal(live.session, onClose)
+            live != null -> ChatTerminal(
+                live, typing, onFocus, onClose, Modifier.weight(if (typing) 1f else 3f, fill = typing),
+                command = command ?: step.call.summary, showCommand = showCommand,
+            )
             output != null && printed != null -> StepReplay(printed, output)
             output != null -> StepText("Output", output)
             else -> Hint(

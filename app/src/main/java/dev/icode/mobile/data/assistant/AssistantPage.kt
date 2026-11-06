@@ -40,6 +40,7 @@ internal class AssistantPage(
             it.copy(
                 workspace = workspace, sessions = sessions, session = session, messages = chat.messages,
                 contextTokens = chat.contextTokens, allowedInWorkspace = allowed, failure = if (same) it.failure else null,
+                tab = if (same) it.tab else null,
             )
         }
     }

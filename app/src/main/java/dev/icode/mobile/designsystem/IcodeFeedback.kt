@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -23,6 +24,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextAlign
@@ -197,6 +199,11 @@ fun IcodeSaveDiscardSheet(
  * from its title or footer, or from its content once that is at its top — and let go past a quarter
  * of its height, or flung down, it slides away; short of that it springs back. Not [closable] (a
  * question that must be answered), it has no × and does not move.
+ *
+ * [ground] is the sheet's own surface unless it shows something with a ground of its own — a terminal
+ * typed into — and [action] stands at its title's end in place of × while it does; [edgeToEdge], its
+ * content then reaches the sheet's sides and foot, as the Terminal panel's terminal and keys do.
+ * [actions] stand before × or [action]: the sheet's own tools, as icons.
  */
 @Composable
 fun IcodeBottomSheet(
@@ -211,19 +218,25 @@ fun IcodeBottomSheet(
     closable: Boolean = true,
     /** Its title's lines at most: two for a name, all of it for a sheet whose title is what it says (a notice). */
     titleLines: Int = 2,
+    ground: Color = IcodeColors.Surface,
+    action: (@Composable () -> Unit)? = null,
+    edgeToEdge: Boolean = false,
+    actions: @Composable RowScope.() -> Unit = {},
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val swipe = rememberSheetSwipe(onClose)
+    val inset = IcodeSpacing.Space4
+    val contentInset = if (edgeToEdge) IcodeSpacing.None else inset
     // Its cards stand a step above it, as a page's above the page.
     CompositionLocalProvider(LocalIcodeCardRaised provides true) {
         Column(
             modifier = modifier
                 .fillMaxWidth()
                 .then(if (closable) swipe.modifier else Modifier)
-                .background(IcodeColors.Surface, IcodeShapes.Sheet)
+                .background(ground, IcodeShapes.Sheet)
                 // A tap on the sheet stays on it, never reaching the screen it is over.
                 .pointerInput(Unit) {}
-                .padding(IcodeSpacing.Space4),
+                .padding(top = inset, bottom = contentInset),
         ) {
             Box(
                 Modifier
@@ -233,7 +246,7 @@ fun IcodeBottomSheet(
                     .background(IcodeColors.Outline, IcodeShapes.Track),
             )
             Row(
-                Modifier.fillMaxWidth().padding(vertical = IcodeSpacing.Space3),
+                Modifier.fillMaxWidth().padding(horizontal = inset, vertical = IcodeSpacing.Space3),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 onBack?.let { back ->
@@ -246,20 +259,24 @@ fun IcodeBottomSheet(
                     Text(title, style = IcodeType.Title, maxLines = titleLines, overflow = TextOverflow.Ellipsis)
                     subtitle?.let { Text(it, style = IcodeType.Caption) }
                 }
-                if (closable) {
+                actions()
+                if (action != null) {
+                    action()
+                } else if (closable) {
                     IconButton(onClick = onClose) {
                         Icon(Icons.Outlined.Close, contentDescription = "Close", tint = IcodeColors.TextSecondary)
                     }
                 }
             }
             Column(
-                Modifier.weight(1f, fill = false).then(if (scroll) Modifier.verticalScroll(rememberScrollState()) else Modifier),
+                Modifier.weight(1f, fill = false).padding(horizontal = contentInset)
+                    .then(if (scroll) Modifier.verticalScroll(rememberScrollState()) else Modifier),
                 verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
                 content = content,
             )
             if (footer != null) {
                 Column(
-                    Modifier.padding(top = IcodeSpacing.Space3),
+                    Modifier.padding(horizontal = inset).padding(top = IcodeSpacing.Space3),
                     verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
                     content = footer,
                 )

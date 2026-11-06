@@ -87,8 +87,9 @@ behaviour iCode relies on was run (§11).
    Limit**, **Reads Images**, **Reasons**. **Save** checks the form; Back with changes asks
    before discarding them; **Remove Provider** confirms.
 4. **The page**, as VS Code's Chat view. The top bar names the chat ("New chat" until something is
-   said) over the workspace's name, with **Chats**, **New chat** and ⋮ (**Compact Chat**,
-   **Assistant Settings**). An empty chat is the home screen's: the mark over its letterpress,
+   said) over the workspace's name, with **Chats**, **New chat** and ⋮ (**Terminal**, the chat's own
+   terminal tab — [agent-control-plan.md](./agent-control-plan.md) §6 — and **Assistant Settings**;
+   Compact Chat is the context meter's alone). An empty chat is the home screen's: the mark over its letterpress,
    what the assistant will do, and three things to ask — a tap puts one in the composer.
 5. **The composer**: the files going with the message (each with ×), the message ("Describe what
    to build", or in Ask "Ask about RevPlayer"), and a toolbar — **+** (attach), the mode

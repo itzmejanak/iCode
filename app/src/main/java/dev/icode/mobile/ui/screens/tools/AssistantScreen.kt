@@ -5,10 +5,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Compress
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
@@ -48,7 +48,7 @@ import dev.icode.mobile.ui.LocalICodeSnapshot
  * started, what a row of it holds (docs/assistant-sheets-plan.md §2), or what a row offers, from a
  * long press (docs/explorer-gaps-plan.md §3.1).
  */
-internal enum class AssistantSheet { Chats, Models, Attach, Processes, Entry, Actions }
+internal enum class AssistantSheet { Chats, Models, Attach, Processes, Entry, Actions, Terminal }
 
 /**
  * The assistant (docs/assistant-koog-plan.md §3, §12): a chat of the open workspace — VS Code's
@@ -119,11 +119,12 @@ fun AssistantScreen(actions: NavigationActions) {
                     }
                     IcodeOverflowMenu(
                         contentDescription = "More options for the assistant",
-                        actions = listOfNotNull(
-                            IcodeMenuAction(
-                                "Compact Chat", Icons.Outlined.Compress, { gateway.dispatch(ICodeIntent.CompactAssistantChat) },
-                                enabled = ready && state.messages.isNotEmpty() && !state.running,
-                            ).takeIf { ready },
+                        // Compact Chat is the context meter's, under the composer: one place for it.
+                        actions = listOf(
+                            IcodeMenuAction("Terminal", Icons.Outlined.Terminal, {
+                                gateway.dispatch(ICodeIntent.OpenAssistantTerminal)
+                                sheet = AssistantSheet.Terminal
+                            }),
                             IcodeMenuAction("Assistant Settings", Icons.Outlined.Settings, { actions.navigate(Route.AssistantSettings) }),
                         ),
                     )
@@ -179,6 +180,7 @@ fun AssistantScreen(actions: NavigationActions) {
                     AssistantSheet.Models -> AssistantModelsSheet(state, modifier, close, onProviders = { actions.navigate(Route.AssistantProviders) })
                     AssistantSheet.Attach -> AssistantAttachSheet(snapshot, attached, pickers, modifier, close, onAttached = { attached = it })
                     AssistantSheet.Processes -> AssistantProcessesSheet(snapshot.processes, state.workspace, modifier, close)
+                    AssistantSheet.Terminal -> AssistantTerminalSheet(state.tab, modifier, close)
                     AssistantSheet.Entry -> entry?.let {
                         val approval = state.approval?.takeIf { state.runningHere }
                         AssistantEntrySheet(it, stepKey, approval, AssistantPlace.name(state.workspace.orEmpty()), modifier, close, onDiff)
