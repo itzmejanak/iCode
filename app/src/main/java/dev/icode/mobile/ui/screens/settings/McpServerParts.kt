@@ -35,6 +35,7 @@ import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SegmentedControl
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.domain.McpIntent
+import dev.icode.mobile.domain.McpRules
 import dev.icode.mobile.domain.McpServer
 import dev.icode.mobile.domain.McpServerState
 import dev.icode.mobile.domain.McpToolChoice
@@ -98,7 +99,7 @@ internal fun McpToolsSection(server: McpServer, state: McpServerState) {
     if (state.tools.isEmpty()) return
     val gateway = LocalICodeGateway.current
     fun choose(tool: String, choice: McpToolChoice) = gateway.dispatch(McpIntent.SetToolChoice(server.id, tool, choice))
-    IcodeSection("Tools · ${mcpToolsOn(server, state)} of ${state.tools.size} on") {
+    IcodeSection("Tools · ${McpRules.toolsOn(server, state)} of ${state.tools.size} on") {
         state.tools.forEach { tool ->
             val choice = server.choice(tool.name)
             IcodeCard(Modifier.fillMaxWidth()) {

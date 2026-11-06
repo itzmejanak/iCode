@@ -140,20 +140,14 @@ internal fun mcpWhere(server: McpServer): String = when (val transport = server.
     is McpTransport.Remote -> "Remote · " + transport.url.substringAfter("://").substringBefore('/')
 }
 
-/** The tools of [server] that chats are offered: on, and readable. */
-internal fun mcpToolsOn(server: McpServer, state: McpServerState): Int =
-    state.tools.count { it.problem == null && server.choice(it.name) != McpToolChoice.Off }
-
 /** Its state, as its row and its page say it, and its colour. */
 @Composable
-internal fun mcpStatus(server: McpServer, state: McpServerState): Pair<String, Color> = when {
-    !server.enabled -> "Off" to IcodeColors.TextMuted
+internal fun mcpStatus(server: McpServer, state: McpServerState): Pair<String, Color> = McpRules.status(server, state) to when {
+    !server.enabled -> IcodeColors.TextMuted
     else -> when (state.status) {
-        McpStatus.Off -> "Starts when a chat needs it" to IcodeColors.TextSecondary
-        McpStatus.Starting -> "Starting…" to IcodeColors.TextSecondary
-        McpStatus.Ready -> mcpToolsOn(server, state).let { if (it == 1) "1 tool" else "$it tools" } to IcodeColors.Green
-        McpStatus.SignIn -> "Sign in needed" to IcodeColors.Amber
-        McpStatus.Trust -> "Not trusted yet" to IcodeColors.Amber
-        McpStatus.Failed -> "Failed" to IcodeColors.Error
+        McpStatus.Off, McpStatus.Starting -> IcodeColors.TextSecondary
+        McpStatus.Ready -> IcodeColors.Green
+        McpStatus.SignIn, McpStatus.Trust -> IcodeColors.Amber
+        McpStatus.Failed -> IcodeColors.Error
     }
 }

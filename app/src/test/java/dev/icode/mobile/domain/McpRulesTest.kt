@@ -132,4 +132,15 @@ class McpRulesTest {
         assertEquals("auth.example.com", McpQuestion(1, "S", "Sign in", url = "https://auth.example.com/start?x=1").host)
         assertEquals("example.com:8443", McpQuestion(1, "S", "Go", url = "https://example.com:8443?y").host)
     }
+
+    @Test
+    fun `a server's state is said as its row says it, its tools counted as chats are offered them`() {
+        val server = McpServer("m-1", "GitHub", "github", McpTransport.Remote("https://x.test"), tools = mapOf("b" to McpToolChoice.Off))
+        val tools = listOf(McpToolInfo("a", null, ""), McpToolInfo("b", null, ""), McpToolInfo("c", null, "", problem = "Its schema is not read"))
+        assertEquals(1, McpRules.toolsOn(server, McpServerState(McpStatus.Ready, tools = tools)))
+        assertEquals("1 tool", McpRules.status(server, McpServerState(McpStatus.Ready, tools = tools)))
+        assertEquals("Starts when a chat needs it", McpRules.status(server, McpServerState()))
+        assertEquals("Not trusted yet", McpRules.status(server, McpServerState(McpStatus.Trust)))
+        assertEquals("Off", McpRules.status(server.copy(enabled = false), McpServerState(McpStatus.Ready, tools = tools)))
+    }
 }

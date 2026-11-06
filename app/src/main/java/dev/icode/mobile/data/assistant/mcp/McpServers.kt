@@ -16,47 +16,44 @@ import dev.icode.mobile.domain.McpServer
 import dev.icode.mobile.domain.McpServerState
 import dev.icode.mobile.domain.McpState
 import dev.icode.mobile.domain.McpStatus
+import dev.icode.mobile.domain.McpToolChoice
 import dev.icode.mobile.domain.McpTransport
 import dev.icode.mobile.domain.NoticeTone
-import io.modelcontextprotocol.kotlin.sdk.types.ElicitRequest
-import io.modelcontextprotocol.kotlin.sdk.types.ElicitResult
 import kotlin.coroutines.cancellation.CancellationException
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * The assistant's MCP servers (docs/mcp-plan.md §5, §7.3): the ones the user added and the open
  * workspace's, each connected when it is wanted — saved, switched on, the Assistant page opened, a
  * turn starting — and stopped when it idles. What they are and how they are goes to the snapshot as it
  * changes; a turn is offered their tools ([offer]); their questions go to the user ([McpQuestions]).
+ * The pages' intents and the agent's tools change them through the same operations ([save], [import],
+ * [remove], [enable], [choose]: docs/agent-control-plan.md §5), one at a time; a refusal is the
+ * user's notice, or the model's words.
  */
 internal class McpServers(
     private val stateHolder: ICodeStateHolder,
     private val scope: CoroutineScope,
     private val store: McpServerStore,
-    private val local: McpLocal,
-    private val remote: McpRemote,
+    /** The Linux runtime local servers start in; null where there is none (the JVM's tests). */
+    private val local: McpLocal?,
+    remote: McpRemote,
     private val workspaces: McpWorkspaceServers,
     private val signIn: McpSignIn,
     private val registry: McpRegistry,
     /** The Linux runtime is installed: local servers can start. */
-    private val runtimeInstalled: () -> Boolean,
+    runtimeInstalled: () -> Boolean,
     /** The open workspace's location; null on the home screen. */
     private val activeRoot: () -> String?,
-) : McpConnection.Events {
-    private val lock = Any()
-    private val connections = HashMap<String, McpConnection>()
-    private val starting = HashMap<String, Deferred<McpConnection?>>()
-    private val states = HashMap<String, McpServerState>()
+) {
     private val questions = McpQuestions { question -> stateHolder.update { it.copy(mcp = it.mcp.copy(question = question)) } }
-    private var idling: Job? = null
+    private val connections = McpConnections(scope, store, local, remote, workspaces, signIn, questions, runtimeInstalled) { publish() }
     private val intents = Channel<McpIntent>(Channel.UNLIMITED)
+    private val changes = Mutex()
 
     /** The servers shown; then the intents, in the order they were made. */
     fun start() {
@@ -69,6 +66,9 @@ internal class McpServers(
         if (intent is McpIntent.Answer) questions.answer(intent.answer) else intents.trySend(intent)
     }
 
+    /** The servers a chat in [workspace] has, and how each is now. */
+    fun listed(workspace: String?): List<Pair<McpServer, McpServerState>> = servers(workspace).map { it to connections.state(it.id) }
+
     /** The servers a chat in [workspace] has: the user's, then that workspace's `.mcp.json`'s. */
     private fun servers(workspace: String?): List<McpServer> {
         val own = store.servers()
@@ -76,24 +76,25 @@ internal class McpServers(
         return own + declared
     }
 
-    private fun server(id: String): McpServer? = servers(activeRoot()).firstOrNull { it.id == id }
+    private fun server(id: String, workspace: String? = activeRoot()): McpServer? = servers(workspace).firstOrNull { it.id == id }
 
     /** What reaches the network on the user's behalf runs on its own, so the next intent never waits on it. */
     private suspend fun apply(intent: McpIntent) {
         when (intent) {
-            McpIntent.Connect -> { publish(); servers(activeRoot()).filter { it.enabled }.forEach(::ensure) }
-            is McpIntent.SaveServer -> save(intent.server)
+            McpIntent.Connect -> { publish(); servers(activeRoot()).filter { it.enabled }.forEach(connections::ensure) }
+            is McpIntent.SaveServer -> save(activeRoot(), intent.server).said(intent.server)
             is McpIntent.ImportServers -> import(intent.json, intent.single)
-            is McpIntent.RemoveServer -> { stop(intent.id); store.remove(intent.id); forget(intent.id) }
-            is McpIntent.SetServerEnabled -> server(intent.id)?.let { save(it.copy(enabled = intent.enabled)) }
-            is McpIntent.SetToolChoice -> server(intent.id)?.let { store.save(it.copy(tools = it.tools + (intent.tool to intent.choice))); publish() }
-            is McpIntent.RestartServer -> server(intent.id)?.let { stop(it.id); ensure(it) }
+                .onSuccess { if (it.ignored.isNotEmpty()) say("Not read: ${it.ignored.joinToString()}", null, NoticeTone.Info) }.said(null)
+            is McpIntent.RemoveServer -> remove(activeRoot(), intent.id).said(null)
+            is McpIntent.SetServerEnabled -> enable(activeRoot(), intent.id, intent.enabled).said(null)
+            is McpIntent.SetToolChoice -> choose(activeRoot(), intent.id, intent.tool, intent.choice).said(null)
+            is McpIntent.RestartServer -> server(intent.id)?.let { restart(it) }
             is McpIntent.Edit -> stateHolder.update {
-                it.copy(mcp = it.mcp.copy(editing = intent.server, log = intent.server?.id?.takeIf(String::isNotEmpty)?.let { id -> McpLog(id, local.tail(id)) }))
+                it.copy(mcp = it.mcp.copy(editing = intent.server, log = intent.server?.id?.takeIf(String::isNotEmpty)?.let { id -> McpLog(id, local?.tail(id).orEmpty()) }))
             }
             is McpIntent.SignIn -> server(intent.id)?.let { server -> scope.launch { signingIn(server) { stateHolder.emit(ICodeEffect.OpenExternalUrl(signIn.begin(server))) } } }
-            is McpIntent.SignOut -> server(intent.id)?.let { store.saveSignIn(it.id, null); stop(it.id); ensure(it) }
-            is McpIntent.SignedIn -> scope.launch { signingIn(null) { server(signIn.finish(intent.uri))?.let { stop(it.id); ensure(it) } } }
+            is McpIntent.SignOut -> server(intent.id)?.let { store.saveSignIn(it.id, null); restart(it) }
+            is McpIntent.SignedIn -> scope.launch { signingIn(null) { server(signIn.finish(intent.uri))?.let { restart(it) } } }
             is McpIntent.Answer -> questions.answer(intent.answer)
             is McpIntent.Trust -> server(intent.id)?.let { trust(it, intent.trusted) }
             is McpIntent.SearchRegistry -> scope.launch { search(intent.query) }
@@ -105,12 +106,12 @@ internal class McpServers(
 
     /** What a turn in [workspace] is offered: each server that is on, connected first, its tools in what [room] is left. */
     suspend fun offer(workspace: String, step: AssistantStep, taken: Set<String>, room: Int, offers: (AssistantTool) -> Boolean): AssistantTools.Offered {
-        idling?.cancel()
+        connections.wanted()
         // A workspace's server not trusted yet waits for its page; it is not missed.
         val wanted = servers(workspace).filter { it.enabled && (it.workspace == null || workspaces.trusted(it)) }
-        val waiting = synchronized(lock) { wanted.filter { it.id !in connections } }
+        val waiting = wanted.filterNot { connections.connected(it.id) }
         if (waiting.isNotEmpty()) step.progress("Starting ${waiting.joinToString { it.name }}…")
-        val started = wanted.map { it to ensure(it) }
+        val started = wanted.map { it to connections.ensure(it) }
         val connected = started.mapNotNull { (server, connection) -> connection.await()?.let { server to it } }
         val missed = waiting.filter { server -> connected.none { it.first.id == server.id } }
         if (missed.isNotEmpty()) step.progress("Going on without ${missed.joinToString { it.name }}")
@@ -120,87 +121,85 @@ internal class McpServers(
         }
     }
 
-    /** The turn ended: a question still waiting goes; local servers stop once idle [IDLE_MILLIS]. */
+    /** The turn ended: a question still waiting goes, and local servers idle from now. */
     fun idle() {
         questions.cancel()
-        idling?.cancel()
-        idling = scope.launch {
-            delay(IDLE_MILLIS)
-            synchronized(lock) { connections.values.filter { it.server.transport is McpTransport.Local } }.forEach { stop(it.server.id) }
-        }
+        connections.idle()
     }
 
-    /** [server]'s connection, started if it is not: null when it cannot be. */
-    private fun ensure(server: McpServer): Deferred<McpConnection?> = synchronized(lock) {
-        connections[server.id]?.let { return CompletableDeferred(it) }
-        starting[server.id] ?: scope.async { connect(server) }.also { starting[server.id] = it }
+    /**
+     * Adds [server] ([McpServer.id] "") or replaces it, among [workspace]'s, and starts it again if it is
+     * on. A workspace's server keeps only the user's choices and values: its file is checked by
+     * [McpWorkspaceServers].
+     */
+    suspend fun save(workspace: String?, server: McpServer): Result<McpServer> = changing {
+        if (server.workspace == null) McpRules.problem(server, servers(workspace).filter { it.id != server.id })?.let(::refuse)
+        keep(server)
     }
 
-    /** Connects [server]; a 401 renews its sign-in once, if it has one, before it asks for one. */
-    private suspend fun connect(server: McpServer, renewed: Boolean = false): McpConnection? {
-        fun failed(words: String?) = done(server.id, null, McpServerState(McpStatus.Failed, words))
-        if (!workspaces.trusted(server)) return done(server.id, null, McpServerState(McpStatus.Trust, "Trust it to start it: it comes from this workspace's .mcp.json"))
-        if (server.transport is McpTransport.Local && !runtimeInstalled()) return failed("Needs the Linux runtime")
-        val (ready, values) = try {
-            workspaces.resolve(server, store.reveal(server))
-        } catch (unset: IllegalArgumentException) {
-            return failed(unset.message)
-        }
-        values.firstOrNull { it.value == null }?.let { return failed("Enter a value for ${it.name}") }
-        state(server.id, McpServerState(McpStatus.Starting))
-        val connection = McpConnection(ready, scope, local, remote, values, { signIn.authorization(server) }, this)
-        return try {
-            connection.connect()
-            done(server.id, connection, McpTool.state(connection))
-        } catch (stopped: CancellationException) {
-            connection.close()
-            synchronized(lock) { starting.remove(server.id) }
-            throw stopped
-        } catch (failure: Exception) {
-            connection.close()
-            val words = McpFailures.of(failure, server.name, (server.transport as? McpTransport.Remote)?.url, local.tail(server.id))
-            if (words == McpFailures.SIGN_IN && !renewed && signIn.renew(server)) return connect(server, renewed = true)
-            done(server.id, null, McpServerState(if (words == McpFailures.SIGN_IN) McpStatus.SignIn else McpStatus.Failed, words))
-        }
-    }
-
-    private fun done(id: String, connection: McpConnection?, state: McpServerState): McpConnection? {
-        synchronized(lock) {
-            starting.remove(id)
-            if (connection != null) connections[id] = connection
-        }
-        state(id, state)
-        return connection
-    }
-
-    private suspend fun stop(id: String) {
-        val connection = synchronized(lock) { starting.remove(id)?.cancel(); connections.remove(id) }
-        connection?.close()
-        state(id, McpServerState(McpStatus.Off))
-    }
-
-    /** A workspace's server keeps only the user's choices and values: its file is checked by [McpWorkspaceServers]. */
-    private suspend fun save(server: McpServer) {
-        val others = servers(activeRoot()).filter { it.id != server.id }
-        if (server.workspace == null) McpRules.problem(server, others)?.let { return say(it, server) }
-        val kept = store.save(server)
-        stop(kept.id)
-        if (kept.enabled) ensure(kept) else publish()
-    }
-
-    /** Each server a paste names, added under a name of its own; one still missing a value is added off, its page saying which. */
-    private suspend fun import(json: String, single: String) {
-        val imported = runCatching { McpRules.import(json, single) }.getOrElse { return say(it.message ?: "This is not an MCP configuration", null) }
+    /** Each server a paste names, added under a name of its own; one still missing a value is added off, its state saying which. */
+    suspend fun import(json: String, single: String): Result<McpRules.Imported> = changing {
+        val imported = McpRules.import(json, single)
         val names = store.servers().map { it.name.lowercase() }.toMutableSet()
-        imported.servers.forEach { found ->
+        val kept = imported.servers.map { found ->
             val name = generateSequence(found.name) { "${found.name} ${names.count { n -> n.startsWith(found.name.lowercase()) } + 1}" }.first { it.lowercase() !in names }
             names += name.lowercase()
             val server = found.copy(name = name)
             val missing = McpRules.problem(server, emptyList())
-            store.save(server.copy(enabled = server.enabled && missing == null)).also { kept -> if (kept.enabled) ensure(kept) else missing?.let { state(kept.id, McpServerState(McpStatus.Failed, it)) } }
+            store.save(server.copy(enabled = server.enabled && missing == null)).also { kept ->
+                if (kept.enabled) connections.ensure(kept) else missing?.let { connections.set(kept.id, McpServerState(McpStatus.Failed, it)) }
+            }
         }
-        if (imported.ignored.isNotEmpty()) say("Not read: ${imported.ignored.joinToString()}", null, NoticeTone.Info)
         publish()
+        McpRules.Imported(kept, imported.ignored)
+    }
+
+    /** Forgets [id], one of the user's servers, with its secrets and its sign-in; a workspace's stays its file's. */
+    suspend fun remove(workspace: String?, id: String): Result<McpServer> = changing {
+        val server = known(workspace, id)
+        if (server.workspace != null) refuse("${server.name} comes from this workspace's .mcp.json: it is removed there")
+        connections.stop(id)
+        store.remove(id)
+        connections.forget(id)
+        server
+    }
+
+    suspend fun enable(workspace: String?, id: String, enabled: Boolean): Result<McpServer> = changing { keep(known(workspace, id).copy(enabled = enabled)) }
+
+    /** [tool]'s [choice] on [id]: it applies from the next turn, so the server keeps running. */
+    suspend fun choose(workspace: String?, id: String, tool: String, choice: McpToolChoice): Result<McpServer> = changing {
+        val server = known(workspace, id)
+        store.save(server.copy(tools = server.tools + (tool to choice))).also { publish() }
+    }
+
+    /** One change at a time, the pages' and the agent's; what refuses it, in its words. */
+    private suspend fun <T> changing(change: suspend () -> T): Result<T> = changes.withLock {
+        try {
+            Result.success(change())
+        } catch (stopped: CancellationException) {
+            throw stopped
+        } catch (refused: Exception) {
+            Result.failure(refused)
+        }
+    }
+
+    private fun known(workspace: String?, id: String): McpServer = server(id, workspace) ?: refuse("There is no MCP server $id")
+
+    private fun refuse(words: String): Nothing = throw IllegalArgumentException(words)
+
+    private suspend fun keep(server: McpServer): McpServer = store.save(server).also { kept ->
+        connections.stop(kept.id)
+        if (kept.enabled) connections.ensure(kept) else publish()
+    }
+
+    private suspend fun restart(server: McpServer) {
+        connections.stop(server.id)
+        connections.ensure(server)
+    }
+
+    /** A page's change refused: the user's notice. */
+    private suspend fun Result<*>.said(server: McpServer?) {
+        exceptionOrNull()?.let { say(it.message ?: "The MCP servers could not be changed", server) }
     }
 
     /** A sign-in's step, its failure said in its words, or the network's. */
@@ -218,8 +217,8 @@ internal class McpServers(
 
     private suspend fun trust(server: McpServer, trusted: Boolean) {
         store.trust(server.id, if (trusted) workspaces.fingerprint(server) else null)
-        stop(server.id)
-        if (trusted && server.enabled) ensure(server)
+        connections.stop(server.id)
+        if (trusted && server.enabled) connections.ensure(server)
     }
 
     private suspend fun search(query: String?) {
@@ -232,35 +231,15 @@ internal class McpServers(
     /** A prompt's or a resource's text, from [id]'s server, into the composer's draft. */
     private suspend fun draft(id: String, read: suspend (McpConnection) -> String) {
         val server = server(id) ?: return
-        val connection = ensure(server).await() ?: return say("${server.name} is not connected", server)
+        val connection = connections.ensure(server).await() ?: return say("${server.name} is not connected", server)
         runCatching { read(connection) }
             .onSuccess { text -> stateHolder.update { it.copy(mcp = it.mcp.copy(draft = text)) } }
             .onFailure { failure -> if (failure is CancellationException) throw failure else say(McpFailures.of(failure, server.name), server) }
     }
 
-    override fun toolsChanged(connection: McpConnection) = state(connection.server.id, McpTool.state(connection))
-
-    override fun ended(connection: McpConnection, failure: String) {
-        val id = connection.server.id
-        synchronized(lock) { if (connections[id] === connection) connections.remove(id) else return }
-        state(id, McpServerState(McpStatus.Failed, failure))
-    }
-
-    override suspend fun ask(connection: McpConnection, request: ElicitRequest): ElicitResult = questions.ask(connection.server.name, request)
-
-    private fun state(id: String, state: McpServerState) {
-        synchronized(lock) { states[id] = state }
-        publish()
-    }
-
-    private fun forget(id: String) {
-        synchronized(lock) { states.remove(id) }
-        publish()
-    }
-
     private fun publish() {
         val servers = servers(activeRoot())
-        val shown = synchronized(lock) { servers.associate { it.id to (states[it.id] ?: McpServerState()) } }
+        val shown = servers.associate { it.id to connections.state(it.id) }
         val signedIn = servers.filter { it.transport is McpTransport.Remote && store.signedIn(it.id) }.map { it.id }.toSet()
         stateHolder.update { it.copy(mcp = it.mcp.copy(servers = servers, states = shown, signedIn = signedIn)) }
     }
@@ -271,9 +250,6 @@ internal class McpServers(
     }
 
     companion object {
-        /** Local servers stop this long after the last turn ended (§7.3). */
-        private const val IDLE_MILLIS = 10 * 60_000L
-
         /** The servers, their secrets in their own Keystore key, their local ones in [execution]'s runtime. */
         fun create(
             context: Context,

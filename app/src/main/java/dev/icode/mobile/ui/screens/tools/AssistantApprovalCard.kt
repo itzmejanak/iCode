@@ -36,7 +36,6 @@ import dev.icode.mobile.domain.AssistantApproval
 import dev.icode.mobile.domain.AssistantElsewhere
 import dev.icode.mobile.domain.AssistantPause
 import dev.icode.mobile.domain.AssistantPermissions
-import dev.icode.mobile.domain.AssistantReach
 import dev.icode.mobile.domain.AssistantToolKind
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.ui.LocalICodeGateway
@@ -130,11 +129,15 @@ internal fun ApprovalAnswers(approval: AssistantApproval, workspace: String, mod
 }
 
 /** What the middle answer opens, for this chat until iCode closes; null when it opens nothing. */
-internal fun allowInMeaning(reach: AssistantReach?, workspace: String): String? = when {
-    reach == null -> "Allow in $workspace: this chat's changes and commands in $workspace stop asking, until iCode closes."
-    reach.place?.kind == AssistantElsewhere.Kind.App -> "Allow in ${reach.place.name}: this chat acts in ${reach.place.name} without asking, until iCode closes."
-    reach.place?.kind == AssistantElsewhere.Kind.Server -> "Allow in ${reach.place.name}: this chat uses ${reach.place.name}'s tools without asking, until iCode closes."
-    reach.place?.kind == AssistantElsewhere.Kind.Terminal -> "Allow in ${reach.place.name}: this chat runs, reads and types in your ${reach.place.name} without asking, until iCode closes."
-    reach.roots.isEmpty() -> null
-    else -> "Allow in Chat: this chat may reach ${reach.roots.joinToString()} without asking, until iCode closes."
+internal fun allowInMeaning(approval: AssistantApproval, workspace: String): String? {
+    val reach = approval.reach
+    return when {
+        approval.always -> null
+        reach == null -> "Allow in $workspace: this chat's changes and commands in $workspace stop asking, until iCode closes."
+        reach.place?.kind == AssistantElsewhere.Kind.App -> "Allow in ${reach.place.name}: this chat acts in ${reach.place.name} without asking, until iCode closes."
+        reach.place?.kind == AssistantElsewhere.Kind.Server -> "Allow in ${reach.place.name}: this chat uses ${reach.place.name}'s tools without asking, until iCode closes."
+        reach.place?.kind == AssistantElsewhere.Kind.Terminal -> "Allow in ${reach.place.name}: this chat runs, reads and types in your ${reach.place.name} without asking, until iCode closes."
+        reach.roots.isEmpty() -> null
+        else -> "Allow in Chat: this chat may reach ${reach.roots.joinToString()} without asking, until iCode closes."
+    }
 }

@@ -18,10 +18,10 @@ internal class AssistantQuestions(private val page: AssistantPage) {
     private var pause: CompletableDeferred<Unit>? = null
 
     /** [call] waits for the user's answer; [detail] and [reach] are what its card shows. */
-    suspend fun approve(call: AssistantCall, detail: String, reach: AssistantReach?): AssistantAnswer {
+    suspend fun approve(call: AssistantCall, detail: String, reach: AssistantReach?, always: Boolean = false): AssistantAnswer {
         val answer = CompletableDeferred<AssistantAnswer>()
         synchronized(lock) { approval = answer }
-        page.state { it.copy(approval = AssistantApproval(call, detail, reach), turn = it.turn?.copy(step = WAITING)) }
+        page.state { it.copy(approval = AssistantApproval(call, detail, reach, always), turn = it.turn?.copy(step = WAITING)) }
         try {
             return answer.await()
         } finally {

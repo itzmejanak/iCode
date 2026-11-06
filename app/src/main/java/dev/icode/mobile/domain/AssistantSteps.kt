@@ -26,6 +26,9 @@ enum class AssistantToolName(val id: String, val title: String, private val one:
     ListRunCommands("list_run_commands", "Run tab", "listed the Run tab", "listed the Run tab %d times"),
     SaveRunCommand("save_run_command", "Save Run command", "saved a Run command", "saved %d Run commands"),
     DeleteRunCommand("delete_run_command", "Delete Run command", "deleted a Run command", "deleted %d Run commands"),
+    ListMcpServers("list_mcp_servers", "MCP servers", "listed the MCP servers", "listed the MCP servers %d times"),
+    SaveMcpServer("save_mcp_server", "Save MCP server", "saved an MCP server", "saved %d MCP servers"),
+    RemoveMcpServer("remove_mcp_server", "Remove MCP server", "removed an MCP server", "removed %d MCP servers"),
     ;
 
     /** What [count] calls of it did: "read a file", "read 3 files". */
