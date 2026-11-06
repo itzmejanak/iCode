@@ -170,20 +170,18 @@ in `start_process`: it has ports, a log and a row in the Processes sheet.
 
 ## 6. The step sheet (§3 A7)
 
-- **The tab, live, while it is open (the owner, 2026-11-06: "terminal is terminal"):** the Command
-  section, then the terminal: the session's `TerminalHost`, at most 300 dp (`IcodeSizes.StepTerminal`),
-  with Jump to latest and *Open in Terminal*. It stays live once the command has ended: the user
-  runs their own commands there, and every step that ran in a tab shows that tab as it is now — five
-  commands in one tab, two in another, each step shows its own tab with its latest output. Once it
-  has ended, how it ended is the line under the terminal, and Copy gives the text the model read.
-  Which tab each command ran in is kept by call, in memory until iCode closes (`AssistantState.tabs`:
-  tabs' IDs start again with iCode). A touch on the terminal is the terminal's (the view claims it on
-  its first touch), so the sheet neither scrolls nor moves under it; anywhere else it closes with a
-  swipe, as every sheet does.
-- **The chat's terminal from the menu:** the Assistant page's ⋮ has **Terminal**, which opens a sheet
-  on the chat's own tab — opened if it has none, a new chat given its ID as sending would — the shell
-  its commands run in, the user's to use, typed into as a step's is. Compact Chat is the context
-  meter's alone, under the composer.
+- **Running:** the Command section, then the terminal: the session's `TerminalHost`, at most 300 dp
+  (`IcodeSizes.StepTerminal`), with Jump to latest and *Open in Terminal*; what is typed there
+  answers the command. A step is its command's input and output (the owner, 2026-11-06), so once it
+  ends the step replays what it printed (below), not what the tab shows later. A touch on the
+  terminal is the terminal's (the view claims it on its first touch), so the sheet neither scrolls nor
+  moves under it; anywhere else it closes with a swipe, as every sheet does.
+- **The chat's terminal from the menu (the owner, 2026-11-06):** the Assistant page's ⋮ has
+  **Terminal**, which opens a sheet on the chat's own tab — opened if it has none, a new chat given
+  its ID as sending would — the shell its commands run in, as it is now, the user's to use. The sheet
+  is the terminal: black with its header, edge to edge, *Open in Terminal* an icon beside ×, the
+  terminal right under the header with no gap, 300 dp tall, and down to the keyboard when typed into.
+  Compact Chat is the context meter's alone, under the composer.
 - **Typing (the owner, 2026-11-06):** while the terminal has the keyboard, the whole sheet is the
   black terminal, edge to edge as the Terminal panel's: the step's line and its Command section go,
   the terminal takes all the width and the height down to the keyboard, and the extra keys stand
@@ -192,14 +190,14 @@ in `start_process`: it has ports, a log and a row in the Processes sheet.
   Terminal; tapped again, or once the keyboard goes, it folds away and the sheet is as it was. It
   is the same view throughout, so the shell, its scrollback and the keyboard are untouched. So that
   nothing above the terminal changes as the keyboard comes and goes, the page does not scroll while
-  its tab is live — a scroll container is a Compose focus group, and one added or removed above the
+  its command runs — a scroll container is a Compose focus group, and one added or removed above the
   terminal took its focus, and the keyboard's — and a long command scrolls within its share instead.
 - **Open in Terminal** shows that very tab: a workspace's terminal opens on the tab selected there,
   a chat's included, and only a choice of its own skips the chats' tabs.
-- **Its tab gone** (closed, or iCode started again): `TerminalReplay`, the same view over a replay
-  session of what that command printed: the same font, palette and colours, links, selection and
-  pinch, scrolled as a terminal is, in a frame that fits its rows up to the live terminal's height.
-  How it ended is the line under it; Copy gives the text the model read.
+- **Ended:** `TerminalReplay`, the same view over a replay session of what that command printed: the
+  same font, palette and colours, links, selection and pinch, scrolled as a terminal is, in a frame
+  that fits its rows up to the live terminal's height. How it ended is the line under it; Copy gives
+  the text the model read.
 - A command that failed before it ran, or printed nothing, shows its result as text, as before.
 - **The bubble and the notification** keep the step's line ("Run `npm test`"). The terminal is
   iCode's.

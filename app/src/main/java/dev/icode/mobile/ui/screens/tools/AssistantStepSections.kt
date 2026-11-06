@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -100,11 +99,11 @@ internal fun StepSection(
     }
 }
 
-/** A step section's name in small capitals, [trailing] at its end; with no name, [trailing] alone, at the end. */
+/** A step section's name in small capitals, [trailing] at its end. */
 @Composable
-private fun StepHeading(label: String?, trailing: @Composable RowScope.() -> Unit) {
+private fun StepHeading(label: String, trailing: @Composable RowScope.() -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
-        if (label != null) SectionLabel(label, Modifier.weight(1f)) else Spacer(Modifier.weight(1f))
+        SectionLabel(label, Modifier.weight(1f))
         trailing()
     }
 }
@@ -122,11 +121,13 @@ internal fun rememberTyping(key: Any?, live: Boolean): Pair<Boolean, (Boolean) -
 
 /**
  * The chat's own terminal tab, from the menu (docs/agent-control-plan.md §6): the shell its commands run
- * in, the user's to use too, as a step's terminal is — typed into, the whole sheet. [tab] is the tab the
- * menu opened, null until it has.
+ * in, as it is now, the user's to use too. The sheet is the terminal, black and edge to edge with its
+ * header — Open in Terminal an icon there, beside × — the terminal right under it; typed into, down to
+ * the keyboard, its keys on it. [tab] is the tab the menu opened, null until it has.
  */
 @Composable
 internal fun AssistantTerminalSheet(tab: String?, modifier: Modifier, onClose: () -> Unit) {
+    val gateway = LocalICodeGateway.current
     val snapshot = LocalICodeSnapshot.current
     val live = tab?.let { id -> snapshot.terminal.sessions.firstOrNull { it.id == id && it.isRunning } }
     val (typing, onFocus) = rememberTyping(tab, live != null)
@@ -136,27 +137,41 @@ internal fun AssistantTerminalSheet(tab: String?, modifier: Modifier, onClose: (
         modifier = modifier,
         subtitle = live?.title,
         scroll = false,
-        ground = if (typing) IcodeColors.BackgroundDeep else IcodeColors.Surface,
-        edgeToEdge = typing,
+        ground = IcodeColors.BackgroundDeep,
+        edgeToEdge = true,
+        actions = {
+            if (live != null) {
+                IconButton(onClick = { onClose(); gateway.dispatch(ICodeIntent.ShowTerminalSession(live.id)) }) {
+                    Icon(Icons.Outlined.Terminal, contentDescription = "Open in Terminal", tint = IcodeColors.TextSecondary)
+                }
+            }
+        },
     ) {
-        when {
-            live != null -> ChatTerminal(live.id, typing, onFocus, onClose, Modifier.weight(1f, fill = typing), heading = false)
-            snapshot.runtime !is RuntimeState.Ready -> Hint("Install the Linux runtime to use the terminal")
-            tab != null -> Hint("This terminal has ended: Terminal opens a new one")
-            else -> Hint("Opening…")
+        if (live != null) {
+            ChatTerminal(live.id, typing, onFocus, onClose, Modifier.weight(1f, fill = typing), framed = false)
+        } else {
+            Box(Modifier.padding(horizontal = IcodeSpacing.Gutter)) {
+                Hint(
+                    when {
+                        snapshot.runtime !is RuntimeState.Ready -> "Install the Linux runtime to use the terminal"
+                        tab != null -> "This terminal has ended: Terminal opens a new one"
+                        else -> "Opening…"
+                    },
+                )
+            }
         }
     }
 }
 
 /**
  * A chat's terminal tab [session], live: the Terminal panel's own view, so what is typed there goes to
- * the command running, or to the shell once it has ended — the user's own commands — and the tab's
- * later output shows here as there. Its [heading] names the tab, with Open in Terminal, which shows the
- * tab there, the sheet closed. For a command's step, [ended] — its result — says how it ended under it.
- * [onFocus] hears the view take the keyboard and let it go. [typing], it is the whole sheet, black and
- * edge to edge as the Terminal panel (docs/agent-control-plan.md §6): the terminal down to the keyboard,
- * the extra keys on it, and — while the sheet's ⓘ says so ([showCommand]) — [command] over its top, with
- * Copy and Open in Terminal. One view throughout, so the shell and its keyboard stay as they are.
+ * the command running, or to the shell — the user's own commands — and its output shows here as there.
+ * [framed], it is a part of a step's page: named, with Open in Terminal, which shows the tab there, the
+ * sheet closed, in a frame of its own; else the sheet is the terminal, flush. [onFocus] hears the view
+ * take the keyboard and let it go. [typing], it is the whole sheet, black and edge to edge as the
+ * Terminal panel (docs/agent-control-plan.md §6): the terminal down to the keyboard, the extra keys on
+ * it, and — while the sheet's ⓘ says so ([showCommand]) — [command] over its top, with Copy and Open in
+ * Terminal. One view throughout, so the shell and its keyboard stay as they are.
  */
 @Composable
 internal fun ChatTerminal(
@@ -165,10 +180,9 @@ internal fun ChatTerminal(
     onFocus: (Boolean) -> Unit,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
-    heading: Boolean = true,
+    framed: Boolean = true,
     command: String? = null,
     showCommand: Boolean = false,
-    ended: String? = null,
 ) {
     val gateway = LocalICodeGateway.current
     val settings = LocalWorkspacePreferences.current.terminal
@@ -182,14 +196,15 @@ internal fun ChatTerminal(
             gateway.dispatch(ICodeIntent.ShowTerminalSession(session))
         }
     }
-    val context = LocalContext.current
+    // Framed on a step's page; the sheet itself — the menu's, or any typed into — with no gap.
+    val inFrame = framed && !typing
     Column(
-        modifier.padding(top = IcodeSpacing.Space2),
-        verticalArrangement = Arrangement.spacedBy(if (typing) IcodeSpacing.None else IcodeSpacing.Space1),
+        modifier.padding(top = if (inFrame) IcodeSpacing.Space2 else IcodeSpacing.None),
+        verticalArrangement = Arrangement.spacedBy(if (inFrame) IcodeSpacing.Space1 else IcodeSpacing.None),
     ) {
-        if (!typing) StepHeading(listOfNotNull("Terminal", tab?.title).joinToString(" · ").takeIf { heading }, open)
+        if (inFrame) StepHeading(listOfNotNull("Terminal", tab?.title).joinToString(" · "), open)
         // Its 300 dp, or what the page has left; typed into, all of it.
-        TerminalFrame(IcodeSizes.StepTerminal.takeUnless { typing }, Modifier.weight(1f, fill = typing)) {
+        TerminalFrame(IcodeSizes.StepTerminal.takeUnless { typing }, Modifier.weight(1f, fill = typing), framed = inFrame) {
             TerminalHost(
                 sessionId = session,
                 settings = settings,
@@ -203,12 +218,6 @@ internal fun ChatTerminal(
                 onFocus = onFocus,
             )
             if (typing && showCommand && command != null) RanCommand(command, open, Modifier.align(Alignment.TopCenter))
-        }
-        if (!typing && ended != null) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
-                Text(ended.lineSequence().first(), style = IcodeType.Caption.copy(color = IcodeColors.TextMuted), modifier = Modifier.weight(1f))
-                CopyChip { copyText(context, "Output", ended, "Output copied", gateway::dispatch) }
-            }
         }
         // The keys a soft keyboard lacks, on it; with no keyboard up, nothing is typed.
         if (typing && settings.extraKeys.isNotEmpty()) {
@@ -277,15 +286,14 @@ internal fun StepReplay(printed: String, output: String) {
 }
 
 /**
- * A terminal on a step's page: the terminal's own ground, [height] tall, its corners as a code block's;
- * without a height, flush in all [modifier] gives it, as the Terminal panel's.
+ * A terminal, [height] tall or all [modifier] gives it. [framed], on a step's page: the terminal's own
+ * ground, its corners as a code block's; else flush, as the Terminal panel's.
  */
 @Composable
-private fun TerminalFrame(height: Dp?, modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
+private fun TerminalFrame(height: Dp?, modifier: Modifier = Modifier, framed: Boolean = true, content: @Composable BoxScope.() -> Unit) {
     Box(
-        modifier.fillMaxWidth().then(
-            if (height != null) Modifier.clip(IcodeShapes.Small).background(IcodeColors.BackgroundDeep).padding(vertical = IcodeSpacing.Space1).height(height)
-            else Modifier.fillMaxHeight(),
-        ),
+        modifier.fillMaxWidth()
+            .then(if (framed) Modifier.clip(IcodeShapes.Small).background(IcodeColors.BackgroundDeep).padding(vertical = IcodeSpacing.Space1) else Modifier)
+            .then(if (height != null) Modifier.height(height) else Modifier.fillMaxHeight()),
     ) { content() }
 }

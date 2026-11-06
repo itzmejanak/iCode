@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -202,6 +203,7 @@ fun IcodeSaveDiscardSheet(
  * [ground] is the sheet's own surface unless it shows something with a ground of its own — a terminal
  * typed into — and [action] stands at its title's end in place of × while it does; [edgeToEdge], its
  * content then reaches the sheet's sides and foot, as the Terminal panel's terminal and keys do.
+ * [actions] stand before × or [action]: the sheet's own tools, as icons.
  */
 @Composable
 fun IcodeBottomSheet(
@@ -219,6 +221,7 @@ fun IcodeBottomSheet(
     ground: Color = IcodeColors.Surface,
     action: (@Composable () -> Unit)? = null,
     edgeToEdge: Boolean = false,
+    actions: @Composable RowScope.() -> Unit = {},
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val swipe = rememberSheetSwipe(onClose)
@@ -256,6 +259,7 @@ fun IcodeBottomSheet(
                     Text(title, style = IcodeType.Title, maxLines = titleLines, overflow = TextOverflow.Ellipsis)
                     subtitle?.let { Text(it, style = IcodeType.Caption) }
                 }
+                actions()
                 if (action != null) {
                     action()
                 } else if (closable) {

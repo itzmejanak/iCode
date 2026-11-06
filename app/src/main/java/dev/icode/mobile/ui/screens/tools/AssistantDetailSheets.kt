@@ -202,10 +202,11 @@ private fun StepPage(
 ) {
     val command = step.call.command
     val file = fileActions(step, onDiff)
-    // The tab its command ran in, live while that tab is open — its later commands' output too, and the
-    // user's own (docs/agent-control-plan.md §6). Typed into, it is the sheet.
+    // The tab its command runs in, live while it runs; then what it printed, its own input and output
+    // (docs/agent-control-plan.md §6). Typed into, the terminal is the sheet.
     val snapshot = LocalICodeSnapshot.current
-    val live = snapshot.assistant.tabs[step.call.id]?.takeIf { id -> snapshot.terminal.sessions.any { it.id == id && it.isRunning } }
+    val live = snapshot.assistant.turn?.terminal?.takeIf { it.callId == step.call.id && step.status == AssistantStepStatus.Running }
+        ?.session?.takeIf { id -> snapshot.terminal.sessions.any { it.id == id && it.isRunning } }
     val (typing, onFocus) = rememberTyping(step.key, live != null)
     var showCommand by remember(step.key) { mutableStateOf(false) }
     LaunchedEffect(typing) { if (!typing) showCommand = false }
@@ -253,7 +254,7 @@ private fun StepPage(
             }
             live != null -> ChatTerminal(
                 live, typing, onFocus, onClose, Modifier.weight(if (typing) 1f else 3f, fill = typing),
-                command = command ?: step.call.summary, showCommand = showCommand, ended = output,
+                command = command ?: step.call.summary, showCommand = showCommand,
             )
             output != null && printed != null -> StepReplay(printed, output)
             output != null -> StepText("Output", output)
