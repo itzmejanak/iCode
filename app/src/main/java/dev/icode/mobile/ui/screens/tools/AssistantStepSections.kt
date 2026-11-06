@@ -14,7 +14,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.outlined.Info
@@ -56,22 +58,36 @@ import dev.icode.mobile.ui.terminal.TerminalReplay
 // A step's page, part by part (docs/assistant-sheets-plan.md §2.2): its texts under their names, and a
 // command's terminal (docs/agent-control-plan.md §6) — the tab it runs in, live, then what it printed.
 
-/** A step's [text] under its [label], all of it, selectable, with Copy at its corner. */
+/**
+ * A step's [text] under its [label], all of it, selectable, with Copy at its corner. On a page that
+ * does not scroll, [modifier] gives it its share, and what does not fit scrolls within it ([bounded]).
+ */
 @Composable
-internal fun StepText(label: String, text: String) {
+internal fun StepText(label: String, text: String, modifier: Modifier = Modifier, bounded: Boolean = false) {
     val context = LocalContext.current
     val gateway = LocalICodeGateway.current
-    StepSection(label, trailing = { CopyChip { copyText(context, label, text, "$label copied", gateway::dispatch) } }) {
-        CodeSurface(Modifier.fillMaxWidth(), padding = PaddingValues(IcodeSpacing.Space2)) {
-            SelectionContainer { Text(text, style = IcodeType.MonoSmall.copy(color = IcodeColors.TextPrimary)) }
+    StepSection(label, trailing = { CopyChip { copyText(context, label, text, "$label copied", gateway::dispatch) } }, modifier) {
+        CodeSurface(Modifier.fillMaxWidth().then(if (bounded) Modifier.weight(1f, fill = false) else Modifier), padding = PaddingValues(IcodeSpacing.Space2)) {
+            SelectionContainer {
+                Text(
+                    text,
+                    style = IcodeType.MonoSmall.copy(color = IcodeColors.TextPrimary),
+                    modifier = if (bounded) Modifier.verticalScroll(rememberScrollState()) else Modifier,
+                )
+            }
         }
     }
 }
 
 /** A part of a step's page: its name in small capitals, [trailing] at its end, and what it holds. */
 @Composable
-internal fun StepSection(label: String, trailing: @Composable RowScope.() -> Unit = {}, content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.padding(top = IcodeSpacing.Space2), verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
+internal fun StepSection(
+    label: String,
+    trailing: @Composable RowScope.() -> Unit = {},
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(modifier.padding(top = IcodeSpacing.Space2), verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
         StepHeading(label, trailing)
         content()
     }
@@ -118,7 +134,8 @@ internal fun StepTerminal(
     }
     Column(modifier.padding(top = IcodeSpacing.Space2), verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
         if (!typing) StepHeading(listOfNotNull("Terminal", tab?.title).joinToString(" · "), open)
-        TerminalFrame(IcodeSizes.StepTerminal.takeUnless { typing }, if (typing) Modifier.weight(1f) else Modifier) {
+        // Its 300 dp, or what the page has left; typed into, all of it.
+        TerminalFrame(IcodeSizes.StepTerminal.takeUnless { typing }, Modifier.weight(1f, fill = typing)) {
             TerminalHost(
                 sessionId = session,
                 settings = settings,

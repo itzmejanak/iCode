@@ -179,7 +179,10 @@ in `start_process`: it has ports, a log and a row in the Processes sheet.
   down to the keyboard, and the extra keys stand on the keyboard — the only time they show. The
   sheet's × becomes ⓘ, which lays the command over the terminal's top, with Copy and Open in
   Terminal; tapped again, or once the keyboard goes, it folds away and the sheet is as it was. It
-  is the same view throughout, so the shell, its scrollback and the keyboard are untouched.
+  is the same view throughout, so the shell, its scrollback and the keyboard are untouched. So that
+  nothing above the terminal changes as the keyboard comes and goes, the page does not scroll while
+  its command runs — a scroll container is a Compose focus group, and one added or removed above the
+  terminal took its focus, and the keyboard's — and a long command scrolls within its share instead.
 - **Open in Terminal** shows that very tab: a workspace's terminal opens on the tab selected there,
   a chat's included, and only a choice of its own skips the chats' tabs.
 - **Ended:** `TerminalReplay`, the same view over a replay session: the same font, palette and

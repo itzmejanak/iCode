@@ -216,7 +216,9 @@ private fun StepPage(
         modifier = modifier,
         subtitle = step.status.word,
         onBack = onBack,
-        scroll = !typing,
+        // While its terminal runs, the page does not scroll, typed into or not: a scroll container is a
+        // focus group, and one added or taken away above the terminal would take its focus, and the keyboard's.
+        scroll = live == null,
         ground = if (typing) IcodeColors.BackgroundDeep else IcodeColors.Surface,
         // Typed into, the sheet is the terminal: ⓘ shows the command it runs, in place of ×.
         action = if (typing) ({ CommandToggle(showCommand) { showCommand = !showCommand } }) else null,
@@ -224,7 +226,8 @@ private fun StepPage(
     ) {
         if (!typing) {
             Text(step.call.summary, style = IcodeType.Body)
-            command?.let { StepText("Command", it) }
+            // Beside a live terminal, a long command scrolls in its quarter of what is left.
+            command?.let { StepText("Command", it, if (live != null) Modifier.weight(1f, fill = false) else Modifier, bounded = live != null) }
         }
         if (file != null) {
             StepSection("File", trailing = {
@@ -250,7 +253,7 @@ private fun StepPage(
             }
             live != null -> StepTerminal(
                 live.session, command ?: step.call.summary, typing, showCommand, onFocus = { terminalFocused = it }, onClose,
-                if (typing) Modifier.weight(1f) else Modifier,
+                Modifier.weight(if (typing) 1f else 3f, fill = typing),
             )
             output != null && printed != null -> StepReplay(printed, output)
             output != null -> StepText("Output", output)
