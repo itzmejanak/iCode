@@ -63,6 +63,17 @@ All notable changes to iCode are documented here. The format follows
   and asks again when it changes. Its prompts and resources go into a message from the attach sheet.
   Secrets are kept encrypted and never shown again.
 - Runtime Tools: Node.js and uv, pinned downloads, for MCP servers that start with npx or uvx.
+- Assistant: its commands run in a terminal tab of its own in the Terminal panel ("Assistant"), typed
+  at a real bash prompt, so `cd` and `export` carry over and colours show. A running command's step
+  is that terminal, live: type an answer there, use the extra keys, or Open in Terminal; once it ends
+  the step replays what it printed as the terminal drew it. At its time limit, or when the turn is
+  stopped, it gets Ctrl-C. It can open another tab, read and type into tabs, and use one of yours
+  once you allow it ("Use your terminal bash 2?"). Deleting a chat closes its tabs.
+- Assistant: it lists, adds, changes and removes MCP servers as the MCP pages do — from a pasted
+  configuration or the fields — asking every time, Full access included. A value given in the chat
+  is kept encrypted and never read back.
+- Terminal: every bash tab carries iCode's shell integration (`/etc/icode/bashrc`, OSC 133 and OSC 7
+  marks, after your own profile), so iCode knows exactly when a command ends.
 
 ## [0.1.0]
 

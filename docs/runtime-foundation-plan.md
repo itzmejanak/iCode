@@ -91,6 +91,12 @@ is bound through a link to it in the runtime's `binds/`, named by the location's
 
 ### 3.3 The agent's shell — `data/assistant/tools/AssistantShell`
 
+> **Superseded (2026-11-06)** by [agent-control-plan.md](./agent-control-plan.md) §4: the agent's
+> commands run in the chat's own terminal tab, a bash with iCode's shell integration, so `cd` and
+> `export` carry over and the user watches and answers each one. `AssistantShell` keeps only where
+> a chat's next process starts (the tab's directory) and what a command reaches. What follows is
+> how the pipe runner worked.
+
 - **Where:** per chat, the guest directory the last command ended in, kept in memory. It starts
   at the workspace's top, goes back there if it lies outside the workspace or no longer exists,
   and the result says so.

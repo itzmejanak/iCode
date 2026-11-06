@@ -235,14 +235,16 @@ the reading tools only.
 | `git_status()` / `git_diff(path, staged)` | read | `CliGitService.run` | 64 KB |
 | `write_file(path, content)` | change | `WorkspaceFileSource.createFile`/`writeDocument` (atomic, keeps encoding and line endings) | refused under unsaved edits |
 | `edit_file(path, old_text, new_text, replace_all)` | change | as above; `old_text` must match once unless `replace_all` | refused under unsaved edits |
-| `run_command(command, timeout_seconds)` | command | `AssistantShell`: bash with the login environment, in the chat's directory — anywhere in the runtime — seeing every workspace under `/workspace` | 120 s by default, as long as the model asks; output's head and tail, 32 KB; its status in words |
-| `start_process(command, name, wait_seconds)` | command | `RuntimeProcesses`: a managed process, as `run_command` runs it, its input open | answers its ID, ports and first output |
+| `run_command(command, timeout_seconds, terminal)` | command | `TerminalRuns`: typed at the bash prompt of the chat's own terminal tab, a new one, or one of the user's ([agent-control-plan.md](./agent-control-plan.md) §4) | 120 s by default, then Ctrl-C; output's head and tail, 32 000 characters; its status in words |
+| `list_terminals()` / `read_terminal(id, lines)` / `send_terminal_input(id, text, keys)` | read / read / command | `TerminalRuns`: the Terminal panel's tabs ([agent-control-plan.md](./agent-control-plan.md) §4.3) | a user's tab asks first, as a place |
+| `start_process(command, name, wait_seconds)` | command | `RuntimeProcesses`: a managed process, from the chat's tab's directory with the login environment, its input open | answers its ID, ports and first output |
 | `process_status(id)` | read | `RuntimeProcesses`: every managed process, each with its workspace | the output since the last look, 16 KB |
 | `send_process_input(id, text, newline)` | command | `RuntimeProcesses` | answers what it printed in the next second |
 | `stop_process(id)` | command | `RuntimeProcesses` | SIGTERM, SIGKILL after 3 s |
 | `run_android_app()` | command | `RunCoordinator`: Build & Run, as the Run tab's ▶ ([run-tab-plan.md](./run-tab-plan.md)) | answers the build's process ID |
 | `list_run_commands()` | read | `RunCoordinator`: the Run tab's apps and saved commands ([run-tab-plan.md](./run-tab-plan.md) §2.5) | — |
 | `save_run_command(command, name, id)` / `delete_run_command(id)` | change | `RunCoordinator`, as the Run tab's dialogs | an id the workspace has no command by is refused |
+| `list_mcp_servers()` / `save_mcp_server(…)` / `remove_mcp_server(id)` | read / change / change | `McpServers`, as the MCP pages ([agent-control-plan.md](./agent-control-plan.md) §5) | a change asks every time, in every mode; a value is never read back |
 
 A write or an edit answers how many lines it added and removed, as `git diff --numstat` counts
 them (`LineChanges.between`, Myers' shortest edit): "Created src/App.kt: +2 lines", "Edited a.kt in

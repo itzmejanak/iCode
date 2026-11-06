@@ -99,6 +99,9 @@ followed as the runtime follows them (`GuestPaths`).
 | Another workspace's process | the same tools, with its id | **asks** (outside) | **asks** (outside) | runs |
 | Every process, listed | `process_status` without an id | runs (a list, as `ps` gives) | runs | runs |
 | Run tab and Build & Run (this workspace's only) | `run_android_app`, `save_run_command`, `delete_run_command`; `list_run_commands` | **asks** (change or command); the list runs | runs | runs |
+| The chat's own terminal tab ([agent-control-plan.md](./agent-control-plan.md) §4) | `run_command`, `send_terminal_input`; `list_terminals`, `read_terminal` | **asks** (command); reads run | runs | runs |
+| A terminal tab of the user's | `run_command`, `read_terminal`, `send_terminal_input`, naming it | **asks** (the tab, a place); Allow in it answers the chat's later calls there | **asks** (the tab) | runs |
+| The MCP servers ([agent-control-plan.md](./agent-control-plan.md) §5) | `save_mcp_server`, `remove_mcp_server`; `list_mcp_servers` | **asks**, every time, no Allow in; the list runs | **asks**, every time | **asks**, every time |
 | Attachments | the user's own pick | never asks | never asks | never asks |
 
 **One card per call, never two.** An outside change shows one card, and Allow answers both

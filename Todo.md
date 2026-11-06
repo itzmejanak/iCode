@@ -681,3 +681,10 @@ Checked with unit tests, build, lint, the consistency guard, the 39-route captur
 - [ ] icode-web serves `oauth/mcp-client.json` naming `dev.icode.mobile:/mcp-sign-in` (and the
   debug build's), so servers that take Client ID Metadata Documents need no registration (§0).
 - [ ] M9, the 2026-07-28 protocol, when the Kotlin SDK's client speaks it.
+
+## The agent in the user's own terminals and MCP servers (2026-11-06, owner's request)
+
+- [ ] On the phone, the checks TP1–TP8 of [agent-control-plan.md](./docs/agent-control-plan.md) §7:
+  colours in the step's terminal, a prompt answered there, `cd` and `export` carried over, Ctrl-C
+  at the time limit, a user's tab asked about, a zsh tab refused, an MCP server added and removed
+  in Full access, a user's command ended at its mark.
