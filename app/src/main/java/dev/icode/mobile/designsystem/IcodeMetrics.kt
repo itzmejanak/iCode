@@ -106,6 +106,8 @@ object IcodeSizes {
     val TopBarWithSubtitle = 64.dp
     val TabStrip = 38.dp
     val TerminalTabBar = 40.dp
+    /** A step's terminal in its sheet, at most (docs/agent-control-plan.md §6): about fifteen rows at the terminal's own size. */
+    val StepTerminal = 300.dp
 
 
     /** Offscreen-sized input that only exists to receive keystrokes. */

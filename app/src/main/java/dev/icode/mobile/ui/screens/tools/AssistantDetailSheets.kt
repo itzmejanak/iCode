@@ -2,14 +2,9 @@ package dev.icode.mobile.ui.screens.tools
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
@@ -19,10 +14,8 @@ import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import dev.icode.mobile.designsystem.CodeSurface
 import dev.icode.mobile.designsystem.IcodeActionSheet
 import dev.icode.mobile.designsystem.IcodeBottomSheet
 import dev.icode.mobile.designsystem.IcodeColors
@@ -30,7 +23,6 @@ import dev.icode.mobile.designsystem.IcodeMenuAction
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.SecondaryButton
-import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.rememberSheetPages
 import dev.icode.mobile.domain.AssistantApproval
 import dev.icode.mobile.domain.AssistantEntry
@@ -225,6 +217,9 @@ private fun StepPage(
             }
         }
         val output = step.output?.takeIf { it.isNotEmpty() }
+        val printed = step.printed?.takeIf { it.isNotEmpty() }
+        // The tab its command runs in, while it runs (docs/agent-control-plan.md §6).
+        val live = LocalICodeSnapshot.current.assistant.turn?.terminal?.takeIf { it.callId == step.call.id && step.status == AssistantStepStatus.Running }
         when {
             approval != null -> {
                 // A command's whole line is its Command already.
@@ -234,6 +229,8 @@ private fun StepPage(
                 }
                 allowInMeaning(approval.reach, workspace)?.let { Text(it, style = IcodeType.Caption.copy(color = IcodeColors.TextMuted)) }
             }
+            live != null -> StepTerminal(live.session, onClose)
+            output != null && printed != null -> StepReplay(printed, output)
             output != null -> StepText("Output", output)
             else -> Hint(
                 when (step.status) {
@@ -243,34 +240,6 @@ private fun StepPage(
                 },
             )
         }
-    }
-}
-
-/** A step's [text] under its [label], all of it, selectable, with Copy at its corner. */
-@Composable
-private fun StepText(label: String, text: String) {
-    val context = LocalContext.current
-    val gateway = LocalICodeGateway.current
-    StepSection(label, trailing = { CopyChip { copyText(context, label, text, "$label copied", gateway::dispatch) } }) {
-        CodeSurface(Modifier.fillMaxWidth(), padding = PaddingValues(IcodeSpacing.Space2)) {
-            SelectionContainer { Text(text, style = IcodeType.MonoSmall.copy(color = IcodeColors.TextPrimary)) }
-        }
-    }
-}
-
-/** A part of a step's page: its name in small capitals, [trailing] at its end, and what it holds. */
-@Composable
-private fun StepSection(label: String, trailing: @Composable RowScope.() -> Unit = {}, content: @Composable ColumnScope.() -> Unit) {
-    Column(Modifier.padding(top = IcodeSpacing.Space2), verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
-        Row(
-            Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
-        ) {
-            SectionLabel(label, Modifier.weight(1f))
-            trailing()
-        }
-        content()
     }
 }
 

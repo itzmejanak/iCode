@@ -19,9 +19,16 @@ is final, and its bytes go from a private queue to the emulator alone.
 
 ## What iCode changed
 
-One addition to `TerminalSession.java`, each line marked `iCode:` — an `OutputTap` interface,
-`setOutputTap`, and the tap's call in `MainThreadHandler`, on the main thread, after the emulator
-has the bytes. Nothing else differs from the tag.
+Two additions to `TerminalSession.java`, each line marked `iCode:`:
+
+- an `OutputTap` interface, `setOutputTap`, and the tap's call in `MainThreadHandler`, on the main
+  thread, after the emulator has the bytes;
+- `TerminalSession.replay(printed, transcriptRows, client)`: a session that runs nothing and shows
+  a command's recorded output, so the view that draws a live terminal draws a finished command the
+  same way (docs/agent-control-plan.md §3 A7). Its emulator is given the bytes when a view first
+  sizes it; it has no pty to resize, and it has ended from the start, so nothing typed is sent.
+
+Nothing else differs from the tag.
 
 ## Licence
 

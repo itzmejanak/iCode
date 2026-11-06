@@ -211,14 +211,18 @@ internal fun ChangedLines(changes: LineChanges) {
 
 /** Copy, at the corner of what it copies. */
 @Composable
-internal fun CopyChip(onCopy: () -> Unit) {
+internal fun CopyChip(onCopy: () -> Unit) = CornerChip("Copy", Icons.Outlined.ContentCopy, onCopy)
+
+/** A small action at the corner of what it acts on: Copy, Open in Terminal. */
+@Composable
+internal fun CornerChip(label: String, icon: ImageVector, onClick: () -> Unit) {
     Row(
-        Modifier.minimumInteractiveComponentSize().clip(IcodeShapes.Small).clickable(onClickLabel = "Copy", onClick = onCopy)
+        Modifier.minimumInteractiveComponentSize().clip(IcodeShapes.Small).clickable(onClickLabel = label, onClick = onClick)
             .padding(horizontal = IcodeSpacing.Space1),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Micro),
     ) {
-        Icon(Icons.Outlined.ContentCopy, contentDescription = null, tint = IcodeColors.TextSecondary, modifier = Modifier.size(IcodeSizes.IconSm))
-        Text("Copy", style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary))
+        Icon(icon, contentDescription = null, tint = IcodeColors.TextSecondary, modifier = Modifier.size(IcodeSizes.IconSm))
+        Text(label, style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary))
     }
 }

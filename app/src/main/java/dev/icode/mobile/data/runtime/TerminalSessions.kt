@@ -1,9 +1,11 @@
 package dev.icode.mobile.data.runtime
 
+import android.content.Context
 import android.os.Handler
 import android.system.Os
 import android.system.OsConstants
 import com.termux.terminal.TerminalSession
+import dev.icode.mobile.domain.TerminalSettings
 
 /**
  * A tab's Termux session as [TerminalSessionManager] makes and reads it: [launch]'s program, its output
@@ -13,6 +15,18 @@ import com.termux.terminal.TerminalSession
 internal fun terminalSession(launch: TerminalLaunch, runtimeRoot: String, callbacks: TerminalSessionCallbacks, commands: TerminalCommands): TerminalSession =
     TerminalSession(launch.argv.first(), runtimeRoot, launch.argv.toTypedArray(), launch.environment.toTypedArray(), launch.transcriptRows, callbacks)
         .also { session -> session.setOutputTap { _, data, count -> commands.feed(data, count) } }
+
+/**
+ * What a command printed, as a session the terminal view draws (docs/agent-control-plan.md §6): one
+ * that runs nothing ([TerminalSession.replay]), with a tab's scrollback, the clipboard for what is
+ * selected, and its cursor hidden — the command had ended. Main thread only.
+ */
+internal fun terminalReplay(context: Context, printed: String, settings: TerminalSettings): TerminalSession =
+    TerminalSession.replay(
+        (printed + HIDE_CURSOR).toByteArray(Charsets.UTF_8),
+        settings.scrollbackLines,
+        TerminalSessionCallbacks(context, { settings.cursorStyle }, onScreenChanged = {}, onFinished = {}, onBell = {}),
+    )
 
 /** [text] typed into the session as its keyboard would; false when it no longer runs. */
 internal fun TerminalSession.type(text: String): Boolean {
@@ -43,3 +57,6 @@ internal fun TerminalSession.hangUp(handler: Handler) {
 }
 
 private const val HANG_UP_TIMEOUT_MILLIS = 5_000L
+
+/** DECTCEM off. */
+private const val HIDE_CURSOR = "\u001B[?25l"

@@ -1,7 +1,9 @@
 package dev.icode.mobile.ui.terminal
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Typeface
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewTreeObserver
 import android.view.inputmethod.InputMethodManager
@@ -24,6 +26,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.res.ResourcesCompat
+import com.termux.terminal.TerminalEmulator
+import com.termux.terminal.TerminalSession
 import com.termux.view.TerminalView
 import dev.icode.mobile.R
 import dev.icode.mobile.designsystem.IcodeSpacing
@@ -54,7 +58,61 @@ fun TerminalHost(
     modifier: Modifier = Modifier,
 ) {
     val source = LocalTerminalSessions.current
-    val session = source.session(sessionId)
+    val observe = remember(source, sessionId) { { changed: () -> Unit -> source.observe(sessionId, changed) } }
+    TerminalPane(source.session(sessionId), settings, fontScale, keys, onScale, onUrl, onEndedEnter, modifier, observe = observe)
+}
+
+/**
+ * What a command printed, drawn as [TerminalHost] draws a session (docs/agent-control-plan.md §6):
+ * the same view, font, palette, selection, links and pinch, from a session that runs nothing; a tap
+ * brings no keyboard. [onFits] hears how many rows the output fills at the view's width, and a row's
+ * height in pixels: a view one row taller than that shows them all.
+ */
+@Composable
+fun TerminalReplay(
+    printed: String,
+    settings: TerminalSettings,
+    fontScale: Float,
+    onScale: (Float) -> Unit,
+    onUrl: (String) -> Unit,
+    onFits: (rows: Int, rowPx: Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val source = LocalTerminalSessions.current
+    val session = remember(source, printed) { source.replay(printed, settings) }
+    val keys = remember { TerminalKeys() }
+    TerminalPane(session, settings, fontScale, keys, onScale, onUrl, onEndedEnter = {}, modifier, onEmulator = { view ->
+        view.currentSession?.emulator?.let { onFits(it.contentRows(), view.mRenderer.fontLineSpacing) }
+    })
+}
+
+/**
+ * The rows its output fills: the scrollback, and the screen down to the cursor's row — that row too
+ * when something stands on it, as a prompt or a line without its end does.
+ */
+internal fun TerminalEmulator.contentRows(): Int =
+    (screen.activeTranscriptRows + cursorRow + if (cursorCol > 0) 1 else 0).coerceAtLeast(1)
+
+/**
+ * [session] in Termux's view. [observe] reports its screen's changes for a live one; a replay
+ * ([observe] null) changes once, when it is sized, and takes nothing typed. [onEmulator] hears each
+ * size its emulator is given.
+ */
+// The touch listener only claims the gesture; the view's own handling, clicks included, still runs.
+@SuppressLint("ClickableViewAccessibility")
+@Composable
+private fun TerminalPane(
+    session: TerminalSession?,
+    settings: TerminalSettings,
+    fontScale: Float,
+    keys: TerminalKeys,
+    onScale: (Float) -> Unit,
+    onUrl: (String) -> Unit,
+    onEndedEnter: () -> Unit,
+    modifier: Modifier,
+    observe: ((changed: () -> Unit) -> AutoCloseable)? = null,
+    onEmulator: (TerminalView) -> Unit = {},
+) {
     val palette = LocalIcodePalette.current
     val context = LocalContext.current
     val textSizePx = with(LocalDensity.current) { (settings.fontSizeSp * fontScale).sp.roundToPx() }
@@ -63,6 +121,8 @@ fun TerminalHost(
     callbacks.onScale = onScale
     callbacks.onUrl = onUrl
     callbacks.onEndedEnter = onEndedEnter
+    callbacks.typing = observe != null
+    callbacks.onEmulatorSet = { callbacks.view?.let(onEmulator) }
     val look = remember { Look() }
     var view by remember { mutableStateOf<TerminalView?>(null) }
     var scrolledBack by remember { mutableStateOf(false) }
@@ -77,6 +137,12 @@ fun TerminalHost(
                     created.setTerminalViewClient(callbacks)
                     created.isFocusable = true
                     created.isFocusableInTouchMode = true
+                    // A gesture on the terminal is the terminal's: a sheet it stands in neither
+                    // scrolls nor moves under it (docs/agent-control-plan.md §6).
+                    created.setOnTouchListener { touched, event ->
+                        if (event.actionMasked == MotionEvent.ACTION_DOWN) touched.parent?.requestDisallowInterceptTouchEvent(true)
+                        false
+                    }
                     // The view has no scroll callback, but every scroll redraws
                     // it. The listener belongs to the window, so it is removed
                     // when the view leaves it.
@@ -136,9 +202,9 @@ fun TerminalHost(
         )
     }
 
-    DisposableEffect(source, sessionId, view) {
+    DisposableEffect(observe, view) {
         val target = view
-        val handle = target?.let { source.observe(sessionId) { showOutput(it) } }
+        val handle = target?.let { observe?.invoke { showOutput(it) } }
         onDispose { handle?.close() }
     }
 

@@ -1,6 +1,7 @@
 package dev.icode.mobile.ui.terminal
 
 import com.termux.terminal.TerminalSession
+import dev.icode.mobile.domain.TerminalSettings
 
 /**
  * Where the terminal view finds the sessions it draws.
@@ -16,11 +17,15 @@ interface TerminalSessionSource {
     /** Calls [onScreenChanged] whenever that session's screen changes, until the handle is closed. */
     fun observe(id: String, onScreenChanged: () -> Unit): AutoCloseable
 
+    /** What a command printed, as a session that runs nothing (docs/agent-control-plan.md §6); null without a terminal. */
+    fun replay(printed: String, settings: TerminalSettings): TerminalSession?
+
     companion object {
         /** No sessions: what a composition without a runtime behind it has. */
         val None: TerminalSessionSource = object : TerminalSessionSource {
             override fun session(id: String): TerminalSession? = null
             override fun observe(id: String, onScreenChanged: () -> Unit) = AutoCloseable { }
+            override fun replay(printed: String, settings: TerminalSettings): TerminalSession? = null
         }
     }
 }

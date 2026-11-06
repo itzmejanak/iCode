@@ -1,7 +1,6 @@
 package dev.icode.mobile.ui.terminal
 
 import com.termux.terminal.TerminalEmulator
-import com.termux.terminal.TerminalOutput
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -60,15 +59,6 @@ class TerminalUrlsTest {
         val emulator = screen(40, "http://a.test")
         assertNull(emulator.urlAt(column = 45, row = 0))
         assertNull(emulator.urlAt(column = 0, row = ROWS))
-    }
-
-    private object NoOutput : TerminalOutput() {
-        override fun write(data: ByteArray?, offset: Int, count: Int) = Unit
-        override fun titleChanged(oldTitle: String?, newTitle: String?) = Unit
-        override fun onCopyTextToClipboard(text: String?) = Unit
-        override fun onPasteTextFromClipboard() = Unit
-        override fun onBell() = Unit
-        override fun onColorsChanged() = Unit
     }
 
     private companion object {
