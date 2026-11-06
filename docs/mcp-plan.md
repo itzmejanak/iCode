@@ -1,6 +1,7 @@
 # MCP servers for the assistant — plan
 
-Status: **plan** (2026-11-05), the owner's request. Nothing here is built yet. It replaces the
+Status: **built** (2026-11-06): R1 and M0–M8, as §0 records; M9 waits on the SDK. Planned
+2026-11-05, the owner's request. It replaces the
 one line [assistant-koog-plan.md](./assistant-koog-plan.md) §7 gave MCP ("MCP servers as tool
 sources … behind an `AssistantToolSource` of iCode's own"). It keeps the boundaries of that plan
 and of [assistant-permissions-plan.md](./assistant-permissions-plan.md), and the reference the
@@ -10,6 +11,60 @@ owner named, AntiGem, read at `santoshkurmi/antigem@f084832`.
 > https://github.com/santoshkurmi/AntiGem. Make sure to be 100% accurate and let's plan in such a
 > way that exactly icdode need to have without any duplicay inconsistency and bug and any future
 > limitations"
+
+## 0. As built (2026-11-06)
+
+The owner took every recommendation in §12. Where the build refined this plan, it is said here; the
+sections below keep the plan's reasoning.
+
+- **One schema model, by another name.** §6.2's `AssistantSchema` is `AssistantParameterType`
+  (`data/assistant/AssistantEngine.kt`): `Text`, `Integer`, `Boolean`, `Number`, `Null`, `Choice`,
+  `Items`, `Fields(fields, more)`, `OneOf`. Built-in tools kept their `AssistantParameter` lists;
+  each parameter carries its type, so no tool changed. `KoogTool.type` maps each to one Koog type.
+- **The contract** is `domain/McpContract.kt` (§5.1 shows the plan's first draft): a value is
+  `McpValue(name, value, secret, saved, hint)`, its secret never in the snapshot; a workspace's
+  server carries its `workspace`. The SDK does not expose the negotiated protocol version, so
+  `McpServerState` shows the server's name and version instead.
+- **Intents** (§5.2) are `McpIntent`, a kind of `AssistantIntent`: the assistant's coordinator hands
+  them to `McpServers`, which applies them in order on a queue of its own. What reaches the network
+  for the user (sign-in, the Registry, prompts, resources) runs beside it, and an answer to a
+  server's question is applied at once. `ReadLog` became `Edit(server)`: the page opens on a server
+  and reads its log. The gateway is unchanged.
+- **Tool names** (§6.1): a long or clashing name gets `_` and eight hex characters of the tool
+  name's `String.hashCode()`, not SHA-256: the name needs to be stable, not secret, and SHA-256 has
+  one owner in iCode (`data/io/Sha256.kt`).
+- **A turn's tools** come through `AssistantTools` (iCode's own, then the servers'). A tool set to
+  Runs has no place to ask about; one set to Off is never offered; a reading mode is offered what
+  the server marks `readOnlyHint`. The tools left out by the cap are counted in the chat's step and
+  on the MCP Servers page.
+- **The SDK's limits found:** its `ToolSchema` keeps `$schema`, `properties`, `required` and
+  `$defs` only, so a top-level `definitions` is not there to inline. Its `StreamableHttpError`
+  carries the status and body but not `WWW-Authenticate`, and is wrapped in its own
+  `McpException`: `McpFailures` reads the status wherever it is in the cause chain, and the
+  sign-in reads the challenge with a request of its own.
+- **Sign-in** (§8.2): the browser comes back to `<applicationId>:/mcp-sign-in` (RFC 8252's
+  reverse-domain scheme), which `SignInReturnActivity` hands to the open iCode. With
+  `ICODE_WEB_URL` set, a server that takes Client ID Metadata Documents is given
+  `$ICODE_WEB_URL/oauth/mcp-client.json`, but only when that document names the redirect: until
+  icode-web serves it, registration is Dynamic Client Registration (`application_type: native`),
+  then the user's client ID. The sign-in on its way through the browser is kept encrypted, so a
+  process restarted meanwhile still finishes it. A 403 `insufficient_scope` reads as refused: Sign
+  In again asks for the challenge's scope, else every scope the server lists.
+- **Storage** (§5.4), preferences `icode.mcp`, Keystore alias `icode.mcp.key`: `servers` (no
+  secret values), `secret.<id>.<name>`, `signin.<id>` (the tokens with their issuer, encrypted),
+  `signin.pending`, `choices.<id>` and `trust.<id>` (a workspace's server: the user's choices, and
+  the SHA-256 of the configuration trusted). A workspace's server's ID is `<workspace>#<name>`.
+- **A workspace's server** (M6) starts in the workspace's folder unless it names one; `${VAR}` in
+  its command, arguments, folder or address must be set in the login environment, or it does not
+  start.
+- **The Registry** (M7) offers a remote first (a phone runs nothing for it), else an npm package
+  by `npx -y` or a PyPI one by `uvx`, over stdio; Docker, .NET and downloads are not offered. A
+  server found opens its page filled in, for the user to check before adding it.
+- **Prompts and resources** (M8) are offered on the composer's attach sheet and taken into the
+  message as text, for the user to read before sending.
+- **Tests:** `McpConnectionTest` runs the client against the SDK's own server over Streamable
+  HTTP on this machine (Ktor's CIO engine, test only), through OkHttp as on the phone. The sign-in
+  is tested against a local authorization server. The phone checks (K1–K9) are the owner's to run.
 
 ## 1. What MCP is to iCode
 
@@ -218,7 +273,7 @@ domain/McpContract.kt, McpRules.kt                       data/assistant/mcp/McpS
                                                           │    ├─ McpLocal   stdio in PRoot (§7)
                                                           │    └─ McpRemote  Streamable HTTP, HTTP+SSE fallback (§8)
                                                           ├─ McpTool        one server tool as an AssistantTool (§6)
-                                                          ├─ McpSchema      JSON Schema → AssistantSchema
+                                                          ├─ McpSchema      JSON Schema → AssistantParameterType
                                                           ├─ McpResults     content → text, picture
                                                           ├─ McpFailures    every failure in plain words (§9)
                                                           └─ McpSignIn      OAuth (M5)
@@ -260,8 +315,10 @@ tool, taken)` (§6.1), `capped(servers)` (§6.1).
 
 ### 5.2 Intents and state
 
-`McpIntent`: `SaveServer`, `ImportServers(json)`, `RemoveServer`, `SetServerEnabled`,
-`SetToolChoice`, `RestartServer`, `ReadLog`, `SignIn`/`SignOut` (M5), `AnswerQuestion` (M4).
+`McpIntent` (`domain/McpIntents.kt`, §0): `Connect`, `SaveServer`, `ImportServers(json)`,
+`RemoveServer`, `SetServerEnabled`, `SetToolChoice`, `RestartServer`, `Edit`, `SignIn`/`SignOut`/
+`SignedIn` (M5), `Answer` (M4), `Trust` (M6), `SearchRegistry` (M7), `UsePrompt`/`UseResource`/
+`DraftTaken` (M8).
 
 `McpServers` publishes `McpState` as each connection changes: started, failed, tools changed. It
 never polls and never waits a fixed time.
@@ -274,11 +331,11 @@ are.
 
 ### 5.4 Storage
 
-Preferences `icode.mcp`:
+Preferences `icode.mcp`, as built in §0:
 - `servers`: the JSON list, without secret values.
-- `secret.<id>.<env|header>.<name>`: encrypted.
-- `oauth.<id>`: M5's tokens, keyed by issuer, encrypted.
-- `trust.<workspace>.<name>`: M6.
+- `secret.<id>.<name>`: encrypted.
+- `signin.<id>`, `signin.pending`: M5's tokens with their issuer, and the sign-in under way, encrypted.
+- `choices.<id>`, `trust.<id>`: a workspace's server (M6).
 
 A value is secret unless the user marks it plain. A value from the Registry (M7) takes the
 registry's `isSecret`. A key that can no longer be decrypted reads as missing, and the page asks for
@@ -291,14 +348,14 @@ it again, as provider keys do ([assistant-koog-plan.md](./assistant-koog-plan.md
 - A server's `key` comes from its name: lower case, characters outside `a–z 0–9` become `_`, it
   starts with a letter (`s` added otherwise), at most 16 characters, and `_2`, `_3` … on a clash.
 - A tool's name for the model is `<key>__<tool>`: characters outside `A–Z a–z 0–9 _ -` become `_`,
-  at most 64 (§2.4). A longer or clashing name is cut and given `_` and four hex characters of the
-  real name's SHA-256. `McpTool` keeps the server's real name for the call. iCode's own tools never
+  at most 64 (§2.4). A longer or clashing name is cut and given `_` and eight hex characters of the
+  tool name's hash (§0). `McpTool` keeps the server's real name for the call. iCode's own tools never
   contain `__`, so they never clash.
 - **The cap:** 128 tools a request (OpenAI's count, as §2.4 records it). Built-in tools come first,
   then each server's in the servers' order. What is left out is named on the pages (§4.2) and once
   in the chat.
 
-### 6.2 Schemas — `AssistantSchema`
+### 6.2 Schemas — `AssistantParameterType` (planned as `AssistantSchema`, §0)
 
 ```kotlin
 sealed interface AssistantSchema {

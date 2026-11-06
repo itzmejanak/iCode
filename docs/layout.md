@@ -692,6 +692,8 @@ Languages
 Assistant
 ├── Providers
 │   └── Provider (+ opens the sheet of provider kinds)
+├── MCP Servers
+│   └── Server (+ opens the sheet: paste, local, remote, the MCP Registry)
 ├── Voice
 └── Phone Control
     └── Shizuku
