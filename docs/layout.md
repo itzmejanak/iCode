@@ -637,7 +637,7 @@ The row holds ESC, CTRL and ALT by name, then Tab and the four arrows as the edi
 
 Users can hide keys in Terminal Settings › Extra Keys Row; with none left, the bar stays while typing too.
 
-A chat's own tab is named **Assistant** (Assistant 2, …): the assistant's commands run there, typed at its prompt ([agent-control-plan.md](./agent-control-plan.md) §4). The same terminal, live, is a running command's step in the chat: at most 300 dp tall, the extra keys row always under it, and Open in Terminal at its corner, which shows that tab; a touch on it is the terminal's, so the sheet neither scrolls nor moves under it. While it has the keyboard it is the whole sheet: the command folded to one line on top (a tap puts the keyboard away), the terminal down to the keyboard, the extra keys on it. Once the command ends, its step replays what it printed in the same view, read-only, in a frame that fits its rows.
+A chat's own tab is named **Assistant** (Assistant 2, …): the assistant's commands run there, typed at its prompt ([agent-control-plan.md](./agent-control-plan.md) §4). The same terminal, live, is a running command's step in the chat: at most 300 dp tall, with Open in Terminal at its corner, which shows that tab; a touch on it is the terminal's, so the sheet neither scrolls nor moves under it. While it has the keyboard, the whole sheet is the black terminal, down to the keyboard, with the extra keys on the keyboard (they show only then) and ⓘ in place of ×: it lays the command over the terminal's top, with Copy and Open in Terminal. Once the command ends, its step replays what it printed in the same view, read-only, in a frame that fits its rows.
 
 ### 17.4 URLs
 

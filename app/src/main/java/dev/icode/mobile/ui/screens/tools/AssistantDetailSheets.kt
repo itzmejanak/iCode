@@ -9,13 +9,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.SelectAll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -205,6 +208,8 @@ private fun StepPage(
     val live = LocalICodeSnapshot.current.assistant.turn?.terminal?.takeIf { it.callId == step.call.id && step.status == AssistantStepStatus.Running }
     var terminalFocused by remember(step.key) { mutableStateOf(false) }
     val typing = live != null && terminalFocused && WindowInsets.isImeVisible
+    var showCommand by remember(step.key) { mutableStateOf(false) }
+    LaunchedEffect(typing) { if (!typing) showCommand = false }
     IcodeBottomSheet(
         title = AssistantToolName.of(step.call.tool)?.title ?: step.call.tool,
         onClose = onClose,
@@ -212,6 +217,9 @@ private fun StepPage(
         subtitle = step.status.word,
         onBack = onBack,
         scroll = !typing,
+        ground = if (typing) IcodeColors.BackgroundDeep else IcodeColors.Surface,
+        // Typed into, the sheet is the terminal: ⓘ shows the command it runs, in place of ×.
+        action = if (typing) ({ CommandToggle(showCommand) { showCommand = !showCommand } }) else null,
         footer = approval?.let { asked -> { ApprovalAnswers(asked, workspace, Modifier.fillMaxWidth()) } },
     ) {
         if (!typing) {
@@ -241,7 +249,7 @@ private fun StepPage(
                 allowInMeaning(approval, workspace)?.let { Text(it, style = IcodeType.Caption.copy(color = IcodeColors.TextMuted)) }
             }
             live != null -> StepTerminal(
-                live.session, command ?: step.call.summary, typing, onFocus = { terminalFocused = it }, onClose,
+                live.session, command ?: step.call.summary, typing, showCommand, onFocus = { terminalFocused = it }, onClose,
                 if (typing) Modifier.weight(1f) else Modifier,
             )
             output != null && printed != null -> StepReplay(printed, output)

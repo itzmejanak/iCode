@@ -23,6 +23,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextAlign
@@ -197,6 +198,9 @@ fun IcodeSaveDiscardSheet(
  * from its title or footer, or from its content once that is at its top — and let go past a quarter
  * of its height, or flung down, it slides away; short of that it springs back. Not [closable] (a
  * question that must be answered), it has no × and does not move.
+ *
+ * [ground] is the sheet's own surface unless it shows something with a ground of its own — a terminal
+ * typed into — and [action] stands at its title's end in place of × while it does.
  */
 @Composable
 fun IcodeBottomSheet(
@@ -211,6 +215,8 @@ fun IcodeBottomSheet(
     closable: Boolean = true,
     /** Its title's lines at most: two for a name, all of it for a sheet whose title is what it says (a notice). */
     titleLines: Int = 2,
+    ground: Color = IcodeColors.Surface,
+    action: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val swipe = rememberSheetSwipe(onClose)
@@ -220,7 +226,7 @@ fun IcodeBottomSheet(
             modifier = modifier
                 .fillMaxWidth()
                 .then(if (closable) swipe.modifier else Modifier)
-                .background(IcodeColors.Surface, IcodeShapes.Sheet)
+                .background(ground, IcodeShapes.Sheet)
                 // A tap on the sheet stays on it, never reaching the screen it is over.
                 .pointerInput(Unit) {}
                 .padding(IcodeSpacing.Space4),
@@ -246,7 +252,9 @@ fun IcodeBottomSheet(
                     Text(title, style = IcodeType.Title, maxLines = titleLines, overflow = TextOverflow.Ellipsis)
                     subtitle?.let { Text(it, style = IcodeType.Caption) }
                 }
-                if (closable) {
+                if (action != null) {
+                    action()
+                } else if (closable) {
                     IconButton(onClick = onClose) {
                         Icon(Icons.Outlined.Close, contentDescription = "Close", tint = IcodeColors.TextSecondary)
                     }

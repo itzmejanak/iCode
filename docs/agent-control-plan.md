@@ -171,14 +171,15 @@ in `start_process`: it has ports, a log and a row in the Processes sheet.
 ## 6. The step sheet (§3 A7)
 
 - **Running:** the Command section, then the terminal: the session's `TerminalHost`, at most 300 dp
-  (`IcodeSizes.StepTerminal`), with Jump to latest, the extra-keys row, and *Open in Terminal*. A
+  (`IcodeSizes.StepTerminal`), with Jump to latest and *Open in Terminal*. A
   touch on the terminal is the terminal's (the view claims it on its first touch), so the sheet
   neither scrolls nor moves under it; anywhere else it closes with a swipe, as every sheet does.
-- **Typing (the owner, 2026-11-06):** while the terminal has the keyboard, it is the sheet. The step's
-  line and its Command section fold into one row — the terminal icon and the command's first line;
-  a tap on it puts the keyboard away and shows them again — the terminal takes all the height down
-  to the keyboard, and the extra keys stand on the keyboard. It is the same view throughout, so the
-  shell, its scrollback and the keyboard are untouched by the change.
+- **Typing (the owner, 2026-11-06):** while the terminal has the keyboard, the whole sheet is the
+  black terminal: the step's line and its Command section go, the terminal takes all the height
+  down to the keyboard, and the extra keys stand on the keyboard — the only time they show. The
+  sheet's × becomes ⓘ, which lays the command over the terminal's top, with Copy and Open in
+  Terminal; tapped again, or once the keyboard goes, it folds away and the sheet is as it was. It
+  is the same view throughout, so the shell, its scrollback and the keyboard are untouched.
 - **Open in Terminal** shows that very tab: a workspace's terminal opens on the tab selected there,
   a chat's included, and only a choice of its own skips the chats' tabs.
 - **Ended:** `TerminalReplay`, the same view over a replay session: the same font, palette and
