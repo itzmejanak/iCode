@@ -132,34 +132,6 @@ data class AssistantAvailable(
     val failure: String? = null,
 )
 
-/** What a tool does to the workspace: reads never ask; changes and commands do. */
-enum class AssistantToolKind { Read, Change, Command }
-
-/** One request for a tool, as the model made it. */
-data class AssistantCall(
-    /** The provider's ID for it, or iCode's for a call that came without one: its result names it. */
-    val id: String,
-    val tool: String,
-    /** Its arguments as the model wrote them: JSON text. */
-    val arguments: String,
-    /** "Read src/App.kt": what its step says, written when the call arrived. */
-    val summary: String,
-    val kind: AssistantToolKind,
-    /** The workspace file it reads or changes, relative to its top; null for a call that touches none. */
-    val file: String? = null,
-    /** The command line it runs, whole, for a call that runs one. */
-    val command: String? = null,
-)
-
-/** A tool's answer, as the model reads it, and for a change to a file, by how many lines it changed it. */
-data class AssistantResult(
-    val callId: String,
-    val tool: String,
-    val output: String,
-    val failed: Boolean,
-    val changes: LineChanges? = null,
-)
-
 /** What a file sent with a message is to the model (§13 P7). */
 enum class AssistantAttachmentKind { Text, Image, Document }
 
@@ -239,6 +211,8 @@ data class AssistantTurn(
     val onPhone: Boolean = false,
     /** Read aloud, as Spoken replies said when it was sent (§5.8): its instructions ask for a short spoken answer. */
     val aloud: Boolean = false,
+    /** The terminal tab the running call's command runs in: its step shows it live (docs/agent-control-plan.md §6). */
+    val terminal: AssistantTerminal? = null,
 )
 
 /** A streamed reply as far as it has come: what the model thought, and its answer so far. */

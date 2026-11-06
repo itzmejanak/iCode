@@ -32,10 +32,11 @@ data class AssistantReach(
 
 /**
  * A place outside the files a call acts in, asked about as a folder outside is (docs/phone-agent-plan.md
- * L6, docs/mcp-plan.md §6.4): an app on the phone, or an MCP server. "Allow in" opens its [root].
+ * L6, docs/mcp-plan.md §6.4, docs/agent-control-plan.md §3 A4): an app on the phone, an MCP server, or a
+ * terminal tab of the user's. "Allow in" opens its [root].
  */
 data class AssistantElsewhere(val name: String, val root: String, val kind: Kind) {
-    enum class Kind { App, Server }
+    enum class Kind { App, Server, Terminal }
 }
 
 object AssistantPermissions {
@@ -56,6 +57,7 @@ object AssistantPermissions {
         AssistantAsk.Outside -> when (place?.kind) {
             AssistantElsewhere.Kind.App -> "The user did not allow acting in ${place.name}"
             AssistantElsewhere.Kind.Server -> "The user did not allow using ${place.name}"
+            AssistantElsewhere.Kind.Terminal -> "The user did not allow using their terminal ${place.name}"
             null -> "The user did not allow reaching ${outside.joinToString()}"
         }
         AssistantAsk.Command -> "The user did not allow this command"
@@ -69,6 +71,7 @@ object AssistantPermissions {
         return when {
             reach?.place?.kind == AssistantElsewhere.Kind.App -> "Act in ${reach.place.name}?"
             reach?.place?.kind == AssistantElsewhere.Kind.Server -> "Use ${reach.place.name}?"
+            reach?.place?.kind == AssistantElsewhere.Kind.Terminal -> "Use your terminal ${reach.place.name}?"
             reach == null && kind == AssistantToolKind.Command -> "Run this command?"
             reach == null -> "Make this change?"
             kind == AssistantToolKind.Command -> "Run this command outside $bound?"
@@ -117,6 +120,9 @@ object AssistantPermissions {
 
     /** What "Allow in *server*" opens for an MCP server (docs/mcp-plan.md §6.4): never a runtime path either. */
     fun serverRoot(id: String): String = "mcp:$id"
+
+    /** What "Allow in *tab*" opens for a terminal tab of the user's (docs/agent-control-plan.md §3 A4), while it runs. */
+    fun terminalRoot(sessionId: String): String = "terminal:$sessionId"
 
     /** [path] is [root] or under it, both runtime paths. */
     fun within(path: String, root: String): Boolean = path == root || path.startsWith("${root.trimEnd('/')}/")

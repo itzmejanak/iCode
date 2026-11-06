@@ -3,7 +3,8 @@ package dev.icode.mobile.domain
 /**
  * The assistant's tools by the name the model calls them (docs/assistant-sheets-plan.md §2.1): what a
  * step's sheet is titled, and how a run of steps says what they did — [one] for one call, [many] with
- * its count. The data layer's tools take their names from here, so each is written once.
+ * its count. The data layer's tools take their names from here, so each is written once. Then each
+ * call, its result, and the tab a running call's command runs in.
  */
 enum class AssistantToolName(val id: String, val title: String, private val one: String, private val many: String) {
     ListFiles("list_files", "List files", "listed a folder", "listed %d folders"),
@@ -14,6 +15,9 @@ enum class AssistantToolName(val id: String, val title: String, private val one:
     WriteFile("write_file", "Write file", "wrote a file", "wrote %d files"),
     EditFile("edit_file", "Edit file", "edited a file", "edited %d files"),
     RunCommand("run_command", "Command", "ran a command", "ran %d commands"),
+    ListTerminals("list_terminals", "Terminals", "listed the terminals", "listed the terminals %d times"),
+    ReadTerminal("read_terminal", "Read terminal", "read a terminal", "read terminals %d times"),
+    SendTerminalInput("send_terminal_input", "Terminal input", "typed in a terminal", "typed in terminals %d times"),
     StartProcess("start_process", "Start process", "started a process", "started %d processes"),
     ProcessStatus("process_status", "Processes", "checked the processes", "checked the processes %d times"),
     SendProcessInput("send_process_input", "Process input", "sent a process input", "sent processes input %d times"),
@@ -97,3 +101,36 @@ object AssistantStepRules {
         AssistantStepStatus.Done,
     )
 }
+
+/** What a tool does to the workspace: reads never ask; changes and commands do. */
+enum class AssistantToolKind { Read, Change, Command }
+
+/** One request for a tool, as the model made it. */
+data class AssistantCall(
+    /** The provider's ID for it, or iCode's for a call that came without one: its result names it. */
+    val id: String,
+    val tool: String,
+    /** Its arguments as the model wrote them: JSON text. */
+    val arguments: String,
+    /** "Read src/App.kt": what its step says, written when the call arrived. */
+    val summary: String,
+    val kind: AssistantToolKind,
+    /** The workspace file it reads or changes, relative to its top; null for a call that touches none. */
+    val file: String? = null,
+    /** The command line it runs, whole, for a call that runs one. */
+    val command: String? = null,
+)
+
+/** A tool's answer, as the model reads it, and for a change to a file, by how many lines it changed it. */
+data class AssistantResult(
+    val callId: String,
+    val tool: String,
+    val output: String,
+    val failed: Boolean,
+    val changes: LineChanges? = null,
+    /** What a command printed, as printed — colours and all, bounded: its step replays it as a terminal (docs/agent-control-plan.md §6). */
+    val printed: String? = null,
+)
+
+/** A call's command running in a terminal tab: [session] is the tab's ID. */
+data class AssistantTerminal(val callId: String, val session: String)
