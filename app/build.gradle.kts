@@ -188,8 +188,9 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
     testImplementation("junit:junit:4.13.2")
-    // A real MCP server, in memory, for the client's tests (docs/mcp-plan.md M2).
+    // A real MCP server, over Streamable HTTP on this machine, for the client's tests (docs/mcp-plan.md M2).
     testImplementation("io.modelcontextprotocol:kotlin-sdk-server:0.16.0")
+    testImplementation("io.ktor:ktor-server-cio:3.5.2")
     // Android provides org.json in production; this supplies the same API to local JVM parser tests.
     testImplementation("org.json:json:20260814")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")

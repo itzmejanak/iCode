@@ -27,7 +27,10 @@ internal object McpFailures {
         val chain = generateSequence(failure) { it.cause }.take(MAX_DEPTH).toList()
         val host = address?.let { runCatching { URI(it).host }.getOrNull() } ?: server
         chain.firstNotNullOfOrNull { networkWords(it, host) }?.let { return it }
-        return when (val cause = chain.firstOrNull { it is Missing || it is SignInNeeded || it is StreamableHttpError || it is McpException } ?: failure) {
+        // The SDK wraps an HTTP answer in its own exception: the status, wherever it is, says more.
+        val cause = chain.firstOrNull { it is Missing || it is SignInNeeded } ?: chain.firstOrNull { it is StreamableHttpError }
+            ?: chain.firstOrNull { it is McpException } ?: failure
+        return when (cause) {
             is Missing -> missing(cause.command)
             is SignInNeeded -> SIGN_IN
             is StreamableHttpError -> when (cause.code) {

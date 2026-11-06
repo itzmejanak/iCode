@@ -128,7 +128,7 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
     private fun view(snapshot: ICodeSnapshot) = PhoneBubbleView(
         overlay, snapshot.assistant, snapshot.voice,
         bar = mode == Mode.Typing, voiceUp = mode == Mode.Voice, tucked = place.tucked, edge = place.edge,
-        draft = draft, onDraft = { draft = it }, question = snapshot.mcp.question,
+        draft = draft, onDraft = { draft = it },
     )
 
     private fun actions() = PhoneBubbleActions(

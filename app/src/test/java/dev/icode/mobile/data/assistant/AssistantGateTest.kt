@@ -22,7 +22,10 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
-/** An act in an app on the phone asks about the app, as a folder outside does (docs/phone-agent-plan.md L6). */
+/**
+ * An act in an app on the phone asks about the app, as a folder outside does (docs/phone-agent-plan.md L6);
+ * an MCP server's tool asks about its server the same way (docs/mcp-plan.md §6.4).
+ */
 class AssistantGateTest {
     @get:Rule val temp = TemporaryFolder()
 
@@ -35,6 +38,7 @@ class AssistantGateTest {
     private var permission = AssistantPermission.AskFirst
     private val tap = AssistantCall("c1", "phone_tap", "{}", "Tap [2] “Send”", AssistantToolKind.Change)
     private val ran = mutableListOf<String>()
+    private var elsewhere: AssistantElsewhere? = AssistantElsewhere("WhatsApp", AssistantPermissions.appRoot("com.whatsapp"), AssistantElsewhere.Kind.App)
 
     private val actor = object : AssistantTool, AssistantPlaceActor {
         override val name = "phone_tap"
@@ -42,7 +46,7 @@ class AssistantGateTest {
         override val parameters = emptyList<AssistantParameter>()
         override val kind = AssistantToolKind.Change
         override fun summary(arguments: JSONObject) = "Tap [2] “Send”"
-        override fun place(arguments: JSONObject) = AssistantElsewhere("WhatsApp", AssistantPermissions.appRoot("com.whatsapp"), AssistantElsewhere.Kind.App)
+        override fun place(arguments: JSONObject) = elsewhere
         override suspend fun run(arguments: JSONObject): String = "Tapped".also { ran += it }
     }
 
@@ -84,5 +88,21 @@ class AssistantGateTest {
         assertTrue(ran.isEmpty())
         permission = AssistantPermission.FullAccess
         assertEquals("Tapped", gate("s3").run(JSONObject()))
+    }
+
+    @Test fun `a server's tool asks to use the server, and one set to run asks nothing`() = runBlocking {
+        elsewhere = AssistantElsewhere("GitHub", AssistantPermissions.serverRoot("m-1"), AssistantElsewhere.Kind.Server)
+        val asked = scope.async { runCatching { gate("s4").run(JSONObject()) } }
+        until { stateHolder.current.assistant.approval != null }
+        val approval = stateHolder.current.assistant.approval!!
+        assertEquals(listOf("mcp:m-1"), approval.reach!!.roots)
+        assertEquals("Use GitHub?", AssistantPermissions.question(approval, "Home"))
+        assertEquals("Allow in GitHub", AssistantPermissions.allowIn(approval, "Home"))
+        questions.answer("c1", AssistantAnswer.Deny)
+        val refusal = asked.await().exceptionOrNull()
+        assertTrue(refusal is AssistantToolException && refusal.message == "The user did not allow using GitHub")
+        // The user's Runs: no place to ask about, in any mode.
+        elsewhere = null
+        assertEquals("Tapped", gate("s5").run(JSONObject()))
     }
 }

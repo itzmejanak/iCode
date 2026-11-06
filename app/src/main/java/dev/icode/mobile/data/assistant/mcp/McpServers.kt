@@ -8,7 +8,6 @@ import dev.icode.mobile.data.assistant.AssistantTools
 import dev.icode.mobile.data.runtime.GuestContext
 import dev.icode.mobile.data.runtime.RuntimeExecution
 import dev.icode.mobile.data.workspace.ICodeStateHolder
-import dev.icode.mobile.domain.AppNotice
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.McpIntent
 import dev.icode.mobile.domain.McpLog
@@ -267,7 +266,7 @@ internal class McpServers(
     }
 
     private suspend fun say(title: String, server: McpServer?, tone: NoticeTone = NoticeTone.HeadsUp) {
-        stateHolder.emit(ICodeEffect.Notice(AppNotice.Message(tone, title, server?.name.orEmpty())))
+        stateHolder.notify(tone, title, server?.name)
         publish()
     }
 

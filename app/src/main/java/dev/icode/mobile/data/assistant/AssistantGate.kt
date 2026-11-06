@@ -37,13 +37,13 @@ internal class AssistantGate(
         val opened = chats.roots(workspace, session)
         val outside = place.outside(tool.reach(arguments)).filterNot { path -> opened.any { AssistantPermissions.within(path, it) } }
         val actor = tool as? AssistantPlaceActor
-        val place = actor?.place(arguments)?.takeIf { it.root !in opened }
-        val asks = AssistantPermissions.ask(permission(), if (actor != null) AssistantToolKind.Read else tool.kind, outside.isNotEmpty() || place != null)
+        val elsewhere = actor?.place(arguments)?.takeIf { it.root !in opened }
+        val asks = AssistantPermissions.ask(permission(), if (actor != null) AssistantToolKind.Read else tool.kind, outside.isNotEmpty() || elsewhere != null)
         if (asks != null) {
             val call = calling() ?: throw AssistantToolException("Nothing to ask about")
             val reach = when {
                 asks != AssistantAsk.Outside -> null
-                place != null -> AssistantReach(listOf(place.name), listOf(place.root), place = place)
+                elsewhere != null -> AssistantReach(listOf(elsewhere.name), listOf(elsewhere.root), place = elsewhere)
                 else -> AssistantReach(outside, outside.mapNotNull(place::rootOf).distinct())
             }
             when (questions.approve(call, tool.detail(arguments), reach)) {
@@ -52,7 +52,7 @@ internal class AssistantGate(
                     if (reach != null) chats.open(workspace, session, reach.roots) else chats.allowInWorkspace(workspace, session)
                     page.refresh(workspace, session)
                 }
-                AssistantAnswer.Deny -> throw AssistantToolException(AssistantPermissions.denied(asks, outside, place))
+                AssistantAnswer.Deny -> throw AssistantToolException(AssistantPermissions.denied(asks, outside, elsewhere))
             }
         }
         return tool.run(arguments).also {

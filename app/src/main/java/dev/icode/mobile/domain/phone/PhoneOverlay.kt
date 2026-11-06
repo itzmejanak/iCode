@@ -21,6 +21,8 @@ data class PhoneOverlay(
     val asking: Boolean,
     /** What the turn is doing now, in its own words. */
     val step: String?,
+    /** An MCP server asks the user mid-call: answered in iCode, where its form is. */
+    val question: McpQuestion? = null,
 ) {
     enum class Glow { Off, On, Dim }
 
@@ -67,7 +69,7 @@ data class PhoneOverlay(
                 muted -> Look.Muted
                 else -> Look.Idle
             }
-            return PhoneOverlay(bubble = access.bubble && !iCodeOnScreen, glow = glow, look = look, working = turn != null, asking = asking, step = turn?.step)
+            return PhoneOverlay(bubble = access.bubble && !iCodeOnScreen, glow = glow, look = look, working = turn != null, asking = asking, step = turn?.step, question = question)
         }
     }
 }

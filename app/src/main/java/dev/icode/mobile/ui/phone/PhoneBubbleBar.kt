@@ -208,7 +208,7 @@ private fun Question(view: PhoneBubbleView, actions: PhoneBubbleActions) {
     val assistant = view.assistant
     val approval = assistant.approval
     val pause = assistant.pause
-    val asked = view.question?.takeIf { approval == null && pause == null }
+    val asked = view.overlay.question?.takeIf { approval == null && pause == null }
     val bound = AssistantPlace.name(assistant.turn?.workspace ?: assistant.workspace.orEmpty())
     val title = approval?.let { AssistantPermissions.question(it, bound) } ?: pause?.kind?.question ?: asked?.let { "${it.server} asks" }
     Text(title.orEmpty(), style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold))

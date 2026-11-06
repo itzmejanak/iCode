@@ -77,7 +77,7 @@ internal fun AssistantApprovalCard(approval: AssistantApproval, workspace: Strin
                         Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconMd))
                     }
                 }
-                reach?.takeIf { it.app == null }?.let {
+                reach?.takeIf { it.place == null }?.let {
                     Text(
                         "Reaches ${it.paths.joinToString()}",
                         style = IcodeType.MonoSmall.copy(color = IcodeColors.TextSecondary),

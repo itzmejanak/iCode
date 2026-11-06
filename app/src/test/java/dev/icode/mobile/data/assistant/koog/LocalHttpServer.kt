@@ -18,7 +18,7 @@ import kotlin.concurrent.thread
 internal class LocalHttpServer(private val answer: (Request) -> Response) : AutoCloseable {
     data class Request(val method: String, val path: String, val body: String)
 
-    data class Response(val status: Int, val contentType: String, val body: String)
+    data class Response(val status: Int, val contentType: String, val body: String, val headers: Map<String, String> = emptyMap())
 
     private val socket = ServerSocket(0, BACKLOG, InetAddress.getByName("127.0.0.1"))
     val requests: MutableList<Request> = Collections.synchronizedList(mutableListOf())
@@ -49,7 +49,8 @@ internal class LocalHttpServer(private val answer: (Request) -> Response) : Auto
         requests += request
         val response = answer(request)
         val bytes = response.body.toByteArray()
-        val head = "HTTP/1.1 ${response.status} Answered\r\nContent-Type: ${response.contentType}\r\n"
+        val head = "HTTP/1.1 ${response.status} Answered\r\nContent-Type: ${response.contentType}\r\n" +
+            response.headers.entries.joinToString("") { (name, value) -> "$name: $value\r\n" }
         // A client that stops reading mid-stream closes its end: what is left is not sent.
         runCatching {
             connection.getOutputStream().run {
