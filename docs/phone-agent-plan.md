@@ -394,6 +394,8 @@ header, no cards of actions, no dashboard.
   - Open-source models on the phone (sherpa-onnx with Whisper, SenseVoice, Kokoro and Piper voices)
     were built in P6 and removed on 2026-11-04, with the library. What an earlier build downloaded,
     and its settings, are deleted when iCode starts.
+  - Listening with providers the user adds (AssemblyAI, OpenAI, Deepgram, Google and others) is
+    planned in [speech-plan.md](./speech-plan.md) (2026-11-06); Android stays the default.
 - **Read as it is written.** A turn to be read aloud is read while the model writes it
   (`SpokenTurn`, `SpokenText.ready`): each sentence is said once it is whole, never from inside a
   code block, and the rest of a reply once it is recorded. One speech session per turn: Android's

@@ -8,15 +8,18 @@ import androidx.core.content.edit
 import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.phone.PhoneForegroundService
 import dev.icode.mobile.data.runtime.TerminalSessionManager
+import dev.icode.mobile.data.voice.speech.SpeechEngines
+import dev.icode.mobile.data.voice.speech.SpeechHearings
+import dev.icode.mobile.data.voice.speech.SpeechRequest
+import dev.icode.mobile.data.voice.speech.SpeechUse
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.VoiceIntent
-import dev.icode.mobile.domain.voice.Heard
+import dev.icode.mobile.domain.voice.SpeechProvider
 import dev.icode.mobile.domain.voice.SpokenReplies
 import dev.icode.mobile.domain.voice.SpokenText
 import dev.icode.mobile.domain.voice.SpokenTurn
 import dev.icode.mobile.domain.voice.VoiceCue
-import dev.icode.mobile.domain.voice.VoiceFrom
 import dev.icode.mobile.domain.voice.VoiceState
 import java.io.File
 import kotlinx.coroutines.CancellationException
@@ -32,10 +35,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * Voice in and out (docs/phone-agent-plan.md §5.8), one per process, with Android's own engines: the
- * microphone for the chat and the bubble, and the assistant read aloud as Spoken replies says — each
- * sentence as soon as it is written ([SpokenTurn]), from one speech session per turn. What is heard and
- * said is never logged; a failure logs its type only.
+ * Voice in and out (docs/phone-agent-plan.md §5.8), one per process: the microphone for the chat and the
+ * bubble, heard by the speech engine in use (docs/speech-plan.md), and the assistant read aloud by
+ * Android's voice as Spoken replies says — each sentence as soon as it is written ([SpokenTurn]), from
+ * one speech session per turn. What is heard and said is never logged; a failure logs its type only.
  */
 internal class VoiceCoordinator(
     context: Context,
@@ -48,9 +51,13 @@ internal class VoiceCoordinator(
     private val reader = SpokenTurn()
     private val lock = Any()
 
-    @Volatile private var listener: VoiceListener? = null
-
-    @Volatile private var hearing = 0L
+    private val engines = SpeechEngines(app)
+    private val hearings = SpeechHearings(
+        scope,
+        refusal = ::refusal,
+        use = { Result.success(SpeechUse(SpeechProvider.Android, engines.of(SpeechProvider.Android, key = null), SpeechRequest(language = null))) },
+        heard = { change -> update { it.copy(heard = change(it.heard)) } },
+    )
 
     /** The speech session: its sentences waiting to be said, the job saying them, and which one it is. */
     private var sentences: Channel<String>? = null
@@ -81,9 +88,12 @@ internal class VoiceCoordinator(
     fun handle(intent: VoiceIntent) {
         when (intent) {
             VoiceIntent.Refresh -> update { it.copy(microphone = microphone()) }
-            is VoiceIntent.Listen -> listen(intent.from)
-            VoiceIntent.FinishListening -> listener?.finish()
-            VoiceIntent.CancelListening -> stopListening()
+            is VoiceIntent.Listen -> {
+                hush()
+                hearings.listen(intent.from)
+            }
+            VoiceIntent.FinishListening -> hearings.finish()
+            VoiceIntent.CancelListening -> hearings.stop()
             VoiceIntent.Silence -> hush()
             VoiceIntent.Sample -> listOf(VoiceCue.Begin, VoiceCue.Say(SAMPLE), VoiceCue.End).forEach(::cue)
             is VoiceIntent.Read -> read(intent.key, intent.text)
@@ -91,52 +101,19 @@ internal class VoiceCoordinator(
         }
     }
 
-    private fun listen(from: VoiceFrom) {
-        stopListening()
-        hush()
-        val id = ++hearing
-        scope.launch {
-            if (!microphone()) return@launch refused(id, from, "Allow the microphone in Settings › Assistant › Voice")
-            if (!iCodeOnScreen.value && !voice.away) {
-                // Android lets a background app take the microphone only through a foreground service
-                // that already holds it: the bubble asks phone control's service to take it now.
-                if (stateHolder.current.phone.bubble) {
-                    PhoneForegroundService.start(app, microphone = true)
-                    withTimeoutOrNull(MIC_WAIT_MILLIS) { PhoneForegroundService.microphone.first { it } }
-                }
-                if (!iCodeOnScreen.value && !voice.away) return@launch refused(id, from, "Open iCode once to use the microphone")
-            }
-            if (hearing != id) return@launch
-            update { it.copy(heard = Heard(id, from, "", final = false)) }
-            val next = VoiceListener(app)
-            listener = next
-            next.start(
-                heard = { text, final ->
-                    if (hearing == id) {
-                        if (final) listener = null
-                        update { it.copy(heard = Heard(id, from, text, final, problem = NOTHING_HEARD.takeIf { final && text.isBlank() })) }
-                    }
-                },
-                problem = { words ->
-                    if (hearing == id) {
-                        listener = null
-                        update { it.copy(heard = Heard(id, from, "", final = true, problem = words)) }
-                    }
-                },
-            )
+    /**
+     * Why the microphone cannot listen now, or null. Away from iCode, Android lets an app take it only
+     * through a foreground service that already holds it: the bubble asks phone control's service to
+     * take it first.
+     */
+    private suspend fun refusal(): String? {
+        if (!microphone()) return "Allow the microphone in Settings › Assistant › Voice"
+        if (iCodeOnScreen.value || voice.away) return null
+        if (stateHolder.current.phone.bubble) {
+            PhoneForegroundService.start(app, microphone = true)
+            withTimeoutOrNull(MIC_WAIT_MILLIS) { PhoneForegroundService.microphone.first { it } }
         }
-    }
-
-    /** [id]'s hearing ended before it began, and why. A later tap has its own [id] and is left alone. */
-    private fun refused(id: Long, from: VoiceFrom, problem: String) {
-        if (hearing == id) update { it.copy(heard = Heard(id, from, "", final = true, problem = problem)) }
-    }
-
-    private fun stopListening() {
-        hearing++
-        listener?.cancel()
-        listener = null
-        update { it.copy(heard = it.heard?.takeIf { heard -> heard.final }) }
+        return "Open iCode once to use the microphone".takeUnless { iCodeOnScreen.value || voice.away }
     }
 
     /** An answer read on request, as Spoken replies would say it, whatever they are set to: the user asked. */
@@ -234,7 +211,6 @@ internal class VoiceCoordinator(
         const val OLD_MODELS = "voice"
         val OLD_KEYS = listOf("listening", "listenModel", "speaking", "voice")
         const val SAMPLE = "Hello! This is how I read my answers aloud."
-        const val NOTHING_HEARD = "Nothing was heard"
         const val IDLE_MILLIS = 120_000L
         const val MIC_WAIT_MILLIS = 1_500L
     }
