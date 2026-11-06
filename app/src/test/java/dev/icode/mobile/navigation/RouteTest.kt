@@ -40,6 +40,8 @@ class RouteTest {
         Route.VoiceSettings, // 2026-11-03: speech in and out (phone-agent-plan.md §5.8)
         Route.PhoneControl, // 2026-11-03: phone control, off by default (phone-agent-plan.md §5.9)
         Route.ShizukuSetup, // 2026-11-03: Shizuku's one-page state and setup (phone-agent-plan.md §5.11)
+        Route.McpServers, // 2026-11-05: MCP servers for the assistant's chats (mcp-plan.md §4.2)
+        Route.McpServer, // 2026-11-05: one MCP server — its fields, tools, log (mcp-plan.md §4.2)
         Route.ManageStorage, // 2026-10-27: what storage holds, kind by kind, and the explorer's views of it (explorer-gaps-plan.md §3.10)
     )
 

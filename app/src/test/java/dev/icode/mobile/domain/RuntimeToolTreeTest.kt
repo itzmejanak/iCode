@@ -19,7 +19,7 @@ class RuntimeToolTreeTest {
     @Test fun `the page lists the Android SDK's add-ons beneath it, and the NDK's revisions beneath the NDK`() {
         assertEquals(listOf("Used by iCode", "More tools"), sections.map { it.title })
         assertEquals(
-            listOf("Git", "SSH client", "GnuPG", "ripgrep", "Android SDK[CMake 3.22.1, NDK (Side by side)[28.2.13676358, 27.0.12077973]]"),
+            listOf("Git", "SSH client", "GnuPG", "ripgrep", "Android SDK[CMake 3.22.1, NDK (Side by side)[28.2.13676358, 27.0.12077973]]", "Node.js 26.13.0", "uv 0.13.7"),
             sections[0].nodes.map { it.outline() },
         )
         assertEquals(listOf("curl", "Python 3", "Build tools"), sections[1].nodes.map { it.outline() })

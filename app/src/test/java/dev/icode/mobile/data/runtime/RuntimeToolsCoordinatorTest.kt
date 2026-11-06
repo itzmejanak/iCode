@@ -37,12 +37,14 @@ class RuntimeToolsCoordinatorTest {
         override suspend fun remove() = Unit
     }
 
-    /** The catalog's setups: the Android SDK, CMake and the NDKs. */
+    /** The catalog's setups: the Android SDK, CMake, the NDKs, Node.js and uv. */
     private val setups = listOf(
         setup("android-sdk", "sdk.zip", 7_000L),
         setup("cmake", "cmake.tar.gz", 3_000L),
         setup("android-ndk-28", "ndk-r28c.tar.xz", 9_000L),
         setup("android-ndk-27", "ndk-r27.tar.xz", 8_000L),
+        setup("nodejs", "node-linux-arm64.tar.xz", 5_000L),
+        setup("uv", "uv-manylinux_2_28_aarch64.whl", 4_000L),
     )
 
     /** Held before a size is printed, where a test holds it. */
@@ -104,6 +106,7 @@ class RuntimeToolsCoordinatorTest {
         )
         assertEquals("a tool apt has nothing for is its setup's files", mapOf("cmake.tar.gz" to 3_000L), tools().downloads.getValue("cmake").archives)
         assertEquals(mapOf("xz-utils_1_arm64.deb" to 2000L, "ndk-r27.tar.xz" to 8_000L), tools().downloads.getValue("android-ndk-27").archives)
+        assertEquals("a pinned download is its own file", mapOf("node-linux-arm64.tar.xz" to 5_000L), tools().downloads.getValue("nodejs").archives)
 
         coordinator.handle(ICodeIntent.ApplyRuntimeTools(setOf("git", "ripgrep")))
         until { "ripgrep" in tools().installed?.packages.orEmpty() && tools().work == null }

@@ -8,10 +8,10 @@ import java.util.concurrent.atomic.AtomicReference
  * the reply being run, and the picture the step leaves for the model, sent with its results.
  */
 internal class AssistantStep(
-    /** The user takes a step themselves — a password, a payment — and the turn waits for Done (§5.5). */
-    val handOver: suspend (why: String) -> Unit = {},
     /** What a tool says it is doing now, for the turn's step: an MCP server's progress (docs/mcp-plan.md §6.5). */
     val progress: (String) -> Unit = {},
+    /** The user takes a step themselves — a password, a payment — and the turn waits for Done (§5.5). Last: a trailing lambda is this. */
+    val handOver: suspend (why: String) -> Unit = {},
 ) {
     @Volatile
     var calls: List<AssistantCall> = emptyList()

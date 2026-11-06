@@ -672,3 +672,12 @@ Checked with unit tests, build, lint, the consistency guard, the 39-route captur
 - [ ] Device-info consent and Settings › Application wired to icode-web — implemented, not yet
   built or tested on device ([device-telemetry-plan.md](./docs/device-telemetry-plan.md) §7).
   Build with `-PicodeWebUrl=https://<site>`.
+
+## MCP servers (2026-11-05, owner's request)
+
+- [ ] On the phone, the checks K1–K9 of [mcp-plan.md](./docs/mcp-plan.md) §11 with
+  server-everything (Node.js from Runtime Tools): paste, a call asked about, a picture, progress
+  and Stop, a form and a URL question, a remote server on localhost, a server killed, idle stop.
+- [ ] icode-web serves `oauth/mcp-client.json` naming `dev.icode.mobile:/mcp-sign-in` (and the
+  debug build's), so servers that take Client ID Metadata Documents need no registration (§0).
+- [ ] M9, the 2026-07-28 protocol, when the Kotlin SDK's client speaks it.

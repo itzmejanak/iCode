@@ -1163,6 +1163,21 @@ Acceptance criteria:
 - **Answers read aloud**: Off, or In the bubble (the default); in the chat, where I see it, an answer plays only from ▶ beside Copy. An answer read aloud is short, and each sentence is heard as soon as it is written, without code or links; a new message, Stop or a tap on the bubble silences it.
 - Without the microphone allowed, or with no speech engine on the phone, the place I tapped says what to do.
 
+### US-ASSIST-013 — Give the assistant tools from MCP servers
+
+**As a developer, I want the assistant to use the tools of the MCP servers I already use, so that it can reach GitHub, my databases or my docs from a chat.**
+
+Acceptance criteria:
+
+- **Settings › Assistant › MCP Servers** adds a server from the configuration its README gives, pasted; as a local command in the Linux runtime; as a remote https:// address; or found in the MCP Registry, its page filled in to check first.
+- Each row says what kind of server it is, where it is, and how it is now: starting, its tools, sign in needed, not trusted yet, or why it failed. Its switch turns it off.
+- A server's page shows its fields, secret values never again once saved, each tool with its switch and Asks first or Runs, what it tells models, a local server's log, and Restart, Sign In, Sign Out and Remove.
+- In a chat, a tool's step names its server and the tool, and shows the server's progress. It asks "Use GitHub?" with its arguments before anything is sent, unless I set it to run; Ask and Plan modes are offered only what the server says reads.
+- A server's question shows as a card in the chat — its form, or the address of its page, opened only when I choose — and in the bubble with Open in iCode.
+- A remote server that needs signing in opens its sign-in in the browser only when I tap Sign In, and comes back to iCode.
+- A workspace's `.mcp.json` lists its servers under that workspace; none starts until I trust it, and a changed configuration asks again.
+- A server's prompts and resources go into my message from the attach sheet, for me to read before sending.
+
 ## 19. Public Website and Distribution
 
 ### US-WEB-001 — Learn about the product

@@ -81,27 +81,20 @@ object RuntimeTools {
     val ndks: Map<String, RuntimeTool> = ndkRevisions.associate { it.revision to ndk(it) }
 
     val Curl = RuntimeTool("curl", "curl", "Downloads over HTTP and HTTPS", null, listOf("curl", "ca-certificates"))
-    val Python = RuntimeTool(
-        "python", "Python 3", "The interpreter, pip and venv", null, listOf("python3", "python3-pip", "python3-venv"),
-    )
+    val Python = RuntimeTool("python", "Python 3", "The interpreter, pip and venv", null, listOf("python3", "python3-pip", "python3-venv"))
     val BuildTools = RuntimeTool(
         "build-tools", "Build tools", "gcc, g++ and make: native npm and pip modules compile with them", null,
         listOf("build-essential"),
     )
 
-    /** Node.js's current LTS, from nodejs.org (docs/mcp-plan.md R1): Ubuntu's own is v18. */
+    /** Node.js's current LTS from nodejs.org, and uv from the wheel PyPI publishes (docs/mcp-plan.md R1): Ubuntu's own Node.js is v18. */
     const val NODE_VERSION = "26.13.0"
-
-    /** uv, from the wheel PyPI publishes (docs/mcp-plan.md R1). */
     const val UV_VERSION = "0.13.7"
-
-    val NodeJs = RuntimeTool(
-        "nodejs", "Node.js $NODE_VERSION", "node, npm and npx", "MCP servers that start with npx", emptyList(), setup = "nodejs",
-    )
+    val NodeJs = RuntimeTool("nodejs", "Node.js $NODE_VERSION", "node, npm and npx", "MCP servers that start with npx", emptyList(), setup = "nodejs")
     val Uv = RuntimeTool("uv", "uv $UV_VERSION", "Python's package runner: uv and uvx", "MCP servers that start with uvx", emptyList(), setup = "uv")
 
     /** In the order the page lists them: iCode's own first, and what a tool requires before it, so an install sets that up first. */
-    val all: List<RuntimeTool> = listOf(Git, SshClient, GnuPg, Ripgrep, AndroidSdk, Cmake) + ndks.values + listOf(Curl, Python, BuildTools, NodeJs, Uv)
+    val all: List<RuntimeTool> = listOf(Git, SshClient, GnuPg, Ripgrep, AndroidSdk, Cmake) + ndks.values + listOf(NodeJs, Uv, Curl, Python, BuildTools)
 
     private val index = all.associateBy { it.id }
 

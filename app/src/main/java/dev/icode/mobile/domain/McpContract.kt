@@ -166,12 +166,18 @@ data class McpRegistrySearch(
 data class McpState(
     val servers: List<McpServer> = emptyList(),
     val states: Map<String, McpServerState> = emptyMap(),
-    /** The log of the server whose page reads it. */
+    /** The remote servers signed in (M5), by ID. */
+    val signedIn: Set<String> = emptySet(),
+    /** The server whose page is open: one saved, or one being added ([McpServer.id] ""). */
+    val editing: McpServer? = null,
+    /** That server's log. */
     val log: McpLog? = null,
     val question: McpQuestion? = null,
     val registry: McpRegistrySearch? = null,
     /** A prompt's or a resource's text (M8), for the composer to take into its draft. */
     val draft: String? = null,
+    /** The servers' tools the last chat left out, over [McpRules.MAX_TOOLS] a request with iCode's own. */
+    val leftOut: Int = 0,
 ) {
     fun state(id: String): McpServerState = states[id] ?: McpServerState()
 

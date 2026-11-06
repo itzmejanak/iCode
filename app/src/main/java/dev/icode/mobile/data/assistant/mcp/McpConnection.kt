@@ -30,6 +30,7 @@ import io.modelcontextprotocol.kotlin.sdk.types.ReadResourceResult
 import io.modelcontextprotocol.kotlin.sdk.types.Resource
 import io.modelcontextprotocol.kotlin.sdk.types.Tool
 import io.modelcontextprotocol.kotlin.sdk.types.ToolListChangedNotification
+import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.minutes
 import kotlinx.coroutines.CompletableDeferred
@@ -46,7 +47,8 @@ import kotlinx.serialization.json.JsonObject
 internal class McpConnection(
     val server: McpServer,
     private val scope: CoroutineScope,
-    private val local: McpLocal,
+    /** The Linux runtime local servers start in; null where there is none (the JVM's tests). */
+    private val local: McpLocal?,
     private val remote: McpRemote,
     /** Its values with their secrets: a local server's environment, a remote one's headers. */
     private val values: List<McpValue>,
@@ -83,10 +85,11 @@ internal class McpConnection(
     suspend fun connect() = withTimeout(START_MILLIS.milliseconds) {
         when (val transport = server.transport) {
             is McpTransport.Local -> {
-                val begun = local.start(server.id, transport, values, scope).also { started = it }
+                val runtime = checkNotNull(local) { "No Linux runtime here" }
+                val begun = runtime.start(server.id, transport, values, scope).also { started = it }
                 scope.launch {
                     val code = begun.ended.await()
-                    if (!closing) events.ended(this@McpConnection, McpFailures.of(Exception("exit $code"), server.name, log = local.tail(server.id)))
+                    if (!closing) events.ended(this@McpConnection, McpFailures.of(Exception("exit $code"), server.name, log = runtime.tail(server.id)))
                 }
                 client.connect(begun.transport)
             }
@@ -98,7 +101,13 @@ internal class McpConnection(
                 } catch (failure: Exception) {
                     if (!remote.speaksOlder(failure)) throw failure
                     client = client()
-                    client.connect(remote.older(transport.url, headers))
+                    // Neither transport answers: what the address said first says why (no server there, a 405).
+                    try {
+                        client.connect(remote.older(transport.url, headers))
+                    } catch (older: Exception) {
+                        if (older is CancellationException) throw older
+                        throw failure.apply { addSuppressed(older) }
+                    }
                 }
             }
         }

@@ -223,7 +223,7 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
 
     private fun show() {
         val now = snapshot ?: return
-        val next = PhoneOverlay.of(now.assistant, now.voice, now.phone, onScreen, muted = muted && mode == Mode.Typing)
+        val next = PhoneOverlay.of(now.assistant, now.voice, now.phone, onScreen, muted = muted && mode == Mode.Typing, now.mcp.question)
         overlay = next
         glow.show(next.glow, appearancePalette(preferences.appearance.takeIf { preferences.loaded }).accent.toArgb())
         if (next.bubble && !bubbleOut) {

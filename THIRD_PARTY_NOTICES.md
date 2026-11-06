@@ -23,6 +23,7 @@ what is in this repository and `app/build.gradle.kts`. Check each project for it
 | Sora Editor and its TextMate module | LGPL-2.1 |
 | Koog | Apache-2.0 |
 | Ktor and OkHttp | Apache-2.0 |
+| MCP Kotlin SDK (`io.modelcontextprotocol:kotlin-sdk-client`) 0.16.0 | Apache-2.0, with earlier contributions under MIT (its `LICENSE`) |
 | JetBrains Markdown | Apache-2.0 |
 | Apache Commons Compress | Apache-2.0 |
 | XZ for Java | 0BSD |
@@ -41,6 +42,6 @@ what is in this repository and `app/build.gradle.kts`. Check each project for it
 ## Downloaded at runtime (not bundled)
 
 The Ubuntu base image and optional tools (for example the Android command-line tools, CMake and
-Ninja) are downloaded on the device from the sources in `app/src/main/assets/runtime/manifest.json`,
+Ninja, Node.js and uv) are downloaded on the device from the sources in `app/src/main/assets/runtime/manifest.json`,
 under their own licences. The Android SDK licence is shown before it is installed
 (`app/src/main/assets/runtime/licences/android-sdk-license.txt`).

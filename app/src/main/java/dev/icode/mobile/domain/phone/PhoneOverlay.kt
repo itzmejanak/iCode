@@ -1,6 +1,7 @@
 package dev.icode.mobile.domain.phone
 
 import dev.icode.mobile.domain.AssistantState
+import dev.icode.mobile.domain.McpQuestion
 import dev.icode.mobile.domain.voice.VoiceFrom
 import dev.icode.mobile.domain.voice.VoiceState
 
@@ -20,6 +21,8 @@ data class PhoneOverlay(
     val asking: Boolean,
     /** What the turn is doing now, in its own words. */
     val step: String?,
+    /** An MCP server asks the user mid-call: answered in iCode, where its form is. */
+    val question: McpQuestion? = null,
 ) {
     enum class Glow { Off, On, Dim }
 
@@ -49,10 +52,10 @@ data class PhoneOverlay(
     }
 
     companion object {
-        /** [muted]: the bubble's voice session was muted, and its text bar shows. */
-        fun of(assistant: AssistantState, voice: VoiceState, access: PhoneAccess, iCodeOnScreen: Boolean, muted: Boolean): PhoneOverlay {
+        /** [muted]: the bubble's voice session was muted, and its text bar shows. [question]: an MCP server asks the user. */
+        fun of(assistant: AssistantState, voice: VoiceState, access: PhoneAccess, iCodeOnScreen: Boolean, muted: Boolean, question: McpQuestion? = null): PhoneOverlay {
             val turn = assistant.turn
-            val asking = turn != null && (assistant.approval != null || assistant.pause != null)
+            val asking = turn != null && (assistant.approval != null || assistant.pause != null || question != null)
             val glow = when {
                 !access.bubble || turn?.onPhone != true -> Glow.Off
                 asking -> Glow.Dim
@@ -66,7 +69,7 @@ data class PhoneOverlay(
                 muted -> Look.Muted
                 else -> Look.Idle
             }
-            return PhoneOverlay(bubble = access.bubble && !iCodeOnScreen, glow = glow, look = look, working = turn != null, asking = asking, step = turn?.step)
+            return PhoneOverlay(bubble = access.bubble && !iCodeOnScreen, glow = glow, look = look, working = turn != null, asking = asking, step = turn?.step, question = question)
         }
     }
 }

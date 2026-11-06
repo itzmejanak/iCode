@@ -54,6 +54,15 @@ All notable changes to iCode are documented here. The format follows
   read none; every provider refusal is said plainly with what to do, never as the server's JSON.
 - Assistant: Reasons, set on a model of OpenRouter or an OpenAI-compatible server, stays on, and its
   reasoning is chosen Low, Medium or High there too (Auto sends none).
+- Assistant: MCP servers. Settings › Assistant › MCP Servers adds one by pasting the configuration a
+  README gives, as a local command in the Linux runtime, as a remote https:// address, or from the
+  MCP Registry. Their tools join the chats: each asks first ("Use GitHub?", Allow in GitHub, Allow
+  Once) unless set to Run, or Off; a reading mode is offered only what reads. A server's question
+  shows as a card in the chat, its progress in the step, its pictures to a model that sees them.
+  Remote servers sign in with OAuth in the browser; a workspace's .mcp.json is listed once trusted,
+  and asks again when it changes. Its prompts and resources go into a message from the attach sheet.
+  Secrets are kept encrypted and never shown again.
+- Runtime Tools: Node.js and uv, pinned downloads, for MCP servers that start with npx or uvx.
 
 ## [0.1.0]
 
