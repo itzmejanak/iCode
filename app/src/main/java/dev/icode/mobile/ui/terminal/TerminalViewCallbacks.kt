@@ -13,8 +13,9 @@ import com.termux.view.TerminalViewClient
  *
  * Input is taken as characters with no suggestions (a password-style field
  * every keyboard leaves alone: no autocorrect rewriting commands, nothing
- * typed learned into the keyboard's dictionary). A tap shows the keyboard; a
- * long press opens the URL under it, or starts selecting text anywhere else.
+ * typed learned into the keyboard's dictionary). A tap shows the keyboard — but
+ * on a replay, which takes nothing ([typing] off); a long press opens the URL
+ * under it, or starts selecting text anywhere else.
  */
 internal class TerminalViewCallbacks(private val keys: TerminalKeys) : TerminalViewClient {
     var view: TerminalView? = null
@@ -26,6 +27,12 @@ internal class TerminalViewCallbacks(private val keys: TerminalKeys) : TerminalV
 
     /** Enter on a session whose shell has ended closes its tab, as the screen says. */
     var onEndedEnter: () -> Unit = {}
+
+    /** Something can be typed into what the view shows: a tap brings the keyboard. */
+    var typing: Boolean = true
+
+    /** The view has an emulator of its size: its first, or one resized. */
+    var onEmulatorSet: () -> Unit = {}
 
     /**
      * The view accumulates a pinch and hands the running factor here. It is
@@ -39,7 +46,7 @@ internal class TerminalViewCallbacks(private val keys: TerminalKeys) : TerminalV
     }
 
     override fun onSingleTapUp(e: MotionEvent) {
-        val target = view ?: return
+        val target = view?.takeIf { typing } ?: return
         target.requestFocus()
         target.context.getSystemService(InputMethodManager::class.java)?.showSoftInput(target, 0)
     }
@@ -95,7 +102,7 @@ internal class TerminalViewCallbacks(private val keys: TerminalKeys) : TerminalV
         return false
     }
 
-    override fun onEmulatorSet() = Unit
+    override fun onEmulatorSet() = onEmulatorSet.invoke()
 
     override fun logError(tag: String?, message: String?) {
         Log.e(tag ?: LOG_TAG, message.orEmpty())

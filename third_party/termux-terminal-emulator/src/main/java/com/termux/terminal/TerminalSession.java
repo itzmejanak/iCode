@@ -75,17 +75,35 @@ public final class TerminalSession extends TerminalOutput {
     private final String[] mArgs;
     private final String[] mEnv;
     private final Integer mTranscriptRows;
+    /** iCode: what a replay shows, as it was printed, with no process behind it; null for a session that runs one. */
+    private final byte[] mReplay;
 
 
     private static final String LOG_TAG = "TerminalSession";
 
     public TerminalSession(String shellPath, String cwd, String[] args, String[] env, Integer transcriptRows, TerminalSessionClient client) {
+        this(shellPath, cwd, args, env, transcriptRows, client, null); // iCode
+    }
+
+    // iCode: the constructor both kinds of session share.
+    private TerminalSession(String shellPath, String cwd, String[] args, String[] env, Integer transcriptRows, TerminalSessionClient client, byte[] replay) {
         this.mShellPath = shellPath;
         this.mCwd = cwd;
         this.mArgs = args;
         this.mEnv = env;
         this.mTranscriptRows = transcriptRows;
         this.mClient = client;
+        this.mReplay = replay; // iCode
+        if (replay != null) mShellPid = -1; // iCode: it runs nothing, so it has ended
+    }
+
+    /**
+     * iCode: a session that runs nothing and shows {@code printed} as a terminal printed it: its emulator
+     * is given the bytes once a view sizes it, and reflows them as any session's. Nothing typed into it
+     * goes anywhere.
+     */
+    public static TerminalSession replay(byte[] printed, Integer transcriptRows, TerminalSessionClient client) {
+        return new TerminalSession(null, null, null, null, transcriptRows, client, printed);
     }
 
     /**
@@ -104,7 +122,7 @@ public final class TerminalSession extends TerminalOutput {
         if (mEmulator == null) {
             initializeEmulator(columns, rows, cellWidthPixels, cellHeightPixels);
         } else {
-            JNI.setPtyWindowSize(mTerminalFileDescriptor, rows, columns, cellWidthPixels, cellHeightPixels);
+            if (mReplay == null) JNI.setPtyWindowSize(mTerminalFileDescriptor, rows, columns, cellWidthPixels, cellHeightPixels); // iCode: a replay has no pty
             mEmulator.resize(columns, rows, cellWidthPixels, cellHeightPixels);
         }
     }
@@ -122,6 +140,10 @@ public final class TerminalSession extends TerminalOutput {
      */
     public void initializeEmulator(int columns, int rows, int cellWidthPixels, int cellHeightPixels) {
         mEmulator = new TerminalEmulator(this, columns, rows, cellWidthPixels, cellHeightPixels, mTranscriptRows, mClient);
+        if (mReplay != null) { // iCode: what it printed, once, and no process
+            mEmulator.append(mReplay, mReplay.length);
+            return;
+        }
 
         int[] processId = new int[1];
         mTerminalFileDescriptor = JNI.createSubprocess(mShellPath, mCwd, mArgs, mEnv, processId, rows, columns, cellWidthPixels, cellHeightPixels);
