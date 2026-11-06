@@ -33,6 +33,8 @@ data class TerminalSessionState(
     val failure: String? = null,
     /** The process whose output this tab shows (docs/runtime-foundation-plan.md §6 P3); null for a shell. */
     val follows: String? = null,
+    /** The chat whose tab this is, where its commands run (docs/agent-control-plan.md §3 A4); null for the user's. */
+    val assistant: String? = null,
 ) {
     val isRunning: Boolean get() = status == TerminalStatus.Running
 
@@ -80,18 +82,24 @@ internal fun reorderTerminalIds(ids: List<String>, movingId: String, targetId: S
 
 /** Stable labels for open tabs; closed tabs free their number without reusing process IDs. */
 internal class TerminalSessionNames {
-    private val ordinalById = mutableMapOf<String, Int>()
+    private val ordinalById = mutableMapOf<String, Pair<String, Int>>()
 
-    fun allocate(id: String): String {
+    /** "bash", "bash 2"…; a chat's tabs are numbered apart as [ASSISTANT], "Assistant 2"… */
+    fun allocate(id: String, base: String = SHELL): String {
         require(id !in ordinalById) { "Session already has a tab label: $id" }
-        val used = ordinalById.values.toSet()
+        val used = ordinalById.values.filter { it.first == base }.map { it.second }.toSet()
         var ordinal = 1
         while (ordinal in used) ordinal++
-        ordinalById[id] = ordinal
-        return if (ordinal == 1) "bash" else "bash $ordinal"
+        ordinalById[id] = base to ordinal
+        return if (ordinal == 1) base else "$base $ordinal"
     }
 
     fun release(id: String) {
         ordinalById.remove(id)
+    }
+
+    companion object {
+        const val SHELL = "bash"
+        const val ASSISTANT = "Assistant"
     }
 }

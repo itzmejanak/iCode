@@ -29,7 +29,8 @@ into this one system: what one installs, sets or writes, the others see.
 | Context | Who | Your profile |
 |---|---|---|
 | `terminal` | a terminal tab | read by the login shell itself |
-| `command` | the assistant's commands and processes, the Run tab, Build & Run, Runtime Tools | read |
+| `assistant-terminal` | a chat's terminal tab, where the assistant's commands run | read by its bash itself; nothing pages |
+| `command` | the assistant's processes, the Run tab, Build & Run, Runtime Tools | read |
 | `git` | Source Control, the assistant's Git views, gpg when it signs | read |
 | `language-server` | the editor's language servers | read |
 | `search` | Search, and the assistant's | read |
