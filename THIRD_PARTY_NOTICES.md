@@ -11,7 +11,7 @@ what is in this repository and `app/build.gradle.kts`. Check each project for it
 | libandroid-shmem | `third_party/libandroid-shmem` submodule, https://github.com/termux/libandroid-shmem | BSD-3-Clause |
 | talloc 2.4.3 | `third_party/talloc` (from samba.org) | LGPL-3.0-or-later |
 | Termux terminal JNI | `third_party/termux-terminal-jni` | Apache-2.0 |
-| Termux terminal emulator v0.118.3, with iCode's output tap | `third_party/termux-terminal-emulator` | Apache-2.0 |
+| Termux terminal emulator v0.118.3, with iCode's output tap and replay sessions | `third_party/termux-terminal-emulator` | Apache-2.0 |
 | RaTeX 0.1.15 (`libratex_ffi.so`) | `third_party/ratex` | See `app/src/main/resources/licenses/RaTeX.txt` |
 
 ## Libraries

@@ -10,6 +10,7 @@ import dev.icode.mobile.data.runtime.TerminalRuns
 import dev.icode.mobile.data.runtime.TerminalSessions
 import dev.icode.mobile.data.search.WorkspaceSearchEngine
 import dev.icode.mobile.data.workspace.WorkspaceFileSource
+import java.io.File
 
 /** Every tool the assistant has (§4.3), made for the workspace and the chat a turn works in. */
 internal class AssistantToolbox(
@@ -32,6 +33,10 @@ internal class AssistantToolbox(
     private val terminal = TerminalRuns(terminals)
     private val shell = AssistantShell(execution.environment, execution.processes, terminal)
     private val processes = execution.processes
+
+    /** What a deleted chat leaves in the runtime goes: its terminal tabs, in the workspace at [location]. */
+    suspend fun forget(location: String, chat: String) =
+        terminal.close(AssistantShell.chatOf(AssistantWorkspace(File(location), execution.layout.paths), chat))
 
     /**
      * The tools of a chat in [workspace], on [step]: the phone's while phone control is on; the Run

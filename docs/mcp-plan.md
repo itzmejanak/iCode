@@ -17,6 +17,11 @@ owner named, AntiGem, read at `santoshkurmi/antigem@f084832`.
 The owner took every recommendation in §12. Where the build refined this plan, it is said here; the
 sections below keep the plan's reasoning.
 
+- **The agent manages the servers too** ([agent-control-plan.md](./agent-control-plan.md) §5):
+  `list_mcp_servers`, `save_mcp_server` and `remove_mcp_server` call `McpServers`' own operations,
+  the ones the pages' intents call, and every change asks, in every mode. The connections — started
+  once, stopped, idled, and their events — are `McpConnections`'.
+
 - **One schema model, by another name.** §6.2's `AssistantSchema` is `AssistantParameterType`
   (`data/assistant/AssistantEngine.kt`): `Text`, `Integer`, `Boolean`, `Number`, `Null`, `Choice`,
   `Items`, `Fields(fields, more)`, `OneOf`. Built-in tools kept their `AssistantParameter` lists;
@@ -190,7 +195,7 @@ catalogue. For Claude Code it adds and removes servers through its Go bridge (`P
 | A server's switch, a tool's switch, the live state with tools and error, refresh | **Take**, on iCode's pages, as iCode's own state |
 | Approvals naming the server and the tool ("Use create_issue?") | **Take**, through iCode's one gate (§6.4) |
 | Header values and env (`X-Goog-Api-Key`, keys) written in plain JSON in `mcp_config.json` | **Not**: every value is encrypted unless the user marks it plain (§5.4) |
-| `LD_PRELOAD` and `PATH` hard-coded into a local server's env when it sets neither | **Not**: a local server starts with the user's login environment, as `run_command` does (§7.1) |
+| `LD_PRELOAD` and `PATH` hard-coded into a local server's env when it sets neither | **Not**: a local server starts with the user's login environment, as `start_process` does (§7.1) |
 | `delay(600)` after a refresh, then a re-read; states as strings (`"MCP_SERVER_STATUS_STOPPED"`) | **Not**: states are events and types (§5.2) |
 | Its own servers answering `initialize` with `"2024-11-05"`, whatever was asked; no argument validation (its docs: "The host does not perform JSON-schema validation") | Not relevant: iCode serves nothing. Its client validates what the SDK validates |
 | Built-in Browser, Terminal, Android and Notes servers | **Not needed**: iCode's own agent has these as native tools (files, commands, processes, phone control) |
@@ -446,7 +451,7 @@ same helper. The chat keeps a result up to its 48 000 characters
 ### 7.1 Starting one
 
 - The server starts in a PRoot of its own (`RuntimeLayout.prootCommand`, `killOnExit = true`). It
-  gets the user's login environment (`GuestEnvironment`, as `run_command`'s), with the server's env
+  gets the user's login environment (`GuestEnvironment`, as `start_process`'s), with the server's env
   over it.
 - Its working folder is the one given, else `/root`.
 - The command and its arguments are passed as argv, never re-parsed by a shell. A fixed wrapper only

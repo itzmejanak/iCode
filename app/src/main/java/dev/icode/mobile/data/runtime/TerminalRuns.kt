@@ -64,6 +64,11 @@ internal class TerminalRuns(
     fun runningTabOf(chat: String): String? =
         terminals.snapshot.value.sessions.firstOrNull { it.assistant == chat && it.isRunning }?.id
 
+    /** [chat]'s tabs closed, as the user closes one: the chat is deleted (docs/agent-control-plan.md §3 A4). */
+    suspend fun close(chat: String) = withContext(main) {
+        terminals.snapshot.value.sessions.filter { it.assistant == chat }.forEach { terminals.close(it.id) }
+    }
+
     /** Where [chat]'s own tab's shell is now, as it last said; null without one. */
     fun directoryOf(chat: String): String? = runningTabOf(chat)?.let(terminals::commands)?.directory
 

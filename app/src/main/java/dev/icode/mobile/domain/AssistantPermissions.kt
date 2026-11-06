@@ -42,9 +42,11 @@ data class AssistantElsewhere(val name: String, val root: String, val kind: Kind
 object AssistantPermissions {
     /**
      * What a call of [kind] asks under [permission] (§4.2), [outside] when it reaches beyond the
-     * workspace and this chat has not opened where: null when it runs.
+     * workspace and this chat has not opened where, [always] for one asked in every mode
+     * (docs/agent-control-plan.md §3 A9): null when it runs.
      */
-    fun ask(permission: AssistantPermission, kind: AssistantToolKind, outside: Boolean): AssistantAsk? = when {
+    fun ask(permission: AssistantPermission, kind: AssistantToolKind, outside: Boolean, always: Boolean = false): AssistantAsk? = when {
+        always -> if (kind == AssistantToolKind.Command) AssistantAsk.Command else AssistantAsk.Change
         permission == AssistantPermission.FullAccess -> null
         outside -> AssistantAsk.Outside
         permission == AssistantPermission.AutoInWorkspace || kind == AssistantToolKind.Read -> null
@@ -84,6 +86,7 @@ object AssistantPermissions {
     fun allowIn(approval: AssistantApproval, bound: String): String? {
         val reach = approval.reach
         return when {
+            approval.always -> null
             reach == null -> "Allow in $bound"
             reach.place != null -> "Allow in ${reach.place.name}"
             reach.roots.isNotEmpty() -> "Allow in Chat"

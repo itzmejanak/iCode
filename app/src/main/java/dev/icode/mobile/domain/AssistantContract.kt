@@ -176,6 +176,8 @@ data class AssistantApproval(
     val detail: String,
     /** What it reaches outside the chat's workspace; null when it asks as a change or a command only. */
     val reach: AssistantReach? = null,
+    /** Asked each time, in every mode (docs/agent-control-plan.md §3 A9): no "Allow in". */
+    val always: Boolean = false,
 )
 
 /**

@@ -37,8 +37,15 @@ internal class AssistantGate(
         val opened = chats.roots(workspace, session)
         val outside = place.outside(tool.reach(arguments)).filterNot { path -> opened.any { AssistantPermissions.within(path, it) } }
         val actor = tool as? AssistantPlaceActor
-        val elsewhere = actor?.place(arguments)?.takeIf { it.root !in opened }
-        val asks = AssistantPermissions.ask(permission(), if (actor != null) AssistantToolKind.Read else tool.kind, outside.isNotEmpty() || elsewhere != null)
+        val actsIn = actor?.place(arguments)
+        val elsewhere = actsIn?.takeIf { it.root !in opened }
+        // A place answers for its calls: asked about until opened, then they run.
+        val kind = when {
+            actor == null -> tool.kind
+            actsIn != null -> AssistantToolKind.Read
+            else -> actor.placeless
+        }
+        val asks = AssistantPermissions.ask(permission(), kind, outside.isNotEmpty() || elsewhere != null, tool.asksAlways)
         if (asks != null) {
             val call = calling() ?: throw AssistantToolException("Nothing to ask about")
             val reach = when {
@@ -46,7 +53,7 @@ internal class AssistantGate(
                 elsewhere != null -> AssistantReach(listOf(elsewhere.name), listOf(elsewhere.root), place = elsewhere)
                 else -> AssistantReach(outside, outside.mapNotNull(place::rootOf).distinct())
             }
-            when (questions.approve(call, tool.detail(arguments), reach)) {
+            when (questions.approve(call, tool.detail(arguments), reach, tool.asksAlways)) {
                 AssistantAnswer.Allow -> Unit
                 AssistantAnswer.AllowInChat -> {
                     if (reach != null) chats.open(workspace, session, reach.roots) else chats.allowInWorkspace(workspace, session)

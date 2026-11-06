@@ -1,6 +1,7 @@
-# The agent drives iCode through the user's own backend — plan
+# The agent drives iCode through the user's own backend
 
-Status: **plan** (2026-11-06), the owner's request. Nothing here is built yet.
+Status: **built** (2026-11-06), the owner's request; the owner took every recommendation in §8.
+The phone checks TP1–TP8 (§7) are still to be run on a phone.
 
 > "Also need to integrate realtime logs when agent ran command and the ui is embedded with terminal
 > … ensure consistency and 0 duplicacy regarding logic because the existing run process
@@ -31,15 +32,15 @@ it the rule, and closes the two places that break it.
 | Run tab | `RunCoordinator` | the Run tab | `run_android_app`, `*_run_command` | — |
 | Processes | `RuntimeProcesses` | the Processes sheet, output tabs | `start_process`, `process_status`… | — |
 | Phone | `PhoneControl` | Phone Control | `phone_*` | — |
-| **Terminal** | `TerminalSessions` | the Terminal panel | — | `run_command` has a runner of its own (§2.2): its output is not live, its stderr comes at the end, and the user can neither see nor answer it |
-| **MCP servers** | `McpServers` | the MCP pages (`McpIntent`) | — | no tools; `McpServers.apply` answers nothing a tool could read (it says notices) |
+| **Terminal** | `TerminalSessions` | the Terminal panel | `run_command`, `list_terminals`, `read_terminal`, `send_terminal_input` (§4.3) | — (was: a runner of its own, §2.2) |
+| **MCP servers** | `McpServers` | the MCP pages (`McpIntent`) | `list_mcp_servers`, `save_mcp_server`, `remove_mcp_server` (§5) | — (was: no tools) |
 
 **For every capability to come** (settings, Runtime Tools, workspaces…), follow the same order:
 1. Add the typed operation to its owner.
 2. Have the intent handler call it, turning a failure into a notice.
 3. Have the tool call it, turning a failure into the model's words.
-4. Give the tool a kind for the gate (Read, Change, Command), and a place where it reaches beyond
-   the workspace (`AssistantPlaceActor`).
+4. Give the tool a kind for the gate (Read, Change, Command), a place where it reaches beyond the
+   workspace (`AssistantPlaceActor`), and `asksAlways` where what it changes outlasts the chat.
 
 ## 2. Facts this plan rests on (checked 2026-11-06)
 
@@ -56,9 +57,9 @@ it the rule, and closes the two places that break it.
   `TerminalEmulator(TerminalOutput, …)` are public, so an emulator with no process behind it can be
   fed bytes and drawn.
 - iCode already builds Termux's native half (`third_party/termux-terminal-jni/termux.c`) at this
-  release. The Java comes from JitPack.
+  release. The Java came from JitPack; `terminal-emulator` is now in `third_party` (§3 A2).
 
-### 2.2 iCode as it is
+### 2.2 iCode before this plan
 
 - **`run_command`** (`AssistantShell.run`) runs `GuestCommand.stream`: bash in a PRoot of its own.
   Stdout comes line by line. Stderr goes to a file read once the command ends. It runs with
@@ -81,12 +82,12 @@ it the rule, and closes the two places that break it.
 | A1 | **The agent's commands run in terminal sessions**, the user's own backend (`TerminalSessions`). A chat runs in its own tab in the Terminal panel: a real bash in a pty, where `cd` and `export` carry over as in any terminal. `AssistantShell.run` and its pipe go | §1: one runner, and the user sees it, answers it and stops it |
 | A2 | **Exact output and end, through shell integration:** OSC 133, the FinalTerm marks iTerm2, WezTerm and others read (VS Code's 633 is its variant). A is the prompt, B its end, C the output's start, D;*code* the command's end. iCode reads them from the bytes through **one patch to Termux's `TerminalSession`: an output tap**. `terminal-emulator` is taken into `third_party` at v0.118.3, as `termux.c` already is | §2.1: no other way sees the bytes. The alternative, `script` logging in the guest, adds a pty per session and a log to bound, and depends on the guest |
 | A3 | **Every bash tab iCode starts carries the integration.** The user's and the agent's tabs run `bash --rcfile /etc/icode/bashrc -i`. That file reads what a login bash reads (`/etc/profile`, then the first of `~/.bash_profile`, `~/.bash_login`, `~/.profile`), then adds the marks before any `PROMPT_COMMAND`, so `$?` is read first. Another login shell (zsh, fish) is left as it is: in its tab the agent may read and type, but not run and wait | The user's own `~/.bashrc`, Starship included, keeps working; the marks come last, so nothing overwrites them |
-| A4 | **The agent's terminals:** a chat's first command opens its tab ("Assistant", "Assistant 2"…) in the chat's workspace. It stays until the user closes it or the chat is deleted. The agent opens another with `terminal: "new"`. It runs in a tab of the user's only by naming it, and that tab is a **place** the gate asks about ("Use terminal bash 2?" · Allow in it for this chat), as an app or an MCP server is | The user's own shell is theirs; the agent's tabs are the chat's |
+| A4 | **The agent's terminals:** a chat's first command opens its tab ("Assistant", "Assistant 2"…) in the chat's workspace. It stays until the user closes it or the chat is deleted. The agent opens another with `terminal: "new"`. It runs in a tab of the user's only by naming it, and that tab is a **place** the gate asks about ("Use your terminal bash 2?" · Allow in it for this chat), as an app or an MCP server is. In the chat's own tab a command asks as a command does | The user's own shell is theirs; the agent's tabs are the chat's |
 | A5 | **The time limit** sends Ctrl-C to the command, as the user would, and the result says so. The tab and the shell stay | A terminal's own way to stop a command |
 | A6 | **One command at a time per tab.** A tab whose command is still running, or whose user is typing at the prompt, is busy: `run_command` says so, and suggests `terminal: "new"` | No interleaving in one shell |
-| A7 | **The step sheet is the terminal.** While a command runs, the sheet shows that session's own `TerminalHost`: the same view, font, palette, scrollback, selection, links and pinch, with the panel's extra-keys row. What the user types goes to the session. *Open in Terminal* shows the tab. Once the command has ended, its bytes are replayed into an emulator of their own and drawn by Termux's renderer, read-only and looking the same; Copy takes its text | The owner: "look real terminal and terminal navigation" |
-| A8 | **The agent manages MCP servers** with `list_mcp_servers`, `save_mcp_server` (add or change: a configuration, a pasted JSON, on or off, each tool's choice) and `remove_mcp_server`. They run through `McpServers`' own operations, which the pages' intents use too. The agent may give a value, a token the user wrote in the chat for example, but never reads one back: a list says "saved" | A1's rule; D8 of [mcp-plan.md](./mcp-plan.md) |
-| A9 | **A change to the MCP servers asks first in every mode**, Full access included | A server outlasts the chat and runs code later, outside it |
+| A7 | **The step sheet is the terminal.** While a command runs, the sheet shows that session's own `TerminalHost`: the same view, font, palette, scrollback, selection, links and pinch, with the panel's extra-keys row. What the user types goes to the session. *Open in Terminal* shows the tab. Once the command has ended, its bytes are replayed into a session that runs nothing (`TerminalSession.replay`, the emulator's second iCode addition) and drawn by the same view, read-only; Copy takes the text the model read | The owner: "look real terminal and terminal navigation" |
+| A8 | **The agent manages MCP servers** with `list_mcp_servers`, `save_mcp_server` (add or change: a configuration, a pasted JSON, on or off, each tool's choice) and `remove_mcp_server`. They run through `McpServers`' own operations, which the pages' intents use too. The agent may give a value, a token the user wrote in the chat for example, but never reads one back: a list says "set" or "not set" | A1's rule; D8 of [mcp-plan.md](./mcp-plan.md) |
+| A9 | **A change to the MCP servers asks first in every mode**, Full access included, and offers no "Allow in" (`AssistantTool.asksAlways`) | A server outlasts the chat and runs code later, outside it |
 | A10 | **What a command leaves:** its raw bytes, at most 64 KB (the start and the end), kept with its result for the replay; the model reads the text, escapes removed and carriage returns applied (`ProcessOutput`'s rules), at most 32 000 characters as today | One output reader for processes and terminals |
 
 ## 4. Terminals
@@ -106,17 +107,19 @@ pty ─► TerminalSession (patched: tap) ─► TerminalEmulator ─► Termina
   BEL or ST endings.
 - `TerminalCommands` belongs to `TerminalSessionManager`, which owns the sessions. It is fed on the
   main thread, as the emulator is. Its records are read through `TerminalSessions`.
-- A session's kind is one of **Shell** (the user's), **Assistant** (a chat's, with its chat), or
-  **Output** (`tail -F` of a process). The tabs show the kind. The foreground service counts
-  Shell and Assistant, as it counts shells today.
+- A session is the user's shell, a chat's (`TerminalSessionState.assistant`: its workspace and chat),
+  or a process's output (`follows`). A chat's tab is named "Assistant", "Assistant 2"…; it is never
+  the tab a workspace's terminal opens on, and the list of sessions lost when iCode was stopped
+  leaves it out. A running one keeps the runtime busy, as any session does.
 
 ### 4.2 Running a command
 
 1. The tab is ready: its last mark is B (a prompt waiting) and nothing has been typed after it.
 2. The command is written as typed, then Enter. Bash's history gets it, as if the user typed it.
 3. C opens the command's output. D;*code* ends it. The bytes between them are its output.
-4. At the time limit comes Ctrl-C. A D within 5 s ends it as "Stopped at N s"; without one, the
-   result says it is still running there, and the tab is busy until its D.
+4. At the time limit comes Ctrl-C. A D within 5 s ends it as "Stopped with Ctrl-C at N s"; without
+   one, the result says it is still running there, and the tab is busy until its D. A turn stopped
+   while it runs sends Ctrl-C too.
 5. The environment of an Assistant tab adds `PAGER=cat`, `GIT_PAGER=cat`, `GIT_TERMINAL_PROMPT=0`
    and `DEBIAN_FRONTEND=noninteractive`, so nothing pages and nothing waits on a password it cannot
    see. `TERM` is the terminal's own, so colours show. The model reads the text without them.
@@ -128,23 +131,33 @@ pty ─► TerminalSession (patched: tap) ─► TerminalEmulator ─► Termina
 | `run_command(command, timeout_seconds = 120, terminal?)` | Command | Runs in the chat's tab (opened if needed), a new one (`"new"`), or a named one (a place, §3 A4). Answers the exit code, the directory it ended in, and its output |
 | `list_terminals()` | Read | The open tabs: id, title, kind, workspace, and whether each is ready, busy or ended |
 | `read_terminal(id, lines = 100)` | Read | What the tab shows, its last lines, as text |
-| `send_terminal_input(id, text?, keys?)` | Command | Types into a tab: text, then keys (`enter`, `ctrl-c`, `ctrl-d`, `tab`, `up`, `down`, `esc`). A user's tab is a place |
+| `send_terminal_input(id, text?, keys?)` | Command | Types into a tab: text, then keys (`enter`, `tab`, `esc`, `backspace`, `ctrl-c`, `ctrl-d`, `ctrl-z`, `ctrl-l`, the arrows, `page-up`, `page-down`), and answers what it shows half a second later. A user's tab is a place |
+
+`TerminalRuns` (data/runtime) is the one owner of these calls: it pastes, waits on the marks, sends
+Ctrl-C and reads screens, on the main thread where the sessions are. `read_terminal` asks about a
+user's tab as `run_command` does. Without a place, a tool says how it is gated
+(`AssistantPlaceActor.placeless`): an app's act or a server's tool runs; a command in the chat's
+own tab asks as a command.
+
+A shell that prints no marks (zsh, fish, a tab iCode did not start with its rcfile) is refused for
+`run_command` in plain words; it can still be read and typed into.
 
 The process tools stay as they are. A server, a watcher or anything that must keep running belongs
 in `start_process`: it has ports, a log and a row in the Processes sheet.
 
 ## 5. MCP servers for the agent
 
-- `McpServers` gains typed operations, which both `McpIntent` and the tools call:
-  - `save(server): Result<McpServer>`;
-  - `import(json, single): Result<List<McpServer>>`;
-  - `remove(id)`;
-  - `setEnabled(id, on)`;
-  - `setToolChoice(id, tool, choice)`.
+- `McpServers` has typed operations, which both `McpIntent` and the tools call, one at a time:
+  - `save(workspace, server): Result<McpServer>`;
+  - `import(json, single): Result<McpRules.Imported>`;
+  - `remove(workspace, id): Result<McpServer>`;
+  - `enable(workspace, id, on)` and `choose(workspace, id, tool, choice)`.
 
-  A failure is said as a notice for the user and as the model's words for the agent.
-- **`list_mcp_servers()`** (Read): each server's name, kind and where it is, its state (§4.2 of the
-  MCP plan's words), its tools on, and whether a value is saved, never the value.
+  A failure is said as a notice for the user and as the model's words for the agent. The servers'
+  connections — started once, stopped, idled, their states and events — moved to `McpConnections`.
+- **`list_mcp_servers()`** (Read): each server's id, name, on or off, its state in the MCP pages'
+  words (`McpRules.status`, shared with them), where it is, and whether each value is set, never the
+  value; then its tools with the user's choice for each.
 - **`save_mcp_server`** (§3 A9: always asks) takes one of:
   - `config`: the JSON a README gives, read by `McpRules.import`;
   - fields: `name`, `command` and `args`, or `url`; `env` or `headers`; `enabled`; `tools` choices.
@@ -157,24 +170,27 @@ in `start_process`: it has ports, a log and a row in the Processes sheet.
 
 ## 6. The step sheet (§3 A7)
 
-- **Running:** the Command section, then the terminal: the session's `TerminalHost` at a fixed share
-  of the sheet, with Jump to latest, the extra-keys row, and *Open in Terminal*. The sheet's swipe
-  closes from its title only, so a swipe on the terminal scrolls it.
-- **Ended:** the replay view, which draws the same font, palette and colours, scrolls, and selects
-  as the terminal does. Copy gives the text the model read.
+- **Running:** the Command section, then the terminal: the session's `TerminalHost`, at most 300 dp
+  (`IcodeSizes.StepTerminal`), with Jump to latest, the extra-keys row, and *Open in Terminal*. A
+  touch on the terminal is the terminal's (the view claims it on its first touch), so the sheet
+  neither scrolls nor moves under it; anywhere else it closes with a swipe, as every sheet does.
+- **Ended:** `TerminalReplay`, the same view over a replay session: the same font, palette and
+  colours, links, selection and pinch, scrolled as a terminal is, in a frame that fits its rows up to
+  the live terminal's height. How it ended is the line under it; Copy gives the text the model read.
+- A command that failed before it ran, or printed nothing, shows its result as text, as before.
 - **The bubble and the notification** keep the step's line ("Run `npm test`"). The terminal is
   iCode's.
 
 ## 7. Cycles
 
-Each cycle ends green on CI and the guards, with its docs, and is pushed.
+Each cycle ended green on the tests and the guards, with its docs, and was pushed.
 
 | # | What | Tests |
 |---|---|---|
 | T0 | `terminal-emulator` v0.118.3 into `third_party`, with the tap. The JitPack artifact stays for `terminal-view`, without its transitive emulator | the tap sees every byte once, in order; the app builds and its terminal is unchanged on the phone |
 | T1 | `TerminalMarks`, `TerminalCommands`, `/etc/icode/bashrc`, bash tabs started with it, exact `commandsFinished` | the parser, cut anywhere; a command's record from a recorded byte stream |
 | T2 | The agent's terminals: `run_command` in a tab, `list_terminals`, `read_terminal`, `send_terminal_input`, the Terminal place; `AssistantShell.run` removed | the tools over a fake session; the gate for a user's tab; busy, timeout, ended |
-| T3 | The step sheet: live terminal, replay, Open in Terminal | the replay from recorded bytes; Compose checks as the screens' |
+| T3 | The step sheet: live terminal, replay, Open in Terminal | the rows a replay fills, on Termux's own emulator; the UI guards |
 | T4 | MCP for the agent: `McpServers`' typed operations, the three tools | the tools against a store; the intents unchanged |
 | T5 | Docs as built, guards, CI | — |
 
@@ -185,13 +201,13 @@ Each cycle ends green on CI and the guards, with its docs, and is pushed.
 | TP1 | "List the files in colour" (`ls --color=always`) | the colours in the sheet's terminal as they print; the model reads plain text |
 | TP2 | A command that asks (`read -p "Name? " n; echo $n`) | the sheet's terminal takes what is typed; the step ends with it |
 | TP3 | `cd backend`, then `export X=1`, then `pwd; echo $X` | both carried over, as in a terminal |
-| TP4 | `sleep 600` with `timeout_seconds: 5` | Ctrl-C at 5 s; "Stopped at 5 s"; the tab stays |
-| TP5 | "Run it in my bash 2" | "Use terminal bash 2?"; Allow in it; it runs there |
+| TP4 | `sleep 600` with `timeout_seconds: 5` | Ctrl-C at 5 s; "Stopped with Ctrl-C at 5 s"; the tab stays |
+| TP5 | "Run it in my bash 2" | "Use your terminal bash 2?"; Allow in it; it runs there |
 | TP6 | A zsh tab, "run it there" | the plain words: that shell has no integration; the agent's own tab offered |
 | TP7 | "Add the everything MCP server" | it asks, in Full access too; the server on the MCP page; listed with its tools; removed when asked |
 | TP8 | The user's own command in a bash tab | `commandsFinished` at its D, no longer sampled |
 
-## 8. Owner decisions open
+## 8. Owner decisions (taken: all as recommended)
 
 | # | Decision | Recommended |
 |---|---|---|

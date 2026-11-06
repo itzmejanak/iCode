@@ -140,6 +140,12 @@ internal interface AssistantTool {
      */
     fun reach(arguments: JSONObject): List<File> = emptyList()
 
+    /**
+     * The user answers each call, in every mode, Full access included, with no "Allow in" for later
+     * (docs/agent-control-plan.md §3 A9): what it changes outlasts the chat, as an MCP server does.
+     */
+    val asksAlways: Boolean get() = false
+
     /** What the model reads back. A refusal is an [AssistantToolException]. */
     suspend fun run(arguments: JSONObject): String
 }

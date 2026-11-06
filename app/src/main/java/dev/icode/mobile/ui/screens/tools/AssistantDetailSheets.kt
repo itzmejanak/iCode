@@ -227,7 +227,7 @@ private fun StepPage(
                 approval.reach?.let { reach ->
                     StepSection("Reaches") { Text(reach.paths.joinToString("\n"), style = IcodeType.MonoSmall) }
                 }
-                allowInMeaning(approval.reach, workspace)?.let { Text(it, style = IcodeType.Caption.copy(color = IcodeColors.TextMuted)) }
+                allowInMeaning(approval, workspace)?.let { Text(it, style = IcodeType.Caption.copy(color = IcodeColors.TextMuted)) }
             }
             live != null -> StepTerminal(live.session, onClose)
             output != null && printed != null -> StepReplay(printed, output)

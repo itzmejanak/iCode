@@ -183,7 +183,5 @@ data class McpState(
 
     /** The tools on across the servers that are on, as the pages count them. */
     val toolsOn: Int
-        get() = servers.filter { it.enabled }.sumOf { server ->
-            state(server.id).tools.count { it.problem == null && server.choice(it.name) != McpToolChoice.Off }
-        }
+        get() = servers.filter { it.enabled }.sumOf { McpRules.toolsOn(it, state(it.id)) }
 }

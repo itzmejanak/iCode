@@ -131,6 +131,23 @@ object McpRules {
         return filled.takeUnless { missing }
     }
 
+    /** [server]'s tools that chats are offered: on, and readable. */
+    fun toolsOn(server: McpServer, state: McpServerState): Int =
+        state.tools.count { it.problem == null && server.choice(it.name) != McpToolChoice.Off }
+
+    /** [server]'s state as its row and its page say it, and the agent's list (docs/agent-control-plan.md §5). */
+    fun status(server: McpServer, state: McpServerState): String = when {
+        !server.enabled -> "Off"
+        else -> when (state.status) {
+            McpStatus.Off -> "Starts when a chat needs it"
+            McpStatus.Starting -> "Starting…"
+            McpStatus.Ready -> toolsOn(server, state).let { if (it == 1) "1 tool" else "$it tools" }
+            McpStatus.SignIn -> "Sign in needed"
+            McpStatus.Trust -> "Not trusted yet"
+            McpStatus.Failed -> "Failed"
+        }
+    }
+
     private val PLACEHOLDER = Regex("""\$\{([A-Za-z_][A-Za-z0-9_]*)(?::-([^}]*))?\}""")
     private val LOCAL = Regex("""(?i)http://(localhost|127\.0\.0\.1)(:\d{1,5})?(/.*)?""")
     private val HEADER_NAME = Regex("""[!#$%&'*+.^_`|~0-9A-Za-z-]+""")

@@ -57,4 +57,10 @@ internal class AssistantStep(
 internal interface AssistantPlaceActor {
     /** The place [arguments] act in; null when it cannot be known yet, or the call needs no asking. Never throws. */
     fun place(arguments: org.json.JSONObject): dev.icode.mobile.domain.AssistantElsewhere?
+
+    /**
+     * How a call with no place is asked about: as a read — an app not known yet, a server's tool set to
+     * run — unless the tool's own kind holds there, as a command in the chat's own terminal tab does.
+     */
+    val placeless: dev.icode.mobile.domain.AssistantToolKind get() = dev.icode.mobile.domain.AssistantToolKind.Read
 }

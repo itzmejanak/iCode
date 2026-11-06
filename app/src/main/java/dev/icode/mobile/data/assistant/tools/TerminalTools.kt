@@ -88,6 +88,9 @@ internal class RunCommandTool(
 
     override fun place(arguments: JSONObject): AssistantElsewhere? = target.place(arguments, "terminal")
 
+    /** In the chat's own tab, a command asks as a command does. */
+    override val placeless get() = kind
+
     override suspend fun run(arguments: JSONObject): String {
         val command = arguments.text("command").ifBlank { throw AssistantToolException("The command is empty") }
         if (!runtimeInstalled()) throw AssistantToolException("The Linux runtime is not installed")
@@ -206,6 +209,9 @@ internal class SendTerminalInputTool(workspace: AssistantWorkspace, chat: String
     }
 
     override fun place(arguments: JSONObject): AssistantElsewhere? = target.place(arguments, "id")
+
+    /** In the chat's own tab, what is typed asks as a command does. */
+    override val placeless get() = kind
 
     override suspend fun run(arguments: JSONObject): String {
         val id = target.resolve(arguments.text("id").ifBlank { throw AssistantToolException("Name the tab: its id, from list_terminals") })

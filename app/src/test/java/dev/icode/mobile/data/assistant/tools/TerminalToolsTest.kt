@@ -181,6 +181,15 @@ class TerminalToolsTest {
         assertEquals("Give text, keys or both", refusal { runBlocking { tools.third.run(JSONObject().put("id", own)) } })
     }
 
+    @Test fun `a deleted chat's tabs close, and no one else's`() {
+        val user = fake.userTab("bash")
+        command("ls")
+        command("ls", terminal = "new")
+        command("pwd", chat = "chat-2")
+        runBlocking { terminals.close(AssistantShell.chatOf(workspace, "chat-1")) }
+        assertEquals(listOf(user, "session-4"), fake.snapshot.value.sessions.map { it.id })
+    }
+
     @Test fun `what is typed loses its control characters but its new lines and tabs`() {
         assertEquals("a\tb\nc", TerminalRuns.typed("a\tb\nc\u0003\u007F"))
         assertEquals("echo [201~ done", TerminalRuns.typed("echo \u001B[201~ done"))

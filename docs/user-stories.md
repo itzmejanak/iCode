@@ -1178,6 +1178,30 @@ Acceptance criteria:
 - A workspace's `.mcp.json` lists its servers under that workspace; none starts until I trust it, and a changed configuration asks again.
 - A server's prompts and resources go into my message from the attach sheet, for me to read before sending.
 
+### US-ASSIST-014 — Watch and answer the assistant's commands in a real terminal
+
+**As a developer, I want the assistant's commands to run in a terminal I can see and type into, so that I follow what it does as it happens and answer what it asks.**
+
+Acceptance criteria:
+
+- A chat's commands run in its own tab of the Terminal panel ("Assistant"), at a bash prompt, so a `cd` or an `export` carries to the next command as in any terminal; another tab of its own opens when one is still busy.
+- While a command runs, its step is that terminal, live, colours and all: I can type into it, use the extra keys, or Open in Terminal. Once it ends, the step replays what it printed as the terminal drew it, and Copy takes the text the assistant read.
+- At its time limit, or when I stop the turn, the command gets Ctrl-C, and the result says so.
+- The assistant uses one of my own tabs only when it names it, and asks first ("Use your terminal bash 2?"); Allow in it answers its later commands there until iCode closes. A shell without iCode's integration is refused for a command, in plain words.
+- Deleting a chat closes its tabs.
+
+### US-ASSIST-015 — Let the assistant manage my MCP servers
+
+**As a developer, I want to ask the assistant to add, change or remove an MCP server, so that I do not copy configurations by hand.**
+
+Acceptance criteria:
+
+- It adds a server from a configuration I paste in the chat, or from a name, a command or an address; changes one by its id — on or off, its tools' choices, its values; and removes one.
+- Every change asks me first, in every mode, Full access included, and offers no Allow in for later.
+- What it does is what the MCP pages show at once, and what they refuse, it is told in the same words.
+- A value I give it is kept as the pages keep one and never read back: its list says only whether each is set.
+- A workspace's `.mcp.json` server keeps the file's name, command and address, and trusting one stays mine.
+
 ## 19. Public Website and Distribution
 
 ### US-WEB-001 — Learn about the product

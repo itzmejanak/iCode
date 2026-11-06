@@ -25,7 +25,8 @@ import org.junit.rules.TemporaryFolder
 /**
  * An act in an app on the phone asks about the app, as a folder outside does (docs/phone-agent-plan.md L6);
  * an MCP server's tool asks about its server the same way (docs/mcp-plan.md §6.4), and a command in the
- * user's own terminal tab about that tab (docs/agent-control-plan.md §4.3).
+ * user's own terminal tab about that tab (docs/agent-control-plan.md §4.3) — in the chat's own, as a
+ * command; a change to the MCP servers asks every time, in every mode (§3 A9).
  */
 class AssistantGateTest {
     @get:Rule val temp = TemporaryFolder()
@@ -118,5 +119,51 @@ class AssistantGateTest {
         questions.answer("c1", AssistantAnswer.Deny)
         val refusal = asked.await().exceptionOrNull()
         assertTrue(refusal is AssistantToolException && refusal.message == "The user did not allow using their terminal bash 2")
+    }
+
+    /** A tool of [kind] that runs in a place it may not name, gated as [placeless] without one, or asked [always]. */
+    private fun gated(kind: AssistantToolKind, placeless: AssistantToolKind = AssistantToolKind.Read, always: Boolean = false, session: String) =
+        AssistantGate(
+            object : AssistantTool, AssistantPlaceActor {
+                override val name = "run_command"
+                override val description = "Runs"
+                override val parameters = emptyList<AssistantParameter>()
+                override val kind = kind
+                override val asksAlways = always
+                override val placeless = placeless
+                override fun summary(arguments: JSONObject) = "Run `ls`"
+                override fun place(arguments: JSONObject): AssistantElsewhere? = null
+                override suspend fun run(arguments: JSONObject): String = "Ran".also { ran += it }
+            },
+            runtime.workspace, chats, page, questions, runtime.root.path, session, { permission }, { tap.copy(kind = kind) },
+        ) { _, _ -> }
+
+    @Test fun `a command in the chat's own tab asks as a command, and Auto in workspace runs it`() = runBlocking {
+        val asked = scope.async { gated(AssistantToolKind.Command, placeless = AssistantToolKind.Command, session = "s7").run(JSONObject()) }
+        until { stateHolder.current.assistant.approval != null }
+        val approval = stateHolder.current.assistant.approval!!
+        assertEquals(null, approval.reach)
+        assertEquals("Run this command?", AssistantPermissions.question(approval, "Home"))
+        questions.answer("c1", AssistantAnswer.Allow)
+        assertEquals("Ran", asked.await())
+        permission = AssistantPermission.AutoInWorkspace
+        assertEquals("Ran", gated(AssistantToolKind.Command, placeless = AssistantToolKind.Command, session = "s8").run(JSONObject()))
+    }
+
+    @Test fun `a change that outlasts the chat asks in Full access too, with no Allow in`() = runBlocking {
+        permission = AssistantPermission.FullAccess
+        repeat(2) {
+            val asked = scope.async { gated(AssistantToolKind.Change, always = true, session = "s9").run(JSONObject()) }
+            until { stateHolder.current.assistant.approval != null }
+            val approval = stateHolder.current.assistant.approval!!
+            assertTrue(approval.always)
+            assertEquals("Make this change?", AssistantPermissions.question(approval, "Home"))
+            assertEquals(null, AssistantPermissions.allowIn(approval, "Home"))
+            assertEquals("Allow", AssistantPermissions.allowOnce(approval))
+            questions.answer("c1", AssistantAnswer.Allow)
+            assertEquals("Ran", asked.await())
+            until { stateHolder.current.assistant.approval == null }
+        }
+        assertEquals(2, ran.size)
     }
 }

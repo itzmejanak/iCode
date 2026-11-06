@@ -53,6 +53,8 @@ internal class AssistantCoordinator(
     storageAccess: () -> Boolean,
     /** The MCP servers, whose tools join a turn's after iCode's own (docs/mcp-plan.md); none in tests that need none. */
     private val mcp: McpServers? = null,
+    /** A chat deleted: what it left in the runtime goes, its terminal tabs ([AssistantToolbox.forget]). */
+    private val forget: suspend (workspace: String, chat: String) -> Unit = { _, _ -> },
 ) {
     private val page = AssistantPage(stateHolder, scope, chats)
     private val settings = AssistantProviders(stateHolder, scope, engine, providers, page)
@@ -193,6 +195,7 @@ internal class AssistantCoordinator(
         val workspace = page.current.workspace ?: return
         if (turns.running == (workspace to session)) return page.say(NoticeTone.HeadsUp, "Stop the assistant before deleting this chat")
         chats.delete(workspace, session)
+        scope.launch { forget(workspace, session) }
         if (page.current.session == session) page.display(workspace, null) else page.listed(workspace)
     }
 
@@ -237,6 +240,7 @@ internal class AssistantCoordinator(
             git = { workspace, arguments -> git.run(workspace, arguments) },
             storageAccess = Environment::isExternalStorageManager,
             mcp = McpServers.create(context, icode, scope, toolbox.execution, toolbox.runtimeInstalled, activeRoot),
+            forget = toolbox::forget,
         )
     }
 }
