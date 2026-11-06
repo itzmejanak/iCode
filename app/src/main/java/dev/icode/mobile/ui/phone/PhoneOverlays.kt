@@ -2,8 +2,6 @@ package dev.icode.mobile.ui.phone
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.graphics.PixelFormat
-import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
@@ -21,7 +19,6 @@ import dev.icode.mobile.data.runtime.TerminalSessionManager
 import dev.icode.mobile.data.settings.AndroidWorkspacePreferencesRepository
 import dev.icode.mobile.data.tasks.WorkNotifications
 import dev.icode.mobile.data.workspace.ICodeProcess
-import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeTheme
 import dev.icode.mobile.domain.BackgroundPlace
 import dev.icode.mobile.domain.ICodeIntent
@@ -33,7 +30,6 @@ import dev.icode.mobile.domain.phone.PhoneOverlay
 import dev.icode.mobile.domain.phone.PhoneOverlay.Look
 import dev.icode.mobile.domain.voice.VoiceFrom
 import dev.icode.mobile.ui.appearancePalette
-import kotlin.math.hypot
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
@@ -45,33 +41,38 @@ import kotlinx.coroutines.withContext
 /**
  * The glow and the bubble over every app (docs/phone-agent-plan.md §5.6, §5.7; redesigned 2026-11-04,
  * after Gemini), in the phone service's own trusted windows: no "draw over other apps" permission, and
- * no touch of the screen blocked. One bubble, docked on an edge — and its states run here:
+ * no touch of the screen blocked. One bubble, docked on an edge, in a window of its own; the bar and the
+ * voice bubble in another at the bottom, so neither moves the other — and their states run here:
  *
  * - **Closed**: the bubble alone. A tap expands it into the bar; while it listens, a tap mutes; while
- *   it speaks, a tap silences.
+ *   it speaks, a tap silences. Only it drags: it follows the finger, and docks on the nearest edge.
  * - **Typing**: the bar the bubble became, holding the keyboard: the field, the microphone, Send — Stop
- *   while the agent works. A tap on its mark closes it, or, muted, resumes listening.
+ *   while the agent works. A tap on its mark closes it back into the bubble, or, muted, resumes listening.
  * - **Voice**: the bar gives way to the voice bubble — the words heard so far under a waveform, with a
  *   microphone to mute and a Stop to throw the hearing away. Once the user stops talking, what was
  *   heard is sent; muted, it waits in the bar. Muting never stops what the agent does: Stop does.
  */
 internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHost {
-    private enum class Mode { Closed, Typing, Voice }
-
     private val gateway = ICodeProcess.attach(service)
     private val windows = service.getSystemService(WindowManager::class.java)
     private val owner = OverlayOwner()
     private val scope = MainScope()
     private val glow = PhoneGlow(service, windows)
     private val bubble = ComposeView(service)
+
+    /** Where the finger is on the screen, as the bubble's window last heard it: a drag follows it there. */
+    private var finger = 0f to 0f
+    private val bubbleWindow = OverlayFrame(service) { finger = it.rawX to it.rawY }.apply { addView(bubble) }
+    private val bar = ComposeView(service)
     private val target = ComposeView(service)
-    private val density = service.resources.displayMetrics.density
-    private val place = BubblePlacement(windows, bubble, density, service.getSharedPreferences(PLACE_PREFERENCES, Context.MODE_PRIVATE))
+    private val place = BubblePlacement(
+        windows, bubbleWindow, bar, service.resources.displayMetrics.density, service.getSharedPreferences(PLACE_PREFERENCES, Context.MODE_PRIVATE),
+    )
 
     private var snapshot by mutableStateOf<ICodeSnapshot?>(null)
     private var onScreen = false
     private var preferences by mutableStateOf(WorkspacePreferences(workspaceLocation = null, loaded = false))
-    private var mode by mutableStateOf(Mode.Closed)
+    private var mode by mutableStateOf(BubbleMode.Closed)
     private var muted by mutableStateOf(false)
     private var draft by mutableStateOf("")
     private var overlay by mutableStateOf(PhoneOverlay(bubble = false, glow = PhoneOverlay.Glow.Off, look = Look.Idle, working = false, asking = false, step = null))
@@ -84,13 +85,14 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
 
     init {
         owner.start()
-        listOf(bubble, target).forEach {
+        listOf(bubble, bar, target).forEach {
             it.setViewTreeLifecycleOwner(owner)
             it.setViewTreeSavedStateRegistryOwner(owner)
         }
         bubble.setContent { Themed { snapshot?.let { PhoneBubble(view(it), actions()) } } }
+        bar.setContent { Themed { snapshot?.let { PhoneBubblePanel(view(it), actions()) } } }
         target.setContent { Themed { PhoneBubbleTarget(overlay.working, overTarget) } }
-        bubble.setOnTouchListener(::outside)
+        bar.setOnTouchListener(::outside)
         val visible = TerminalSessionManager.get(service).screenVisible
         val appearance = AndroidWorkspacePreferencesRepository(service).values(null)
         scope.launch {
@@ -108,26 +110,28 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
     override fun detach() {
         scope.cancel()
         glow.hide()
-        listOfNotNull(bubble.takeIf { bubbleOut }, target.takeIf { targetOut }).forEach { runCatching { windows.removeViewImmediate(it) } }
+        // A drag cut short ends here, put away with the rest: its window gone, nothing of it is shown again.
+        place.drop(away = true)
+        (listOf(bubbleWindow, bar).filter { bubbleOut } + listOf(target).filter { targetOut }).forEach { runCatching { windows.removeViewImmediate(it) } }
         owner.stop()
         ICodeProcess.detach()
     }
 
     override suspend fun hideForCapture() = withContext(Dispatchers.Main) {
         glow.capture(hidden = true)
-        bubble.visibility = View.INVISIBLE
+        listOf(bubbleWindow, bar).forEach { it.visibility = View.INVISIBLE }
         // A frame for the windows to be drawn without them.
         delay(FRAME_MILLIS)
     }
 
     override suspend fun showAfterCapture() = withContext(Dispatchers.Main) {
         glow.capture(hidden = false)
-        bubble.visibility = View.VISIBLE
+        listOf(bubbleWindow, bar).forEach { it.visibility = View.VISIBLE }
     }
 
     private fun view(snapshot: ICodeSnapshot) = PhoneBubbleView(
         overlay, snapshot.assistant, snapshot.voice,
-        bar = mode == Mode.Typing, voiceUp = mode == Mode.Voice, tucked = place.tucked, edge = place.edge,
+        mode = mode, tucked = place.tucked, edge = place.edge,
         draft = draft, onDraft = { draft = it },
     )
 
@@ -139,7 +143,7 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
         listen = ::listen,
         send = { send(draft) },
         open = {
-            to(Mode.Closed)
+            to(BubbleMode.Closed)
             // Started straight from the service: a bound accessibility service may start activities from the background.
             service.startActivity(WorkNotifications.intentFor(service, BackgroundPlace.Assistant))
         },
@@ -152,15 +156,15 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
         when {
             overlay.look == Look.Listening -> mute()
             overlay.look == Look.Speaking -> gateway.dispatch(VoiceIntent.Silence)
-            mode == Mode.Typing && muted -> listen()
-            mode == Mode.Typing -> to(Mode.Closed)
-            else -> to(Mode.Typing)
+            mode == BubbleMode.Typing && muted -> listen()
+            mode == BubbleMode.Typing -> to(BubbleMode.Closed)
+            else -> to(BubbleMode.Typing)
         }
     }
 
     private fun listen() {
         muted = false
-        to(Mode.Voice)
+        to(BubbleMode.Voice)
         gateway.dispatch(VoiceIntent.Listen(VoiceFrom.Bubble))
     }
 
@@ -168,14 +172,14 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
     private fun mute() {
         if (overlay.look != Look.Listening) return
         muted = true
-        to(Mode.Typing)
+        to(BubbleMode.Typing)
         gateway.dispatch(VoiceIntent.FinishListening)
     }
 
     /** The voice bubble's Stop: the voice session ends and nothing heard is kept; what runs goes on running. */
     private fun cancelVoice() {
-        if (mode != Mode.Voice) return
-        to(Mode.Closed)
+        if (mode != BubbleMode.Voice) return
+        to(BubbleMode.Closed)
     }
 
     /** Sent to the chat iCode shows — "Open in iCode" opens the same one — and answered aloud. */
@@ -186,7 +190,7 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
         draft = ""
         muted = false
         // Closed, the bar covers nothing the agent may tap.
-        to(Mode.Closed)
+        to(BubbleMode.Closed)
     }
 
     /** A hearing for the bubble ended: its words sent in a voice session, else kept in the bar; nothing heard says why there. */
@@ -195,73 +199,62 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
         heardId = heard.id
         val words = heard.sent
         when {
-            words == null -> if (mode == Mode.Voice) to(Mode.Typing)
-            mode == Mode.Voice && next.assistant.turn == null -> send(listOf(draft, words).filter { it.isNotBlank() }.joinToString(" "))
+            words == null -> if (mode == BubbleMode.Voice) to(BubbleMode.Typing)
+            mode == BubbleMode.Voice && next.assistant.turn == null -> send(listOf(draft, words).filter { it.isNotBlank() }.joinToString(" "))
             else -> {
                 draft = listOf(draft, words).filter { it.isNotBlank() }.joinToString(" ")
-                if (mode == Mode.Voice) {
+                if (mode == BubbleMode.Voice) {
                     muted = true
-                    to(Mode.Typing)
+                    to(BubbleMode.Typing)
                 }
             }
         }
     }
 
-    private fun to(next: Mode) {
+    private fun to(next: BubbleMode) {
         enter(next)
         show()
     }
 
     /** [next] taken, without showing it yet. */
-    private fun enter(next: Mode) {
+    private fun enter(next: BubbleMode) {
         // Leaving a voice session without a word sent: nothing heard is sent behind the user's back.
-        if (mode == Mode.Voice && next == Mode.Closed && overlay.look == Look.Listening) gateway.dispatch(VoiceIntent.CancelListening)
-        if (next == Mode.Closed) muted = false
+        if (mode == BubbleMode.Voice && next == BubbleMode.Closed && overlay.look == Look.Listening) gateway.dispatch(VoiceIntent.CancelListening)
+        if (next == BubbleMode.Closed) muted = false
         mode = next
-        if (bubbleOut) place.focusable(next == Mode.Typing)
+        place.open(next)
     }
 
     private fun show() {
         val now = snapshot ?: return
-        val next = PhoneOverlay.of(now.assistant, now.voice, now.phone, onScreen, muted = muted && mode == Mode.Typing, now.mcp.question)
+        val next = PhoneOverlay.of(now.assistant, now.voice, now.phone, onScreen, muted = muted && mode == BubbleMode.Typing, now.mcp.question)
         overlay = next
         glow.show(next.glow, appearancePalette(preferences.appearance.takeIf { preferences.loaded }).accent.toArgb())
         if (next.bubble && !bubbleOut) {
-            windows.addView(bubble, place.params)
+            windows.addView(bubbleWindow, place.params)
+            windows.addView(bar, place.barParams)
             bubbleOut = true
         } else if (!next.bubble && bubbleOut) {
-            enter(Mode.Closed)
-            windows.removeViewImmediate(bubble)
+            enter(BubbleMode.Closed)
+            listOf(bubbleWindow, bar).forEach(windows::removeViewImmediate)
             bubbleOut = false
         }
-        place.rest(next.look == Look.Idle && mode == Mode.Closed && !next.asking, scope)
+        place.rest(next.look == Look.Idle && mode == BubbleMode.Closed && !next.asking, scope)
     }
 
-    private fun drag(dx: Float, dy: Float) {
-        if (mode == Mode.Typing) to(Mode.Closed)
-        place.drag(dx, dy)
+    /** The bubble dragged: it follows the finger, and the target to put it away shows at the top. */
+    private fun drag() {
+        place.dragTo(finger.first, finger.second)
+        overTarget = place.overTarget()
         if (!targetOut) {
-            windows.addView(target, WindowManager.LayoutParams(
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.WRAP_CONTENT,
-                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY,
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
-                PixelFormat.TRANSLUCENT,
-            ).apply {
-                gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-                y = (TARGET_MARGIN_DP * density).toInt()
-                title = "iCode bubble target"
-            })
+            windows.addView(target, place.targetParams)
             targetOut = true
         }
-        val (width, _) = place.screen()
-        val (x, y) = place.centre()
-        val targetY = (TARGET_MARGIN_DP + IcodeSizes.Bubble.value / 2) * density
-        overTarget = hypot(x - width / 2f, y - targetY) < IcodeSizes.Bubble.value * density * TARGET_REACH
     }
 
     /** Let go: on the target at the top, put away — and a turn on the phone stopped, the voice silenced — else docked on the nearest edge. */
     private fun dropped() {
+        if (!place.dragging) return
         if (targetOut) {
             windows.removeViewImmediate(target)
             targetOut = false
@@ -269,7 +262,7 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
         place.drop(away = overTarget)
         if (overTarget) {
             overTarget = false
-            to(Mode.Closed)
+            to(BubbleMode.Closed)
             if (overlay.working) gateway.dispatch(ICodeIntent.StopAssistant)
             gateway.dispatch(VoiceIntent.Silence)
             gateway.dispatch(PhoneIntent.ShowBubble(false))
@@ -280,7 +273,7 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
     /** A touch outside the open bar closes it, and goes on to the app under it. */
     @SuppressLint("ClickableViewAccessibility")
     private fun outside(view: View, event: MotionEvent): Boolean {
-        if (event.action == MotionEvent.ACTION_OUTSIDE && mode == Mode.Typing) to(Mode.Closed)
+        if (event.action == MotionEvent.ACTION_OUTSIDE && mode == BubbleMode.Typing) to(BubbleMode.Closed)
         return false
     }
 
@@ -291,8 +284,6 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
     }
 
     private companion object {
-        const val TARGET_MARGIN_DP = 48f
-        const val TARGET_REACH = 1.5f
         const val FRAME_MILLIS = 50L
         /** Where the bubble was last docked, kept for the next time it shows. */
         const val PLACE_PREFERENCES = "phone_bubble"

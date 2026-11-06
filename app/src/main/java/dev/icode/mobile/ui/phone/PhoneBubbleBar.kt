@@ -1,8 +1,14 @@
 package dev.icode.mobile.ui.phone
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,7 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -62,6 +68,41 @@ import dev.icode.mobile.domain.VoiceIntent
 import dev.icode.mobile.domain.phone.PhoneOverlay.Look
 import dev.icode.mobile.domain.voice.VoiceFrom
 import dev.icode.mobile.ui.HeardLine
+
+/**
+ * The bar's window: the bar the bubble expands into, and the voice bubble it gives way to, at the
+ * bottom by the keyboard. Opened, it grows from its end nearer the bubble's edge, and closed it goes
+ * back there; between the bar and the voice bubble it grows from its middle. Drawn only, never laid out
+ * frame by frame: the window wraps its content, so a size that animated would resize and place the
+ * window on every frame — the bar drawn squeezed, and late.
+ */
+@Composable
+internal fun PhoneBubblePanel(view: PhoneBubbleView, actions: PhoneBubbleActions) {
+    AnimatedContent(
+        targetState = view.mode,
+        transitionSpec = {
+            val origin = if (BubbleMode.Closed in listOf(initialState, targetState)) view.edge.origin() else TransformOrigin(0.5f, 1f)
+            (fadeIn(tween(MORPH_MILLIS)) + scaleIn(initialScale = MORPH_SCALE, animationSpec = tween(MORPH_MILLIS), transformOrigin = origin)) togetherWith
+                (fadeOut(tween(MORPH_MILLIS / 2)) + scaleOut(targetScale = MORPH_SCALE, animationSpec = tween(MORPH_MILLIS / 2), transformOrigin = origin)) using
+                null
+        },
+        contentAlignment = Alignment.BottomCenter,
+        label = "panel",
+    ) { mode ->
+        when (mode) {
+            BubbleMode.Closed -> Unit
+            BubbleMode.Typing -> PhoneBubbleBar(view, actions)
+            BubbleMode.Voice -> PhoneVoiceBubble(view, actions)
+        }
+    }
+}
+
+/** The bottom corner of the bar nearer where the bubble docks, for it to grow from. */
+private fun BubbleEdge.origin(): TransformOrigin = when (this) {
+    BubbleEdge.Bottom -> TransformOrigin(0.5f, 1f)
+    BubbleEdge.Left -> TransformOrigin(0f, 1f)
+    BubbleEdge.Right -> TransformOrigin(1f, 1f)
+}
 
 /**
  * The bubble's bar (owner's design, 2026-11-03; redesigned 2026-11-04): the bubble expanded into one
@@ -127,19 +168,13 @@ internal fun PhoneBubbleBar(view: PhoneBubbleView, actions: PhoneBubbleActions) 
 
 /**
  * The bar's leading mark: the bubble itself, shrunken into the pill as far in from its end as Send's
- * icon is from the other. A tap collapses the bar, or, muted, resumes listening; a drag frees the bubble.
+ * icon is from the other. A tap collapses the bar back into the bubble, or, muted, resumes listening.
  */
 @Composable
 private fun BarMark(view: PhoneBubbleView, actions: PhoneBubbleActions, modifier: Modifier) {
     Box(
         modifier.size(IcodeSizes.TouchTarget)
             .semantics { contentDescription = "iCode assistant" + if (view.overlay.asking) ", a question waits" else "" }
-            .pointerInput(Unit) {
-                detectDragGestures(onDragEnd = actions.dragEnd, onDragCancel = actions.dragEnd) { change, amount ->
-                    change.consume()
-                    actions.drag(amount.x, amount.y)
-                }
-            }
             .clickable { actions.tap() },
         contentAlignment = Alignment.Center,
     ) {
