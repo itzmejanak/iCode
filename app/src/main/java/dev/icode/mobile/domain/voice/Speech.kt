@@ -78,7 +78,10 @@ data class SpeechProvider(
     }
 }
 
-/** Why a hearing heard nothing, the same for every provider (docs/speech-plan.md §4.6). */
+/** The two ways a provider serves: it hears the user, or it reads the answers aloud (docs/tts-plan.md). */
+enum class SpeechWay { Listening, Speaking }
+
+/** Why a hearing heard nothing, or a speech session said nothing, the same for every provider (docs/speech-plan.md §4.6). */
 enum class SpeechFailure {
     NoKey,
     KeyRefused,
@@ -91,7 +94,7 @@ enum class SpeechFailure {
     /** The microphone may not be used. */
     NotAllowed,
     Microphone,
-    /** The phone has no recognizer of this kind. */
+    /** The phone has no recognizer, or no voice, of this kind. */
     Unavailable,
     NothingHeard,
     /** Anything else: the provider's own words follow. */
@@ -143,23 +146,34 @@ object SpeechRules {
     private val LOCAL = listOf("http://127.0.0.1", "http://localhost")
 
     /**
-     * What [failure] says, naming [provider]: Android's as "Speech recognition", as it always has.
-     * [detail] is the provider's own words where it gave some — for a network failure, iCode's.
+     * What [failure] says, naming [provider] — Android's as "Speech recognition" or "Text-to-speech", as
+     * they always have been — for the [way] it served. [detail] is the provider's own words where it gave
+     * some; for a network failure, iCode's.
      */
-    fun words(failure: SpeechFailure, provider: SpeechProvider, detail: String? = null): String {
-        val who = if (provider.kind == SpeechProviderKind.Android) "Speech recognition" else provider.name
+    fun words(failure: SpeechFailure, provider: SpeechProvider, detail: String? = null, way: SpeechWay = SpeechWay.Listening): String {
+        val android = provider.kind == SpeechProviderKind.Android
+        val listening = way == SpeechWay.Listening
+        val who = when {
+            !android -> provider.name
+            listening -> "Speech recognition"
+            else -> "Text-to-speech"
+        }
         return when (failure) {
             SpeechFailure.NoKey -> "Enter $who's key in $PAGE"
             SpeechFailure.KeyRefused -> "$who refused the key: check it in $PAGE"
             SpeechFailure.NoCredit -> "$who says the account has no credit left"
             SpeechFailure.Busy -> "$who is busy: try again"
             SpeechFailure.Unreachable -> detail ?: "$who needs the network, and it is not there"
-            SpeechFailure.Language -> "$who cannot hear this language"
+            SpeechFailure.Language -> if (listening) "$who cannot hear this language" else "$who cannot speak this language"
             SpeechFailure.TooLong -> "That was longer than $who takes at once"
             SpeechFailure.Server -> "$who did not answer: try again"
             SpeechFailure.NotAllowed -> "iCode may not use the microphone"
             SpeechFailure.Microphone -> "The microphone could not be read"
-            SpeechFailure.Unavailable -> if (provider.kind == SpeechProviderKind.Android) "This phone has no speech recognition" else "$who is not available on this phone"
+            SpeechFailure.Unavailable -> when {
+                !android -> "$who is not available on this phone"
+                listening -> "This phone has no speech recognition"
+                else -> "This phone has no text-to-speech engine"
+            }
             SpeechFailure.NothingHeard -> "Nothing was heard"
             SpeechFailure.Failed -> listOfNotNull("$who failed", detail?.take(DETAIL_CHARS)).joinToString(": ").let { if (detail == null) "$it: try again" else it }
         }

@@ -54,6 +54,8 @@ data class VoiceState(
     val providers: List<SpeechProvider> = listOf(SpeechProvider.Android),
     /** The one that listens, by its ID. */
     val inUse: String = SpeechProvider.ANDROID,
+    /** The one that reads the answers aloud, by its ID (docs/tts-plan.md). */
+    val speaker: String = SpeechProvider.ANDROID,
     /** The provider its page shows; a new one has the ID "". */
     val editing: SpeechProvider? = null,
     /** Each provider's last failure, in its words, while iCode runs. */

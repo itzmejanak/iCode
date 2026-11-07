@@ -7,6 +7,7 @@ import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.domain.SpeechIntent
 import dev.icode.mobile.domain.voice.SpeechProvider
 import dev.icode.mobile.domain.voice.SpeechProviderKind
+import dev.icode.mobile.domain.voice.SpeechWay
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -74,6 +75,18 @@ class SpeechProvidersTest {
         providers.remove(saved.id).getOrThrow()
         assertEquals(SpeechProvider.ANDROID, stateHolder.current.voice.inUse)
         assertNull(preferences.getString("key.${saved.id}", null))
+    }
+
+    @Test
+    fun `Android's speaks until another is chosen, and removing that one gives speaking back`() {
+        val saved = providers.save(assembly, "k").getOrThrow()
+        assertEquals(SpeechProvider.ANDROID, store.speaker())
+        store.use(saved.id, SpeechWay.Speaking)
+        assertEquals(saved.id, store.speaker())
+        assertEquals(SpeechProvider.ANDROID, store.inUse())
+        providers.remove(saved.id).getOrThrow()
+        assertEquals(SpeechProvider.ANDROID, store.speaker())
+        assertEquals(SpeechProvider.ANDROID, stateHolder.current.voice.speaker)
     }
 
     @Test

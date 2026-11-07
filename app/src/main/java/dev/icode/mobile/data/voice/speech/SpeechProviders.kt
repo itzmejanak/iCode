@@ -7,6 +7,7 @@ import dev.icode.mobile.domain.SpeechIntent
 import dev.icode.mobile.domain.voice.SpeechFailure
 import dev.icode.mobile.domain.voice.SpeechProvider
 import dev.icode.mobile.domain.voice.SpeechRules
+import dev.icode.mobile.domain.voice.SpeechWay
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -31,6 +32,9 @@ internal class SpeechProviders(
 
     /** The provider that listens, by its ID. */
     fun inUse(): String = store.inUse()
+
+    /** The provider that speaks, by its ID. */
+    fun speaker(): String = store.speaker()
 
     /** The assistant's OpenAI providers with a key, which an OpenAI speech provider may take its key from: their IDs and names. */
     fun assistantKeys(): List<Pair<String, String>> = stateHolder.current.assistant.settings.providers
@@ -63,11 +67,11 @@ internal class SpeechProviders(
     /** [id] listens from now on. */
     fun use(id: String): Result<SpeechProvider> = change {
         val provider = find(id)
-        store.use(id)
+        store.use(id, SpeechWay.Listening)
         provider
     }
 
-    /** [id]'s provider — null: the one that listens — and its key, decrypted for a hearing; or why it cannot hear. */
+    /** [id]'s provider — null: the one that listens — and its key, decrypted for a hearing or a speech session; or why it cannot serve. */
     fun connection(id: String?): Result<Pair<SpeechProvider, String?>> = runCatching {
         val provider = find(id ?: store.inUse())
         val key = provider.keyFrom?.let(assistantKey) ?: store.key(provider.id)
@@ -99,7 +103,9 @@ internal class SpeechProviders(
 
     private fun change(block: () -> SpeechProvider): Result<SpeechProvider> = synchronized(lock) { runCatching(block).also { publish() } }
 
-    private fun publish() = stateHolder.update { it.copy(voice = it.voice.copy(providers = store.providers(), inUse = store.inUse())) }
+    private fun publish() = stateHolder.update {
+        it.copy(voice = it.voice.copy(providers = store.providers(), inUse = store.inUse(), speaker = store.speaker()))
+    }
 
     private fun Result<SpeechProvider>.said() = onFailure { failure ->
         scope.launch { stateHolder.notify(NoticeTone.HeadsUp, failure.message ?: "The speech provider was not saved") }

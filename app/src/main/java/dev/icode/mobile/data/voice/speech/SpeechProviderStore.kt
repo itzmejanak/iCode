@@ -6,13 +6,14 @@ import dev.icode.mobile.data.io.KeystoreCipher
 import dev.icode.mobile.data.io.commitOrFail
 import dev.icode.mobile.domain.voice.SpeechProvider
 import dev.icode.mobile.domain.voice.SpeechProviderKind
+import dev.icode.mobile.domain.voice.SpeechWay
 import java.util.UUID
 import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * The speech providers the user added, and which one listens (docs/speech-plan.md §4.5): the
- * preferences `icode.speech`. Each key is encrypted by a Keystore key of iCode's own and is in no
+ * The speech providers the user added, which one listens and which one speaks (docs/speech-plan.md §4.5,
+ * docs/tts-plan.md §4.5): the preferences `icode.speech`. Each key is encrypted by a Keystore key of iCode's own and is in no
  * provider this returns: [key] alone decrypts it, for a hearing.
  */
 internal class SpeechProviderStore(
@@ -35,8 +36,13 @@ internal class SpeechProviderStore(
     }
 
     /** The one that listens: Android's when the one chosen is gone. */
-    fun inUse(): String = synchronized(lock) {
-        preferences.getString(KEY_IN_USE, null)?.takeIf { id -> stored().any { it.id == id } } ?: SpeechProvider.ANDROID
+    fun inUse(): String = chosen(SpeechWay.Listening)
+
+    /** The one that speaks: Android's when the one chosen is gone. */
+    fun speaker(): String = chosen(SpeechWay.Speaking)
+
+    private fun chosen(way: SpeechWay): String = synchronized(lock) {
+        preferences.getString(choiceOf(way), null)?.takeIf { id -> stored().any { it.id == id } } ?: SpeechProvider.ANDROID
     }
 
     /**
@@ -75,19 +81,20 @@ internal class SpeechProviderStore(
         stored().first { it.id == id }
     }
 
-    /** Forgets [id] and its key; if it listened, Android's listens. */
+    /** Forgets [id] and its key; each way it served, Android's serves. */
     fun delete(id: String) = synchronized(lock) {
         val left = stored().filter { it.id != id }
         preferences.commitOrFail("Unable to remove the speech provider") {
             putString(KEY_PROVIDERS, encode(left))
             remove(keyOf(id))
-            if (preferences.getString(KEY_IN_USE, null) == id) remove(KEY_IN_USE)
+            SpeechWay.entries.map(::choiceOf).filter { preferences.getString(it, null) == id }.forEach(::remove)
         }
     }
 
-    fun use(id: String) = synchronized(lock) {
+    /** [id] serves [way] from now on. */
+    fun use(id: String, way: SpeechWay) = synchronized(lock) {
         preferences.commitOrFail("Unable to choose the speech provider") {
-            if (id == SpeechProvider.ANDROID) remove(KEY_IN_USE) else putString(KEY_IN_USE, id)
+            if (id == SpeechProvider.ANDROID) remove(choiceOf(way)) else putString(choiceOf(way), id)
         }
     }
 
@@ -133,11 +140,17 @@ internal class SpeechProviderStore(
 
     private fun keyOf(id: String) = "key.$id"
 
+    private fun choiceOf(way: SpeechWay) = when (way) {
+        SpeechWay.Listening -> KEY_IN_USE
+        SpeechWay.Speaking -> KEY_SPEAKER
+    }
+
     private companion object {
         const val NAME = "icode.speech"
         const val KEY_ALIAS = "icode.speech.key"
         const val KEY_PROVIDERS = "providers"
         const val KEY_IN_USE = "inUse"
+        const val KEY_SPEAKER = "speaker"
         const val KEY_ANDROID_LANGUAGE = "androidLanguage"
     }
 }
