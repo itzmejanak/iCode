@@ -31,8 +31,10 @@ import dev.icode.mobile.domain.voice.SpokenText
 import dev.icode.mobile.domain.voice.SpokenTurn
 import dev.icode.mobile.domain.voice.VoiceCue
 import dev.icode.mobile.domain.voice.VoiceFrom
+import dev.icode.mobile.domain.voice.VoiceRules
 import dev.icode.mobile.domain.voice.VoiceState
 import java.io.File
+import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -81,7 +83,8 @@ internal class VoiceCoordinator(
         scope,
         use = { id ->
             providers.connection(id, SpeechWay.Speaking).mapCatching { (provider, key) ->
-                val request = VoiceRequest(voice = provider.voice, model = provider.voiceModelUsed, language = provider.language, speed = provider.speed)
+                val voice = VoiceRules.voiceUsed(provider, Locale.getDefault().toLanguageTag())
+                val request = VoiceRequest(voice = voice, model = provider.voiceModelUsed, language = provider.language, speed = provider.speed)
                 VoiceUse(provider, engines.voiceOf(provider, key), request)
             }
         },

@@ -28,7 +28,7 @@ enum class SpeechProviderKind(
         speaking = SpeakingKind(host = null, voices = Voices.Android),
     ),
 
-    /** AssemblyAI's streaming speech-to-text (v3); its own examples stream with `universal-3-5-pro`. */
+    /** AssemblyAI's streaming speech-to-text (v3); its own examples stream with `universal-3-5-pro`. Its text-to-speech streams too, in the US or the EU. */
     AssemblyAI(
         "AssemblyAI", live = true, needsKey = true, asksAddress = false,
         models = listOf(
@@ -36,13 +36,28 @@ enum class SpeechProviderKind(
             "universal-streaming-multilingual", "universal-streaming-english", "whisper-rt",
         ),
         host = "streaming.assemblyai.com",
+        speaking = SpeakingKind(
+            host = "tts.us.assemblyai.com",
+            voices = Voices.Fixed(SpeakingKind.ASSEMBLYAI_VOICES, own = true),
+            regions = Regions.Fixed(listOf("United States" to "tts.us.assemblyai.com", "European Union" to "tts.eu.assemblyai.com")),
+        ),
     ),
 
     /**
      * OpenAI's realtime transcription. `gpt-live-transcribe` is its realtime model; `gpt-realtime-whisper`
      * is left out: its sessions take no turn detection, and the hearing ends by it.
      */
-    OpenAI("OpenAI", live = true, needsKey = true, asksAddress = false, models = listOf("gpt-live-transcribe", "gpt-transcribe"), host = "api.openai.com"),
+    OpenAI(
+        "OpenAI", live = true, needsKey = true, asksAddress = false, models = listOf("gpt-live-transcribe", "gpt-transcribe"), host = "api.openai.com",
+        // Its Speech API shuts down on 2027-01-06; its spec sends new integrations to gpt-realtime-2.1-mini (docs/tts-plan.md §9 D3).
+        speaking = SpeakingKind(
+            host = "api.openai.com",
+            voices = Voices.Fixed(SpeakingKind.OPENAI_VOICES),
+            models = listOf("gpt-realtime-2.1-mini", "gpt-realtime-2.1"),
+            speeds = SpeakingKind.SPEEDS,
+            note = "OpenAI reads with a realtime model, told to say each sentence word for word. It is a conversational model: now and then it may stray from the text.",
+        ),
+    ),
 
     /** A server that speaks OpenAI's `/audio/transcriptions` and `/audio/speech`: on this phone, or one the user names. */
     OpenAICompatible(
@@ -51,7 +66,10 @@ enum class SpeechProviderKind(
     ),
 
     /** Deepgram's live speech-to-text. */
-    Deepgram("Deepgram", live = true, needsKey = true, asksAddress = false, models = listOf("nova-3", "nova-2"), host = "api.deepgram.com"),
+    Deepgram(
+        "Deepgram", live = true, needsKey = true, asksAddress = false, models = listOf("nova-3", "nova-2"), host = "api.deepgram.com",
+        speaking = SpeakingKind(host = "api.deepgram.com", voices = Voices.Fixed(SpeakingKind.DEEPGRAM_VOICES, suffixed = true), speeds = SpeakingKind.SPEEDS),
+    ),
 
     /** Google Cloud Speech-to-Text v1, which takes an API key: v2 takes none; and its Text-to-Speech v1, which takes one too. */
     Google(
@@ -178,52 +196,9 @@ object SpeechRules {
             provider.kind.asksAddress && address.isEmpty() -> "Enter the server's address"
             provider.kind.asksAddress && !addressAllowed(address) -> "Use https:// (http only to this phone)"
             language.isNotEmpty() && !LANGUAGE.matches(language) -> "Write the language as a tag: en, or en-US"
-            else -> regionProblem(provider, name) ?: speakingProblem(provider, name)
+            else -> VoiceRules.problem(provider, name)
         }
     }
-
-    /** Why [provider]'s speaking fields cannot be saved: a field its kind does not take, said in its words. */
-    private fun speakingProblem(provider: SpeechProvider, name: String): String? {
-        val speaking = provider.kind.speaking
-        val speaks = provider.voice != null || provider.voiceModel != null || provider.speed != null
-        return when {
-            speaks && speaking == null -> "$name does not read aloud"
-            speaks && speaking?.voices == Voices.Android -> "Android's voice is chosen in Android's settings"
-            provider.voiceModel != null && speaking != null && speaking.models.isEmpty() && !speaking.listsModels && !provider.kind.asksAddress ->
-                "$name has no models to choose for reading aloud"
-            provider.speed != null && speaking?.speeds?.contains(provider.speed) == false ->
-                speaking.speeds.takeIf { it.isNotEmpty() }?.let { "$name reads at ${it.joinToString { speed -> speedLabel(speed) }}" } ?: "$name reads at one speed"
-            else -> null
-        }
-    }
-
-    /** Why [provider]'s region cannot be saved. */
-    private fun regionProblem(provider: SpeechProvider, name: String): String? {
-        val region = provider.region?.trim().orEmpty()
-        return when (val regions = provider.kind.speaking?.regions) {
-            null -> "$name has one place: it takes no region".takeIf { region.isNotEmpty() }
-            is Regions.Typed -> when {
-                region.isEmpty() -> "Enter $name's region: ${regions.example}, for one"
-                !REGION.matches(region) -> "Write the region in lower case, as ${regions.example} is"
-                else -> null
-            }
-            is Regions.Fixed -> "$name's servers are ${regions.hosts.joinToString { it.second }}".takeIf { region.isNotEmpty() && regions.hosts.none { it.second == region } }
-        }
-    }
-
-    /** Where [provider] reads aloud: its host, in its region. */
-    fun speakingHost(provider: SpeechProvider): String {
-        val speaking = provider.kind.speaking ?: return ""
-        val host = speaking.host.orEmpty()
-        return when (val regions = speaking.regions) {
-            null -> host
-            is Regions.Typed -> provider.region?.let { host.replace("{region}", it) }.orEmpty()
-            is Regions.Fixed -> provider.region?.takeIf { region -> regions.hosts.any { it.second == region } } ?: host
-        }
-    }
-
-    /** A speed as the pages say it: 1 is Normal. */
-    fun speedLabel(speed: Float): String = if (speed == 1f) "Normal" else "${speed.toString().removeSuffix(".0")}×"
 
     /** [provider] can serve [way], or why not. */
     fun wayProblem(provider: SpeechProvider, way: SpeechWay): String? = when {
@@ -243,7 +218,7 @@ object SpeechRules {
         provider.kind == SpeechProviderKind.Android -> if (way == SpeechWay.Listening) "On this phone, or its recognition service" else "Android's text-to-speech"
         provider.kind.asksAddress -> provider.address?.substringAfter("://")?.substringBefore('/').orEmpty()
         way == SpeechWay.Listening -> provider.kind.host.orEmpty()
-        else -> speakingHost(provider)
+        else -> VoiceRules.host(provider)
     }
 
     /** The language's tag as an ISO-639-1 code: `en-US` is `en`. */
@@ -251,7 +226,6 @@ object SpeechRules {
 
     private val LANGUAGE = Regex("^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$")
     private val LOCAL = listOf("http://127.0.0.1", "http://localhost")
-    private val REGION = Regex("^[a-z0-9]+$")
 
     /**
      * What [failure] says, naming [provider] — Android's as "Speech recognition" or "Text-to-speech", as

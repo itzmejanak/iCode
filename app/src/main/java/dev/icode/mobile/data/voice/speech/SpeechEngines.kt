@@ -3,8 +3,8 @@ package dev.icode.mobile.data.voice.speech
 import android.content.Context
 import dev.icode.mobile.domain.voice.SpeechProvider
 import dev.icode.mobile.domain.voice.SpeechProviderKind
-import dev.icode.mobile.domain.voice.SpeechRules
 import dev.icode.mobile.domain.voice.VoiceChoices
+import dev.icode.mobile.domain.voice.VoiceRules
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
@@ -47,7 +47,9 @@ internal class SpeechEngines(context: Context, scope: CoroutineScope, private va
         SpeechProviderKind.ElevenLabs -> sentences(ElevenLabsVoice(http, requireNotNull(key), base(provider)))
         SpeechProviderKind.Azure -> sentences(AzureVoice(http, requireNotNull(key), base(provider)))
         SpeechProviderKind.OpenAICompatible -> sentences(CompatibleVoice(http, requireNotNull(provider.address), key))
-        SpeechProviderKind.AssemblyAI, SpeechProviderKind.OpenAI, SpeechProviderKind.Deepgram -> throw IllegalArgumentException("${provider.name} cannot read aloud yet")
+        SpeechProviderKind.AssemblyAI -> assemblyAiVoice(http, requireNotNull(key), VoiceRules.host(provider), ::VoicePlayer)
+        SpeechProviderKind.Deepgram -> deepgramVoice(http, requireNotNull(key), ::VoicePlayer)
+        SpeechProviderKind.OpenAI -> openAiVoice(http, requireNotNull(key), ::VoicePlayer)
     }
 
     /** What [provider]'s API lists for its page: its voices, and its models where it lists them. */
@@ -58,7 +60,7 @@ internal class SpeechEngines(context: Context, scope: CoroutineScope, private va
         else -> VoiceChoices()
     }
 
-    private fun sentences(synthesis: Synthesis) = SentenceVoice(synthesis) { VoicePlayer() }
+    private fun sentences(synthesis: Synthesis) = SentenceVoice(synthesis, ::VoicePlayer)
 
-    private fun base(provider: SpeechProvider) = "https://" + SpeechRules.speakingHost(provider)
+    private fun base(provider: SpeechProvider) = "https://" + VoiceRules.host(provider)
 }
