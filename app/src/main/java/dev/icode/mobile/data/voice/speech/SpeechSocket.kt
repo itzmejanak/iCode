@@ -26,12 +26,18 @@ import kotlinx.coroutines.withTimeoutOrNull
  * gives only its protocol: how audio is framed, what a message means, what its close codes say.
  */
 internal class SpeechSocket private constructor(private val session: DefaultClientWebSocketSession) {
+    private var opening: suspend () -> Unit = {}
     private var frames: suspend (Frame) -> SpeechEvent? = { null }
     private var whenDone: suspend () -> Unit = {}
     private var late: () -> SpeechEvent = { SpeechEvent.Failed(SpeechFailure.Server) }
     private var closed: (Int?, String?) -> SpeechEvent = { _, _ -> SpeechEvent.Failed(SpeechFailure.Server) }
     private var ending: suspend () -> Unit = {}
     private var deadline = Long.MAX_VALUE
+
+    /** The socket is open: what the provider is told before any audio. */
+    fun onOpen(handler: suspend () -> Unit) {
+        opening = handler
+    }
 
     /** What a frame from the provider means: words so far, final words, a failure, or nothing. */
     fun onFrame(handler: suspend (Frame) -> SpeechEvent?) {
@@ -90,6 +96,7 @@ internal class SpeechSocket private constructor(private val session: DefaultClie
 
     private suspend fun hear(audio: SpeechAudio, rate: Int, done: Deferred<Unit>, upload: (ByteArray) -> Frame, emit: suspend (SpeechEvent) -> Unit): SpeechEvent =
         coroutineScope {
+            opening()
             val signals = Channel<Signal>(Channel.UNLIMITED)
             val jobs = listOf(
                 launch {

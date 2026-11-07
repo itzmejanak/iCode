@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
+import dev.icode.mobile.data.assistant.SharedPreferencesAssistantProviderStore
 import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.phone.PhoneForegroundService
 import dev.icode.mobile.data.runtime.TerminalSessionManager
@@ -15,6 +16,7 @@ import dev.icode.mobile.data.voice.speech.SpeechProviders
 import dev.icode.mobile.data.voice.speech.SpeechRequest
 import dev.icode.mobile.data.voice.speech.SpeechUse
 import dev.icode.mobile.data.workspace.ICodeStateHolder
+import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.SpeechIntent
 import dev.icode.mobile.domain.VoiceIntent
@@ -55,7 +57,10 @@ internal class VoiceCoordinator(
     private val lock = Any()
 
     /** The speech providers' owner: the pages' and the agent's (docs/speech-plan.md §1). */
-    val providers = SpeechProviders(SpeechProviderStore(app), stateHolder, scope)
+    val providers = SpeechProviders(SpeechProviderStore(app), stateHolder, scope, assistantKey = ::assistantKey)
+
+    /** The assistant's providers' keys, read only: an OpenAI speech provider may use one (docs/speech-plan.md §9 D4). */
+    private val assistantKeys by lazy { SharedPreferencesAssistantProviderStore(app) }
     private val engines = SpeechEngines(app)
     private val hearings = SpeechHearings(
         scope,
@@ -215,6 +220,8 @@ internal class VoiceCoordinator(
         File(app.noBackupFilesDir, OLD_MODELS).takeIf { it.exists() }?.deleteRecursively()
         if (OLD_KEYS.any(preferences::contains)) preferences.edit { OLD_KEYS.forEach(::remove) }
     }
+
+    private fun assistantKey(id: String): String? = assistantKeys.connection(id)?.takeIf { it.kind == AssistantProviderKind.OpenAI }?.apiKey
 
     private fun microphone() = ContextCompat.checkSelfPermission(app, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
 

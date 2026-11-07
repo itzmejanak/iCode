@@ -386,16 +386,20 @@ header, no cards of actions, no dashboard.
 ### 5.8 Voice
 
 - **Android's own engines, each way** — the owner's decision, 2026-11-04: iCode focuses on Android.
+  Listening has since taken providers the user adds (2026-11-07, below); Android's stays the default.
   - **Listening:** `SpeechRecognizer`, on the phone itself where available (API 31+), else the
     user's recognition service; the words appear as they are heard, and it ends when the user stops
-    talking.
+    talking. It is `AndroidSpeech`, one engine behind [speech-plan.md](./speech-plan.md)'s
+    `SpeechEngine`.
   - **Speaking:** `TextToSpeech`, with the engine and voice the user chose in Android's settings;
     Settings › Assistant › Voice opens them, and Android's speech recognition settings.
   - Open-source models on the phone (sherpa-onnx with Whisper, SenseVoice, Kokoro and Piper voices)
     were built in P6 and removed on 2026-11-04, with the library. What an earlier build downloaded,
     and its settings, are deleted when iCode starts.
-  - Listening with providers the user adds (AssemblyAI, OpenAI, Deepgram, Google and others) is
-    planned in [speech-plan.md](./speech-plan.md) (2026-11-06); Android stays the default.
+  - **Other providers** ([speech-plan.md](./speech-plan.md), built 2026-11-07): AssemblyAI, OpenAI,
+    an OpenAI-compatible server, Deepgram or Google Cloud, chosen on Settings › Assistant › Voice ›
+    Speech Recognition, or by the assistant when asked. The bubble and the composer are the same
+    whichever hears.
 - **Read as it is written.** A turn to be read aloud is read while the model writes it
   (`SpokenTurn`, `SpokenText.ready`): each sentence is said once it is whole, never from inside a
   code block, and the rest of a reply once it is recorded. One speech session per turn: Android's

@@ -44,6 +44,13 @@ All notable changes to iCode are documented here. The format follows
   moves for them. Dragged, it follows the finger and glides to the nearest of the bottom, left and
   right edges where it is let go, and shows there the next time; idle, it tucks half behind that edge. Android's own accessibility button is no longer asked for, so there is one icon,
   not two; Phone Control says how to remove one an earlier build left.
+- Speech recognition with any provider: Settings › Assistant › Voice › Speech Recognition lists
+  Android's recognizer, always there, and the providers you add — AssemblyAI, OpenAI, an
+  OpenAI-compatible server, Deepgram or Google Cloud — with their key (encrypted, never shown again),
+  model and language, Test and Use for Listening. An OpenAI one may use the assistant's OpenAI key.
+  The bubble and the chat's microphone work the same with each; a provider that fails says why in its
+  name, and your voice never goes to another instead. The assistant sets them up when asked, asking
+  every time.
 - iCode has no dialogs: every confirmation, question and long operation is a sheet, and every sheet
   closes with a swipe down as well as ×, Back or a tap outside.
 - The bell and the undo pill say nothing in words: a notice rings the bell with the unread count, and

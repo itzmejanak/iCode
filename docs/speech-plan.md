@@ -1,7 +1,8 @@
 # Speech recognition with any provider
 
-Status: **plan** (2026-11-06), the owner's request. Nothing is built yet; the decisions in §9 wait
-for the owner.
+Status: **built** (2026-11-07), the owner's request: S0–S6 and D4. The owner took every
+recommendation in §9; Azure (S7) waits, as D2 says. The phone checks SP1–SP7 (§7) are still to be run
+on a phone, with keys the owner gives.
 
 > "Design and develop a provider-agnostic speech recognition architecture … multiple speech
 > recognition providers … through a common abstraction layer … select their preferred speech
@@ -156,7 +157,7 @@ the Android samples.
 - **Not read here:** the REST endpoints, and what the SDK adds to the APK. Both are *to read in its
   cycle*.
 
-### 2.7 iCode today
+### 2.7 iCode before this plan
 
 | Part | Where |
 |---|---|
@@ -212,15 +213,17 @@ the Android samples.
 // data/voice/speech/SpeechEngine.kt
 internal interface SpeechEngine {
     /**
-     * Hears once: the words as they come, then the final ones — or a failure. [finish] says the user
-     * is done (what was heard becomes final); cancelling the collection stops it and sends nothing.
+     * Hears once: the words as they come, then the final ones — or a failure — and the flow ends.
+     * [done] completes when the user is done talking; cancelling the collection stops the hearing.
      */
-    fun hear(request: SpeechRequest, finish: Flow<Unit>): Flow<SpeechEvent>
+    fun hear(request: SpeechRequest, done: Deferred<Unit>): Flow<SpeechEvent>
 }
 
 internal data class SpeechRequest(
-    /** A BCP-47 tag (en-US), the provider's own or the phone's; each adapter takes what its API takes. */
+    /** A BCP-47 tag (en-US); null: the language the phone speaks. Each adapter takes what its API takes. */
     val language: String?,
+    /** The model to ask for; null where the provider has none to choose. */
+    val model: String? = null,
 )
 
 internal sealed interface SpeechEvent {
@@ -237,13 +240,15 @@ In `domain/voice/Speech.kt`:
 - **`SpeechFailure`**.
 - **`VoiceState`** gains the providers, the one in use, and each one's last failure.
 
-`Heard` stays as it is: it is already the one output the screens share.
+`Heard` stays as it is: it is already the one output the screens share. `SpeechHearings` runs one
+hearing at a time for the coordinator, whichever engine hears it: it ends a hearing at its final words
+or its failure, and stops the engine; an engine that ends without final words makes what it heard final.
 
 | Kind | Live | Asks | Models suggested (first is the default) |
 |---|---|---|---|
 | Android | yes | — | — |
-| AssemblyAI | yes | key | the §2.2 list; the default is chosen in S2 from AssemblyAI's model page |
-| OpenAI | yes | key | `gpt-transcribe`, `gpt-live-transcribe`, `gpt-realtime-whisper`; the default is chosen in S4 from OpenAI's model page |
+| AssemblyAI | yes | key | `universal-3-5-pro` (what AssemblyAI's own SDK streams with in its examples), then the rest of the §2.2 list |
+| OpenAI | yes | key, or the assistant's (D4) | `gpt-live-transcribe` (in the realtime sessions' list, not in `/audio/transcriptions`'), `gpt-transcribe`. `gpt-realtime-whisper` is left out: its sessions take no turn detection, and the hearing ends by it |
 | OpenAI-compatible | no | address, key if the server wants one | typed: the server's own |
 | Deepgram | yes | key | `nova-3`, `nova-2` |
 | Google Cloud | no | key | `latest_short`, `latest_long` |
@@ -257,7 +262,7 @@ In `domain/voice/Speech.kt`:
 
 ### 4.2 The factory
 
-`SpeechEngines.of(provider, key, microphone, http)` is one `when (provider.kind)`.
+`SpeechEngines.of(provider, key)` is one `when (provider.kind)`; the microphone and the one HTTP client (OkHttp, with WebSockets and per-request timeouts for uploads) are the factory's own.
 
 To add a provider:
 1. A `SpeechProviderKind` entry, with its fields and capabilities.
@@ -275,14 +280,23 @@ capabilities, not its name.
 | `AssemblyAiSpeech` | Opens `/v3/ws` with `sample_rate=16000`, `encoding=pcm_s16le`, the model, `format_turns=true` and the language. It sends PCM chunks and shows each `Turn` as words. The end of turn (formatted) is final; then it sends `Terminate`. Done sends `ForceEndpoint`. A close code or `Error` becomes a failure |
 | `OpenAiSpeech` | Opens the realtime URL with `Bearer` and sets a `transcription` session: `audio/pcm` at 24 kHz, the model, the language, the server's turn detection. It sends audio and shows the deltas as words; `.completed` is final. Done commits the buffer. The exact client events are taken from the spec in S4 |
 | `DeepgramSpeech` | Opens `/v1/listen` with `Token`, `model`, `encoding=linear16`, `sample_rate=16000`, `channels=1`, `interim_results=true`, `smart_format=true` and the language. The words are the final segments so far plus the current interim one; `speech_final` is final. Done sends `Finalize`, then `CloseStream` |
-| `UploadSpeech` | Records until the user stops (§4.4), then sends WAV. OpenAI-compatible: multipart `/audio/transcriptions`, with `stream=true` where the server streams, deltas shown as they come. Google v1: `speech:recognize`, `LINEAR16` at 16 kHz, `latest_short`, punctuation on |
-| `AzureSpeech` | The SDK, fed from `SpeechMicrophone` through a pull stream. `recognizing` is words; `recognized` is final |
+| `UploadSpeech` | Records until the user stops (§4.4), then sends it once. OpenAI-compatible (`OpenAiTranscription`): multipart `/audio/transcriptions`, a WAV file, `response_format=json`; the server's `text` is final. Google v1 (`GoogleRecognition`): `speech:recognize`, `LINEAR16` at 16 kHz in base64, `latest_short` by default, punctuation on, the key in `X-Goog-Api-Key` (a probe showed Google reads it there) and never in the address; Google answers a key it cannot read with 400 `API_KEY_INVALID`, read as a refused key |
+| `AzureSpeech` | Not built (D2). The SDK, fed from `SpeechMicrophone` through a pull stream. `recognizing` is words; `recognized` is final |
+
+`SpeechSocket` runs every streaming hearing: it opens the socket (the adapter may speak first, as
+OpenAI's `session.update`), sends the microphone's audio as it comes, hands each frame to the adapter,
+and ends at the first final words or failure, or when a deadline the adapter set passes (AssemblyAI's
+unformatted end of turn, a done with no answer yet). A handshake refused is read by its HTTP status; a
+socket the provider closed takes no more audio. The adapters keep only their protocol.
 
 ### 4.4 The microphone
 
 `SpeechMicrophone` opens `AudioRecord` (source `VOICE_RECOGNITION`, mono, 16-bit) at the rate the
 adapter takes: 16 kHz, or 24 kHz for OpenAI. Where the phone refuses that rate, it records at 48 kHz
 and converts to it.
+- **Frames:** 100 ms each (3 200 bytes at 16 kHz). AssemblyAI's bounds on a chunk's duration (its
+  close code 3007) are on its documentation site, which this session could not reach: 100 ms is what
+  iCode sends, and a 3007 would say so in the shared words.
 - **Where the audio lives:** frames go to the adapter as they come. An upload adapter keeps them in
   memory and nowhere else, at most **120 s** (§9 D6), and they are gone once the hearing ends.
 - **When an upload hearing ends:** live providers say when the user stopped (AssemblyAI's end of
@@ -291,7 +305,9 @@ and converts to it.
   - after 8 s with no speech at all ("Nothing was heard");
   - or at the user's tap, as today.
 
-  The level threshold and both times are named constants, tuned in the phone checks.
+  Speech is a frame louder than an RMS of 500 (of 32 767) and than three times the room: the quietest
+  frame heard so far, so a hearing that starts with speech finds the room at its first pause
+  (`SpeechQuiet`). The level, the factor and both times are named constants, tuned in the phone checks.
 - **Running in the background:** the same rule as today. Away from iCode, the microphone works only
   through phone control's foreground service. The coordinator checks this before any engine starts.
 
@@ -320,6 +336,8 @@ and converts to it.
 | Failure | Said |
 |---|---|
 | `NoKey` | "Enter AssemblyAI's key in Settings › Assistant › Voice" |
+| `NotAllowed` | "iCode may not use the microphone" |
+| `Unavailable` | "This phone has no speech recognition" (Android's) |
 | `KeyRefused` | "AssemblyAI refused the key: check it in Settings › Assistant › Voice" |
 | `NoCredit` | "AssemblyAI says the account has no credit left" |
 | `Busy` | "AssemblyAI is busy: try again" |
@@ -329,6 +347,9 @@ and converts to it.
 | `Server` | "AssemblyAI did not answer: try again" |
 | `Microphone` | "The microphone could not be read" |
 | `NothingHeard` | "Nothing was heard" |
+| `Failed` | "AssemblyAI failed: " and the provider's own words, or "…: try again" |
+
+Android's is named "Speech recognition", as it always was: "Speech recognition is busy: try again".
 
 - **What maps to what:** each adapter has one table from its codes to the list above:
   - HTTP 401 and 403, AssemblyAI 4001: `KeyRefused`.
@@ -362,7 +383,7 @@ and converts to it.
 | Tool | Kind | What it does |
 |---|---|---|
 | `list_speech_providers()` | Read | Each provider's id, name, kind, model, language, whether a key is set (never the key), its last failure, and which one listens |
-| `save_speech_provider(id?, kind, name, key?, address?, region?, model?, language?, use?)` | Change, asks always | Adds a provider, or changes the one with that id; `use: true` makes it the one that listens. The question names a key "given", never shows it |
+| `save_speech_provider(id?, kind, name, key?, key_from?, address?, model?, language?, use?)` | Change, asks always | Adds a provider, or changes the one with that id; `use: true` makes it the one that listens. The question names a key "given", never shows it |
 | `remove_speech_provider(id)` | Change, asks always | Removes it; Android cannot be. Removing the one in use goes back to Android |
 
 - **Where the tools live:** `AssistantToolName` gains the three names, and they join the agent's own
@@ -387,7 +408,8 @@ and converts to it.
 | S7 | `AzureSpeech`, if D2 keeps it: its APK size measured first | the event mapping over the SDK's types |
 | S8 | Docs as built (this plan, phone-agent-plan §5.8, agent-control-plan §1, PRIVACY.md, user story US-ASSIST-016, the changelog), guards, CI | — |
 
-Each cycle compiles, passes the tests and the guards, and goes to `main` before the next.
+Each cycle compiles, passes the tests and the guards, and goes to `main` before the next. Built:
+S0 (9b8b456), S1–S2 (7747f0b), S3 (329077a), S4–S6 (5c67d51), D4 (429977c), S8; S7 waits (D2).
 
 **Phone checks**, with keys the owner provides. They are kept only in the scratchpad, never committed:
 
@@ -410,7 +432,7 @@ Each cycle compiles, passes the tests and the guards, and goes to `main` before 
   `keywords`).
 - A provider per place (one for the bubble, another for the chat).
 
-## 9. Owner decisions
+## 9. Owner decisions (taken 2026-11-06: all as recommended)
 
 | # | Decision | Recommended |
 |---|---|---|

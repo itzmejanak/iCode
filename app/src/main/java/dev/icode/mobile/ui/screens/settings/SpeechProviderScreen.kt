@@ -35,6 +35,7 @@ import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SettingRow
 import dev.icode.mobile.designsystem.StatusLabel
+import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.domain.SpeechIntent
 import dev.icode.mobile.domain.VoiceIntent
 import dev.icode.mobile.domain.voice.SpeechProvider
@@ -68,15 +69,19 @@ fun SpeechProviderScreen(actions: NavigationActions) {
     var address by rememberSaveable(editing.id) { mutableStateOf(saved?.address.orEmpty()) }
     var model by rememberSaveable(editing.id) { mutableStateOf(saved?.modelUsed.orEmpty()) }
     var language by rememberSaveable(editing.id) { mutableStateOf(saved?.language.orEmpty()) }
+    // An OpenAI provider may take its key from the assistant's OpenAI provider: linked, never copied (speech-plan.md §9 D4).
+    var keyFrom by rememberSaveable(editing.id) { mutableStateOf(saved?.keyFrom) }
+    val assistantKeys = LocalICodeSnapshot.current.assistant.settings.providers
+        .filter { kind == SpeechProviderKind.OpenAI && it.kind == AssistantProviderKind.OpenAI && it.hasKey }
     // Never saveable: saved state leaves the process in a Bundle, and a key must not.
     var key by remember(editing.id) { mutableStateOf("") }
     var replacingKey by remember(editing.id) { mutableStateOf(false) }
     var removing by remember { mutableStateOf(false) }
     var leaving by remember { mutableStateOf(false) }
-    val draft = SpeechProvider(editing.id, kind, name, address, model.takeIf { it != kind.models.firstOrNull() }, language)
+    val draft = SpeechProvider(editing.id, kind, name, address, model.takeIf { it != kind.models.firstOrNull() }, language, keyFrom = keyFrom)
     // What Back would lose: anything typed, on a new provider or a saved one.
     val typed = key.isNotBlank() || name != (saved?.name ?: kind.label) || address != saved?.address.orEmpty() ||
-        model != (saved?.modelUsed ?: kind.models.firstOrNull()).orEmpty() || language != saved?.language.orEmpty()
+        model != (saved?.modelUsed ?: kind.models.firstOrNull()).orEmpty() || language != saved?.language.orEmpty() || keyFrom != saved?.keyFrom
     val changed = saved == null || typed
     val problem = SpeechRules.problem(draft, voice.providers, keyGiven = key.isNotBlank(), keySaved = saved?.hasKey == true)
     BackHandler(enabled = typed) { leaving = true }
@@ -91,7 +96,18 @@ fun SpeechProviderScreen(actions: NavigationActions) {
                 )
             } else {
                 LabeledTextField("Name", name, { name = it }, placeholder = kind.label)
-                if (saved?.hasKey == true && !replacingKey) {
+                if (assistantKeys.isNotEmpty()) {
+                    IcodeSelect(
+                        options = listOf<String?>(null) + assistantKeys.map { it.id },
+                        selected = keyFrom,
+                        optionLabel = { id -> assistantKeys.firstOrNull { it.id == id }?.let { "The assistant's ${it.name}" } ?: "A key of its own" },
+                        onSelect = { keyFrom = it },
+                        label = "Key From",
+                    )
+                }
+                if (keyFrom != null) {
+                    Unit
+                } else if (saved?.hasKey == true && !replacingKey) {
                     IcodeSection("API Key") {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3)) {
                             StatusLabel("Saved, never shown again", IcodeColors.Green, Modifier.weight(1f))
