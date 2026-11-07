@@ -9,6 +9,8 @@ import dev.icode.mobile.data.runtime.RuntimeExecution
 import dev.icode.mobile.data.runtime.TerminalRuns
 import dev.icode.mobile.data.runtime.TerminalSessions
 import dev.icode.mobile.data.search.WorkspaceSearchEngine
+import dev.icode.mobile.data.voice.speech.SpeechProviders
+import dev.icode.mobile.data.voice.speech.speechProviderTools
 import dev.icode.mobile.data.workspace.WorkspaceFileSource
 import java.io.File
 
@@ -29,6 +31,8 @@ internal class AssistantToolbox(
     private val phone: PhoneControl,
     /** The Terminal panel's own sessions, where the assistant's commands run (docs/agent-control-plan.md §4). */
     terminals: TerminalSessions,
+    /** What hears the microphone, which the assistant sets up as the user does (docs/speech-plan.md §6). */
+    private val speech: SpeechProviders,
 ) {
     private val terminal = TerminalRuns(terminals)
     private val shell = AssistantShell(execution.environment, execution.processes, terminal)
@@ -72,6 +76,6 @@ internal class AssistantToolbox(
             ListRunCommandsTool(workspace, runs),
             SaveRunCommandTool(workspace, runs),
             DeleteRunCommandTool(workspace, runs),
-        )
+        ) + speechProviderTools(speech)
     }
 }
