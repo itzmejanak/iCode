@@ -1,9 +1,7 @@
 package dev.icode.mobile.data.voice.speech
 
 import dev.icode.mobile.data.log.BackendLog
-import dev.icode.mobile.domain.voice.SpeechFailure
 import dev.icode.mobile.domain.voice.SpeechProvider
-import dev.icode.mobile.domain.voice.SpeechRules
 import dev.icode.mobile.domain.voice.SpeechWay
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -90,8 +88,7 @@ internal class VoiceSessions(
             throw stopped
         } catch (failed: Exception) {
             BackendLog.w(TAG, "Speaking failed (${failed.javaClass.simpleName})")
-            val known = failed as? VoiceFailed
-            SpeechRules.words(known?.failure ?: SpeechFailure.Failed, chosen.provider, known?.detail, SpeechWay.Speaking)
+            failed.words(chosen.provider, SpeechWay.Speaking)
         }
     }
 

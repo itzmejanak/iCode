@@ -1,7 +1,6 @@
 package dev.icode.mobile.data.voice.speech
 
 import android.content.Context
-import android.media.AudioAttributes
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import dev.icode.mobile.domain.voice.SpeechFailure
@@ -42,7 +41,7 @@ internal class AndroidVoice(context: Context, private val scope: CoroutineScope)
     }
 
     private suspend fun speak(engine: Engine, sentences: ReceiveChannel<String>, playing: (Boolean) -> Unit) {
-        if (!engine.ready.await()) throw VoiceFailed(SpeechFailure.Unavailable)
+        if (!engine.ready.await()) throw ProviderFailed(SpeechFailure.Unavailable)
         val speech = engine.speech
         val waiting = AtomicInteger()
         val failed = AtomicBoolean()
@@ -71,7 +70,7 @@ internal class AndroidVoice(context: Context, private val scope: CoroutineScope)
 
             override fun onStop(utteranceId: String?, interrupted: Boolean) = Unit
         })
-        speech.setAudioAttributes(SPEECH)
+        speech.setAudioAttributes(VoicePlayer.SPEECH)
         try {
             for (sentence in sentences) {
                 SpokenText.parts(sentence, TextToSpeech.getMaxSpeechInputLength() - 1).forEach { part ->
@@ -88,7 +87,7 @@ internal class AndroidVoice(context: Context, private val scope: CoroutineScope)
             playing(false)
             throw stopped
         }
-        if (failed.get()) throw VoiceFailed(SpeechFailure.Failed)
+        if (failed.get()) throw ProviderFailed(SpeechFailure.Failed)
     }
 
     private fun take(): Engine = synchronized(lock) {
@@ -117,12 +116,6 @@ internal class AndroidVoice(context: Context, private val scope: CoroutineScope)
     }
 
     private companion object {
-        /** The assistant speaking. */
-        val SPEECH: AudioAttributes = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_ASSISTANT)
-            .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-            .build()
-
         const val IDLE_MILLIS = 120_000L
     }
 }

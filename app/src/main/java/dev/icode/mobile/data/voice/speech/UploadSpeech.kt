@@ -42,8 +42,8 @@ internal class UploadSpeech(private val audio: SpeechAudio, private val upload: 
             !quiet.spoke -> SpeechEvent.Words("", final = true)
             else -> try {
                 upload.transcribe(recorded.toByteArray(), RATE, request)
-            } catch (unreached: UploadFailed) {
-                unreached.event
+            } catch (unreached: ProviderFailed) {
+                SpeechEvent.Failed(unreached.failure, unreached.detail)
             }
         }
         send(answer)

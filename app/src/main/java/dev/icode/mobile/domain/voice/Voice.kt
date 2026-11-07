@@ -60,6 +60,8 @@ data class VoiceState(
     val editing: SpeechProvider? = null,
     /** Each provider's last failure, in its words, while iCode runs. */
     val failures: Map<String, String> = emptyMap(),
+    /** What each provider's API listed for its page, by its ID, while iCode runs; absent while it is asked. */
+    val choices: Map<String, VoiceChoices> = emptyMap(),
 ) {
     /** The provider that serves [way], by its ID. */
     fun chosenId(way: SpeechWay): String = when (way) {

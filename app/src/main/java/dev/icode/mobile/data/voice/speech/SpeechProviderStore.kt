@@ -68,6 +68,7 @@ internal class SpeechProviderStore(
             language = provider.language?.trim()?.takeIf { it.isNotEmpty() },
             voice = provider.voice?.trim()?.takeIf { it.isNotEmpty() },
             voiceModel = provider.voiceModel?.trim()?.takeIf { it.isNotEmpty() },
+            region = provider.region?.trim()?.takeIf { it.isNotEmpty() },
             hasKey = false,
             keyFrom = provider.keyFrom.takeIf { key.isNullOrBlank() },
         )
@@ -126,6 +127,7 @@ internal class SpeechProviderStore(
                     voice = json.optString("voice").ifEmpty { null },
                     voiceModel = json.optString("voiceModel").ifEmpty { null },
                     speed = json.optDouble("speed").takeUnless { it.isNaN() }?.toFloat(),
+                    region = json.optString("region").ifEmpty { null },
                 )
             }
         }.getOrDefault(emptyList())
@@ -142,6 +144,7 @@ internal class SpeechProviderStore(
                     provider.voice?.let { put("voice", it) }
                     provider.voiceModel?.let { put("voiceModel", it) }
                     provider.speed?.let { put("speed", it.toDouble()) }
+                    provider.region?.let { put("region", it) }
                 }
         },
     ).toString()

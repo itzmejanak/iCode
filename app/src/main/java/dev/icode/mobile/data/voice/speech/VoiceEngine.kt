@@ -1,7 +1,5 @@
 package dev.icode.mobile.data.voice.speech
 
-import dev.icode.mobile.domain.voice.SpeechFailure
-import java.io.IOException
 import kotlinx.coroutines.channels.ReceiveChannel
 
 /**
@@ -11,7 +9,7 @@ import kotlinx.coroutines.channels.ReceiveChannel
 internal interface VoiceEngine {
     /**
      * Says each of [sentences] as it comes, and returns once the channel is closed and all of it is
-     * said; [playing] follows whether it sounds now. Cancelled, it stops at once. Throws [VoiceFailed]
+     * said; [playing] follows whether it sounds now. Cancelled, it stops at once. Throws [ProviderFailed]
      * when it cannot.
      */
     suspend fun speak(sentences: ReceiveChannel<String>, request: VoiceRequest, playing: (Boolean) -> Unit)
@@ -28,6 +26,3 @@ internal data class VoiceRequest(
     /** 1 is the voice's own pace; null where the provider takes none. */
     val speed: Float? = null,
 )
-
-/** A speech session that could not say its sentences: why, and the provider's own words where it gave some. */
-internal class VoiceFailed(val failure: SpeechFailure, val detail: String? = null) : IOException(failure.name)

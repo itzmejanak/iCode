@@ -92,7 +92,7 @@ internal class SpeechProviders(
         snapshot.copy(voice = snapshot.voice.copy(failures = if (words == null) failures - id else failures + (id to words)))
     }
 
-    /** The pages' operations; a test and a sample are the voice coordinator's, which hears and says them. */
+    /** The pages' operations; a test, a sample and a provider's choices are the voice coordinator's, which reaches the providers. */
     fun handle(intent: SpeechIntent) {
         when (intent) {
             is SpeechIntent.Edit -> stateHolder.update { it.copy(voice = it.voice.copy(editing = intent.provider)) }
@@ -102,7 +102,7 @@ internal class SpeechProviders(
             }
             is SpeechIntent.Remove -> remove(intent.id).said()
             is SpeechIntent.Use -> use(intent.id, intent.way).said()
-            is SpeechIntent.Test, is SpeechIntent.Hear -> Unit
+            is SpeechIntent.Test, is SpeechIntent.Hear, is SpeechIntent.Choices -> Unit
         }
     }
 
