@@ -41,7 +41,8 @@ internal class SpeechProviderStore(
 
     /**
      * Adds [provider] (ID "") or replaces it, and returns it as kept. [key] null keeps the saved one;
-     * a key goes with the kind it was made for. Android's keeps only its language.
+     * a key goes with the kind it was made for. A key given unlinks the assistant's; linked to it, the
+     * provider's own is forgotten. Android's keeps only its language.
      */
     fun save(provider: SpeechProvider, key: String?): SpeechProvider = synchronized(lock) {
         if (provider.id == SpeechProvider.ANDROID) {
@@ -60,6 +61,7 @@ internal class SpeechProviderStore(
             model = provider.model?.trim()?.takeIf { it.isNotEmpty() },
             language = provider.language?.trim()?.takeIf { it.isNotEmpty() },
             hasKey = false,
+            keyFrom = provider.keyFrom.takeIf { key.isNullOrBlank() },
         )
         val all = if (saved == null) existing + kept else existing.map { if (it.id == id) kept else it }
         val secret = key?.trim()?.takeIf { it.isNotEmpty() }?.let(encrypt)
@@ -67,7 +69,7 @@ internal class SpeechProviderStore(
             putString(KEY_PROVIDERS, encode(all))
             when {
                 secret != null -> putString(keyOf(id), secret)
-                saved != null && saved.kind != kept.kind -> remove(keyOf(id))
+                kept.keyFrom != null || (saved != null && saved.kind != kept.kind) -> remove(keyOf(id))
             }
         }
         stored().first { it.id == id }
@@ -111,6 +113,7 @@ internal class SpeechProviderStore(
                     model = json.optString("model").ifEmpty { null },
                     language = json.optString("language").ifEmpty { null },
                     hasKey = preferences.contains(keyOf(id)),
+                    keyFrom = json.optString("keyFrom").ifEmpty { null },
                 )
             }
         }.getOrDefault(emptyList())
@@ -123,6 +126,7 @@ internal class SpeechProviderStore(
                     provider.address?.let { put("address", it) }
                     provider.model?.let { put("model", it) }
                     provider.language?.let { put("language", it) }
+                    provider.keyFrom?.let { put("keyFrom", it) }
                 }
         },
     ).toString()

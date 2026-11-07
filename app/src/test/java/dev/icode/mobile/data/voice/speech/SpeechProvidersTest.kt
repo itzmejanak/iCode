@@ -2,6 +2,8 @@ package dev.icode.mobile.data.voice.speech
 
 import dev.icode.mobile.data.assistant.InMemoryPreferences
 import dev.icode.mobile.data.workspace.ICodeStateHolder
+import dev.icode.mobile.domain.AssistantProvider
+import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.domain.SpeechIntent
 import dev.icode.mobile.domain.voice.SpeechProvider
 import dev.icode.mobile.domain.voice.SpeechProviderKind
@@ -20,7 +22,7 @@ class SpeechProvidersTest {
     private var decryptable = true
     private val store = SpeechProviderStore(preferences, { "sealed:$it" }, { secret -> secret.removePrefix("sealed:").takeIf { decryptable } })
     private val stateHolder = ICodeStateHolder()
-    private val providers = SpeechProviders(store, stateHolder, CoroutineScope(SupervisorJob() + Dispatchers.Default))
+    private val providers = SpeechProviders(store, stateHolder, CoroutineScope(SupervisorJob() + Dispatchers.Default)) { id -> "sk-assistant".takeIf { id == "p-1" } }
     private val assembly = SpeechProvider("", SpeechProviderKind.AssemblyAI, "AssemblyAI")
 
     @Test
@@ -96,5 +98,22 @@ class SpeechProvidersTest {
         assertEquals(mapOf("s-1" to "AssemblyAI refused the key: check it in Settings › Assistant › Voice"), stateHolder.current.voice.failures)
         providers.heard("s-1", null)
         assertTrue(stateHolder.current.voice.failures.isEmpty())
+    }
+
+    @Test
+    fun `an OpenAI provider may use the assistant's OpenAI key, linked and never copied`() {
+        stateHolder.update { it.copy(assistant = it.assistant.copy(settings = it.assistant.settings.copy(providers = listOf(AssistantProvider("p-1", AssistantProviderKind.OpenAI, "OpenAI", null, hasKey = true, models = emptyList()))))) }
+        val openAi = SpeechProvider("", SpeechProviderKind.OpenAI, "OpenAI", keyFrom = "p-1")
+        val saved = providers.save(openAi, key = null).getOrThrow()
+        assertEquals("p-1", saved.keyFrom)
+        assertFalse(saved.hasKey)
+        assertEquals("sk-assistant", providers.connection(saved.id).getOrThrow().second)
+        assertFalse(preferences.all.values.any { it.toString().contains("sk-assistant") })
+        // A key of its own given, the link goes.
+        val own = providers.save(saved, "sk-own").getOrThrow()
+        assertNull(own.keyFrom)
+        assertEquals("sk-own", providers.connection(own.id).getOrThrow().second)
+        assertEquals("The assistant has no OpenAI provider p-9 with a key", providers.save(own.copy(keyFrom = "p-9"), null).exceptionOrNull()?.message)
+        assertEquals("Only OpenAI can use the assistant's key", providers.save(assembly.copy(keyFrom = "p-1"), null).exceptionOrNull()?.message)
     }
 }

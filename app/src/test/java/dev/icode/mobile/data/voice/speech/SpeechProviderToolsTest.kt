@@ -25,7 +25,7 @@ class SpeechProviderToolsTest {
     private val preferences = InMemoryPreferences()
     private val store = SpeechProviderStore(preferences, { "sealed:$it" }, { it.removePrefix("sealed:") })
     private val stateHolder = ICodeStateHolder()
-    private val providers = SpeechProviders(store, stateHolder, CoroutineScope(SupervisorJob() + Dispatchers.Default))
+    private val providers = SpeechProviders(store, stateHolder, CoroutineScope(SupervisorJob() + Dispatchers.Default)) { id -> "sk-assistant".takeIf { id == "p-1" } }
     private val list = ListSpeechProvidersTool(providers)
     private val save = SaveSpeechProviderTool(providers)
     private val remove = RemoveSpeechProviderTool(providers)

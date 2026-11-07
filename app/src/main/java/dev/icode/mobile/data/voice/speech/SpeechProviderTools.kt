@@ -42,7 +42,11 @@ internal class ListSpeechProvidersTool(private val providers: SpeechProviders) :
                     provider.modelUsed?.let { "model: $it" },
                     "language: ${provider.language ?: "automatic"}",
                     provider.address?.let { "address: $it" },
-                    if (provider.kind.needsKey || provider.hasKey) "key: ${if (provider.hasKey) "set" else "not set"}" else null,
+                    when {
+                        provider.keyFrom != null -> "key: the assistant's ${providers.assistantKeys().firstOrNull { it.first == provider.keyFrom }?.second ?: "provider"} (${provider.keyFrom})"
+                        provider.kind.needsKey || provider.hasKey -> "key: ${if (provider.hasKey) "set" else "not set"}"
+                        else -> null
+                    },
                 )
                 append("\n").append(details.joinToString(" · "))
                 append("\naudio: ").append(SpeechRules.where(provider))
@@ -58,12 +62,14 @@ internal class SaveSpeechProviderTool(private val providers: SpeechProviders) : 
     override val description = "Adds a speech provider or changes one, as the Speech Recognition page does; the user is asked first, every " +
         "time. To add, give kind, then what it needs: key (an API key the user gave), address for a server of its own, model, language. " +
         "To change one, give its id (list_speech_providers) and only what changes; Android's changes only its language. use: true makes " +
-        "it the one that hears the microphone. A key is saved and never shown again. The user can test it on its page."
+        "it the one that hears the microphone. A key is saved and never shown again; an OpenAI provider may instead use the key of the " +
+        "assistant's own OpenAI provider (key_from, its id in the assistant's providers). The user can test it on its page."
     override val parameters = listOf(
         AssistantParameter("id", "A provider's id, to change it; absent to add", required = false),
         AssistantParameter("kind", "Its kind, to add one", AssistantParameterType.Choice(KINDS.map { it.name }), required = false),
         AssistantParameter("name", "Its name; its kind's by default", required = false),
         AssistantParameter("key", "Its API key, as the user gave it", required = false),
+        AssistantParameter("key_from", "OpenAI only: the id of the assistant's OpenAI provider whose key it uses instead", required = false),
         AssistantParameter("address", "Its server's address, for a kind that asks one", required = false),
         AssistantParameter("model", "The model to ask for; its kind's default when absent", required = false),
         AssistantParameter("language", "The language spoken, as a tag (en, en-US); the phone's when absent", required = false),
@@ -83,6 +89,7 @@ internal class SaveSpeechProviderTool(private val providers: SpeechProviders) : 
             provider?.let { "“${it.name}” · ${it.kind.label} · audio to ${SpeechRules.where(it).ifEmpty { "its server" }}" },
             listOfNotNull(
                 "key: given".takeIf { arguments.textOrNull("key") != null },
+                provider?.keyFrom?.let { from -> "key: the assistant's ${providers.assistantKeys().firstOrNull { it.first == from }?.second ?: from}" },
                 provider?.modelUsed?.let { "model: $it" },
                 provider?.language?.let { "language: $it" },
             ).joinToString(" · ").ifEmpty { null },
@@ -120,6 +127,7 @@ internal class SaveSpeechProviderTool(private val providers: SpeechProviders) : 
             address = arguments.textOrNull("address") ?: provider.address,
             model = arguments.textOrNull("model") ?: provider.model,
             language = arguments.textOrNull("language") ?: provider.language,
+            keyFrom = arguments.textOrNull("key_from") ?: provider.keyFrom.takeIf { arguments.textOrNull("key") == null },
         )
     }
 

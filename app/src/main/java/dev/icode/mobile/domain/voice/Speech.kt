@@ -64,6 +64,8 @@ data class SpeechProvider(
     /** A BCP-47 tag (`en-US`). */
     val language: String? = null,
     val hasKey: Boolean = false,
+    /** The assistant's OpenAI provider whose key this one uses, by its ID (OpenAI only): linked, never copied. */
+    val keyFrom: String? = null,
 ) {
     /** The model a hearing asks for. */
     val modelUsed: String? get() = model?.takeIf { it.isNotBlank() } ?: kind.models.firstOrNull()
@@ -112,7 +114,8 @@ object SpeechRules {
             provider.kind == SpeechProviderKind.Android && provider.id != SpeechProvider.ANDROID -> "Android's recognizer is already there"
             name.isEmpty() -> "Name the provider"
             others.any { it.id != provider.id && it.name.trim().equals(name, ignoreCase = true) } -> "Another provider is called $name"
-            provider.kind.needsKey && !keyGiven && !keySaved -> "Enter $name's API key"
+            provider.keyFrom != null && provider.kind != SpeechProviderKind.OpenAI -> "Only OpenAI can use the assistant's key"
+            provider.kind.needsKey && !keyGiven && !keySaved && provider.keyFrom == null -> "Enter $name's API key"
             provider.kind.asksAddress && address.isEmpty() -> "Enter the server's address"
             provider.kind.asksAddress && !addressAllowed(address) -> "Use https:// (http only to this phone)"
             language.isNotEmpty() && !LANGUAGE.matches(language) -> "Write the language as a tag: en, or en-US"

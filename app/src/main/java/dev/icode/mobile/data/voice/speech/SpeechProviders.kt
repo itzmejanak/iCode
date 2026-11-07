@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.voice.speech
 
 import dev.icode.mobile.data.workspace.ICodeStateHolder
+import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.SpeechIntent
 import dev.icode.mobile.domain.voice.SpeechFailure
@@ -18,6 +19,8 @@ internal class SpeechProviders(
     private val store: SpeechProviderStore,
     private val stateHolder: ICodeStateHolder,
     private val scope: CoroutineScope,
+    /** The key of the assistant's OpenAI provider [id], decrypted for a hearing; null when it has none (§9 D4). */
+    private val assistantKey: (id: String) -> String?,
 ) {
     private val lock = Any()
 
@@ -28,6 +31,10 @@ internal class SpeechProviders(
 
     /** The provider that listens, by its ID. */
     fun inUse(): String = store.inUse()
+
+    /** The assistant's OpenAI providers with a key, which an OpenAI speech provider may take its key from: their IDs and names. */
+    fun assistantKeys(): List<Pair<String, String>> = stateHolder.current.assistant.settings.providers
+        .filter { it.kind == AssistantProviderKind.OpenAI && it.hasKey }.map { it.id to it.name }
 
     /** Each provider's last failure, in its words, while iCode runs. */
     fun failures(): Map<String, String> = stateHolder.current.voice.failures
@@ -40,6 +47,9 @@ internal class SpeechProviders(
         val next = if (provider.id == SpeechProvider.ANDROID) SpeechProvider.Android.copy(language = provider.language) else provider
         val keySaved = saved?.hasKey == true && saved.kind == next.kind
         SpeechRules.problem(next, all, keyGiven = !key.isNullOrBlank(), keySaved = keySaved)?.let(::refuse)
+        next.keyFrom?.takeIf { key.isNullOrBlank() }?.let { from ->
+            if (assistantKeys().none { it.first == from }) refuse("The assistant has no OpenAI provider $from with a key")
+        }
         store.save(next, key)
     }
 
@@ -60,7 +70,7 @@ internal class SpeechProviders(
     /** [id]'s provider — null: the one that listens — and its key, decrypted for a hearing; or why it cannot hear. */
     fun connection(id: String?): Result<Pair<SpeechProvider, String?>> = runCatching {
         val provider = find(id ?: store.inUse())
-        val key = store.key(provider.id)
+        val key = provider.keyFrom?.let(assistantKey) ?: store.key(provider.id)
         if (provider.kind.needsKey && key == null) refuse(SpeechRules.words(SpeechFailure.NoKey, provider))
         provider to key
     }

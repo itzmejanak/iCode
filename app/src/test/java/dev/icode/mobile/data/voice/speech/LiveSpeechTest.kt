@@ -110,6 +110,7 @@ class LiveSpeechTest {
     @Test
     fun `Deepgram's segments are joined, the interim one with them, and speech_final ends it`() {
         script = {
+            repeat(2) { if (incoming.receive() is Frame.Binary) heard.audio++ }
             say(results("turn", final = false))
             say(results("turn on", final = true))
             say(results("the", final = false))
