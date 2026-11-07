@@ -29,6 +29,9 @@ internal class SpeechProviders(
     /** The provider that listens, by its ID. */
     fun inUse(): String = store.inUse()
 
+    /** Each provider's last failure, in its words, while iCode runs. */
+    fun failures(): Map<String, String> = stateHolder.current.voice.failures
+
     /** Adds [provider] (ID "") or changes it; [key] null keeps the saved one. Android's changes only its language. */
     fun save(provider: SpeechProvider, key: String?): Result<SpeechProvider> = change {
         val all = store.providers()

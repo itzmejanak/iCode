@@ -29,6 +29,9 @@ enum class AssistantToolName(val id: String, val title: String, private val one:
     ListMcpServers("list_mcp_servers", "MCP servers", "listed the MCP servers", "listed the MCP servers %d times"),
     SaveMcpServer("save_mcp_server", "Save MCP server", "saved an MCP server", "saved %d MCP servers"),
     RemoveMcpServer("remove_mcp_server", "Remove MCP server", "removed an MCP server", "removed %d MCP servers"),
+    ListSpeechProviders("list_speech_providers", "Speech providers", "listed the speech providers", "listed the speech providers %d times"),
+    SaveSpeechProvider("save_speech_provider", "Save speech provider", "saved a speech provider", "saved %d speech providers"),
+    RemoveSpeechProvider("remove_speech_provider", "Remove speech provider", "removed a speech provider", "removed %d speech providers"),
     ;
 
     /** What [count] calls of it did: "read a file", "read 3 files". */
