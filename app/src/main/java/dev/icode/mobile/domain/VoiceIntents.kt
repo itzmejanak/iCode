@@ -1,6 +1,7 @@
 package dev.icode.mobile.domain
 
 import dev.icode.mobile.domain.voice.SpeechProvider
+import dev.icode.mobile.domain.voice.SpeechWay
 import dev.icode.mobile.domain.voice.SpokenReplies
 import dev.icode.mobile.domain.voice.VoiceFrom
 
@@ -21,7 +22,7 @@ sealed interface VoiceIntent : ICodeIntent {
     /** The spoken answer stops: a tap on the bubble, or Stop. */
     data object Silence : VoiceIntent
 
-    /** Android's voice says a sample, so the user hears it before an answer. */
+    /** The provider that reads aloud says a sample, so the user hears it before an answer. */
     data object Sample : VoiceIntent
 
     /** An answer in the chat read aloud on request, from its ▶: [key] names it while it is read. */
@@ -31,7 +32,7 @@ sealed interface VoiceIntent : ICodeIntent {
     data class ChooseSpokenReplies(val spoken: SpokenReplies) : VoiceIntent
 }
 
-/** The speech providers (docs/speech-plan.md §5): the pages' operations, which the agent's tools share. */
+/** The speech providers (docs/speech-plan.md §5, docs/tts-plan.md §5): the pages' operations, which the agent's tools share. */
 sealed interface SpeechIntent : VoiceIntent {
     /** [provider]'s page opens: a new one has the ID "". */
     data class Edit(val provider: SpeechProvider) : SpeechIntent
@@ -41,9 +42,12 @@ sealed interface SpeechIntent : VoiceIntent {
 
     data class Remove(val id: String) : SpeechIntent
 
-    /** [id] listens from now on. */
-    data class Use(val id: String) : SpeechIntent
+    /** [id] serves [way] from now on. */
+    data class Use(val id: String, val way: SpeechWay) : SpeechIntent
 
     /** Listens once with [id], from its page: what is heard shows there, and is sent nowhere. */
     data class Test(val id: String) : SpeechIntent
+
+    /** [id] says a sample, as saved, from its page. */
+    data class Hear(val id: String) : SpeechIntent
 }

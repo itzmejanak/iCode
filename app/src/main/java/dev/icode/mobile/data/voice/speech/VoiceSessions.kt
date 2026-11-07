@@ -24,8 +24,8 @@ internal class VoiceUse(val provider: SpeechProvider, val engine: VoiceEngine, v
  */
 internal class VoiceSessions(
     private val scope: CoroutineScope,
-    /** The provider that speaks, with its engine; or why there is none (its key missing, for one). */
-    private val use: () -> Result<VoiceUse>,
+    /** The provider [id] names — null: the one that speaks — with its engine; or why there is none (its key missing, for one). */
+    private val use: (id: String?) -> Result<VoiceUse>,
     /** A session began; [reading] is the answer it reads on request, by its key. */
     private val began: (reading: String?) -> Unit,
     /** Whether the session sounds now. */
@@ -38,14 +38,14 @@ internal class VoiceSessions(
     private var job: Job? = null
     private var session = 0L
 
-    /** A new session; [reading]: the answer it reads on request, by its key. */
-    fun begin(reading: String? = null) {
-        synchronized(lock) { beginLocked(reading) }
+    /** A new session, with [provider] — null: the one that speaks; [reading]: the answer it reads on request, by its key. */
+    fun begin(reading: String? = null, provider: String? = null) {
+        synchronized(lock) { beginLocked(reading, provider) }
     }
 
     /** Says [text] in this session, or in a new one. */
     fun say(text: String) {
-        synchronized(lock) { (sentences ?: beginLocked(null)).trySend(text) }
+        synchronized(lock) { (sentences ?: beginLocked(null, null)).trySend(text) }
     }
 
     /** Nothing more is said: the session ends once what it has is said. */
@@ -61,7 +61,7 @@ internal class VoiceSessions(
         synchronized(lock) { hushLocked() }
     }
 
-    private fun beginLocked(reading: String?): Channel<String> {
+    private fun beginLocked(reading: String?, provider: String?): Channel<String> {
         val previous = job
         hushLocked()
         val queue = Channel<String>(Channel.UNLIMITED)
@@ -72,7 +72,7 @@ internal class VoiceSessions(
             previous?.cancelAndJoin()
             var failure: String? = null
             try {
-                failure = speak(id, queue)
+                failure = speak(id, provider, queue)
             } finally {
                 synchronized(lock) { if (session == id) ended(failure) }
             }
@@ -80,9 +80,9 @@ internal class VoiceSessions(
         return queue
     }
 
-    /** Session [id] says [queue]: why it failed, in the provider's words; or null. */
-    private suspend fun speak(id: Long, queue: ReceiveChannel<String>): String? {
-        val chosen = use().getOrElse { return it.message }
+    /** Session [id] says [queue] with [provider]: why it failed, in the provider's words; or null. */
+    private suspend fun speak(id: Long, provider: String?, queue: ReceiveChannel<String>): String? {
+        val chosen = use(provider).getOrElse { return it.message }
         return try {
             chosen.engine.speak(queue, chosen.request) { sounds -> synchronized(lock) { if (session == id) playing(sounds) } }
             null

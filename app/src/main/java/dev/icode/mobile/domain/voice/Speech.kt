@@ -1,9 +1,10 @@
 package dev.icode.mobile.domain.voice
 
-// Speech recognition with any provider (docs/speech-plan.md): what kinds of provider there are, a
-// provider as the user set it up, and what a hearing that failed says, the same for every one.
+// Speech recognition and reading aloud with any provider (docs/speech-plan.md, docs/tts-plan.md): what
+// kinds of provider there are, a provider as the user set it up, and what a hearing or a speech
+// session that failed says, the same for every one.
 
-/** A kind of provider: what its form asks for, and what it does with the audio. */
+/** A kind of provider: what its form asks for, what it does with the audio, and how it reads aloud. */
 enum class SpeechProviderKind(
     val label: String,
     /** Words come while the user speaks; else after they stop. */
@@ -16,9 +17,16 @@ enum class SpeechProviderKind(
     val models: List<String>,
     /** Where the audio goes, said on its page; null: this phone, or the address given. */
     val host: String?,
+    /** How it reads aloud; null: it does not. */
+    val speaking: SpeakingKind? = null,
+    /** It hears the user; else it only reads aloud. */
+    val hears: Boolean = true,
 ) {
     /** Android's own recognizer: on the phone where Android offers it, else the phone's recognition service. */
-    Android("Android", live = true, needsKey = false, asksAddress = false, models = emptyList(), host = null),
+    Android(
+        "Android", live = true, needsKey = false, asksAddress = false, models = emptyList(), host = null,
+        speaking = SpeakingKind(host = null, voices = Voices.Android),
+    ),
 
     /** AssemblyAI's streaming speech-to-text (v3); its own examples stream with `universal-3-5-pro`. */
     AssemblyAI(
@@ -46,9 +54,32 @@ enum class SpeechProviderKind(
     Google("Google Cloud", live = false, needsKey = true, asksAddress = false, models = listOf("latest_short", "latest_long"), host = "speech.googleapis.com"),
     ;
 
+    /** It serves [way]. */
+    fun serves(way: SpeechWay): Boolean = when (way) {
+        SpeechWay.Listening -> hears
+        SpeechWay.Speaking -> speaking != null
+    }
+
     companion object {
         fun of(name: String?): SpeechProviderKind? = entries.firstOrNull { it.name == name }
     }
+}
+
+/** How a kind reads aloud (docs/tts-plan.md §4.1). */
+class SpeakingKind(
+    /** Where what is read aloud goes, said on its page; null: this phone, or the address given. */
+    val host: String?,
+    val voices: Voices,
+    /** The speaking models it suggests, the first its default; the user may type another. Empty: none to choose. */
+    val models: List<String> = emptyList(),
+    /** The speeds it takes, 1 its voice's own pace. Empty: it takes none. */
+    val speeds: List<Float> = emptyList(),
+)
+
+/** How a kind's voices are chosen. */
+sealed interface Voices {
+    /** In Android's settings: iCode chooses none. */
+    data object Android : Voices
 }
 
 /**
@@ -66,9 +97,18 @@ data class SpeechProvider(
     val hasKey: Boolean = false,
     /** The assistant's OpenAI provider whose key this one uses, by its ID (OpenAI only): linked, never copied. */
     val keyFrom: String? = null,
+    /** The voice that reads aloud; null: its kind's default. */
+    val voice: String? = null,
+    /** The model that reads aloud; null: its kind's default. */
+    val voiceModel: String? = null,
+    /** How fast it reads, 1 its voice's own pace; null: 1. */
+    val speed: Float? = null,
 ) {
     /** The model a hearing asks for. */
     val modelUsed: String? get() = model?.takeIf { it.isNotBlank() } ?: kind.models.firstOrNull()
+
+    /** The model a speech session asks for. */
+    val voiceModelUsed: String? get() = voiceModel?.takeIf { it.isNotBlank() } ?: kind.speaking?.models?.firstOrNull()
 
     companion object {
         /** Android's recognizer: always there, and the one used until the user chooses another. */
@@ -122,8 +162,32 @@ object SpeechRules {
             provider.kind.asksAddress && address.isEmpty() -> "Enter the server's address"
             provider.kind.asksAddress && !addressAllowed(address) -> "Use https:// (http only to this phone)"
             language.isNotEmpty() && !LANGUAGE.matches(language) -> "Write the language as a tag: en, or en-US"
+            else -> speakingProblem(provider, name)
+        }
+    }
+
+    /** Why [provider]'s speaking fields cannot be saved: a field its kind does not take, said in its words. */
+    private fun speakingProblem(provider: SpeechProvider, name: String): String? {
+        val speaking = provider.kind.speaking
+        val speaks = provider.voice != null || provider.voiceModel != null || provider.speed != null
+        return when {
+            speaks && speaking == null -> "$name does not read aloud"
+            speaks && speaking?.voices == Voices.Android -> "Android's voice is chosen in Android's settings"
+            provider.voiceModel != null && speaking?.models?.isEmpty() == true -> "$name has no models to choose for reading aloud"
+            provider.speed != null && speaking?.speeds?.contains(provider.speed) == false ->
+                speaking.speeds.takeIf { it.isNotEmpty() }?.let { "$name reads at ${it.joinToString { speed -> speedLabel(speed) }}" } ?: "$name reads at one speed"
             else -> null
         }
+    }
+
+    /** A speed as the pages say it: 1 is Normal. */
+    fun speedLabel(speed: Float): String = if (speed == 1f) "Normal" else "${speed.toString().removeSuffix(".0")}×"
+
+    /** [provider] can serve [way], or why not. */
+    fun wayProblem(provider: SpeechProvider, way: SpeechWay): String? = when {
+        provider.kind.serves(way) -> null
+        way == SpeechWay.Listening -> "${provider.name} cannot listen yet: choose it for reading aloud"
+        else -> "${provider.name} cannot read aloud yet: choose it for listening"
     }
 
     /** An address iCode sends audio to: https, or plain http only to this phone. */
@@ -132,11 +196,12 @@ object SpeechRules {
         return lower.startsWith("https://") || LOCAL.any { lower.startsWith(it) }
     }
 
-    /** What a page and the agent say of [provider]: its kind, and where its audio goes. */
-    fun where(provider: SpeechProvider): String = when {
-        provider.kind == SpeechProviderKind.Android -> "On this phone, or its recognition service"
+    /** What a page and the agent say of [provider]: where its audio goes, or what it reads aloud, for [way]. */
+    fun where(provider: SpeechProvider, way: SpeechWay = SpeechWay.Listening): String = when {
+        provider.kind == SpeechProviderKind.Android -> if (way == SpeechWay.Listening) "On this phone, or its recognition service" else "Android's text-to-speech"
         provider.kind.asksAddress -> provider.address?.substringAfter("://")?.substringBefore('/').orEmpty()
-        else -> provider.kind.host.orEmpty()
+        way == SpeechWay.Listening -> provider.kind.host.orEmpty()
+        else -> provider.kind.speaking?.host.orEmpty()
     }
 
     /** The language's tag as an ISO-639-1 code: `en-US` is `en`. */

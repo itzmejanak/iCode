@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.GraphicEq
+import androidx.compose.material.icons.outlined.RecordVoiceOver
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -20,6 +21,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import dev.icode.mobile.designsystem.DangerButton
 import dev.icode.mobile.designsystem.IcodeColors
@@ -41,6 +43,8 @@ import dev.icode.mobile.domain.VoiceIntent
 import dev.icode.mobile.domain.voice.SpeechProvider
 import dev.icode.mobile.domain.voice.SpeechProviderKind
 import dev.icode.mobile.domain.voice.SpeechRules
+import dev.icode.mobile.domain.voice.SpeechWay
+import dev.icode.mobile.domain.voice.Voices
 import dev.icode.mobile.domain.voice.VoiceFrom
 import dev.icode.mobile.domain.voice.VoiceState
 import dev.icode.mobile.navigation.NavigationActions
@@ -48,9 +52,11 @@ import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
- * One speech provider (docs/speech-plan.md §5): its name, its key — masked, never shown again once
- * saved — its server's address where it has one, its model and language, where its audio goes; Test
- * hears the user once with it, and Use for Listening makes it the one that hears. Saved, the page stays.
+ * One speech provider (docs/speech-plan.md §5, docs/tts-plan.md §5): its account — name, key (masked,
+ * never shown again once saved), its server's address where it has one, its language — then a part for
+ * each way it serves. Listening: its model, where its audio goes, Test, Use for Listening. Speaking: its
+ * voice, model and speed where it has them, where the answer goes, Hear It, Use for Speaking. Saved, the
+ * page stays.
  */
 @Composable
 fun SpeechProviderScreen(actions: NavigationActions) {
@@ -65,10 +71,14 @@ fun SpeechProviderScreen(actions: NavigationActions) {
     val saved = voice.providers.firstOrNull { it.id == editing.id }
     val kind = editing.kind
     val android = kind == SpeechProviderKind.Android
+    val speaking = kind.speaking
     var name by rememberSaveable(editing.id) { mutableStateOf(saved?.name ?: kind.label) }
     var address by rememberSaveable(editing.id) { mutableStateOf(saved?.address.orEmpty()) }
     var model by rememberSaveable(editing.id) { mutableStateOf(saved?.modelUsed.orEmpty()) }
     var language by rememberSaveable(editing.id) { mutableStateOf(saved?.language.orEmpty()) }
+    var voiceName by rememberSaveable(editing.id) { mutableStateOf(saved?.voice.orEmpty()) }
+    var voiceModel by rememberSaveable(editing.id) { mutableStateOf(saved?.voiceModelUsed.orEmpty()) }
+    var speed by rememberSaveable(editing.id) { mutableStateOf(saved?.speed) }
     // An OpenAI provider may take its key from the assistant's OpenAI provider: linked, never copied (speech-plan.md §9 D4).
     var keyFrom by rememberSaveable(editing.id) { mutableStateOf(saved?.keyFrom) }
     val assistantKeys = LocalICodeSnapshot.current.assistant.settings.providers
@@ -78,10 +88,17 @@ fun SpeechProviderScreen(actions: NavigationActions) {
     var replacingKey by remember(editing.id) { mutableStateOf(false) }
     var removing by remember { mutableStateOf(false) }
     var leaving by remember { mutableStateOf(false) }
-    val draft = SpeechProvider(editing.id, kind, name, address, model.takeIf { it != kind.models.firstOrNull() }, language, keyFrom = keyFrom)
+    val draft = SpeechProvider(
+        editing.id, kind, name, address, model.takeIf { it != kind.models.firstOrNull() }, language,
+        keyFrom = keyFrom,
+        voice = voiceName.ifBlank { null },
+        voiceModel = voiceModel.takeIf { it != speaking?.models?.firstOrNull() }?.ifBlank { null },
+        speed = speed?.takeIf { it != 1f },
+    )
     // What Back would lose: anything typed, on a new provider or a saved one.
     val typed = key.isNotBlank() || name != (saved?.name ?: kind.label) || address != saved?.address.orEmpty() ||
-        model != (saved?.modelUsed ?: kind.models.firstOrNull()).orEmpty() || language != saved?.language.orEmpty() || keyFrom != saved?.keyFrom
+        model != (saved?.modelUsed ?: kind.models.firstOrNull()).orEmpty() || language != saved?.language.orEmpty() || keyFrom != saved?.keyFrom ||
+        voiceName != saved?.voice.orEmpty() || voiceModel != (saved?.voiceModelUsed ?: speaking?.models?.firstOrNull()).orEmpty() || speed != saved?.speed
     val changed = saved == null || typed
     val problem = SpeechRules.problem(draft, voice.providers, keyGiven = key.isNotBlank(), keySaved = saved?.hasKey == true)
     BackHandler(enabled = typed) { leaving = true }
@@ -91,7 +108,7 @@ fun SpeechProviderScreen(actions: NavigationActions) {
         IcodePageColumn(Modifier.weight(1f)) {
             if (android) {
                 Text(
-                    "Android's own recognizer: on this phone where Android offers it, else the phone's recognition service.",
+                    "Android's own recognizer and voice: on this phone where Android offers them, else the phone's services.",
                     style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary),
                 )
             } else {
@@ -118,27 +135,40 @@ fun SpeechProviderScreen(actions: NavigationActions) {
                     LabeledTextField("API Key", key, { key = it }, placeholder = if (kind.needsKey) "Paste the key" else "Optional", secret = true)
                 }
                 if (kind.asksAddress) LabeledTextField("Server Address", address, { address = it }, placeholder = "https://… or http://127.0.0.1:…", literal = true)
-                if (kind.models.isNotEmpty()) {
-                    IcodeSelect(kind.models, model.ifEmpty { kind.models.first() }, { it }, { model = it }, label = "Model")
-                } else if (kind.asksAddress) {
-                    LabeledTextField("Model", model, { model = it }, placeholder = "The server's model", literal = true)
-                }
             }
             LabeledTextField("Language", language, { language = it }, placeholder = "Automatic: the phone's", literal = true)
-            Text(
-                if (android) "Audio stays with Android." else "While it listens, audio goes to ${SpeechRules.where(draft).ifEmpty { "its server" }}.",
-                style = IcodeType.Caption.copy(color = IcodeColors.TextMuted),
-            )
-            if (saved != null) Test(voice, saved, enabled = !changed)
-            if (android) {
-                val context = LocalContext.current
-                SettingRow(
-                    "Android's Settings",
-                    Modifier.fillMaxWidth(),
-                    subtitle = "Its voice input and languages",
-                    leadingIcon = Icons.Outlined.GraphicEq,
-                    onClick = { context.openFirst(Intent(Settings.ACTION_VOICE_INPUT_SETTINGS), Intent(Settings.ACTION_SETTINGS)) },
-                ) { Chevron() }
+            if (kind.hears) {
+                IcodeSection("Listening") {
+                    if (kind.models.isNotEmpty()) {
+                        IcodeSelect(kind.models, model.ifEmpty { kind.models.first() }, { it }, { model = it }, label = "Model")
+                    } else if (kind.asksAddress) {
+                        LabeledTextField("Model", model, { model = it }, placeholder = "The server's model", literal = true)
+                    }
+                    WhereItGoes(if (android) "Audio stays with Android." else "While it listens, audio goes to ${SpeechRules.where(draft).ifEmpty { "its server" }}.")
+                    if (saved != null) Test(voice, saved, enabled = !changed)
+                    if (android) {
+                        AndroidSettings("Voice Input", "Android's speech recognition", Icons.Outlined.GraphicEq, Intent(Settings.ACTION_VOICE_INPUT_SETTINGS))
+                    }
+                    if (saved != null) InUse(voice, saved, SpeechWay.Listening, enabled = !changed)
+                }
+            }
+            if (speaking != null) {
+                IcodeSection("Speaking") {
+                    when (speaking.voices) {
+                        Voices.Android -> AndroidSettings("Voice and Language", "Android's text-to-speech", Icons.Outlined.RecordVoiceOver, Intent(TTS_SETTINGS))
+                    }
+                    if (speaking.models.isNotEmpty()) {
+                        IcodeSelect(speaking.models, voiceModel.ifEmpty { speaking.models.first() }, { it }, { voiceModel = it }, label = "Model")
+                    }
+                    if (speaking.speeds.isNotEmpty()) {
+                        IcodeSelect(speaking.speeds, speed ?: 1f, SpeechRules::speedLabel, { speed = it }, label = "Speed")
+                    }
+                    WhereItGoes(
+                        if (android) "Android's text-to-speech reads the answers." else "While it reads aloud, the answer goes to ${SpeechRules.where(draft, SpeechWay.Speaking).ifEmpty { "its server" }}.",
+                    )
+                    if (saved != null) HearIt(voice, saved, enabled = !changed)
+                    if (saved != null) InUse(voice, saved, SpeechWay.Speaking, enabled = !changed)
+                }
             }
             IcodeSection {
                 problem?.takeIf { changed }?.let { Text(it, style = IcodeType.Caption.copy(color = IcodeColors.TextMuted)) }
@@ -149,11 +179,6 @@ fun SpeechProviderScreen(actions: NavigationActions) {
                         Modifier.fillMaxWidth(),
                         enabled = problem == null,
                     )
-                }
-                if (saved != null && voice.inUse != saved.id) {
-                    SecondaryButton("Use for Listening", { gateway.dispatch(SpeechIntent.Use(saved.id)) }, Modifier.fillMaxWidth(), enabled = !changed)
-                } else if (saved != null) {
-                    StatusLabel("In use: it hears the microphone", IcodeColors.Green)
                 }
                 if (saved != null && !android) DangerButton("Remove Provider", { removing = true }, Modifier.fillMaxWidth())
             }
@@ -172,9 +197,13 @@ fun SpeechProviderScreen(actions: NavigationActions) {
         )
     }
     if (removing && saved != null) {
+        val givenBack = listOfNotNull(
+            "Android's recognizer hears".takeIf { voice.inUse == saved.id },
+            "Android's voice reads aloud".takeIf { voice.speaker == saved.id },
+        )
         IcodeConfirmSheet(
             title = "Remove ${saved.name}?",
-            message = "Its API key is forgotten on this phone." + if (voice.inUse == saved.id) " Android's recognizer hears from now on." else "",
+            message = "Its API key is forgotten on this phone." + if (givenBack.isEmpty()) "" else " ${givenBack.joinToString(" and ")} from now on.",
             confirmLabel = "Remove",
             onConfirm = {
                 gateway.dispatch(SpeechIntent.Remove(saved.id))
@@ -183,6 +212,52 @@ fun SpeechProviderScreen(actions: NavigationActions) {
             },
             onDismiss = { removing = false },
         )
+    }
+}
+
+/** Where a way's audio or text goes, said under its fields. */
+@Composable
+private fun WhereItGoes(words: String) {
+    Text(words, style = IcodeType.Caption.copy(color = IcodeColors.TextMuted))
+}
+
+/** One of Android's own settings pages, which iCode opens: Android keeps them. */
+@Composable
+private fun AndroidSettings(title: String, subtitle: String, icon: ImageVector, page: Intent) {
+    val context = LocalContext.current
+    SettingRow(
+        title,
+        Modifier.fillMaxWidth(),
+        subtitle = subtitle,
+        leadingIcon = icon,
+        onClick = { context.openFirst(page, Intent(Settings.ACTION_SETTINGS)) },
+    ) { Chevron() }
+}
+
+/** Use for [way], or that [provider] serves it now; [enabled] once what is typed is saved. */
+@Composable
+private fun InUse(voice: VoiceState, provider: SpeechProvider, way: SpeechWay, enabled: Boolean) {
+    val gateway = LocalICodeGateway.current
+    if (voice.chosenId(way) == provider.id) {
+        StatusLabel(if (way == SpeechWay.Listening) "In use: it hears the microphone" else "In use: it reads the answers aloud", IcodeColors.Green)
+    } else {
+        SecondaryButton(
+            if (way == SpeechWay.Listening) "Use for Listening" else "Use for Speaking",
+            { gateway.dispatch(SpeechIntent.Use(provider.id, way)) },
+            Modifier.fillMaxWidth(),
+            enabled = enabled,
+        )
+    }
+}
+
+/** Hear It: [provider], as saved, says a sample; Stop while anything is read aloud. */
+@Composable
+private fun HearIt(voice: VoiceState, provider: SpeechProvider, enabled: Boolean) {
+    val gateway = LocalICodeGateway.current
+    if (voice.speaking) {
+        SecondaryButton("Stop", { gateway.dispatch(VoiceIntent.Silence) }, Modifier.fillMaxWidth())
+    } else {
+        SecondaryButton("Hear It", { gateway.dispatch(SpeechIntent.Hear(provider.id)) }, Modifier.fillMaxWidth(), enabled = enabled)
     }
 }
 
@@ -196,22 +271,23 @@ private fun Test(voice: VoiceState, provider: SpeechProvider, enabled: Boolean) 
     val heard = voice.heard?.takeIf { it.from == VoiceFrom.Test }
     val listening = voice.listening(VoiceFrom.Test)
     val failure = voice.failures[provider.id]
-    IcodeSection("Test") {
-        when {
-            listening -> Text(heard?.text?.ifBlank { null } ?: "Listening…", style = IcodeType.Body)
-            heard?.problem != null -> Text(heard.problem, style = IcodeType.Caption.copy(color = IcodeColors.Error))
-            heard != null -> Text(heard.text, style = IcodeType.Body)
-            failure != null -> Text("Last time: $failure", style = IcodeType.Caption.copy(color = IcodeColors.Error))
-            else -> Text("Say something: what it hears shows here, and is sent nowhere.", style = IcodeType.Caption.copy(color = IcodeColors.TextMuted))
+    when {
+        listening -> Text(heard?.text?.ifBlank { null } ?: "Listening…", style = IcodeType.Body)
+        heard?.problem != null -> Text(heard.problem, style = IcodeType.Caption.copy(color = IcodeColors.Error))
+        heard != null -> Text(heard.text, style = IcodeType.Body)
+        failure != null -> Text("Last time: $failure", style = IcodeType.Caption.copy(color = IcodeColors.Error))
+        else -> Text("Test: say something. What it hears shows here, and is sent nowhere.", style = IcodeType.Caption.copy(color = IcodeColors.TextMuted))
+    }
+    if (listening) {
+        Row(horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
+            PrimaryButton("Done", { gateway.dispatch(VoiceIntent.FinishListening) }, Modifier.weight(1f))
+            SecondaryButton("Stop", { gateway.dispatch(VoiceIntent.CancelListening) }, Modifier.weight(1f))
         }
-        if (listening) {
-            Row(horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
-                PrimaryButton("Done", { gateway.dispatch(VoiceIntent.FinishListening) }, Modifier.weight(1f))
-                SecondaryButton("Stop", { gateway.dispatch(VoiceIntent.CancelListening) }, Modifier.weight(1f))
-            }
-        } else {
-            SecondaryButton("Test", { gateway.dispatch(SpeechIntent.Test(provider.id)) }, Modifier.fillMaxWidth(), enabled = enabled && voice.microphone)
-            if (!voice.microphone) Text("Allow the microphone on the Voice page first.", style = IcodeType.Caption.copy(color = IcodeColors.TextMuted))
-        }
+    } else {
+        SecondaryButton("Test", { gateway.dispatch(SpeechIntent.Test(provider.id)) }, Modifier.fillMaxWidth(), enabled = enabled && voice.microphone)
+        if (!voice.microphone) Text("Allow the microphone on the Voice page first.", style = IcodeType.Caption.copy(color = IcodeColors.TextMuted))
     }
 }
+
+/** Settings' text-to-speech page: its action, which Android names nowhere public. */
+private const val TTS_SETTINGS = "com.android.settings.TTS_SETTINGS"

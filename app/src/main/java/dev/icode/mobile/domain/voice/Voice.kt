@@ -61,8 +61,14 @@ data class VoiceState(
     /** Each provider's last failure, in its words, while iCode runs. */
     val failures: Map<String, String> = emptyMap(),
 ) {
-    /** The provider that listens. */
-    val listener: SpeechProvider get() = providers.firstOrNull { it.id == inUse } ?: SpeechProvider.Android
+    /** The provider that serves [way], by its ID. */
+    fun chosenId(way: SpeechWay): String = when (way) {
+        SpeechWay.Listening -> inUse
+        SpeechWay.Speaking -> speaker
+    }
+
+    /** The provider that serves [way]. */
+    fun chosen(way: SpeechWay): SpeechProvider = providers.firstOrNull { it.id == chosenId(way) } ?: SpeechProvider.Android
 
     /** The microphone listens for [from]. */
     fun listening(from: VoiceFrom): Boolean = heard?.let { it.from == from && !it.final } == true

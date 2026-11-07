@@ -22,6 +22,7 @@ import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.SpeechIntent
 import dev.icode.mobile.domain.VoiceIntent
+import dev.icode.mobile.domain.voice.SpeechWay
 import dev.icode.mobile.domain.voice.SpokenReplies
 import dev.icode.mobile.domain.voice.SpokenText
 import dev.icode.mobile.domain.voice.SpokenTurn
@@ -63,7 +64,7 @@ internal class VoiceCoordinator(
         scope,
         refusal = ::refusal,
         use = { id ->
-            providers.connection(id).map { (provider, key) ->
+            providers.connection(id, SpeechWay.Listening).map { (provider, key) ->
                 SpeechUse(provider, engines.of(provider, key), SpeechRequest(language = provider.language, model = provider.modelUsed))
             }
         },
@@ -73,9 +74,10 @@ internal class VoiceCoordinator(
 
     private val sessions = VoiceSessions(
         scope,
-        use = {
-            providers.connection(providers.speaker()).mapCatching { (provider, key) ->
-                VoiceUse(provider, engines.voiceOf(provider, key), VoiceRequest(language = provider.language))
+        use = { id ->
+            providers.connection(id, SpeechWay.Speaking).mapCatching { (provider, key) ->
+                val request = VoiceRequest(voice = provider.voice, model = provider.voiceModelUsed, language = provider.language, speed = provider.speed)
+                VoiceUse(provider, engines.voiceOf(provider, key), request)
             }
         },
         began = { key -> update { it.copy(reading = key) } },
@@ -117,9 +119,10 @@ internal class VoiceCoordinator(
                 sessions.hush()
                 hearings.listen(VoiceFrom.Test, intent.id)
             }
+            is SpeechIntent.Hear -> sample(intent.id)
             is SpeechIntent -> providers.handle(intent)
             VoiceIntent.Silence -> sessions.hush()
-            VoiceIntent.Sample -> listOf(VoiceCue.Begin, VoiceCue.Say(SAMPLE), VoiceCue.End).forEach(::cue)
+            VoiceIntent.Sample -> sample(provider = null)
             is VoiceIntent.Read -> read(intent.key, intent.text)
             is VoiceIntent.ChooseSpokenReplies -> choose(intent.spoken)
         }
@@ -138,6 +141,13 @@ internal class VoiceCoordinator(
             withTimeoutOrNull(MIC_WAIT_MILLIS) { PhoneForegroundService.microphone.first { it } }
         }
         return "Open iCode once to use the microphone".takeUnless { iCodeOnScreen.value || voice.away }
+    }
+
+    /** The sample, said by [provider] — null: the one that speaks. */
+    private fun sample(provider: String?) {
+        sessions.begin(provider = provider)
+        sessions.say(SAMPLE)
+        sessions.end()
     }
 
     /** An answer read on request, as Spoken replies would say it, whatever they are set to: the user asked. */
