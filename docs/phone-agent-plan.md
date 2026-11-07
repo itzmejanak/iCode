@@ -392,7 +392,8 @@ header, no cards of actions, no dashboard.
     talking. It is `AndroidSpeech`, one engine behind [speech-plan.md](./speech-plan.md)'s
     `SpeechEngine`.
   - **Speaking:** `TextToSpeech`, with the engine and voice the user chose in Android's settings;
-    Settings › Assistant › Voice opens them, and Android's speech recognition settings.
+    Settings › Assistant › Voice opens them. Speaking with the providers listening uses is planned in
+    [tts-plan.md](./tts-plan.md) (2026-11-07); Android's stays the default.
   - Open-source models on the phone (sherpa-onnx with Whisper, SenseVoice, Kokoro and Piper voices)
     were built in P6 and removed on 2026-11-04, with the library. What an earlier build downloaded,
     and its settings, are deleted when iCode starts.
