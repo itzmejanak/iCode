@@ -14,12 +14,14 @@ assistant chats stay on your device.
 - **Phone control** (off until you turn it on): while the assistant works on your request, the text of
   the screen in front, and a picture of it when the text is not enough, are sent to the chat's AI
   provider. Nothing of the screen is kept or logged.
-- **Voice:** what you say goes to the speech recognition you chose in Settings › Assistant › Voice ›
-  Speech Recognition, and only to it: Android's own by default (on the phone itself where Android
+- **Voice:** what you say goes to the provider you chose to listen in Settings › Assistant › Voice,
+  and only to it: Android's own speech recognition by default (on the phone itself where Android
   offers it, else the phone's recognition service), or a provider you added — AssemblyAI, OpenAI, an
-  OpenAI-compatible server, Deepgram or Google Cloud — under that provider's own terms. Its key is
-  encrypted on the phone. Answers read aloud go to Android's text-to-speech engine. The microphone is
-  on only while iCode listens. Nothing heard or said is kept or logged.
+  OpenAI-compatible server, Deepgram or Google Cloud — under that provider's own terms. An answer read
+  aloud goes, as text, only to the provider you chose to speak: Android's text-to-speech by default,
+  or AssemblyAI, OpenAI, an OpenAI-compatible server, Deepgram, Google Cloud, Azure AI Speech or
+  ElevenLabs. Each key is encrypted on the phone. The microphone is on only while iCode listens.
+  Nothing heard or said is kept or logged.
 - **Runtime and tools:** the Ubuntu base image and optional tools are downloaded from the sources
   listed in `app/src/main/assets/runtime/manifest.json`.
 - **iCode website** (only in builds that set a website address): iCode reads app config, release

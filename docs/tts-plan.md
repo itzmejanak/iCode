@@ -1,7 +1,8 @@
 # Reading aloud with any provider
 
-Status: **plan** (2026-11-07), the owner's request. Nothing is built yet; the decisions in §9 wait
-for the owner.
+Status: **built** (2026-11-07), the owner's request: V0–V6, every decision in §9 as recommended. §10
+says where the build went past the plan. The phone checks VP1–VP8 (§7) are still to be run on a phone,
+with keys the owner gives.
 
 > "Now same like that let's plan for TTS provider agnostic … whether we can use same backend of stt or
 > same providers … so ui looks consistent for voice page and make things clean and best and 0 gaps
@@ -99,8 +100,9 @@ Source: [deepgram/deepgram-api-specs](https://github.com/deepgram/deepgram-api-s
   - The server sends audio chunks, then `Metadata`, `Flushed`, `Cleared` and `Warning`.
 - **One request:** `POST /v1/speak`.
 - **Voices** are models. The spec lists 90 `aura-2` voices in seven languages (English 41, Spanish 17,
-  Dutch 9, Italian 9, German 7, Japanese 5, French 2), and 13 older `aura-*-en`. Its own default is
+  Dutch 9, Italian 9, German 7, Japanese 5, French 2), and 12 older `aura-*-en`. Its own default is
   `aura-asteria-en`.
+- **Speed:** 0.7 to 1.5.
 
 ### 1.5 Google Cloud Text-to-Speech
 
@@ -127,7 +129,9 @@ Source: [Azure-Samples/cognitive-services-speech-sdk](https://github.com/Azure-S
     `X-Microsoft-OutputFormat: riff-24khz-16bit-mono-pcm` (a WAV file).
   - **Body:** SSML: `<speak …><voice name="en-US-JennyNeural">…</voice></speak>`. The text is
     escaped into an XML text node.
-- **Not read here:** the voice-list endpoint. Voices are typed by name until it is read in its cycle.
+- **Voices** (read in V2, from Microsoft's own Speech SDK for JavaScript, `SynthesisRestAdapter` and
+  `IVoiceJson`): `GET https://<region>.tts.speech.microsoft.com/cognitiveservices/voices/list` with the
+  same key header; each voice has `ShortName`, `DisplayName`, `Locale` and `Gender`.
 
 ### 1.7 ElevenLabs
 
@@ -152,7 +156,7 @@ Source: [elevenlabs/elevenlabs-python](https://github.com/elevenlabs/elevenlabs-
 | V4 | **Adapters by protocol.** Android; one socket runner for AssemblyAI, Deepgram and OpenAI; one request-per-sentence runner for Google, ElevenLabs, Azure and OpenAI-compatible servers | Each provider keeps only its protocol |
 | V5 | **One player,** `VoicePlayer`: `AudioTrack`, 16-bit mono PCM at the rate the engine asked for, with the attributes Android's voice uses today. Every cloud provider is asked for PCM or WAV, so iCode decodes nothing | Fewer moving parts; the same sound path for all |
 | V6 | **No gaps between sentences.** A socket sends each sentence as it comes, and its audio plays as it arrives. A per-sentence service is sent the next sentence while the one before it plays | The first words are heard while the model still writes |
-| V7 | **Voices from the provider:** the live list where its API has one (Google, ElevenLabs), the spec's list where the spec fixes it (OpenAI, Deepgram, AssemblyAI), typed where neither (Azure, OpenAI-compatible servers). Filtered by the provider's language | Nothing invented, and no voice that is not there |
+| V7 | **Voices from the provider:** the live list where its API has one (Google, ElevenLabs, Azure), the spec's list where the spec fixes it (OpenAI, Deepgram, AssemblyAI), typed where neither (OpenAI-compatible servers). Filtered by the provider's language | Nothing invented, and no voice that is not there |
 | V8 | **Failures in the shared words** (`SpeechFailure`): "The answer was not read aloud", with the provider's reason. The answer stays on screen. Nothing goes to another provider | As for listening (speech-plan S8) |
 | V9 | **The agent uses the same three tools,** which gain `voice`, `voice_model`, `speed` and `use: listening`, `speaking` or `both`; still asked about every time | One owner, two callers (agent-control-plan §1) |
 | V10 | **What is read aloud goes only to the provider that speaks;** it is never logged | The voice rule today |
@@ -214,7 +218,7 @@ whether it takes a speed.
 | OpenAI-compatible | yes | yes | typed | — (the server's) | `wav` |
 | Deepgram | yes | yes | the `aura-2` voices for the language | `aura-asteria-en` (its spec's default) | `linear16`, 24 kHz |
 | Google Cloud | yes | yes | `v1/voices` for the language | the first it lists | `PCM`, 24 kHz |
-| Azure (new) | not yet (speech-plan D2) | yes | typed (`en-US-JennyNeural`) | — | `riff-24khz-16bit-mono-pcm` |
+| Azure (new) | not yet (speech-plan D2) | yes | `voices/list` for the language | the first it lists | `riff-24khz-16bit-mono-pcm` |
 | ElevenLabs (new) | not yet (§8) | yes | `v1/voices` | the first it lists | `pcm_24000` |
 
 ### 4.2 The factory
@@ -230,8 +234,8 @@ listening. A new provider follows the same steps as for listening:
 | Adapter | One speech session |
 |---|---|
 | `AndroidVoice` | `VoiceSpeaker`, behind the interface, unchanged |
-| `AssemblyAiVoice` | Opens `/v1/ws` with `voice_id`, `sample_rate=24000`, `encoding=pcm_s16le` and `language` (its English name: `english`, `spanish`… from the provider's tag). Each sentence: `Generate`, then `Flush`; `Audio` plays as it comes; `FlushDone` ends the sentence. `Terminate` at the end, `Cancel` on Silence |
-| `DeepgramVoice` | Opens `/v1/speak` with the voice as `model`, `encoding=linear16`, `sample_rate=24000` and `speed`. Each sentence: `Speak`, then `Flush`; its chunks play; `Flushed` ends the sentence. `Close` at the end, `Clear` on Silence |
+| `AssemblyAiVoice` | Opens `/v1/ws` with `voice_id`, `sample_rate=24000`, `encoding=pcm_s16le` and `language` (its English name: `english`, `spanish`… from the provider's tag). Each sentence: `Generate`, then `Flush`; `Audio` plays as it comes; `FlushDone` ends the sentence. `Terminate` at the end; on Silence the socket closes (§10) |
+| `DeepgramVoice` | Opens `/v1/speak` with the voice as `model`, `encoding=linear16`, `sample_rate=24000` and `speed`. Each sentence: `Speak`, then `Flush`; its chunks play; `Flushed` ends the sentence. `Close` at the end; on Silence the socket closes (§10) |
 | `OpenAiVoice` | A `realtime` session on `gpt-realtime-2.1-mini`, audio out: PCM at 24 kHz, the voice, the speed. Instructions: read the text it is given exactly, word for word, adding and leaving out nothing. Each sentence is one response; `response.output_audio.delta` plays. Its exact client events are taken from the spec in V4 |
 | `GoogleVoice` | `text:synthesize` per sentence, `PCM` at 24 kHz, the voice by name and language, `speakingRate`; the key in `X-Goog-Api-Key` |
 | `ElevenLabsVoice` | `/v1/text-to-speech/{voice}/stream?output_format=pcm_24000` per sentence, `model_id`, `language_code`, and `previous_text` set to the sentence before, for continuity; chunks play as they come |
@@ -317,7 +321,7 @@ They are the same three tools:
 | V0 | `VoiceEngine`, `AndroidVoice` (`VoiceSpeaker` behind it), `voiceOf`, the coordinator through them; the `speaker` choice stored, Android's by default. Nothing changes for the user | the coordinator's sessions with a fake voice: sentences in order, Silence, End, a failure's notice |
 | V1 | The kinds' speaking capabilities, the speaking fields, `use(id, way)`; the Voice page's two rows and their chooser sheets; the provider page's Speaking part with Hear It; Android's TTS link | the store and owner (fields, both choices, removal giving back a way, refusals); the guards |
 | V2 | `VoicePlayer`, the WAV reader, the per-sentence runner; Google, ElevenLabs, Azure (the kind is new) and OpenAI-compatible servers. First read Azure's voice list | a fake player: order, no gap (N+1 asked before N ends), Silence; fake HTTP servers for each; WAV by chunks |
-| V3 | The socket runner; AssemblyAI and Deepgram | fake sockets: `Generate`/`Speak` then `Flush` per sentence, the audio in order, `Cancel`/`Clear` on Silence, the codes mapped |
+| V3 | The socket runner; AssemblyAI and Deepgram | fake sockets: `Generate`/`Speak` then `Flush` per sentence, the audio in order, the socket closed on Silence and reopened after an idle close, the codes mapped |
 | V4 | `OpenAiVoice` on the Realtime API (D3) | a fake realtime socket: the session, one response per sentence, deltas in order |
 | V5 | The tools' speaking fields | as `SpeechProviderToolsTest`: the fields, `use` both ways, refusals |
 | V6 | Docs as built (this plan, speech-plan, phone-agent-plan §5.8, PRIVACY.md, PR-ASSIST-24, US-ASSIST-017, the changelog), guards, CI | — |
@@ -343,7 +347,7 @@ They are the same three tools:
   its slug or ID.
 - SSML or markup written by the user.
 
-## 9. Owner decisions
+## 9. Owner decisions (taken 2026-11-07: all as recommended)
 
 | # | Decision | Recommended |
 |---|---|---|
@@ -353,3 +357,41 @@ They are the same three tools:
 | D4 | The Voice page chooses each way in a sheet from the bottom of the screen, with Providers › at its foot (§5) | Yes |
 | D5 | Speaking lowers other sound (transient focus with ducking) for every engine, Android's included | Yes |
 | D6 | No silent fallback for speaking either: a provider that fails says why, and the answer stays on screen | Yes |
+
+## 10. As built
+
+Each cycle compiled, passed its tests and both guards, and went to `main` before the next: V0
+(50655a9), V1 (d101777), V2 (147b130), V3–V4 (d079a75), V5–V6. Where the build went past the plan:
+
+- **Sessions:** `VoiceSessions` runs one speech session at a time for the coordinator, as
+  `SpeechHearings` does for hearings, so its tests need no phone. `AndroidVoice` makes its engine
+  when a session begins and lets it go after two idle minutes.
+- **One failure for both ways:** `ProviderFailed` (the shared failures and the provider's words)
+  replaces the hearing's upload failure; the words name the way ("Text-to-speech" for Android's).
+- **The player:** `AudioTrack` resets its position on `stop()`, and Android 11 (iCode's minimum) has
+  no start threshold to set, so what is left after a sentence is heard out by time. Writes never
+  block, so a hush is immediate. Chunks are played in whole samples (`WholeSamples`), per sentence.
+- **Lowering other sound** (D5) follows the coordinator's `speaking`, so it covers every engine with
+  one `VoiceFocus`.
+- **Sockets:** a socket opens as the session begins, while the model still thinks. One the provider
+  closes while there is nothing to say is opened again for the next sentence. Hushed, the socket
+  closes at once: `Cancel` and `Clear` are not sent, as a cancelled session's socket can no longer
+  send, and the close ends the provider's work.
+- **AssemblyAI:** its US or EU servers; its six languages by name, another refused before anything
+  is sent ("AssemblyAI cannot speak this language"); its eleven voices, or an account's own by name;
+  no model chosen (its own per region and language).
+- **Deepgram:** the voices of the provider's language are offered, `aura-asteria-en` first for
+  English, its spec's default; speed 0.75 to 1.5.
+- **OpenAI:** each sentence is an out-of-band response (`conversation: none`, its own input), one at a
+  time, as only one response writes at once; `gpt-realtime-2.1-mini` by default, `gpt-realtime-2.1`
+  offered; no reasoning setting, as the spec does not say this model takes one.
+- **ElevenLabs:** its models are listed live too (`/v1/models`, those that read aloud); its residency
+  servers are offered; `language_code` is not sent, its spec saying `multilingual_v2` does not take it;
+  no speed is offered, its spec giving no range.
+- **Azure:** its voices are listed (§1.6) for the language, not typed; its region is typed.
+- **The pages:** Language stays in a provider's account part, one for both ways (Android's voice
+  keeps Android's settings); servers and region sit in the Speaking part. A provider's voice lists
+  are asked when its page opens and again once it is saved. Hear It shows Stop while anything reads
+  aloud.
+- **The tools:** `region` is a parameter too; a way a kind does not serve is refused before anything
+  is saved.

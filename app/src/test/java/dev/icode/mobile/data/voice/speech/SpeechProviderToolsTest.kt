@@ -45,15 +45,22 @@ class SpeechProviderToolsTest {
     @Test
     fun `a provider is added, listened with, listed as the page shows it, and its key never read back`() {
         assertEquals(
-            "android · Android · Android · listens now\nlanguage: automatic\naudio: On this phone, or its recognition service",
+            "android · Android · Android · listens now · speaks now\nlanguage: automatic\naudio: On this phone, or its recognition service\n" +
+                "reads aloud: with the voice and language chosen in Android's settings",
             run(list, JSONObject()),
         )
         val added = run(save, assembly)
         val id = store.providers().last().id
-        assertEquals("Added AssemblyAI ($id), key set; it hears the microphone.", added)
+        assertEquals("Added AssemblyAI ($id), key set; it hears the microphone; Android still reads the answers aloud.", added)
         assertEquals(id, stateHolder.current.voice.inUse)
         val listed = run(list, JSONObject())
-        assertTrue(listed, listed.endsWith("$id · AssemblyAI · AssemblyAI · listens now\nmodel: universal-3-5-pro · language: automatic · key: set\naudio: streaming.assemblyai.com"))
+        assertTrue(
+            listed,
+            listed.endsWith(
+                "$id · AssemblyAI · AssemblyAI · listens now\nmodel: universal-3-5-pro · language: automatic · key: set\naudio: streaming.assemblyai.com\n" +
+                    "reads aloud: voice: aai-jane · text to tts.us.assemblyai.com",
+            ),
+        )
         assertFalse(listed.contains("aai-secret"))
         assertEquals("aai-secret", store.key(id))
         // What the user is asked names the key, never shows it.
@@ -66,7 +73,7 @@ class SpeechProviderToolsTest {
         run(save, assembly)
         val id = store.providers().last().id
         assertEquals(
-            "Changed Dictation ($id), key set; it hears the microphone.",
+            "Changed Dictation ($id), key set; it hears the microphone; Android still reads the answers aloud.",
             run(save, JSONObject().put("id", id).put("name", "Dictation").put("language", "de")),
         )
         val kept = store.providers().last()
@@ -95,6 +102,33 @@ class SpeechProviderToolsTest {
         assertEquals("Removed AssemblyAI. Android's recognizer hears the microphone from now on.", run(remove, JSONObject().put("id", id)))
         assertEquals(SpeechProvider.ANDROID, stateHolder.current.voice.inUse)
         assertEquals(listOf(SpeechProvider.Android), store.providers())
+    }
+
+    @Test
+    fun `a provider reads aloud with its voice and speed, chosen for speaking or both, and its fields are refused in its words`() {
+        val deepgram = JSONObject().put("kind", "Deepgram").put("key", "dg-secret").put("voice", "aura-2-thalia-en").put("speed", 1.25).put("use", "speaking")
+        val asked = save.detail(deepgram)
+        assertTrue(asked, asked.contains("voice: aura-2-thalia-en · speed: 1.25×") && asked.contains("it reads the answers aloud from now on"))
+        val added = run(save, deepgram)
+        val id = store.providers().last().id
+        assertEquals("Added Deepgram ($id), key set; Android still hears the microphone; it reads the answers aloud.", added)
+        assertEquals(id, stateHolder.current.voice.speaker)
+        val listed = run(list, JSONObject())
+        assertTrue(listed, listed.contains("$id · Deepgram · Deepgram · speaks now\n") && listed.contains("reads aloud: voice: aura-2-thalia-en · speed: 1.25× · text to api.deepgram.com"))
+        assertEquals(
+            "Changed Deepgram ($id), key set; it hears the microphone; it reads the answers aloud.",
+            run(save, JSONObject().put("id", id).put("use", "both")),
+        )
+        assertEquals("Deepgram reads at 0.75×, Normal, 1.25×, 1.5×", refusal(save, JSONObject().put("id", id).put("speed", 2)))
+        assertEquals("use is listening, speaking, both, not sometimes", refusal(save, JSONObject().put("id", id).put("use", "sometimes")))
+        val azure = JSONObject().put("kind", "Azure").put("key", "az").put("region", "eastus").put("use", "listening")
+        assertEquals("Azure AI Speech cannot listen yet: choose it for reading aloud", refusal(save, azure))
+        assertEquals(2, store.providers().size)
+        assertEquals(
+            "Removed Deepgram. Android's recognizer hears the microphone from now on. Android's voice reads the answers aloud from now on.",
+            run(remove, JSONObject().put("id", id)),
+        )
+        assertEquals(SpeechProvider.ANDROID, stateHolder.current.voice.speaker)
     }
 
     @Test

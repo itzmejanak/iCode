@@ -391,21 +391,24 @@ header, no cards of actions, no dashboard.
     user's recognition service; the words appear as they are heard, and it ends when the user stops
     talking. It is `AndroidSpeech`, one engine behind [speech-plan.md](./speech-plan.md)'s
     `SpeechEngine`.
-  - **Speaking:** `TextToSpeech`, with the engine and voice the user chose in Android's settings;
-    Settings › Assistant › Voice opens them. Speaking with the providers listening uses is planned in
-    [tts-plan.md](./tts-plan.md) (2026-11-07); Android's stays the default.
+  - **Speaking:** by the provider chosen to speak ([tts-plan.md](./tts-plan.md), built 2026-11-07):
+    Android's `TextToSpeech` by default (`AndroidVoice`, with the engine and voice the user chose in
+    Android's settings, which its provider page opens), or AssemblyAI, OpenAI, an OpenAI-compatible
+    server, Deepgram, Google Cloud, Azure AI Speech or ElevenLabs, behind one `VoiceEngine`. Other
+    sound is lowered while any of them speaks.
   - Open-source models on the phone (sherpa-onnx with Whisper, SenseVoice, Kokoro and Piper voices)
     were built in P6 and removed on 2026-11-04, with the library. What an earlier build downloaded,
     and its settings, are deleted when iCode starts.
   - **Other providers** ([speech-plan.md](./speech-plan.md), built 2026-11-07): AssemblyAI, OpenAI,
-    an OpenAI-compatible server, Deepgram or Google Cloud, chosen on Settings › Assistant › Voice ›
-    Speech Recognition, or by the assistant when asked. The bubble and the composer are the same
-    whichever hears.
+    an OpenAI-compatible server, Deepgram or Google Cloud, chosen on Settings › Assistant › Voice in
+    the Speech Recognition sheet, or by the assistant when asked. The bubble and the composer are
+    the same whichever hears.
 - **Read as it is written.** A turn to be read aloud is read while the model writes it
   (`SpokenTurn`, `SpokenText.ready`): each sentence is said once it is whole, never from inside a
-  code block, and the rest of a reply once it is recorded. One speech session per turn: Android's
-  engine is made ready as the turn begins, while the model still thinks, and each sentence is queued
-  (`QUEUE_ADD`) the moment it is whole, so the first is heard while the rest is written. A question
+  code block, and the rest of a reply once it is recorded. One speech session per turn
+  (`VoiceSessions`): the provider that speaks is made ready as the turn begins, while the model still
+  thinks — Android's engine, or a provider's socket — and each sentence goes to it the moment it is
+  whole, so the first is heard while the rest is written. A question
   the turn waits on is said in turn; a turn stopped or failed hushes it, and another chat shown is
   not read.
 - **Short when spoken.** A turn read aloud adds one section to its instructions, everything else as

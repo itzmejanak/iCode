@@ -51,6 +51,15 @@ All notable changes to iCode are documented here. The format follows
   The bubble and the chat's microphone work the same with each; a provider that fails says why in its
   name, and your voice never goes to another instead. The assistant sets them up when asked, asking
   every time.
+- Answers read aloud by any provider: the same providers read aloud too — AssemblyAI, OpenAI,
+  Deepgram, Google Cloud and OpenAI-compatible servers, and two that only speak, Azure AI Speech and
+  ElevenLabs. One provider listens and one speaks, each chosen on the Voice page in a sheet from the
+  bottom with Providers at its foot (the page is now Speech Providers). A provider's page has a
+  Speaking part: its voice (its own list, or its API's), model and speed where it has them, Hear It
+  and Use for Speaking; Android's opens its text-to-speech settings. Each sentence plays as soon as it
+  is written, the next made while one plays; other sound is lowered while iCode speaks. A provider that
+  fails says why, the answer stays on screen, and nothing goes to another instead. OpenAI reads with
+  its realtime model, as its Speech API shuts down on 2027-01-06, and its page says it may stray.
 - iCode has no dialogs: every confirmation, question and long operation is a sheet, and every sheet
   closes with a swipe down as well as ×, Back or a tap outside.
 - The bell and the undo pill say nothing in words: a notice rings the bell with the unread count, and

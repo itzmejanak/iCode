@@ -425,8 +425,9 @@ S0 (9b8b456), S1–S2 (7747f0b), S3 (329077a), S4–S6 (5c67d51), D4 (429977c), 
 
 ## 8. Not now
 
-- Speaking with other providers' voices: planned in [tts-plan.md](./tts-plan.md) (2026-11-07), on
-  this plan's providers, owner and tools.
+- Speaking with other providers' voices: built by [tts-plan.md](./tts-plan.md) (2026-11-07), on this
+  plan's providers, owner and tools; the Speech Recognition page became Speech Providers, each way
+  chosen in a sheet on the Voice page.
 - Google v2 and Chirp: they need a service account, not a key.
 - Words from the workspace (file and symbol names) sent as key terms (`keyterms_prompt`, `keyterm`,
   `keywords`).

@@ -1159,7 +1159,7 @@ Acceptance criteria:
 Acceptance criteria:
 
 - The microphone in the chat and in the bubble shows my words as they are heard and sends them once I stop talking; tapping it again sends what was heard so far.
-- **Settings › Assistant › Voice** allows the microphone, shows what hears it (Speech Recognition: Android's own recognizer unless I chose another, US-ASSIST-016), chooses when answers are read aloud, plays a sample, and opens Android's voice settings; Android's own voice reads aloud.
+- **Settings › Assistant › Voice** allows the microphone, shows who hears it and who reads aloud — Android's own unless I chose another (US-ASSIST-016, US-ASSIST-017) — each chosen in a sheet from the bottom, chooses when answers are read aloud, and plays a sample with the voice that reads.
 - **Answers read aloud**: Off, or In the bubble (the default); in the chat, where I see it, an answer plays only from ▶ beside Copy. An answer read aloud is short, and each sentence is heard as soon as it is written, without code or links; a new message, Stop or a tap on the bubble silences it.
 - Without the microphone allowed, or with no speech engine on the phone, the place I tapped says what to do.
 
@@ -1208,11 +1208,25 @@ Acceptance criteria:
 
 Acceptance criteria:
 
-- **Settings › Assistant › Voice › Speech Recognition** lists Android's recognizer, always there, and the providers I added — AssemblyAI, OpenAI, an OpenAI-compatible server, Deepgram, Google Cloud — the one in use marked, each with where its audio goes.
+- **Settings › Assistant › Voice** has a Speech Recognition row: its sheet lists the providers that hear, the one in use checked, and Providers at its foot. **Speech Providers** lists Android's, always there, and the providers I added — AssemblyAI, OpenAI, an OpenAI-compatible server, Deepgram, Google Cloud — each marked Listens or Speaks where it does.
 - A provider's page takes its name, its API key (masked, never shown again once saved), its server's address where it has one, its model and its language. An OpenAI one may use the key of the assistant's OpenAI provider instead. Test hears me once and shows the words there, sent nowhere; Use for Listening makes it the one in use.
 - The bubble and the chat's microphone work the same whichever is in use: the words as they are heard, or once I stop for a provider that answers then.
 - A provider that fails says why in its own name — a refused key, no credit, busy, no network — and my voice is never sent to another one instead.
 - The assistant adds, changes, chooses and removes them when I ask, as the page does: every change asks me first, and a key it is given is never read back.
+
+### US-ASSIST-017 — Choose the voice that reads answers aloud
+
+**As a phone user, I want to choose the voice that reads the assistant's answers, so that I hear the one I like, in my language, from the provider I trust.**
+
+Acceptance criteria:
+
+- **Settings › Assistant › Voice** has a Voice row under Read Aloud: its sheet lists the providers that speak — Android's, AssemblyAI, OpenAI, an OpenAI-compatible server, Deepgram, Google Cloud, Azure AI Speech, ElevenLabs — the one that speaks checked, and Providers at its foot. Play Sample uses it.
+- One provider listens and one speaks, chosen separately; one account's key serves both.
+- A provider's page has a Speaking part: its voice — from its own list, or the list its API gives for my language, or typed for a server of my own — its model and speed where it has them, its servers or region where it has them, where the answer goes, Hear It and Use for Speaking. Android's opens Android's text-to-speech settings. OpenAI's says its realtime model may stray from the text.
+- The first sentence is heard while the assistant still writes, and no gap falls between sentences; music and other sound are lowered while it speaks and come back after.
+- A tap on the bubble, Stop or a new message silences it at once.
+- A provider that fails says why — "The answer was not read aloud", with its reason — the answer stays on screen, and the text is never sent to another provider instead.
+- The assistant sets a provider's voice, model and speed, and chooses it for speaking, when I ask, asking me first every time.
 
 ## 19. Public Website and Distribution
 
