@@ -111,18 +111,18 @@ class VoiceSessionsTest {
     @Test
     fun `a failure is said in the shared words, naming the provider and the way`() {
         use = Result.success(VoiceUse(google, voice, VoiceRequest()))
-        voice.failure = VoiceFailed(SpeechFailure.KeyRefused)
+        voice.failure = ProviderFailed(SpeechFailure.KeyRefused)
         sessions.begin()
         sessions.say("Hello.")
         sessions.end()
         until("ended Google Cloud refused the key: check it in Settings › Assistant › Voice")
         // What was said, and the provider's words, never reach the log: the failure's type alone.
-        assertEquals(listOf("Speaking failed (VoiceFailed)"), logged)
+        assertEquals(listOf("Speaking failed (ProviderFailed)"), logged)
     }
 
     @Test
     fun `Android's failures are text-to-speech's, and anything else is the provider failing`() {
-        voice.failure = VoiceFailed(SpeechFailure.Unavailable)
+        voice.failure = ProviderFailed(SpeechFailure.Unavailable)
         sessions.say("Hello.")
         sessions.end()
         until("ended This phone has no text-to-speech engine")

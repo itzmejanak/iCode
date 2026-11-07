@@ -79,7 +79,7 @@ class SpeechProviderToolsTest {
     @Test
     fun `what the page refuses, the model is told in its words`() {
         assertEquals("Enter AssemblyAI's API key", refusal(save, JSONObject().put("kind", "AssemblyAI")))
-        val kinds = "AssemblyAI, OpenAI, OpenAICompatible, Deepgram, Google"
+        val kinds = "AssemblyAI, OpenAI, OpenAICompatible, Deepgram, Google, Azure, ElevenLabs"
         assertEquals("Give kind, to add one: $kinds", refusal(save, JSONObject().put("key", "k")))
         assertEquals("Whisper is not a kind: $kinds", refusal(save, JSONObject().put("kind", "Whisper")))
         assertEquals("There is no speech provider s-0: list_speech_providers lists them", refusal(save, JSONObject().put("id", "s-0")))

@@ -50,4 +50,7 @@ sealed interface SpeechIntent : VoiceIntent {
 
     /** [id] says a sample, as saved, from its page. */
     data class Hear(val id: String) : SpeechIntent
+
+    /** [id]'s voices, and its models where it lists them, asked of its API for its page. */
+    data class Choices(val id: String) : SpeechIntent
 }

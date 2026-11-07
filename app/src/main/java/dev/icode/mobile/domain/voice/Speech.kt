@@ -44,14 +44,45 @@ enum class SpeechProviderKind(
      */
     OpenAI("OpenAI", live = true, needsKey = true, asksAddress = false, models = listOf("gpt-live-transcribe", "gpt-transcribe"), host = "api.openai.com"),
 
-    /** A server that speaks OpenAI's `/audio/transcriptions`: on this phone, or one the user names. */
-    OpenAICompatible("OpenAI-compatible", live = false, needsKey = false, asksAddress = true, models = emptyList(), host = null),
+    /** A server that speaks OpenAI's `/audio/transcriptions` and `/audio/speech`: on this phone, or one the user names. */
+    OpenAICompatible(
+        "OpenAI-compatible", live = false, needsKey = false, asksAddress = true, models = emptyList(), host = null,
+        speaking = SpeakingKind(host = null, voices = Voices.Typed("alloy"), speeds = SpeakingKind.SPEEDS),
+    ),
 
     /** Deepgram's live speech-to-text. */
     Deepgram("Deepgram", live = true, needsKey = true, asksAddress = false, models = listOf("nova-3", "nova-2"), host = "api.deepgram.com"),
 
-    /** Google Cloud Speech-to-Text v1, which takes an API key: v2 takes none. */
-    Google("Google Cloud", live = false, needsKey = true, asksAddress = false, models = listOf("latest_short", "latest_long"), host = "speech.googleapis.com"),
+    /** Google Cloud Speech-to-Text v1, which takes an API key: v2 takes none; and its Text-to-Speech v1, which takes one too. */
+    Google(
+        "Google Cloud", live = false, needsKey = true, asksAddress = false, models = listOf("latest_short", "latest_long"), host = "speech.googleapis.com",
+        speaking = SpeakingKind(host = "texttospeech.googleapis.com", voices = Voices.Listed, speeds = SpeakingKind.SPEEDS),
+    ),
+
+    /** Azure AI Speech's text-to-speech REST API, with a resource's key and region. It does not listen yet (docs/speech-plan.md §9 D2). */
+    Azure(
+        "Azure AI Speech", live = false, needsKey = true, asksAddress = false, models = emptyList(), host = null, hears = false,
+        speaking = SpeakingKind(host = "{region}.tts.speech.microsoft.com", voices = Voices.Listed, regions = Regions.Typed("eastus")),
+    ),
+
+    /** ElevenLabs' text-to-speech, its voices and models listed by its API; on its residency servers where the account is. It does not listen yet. */
+    ElevenLabs(
+        "ElevenLabs", live = false, needsKey = true, asksAddress = false, models = emptyList(), host = null, hears = false,
+        speaking = SpeakingKind(
+            host = "api.elevenlabs.io",
+            voices = Voices.Listed,
+            listsModels = true,
+            regions = Regions.Fixed(
+                listOf(
+                    "Worldwide" to "api.elevenlabs.io",
+                    "United States" to "api.us.elevenlabs.io",
+                    "European Union" to "api.eu.residency.elevenlabs.io",
+                    "India" to "api.in.residency.elevenlabs.io",
+                    "Singapore" to "api.sg.residency.elevenlabs.io",
+                ),
+            ),
+        ),
+    ),
     ;
 
     /** It serves [way]. */
@@ -63,23 +94,6 @@ enum class SpeechProviderKind(
     companion object {
         fun of(name: String?): SpeechProviderKind? = entries.firstOrNull { it.name == name }
     }
-}
-
-/** How a kind reads aloud (docs/tts-plan.md §4.1). */
-class SpeakingKind(
-    /** Where what is read aloud goes, said on its page; null: this phone, or the address given. */
-    val host: String?,
-    val voices: Voices,
-    /** The speaking models it suggests, the first its default; the user may type another. Empty: none to choose. */
-    val models: List<String> = emptyList(),
-    /** The speeds it takes, 1 its voice's own pace. Empty: it takes none. */
-    val speeds: List<Float> = emptyList(),
-)
-
-/** How a kind's voices are chosen. */
-sealed interface Voices {
-    /** In Android's settings: iCode chooses none. */
-    data object Android : Voices
 }
 
 /**
@@ -103,6 +117,8 @@ data class SpeechProvider(
     val voiceModel: String? = null,
     /** How fast it reads, 1 its voice's own pace; null: 1. */
     val speed: Float? = null,
+    /** Where its servers are, as its kind's [Regions] name them; null: its kind's default. */
+    val region: String? = null,
 ) {
     /** The model a hearing asks for. */
     val modelUsed: String? get() = model?.takeIf { it.isNotBlank() } ?: kind.models.firstOrNull()
@@ -162,7 +178,7 @@ object SpeechRules {
             provider.kind.asksAddress && address.isEmpty() -> "Enter the server's address"
             provider.kind.asksAddress && !addressAllowed(address) -> "Use https:// (http only to this phone)"
             language.isNotEmpty() && !LANGUAGE.matches(language) -> "Write the language as a tag: en, or en-US"
-            else -> speakingProblem(provider, name)
+            else -> regionProblem(provider, name) ?: speakingProblem(provider, name)
         }
     }
 
@@ -173,10 +189,36 @@ object SpeechRules {
         return when {
             speaks && speaking == null -> "$name does not read aloud"
             speaks && speaking?.voices == Voices.Android -> "Android's voice is chosen in Android's settings"
-            provider.voiceModel != null && speaking?.models?.isEmpty() == true -> "$name has no models to choose for reading aloud"
+            provider.voiceModel != null && speaking != null && speaking.models.isEmpty() && !speaking.listsModels && !provider.kind.asksAddress ->
+                "$name has no models to choose for reading aloud"
             provider.speed != null && speaking?.speeds?.contains(provider.speed) == false ->
                 speaking.speeds.takeIf { it.isNotEmpty() }?.let { "$name reads at ${it.joinToString { speed -> speedLabel(speed) }}" } ?: "$name reads at one speed"
             else -> null
+        }
+    }
+
+    /** Why [provider]'s region cannot be saved. */
+    private fun regionProblem(provider: SpeechProvider, name: String): String? {
+        val region = provider.region?.trim().orEmpty()
+        return when (val regions = provider.kind.speaking?.regions) {
+            null -> "$name has one place: it takes no region".takeIf { region.isNotEmpty() }
+            is Regions.Typed -> when {
+                region.isEmpty() -> "Enter $name's region: ${regions.example}, for one"
+                !REGION.matches(region) -> "Write the region in lower case, as ${regions.example} is"
+                else -> null
+            }
+            is Regions.Fixed -> "$name's servers are ${regions.hosts.joinToString { it.second }}".takeIf { region.isNotEmpty() && regions.hosts.none { it.second == region } }
+        }
+    }
+
+    /** Where [provider] reads aloud: its host, in its region. */
+    fun speakingHost(provider: SpeechProvider): String {
+        val speaking = provider.kind.speaking ?: return ""
+        val host = speaking.host.orEmpty()
+        return when (val regions = speaking.regions) {
+            null -> host
+            is Regions.Typed -> provider.region?.let { host.replace("{region}", it) }.orEmpty()
+            is Regions.Fixed -> provider.region?.takeIf { region -> regions.hosts.any { it.second == region } } ?: host
         }
     }
 
@@ -201,7 +243,7 @@ object SpeechRules {
         provider.kind == SpeechProviderKind.Android -> if (way == SpeechWay.Listening) "On this phone, or its recognition service" else "Android's text-to-speech"
         provider.kind.asksAddress -> provider.address?.substringAfter("://")?.substringBefore('/').orEmpty()
         way == SpeechWay.Listening -> provider.kind.host.orEmpty()
-        else -> provider.kind.speaking?.host.orEmpty()
+        else -> speakingHost(provider)
     }
 
     /** The language's tag as an ISO-639-1 code: `en-US` is `en`. */
@@ -209,6 +251,7 @@ object SpeechRules {
 
     private val LANGUAGE = Regex("^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$")
     private val LOCAL = listOf("http://127.0.0.1", "http://localhost")
+    private val REGION = Regex("^[a-z0-9]+$")
 
     /**
      * What [failure] says, naming [provider] — Android's as "Speech recognition" or "Text-to-speech", as

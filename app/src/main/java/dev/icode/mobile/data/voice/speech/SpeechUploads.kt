@@ -87,10 +87,7 @@ internal class GoogleRecognition(private val http: HttpClient, private val key: 
                 }
                 SpeechEvent.Words(words.joinToString(" "), final = true)
             } else {
-                val error = answer.optJSONObject("error")
-                // A key Google cannot read is a 400, not a 401: its reason says so.
-                val badKey = error?.toString()?.contains("API_KEY_INVALID") == true
-                SpeechEvent.Failed(if (badKey) SpeechFailure.KeyRefused else SpeechSocket.httpFailure(status), error?.optString("message")?.ifBlank { null } ?: "HTTP $status")
+                googleFailure(status, answer).let { SpeechEvent.Failed(it.failure, it.detail) }
             }
         }
     }
@@ -101,24 +98,36 @@ internal class GoogleRecognition(private val http: HttpClient, private val key: 
     }
 }
 
-/** An upload's status and its JSON; one that never reached its provider throws [UploadFailed], with the network's words. */
-private suspend fun answered(url: String, send: suspend () -> HttpResponse): Pair<Int, JSONObject> {
-    val response = try {
-        send()
-    } catch (stopped: CancellationException) {
-        throw stopped
-    } catch (failure: Exception) {
-        throw UploadFailed(SpeechSocket.failureOf(failure, Url(url).host))
-    }
+/** A request's status and its JSON; one that never reached its provider throws [ProviderFailed], with the network's words. */
+internal suspend fun answered(url: String, send: suspend () -> HttpResponse): Pair<Int, JSONObject> {
+    val response = reached(url, send)
     val text = response.bodyAsText()
     return response.status.value to (runCatching { JSONObject(text) }.getOrNull() ?: JSONObject())
 }
 
-/** An upload that never reached its provider. */
-internal class UploadFailed(val event: SpeechEvent.Failed) : Exception(event.detail)
+/** [send]'s response; one that never reached its provider throws [ProviderFailed], with the network's words. */
+internal suspend fun <T> reached(url: String, send: suspend () -> T): T = try {
+    send()
+} catch (stopped: CancellationException) {
+    throw stopped
+} catch (failed: ProviderFailed) {
+    throw failed
+} catch (failure: Exception) {
+    SpeechSocket.failureOf(failure, Url(url).host).let { throw ProviderFailed(it.failure, it.detail) }
+}
 
-/** A hearing's audio may take a while to send and to be heard. */
-private fun HttpRequestBuilder.waits() = timeout {
+/**
+ * Google's refusal: a key it cannot read is a 400, not a 401, and its reason says so (`API_KEY_INVALID`);
+ * else its status, in its own words.
+ */
+internal fun googleFailure(status: Int, answer: JSONObject): ProviderFailed {
+    val error = answer.optJSONObject("error")
+    val badKey = error?.toString()?.contains("API_KEY_INVALID") == true
+    return ProviderFailed(if (badKey) SpeechFailure.KeyRefused else SpeechSocket.httpFailure(status), error?.optString("message")?.ifBlank { null } ?: "HTTP $status")
+}
+
+/** A provider's audio, or its words, may take a while to send and to come. */
+internal fun HttpRequestBuilder.waits() = timeout {
     requestTimeoutMillis = 120_000
     socketTimeoutMillis = 60_000
 }

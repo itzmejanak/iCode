@@ -14,15 +14,18 @@ import dev.icode.mobile.data.voice.speech.SpeechProviderStore
 import dev.icode.mobile.data.voice.speech.SpeechProviders
 import dev.icode.mobile.data.voice.speech.SpeechRequest
 import dev.icode.mobile.data.voice.speech.SpeechUse
+import dev.icode.mobile.data.voice.speech.VoiceFocus
 import dev.icode.mobile.data.voice.speech.VoiceRequest
 import dev.icode.mobile.data.voice.speech.VoiceSessions
 import dev.icode.mobile.data.voice.speech.VoiceUse
+import dev.icode.mobile.data.voice.speech.words
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.SpeechIntent
 import dev.icode.mobile.domain.VoiceIntent
 import dev.icode.mobile.domain.voice.SpeechWay
+import dev.icode.mobile.domain.voice.VoiceChoices
 import dev.icode.mobile.domain.voice.SpokenReplies
 import dev.icode.mobile.domain.voice.SpokenText
 import dev.icode.mobile.domain.voice.SpokenTurn
@@ -30,6 +33,7 @@ import dev.icode.mobile.domain.voice.VoiceCue
 import dev.icode.mobile.domain.voice.VoiceFrom
 import dev.icode.mobile.domain.voice.VoiceState
 import java.io.File
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
@@ -72,6 +76,7 @@ internal class VoiceCoordinator(
         ended = { provider, failure -> providers.heard(provider.id, failure) },
     )
 
+    private val focus = VoiceFocus(app)
     private val sessions = VoiceSessions(
         scope,
         use = { id ->
@@ -81,8 +86,12 @@ internal class VoiceCoordinator(
             }
         },
         began = { key -> update { it.copy(reading = key) } },
-        playing = { playing -> update { it.copy(speaking = playing) } },
+        playing = { playing ->
+            focus.hold(playing)
+            update { it.copy(speaking = playing) }
+        },
         ended = { failure ->
+            focus.hold(false)
             update { it.copy(speaking = false, reading = null) }
             failure?.let { words -> scope.launch { stateHolder.notify(NoticeTone.HeadsUp, "The answer was not read aloud", words) } }
         },
@@ -120,6 +129,7 @@ internal class VoiceCoordinator(
                 hearings.listen(VoiceFrom.Test, intent.id)
             }
             is SpeechIntent.Hear -> sample(intent.id)
+            is SpeechIntent.Choices -> choices(intent.id)
             is SpeechIntent -> providers.handle(intent)
             VoiceIntent.Silence -> sessions.hush()
             VoiceIntent.Sample -> sample(provider = null)
@@ -141,6 +151,23 @@ internal class VoiceCoordinator(
             withTimeoutOrNull(MIC_WAIT_MILLIS) { PhoneForegroundService.microphone.first { it } }
         }
         return "Open iCode once to use the microphone".takeUnless { iCodeOnScreen.value || voice.away }
+    }
+
+    /** What [id]'s API lists for its page, asked again; a failure is kept for the page, in its words. */
+    private fun choices(id: String) {
+        update { it.copy(choices = it.choices - id) }
+        scope.launch {
+            val listed = providers.connection(id, SpeechWay.Speaking).map { (provider, key) ->
+                try {
+                    engines.choicesOf(provider, key)
+                } catch (stopped: CancellationException) {
+                    throw stopped
+                } catch (failed: Exception) {
+                    VoiceChoices(problem = failed.words(provider, SpeechWay.Speaking))
+                }
+            }.getOrElse { VoiceChoices(problem = it.message) }
+            update { it.copy(choices = it.choices + (id to listed)) }
+        }
     }
 
     /** The sample, said by [provider] — null: the one that speaks. */

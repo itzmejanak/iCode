@@ -7,6 +7,7 @@ import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.domain.SpeechIntent
 import dev.icode.mobile.domain.voice.SpeechProvider
 import dev.icode.mobile.domain.voice.SpeechProviderKind
+import dev.icode.mobile.domain.voice.SpeechRules
 import dev.icode.mobile.domain.voice.SpeechWay
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -112,6 +113,23 @@ class SpeechProvidersTest {
         assertEquals("AssemblyAI does not read aloud", providers.save(saved.copy(voice = "aai-jane"), null).exceptionOrNull()?.message)
         assertEquals("Android's voice is chosen in Android's settings", providers.save(SpeechProvider.Android.copy(voice = "x"), null).exceptionOrNull()?.message)
         assertEquals(SpeechProvider.Android, providers.connection(null, SpeechWay.Speaking).getOrThrow().first)
+    }
+
+    @Test
+    fun `a kind that only reads aloud is chosen for speaking, in its region, on its servers`() {
+        val azure = SpeechProvider("", SpeechProviderKind.Azure, "Azure AI Speech")
+        assertEquals("Enter Azure AI Speech's region: eastus, for one", providers.save(azure, "k").exceptionOrNull()?.message)
+        assertEquals("Write the region in lower case, as eastus is", providers.save(azure.copy(region = "East US"), "k").exceptionOrNull()?.message)
+        val saved = providers.save(azure.copy(region = "westeurope", voice = "en-US-JennyNeural"), "k").getOrThrow()
+        assertEquals("westeurope.tts.speech.microsoft.com", SpeechRules.where(saved, SpeechWay.Speaking))
+        assertEquals("Azure AI Speech cannot listen yet: choose it for reading aloud", providers.use(saved.id, SpeechWay.Listening).exceptionOrNull()?.message)
+        providers.use(saved.id, SpeechWay.Speaking).getOrThrow()
+        assertEquals(saved to "k", providers.connection(null, SpeechWay.Speaking).getOrThrow())
+        val eleven = SpeechProvider("", SpeechProviderKind.ElevenLabs, "ElevenLabs")
+        assertEquals("api.elevenlabs.io", SpeechRules.speakingHost(eleven))
+        assertEquals("api.eu.residency.elevenlabs.io", SpeechRules.speakingHost(eleven.copy(region = "api.eu.residency.elevenlabs.io")))
+        assertTrue(providers.save(eleven.copy(region = "evil.example"), "k").exceptionOrNull()?.message.orEmpty().startsWith("ElevenLabs's servers are api.elevenlabs.io, "))
+        assertEquals("Google Cloud has one place: it takes no region", providers.save(SpeechProvider("", SpeechProviderKind.Google, "Google Cloud", region = "eu"), "k").exceptionOrNull()?.message)
     }
 
     @Test

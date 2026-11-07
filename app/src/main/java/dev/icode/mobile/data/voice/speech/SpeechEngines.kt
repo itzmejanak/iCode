@@ -3,6 +3,8 @@ package dev.icode.mobile.data.voice.speech
 import android.content.Context
 import dev.icode.mobile.domain.voice.SpeechProvider
 import dev.icode.mobile.domain.voice.SpeechProviderKind
+import dev.icode.mobile.domain.voice.SpeechRules
+import dev.icode.mobile.domain.voice.VoiceChoices
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
@@ -35,11 +37,28 @@ internal class SpeechEngines(context: Context, scope: CoroutineScope, private va
         SpeechProviderKind.OpenAICompatible -> UploadSpeech(audio, OpenAiTranscription(http, requireNotNull(provider.address), key))
         SpeechProviderKind.Deepgram -> DeepgramSpeech(requireNotNull(key), audio, http)
         SpeechProviderKind.Google -> UploadSpeech(audio, GoogleRecognition(http, requireNotNull(key)))
+        SpeechProviderKind.Azure, SpeechProviderKind.ElevenLabs -> throw IllegalArgumentException("${provider.name} cannot listen yet")
     }
 
     /** [provider]'s voice; [key] is its key, decrypted for this speech session alone. */
     fun voiceOf(provider: SpeechProvider, key: String?): VoiceEngine = when (provider.kind) {
         SpeechProviderKind.Android -> androidVoice
-        else -> throw IllegalArgumentException("${provider.name} cannot read aloud yet")
+        SpeechProviderKind.Google -> sentences(GoogleVoice(http, requireNotNull(key)))
+        SpeechProviderKind.ElevenLabs -> sentences(ElevenLabsVoice(http, requireNotNull(key), base(provider)))
+        SpeechProviderKind.Azure -> sentences(AzureVoice(http, requireNotNull(key), base(provider)))
+        SpeechProviderKind.OpenAICompatible -> sentences(CompatibleVoice(http, requireNotNull(provider.address), key))
+        SpeechProviderKind.AssemblyAI, SpeechProviderKind.OpenAI, SpeechProviderKind.Deepgram -> throw IllegalArgumentException("${provider.name} cannot read aloud yet")
     }
+
+    /** What [provider]'s API lists for its page: its voices, and its models where it lists them. */
+    suspend fun choicesOf(provider: SpeechProvider, key: String?): VoiceChoices = when (provider.kind) {
+        SpeechProviderKind.Google -> GoogleVoice.choices(http, requireNotNull(key), provider.language)
+        SpeechProviderKind.ElevenLabs -> ElevenLabsVoice.choices(http, requireNotNull(key), base(provider))
+        SpeechProviderKind.Azure -> AzureVoice.choices(http, requireNotNull(key), provider.language, base(provider))
+        else -> VoiceChoices()
+    }
+
+    private fun sentences(synthesis: Synthesis) = SentenceVoice(synthesis) { VoicePlayer() }
+
+    private fun base(provider: SpeechProvider) = "https://" + SpeechRules.speakingHost(provider)
 }
