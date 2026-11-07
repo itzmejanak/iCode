@@ -5,6 +5,7 @@ import dev.icode.mobile.domain.voice.SpeechProvider
 import dev.icode.mobile.domain.voice.SpeechProviderKind
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.okhttp.OkHttp
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.websocket.WebSockets
 
 /**
@@ -15,11 +16,21 @@ internal class SpeechEngines(context: Context, private val audio: SpeechAudio = 
     private val android by lazy { AndroidSpeech(context.applicationContext) }
 
     /** One client for every provider's sockets and requests, made when one is first used. */
-    private val http by lazy { HttpClient(OkHttp) { install(WebSockets) } }
+    private val http by lazy {
+        HttpClient(OkHttp) {
+            install(WebSockets)
+            // Set per request, for the uploads: a socket waits on the user, and has no timeout of its own.
+            install(HttpTimeout)
+        }
+    }
 
     /** [provider]'s engine; [key] is its key, decrypted for this hearing alone. */
     fun of(provider: SpeechProvider, key: String?): SpeechEngine = when (provider.kind) {
         SpeechProviderKind.Android -> android
         SpeechProviderKind.AssemblyAI -> AssemblyAiSpeech(requireNotNull(key), audio, http)
+        SpeechProviderKind.OpenAI -> OpenAiSpeech(requireNotNull(key), audio, http)
+        SpeechProviderKind.OpenAICompatible -> UploadSpeech(audio, OpenAiTranscription(http, requireNotNull(provider.address), key))
+        SpeechProviderKind.Deepgram -> DeepgramSpeech(requireNotNull(key), audio, http)
+        SpeechProviderKind.Google -> UploadSpeech(audio, GoogleRecognition(http, requireNotNull(key)))
     }
 }

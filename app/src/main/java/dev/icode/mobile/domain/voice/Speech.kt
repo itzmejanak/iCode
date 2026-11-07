@@ -29,6 +29,21 @@ enum class SpeechProviderKind(
         ),
         host = "streaming.assemblyai.com",
     ),
+
+    /**
+     * OpenAI's realtime transcription. `gpt-live-transcribe` is its realtime model; `gpt-realtime-whisper`
+     * is left out: its sessions take no turn detection, and the hearing ends by it.
+     */
+    OpenAI("OpenAI", live = true, needsKey = true, asksAddress = false, models = listOf("gpt-live-transcribe", "gpt-transcribe"), host = "api.openai.com"),
+
+    /** A server that speaks OpenAI's `/audio/transcriptions`: on this phone, or one the user names. */
+    OpenAICompatible("OpenAI-compatible", live = false, needsKey = false, asksAddress = true, models = emptyList(), host = null),
+
+    /** Deepgram's live speech-to-text. */
+    Deepgram("Deepgram", live = true, needsKey = true, asksAddress = false, models = listOf("nova-3", "nova-2"), host = "api.deepgram.com"),
+
+    /** Google Cloud Speech-to-Text v1, which takes an API key: v2 takes none. */
+    Google("Google Cloud", live = false, needsKey = true, asksAddress = false, models = listOf("latest_short", "latest_long"), host = "speech.googleapis.com"),
     ;
 
     companion object {
