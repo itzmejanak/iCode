@@ -7,6 +7,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -14,19 +18,24 @@ import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeSelect
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
+import dev.icode.mobile.designsystem.LabeledTextField
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SettingRow
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.domain.SpeechIntent
 import dev.icode.mobile.domain.VoiceIntent
+import dev.icode.mobile.domain.voice.Regions
 import dev.icode.mobile.domain.voice.SpeechProvider
 import dev.icode.mobile.domain.voice.SpeechWay
 import dev.icode.mobile.domain.voice.VoiceChoices
 import dev.icode.mobile.domain.voice.VoiceFrom
 import dev.icode.mobile.domain.voice.VoiceOption
+import dev.icode.mobile.domain.voice.VoiceRules
 import dev.icode.mobile.domain.voice.VoiceState
+import dev.icode.mobile.domain.voice.Voices
 import dev.icode.mobile.ui.LocalICodeGateway
+import java.util.Locale
 
 // The parts of a speech provider's page (docs/speech-plan.md §5, docs/tts-plan.md §5).
 
@@ -44,6 +53,51 @@ internal fun Listed(label: String, saved: SpeechProvider?, choices: VoiceChoices
         else -> ListedSelect(label, options.orEmpty(), chosen, onChoose)
     }
 }
+
+/** Where [regions] are: Azure's typed, as Azure names it; the others' chosen from their servers, the first by default. */
+@Composable
+internal fun RegionField(regions: Regions, region: String, onChange: (String) -> Unit) {
+    when (regions) {
+        is Regions.Typed -> LabeledTextField("Region", region, onChange, placeholder = regions.example, literal = true)
+        is Regions.Fixed -> IcodeSelect(
+            options = regions.hosts.map { it.second },
+            selected = region.ifEmpty { regions.hosts.first().second },
+            optionLabel = { host -> regions.hosts.first { it.second == host }.first },
+            optionDescription = { it },
+            onSelect = { host -> onChange(host.takeIf { it != regions.hosts.first().second }.orEmpty()) },
+            label = "Servers",
+        )
+    }
+}
+
+/**
+ * One of the voices [voices] fixes for [provider]'s language, the first by default; where an account's
+ * own voices are named too, Its Own Voice takes one by its name.
+ */
+@Composable
+internal fun FixedVoice(provider: SpeechProvider, voices: Voices.Fixed, chosen: String, onChoose: (String) -> Unit) {
+    val offered = VoiceRules.voices(provider, Locale.getDefault().toLanguageTag())
+    var own by rememberSaveable(provider.id) { mutableStateOf(chosen.isNotEmpty() && chosen !in offered) }
+    if (offered.isEmpty()) {
+        WhereItGoes("${provider.name} has no voice for this language.")
+        return
+    }
+    val options = offered + listOfNotNull(OWN.takeIf { voices.own })
+    IcodeSelect(
+        options = options,
+        selected = if (own) OWN else chosen.takeIf { it in offered } ?: offered.first(),
+        optionLabel = { if (it == OWN) "Its Own Voice" else it },
+        onSelect = { picked ->
+            own = picked == OWN
+            onChoose(if (own) "" else picked.takeIf { it != offered.first() }.orEmpty())
+        },
+        label = "Voice",
+    )
+    if (own) LabeledTextField("Its Own Voice", chosen, onChoose, placeholder = "Its name, as the dashboard shows it", literal = true)
+}
+
+/** The choice that takes an account's own voice by its name. */
+private const val OWN = "\u0000own"
 
 /** One of [listed], or Default — the provider's own choice. One it no longer lists stays shown, so saving again does not change it unseen. */
 @Composable

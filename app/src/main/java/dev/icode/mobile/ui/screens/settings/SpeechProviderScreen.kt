@@ -36,11 +36,11 @@ import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.domain.SpeechIntent
-import dev.icode.mobile.domain.voice.Regions
 import dev.icode.mobile.domain.voice.SpeechProvider
 import dev.icode.mobile.domain.voice.SpeechProviderKind
 import dev.icode.mobile.domain.voice.SpeechRules
 import dev.icode.mobile.domain.voice.SpeechWay
+import dev.icode.mobile.domain.voice.VoiceRules
 import dev.icode.mobile.domain.voice.Voices
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.ui.LocalICodeGateway
@@ -133,18 +133,6 @@ fun SpeechProviderScreen(actions: NavigationActions) {
                     LabeledTextField("API Key", key, { key = it }, placeholder = if (kind.needsKey) "Paste the key" else "Optional", secret = true)
                 }
                 if (kind.asksAddress) LabeledTextField("Server Address", address, { address = it }, placeholder = "https://… or http://127.0.0.1:…", literal = true)
-                when (val regions = speaking?.regions) {
-                    null -> Unit
-                    is Regions.Typed -> LabeledTextField("Region", region, { region = it }, placeholder = regions.example, literal = true)
-                    is Regions.Fixed -> IcodeSelect(
-                        options = regions.hosts.map { it.second },
-                        selected = region.ifEmpty { regions.hosts.first().second },
-                        optionLabel = { host -> regions.hosts.first { it.second == host }.first },
-                        optionDescription = { it },
-                        onSelect = { host -> region = host.takeIf { it != regions.hosts.first().second }.orEmpty() },
-                        label = "Servers",
-                    )
-                }
             }
             LabeledTextField("Language", language, { language = it }, placeholder = "Automatic: the phone's", literal = true)
             if (kind.hears) {
@@ -169,10 +157,12 @@ fun SpeechProviderScreen(actions: NavigationActions) {
                         // Asked when the page opens, and again once it is saved: a key, a region or a language changes them.
                         LaunchedEffect(saved) { gateway.dispatch(SpeechIntent.Choices(saved.id)) }
                     }
+                    speaking.regions?.let { regions -> RegionField(regions, region) { region = it } }
                     when (val voices = speaking.voices) {
                         Voices.Android -> AndroidSettings("Voice and Language", "Android's text-to-speech", Icons.Outlined.RecordVoiceOver, Intent(TTS_SETTINGS))
                         Voices.Listed -> Listed("Voice", saved, choices, choices?.voices, voiceName) { voiceName = it }
                         is Voices.Typed -> LabeledTextField("Voice", voiceName, { voiceName = it }, placeholder = "${voices.example}, or the server's own", literal = true)
+                        is Voices.Fixed -> FixedVoice(draft, voices, voiceName) { voiceName = it }
                     }
                     when {
                         speaking.models.isNotEmpty() -> IcodeSelect(speaking.models, voiceModel.ifEmpty { speaking.models.first() }, { it }, { voiceModel = it }, label = "Model")
@@ -180,8 +170,9 @@ fun SpeechProviderScreen(actions: NavigationActions) {
                         kind.asksAddress -> LabeledTextField("Model", voiceModel, { voiceModel = it }, placeholder = "The server's model", literal = true)
                     }
                     if (speaking.speeds.isNotEmpty()) {
-                        IcodeSelect(speaking.speeds, speed ?: 1f, SpeechRules::speedLabel, { speed = it }, label = "Speed")
+                        IcodeSelect(speaking.speeds, speed ?: 1f, VoiceRules::speedLabel, { speed = it }, label = "Speed")
                     }
+                    speaking.note?.let { WhereItGoes(it) }
                     WhereItGoes(
                         if (android) "Android's text-to-speech reads the answers." else "While it reads aloud, the answer goes to ${SpeechRules.where(draft, SpeechWay.Speaking).ifEmpty { "its server" }}.",
                     )
