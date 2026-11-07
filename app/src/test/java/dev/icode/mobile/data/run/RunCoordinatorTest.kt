@@ -16,6 +16,7 @@ import dev.icode.mobile.domain.Severity
 import java.io.File
 import java.io.IOException
 import java.util.Collections
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -131,12 +132,15 @@ class RunCoordinatorTest {
     }
 
     @Test fun `an Android app's run follows its build to Android's install, which Stop abandons`() {
-        var abandoned = false
+        // Set on the follow's own thread: atomic, so this one sees them.
+        val followed = AtomicBoolean()
+        val abandoned = AtomicBoolean()
         builds.follow = {
+            followed.set(true)
             try {
                 awaitCancellation()
             } finally {
-                abandoned = true
+                abandoned.set(true)
             }
         }
         open(hello)
@@ -149,9 +153,11 @@ class RunCoordinatorTest {
         assertEquals("app is running already", runBlocking { runs.start(hello, "android:app") }.exceptionOrNull()?.message)
         runs.handle(ICodeIntent.ConfirmAndroidAppInstall)
         assertEquals(1, builds.confirmed)
+        // The follow is launched on its own: on a busy machine it may not have begun, and one cancelled before it begins never runs.
+        until { followed.get() }
         runs.handle(ICodeIntent.StopRun("android:app"))
         assertEquals("The install was cancelled", recordOf("android:app")?.failure)
-        until { abandoned }
+        until { abandoned.get() }
     }
 
     @Test fun `an app opened can run again`() {
