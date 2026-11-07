@@ -19,6 +19,16 @@ enum class SpeechProviderKind(
 ) {
     /** Android's own recognizer: on the phone where Android offers it, else the phone's recognition service. */
     Android("Android", live = true, needsKey = false, asksAddress = false, models = emptyList(), host = null),
+
+    /** AssemblyAI's streaming speech-to-text (v3); its own examples stream with `universal-3-5-pro`. */
+    AssemblyAI(
+        "AssemblyAI", live = true, needsKey = true, asksAddress = false,
+        models = listOf(
+            "universal-3-5-pro", "universal-3-6-pro", "universal-3-6", "u3-rt-pro",
+            "universal-streaming-multilingual", "universal-streaming-english", "whisper-rt",
+        ),
+        host = "streaming.assemblyai.com",
+    ),
     ;
 
     companion object {
@@ -74,6 +84,45 @@ enum class SpeechFailure {
 object SpeechRules {
     /** Where the user sets the providers up, named in what a failure says. */
     const val PAGE = "Settings › Assistant › Voice"
+
+    /**
+     * Why [provider] cannot be saved as it is, among [others]; null when it can. [keyGiven]: a key
+     * comes with it; [keySaved]: one is kept already.
+     */
+    fun problem(provider: SpeechProvider, others: List<SpeechProvider>, keyGiven: Boolean, keySaved: Boolean): String? {
+        val name = provider.name.trim()
+        val address = provider.address?.trim().orEmpty()
+        val language = provider.language?.trim().orEmpty()
+        return when {
+            provider.kind == SpeechProviderKind.Android && provider.id != SpeechProvider.ANDROID -> "Android's recognizer is already there"
+            name.isEmpty() -> "Name the provider"
+            others.any { it.id != provider.id && it.name.trim().equals(name, ignoreCase = true) } -> "Another provider is called $name"
+            provider.kind.needsKey && !keyGiven && !keySaved -> "Enter $name's API key"
+            provider.kind.asksAddress && address.isEmpty() -> "Enter the server's address"
+            provider.kind.asksAddress && !addressAllowed(address) -> "Use https:// (http only to this phone)"
+            language.isNotEmpty() && !LANGUAGE.matches(language) -> "Write the language as a tag: en, or en-US"
+            else -> null
+        }
+    }
+
+    /** An address iCode sends audio to: https, or plain http only to this phone. */
+    fun addressAllowed(address: String): Boolean {
+        val lower = address.trim().lowercase()
+        return lower.startsWith("https://") || LOCAL.any { lower.startsWith(it) }
+    }
+
+    /** What a page and the agent say of [provider]: its kind, and where its audio goes. */
+    fun where(provider: SpeechProvider): String = when {
+        provider.kind == SpeechProviderKind.Android -> "On this phone, or its recognition service"
+        provider.kind.asksAddress -> provider.address?.substringAfter("://")?.substringBefore('/').orEmpty()
+        else -> provider.kind.host.orEmpty()
+    }
+
+    /** The language's tag as an ISO-639-1 code: `en-US` is `en`. */
+    fun languageCode(tag: String): String = tag.substringBefore('-').lowercase()
+
+    private val LANGUAGE = Regex("^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$")
+    private val LOCAL = listOf("http://127.0.0.1", "http://localhost")
 
     /**
      * What [failure] says, naming [provider]: Android's as "Speech recognition", as it always has.

@@ -22,8 +22,8 @@ enum class SpokenReplies(val label: String, val description: String) {
     }
 }
 
-/** Where the microphone was tapped: the words heard go back there. */
-enum class VoiceFrom { Bubble, Chat }
+/** Where the microphone was tapped: the words heard go back there. Test: a speech provider's page, trying it. */
+enum class VoiceFrom { Bubble, Chat, Test }
 
 /**
  * Words heard, as far as they have come; [final] once the user stopped talking, and then they are
@@ -50,7 +50,18 @@ data class VoiceState(
     val speaking: Boolean = false,
     /** The answer read on request ([dev.icode.mobile.domain.VoiceIntent.Read]), by its key, while it is read. */
     val reading: String? = null,
+    /** The speech providers (docs/speech-plan.md), Android's first. */
+    val providers: List<SpeechProvider> = listOf(SpeechProvider.Android),
+    /** The one that listens, by its ID. */
+    val inUse: String = SpeechProvider.ANDROID,
+    /** The provider its page shows; a new one has the ID "". */
+    val editing: SpeechProvider? = null,
+    /** Each provider's last failure, in its words, while iCode runs. */
+    val failures: Map<String, String> = emptyMap(),
 ) {
+    /** The provider that listens. */
+    val listener: SpeechProvider get() = providers.firstOrNull { it.id == inUse } ?: SpeechProvider.Android
+
     /** The microphone listens for [from]. */
     fun listening(from: VoiceFrom): Boolean = heard?.let { it.from == from && !it.final } == true
 

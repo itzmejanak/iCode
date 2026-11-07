@@ -24,20 +24,20 @@ internal class SpeechHearings(
     private val scope: CoroutineScope,
     /** Why a hearing cannot start now, or null: asked before any engine starts. */
     private val refusal: suspend () -> String?,
-    /** The provider in use now, with its engine; or why there is none (its key missing, for one). */
-    private val use: () -> Result<SpeechUse>,
+    /** The provider [id] names — null: the one in use — with its engine; or why there is none (its key missing, for one). */
+    private val use: (id: String?) -> Result<SpeechUse>,
     /** Changes what was heard; the change is given the last one. */
     private val heard: ((Heard?) -> Heard?) -> Unit,
-    /** A hearing ended with [SpeechFailure] for this provider; or, null, heard it out. */
-    private val ended: (SpeechProvider, SpeechFailure?) -> Unit = { _, _ -> },
+    /** A hearing with this provider ended: why it failed, in its words; or, null, it heard. */
+    private val ended: (SpeechProvider, String?) -> Unit = { _, _ -> },
 ) {
     private val lock = Any()
     private var hearing = 0L
     private var job: Job? = null
     private var done: CompletableDeferred<Unit>? = null
 
-    /** Listens for [from]: whatever was heard before and not final goes. */
-    fun listen(from: VoiceFrom) {
+    /** Listens for [from] with [provider] — null: the one in use. Whatever was heard before and not final goes. */
+    fun listen(from: VoiceFrom, provider: String? = null) {
         val id = synchronized(lock) {
             stopLocked()
             ++hearing
@@ -48,7 +48,7 @@ internal class SpeechHearings(
                 end(id, Heard(id, from, "", final = true, problem = it))
                 return@launch
             }
-            val chosen = use().getOrElse {
+            val chosen = use(provider).getOrElse {
                 end(id, Heard(id, from, "", final = true, problem = it.message))
                 return@launch
             }
@@ -60,7 +60,7 @@ internal class SpeechHearings(
             if (!end(id, Heard(id, from, "", final = false))) return@launch
             var said = ""
             var over = false
-            var failure: SpeechFailure? = null
+            var failure: String? = null
             // The final words or a failure end the hearing, and stop the engine.
             chosen.engine.hear(chosen.request, finish).transformWhile { event ->
                 emit(event)
@@ -69,7 +69,7 @@ internal class SpeechHearings(
                 val next = when (event) {
                     is SpeechEvent.Words -> heardOf(id, from, event.text, event.final, chosen.provider).also { said = event.text; over = event.final }
                     is SpeechEvent.Failed -> Heard(id, from, "", final = true, problem = SpeechRules.words(event.failure, chosen.provider, event.detail))
-                        .also { failure = event.failure; over = true }
+                        .also { failure = it.problem; over = true }
                 }
                 if (!end(id, next)) throw Stopped()
             }

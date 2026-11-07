@@ -10,16 +10,19 @@ import dev.icode.mobile.data.phone.PhoneForegroundService
 import dev.icode.mobile.data.runtime.TerminalSessionManager
 import dev.icode.mobile.data.voice.speech.SpeechEngines
 import dev.icode.mobile.data.voice.speech.SpeechHearings
+import dev.icode.mobile.data.voice.speech.SpeechProviderStore
+import dev.icode.mobile.data.voice.speech.SpeechProviders
 import dev.icode.mobile.data.voice.speech.SpeechRequest
 import dev.icode.mobile.data.voice.speech.SpeechUse
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.SpeechIntent
 import dev.icode.mobile.domain.VoiceIntent
-import dev.icode.mobile.domain.voice.SpeechProvider
 import dev.icode.mobile.domain.voice.SpokenReplies
 import dev.icode.mobile.domain.voice.SpokenText
 import dev.icode.mobile.domain.voice.SpokenTurn
 import dev.icode.mobile.domain.voice.VoiceCue
+import dev.icode.mobile.domain.voice.VoiceFrom
 import dev.icode.mobile.domain.voice.VoiceState
 import java.io.File
 import kotlinx.coroutines.CancellationException
@@ -51,12 +54,19 @@ internal class VoiceCoordinator(
     private val reader = SpokenTurn()
     private val lock = Any()
 
+    /** The speech providers' owner: the pages' and the agent's (docs/speech-plan.md §1). */
+    val providers = SpeechProviders(SpeechProviderStore(app), stateHolder, scope)
     private val engines = SpeechEngines(app)
     private val hearings = SpeechHearings(
         scope,
         refusal = ::refusal,
-        use = { Result.success(SpeechUse(SpeechProvider.Android, engines.of(SpeechProvider.Android, key = null), SpeechRequest(language = null))) },
+        use = { id ->
+            providers.connection(id).map { (provider, key) ->
+                SpeechUse(provider, engines.of(provider, key), SpeechRequest(language = provider.language, model = provider.modelUsed))
+            }
+        },
         heard = { change -> update { it.copy(heard = change(it.heard)) } },
+        ended = { provider, failure -> providers.heard(provider.id, failure) },
     )
 
     /** The speech session: its sentences waiting to be said, the job saying them, and which one it is. */
@@ -71,6 +81,7 @@ internal class VoiceCoordinator(
     private val voice: VoiceState get() = stateHolder.current.voice
 
     fun start() {
+        providers.start()
         scope.launch {
             forgetModels()
             update { it.copy(spoken = SpokenReplies.of(preferences.getString(REPLIES, null)), microphone = microphone()) }
@@ -94,6 +105,11 @@ internal class VoiceCoordinator(
             }
             VoiceIntent.FinishListening -> hearings.finish()
             VoiceIntent.CancelListening -> hearings.stop()
+            is SpeechIntent.Test -> {
+                hush()
+                hearings.listen(VoiceFrom.Test, intent.id)
+            }
+            is SpeechIntent -> providers.handle(intent)
             VoiceIntent.Silence -> hush()
             VoiceIntent.Sample -> listOf(VoiceCue.Begin, VoiceCue.Say(SAMPLE), VoiceCue.End).forEach(::cue)
             is VoiceIntent.Read -> read(intent.key, intent.text)
