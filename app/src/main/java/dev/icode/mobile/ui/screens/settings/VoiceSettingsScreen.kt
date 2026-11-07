@@ -26,14 +26,16 @@ import dev.icode.mobile.designsystem.IcodeSelect
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.SettingRow
 import dev.icode.mobile.domain.VoiceIntent
+import dev.icode.mobile.domain.voice.SpeechRules
 import dev.icode.mobile.domain.voice.SpokenReplies
 import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
- * Settings › Assistant › Voice (docs/phone-agent-plan.md §5.8): the microphone, when answers are read
- * aloud, and Android's own voice and recognition settings — its engines are the ones that speak and listen.
+ * Settings › Assistant › Voice (docs/phone-agent-plan.md §5.8): the microphone; what hears it — the
+ * speech provider in use (docs/speech-plan.md §5); and when answers are read aloud, by Android's voice.
  */
 @Composable
 fun VoiceSettingsScreen(actions: NavigationActions) {
@@ -63,6 +65,16 @@ fun VoiceSettingsScreen(actions: NavigationActions) {
                     onClick = { if (refused) context.openAppInfo() else ask.launch(Manifest.permission.RECORD_AUDIO) }.takeUnless { voice.microphone },
                 ) { AccessState(if (voice.microphone) "ALLOWED" else "NOT ALLOWED", allowed = voice.microphone) }
             }
+            IcodeSection("Listening") {
+                val listener = voice.listener
+                SettingRow(
+                    "Speech Recognition",
+                    Modifier.fillMaxWidth(),
+                    subtitle = "${listener.name} · ${SpeechRules.where(listener)}",
+                    leadingIcon = Icons.Outlined.GraphicEq,
+                    onClick = { actions.navigate(Route.SpeechProviders) },
+                ) { Chevron() }
+            }
             IcodeSection("Read Aloud") {
                 IcodeSelect(
                     options = SpokenReplies.entries,
@@ -79,22 +91,13 @@ fun VoiceSettingsScreen(actions: NavigationActions) {
                     leadingIcon = Icons.Outlined.PlayArrow,
                     onClick = { gateway.dispatch(if (voice.speaking) VoiceIntent.Silence else VoiceIntent.Sample) },
                 )
-            }
-            // Android's own: iCode shows where they are kept and opens them.
-            IcodeSection("Android") {
+                // Android's own voice reads aloud: iCode opens where it is kept.
                 SettingRow(
                     "Voice and Language",
                     Modifier.fillMaxWidth(),
                     subtitle = "Android's text-to-speech",
                     leadingIcon = Icons.Outlined.RecordVoiceOver,
                     onClick = { context.openFirst(Intent(TTS_SETTINGS), Intent(Settings.ACTION_SETTINGS)) },
-                ) { Chevron() }
-                SettingRow(
-                    "Speech Recognition",
-                    Modifier.fillMaxWidth(),
-                    subtitle = "Android's voice input",
-                    leadingIcon = Icons.Outlined.GraphicEq,
-                    onClick = { context.openFirst(Intent(Settings.ACTION_VOICE_INPUT_SETTINGS), Intent(Settings.ACTION_SETTINGS)) },
                 ) { Chevron() }
             }
         }

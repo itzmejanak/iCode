@@ -80,6 +80,9 @@ enum class Route(
     AssistantProviders(null, "Providers", RouteGroup.SETTINGS),
     // Owner's request (2026-11-03): speak to the assistant, hear its answers (phone-agent-plan.md §5.8).
     VoiceSettings(null, "Voice", RouteGroup.SETTINGS),
+    // Owner's request (2026-11-06): speech recognition with any provider (speech-plan.md §5).
+    SpeechProviders(null, "Speech recognition", RouteGroup.SETTINGS),
+    SpeechProvider(null, "Speech provider", RouteGroup.SETTINGS),
     // Owner's request (2026-11-03): the assistant on the whole phone (phone-agent-plan.md §5.9, P7).
     PhoneControl(null, "Phone control", RouteGroup.SETTINGS),
     ShizukuSetup(null, "Shizuku", RouteGroup.SETTINGS),

@@ -38,6 +38,8 @@ class RouteTest {
         Route.DeviceInfoConsent, // 2026-10-29: onboarding's optional device-info question (device-telemetry-plan.md §4)
         Route.AssistantProviders, // 2026-11-03: the providers on their own page, from Settings › Assistant
         Route.VoiceSettings, // 2026-11-03: speech in and out (phone-agent-plan.md §5.8)
+        Route.SpeechProviders, // 2026-11-06: speech recognition with any provider (speech-plan.md §5)
+        Route.SpeechProvider, // 2026-11-06: one speech provider — its key, model, language, Test (speech-plan.md §5)
         Route.PhoneControl, // 2026-11-03: phone control, off by default (phone-agent-plan.md §5.9)
         Route.ShizukuSetup, // 2026-11-03: Shizuku's one-page state and setup (phone-agent-plan.md §5.11)
         Route.McpServers, // 2026-11-05: MCP servers for the assistant's chats (mcp-plan.md §4.2)

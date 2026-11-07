@@ -32,7 +32,7 @@ class SpeechHearingsTest {
     private val engine = FakeEngine()
     private var refusal: String? = null
     private var use: Result<SpeechUse> = Result.success(SpeechUse(SpeechProvider.Android, engine, SpeechRequest(language = "en-US")))
-    private val endings = mutableListOf<Pair<String, SpeechFailure?>>()
+    private val endings = mutableListOf<Pair<String, String?>>()
     private val hearings = SpeechHearings(
         scope,
         refusal = { refusal },
