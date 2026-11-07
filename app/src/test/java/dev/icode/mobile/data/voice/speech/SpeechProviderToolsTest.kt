@@ -83,7 +83,7 @@ class SpeechProviderToolsTest {
         assertEquals("Give kind, to add one: $kinds", refusal(save, JSONObject().put("key", "k")))
         assertEquals("Whisper is not a kind: $kinds", refusal(save, JSONObject().put("kind", "Whisper")))
         assertEquals("There is no speech provider s-0: list_speech_providers lists them", refusal(save, JSONObject().put("id", "s-0")))
-        assertEquals("Android's recognizer cannot be removed", refusal(remove, JSONObject().put("id", SpeechProvider.ANDROID)))
+        assertEquals("Android's recognizer and voice cannot be removed", refusal(remove, JSONObject().put("id", SpeechProvider.ANDROID)))
         assertEquals(1, store.providers().size)
     }
 

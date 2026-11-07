@@ -10,6 +10,7 @@ import dev.icode.mobile.domain.AssistantToolName
 import dev.icode.mobile.domain.voice.SpeechProvider
 import dev.icode.mobile.domain.voice.SpeechProviderKind
 import dev.icode.mobile.domain.voice.SpeechRules
+import dev.icode.mobile.domain.voice.SpeechWay
 import org.json.JSONObject
 
 // The agent's hold on the speech providers (docs/speech-plan.md §6): what the Speech Recognition pages
@@ -101,7 +102,7 @@ internal class SaveSpeechProviderTool(private val providers: SpeechProviders) : 
         val existing = arguments.textOrNull("id")?.let { id -> existing(arguments) ?: throw AssistantToolException("There is no speech provider $id: list_speech_providers lists them") }
         val provider = existing?.let { changed(it, arguments) } ?: drafted(arguments) ?: throw AssistantToolException("Give kind, to add one: ${KINDS.joinToString { it.name }}")
         val kept = providers.save(provider, arguments.textOrNull("key")).getOrElse { throw AssistantToolException(it.message ?: "Not saved") }
-        if (arguments.optBoolean("use")) providers.use(kept.id).getOrElse { throw AssistantToolException(it.message ?: "Not chosen") }
+        if (arguments.optBoolean("use")) providers.use(kept.id, SpeechWay.Listening).getOrElse { throw AssistantToolException(it.message ?: "Not chosen") }
         val listener = providers.list().firstOrNull { it.id == providers.inUse() }
         val listens = if (listener?.id == kept.id) "; it hears the microphone" else "; ${listener?.name ?: "Android"} still hears the microphone"
         return "${if (existing == null) "Added" else "Changed"} ${kept.name} (${kept.id})" + (if (kept.hasKey) ", key set" else "") + listens + "."

@@ -33,7 +33,7 @@ class SpeechProvidersTest {
         assertTrue(saved.hasKey)
         assertEquals("sealed:aai-secret", preferences.getString("key.${saved.id}", null))
         assertFalse(preferences.all.values.any { it.toString() == "aai-secret" })
-        assertEquals(saved to "aai-secret", providers.connection(saved.id).getOrThrow())
+        assertEquals(saved to "aai-secret", providers.connection(saved.id, SpeechWay.Listening).getOrThrow())
         assertEquals(listOf(SpeechProvider.Android, saved), stateHolder.current.voice.providers)
     }
 
@@ -49,7 +49,7 @@ class SpeechProvidersTest {
     fun `a key this phone cannot decrypt is forgotten, and a hearing asks for it`() {
         val saved = providers.save(assembly, "aai-secret").getOrThrow()
         decryptable = false
-        assertEquals("Enter AssemblyAI's key in Settings › Assistant › Voice", providers.connection(saved.id).exceptionOrNull()?.message)
+        assertEquals("Enter AssemblyAI's key in Settings › Assistant › Voice", providers.connection(saved.id, SpeechWay.Listening).exceptionOrNull()?.message)
         assertFalse(store.providers().last().hasKey)
     }
 
@@ -61,7 +61,7 @@ class SpeechProvidersTest {
         assertEquals("Another provider is called AssemblyAI", providers.save(assembly, "k").exceptionOrNull()?.message)
         assertEquals("Write the language as a tag: en, or en-US", providers.save(assembly.copy(name = "B", language = "English"), "k").exceptionOrNull()?.message)
         assertEquals("There is no speech provider s-0", providers.save(assembly.copy(id = "s-0"), "k").exceptionOrNull()?.message)
-        assertEquals("Android's recognizer cannot be removed", providers.remove(SpeechProvider.ANDROID).exceptionOrNull()?.message)
+        assertEquals("Android's recognizer and voice cannot be removed", providers.remove(SpeechProvider.ANDROID).exceptionOrNull()?.message)
         assertEquals(2, store.providers().size)
     }
 
@@ -69,31 +69,56 @@ class SpeechProvidersTest {
     fun `the one in use listens, and once it is removed Android's does`() {
         val saved = providers.save(assembly, "k").getOrThrow()
         assertEquals(SpeechProvider.ANDROID, stateHolder.current.voice.inUse)
-        providers.use(saved.id).getOrThrow()
+        providers.use(saved.id, SpeechWay.Listening).getOrThrow()
         assertEquals(saved.id, stateHolder.current.voice.inUse)
-        assertEquals(saved.id, providers.connection(null).getOrThrow().first.id)
+        assertEquals(saved.id, providers.connection(null, SpeechWay.Listening).getOrThrow().first.id)
         providers.remove(saved.id).getOrThrow()
         assertEquals(SpeechProvider.ANDROID, stateHolder.current.voice.inUse)
         assertNull(preferences.getString("key.${saved.id}", null))
     }
 
     @Test
-    fun `Android's speaks until another is chosen, and removing that one gives speaking back`() {
+    fun `Android's speaks until another is chosen, and removing that one gives each way it served back`() {
         val saved = providers.save(assembly, "k").getOrThrow()
         assertEquals(SpeechProvider.ANDROID, store.speaker())
         store.use(saved.id, SpeechWay.Speaking)
+        providers.use(saved.id, SpeechWay.Listening).getOrThrow()
         assertEquals(saved.id, store.speaker())
-        assertEquals(SpeechProvider.ANDROID, store.inUse())
+        assertEquals(saved.id, stateHolder.current.voice.chosen(SpeechWay.Listening).id)
+        assertEquals(saved to "k", providers.connection(null, SpeechWay.Listening).getOrThrow())
         providers.remove(saved.id).getOrThrow()
         assertEquals(SpeechProvider.ANDROID, store.speaker())
+        assertEquals(SpeechProvider.ANDROID, store.inUse())
         assertEquals(SpeechProvider.ANDROID, stateHolder.current.voice.speaker)
+    }
+
+    @Test
+    fun `the speaking fields are kept, and a voice choice survives the listening one`() {
+        val saved = store.save(assembly.copy(voice = " aai-jane ", voiceModel = "assemblyai-tts-1", speed = 1.25f), "k")
+        assertEquals(Triple("aai-jane", "assemblyai-tts-1", 1.25f), Triple(saved.voice, saved.voiceModel, saved.speed))
+        store.use(saved.id, SpeechWay.Speaking)
+        store.use(SpeechProvider.ANDROID, SpeechWay.Listening)
+        assertEquals(saved.id, store.speaker())
+        store.use(SpeechProvider.ANDROID, SpeechWay.Speaking)
+        assertEquals(SpeechProvider.ANDROID, store.speaker())
+    }
+
+    @Test
+    fun `a way a kind does not serve, and a field it does not take, are refused in its words`() {
+        val saved = providers.save(assembly, "k").getOrThrow()
+        assertEquals("AssemblyAI cannot read aloud yet: choose it for listening", providers.use(saved.id, SpeechWay.Speaking).exceptionOrNull()?.message)
+        assertEquals("AssemblyAI cannot read aloud yet: choose it for listening", providers.connection(saved.id, SpeechWay.Speaking).exceptionOrNull()?.message)
+        assertEquals(SpeechProvider.ANDROID, store.speaker())
+        assertEquals("AssemblyAI does not read aloud", providers.save(saved.copy(voice = "aai-jane"), null).exceptionOrNull()?.message)
+        assertEquals("Android's voice is chosen in Android's settings", providers.save(SpeechProvider.Android.copy(voice = "x"), null).exceptionOrNull()?.message)
+        assertEquals(SpeechProvider.Android, providers.connection(null, SpeechWay.Speaking).getOrThrow().first)
     }
 
     @Test
     fun `Android's keeps only its language`() {
         providers.save(SpeechProvider.Android.copy(name = "Mine", language = "de-DE"), null).getOrThrow()
         assertEquals(SpeechProvider.Android.copy(language = "de-DE"), store.providers().first())
-        assertEquals(SpeechProvider.Android.copy(language = "de-DE") to null, providers.connection(SpeechProvider.ANDROID).getOrThrow())
+        assertEquals(SpeechProvider.Android.copy(language = "de-DE") to null, providers.connection(SpeechProvider.ANDROID, SpeechWay.Listening).getOrThrow())
     }
 
     @Test
@@ -120,12 +145,12 @@ class SpeechProvidersTest {
         val saved = providers.save(openAi, key = null).getOrThrow()
         assertEquals("p-1", saved.keyFrom)
         assertFalse(saved.hasKey)
-        assertEquals("sk-assistant", providers.connection(saved.id).getOrThrow().second)
+        assertEquals("sk-assistant", providers.connection(saved.id, SpeechWay.Listening).getOrThrow().second)
         assertFalse(preferences.all.values.any { it.toString().contains("sk-assistant") })
         // A key of its own given, the link goes.
         val own = providers.save(saved, "sk-own").getOrThrow()
         assertNull(own.keyFrom)
-        assertEquals("sk-own", providers.connection(own.id).getOrThrow().second)
+        assertEquals("sk-own", providers.connection(own.id, SpeechWay.Listening).getOrThrow().second)
         assertEquals("The assistant has no OpenAI provider p-9 with a key", providers.save(own.copy(keyFrom = "p-9"), null).exceptionOrNull()?.message)
         assertEquals("Only OpenAI can use the assistant's key", providers.save(assembly.copy(keyFrom = "p-1"), null).exceptionOrNull()?.message)
     }

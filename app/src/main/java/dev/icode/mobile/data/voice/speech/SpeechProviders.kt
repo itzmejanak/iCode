@@ -48,7 +48,12 @@ internal class SpeechProviders(
         val all = store.providers()
         val saved = all.firstOrNull { it.id == provider.id }
         if (provider.id.isNotEmpty() && saved == null) refuse("There is no speech provider ${provider.id}")
-        val next = if (provider.id == SpeechProvider.ANDROID) SpeechProvider.Android.copy(language = provider.language) else provider
+        // Android's keeps only its language; what else it is given, the rules refuse in their words.
+        val next = if (provider.id == SpeechProvider.ANDROID) {
+            SpeechProvider.Android.copy(language = provider.language, voice = provider.voice, voiceModel = provider.voiceModel, speed = provider.speed)
+        } else {
+            provider
+        }
         val keySaved = saved?.hasKey == true && saved.kind == next.kind
         SpeechRules.problem(next, all, keyGiven = !key.isNullOrBlank(), keySaved = keySaved)?.let(::refuse)
         next.keyFrom?.takeIf { key.isNullOrBlank() }?.let { from ->
@@ -58,22 +63,24 @@ internal class SpeechProviders(
     }
 
     fun remove(id: String): Result<SpeechProvider> = change {
-        if (id == SpeechProvider.ANDROID) refuse("Android's recognizer cannot be removed")
+        if (id == SpeechProvider.ANDROID) refuse("Android's recognizer and voice cannot be removed")
         val saved = find(id)
         store.delete(id)
         saved
     }
 
-    /** [id] listens from now on. */
-    fun use(id: String): Result<SpeechProvider> = change {
+    /** [id] serves [way] from now on. */
+    fun use(id: String, way: SpeechWay): Result<SpeechProvider> = change {
         val provider = find(id)
-        store.use(id, SpeechWay.Listening)
+        SpeechRules.wayProblem(provider, way)?.let(::refuse)
+        store.use(id, way)
         provider
     }
 
-    /** [id]'s provider — null: the one that listens — and its key, decrypted for a hearing or a speech session; or why it cannot serve. */
-    fun connection(id: String?): Result<Pair<SpeechProvider, String?>> = runCatching {
-        val provider = find(id ?: store.inUse())
+    /** [id]'s provider — null: the one that serves [way] — and its key, decrypted for a hearing or a speech session; or why it cannot serve. */
+    fun connection(id: String?, way: SpeechWay): Result<Pair<SpeechProvider, String?>> = runCatching {
+        val provider = find(id ?: if (way == SpeechWay.Listening) store.inUse() else store.speaker())
+        SpeechRules.wayProblem(provider, way)?.let(::refuse)
         val key = provider.keyFrom?.let(assistantKey) ?: store.key(provider.id)
         if (provider.kind.needsKey && key == null) refuse(SpeechRules.words(SpeechFailure.NoKey, provider))
         provider to key
@@ -85,7 +92,7 @@ internal class SpeechProviders(
         snapshot.copy(voice = snapshot.voice.copy(failures = if (words == null) failures - id else failures + (id to words)))
     }
 
-    /** The pages' operations; a test is the voice coordinator's, which hears it. */
+    /** The pages' operations; a test and a sample are the voice coordinator's, which hears and says them. */
     fun handle(intent: SpeechIntent) {
         when (intent) {
             is SpeechIntent.Edit -> stateHolder.update { it.copy(voice = it.voice.copy(editing = intent.provider)) }
@@ -94,8 +101,8 @@ internal class SpeechProviders(
                 stateHolder.update { it.copy(voice = it.voice.copy(editing = kept.takeIf { _ -> it.voice.editing?.id == intent.provider.id } ?: it.voice.editing)) }
             }
             is SpeechIntent.Remove -> remove(intent.id).said()
-            is SpeechIntent.Use -> use(intent.id).said()
-            is SpeechIntent.Test -> Unit
+            is SpeechIntent.Use -> use(intent.id, intent.way).said()
+            is SpeechIntent.Test, is SpeechIntent.Hear -> Unit
         }
     }
 
