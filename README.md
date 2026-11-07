@@ -64,7 +64,7 @@ It is local-first. Editing, Git and the terminal do not depend on any website or
 - You choose the provider and bring your own key. Clients are included for OpenAI-compatible, Anthropic, Google, OpenRouter and Ollama endpoints.
 - Several assistant modes, and actions that need your approval before they run.
 - Phone control (opt-in): from a bubble over any app, the assistant reads the screen and acts in other apps, asking before each one; Shizuku makes setup one tap.
-- Voice both ways: speak to it and hear its answers as they are written, with Android's own speech recognition and text-to-speech.
+- Voice both ways: speak to it and hear its answers as they are written — heard by Android's own speech recognition, or by AssemblyAI, OpenAI, Deepgram, Google Cloud or a server of your own, and read aloud by Android's text-to-speech.
 
 **Design**
 - Semantic design tokens, dark, light and AMOLED themes, and a user-selectable accent colour.

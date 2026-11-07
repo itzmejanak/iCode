@@ -1159,7 +1159,7 @@ Acceptance criteria:
 Acceptance criteria:
 
 - The microphone in the chat and in the bubble shows my words as they are heard and sends them once I stop talking; tapping it again sends what was heard so far.
-- Android's own engines listen and speak: **Settings › Assistant › Voice** allows the microphone, chooses when answers are read aloud, plays a sample, and opens Android's voice and speech recognition settings.
+- **Settings › Assistant › Voice** allows the microphone, shows what hears it (Speech Recognition: Android's own recognizer unless I chose another, US-ASSIST-016), chooses when answers are read aloud, plays a sample, and opens Android's voice settings; Android's own voice reads aloud.
 - **Answers read aloud**: Off, or In the bubble (the default); in the chat, where I see it, an answer plays only from ▶ beside Copy. An answer read aloud is short, and each sentence is heard as soon as it is written, without code or links; a new message, Stop or a tap on the bubble silences it.
 - Without the microphone allowed, or with no speech engine on the phone, the place I tapped says what to do.
 
@@ -1201,6 +1201,18 @@ Acceptance criteria:
 - What it does is what the MCP pages show at once, and what they refuse, it is told in the same words.
 - A value I give it is kept as the pages keep one and never read back: its list says only whether each is set.
 - A workspace's `.mcp.json` server keeps the file's name, command and address, and trusting one stays mine.
+
+### US-ASSIST-016 — Choose who hears me
+
+**As a phone user, I want to choose the speech recognition service that hears the microphone, so that I can pick one for its accuracy, its languages or its price.**
+
+Acceptance criteria:
+
+- **Settings › Assistant › Voice › Speech Recognition** lists Android's recognizer, always there, and the providers I added — AssemblyAI, OpenAI, an OpenAI-compatible server, Deepgram, Google Cloud — the one in use marked, each with where its audio goes.
+- A provider's page takes its name, its API key (masked, never shown again once saved), its server's address where it has one, its model and its language. An OpenAI one may use the key of the assistant's OpenAI provider instead. Test hears me once and shows the words there, sent nowhere; Use for Listening makes it the one in use.
+- The bubble and the chat's microphone work the same whichever is in use: the words as they are heard, or once I stop for a provider that answers then.
+- A provider that fails says why in its own name — a refused key, no credit, busy, no network — and my voice is never sent to another one instead.
+- The assistant adds, changes, chooses and removes them when I ask, as the page does: every change asks me first, and a key it is given is never read back.
 
 ## 19. Public Website and Distribution
 

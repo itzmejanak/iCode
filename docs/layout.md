@@ -697,6 +697,8 @@ Assistant
 ├── MCP Servers
 │   └── Server (+ opens the sheet: paste, local, remote, the MCP Registry)
 ├── Voice
+│   └── Speech Recognition
+│       └── Provider (+ opens the sheet of provider kinds)
 └── Phone Control
     └── Shizuku
 ```

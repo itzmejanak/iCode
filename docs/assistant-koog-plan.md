@@ -246,6 +246,7 @@ the reading tools only.
 | `list_run_commands()` | read | `RunCoordinator`: the Run tab's apps and saved commands ([run-tab-plan.md](./run-tab-plan.md) §2.5) | — |
 | `save_run_command(command, name, id)` / `delete_run_command(id)` | change | `RunCoordinator`, as the Run tab's dialogs | an id the workspace has no command by is refused |
 | `list_mcp_servers()` / `save_mcp_server(…)` / `remove_mcp_server(id)` | read / change / change | `McpServers`, as the MCP pages ([agent-control-plan.md](./agent-control-plan.md) §5) | a change asks every time, in every mode; a value is never read back |
+| `list_speech_providers()` / `save_speech_provider(…)` / `remove_speech_provider(id)` | read / change / change | `SpeechProviders`, as the Speech Recognition pages ([speech-plan.md](./speech-plan.md) §6) | a change asks every time, in every mode; a key is never read back |
 
 A write or an edit answers how many lines it added and removed, as `git diff --numstat` counts
 them (`LineChanges.between`, Myers' shortest edit): "Created src/App.kt: +2 lines", "Edited a.kt in
