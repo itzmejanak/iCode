@@ -56,6 +56,11 @@ class PhoneForegroundService : Service() {
                 setShowBadge(false)
             },
         )
+        // Android's deadline is five seconds from startForegroundService(): take the foreground
+        // here, before attaching to the process, so a busy main thread cannot miss it. A start()
+        // upgrades to the microphone in onStartCommand; a notification's action keeps the base.
+        runCatching { startForeground(NOTIFICATION, notification(), baseType()) }
+            .onFailure { BackendLog.w(TAG, "Phone control's service could not take the foreground (${it.javaClass.simpleName})") }
         gateway = ICodeProcess.attach(this)
         active = true
         scope.launch {
@@ -91,7 +96,7 @@ class PhoneForegroundService : Service() {
     /** In the foreground, holding the microphone when asked, allowed, and while iCode is on screen. */
     private fun foreground(microphone: Boolean) {
         val allowed = microphone && ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
-        val base = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE else 0
+        val base = baseType()
         val held = try {
             startForeground(NOTIFICATION, notification(), base or (if (allowed) ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE else 0))
             allowed
@@ -104,6 +109,9 @@ class PhoneForegroundService : Service() {
         started = true
         heldMicrophone.value = held
     }
+
+    private fun baseType() =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE else 0
 
     private fun notification(): Notification {
         fun action(title: String, action: String) = Notification.Action.Builder(
