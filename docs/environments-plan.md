@@ -73,6 +73,11 @@ changes on screen: no banners, chips or extra rows.
 - **Icons:** each build type's `src/<type>/res` gets its environment's existing PNG as the adaptive
   icon's foreground, at the five densities, placed as today. Background (black) and monochrome stay
   shared in `main`.
+  - The same `src/<type>/res` also carries the in-app mark, `drawable-*/icode_launcher_art`, which
+    `IcodeBrandMark` draws on the splash, About, Assistant settings, the welcome card, the empty editor
+    and the phone bubble: without it those screens showed the stable icon in every build. It is the
+    environment's mark at `main`'s own framing (x 0.2097–0.7879, y 0.1236–0.8413 of the tile, on black),
+    so the mark keeps its size and place.
   - `release` keeps `main`'s original icon.
   - The three new build types reuse `release`'s no-op capture code, as `debug` alone carries the
     screenshot tools.
