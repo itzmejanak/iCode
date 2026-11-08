@@ -90,18 +90,7 @@ fun AboutScreen(actions: NavigationActions) {
         Column(Modifier.fillMaxSize().behindSheet(reporting)) {
             IcodeTopBar("About iCode", subtitle = settingsSubtitle(Route.About), onBack = actions.back)
             IcodePageColumn {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = IcodeSpacing.Space4 + IcodeSpacing.Micro),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    IcodeBrandMark(Modifier.size(IcodeSizes.Tile))
-                    Text(
-                        "iCode Mobile IDE",
-                        modifier = Modifier.padding(top = IcodeSpacing.Space2 + IcodeSpacing.Micro),
-                        style = IcodeType.Heading,
-                    )
-                    Text("NATIVE ANDROID IDE", style = IcodeType.MonoSmall.copy(color = IcodeColors.Accent))
-                }
+                AppIdentityHeader(Modifier.padding(vertical = IcodeSpacing.Space4 + IcodeSpacing.Micro))
                 IcodeSection("Build Specifications") {
                     IcodeCard(Modifier.fillMaxWidth()) {
                         buildSpecs.forEach { (label, value) -> DetailRow(label, value) }
