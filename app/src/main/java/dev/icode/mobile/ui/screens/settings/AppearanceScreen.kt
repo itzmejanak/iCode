@@ -24,6 +24,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import dev.icode.mobile.designsystem.CodeSurface
 import dev.icode.mobile.designsystem.IcodeCard
+import dev.icode.mobile.designsystem.BuildEnvironment
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodePageColumn
 import dev.icode.mobile.designsystem.IcodePalette
@@ -58,7 +59,7 @@ fun AppearanceScreen(actions: NavigationActions) {
     val accent = IcodeColors.Accent
     val accentArgb = accent.toArgb()
     var pickingAccent by remember { mutableStateOf(false) }
-    val themeAccent = AccentColorRules.themeAccent(appearance.theme)
+    val themeAccent = AccentColorRules.themeAccent(appearance.theme, BuildEnvironment)
 
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Appearance", subtitle = settingsSubtitle(Route.AppearanceSettings), onBack = actions.back)

@@ -35,9 +35,18 @@ class AccentColorRulesTest {
         assertEquals(0xFFFFFFFF.toInt(), AccentColorRules.onColor(0xFF1A237E.toInt()))
     }
 
-    @Test fun `each theme's own accent is Ember, deepened on Light`() {
-        assertEquals(0xFFFF6B2C.toInt(), AccentColorRules.themeAccent(AppTheme.Dark))
-        assertEquals(0xFFB4470C.toInt(), AccentColorRules.themeAccent(AppTheme.Light))
-        assertEquals(0xFFFF6B2C.toInt(), AccentColorRules.themeAccent(AppTheme.Amoled))
+    @Test fun `the production builds' own accent is Ember, deepened on Light`() {
+        listOf(AppEnvironment.Preview, AppEnvironment.Beta, AppEnvironment.Stable).forEach { environment ->
+            assertEquals(0xFFFF6B2C.toInt(), AccentColorRules.themeAccent(AppTheme.Dark, environment))
+            assertEquals(0xFFB4470C.toInt(), AccentColorRules.themeAccent(AppTheme.Light, environment))
+            assertEquals(0xFFFF6B2C.toInt(), AccentColorRules.themeAccent(AppTheme.Amoled, environment))
+        }
+    }
+
+    @Test fun `development and staging take their icon's colours (docs_environments-plan_md)`() {
+        assertEquals(0xFFB0A99A.toInt(), AccentColorRules.themeAccent(AppTheme.Dark, AppEnvironment.Development))
+        assertEquals(0xFF757167.toInt(), AccentColorRules.themeAccent(AppTheme.Light, AppEnvironment.Development))
+        assertEquals(0xFF9C85C9.toInt(), AccentColorRules.themeAccent(AppTheme.Amoled, AppEnvironment.Staging))
+        assertEquals(0xFF6E5AA0.toInt(), AccentColorRules.themeAccent(AppTheme.Light, AppEnvironment.Staging))
     }
 }

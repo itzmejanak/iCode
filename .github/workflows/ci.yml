@@ -26,8 +26,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Install NDK
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;27.0.12077973" "platforms;android-36" > /dev/null
+      # Debug and release: staging, preview and beta are release with another icon, accent and package.
       - name: Unit tests
-        run: ./gradlew test --stacktrace
+        run: ./gradlew testDebugUnitTest testReleaseUnitTest --stacktrace
       - name: Debug build
         run: ./gradlew :app:assembleDebug --stacktrace
       - uses: actions/upload-artifact@v4

@@ -67,10 +67,14 @@ android {
         buildConfig = true
     }
 
+    // One build type per environment (docs/environments-plan.md), as Firefox for Android has one per
+    // channel: each installs beside the others, with its own icon in src/<type>/res and its icon's accent.
+    // debug is development; release is stable, the original icon in src/main.
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            buildConfigField("String", "ENVIRONMENT", "\"Development\"")
         }
         release {
             isMinifyEnabled = true
@@ -79,7 +83,20 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
+            buildConfigField("String", "ENVIRONMENT", "\"Stable\"")
         }
+        listOf("staging" to "Staging", "preview" to "Preview", "beta" to "Beta").forEach { (type, environment) ->
+            create(type) {
+                initWith(getByName("release"))
+                applicationIdSuffix = ".$type"
+                buildConfigField("String", "ENVIRONMENT", "\"$environment\"")
+            }
+        }
+    }
+
+    // Only development carries the screenshot tools; every other build has release's stand-in.
+    sourceSets {
+        listOf("staging", "preview", "beta").forEach { getByName(it).java.srcDir("src/release/java") }
     }
 
     compileOptions {
