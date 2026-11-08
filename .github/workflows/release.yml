@@ -1,15 +1,23 @@
-# Push a tag like v0.2.0 (it must equal versionName in app/build.gradle.kts).
-# The workflow builds and signs the APK, publishes a GitHub Release with its SHA-256,
-# and registers the release on the iCode website so the app's update check sees it.
+# Push a tag to release (docs/environments-plan.md); its version must equal versionName in
+# app/build.gradle.kts, and its suffix picks the build:
+#   v0.2.0            stable   dev.icode.mobile          the original icon; GitHub's Latest
+#   v0.2.0-beta.N     beta     dev.icode.mobile.beta     a pre-release
+#   v0.2.0-preview.N  preview  dev.icode.mobile.preview  a pre-release
+# The workflow builds and signs the APK, publishes a GitHub Release with its SHA-256, and registers it
+# on the iCode website, on its channel, so the app's update check sees it.
+# Run by hand (Actions › Release › Run workflow) it builds staging instead (dev.icode.mobile.staging),
+# signed, as a run artifact: published nowhere.
 #
 # Repository secrets: ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS,
 #   ANDROID_KEY_PASSWORD, ICODE_WEB_RELEASE_TOKEN (same value as the website's RELEASE_PUBLISH_TOKEN).
-# Repository variable: ICODE_WEB_URL (e.g. https://icodze.vercel.app).
+# Repository variables: ICODE_WEB_URL (e.g. https://icodze.vercel.app); ICODE_WEB_STAGING_URL, the
+#   website's staging address for the staging build (empty: its web features stay off).
 name: Release
 
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -29,56 +37,90 @@ jobs:
       - name: Install SDK parts
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "ndk;27.0.12077973" "platforms;android-36" "build-tools;36.0.0" > /dev/null
 
-      - name: Read version
-        id: version
+      - name: Read the build from the tag
+        id: build
         run: |
           name=$(sed -nE 's/^\s*versionName = "([^"]+)".*/\1/p' app/build.gradle.kts | head -1)
-          code=$(sed -nE 's/^\s*versionCode = ([0-9]+).*/\1/p' app/build.gradle.kts | head -1)
-          min=$(sed -nE 's/^\s*minSdk = ([0-9]+).*/\1/p' app/build.gradle.kts | head -1)
-          if [ "v$name" != "$GITHUB_REF_NAME" ]; then
-            echo "::error::Tag $GITHUB_REF_NAME does not match versionName $name"; exit 1
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            type=staging; channel=stable; number=0; web="${{ vars.ICODE_WEB_STAGING_URL }}"
+          else
+            tag="$GITHUB_REF_NAME"; web="${{ vars.ICODE_WEB_URL }}"
+            case "$tag" in
+              "v$name") type=release; channel=stable; number=0 ;;
+              "v$name"-preview.*) type=preview; channel=preview; number="${tag##*-preview.}" ;;
+              "v$name"-beta.*) type=beta; channel=beta; number="${tag##*-beta.}" ;;
+              *) echo "::error::Tag $tag is not v$name, v$name-beta.N or v$name-preview.N"; exit 1 ;;
+            esac
+            case "$number" in ''|*[!0-9]*) echo "::error::Tag $tag has no number after its channel"; exit 1 ;; esac
           fi
-          case "$name" in *-*) channel=beta ;; *) channel=stable ;; esac
-          { echo "name=$name"; echo "code=$code"; echo "min=$min"; echo "channel=$channel"; } >> "$GITHUB_OUTPUT"
+          { echo "type=$type"; echo "channel=$channel"; echo "number=$number"; echo "web=$web"; } >> "$GITHUB_OUTPUT"
 
-      - name: Build release APK
-        run: ./gradlew :app:assembleRelease -PicodeWebUrl="${{ vars.ICODE_WEB_URL }}" --stacktrace
+      - name: Build APK
+        run: |
+          type="${{ steps.build.outputs.type }}"
+          ./gradlew ":app:assemble${type^}" -PicodeWebUrl="${{ steps.build.outputs.web }}" \
+            -PreleaseChannel="${{ steps.build.outputs.channel }}" -PreleaseNumber="${{ steps.build.outputs.number }}" --stacktrace
 
       - name: Sign APK
+        id: apk
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
-          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
-          out="iCode-${{ steps.version.outputs.name }}-arm64-v8a.apk"
+          type="${{ steps.build.outputs.type }}"
           tools="$ANDROID_HOME/build-tools/36.0.0"
-          "$tools/zipalign" -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk "$RUNNER_TEMP/aligned.apk"
+          unsigned="app/build/outputs/apk/$type/app-$type-unsigned.apk"
+          # The version as built: its name with the channel's suffix, and the code Gradle worked out.
+          badging=$("$tools/aapt2" dump badging "$unsigned")
+          name=$(echo "$badging" | sed -nE "s/^package: .* versionName='([^']+)'.*/\1/p")
+          code=$(echo "$badging" | sed -nE "s/^package: .* versionCode='([0-9]+)'.*/\1/p")
+          min=$(echo "$badging" | sed -nE "s/^sdkVersion:'([0-9]+)'.*/\1/p")
+          echo "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.jks"
+          out="iCode-$name-arm64-v8a.apk"
+          "$tools/zipalign" -p -f 4 "$unsigned" "$RUNNER_TEMP/aligned.apk"
           "$tools/apksigner" sign --ks "$RUNNER_TEMP/release.jks" --ks-pass env:KEYSTORE_PASSWORD \
             --ks-key-alias "$KEY_ALIAS" --key-pass env:KEY_PASSWORD --out "$out" "$RUNNER_TEMP/aligned.apk"
           "$tools/apksigner" verify "$out"
           sha256sum "$out" > "$out.sha256"
           rm -f "$RUNNER_TEMP/release.jks"
-          echo "APK=$out" >> "$GITHUB_ENV"
+          { echo "file=$out"; echo "name=$name"; echo "code=$code"; echo "min=$min"; } >> "$GITHUB_OUTPUT"
+
+      - name: Keep the staging build
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.apk.outputs.file }}
+          path: |
+            ${{ steps.apk.outputs.file }}
+            ${{ steps.apk.outputs.file }}.sha256
+          retention-days: 14
 
       - name: Release notes from CHANGELOG
+        if: github.event_name == 'push'
         run: |
-          awk -v v="${{ steps.version.outputs.name }}" '
+          # A pre-release takes its version's section.
+          version=$(sed -nE 's/^\s*versionName = "([^"]+)".*/\1/p' app/build.gradle.kts | head -1)
+          awk -v v="$version" '
             $0 ~ "^## \\[" v "\\]" {on=1; next}
             on && /^## \[/ {exit}
             on {print}' CHANGELOG.md > notes.md
-          [ -s notes.md ] || echo "iCode ${{ steps.version.outputs.name }}" > notes.md
+          [ -s notes.md ] || echo "iCode ${{ steps.apk.outputs.name }}" > notes.md
 
       - name: Publish GitHub Release
+        if: github.event_name == 'push'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          flag=""; [ "${{ steps.version.outputs.channel }}" = beta ] && flag="--prerelease"
-          gh release create "$GITHUB_REF_NAME" "$APK" "$APK.sha256" \
-            --title "iCode ${{ steps.version.outputs.name }}" --notes-file notes.md $flag
+          # Preview and beta are pre-releases; a stable release becomes GitHub's Latest, the newest that is not one.
+          flag=""; [ "${{ steps.build.outputs.channel }}" != stable ] && flag="--prerelease"
+          apk="${{ steps.apk.outputs.file }}"
+          gh release create "$GITHUB_REF_NAME" "$apk" "$apk.sha256" \
+            --title "iCode ${{ steps.apk.outputs.name }}" --notes-file notes.md $flag
 
       - name: Register on the iCode website
+        if: github.event_name == 'push'
         env:
           TOKEN: ${{ secrets.ICODE_WEB_RELEASE_TOKEN }}
           WEB: ${{ vars.ICODE_WEB_URL }}
@@ -86,13 +128,14 @@ jobs:
           if [ -z "$TOKEN" ] || [ -z "$WEB" ]; then
             echo "::warning::ICODE_WEB_URL or ICODE_WEB_RELEASE_TOKEN not set; skipped the website."; exit 0
           fi
+          apk="${{ steps.apk.outputs.file }}"
           jq -n \
-            --arg versionName "${{ steps.version.outputs.name }}" \
-            --argjson versionCode "${{ steps.version.outputs.code }}" \
-            --arg channel "${{ steps.version.outputs.channel }}" \
-            --argjson minSdk "${{ steps.version.outputs.min }}" \
-            --arg fileUrl "https://github.com/${{ github.repository }}/releases/download/$GITHUB_REF_NAME/$APK" \
-            --arg sha256 "$(cut -d' ' -f1 "$APK.sha256")" \
+            --arg versionName "${{ steps.apk.outputs.name }}" \
+            --argjson versionCode "${{ steps.apk.outputs.code }}" \
+            --arg channel "${{ steps.build.outputs.channel }}" \
+            --argjson minSdk "${{ steps.apk.outputs.min }}" \
+            --arg fileUrl "https://github.com/${{ github.repository }}/releases/download/$GITHUB_REF_NAME/$apk" \
+            --arg sha256 "$(cut -d' ' -f1 "$apk.sha256")" \
             --rawfile notes notes.md \
             '{versionName:$versionName, versionCode:$versionCode, channel:$channel, abi:"arm64-v8a",
               minSdk:$minSdk, fileUrl:$fileUrl, sha256:$sha256, notes:$notes, publish:true}' > body.json
