@@ -140,11 +140,11 @@ internal class WebCoordinator(
 
     /** The admin's check interval has passed since the last successful check. */
     private fun updateCheckDue(): Boolean =
-        client.configured && System.currentTimeMillis() - prefs.lastUpdateCheckAt >= prefs.checkIntervalHours * 3_600_000L
+        client.updates && System.currentTimeMillis() - prefs.lastUpdateCheckAt >= prefs.checkIntervalHours * 3_600_000L
 
     private fun checkForUpdates() {
         stateHolder.update { it.copy(web = it.web.copy(update = UpdateCheck.Checking)) }
-        val result = if (!client.configured) {
+        val result = if (!client.updates) {
             UpdateCheck.Failed("Updates are not available in this build")
         } else {
             runCatching { client.latestRelease() }.fold(

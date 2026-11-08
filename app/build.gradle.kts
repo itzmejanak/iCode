@@ -8,6 +8,15 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
 }
 
+// The release being built (docs/environments-plan.md): the release workflow passes its channel and, for
+// a pre-release, its number, from the tag (v0.2.0-beta.3: beta, 3). A local build is stable, numbered 0.
+val releaseChannel = (project.findProperty("releaseChannel") as String?) ?: "stable"
+val releaseNumber = (project.findProperty("releaseNumber") as String?)?.toInt() ?: 0
+require(releaseNumber in 0..99) { "releaseNumber is 0 to 99" }
+// Where the channel sits in versionCode: preview before beta before stable, for the same version.
+val releaseStage = mapOf("preview" to 1, "beta" to 2, "stable" to 9)[releaseChannel]
+    ?: error("releaseChannel is preview, beta or stable, not $releaseChannel")
+
 // One version for the editor engine: the dependency, and what About reports.
 val soraEditorVersion = "0.24.6"
 // One version for the assistant's Koog modules; an upgrade repeats docs/assistant-koog-plan.md §9 D1 and D9.
@@ -22,8 +31,12 @@ android {
         applicationId = "dev.icode.mobile"
         minSdk = 30
         targetSdk = 36
-        versionCode = 1
         versionName = "0.1.0"
+        // MAJOR·10 000 000 + MINOR·100 000 + PATCH·1 000 + stage·100 + number: it rises within every channel
+        // and across them. Order is by this code, never by name: in SemVer, beta sorts before preview.
+        versionCode = versionName!!.split('.').map(String::toInt).let { (major, minor, patch) ->
+            major * 10_000_000 + minor * 100_000 + patch * 1_000
+        } + releaseStage * 100 + releaseNumber
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -75,6 +88,7 @@ android {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
             buildConfigField("String", "ENVIRONMENT", "\"Development\"")
+            buildConfigField("String", "UPDATE_CHANNEL", "\"\"")
         }
         release {
             isMinifyEnabled = true
@@ -84,12 +98,16 @@ android {
                 "proguard-rules.pro",
             )
             buildConfigField("String", "ENVIRONMENT", "\"Stable\"")
+            buildConfigField("String", "UPDATE_CHANNEL", "\"stable\"")
         }
+        // Staging is checked before a release and updates from nowhere; preview and beta from their own channel.
         listOf("staging" to "Staging", "preview" to "Preview", "beta" to "Beta").forEach { (type, environment) ->
             create(type) {
                 initWith(getByName("release"))
                 applicationIdSuffix = ".$type"
+                versionNameSuffix = if (type == "staging") "-staging" else "-$type.$releaseNumber"
                 buildConfigField("String", "ENVIRONMENT", "\"$environment\"")
+                buildConfigField("String", "UPDATE_CHANNEL", "\"${if (type == "staging") "" else type}\"")
             }
         }
     }

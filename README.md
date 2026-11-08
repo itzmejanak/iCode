@@ -81,6 +81,10 @@ Download the APK from [Releases](https://github.com/itzmejanak/iCode/releases), 
 published SHA-256, and install it. On first launch, iCode installs its Linux runtime. It then offers
 optional permissions (notifications, battery) one at a time through Android's own dialogs.
 
+Stable is the original icon. Beta and preview are pre-releases, each with its own icon, and install
+beside stable as separate apps with their own data; each updates only from its own channel
+([docs/environments-plan.md](docs/environments-plan.md)).
+
 ## Build from source
 
 Requirements: JDK 17, Android SDK 36 and NDK 27.0.12077973.

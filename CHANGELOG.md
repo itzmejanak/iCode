@@ -7,6 +7,11 @@ All notable changes to iCode are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Environments: development, staging, and production as preview, beta and stable, each its own app
+  that installs beside the others, with its own icon and its icon's colour as the theme accent (grey
+  for development, lavender for staging, Ember for production). Preview and beta are released from
+  `v…-preview.N` and `v…-beta.N` tags as pre-releases and update only from their own channel; stable is
+  the original icon and GitHub's Latest. Staging is built by hand from the release workflow.
 - GPL-3.0 licence, contributing guide, security policy, privacy page and code of conduct.
 - Issue and pull request templates.
 - CI (unit tests and debug build), CodeQL scanning, Dependabot, and a tag-driven release workflow.

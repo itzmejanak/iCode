@@ -14,10 +14,14 @@ internal class ICodeWebClient(private val baseUrl: String = BuildConfig.ICODE_WE
     /** False in builds without a website address: every web feature then stays off. */
     val configured: Boolean get() = baseUrl.startsWith("https://") || baseUrl.startsWith("http://")
 
+    /** This build updates from its own channel (docs/environments-plan.md); development and staging from none. */
+    val updates: Boolean get() = configured && BuildConfig.UPDATE_CHANNEL.isNotEmpty()
+
     fun appConfig(): WebJson.Config = WebJson.config(getJson("/api/v1/app/config"))
 
-    fun latestRelease(channel: String = "stable"): WebJson.Latest =
-        WebJson.latest(getJson("/api/v1/app/releases/latest?channel=$channel&abi=arm64-v8a&versionCode=${BuildConfig.VERSION_CODE}"))
+    /** The newest release on this build's channel: another channel's is another package, which this one cannot update to. */
+    fun latestRelease(): WebJson.Latest =
+        WebJson.latest(getJson("/api/v1/app/releases/latest?channel=${BuildConfig.UPDATE_CHANNEL}&abi=arm64-v8a&versionCode=${BuildConfig.VERSION_CODE}"))
 
     fun notices(): List<dev.icode.mobile.domain.AppNotice.Message> =
         WebJson.notices(getJson("/api/v1/app/notices?placement=app&versionCode=${BuildConfig.VERSION_CODE}"))
