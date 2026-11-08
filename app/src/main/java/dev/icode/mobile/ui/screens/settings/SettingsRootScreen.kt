@@ -31,10 +31,21 @@ import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTextField
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
+import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.SettingRow
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalICodeSnapshot
+
+/**
+ * The root list in three groups: how iCode looks and edits, what it thinks and codes with, and what
+ * it runs on. Searching answers with the pages themselves, across every group.
+ */
+private val settingsGroups = listOf(
+    "Appearance & editing" to listOf(Route.AppearanceSettings, Route.SettingsEditor, Route.TerminalSettings),
+    "Assistant & code" to listOf(Route.AssistantSettings, Route.SourceControlSettings, Route.SettingsLanguages),
+    "System" to listOf(Route.SettingsRuntime, Route.StorageSettings, Route.About),
+)
 
 /** Settings root with the application settings categories. */
 @Composable
@@ -44,7 +55,14 @@ fun SettingsRootScreen(actions: NavigationActions) {
     var searchQuery by rememberSaveable { mutableStateOf("") }
     val searchFocus = remember { FocusRequester() }
     LaunchedEffect(searchVisible) { if (searchVisible) searchFocus.requestFocus() }
-    val categories = searchSettingsCategories(searchQuery)
+    val matches = searchSettingsCategories(searchQuery)
+    val groups: List<Pair<String?, List<SettingsCategory>>> = if (searchQuery.isNotBlank()) {
+        listOf(null to matches)
+    } else {
+        settingsGroups.map { (label, routes) ->
+            label to routes.mapNotNull { route -> matches.firstOrNull { it.destination == route } }
+        }
+    }
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar(
             "Settings",
@@ -79,18 +97,25 @@ fun SettingsRootScreen(actions: NavigationActions) {
             ),
             verticalArrangement = Arrangement.spacedBy(IcodeSpacing.ItemGap),
         ) {
-            if (categories.isEmpty()) item {
+            if (matches.isEmpty()) item(key = "none") {
                 Text("No matching settings", style = IcodeType.Body, color = IcodeColors.TextSecondary)
             }
-            items(categories) { category ->
-                SettingRow(
-                    title = category.title,
-                    subtitle = category.subtitle,
-                    leadingIcon = category.icon,
-                    onClick = { actions.navigate(category.destination) },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = IcodeColors.TextSecondary)
+            groups.forEach { (label, categories) ->
+                label?.let { title ->
+                    item(key = title) {
+                        SectionLabel(title, Modifier.padding(top = IcodeSpacing.SectionBreak))
+                    }
+                }
+                items(categories, key = { it.destination.toString() }) { category ->
+                    SettingRow(
+                        title = category.title,
+                        subtitle = category.subtitle,
+                        leadingIcon = category.icon,
+                        onClick = { actions.navigate(category.destination) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = IcodeColors.TextSecondary)
+                    }
                 }
             }
         }
