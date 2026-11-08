@@ -1,7 +1,7 @@
 # iCode's environments
 
-Status: **plan** (2026-11-08), the owner's request. Nothing is built yet; the decisions in §6 wait for
-the owner.
+Status: **built** (2026-11-08), the owner's request: E0 (016301c), E1 (dcbf084) and E2, every decision in
+§6 as recommended. §7 says where the build went past the plan. The phone checks (§4) are still to be run.
 
 > "The goal is simple: identify the iCode app by its current type." — development, staging, and
 > production as preview, beta, stable and latest. "Make sure the color theme and accent match the
@@ -112,7 +112,7 @@ an older stable keeps its data.
 - Play Store tracks (§2 gives the mapping).
 - A different launcher name per environment ("iCode Beta"): the owner asked for no new labels (§6 D2).
 
-## 6. Owner decisions
+## 6. Owner decisions (taken 2026-11-08: all as recommended)
 
 | # | Decision | Recommended |
 |---|---|---|
@@ -121,3 +121,24 @@ an older stable keeps its data.
 | D3 | The theme accent comes from the icon (§1); a user's own accent still wins | Yes |
 | D4 | "Latest" is the newest stable release, not a separate build | Yes |
 | D5 | Staging uses the website's staging address; development uses none unless set locally | Yes |
+
+## 7. As built
+
+- **Icons:** each environment's artwork is placed where the stable mark sits in today's launcher
+  foreground, at every density: the same height (172 px at xxxhdpi, 43 dp of the 108 dp layer) and the
+  same centre, each within a pixel. Background and monochrome stay shared.
+- **The accent:** `AppEnvironment` (domain) holds each environment's two colours, and
+  `AccentColorRules.themeAccent(theme, environment)` gives them; `BuildConfig.ENVIRONMENT` names this
+  build's. A test holds every environment's accent to 3:1 on every theme's background, and what is
+  drawn on it to 4.5:1.
+- **versionCode** is worked out in `defaultConfig` from `versionName` and the channel and number the
+  release workflow passes (`-PreleaseChannel`, `-PreleaseNumber`). A build type cannot carry a version
+  code of its own, and this way `BuildConfig.VERSION_CODE`, which the update check sends, is the code
+  built. 0.1.0 stable is 100900, above v0.1.0's 1.
+- **The release workflow** reads the version's name, code and minimum SDK from the built APK. Staging
+  is the same workflow run by hand, not a second file: it builds against `ICODE_WEB_STAGING_URL`.
+- **CI** runs the unit tests it ran before (debug and release): the three new types are release with
+  another icon, accent and package. They are first built by the release workflow, since this session
+  cannot reach Google's Maven to build an APK.
+- **Update checks:** `BuildConfig.UPDATE_CHANNEL` is each build's channel, empty for development and
+  staging, which then say updates are not available in this build, as an unconfigured build already did.
