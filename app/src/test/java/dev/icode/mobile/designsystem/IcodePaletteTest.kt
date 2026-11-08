@@ -2,6 +2,7 @@ package dev.icode.mobile.designsystem
 
 import androidx.compose.ui.graphics.Color
 import dev.icode.mobile.domain.AccentColorRules
+import dev.icode.mobile.domain.AppEnvironment
 import dev.icode.mobile.domain.AppTheme
 import androidx.compose.ui.graphics.toArgb
 import org.junit.Assert.assertEquals
@@ -27,10 +28,21 @@ class IcodePaletteTest {
         assertEquals(Color(0xFF4FB3FF), IcodePalette.Dark.withAccent(0x404FB3FF).accent)
     }
 
-    @Test fun `each palette draws its theme's own accent`() {
-        assertEquals(Color(AccentColorRules.themeAccent(AppTheme.Dark)), IcodePalette.Dark.accent)
-        assertEquals(Color(AccentColorRules.themeAccent(AppTheme.Light)), IcodePalette.Light.accent)
-        assertEquals(Color(AccentColorRules.themeAccent(AppTheme.Amoled)), IcodePalette.Amoled.accent)
+    @Test fun `each palette draws its theme's own accent, this build's environment's`() {
+        assertEquals(Color(AccentColorRules.themeAccent(AppTheme.Dark, BuildEnvironment)), IcodePalette.Dark.accent)
+        assertEquals(Color(AccentColorRules.themeAccent(AppTheme.Light, BuildEnvironment)), IcodePalette.Light.accent)
+        assertEquals(Color(AccentColorRules.themeAccent(AppTheme.Amoled, BuildEnvironment)), IcodePalette.Amoled.accent)
+    }
+
+    @Test fun `every environment's accent reads on every theme, and so does what is drawn on it`() {
+        AppEnvironment.entries.forEach { environment ->
+            AppTheme.entries.forEach { theme ->
+                val palette = IcodePalette.of(theme, borderLines = true)
+                val accent = AccentColorRules.themeAccent(theme, environment)
+                assertTrue("$environment on $theme", AccentColorRules.contrastRatio(accent, palette.background.toArgb()) >= AccentColorRules.MIN_CONTRAST)
+                assertTrue("on $environment's $theme accent", AccentColorRules.contrastRatio(palette.onAccent.toArgb(), accent) >= 4.5)
+            }
+        }
     }
 
     @Test fun `with border lines each theme is its own palette`() {

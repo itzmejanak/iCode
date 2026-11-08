@@ -49,6 +49,22 @@ data class AppearanceSettings(
     val accentColor: Int? = null,
 )
 
+/**
+ * Which build of iCode this is (docs/environments-plan.md): each installs beside the others with its own
+ * icon, and its theme accent is that icon's warm colour, the role Ember plays in the stable icon. Null:
+ * Ember, the production icon's own.
+ */
+enum class AppEnvironment(val accent: Int?, val lightAccent: Int?) {
+    /** The icon's warm grey; on Light, the same grey deepened to 4.5:1. */
+    Development(0xFFB0A99A.toInt(), 0xFF757167.toInt()),
+
+    /** The icon's lavender; on Light, its violet. */
+    Staging(0xFF9C85C9.toInt(), 0xFF6E5AA0.toInt()),
+    Preview(null, null),
+    Beta(null, null),
+    Stable(null, null),
+}
+
 /** The accent colours offered first, how a choice is written, and whether it reads on a background. */
 object AccentColorRules {
     data class Preset(val name: String, val argb: Int)
@@ -65,8 +81,14 @@ object AccentColorRules {
         Preset("Rose", 0xFFFF5C8A.toInt()),
     )
 
-    /** Each theme's own accent: Ember, deepened on Light so it still reads on a light background. */
-    fun themeAccent(theme: AppTheme): Int = if (theme == AppTheme.Light) LIGHT_EMBER else presets.first().argb
+    /**
+     * Each theme's own accent in [environment]: its icon's colour — Ember for the production builds — deepened
+     * on Light so it still reads on a light background.
+     */
+    fun themeAccent(theme: AppTheme, environment: AppEnvironment): Int = when (theme) {
+        AppTheme.Light -> environment.lightAccent ?: LIGHT_EMBER
+        AppTheme.Dark, AppTheme.Amoled -> environment.accent ?: presets.first().argb
+    }
 
     private val LIGHT_EMBER = 0xFFB4470C.toInt()
 
