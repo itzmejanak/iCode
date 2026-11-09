@@ -7,14 +7,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.CloudDownload
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -23,6 +23,7 @@ import dev.icode.mobile.designsystem.IcodeBottomSheet
 import dev.icode.mobile.designsystem.IcodeChoiceRow
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeConfirmSheet
+import dev.icode.mobile.designsystem.IcodeIconButton
 import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
@@ -30,7 +31,9 @@ import dev.icode.mobile.designsystem.IcodeTextField
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SectionLabel
+import dev.icode.mobile.domain.BusyAction
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.isBusy
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
@@ -52,6 +55,8 @@ fun BranchSelectorScreen(actions: NavigationActions) {
     val activeBranch = repository?.branch.orEmpty()
     var newBranch by rememberSaveable(repository?.workTreePath) { mutableStateOf("") }
     var branchPendingDelete by rememberSaveable { mutableStateOf<String?>(null) }
+    // The field empties at the tap; the button stays busy until Git has made it.
+    var created by remember { mutableStateOf<String?>(null) }
     val matching = branches.filter { it.contains(query, ignoreCase = true) }
     // A remote branch already checked out locally is the same branch, so it is
     // not offered twice.
@@ -76,12 +81,14 @@ fun BranchSelectorScreen(actions: NavigationActions) {
                 PrimaryButton(
                     "Create New Branch",
                     {
+                        created = newBranch
                         gateway.dispatch(ICodeIntent.CreateBranch(newBranch))
                         newBranch = ""
                     },
                     modifier = Modifier.fillMaxWidth(),
                     enabled = newBranch.isNotBlank(),
                     icon = Icons.Outlined.Add,
+                    busy = created?.let { state.isBusy(BusyAction.Branch, it) } == true,
                 )
             },
         ) {
@@ -96,6 +103,7 @@ fun BranchSelectorScreen(actions: NavigationActions) {
                 LocalBranchRow(
                     branch = branch,
                     active = branch == activeBranch,
+                    deleting = state.isBusy(BusyAction.Branch, branch),
                     onSwitch = {
                         gateway.dispatch(ICodeIntent.SwitchBranch(branch))
                         actions.back()
@@ -148,18 +156,19 @@ fun BranchSelectorScreen(actions: NavigationActions) {
 private fun LocalBranchRow(
     branch: String,
     active: Boolean,
+    deleting: Boolean,
     onSwitch: () -> Unit,
     onDelete: () -> Unit,
 ) {
     IcodeChoiceRow(branch, chosen = active, onChoose = onSwitch) {
         // Git refuses to delete the checked-out branch, so only the others carry the control at all.
-        IconButton(onClick = onDelete) {
-            Icon(
-                Icons.Outlined.DeleteOutline,
-                contentDescription = "Delete branch $branch",
-                tint = IcodeColors.TextMuted,
-                modifier = Modifier.size(IcodeSizes.IconMd),
-            )
-        }
+        IcodeIconButton(
+            Icons.Outlined.DeleteOutline,
+            contentDescription = "Delete branch $branch",
+            onClick = onDelete,
+            busy = deleting,
+            tint = IcodeColors.TextMuted,
+            iconSize = IcodeSizes.IconMd,
+        )
     }
 }

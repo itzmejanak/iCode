@@ -19,12 +19,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import dev.icode.mobile.designsystem.IcodeLoadingLine
 import dev.icode.mobile.designsystem.IcodeBottomSheet
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTextButton
 import dev.icode.mobile.designsystem.IcodeType
-import dev.icode.mobile.designsystem.IndeterminateProgressTrack
 import dev.icode.mobile.domain.GitHistory
 import dev.icode.mobile.domain.GitHistoryIntent
 import dev.icode.mobile.domain.countOf
@@ -68,10 +68,7 @@ private fun HistoryWait(history: GitHistory?, onRetry: () -> Unit) {
     when {
         failure != null -> HistoryFailure(failure, onRetry)
         history != null && history.complete -> Text("No commits yet", style = IcodeType.Caption)
-        else -> {
-            Text("Reading the history", style = IcodeType.Caption)
-            IndeterminateProgressTrack(Modifier.fillMaxWidth())
-        }
+        else -> IcodeLoadingLine("Reading the history…")
     }
 }
 
@@ -96,7 +93,7 @@ private fun HistoryList(history: GitHistory, onMore: () -> Unit) {
                 when {
                     failure != null -> HistoryFailure(failure, onMore)
                     history.complete -> Text(countOf(history.rows.size, "commit"), style = IcodeType.Caption, color = IcodeColors.TextMuted)
-                    else -> IndeterminateProgressTrack(Modifier.fillMaxWidth())
+                    else -> IcodeLoadingLine("Reading more commits…")
                 }
             }
         }

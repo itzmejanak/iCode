@@ -32,16 +32,19 @@ import dev.icode.mobile.designsystem.Divider
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeConfirmSheet
+import dev.icode.mobile.designsystem.IcodeIconButton
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTextButton
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.MonoLine
+import dev.icode.mobile.domain.BusyAction
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.RunConfiguration
 import dev.icode.mobile.domain.RunRules
 import dev.icode.mobile.domain.RunStatus
 import dev.icode.mobile.domain.RuntimeTools
 import dev.icode.mobile.domain.SystemPermission
+import dev.icode.mobile.domain.isBusy
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
@@ -129,6 +132,7 @@ internal fun RunPanelContent(
                         onConfirmInstall = { gateway.dispatch(ICodeIntent.ConfirmAndroidAppInstall) },
                         onOpen = { process?.let { onShowOutput(it.id) } },
                         onLongPress = { if (configuration is RunConfiguration.Command) onHold(configuration.id) },
+                        starting = state.isBusy(BusyAction.RunStart, configuration.id),
                     )
                 }
             }
@@ -168,6 +172,8 @@ private fun RunRow(
     onConfirmInstall: () -> Unit,
     onOpen: () -> Unit,
     onLongPress: () -> Unit,
+    /** ▶ was tapped and its process has not started yet. */
+    starting: Boolean,
 ) {
     val stoppable = RunRules.stoppable(status)
     Row(
@@ -187,13 +193,13 @@ private fun RunRow(
             Text(label(status), style = IcodeType.Caption.copy(color = color(status)), maxLines = 3)
             if (status == RunStatus.Installing) IcodeTextButton("Install", onConfirmInstall)
         }
-        IconButton(onClick = if (stoppable) onStop else onRun) {
-            Icon(
-                if (stoppable) Icons.Outlined.Stop else Icons.Outlined.PlayArrow,
-                contentDescription = if (stoppable) "Stop ${configuration.name}" else "Run ${configuration.name}",
-                tint = if (stoppable) IcodeColors.Error else IcodeColors.Accent,
-            )
-        }
+        IcodeIconButton(
+            if (stoppable) Icons.Outlined.Stop else Icons.Outlined.PlayArrow,
+            contentDescription = if (stoppable) "Stop ${configuration.name}" else "Run ${configuration.name}",
+            onClick = if (stoppable) onStop else onRun,
+            busy = starting && !stoppable,
+            tint = if (stoppable) IcodeColors.Error else IcodeColors.Accent,
+        )
     }
 }
 

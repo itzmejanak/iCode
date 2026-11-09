@@ -18,6 +18,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import dev.icode.mobile.designsystem.BusyIndicator
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeConfirmSheet
@@ -30,6 +31,7 @@ import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.SettingRow
 import dev.icode.mobile.designsystem.ShareTrack
+import dev.icode.mobile.domain.BusyAction
 import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.ICodeIntent
@@ -39,6 +41,7 @@ import dev.icode.mobile.domain.countOf
 import dev.icode.mobile.domain.files.ExplorerView
 import dev.icode.mobile.domain.files.StoragePlace
 import dev.icode.mobile.domain.files.TrashRules
+import dev.icode.mobile.domain.isBusy
 import dev.icode.mobile.domain.storageSizeLabel
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
@@ -116,7 +119,7 @@ fun StorageSettingsScreen(actions: NavigationActions) {
                     Text(ByteSize.format(trash.bytes), style = IcodeType.Mono)
                 }
                 SettingRow("Cache", Modifier.fillMaxWidth(), subtitle = storageSizeLabel(details?.cache), leadingIcon = Icons.Outlined.Cached) {
-                    IcodeTextButton("Clear", { confirmClearCache = true })
+                    IcodeTextButton("Clear", { confirmClearCache = true }, busy = state.isBusy(BusyAction.ClearCache))
                 }
                 SettingRow(
                     "Manage storage",
@@ -128,7 +131,9 @@ fun StorageSettingsScreen(actions: NavigationActions) {
             }
             IcodeSection("Files") {
                 SettingRow("Show Hidden Files", Modifier.fillMaxWidth(), subtitle = "Names starting with a dot, in both explorers", leadingIcon = Icons.Outlined.Visibility) {
-                    IcodeToggle(preferences.explorer.showHidden) { saver.save { repository.setShowHidden(it) } }
+                    // Its value once read; not offered as a default before.
+                    if (saver.ready) IcodeToggle(preferences.explorer.showHidden) { saver.save { repository.setShowHidden(it) } }
+                    else BusyIndicator(!preferences.loaded, description = "Loading settings")
                 }
             }
             // Android's own setting; iCode shows what it reads and opens the page to change it.

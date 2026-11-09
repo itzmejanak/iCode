@@ -17,6 +17,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.TextStyle
+import dev.icode.mobile.BuildConfig
+import dev.icode.mobile.designsystem.CHECKING
 import dev.icode.mobile.designsystem.DetailRow
 import dev.icode.mobile.designsystem.IcodeBrandMark
 import dev.icode.mobile.designsystem.IcodeCard
@@ -31,7 +33,6 @@ import dev.icode.mobile.designsystem.IcodeToggle
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.behindSheet
-import dev.icode.mobile.BuildConfig
 import dev.icode.mobile.domain.AppLinks
 import dev.icode.mobile.domain.DeviceInfoConsent
 import dev.icode.mobile.domain.ICodeIntent
@@ -57,7 +58,7 @@ private fun resourceLinks(links: AppLinks?) = listOf(
 
 private fun updateSubtitle(check: UpdateCheck): String = when (check) {
     UpdateCheck.Idle -> "Tap to check"
-    UpdateCheck.Checking -> "Checking…"
+    UpdateCheck.Checking -> CHECKING
     UpdateCheck.UpToDate -> "You're on the latest version"
     is UpdateCheck.Available -> if (check.required) "Update required: ${check.versionName} — tap to download" else "${check.versionName} available — tap to download"
     is UpdateCheck.Failed -> check.reason
@@ -78,7 +79,7 @@ fun AboutScreen(actions: NavigationActions) {
     val buildSpecs = listOf(
         "App Version" to BuildConfig.VERSION_NAME,
         "Runtime Version" to when {
-            !runtime.inspected -> "Checking…"
+            !runtime.inspected -> CHECKING
             runtime.release == null -> "Not installed"
             else -> listOfNotNull(runtime.release, runtime.architecture.takeIf { it.isNotEmpty() }).joinToString(" · ")
         },

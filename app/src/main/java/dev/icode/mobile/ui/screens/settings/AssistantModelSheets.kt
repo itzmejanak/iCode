@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Search
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,6 +24,7 @@ import dev.icode.mobile.designsystem.IcodeBottomSheet
 import dev.icode.mobile.designsystem.IcodeCheckbox
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeListRow
+import dev.icode.mobile.designsystem.IcodeLoadingLine
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTextField
@@ -104,14 +104,8 @@ internal fun AddModelsSheet(
         }
         SectionLabel("Served by $providerName", Modifier.padding(top = IcodeSpacing.SectionBreak))
         when {
-            available == null || available.loading -> Row(
-                Modifier.padding(vertical = IcodeSpacing.Space2),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
-            ) {
-                CircularProgressIndicator(Modifier.size(IcodeSizes.IconSm), color = IcodeColors.Accent, strokeWidth = IcodeSpacing.Micro)
-                Muted("Asking $providerName for its models…")
-            }
+            available == null || available.loading ->
+                IcodeLoadingLine("Asking $providerName for its models…", Modifier.padding(vertical = IcodeSpacing.Space2))
             available.failure != null -> {
                 Muted(available.failure)
                 SecondaryButton("Try Again", onList)

@@ -57,8 +57,7 @@ fun IcodeProgressSheet(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
             )
-            if (progress == null) IndeterminateProgressTrack(Modifier.fillMaxWidth())
-            else ProgressTrack(progress, Modifier.fillMaxWidth())
+            ProgressTrack(progress, Modifier.fillMaxWidth())
             if (counts != null || share != null) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                     Text(counts.orEmpty(), style = IcodeType.Caption)

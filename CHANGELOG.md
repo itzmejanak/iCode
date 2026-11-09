@@ -121,6 +121,24 @@ All notable changes to iCode are documented here. The format follows
 - Terminal: every bash tab carries iCode's shell integration (`/etc/icode/bashrc`, OSC 133 and OSC 7
   marks, after your own profile), so iCode knows exactly when a command ends.
 
+### Changed
+- One loading behaviour for the whole app ([docs/loading-plan.md](docs/loading-plan.md)). A tap is
+  answered at once, even while iCode is still busy with something else: the button or row you tapped
+  stops taking taps, keeps its label, and shows a spinner if the work takes longer than a moment
+  (TalkBack says "Working"). A second tap does nothing until the first is done. This covers opening
+  a workspace or a file, saving, closing a tab, staging, committing, branches, conflicts, Git
+  credentials, language servers, Run, the terminal's +, runtime repair and reset, and clearing the
+  cache.
+- Questions stay open until their answer is carried out — discard changes, recover a draft,
+  overwrite a newer file, a file changed on disk, new folder, new file, rename — with the chosen
+  button working, then close.
+- Nothing is shown as empty, or as the last thing, before it is read: the Workspaces list shows its
+  rows' outline at launch instead of "No workspaces yet"; Diff and Conflict say they are reading
+  instead of showing the previous file; settings pages wait for your settings before showing their
+  controls.
+- One spinner, one "waiting" line and one progress bar everywhere; a clone whose share Git has not
+  given yet shows a moving bar instead of one stuck at zero.
+
 ## [0.1.0]
 
 First version: workspaces, editor, embedded Ubuntu runtime, terminal, Git, language services and the AI assistant.

@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import dev.icode.mobile.designsystem.IcodeLoadingLine
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodePageColumn
@@ -58,14 +59,11 @@ fun WorkspaceSettingsScreen(actions: NavigationActions) {
         )
         if (root == null || values.workspaceLocation != root || !values.loaded || values.loadError != null) {
             Column(Modifier.weight(1f).fillMaxWidth().padding(IcodeSpacing.Gutter), verticalArrangement = Arrangement.spacedBy(IcodeSpacing.ItemGap)) {
-                Text(
-                    when {
-                        root == null -> "Open a workspace to edit its settings."
-                        values.loadError != null -> "Settings could not be loaded: ${values.loadError}"
-                        else -> "Loading workspace settings…"
-                    },
-                    style = IcodeType.Body,
-                )
+                when {
+                    root == null -> Text("Open a workspace to edit its settings.", style = IcodeType.Body)
+                    values.loadError != null -> Text("Settings could not be loaded: ${values.loadError}", style = IcodeType.Body)
+                    else -> IcodeLoadingLine("Loading workspace settings…")
+                }
                 if (root == null) SecondaryButton("Open workspace", { actions.navigate(Route.LauncherHome) })
             }
             SettingsScopeBar(workspace = true, actions)

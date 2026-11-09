@@ -7,8 +7,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import dev.icode.mobile.designsystem.IcodeConfirmSheet
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodeConfirmSheet
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.LabeledTextField
 import dev.icode.mobile.domain.ICodeIntent
@@ -54,8 +54,8 @@ internal fun CreateWorkspaceItemSheet(
         title = if (type == WorkspaceItemType.File) "New file" else "New folder",
         confirmLabel = "Create",
         confirmEnabled = validationError == null && parent != null && intended != null &&
-            (!followsOpen || state.activeWorkspaceLocation == intended) && !request.waiting,
-        dismissEnabled = !request.waiting,
+            (!followsOpen || state.activeWorkspaceLocation == intended),
+        confirmBusy = request.waiting,
         onDismiss = onDismiss,
         onConfirm = {
             val targetParent = parent ?: return@IcodeConfirmSheet

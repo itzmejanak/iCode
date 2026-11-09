@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.CodeSurface
 import dev.icode.mobile.designsystem.DetailRow
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodeLoadingLine
 import dev.icode.mobile.designsystem.IcodeOptionRow
 import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSizes
@@ -72,7 +73,7 @@ internal fun InstallTypeChoice(custom: Boolean, tools: RuntimeToolsState, standa
 @Composable
 internal fun VerifyChanges(plan: RuntimeToolPlan?, tools: RuntimeToolsState) {
     when {
-        plan == null -> Text("Reading what is installed…", style = IcodeType.Body)
+        plan == null -> IcodeLoadingLine("Reading what is installed…")
         plan.isEmpty -> Text("Nothing will be installed or removed.", style = IcodeType.Body)
         else -> {
             if (plan.install.isNotEmpty()) {
@@ -109,8 +110,7 @@ internal fun ToolProgress(work: RuntimeToolWork) {
                 Text(failure, style = IcodeType.Caption)
             }
         } else {
-            work.fraction?.let { ProgressTrack(it, Modifier.fillMaxWidth()) }
-                ?: IndeterminateProgressTrack(Modifier.fillMaxWidth())
+            ProgressTrack(work.fraction, Modifier.fillMaxWidth())
             Text(work.step, style = IcodeType.Caption.copy(color = IcodeColors.Accent))
             work.item?.let { MonoLine(it, style = IcodeType.MonoSmall, maxLines = 1) }
         }
@@ -135,7 +135,9 @@ internal fun LicenceAgreement(plan: RuntimeToolPlan, tools: RuntimeToolsState, a
         IcodeSection(id) {
             Text("For ${spoken(plan.install.filter { it.licence == id }.map { it.name })}.", style = IcodeType.Caption)
             CodeSurface(Modifier.fillMaxWidth().height(IcodeSizes.LicenceText)) {
-                Text(tools.licences[id] ?: "Reading the licence…", style = IcodeType.MonoSmall, modifier = Modifier.verticalScroll(rememberScrollState()))
+                val licence = tools.licences[id]
+                if (licence == null) IcodeLoadingLine("Reading the licence…")
+                else Text(licence, style = IcodeType.MonoSmall, modifier = Modifier.verticalScroll(rememberScrollState()))
             }
             Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
                 IcodeOptionRow("Decline", "Nothing that needs it is installed.", selected = id !in accepted, onSelect = { onAnswer(id, false) })

@@ -41,8 +41,8 @@ internal class RenameForm(
             else -> WorkspaceNameRules.fileValidationError(name)
         }
 
-    /** A new name that can be, and nothing sent yet. */
-    val ready: Boolean get() = problem == null && name.trim() != current && !request.waiting
+    /** A new name that can be; while [request] waits, the button is busy instead. */
+    val ready: Boolean get() = problem == null && name.trim() != current
 
     fun send(dispatch: (ICodeIntent) -> Unit) = request.send { id -> dispatch(ICodeIntent.RenameWorkspaceItem(location, name.trim(), id)) }
 }

@@ -23,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import dev.icode.mobile.designsystem.IcodeLoadingLine
 import dev.icode.mobile.designsystem.IcodeBottomSheet
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeCheckbox
@@ -113,14 +114,11 @@ internal fun AssistantAttachSheet(
             when {
                 ranked.truncated -> Hint("More files match: narrow the search")
                 listed.isNotEmpty() || open != null -> Unit
-                else -> Hint(
-                    when (val engine = snapshot.searchEngine) {
-                        SearchEngineState.Installing -> "Installing the file index…"
-                        SearchEngineState.Indexing, SearchEngineState.Unknown -> "Indexing the workspace…"
-                        is SearchEngineState.Failed -> engine.reason
-                        is SearchEngineState.Ready -> if (query.isBlank()) "This workspace has no files" else "No file matches"
-                    },
-                )
+                else -> when (val engine = snapshot.searchEngine) {
+                    is SearchEngineState.Failed -> Hint(engine.reason)
+                    is SearchEngineState.Ready -> Hint(if (query.isBlank()) "This workspace has no files" else "No file matches")
+                    else -> engine.waiting?.let { IcodeLoadingLine(it) }
+                }
             }
         }
     }

@@ -68,7 +68,8 @@ internal fun SigningSection(
                     gnupgInstall?.status ?: "Install GnuPG",
                     { onIntent(SigningIntent.InstallGnuPg) },
                     Modifier.fillMaxWidth(),
-                    enabled = auth.work == null && gnupgInstall == null,
+                    enabled = auth.work == null,
+                    busy = gnupgInstall != null,
                 )
             }
             shown == null -> {
@@ -78,10 +79,11 @@ internal fun SigningSection(
                     style = IcodeType.MonoSmall,
                 )
                 SecondaryButton(
-                    if (auth.work == GitAuthWork.CreatingSigningKey) "Creating…" else "Create Key",
+                    "Create Key",
                     { creating = true },
                     Modifier.fillMaxWidth(),
                     enabled = auth.work == null && identity != null && signing.gnupgInstalled == true,
+                    busy = auth.work == GitAuthWork.CreatingSigningKey,
                 )
                 if (identity == null) {
                     MonoLine("Save a default commit identity first, in step 1.", color = IcodeColors.Amber, style = IcodeType.MonoSmall)
@@ -110,10 +112,11 @@ internal fun SigningSection(
                 }
                 signing.publicKey?.let { PublicKeyActions(it, auth.provider.gpgKeyUrl, auth.provider.displayName, onOpenHost) }
                 SecondaryButton(
-                    if (auth.work == GitAuthWork.ChangingPassphrase) "Changing…" else "Change Passphrase",
+                    "Change Passphrase",
                     { onIntent(SigningIntent.ChangePassphrase(shown.fingerprint)) },
                     Modifier.fillMaxWidth(),
                     enabled = auth.work == null,
+                    busy = auth.work == GitAuthWork.ChangingPassphrase,
                 )
                 GitSigningRules.unmatchedEmail(shown, commitEmail)?.let { email ->
                     NoticeCard(tone = IcodeTone.Warning, modifier = Modifier.fillMaxWidth()) {

@@ -34,10 +34,12 @@ import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.StatusDot
 import dev.icode.mobile.designsystem.TwoColumnActions
+import dev.icode.mobile.domain.BusyAction
 import dev.icode.mobile.domain.ByteSize
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.RecoverableDraft
 import dev.icode.mobile.domain.RelativeTime
-import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.isBusy
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
@@ -87,6 +89,8 @@ fun DocumentRecoveryScreen(actions: NavigationActions) {
             }
             item { SectionLabel("Recoverable Documents", Modifier.padding(top = IcodeSpacing.SectionBreak)) }
             items(drafts, key = { it.location }) { draft ->
+                val opening = state.isBusy(BusyAction.OpenFile, draft.location)
+                val discardingIt = state.isBusy(BusyAction.Draft, draft.location)
                 IcodeListRow(
                     card = true,
                     content = {
@@ -112,7 +116,9 @@ fun DocumentRecoveryScreen(actions: NavigationActions) {
                                         "Restore Cache",
                                         { gateway.dispatch(ICodeIntent.OpenRecoverableDraft(draft.location)) },
                                         Modifier.fillMaxWidth(),
+                                        enabled = !discardingIt,
                                         color = IcodeColors.Accent,
+                                        busy = opening,
                                     )
                                 },
                                 right = {
@@ -120,7 +126,9 @@ fun DocumentRecoveryScreen(actions: NavigationActions) {
                                         "Discard",
                                         { discarding = listOf(draft) },
                                         Modifier.fillMaxWidth(),
+                                        enabled = !opening,
                                         color = IcodeColors.Error,
+                                        busy = discardingIt,
                                     )
                                 },
                                 modifier = Modifier.padding(top = IcodeSpacing.Space2),
@@ -136,6 +144,7 @@ fun DocumentRecoveryScreen(actions: NavigationActions) {
                     "Restore All Workspace Docs",
                     { inWorkspace.forEach { gateway.dispatch(ICodeIntent.OpenRecoverableDraft(it.location)) } },
                     Modifier.fillMaxWidth(),
+                    busy = inWorkspace.any { state.isBusy(BusyAction.OpenFile, it.location) },
                 )
             }
             SecondaryButton(
@@ -143,6 +152,7 @@ fun DocumentRecoveryScreen(actions: NavigationActions) {
                 { discarding = drafts },
                 Modifier.fillMaxWidth(),
                 color = IcodeColors.TextMuted,
+                busy = drafts.any { state.isBusy(BusyAction.Draft, it.location) },
             )
         }
     }

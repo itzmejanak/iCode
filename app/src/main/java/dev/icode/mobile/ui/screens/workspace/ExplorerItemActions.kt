@@ -26,19 +26,22 @@ import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodeMenuAction
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
+import dev.icode.mobile.designsystem.IcodeSpinner
+import dev.icode.mobile.designsystem.IcodeTone
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.StatusDot
-import dev.icode.mobile.designsystem.IcodeTone
+import dev.icode.mobile.designsystem.busySemantics
 import dev.icode.mobile.designsystem.gitStatusTone
-import dev.icode.mobile.domain.DiagnosticRules
-import dev.icode.mobile.domain.Severity
+import dev.icode.mobile.designsystem.rememberShownWhileBusy
 import dev.icode.mobile.designsystem.tint
+import dev.icode.mobile.domain.DiagnosticRules
 import dev.icode.mobile.domain.FileEntry
 import dev.icode.mobile.domain.FileKind
 import dev.icode.mobile.domain.FileTypes
 import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.Severity
 import dev.icode.mobile.domain.files.FileSelection
 import dev.icode.mobile.ui.ActionTarget
 import dev.icode.mobile.ui.FileItemActions
@@ -130,6 +133,8 @@ internal fun ExplorerRow(
     onLongClick: () -> Unit,
     /** Its errors and warnings, or those beneath it (DiagnosticRules.countsByLocation). */
     problems: DiagnosticRules.Count? = null,
+    /** A file tapped and not yet in the editor: the spinner in its icon's place. */
+    opening: Boolean = false,
 ) {
     val folder = entry.kind == FileKind.Folder
     val problemTone = problems?.worst?.let { if (it == Severity.Error) IcodeTone.Error else IcodeTone.Warning }
@@ -146,6 +151,7 @@ internal fun ExplorerRow(
         selected = ticked ?: selected,
         selectionBackground = IcodeColors.Surface,
         rowShape = RectangleShape,
+        modifier = Modifier.busySemantics(opening),
         indent = IcodeSpacing.IndentStep * entry.depth,
         onClick = onClick,
         onLongClick = onLongClick,
@@ -164,8 +170,11 @@ internal fun ExplorerRow(
                 } else {
                     Spacer(Modifier.width(IcodeSizes.IconSm))
                 }
-                if (ticked != null) IcodeCheckbox(ticked, onCheckedChange = null, modifier = Modifier.size(IcodeSizes.IconMd))
-                else Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(IcodeSizes.IconMd))
+                when {
+                    ticked != null -> IcodeCheckbox(ticked, onCheckedChange = null, modifier = Modifier.size(IcodeSizes.IconMd))
+                    rememberShownWhileBusy(opening) -> IcodeSpinner(size = IcodeSizes.IconMd)
+                    else -> Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(IcodeSizes.IconMd))
+                }
             }
         },
         // As in VS Code: a changed name takes its status colour; a file shows

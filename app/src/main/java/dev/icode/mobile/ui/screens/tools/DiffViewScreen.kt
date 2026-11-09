@@ -23,13 +23,16 @@ import dev.icode.mobile.designsystem.BottomBarItem
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeBottomBar
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodeLoadingLine
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.PinchToScaleText
 import dev.icode.mobile.designsystem.StatusLabel
+import dev.icode.mobile.domain.BusyAction
 import dev.icode.mobile.domain.GitFileDiff
 import dev.icode.mobile.domain.countOf
+import dev.icode.mobile.domain.isBusy
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.ui.GitDiffLineRow
 import dev.icode.mobile.ui.LocalICodeSnapshot
@@ -44,7 +47,8 @@ import kotlinx.coroutines.launch
 @Composable
 fun DiffViewScreen(actions: NavigationActions) {
     val state = LocalICodeSnapshot.current
-    val diff = state.activeDiff
+    // Until the diff asked for is read, the last one is not shown as if it were it.
+    val diff = state.activeDiff.takeUnless { state.isBusy(BusyAction.OpenDiff) }
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     var hunkIndex by rememberSaveable(diff?.path) { mutableIntStateOf(0) }
@@ -61,6 +65,7 @@ fun DiffViewScreen(actions: NavigationActions) {
             },
         )
         when {
+            diff == null && state.isBusy(BusyAction.OpenDiff) -> IcodeLoadingLine("Reading the changes…", Modifier.padding(IcodeSpacing.Gutter))
             diff == null -> EmptyState(
                 title = "No file selected",
                 description = "Choose a changed file in Source Control to see its diff.",

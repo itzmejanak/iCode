@@ -9,6 +9,15 @@ sealed interface SearchEngineState {
     data object Indexing : SearchEngineState
     data class Ready(val warning: String? = null) : SearchEngineState
     data class Failed(val reason: String) : SearchEngineState
+
+    /** What it is doing before search can answer, in the one wording every search shows; null once it can. */
+    val waiting: String?
+        get() = when (this) {
+            Installing -> "Installing ripgrep for workspace search…"
+            Indexing -> "Indexing workspace files…"
+            Unknown -> "Preparing workspace search…"
+            is Ready, is Failed -> null
+        }
 }
 
 /** One indexed workspace file used by Quick Open ranking. */

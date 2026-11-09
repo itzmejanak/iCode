@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import dev.icode.mobile.designsystem.BusyIndicator
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodePageColumn
@@ -24,9 +25,11 @@ import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.IconBadge
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.StatusLabel
+import dev.icode.mobile.domain.BusyAction
+import dev.icode.mobile.domain.LanguageIntent
 import dev.icode.mobile.domain.LanguageService
 import dev.icode.mobile.domain.LanguageServiceStatus
-import dev.icode.mobile.domain.LanguageIntent
+import dev.icode.mobile.domain.isBusy
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalICodeGateway
@@ -57,7 +60,7 @@ fun LanguageServicesScreen(actions: NavigationActions) {
             }
             IcodeSection {
                 services.forEach { service ->
-                    LanguageServiceRow(service) {
+                    LanguageServiceRow(service, acting = state.isBusy(BusyAction.LanguageService, service.id)) {
                         gateway.dispatch(LanguageIntent.Select(service.id))
                         actions.navigate(Route.SettingsLanguageDetail)
                     }
@@ -74,7 +77,7 @@ fun LanguageServicesScreen(actions: NavigationActions) {
 }
 
 @Composable
-private fun LanguageServiceRow(service: LanguageService, onClick: () -> Unit) {
+private fun LanguageServiceRow(service: LanguageService, acting: Boolean, onClick: () -> Unit) {
     IcodeListRow(
         card = true,
         onClick = onClick,
@@ -92,6 +95,8 @@ private fun LanguageServiceRow(service: LanguageService, onClick: () -> Unit) {
             }
         },
         trailing = {
+            // Started, stopped or removed from its page: what was asked runs on after coming back.
+            BusyIndicator(acting)
             StatusLabel(service.statusLabel, service.status.tone())
             Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = IcodeColors.TextSecondary)
         },

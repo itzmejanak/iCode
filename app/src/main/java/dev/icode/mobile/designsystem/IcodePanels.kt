@@ -14,8 +14,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material3.Icon
@@ -59,6 +59,8 @@ data class BottomBarItem(
     val choice: Boolean = false,
     /** Drawn before the label: a choice's in the accent, any other's in the label's colour. */
     val icon: ImageVector? = null,
+    /** A [choice] being changed now (docs/loading-plan.md §4.2): the spinner in [icon]'s place, and no second tap. */
+    val busy: Boolean = false,
 )
 
 /**
@@ -160,7 +162,7 @@ fun IcodeActionBar(
 /** One entry drawn the bar's way; also for a bar's trailing toggles. */
 @Composable
 fun BottomBarEntry(item: BottomBarItem, modifier: Modifier = Modifier) {
-    if (item.choice) return ChoiceEntry(item, item.onClick?.takeIf { item.enabled }, modifier)
+    if (item.choice) return ChoiceEntry(item, item.onClick?.takeIf { item.enabled && !item.busy }, modifier)
     val count = item.count
     BottomBarEntry(item, modifier) { color ->
         item.icon?.let { Icon(it, contentDescription = null, tint = color, modifier = Modifier.size(IcodeSizes.IconSm)) }
@@ -227,11 +229,13 @@ private fun ChoiceEntry(item: BottomBarItem, click: (() -> Unit)?, modifier: Mod
             .background(IcodeColors.SurfaceElevated)
             .then(if (click != null) Modifier.clickable(role = Role.Button, onClick = click) else Modifier)
             .semantics { item.description?.let { contentDescription = it } }
+            .busySemantics(item.busy)
             .padding(horizontal = IcodeSpacing.Space2 + IcodeSpacing.Micro),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1 + IcodeSpacing.Micro),
     ) {
-        item.icon?.let { Icon(it, contentDescription = null, tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconSm)) }
+        if (rememberShownWhileBusy(item.busy)) IcodeSpinner()
+        else item.icon?.let { Icon(it, contentDescription = null, tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconSm)) }
         Text(
             item.label,
             modifier = Modifier.weight(1f, fill = false),

@@ -26,7 +26,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.MicOff
 import androidx.compose.material.icons.outlined.TouchApp
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -51,6 +50,7 @@ import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeShapes
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
+import dev.icode.mobile.designsystem.IcodeSpinner
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.StatusDot
 import dev.icode.mobile.domain.AssistantState
@@ -198,7 +198,7 @@ internal fun Ring(color: Color) {
 
 @Composable
 internal fun Spinner(color: Color) {
-    CircularProgressIndicator(Modifier.fillMaxSize(), color = color, strokeWidth = IcodeSizes.BubbleRing)
+    IcodeSpinner(Modifier.fillMaxSize(), size = null, color = color, strokeWidth = IcodeSizes.BubbleRing)
 }
 
 /** Bars rising and falling while it listens or speaks; still where the system's animations are off. */

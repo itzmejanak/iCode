@@ -7,6 +7,10 @@ import dev.icode.mobile.domain.voice.VoiceState
 
 data class ICodeSnapshot(
     val workspaces: List<WorkspaceSummary>,
+    /** [workspaces] has been read once: before, an empty list is "not read yet", not "none". */
+    val workspacesLoaded: Boolean = false,
+    /** What the user asked that runs now (docs/loading-plan.md §4): published on the tap, gone when done. */
+    val busy: Set<Busy> = emptySet(),
     val files: List<FileEntry>,
     val gitChanges: List<GitChange>,
     val gitRepository: GitRepositoryState? = null,

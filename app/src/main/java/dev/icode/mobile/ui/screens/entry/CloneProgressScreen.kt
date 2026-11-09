@@ -20,14 +20,13 @@ import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.MonoLine
-import dev.icode.mobile.designsystem.IndeterminateProgressTrack
 import dev.icode.mobile.designsystem.ProgressTrack
 import dev.icode.mobile.designsystem.SecondaryButton
-import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.domain.GitOperationState
-import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.WorkspaceRuntimePath
+import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 
@@ -66,15 +65,7 @@ fun CloneProgressScreen(actions: NavigationActions) {
         // Git's stderr is tailed while the clone runs, so both the bar and the
         // transcript below are Git's own reporting, not an animation.
         val running = operation as? GitOperationState.Running
-        val trackModifier = Modifier.fillMaxWidth().padding(top = IcodeSpacing.Space5)
-        if (running != null && running.progress == null) {
-            IndeterminateProgressTrack(trackModifier)
-        } else {
-            ProgressTrack(
-                running?.progress?.fraction ?: if (operation is GitOperationState.Succeeded) 1f else 0f,
-                trackModifier,
-            )
-        }
+        ProgressTrack(operation.fraction, Modifier.fillMaxWidth().padding(top = IcodeSpacing.Space5))
         running?.progress?.let { progress ->
             MonoLine(
                 progress.phase,
@@ -102,7 +93,7 @@ fun CloneProgressScreen(actions: NavigationActions) {
         Spacer(Modifier.weight(1f))
         // Cancelling stops Git; the screen leaves once it has actually stopped.
         SecondaryButton(
-            if (cancelling) "Cancelling…" else "Cancel Clone",
+            "Cancel Clone",
             {
                 if (operation is GitOperationState.Running) {
                     cancelling = true
@@ -112,7 +103,7 @@ fun CloneProgressScreen(actions: NavigationActions) {
                 }
             },
             Modifier.fillMaxWidth(),
-            enabled = !cancelling,
+            busy = cancelling,
         )
     }
 }

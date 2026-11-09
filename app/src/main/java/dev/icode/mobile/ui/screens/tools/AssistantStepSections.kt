@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.Dp
 import dev.icode.mobile.designsystem.CodeSurface
 import dev.icode.mobile.designsystem.IcodeBottomSheet
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodeLoadingLine
 import dev.icode.mobile.designsystem.IcodeShapes
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
@@ -151,13 +152,11 @@ internal fun AssistantTerminalSheet(tab: String?, modifier: Modifier, onClose: (
             ChatTerminal(live.id, typing, onFocus, onClose, Modifier.weight(1f, fill = typing), framed = false)
         } else {
             Box(Modifier.padding(horizontal = IcodeSpacing.Gutter)) {
-                Hint(
-                    when {
-                        snapshot.runtime !is RuntimeState.Ready -> "Install the Linux runtime to use the terminal"
-                        tab != null -> "This terminal has ended: Terminal opens a new one"
-                        else -> "Opening…"
-                    },
-                )
+                when {
+                    snapshot.runtime !is RuntimeState.Ready -> Hint("Install the Linux runtime to use the terminal")
+                    tab != null -> Hint("This terminal has ended: Terminal opens a new one")
+                    else -> IcodeLoadingLine("Opening…", Modifier.padding(vertical = IcodeSpacing.Space2))
+                }
             }
         }
     }

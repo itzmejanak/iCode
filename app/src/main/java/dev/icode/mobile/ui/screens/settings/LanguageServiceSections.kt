@@ -16,13 +16,16 @@ import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SecondaryButton
+import dev.icode.mobile.domain.BusyAction
 import dev.icode.mobile.domain.LanguageIntent
 import dev.icode.mobile.domain.LanguageService
 import dev.icode.mobile.domain.LanguageServiceConfiguration
 import dev.icode.mobile.domain.LanguageServicePreset
 import dev.icode.mobile.domain.LanguageServicePresets
 import dev.icode.mobile.domain.LanguageServiceStatus
+import dev.icode.mobile.domain.isBusy
 import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /** A new service starts from a known server, filled in for it, or from nothing (Custom). */
 @Composable
@@ -51,6 +54,10 @@ internal fun PresetSection(onChoose: (LanguageServicePreset) -> Unit, onCustom: 
 @Composable
 internal fun ServerSection(service: LanguageService, onRemove: () -> Unit, onInstall: () -> Unit) {
     val gateway = LocalICodeGateway.current
+    // Start, Stop, Restart and Remove: one at a time, each shown working from its tap.
+    val state = LocalICodeSnapshot.current
+    val acting = state.isBusy(BusyAction.LanguageService, service.id)
+    val installing = state.isBusy(BusyAction.LanguageService, service.command)
     IcodeSection("Server") {
         IcodeCard(Modifier.fillMaxWidth()) {
             DetailRow("State", service.status.name)
@@ -71,24 +78,25 @@ internal fun ServerSection(service: LanguageService, onRemove: () -> Unit, onIns
             )
             service.install?.let { command ->
                 MonoLine(command, maxLines = 2)
-                PrimaryButton("Install in Terminal", onInstall, Modifier.fillMaxWidth())
+                PrimaryButton("Install in Terminal", onInstall, Modifier.fillMaxWidth(), busy = installing)
             }
         }
         when (service.status) {
             LanguageServiceStatus.Stopped, LanguageServiceStatus.Failed -> {
                 val start = { gateway.dispatch(LanguageIntent.Start(service.id)) }
                 // Installing comes first while its program is missing.
-                if (service.notInstalled && service.install != null) SecondaryButton("Start Server", start, Modifier.fillMaxWidth())
-                else PrimaryButton("Start Server", start, Modifier.fillMaxWidth())
+                if (service.notInstalled && service.install != null) SecondaryButton("Start Server", start, Modifier.fillMaxWidth(), busy = acting)
+                else PrimaryButton("Start Server", start, Modifier.fillMaxWidth(), busy = acting)
             }
             LanguageServiceStatus.Running -> {
-                SecondaryButton("Restart Server", { gateway.dispatch(LanguageIntent.Restart(service.id)) }, Modifier.fillMaxWidth())
-                SecondaryButton("Stop Server", { gateway.dispatch(LanguageIntent.Stop(service.id)) }, Modifier.fillMaxWidth())
+                // Either changes the state at once (Stopping), so neither needs a spinner; a tap meanwhile does nothing.
+                SecondaryButton("Restart Server", { gateway.dispatch(LanguageIntent.Restart(service.id)) }, Modifier.fillMaxWidth(), enabled = !acting)
+                SecondaryButton("Stop Server", { gateway.dispatch(LanguageIntent.Stop(service.id)) }, Modifier.fillMaxWidth(), enabled = !acting)
             }
-            LanguageServiceStatus.Starting -> SecondaryButton("Stop Server", { gateway.dispatch(LanguageIntent.Stop(service.id)) }, Modifier.fillMaxWidth())
+            LanguageServiceStatus.Starting -> SecondaryButton("Stop Server", { gateway.dispatch(LanguageIntent.Stop(service.id)) }, Modifier.fillMaxWidth(), busy = acting)
             LanguageServiceStatus.Stopping -> Unit
         }
-        DangerButton("Remove Service", onRemove, Modifier.fillMaxWidth())
+        DangerButton("Remove Service", onRemove, Modifier.fillMaxWidth(), enabled = !acting)
     }
 }
 
