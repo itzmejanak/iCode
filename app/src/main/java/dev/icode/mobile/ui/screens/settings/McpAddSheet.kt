@@ -21,13 +21,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import dev.icode.mobile.designsystem.IcodeLoadingLine
 import dev.icode.mobile.designsystem.IcodeBottomSheet
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTextField
 import dev.icode.mobile.designsystem.IcodeType
-import dev.icode.mobile.designsystem.IndeterminateProgressTrack
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.domain.McpIntent
@@ -111,11 +111,11 @@ private fun RegistrySheet(modifier: Modifier, onBack: () -> Unit, onClose: () ->
     IcodeBottomSheet(title = "MCP Registry", subtitle = "registry.modelcontextprotocol.io", onClose = onClose, onBack = onBack, modifier = modifier) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
             IcodeTextField(query, { query = it }, Modifier.weight(1f), placeholder = "github, postgres, notion…")
-            SecondaryButton("Search", { gateway.dispatch(McpIntent.SearchRegistry(query)) }, enabled = query.isNotBlank())
+            SecondaryButton("Search", { gateway.dispatch(McpIntent.SearchRegistry(query)) }, enabled = query.isNotBlank(), busy = search?.loading == true)
         }
         when {
             search == null -> Unit
-            search.loading -> IndeterminateProgressTrack(Modifier.fillMaxWidth())
+            search.loading -> IcodeLoadingLine("Searching the registry…")
             search.failure != null -> Text(search.failure, style = IcodeType.Caption.copy(color = IcodeColors.Error))
             search.entries.isEmpty() -> Text("No server iCode can run matches ${search.query}", style = IcodeType.Caption.copy(color = IcodeColors.TextMuted))
             else -> Column {

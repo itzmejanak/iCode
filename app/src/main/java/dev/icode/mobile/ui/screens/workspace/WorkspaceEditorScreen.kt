@@ -8,12 +8,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.MoreVert
@@ -26,21 +26,22 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import dev.icode.mobile.designsystem.BottomBarEntry
 import dev.icode.mobile.designsystem.BottomBarItem
 import dev.icode.mobile.designsystem.BottomPanelBar
 import dev.icode.mobile.designsystem.CodeSurface
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodeIconButton
 import dev.icode.mobile.designsystem.IcodeSaveDiscardSheet
 import dev.icode.mobile.designsystem.IcodeSheetOverlay
 import dev.icode.mobile.designsystem.IcodeSizes
@@ -49,22 +50,25 @@ import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.behindSheet
+import dev.icode.mobile.domain.BusyAction
+import dev.icode.mobile.domain.DiagnosticRules
 import dev.icode.mobile.domain.FileTypes
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.LineDiff
 import dev.icode.mobile.domain.StageLineChange
+import dev.icode.mobile.domain.busySubjects
 import dev.icode.mobile.domain.countOf
+import dev.icode.mobile.domain.isBusy
+import dev.icode.mobile.domain.markdown.MarkdownPlace
 import dev.icode.mobile.domain.markedLine
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.navigation.ToolPanelTab
-import dev.icode.mobile.domain.DiagnosticRules
-import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.ui.LocalCodeEditorSessions
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
-import dev.icode.mobile.ui.LocalCodeEditorSessions
 import dev.icode.mobile.ui.LocalWorkspacePreferences
 import dev.icode.mobile.ui.editor.EditorCanvas
-import dev.icode.mobile.domain.markdown.MarkdownPlace
 import dev.icode.mobile.ui.markdown.MarkdownPreview
 
 /** Editor with tab strip, syntax-highlighted document and panel bar. */
@@ -144,12 +148,13 @@ fun WorkspaceEditorScreen(actions: NavigationActions) {
             IcodeTopBar(
                 title = title,
                 actions = {
-                    IconButton(
-                        enabled = document?.let { it.dirty && !it.readOnly } ?: false,
+                    IcodeIconButton(
+                        Icons.Outlined.Save,
+                        "Save",
                         onClick = { document?.let { gateway.dispatch(ICodeIntent.SaveDocument(it.location)) } },
-                    ) {
-                        Icon(Icons.Outlined.Save, contentDescription = "Save", tint = IcodeColors.TextPrimary)
-                    }
+                        enabled = document?.let { it.dirty && !it.readOnly } ?: false,
+                        busy = document?.let { state.isBusy(BusyAction.SaveDocument, it.location) } ?: false,
+                    )
                     IconButton(onClick = { actions.navigate(Route.EditorFind) }) {
                         Icon(Icons.Outlined.Search, contentDescription = "Find", tint = IcodeColors.TextPrimary)
                     }
@@ -165,6 +170,7 @@ fun WorkspaceEditorScreen(actions: NavigationActions) {
                 onReorder = { moving, target -> gateway.dispatch(ICodeIntent.ReorderDocument(moving, target)) },
                 onClose = closeTab,
                 onPress = { tabSheet = it },
+                closing = state.busySubjects(BusyAction.CloseTab),
             )
             if (document == null) {
                 NoDocumentContent(Modifier.weight(1f))

@@ -14,6 +14,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import dev.icode.mobile.designsystem.IcodeLoadingLine
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeSelect
 import dev.icode.mobile.designsystem.IcodeSpacing
@@ -45,7 +46,7 @@ internal fun Listed(label: String, saved: SpeechProvider?, choices: VoiceChoices
     val gateway = LocalICodeGateway.current
     when {
         saved == null -> WhereItGoes("Once it is added, its ${label.lowercase()}s are listed here.")
-        choices == null -> WhereItGoes("Asking ${saved.name} for its ${label.lowercase()}s…")
+        choices == null -> IcodeLoadingLine("Asking ${saved.name} for its ${label.lowercase()}s…")
         choices.problem != null -> {
             Text(choices.problem, style = IcodeType.Caption.copy(color = IcodeColors.Error))
             SecondaryButton("Try Again", { gateway.dispatch(SpeechIntent.Choices(saved.id)) }, Modifier.fillMaxWidth())

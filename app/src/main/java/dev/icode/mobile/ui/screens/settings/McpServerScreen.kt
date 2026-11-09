@@ -106,7 +106,13 @@ private fun ServerPage(editing: McpServer, mcp: McpState, actions: NavigationAct
                         when {
                             state.status == McpStatus.Trust -> PrimaryButton("Trust and Start", { gateway.dispatch(McpIntent.Trust(saved.id, true)) }, Modifier.weight(1f))
                             state.status == McpStatus.SignIn -> PrimaryButton("Sign In", { gateway.dispatch(McpIntent.SignIn(saved.id)) }, Modifier.weight(1f))
-                            saved.enabled -> SecondaryButton("Restart", { gateway.dispatch(McpIntent.RestartServer(saved.id)) }, Modifier.weight(1f))
+                            // Its own state says it is starting, from the tap to the server's answer.
+                            saved.enabled -> SecondaryButton(
+                                "Restart",
+                                { gateway.dispatch(McpIntent.RestartServer(saved.id)) },
+                                Modifier.weight(1f),
+                                busy = state.status == McpStatus.Starting,
+                            )
                         }
                         if (saved.id in mcp.signedIn) SecondaryButton("Sign Out", { gateway.dispatch(McpIntent.SignOut(saved.id)) }, Modifier.weight(1f))
                     }

@@ -60,6 +60,8 @@ fun <T> IcodeTabStrip(
     onClose: (String) -> Unit,
     onPress: ((String) -> Unit)? = null,
     mark: @Composable (tab: T, color: Color) -> Unit = { _, _ -> },
+    /** A tab whose close was tapped and is not done: the spinner in its ×'s place, and no second tap. */
+    closing: (T) -> Boolean = { false },
 ) {
     val scrollState = rememberScrollState()
     val tabBounds = remember { mutableMapOf<String, Rect>() }
@@ -134,15 +136,18 @@ fun <T> IcodeTabStrip(
                                 Text(title(tab), style = IcodeType.Mono.copy(color = titleColor), maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
+                        val closingTab = closing(tab)
                         Box(
                             modifier = Modifier
                                 .width(IcodeSizes.TouchTarget)
                                 .height(IcodeSizes.TerminalTabBar)
-                                .clickable { onClose(id) }
-                                .semantics { contentDescription = "Close ${title(tab)}" },
+                                .clickable(enabled = !closingTab) { onClose(id) }
+                                .semantics { contentDescription = "Close ${title(tab)}" }
+                                .busySemantics(closingTab),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Icon(Icons.Outlined.Close, contentDescription = null, tint = IcodeColors.TextSecondary, modifier = Modifier.size(IcodeSizes.IconSm))
+                            if (rememberShownWhileBusy(closingTab)) IcodeSpinner()
+                            else Icon(Icons.Outlined.Close, contentDescription = null, tint = IcodeColors.TextSecondary, modifier = Modifier.size(IcodeSizes.IconSm))
                         }
                     }
                 }

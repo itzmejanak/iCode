@@ -17,7 +17,6 @@ import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTone
 import dev.icode.mobile.designsystem.IcodeTopBar
-import dev.icode.mobile.designsystem.IndeterminateProgressTrack
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.NoticeCard
@@ -55,12 +54,7 @@ fun PullProgressScreen(actions: NavigationActions) {
                 style = IcodeType.Title,
             )
             val measured = (operation as? GitOperationState.Running)?.progress
-            val trackModifier = Modifier.fillMaxWidth().padding(vertical = IcodeSpacing.Space4)
-            if (running && measured == null) {
-                IndeterminateProgressTrack(trackModifier)
-            } else {
-                ProgressTrack(fraction(operation), trackModifier)
-            }
+            ProgressTrack(operation.fraction, Modifier.fillMaxWidth().padding(vertical = IcodeSpacing.Space4))
             MonoLine(
                 measured?.phase ?: waitingLabel(operation),
                 modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -116,12 +110,6 @@ private fun waitingLabel(operation: GitOperationState): String = when (operation
 }
 
 /** Only Git's measured fraction; a running phase it has not measured shows none. */
-private fun fraction(operation: GitOperationState): Float = when (operation) {
-    is GitOperationState.Running -> operation.progress?.fraction ?: 0f
-    is GitOperationState.Succeeded -> 1f
-    else -> 0f
-}
-
 @Composable
 private fun lineColor(line: String): Color = when {
     line.startsWith("fatal:") || line.startsWith("error:") -> IcodeColors.Error

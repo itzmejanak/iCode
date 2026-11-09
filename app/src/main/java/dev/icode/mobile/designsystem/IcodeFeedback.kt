@@ -112,23 +112,29 @@ fun IcodeConfirmSheet(
     onDismiss: () -> Unit,
     destructive: Boolean = false,
     confirmEnabled: Boolean = true,
+    /**
+     * What the confirm started runs (docs/loading-plan.md §4.2): its button busy, the sheet held open
+     * over it and not dismissed — Cancel would not stop it.
+     */
+    confirmBusy: Boolean = false,
     dismissEnabled: Boolean = true,
     dismissLabel: String = "Cancel",
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val dismiss = { if (dismissEnabled) onDismiss() }
+    val dismissable = dismissEnabled && !confirmBusy
+    val dismiss = { if (dismissable) onDismiss() }
     IcodeModalSheet(onClose = dismiss) {
         IcodeBottomSheet(
             title = title,
             onClose = dismiss,
             modifier = Modifier.align(Alignment.BottomCenter),
-            closable = dismissEnabled,
+            closable = dismissable,
             footer = {
                 TwoColumnActions(
-                    left = { SecondaryButton(dismissLabel, onDismiss, Modifier.fillMaxWidth(), enabled = dismissEnabled) },
+                    left = { SecondaryButton(dismissLabel, onDismiss, Modifier.fillMaxWidth(), enabled = dismissable) },
                     right = {
-                        if (destructive) DangerButton(confirmLabel, onConfirm, Modifier.fillMaxWidth(), filled = true)
-                        else PrimaryButton(confirmLabel, onConfirm, Modifier.fillMaxWidth(), enabled = confirmEnabled)
+                        if (destructive) DangerButton(confirmLabel, onConfirm, Modifier.fillMaxWidth(), filled = true, enabled = confirmEnabled, busy = confirmBusy)
+                        else PrimaryButton(confirmLabel, onConfirm, Modifier.fillMaxWidth(), enabled = confirmEnabled, busy = confirmBusy)
                     },
                 )
             },
@@ -150,8 +156,9 @@ fun IcodeConfirmSheet(
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
     detail: String? = null,
+    confirmBusy: Boolean = false,
 ) {
-    IcodeConfirmSheet(title, confirmLabel, onConfirm, onDismiss, destructive = true) {
+    IcodeConfirmSheet(title, confirmLabel, onConfirm, onDismiss, destructive = true, confirmBusy = confirmBusy) {
         Text(message, style = IcodeType.Body, color = IcodeColors.TextSecondary)
         if (detail != null) MonoLine(detail, color = IcodeColors.Accent, style = IcodeType.MonoSmall)
     }

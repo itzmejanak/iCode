@@ -20,7 +20,6 @@ import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.material.icons.outlined.BugReport
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Movie
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -38,6 +37,7 @@ import androidx.compose.ui.platform.LocalContext
 import dev.icode.mobile.designsystem.IcodeBottomSheet
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeListRow
+import dev.icode.mobile.designsystem.IcodeLoadingLine
 import dev.icode.mobile.designsystem.IcodeShapes
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
@@ -117,10 +117,7 @@ internal fun ReportSheet(state: ReportState, modifier: Modifier, onClose: () -> 
         leading = { Icon(Icons.Outlined.BugReport, contentDescription = null, tint = IcodeColors.Accent) },
         footer = {
             when (sending) {
-                is ReportSending.Sending -> Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
-                    CircularProgressIndicator(Modifier.size(IcodeSizes.IconSm), color = IcodeColors.Accent, strokeWidth = IcodeSpacing.Micro)
-                    Text(sending.step, style = IcodeType.Caption)
-                }
+                is ReportSending.Sending -> IcodeLoadingLine(sending.step)
                 is ReportSending.Failed -> Text(sending.reason, style = IcodeType.Caption.copy(color = IcodeColors.Error))
                 else -> problem?.let { Text(it, style = IcodeType.Caption) }
             }

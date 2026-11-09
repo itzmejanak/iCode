@@ -1,11 +1,9 @@
 package dev.icode.mobile.ui.screens.tools
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.PaddingValues
-import dev.icode.mobile.domain.GitChangeTree
-import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,7 +15,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountTree
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Refresh
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -25,16 +22,21 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodeIconButton
 import dev.icode.mobile.designsystem.IcodeSheetOverlay
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
+import dev.icode.mobile.designsystem.IcodeSpinner
 import dev.icode.mobile.designsystem.IcodeTextField
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
@@ -42,9 +44,13 @@ import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.behindSheet
+import dev.icode.mobile.domain.BusyAction
+import dev.icode.mobile.domain.GitChangeTree
 import dev.icode.mobile.domain.GitInProgress
 import dev.icode.mobile.domain.GitStatusCodes
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.busySubjects
+import dev.icode.mobile.domain.isBusy
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalICodeGateway
@@ -103,14 +109,13 @@ fun SourceControlScreen(actions: NavigationActions) {
             ?: changeRows.firstOrNull { changeRowKey(false, it) == key }?.let { it to false }
     }
     val hasIdentity = !repository.authorName.isNullOrBlank() && !repository.authorEmail.isNullOrBlank()
+    val staging = state.busySubjects(BusyAction.Stage)
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().behindSheet(sheetFor != null)) {
             IcodeTopBar(
                 title = "Source Control",
                 actions = {
-                    IconButton(onClick = { gateway.dispatch(ICodeIntent.RefreshGit) }) {
-                        Icon(Icons.Outlined.Refresh, contentDescription = "Refresh", tint = IcodeColors.TextPrimary)
-                    }
+                    IcodeIconButton(Icons.Outlined.Refresh, "Refresh", { gateway.dispatch(ICodeIntent.RefreshGit) }, busy = state.isBusy(BusyAction.RefreshGit))
                 },
             )
             // The tree's rows sit together, as the Explorer's; the parts above keep their space.
@@ -122,6 +127,7 @@ fun SourceControlScreen(actions: NavigationActions) {
                                 inProgress = repository.inProgress,
                                 conflicts = state.gitChanges.count { it.status == GitStatusCodes.CONFLICTED },
                                 onAbort = { gateway.dispatch(ICodeIntent.AbortInProgress) },
+                                aborting = state.isBusy(BusyAction.Abort),
                             )
                         }
                     }
@@ -170,12 +176,14 @@ fun SourceControlScreen(actions: NavigationActions) {
                                 Modifier.fillMaxWidth().padding(top = IcodeSpacing.Space2),
                             )
                         } else {
-                            val committable = staged.isNotEmpty() && commitMessage.isNotBlank()
+                            val committing = state.isBusy(BusyAction.Commit)
+                            val committable = staged.isNotEmpty() && commitMessage.isNotBlank() && !committing
                             PrimaryButton(
                                 "Commit",
                                 { send(ICodeIntent.CommitStaged(commitMessage)) },
                                 Modifier.fillMaxWidth(),
                                 enabled = committable,
+                                busy = committing,
                             )
                             Text(
                                 "Author: ${repository.authorName} <${repository.authorEmail}> · Edit",
@@ -198,10 +206,10 @@ fun SourceControlScreen(actions: NavigationActions) {
                 }
                 gitChangeSection("Staged changes", staged, staged = true, stagedRows, repository.workTreePath, { path ->
                     closedStaged = closedStaged.toggled(path)
-                }, { held = changeRowKey(true, it) }, gateway, actions)
+                }, { held = changeRowKey(true, it) }, gateway, actions, staging)
                 gitChangeSection("Changes", changes, staged = false, changeRows, repository.workTreePath, { path ->
                     closedChanges = closedChanges.toggled(path)
-                }, { held = changeRowKey(false, it) }, gateway, actions)
+                }, { held = changeRowKey(false, it) }, gateway, actions, staging)
                 if (staged.isEmpty() && changes.isEmpty()) {
                     item {
                         EmptyState(
@@ -228,11 +236,7 @@ fun SourceControlScreen(actions: NavigationActions) {
 @Composable
 private fun WriteMessageButton(writing: Boolean, enabled: Boolean, onClick: () -> Unit) {
     if (writing) {
-        CircularProgressIndicator(
-            Modifier.padding(IcodeSpacing.Space2).size(IcodeSizes.IconSm),
-            color = IcodeColors.Accent,
-            strokeWidth = IcodeSpacing.Micro,
-        )
+        IcodeSpinner(Modifier.padding(IcodeSpacing.Space2).semantics { contentDescription = "Writing a commit message" })
     } else {
         IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(IcodeSizes.BadgeSm)) {
             Icon(

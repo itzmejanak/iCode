@@ -21,7 +21,7 @@ import dev.icode.mobile.domain.GitRemoteRules
 
 /** Where "No remote configured" leads: the remote Git will fetch from and push to. */
 @Composable
-internal fun AddRemoteSection(onAdd: (name: String, url: String) -> Unit) {
+internal fun AddRemoteSection(adding: Boolean, onAdd: (name: String, url: String) -> Unit) {
     var name by rememberSaveable { mutableStateOf("origin") }
     var url by rememberSaveable { mutableStateOf("") }
     val nameError = GitRemoteRules.nameError(name.trim())
@@ -45,6 +45,7 @@ internal fun AddRemoteSection(onAdd: (name: String, url: String) -> Unit) {
                 { onAdd(name.trim(), url.trim()) },
                 Modifier.fillMaxWidth(),
                 enabled = nameError == null && urlError == null,
+                busy = adding,
             )
         }
     }

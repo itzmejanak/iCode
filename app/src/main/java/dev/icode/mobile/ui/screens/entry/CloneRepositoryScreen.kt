@@ -23,17 +23,17 @@ import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTextField
+import dev.icode.mobile.designsystem.IcodeTone
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.LabeledTextField
-import dev.icode.mobile.designsystem.PrimaryButton
-import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.designsystem.NoticeCard
-import dev.icode.mobile.designsystem.IcodeTone
+import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.GitRemoteRules
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
@@ -112,7 +112,7 @@ fun CloneRepositoryScreen(actions: NavigationActions) {
             )
         }
         PrimaryButton(
-            if (state.gitOperation is GitOperationState.Running) "Cloning…" else "Clone Repository",
+            "Clone Repository",
             {
                 gateway.dispatch(
                     ICodeIntent.CloneRepository(url = url.trim(), directoryName = name.trim(), branch = branch.trim(), into = destination?.location),
@@ -120,8 +120,8 @@ fun CloneRepositoryScreen(actions: NavigationActions) {
                 actions.navigate(Route.CloneProgress)
             },
             Modifier.fillMaxWidth().padding(IcodeSpacing.Gutter),
-            enabled = url.isNotBlank() && nameProblem == null && branchError == null &&
-                state.gitOperation !is GitOperationState.Running,
+            enabled = url.isNotBlank() && nameProblem == null && branchError == null,
+            busy = state.gitOperation is GitOperationState.Running,
         )
     }
 }

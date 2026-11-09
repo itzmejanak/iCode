@@ -13,21 +13,23 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodePageColumn
 import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
-import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SegmentedControl
 import dev.icode.mobile.designsystem.TwoColumnActions
+import dev.icode.mobile.domain.BusyAction
 import dev.icode.mobile.domain.GitAuthState
 import dev.icode.mobile.domain.GitAuthWork
 import dev.icode.mobile.domain.GitIdentityRules
-import dev.icode.mobile.domain.RuntimeTools
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.RuntimeTools
+import dev.icode.mobile.domain.isBusy
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalICodeGateway
@@ -129,7 +131,7 @@ fun GitAuthScreen(actions: NavigationActions) {
                                 if (state.runtimeHealthy) gateway.dispatch(ICodeIntent.ProvisionGit)
                                 else actions.navigate(Route.SettingsRuntime)
                             },
-                            enabled = gitInstall == null,
+                            busy = gitInstall != null,
                         )
                     }
                     IcodeSection {
@@ -162,7 +164,7 @@ fun GitAuthScreen(actions: NavigationActions) {
                         SecondaryButton("Use default identity", {
                             gateway.dispatch(ICodeIntent.ClearRepositoryGitIdentity)
                             identityEdited = false
-                        })
+                        }, busy = state.isBusy(BusyAction.GitIdentity))
                     }
                 }
                 GitAuthStep.Authentication -> AuthenticationSection(
@@ -247,10 +249,11 @@ private fun StepActions(
                 left = { SecondaryButton("Back", onBack, Modifier.fillMaxWidth()) },
                 right = {
                     PrimaryButton(
-                        if (auth.work == GitAuthWork.Testing) "Testing…" else "Test Connection",
+                        "Test Connection",
                         onTest,
                         Modifier.fillMaxWidth(),
                         enabled = auth.work == null && testUrl.isNotBlank(),
+                        busy = auth.work == GitAuthWork.Testing,
                     )
                 },
             )
@@ -259,6 +262,7 @@ private fun StepActions(
                 onNext,
                 Modifier.fillMaxWidth(),
                 enabled = canAdvance,
+                busy = LocalICodeSnapshot.current.isBusy(BusyAction.GitIdentity),
             )
             GitAuthStep.Authentication, GitAuthStep.Signing -> TwoColumnActions(
                 left = { SecondaryButton("Back", onBack, Modifier.fillMaxWidth()) },

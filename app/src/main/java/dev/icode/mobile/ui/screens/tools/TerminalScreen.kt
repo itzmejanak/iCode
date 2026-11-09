@@ -36,15 +36,19 @@ import dev.icode.mobile.designsystem.BottomBarItem
 import dev.icode.mobile.designsystem.EdgeLine
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodeIconButton
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.behindSheet
+import dev.icode.mobile.domain.BusyAction
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.RuntimeState
 import dev.icode.mobile.domain.SettingLimits
 import dev.icode.mobile.domain.Severity
 import dev.icode.mobile.domain.TerminalStatus
-import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.busySubjects
+import dev.icode.mobile.domain.isBusy
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.navigation.ToolPanelTab
@@ -127,7 +131,7 @@ fun TerminalScreen(actions: NavigationActions) {
                     }
                 }
                 when (actions.panelTab) {
-                    ToolPanelTab.Terminal -> AddButton("New terminal session", enabled = runtimeReady) {
+                    ToolPanelTab.Terminal -> AddButton("New terminal session", enabled = runtimeReady, busy = state.isBusy(BusyAction.OpenTerminal)) {
                         gateway.dispatch(ICodeIntent.OpenTerminalSession)
                     }
                     ToolPanelTab.Run -> AddButton("New command", enabled = state.activeWorkspaceLocation != null) {
@@ -164,6 +168,7 @@ fun TerminalScreen(actions: NavigationActions) {
                                 gateway.dispatch(ICodeIntent.ReorderTerminalSession(movingId, targetId))
                             },
                             onClose = { gateway.dispatch(ICodeIntent.CloseTerminalSession(it)) },
+                            closing = state.busySubjects(BusyAction.CloseTab),
                         )
                     }
                     if (session?.status == TerminalStatus.Exited) {
@@ -230,14 +235,8 @@ fun TerminalScreen(actions: NavigationActions) {
 
 /** The header's +: a new shell on Terminal, a new command on Run. */
 @Composable
-private fun AddButton(contentDescription: String, enabled: Boolean, onClick: () -> Unit) {
-    IconButton(onClick = onClick, enabled = enabled) {
-        Icon(
-            Icons.Outlined.Add,
-            contentDescription = contentDescription,
-            tint = if (enabled) IcodeColors.Accent else IcodeColors.TextMuted,
-        )
-    }
+private fun AddButton(contentDescription: String, enabled: Boolean, busy: Boolean = false, onClick: () -> Unit) {
+    IcodeIconButton(Icons.Outlined.Add, contentDescription, onClick, enabled = enabled, busy = busy, tint = IcodeColors.Accent)
 }
 
 internal fun shouldAutoOpenTerminal(tab: ToolPanelTab, runtimeReady: Boolean, alreadyAttempted: Boolean): Boolean =

@@ -75,7 +75,7 @@ internal class WorkspaceLibraryCoordinator(
         // concurrent writer's fields are lost.
         val workspaces = workspaces()
         val storage = runCatching(source::storageSummary).getOrNull()
-        stateHolder.update { it.copy(workspaces = workspaces, storage = storage) }
+        stateHolder.update { it.copy(workspaces = workspaces, workspacesLoaded = true, storage = storage) }
         refreshFiles()
         shortcuts.publish()
         runCatching { WorkspacesProvider.changed(appContext) }

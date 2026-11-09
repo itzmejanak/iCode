@@ -21,6 +21,7 @@ internal fun DocumentTabStrip(
     onReorder: (String, String) -> Unit,
     onClose: (String) -> Unit,
     onPress: (String) -> Unit,
+    closing: Set<String> = emptySet(),
 ) {
     IcodeTabStrip(
         tabs = documents,
@@ -33,6 +34,7 @@ internal fun DocumentTabStrip(
         onClose = onClose,
         onPress = onPress,
         mark = { document, color -> if (document.dirty) StatusDot(color) },
+        closing = { it.location in closing },
     )
 }
 

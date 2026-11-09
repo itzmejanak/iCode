@@ -72,6 +72,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     private val appContext = context.applicationContext
     private val store: WorkspaceStore = SharedPreferencesWorkspaceStore(appContext)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val actions = ActionTracker(stateHolder, scope)
     private val runtimeLayout = RuntimeLayout(appContext)
     private val execution = RuntimeExecution(runtimeLayout, scope, stateHolder)
     private val source = WorkspaceFileSource(runtimeLayout.paths)
@@ -190,8 +191,8 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
         languages.start()
         web.start()
         scope.launch {
-            WorkspaceStaging(runtimeLayout.workspaces.root).sweep()
             library.refresh()
+            WorkspaceStaging(runtimeLayout.workspaces.root).sweep()
             session.start()
         }
         scope.launch { recovery.loadRecoverable() }
@@ -215,7 +216,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     override fun dispatch(intent: ICodeIntent) {
         when (intent) {
             // What must not wait on the mutation lock. apt, ssh-keygen, gpg and the network do not change the workspace.
-            is LanguageIntent -> languages.handle(intent)
+            is LanguageIntent -> actions.route(intent, instant = { languages.handle(intent) }) { languages.perform(intent) }
             ICodeIntent.ProvisionGit -> scope.launch { gitWorkspace.provision() }
             is GitAuthWorkIntent -> scope.launch { gitAuth.handle(intent) }
             is GitHistoryIntent -> gitHistory.handle(intent)
@@ -228,8 +229,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
             is WebIntent -> web.handle(intent)
             is NoticeIntent -> scope.launch { notices.handle(intent) }
             is ICodeIntent.StorageIntent -> library.read(intent)
-            // Reading the runtime's own files changes nothing, so it does not wait
-            // on the mutation lock behind whatever the workspace is doing.
+            // Reading the runtime's own files changes nothing: it never waits on the mutation lock.
             ICodeIntent.RefreshRuntimeDetails -> runtime.refreshDetails()
             is ICodeIntent.UpdateDocumentText -> documents.updateText(intent)
             // Folder reads and expansion state belong to WorkspaceTree; they do
@@ -246,9 +246,9 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
             is PhoneIntent -> phone.handle(intent)
             is VoiceIntent -> voice.handle(intent)
             is ICodeIntent.ProcessIntent -> execution.processes.handle(intent)
-            is ICodeIntent.RunIntent -> runs.handle(intent)
+            is ICodeIntent.RunIntent -> if (intent is ICodeIntent.StartRun) actions.launch(intent) { runs.startRun(intent) } else runs.handle(intent)
             is GpgIntent -> execution.gpg.handle(intent)
-            else -> scope.launch {
+            else -> actions.launch(intent) {
                 stateHolder.mutations.withLock {
                     when (intent) {
                         is ICodeIntent.RequestSystemPermission -> stateHolder.emit(ICodeEffect.RequestSystemPermission(intent.permission))

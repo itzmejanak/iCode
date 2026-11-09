@@ -21,10 +21,13 @@ import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.designsystem.TwoColumnActions
-import dev.icode.mobile.domain.RuntimeToolWork
+import dev.icode.mobile.domain.BusyAction
 import dev.icode.mobile.domain.GitAuthState
 import dev.icode.mobile.domain.GitAuthWork
 import dev.icode.mobile.domain.GitRemoteRules
+import dev.icode.mobile.domain.RuntimeToolWork
+import dev.icode.mobile.domain.isBusy
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 @Composable
 internal fun TokenSection(
@@ -44,7 +47,7 @@ internal fun TokenSection(
             NoticeCard(tone = IcodeTone.Success, modifier = Modifier.fillMaxWidth()) {
                 StatusLabel("Token saved for ${auth.httpsAccount}", IcodeColors.Green)
             }
-            SecondaryButton("Remove Saved Token", onClear, Modifier.fillMaxWidth())
+            SecondaryButton("Remove Saved Token", onClear, Modifier.fillMaxWidth(), busy = LocalICodeSnapshot.current.isBusy(BusyAction.GitToken))
         }
         // GitHub, GitLab and Bitbucket each have one host; only a self-hosted server needs it typed.
         if (auth.provider.host.isEmpty()) {
@@ -68,16 +71,17 @@ internal fun TokenSection(
         val hostError = GitRemoteRules.hostError(host.trim()).takeIf { host.isNotEmpty() }
         hostError?.let { Text(it, style = IcodeType.Caption, color = IcodeColors.Error) }
         val canSave = host.isNotBlank() && hostError == null && username.isNotBlank() && token.isNotBlank()
+        val saving = LocalICodeSnapshot.current.isBusy(BusyAction.GitToken)
         val tokenUrl = auth.provider.tokenUrl
         if (tokenUrl == null) {
-            SecondaryButton("Save Token", onSave, Modifier.fillMaxWidth(), enabled = canSave)
+            SecondaryButton("Save Token", onSave, Modifier.fillMaxWidth(), enabled = canSave, busy = saving)
         } else {
             TwoColumnActions(
                 left = {
                     SecondaryButton("Create on ${auth.provider.displayName}", { onOpenHost(tokenUrl) }, Modifier.fillMaxWidth())
                 },
                 right = {
-                    PrimaryButton("Save Token", onSave, Modifier.fillMaxWidth(), enabled = canSave)
+                    PrimaryButton("Save Token", onSave, Modifier.fillMaxWidth(), enabled = canSave, busy = saving)
                 },
             )
         }
@@ -143,15 +147,13 @@ internal fun SshSection(
                 color = IcodeColors.TextMuted,
                 style = IcodeType.MonoSmall,
             )
+            // The SSH client's install says its own progress; the key's generation, that it is working.
             SecondaryButton(
-                when {
-                    clientInstall != null -> clientInstall.status
-                    auth.work == GitAuthWork.GeneratingKey -> "Generating…"
-                    else -> "Generate SSH Key"
-                },
+                clientInstall?.status ?: "Generate SSH Key",
                 onGenerate,
                 Modifier.fillMaxWidth(),
                 enabled = auth.work == null,
+                busy = clientInstall != null || auth.work == GitAuthWork.GeneratingKey,
             )
         }
     }

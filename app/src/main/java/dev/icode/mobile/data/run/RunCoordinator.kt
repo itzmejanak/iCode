@@ -80,7 +80,7 @@ internal class RunCoordinator(
         val workspace = stateHolder.current.activeWorkspaceLocation
         when (intent) {
             ICodeIntent.ConfirmAndroidAppInstall -> android.confirmInstall()
-            is ICodeIntent.StartRun -> workspace?.let { scope.launch { start(it, intent.configuration) } }
+            is ICodeIntent.StartRun -> scope.launch { startRun(intent) }
             is ICodeIntent.StopRun -> workspace?.let { stop(it, intent.configuration) }
             is ICodeIntent.SaveRunCommand -> workspace?.let {
                 scope.launch {
@@ -95,6 +95,11 @@ internal class RunCoordinator(
                 }
             }
         }
+    }
+
+    /** The Run tab's ▶, run until its process has started (or failed to): the gateway shows it busy until then. */
+    suspend fun startRun(intent: ICodeIntent.StartRun) {
+        stateHolder.current.activeWorkspaceLocation?.let { start(it, intent.configuration) }
     }
 
     /** [workspace]'s configurations, as its Run tab lists them: its Android apps, then its saved commands. */

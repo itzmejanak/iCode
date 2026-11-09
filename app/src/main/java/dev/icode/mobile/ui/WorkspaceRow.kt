@@ -13,6 +13,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import dev.icode.mobile.domain.isBusy
+import dev.icode.mobile.domain.BusyAction
+import dev.icode.mobile.designsystem.rememberShownWhileBusy
+import dev.icode.mobile.designsystem.IcodeSpinner
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodeMoreButton
@@ -40,6 +47,8 @@ fun WorkspaceRow(
     onOpen: (() -> Unit)? = null,
 ) {
     val gateway = LocalICodeGateway.current
+    // Opening from the tap (docs/loading-plan.md §5): the row says so in place of its ⋮.
+    val opening = rememberShownWhileBusy(LocalICodeSnapshot.current.isBusy(BusyAction.OpenWorkspace, item.location))
     IcodeListRow(
         modifier = modifier,
         card = true,
@@ -74,7 +83,13 @@ fun WorkspaceRow(
         },
         trailing = {
             Box {
-                IcodeMoreButton("More options for ${item.name}", onClick = onActions)
+                if (opening) {
+                    Box(Modifier.size(IcodeSizes.TouchTarget), contentAlignment = Alignment.Center) {
+                        IcodeSpinner(Modifier.semantics { contentDescription = "Opening ${item.name}" })
+                    }
+                } else {
+                    IcodeMoreButton("More options for ${item.name}", onClick = onActions)
+                }
                 Text(
                     RelativeTime.since(item.lastOpenedAt),
                     style = IcodeType.Caption,

@@ -75,15 +75,18 @@ internal fun ICodeQuestionSheets(
         )
     }
     questions.draftRecoveries.firstOrNull()?.let { recovery ->
-        val answered = { questions.draftRecoveries = questions.draftRecoveries.drop(1) }
+        val answered = { questions.draftRecoveries = questions.draftRecoveries.filterNot { it.location == recovery.location } }
+        val held = rememberHeldAnswer(recovery.location)
+        val restore = ICodeIntent.RestoreDraft(recovery.location)
+        val discard = ICodeIntent.DiscardDraft(recovery.location)
         IcodeConfirmSheet(
             title = "Recover ${recovery.name}?",
             confirmLabel = "Restore draft",
-            onConfirm = {
-                gateway.dispatch(ICodeIntent.RestoreDraft(recovery.location))
-                answered()
-            },
+            onConfirm = { held.answer(restore, answered) },
             onDismiss = answered,
+            confirmEnabled = !held.busy,
+            confirmBusy = held.answering == restore,
+            dismissEnabled = !held.busy,
         ) {
             Text(
                 if (recovery.sourceChanged)
@@ -93,12 +96,11 @@ internal fun ICodeQuestionSheets(
             )
             SecondaryButton(
                 "Keep disk version · discard draft",
-                onClick = {
-                    gateway.dispatch(ICodeIntent.DiscardDraft(recovery.location))
-                    answered()
-                },
+                onClick = { held.answer(discard, answered) },
                 modifier = Modifier.fillMaxWidth(),
                 color = IcodeColors.Error,
+                enabled = !held.busy,
+                busy = held.answering == discard,
             )
         }
     }
@@ -111,15 +113,14 @@ internal fun ICodeQuestionSheets(
         navigate = navigate,
     )
     questions.recoveredOverwrite?.let { overwrite ->
+        val held = rememberHeldAnswer(overwrite.location)
         IcodeConfirmSheet(
             title = "Overwrite newer file?",
             confirmLabel = "Overwrite file",
             destructive = true,
-            onConfirm = {
-                gateway.dispatch(ICodeIntent.ConfirmRecoveredOverwrite(overwrite.location))
-                questions.recoveredOverwrite = null
-            },
+            onConfirm = { held.answer(ICodeIntent.ConfirmRecoveredOverwrite(overwrite.location)) { questions.recoveredOverwrite = null } },
             onDismiss = { questions.recoveredOverwrite = null },
+            confirmBusy = held.busy,
         ) {
             Text(
                 "${overwrite.name} changed outside iCode since the recovery draft was made. This saves the recovered text over the current disk version. Cancel to keep both unchanged.",

@@ -2,12 +2,15 @@ package dev.icode.mobile.ui.screens.tools
 
 import androidx.compose.runtime.Composable
 import dev.icode.mobile.designsystem.IcodeConfirmSheet
+import dev.icode.mobile.domain.BusyAction
 import dev.icode.mobile.domain.GitChange
 import dev.icode.mobile.domain.GitDiscard
 import dev.icode.mobile.domain.GitStatusCodes
 import dev.icode.mobile.domain.ICodeGateway
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.countOf
+import dev.icode.mobile.domain.isBusy
+import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
  * Confirms a discard — one file's unstaged change, or all a folder holds — in the app's one
@@ -31,6 +34,8 @@ internal fun DiscardChangesSheet(discard: GitDiscard, gateway: ICodeGateway) {
         onConfirm = { gateway.dispatch(ICodeIntent.ConfirmDiscardChanges) },
         onDismiss = { gateway.dispatch(ICodeIntent.CancelDiscardChanges) },
         detail = if (discard.folder) "${discard.path}/" else discard.path,
+        // The backend holds the question until the discard is done.
+        confirmBusy = LocalICodeSnapshot.current.isBusy(BusyAction.Discard),
     )
 }
 
