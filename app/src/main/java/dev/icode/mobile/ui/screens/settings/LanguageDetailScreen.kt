@@ -11,6 +11,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import dev.icode.mobile.designsystem.BottomBarItem
+import dev.icode.mobile.designsystem.IcodeBottomBar
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeConfirmSheet
 import dev.icode.mobile.designsystem.IcodePageColumn
@@ -31,6 +33,23 @@ import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 
+/**
+ * The pages of a language service, one on screen at a time, as Git Credentials' steps are: a new one
+ * starts from a known server or nothing, then is configured; a saved one has its configuration, its
+ * server and its log. All of them on one page buried the one the user needed.
+ */
+internal enum class LanguagePage(val caption: String, val short: String) {
+    StartFrom("Start from a known server, or your own", "Start From"),
+    Configuration("How it runs and what it serves", "Configuration"),
+    Server("Its state and what it offers", "Server"),
+    Log("What iCode saw of it, and its errors", "Log"),
+    ;
+
+    companion object {
+        fun of(saved: Boolean): List<LanguagePage> = if (saved) listOf(Configuration, Server, Log) else listOf(StartFrom, Configuration)
+    }
+}
+
 /** A language service's configuration, its server's state and log (docs/lsp-plan.md §7). */
 @Composable
 fun LanguageDetailScreen(actions: NavigationActions) {
@@ -40,49 +59,44 @@ fun LanguageDetailScreen(actions: NavigationActions) {
     val saved = service?.let(LanguageServiceRules::configurationOf) ?: LanguageServiceConfiguration("", "", "")
     var draft by rememberSaveable(service?.id, stateSaver = ConfigurationSaver) { mutableStateOf(saved) }
     var confirmRemove by rememberSaveable { mutableStateOf(false) }
+    val pages = LanguagePage.of(saved = service != null)
+    // Keyed on the service: once added, its page opens on Configuration, its first.
+    var page by rememberSaveable(service?.id) { mutableStateOf(pages.first()) }
     val status = service?.status ?: LanguageServiceStatus.Stopped
-    val validation = LanguageServiceRules.validate(draft)
-    val install = LanguageServicePresets.all.firstOrNull { it.configuration.command == draft.command.trim() }
 
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar(
             service?.name ?: "Add Language Service",
+            subtitle = page.caption,
             onBack = actions.back,
             actions = { if (service != null) StatusLabel(status.name, status.tone()) },
         )
         IcodePageColumn(Modifier.weight(1f)) {
-            if (service == null) PresetSection { preset -> draft = preset.configuration }
-            IcodeSection("Configuration") {
-                ConfigField("Name", draft.name, { draft = draft.copy(name = it) }, "e.g. Python (pylsp)")
-                ConfigField("Command", draft.command, { draft = draft.copy(command = it) }, "e.g. typescript-language-server --stdio")
-                install?.let { preset ->
-                    Text("Install it in a terminal" + (preset.needs?.let { ", after $it" } ?: "") + ":", style = IcodeType.Caption, color = IcodeColors.TextSecondary)
-                    MonoLine(preset.install, maxLines = 2)
-                }
-                ConfigField("Languages", draft.languages, { draft = draft.copy(languages = it) }, "e.g. typescript, typescriptreact")
-                ConfigField("File Patterns", draft.patterns, { draft = draft.copy(patterns = it) }, "e.g. *.ts, *.tsx")
-                ConfigField("Root Markers", draft.rootMarkers, { draft = draft.copy(rootMarkers = it) }, "e.g. tsconfig.json, package.json")
-                ConfigField("Environment", draft.environment, { draft = draft.copy(environment = it) }, "NAME=value, one a line", singleLine = false)
-                ConfigField("Initialization Options (JSON)", draft.initializationOptions, { draft = draft.copy(initializationOptions = it) }, "{}", singleLine = false)
-                ConfigField("Settings (JSON)", draft.settings, { draft = draft.copy(settings = it) }, "{}", singleLine = false)
-                Text(
-                    "It starts when a file of its languages or patterns opens in a workspace. Saving changes to a running server starts it again.",
-                    style = IcodeType.Caption,
-                    color = IcodeColors.TextSecondary,
+            when (page) {
+                LanguagePage.StartFrom -> PresetSection(
+                    onChoose = { preset -> draft = preset.configuration; page = LanguagePage.Configuration },
+                    onCustom = { draft = LanguageServiceConfiguration("", "", ""); page = LanguagePage.Configuration },
                 )
-                validation?.let { Text(it, style = IcodeType.Caption, color = IcodeColors.Error) }
-                PrimaryButton(
-                    if (service == null) "Add Service" else "Save Configuration",
-                    onClick = { gateway.dispatch(LanguageIntent.Save(draft.copy(id = service?.id.orEmpty()))) },
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = validation == null && state.languageServicesLoadError == null && (service == null || draft != saved),
+                LanguagePage.Configuration -> ConfigurationSection(
+                    draft = draft,
+                    onDraft = { draft = it },
+                    adding = service == null,
+                    canSave = state.languageServicesLoadError == null && (service == null || draft != saved),
+                    onSave = { gateway.dispatch(LanguageIntent.Save(draft.copy(id = service?.id.orEmpty()))) },
                 )
-            }
-            if (service != null) {
-                ServerSection(service, onRemove = { confirmRemove = true })
-                LogSection(state.languageServiceLog)
+                LanguagePage.Server -> service?.let { ServerSection(it, onRemove = { confirmRemove = true }) }
+                LanguagePage.Log -> LogSection(state.languageServiceLog)
             }
         }
+        IcodeBottomBar(
+            items = pages.mapIndexed { index, entry ->
+                BottomBarItem(
+                    if (service == null) "${index + 1} ${entry.short}" else entry.short,
+                    onClick = { page = entry },
+                    active = entry == page,
+                )
+            },
+        )
     }
     if (confirmRemove && service != null) {
         IcodeConfirmSheet(
@@ -98,6 +112,52 @@ fun LanguageDetailScreen(actions: NavigationActions) {
         ) {
             Text("This removes the saved configuration and stops its server. It does not uninstall the server.", style = IcodeType.Body)
         }
+    }
+}
+
+/** The fields a service runs with, and the button that saves them. */
+@Composable
+private fun ConfigurationSection(
+    draft: LanguageServiceConfiguration,
+    onDraft: (LanguageServiceConfiguration) -> Unit,
+    adding: Boolean,
+    canSave: Boolean,
+    onSave: () -> Unit,
+) {
+    val validation = LanguageServiceRules.validate(draft)
+    val install = LanguageServicePresets.all.firstOrNull { it.configuration.command == draft.command.trim() }
+    IcodeSection("Server") {
+        ConfigField("Name", draft.name, { onDraft(draft.copy(name = it)) }, "e.g. Python (pylsp)")
+        ConfigField("Command", draft.command, { onDraft(draft.copy(command = it)) }, "e.g. typescript-language-server --stdio")
+        install?.let { preset ->
+            Text("Install it in a terminal" + (preset.needs?.let { ", after $it" } ?: "") + ":", style = IcodeType.Caption, color = IcodeColors.TextSecondary)
+            MonoLine(preset.install, maxLines = 2)
+        }
+    }
+    IcodeSection("Files It Serves") {
+        ConfigField("Languages", draft.languages, { onDraft(draft.copy(languages = it)) }, "e.g. typescript, typescriptreact")
+        ConfigField("File Patterns", draft.patterns, { onDraft(draft.copy(patterns = it)) }, "e.g. *.ts, *.tsx")
+        ConfigField("Root Markers", draft.rootMarkers, { onDraft(draft.copy(rootMarkers = it)) }, "e.g. tsconfig.json, package.json")
+        Text(
+            "It starts when a file of its languages or patterns opens in a workspace.",
+            style = IcodeType.Caption,
+            color = IcodeColors.TextSecondary,
+        )
+    }
+    IcodeSection("Advanced") {
+        ConfigField("Environment", draft.environment, { onDraft(draft.copy(environment = it)) }, "NAME=value, one a line", singleLine = false)
+        ConfigField("Initialization Options (JSON)", draft.initializationOptions, { onDraft(draft.copy(initializationOptions = it)) }, "{}", singleLine = false)
+        ConfigField("Settings (JSON)", draft.settings, { onDraft(draft.copy(settings = it)) }, "{}", singleLine = false)
+    }
+    IcodeSection {
+        if (!adding) Text("Saving changes to a running server starts it again.", style = IcodeType.Caption, color = IcodeColors.TextSecondary)
+        validation?.let { Text(it, style = IcodeType.Caption, color = IcodeColors.Error) }
+        PrimaryButton(
+            if (adding) "Add Service" else "Save Configuration",
+            onClick = onSave,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = validation == null && canSave,
+        )
     }
 }
 

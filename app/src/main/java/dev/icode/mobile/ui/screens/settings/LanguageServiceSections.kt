@@ -24,10 +24,10 @@ import dev.icode.mobile.domain.LanguageServicePresets
 import dev.icode.mobile.domain.LanguageServiceStatus
 import dev.icode.mobile.ui.LocalICodeGateway
 
-/** A new service starts from a known server, or from nothing (Custom: the fields below). */
+/** A new service starts from a known server, filled in for it, or from nothing (Custom). */
 @Composable
-internal fun PresetSection(onChoose: (LanguageServicePreset) -> Unit) {
-    IcodeSection("Start From") {
+internal fun PresetSection(onChoose: (LanguageServicePreset) -> Unit, onCustom: () -> Unit) {
+    IcodeSection("Known Servers") {
         LanguageServicePresets.all.forEach { preset ->
             IcodeListRow(
                 title = preset.configuration.name,
@@ -36,6 +36,14 @@ internal fun PresetSection(onChoose: (LanguageServicePreset) -> Unit) {
                 onClick = { onChoose(preset) },
             )
         }
+    }
+    IcodeSection("Your Own") {
+        IcodeListRow(
+            title = "Custom",
+            subtitle = "Any language server installed in the runtime",
+            card = true,
+            onClick = onCustom,
+        )
     }
 }
 
