@@ -22,9 +22,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import dev.icode.mobile.designsystem.BuildEnvironment
 import dev.icode.mobile.designsystem.CodeSurface
 import dev.icode.mobile.designsystem.IcodeCard
-import dev.icode.mobile.designsystem.BuildEnvironment
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodePageColumn
 import dev.icode.mobile.designsystem.IcodePalette
@@ -64,11 +64,7 @@ fun AppearanceScreen(actions: NavigationActions) {
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Appearance", subtitle = settingsSubtitle(Route.AppearanceSettings), onBack = actions.back)
         IcodePageColumn {
-            if (!preferences.loaded) Text("Loading settings…", style = IcodeType.Caption)
-            preferences.loadError?.let {
-                Text("Settings unavailable: $it", style = IcodeType.Caption.copy(color = IcodeColors.Error))
-            }
-            saver.error?.let { Text(it, style = IcodeType.Caption.copy(color = IcodeColors.Error)) }
+            if (!settingsShown(preferences, saver)) return@IcodePageColumn
             IcodeSection("Color Theme") {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -126,7 +122,7 @@ fun AppearanceScreen(actions: NavigationActions) {
                 SettingRow(
                     if (appearance.accentColor == null) "Theme accent" else "${AccentColorRules.nameOf(accentArgb)} accent",
                     Modifier.fillMaxWidth(),
-                    onClick = { if (saver.ready) pickingAccent = true },
+                    onClick = { pickingAccent = true },
                 ) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,

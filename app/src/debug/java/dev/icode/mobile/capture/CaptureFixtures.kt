@@ -52,6 +52,7 @@ import dev.icode.mobile.domain.WorkspaceSummary
 object CaptureFixtures {
     /** Built per capture: the last commit's age is relative to now. */
     fun snapshot() = ICodeSnapshot(
+        workspacesLoaded = true,
         workspaces = listOf(
             WorkspaceSummary("icode-subsystem", ROOT, "main", ago(hours = 2)),
             WorkspaceSummary("storage-driver", STORAGE_DRIVER, "dev-v2", ago(hours = 5)),

@@ -30,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import dev.icode.mobile.designsystem.IcodeSkeletonRows
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeCard
 import androidx.compose.foundation.clickable
@@ -64,7 +65,9 @@ fun LauncherScreen(actions: NavigationActions, empty: Boolean) {
     val state = LocalICodeSnapshot.current
     val gateway = LocalICodeGateway.current
     val workspaces = state.workspaces
-    val showEmpty = empty || workspaces.isEmpty()
+    // Before the list is read once, its rows' places are drawn: "No workspaces yet" would be untrue.
+    val loading = !empty && !state.workspacesLoaded
+    val showEmpty = !loading && (empty || workspaces.isEmpty())
     val explore = { place: StoragePlace ->
         gateway.dispatch(ICodeIntent.BrowsePlace(place))
         actions.navigate(Route.Workspaces)
@@ -111,7 +114,12 @@ fun LauncherScreen(actions: NavigationActions, empty: Boolean) {
             // cover it as they fill the page.
             Box(Modifier.fillMaxWidth().weight(1f)) {
                 IcodeWatermark(Modifier.align(Alignment.Center))
-                if (showEmpty) {
+                if (loading) {
+                    Column(Modifier.fillMaxSize().padding(start = IcodeSpacing.Gutter, top = IcodeSpacing.SectionGap, end = IcodeSpacing.Gutter)) {
+                        SectionLabel("Recent", Modifier.padding(bottom = IcodeSpacing.ItemGap))
+                        IcodeSkeletonRows(count = 3, description = "Loading workspaces")
+                    }
+                } else if (showEmpty) {
                     Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
                         EmptyState(
                             title = "No workspaces yet",

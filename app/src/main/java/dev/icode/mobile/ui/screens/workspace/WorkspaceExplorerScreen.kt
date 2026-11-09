@@ -2,8 +2,8 @@ package dev.icode.mobile.ui.screens.workspace
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -40,12 +40,14 @@ import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.behindSheet
-import dev.icode.mobile.domain.FileEntry
+import dev.icode.mobile.domain.BusyAction
 import dev.icode.mobile.domain.DiagnosticRules
+import dev.icode.mobile.domain.FileEntry
 import dev.icode.mobile.domain.FileKind
 import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.files.FileSelection
+import dev.icode.mobile.domain.isBusy
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.navigation.ToolPanelTab
@@ -115,6 +117,7 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
                             // One badge per changed file, counting a file staged and
                             // modified once, the way VS Code counts it.
                             badge = state.gitChanges.map { it.path }.distinct().size,
+                            busy = state.isBusy(BusyAction.InitializeGit),
                         ) {
                             if (state.gitRepository == null) {
                                 gateway.dispatch(ICodeIntent.InitializeGit)
@@ -167,6 +170,7 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
                                 selected = entry.path == selectedPath,
                                 ticked = ticked,
                                 problems = problems,
+                                opening = state.isBusy(BusyAction.OpenFile, entry.path),
                                 onClick = {
                                     when {
                                         ticked != null -> selection.toggle(entry.path)

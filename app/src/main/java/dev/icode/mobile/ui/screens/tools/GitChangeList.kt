@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import dev.icode.mobile.designsystem.IcodeActionSheet
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodeIconButton
 import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodeMenuAction
 import dev.icode.mobile.designsystem.IcodeSizes
@@ -37,6 +38,7 @@ import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.SectionHeader
 import dev.icode.mobile.designsystem.gitStatusTone
 import dev.icode.mobile.designsystem.tint
+import dev.icode.mobile.domain.BusyRules
 import dev.icode.mobile.domain.FileTypes
 import dev.icode.mobile.domain.GitChange
 import dev.icode.mobile.domain.GitChangeRow
@@ -69,6 +71,8 @@ internal fun LazyListScope.gitChangeSection(
     onHold: (GitChangeRow) -> Unit,
     gateway: ICodeGateway,
     actions: NavigationActions,
+    /** The paths being staged or unstaged now; [BusyRules.ALL] for all of them. */
+    busy: Set<String>,
 ) {
     val section = if (staged) "staged" else "changes"
     item(key = "$section:header") {
@@ -77,6 +81,7 @@ internal fun LazyListScope.gitChangeSection(
             modifier = Modifier.padding(top = IcodeSpacing.Space3, bottom = IcodeSpacing.Space1),
             actionLabel = if (changes.isEmpty()) null else if (staged) "UNSTAGE ALL" else "STAGE ALL",
             onAction = { gateway.dispatch(if (staged) ICodeIntent.UnstageAllFiles else ICodeIntent.StageAllFiles) },
+            busy = BusyRules.ALL in busy,
         )
     }
     items(rows, key = { row -> changeRowKey(staged, row) }) { row ->
@@ -87,12 +92,14 @@ internal fun LazyListScope.gitChangeSection(
                 onToggle = { onToggleFolder(row.path) },
                 onToggleStage = { gateway.dispatch(stageIntent(staged, row.path)) },
                 onHold = { onHold(row) },
+                staging = row.path in busy || BusyRules.ALL in busy,
             )
             is GitChangeRow.File -> ChangeFileRow(
                 row,
                 onOpen = { openChange(gateway, actions, row.change, workTreePath) },
                 onToggleStage = { gateway.dispatch(stageIntent(staged, row.change.path)) },
                 onHold = { onHold(row) },
+                staging = row.change.path in busy || BusyRules.ALL in busy,
             )
         }
     }
@@ -148,7 +155,7 @@ internal fun GitChangeSheet(row: GitChangeRow, staged: Boolean, changes: List<Gi
 }
 
 @Composable
-private fun ChangeFolderRow(folder: GitChangeRow.Folder, staged: Boolean, onToggle: () -> Unit, onToggleStage: () -> Unit, onHold: () -> Unit) {
+private fun ChangeFolderRow(folder: GitChangeRow.Folder, staged: Boolean, onToggle: () -> Unit, onToggleStage: () -> Unit, onHold: () -> Unit, staging: Boolean) {
     IcodeListRow(
         rowShape = RectangleShape,
         compact = true,
@@ -174,13 +181,13 @@ private fun ChangeFolderRow(folder: GitChangeRow.Folder, staged: Boolean, onTogg
         content = { Text(folder.name, Modifier.weight(1f), style = IcodeType.Body, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         trailing = {
             MonoLine(folder.changes.toString(), color = IcodeColors.TextMuted, style = IcodeType.MonoSmall)
-            StageButton(staged, folder.name, onToggleStage)
+            StageButton(staged, folder.name, onToggleStage, staging)
         },
     )
 }
 
 @Composable
-private fun ChangeFileRow(file: GitChangeRow.File, onOpen: () -> Unit, onToggleStage: () -> Unit, onHold: () -> Unit) {
+private fun ChangeFileRow(file: GitChangeRow.File, onOpen: () -> Unit, onToggleStage: () -> Unit, onHold: () -> Unit, staging: Boolean) {
     val change = file.change
     val tone = gitStatusTone(change.status).tint()
     val type = FileTypes.of(change.name)
@@ -209,7 +216,7 @@ private fun ChangeFileRow(file: GitChangeRow.File, onOpen: () -> Unit, onToggleS
         },
         trailing = {
             MonoLine(change.status, color = tone, style = IcodeType.MonoSmall)
-            StageButton(change.staged, change.name, onToggleStage)
+            StageButton(change.staged, change.name, onToggleStage, staging)
         },
     )
 }
@@ -231,15 +238,15 @@ private fun discardLabel(change: GitChange): String = when (change.status) {
 
 /** + stages, − unstages: a file, or all a folder holds. */
 @Composable
-private fun StageButton(staged: Boolean, name: String, onClick: () -> Unit) {
-    IconButton(onClick = onClick) {
-        Icon(
-            if (staged) Icons.Outlined.Remove else Icons.Outlined.Add,
-            contentDescription = if (staged) "Unstage $name" else "Stage $name",
-            tint = IcodeColors.Accent,
-            modifier = Modifier.size(IcodeSizes.IconMd),
-        )
-    }
+private fun StageButton(staged: Boolean, name: String, onClick: () -> Unit, busy: Boolean) {
+    IcodeIconButton(
+        if (staged) Icons.Outlined.Remove else Icons.Outlined.Add,
+        contentDescription = if (staged) "Unstage $name" else "Stage $name",
+        onClick = onClick,
+        busy = busy,
+        tint = IcodeColors.Accent,
+        iconSize = IcodeSizes.IconMd,
+    )
 }
 
 

@@ -18,6 +18,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import dev.icode.mobile.designsystem.CHECKING
 import dev.icode.mobile.designsystem.DangerButton
 import dev.icode.mobile.designsystem.DetailRow
 import dev.icode.mobile.designsystem.IcodeCard
@@ -30,13 +31,16 @@ import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.NoticeCard
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SettingRow
+import dev.icode.mobile.domain.BusyAction
 import dev.icode.mobile.domain.ByteSize
+import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.RuntimeDetails
+import dev.icode.mobile.domain.RuntimeInstallReason
+import dev.icode.mobile.domain.RuntimeState
 import dev.icode.mobile.domain.RuntimeTools
 import dev.icode.mobile.domain.RuntimeToolsState
-import dev.icode.mobile.domain.RuntimeDetails
-import dev.icode.mobile.domain.RuntimeState
-import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.countOf
+import dev.icode.mobile.domain.isBusy
 import dev.icode.mobile.domain.storageSizeLabel
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
@@ -59,6 +63,8 @@ fun RuntimeSettingsScreen(actions: NavigationActions) {
     val gateway = LocalICodeGateway.current
     val details = state.runtimeDetails
     var pending by rememberSaveable { mutableStateOf<RuntimeRebuild?>(null) }
+    // The rebuild confirmed here, until the runtime says which runs (it waits for the lock first).
+    var confirmed by rememberSaveable { mutableStateOf<RuntimeRebuild?>(null) }
 
     LaunchedEffect(Unit) { gateway.dispatch(ICodeIntent.RefreshRuntimeDetails) }
 
@@ -98,11 +104,20 @@ fun RuntimeSettingsScreen(actions: NavigationActions) {
                 )
             }
             Spacer(Modifier.weight(1f))
+            // From the confirmed tap until the runtime is rebuilt: neither starts twice, and the one asked says it runs.
+            val rebuilding = state.isBusy(BusyAction.Runtime) || state.runtime is RuntimeState.Downloading || state.runtime is RuntimeState.Installing
+            val running = when (state.runtimeInstallReason) {
+                RuntimeInstallReason.Repair -> RuntimeRebuild.Repair
+                RuntimeInstallReason.Reset -> RuntimeRebuild.Reset
+                RuntimeInstallReason.Initial -> confirmed
+            }.takeIf { rebuilding }
             IcodeSection {
                 SecondaryButton(
                     "Repair Runtime",
                     { pending = RuntimeRebuild.Repair },
                     Modifier.fillMaxWidth(),
+                    enabled = !rebuilding,
+                    busy = running == RuntimeRebuild.Repair,
                 )
                 Text(
                     "Reinstalls the base system and keeps your home directory and workspaces. " +
@@ -115,6 +130,8 @@ fun RuntimeSettingsScreen(actions: NavigationActions) {
                     "Reset Runtime",
                     { pending = RuntimeRebuild.Reset },
                     Modifier.fillMaxWidth(),
+                    enabled = !rebuilding,
+                    busy = running == RuntimeRebuild.Reset,
                 )
                 Text(
                     "Removes everything in the runtime, including your home directory and installed tools. Workspaces are kept.",
@@ -137,6 +154,7 @@ fun RuntimeSettingsScreen(actions: NavigationActions) {
             detail = details.release,
             confirmLabel = if (rebuild == RuntimeRebuild.Repair) "REPAIR" else "RESET",
             onConfirm = {
+                confirmed = rebuild
                 gateway.dispatch(
                     if (rebuild == RuntimeRebuild.Repair) {
                         ICodeIntent.RepairRuntime
@@ -171,7 +189,6 @@ private fun runtimeSummary(runtime: RuntimeState): String = when (runtime) {
 }
 
 private const val UNKNOWN = "Not measured"
-private const val CHECKING = "Checking…"
 
 /** "2 of 6 installed: Git, SSH client". */
 private fun toolsSummary(tools: RuntimeToolsState): String {

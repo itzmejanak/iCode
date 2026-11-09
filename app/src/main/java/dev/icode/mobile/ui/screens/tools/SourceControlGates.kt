@@ -12,23 +12,26 @@ import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodeLoadingLine
 import dev.icode.mobile.designsystem.IcodePageColumn
 import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSpacing
+import dev.icode.mobile.designsystem.IcodeTone
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.MonoLine
-import dev.icode.mobile.designsystem.PrimaryButton
-import dev.icode.mobile.designsystem.IcodeTone
 import dev.icode.mobile.designsystem.NoticeCard
+import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.StatusLabel
+import dev.icode.mobile.domain.BusyAction
 import dev.icode.mobile.domain.GitInProgress
 import dev.icode.mobile.domain.GitOperationState
-import dev.icode.mobile.domain.RuntimeTools
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.ICodeSnapshot
+import dev.icode.mobile.domain.RuntimeTools
 import dev.icode.mobile.domain.countOf
+import dev.icode.mobile.domain.isBusy
 
 /** Shown when the runtime has no `git` binary yet. */
 @Composable
@@ -42,7 +45,7 @@ private fun GitUnavailableGate(
         when (operation) {
             is GitOperationState.Running -> {
                 EmptyState(title = operation.label, description = "This runs once, then Git is ready.")
-                MonoLine(installStep ?: "Working…", color = IcodeColors.Accent, style = IcodeType.MonoSmall)
+                IcodeLoadingLine(installStep ?: "Starting…")
             }
             is GitOperationState.Failed -> {
                 EmptyState(title = "Git could not be installed", description = operation.reason)
@@ -73,14 +76,14 @@ internal fun SourceControlGate(state: ICodeSnapshot, dispatch: (ICodeIntent) -> 
             state.gitOperation,
             state.runtimeTools.installing(RuntimeTools.Git)?.progress?.step,
         ) { dispatch(ICodeIntent.ProvisionGit) }
-        failure != null -> GitUnreadableGate(failure) { dispatch(ICodeIntent.RefreshGit) }
-        else -> GitInitializationGate { dispatch(ICodeIntent.InitializeGit) }
+        failure != null -> GitUnreadableGate(failure, state.isBusy(BusyAction.RefreshGit)) { dispatch(ICodeIntent.RefreshGit) }
+        else -> GitInitializationGate(state.isBusy(BusyAction.InitializeGit)) { dispatch(ICodeIntent.InitializeGit) }
     }
 }
 
 /** Git ran and could not read the repository: its words, and a way to ask again once it is fixed. */
 @Composable
-private fun GitUnreadableGate(failure: String, onRetry: () -> Unit) {
+private fun GitUnreadableGate(failure: String, retrying: Boolean, onRetry: () -> Unit) {
     GatePage {
         // What Git said follows its introduction.
         IcodeSection {
@@ -91,12 +94,12 @@ private fun GitUnreadableGate(failure: String, onRetry: () -> Unit) {
             )
             MonoLine(failure, color = IcodeColors.Error, style = IcodeType.MonoSmall, maxLines = 6)
         }
-        PrimaryButton("Check again", onRetry, Modifier.fillMaxWidth())
+        PrimaryButton("Check again", onRetry, Modifier.fillMaxWidth(), busy = retrying)
     }
 }
 
 @Composable
-internal fun GitInitializationGate(onInitialize: () -> Unit) {
+internal fun GitInitializationGate(initializing: Boolean, onInitialize: () -> Unit) {
     GatePage {
         EmptyState(
             title = "This folder is not a Git repository",
@@ -111,7 +114,7 @@ internal fun GitInitializationGate(onInitialize: () -> Unit) {
                     style = IcodeType.MonoSmall,
                 )
             }
-            PrimaryButton("Initialize Git", onInitialize, Modifier.fillMaxWidth())
+            PrimaryButton("Initialize Git", onInitialize, Modifier.fillMaxWidth(), busy = initializing)
         }
     }
 }
@@ -132,7 +135,7 @@ private fun GatePage(content: @Composable ColumnScope.() -> Unit) {
  * idea a merge is open, or that committing is what finishes it.
  */
 @Composable
-internal fun InProgressBanner(inProgress: GitInProgress, conflicts: Int, onAbort: () -> Unit) {
+internal fun InProgressBanner(inProgress: GitInProgress, conflicts: Int, onAbort: () -> Unit, aborting: Boolean) {
     val name = when (inProgress) {
         GitInProgress.Merge -> "merge"
         GitInProgress.Rebase -> "rebase"
@@ -153,7 +156,7 @@ internal fun InProgressBanner(inProgress: GitInProgress, conflicts: Int, onAbort
                 color = IcodeColors.TextSecondary,
                 style = IcodeType.MonoSmall,
             )
-            SecondaryButton("Abort $name", onAbort, Modifier.fillMaxWidth())
+            SecondaryButton("Abort $name", onAbort, Modifier.fillMaxWidth(), busy = aborting)
         }
     }
 }

@@ -11,6 +11,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import dev.icode.mobile.designsystem.IcodeLoadingLine
 import dev.icode.mobile.designsystem.IcodeBottomSheet
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeListRow
@@ -38,7 +39,7 @@ internal fun LanguageResultSheet(result: LanguageResult) {
     IcodeModalSheet(onClose = close) {
         IcodeBottomSheet(title = result.title, onClose = close, modifier = Modifier.align(Alignment.BottomCenter)) {
             when (result) {
-                is LanguageResult.Asking -> Text("Asking the language server…", style = IcodeType.Body, color = IcodeColors.TextSecondary)
+                is LanguageResult.Asking -> IcodeLoadingLine("Asking the language server…")
                 is LanguageResult.Failed -> Text(result.words, style = IcodeType.Body, color = IcodeColors.TextSecondary)
                 is LanguageResult.Text -> MarkdownAnswer(result.text, streaming = false, place = null)
                 is LanguageResult.Places -> result.places.forEach { place ->

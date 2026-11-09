@@ -33,7 +33,10 @@ import dev.icode.mobile.designsystem.IcodeListRow
 import dev.icode.mobile.designsystem.IcodeShapes
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
+import dev.icode.mobile.designsystem.IcodeSpinner
 import dev.icode.mobile.designsystem.IcodeType
+import dev.icode.mobile.designsystem.busySemantics
+import dev.icode.mobile.designsystem.rememberShownWhileBusy
 import dev.icode.mobile.domain.FileViewer
 import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.ICodeGateway
@@ -41,9 +44,11 @@ import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.domain.files.BrowsedItem
 import dev.icode.mobile.domain.files.StoragePlace
+import dev.icode.mobile.domain.isOpening
 import dev.icode.mobile.ui.FileViewerState
 import dev.icode.mobile.ui.LocalFileViewer
 import dev.icode.mobile.ui.LocalICodeGateway
+import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.SharedFiles
 import dev.icode.mobile.ui.ThumbnailKind
 import dev.icode.mobile.ui.rememberThumbnail
@@ -82,11 +87,16 @@ private fun UpIcon(size: Dp) = Icon(Icons.Outlined.DriveFolderUpload, contentDes
 internal fun ItemRow(item: BrowsedItem, taps: ListingTaps, compact: Boolean, detail: String) {
     val acts = itemActs(item, taps)
     val size = if (compact) IcodeSizes.IconMd else IcodeSizes.IconXl
+    val opening = LocalICodeSnapshot.current.isOpening(item.location)
     FileRow(
         leading = {
-            if (acts.ticked != null) IcodeCheckbox(acts.ticked, onCheckedChange = null, modifier = Modifier.size(size))
-            else FileIcon(item, size, Modifier.then(acts.onIcon?.let { Modifier.clickable(onClickLabel = "Select ${item.name}", onClick = it) } ?: Modifier))
+            when {
+                acts.ticked != null -> IcodeCheckbox(acts.ticked, onCheckedChange = null, modifier = Modifier.size(size))
+                rememberShownWhileBusy(opening) -> Box(Modifier.size(size), contentAlignment = Alignment.Center) { IcodeSpinner() }
+                else -> FileIcon(item, size, Modifier.then(acts.onIcon?.let { Modifier.clickable(onClickLabel = "Select ${item.name}", onClick = it) } ?: Modifier))
+            }
         },
+        modifier = Modifier.busySemantics(opening),
         name = item.name,
         detail = detail,
         end = item.changedAt,
@@ -103,9 +113,11 @@ internal fun ItemTile(item: BrowsedItem, taps: ListingTaps) {
     val acts = itemActs(item, taps)
     FileTile(
         picture = {
-            Box(contentAlignment = Alignment.TopEnd) {
+            val opening = LocalICodeSnapshot.current.isOpening(item.location)
+            Box(Modifier.busySemantics(opening), contentAlignment = Alignment.TopEnd) {
                 FileIcon(item, IcodeSizes.GridTilePicture, Modifier.then(acts.onIcon?.let { Modifier.clickable(onClickLabel = "Select ${item.name}", onClick = it) } ?: Modifier))
                 if (acts.ticked != null) IcodeCheckbox(acts.ticked, onCheckedChange = null)
+                else if (rememberShownWhileBusy(opening)) IcodeSpinner()
             }
         },
         name = item.name,
@@ -189,10 +201,12 @@ private fun FileRow(
     end: Long?,
     compact: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
     onLongClick: (() -> Unit)? = null,
     selected: Boolean = false,
 ) {
     IcodeListRow(
+        modifier = modifier,
         selected = selected,
         rowShape = RectangleShape,
         inset = IcodeSpacing.Gutter,

@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeListRow
+import dev.icode.mobile.designsystem.IcodeLoadingLine
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
@@ -55,18 +56,7 @@ internal fun FileResults(
     val waitingWithoutResults = results.isEmpty() && engine !is SearchEngineState.Ready
     Column(Modifier.fillMaxSize()) {
         when (engine) {
-            SearchEngineState.Installing -> MonoLine(
-                "Installing ripgrep for workspace search…",
-                modifier = Modifier.padding(horizontal = IcodeSpacing.Gutter),
-                color = IcodeColors.Amber,
-                style = IcodeType.MonoSmall,
-            )
-            SearchEngineState.Indexing -> Text(
-                "Indexing workspace files…",
-                modifier = Modifier.padding(IcodeSpacing.Gutter),
-                style = IcodeType.Caption,
-                color = IcodeColors.TextSecondary,
-            )
+            SearchEngineState.Installing, SearchEngineState.Indexing -> IcodeLoadingLine(engine.waiting.orEmpty(), Modifier.padding(IcodeSpacing.Gutter))
             is SearchEngineState.Failed -> Text(
                 engine.reason,
                 modifier = Modifier.padding(IcodeSpacing.Gutter),
@@ -81,14 +71,7 @@ internal fun FileResults(
                     style = IcodeType.MonoSmall,
                 )
             }
-            SearchEngineState.Unknown -> if (results.isEmpty()) {
-                Text(
-                    "Preparing workspace search…",
-                    modifier = Modifier.padding(IcodeSpacing.Gutter),
-                    style = IcodeType.Caption,
-                    color = IcodeColors.TextSecondary,
-                )
-            }
+            SearchEngineState.Unknown -> if (results.isEmpty()) IcodeLoadingLine(engine.waiting.orEmpty(), Modifier.padding(IcodeSpacing.Gutter))
         }
         if (!waitingWithoutResults && (indexTruncated || rankTruncated)) {
             val limitMessage = when {
@@ -221,7 +204,7 @@ internal fun TextResults(
 private fun SearchSummary(search: ContentSearchState, query: String, resultsAreCurrent: Boolean, engine: SearchEngineState) {
     val summary = when {
         query.isBlank() -> "Type to search across this workspace"
-        engine == SearchEngineState.Installing -> "Installing ripgrep for workspace search…"
+        engine == SearchEngineState.Installing -> engine.waiting.orEmpty()
         engine is SearchEngineState.Failed -> engine.reason
         !resultsAreCurrent -> "Searching this workspace…"
         search.error != null -> search.error
@@ -229,12 +212,18 @@ private fun SearchSummary(search: ContentSearchState, query: String, resultsAreC
         else -> "${countOf(search.totalMatches, "result")} in ${countOf(search.results.size, "file")}" +
             if (search.truncated) "" else " · ${countOf(search.searchedFiles, "file")} scanned"
     }
-    Text(
-        summary,
-        modifier = Modifier.padding(IcodeSpacing.Gutter),
-        style = IcodeType.Caption,
-        color = if (engine is SearchEngineState.Failed || resultsAreCurrent && search.error != null) IcodeColors.Error else IcodeColors.TextSecondary,
-    )
+    // Waiting on the search, or on its engine's install: said beside the spinner.
+    val waiting = query.isNotBlank() && (engine == SearchEngineState.Installing || engine !is SearchEngineState.Failed && !resultsAreCurrent)
+    if (waiting) {
+        IcodeLoadingLine(summary, Modifier.padding(IcodeSpacing.Gutter))
+    } else {
+        Text(
+            summary,
+            modifier = Modifier.padding(IcodeSpacing.Gutter),
+            style = IcodeType.Caption,
+            color = if (engine is SearchEngineState.Failed || resultsAreCurrent && search.error != null) IcodeColors.Error else IcodeColors.TextSecondary,
+        )
+    }
     if (resultsAreCurrent && search.truncated) {
         MonoLine(
             "Result limit reached — narrow the query to see more",

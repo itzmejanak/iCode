@@ -124,15 +124,20 @@ fun SectionHeader(
     modifier: Modifier = Modifier,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
+    /** What the action started runs: the spinner before its label, and no second tap (docs/loading-plan.md §4.2). */
+    busy: Boolean = false,
 ) {
-    Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+    Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
         SectionLabel(title)
         if (actionLabel != null) {
-            Text(
-                actionLabel,
-                style = IcodeType.Label.copy(color = IcodeColors.Accent),
-                modifier = if (onAction == null) Modifier else Modifier.clickable(onClick = onAction),
-            )
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
+                BusyIndicator(busy)
+                Text(
+                    actionLabel,
+                    style = IcodeType.Label.copy(color = IcodeColors.Accent),
+                    modifier = if (onAction == null) Modifier else Modifier.clickable(enabled = !busy, onClick = onAction).busySemantics(busy),
+                )
+            }
         }
     }
 }

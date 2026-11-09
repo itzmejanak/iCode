@@ -24,6 +24,7 @@ internal fun TerminalTabStrip(
     onSelect: (String) -> Unit,
     onReorder: (String, String) -> Unit,
     onClose: (String) -> Unit,
+    closing: Set<String> = emptySet(),
 ) {
     IcodeTabStrip(
         tabs = sessions,
@@ -34,6 +35,7 @@ internal fun TerminalTabStrip(
         onSelect = onSelect,
         onReorder = onReorder,
         onClose = onClose,
+        closing = { it.id in closing },
         mark = { session, _ ->
             val running = session.status == TerminalStatus.Running
             Icon(

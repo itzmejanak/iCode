@@ -24,8 +24,8 @@ internal fun NewWorkspaceSheet(onDismiss: () -> Unit) {
     IcodeConfirmSheet(
         title = "New folder",
         confirmLabel = "Create",
-        confirmEnabled = problem == null && !request.waiting,
-        dismissEnabled = !request.waiting,
+        confirmEnabled = problem == null,
+        confirmBusy = request.waiting,
         onDismiss = onDismiss,
         onConfirm = { request.send { requestId -> gateway.dispatch(ICodeIntent.CreateWorkspace(name.trim(), requestId)) } },
     ) {

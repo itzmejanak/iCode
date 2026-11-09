@@ -23,6 +23,7 @@ import dev.icode.mobile.designsystem.DetailRow
 import dev.icode.mobile.designsystem.IcodeActionSheet
 import dev.icode.mobile.designsystem.IcodeBottomSheet
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodeLoadingLine
 import dev.icode.mobile.designsystem.IcodeMenuAction
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeType
@@ -107,7 +108,7 @@ private fun RenamePage(target: ActionTarget, onBack: (() -> Unit)?, onClose: () 
         modifier = modifier,
         subtitle = target.name,
         onBack = onBack,
-        footer = { PrimaryButton("Rename", { form.send(gateway::dispatch) }, Modifier.fillMaxWidth(), enabled = form.ready) },
+        footer = { PrimaryButton("Rename", { form.send(gateway::dispatch) }, Modifier.fillMaxWidth(), enabled = form.ready, busy = form.request.waiting) },
     ) {
         RenameFields(form)
     }
@@ -167,7 +168,7 @@ private fun PropertiesPage(targets: List<ActionTarget>, path: String?, subject: 
     }
     IcodeBottomSheet(title = "Properties", onClose = onClose, modifier = modifier, subtitle = subject, onBack = onBack) {
         if (facts == null) {
-            Text("Reading…", style = IcodeType.Caption)
+            IcodeLoadingLine("Reading…")
         } else {
             FileProperties.rows(facts, subject, path, branch, System.currentTimeMillis()).forEach { PropertyLine(it) }
         }

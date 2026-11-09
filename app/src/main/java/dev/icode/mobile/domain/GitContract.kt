@@ -153,6 +153,17 @@ sealed interface GitOperationState {
         val output: List<String> = emptyList(),
     ) : GitOperationState
 
+    /**
+     * How far it is, 0..1, for its bar; null while it runs with no percentage from Git yet, so the
+     * bar shows activity rather than standing at zero.
+     */
+    val fraction: Float?
+        get() = when (this) {
+            is Running -> progress?.fraction
+            is Succeeded -> 1f
+            else -> 0f
+        }
+
     /** Git's own output for whichever phase this operation is in. */
     val transcript: List<String>
         get() = when (this) {

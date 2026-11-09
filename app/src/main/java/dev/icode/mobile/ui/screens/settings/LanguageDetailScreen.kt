@@ -25,11 +25,14 @@ import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.StatusLabel
+import dev.icode.mobile.domain.BusyAction
+import dev.icode.mobile.domain.BusyRules
 import dev.icode.mobile.domain.LanguageIntent
 import dev.icode.mobile.domain.LanguageServiceConfiguration
 import dev.icode.mobile.domain.LanguageServicePresets
 import dev.icode.mobile.domain.LanguageServiceRules
 import dev.icode.mobile.domain.LanguageServiceStatus
+import dev.icode.mobile.domain.isBusy
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.ToolPanelTab
 import dev.icode.mobile.ui.LocalICodeGateway
@@ -90,6 +93,8 @@ fun LanguageDetailScreen(actions: NavigationActions) {
                     adding = service == null,
                     canSave = state.languageServicesLoadError == null && (service == null || draft != saved),
                     onSave = { gateway.dispatch(LanguageIntent.Save(draft.copy(id = service?.id.orEmpty()))) },
+                    saving = state.isBusy(BusyAction.LanguageService, service?.id ?: BusyRules.NEW),
+                    installing = state.isBusy(BusyAction.LanguageService, draft.command.trim()),
                     onInstall = { install(draft.command.trim()) },
                 )
                 LanguagePage.Server -> service?.let { ServerSection(it, onRemove = { confirmRemove = true }, onInstall = { install(it.command) }) }
@@ -131,6 +136,8 @@ private fun ConfigurationSection(
     adding: Boolean,
     canSave: Boolean,
     onSave: () -> Unit,
+    saving: Boolean,
+    installing: Boolean,
     onInstall: () -> Unit,
 ) {
     val validation = LanguageServiceRules.validate(draft)
@@ -141,7 +148,7 @@ private fun ConfigurationSection(
         install?.let { preset ->
             Text("Install it in a terminal" + (preset.needs?.let { ", after $it" } ?: "") + ":", style = IcodeType.Caption, color = IcodeColors.TextSecondary)
             MonoLine(preset.install, maxLines = 2)
-            SecondaryButton("Install in Terminal", onInstall, Modifier.fillMaxWidth())
+            SecondaryButton("Install in Terminal", onInstall, Modifier.fillMaxWidth(), busy = installing)
         }
     }
     IcodeSection("Files It Serves") {
@@ -167,6 +174,7 @@ private fun ConfigurationSection(
             onClick = onSave,
             modifier = Modifier.fillMaxWidth(),
             enabled = validation == null && canSave,
+            busy = saving,
         )
     }
 }

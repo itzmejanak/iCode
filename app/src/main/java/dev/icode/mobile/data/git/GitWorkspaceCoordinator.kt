@@ -2,15 +2,15 @@ package dev.icode.mobile.data.git
 
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceTree
-import dev.icode.mobile.domain.GitFileDiff
 import dev.icode.mobile.domain.GitDiscard
+import dev.icode.mobile.domain.GitFileDiff
 import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.GitRemoteRules
 import dev.icode.mobile.domain.GitStatusCodes
+import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.StageLineChange
-import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.WorkspaceSummary
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
@@ -236,22 +236,26 @@ internal class GitWorkspaceCoordinator(
      * Discards exactly the changes that were confirmed. Git is asked again
      * first: if anything changed since the question was put — in the file, or
      * in the folder — what the user agreed to is no longer what would be lost.
+     * The question stays, its button busy, until it is done (docs/loading-plan.md §4.2).
      */
     suspend fun confirmDiscard() {
         val confirmed = stateHolder.current.pendingDiscard ?: return
-        stateHolder.update { it.copy(pendingDiscard = null) }
-        if (!isDiscardablePath(confirmed.path)) {
-            stateHolder.notify(NoticeTone.HeadsUp, "${confirmed.path} is not a change iCode can discard")
-            return
+        try {
+            if (!isDiscardablePath(confirmed.path)) {
+                stateHolder.notify(NoticeTone.HeadsUp, "${confirmed.path} is not a change iCode can discard")
+                return
+            }
+            act(operation = { workspace ->
+                refresh(workspace)
+                val current = GitDiscard.of(stateHolder.current.gitChanges, confirmed.path)
+                if (current?.changes?.toSet() != confirmed.changes.toSet()) throw IOException("${confirmed.name} changed after you confirmed. Review it again")
+                // Edits and deletions return from the index at once; what is new is removed at once.
+                confirmed.changes.map { if (it.status == GitStatusCodes.UNTRACKED) it.status else GitStatusCodes.MODIFIED }.distinct()
+                    .forEach { kind -> git.discard(workspace, confirmed.path, kind) }
+            })
+        } finally {
+            stateHolder.update { if (it.pendingDiscard == confirmed) it.copy(pendingDiscard = null) else it }
         }
-        act(operation = { workspace ->
-            refresh(workspace)
-            val current = GitDiscard.of(stateHolder.current.gitChanges, confirmed.path)
-            if (current?.changes?.toSet() != confirmed.changes.toSet()) throw IOException("${confirmed.name} changed after you confirmed. Review it again")
-            // Edits and deletions return from the index at once; what is new is removed at once.
-            confirmed.changes.map { if (it.status == GitStatusCodes.UNTRACKED) it.status else GitStatusCodes.MODIFIED }.distinct()
-                .forEach { kind -> git.discard(workspace, confirmed.path, kind) }
-        })
     }
 
     /** Relative to the repository's top, never above it, never into Git's own `.git`. */

@@ -34,6 +34,7 @@ import dev.icode.mobile.designsystem.SectionHeader
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.designsystem.TwoColumnActions
+import dev.icode.mobile.domain.BusyAction
 import dev.icode.mobile.domain.GitActionRules
 import dev.icode.mobile.domain.GitCommitSignature
 import dev.icode.mobile.domain.GitRepositoryState
@@ -41,6 +42,7 @@ import dev.icode.mobile.domain.GitSignatureStatus
 import dev.icode.mobile.domain.GitSyncAction
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.countOf
+import dev.icode.mobile.domain.isBusy
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalICodeGateway
@@ -108,7 +110,7 @@ fun CommitPushScreen(actions: NavigationActions) {
                     repository == null -> NoticeCard(tone = IcodeTone.Warning, modifier = Modifier.fillMaxWidth()) {
                         StatusLabel("This workspace is not a Git repository.", IcodeColors.Amber)
                     }
-                    !hasRemote -> AddRemoteSection { name, url -> gateway.dispatch(ICodeIntent.AddRemote(name, url)) }
+                    !hasRemote -> AddRemoteSection(adding = state.isBusy(BusyAction.AddRemote)) { name, url -> gateway.dispatch(ICodeIntent.AddRemote(name, url)) }
                     state.gitChanges.isEmpty() -> NoticeCard(tone = IcodeTone.Success, modifier = Modifier.fillMaxWidth()) {
                         StatusLabel("Working tree clean. No unstaged changes.", IcodeColors.Green)
                     }

@@ -182,13 +182,25 @@ internal class LanguageServices(
                 }
             }
             LanguageIntent.RefreshLog -> refreshLog()
-            is LanguageIntent.Save -> act("Not saved") { save(intent.configuration) }
-            is LanguageIntent.Remove -> act("Not removed") { remove(intent.id) }
-            is LanguageIntent.Start -> act("Not started") { start(intent.id) }
-            is LanguageIntent.Stop -> act("Not stopped") { stop(intent.id) }
-            is LanguageIntent.Restart -> act("Not restarted") { restart(intent.id) }
-            is LanguageIntent.Install -> act("Not installed") { install(intent.command) }
+            else -> scope.launch { perform(intent) }
         }
+    }
+
+    /**
+     * A change the user asked for, run to its end — the gateway shows it busy until then
+     * (docs/loading-plan.md §4.1) — and its failure said as a notice.
+     */
+    suspend fun perform(intent: LanguageIntent) {
+        val (title, result) = when (intent) {
+            is LanguageIntent.Save -> "Not saved" to save(intent.configuration)
+            is LanguageIntent.Remove -> "Not removed" to remove(intent.id)
+            is LanguageIntent.Start -> "Not started" to start(intent.id)
+            is LanguageIntent.Stop -> "Not stopped" to stop(intent.id)
+            is LanguageIntent.Restart -> "Not restarted" to restart(intent.id)
+            is LanguageIntent.Install -> "Not installed" to install(intent.command)
+            else -> return handle(intent)
+        }
+        result.onFailure { failure -> stateHolder.notify(NoticeTone.HeadsUp, title, LanguageFailure.wordsOf(failure)) }
     }
 
     /** A server asked iCode to apply a change to the workspace. */
@@ -197,12 +209,6 @@ internal class LanguageServices(
     private fun refreshLog() {
         val id = stateHolder.current.selectedLanguageServiceId ?: return
         stateHolder.update { it.copy(languageServiceLog = logs.of(id)) }
-    }
-
-    private fun <T> act(title: String, block: suspend () -> Result<T>) {
-        scope.launch {
-            block().onFailure { failure -> stateHolder.notify(NoticeTone.HeadsUp, title, LanguageFailure.wordsOf(failure)) }
-        }
     }
 
     /** The user's login environment, as a terminal has it, with the service's own over it. */

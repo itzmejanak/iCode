@@ -19,8 +19,10 @@ import dev.icode.mobile.designsystem.BottomBarItem
 import dev.icode.mobile.designsystem.IcodeBottomBar
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeType
+import dev.icode.mobile.domain.BusyAction
 import dev.icode.mobile.domain.GitRepositoryState
 import dev.icode.mobile.domain.ICodeSnapshot
+import dev.icode.mobile.domain.isBusy
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 
@@ -50,6 +52,8 @@ internal fun GitBottomBar(state: ICodeSnapshot, repository: GitRepositoryState, 
                 description = "Branch $branch, switch branch",
                 choice = true,
                 icon = Icons.AutoMirrored.Outlined.CallSplit,
+                // A switch, a new branch, a checkout, a delete: the branch shown changes, or may.
+                busy = state.isBusy(BusyAction.Branch),
             ),
         ),
         trailing = {

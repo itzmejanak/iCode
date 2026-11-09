@@ -114,9 +114,13 @@ private const val TAG_TINT = 0.16f
 /** A long name is cut short, leaving room for what the tag stands beside. */
 private val TAG_MAX_WIDTH = 96.dp
 
-/** Horizontal progress track with accent fill by default. */
+/**
+ * Horizontal progress track with accent fill by default: [progress] 0..1, or null while the share is
+ * unknown, when it sweeps ([IndeterminateProgressTrack]). The one track for every long operation.
+ */
 @Composable
-fun ProgressTrack(progress: Float, modifier: Modifier = Modifier, color: Color = IcodeColors.Accent) {
+fun ProgressTrack(progress: Float?, modifier: Modifier = Modifier, color: Color = IcodeColors.Accent) {
+    if (progress == null) return IndeterminateProgressTrack(modifier, color)
     Box(modifier.height(5.dp).background(IcodeColors.SurfaceTrack, IcodeShapes.Track)) {
         Box(Modifier.fillMaxWidth(progress.coerceIn(0f, 1f)).height(5.dp).background(color, IcodeShapes.Track))
     }

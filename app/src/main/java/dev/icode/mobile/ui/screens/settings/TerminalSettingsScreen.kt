@@ -3,26 +3,23 @@ package dev.icode.mobile.ui.screens.settings
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodePageColumn
 import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSelect
 import dev.icode.mobile.designsystem.IcodeToggle
 import dev.icode.mobile.designsystem.IcodeTopBar
-import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.SegmentedControl
 import dev.icode.mobile.designsystem.SettingRow
 import dev.icode.mobile.designsystem.Stepper
 import dev.icode.mobile.domain.EditorFontFamily
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.SettingLimits
 import dev.icode.mobile.domain.SystemPermission
 import dev.icode.mobile.domain.TerminalCursorStyle
 import dev.icode.mobile.domain.TerminalExtraKey
 import dev.icode.mobile.domain.TerminalSettingRules
-import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalICodeGateway
@@ -47,11 +44,7 @@ fun TerminalSettingsScreen(actions: NavigationActions) {
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Terminal Settings", subtitle = settingsSubtitle(Route.TerminalSettings), onBack = actions.back)
         IcodePageColumn {
-            if (!preferences.loaded) Text("Loading settings…", style = IcodeType.Caption)
-            preferences.loadError?.let {
-                Text("Settings unavailable: $it", style = IcodeType.Caption.copy(color = IcodeColors.Error))
-            }
-            saver.error?.let { Text(it, style = IcodeType.Caption.copy(color = IcodeColors.Error)) }
+            if (!settingsShown(preferences, saver)) return@IcodePageColumn
             IcodeSection("Display") {
                 IcodeSelect(
                     options = EditorFontFamily.entries,

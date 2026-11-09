@@ -8,27 +8,34 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.CodeSurface
 import dev.icode.mobile.designsystem.DiffBand
 import dev.icode.mobile.designsystem.DiffKind
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodeLoadingLine
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTone
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.MonoLine
-import dev.icode.mobile.designsystem.PinchToScaleText
 import dev.icode.mobile.designsystem.NoticeCard
+import dev.icode.mobile.designsystem.PinchToScaleText
 import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.designsystem.ThreeColumnActions
+import dev.icode.mobile.domain.BusyAction
 import dev.icode.mobile.domain.GitConflictChoice
 import dev.icode.mobile.domain.GitConflictFile
 import dev.icode.mobile.domain.GitConflictSection
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.countOf
+import dev.icode.mobile.domain.isBusy
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
@@ -45,11 +52,16 @@ import dev.icode.mobile.ui.LocalICodeSnapshot
 fun ConflictResolutionScreen(actions: NavigationActions) {
     val state = LocalICodeSnapshot.current
     val gateway = LocalICodeGateway.current
-    val conflict = state.activeConflict
+    // Until the file asked for is read, neither the last one nor "no longer conflicted" is shown for it.
+    val opening = state.isBusy(BusyAction.OpenConflict)
+    val conflict = state.activeConflict.takeUnless { opening }
     if (conflict == null) {
-        ConflictUnavailable(actions)
+        ConflictUnavailable(actions, opening)
         return
     }
+    // The file is rewritten by each choice: one at a time, the one tapped working.
+    val resolving = state.isBusy(BusyAction.Conflict, conflict.path)
+    var chosen by remember(conflict.path) { mutableStateOf<Pair<Int, GitConflictChoice>?>(null) }
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar(
             conflict.path.substringAfterLast('/'),
@@ -71,13 +83,15 @@ fun ConflictResolutionScreen(actions: NavigationActions) {
                 modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
                 padding = PaddingValues(vertical = IcodeSpacing.Space3),
             ) {
-                ConflictedFile(conflict) { section, choice ->
+                ConflictedFile(conflict, chosen.takeIf { resolving }) { section, choice ->
+                    chosen = section.startLine to choice
                     gateway.dispatch(ICodeIntent.ResolveConflict(conflict.path, section.startLine, choice))
                 }
             }
         }
         ConflictFooter(
             conflict = conflict,
+            enabled = !resolving,
             onMarkResolved = {
                 gateway.dispatch(ICodeIntent.MarkConflictResolved(conflict.path))
                 gateway.dispatch(ICodeIntent.CloseConflict)
@@ -94,7 +108,7 @@ fun ConflictResolutionScreen(actions: NavigationActions) {
  * bands with the choices attached, so the user acts where they are reading.
  */
 @Composable
-private fun ConflictedFile(conflict: GitConflictFile, onChoice: (GitConflictSection, GitConflictChoice) -> Unit) {
+private fun ConflictedFile(conflict: GitConflictFile, working: Pair<Int, GitConflictChoice>?, onChoice: (GitConflictSection, GitConflictChoice) -> Unit) {
     var line = 0
     while (line < conflict.lines.size) {
         val section = conflict.sections.firstOrNull { it.startLine == line }
@@ -109,14 +123,15 @@ private fun ConflictedFile(conflict: GitConflictFile, onChoice: (GitConflictSect
             )
             line++
         } else {
-            ConflictSection(section) { choice -> onChoice(section, choice) }
+            ConflictSection(section, working?.let { (start, choice) -> if (start == section.startLine) choice else null }, working != null) { choice -> onChoice(section, choice) }
             line = section.endLine + 1
         }
     }
 }
 
+/** [working] is the choice being written for this section; while [anyWorking], no other is taken. */
 @Composable
-private fun ConflictSection(section: GitConflictSection, onChoice: (GitConflictChoice) -> Unit) {
+private fun ConflictSection(section: GitConflictSection, working: GitConflictChoice?, anyWorking: Boolean, onChoice: (GitConflictChoice) -> Unit) {
     DiffBand("<<<<<<< ${section.currentLabel} (Current Change)", DiffKind.ConflictCurrent)
     SideLines(section.current)
     DiffBand("=======", DiffKind.Separator)
@@ -124,17 +139,15 @@ private fun ConflictSection(section: GitConflictSection, onChoice: (GitConflictC
     DiffBand(">>>>>>> ${section.incomingLabel} (Incoming Change)", DiffKind.ConflictIncoming)
     ThreeColumnActions(
         modifier = Modifier.padding(IcodeSpacing.Space3),
-        first = {
-            SecondaryButton("Current", { onChoice(GitConflictChoice.Current) }, Modifier.fillMaxWidth())
-        },
-        second = {
-            SecondaryButton("Incoming", { onChoice(GitConflictChoice.Incoming) }, Modifier.fillMaxWidth())
-        },
-        third = {
-            SecondaryButton("Both", { onChoice(GitConflictChoice.Both) }, Modifier.fillMaxWidth())
-        },
+        first = { ChoiceButton("Current", GitConflictChoice.Current, working, anyWorking, onChoice) },
+        second = { ChoiceButton("Incoming", GitConflictChoice.Incoming, working, anyWorking, onChoice) },
+        third = { ChoiceButton("Both", GitConflictChoice.Both, working, anyWorking, onChoice) },
     )
 }
+
+@Composable
+private fun ChoiceButton(label: String, choice: GitConflictChoice, working: GitConflictChoice?, anyWorking: Boolean, onChoice: (GitConflictChoice) -> Unit) =
+    SecondaryButton(label, { onChoice(choice) }, Modifier.fillMaxWidth(), enabled = !anyWorking, busy = working == choice)
 
 /** An empty side is stated rather than drawn as nothing, which reads as a bug. */
 @Composable
@@ -161,7 +174,7 @@ private fun SideLines(lines: List<String>) {
 }
 
 @Composable
-private fun ConflictFooter(conflict: GitConflictFile, onMarkResolved: () -> Unit) {
+private fun ConflictFooter(conflict: GitConflictFile, enabled: Boolean, onMarkResolved: () -> Unit) {
     Column {
         NoticeCard(
             tone = if (conflict.isResolved) IcodeTone.Success else IcodeTone.Warning,
@@ -180,18 +193,22 @@ private fun ConflictFooter(conflict: GitConflictFile, onMarkResolved: () -> Unit
             "Mark as Resolved",
             onMarkResolved,
             Modifier.fillMaxWidth().padding(IcodeSpacing.Gutter),
-            enabled = conflict.isResolved,
+            enabled = conflict.isResolved && enabled,
         )
     }
 }
 
-/** Reached only if the file stopped being conflicted while the screen was open. */
+/** While the file is read, [opening]; else reached only if the file stopped being conflicted while the screen was open. */
 @Composable
-private fun ConflictUnavailable(actions: NavigationActions) {
+private fun ConflictUnavailable(actions: NavigationActions, opening: Boolean) {
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar("Conflict", onBack = actions.back)
-        NoticeCard(tone = IcodeTone.Info, modifier = Modifier.fillMaxWidth().padding(IcodeSpacing.Gutter)) {
-            StatusLabel("This file is no longer conflicted.", IcodeColors.TextSecondary)
+        if (opening) {
+            IcodeLoadingLine("Reading the conflicts…", Modifier.padding(IcodeSpacing.Gutter))
+        } else {
+            NoticeCard(tone = IcodeTone.Info, modifier = Modifier.fillMaxWidth().padding(IcodeSpacing.Gutter)) {
+                StatusLabel("This file is no longer conflicted.", IcodeColors.TextSecondary)
+            }
         }
     }
 }
