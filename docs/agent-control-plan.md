@@ -35,6 +35,7 @@ it the rule, and closes the two places that break it.
 | **Terminal** | `TerminalSessions` | the Terminal panel | `run_command`, `list_terminals`, `read_terminal`, `send_terminal_input` (§4.3) | — (was: a runner of its own, §2.2) |
 | **MCP servers** | `McpServers` | the MCP pages (`McpIntent`) | `list_mcp_servers`, `save_mcp_server`, `remove_mcp_server` (§5) | — (was: no tools) |
 | **Speech providers** | `SpeechProviders` | Settings › Assistant › Voice and Speech Providers (`SpeechIntent`) | `list_speech_providers`, `save_speech_provider`, `remove_speech_provider` ([speech-plan.md](./speech-plan.md) §6, [tts-plan.md](./tts-plan.md) §6: listening and speaking) | — (2026-11-07) |
+| **Language servers** | `LanguageServices` | Settings › Languages (`LanguageIntent`), the editor, the Command Palette | `list_language_services`, `save_language_service`, `remove_language_service`, `control_language_service`, `language_diagnostics`, `find_definition`, `find_references`, `document_symbols`, `workspace_symbols`, `rename_symbol`, `format_file` ([lsp-plan.md](./lsp-plan.md) §6) | — (2026-11-09) |
 
 **For every capability to come** (settings, Runtime Tools, workspaces…), follow the same order:
 1. Add the typed operation to its owner.

@@ -431,7 +431,7 @@ from the Explorer; binary and large-file safe states.
 
 ### Cycle 8 — Language services
 
-Generic LSP client over the process contract, capability negotiation, diagnostics into editor,
+Built 2026-11-09 as [lsp-plan.md](./lsp-plan.md) L1–L9. Generic LSP client over the process contract, capability negotiation, diagnostics into editor,
 Explorer and `18 Problems`. Frames `21`, `22`.
 
 ### Cycle 9 — Settings, persistence, sessions
