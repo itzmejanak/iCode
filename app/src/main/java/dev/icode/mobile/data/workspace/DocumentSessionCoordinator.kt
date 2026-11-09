@@ -27,8 +27,8 @@ internal class DocumentSessionCoordinator(
     private val shortcuts: FileShortcuts,
     private val paths: GuestPaths,
     private val activeRoot: () -> String?,
-    /** A save changed the worktree, so Git's view of it is stale. */
-    private val onSaved: () -> Unit,
+    /** A save changed the worktree at a location: Git's view of it is stale, its language servers are told. */
+    private val onSaved: (String) -> Unit,
 ) {
     /** Each open file as read from disk: what a save must still find there. */
     private val sources = ConcurrentHashMap<String, WorkspaceDocument>()
@@ -120,7 +120,7 @@ internal class DocumentSessionCoordinator(
             savedTexts[location] = textBeingSaved
             stateHolder.update { state -> state.withDocument(location) { it.copy(dirty = it.text != textBeingSaved) } }
             // The worktree changed: Source Control and the Explorer's decorations are stale; the file goes to Recent's top.
-            onSaved()
+            onSaved(location)
             shortcuts.opened(location)
             true
         }.onFailure { error ->

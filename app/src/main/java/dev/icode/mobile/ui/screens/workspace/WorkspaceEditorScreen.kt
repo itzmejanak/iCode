@@ -196,7 +196,7 @@ fun WorkspaceEditorScreen(actions: NavigationActions) {
                 EditorKeyRow(editorPreferences.keys, onKey = { activeSession?.press(it) })
             } else {
                 BottomPanelBar(
-                    problemCount = state.diagnostics.size,
+                    problemCount = state.problems.size,
                     onTerminal = { actions.openPanel(ToolPanelTab.Terminal) },
                     onProblems = { actions.openPanel(ToolPanelTab.Problems) },
                     trailing = if (isMarkdown || changes.isNotEmpty()) {

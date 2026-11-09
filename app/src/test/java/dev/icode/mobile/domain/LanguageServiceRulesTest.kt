@@ -1,8 +1,11 @@
 package dev.icode.mobile.domain
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LanguageServiceRulesTest {
@@ -18,18 +21,22 @@ class LanguageServiceRulesTest {
         assertNotNull(error)
     }
 
-    @Test fun `blank command is rejected`() {
-        assertNotNull(LanguageServiceRules.validate("server", " ", "*.kt", "{}"))
+    @Test fun `a blank command, a bad quote or a bad variable cannot be saved`() {
+        assertNotNull(LanguageServiceRules.validate(config("a").copy(command = " ")))
+        assertNotNull(LanguageServiceRules.validate(config("a").copy(command = "server 'open")))
+        assertNotNull(LanguageServiceRules.validate(config("a").copy(environment = "not a variable")))
+        assertNull(LanguageServiceRules.validate(config("a").copy(environment = "# a comment\nPYTHONPATH=/workspace/x\n\nEMPTY=")))
     }
 
-    private fun config(id: String, name: String = id) = LanguageServiceConfiguration(id, name, "server", "*.kt", "", "{}")
+    private fun config(id: String, name: String = id) = LanguageServiceConfiguration(id, name, "server", patterns = "*.kt")
 
     @Test fun `saving one service keeps another server running`() {
         val shown = LanguageServiceRules.rows(listOf(config("a"), config("b")), emptyList(), changed = null)
-            .map { if (it.id == "a") it.copy(status = LanguageServiceStatus.Running, processId = 41) else it }
+            .map { if (it.id == "a") it.copy(status = LanguageServiceStatus.Running, processId = 41, capabilities = listOf("Hover")) else it }
         val rows = LanguageServiceRules.rows(listOf(config("a"), config("b", "B edited")), shown, changed = "b")
         assertEquals(LanguageServiceStatus.Running, rows[0].status)
         assertEquals(41, rows[0].processId)
+        assertEquals(listOf("Hover"), rows[0].capabilities)
         assertEquals("B edited", rows[1].name)
     }
 
@@ -49,12 +56,37 @@ class LanguageServiceRulesTest {
         assertEquals(listOf(LanguageServiceStatus.Starting, LanguageServiceStatus.Stopped), rows.map { it.status })
     }
 
-    @Test fun `a service without patterns keeps them empty and is labelled all files`() {
-        val row = LanguageServiceRules.rows(
-            listOf(LanguageServiceConfiguration("x", "rust  analyzer", "ra", "", "", "{}")), emptyList(), changed = null,
-        ).single()
+    @Test fun `a service serving nothing says it starts from its page`() {
+        val row = LanguageServiceRules.rows(listOf(LanguageServiceConfiguration("x", "rust  analyzer", "ra")), emptyList(), changed = null).single()
         assertEquals("RA", row.initials)
-        assertEquals("", row.patterns)
-        assertEquals("All files", row.patternsLabel)
+        assertEquals("Started from its page", row.servesLabel)
+        assertEquals("python, *.pyi", LanguageServiceRules.row(LanguageServiceConfiguration("p", "P", "pylsp", languages = "python", patterns = "*.pyi")).servesLabel)
+    }
+
+    @Test fun `a file is served by its language or a pattern of its name`() {
+        val typescript = LanguageServiceConfiguration("t", "T", "tls", languages = "typescript, typescriptreact", patterns = "*.{mts,cts} Dockerfile")
+        assertTrue(LanguageServiceRules.serves(typescript, "App.tsx", "typescriptreact"))
+        assertTrue(LanguageServiceRules.serves(typescript, "x.mts", "plaintext"))
+        assertTrue(LanguageServiceRules.serves(typescript, "Dockerfile", "dockerfile"))
+        assertFalse(LanguageServiceRules.serves(typescript, "x.py", "python"))
+        assertFalse(LanguageServiceRules.serves(typescript, "x.mtsx", "plaintext"))
+        assertFalse(LanguageServiceRules.serves(LanguageServiceConfiguration("n", "N", "n"), "x.ts", "typescript"))
+    }
+
+    @Test fun `iCode's file types are LSP's language identifiers, shell scripts named as LSP names them`() {
+        assertEquals("shellscript", LanguageServiceRules.languageIdOf(FileTypes.of("build.sh")))
+        assertEquals("typescriptreact", LanguageServiceRules.languageIdOf(FileTypes.of("App.tsx")))
+        assertEquals("cpp", LanguageServiceRules.languageIdOf(FileTypes.of("x.hpp")))
+        assertEquals("plaintext", LanguageServiceRules.languageIdOf(FileTypes.of("notes")))
+    }
+
+    @Test fun `environment lines become variables, and a malformed one is refused`() {
+        assertEquals(mapOf("A" to "1", "B" to "x=y"), LanguageServiceRules.environmentOf("A=1\n  B=x=y  \n#C=3"))
+        assertThrows(IllegalArgumentException::class.java) { LanguageServiceRules.environmentOf("1A=2") }
+    }
+
+    @Test fun `every preset can be saved as it is`() {
+        LanguageServicePresets.all.forEach { preset -> assertNull(preset.id, LanguageServiceRules.validate(preset.configuration.copy(id = preset.id))) }
+        assertEquals(LanguageServicePresets.all.size, LanguageServicePresets.all.map { it.id }.toSet().size)
     }
 }
