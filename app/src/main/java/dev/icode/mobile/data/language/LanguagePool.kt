@@ -59,6 +59,16 @@ internal class LanguagePool(
     /** Its session once its handshake is done; null otherwise. */
     fun ready(id: String): LanguageServerSession? = entries[id]?.takeIf { it.ready }?.session
 
+    /** Its session once ready, waiting up to [millis] while it starts; null when it fails, stops or takes longer. */
+    suspend fun awaitReady(id: String, millis: Long): LanguageServerSession? {
+        val until = clock() + millis
+        while (true) {
+            ready(id)?.let { return it }
+            if (!entries.containsKey(id) || clock() >= until) return null
+            delay(READY_POLL_MILLIS)
+        }
+    }
+
     fun used(id: String) {
         entries[id]?.lastUsed = clock()
     }
@@ -89,8 +99,11 @@ internal class LanguagePool(
 
     suspend fun stop(id: String, reason: String? = null) = lock.withLock { entries[id]?.let { remove(it, reason) } }
 
-    /** Every server stops: the workspace is switching, or no screen is left. */
-    suspend fun stopAll() = lock.withLock { entries.values.toList().forEach { remove(it, null) } }
+    /**
+     * Every server stops: the workspace is switching, or no screen is left. At once, not behind the
+     * lock: a server the next workspace starts after this call is never one it stops.
+     */
+    fun stopAll() = entries.values.toList().forEach { remove(it, null) }
 
     /** Stops each server that served nothing for [IDLE_MILLIS]; [inUse] says which serve an open document. */
     fun watchIdle(inUse: () -> Set<String>) {
@@ -185,5 +198,6 @@ internal class LanguagePool(
         const val CRASH_WINDOW_MILLIS = 3 * 60_000L
         val BACKOFF_MILLIS = longArrayOf(1_000, 2_000, 4_000, 8_000, 16_000)
         private const val TAIL_LINES = 20
+        private const val READY_POLL_MILLIS = 100L
     }
 }

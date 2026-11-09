@@ -9,7 +9,9 @@ import androidx.compose.runtime.key
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import dev.icode.mobile.designsystem.IcodePalette
+import dev.icode.mobile.domain.Diagnostic
 import dev.icode.mobile.domain.GitDiffHunk
+import dev.icode.mobile.domain.LanguageCompletions
 import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.domain.WorkspacePreferences
 
@@ -63,6 +65,10 @@ fun EditorCanvas(
     changes: List<GitDiffHunk> = emptyList(),
     /** A tap on a marked line: which change; null leaves the gutter as it is. */
     onChangeTapped: ((Int) -> Unit)? = null,
+    /** The file's problems, drawn under their text; the same list again draws nothing new. */
+    problems: List<Diagnostic> = emptyList(),
+    /** The language servers' completions for it. */
+    completions: LanguageCompletions = LanguageCompletions.None,
 ) {
     // AndroidView's factory is not rerun when its parameters change. Keying
     // the host to the session prevents one tab's native View being shown while
@@ -79,6 +85,11 @@ fun EditorCanvas(
                 session.bind(document, onTextChanged)
                 session.editor.changes = changes
                 session.onChangeTapped = onChangeTapped
+                session.editor.problems = problems
+                val completer = session.editor.completer
+                if (completer?.location != document.location || completer.completions !== completions) {
+                    session.editor.completer = EditorCompleter(document.location, completions).takeIf { completions !== LanguageCompletions.None }
+                }
             },
             modifier = modifier.fillMaxSize(),
         )

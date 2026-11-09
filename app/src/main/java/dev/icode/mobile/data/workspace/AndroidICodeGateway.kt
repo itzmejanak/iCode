@@ -49,6 +49,7 @@ import dev.icode.mobile.domain.ICodeGateway
 import dev.icode.mobile.domain.GpgIntent
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.ICodeSnapshot
+import dev.icode.mobile.domain.LanguageCompletions
 import dev.icode.mobile.domain.LanguageIntent
 import dev.icode.mobile.domain.PhoneIntent
 import dev.icode.mobile.domain.VoiceIntent
@@ -91,7 +92,8 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     private val notices = NoticeBoard(appContext, stateHolder, terminals.screenVisible)
     /** Something runs in the runtime that rebuilding it, or clearing the cache PRoot works in, would break. */
     private val runtimeBusy = { terminals.hasRunningSessions() || languages.hasActiveProcesses() || execution.processes.anyRunning() }
-    private val languages: LanguageServices = LanguageServices(appContext, stateHolder, scope, runtimeLayout) { session.activeRoot }
+    private val languages: LanguageServices = LanguageServices.create(appContext, stateHolder, scope, runtimeLayout, source, settings, { session.activeRoot },
+        editOpen = { location, text -> documents.updateText(ICodeIntent.UpdateDocumentText(location, text)) }, changed = { session.requestRefresh(rebuildIndex = true) })
     private val runtime: RuntimeCoordinator = RuntimeCoordinator(appContext, stateHolder, scope, runtimeLayout, AndroidSystemAccess(appContext), sessionsRunning = runtimeBusy)
     /** Phone storage, the file explorer's Shared place (docs/storage-explorer-plan.md). */
     private val phoneStorage = PhoneStorage.of()
@@ -172,13 +174,14 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     private val assistant = AssistantCoordinator.create(
         appContext, stateHolder, scope,
         AssistantToolbox(source, ripgrep, gitCli, execution, runs, runtimeLayout::isInstalled, { documents.blockingEdits(it) != null },
-            changed = { session.requestRefresh(rebuildIndex = true) }, phone = phone.control, terminals = terminals, speech = voice.providers),
+            changed = { session.requestRefresh(rebuildIndex = true) }, phone = phone.control, terminals = terminals, speech = voice.providers, languages = languages),
         activeRoot = { session.activeRoot },
         source = source, paths = runtimeLayout.paths, git = gitCli,
     )
 
     override val snapshot: StateFlow<ICodeSnapshot> = stateHolder.snapshot
     override val effects: SharedFlow<ICodeEffect> = stateHolder.effects
+    override val languageCompletions: LanguageCompletions get() = languages.features
 
     init {
         notices.start(scope) { listOfNotNull(terminals.ledger.takePrevious(), interruptedTransfer) }

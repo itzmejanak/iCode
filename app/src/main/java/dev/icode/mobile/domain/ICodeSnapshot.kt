@@ -23,6 +23,8 @@ data class ICodeSnapshot(
     val languageDiagnostics: List<Diagnostic> = emptyList(),
     /** The selected language service's log: its stderr's last lines and what iCode saw of it. */
     val languageServiceLog: List<String> = emptyList(),
+    /** A language server's answer shown over the editor: definitions, references, hover, code actions. */
+    val languageResult: LanguageResult? = null,
     val activeWorkspace: String,
     val activePath: String,
     /** Canonical root location, unlike [activePath] which is presentation text. */

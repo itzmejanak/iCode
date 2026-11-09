@@ -1,7 +1,11 @@
 # Language services (LSP) end to end
 
-Status: **plan** (2026-11-09), the owner's request. No code has changed. §11 lists the decisions
-that need the owner, each with a recommendation.
+Status: **built** (2026-11-09), the owner's request: L1–L9 and the assistant's tools (L4a, L6a, L8a),
+every decision in §11 as recommended, except where §0 says the build went another way. L0's
+measurements and the phone checks LP1–LP10 (§9) need the owner's phone and are still to be run.
+
+> "Go with correct direction and decision so no gaps and issue in future and we are 100% accurate
+> and let's implement"
 
 > "Let's focus and do research and plan for LSP end to end without being too wrong architecture and
 > design, make sure speed/performance, scalability, maintainability, durability, stability … if you
@@ -21,6 +25,69 @@ What it asks for, and where this plan answers it:
 | Maintainability: one owner, no per-language code, small files | §1, §5.1, D1 |
 | Durability and stability: crashes, restarts, workspace switch, process death | §5.4, §5.5, D6 |
 | The assistant sets up and uses language services through the same backend | §1, §6 |
+
+## 0. As built (2026-11-09)
+
+| Cycle | Commit | What it holds |
+|---|---|---|
+| L1 | e9948d4 | `data/runtime/GuestStdio.kt` (`StdioPrograms`, `StdioProgram`), taken from `McpLocal` unchanged; MCP's tests pass as before |
+| L2 | 3e86736 | `data/language/jsonrpc/LspFraming.kt`, `JsonRpcConnection.kt`; `kotlinx-serialization-json:1.11.0` declared |
+| L3–L5 | 960a6c5 | Configuration v2 and presets (`domain/LanguageServiceRules.kt`, `LanguageServicePresets.kt`), `LanguageIntent`, the owner `LanguageServices` with the pool, sessions, documents and problems; the coordinator and process manager deleted |
+| L6–L9 | f7a295b | Problems in the editor (`ui/editor/EditorProblems.kt`) and the Explorer, completion (`ui/editor/EditorCompletion.kt`), the palette's language commands and their sheet, edits, the assistant's eleven tools |
+| Fixes | c89144b | `stopAll` takes only the servers running when it is called; a server stopped with the screens starts again when its file is edited; imports resolved off the main thread |
+
+**Checked here.** This sandbox is x86-64 Linux. The Android SDK 36, NDK 27.0.12077973 and CMake 3.22.1
+were installed for the work, so for the first time an agent's container ran the whole Gradle gate:
+- `compileDebugKotlin` passes.
+- `testDebugUnitTest` runs 1,495 tests. The only failure is `TreeSizeTest`'s "a directory that cannot
+  be listed": it fails on `main` too, because the sandbox runs as root and root can list anything.
+- `assembleDebug` and `assembleRelease` (R8) both build.
+- Both consistency scripts pass. The gateway's allowance went down from 338 lines to 337.
+- `lintDebug` reports one error, `NonObservableLocale` in `ui/screens/settings/SpeechProviderParts.kt:79`.
+  That file is not touched by this work, and `main` has the same error.
+
+The language tests are 59 in `app/src/test/.../data/language/`, `domain/LanguageServiceRulesTest.kt` and
+`ui/editor/EditorCompletionRulesTest.kt`, plus two of the palette's. They use in-process fake servers
+(`FakeLanguageServer.kt`): the handshake, shutdown and exit, the crash
+loop leading to Failed, cap eviction, lazy start, coalesced changes, version-checked problems, the
+assistant's wait for a report, formatting, refusing a stale edit, the workspace-switch race, and a
+restart after the screens were gone.
+
+**Where the build went past or away from the plan:**
+- **D8, watched files.** iCode does not advertise `workspace/didChangeWatchedFiles`, so servers watch
+  for themselves. PRoot translates the path of `inotify_add_watch` (`third_party/proot`
+  `src/syscall/enter.c:2522`, `PR_inotify_add_watch`), so a server's watches reach the real files,
+  iCode's writes and the terminal's alike. Whether Android's inotify watch limit holds for large trees
+  (`node_modules`) is an L0 question.
+- **D11, hover.** Hover and signature help are Command Palette entries (Show Hover, Show Signature
+  Help), not a long press: Sora's long press selects a word, and taking it away would break selection.
+- **A problem's message** shows in Sora's own diagnostic tooltip when the caret is on it, coloured from
+  the palette, rather than in a sheet. Its code actions are the palette's Code Actions.
+- **Diagnostics** keep `file` and `location` (display) and gain `range`, `code` and `serviceId`. A build's
+  problems gained their range too (`GradleIssues`), so Problems opens either at its place. The language
+  servers' problems are a list of their own (`ICodeSnapshot.languageDiagnostics`), so a build and a
+  server never overwrite each other's; `ICodeSnapshot.problems` is both.
+- **Roots (D5).** `rootUri` is always the workspace's top. `workspaceFolders` are the marker folders,
+  as planned. There is no fallback to "the first document's marker folder".
+- **Lines.** `LspDocuments` does not keep a line index. A flush finds positions by one scan of the text
+  last sent, which is fast enough since it runs at most every 150–500 ms.
+- **The log** is on the service's page (what iCode saw, then stderr's last 100 lines). The Output panel
+  still has only Git's channel.
+- **Files.** The new domain types are in `domain/` beside the old ones (`LanguageFeatures.kt`,
+  `LanguageServicePresets.kt`), not in a `domain/language/` package. Moving them would be a move of its
+  own (code-separation-plan §2).
+- **Edits.** `resourceOperations` is not advertised. A server edit that creates, renames or deletes a
+  file is refused whole.
+- **Workspace symbols** are the assistant's (`workspace_symbols`). The palette has no entry, because it
+  would need a query field.
+- **Editing a running server's configuration** is allowed. Saving restarts the server with the change,
+  so the user and the assistant both edit without stopping it first.
+- **Restart policy** is iCode's own (D6) for every server. architecture.md §10.8 lists it as a
+  configuration field; it is not one.
+- **The keystroke copy (A8, D13)** is unchanged, waiting on L0's numbers.
+
+**Not run (needs the owner's phone):** L0 (server start times and memory under PRoot, inotify limits,
+`UpdateDocumentText` at 100 KB and 1 MB) and LP1–LP10.
 
 ## 1. The rule: one owner, three callers
 

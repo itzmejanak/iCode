@@ -319,6 +319,9 @@ Search is separated into:
 
 ### 10.8 Language-service contract
 
+As built: [lsp-plan.md](./lsp-plan.md) §0 — one owner, `LanguageServices` in `data/language`, for the
+Languages pages, the editor and the assistant's tools; servers start when a file they serve opens.
+
 The language module is a generic LSP client and supervisor. A language-service configuration contains:
 
 - language identifier;
