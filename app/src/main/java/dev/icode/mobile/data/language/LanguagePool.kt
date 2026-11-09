@@ -32,6 +32,9 @@ internal class LanguagePool(
     /** What the owner shows and does as servers come and go. */
     interface Events {
         fun status(id: String, status: LanguageServiceStatus, pid: Int?, message: String?, capabilities: List<String>)
+
+        /** It failed, [kind] of failure; [asked]: the user or the assistant started it, rather than a file opening. */
+        fun failed(id: String, kind: LanguageFailure.Kind, words: String, program: String?, asked: Boolean)
         fun log(id: String, line: String)
 
         /** [session] is ready for documents: the owner opens those it serves. */
@@ -94,7 +97,7 @@ internal class LanguagePool(
         if (entries.size >= MAX_RUNNING) {
             entries.values.minByOrNull { it.lastUsed }?.let { oldest -> remove(oldest, "Stopped for another language server: at most $MAX_RUNNING run at once") }
         }
-        launch(config, workspace)
+        launch(config, workspace, asked)
     }
 
     suspend fun stop(id: String, reason: String? = null) = lock.withLock { entries[id]?.let { remove(it, reason) } }
@@ -120,12 +123,21 @@ internal class LanguagePool(
         }
     }
 
-    private fun launch(config: LanguageServiceConfiguration, workspace: String) {
+    private fun launch(config: LanguageServiceConfiguration, workspace: String, asked: Boolean) {
         val session = LanguageServerSession(config, workspace, stdio, uris, scope, client)
         val entry = Entry(session, clock())
         entries[config.id] = entry
         events.status(config.id, LanguageServiceStatus.Starting, null, "Starting", emptyList())
         scope.launch {
+            // A server still in its handshake says how long it has taken: a JVM one can take minutes on a phone.
+            val waiting = launch {
+                val began = clock()
+                while (true) {
+                    delay(INITIALIZING_TICK_MILLIS)
+                    if (entries[config.id] !== entry || entry.ready) break
+                    events.status(config.id, LanguageServiceStatus.Starting, null, "Initializing for ${(clock() - began) / 1000} s; a large project can take minutes", emptyList())
+                }
+            }
             val started = runCatching {
                 val argv = LanguageServiceRules.commandArguments(config.command)
                 val folders = LanguageRoots.folders(workspace, LanguageServiceRules.words(config.rootMarkers))
@@ -133,6 +145,7 @@ internal class LanguagePool(
                 session.start(argv, variables(config), folders)
                 events.log(config.id, "Initialized in ${clock() - began} ms")
             }
+            waiting.cancel()
             // Stopped while it started: its stop is already under way.
             if (entries[config.id] !== entry) return@launch
             started.onFailure { failure ->
@@ -142,6 +155,8 @@ internal class LanguagePool(
                 val words = LanguageFailure.wordsOf(failure)
                 events.log(config.id, "Did not start: $words")
                 events.status(config.id, LanguageServiceStatus.Failed, null, words, emptyList())
+                val missing = failure as? LanguageFailure.Missing
+                events.failed(config.id, if (missing != null) LanguageFailure.Kind.Missing else LanguageFailure.Kind.NotStarted, words, missing?.program, asked)
                 return@launch
             }
             entry.ready = true
@@ -164,7 +179,9 @@ internal class LanguagePool(
         if (recent.size >= CRASHES) {
             lock.withLock { entries.remove(config.id, entry) }
             held += config.id
-            events.status(config.id, LanguageServiceStatus.Failed, null, "Stopped after $CRASHES exits in ${CRASH_WINDOW_MILLIS / 60_000} minutes. $words", emptyList())
+            val stopped = "Stopped after $CRASHES exits in ${CRASH_WINDOW_MILLIS / 60_000} minutes. $words"
+            events.status(config.id, LanguageServiceStatus.Failed, null, stopped, emptyList())
+            events.failed(config.id, LanguageFailure.Kind.Crashed, stopped, null, asked = false)
             return
         }
         val wait = backoff[(recent.size - 1).coerceIn(0, backoff.lastIndex)]
@@ -173,7 +190,7 @@ internal class LanguagePool(
         lock.withLock {
             if (entries[config.id] !== entry) return
             entries.remove(config.id)
-            launch(config, entry.session.workspace)
+            launch(config, entry.session.workspace, asked = false)
         }
     }
 
@@ -199,5 +216,6 @@ internal class LanguagePool(
         val BACKOFF_MILLIS = longArrayOf(1_000, 2_000, 4_000, 8_000, 16_000)
         private const val TAIL_LINES = 20
         private const val READY_POLL_MILLIS = 100L
+        private const val INITIALIZING_TICK_MILLIS = 15_000L
     }
 }

@@ -113,6 +113,16 @@ internal class TerminalCoordinator(
         }
     }
 
+    /** A new session in the open workspace with [command] typed at its prompt, as the user would type it; false when none opened. */
+    suspend fun type(command: String): Boolean {
+        if (!runtimeInstalled()) return false
+        val id = terminals.open(activeRoot(), reuseExisting = false) ?: return false
+        // Typed before bash has read its profile: the terminal holds it until the prompt reads it.
+        withContext(main) { terminals.write(id, command + "\r") }
+        stateHolder.update { it.copy(terminal = terminals.snapshot.value) }
+        return true
+    }
+
     /**
      * The panel opened with no session to show. Requests reach here one at a
      * time (the gateway's lock), so reusing a running session is enough to make

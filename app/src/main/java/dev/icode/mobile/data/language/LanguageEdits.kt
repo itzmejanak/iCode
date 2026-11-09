@@ -19,6 +19,8 @@ internal class LanguageHosts(
     val changedOnDisk: () -> Unit,
     /** The workspace's indentation, for formatting: its size and whether it is spaces. */
     val indentation: suspend () -> Pair<Int, Boolean>,
+    /** [command] typed in a new terminal tab in the open workspace; false when no terminal could open. */
+    val typeInTerminal: suspend (command: String) -> Boolean = { false },
 )
 
 /**

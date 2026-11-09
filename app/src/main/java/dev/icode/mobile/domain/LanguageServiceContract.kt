@@ -18,6 +18,9 @@ data class LanguageService(
     val statusMessage: String? = null,
     /** What the server said it can do, after its handshake: "Completion", "Hover"… Empty until then. */
     val capabilities: List<String> = emptyList(),
+    /** Its program is not in the runtime: it failed for that, and [install] is how to put it there when iCode knows. */
+    val notInstalled: Boolean = false,
+    val install: String? = null,
 ) {
     /** What the list shows it serves; a service serving nothing starts only from its page. */
     val servesLabel: String get() = (LanguageServiceRules.words(languages) + LanguageServiceRules.words(patterns))
@@ -44,4 +47,7 @@ sealed interface LanguageIntent : ICodeIntent {
 
     /** The selected service's log, read again. */
     data object RefreshLog : LanguageIntent
+
+    /** The command that installs [command]'s program typed in a new terminal tab, to run there as the user watches. */
+    data class Install(val command: String) : LanguageIntent
 }
