@@ -26,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -56,6 +57,7 @@ import dev.icode.mobile.domain.markedLine
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.navigation.ToolPanelTab
+import dev.icode.mobile.domain.DiagnosticRules
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
@@ -184,6 +186,11 @@ fun WorkspaceEditorScreen(actions: NavigationActions) {
                         modifier = Modifier.weight(1f).background(IcodeColors.BackgroundDeep).padding(top = IcodeSpacing.Space1),
                         changes = changes,
                         onChangeTapped = { changeIndex = it },
+                        // Keyed on the two lists, not on every snapshot: a keystroke keeps the drawn problems moving with the text.
+                        problems = remember(state.diagnostics, state.languageDiagnostics, document.location) {
+                            DiagnosticRules.forFile(state.problems, state.activeWorkspaceLocation, document.location)
+                        },
+                        completions = gateway.languageCompletions,
                     )
                 }
                 activeSession?.coloringError?.let { error ->
@@ -196,7 +203,7 @@ fun WorkspaceEditorScreen(actions: NavigationActions) {
                 EditorKeyRow(editorPreferences.keys, onKey = { activeSession?.press(it) })
             } else {
                 BottomPanelBar(
-                    problemCount = state.diagnostics.size,
+                    problemCount = state.problems.size,
                     onTerminal = { actions.openPanel(ToolPanelTab.Terminal) },
                     onProblems = { actions.openPanel(ToolPanelTab.Problems) },
                     trailing = if (isMarkdown || changes.isNotEmpty()) {
@@ -249,6 +256,7 @@ fun WorkspaceEditorScreen(actions: NavigationActions) {
         }
     }
     if (showCreateFile) CreateFileSheet(parentLocation = null, onDismiss = { showCreateFile = false })
+    state.languageResult?.let { LanguageResultSheet(it) }
 }
 
 @Composable

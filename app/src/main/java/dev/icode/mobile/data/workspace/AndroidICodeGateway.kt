@@ -16,7 +16,7 @@ import dev.icode.mobile.data.git.GitRepositoryClient
 import dev.icode.mobile.data.git.GitTransferCoordinator
 import dev.icode.mobile.data.git.GitTransferLedger
 import dev.icode.mobile.data.git.GitWorkspaceCoordinator
-import dev.icode.mobile.data.language.LanguageServiceCoordinator
+import dev.icode.mobile.data.language.LanguageServices
 import dev.icode.mobile.data.notices.NoticeBoard
 import dev.icode.mobile.data.phone.PhoneCoordinator
 import dev.icode.mobile.data.voice.VoiceCoordinator
@@ -49,6 +49,8 @@ import dev.icode.mobile.domain.ICodeGateway
 import dev.icode.mobile.domain.GpgIntent
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.ICodeSnapshot
+import dev.icode.mobile.domain.LanguageCompletions
+import dev.icode.mobile.domain.LanguageIntent
 import dev.icode.mobile.domain.PhoneIntent
 import dev.icode.mobile.domain.VoiceIntent
 import dev.icode.mobile.domain.StageLineChange
@@ -90,7 +92,8 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     private val notices = NoticeBoard(appContext, stateHolder, terminals.screenVisible)
     /** Something runs in the runtime that rebuilding it, or clearing the cache PRoot works in, would break. */
     private val runtimeBusy = { terminals.hasRunningSessions() || languages.hasActiveProcesses() || execution.processes.anyRunning() }
-    private val languages: LanguageServiceCoordinator = LanguageServiceCoordinator(appContext, stateHolder, scope, runtimeLayout) { session.activeRoot }
+    private val languages: LanguageServices = LanguageServices.create(appContext, stateHolder, scope, runtimeLayout, source, settings, { session.activeRoot },
+        editOpen = { location, text -> documents.updateText(ICodeIntent.UpdateDocumentText(location, text)) }, changed = { session.requestRefresh(rebuildIndex = true) })
     private val runtime: RuntimeCoordinator = RuntimeCoordinator(appContext, stateHolder, scope, runtimeLayout, AndroidSystemAccess(appContext), sessionsRunning = runtimeBusy)
     /** Phone storage, the file explorer's Shared place (docs/storage-explorer-plan.md). */
     private val phoneStorage = PhoneStorage.of()
@@ -140,7 +143,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     private val recovery: DocumentRecoveryCoordinator =
         DocumentRecoveryCoordinator(stateHolder, scope, DocumentDraftStore(File(appContext.filesDir, "document-drafts"))) { location -> documents.sourceOf(location) }
     private val documents: DocumentSessionCoordinator = DocumentSessionCoordinator(
-        stateHolder, source, recovery, library.shortcuts, runtimeLayout.paths, activeRoot = { session.activeRoot }, onSaved = { gitWorkspace.scheduleRefresh() },
+        stateHolder, source, recovery, library.shortcuts, runtimeLayout.paths, activeRoot = { session.activeRoot }, onSaved = { gitWorkspace.scheduleRefresh(); languages.documents.saved(it) },
     )
     private val session: WorkspaceSessionCoordinator = WorkspaceSessionCoordinator(
         stateHolder, scope, source, tree, library, documents, recovery, gitWorkspace, search, terminal, languages,
@@ -171,19 +174,20 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     private val assistant = AssistantCoordinator.create(
         appContext, stateHolder, scope,
         AssistantToolbox(source, ripgrep, gitCli, execution, runs, runtimeLayout::isInstalled, { documents.blockingEdits(it) != null },
-            changed = { session.requestRefresh(rebuildIndex = true) }, phone = phone.control, terminals = terminals, speech = voice.providers),
+            changed = { session.requestRefresh(rebuildIndex = true) }, phone = phone.control, terminals = terminals, speech = voice.providers, languages = languages),
         activeRoot = { session.activeRoot },
         source = source, paths = runtimeLayout.paths, git = gitCli,
     )
 
     override val snapshot: StateFlow<ICodeSnapshot> = stateHolder.snapshot
     override val effects: SharedFlow<ICodeEffect> = stateHolder.effects
+    override val languageCompletions: LanguageCompletions get() = languages.features
 
     init {
         notices.start(scope) { listOfNotNull(terminals.ledger.takePrevious(), interruptedTransfer) }
         phone.start()
         voice.start()
-        languages.publish()
+        languages.start()
         web.start()
         scope.launch {
             WorkspaceStaging(runtimeLayout.workspaces.root).sweep()
@@ -211,7 +215,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     override fun dispatch(intent: ICodeIntent) {
         when (intent) {
             // What must not wait on the mutation lock. apt, ssh-keygen, gpg and the network do not change the workspace.
-            is ICodeIntent.SelectLanguageService -> languages.select(intent.id)
+            is LanguageIntent -> languages.handle(intent)
             ICodeIntent.ProvisionGit -> scope.launch { gitWorkspace.provision() }
             is GitAuthWorkIntent -> scope.launch { gitAuth.handle(intent) }
             is GitHistoryIntent -> gitHistory.handle(intent)
@@ -308,11 +312,6 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
                         is ICodeIntent.SaveGitToken -> gitAuth.saveToken(intent.host, intent.username, intent.token)
                         ICodeIntent.ClearGitToken -> gitAuth.clearToken()
                         ICodeIntent.RefreshGitAuth -> gitAuth.refresh()
-                        is ICodeIntent.SaveLanguageService -> languages.save(intent)
-                        is ICodeIntent.RemoveLanguageService -> languages.remove(intent.id)
-                        is ICodeIntent.StartLanguageService -> languages.start(intent.id)
-                        is ICodeIntent.StopLanguageService -> languages.stop(intent.id)
-                        is ICodeIntent.RestartLanguageService -> languages.restart(intent.id)
                         ICodeIntent.InstallRuntime -> runtime.install(RuntimeInstallReason.Initial)
                         ICodeIntent.ClearAppCache -> library.clearCache()
                         // Repair keeps the home directory, reset does not; both go

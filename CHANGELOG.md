@@ -7,6 +7,22 @@ All notable changes to iCode are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- Language servers, end to end. Settings › Languages adds one from a known server (pylsp, Pyright,
+  clangd, gopls, TypeScript, Bash, HTML, CSS, JSON, YAML — each with the command that installs it) or
+  your own, with its languages, file patterns, root markers, environment, initialization options and
+  settings. It starts when a file it serves opens, at most three at once, stops after 15 minutes
+  without one, and starts again after a crash, until five crashes in three minutes stop it with its
+  log. Its page shows what it offers and its log.
+- Problems from the language servers: under their text in the editor (its message when the caret is
+  on one), counted on the Explorer's files and folders, and in Problems, where a tap opens the exact
+  place — a build's problems too.
+- Completion from the language servers as you type, with their snippets and the imports an item needs.
+- Command Palette: Go to Definition, Find References, Go to Symbol in File, Show Hover, Show Signature
+  Help, Code Actions, Format Document and Rename Symbol, each listed only when the file's server offers
+  it. A change a server makes is applied whole or not at all.
+- The assistant sets up language servers as the Languages page does (asking every time) and asks them
+  what you would: a file's problems after its edit, definitions, references, symbols, renames and
+  formatting.
 - Environments: development, staging, and production as preview, beta and stable, each its own app
   that installs beside the others, with its own icon and its icon's colour as the theme accent (grey
   for development, lavender for staging, Ember for production). Preview and beta are released from

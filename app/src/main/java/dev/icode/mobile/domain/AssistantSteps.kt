@@ -32,6 +32,17 @@ enum class AssistantToolName(val id: String, val title: String, private val one:
     ListSpeechProviders("list_speech_providers", "Speech providers", "listed the speech providers", "listed the speech providers %d times"),
     SaveSpeechProvider("save_speech_provider", "Save speech provider", "saved a speech provider", "saved %d speech providers"),
     RemoveSpeechProvider("remove_speech_provider", "Remove speech provider", "removed a speech provider", "removed %d speech providers"),
+    ListLanguageServices("list_language_services", "Language servers", "listed the language servers", "listed the language servers %d times"),
+    SaveLanguageService("save_language_service", "Save language server", "saved a language server", "saved %d language servers"),
+    RemoveLanguageService("remove_language_service", "Remove language server", "removed a language server", "removed %d language servers"),
+    ControlLanguageService("control_language_service", "Language server", "started or stopped a language server", "started or stopped language servers %d times"),
+    LanguageDiagnostics("language_diagnostics", "Problems", "checked a file's problems", "checked problems %d times"),
+    FindDefinition("find_definition", "Definition", "found a definition", "found %d definitions"),
+    FindReferences("find_references", "References", "found references", "found references %d times"),
+    DocumentSymbols("document_symbols", "Symbols", "read a file's symbols", "read symbols of %d files"),
+    WorkspaceSymbols("workspace_symbols", "Workspace symbols", "searched the symbols", "searched the symbols %d times"),
+    RenameSymbol("rename_symbol", "Rename symbol", "renamed a symbol", "renamed %d symbols"),
+    FormatFile("format_file", "Format file", "formatted a file", "formatted %d files"),
     ;
 
     /** What [count] calls of it did: "read a file", "read 3 files". */

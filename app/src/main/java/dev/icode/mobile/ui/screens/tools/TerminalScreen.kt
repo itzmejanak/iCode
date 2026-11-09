@@ -121,7 +121,7 @@ fun TerminalScreen(actions: NavigationActions) {
                                 onClick = { actions.openPanel(tab) },
                                 active = actions.panelTab == tab,
                                 // Only the open tab is coloured; the pill says there are problems.
-                                count = state.diagnostics.size.takeIf { tab == ToolPanelTab.Problems && it > 0 },
+                                count = state.problems.size.takeIf { tab == ToolPanelTab.Problems && it > 0 },
                             ),
                         )
                     }

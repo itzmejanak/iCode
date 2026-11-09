@@ -41,4 +41,14 @@ class CommandPaletteExecutionTest {
         runPaletteCommand(unavailable, snapshot, { calls += it }, { calls += it }, { calls += "back" })
         assertTrue(calls.isEmpty())
     }
+
+    @Test fun aLanguageCommandAsksAtTheCaretAndReturnsToTheEditor() {
+        val calls = mutableListOf<Any>()
+        val command = dev.icode.mobile.domain.PaletteCommand(PaletteCommandId.LanguageDefinition, "Language", "Go to Definition", "")
+        runPaletteCommand(command, snapshot, { calls += it }, { calls += it }, { calls += "back" }, dev.icode.mobile.domain.TextPosition(3, 4))
+        assertEquals(
+            listOf(dev.icode.mobile.domain.LanguageFeatureIntent.Ask(dev.icode.mobile.domain.LanguageQuery.Definition, snapshot.activeDocument!!.location, dev.icode.mobile.domain.TextPosition(3, 4)), "back"),
+            calls,
+        )
+    }
 }

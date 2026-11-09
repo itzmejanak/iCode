@@ -120,6 +120,17 @@ internal fun editorColors(palette: IcodePalette): Map<Int, Int> = with(palette) 
         EditorColorScheme.PROBLEM_ERROR to error,
         EditorColorScheme.PROBLEM_WARNING to amber,
         EditorColorScheme.PROBLEM_TYPO to blue,
+        // A language server's completions and a problem's tooltip (docs/lsp-plan.md §7), as the sheets are drawn.
+        EditorColorScheme.COMPLETION_WND_BACKGROUND to surfaceElevated,
+        EditorColorScheme.COMPLETION_WND_CORNER to outline,
+        EditorColorScheme.COMPLETION_WND_TEXT_PRIMARY to textPrimary,
+        EditorColorScheme.COMPLETION_WND_TEXT_SECONDARY to textSecondary,
+        EditorColorScheme.COMPLETION_WND_TEXT_MATCHED to accent,
+        EditorColorScheme.COMPLETION_WND_ITEM_CURRENT to accent.copy(alpha = 0.18f),
+        EditorColorScheme.DIAGNOSTIC_TOOLTIP_BACKGROUND to surfaceElevated,
+        EditorColorScheme.DIAGNOSTIC_TOOLTIP_BRIEF_MSG to textPrimary,
+        EditorColorScheme.DIAGNOSTIC_TOOLTIP_DETAILED_MSG to textSecondary,
+        EditorColorScheme.DIAGNOSTIC_TOOLTIP_ACTION to accent,
         // The minimap is part of the editor, as in VS Code: its background, and a quiet view window.
         EditorColorScheme.MINIMAP_BACKGROUND to backgroundDeep,
         EditorColorScheme.MINIMAP_VIEWPORT to textPrimary.copy(alpha = 0.08f),

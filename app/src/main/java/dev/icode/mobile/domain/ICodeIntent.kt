@@ -154,19 +154,6 @@ sealed interface ICodeIntent {
     data object GenerateSshKey : GitAuthWorkIntent
     data class TestGitConnection(val url: String) : GitAuthWorkIntent
     data object RefreshGitAuth : ICodeIntent
-    data class SelectLanguageService(val id: String) : ICodeIntent
-    data class SaveLanguageService(
-        val id: String?,
-        val name: String,
-        val command: String,
-        val patterns: String,
-        val rootMarkers: String,
-        val initializationOptions: String,
-    ) : ICodeIntent
-    data class RemoveLanguageService(val id: String) : ICodeIntent
-    data class StartLanguageService(val id: String) : ICodeIntent
-    data class StopLanguageService(val id: String) : ICodeIntent
-    data class RestartLanguageService(val id: String) : ICodeIntent
     data object PrepareWorkspaceSearch : ICodeIntent
     data class RunContentSearch(
         val query: String,

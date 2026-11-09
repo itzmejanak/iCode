@@ -26,7 +26,7 @@ import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.domain.LanguageService
 import dev.icode.mobile.domain.LanguageServiceStatus
-import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.LanguageIntent
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalICodeGateway
@@ -44,7 +44,7 @@ fun LanguageServicesScreen(actions: NavigationActions) {
             onBack = actions.back,
             actions = {
                 IconButton(enabled = state.languageServicesLoadError == null, onClick = {
-                    gateway.dispatch(ICodeIntent.SelectLanguageService(""))
+                    gateway.dispatch(LanguageIntent.Select(""))
                     actions.navigate(Route.SettingsLanguageDetail)
                 }) {
                     Icon(Icons.Outlined.Add, contentDescription = "Add language service", tint = IcodeColors.TextPrimary)
@@ -58,12 +58,12 @@ fun LanguageServicesScreen(actions: NavigationActions) {
             IcodeSection {
                 services.forEach { service ->
                     LanguageServiceRow(service) {
-                        gateway.dispatch(ICodeIntent.SelectLanguageService(service.id))
+                        gateway.dispatch(LanguageIntent.Select(service.id))
                         actions.navigate(Route.SettingsLanguageDetail)
                     }
                 }
                 Text(
-                    "Install a language server in the terminal, then add its configuration here.",
+                    "Add a language server from a known one or your own; install it in a terminal. It starts when a file it serves opens.",
                     modifier = Modifier.fillMaxWidth(),
                     style = IcodeType.Caption,
                     textAlign = TextAlign.Center,
@@ -88,7 +88,7 @@ private fun LanguageServiceRow(service: LanguageService, onClick: () -> Unit) {
         content = {
             Column(Modifier.weight(1f)) {
                 Text(service.name, style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold))
-                MonoLine(service.patternsLabel, style = IcodeType.MonoSmall)
+                MonoLine(service.servesLabel, style = IcodeType.MonoSmall)
             }
         },
         trailing = {

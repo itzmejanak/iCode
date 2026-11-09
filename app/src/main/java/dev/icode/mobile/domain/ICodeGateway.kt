@@ -14,5 +14,9 @@ interface ICodeGateway {
     val effects: Flow<ICodeEffect>
         get() = emptyFlow()
 
+    /** The language servers' completions, asked from the editor's completion thread (docs/lsp-plan.md §7). */
+    val languageCompletions: LanguageCompletions
+        get() = LanguageCompletions.None
+
     fun dispatch(intent: ICodeIntent)
 }

@@ -27,13 +27,16 @@ enum class AndroidAppStep { Installing, Opened }
 object GradleIssues {
     fun parse(output: String, workspaceGuestPath: String): List<Diagnostic> = output.lineSequence().mapNotNull { line ->
         KOTLIN.find(line)?.destructured?.let { (kind, path, row, column, message) ->
-            Diagnostic(if (kind == "e") Severity.Error else Severity.Warning, relative(path, workspaceGuestPath), message, "$row:$column", SOURCE)
+            Diagnostic(if (kind == "e") Severity.Error else Severity.Warning, relative(path, workspaceGuestPath), message, "$row:$column", SOURCE, at(row, column))
         } ?: JAVAC.find(line)?.destructured?.let { (path, row, kind, message) ->
-            Diagnostic(if (kind == "error") Severity.Error else Severity.Warning, relative(path, workspaceGuestPath), message, row, SOURCE)
+            Diagnostic(if (kind == "error") Severity.Error else Severity.Warning, relative(path, workspaceGuestPath), message, row, SOURCE, at(row, null))
         } ?: CLANG.find(line)?.destructured?.let { (path, row, column, kind, message) ->
-            Diagnostic(if (kind == "warning") Severity.Warning else Severity.Error, relative(path, workspaceGuestPath), message, "$row:$column", SOURCE)
+            Diagnostic(if (kind == "warning") Severity.Warning else Severity.Error, relative(path, workspaceGuestPath), message, "$row:$column", SOURCE, at(row, column))
         }
     }.distinct().toList()
+
+    /** A tool's one-based line and column as a place to open. */
+    private fun at(row: String, column: String?): TextRange? = row.toIntOrNull()?.let { TextRange.at(it, column?.toIntOrNull() ?: 1) }
 
     /** The first two lines after `* What went wrong:`, without the `> ` a cause is indented with; null when there are none. */
     fun failure(output: String): String? {

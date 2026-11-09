@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
+import dev.icode.mobile.domain.Diagnostic
 import dev.icode.mobile.domain.EditorTextRules
 import dev.icode.mobile.domain.GitDiffHunk
 import dev.icode.mobile.domain.LineChangeKind
@@ -36,6 +37,22 @@ internal class IcodeCodeEditor(context: Context) : CodeEditor(context) {
         }
 
     var markerColors = MarkerColors(0, 0, 0)
+
+    /** Where its completions come from; null: the file's grammar alone (docs/lsp-plan.md §7). */
+    var completer: EditorCompleter? = null
+
+    /** Every language the editor is given completes from the language servers too, when a [completer] is set. */
+    override fun setEditorLanguage(lang: Language?) {
+        super.setEditorLanguage(lang?.let { if (it is CompletingLanguage) it else CompletingLanguage(it, this) })
+    }
+
+    /** The file's problems (docs/lsp-plan.md §7), drawn under their text; a new list replaces the last one whole. */
+    var problems: List<Diagnostic> = emptyList()
+        set(value) {
+            if (field === value) return
+            field = value
+            diagnostics = EditorProblems.containerOf(value, text)
+        }
 
     /** The file's line break ([EditorTextRules.separatorOf]). */
     var separator: String = "\n"

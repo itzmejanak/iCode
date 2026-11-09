@@ -17,9 +17,9 @@ class GradleIssuesTest {
         """.trimIndent()
         assertEquals(
             listOf(
-                Diagnostic(Severity.Error, "app/src/main/java/com/example/MainActivity.kt", "Unresolved reference 'Greting'.", "12:5", "Gradle"),
-                Diagnostic(Severity.Warning, "app/src/main/java/com/example/MainActivity.kt", "'Foo' is deprecated.", "3:1", "Gradle"),
-                Diagnostic(Severity.Error, "app/src/main/java/com/example/Util.java", "cannot find symbol", "7", "Gradle"),
+                Diagnostic(Severity.Error, "app/src/main/java/com/example/MainActivity.kt", "Unresolved reference 'Greting'.", "12:5", "Gradle", TextRange.at(12, 5)),
+                Diagnostic(Severity.Warning, "app/src/main/java/com/example/MainActivity.kt", "'Foo' is deprecated.", "3:1", "Gradle", TextRange.at(3, 1)),
+                Diagnostic(Severity.Error, "app/src/main/java/com/example/Util.java", "cannot find symbol", "7", "Gradle", TextRange.at(7)),
             ),
             GradleIssues.parse(output, "/workspace/hello"),
         )
@@ -36,9 +36,9 @@ class GradleIssuesTest {
         """.trimIndent()
         assertEquals(
             listOf(
-                Diagnostic(Severity.Error, "app/src/main/cpp/native-lib.cpp", "use of undeclared identifier 'helo'", "12:5", "Gradle"),
-                Diagnostic(Severity.Error, "app/src/main/cpp/util.c", "'missing.h' file not found", "3:10", "Gradle"),
-                Diagnostic(Severity.Warning, "app/src/main/cpp/native-lib.cpp", "unused variable 'x' [-Wunused-variable]", "4:9", "Gradle"),
+                Diagnostic(Severity.Error, "app/src/main/cpp/native-lib.cpp", "use of undeclared identifier 'helo'", "12:5", "Gradle", TextRange.at(12, 5)),
+                Diagnostic(Severity.Error, "app/src/main/cpp/util.c", "'missing.h' file not found", "3:10", "Gradle", TextRange.at(3, 10)),
+                Diagnostic(Severity.Warning, "app/src/main/cpp/native-lib.cpp", "unused variable 'x' [-Wunused-variable]", "4:9", "Gradle", TextRange.at(4, 9)),
             ),
             GradleIssues.parse(output, "/workspace/hello"),
         )
