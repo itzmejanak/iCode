@@ -215,6 +215,9 @@ dependencies {
     implementation("io.ktor:ktor-client-okhttp:3.5.2")
     // MCP servers' tools for the assistant (docs/mcp-plan.md): the official SDK's client only.
     implementation("io.modelcontextprotocol:kotlin-sdk-client:0.16.0")
+    // JSON for the language servers' protocol (docs/lsp-plan.md D1): the version Koog and the MCP SDK
+    // already resolve, declared because the language client uses it directly.
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.11.0")
     // The coroutines the MCP SDK runs on; Android's dispatcher at the same version.
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.11.0")
     // Shizuku (docs/phone-agent-plan.md §5.11): its binder, the user's permission, and a UserService of
