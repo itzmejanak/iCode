@@ -93,7 +93,7 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
     /** Something runs in the runtime that rebuilding it, or clearing the cache PRoot works in, would break. */
     private val runtimeBusy = { terminals.hasRunningSessions() || languages.hasActiveProcesses() || execution.processes.anyRunning() }
     private val languages: LanguageServices = LanguageServices.create(appContext, stateHolder, scope, runtimeLayout, source, settings, { session.activeRoot },
-        editOpen = { location, text -> documents.updateText(ICodeIntent.UpdateDocumentText(location, text)) }, changed = { session.requestRefresh(rebuildIndex = true) })
+        editOpen = { location, text -> documents.updateText(ICodeIntent.UpdateDocumentText(location, text)) }, changed = { session.requestRefresh(rebuildIndex = true) }, typeInTerminal = terminal::type)
     private val runtime: RuntimeCoordinator = RuntimeCoordinator(appContext, stateHolder, scope, runtimeLayout, AndroidSystemAccess(appContext), sessionsRunning = runtimeBusy)
     /** Phone storage, the file explorer's Shared place (docs/storage-explorer-plan.md). */
     private val phoneStorage = PhoneStorage.of()

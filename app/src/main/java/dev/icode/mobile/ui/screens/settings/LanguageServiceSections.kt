@@ -49,7 +49,7 @@ internal fun PresetSection(onChoose: (LanguageServicePreset) -> Unit, onCustom: 
 
 /** The server: its state, what it said it can do, and the buttons that start and stop it. */
 @Composable
-internal fun ServerSection(service: LanguageService, onRemove: () -> Unit) {
+internal fun ServerSection(service: LanguageService, onRemove: () -> Unit, onInstall: () -> Unit) {
     val gateway = LocalICodeGateway.current
     IcodeSection("Server") {
         IcodeCard(Modifier.fillMaxWidth()) {
@@ -63,9 +63,24 @@ internal fun ServerSection(service: LanguageService, onRemove: () -> Unit) {
                 color = IcodeColors.TextSecondary,
             )
         }
+        if (service.notInstalled) {
+            Text(
+                service.install?.let { "Its program is not in the Linux runtime. It installs with:" } ?: "Its program is not in the Linux runtime: install it in a terminal.",
+                style = IcodeType.Caption,
+                color = IcodeColors.Amber,
+            )
+            service.install?.let { command ->
+                MonoLine(command, maxLines = 2)
+                PrimaryButton("Install in Terminal", onInstall, Modifier.fillMaxWidth())
+            }
+        }
         when (service.status) {
-            LanguageServiceStatus.Stopped, LanguageServiceStatus.Failed ->
-                PrimaryButton("Start Server", { gateway.dispatch(LanguageIntent.Start(service.id)) }, Modifier.fillMaxWidth())
+            LanguageServiceStatus.Stopped, LanguageServiceStatus.Failed -> {
+                val start = { gateway.dispatch(LanguageIntent.Start(service.id)) }
+                // Installing comes first while its program is missing.
+                if (service.notInstalled && service.install != null) SecondaryButton("Start Server", start, Modifier.fillMaxWidth())
+                else PrimaryButton("Start Server", start, Modifier.fillMaxWidth())
+            }
             LanguageServiceStatus.Running -> {
                 SecondaryButton("Restart Server", { gateway.dispatch(LanguageIntent.Restart(service.id)) }, Modifier.fillMaxWidth())
                 SecondaryButton("Stop Server", { gateway.dispatch(LanguageIntent.Stop(service.id)) }, Modifier.fillMaxWidth())

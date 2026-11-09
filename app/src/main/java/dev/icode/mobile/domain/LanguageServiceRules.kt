@@ -36,7 +36,10 @@ object LanguageServiceRules {
         configs.map { config ->
             val row = row(config)
             val live = shown.firstOrNull { it.id == config.id }?.takeIf { config.id != changed } ?: return@map row
-            row.copy(status = live.status, processId = live.processId, statusMessage = live.statusMessage, capabilities = live.capabilities)
+            row.copy(
+                status = live.status, processId = live.processId, statusMessage = live.statusMessage,
+                capabilities = live.capabilities, notInstalled = live.notInstalled, install = live.install,
+            )
         }
 
     fun row(config: LanguageServiceConfiguration) = LanguageService(

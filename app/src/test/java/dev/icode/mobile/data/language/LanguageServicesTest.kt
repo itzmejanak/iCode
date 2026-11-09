@@ -18,6 +18,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.int
@@ -194,5 +195,37 @@ class LanguageServicesTest {
         until("stopped") { services.pool.ready(id) == null && "exit" in programs.started[1].methods() }
         type("print(9)\n")
         until("third running") { programs.started.size == 3 && services.pool.ready(id) != null }
+    }
+
+    @Test
+    fun `a server not installed is said only when asked to start, and its page offers its install command`() = runBlocking {
+        val notices = Collections.synchronizedList(mutableListOf<String>())
+        scope.launch { stateHolder.effects.collect { effect -> (effect as? dev.icode.mobile.domain.ICodeEffect.Notice)?.let { notices += it.notice.title } } }
+        delay(50)
+        programs.missing = setOf("pylsp")
+        services.start()
+        val id = services.save(LanguageServiceConfiguration("", "Python", "pylsp", languages = "python")).getOrThrow().id
+        open()
+        until("failed for it") { services.rows().single().notInstalled }
+        assertEquals("sudo apt install -y python3-pylsp", services.rows().single().install)
+        delay(300)
+        assertTrue(notices.isEmpty())
+        services.start(id).getOrThrow()
+        until("said") { notices.isNotEmpty() }
+        assertEquals(listOf("Python is not installed"), notices.toList())
+        programs.missing = emptySet()
+        services.start(id).getOrThrow()
+        until("running") { services.pool.ready(id) != null }
+        assertTrue(!services.rows().single().notInstalled)
+    }
+
+    @Test
+    fun `installing types the preset's command in a terminal, and refuses a program iCode knows no install for`() = runBlocking {
+        val typed = Collections.synchronizedList(mutableListOf<String>())
+        val terminal = LanguageHosts(WorkspaceFileSource(runtime.paths), { _, _ -> }, {}, { 4 to true }) { typed += it; true }
+        val owner = LanguageServices(store, stateHolder, scope, programs, LspUris(runtime.paths), { emptyMap() }, terminal) { runtime.root.path }
+        assertEquals("npm install -g yaml-language-server", owner.install("yaml-language-server --stdio").getOrThrow())
+        assertEquals(listOf("npm install -g yaml-language-server"), typed.toList())
+        assertTrue(owner.install("kotlin-lsp --stdio").isFailure)
     }
 }

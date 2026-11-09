@@ -16,6 +16,9 @@ All notable changes to iCode are documented here. The format follows
 - Problems from the language servers: under their text in the editor (its message when the caret is
   on one), counted on the Explorer's files and folders, and in Problems, where a tap opens the exact
   place — a build's problems too.
+- A language server whose program is not installed says so on its row and page, with Install in
+  Terminal; it is a notice only when you start it. A slow server gets up to 5 minutes to start, and
+  shows how long it has waited.
 - Completion from the language servers as you type, with their snippets and the imports an item needs.
 - Command Palette: Go to Definition, Find References, Go to Symbol in File, Show Hover, Show Signature
   Help, Code Actions, Format Document and Rename Symbol, each listed only when the file's server offers

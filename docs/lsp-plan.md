@@ -85,6 +85,17 @@ restart after the screens were gone.
 - **Restart policy** is iCode's own (D6) for every server. architecture.md §10.8 lists it as a
   configuration field; it is not one.
 - **The keystroke copy (A8, D13)** is unchanged, waiting on L0's numbers.
+- **After the owner's first phone run (2026-11-09).** Four "… stopped" notices arrived at once: YAML,
+  Bash and JSON had been added from presets without being installed, and Kotlin did not answer
+  `initialize` in 60 s. What changed:
+  - A server whose program is missing shows **Not installed** on its row and its page. Its Server
+    page has **Install in Terminal**, which types the preset's install command in a new terminal tab
+    (`LanguageIntent.Install`, `TerminalCoordinator.type`). Configuration has the same button.
+  - It is said as a notice only when someone asked to start it ("Python is not installed"). Opening a
+    file it serves is not asking.
+  - A server that fails its handshake says "… could not start". "… stopped" is kept for five crashes.
+  - `initialize` waits up to 5 minutes (JVM servers such as kotlin-lsp index under PRoot before they
+    answer). Every 15 s the row says how long it has waited.
 
 **Not run (needs the owner's phone):** L0 (server start times and memory under PRoot, inotify limits,
 `UpdateDocumentText` at 100 KB and 1 MB) and LP1–LP10.

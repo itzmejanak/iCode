@@ -20,10 +20,21 @@ internal class LanguageSessionEvents(
 ) : LanguageServerSession.Client, LanguagePool.Events {
     override fun status(id: String, status: LanguageServiceStatus, pid: Int?, message: String?, capabilities: List<String>) {
         owner.status(id, status, pid, message, capabilities.takeIf { status == LanguageServiceStatus.Running } ?: emptyList())
-        if (status == LanguageServiceStatus.Failed) message?.let { words ->
-            val name = owner.configuration(id)?.name ?: "A language server"
-            scope.launch { stateHolder.notify(NoticeTone.Problem, "$name stopped", words) }
+    }
+
+    /**
+     * Said once, as what happened. A server not installed is shown on its page with Install in
+     * Terminal, and said only when someone asked to start it: opening a file it serves is not asking.
+     */
+    override fun failed(id: String, kind: LanguageFailure.Kind, words: String, program: String?, asked: Boolean) {
+        val name = owner.configuration(id)?.name ?: "A language server"
+        owner.missing(id, program?.let { LanguageFailure.installOf(it) ?: "" })
+        val (tone, title) = when (kind) {
+            LanguageFailure.Kind.Missing -> if (asked) NoticeTone.HeadsUp to "$name is not installed" else return
+            LanguageFailure.Kind.NotStarted -> NoticeTone.Problem to "$name could not start"
+            LanguageFailure.Kind.Crashed -> NoticeTone.Problem to "$name stopped"
         }
+        scope.launch { stateHolder.notify(tone, title, words) }
     }
 
     override fun log(id: String, line: String) = logs.add(id, line)

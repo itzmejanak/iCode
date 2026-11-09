@@ -6,7 +6,7 @@ import dev.icode.mobile.domain.LanguageServicePresets
 /** Why a language server could not do what was asked, in the user's words (docs/lsp-plan.md §5.8). */
 internal sealed class LanguageFailure(message: String) : Exception(message) {
     /** Its program is not in the runtime; how its preset installs it, when one names it. */
-    class Missing(program: String) : LanguageFailure(
+    class Missing(val program: String) : LanguageFailure(
         "$program is not in the Linux runtime." + (installOf(program)?.let { " Install it in a terminal: $it" } ?: " Install it in a terminal first."),
     )
 
@@ -20,7 +20,14 @@ internal sealed class LanguageFailure(message: String) : Exception(message) {
 
     class NoServer(what: String) : LanguageFailure(what)
 
+    /** How a server came to fail, for what the user is told: not installed, not started, or stopped after crashing. */
+    enum class Kind { Missing, NotStarted, Crashed }
+
     companion object {
+        /** The command that installs [program], from the preset that runs it; null when iCode knows none. */
+        fun installOf(program: String): String? =
+            LanguageServicePresets.all.firstOrNull { it.configuration.command.substringBefore(' ') == program }?.install
+
         /** A connection's failure, as a sentence. */
         fun wordsOf(failure: Throwable): String = when (failure) {
             is LanguageFailure -> failure.message.orEmpty()
@@ -29,8 +36,5 @@ internal sealed class LanguageFailure(message: String) : Exception(message) {
             is JsonRpcConnection.JsonRpcException -> "The language server refused: ${failure.message}"
             else -> failure.message ?: failure.javaClass.simpleName
         }
-
-        private fun installOf(program: String): String? =
-            LanguageServicePresets.all.firstOrNull { it.configuration.command.substringBefore(' ') == program }?.install
     }
 }
