@@ -37,7 +37,7 @@ internal class LanguageServices(
     val uris: LspUris,
     /** The login environment servers start with, as a terminal has it. */
     private val login: suspend () -> Map<String, String>,
-    hosts: LanguageHosts,
+    private val hosts: LanguageHosts,
     private val activeRoot: () -> String?,
 ) {
     private val loaded = runCatching { store.load() }
@@ -146,10 +146,28 @@ internal class LanguageServices(
                 if (service.id != id) service else service.copy(
                     status = status, processId = pid, statusMessage = message,
                     capabilities = capabilities ?: service.capabilities,
+                    // Starting again, it may have been installed since.
+                    notInstalled = service.notInstalled && status == LanguageServiceStatus.Failed,
+                    install = service.install.takeIf { status == LanguageServiceStatus.Failed },
                 )
             })
         }
         if (stateHolder.current.selectedLanguageServiceId == id) refreshLog()
+    }
+
+    /** [id] failed for its program missing, [install] the way to install it ("" when iCode knows none); null: for another reason. */
+    fun missing(id: String, install: String?) = stateHolder.update { state ->
+        state.copy(languageServices = state.languageServices.map {
+            if (it.id != id) it else it.copy(notInstalled = install != null, install = install?.ifEmpty { null })
+        })
+    }
+
+    /** Types the command that installs [command]'s program in a new terminal tab: the user watches it, and answers sudo or npm there. */
+    suspend fun install(command: String): Result<String> = runCatching {
+        val program = LanguageServiceRules.commandArguments(command).first()
+        val install = LanguageFailure.installOf(program) ?: throw IllegalArgumentException("iCode knows no install command for $program: install it in a terminal")
+        if (!hosts.typeInTerminal(install)) throw IllegalStateException("No terminal could open: install the Linux runtime first")
+        install
     }
 
     fun handle(intent: LanguageIntent) {
@@ -169,6 +187,7 @@ internal class LanguageServices(
             is LanguageIntent.Start -> act("Not started") { start(intent.id) }
             is LanguageIntent.Stop -> act("Not stopped") { stop(intent.id) }
             is LanguageIntent.Restart -> act("Not restarted") { restart(intent.id) }
+            is LanguageIntent.Install -> act("Not installed") { install(intent.command) }
         }
     }
 
@@ -213,13 +232,14 @@ internal class LanguageServices(
             activeRoot: () -> String?,
             editOpen: (String, String) -> Unit,
             changed: () -> Unit,
+            typeInTerminal: suspend (String) -> Boolean,
         ) = LanguageServices(
             LanguageServiceStore(appContext), stateHolder, scope,
             GuestStdio(layout, GuestContext.LanguageServer, GUEST_LOGS, tag = "language-server"), LspUris(layout.paths),
             { layout.environment.of(GuestContext.LanguageServer).variables },
-            LanguageHosts(files, editOpen, changed) {
+            LanguageHosts(files, editOpen, changed, indentation = {
                 settings.values(activeRoot()).first().let { it.effectiveIndentSize to (it.effectiveIndentType == IndentType.Spaces) }
-            },
+            }, typeInTerminal = typeInTerminal),
             activeRoot,
         )
     }

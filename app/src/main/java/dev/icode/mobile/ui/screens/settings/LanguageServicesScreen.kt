@@ -92,11 +92,14 @@ private fun LanguageServiceRow(service: LanguageService, onClick: () -> Unit) {
             }
         },
         trailing = {
-            StatusLabel(service.status.name, service.status.tone())
+            StatusLabel(service.statusLabel, service.status.tone())
             Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = IcodeColors.TextSecondary)
         },
     )
 }
+
+/** Its state in a word: "Not installed" says more than Failed when that is why. */
+internal val LanguageService.statusLabel: String get() = if (notInstalled) "Not installed" else status.name
 
 /** One colour per process state, on the list and on a service's page. */
 @Composable

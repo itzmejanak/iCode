@@ -29,11 +29,15 @@ class LanguagePoolTest {
     private val programs = FakePrograms()
     private val statuses = Collections.synchronizedList(mutableListOf<Pair<String, LanguageServiceStatus>>())
     private val messages = Collections.synchronizedList(mutableListOf<String?>())
+    private val failures = Collections.synchronizedList(mutableListOf<Pair<LanguageFailure.Kind, Boolean>>())
     private val readied = Collections.synchronizedList(mutableListOf<LanguageServerSession>())
     private val events = object : LanguagePool.Events {
         override fun status(id: String, status: LanguageServiceStatus, pid: Int?, message: String?, capabilities: List<String>) {
             statuses += id to status
             messages += message
+        }
+        override fun failed(id: String, kind: LanguageFailure.Kind, words: String, program: String?, asked: Boolean) {
+            failures += kind to asked
         }
         override fun log(id: String, line: String) = Unit
         override suspend fun ready(session: LanguageServerSession) { readied += session }
@@ -96,6 +100,7 @@ class LanguagePoolTest {
         }
         until("failed") { statuses.lastOrNull() == ("a" to LanguageServiceStatus.Failed) }
         assertTrue(messages.last()!!.startsWith("Stopped after 5 exits"))
+        assertEquals(listOf(LanguageFailure.Kind.Crashed to false), failures.toList())
         pool.ensure(config("a"), workspace, asked = false)
         delay(100)
         assertEquals(LanguagePool.CRASHES, programs.started.size)
@@ -124,6 +129,7 @@ class LanguagePoolTest {
         until("failed") { statuses.lastOrNull() == ("p" to LanguageServiceStatus.Failed) }
         assertEquals("pylsp is not in the Linux runtime. Install it in a terminal: sudo apt install -y python3-pylsp", messages.last())
         assertTrue(programs.started.isEmpty())
+        assertEquals(listOf(LanguageFailure.Kind.Missing to false), failures.toList())
     }
 
     @Test

@@ -164,7 +164,8 @@ internal class LanguageServerSession(
     }
 
     companion object {
-        const val INITIALIZE_MILLIS = 60_000L
+        /** The handshake's bound: JVM servers (kotlin-lsp, jdtls) index under PRoot for minutes before they answer. */
+        const val INITIALIZE_MILLIS = 300_000L
         const val SHUTDOWN_MILLIS = 3_000L
     }
 }

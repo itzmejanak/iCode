@@ -23,6 +23,7 @@ import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.PrimaryButton
+import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.domain.LanguageIntent
 import dev.icode.mobile.domain.LanguageServiceConfiguration
@@ -30,6 +31,7 @@ import dev.icode.mobile.domain.LanguageServicePresets
 import dev.icode.mobile.domain.LanguageServiceRules
 import dev.icode.mobile.domain.LanguageServiceStatus
 import dev.icode.mobile.navigation.NavigationActions
+import dev.icode.mobile.navigation.ToolPanelTab
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 
@@ -63,13 +65,18 @@ fun LanguageDetailScreen(actions: NavigationActions) {
     // Keyed on the service: once added, its page opens on Configuration, its first.
     var page by rememberSaveable(service?.id) { mutableStateOf(pages.first()) }
     val status = service?.status ?: LanguageServiceStatus.Stopped
+    // The install command typed in a new terminal tab, shown at once, where sudo or npm can be answered.
+    val install: (String) -> Unit = { command ->
+        gateway.dispatch(LanguageIntent.Install(command))
+        actions.openPanel(ToolPanelTab.Terminal)
+    }
 
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar(
             service?.name ?: "Add Language Service",
             subtitle = page.caption,
             onBack = actions.back,
-            actions = { if (service != null) StatusLabel(status.name, status.tone()) },
+            actions = { if (service != null) StatusLabel(service.statusLabel, status.tone()) },
         )
         IcodePageColumn(Modifier.weight(1f)) {
             when (page) {
@@ -83,8 +90,9 @@ fun LanguageDetailScreen(actions: NavigationActions) {
                     adding = service == null,
                     canSave = state.languageServicesLoadError == null && (service == null || draft != saved),
                     onSave = { gateway.dispatch(LanguageIntent.Save(draft.copy(id = service?.id.orEmpty()))) },
+                    onInstall = { install(draft.command.trim()) },
                 )
-                LanguagePage.Server -> service?.let { ServerSection(it, onRemove = { confirmRemove = true }) }
+                LanguagePage.Server -> service?.let { ServerSection(it, onRemove = { confirmRemove = true }, onInstall = { install(it.command) }) }
                 LanguagePage.Log -> LogSection(state.languageServiceLog)
             }
         }
@@ -123,6 +131,7 @@ private fun ConfigurationSection(
     adding: Boolean,
     canSave: Boolean,
     onSave: () -> Unit,
+    onInstall: () -> Unit,
 ) {
     val validation = LanguageServiceRules.validate(draft)
     val install = LanguageServicePresets.all.firstOrNull { it.configuration.command == draft.command.trim() }
@@ -132,6 +141,7 @@ private fun ConfigurationSection(
         install?.let { preset ->
             Text("Install it in a terminal" + (preset.needs?.let { ", after $it" } ?: "") + ":", style = IcodeType.Caption, color = IcodeColors.TextSecondary)
             MonoLine(preset.install, maxLines = 2)
+            SecondaryButton("Install in Terminal", onInstall, Modifier.fillMaxWidth())
         }
     }
     IcodeSection("Files It Serves") {
