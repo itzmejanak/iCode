@@ -63,6 +63,7 @@ import dev.icode.mobile.designsystem.StatusDot
 import dev.icode.mobile.domain.AssistantAnswer
 import dev.icode.mobile.domain.AssistantPermissions
 import dev.icode.mobile.domain.AssistantPlace
+import dev.icode.mobile.domain.AssistantQuestionRules
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.VoiceIntent
 import dev.icode.mobile.domain.phone.PhoneOverlay.Look
@@ -151,7 +152,7 @@ internal fun PhoneBubbleBar(view: PhoneBubbleView, actions: PhoneBubbleActions) 
                 cursorBrush = SolidColor(IcodeColors.Accent),
                 decorationBox = { field ->
                     Box {
-                        if (draft.isEmpty()) Text("Ask iCode anything…", style = IcodeType.Body.copy(color = IcodeColors.TextMuted), maxLines = 1)
+                        if (draft.isEmpty()) Text(if (overlay.replying) "Your answer…" else "Ask iCode anything…", style = IcodeType.Body.copy(color = IcodeColors.TextMuted), maxLines = 1)
                         field()
                     }
                 },
@@ -160,7 +161,10 @@ internal fun PhoneBubbleBar(view: PhoneBubbleView, actions: PhoneBubbleActions) 
             when {
                 overlay.working && draft.isBlank() -> OverlayButton(Icons.Outlined.Stop, "Stop", IcodeColors.Error, bottom) { actions.dispatch(ICodeIntent.StopAssistant) }
                 view.voice.speaking && draft.isBlank() -> OverlayButton(Icons.Outlined.StopCircle, "Stop reading aloud", IcodeColors.Accent, bottom) { actions.dispatch(VoiceIntent.Silence) }
-                else -> OverlayButton(Icons.AutoMirrored.Outlined.Send, "Send", IcodeColors.Accent, bottom, enabled = draft.isNotBlank() && !overlay.working, onClick = actions.send)
+                else -> OverlayButton(
+                    Icons.AutoMirrored.Outlined.Send, "Send", IcodeColors.Accent, bottom,
+                    enabled = draft.isNotBlank() && (!overlay.working || overlay.replying), onClick = actions.send,
+                )
             }
         }
     }
@@ -235,7 +239,8 @@ private fun Notes(view: PhoneBubbleView, actions: PhoneBubbleActions) {
 
 /**
  * The question the turn waits on, with its answers: an approval, or a pause. Shared words with the chat's
- * cards. An MCP server's question shows its first line: its form is answered in iCode.
+ * cards. An MCP server's question shows its first line, and the model's questions their first: a form
+ * is answered in iCode, and the model's questions also by what the bar sends.
  */
 @Composable
 private fun Question(view: PhoneBubbleView, actions: PhoneBubbleActions) {
@@ -243,12 +248,14 @@ private fun Question(view: PhoneBubbleView, actions: PhoneBubbleActions) {
     val assistant = view.assistant
     val approval = assistant.approval
     val pause = assistant.pause
-    val asked = view.overlay.question?.takeIf { approval == null && pause == null }
+    val clarification = assistant.clarification?.takeIf { approval == null && pause == null }
+    val asked = view.overlay.question?.takeIf { approval == null && pause == null && clarification == null }
     val bound = AssistantPlace.name(assistant.turn?.workspace ?: assistant.workspace.orEmpty())
-    val title = approval?.let { AssistantPermissions.question(it, bound) } ?: pause?.kind?.question ?: asked?.let { "${it.server} asks" }
+    val title = approval?.let { AssistantPermissions.question(it, bound) } ?: pause?.kind?.question
+        ?: clarification?.let { AssistantQuestionRules.TITLE } ?: asked?.let { "${it.server} asks" }
     Text(title.orEmpty(), style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold))
     Text(
-        approval?.call?.summary ?: pause?.detail ?: asked?.message?.lineSequence()?.firstOrNull().orEmpty(),
+        approval?.call?.summary ?: pause?.detail ?: clarification?.let(AssistantQuestionRules::asked) ?: asked?.message?.lineSequence()?.firstOrNull().orEmpty(),
         style = IcodeType.Caption.copy(color = IcodeColors.TextSecondary), maxLines = 2, overflow = TextOverflow.Ellipsis,
     )
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2, Alignment.End)) {
@@ -260,7 +267,7 @@ private fun Question(view: PhoneBubbleView, actions: PhoneBubbleActions) {
         } else if (pause != null) {
             SecondaryButton("Stop", { dispatch(ICodeIntent.StopAssistant) }, compact = true)
             PrimaryButton(pause.kind.proceed, { dispatch(ICodeIntent.ContinueAssistant) }, compact = true)
-        } else if (asked != null) {
+        } else if (asked != null || clarification != null) {
             PrimaryButton("Open in iCode", actions.open, compact = true)
         }
     }

@@ -126,7 +126,7 @@ object BackgroundWorkRules {
         git(snapshot)?.let(::add)
         runtime(snapshot)?.let(::add)
         snapshot.runtimeTools.work?.let { add(runtimeTools(it)) }
-        snapshot.assistant.turn?.let { add(assistant(it, snapshot.assistant.approval, snapshot.assistant.pause, snapshot.mcp.question)) }
+        snapshot.assistant.turn?.let { add(assistant(it, snapshot.assistant, snapshot.mcp.question)) }
         processes(snapshot.processes.filter { it.running })?.let(::add)
         snapshot.gpgPrompts.firstOrNull()?.let { add(gpg(it)) }
     }
@@ -171,14 +171,16 @@ object BackgroundWorkRules {
      * so it is not carried here; a question is, as it stops the turn until it is answered. The one
      * notification of a turn, phone control's included: Stop, the assistant's word everywhere.
      */
-    private fun assistant(turn: AssistantTurn, approval: AssistantApproval?, pause: AssistantPause?, asked: McpQuestion?) = BackgroundItem(
+    private fun assistant(turn: AssistantTurn, state: AssistantState, asked: McpQuestion?) = BackgroundItem(
         key = "assistant",
         title = "Assistant is working…",
         detail = "${turn.workspaceName} · ${turn.step}",
         cancel = ICodeIntent.StopAssistant,
         place = BackgroundPlace.Assistant,
         watched = true,
-        question = approval?.let { "${it.call.summary}?" } ?: pause?.kind?.question ?: asked?.let { "${it.server} asks: ${it.message.lineSequence().firstOrNull().orEmpty()}" },
+        question = state.approval?.let { "${it.call.summary}?" } ?: state.pause?.kind?.question
+            ?: state.clarification?.let { "${AssistantQuestionRules.TITLE}: ${AssistantQuestionRules.asked(it)}" }
+            ?: asked?.let { "${it.server} asks: ${it.message.lineSequence().firstOrNull().orEmpty()}" },
         cancelLabel = "Stop",
     )
 

@@ -207,6 +207,8 @@ private fun StepPage(
     val snapshot = LocalICodeSnapshot.current
     val live = snapshot.assistant.turn?.terminal?.takeIf { it.callId == step.call.id && step.status == AssistantStepStatus.Running }
         ?.session?.takeIf { id -> snapshot.terminal.sessions.any { it.id == id && it.isRunning } }
+    // Its questions, while they wait: answered here as on the chat's card.
+    val asked = snapshot.assistant.clarification?.takeIf { it.call.id == step.call.id && snapshot.assistant.runningHere }
     val (typing, onFocus) = rememberTyping(step.key, live != null)
     var showCommand by remember(step.key) { mutableStateOf(false) }
     LaunchedEffect(typing) { if (!typing) showCommand = false }
@@ -252,6 +254,7 @@ private fun StepPage(
                 }
                 allowInMeaning(approval, workspace)?.let { Text(it, style = IcodeType.Caption.copy(color = IcodeColors.TextMuted)) }
             }
+            asked != null -> AssistantQuestionsCard(asked, Modifier)
             live != null -> ChatTerminal(
                 live, typing, onFocus, onClose, Modifier.weight(if (typing) 1f else 3f, fill = typing),
                 command = command ?: step.call.summary, showCommand = showCommand,

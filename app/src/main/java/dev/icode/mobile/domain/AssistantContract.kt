@@ -247,6 +247,8 @@ data class AssistantState(
     val approval: AssistantApproval? = null,
     /** The turn waits between steps for the user to go on (docs/phone-agent-plan.md L5). */
     val pause: AssistantPause? = null,
+    /** The model's questions, waiting for the user's reply (docs/assistant-questions-plan.md). */
+    val clarification: AssistantClarification? = null,
     /** The chat shown answered "Allow in" its workspace: it runs as Auto in workspace until iCode closes. */
     val allowedInWorkspace: Boolean = false,
     /** The chat shown's own terminal tab, once the menu's Terminal opened it. */
@@ -258,11 +260,17 @@ data class AssistantState(
 ) {
     val running: Boolean get() = turn != null
 
+    /** The turn waits for the user: an approval, a pause, or the model's questions. */
+    val asking: Boolean get() = turn != null && (approval != null || pause != null || clarification != null)
+
     /** The chat shown's mode: the setting, raised by its own answers. */
     val permission: AssistantPermission get() = AssistantPermissions.effective(settings.permission, allowedInWorkspace)
 
     /** The turn in hand belongs to the chat shown, not to another one. */
     val runningHere: Boolean get() = turn != null && turn.workspace == workspace && turn.session == session
+
+    /** The turn of the chat shown waits on its questions: a message sent now is the reply (docs/assistant-questions-plan.md D5). */
+    val replying: Boolean get() = runningHere && clarification != null
 }
 
 /**

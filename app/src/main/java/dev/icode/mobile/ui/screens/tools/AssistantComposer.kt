@@ -36,9 +36,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.style.TextOverflow
 import dev.icode.mobile.designsystem.IcodeCard
+import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeSelect
 import dev.icode.mobile.designsystem.IcodeSelectVariant
-import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeShapes
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
@@ -84,15 +84,17 @@ internal fun AssistantComposer(
         gateway.dispatch(VoiceIntent.Refresh)
         if (granted) gateway.dispatch(VoiceIntent.Listen(VoiceFrom.Chat))
     }
-    // Once the user stops talking, what was heard is sent with what was typed; while a turn runs, it waits in the field.
+    // Once the user stops talking, what was heard is sent with what was typed; while a turn runs, it waits in the
+    // field — unless the turn waits on its questions, which it answers.
     OnHeard(voice, VoiceFrom.Chat) { words ->
         onDraft(listOf(draft, words).filter { it.isNotBlank() }.joinToString(" "))
-        if (!state.running) onSend()
+        if (!state.running || state.replying && attached.isEmpty()) onSend()
     }
     // A file the chosen model cannot read waits for another model; nothing is sent to fail.
     val unreadable = AssistantRules.attachmentProblem(attached.map { it.kind }, settings.model)
-    // Words, files or both: a photo alone is a question too.
-    val canSend = (draft.isNotBlank() || attached.isNotEmpty()) && !state.running && unreadable == null
+    // Words, files or both: a photo alone is a question too. While the turn asks its questions, words alone reply.
+    val canSend = if (state.replying) draft.isNotBlank() && attached.isEmpty()
+    else (draft.isNotBlank() || attached.isNotEmpty()) && !state.running && unreadable == null
     Column(
         Modifier.fillMaxWidth().padding(horizontal = IcodeSpacing.Gutter, vertical = IcodeSpacing.Space2),
         verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
@@ -107,11 +109,13 @@ internal fun AssistantComposer(
             Box(Modifier.fillMaxWidth().padding(IcodeSpacing.Space1)) {
                 if (draft.isEmpty()) {
                     Text(
-                        when (settings.mode) {
-                            AssistantMode.Ask -> "Ask about ${AssistantPlace.name(state.workspace.orEmpty())}"
-                            AssistantMode.Plan -> "Plan what to build"
-                            AssistantMode.Code -> "Describe what to build"
-                            AssistantMode.Orchestrator -> "What would you like to build?"
+                        when {
+                            // The questions above it wait: what is sent now answers them (D5).
+                            state.replying -> "Or answer in your own words"
+                            settings.mode == AssistantMode.Ask -> "Ask about ${AssistantPlace.name(state.workspace.orEmpty())}"
+                            settings.mode == AssistantMode.Plan -> "Plan what to build"
+                            settings.mode == AssistantMode.Code -> "Describe what to build"
+                            else -> "What would you like to build?"
                         },
                         style = IcodeType.Body.copy(color = IcodeColors.TextMuted),
                     )
@@ -158,7 +162,7 @@ internal fun AssistantComposer(
                 }
                 MicButton(voice, VoiceFrom.Chat, gateway::dispatch) { askMicrophone.launch(Manifest.permission.RECORD_AUDIO) }
                 when {
-                    state.runningHere -> IconButton(onClick = { gateway.dispatch(ICodeIntent.StopAssistant) }) {
+                    state.runningHere && !(state.replying && draft.isNotBlank()) -> IconButton(onClick = { gateway.dispatch(ICodeIntent.StopAssistant) }) {
                         Icon(Icons.Outlined.StopCircle, contentDescription = "Stop", tint = IcodeColors.Error)
                     }
                     // An answer read aloud: Stop silences it; typing brings Send back.
