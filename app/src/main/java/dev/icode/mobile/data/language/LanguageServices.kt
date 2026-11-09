@@ -75,7 +75,7 @@ internal class LanguageServices(
     fun stopAll() {
         documents.reset()
         diagnostics.clearAll()
-        scope.launch { pool.stopAll() }
+        pool.stopAll()
     }
 
     /** Adds [draft] (ID "") or changes it; a server running from it starts again with the change. */

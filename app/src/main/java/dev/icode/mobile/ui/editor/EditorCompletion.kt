@@ -3,6 +3,7 @@ package dev.icode.mobile.ui.editor
 import android.os.Bundle
 import dev.icode.mobile.domain.LanguageCompletionItem
 import dev.icode.mobile.domain.LanguageCompletions
+import dev.icode.mobile.domain.LanguageTextEdit
 import dev.icode.mobile.domain.TextPosition
 import io.github.rosemoe.sora.lang.Language
 import io.github.rosemoe.sora.lang.completion.CompletionCancelledException
@@ -62,28 +63,56 @@ private class LanguageCompletion(
     }
 
     override fun performCompletion(editor: CodeEditor, text: Content, position: CharPosition) {
-        val chosen = if (item.resolvable) runCatching { runBlocking { withTimeoutOrNull(RESOLVE_MILLIS) { completer.completions.resolve(completer.location, item) } } }.getOrNull() ?: item else item
         val caret = editor.cursor.left().index
-        val start = chosen.edit?.let { text.indexOf(it.range.start) } ?: (caret - prefixLength).coerceAtLeast(0)
+        val start = item.edit?.let { text.indexOf(it.range.start) } ?: (caret - prefixLength).coerceAtLeast(0)
         // The server's range ends where the caret was asked about; what was typed since goes too.
-        val end = maxOf(chosen.edit?.let { text.indexOf(it.range.end) } ?: caret, caret)
-        // Elsewhere first, from the end back, so each edit's places hold; those before move the insertion.
+        val end = maxOf(item.edit?.let { text.indexOf(it.range.end) } ?: caret, caret)
+        val shift = applyElsewhere(text, item.additionalEdits, start, end)
+        val at = start + shift
+        val insert = item.edit?.newText ?: item.insertText
+        val snippet = if (item.snippet) runCatching { CodeSnippetParser.parse(insert) }.getOrNull() else null
+        if (snippet != null) {
+            text.delete(at, end + shift)
+            editor.snippetController.startSnippet(at, snippet)
+        } else {
+            text.replace(at, end + shift, if (item.snippet) EditorCompletionRules.plain(insert) else insert)
+        }
+        if (item.resolvable && item.additionalEdits.isEmpty()) resolveImports(editor, text, at)
+    }
+
+    /**
+     * The server fills in an item's imports only when asked (`completionItem/resolve`): asked off the
+     * main thread once it is inserted, and applied only if nothing changed since and they are above it.
+     */
+    private fun resolveImports(editor: CodeEditor, text: Content, insertedAt: Int) {
+        val version = text.documentVersion
+        Thread {
+            val resolved = runCatching { runBlocking { withTimeoutOrNull(RESOLVE_MILLIS) { completer.completions.resolve(completer.location, item) } } }.getOrNull()
+            val imports = resolved?.additionalEdits.orEmpty()
+            if (imports.isEmpty()) return@Thread
+            editor.post {
+                if (text.documentVersion != version) return@post
+                text.beginBatchEdit()
+                try {
+                    applyElsewhere(text, imports.filter { text.indexOf(it.range.end) <= insertedAt }, insertedAt, insertedAt)
+                } finally {
+                    text.endBatchEdit()
+                }
+            }
+        }.apply { isDaemon = true }.start()
+    }
+
+    /** [edits] outside start–end, from the end back so each one's places hold; returns how far those before moved the insertion. */
+    private fun applyElsewhere(text: Content, edits: List<LanguageTextEdit>, start: Int, end: Int): Int {
         var shift = 0
-        chosen.additionalEdits.map { text.indexOf(it.range.start) to (text.indexOf(it.range.end) to it.newText) }
+        edits.map { text.indexOf(it.range.start) to (text.indexOf(it.range.end) to it.newText) }
             .filter { (from, rest) -> rest.first <= start || from >= end }
             .sortedByDescending { it.first }
             .forEach { (from, rest) ->
                 text.replace(from, rest.first, rest.second)
                 if (rest.first <= start) shift += rest.second.length - (rest.first - from)
             }
-        val at = start + shift
-        val insert = chosen.edit?.newText ?: chosen.insertText
-        if (chosen.snippet) {
-            text.delete(at, end + shift)
-            editor.snippetController.startSnippet(at, CodeSnippetParser.parse(insert))
-        } else {
-            text.replace(at, end + shift, insert)
-        }
+        return shift
     }
 
     override fun performCompletion(editor: CodeEditor, text: Content, line: Int, column: Int) = Unit
@@ -101,6 +130,10 @@ private class LanguageCompletion(
 /** Which completions show for what was typed, in what order. */
 internal object EditorCompletionRules {
     const val MAX_SHOWN = 200
+
+    /** A snippet's text without its tab stops and placeholders, for one Sora cannot read: `${1:x}` is `x`, `$0` nothing. */
+    fun plain(snippet: String): String =
+        snippet.replace(Regex("\\$\\{\\d+:([^}]*)}"), "$1").replace(Regex("\\$\\{\\d+}|\\$\\d+"), "")
 
     /** The identifier being typed before [column]: what the list filters by. */
     fun prefixOf(line: CharSequence, column: Int): String {

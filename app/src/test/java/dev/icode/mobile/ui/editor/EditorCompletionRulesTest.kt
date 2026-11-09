@@ -23,6 +23,14 @@ class EditorCompletionRulesTest {
     }
 }
 
+class SnippetTextTest {
+    @Test
+    fun `a snippet Sora cannot read is inserted as its text, tab stops gone and placeholders kept`() {
+        assertEquals("print(value)", EditorCompletionRules.plain("print(\${1:value})\$0"))
+        assertEquals("for  in :\n    ", EditorCompletionRules.plain("for \${1} in \$2:\n    \$0"))
+    }
+}
+
 class DiagnosticRulesTest {
     private fun problem(file: String, severity: Severity) = Diagnostic(severity, file, "m", "1:1", "s")
 

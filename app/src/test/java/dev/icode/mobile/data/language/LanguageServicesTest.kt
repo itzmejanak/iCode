@@ -175,4 +175,24 @@ class LanguageServicesTest {
         assertEquals(listOf("initialize", "initialized", "textDocument/didOpen", "shutdown", "exit"), programs.started.single().methods())
         assertTrue(programs.started.single().sent("initialize").single()["params"]!!.jsonObject["workspaceFolders"]!!.jsonArray.isNotEmpty())
     }
+
+    @Test
+    fun `a server stopped with the screens starts again when the file is edited, and stopping never takes the next one`() = runBlocking {
+        services.start()
+        val id = python()
+        stateHolder.update { it.copy(activeDocument = null) }
+        open()
+        stateHolder.update { it.copy(activeDocument = it.openDocuments.single()) }
+        until("first running") { services.pool.ready(id) != null }
+        services.stopAll()
+        // Started again at once, as the next workspace's would be: the stop that was asked must not reach it.
+        services.pool.ensure(services.configuration(id)!!, runtime.root.path, asked = false)
+        until("second running") { programs.started.size == 2 && services.pool.ready(id) != null }
+        delay(200)
+        assertTrue(services.pool.ready(id) != null)
+        services.stopAll()
+        until("stopped") { services.pool.ready(id) == null && "exit" in programs.started[1].methods() }
+        type("print(9)\n")
+        until("third running") { programs.started.size == 3 && services.pool.ready(id) != null }
+    }
 }

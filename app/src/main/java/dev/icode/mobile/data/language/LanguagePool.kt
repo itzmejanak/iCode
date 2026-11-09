@@ -99,8 +99,11 @@ internal class LanguagePool(
 
     suspend fun stop(id: String, reason: String? = null) = lock.withLock { entries[id]?.let { remove(it, reason) } }
 
-    /** Every server stops: the workspace is switching, or no screen is left. */
-    suspend fun stopAll() = lock.withLock { entries.values.toList().forEach { remove(it, null) } }
+    /**
+     * Every server stops: the workspace is switching, or no screen is left. At once, not behind the
+     * lock: a server the next workspace starts after this call is never one it stops.
+     */
+    fun stopAll() = entries.values.toList().forEach { remove(it, null) }
 
     /** Stops each server that served nothing for [IDLE_MILLIS]; [inUse] says which serve an open document. */
     fun watchIdle(inUse: () -> Set<String>) {

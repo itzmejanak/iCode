@@ -41,9 +41,9 @@ internal class LanguageDocumentSync(
 
     fun start() {
         scope.launch {
-            stateHolder.snapshot.map { it.openDocuments }
-                .distinctUntilChanged { old, new -> old === new }
-                .collect { documents -> follow(documents) }
+            stateHolder.snapshot.map { it.openDocuments to it.activeDocument?.location }
+                .distinctUntilChanged { old, new -> old.first === new.first && old.second == new.second }
+                .collect { (documents, active) -> follow(documents, active) }
         }
     }
 
@@ -132,7 +132,12 @@ internal class LanguageDocumentSync(
         return after != before
     }
 
-    private suspend fun follow(documents: List<OpenDocument>) = lock.withLock {
+    /**
+     * Opens, changes and closes follow the editor's tabs. A server is started for a file that opens,
+     * and for the file being edited — so one stopped (idle, no screen left) starts again when it is
+     * needed; never for every tab at each keystroke, which would turn the cap into a carousel.
+     */
+    private suspend fun follow(documents: List<OpenDocument>, active: String?) = lock.withLock {
         val now = documents.associateBy { it.location }
         for (gone in seen.keys - now.keys) {
             seen.remove(gone)
@@ -142,13 +147,11 @@ internal class LanguageDocumentSync(
         val root = activeRoot() ?: return@withLock
         for (document in documents) {
             val before = seen.put(document.location, document)
-            when {
-                before == null -> serving(document).forEach { config ->
-                    pool.ensure(config, root, asked = false)
-                    pool.ready(config.id)?.let { open(it, document) }
-                }
-                before.text !== document.text -> changed += document.location
+            if (before == null || document.location == active) serving(document).forEach { config ->
+                pool.ensure(config, root, asked = false)
+                pool.ready(config.id)?.let { open(it, document) }
             }
+            if (before != null && before.text !== document.text) changed += document.location
         }
         if (changed.isNotEmpty()) schedule()
     }
@@ -178,6 +181,7 @@ internal class LanguageDocumentSync(
     }
 
     private suspend fun open(session: LanguageServerSession, document: OpenDocument) {
+        if (session.documents.isOpen(document.location)) return
         val uri = uris.uriOf(document.location) ?: return
         val text = stateHolder.current.openDocuments.firstOrNull { it.location == document.location }?.text ?: document.text
         session.documents.open(document.location, uri, languageIdOf(document), text)
