@@ -1,14 +1,15 @@
 package dev.icode.mobile.designsystem
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.selection.selectable
-import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Remove
@@ -26,10 +27,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.state.ToggleableState
+import androidx.compose.ui.text.font.FontWeight
 
 /**
  * Single binary setting control.
@@ -165,37 +166,46 @@ fun Stepper(
 }
 
 /**
- * One of a few exclusive choices, as a setup wizard asks it (Android Studio's Install Type): a radio,
- * the choice's name, what it means, and — when it has one — what it costs at the end. The whole row
- * takes the tap; the chosen one sits on the elevated surface.
+ * One choice of a few, as a setup wizard asks it (Android Studio's Install Type): a radio — or, when
+ * several may be chosen ([multiple]), a tick — the choice's name, what it means when it says, and what
+ * it costs at the end when it has a cost. The whole row takes the tap, said as a radio button or a
+ * checkbox; the chosen one sits on the elevated surface. Single choices go in a `selectableGroup`.
  */
 @Composable
 fun IcodeOptionRow(
     title: String,
-    description: String,
+    description: String?,
     selected: Boolean,
     onSelect: () -> Unit,
     modifier: Modifier = Modifier,
     trailing: String? = null,
+    multiple: Boolean = false,
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .clip(IcodeShapes.Small)
             .background(if (selected) IcodeColors.SurfaceElevated else Color.Transparent)
-            .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
+            .then(
+                if (multiple) Modifier.toggleable(value = selected, role = Role.Checkbox, onValueChange = { onSelect() })
+                else Modifier.selectable(selected = selected, role = Role.RadioButton, onClick = onSelect),
+            )
             .padding(vertical = IcodeSpacing.Space2, horizontal = IcodeSpacing.Space1),
         verticalAlignment = Alignment.Top,
         horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2),
     ) {
-        RadioButton(
-            selected = selected,
-            onClick = null,
-            colors = RadioButtonDefaults.colors(selectedColor = IcodeColors.Accent, unselectedColor = IcodeColors.Outline),
-        )
+        if (multiple) {
+            IcodeCheckbox(selected, onCheckedChange = null)
+        } else {
+            RadioButton(
+                selected = selected,
+                onClick = null,
+                colors = RadioButtonDefaults.colors(selectedColor = IcodeColors.Accent, unselectedColor = IcodeColors.Outline),
+            )
+        }
         Column(Modifier.weight(1f).padding(top = IcodeSpacing.Micro)) {
             Text(title, style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold))
-            Text(description, style = IcodeType.Caption)
+            description?.takeIf { it.isNotBlank() }?.let { Text(it, style = IcodeType.Caption) }
         }
         if (trailing != null) Text(trailing, style = IcodeType.Caption, modifier = Modifier.padding(top = IcodeSpacing.Micro))
     }

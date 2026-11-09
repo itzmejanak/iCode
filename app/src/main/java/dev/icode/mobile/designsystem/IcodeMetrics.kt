@@ -118,6 +118,9 @@ object IcodeSizes {
 
     /** A licence's text on the License Agreement, at most: then it scrolls, the Accept below it in sight. */
     val LicenceText = 320.dp
+
+    /** The assistant's question card's answers, at most: then they scroll, the chat and the buttons in sight. */
+    val QuestionAnswers = 280.dp
     val LineNumberGutter = 32.dp
     val Swatch = 28.dp
 

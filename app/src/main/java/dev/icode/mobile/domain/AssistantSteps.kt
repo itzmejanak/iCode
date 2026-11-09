@@ -43,6 +43,7 @@ enum class AssistantToolName(val id: String, val title: String, private val one:
     WorkspaceSymbols("workspace_symbols", "Workspace symbols", "searched the symbols", "searched the symbols %d times"),
     RenameSymbol("rename_symbol", "Rename symbol", "renamed a symbol", "renamed %d symbols"),
     FormatFile("format_file", "Format file", "formatted a file", "formatted %d files"),
+    AskUser("ask_user", "Question", "asked you", "asked you %d times"),
     ;
 
     /** What [count] calls of it did: "read a file", "read 3 files". */

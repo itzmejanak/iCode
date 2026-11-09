@@ -162,7 +162,8 @@ The instructions' paragraph on the workspace gains one sentence for the mode in 
 - **Ask first:** "The user approves each change and command, and anything outside “Math”."
 - **Auto in workspace:** "Changes and commands in “Math” run without asking; anything outside it is
   asked of the user first."
-- **Full access:** "Nothing is asked of the user."
+- **Full access:** "No approval is asked of the user." (Was "Nothing is asked of the user" until the model's own
+  questions, [assistant-questions-plan.md](./assistant-questions-plan.md) D8: those are asked in every mode.)
 
 So the model asks the user before it explores another workspace, rather than finding out from a card.
 

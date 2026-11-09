@@ -5,9 +5,9 @@ import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.isImeVisible
@@ -194,6 +194,9 @@ internal fun AssistantChatView(
         }
         state.pause?.takeIf { state.runningHere }?.let { pause ->
             AssistantPauseCard(pause, Modifier.padding(start = IcodeSpacing.Space3, end = IcodeSpacing.Space3, top = IcodeSpacing.Space2))
+        }
+        state.clarification?.takeIf { state.runningHere }?.let { clarification ->
+            AssistantQuestionsCard(clarification, Modifier.padding(start = IcodeSpacing.Space3, end = IcodeSpacing.Space3, top = IcodeSpacing.Space2))
         }
         LocalICodeSnapshot.current.mcp.question?.takeIf { state.runningHere }?.let { question ->
             McpQuestionCard(question, Modifier.padding(start = IcodeSpacing.Space3, end = IcodeSpacing.Space3, top = IcodeSpacing.Space2))
