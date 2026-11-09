@@ -6,20 +6,26 @@ import dev.icode.mobile.domain.LanguageServiceConfiguration
 import org.json.JSONArray
 import org.json.JSONObject
 
+/** Where configurations are kept: the app's preferences, or a test's memory. */
+internal interface LanguageServiceSaves {
+    fun load(): List<LanguageServiceConfiguration>
+    fun save(services: List<LanguageServiceConfiguration>)
+}
+
 /**
  * The user's language servers, as configured (docs/lsp-plan.md §5.1). Version 2 adds languages,
  * environment and settings; a version 1 list — v0.1.0 saved those — is read once and written as
  * version 2 at the next save. Process state is never saved.
  */
-internal class LanguageServiceStore(context: Context) {
+internal class LanguageServiceStore(context: Context) : LanguageServiceSaves {
     private val preferences = context.applicationContext.getSharedPreferences("language_services", Context.MODE_PRIVATE)
 
-    fun load(): List<LanguageServiceConfiguration> {
+    override fun load(): List<LanguageServiceConfiguration> {
         val saved = preferences.getString(KEY, null) ?: preferences.getString(KEY_V1, null) ?: return emptyList()
         return parse(saved)
     }
 
-    fun save(services: List<LanguageServiceConfiguration>) {
+    override fun save(services: List<LanguageServiceConfiguration>) {
         preferences.commitOrFail("Unable to save language services") {
             putString(KEY, format(services))
             remove(KEY_V1)

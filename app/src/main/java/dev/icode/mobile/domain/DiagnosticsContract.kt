@@ -36,6 +36,34 @@ object DiagnosticRules {
     /** `12:5` for [range], one-based, as builds print it. */
     fun locationOf(range: TextRange): String = "${range.start.line + 1}:${range.start.column + 1}"
 
+    /** [problems] about the file at [location] in the workspace at [workspace]. */
+    fun forFile(problems: List<Diagnostic>, workspace: String?, location: String?): List<Diagnostic> {
+        if (workspace == null || location == null) return emptyList()
+        val file = location.removePrefix(workspace.trimEnd('/') + "/").takeIf { it != location } ?: return emptyList()
+        return problems.filter { it.file == file }
+    }
+
+    /** How many problems a file has, or the files beneath a folder, and the worst of them. */
+    data class Count(val count: Int, val worst: Severity)
+
+    /**
+     * Errors and warnings by location (PR-PROB-01): each file's, and each folder's for every file
+     * beneath it, up to [workspace]'s top, for the Explorer's rows.
+     */
+    fun countsByLocation(problems: List<Diagnostic>, workspace: String?): Map<String, Count> {
+        val top = workspace?.trimEnd('/') ?: return emptyMap()
+        val counts = HashMap<String, Count>()
+        problems.filter { it.severity != Severity.Info }.forEach { problem ->
+            var location = "$top/${problem.file}"
+            while (location.length > top.length) {
+                val before = counts[location]
+                counts[location] = Count((before?.count ?: 0) + 1, minOf(before?.worst ?: problem.severity, problem.severity))
+                location = location.substringBeforeLast('/')
+            }
+        }
+        return counts
+    }
+
     /** Errors, then warnings, then the rest; by file and place within each. */
     val order: Comparator<Diagnostic> = compareBy<Diagnostic>({ it.severity.ordinal }, { it.file }, { it.range?.start?.line ?: 0 }, { it.range?.start?.column ?: 0 })
 }

@@ -59,11 +59,11 @@ internal class LanguageDiagnostics(
     /** What [serviceId] reported for [location] now. */
     fun of(serviceId: String, location: String): List<Diagnostic> = lists[serviceId]?.get(location).orEmpty()
 
-    /** Waits up to [timeoutMillis] for [serviceId]'s next report on [location]; true when one came. */
-    suspend fun awaitNext(serviceId: String, location: String, timeoutMillis: Long): Boolean {
-        val next = waiting.getOrPut(key(serviceId, location)) { CompletableDeferred() }
-        return withTimeoutOrNull(timeoutMillis) { next.await() } != null
-    }
+    /** [serviceId]'s next report on [location], to wait for once what it reports on has been sent ([await]). */
+    fun expect(serviceId: String, location: String): CompletableDeferred<Unit> = waiting.getOrPut(key(serviceId, location)) { CompletableDeferred() }
+
+    /** Waits up to [timeoutMillis] for [next]; true when it came. */
+    suspend fun await(next: CompletableDeferred<Unit>, timeoutMillis: Long): Boolean = withTimeoutOrNull(timeoutMillis) { next.await() } != null
 
     private fun put(session: LanguageServerSession, location: String, items: JsonElement?) {
         val file = uris.relative(session.workspace, location)

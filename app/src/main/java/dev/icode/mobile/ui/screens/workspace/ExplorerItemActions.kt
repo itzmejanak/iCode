@@ -29,7 +29,10 @@ import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.StatusDot
+import dev.icode.mobile.designsystem.IcodeTone
 import dev.icode.mobile.designsystem.gitStatusTone
+import dev.icode.mobile.domain.DiagnosticRules
+import dev.icode.mobile.domain.Severity
 import dev.icode.mobile.designsystem.tint
 import dev.icode.mobile.domain.FileEntry
 import dev.icode.mobile.domain.FileKind
@@ -125,8 +128,11 @@ internal fun ExplorerRow(
     ticked: Boolean?,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
+    /** Its errors and warnings, or those beneath it (DiagnosticRules.countsByLocation). */
+    problems: DiagnosticRules.Count? = null,
 ) {
     val folder = entry.kind == FileKind.Folder
+    val problemTone = problems?.worst?.let { if (it == Severity.Error) IcodeTone.Error else IcodeTone.Warning }
     val type = FileTypes.of(entry.name)
     val icon = when {
         folder -> if (entry.expanded) Icons.Outlined.FolderOpen else Icons.Outlined.Folder
@@ -170,6 +176,8 @@ internal fun ExplorerRow(
                 modifier = Modifier.weight(1f),
                 style = IcodeType.Body,
                 color = when {
+                    // As in VS Code, a problem's colour comes before Git's.
+                    problemTone != null -> problemTone.tint()
                     entry.gitStatus != null -> gitStatusTone(entry.gitStatus).tint()
                     !folder && type == FileTypes.Markdown -> IcodeColors.TextSecondary
                     else -> IcodeColors.TextPrimary
@@ -179,6 +187,8 @@ internal fun ExplorerRow(
         trailing = {
             val status = entry.gitStatus
             when {
+                problemTone != null && problems != null ->
+                    if (folder) StatusDot(problemTone.tint()) else MonoLine(problems.count.toString(), color = problemTone.tint(), style = IcodeType.MonoSmall)
                 status == null -> Unit
                 entry.kind == FileKind.Folder -> StatusDot(gitStatusTone(status).tint())
                 else -> MonoLine(status, color = gitStatusTone(status).tint(), style = IcodeType.MonoSmall)

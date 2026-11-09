@@ -41,8 +41,8 @@ internal object LspMessages {
         putJsonObject("workspace") {
             put("applyEdit", true)
             putJsonObject("workspaceEdit") {
+                // Text edits only: an edit that creates, renames or deletes a file is refused whole.
                 put("documentChanges", true)
-                putJsonArray("resourceOperations") { add("create"); add("rename"); add("delete") }
                 put("failureHandling", "abort")
             }
             put("configuration", true)

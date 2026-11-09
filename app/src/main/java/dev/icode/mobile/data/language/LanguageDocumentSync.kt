@@ -84,19 +84,52 @@ internal class LanguageDocumentSync(
         send(document)
     }
 
-    /** The ready servers serving [location], opened there if they were not; the file need not be open in the editor. */
-    suspend fun sessionsFor(location: String, text: () -> String?): List<LanguageServerSession> {
+    /**
+     * The ready servers serving [location], opened there if they were not; the file need not be open
+     * in the editor. One that is starting is waited for up to [waitMillis].
+     */
+    suspend fun sessionsFor(location: String, text: () -> String?, waitMillis: Long): List<LanguageServerSession> {
         val name = location.substringAfterLast('/')
         val body = stateHolder.current.openDocuments.firstOrNull { it.location == location }?.text ?: text() ?: return emptyList()
         val languageId = LanguageServiceRules.languageIdOf(FileTypes.of(name, body.take(256).substringBefore('\n')))
         val root = activeRoot() ?: return emptyList()
         return configs().filter { LanguageServiceRules.serves(it, name, languageId) }.mapNotNull { config ->
             pool.ensure(config, root, asked = false)
-            pool.ready(config.id)?.also { session ->
+            pool.awaitReady(config.id, waitMillis)?.also { session ->
                 pool.used(config.id)
                 if (!session.documents.isOpen(location)) uris.uriOf(location)?.let { session.documents.open(location, it, languageId, body) }
             }
         }
+    }
+
+    /** The configured services serving the file at [location], by its name and its text's first line. */
+    fun servingIds(location: String, text: () -> String?): List<String> {
+        val name = location.substringAfterLast('/')
+        val body = stateHolder.current.openDocuments.firstOrNull { it.location == location }?.text ?: text().orEmpty()
+        val languageId = LanguageServiceRules.languageIdOf(FileTypes.of(name, body.take(256).substringBefore('\n')))
+        return configs().filter { LanguageServiceRules.serves(it, name, languageId) }.map { it.id }
+    }
+
+    /** A file opened at the servers for one request goes from them again, unless the editor has it open. */
+    suspend fun release(location: String) {
+        if (seen.containsKey(location)) return
+        pool.running.forEach { it.documents.close(location) }
+    }
+
+    /** [location]'s text now at [session]: opened if it was not, else its change sent. True when anything went. */
+    suspend fun openOrFlush(session: LanguageServerSession, location: String, text: () -> String?): Boolean {
+        val body = stateHolder.current.openDocuments.firstOrNull { it.location == location }?.text ?: text() ?: return false
+        if (!session.documents.isOpen(location)) {
+            val uri = uris.uriOf(location) ?: return false
+            val name = location.substringAfterLast('/')
+            session.documents.open(location, uri, LanguageServiceRules.languageIdOf(FileTypes.of(name, body.take(256).substringBefore('\n'))), body)
+            pulls.pull(session, location, uri)
+            return true
+        }
+        val before = session.documents.versionOf(location)
+        val after = session.documents.change(location, body)
+        if (after != before) session.documents.opened().firstOrNull { it.location == location }?.let { pulls.pull(session, it.location, it.uri) }
+        return after != before
     }
 
     private suspend fun follow(documents: List<OpenDocument>) = lock.withLock {

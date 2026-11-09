@@ -41,6 +41,7 @@ import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.SectionLabel
 import dev.icode.mobile.designsystem.behindSheet
 import dev.icode.mobile.domain.FileEntry
+import dev.icode.mobile.domain.DiagnosticRules
 import dev.icode.mobile.domain.FileKind
 import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.ICodeIntent
@@ -89,6 +90,7 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
     val selectedFolder = creationParentLocation(root, selectedPath, state.files)
     val pasteHere = { selectedFolder?.let { gateway.dispatch(FilesIntent.Paste(it)) } }
     // One row's sheet, or the selection's; gone with what it is about.
+    val problemCounts = remember(state.diagnostics, state.languageDiagnostics, root) { DiagnosticRules.countsByLocation(state.problems, root) }
     val sheetEntries = if (selection.sheet) covered.orEmpty() else listOfNotNull(state.files.firstOrNull { it.path == actionsFor })
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().behindSheet(sheetEntries.isNotEmpty())) {
@@ -158,11 +160,13 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
                             }
                         }
                         items(state.files, key = { it.path }) { entry ->
+                            val problems = problemCounts[entry.path]
                             val ticked = selection.ticked?.let { entry.path in it }
                             ExplorerRow(
                                 entry = entry,
                                 selected = entry.path == selectedPath,
                                 ticked = ticked,
+                                problems = problems,
                                 onClick = {
                                     when {
                                         ticked != null -> selection.toggle(entry.path)

@@ -6,13 +6,19 @@ import dev.icode.mobile.data.runtime.GuestStdio
 import dev.icode.mobile.data.runtime.StdioPrograms
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.workspace.ICodeStateHolder
+import dev.icode.mobile.data.workspace.WorkspaceFileSource
+import dev.icode.mobile.domain.IndentType
+import dev.icode.mobile.domain.LanguageFeatureIntent
 import dev.icode.mobile.domain.LanguageIntent
+import dev.icode.mobile.domain.LanguageService
 import dev.icode.mobile.domain.LanguageServiceConfiguration
 import dev.icode.mobile.domain.LanguageServiceRules
 import dev.icode.mobile.domain.LanguageServiceStatus
 import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.WorkspacePreferencesRepository
 import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
 
@@ -23,24 +29,26 @@ import kotlinx.serialization.json.JsonObject
  * (LanguageServiceTools.kt): the same operations, so none of them has a path of its own.
  */
 internal class LanguageServices(
-    appContext: Context,
+    private val store: LanguageServiceSaves,
     private val stateHolder: ICodeStateHolder,
     private val scope: CoroutineScope,
-    layout: RuntimeLayout,
+    /** Where servers start: the Linux runtime, or a test's own. */
+    private val stdio: StdioPrograms,
+    val uris: LspUris,
+    /** The login environment servers start with, as a terminal has it. */
+    private val login: suspend () -> Map<String, String>,
+    hosts: LanguageHosts,
     private val activeRoot: () -> String?,
 ) {
-    private val store = LanguageServiceStore(appContext)
     private val loaded = runCatching { store.load() }
     @Volatile private var configs = loaded.getOrDefault(emptyList())
-    private val environment = layout.environment
-    private val stdio: StdioPrograms = GuestStdio(layout, GuestContext.LanguageServer, GUEST_LOGS, tag = "language-server")
-    val uris = LspUris(layout.paths)
     private val logs = LanguageLogs(stdio)
     val diagnostics = LanguageDiagnostics(stateHolder, scope, uris)
     private val sessions = LanguageSessionEvents(this, stateHolder, scope, diagnostics, logs)
     val pool = LanguagePool(scope, stdio, uris, ::variablesOf, sessions, sessions)
     val documents = LanguageDocumentSync(stateHolder, scope, pool, diagnostics, uris, { configs }, activeRoot)
-    val features = LanguageRequests(this)
+    val features = LanguageRequests(stateHolder, documents, diagnostics, pool, uris, hosts)
+    private val answers = LanguageAnswers(stateHolder, scope, features)
 
     fun start() {
         publish()
@@ -51,6 +59,15 @@ internal class LanguageServices(
     fun configurations(): List<LanguageServiceConfiguration> = configs
 
     fun configuration(id: String): LanguageServiceConfiguration? = configs.firstOrNull { it.id == id }
+
+    /** The rows Settings › Languages shows: each configuration with its server's state. */
+    fun rows(): List<LanguageService> = stateHolder.current.languageServices
+
+    /** The workspace the servers run for: the one open in the editor. */
+    fun workspace(): String? = activeRoot()
+
+    /** The configured services serving the file at [location]. */
+    fun servingIds(location: String): List<String> = documents.servingIds(location) { runCatching { java.io.File(location).bufferedReader().use { it.readLine() } }.getOrNull() }
 
     fun hasActiveProcesses(): Boolean = pool.hasActive()
 
@@ -137,6 +154,7 @@ internal class LanguageServices(
 
     fun handle(intent: LanguageIntent) {
         when (intent) {
+            is LanguageFeatureIntent -> answers.handle(intent)
             is LanguageIntent.Select -> {
                 stateHolder.update { state ->
                     state.copy(
@@ -170,7 +188,7 @@ internal class LanguageServices(
 
     /** The user's login environment, as a terminal has it, with the service's own over it. */
     private suspend fun variablesOf(config: LanguageServiceConfiguration): Map<String, String> =
-        environment.of(GuestContext.LanguageServer).variables + LanguageServiceRules.environmentOf(config.environment)
+        login() + LanguageServiceRules.environmentOf(config.environment)
 
     /** Shows the saved services, or why they could not be read. */
     private fun publish() {
@@ -183,5 +201,26 @@ internal class LanguageServices(
 
     companion object {
         private const val GUEST_LOGS = "/tmp/icode-lsp"
+
+        /** The owner as the gateway makes it: edits to open files as typing, to closed ones through [files], formatting at [settings]' indentation. */
+        fun create(
+            appContext: Context,
+            stateHolder: ICodeStateHolder,
+            scope: CoroutineScope,
+            layout: RuntimeLayout,
+            files: WorkspaceFileSource,
+            settings: WorkspacePreferencesRepository,
+            activeRoot: () -> String?,
+            editOpen: (String, String) -> Unit,
+            changed: () -> Unit,
+        ) = LanguageServices(
+            LanguageServiceStore(appContext), stateHolder, scope,
+            GuestStdio(layout, GuestContext.LanguageServer, GUEST_LOGS, tag = "language-server"), LspUris(layout.paths),
+            { layout.environment.of(GuestContext.LanguageServer).variables },
+            LanguageHosts(files, editOpen, changed) {
+                settings.values(activeRoot()).first().let { it.effectiveIndentSize to (it.effectiveIndentType == IndentType.Spaces) }
+            },
+            activeRoot,
+        )
     }
 }

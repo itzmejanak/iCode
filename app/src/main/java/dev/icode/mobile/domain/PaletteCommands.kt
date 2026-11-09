@@ -11,6 +11,22 @@ enum class PaletteCommandId {
     OpenTerminal,
     OpenSourceControl,
     OpenAssistant,
+    LanguageDefinition,
+    LanguageReferences,
+    LanguageSymbols,
+    LanguageHover,
+    LanguageSignature,
+    LanguageCodeActions,
+    LanguageFormat,
+    LanguageRename,
+    ;
+
+    /** The language servers' question this command asks; null for the rest. */
+    val language: LanguageQuery? get() = if (name.startsWith(PREFIX)) LanguageQuery.valueOf(name.removePrefix(PREFIX)) else null
+
+    private companion object {
+        const val PREFIX = "Language"
+    }
 }
 
 data class PaletteCommand(
@@ -63,9 +79,15 @@ object PaletteCommands {
             PaletteCommand(PaletteCommandId.OpenSourceControl, "Tools", "Git: Source Control", "status changes", if (workspace) null else "Open a workspace first"),
             PaletteCommand(PaletteCommandId.OpenAssistant, "Tools", "Assistant: Ask", "ai agent chat model koog", if (workspace) null else "Open a workspace first"),
         )
+        // Only what the active file's running servers said they offer (PR-LANG-03).
+        val offered = LanguageFeatureRules.offered(snapshot, snapshot.activeDocument?.location)
+        val language = PaletteCommandId.entries.mapNotNull { id ->
+            id.language?.takeIf { it.capability in offered }?.let { PaletteCommand(id, "Language", it.title, "lsp code " + it.capability.lowercase()) }
+        }
+        val all = commands + language
         val terms = query.trim().split(Regex("\\s+")).filter { it.isNotEmpty() }
-        if (terms.isEmpty()) return commands
-        return commands.filter { command ->
+        if (terms.isEmpty()) return all
+        return all.filter { command ->
             val searchable = "${command.title} ${command.keywords} ${command.group}"
             terms.all { searchable.contains(it, ignoreCase = true) }
         }

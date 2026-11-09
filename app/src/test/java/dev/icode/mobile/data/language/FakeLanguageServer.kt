@@ -23,11 +23,13 @@ internal class FakePrograms(private val capabilities: String = DEFAULT_CAPABILIT
     var missing: Set<String> = emptySet()
     /** What each started server answers a request with, by method; JSON text. */
     val answers = mutableMapOf<String, String>()
+    /** Run for every message a server receives, as it receives it: a test's server behaviour. */
+    @Volatile var hook: (FakeServer, JsonObject) -> Unit = { _, _ -> }
 
     override suspend fun missing(command: String, variables: Map<String, String>): String? = command.takeIf { it in missing }
 
     override fun start(id: String, argv: List<String>, variables: Map<String, String>, folder: String, scope: CoroutineScope): StdioProgram =
-        FakeServer(id, argv, folder, capabilities, answers).also { started += it; it.serve() }
+        FakeServer(id, argv, folder, capabilities, answers) { server, message -> hook(server, message) }.also { started += it; it.serve() }
 
     override fun tail(id: String, lines: Int): List<String> = listOf("stderr of $id")
 
@@ -42,6 +44,7 @@ internal class FakeServer(
     val folder: String,
     private val capabilities: String,
     private val answers: Map<String, String>,
+    private val hook: (FakeServer, JsonObject) -> Unit = { _, _ -> },
 ) : StdioProgram {
     private val toServer = BytePipe()
     private val toClient = BytePipe()
@@ -69,6 +72,7 @@ internal class FakeServer(
                 val text = runCatching { LspFraming.read(toServer.input) }.getOrNull() ?: break
                 val message = Json.parseToJsonElement(text).jsonObject
                 received += message
+                runCatching { hook(this, message) }
                 val method = message["method"]?.jsonPrimitive?.content
                 if (method == "exit") {
                     end(0)

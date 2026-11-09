@@ -3,6 +3,8 @@ package dev.icode.mobile.data.assistant.tools
 import dev.icode.mobile.data.assistant.AssistantStep
 import dev.icode.mobile.data.assistant.AssistantTool
 import dev.icode.mobile.data.git.CliGitService
+import dev.icode.mobile.data.language.LanguageServices
+import dev.icode.mobile.data.language.languageServiceTools
 import dev.icode.mobile.data.phone.PhoneControl
 import dev.icode.mobile.data.run.RunCoordinator
 import dev.icode.mobile.data.runtime.RuntimeExecution
@@ -33,6 +35,8 @@ internal class AssistantToolbox(
     terminals: TerminalSessions,
     /** What hears the microphone, which the assistant sets up as the user does (docs/speech-plan.md §6). */
     private val speech: SpeechProviders,
+    /** The language servers, which the assistant sets up and asks as the user does (docs/lsp-plan.md §6). */
+    private val languages: LanguageServices,
 ) {
     private val terminal = TerminalRuns(terminals)
     private val shell = AssistantShell(execution.environment, execution.processes, terminal)
@@ -76,6 +80,6 @@ internal class AssistantToolbox(
             ListRunCommandsTool(workspace, runs),
             SaveRunCommandTool(workspace, runs),
             DeleteRunCommandTool(workspace, runs),
-        ) + speechProviderTools(speech)
+        ) + speechProviderTools(speech) + languageServiceTools(languages, workspace)
     }
 }

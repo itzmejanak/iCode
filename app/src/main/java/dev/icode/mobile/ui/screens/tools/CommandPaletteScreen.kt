@@ -11,6 +11,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountTree
+import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.Icon
@@ -37,13 +38,16 @@ import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTextField
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.designsystem.SectionLabel
+import dev.icode.mobile.domain.LanguageFeatureIntent
 import dev.icode.mobile.domain.PaletteCommand
 import dev.icode.mobile.domain.PaletteCommandId
 import dev.icode.mobile.domain.PaletteCommands
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.ICodeSnapshot
+import dev.icode.mobile.domain.TextPosition
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
+import dev.icode.mobile.ui.LocalCodeEditorSessions
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 
@@ -57,8 +61,11 @@ fun CommandPaletteScreen(actions: NavigationActions) {
     val commands = PaletteCommands.search(snapshot, query)
     val focusRequester = remember { FocusRequester() }
 
+    val editors = LocalCodeEditorSessions.current
     val run: (PaletteCommand) -> Unit = { command ->
-        runPaletteCommand(command, snapshot, gateway::dispatch, actions.replace, actions.back)
+        // Where the caret is in the open file, for the language servers' questions.
+        val caret = snapshot.activeDocument?.let { editors.get(it.location).editor.cursor.left() }?.let { TextPosition(it.line, it.column) }
+        runPaletteCommand(command, snapshot, gateway::dispatch, actions.replace, actions.back, caret)
     }
 
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
@@ -115,7 +122,11 @@ fun CommandPaletteScreen(actions: NavigationActions) {
                         onClick = if (command.available) ({ run(command) }) else null,
                         leading = {
                             Icon(
-                                if (command.group == "Git commands") Icons.Outlined.AccountTree else Icons.Outlined.Description,
+                                when (command.group) {
+                                    "Git commands" -> Icons.Outlined.AccountTree
+                                    "Language" -> Icons.Outlined.Code
+                                    else -> Icons.Outlined.Description
+                                },
                                 contentDescription = null,
                                 tint = if (command.available) IcodeColors.Accent else IcodeColors.TextMuted,
                                 modifier = Modifier.size(IcodeSizes.IconMd),
@@ -135,8 +146,15 @@ internal fun runPaletteCommand(
     dispatch: (ICodeIntent) -> Unit,
     replace: (Route) -> Unit,
     back: () -> Unit,
+    caret: TextPosition? = null,
 ) {
     if (!command.available) return
+    command.id.language?.let { query ->
+        val document = snapshot.activeDocument ?: return
+        dispatch(LanguageFeatureIntent.Ask(query, document.location, caret ?: TextPosition(0, 0)))
+        back()
+        return
+    }
     when (command.id) {
         PaletteCommandId.PushBranch -> {
             dispatch(ICodeIntent.PushRemote)
@@ -157,5 +175,7 @@ internal fun runPaletteCommand(
         PaletteCommandId.OpenTerminal -> replace(Route.TerminalExpanded)
         PaletteCommandId.OpenSourceControl -> replace(Route.SourceControl)
         PaletteCommandId.OpenAssistant -> replace(Route.Assistant)
+        // Asked above, by their question.
+        else -> Unit
     }
 }
