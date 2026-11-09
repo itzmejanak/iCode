@@ -2,7 +2,7 @@ package dev.icode.mobile.data.workspace
 
 import dev.icode.mobile.data.git.GitWorkspaceCoordinator
 import dev.icode.mobile.data.git.withGit
-import dev.icode.mobile.data.language.LanguageServiceCoordinator
+import dev.icode.mobile.data.language.LanguageServices
 import dev.icode.mobile.data.runtime.TerminalCoordinator
 import dev.icode.mobile.data.search.SearchCoordinator
 import dev.icode.mobile.domain.ContentSearchState
@@ -39,7 +39,7 @@ internal class WorkspaceSessionCoordinator(
     private val gitWorkspace: GitWorkspaceCoordinator,
     private val search: SearchCoordinator,
     private val terminal: TerminalCoordinator,
-    private val languages: LanguageServiceCoordinator,
+    private val languages: LanguageServices,
 ) {
     @Volatile var activeRoot: String? = null
         private set

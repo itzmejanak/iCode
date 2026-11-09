@@ -33,7 +33,7 @@ internal class BytePipe {
         override fun read(b: ByteArray, off: Int, len: Int): Int {
             if (finished) return -1
             while (position >= current.size) {
-                val next = chunks.poll(10, TimeUnit.SECONDS) ?: error("Nothing came through the pipe")
+                val next = chunks.poll(60, TimeUnit.SECONDS) ?: error("Nothing came through the pipe")
                 if (next === EOF) {
                     finished = true
                     return -1

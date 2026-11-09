@@ -14,10 +14,15 @@ data class ICodeSnapshot(
     val gitRepositories: List<String> = emptyList(),
     /** Why Git could not read the open workspace's repository, in Git's words; its files open all the same. */
     val gitFailure: String? = null,
+    /** A build's problems (Build & Run); [problems] is these and the language servers' together. */
     val diagnostics: List<Diagnostic>,
     val languageServices: List<LanguageService>,
     val languageServicesLoadError: String? = null,
     val selectedLanguageServiceId: String? = null,
+    /** The language servers' problems in the open workspace (docs/lsp-plan.md §5.4), errors first. */
+    val languageDiagnostics: List<Diagnostic> = emptyList(),
+    /** The selected language service's log: its stderr's last lines and what iCode saw of it. */
+    val languageServiceLog: List<String> = emptyList(),
     val activeWorkspace: String,
     val activePath: String,
     /** Canonical root location, unlike [activePath] which is presentation text. */
@@ -121,4 +126,7 @@ data class ICodeSnapshot(
 ) {
     /** [location], in the open workspace, as the runtime names it: what Copy path gives. */
     fun runtimePathOf(location: String): String = activeWorkspaceLocation?.let { WorkspaceRuntimePath.within(it, activePath, location) } ?: location
+
+    /** Every problem the Problems panel, the editor and the counts show: a build's, then the language servers'. */
+    val problems: List<Diagnostic> by lazy { diagnostics + languageDiagnostics }
 }

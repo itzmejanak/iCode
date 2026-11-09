@@ -7,6 +7,7 @@ import dev.icode.mobile.domain.RuntimeInventory
 import dev.icode.mobile.domain.RuntimeToolDownload
 import dev.icode.mobile.domain.RuntimeToolMeasuring
 import dev.icode.mobile.domain.Diagnostic
+import dev.icode.mobile.domain.DiagnosticRules
 import dev.icode.mobile.domain.ExternalChange
 import dev.icode.mobile.domain.FileEntry
 import dev.icode.mobile.domain.FileKind
@@ -30,6 +31,8 @@ import dev.icode.mobile.domain.RuntimeDetails
 import dev.icode.mobile.domain.RuntimeState
 import dev.icode.mobile.domain.RuntimeToolsState
 import dev.icode.mobile.domain.Severity
+import dev.icode.mobile.domain.TextPosition
+import dev.icode.mobile.domain.TextRange
 import dev.icode.mobile.domain.StorageDetails
 import dev.icode.mobile.domain.StorageMeasurement
 import dev.icode.mobile.domain.files.StoragePlace
@@ -92,23 +95,25 @@ object CaptureFixtures {
             ahead = 2,
             behind = 1,
         ),
-        diagnostics = listOf(
-            Diagnostic(Severity.Error, "src/App.tsx", "Type error: Property name does not exist on type User", "line 42:15", "TS"),
-            Diagnostic(Severity.Warning, "src/App.tsx", "Unused variable: tempData", "line 15:8", "TS"),
-            Diagnostic(Severity.Error, "src/utils/api.ts", "NetworkError: Call does not handle API timeout failures", "line 108:3", "TS"),
+        diagnostics = emptyList(),
+        // As a TypeScript server would report them (docs/lsp-plan.md §5.4): exact ranges, zero-based.
+        languageDiagnostics = listOf(
+            languageProblem(Severity.Error, "src/App.tsx", "Property 'name' does not exist on type 'User'.", 41, 14, 18, "2339"),
+            languageProblem(Severity.Warning, "src/App.tsx", "'tempData' is declared but its value is never read.", 14, 7, 15, "6133"),
+            languageProblem(Severity.Error, "src/utils/api.ts", "Cannot find name 'RequestTimeout'.", 107, 2, 16, "2304"),
         ),
         languageServices = listOf(
             LanguageService(
-                "TS", "TypeScript Language Server", "*.ts, *.tsx",
-                status = LanguageServiceStatus.Running,
-                id = TYPESCRIPT_SERVICE,
+                "TS", "TypeScript and JavaScript", "", id = TYPESCRIPT_SERVICE,
                 command = "typescript-language-server --stdio",
-                rootMarkers = "tsconfig.json, package.json",
-                initializationOptions = "{\"preferences\":{\"importModuleSpecifier\":\"non-relative\"}}",
-                processId = 24018,
+                rootMarkers = "tsconfig.json package.json",
+                languages = "typescript typescriptreact javascript javascriptreact",
+                status = LanguageServiceStatus.Running,
+                processId = 4182,
+                capabilities = listOf("Completion", "Hover", "Signature help", "Go to definition", "Find references", "Document symbols", "Workspace symbols", "Formatting", "Rename", "Code actions"),
             ),
-            LanguageService("PY", "Pylsp (Python)", "*.py"),
-            LanguageService("RS", "Rust Analyzer", "*.rs", status = LanguageServiceStatus.Running),
+            LanguageService("PY", "Python (pylsp)", "", id = "python", command = "pylsp", languages = "python"),
+            LanguageService("RS", "Rust Analyzer", "*.rs", id = "rust", command = "rust-analyzer", status = LanguageServiceStatus.Failed, statusMessage = "rust-analyzer is not in the Linux runtime. Install it in a terminal first."),
         ),
         selectedLanguageServiceId = TYPESCRIPT_SERVICE,
         activeWorkspace = "icode-subsystem",
@@ -222,6 +227,12 @@ object CaptureFixtures {
     @SuppressLint("SdCardPath")
     private const val SAMPLE_ROOTFS = "/data/user/0/dev.icode.mobile/files/runtime/rootfs"
     private const val BRANCH = "feature/auth"
+    /** A language server's problem, as the owner makes one from its report (zero-based, as LSP counts). */
+    private fun languageProblem(severity: Severity, file: String, message: String, line: Int, from: Int, to: Int, code: String): Diagnostic {
+        val range = TextRange(TextPosition(line, from), TextPosition(line, to))
+        return Diagnostic(severity, file, message, DiagnosticRules.locationOf(range), "typescript", range, code, TYPESCRIPT_SERVICE)
+    }
+
     private const val TYPESCRIPT_SERVICE = "typescript"
     private const val MINUTE = 60_000L
     private const val MIB = 1024L * 1024

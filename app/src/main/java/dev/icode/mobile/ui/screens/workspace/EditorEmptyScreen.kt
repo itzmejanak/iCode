@@ -94,7 +94,7 @@ fun EditorEmptyScreen(actions: NavigationActions) {
             }
         }
         BottomPanelBar(
-            problemCount = state.diagnostics.size,
+            problemCount = state.problems.size,
             onTerminal = { actions.openPanel(ToolPanelTab.Terminal) },
             onProblems = { actions.openPanel(ToolPanelTab.Problems) },
         )

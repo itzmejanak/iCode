@@ -1,5 +1,6 @@
 package dev.icode.mobile.ui.screens.tools
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,8 +33,10 @@ import dev.icode.mobile.designsystem.IcodeTone
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.domain.Diagnostic
 import dev.icode.mobile.domain.FileTypes
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.Severity
 import dev.icode.mobile.domain.countOf
+import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.screens.workspace.fileTypeIcon
 import dev.icode.mobile.ui.screens.workspace.fileTypeTint
@@ -45,7 +48,9 @@ fun ProblemsPanelContent(
     onFilterChange: (Severity) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val diagnostics = LocalICodeSnapshot.current.diagnostics
+    val snapshot = LocalICodeSnapshot.current
+    val gateway = LocalICodeGateway.current
+    val diagnostics = snapshot.problems
     val errorCount = diagnostics.count { it.severity == Severity.Error }
     val warningCount = diagnostics.count { it.severity == Severity.Warning }
     val infoCount = diagnostics.count { it.severity == Severity.Info }
@@ -61,7 +66,7 @@ fun ProblemsPanelContent(
                     EmptyState(
                         title = if (diagnostics.isEmpty()) "No diagnostics reported" else "No ${severityLabel(filter).lowercase()} reported",
                         description = if (diagnostics.isEmpty()) {
-                            "Build & Run lists a build's errors here. Language servers' diagnostics are not connected yet."
+                            "A build's errors and your language servers' problems show here."
                         } else {
                             "Other severity filters may still have reported diagnostics."
                         },
@@ -78,6 +83,7 @@ fun ProblemsPanelContent(
                         message = diagnostic.message,
                         location = diagnostic.location,
                         source = diagnostic.source,
+                        modifier = Modifier.clickable { openProblem(diagnostic, snapshot.activeWorkspaceLocation)?.let(gateway::dispatch) },
                     )
                 }
             }
@@ -96,6 +102,14 @@ fun ProblemsPanelContent(
             },
         )
     }
+}
+
+/** The file and place [diagnostic] is about, opened in the editor; null without a workspace. */
+internal fun openProblem(diagnostic: Diagnostic, workspace: String?): ICodeIntent.OpenFile? {
+    val top = workspace ?: return null
+    val start = diagnostic.range?.start
+    // OpenFile's line is one-based and its column zero-based, as search results give them.
+    return ICodeIntent.OpenFile("$top/${diagnostic.file}", start?.let { it.line + 1 }, start?.column)
 }
 
 internal fun visibleDiagnostics(diagnostics: List<Diagnostic>, severity: Severity): List<Diagnostic> =
