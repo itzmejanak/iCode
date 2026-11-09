@@ -231,6 +231,8 @@ sealed interface ICodeIntent {
     /** Stops the turn in hand: the request, and a running command with everything it started. */
     data object StopAssistant : AssistantIntent
     data class AnswerAssistant(val callId: String, val answer: AssistantAnswer) : AssistantIntent
+    /** The user's reply to the questions of the call [callId] (docs/assistant-questions-plan.md D4). */
+    data class ReplyAssistant(val callId: String, val reply: AssistantReply) : AssistantIntent
     /** The turn's pause answered: it goes on (Continue, Done). Stop is [StopAssistant]. */
     data object ContinueAssistant : AssistantIntent
     /** Summarizes the shown chat so later turns send less (§12 R4). */

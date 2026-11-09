@@ -4,7 +4,6 @@ import dev.icode.mobile.data.assistant.tools.AssistantWorkspace
 import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.runtime.GuestPaths
 import dev.icode.mobile.data.workspace.WorkspaceRoot
-import dev.icode.mobile.domain.AssistantAnswer
 import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantHistory
 import dev.icode.mobile.domain.AssistantLive
@@ -50,6 +49,8 @@ internal class AssistantTurns(
     private val attachments: AssistantAttachments,
     /** All Files Access, as Android answers it now: phone storage is read with it (docs/phone-agent-plan.md L8). */
     private val storageAccess: () -> Boolean,
+    /** What the turn asks the user; its answers come to it from the coordinator. */
+    private val questions: AssistantQuestions,
 ) {
     private val lock = Any()
     private var job: Job? = null
@@ -57,7 +58,6 @@ internal class AssistantTurns(
     private var place: Pair<String, String>? = null
     /** The call running now: what an approval is about. */
     private var calling: AssistantCall? = null
-    private val questions = AssistantQuestions(page)
 
     /** The lines each change to a file added and removed, by call, until its result is recorded. */
     private val counted = mutableMapOf<String, LineChanges>()
@@ -92,11 +92,6 @@ internal class AssistantTurns(
         synchronized(lock) { job.takeIf { place?.first == workspace } }?.cancelAndJoin()
     }
 
-    fun answer(callId: String, answer: AssistantAnswer) = questions.answer(callId, answer)
-
-    /** The turn's pause answered Continue (or Done): it goes on. */
-    fun resume() = questions.resume()
-
     /** One turn at a time: the job, not the page, decides — a second Send in the same instant finds the first. */
     private fun launch(workspace: String, session: String, aloud: Boolean = false, work: suspend Turn.() -> Unit) = synchronized(lock) {
         if (job?.isActive == true) {
@@ -119,6 +114,7 @@ internal class AssistantTurns(
     private inner class Turn(val workspace: String, val session: String, val aloud: Boolean) : AssistantEvents {
         /** The step its tools are on (L2, L3), and the hand-over its phone tools wait on (§5.5). */
         val step = AssistantStep(
+            clarify = questions::clarify,
             handOver = { why -> questions.pause(AssistantPause(AssistantPause.Kind.HandOver, why), THINKING) },
             progress = { text -> step(text) },
             terminal = { callId, session -> page.state { it.copy(turn = it.turn?.copy(terminal = AssistantTerminal(callId, session))) } },
@@ -158,7 +154,7 @@ internal class AssistantTurns(
                     tools.done()
                     page.listed(workspace)
                     page.refresh(workspace, session)
-                    page.state { it.copy(turn = null, approval = null, pause = null, failure = if (shows(it.workspace, it.session)) failure else it.failure) }
+                    page.state { it.copy(turn = null, approval = null, pause = null, clarification = null, failure = if (shows(it.workspace, it.session)) failure else it.failure) }
                     if (failure != null && !page.current.let { shows(it.workspace, it.session) }) page.say(NoticeTone.Problem, "The assistant's turn failed", failure)
                 }
             }
@@ -203,15 +199,20 @@ internal class AssistantTurns(
                 try {
                     return runWithRetry { attempt ->
                         step(if (attempt == 0) THINKING else "Preparing to retry…")
+                        // A retry after the model answered goes on from the chat: what it ran or asked is not done again (D9).
+                        if (attempt > 0 && AssistantRules.replied(chats.of(workspace, session).messages)) next = goOn(next)
                         engine.run(next, this)
                     }
                 } catch (limit: AssistantStepLimitException) {
                     // The user says whether it goes on; it goes on from the chat as it is (L5).
                     questions.pause(AssistantPause(AssistantPause.Kind.StepLimit, "It has taken $MAX_STEPS steps on this message."), THINKING)
-                    next = next.copy(history = AssistantRules.forModel(chats.of(workspace, session).messages).messages, input = null)
+                    next = goOn(next)
                 }
             }
         }
+
+        /** [request] going on from the chat as saved: its steps so far are the history, and nothing new is said. */
+        private fun goOn(request: AssistantTurnRequest) = request.copy(history = AssistantRules.forModel(chats.of(workspace, session).messages).messages, input = null)
 
         private suspend fun runWithRetry(block: suspend (Int) -> Unit) =
             AssistantRetries.runWithRetry(step = ::step, block = block)

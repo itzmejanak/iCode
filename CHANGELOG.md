@@ -7,6 +7,12 @@ All notable changes to iCode are documented here. The format follows
 ## [Unreleased]
 
 ### Added
+- The assistant asks you when a choice is yours ([docs/assistant-questions-plan.md](docs/assistant-questions-plan.md)).
+  Mid-task it shows one to four questions above the message box, each with options and what each
+  means, plus Other for your own words. Several questions go one at a time and are sent together;
+  × skips them. The task then carries on with your answers. You can also type or say a reply
+  instead. This works from the bubble too, where the question is read aloud on a spoken turn. It is
+  asked in every mode, and the step keeps the questions with your answers.
 - Language servers, end to end. Settings › Languages adds one from a known server (pylsp, Pyright,
   clangd, gopls, TypeScript, Bash, HTML, CSS, JSON, YAML — each with the command that installs it) or
   your own, with its languages, file patterns, root markers, environment, initialization options and
@@ -138,6 +144,11 @@ All notable changes to iCode are documented here. The format follows
   controls.
 - One spinner, one "waiting" line and one progress bar everywhere; a clone whose share Git has not
   given yet shows a moving bar instead of one stuck at zero.
+
+### Fixed
+- The assistant: when a provider error is retried after the model has already done something in
+  the turn, the retry carries on from the chat. It no longer runs those steps again or asks
+  questions that were already answered.
 
 ## [0.1.0]
 

@@ -17,8 +17,14 @@ internal object AssistantInstructions {
     private fun approvals(name: String, permission: AssistantPermission): String = when (permission) {
         AssistantPermission.AskFirst -> "The user approves each change and command, and anything outside “$name”, before it runs."
         AssistantPermission.AutoInWorkspace -> "Changes and commands in “$name” run without asking; anything outside it is asked of the user first."
-        AssistantPermission.FullAccess -> "Nothing is asked of the user."
+        AssistantPermission.FullAccess -> "No approval is asked of the user."
     }
+
+    /** When the user decides (docs/assistant-questions-plan.md D1): asked with options, never guessed, nor asked in prose. */
+    private const val ASKING =
+        "When what is missing, or a choice, is the user's — what they want, a decision between approaches, a preference the " +
+            "workspace does not show — ask with ask_user rather than guessing or asking in your answer, then go on with their reply. " +
+            "Ask only what you need, together in one call. Never use it for permission: iCode asks before changes and commands itself."
 
     /** What the model is asked for when a chat is compacted (§12 R4). */
     const val COMPACT_REQUEST =
@@ -61,7 +67,7 @@ internal object AssistantInstructions {
         appendLine("## Tool use")
         appendLine("- Call multiple independent tools at once (e.g. read several files in parallel).")
         appendLine("- When one result is needed for the next, use tools one at a time.")
-        appendLine("- Never guess parameters or use placeholders. If information is missing, tell the user what is needed.")
+        appendLine("- Never guess parameters or use placeholders. $ASKING")
         projectNotes(workspace.root)?.let { notes ->
             appendLine()
             appendLine("The project's own instructions, from its AGENTS.md:")
@@ -99,7 +105,6 @@ internal object AssistantInstructions {
                         "Check with process_status. Stop when done. A server listens on a port from 1024; " +
                         "the user opens http://127.0.0.1:<port> in their browser.",
                 )
-                appendLine("- When you need more information, tell the user what is missing and ask.")
             }
             AssistantMode.Plan -> {
                 appendLine("## Your role")
@@ -110,7 +115,7 @@ internal object AssistantInstructions {
                 appendLine("- Analyze architecture, identify issues, evaluate different approaches.")
                 appendLine("- Produce a clear plan with concrete steps. Show suggested code as diffs or code blocks.")
                 appendLine("- You CANNOT change files or run commands. You only read and propose.")
-                appendLine("- Ask clarifying questions when the request is ambiguous.")
+                appendLine("- When the request is ambiguous, ask with ask_user before you plan.")
             }
             AssistantMode.Ask -> {
                 appendLine("## Your role")

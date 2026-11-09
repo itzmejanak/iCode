@@ -80,6 +80,6 @@ internal class AssistantToolbox(
             ListRunCommandsTool(workspace, runs),
             SaveRunCommandTool(workspace, runs),
             DeleteRunCommandTool(workspace, runs),
-        ) + speechProviderTools(speech) + languageServiceTools(languages, workspace)
+        ) + speechProviderTools(speech) + languageServiceTools(languages, workspace) + AskUserTool(step)
     }
 }

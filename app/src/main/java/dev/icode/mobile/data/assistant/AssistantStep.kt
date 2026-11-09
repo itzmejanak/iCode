@@ -1,6 +1,8 @@
 package dev.icode.mobile.data.assistant
 
 import dev.icode.mobile.domain.AssistantCall
+import dev.icode.mobile.domain.AssistantQuestion
+import dev.icode.mobile.domain.AssistantReply
 import java.util.concurrent.atomic.AtomicReference
 
 /**
@@ -12,6 +14,8 @@ internal class AssistantStep(
     val progress: (String) -> Unit = {},
     /** The call [callId] runs in the terminal tab [session]: its step shows that tab live while it runs (docs/agent-control-plan.md §6). */
     val terminal: (callId: String, session: String) -> Unit = { _, _ -> },
+    /** The call asks the user its questions and waits for the reply (docs/assistant-questions-plan.md D2). */
+    val clarify: suspend (call: AssistantCall, questions: List<AssistantQuestion>) -> AssistantReply = { _, _ -> AssistantReply.Skipped },
     /** The user takes a step themselves — a password, a payment — and the turn waits for Done (§5.5). Last: a trailing lambda is this. */
     val handOver: suspend (why: String) -> Unit = {},
 ) {

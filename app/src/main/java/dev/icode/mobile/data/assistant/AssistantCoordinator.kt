@@ -61,10 +61,12 @@ internal class AssistantCoordinator(
     private val page = AssistantPage(stateHolder, scope, chats)
     private val settings = AssistantProviders(stateHolder, scope, engine, providers, page)
     private val commitMessages = AssistantCommitMessages(scope, engine, providers, settings::settings, page, git)
+    private val questions = AssistantQuestions(page)
     private val turns = AssistantTurns(
         page, scope, engine, providers, settings::settings, chats, AssistantTools.of(tools, mcp), describe, paths,
         attachments { location -> stateHolder.current.openDocuments.firstOrNull { it.location == location }?.text },
         storageAccess,
+        questions,
     )
 
     /**
@@ -100,8 +102,9 @@ internal class AssistantCoordinator(
             ICodeIntent.NewAssistantChat -> (page.current.workspace ?: place())?.let { page.display(it, null) } ?: noWorkspace()
             is ICodeIntent.SendAssistantMessage -> send(intent.text, intent.attachments, intent.aloud)
             ICodeIntent.StopAssistant -> turns.stop()
-            is ICodeIntent.AnswerAssistant -> turns.answer(intent.callId, intent.answer)
-            ICodeIntent.ContinueAssistant -> turns.resume()
+            is ICodeIntent.AnswerAssistant -> questions.answer(intent.callId, intent.answer)
+            is ICodeIntent.ReplyAssistant -> questions.reply(intent.callId, intent.reply)
+            ICodeIntent.ContinueAssistant -> questions.resume()
             ICodeIntent.CompactAssistantChat -> compact()
             ICodeIntent.OpenAssistantTerminal -> openTerminal()
             ICodeIntent.RetryAssistantMessage -> retry()
@@ -146,6 +149,8 @@ internal class AssistantCoordinator(
         val shown = page.current
         val workspace = shown.workspace ?: place() ?: return noWorkspace()
         val session = shown.session?.takeIf { shown.workspace == workspace } ?: chats.newSession()
+        // Sent while the turn there asks its questions: the reply, not a new turn refused as working (D5).
+        if (attachments.isEmpty() && questions.replyWith(workspace, session, input)) return
         // Read aloud as Spoken replies says: decided once, so the turn's instructions and its voice agree.
         turns.send(workspace, session, input, attachments, stateHolder.current.voice.spoken.speaks(aloud))
     }

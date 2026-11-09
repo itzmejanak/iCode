@@ -57,6 +57,12 @@ object AssistantRules {
     fun unanswered(state: AssistantState): String? =
         if (!state.running && state.messages.lastOrNull() is AssistantMessage.User) "m${state.messages.lastIndex}" else null
 
+    /**
+     * The turn has answered since the user's message — a reply, a call's result: a retry then goes on
+     * from the chat, never asking or running again what it did (docs/assistant-questions-plan.md D9).
+     */
+    fun replied(messages: List<AssistantMessage>): Boolean = messages.isNotEmpty() && messages.last() !is AssistantMessage.User
+
     /** The page: what was said and done in [state]'s chat. */
     fun entries(state: AssistantState): List<AssistantEntry> = buildList {
         var firstOpen = true
@@ -71,7 +77,7 @@ object AssistantRules {
                         val result = results[call.id]
                         val status = when {
                             result != null -> if (result.failed) AssistantStepStatus.Failed else AssistantStepStatus.Done
-                            state.approval?.call?.id == call.id -> AssistantStepStatus.Asking
+                            state.approval?.call?.id == call.id || state.clarification?.call?.id == call.id -> AssistantStepStatus.Asking
                             !state.runningHere -> AssistantStepStatus.Failed
                             firstOpen -> AssistantStepStatus.Running
                             else -> AssistantStepStatus.Queued

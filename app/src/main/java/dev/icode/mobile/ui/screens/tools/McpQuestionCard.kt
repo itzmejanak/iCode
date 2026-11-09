@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Icon
@@ -19,9 +20,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import dev.icode.mobile.designsystem.DetailRow
 import dev.icode.mobile.designsystem.IcodeCard
-import dev.icode.mobile.designsystem.IcodeCheckbox
-import dev.icode.mobile.designsystem.IcodeChoiceRow
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodeOptionRow
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTextField
 import dev.icode.mobile.designsystem.IcodeToggle
@@ -85,17 +85,16 @@ private fun Field(field: McpField, value: String?, onValue: (String) -> Unit) {
                 Text(title, style = IcodeType.Body, modifier = Modifier.weight(1f))
                 IcodeToggle(value == "true") { onValue(it.toString()) }
             }
-            McpField.Kind.Choice -> {
+            // The rows the assistant's own questions use: the whole row is the radio, or the checkbox.
+            McpField.Kind.Choice, McpField.Kind.Choices -> {
                 Text(title, style = IcodeType.Label.copy(color = IcodeColors.TextSecondary))
-                field.options.forEach { (option, label) -> IcodeChoiceRow(label, value == option, { onValue(option) }) }
-            }
-            McpField.Kind.Choices -> {
-                Text(title, style = IcodeType.Label.copy(color = IcodeColors.TextSecondary))
-                val chosen = value.orEmpty().lines().filter(String::isNotEmpty).toSet()
-                field.options.forEach { (option, label) ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IcodeCheckbox(option in chosen, { on -> onValue((if (on) chosen + option else chosen - option).joinToString("\n")) })
-                        Text(label, style = IcodeType.Body)
+                val multiple = field.kind == McpField.Kind.Choices
+                val chosen = if (multiple) value.orEmpty().lines().filter(String::isNotEmpty).toSet() else setOfNotNull(value)
+                Column(if (multiple) Modifier else Modifier.selectableGroup()) {
+                    field.options.forEach { (option, label) ->
+                        IcodeOptionRow(label, description = null, selected = option in chosen, multiple = multiple, onSelect = {
+                            onValue(if (!multiple) option else (if (option in chosen) chosen - option else chosen + option).joinToString("\n"))
+                        })
                     }
                 }
             }

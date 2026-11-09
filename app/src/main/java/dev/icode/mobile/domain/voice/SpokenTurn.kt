@@ -3,6 +3,7 @@ package dev.icode.mobile.domain.voice
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantPermissions
 import dev.icode.mobile.domain.AssistantPlace
+import dev.icode.mobile.domain.AssistantQuestionRules
 import dev.icode.mobile.domain.AssistantState
 import kotlin.math.min
 
@@ -80,12 +81,16 @@ class SpokenTurn {
         return ready.sentences.map { VoiceCue.Say(it) }
     }
 
-    /** A question the turn asks now: an approval, or a pause. */
+    /** A question the turn asks now: an approval, the model's questions — the first, with its options — or a pause. */
     private fun asked(before: AssistantState, after: AssistantState): List<VoiceCue> {
         val approval = after.approval
         if (approval != null && approval.call.id != before.approval?.call?.id) {
             val bound = AssistantPlace.name(after.turn?.workspace ?: after.workspace.orEmpty())
             return listOf(VoiceCue.Say("${SpokenText.of(AssistantPermissions.question(approval, bound))} ${SpokenText.of(approval.call.summary)}"))
+        }
+        val clarification = after.clarification
+        if (clarification != null && clarification.call.id != before.clarification?.call?.id) {
+            return listOf(VoiceCue.Say(SpokenText.of(AssistantQuestionRules.spoken(clarification))))
         }
         val pause = after.pause ?: return emptyList()
         if (before.pause != null) return emptyList()
