@@ -32,11 +32,17 @@ class SyntaxColorsTest {
             SyntaxRole.Comment, SyntaxRole.Keyword, SyntaxRole.Control, SyntaxRole.String, SyntaxRole.Number,
             SyntaxRole.Function, SyntaxRole.Type, SyntaxRole.Attribute, SyntaxRole.Regex, SyntaxRole.Invalid,
         )
+        // A variant's own colours are its theme's: it draws control keywords as keywords, attributes as
+        // types, as its editor does (docs/theme-variants-plan.md D5). The six it sets apart stay apart.
+        val variantMain = listOf(
+            SyntaxRole.Comment, SyntaxRole.Keyword, SyntaxRole.String, SyntaxRole.Number, SyntaxRole.Function, SyntaxRole.Type,
+        )
         palettes.forEach { palette ->
             coloured.forEach { role ->
                 assertNotEquals("${palette.kind} $role", palette.textPrimary, palette.syntaxColor(role))
             }
-            assertEquals("${palette.kind}", main.size, main.map { palette.syntaxColor(it) }.toSet().size)
+            val apart = if (palette.syntax == null) main else variantMain
+            assertEquals("${palette.kind}", apart.size, apart.map { palette.syntaxColor(it) }.toSet().size)
         }
     }
 

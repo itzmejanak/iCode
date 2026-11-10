@@ -58,6 +58,16 @@ class EditorThemeTest {
         }
     }
 
+    @Test fun `two palettes share a theme name only when they draw code alike`() {
+        // tm4e keeps loaded themes by name: a shared name would draw one variant in another's colours.
+        val drawing = palettes.groupBy { palette ->
+            listOf(palette.backgroundDeep, palette.editorLineHighlight) + SyntaxRole.entries.map { palette.syntaxColor(it) }
+        }
+        val names = drawing.mapValues { (_, alike) -> alike.map(::themeName).toSet() }
+        names.forEach { (_, named) -> assertEquals(1, named.size) }
+        assertEquals(drawing.size, names.values.flatten().toSet().size)
+    }
+
     private fun hex(argb: Int) = "#%06X".format(argb and 0xFFFFFF)
 
     @Suppress("unused") private fun pretty(theme: JSONObject) = theme.toString(2)

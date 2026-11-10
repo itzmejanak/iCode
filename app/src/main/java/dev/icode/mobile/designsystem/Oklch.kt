@@ -73,8 +73,29 @@ internal object Oklch {
         return originals.map { if (darker) Color.Black else Color.White }
     }
 
+    /**
+     * A colour of [chroma] and [hue] whose lightness is the nearest to [from]'s, on its [darker] or
+     * lighter side, that still stands [minimum] : 1 from it — the step a palette keeps between two of
+     * its tones (docs/theme-variants-plan.md D4). The other side when that one has no room.
+     */
+    fun stepFrom(chroma: Double, hue: Double, from: Color, minimum: Double, darker: Boolean): Color =
+        step(chroma, hue, from, minimum, darker) ?: step(chroma, hue, from, minimum, !darker) ?: if (darker) Color.Black else Color.White
+
+    private fun step(chroma: Double, hue: Double, from: Color, minimum: Double, darker: Boolean): Color? {
+        val start = lch(from.toArgb() and 0xFFFFFF)[0]
+        var l = start
+        while (l in 0.0..1.0) {
+            val candidate = color(l, chroma, hue)
+            if (AccentColorRules.contrastRatio(candidate.toArgb(), from.toArgb()) >= minimum) return candidate
+            l += if (darker) -FINE_STEP else FINE_STEP
+        }
+        // The very end of the range: black or white at this hue still counts.
+        val end = color(if (darker) 0.0 else 1.0, chroma, hue)
+        return end.takeIf { AccentColorRules.contrastRatio(it.toArgb(), from.toArgb()) >= minimum }
+    }
+
     /** Lightness, chroma and hue (degrees) of an sRGB colour given as `0xRRGGBB`. */
-    private fun lch(rgb: Int): DoubleArray {
+    fun lch(rgb: Int): DoubleArray {
         val (r, g, b) = listOf(rgb shr 16, rgb shr 8, rgb).map { decode((it and 0xFF) / 255.0) }
         val l = cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b)
         val m = cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b)
@@ -104,5 +125,7 @@ internal object Oklch {
 
     private const val CHROMA_STEP = 0.002
     private const val LIGHTNESS_STEP = 0.01
+    /** Steps between a palette's own tones are small (1.07 : 1 and less), so they are found finer. */
+    private const val FINE_STEP = 0.002
     private const val GAMUT_EPSILON = 1e-6
 }

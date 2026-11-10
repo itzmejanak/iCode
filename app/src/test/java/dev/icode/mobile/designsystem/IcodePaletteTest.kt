@@ -4,8 +4,10 @@ import androidx.compose.ui.graphics.Color
 import dev.icode.mobile.domain.AccentColorRules
 import dev.icode.mobile.domain.AppEnvironment
 import dev.icode.mobile.domain.AppTheme
+import dev.icode.mobile.domain.ThemeVariantRules
 import androidx.compose.ui.graphics.toArgb
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -37,7 +39,7 @@ class IcodePaletteTest {
     @Test fun `every environment's accent reads on every theme, and so does what is drawn on it`() {
         AppEnvironment.entries.forEach { environment ->
             AppTheme.entries.forEach { theme ->
-                val palette = IcodePalette.of(theme, borderLines = true)
+                val palette = IcodePalette.of(theme, null, borderLines = true)
                 val accent = AccentColorRules.themeAccent(theme, environment)
                 assertTrue("$environment on $theme", AccentColorRules.contrastRatio(accent, palette.background.toArgb()) >= AccentColorRules.MIN_CONTRAST)
                 assertTrue("on $environment's $theme accent", AccentColorRules.contrastRatio(palette.onAccent.toArgb(), accent) >= 4.5)
@@ -45,23 +47,41 @@ class IcodePaletteTest {
         }
     }
 
-    @Test fun `with border lines each theme is its own palette`() {
-        assertSame(IcodePalette.Dark, IcodePalette.of(AppTheme.Dark, borderLines = true))
-        assertSame(IcodePalette.Light, IcodePalette.of(AppTheme.Light, borderLines = true))
-        assertSame(IcodePalette.Amoled, IcodePalette.of(AppTheme.Amoled, borderLines = true))
+    @Test fun `with border lines each theme's iCode variant is its own palette, however it is named`() {
+        // No variant, iCode's id, and an id no variant has (one a later version removed): today's look.
+        listOf(null, ThemeVariantRules.ICODE, "removed_variant").forEach { id ->
+            assertSame("$id", IcodePalette.Dark, IcodePalette.of(AppTheme.Dark, id, borderLines = true))
+            assertSame("$id", IcodePalette.Light, IcodePalette.of(AppTheme.Light, id, borderLines = true))
+            assertSame("$id", IcodePalette.Amoled, IcodePalette.of(AppTheme.Amoled, id, borderLines = true))
+        }
+    }
+
+    @Test fun `each theme lists iCode's own first, then variants the settings can keep, each of its theme`() {
+        AppTheme.entries.forEach { theme ->
+            val variants = ThemeVariants.of(theme)
+            assertEquals("$theme", ThemeVariantRules.ICODE, variants.first().id)
+            assertEquals("$theme", variants.size, variants.map { it.id }.toSet().size)
+            variants.forEach { variant ->
+                assertTrue("$theme ${variant.id}", ThemeVariantRules.isId(variant.id))
+                assertFalse("$theme ${variant.id}", variant.name.isBlank())
+                assertEquals("$theme ${variant.id}", theme, variant.theme)
+                assertEquals("$theme ${variant.id}", theme.name, variant.palette.kind.name)
+                assertSame("$theme ${variant.id}", variant, ThemeVariants.find(theme, variant.id))
+            }
+        }
     }
 
     @Test fun `without border lines a card stands at least 1_12 to 1 from its page, in every theme`() {
-        AppTheme.entries.forEach { theme ->
-            val drawn = IcodePalette.of(theme, borderLines = false)
+        everyVariant { theme ->
+            val drawn = IcodePalette.of(theme.first, theme.second, borderLines = false)
             assertTrue("$theme", contrast(drawn.surface, drawn.background) >= 1.12)
         }
     }
 
     @Test fun `without border lines every other surface keeps its own step from what it sits on`() {
-        AppTheme.entries.forEach { theme ->
-            val before = IcodePalette.of(theme, borderLines = true)
-            val drawn = IcodePalette.of(theme, borderLines = false)
+        everyVariant { theme ->
+            val before = IcodePalette.of(theme.first, theme.second, borderLines = true)
+            val drawn = IcodePalette.of(theme.first, theme.second, borderLines = false)
             fun keeps(what: String, step: (IcodePalette) -> Double) =
                 assertTrue("$theme $what", step(drawn) >= step(before) - EPSILON)
             keeps("chip on card") { contrast(it.surfaceElevated, it.surface) }
@@ -73,9 +93,9 @@ class IcodePaletteTest {
     }
 
     @Test fun `without border lines nothing drawn on a surface reads worse, unless it meets WCAG AA`() {
-        AppTheme.entries.forEach { theme ->
-            val before = IcodePalette.of(theme, borderLines = true)
-            val drawn = IcodePalette.of(theme, borderLines = false)
+        everyVariant { theme ->
+            val before = IcodePalette.of(theme.first, theme.second, borderLines = true)
+            val drawn = IcodePalette.of(theme.first, theme.second, borderLines = false)
             val surfaces = listOf<(IcodePalette) -> Color>({ it.background }, { it.backgroundDeep }, { it.surface }, { it.surfaceElevated })
             val colours = mapOf<String, Pair<(IcodePalette) -> Color, Double>>(
                 "text" to ({ p: IcodePalette -> p.textPrimary } to 4.5), "secondary" to ({ p: IcodePalette -> p.textSecondary } to 4.5),
@@ -98,15 +118,19 @@ class IcodePaletteTest {
     }
 
     @Test fun `without border lines the accent and what is drawn on it are the theme's`() {
-        AppTheme.entries.forEach { theme ->
-            val before = IcodePalette.of(theme, borderLines = true)
-            val drawn = IcodePalette.of(theme, borderLines = false)
+        everyVariant { theme ->
+            val before = IcodePalette.of(theme.first, theme.second, borderLines = true)
+            val drawn = IcodePalette.of(theme.first, theme.second, borderLines = false)
             assertEquals(before.accent, drawn.accent)
             assertEquals(before.onAccent, drawn.onAccent)
             assertEquals(before.kind, drawn.kind)
             assertEquals(before.diffAddedSurface, drawn.diffAddedSurface)
         }
     }
+
+    /** Each variant of each theme, as (theme, variant id). */
+    private fun everyVariant(check: (Pair<AppTheme, String>) -> Unit) =
+        AppTheme.entries.forEach { theme -> ThemeVariants.of(theme).forEach { check(theme to it.id) } }
 
     private fun contrast(first: Color, second: Color) = AccentColorRules.contrastRatio(first.toArgb(), second.toArgb())
 

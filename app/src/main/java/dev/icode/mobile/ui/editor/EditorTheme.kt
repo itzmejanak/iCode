@@ -6,6 +6,7 @@ import android.os.Looper
 import androidx.annotation.MainThread
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import dev.icode.mobile.data.io.Sha256
 import dev.icode.mobile.designsystem.IcodePalette
 import dev.icode.mobile.designsystem.PaletteKind
 import dev.icode.mobile.designsystem.SyntaxRole
@@ -54,11 +55,17 @@ internal fun editorTheme(palette: IcodePalette): JSONObject {
 }
 
 /**
- * [palette]'s TextMate theme by what its colours follow — the kind, the editor and its current line —
- * so the same theme drawn on other tones (without border lines) is a theme of its own.
+ * [palette]'s TextMate theme by every colour it holds — the editor, its current line and each role's —
+ * so two palettes share a cached theme only when they draw code alike: a variant's own colours, or the
+ * same theme on other tones (without border lines), are themes of their own (docs/theme-variants-plan.md D5).
  */
-internal fun themeName(palette: IcodePalette): String =
-    "icode-${palette.kind.name.lowercase()}-${hex(palette.backgroundDeep).drop(1)}-${hex(palette.editorLineHighlight).drop(1)}"
+internal fun themeName(palette: IcodePalette): String {
+    val colours = listOf(palette.backgroundDeep, palette.editorLineHighlight) + SyntaxRole.entries.map { palette.syntaxColor(it) }
+    return "icode-${palette.kind.name.lowercase()}-" + Sha256.hex(colours.joinToString(",") { hex(it) }).take(NAME_DIGITS)
+}
+
+/** 64 bits of the digest name a theme: far past any count of palettes the app draws. */
+private const val NAME_DIGITS = 16
 
 /** A colour no role draws with (tested), standing for "the text colour" in the theme. */
 internal const val DEFAULT_COLOR_SENTINEL = "#010101"

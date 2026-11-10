@@ -35,6 +35,8 @@ interface WorkspacePreferencesRepository {
     suspend fun setBorderLines(shown: Boolean)
     /** Null returns to the theme's own accent. */
     suspend fun setAccentColor(argb: Int?)
+    /** [theme]'s variant from now on; null, or [ThemeVariantRules.ICODE], returns it to iCode's own. */
+    suspend fun setThemeVariant(theme: AppTheme, id: String?)
     suspend fun setEditorFontSize(sizeSp: Int)
     suspend fun setEditorFontFamily(family: EditorFontFamily)
     suspend fun setWordWrap(enabled: Boolean)
