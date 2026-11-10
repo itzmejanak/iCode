@@ -80,6 +80,14 @@ class LanguageServiceRulesTest {
         assertEquals("plaintext", LanguageServiceRules.languageIdOf(FileTypes.of("notes")))
     }
 
+    @Test fun `completions are asked as a word is typed or on the server's own trigger, never after a space`() {
+        val triggers = setOf(".", "\"", "<")
+        listOf("a", "Z", "7", "_", "$", ".", "\"").forEach { assertTrue(it, LanguageServiceRules.asksCompletion(it, triggers)) }
+        listOf(" ", ";", "(", "\n", "=").forEach { assertFalse(it, LanguageServiceRules.asksCompletion(it, triggers)) }
+        assertFalse(LanguageServiceRules.asksCompletion(null, triggers))
+        assertFalse(LanguageServiceRules.asksCompletion(".", emptySet()))
+    }
+
     @Test fun `environment lines become variables, and a malformed one is refused`() {
         assertEquals(mapOf("A" to "1", "B" to "x=y"), LanguageServiceRules.environmentOf("A=1\n  B=x=y  \n#C=3"))
         assertThrows(IllegalArgumentException::class.java) { LanguageServiceRules.environmentOf("1A=2") }

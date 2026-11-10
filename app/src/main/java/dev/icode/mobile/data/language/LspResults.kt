@@ -56,6 +56,7 @@ internal class LspResults(private val uris: LspUris, private val workspace: Stri
         return LanguageCompletionItem(
             label = label,
             detail = LanguageJson.string(item, "detail") ?: LanguageJson.string(item["labelDetails"], "description"),
+            labelDetail = LanguageJson.string(item["labelDetails"], "detail"),
             documentation = LanguageJson.markup(item["documentation"]),
             kind = KINDS.getOrNull(((item["kind"] as? JsonPrimitive)?.intOrNull ?: 0) - 1),
             sortText = LanguageJson.string(item, "sortText"),
@@ -135,7 +136,8 @@ internal class LspResults(private val uris: LspUris, private val workspace: Stri
     }.getOrNull().orEmpty()
 
     companion object {
-        const val MAX_COMPLETIONS = 500
+        /** All a server sends, bounded: the editor filters them, so a cut before it would drop what was typed (TypeScript sends ~1500 globals). */
+        const val MAX_COMPLETIONS = 5000
         private const val PREVIEW_CHARS = 160
 
         /** CompletionItemKind, 1-based (spec 3.17). */

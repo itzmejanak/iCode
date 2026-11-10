@@ -153,6 +153,14 @@ object LanguageServiceRules {
         }
     })
 
+    /**
+     * Whether a server is asked for completions with [before] — the character before the caret, null at
+     * the file's start — just typed (docs/editor-completion-plan.md D2): a word's letter, or one of its
+     * own [triggers] (`.`, `"`, `<`). After a space or `;` it is not: the list closes there, as VS Code's.
+     */
+    fun asksCompletion(before: String?, triggers: Collection<String>): Boolean =
+        before != null && (before in triggers || before.length == 1 && (before[0].isLetterOrDigit() || before[0] == '_' || before[0] == '$'))
+
     /** LSP's language identifier for a file of [type] (spec 3.17, "Text Document Item"): iCode's ids are VS Code's, but for shell scripts. */
     fun languageIdOf(type: FileType): String = when (type.id) {
         "shell" -> "shellscript"

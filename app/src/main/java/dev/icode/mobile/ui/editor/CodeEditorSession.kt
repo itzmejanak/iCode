@@ -5,25 +5,25 @@ import android.graphics.Typeface
 import android.text.InputType
 import android.util.Log
 import android.util.TypedValue
-import androidx.core.content.res.ResourcesCompat
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.toArgb
-import dev.icode.mobile.designsystem.IcodePalette
+import androidx.core.content.res.ResourcesCompat
 import dev.icode.mobile.R
+import dev.icode.mobile.designsystem.IcodePalette
 import dev.icode.mobile.domain.EditorFontFamily
 import dev.icode.mobile.domain.EditorKey
 import dev.icode.mobile.domain.EditorSettings
 import dev.icode.mobile.domain.EditorTextRules
 import dev.icode.mobile.domain.FileTypes
 import dev.icode.mobile.domain.GitDiffHunk
+import dev.icode.mobile.domain.IndentType
 import dev.icode.mobile.domain.LineDiff
 import dev.icode.mobile.domain.LineEnding
 import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.domain.SettingLimits
-import dev.icode.mobile.domain.IndentType
 import dev.icode.mobile.domain.WorkspacePreferences
 import io.github.rosemoe.sora.event.ClickEvent
 import io.github.rosemoe.sora.event.ContentChangeEvent
@@ -162,15 +162,15 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
         return true
     }
 
-    /** A key of the keys row (docs/editor-plan.md §4): as from a keyboard, so the editor's rules apply. */
+    /** A key of the keys row (docs/editor-plan.md §4), as from a keyboard; over the completion list, Tab takes its row and ↑ ↓ choose (docs/editor-completion-plan.md D6). */
     fun press(key: EditorKey) {
         if (!editor.isEditable) return
         when (key) {
-            EditorKey.Tab -> editor.indentOrCommitTab()
+            EditorKey.Tab -> if (!editor.completions.acceptChosen()) editor.indentOrCommitTab()
             EditorKey.Outdent -> editor.unindentSelection()
             EditorKey.Left -> editor.moveSelection(SelectionMovement.LEFT)
-            EditorKey.Up -> editor.moveSelection(SelectionMovement.UP)
-            EditorKey.Down -> editor.moveSelection(SelectionMovement.DOWN)
+            EditorKey.Up -> if (!editor.completions.moveChoice(up = true)) editor.moveSelection(SelectionMovement.UP)
+            EditorKey.Down -> if (!editor.completions.moveChoice(up = false)) editor.moveSelection(SelectionMovement.DOWN)
             EditorKey.Right -> editor.moveSelection(SelectionMovement.RIGHT)
             // Sora's enhanced Home and End: the first non-blank character, then column 0; the end of the text, then the line's.
             EditorKey.Home -> editor.moveSelection(SelectionMovement.LINE_START)

@@ -9,7 +9,10 @@ data class LanguageTextEdit(val range: TextRange, val newText: String)
 /** One of a server's completions (`CompletionItem`), as the editor's list shows and inserts it. */
 data class LanguageCompletionItem(
     val label: String,
+    /** What it is — its type, or where it comes from — drawn at the row's end. */
     val detail: String? = null,
+    /** What follows the label on its row, a function's parameters (`labelDetails.detail`): `(x: number)`. */
+    val labelDetail: String? = null,
     val documentation: String? = null,
     /** `Function`, `Variable`…: LSP's CompletionItemKind by name. */
     val kind: String? = null,

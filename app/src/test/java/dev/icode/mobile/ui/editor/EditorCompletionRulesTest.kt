@@ -15,11 +15,39 @@ class EditorCompletionRulesTest {
         assertEquals("\$el_2", EditorCompletionRules.prefixOf("x = \$el_2", 9))
     }
 
+    private fun labels(prefix: String, vararg names: String, sortText: String? = "15") =
+        EditorCompletionRules.matching(names.map { LanguageCompletionItem(it, sortText = sortText) }, prefix).map { it.item.label }
+
     @Test
-    fun `items holding the typed letters in order show, those starting with them first`() {
-        val items = listOf("isinstance", "print", "sprintf", "pretty_int", "open").map { LanguageCompletionItem(it, sortText = it) }
-        assertEquals(listOf("print", "pretty_int", "sprintf"), EditorCompletionRules.matching(items, "pri").map { it.label })
-        assertEquals(5, EditorCompletionRules.matching(items, "").size)
+    fun `the first typed letter starts the word or a word in it, as VS Code matches`() {
+        // The owner's screenshot: TypeScript gives every global one sortText.
+        assertEquals(listOf("await", "AudioWorklet", "AudioWorkletNode"), labels("aw", "DataView", "HTMLTableRowElement", "AudioWorkletNode", "AudioWorklet", "await"))
+        assertEquals(listOf("print", "pretty_int"), labels("pri", "isinstance", "print", "sprintf", "pretty_int", "open"))
+        assertEquals(listOf("getElementById"), labels("gebi", "getElementById", "getElementsByTagName"))
+        assertEquals(listOf("HTMLElement"), labels("el", "HTMLElement", "Model"))
+        // Only the first letter must start a word: a later one may fall anywhere, and ranks lower there.
+        assertEquals(listOf("get_value", "getValue", "give"), labels("gv", "give", "getValue", "get_value"))
+    }
+
+    @Test
+    fun `a closer match comes first, then the server's order, then the shorter`() {
+        // Letters in a row before scattered ones; the same case before another.
+        assertEquals(listOf("useState", "useSyncExternalStore"), labels("useS", "useSyncExternalStore", "useState"))
+        assertEquals(listOf("Map", "map"), labels("Map", "map", "Map"))
+        val items = listOf(LanguageCompletionItem("valueB", sortText = "2"), LanguageCompletionItem("valueA", sortText = "1"))
+        assertEquals(listOf("valueA", "valueB"), EditorCompletionRules.matching(items, "val").map { it.item.label })
+        assertEquals(listOf("open", "print"), labels("", "print", "open", sortText = null))
+    }
+
+    @Test
+    fun `the matched letters are kept for the row, on the label, and two servers' one item shows once`() {
+        assertEquals(listOf(0, 5), CompletionMatcher().match("aw", "AudioWorklet")!!.positions.toList())
+        assertEquals(listOf(0, 1), CompletionMatcher().match("aw", "await")!!.positions.toList())
+        val filtered = LanguageCompletionItem("Array<T>", filterText = "Array")
+        assertEquals(listOf(0, 1), EditorCompletionRules.matching(listOf(filtered), "Ar").single().matched.toList())
+        val twice = List(2) { LanguageCompletionItem("console", kind = "Variable") }
+        assertEquals(1, EditorCompletionRules.matching(twice, "con").size)
+        assertEquals(null, CompletionMatcher().match("xyz", "await"))
     }
 }
 
