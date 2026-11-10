@@ -5,6 +5,7 @@ import android.content.Context
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,6 +31,7 @@ import dev.icode.mobile.domain.phone.PhoneOverlay
 import dev.icode.mobile.domain.phone.PhoneOverlay.Look
 import dev.icode.mobile.domain.voice.VoiceFrom
 import dev.icode.mobile.ui.appearancePalette
+import dev.icode.mobile.ui.systemDark
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
@@ -230,7 +232,7 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
         val now = snapshot ?: return
         val next = PhoneOverlay.of(now.assistant, now.voice, now.phone, onScreen, muted = muted && mode == BubbleMode.Typing, now.mcp.question)
         overlay = next
-        glow.show(next.glow, appearancePalette(preferences.appearance.takeIf { preferences.loaded }).accent.toArgb())
+        glow.show(next.glow, appearancePalette(preferences.appearance.takeIf { preferences.loaded }, service.systemDark).accent.toArgb())
         if (next.bubble && !bubbleOut) {
             windows.addView(bubbleWindow, place.params)
             windows.addView(bar, place.barParams)
@@ -281,7 +283,7 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
     @Composable
     private fun Themed(content: @Composable () -> Unit) {
         val appearance = preferences.appearance.takeIf { preferences.loaded }
-        IcodeTheme(palette = appearancePalette(appearance), uiTextScalePercent = appearance?.uiTextScalePercent ?: 100, content = content)
+        IcodeTheme(palette = appearancePalette(appearance, isSystemInDarkTheme()), uiTextScalePercent = appearance?.uiTextScalePercent ?: 100, content = content)
     }
 
     private companion object {

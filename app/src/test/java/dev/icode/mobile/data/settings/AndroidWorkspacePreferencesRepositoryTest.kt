@@ -201,6 +201,41 @@ class AndroidWorkspacePreferencesRepositoryTest {
         }
     }
 
+    @Test fun `Match Phone keeps the dark theme in use for nights, and turned off keeps the theme on screen`() = runBlocking {
+        val file = File(temporaryFolder.root, "auto.preferences_pb")
+        val firstScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val repository = AndroidWorkspacePreferencesRepository(
+                PreferenceDataStoreFactory.create(scope = firstScope, produceFile = { file }),
+            )
+            val fresh = repository.values(null).first().appearance
+            assertFalse(fresh.followSystem)
+            assertEquals(AppTheme.Dark, fresh.nightTheme)
+            repository.setTheme(AppTheme.Amoled)
+            repository.setFollowSystem(AppTheme.Amoled, true)
+            assertEquals(true, runCatching { repository.setNightTheme(AppTheme.Light) }.isFailure)
+        } finally {
+            firstScope.coroutineContext.job.cancelAndJoin()
+        }
+        val secondScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val reopened = AndroidWorkspacePreferencesRepository(
+                PreferenceDataStoreFactory.create(scope = secondScope, produceFile = { file }),
+            )
+            val auto = reopened.values(null).first().appearance
+            assertTrue(auto.followSystem)
+            assertEquals(AppTheme.Amoled, auto.nightTheme)
+            // Turned off by day, the Light on screen stays.
+            reopened.setFollowSystem(AppTheme.Light, false)
+            val off = reopened.values(null).first().appearance
+            assertFalse(off.followSystem)
+            assertEquals(AppTheme.Light, off.theme)
+            assertEquals(AppTheme.Amoled, off.nightTheme)
+        } finally {
+            secondScope.cancel()
+        }
+    }
+
     @Test fun `terminal alerts are on until switched off, and the choice survives a restart`() = runBlocking {
         val file = File(temporaryFolder.root, "alerts.preferences_pb")
         val firstScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -243,6 +278,7 @@ class AndroidWorkspacePreferencesRepositoryTest {
                 preferences[stringPreferencesKey("editor_auto_save")] = "future-mode"
                 preferences[stringPreferencesKey("appearance_dark_variant")] = "Not An Id"
                 preferences[stringPreferencesKey("appearance_light_variant")] = "sakura"
+                preferences[stringPreferencesKey("appearance_night_theme")] = "Light"
             }
             val current = AndroidWorkspacePreferencesRepository(store).values(null).first()
             assertEquals(2, current.globalIndentSize)
@@ -251,6 +287,7 @@ class AndroidWorkspacePreferencesRepositoryTest {
             assertEquals(14, current.editor.fontSizeSp)
             assertEquals(AutoSaveMode.AfterOneSecond, current.editor.autoSave)
             assertEquals(mapOf(AppTheme.Light to "sakura"), current.appearance.variants)
+            assertEquals(AppTheme.Dark, current.appearance.nightTheme)
         } finally {
             scope.cancel()
         }

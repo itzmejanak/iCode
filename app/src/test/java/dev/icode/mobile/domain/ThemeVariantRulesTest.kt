@@ -28,4 +28,16 @@ class ThemeVariantRulesTest {
         assertNull(appearance.variantOf(AppTheme.Amoled))
         assertEquals("nord", appearance.copy(theme = AppTheme.Dark).variantOf())
     }
+
+    @Test fun `Match Phone shows Light by day and the night theme by night, and off the theme whatever the phone is`() {
+        val off = AppearanceSettings(theme = AppTheme.Amoled)
+        assertEquals(AppTheme.Amoled, off.shown(systemDark = false))
+        assertEquals(AppTheme.Amoled, off.shown(systemDark = true))
+        val auto = AppearanceSettings(theme = AppTheme.Dark, followSystem = true, nightTheme = AppTheme.Amoled)
+        assertEquals(AppTheme.Light, auto.shown(systemDark = false))
+        assertEquals(AppTheme.Amoled, auto.shown(systemDark = true))
+        assertTrue(AppearanceSettings.canBeNight(AppTheme.Dark))
+        assertTrue(AppearanceSettings.canBeNight(AppTheme.Amoled))
+        assertFalse(AppearanceSettings.canBeNight(AppTheme.Light))
+    }
 }

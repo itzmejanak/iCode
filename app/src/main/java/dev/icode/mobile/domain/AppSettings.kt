@@ -52,9 +52,28 @@ data class AppearanceSettings(
      * iCode's own. Each theme keeps its own, so switching theme brings that theme's back.
      */
     val variants: Map<AppTheme, String> = emptyMap(),
+    /**
+     * Auto (docs/theme-variants-plan.md T6): Light while the phone is light, [nightTheme] while it is
+     * dark, each in its own variant. Off, [theme] is shown whatever the phone is.
+     */
+    val followSystem: Boolean = false,
+    /** The dark theme Auto shows at night: Dark or AMOLED. */
+    val nightTheme: AppTheme = AppTheme.Dark,
 ) {
     /** The variant [theme] is drawn in, or null for iCode's own. */
     fun variantOf(theme: AppTheme = this.theme): String? = variants[theme]
+
+    /** The theme on screen while the phone is [systemDark] or not. */
+    fun shown(systemDark: Boolean): AppTheme = when {
+        !followSystem -> theme
+        systemDark -> nightTheme
+        else -> AppTheme.Light
+    }
+
+    companion object {
+        /** A theme Auto may show at night. */
+        fun canBeNight(theme: AppTheme): Boolean = theme != AppTheme.Light
+    }
 }
 
 /** What a theme variant's id may be (docs/theme-variants-plan.md D1). iCode's own variant is stored as no id. */

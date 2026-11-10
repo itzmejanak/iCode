@@ -1,6 +1,7 @@
 package dev.icode.mobile.ui.screens.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -46,6 +47,7 @@ import dev.icode.mobile.designsystem.ThemePreview
 import dev.icode.mobile.designsystem.ThemeVariants
 import dev.icode.mobile.domain.AccentColorRules
 import dev.icode.mobile.domain.AppTheme
+import dev.icode.mobile.domain.AppearanceSettings
 import dev.icode.mobile.domain.SettingLimits
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
@@ -67,8 +69,9 @@ fun AppearanceScreen(actions: NavigationActions) {
     val accent = IcodeColors.Accent
     val accentArgb = accent.toArgb()
     var pickingAccent by remember { mutableStateOf(false) }
-    var pickingVariant by remember { mutableStateOf(false) }
-    val shown = appearance.theme
+    var variantsOf by remember { mutableStateOf<AppTheme?>(null) }
+    // With Match Phone on, the phone's light or dark mode chooses the theme (docs/theme-variants-plan.md T6).
+    val shown = appearance.shown(isSystemInDarkTheme())
     val variant = ThemeVariants.find(shown, appearance.variantOf(shown))
     // The variant's own accent, before the user's: what "Use theme default" returns to (D7).
     val themeAccent = IcodePalette.of(shown, variant.id, appearance.borderLines).accent.toArgb()
@@ -90,18 +93,33 @@ fun AppearanceScreen(actions: NavigationActions) {
                 ) {
                     AppTheme.entries.forEach { option ->
                         val own = ThemeVariants.find(option, appearance.variantOf(option))
+                        val role = appearance.autoRole(option)
                         ThemeSwatch(
                             sample = IcodePalette.of(option, own.id, appearance.borderLines),
                             name = option.label,
-                            variant = own.name,
+                            variant = listOfNotNull(own.name, role).joinToString(" · "),
                             selected = shown == option,
-                            // The theme in use, tapped again, opens its variants.
-                            onClick = { if (shown == option) pickingVariant = true else saver.save { repository.setTheme(option) } },
+                            // The theme in use, or one Match Phone shows, tapped opens its variants; the other
+                            // dark one becomes the theme for nights; without Match Phone, another is switched to.
+                            onClick = {
+                                when {
+                                    shown == option || role != null -> variantsOf = option
+                                    appearance.followSystem -> saver.save { repository.setNightTheme(option) }
+                                    else -> saver.save { repository.setTheme(option) }
+                                }
+                            },
                             modifier = Modifier.weight(1f),
                         )
                     }
                 }
-                SettingRow("${shown.label} variant", Modifier.fillMaxWidth(), onClick = { pickingVariant = true }) {
+                SettingRow(
+                    "Match Phone",
+                    Modifier.fillMaxWidth(),
+                    subtitle = if (appearance.followSystem) "Light by day, ${appearance.nightTheme.label} by night" else "Light or dark, as the phone is",
+                ) {
+                    IcodeToggle(appearance.followSystem) { saver.save { repository.setFollowSystem(shown, it) } }
+                }
+                SettingRow("${shown.label} variant", Modifier.fillMaxWidth(), onClick = { variantsOf = shown }) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
                         Text(variant.name, style = IcodeType.Body, color = IcodeColors.TextSecondary)
                         Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = IcodeColors.TextSecondary)
@@ -162,12 +180,12 @@ fun AppearanceScreen(actions: NavigationActions) {
             }
         }
     }
-    if (pickingVariant) {
+    variantsOf?.let { theme ->
         ThemeVariantSheet(
-            theme = shown,
+            theme = theme,
             appearance = appearance,
-            onPick = { picked -> saver.save { repository.setThemeVariant(shown, picked.id) } },
-            onClose = { pickingVariant = false },
+            onPick = { picked -> saver.save { repository.setThemeVariant(theme, picked.id) } },
+            onClose = { variantsOf = null },
         )
     }
     if (pickingAccent) {
@@ -181,6 +199,14 @@ fun AppearanceScreen(actions: NavigationActions) {
             onDismiss = { pickingAccent = false },
         )
     }
+}
+
+/** What Match Phone shows [theme] for, when it is on: by day or by night; null otherwise. */
+private fun AppearanceSettings.autoRole(theme: AppTheme): String? = when {
+    !followSystem -> null
+    theme == AppTheme.Light -> "Day"
+    theme == nightTheme -> "Night"
+    else -> null
 }
 
 /** A theme to choose, drawn in the variant it keeps ([sample], named [variant]) as it will be drawn. */
