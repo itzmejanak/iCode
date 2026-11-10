@@ -35,10 +35,11 @@ import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.MonoLine
 import dev.icode.mobile.domain.ContentSearchState
-import dev.icode.mobile.domain.FileTypes
 import dev.icode.mobile.domain.IndexedFile
 import dev.icode.mobile.domain.SearchEngineState
 import dev.icode.mobile.domain.countOf
+import dev.icode.mobile.ui.FileTypeIcon
+import dev.icode.mobile.ui.parentName
 
 /** Result cap keeps the list responsive on large workspaces. */
 private const val MAX_FILE_RESULTS = 50
@@ -111,12 +112,7 @@ internal fun FileResults(
                             titleColor = if (index == 0) IcodeColors.Accent else IcodeColors.TextPrimary,
                             onClick = { onOpen(entry.path) },
                             leading = {
-                                Icon(
-                                    fileTypeIcon(FileTypes.of(entry.name)),
-                                    contentDescription = null,
-                                    tint = fileTypeTint(FileTypes.of(entry.name)),
-                                    modifier = Modifier.size(IcodeSizes.IconXl),
-                                )
+                                FileTypeIcon(entry.name, folder = false, size = IcodeSizes.IconXl, parent = parentName(entry.path))
                             },
                         )
                     }

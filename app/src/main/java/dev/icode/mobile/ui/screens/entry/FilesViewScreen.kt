@@ -90,9 +90,13 @@ internal fun ViewExplorer(
         }
     }
     val rows = ExplorerViews.rows(view, state.explorer)
-    val found = FilesRules.matching(rows, query)
-    val shown = if (ExplorerViews.sortable(view)) FilesRules.sorted(found, look.sort, look.descending, emptyMap(), foldersFirst = false) else found
     val groups = state.explorer.scanned?.groups.orEmpty()
+    // Thousands of rows: filtered, sorted and grouped once for what they are, not on every frame that recomposes.
+    val shown = remember(view, rows, query, look.sort, look.descending) {
+        val found = FilesRules.matching(rows, query)
+        if (ExplorerViews.sortable(view)) FilesRules.sorted(found, look.sort, look.descending, emptyMap(), foldersFirst = false) else found
+    }
+    val listed = remember(view, shown, look.sort, groups) { ExplorerViews.grouped(view, shown, look.sort, groups) }
     val selected = selection.among(rows) { it.location }
     val leave = selection::leave
     val back = {
@@ -168,7 +172,7 @@ internal fun ViewExplorer(
                     onOpen = if (trash) ({ item -> actionsFor = item.location }) else opening::tap,
                 )
                 FilesListing(
-                    ExplorerViews.grouped(view, shown, look.sort, groups),
+                    listed,
                     look,
                     taps,
                     detail = FilesRules::gatheredDetail,

@@ -1,5 +1,6 @@
 package dev.icode.mobile.data.files
 
+import dev.icode.mobile.data.io.FileHeads
 import dev.icode.mobile.data.io.isAtOrUnder
 import dev.icode.mobile.data.io.tallyTree
 import dev.icode.mobile.data.storage.WorkspacePaths
@@ -145,6 +146,7 @@ internal class FileInsightsCoordinator(
             linkTarget = if (kind == FactKind.Link) Files.readSymbolicLink(path).toString() else null,
             modifiedAt = attributes.lastModifiedTime().toMillis(),
             executable = if (kind == FactKind.File && !places.storage.contains(one)) File(one).canExecute() else null,
+            type = if (kind == FactKind.File) FileHeads.typeOf(path) else null,
             measured = if (attributes.isDirectory) null else TreeFacts(attributes.size(), files = 0, folders = 0),
         )
     }
@@ -199,7 +201,10 @@ internal class FileInsightsCoordinator(
         val files = found?.let { StorageInsights.listed(view, it.files, it.duplicates) }.orEmpty()
         val rows = files.map { file ->
             val place = if (places.storage.contains(file.location)) StoragePlace.Shared else StoragePlace.Private
-            BrowsedItem(File(file.location).name, file.location, paths.runtimePathOf(file.location), place, folder = false, bytes = file.bytes, changedAt = file.changedAt)
+            BrowsedItem(
+                File(file.location).name, file.location, paths.runtimePathOf(file.location), place, folder = false,
+                bytes = file.bytes, changedAt = file.changedAt, type = file.type,
+            )
         }
         val groups = found?.duplicates.orEmpty().takeIf { view is ExplorerView.Duplicates }.orEmpty()
         stateHolder.update { it.copy(explorer = it.explorer.copy(scanned = ScannedView(view, rows, groups))) }

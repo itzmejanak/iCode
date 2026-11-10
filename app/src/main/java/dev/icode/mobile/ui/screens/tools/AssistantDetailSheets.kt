@@ -45,7 +45,6 @@ import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.SheetIcon
 import dev.icode.mobile.ui.copyText
-import dev.icode.mobile.ui.screens.workspace.itemIcon
 
 /**
  * What a row of the chat opens (docs/assistant-sheets-plan.md §2.2–§2.3): a run of steps, the
@@ -127,14 +126,13 @@ private enum class MessagePage { SelectText }
 private fun StepFileSheet(step: AssistantEntry.Step, modifier: Modifier, onClose: () -> Unit, onDiff: (GitChange) -> Unit) {
     val file = fileActions(step, onDiff) ?: return
     val name = step.call.file.orEmpty().substringAfterLast('/')
-    val (icon, tint) = itemIcon(name, folder = false)
     IcodeActionSheet(
         title = name,
         actions = file.all,
         onClose = onClose,
         modifier = modifier,
         detail = step.call.summary,
-        leading = { SheetIcon(icon, tint) },
+        leading = { SheetIcon(name, folder = false, step.call.file) },
     )
 }
 

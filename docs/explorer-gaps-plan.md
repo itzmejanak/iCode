@@ -432,7 +432,10 @@ anywhere. Each view is the explorer itself, not a page of its own.
     scanned.
   - The result stays, the views built from it, while iCode runs.
 - **How a file finds its category.** One domain table, built on `FileTypes`, by extension. The
-  archive formats in it are the ones Extract reads (§3.11).
+  archive formats in it are the ones Extract reads (§3.11). (2026-11-10: `FileTypes` now holds every
+  kind, and a category is its family's. A name that cannot say, such as `.ts`, which is also a
+  transport stream, or no extension at all, is read for its first bytes. See
+  [file-kinds-icons-plan.md](./file-kinds-icons-plan.md).)
 - **How duplicates are found.** Files of the same size are hashed, a first block and then the
   whole, with SHA-256 (`hexDigestOf`). Empty files are left out.
 

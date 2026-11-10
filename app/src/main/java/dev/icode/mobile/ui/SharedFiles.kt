@@ -56,5 +56,5 @@ internal object SharedFiles {
         uriOf(context, file) ?: null.also { dispatch(NoticeIntent.Notify(NoticeTone.HeadsUp, "${file.name} cannot be handed to another app")) }
 
     /** A kind Android does not name goes to every app that takes any file. */
-    private fun typeOf(file: File): String = WorkspacesProvider.mimeTypeOf(file.name) ?: "*/*"
+    private fun typeOf(file: File): String = WorkspacesProvider.mimeTypeOf(file) ?: "*/*"
 }

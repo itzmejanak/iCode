@@ -1,6 +1,8 @@
 package dev.icode.mobile.domain.files
 
 import dev.icode.mobile.domain.ByteSize
+import dev.icode.mobile.domain.FileType
+import dev.icode.mobile.domain.FileTypes
 import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.domain.countOf
 import java.time.Instant
@@ -22,7 +24,7 @@ object FileProperties {
         if (facts.kind == null) return listOfNotNull(PropertyRow("Items", items(facts)), PropertyRow("Size", size(facts)), path?.let { PropertyRow("In", it, path = true) })
         return listOfNotNull(
             PropertyRow("Name", name),
-            PropertyRow("Kind", kind(facts.kind, name, facts.linkTarget, branch)),
+            PropertyRow("Kind", kind(facts.kind, name, facts.linkTarget, branch, facts.type)),
             path?.let { PropertyRow("Location", it, path = true) },
             PropertyRow("Size", size(facts)),
             facts.modifiedAt?.let { PropertyRow("Modified", said(it, now, zone)) },
@@ -54,11 +56,11 @@ object FileProperties {
     fun items(facts: FileFacts): String =
         "${countOf(facts.locations.size, "item")} · ${FileSelection.counted(facts.folders, facts.locations.size - facts.folders)}"
 
-    private fun kind(kind: FactKind, name: String, linkTarget: String?, branch: String?): String = when (kind) {
+    private fun kind(kind: FactKind, name: String, linkTarget: String?, branch: String?, type: FileType? = null): String = when (kind) {
         FactKind.Folder -> "Folder"
         FactKind.Workspace -> branch?.let { "Workspace · $it" } ?: "Workspace"
         FactKind.Link -> linkTarget?.let { "Link to $it" } ?: "Link"
-        FactKind.File -> FileCategories.of(name).one + FilesRules.extension(name).let { if (it.isEmpty()) "" else " · .$it" }
+        FactKind.File -> FileCategories.of(type ?: FileTypes.of(name), name).one + FilesRules.extension(name).let { if (it.isEmpty()) "" else " · .$it" }
     }
 
     /** A file's "1.2 MB (1,234,567 bytes)"; a folder's or many items' "340 MB · 1234 files, 56 folders"; until measured, so said. */

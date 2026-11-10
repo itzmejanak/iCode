@@ -1,8 +1,10 @@
 package dev.icode.mobile.domain
 
+import dev.icode.mobile.domain.files.ArchiveFormat
 import java.io.File
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -60,6 +62,48 @@ class FileTypesTest {
         assertEquals(FileFamily.Document, FileTypes.of("notes.md").family)
         assertEquals(FileFamily.Image, FileTypes.of("Logo.PNG").family)
         assertEquals(FileFamily.Code, FileTypes.of("logo.svg").family)
+        assertEquals(FileFamily.Video, FileTypes.of("clip.mp4").family)
+        assertEquals(FileFamily.Audio, FileTypes.of("song.flac").family)
+        assertEquals(FileFamily.Archive, FileTypes.of("site.tar.gz").family)
+        assertEquals(FileFamily.App, FileTypes.of("app.apk").family)
+        assertEquals(FileFamily.Binary, FileTypes.of("Inter.ttf").family)
+        assertEquals(FileTypes.Pdf, FileTypes.of("paper.PDF"))
+    }
+
+    @Test fun `text is what the editor opens, the other kinds are their formats' bytes`() {
+        listOf("Main.kt", "package.json", "notes.md", "LICENSE", "table.csv", "logo.svg").forEach { assertTrue(it, FileTypes.of(it).text) }
+        listOf("photo.jpg", "clip.mp4", "paper.pdf", "letter.docx", "site.zip", "app.apk", "font.otf", "lib.so").forEach { assertFalse(it, FileTypes.of(it).text) }
+        assertTrue(FileTypes.rules.all { it.type.grammar == null || it.type.text })
+    }
+
+    @Test fun `archives are the endings Extract reads, an app package an app first`() {
+        val endings = ArchiveFormat.entries.flatMap { it.suffixes }.map { "x$it" }
+        endings.filterNot { it == "x.apk" }.forEach { assertEquals(it, FileTypes.Archive, FileTypes.of(it)) }
+        assertEquals(FileTypes.AndroidPackage, FileTypes.of("x.apk"))
+    }
+
+    @Test fun `the bytes are read only where the name cannot say`() {
+        listOf("clip.ts", "index.mts", "README", "download", "notes.log").forEach { assertTrue(it, FileTypes.needsContent(it)) }
+        listOf("lib.dom.d.ts", "types.d.mts", "a.cts", "Main.kt", "clip.mp4", "logo.svg", "package.json").forEach { assertFalse(it, FileTypes.needsContent(it)) }
+    }
+
+    @Test fun `a shared or unknown name takes what its bytes say, and text stays what its name says`() {
+        val stream = ByteArray(FileTypes.HEAD_BYTES).also { bytes -> (0 until 3).forEach { bytes[it * 188] = 0x47 } }
+        assertEquals(FileTypes.Video, FileTypes.of("news.ts", stream))
+        assertEquals("typescript", FileTypes.of("server.ts", "import { x } from './x';\n".toByteArray()).id)
+        assertEquals(FileTypes.Image, FileTypes.of("download", byteArrayOf(0x89.toByte(), 'P'.code.toByte(), 'N'.code.toByte(), 'G'.code.toByte(), 0x0D, 0x0A, 0x1A, 0x0A)))
+        assertEquals(FileTypes.PlainText, FileTypes.of("README", "Hello".toByteArray()))
+        // A name that says what it is is never overruled: a PNG named `Main.kt` is still Kotlin to the editor.
+        assertEquals("kotlin", FileTypes.of("Main.kt", stream).id)
+    }
+
+    @Test fun `extensions are read longest first, each kind stands for one of its own`() {
+        assertEquals(listOf("dom.d.ts", "d.ts", "ts"), FileTypes.extensionsOf("lib.dom.d.ts").toList())
+        assertEquals(listOf("env"), FileTypes.extensionsOf(".env").toList())
+        assertEquals(emptyList<String>(), FileTypes.extensionsOf("Makefile").toList())
+        assertEquals("mp4", FileTypes.extensionOf(FileTypes.Video))
+        assertEquals(FileTypes.Video, FileTypes.byId("video"))
+        assertEquals(FileTypes.PlainText, FileTypes.byId("plaintext"))
     }
 
     @Test fun `a name or an extension belongs to one type only`() {

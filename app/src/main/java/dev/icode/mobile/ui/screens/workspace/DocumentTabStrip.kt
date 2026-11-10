@@ -54,7 +54,6 @@ internal fun TabSheet(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val (icon, tint) = itemIcon(document.name, folder = false)
     IcodeActionSheet(
         title = document.name,
         actions = listOf(
@@ -66,6 +65,6 @@ internal fun TabSheet(
         onClose = onDismiss,
         modifier = modifier,
         detail = if (document.dirty) "$path · unsaved" else path,
-        leading = { SheetIcon(icon, tint) },
+        leading = { SheetIcon(document.name, folder = false, document.location) },
     )
 }

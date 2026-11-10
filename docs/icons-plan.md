@@ -17,7 +17,8 @@ Owner's decisions (2026-10-18):
 ## 1. What stands today (verified)
 
 - Icons are Material's `Icons.Outlined` throughout (193 uses) and `Icons.AutoMirrored.Outlined` for
-  directional ones (18); no Filled, Rounded or drawable icons in screens. Sizes come from
+  directional ones (18); no Filled, Rounded or drawable icons in screens (files and folders draw
+  Material Icon Theme's own icons, [file-kinds-icons-plan.md](./file-kinds-icons-plan.md)). Sizes come from
   `IcodeSizes.IconSm` 16 dp, `IconMd` 18 dp, `IconLg` 22 dp, `IconXl` 24 dp.
 - The keys rows' labels live in the domain: `EditorKey("◀")`, `TerminalExtraKey("▶")`, and a symbol
   key repeats its text as its label (`OpenBrace("{", "{")`).

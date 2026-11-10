@@ -57,10 +57,7 @@ internal fun FilesSheet(
         targets = targets,
         title = one?.name ?: "${items.size} selected",
         detail = one?.let { if (here == null) FilesRules.gatheredDetail(it) else FilesRules.detail(it) } ?: FileSelection.summary(items, state.workspaceSizes),
-        leading = {
-            val (icon, tint) = one?.let { iconOf(it) } ?: (Icons.Outlined.Checklist to IcodeColors.Accent)
-            SheetIcon(icon, tint)
-        },
+        leading = { if (one != null) SheetIcon(one.name, one.folder, one.location) else SheetIcon(Icons.Outlined.Checklist, IcodeColors.Accent) },
         onClose = onClose,
         modifier = modifier,
         folder = folder,

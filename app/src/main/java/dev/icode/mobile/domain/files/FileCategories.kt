@@ -1,6 +1,7 @@
 package dev.icode.mobile.domain.files
 
 import dev.icode.mobile.domain.FileFamily
+import dev.icode.mobile.domain.FileType
 import dev.icode.mobile.domain.FileTypes
 
 /**
@@ -19,35 +20,31 @@ enum class FileCategory(val label: String, val one: String) {
 }
 
 object FileCategories {
+    /** [name]'s category by its name alone: where its bytes are not at hand. */
+    fun of(name: String): FileCategory = of(FileTypes.of(name), name)
+
     /**
-     * [name]'s category, by its extension. An app package is an app before it is a zip; an archive is
-     * one by [ArchiveFormats]; pictures, source and data by [FileTypes], the editor's own answer — an
-     * SVG, which the editor reads as XML, is a picture here.
+     * The category of a file named [name] that is of [type] — [FileTypes]' answer, by its bytes too
+     * where the name could not say (docs/file-kinds-icons-plan.md D1). Its family decides, with two
+     * exceptions: an SVG, which the editor reads as XML, is a picture here; a `.txt`, plain text to the
+     * editor as any unknown name is, is a document.
      */
-    fun of(name: String): FileCategory {
-        val extension = FilesRules.extension(name)
-        return when {
-            extension in APPS -> FileCategory.Apps
-            ArchiveFormats.of(name) != null -> FileCategory.Archives
-            extension == "svg" -> FileCategory.Images
-            extension in VIDEOS -> FileCategory.Videos
-            extension in AUDIO -> FileCategory.Audio
-            extension in DOCUMENTS -> FileCategory.Documents
-            else -> when (val type = FileTypes.of(name)) {
-                FileTypes.PlainText -> FileCategory.Other
-                else -> when (type.family) {
-                    FileFamily.Image -> FileCategory.Images
-                    FileFamily.Code, FileFamily.Data -> FileCategory.Code
-                    FileFamily.Document -> FileCategory.Documents
-                }
-            }
+    fun of(type: FileType, name: String): FileCategory = when {
+        type == FileTypes.PlainText -> if (FilesRules.extension(name) == TEXT) FileCategory.Documents else FileCategory.Other
+        type.id == XML && FilesRules.extension(name) == SVG -> FileCategory.Images
+        else -> when (type.family) {
+            FileFamily.Image -> FileCategory.Images
+            FileFamily.Video -> FileCategory.Videos
+            FileFamily.Audio -> FileCategory.Audio
+            FileFamily.Document -> FileCategory.Documents
+            FileFamily.Archive -> FileCategory.Archives
+            FileFamily.App -> FileCategory.Apps
+            FileFamily.Code, FileFamily.Data -> FileCategory.Code
+            FileFamily.Binary -> FileCategory.Other
         }
     }
 
-    private val APPS = setOf("apk", "apks", "xapk", "apkm", "aab")
-    private val VIDEOS = setOf("mp4", "m4v", "mkv", "webm", "mov", "avi", "3gp", "3g2", "ts", "flv", "wmv", "mpg", "mpeg")
-    private val AUDIO = setOf("mp3", "m4a", "aac", "wav", "flac", "ogg", "oga", "opus", "amr", "mid", "midi", "wma", "aiff")
-    private val DOCUMENTS = setOf(
-        "pdf", "txt", "rtf", "doc", "docx", "odt", "xls", "xlsx", "ods", "csv", "tsv", "ppt", "pptx", "odp", "epub",
-    )
+    private const val TEXT = "txt"
+    private const val XML = "xml"
+    private const val SVG = "svg"
 }

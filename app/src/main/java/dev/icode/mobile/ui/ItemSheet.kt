@@ -91,11 +91,16 @@ internal fun ItemSheet(
     }
 }
 
-/** What leads an item sheet's head (§3.1): the item's icon ([dev.icode.mobile.ui.screens.workspace.itemIcon]), or a selection's. */
+/** What leads an item sheet's head (§3.1) when it is no one file or folder: a selection's icon. */
 @Composable
 internal fun SheetIcon(icon: ImageVector, tint: Color) {
     Icon(icon, contentDescription = null, tint = tint, modifier = Modifier.size(IcodeSizes.IconXl))
 }
+
+/** What leads a file's or a folder's sheet: its icon as its row draws it, [location] giving the folder it is in. */
+@Composable
+internal fun SheetIcon(name: String, folder: Boolean, location: String? = null) =
+    FileTypeIcon(name, folder, size = IcodeSizes.IconXl, parent = location?.let(::parentName))
 
 /** Rename… (§3.1): the new name as it is typed, checked by the same rules as everywhere; done, the sheet closes. */
 @Composable
