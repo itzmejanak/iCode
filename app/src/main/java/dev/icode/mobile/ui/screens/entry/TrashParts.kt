@@ -60,7 +60,7 @@ internal fun TrashSheet(item: TrashedItem, onForGood: () -> Unit, onClose: () ->
             onClose = onClose,
             modifier = modifier,
             detail = FilesRules.gatheredDetail(item.row),
-            leading = { iconOf(item.row).let { (icon, tint) -> SheetIcon(icon, tint) } },
+            leading = { SheetIcon(item.row.name, item.row.folder) },
         )
         TrashPage.Properties -> IcodeBottomSheet(title = "Properties", onClose = onClose, modifier = modifier, subtitle = item.name, onBack = pages.back) {
             FileProperties.trashed(item, System.currentTimeMillis()).forEach { PropertyLine(it) }

@@ -30,6 +30,7 @@ what is in this repository and `app/build.gradle.kts`. Check each project for it
 | XZ for Java | 0BSD |
 | colorpicker-compose | Apache-2.0 |
 | Shizuku API and provider 13.1.5 | MIT |
+| AndroidSVG 1.4 (`com.caverock:androidsvg-aar`) | Apache-2.0 |
 
 ## Fonts and assets
 
@@ -39,6 +40,7 @@ what is in this repository and `app/build.gradle.kts`. Check each project for it
 | Chakra Petch | `app/src/main/resources/licenses/OFL-Chakra-Petch.txt` (OFL-1.1) |
 | KaTeX fonts | `app/src/main/resources/licenses/OFL-KaTeX.txt` (OFL-1.1) |
 | TextMate grammars | `app/src/main/assets/textmate/` (provenance in `docs/editor-grammar-provenance.md`) |
+| Material Icon Theme 5.40.0 file and folder icons | `app/src/main/assets/file-icons/`, imported by `tools/import-file-icons.py`; licence `app/src/main/resources/licenses/MIT-Material-Icon-Theme.txt` (MIT) |
 
 ## Downloaded at runtime (not bundled)
 

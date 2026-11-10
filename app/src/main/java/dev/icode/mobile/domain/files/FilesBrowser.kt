@@ -1,6 +1,7 @@
 package dev.icode.mobile.domain.files
 
 import dev.icode.mobile.domain.ByteSize
+import dev.icode.mobile.domain.FileType
 import dev.icode.mobile.domain.StorageMeasurement
 import dev.icode.mobile.domain.WorkspaceRuntimePath
 import dev.icode.mobile.domain.countOf
@@ -28,6 +29,8 @@ data class BrowsedItem(
     val entries: Int? = null,
     /** A workspace at the top that is a repository: its branch. */
     val branch: String? = null,
+    /** What a scan found it is, its bytes read where its name could not say; null: what its name says (docs/file-kinds-icons-plan.md D3). */
+    val type: FileType? = null,
 )
 
 /**

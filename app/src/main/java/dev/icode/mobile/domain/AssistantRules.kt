@@ -211,11 +211,11 @@ object AssistantRules {
     /** What a file is to the model, by its type, or its name's extension when the type is unknown. */
     fun attachmentKind(name: String, mimeType: String?): AssistantAttachmentKind {
         val type = mimeType?.lowercase().orEmpty()
-        val extension = name.substringAfterLast('.', "").lowercase()
+        val named = FileTypes.of(name)
         return when {
             // Sent as JPEG whatever it was, so any image Android decodes — a camera's HEIC too.
-            type.startsWith("image/") || (type.isEmpty() && FileTypes.of(name).family == FileFamily.Image) -> AssistantAttachmentKind.Image
-            type == PDF || (type.isEmpty() && extension == "pdf") -> AssistantAttachmentKind.Document
+            type.startsWith("image/") || (type.isEmpty() && named.family == FileFamily.Image) -> AssistantAttachmentKind.Image
+            type == PDF || (type.isEmpty() && named == FileTypes.Pdf) -> AssistantAttachmentKind.Document
             else -> AssistantAttachmentKind.Text
         }
     }

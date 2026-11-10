@@ -11,10 +11,10 @@ enum class FileViewer {
     Image;
 
     companion object {
-        /** The viewer for a file named [name]; null for one the editor opens. */
-        fun of(name: String): FileViewer? = when (FileTypes.of(name).family) {
-            FileFamily.Image -> Image
-            FileFamily.Code, FileFamily.Data, FileFamily.Document -> null
-        }
+        /** The viewer for a file named [name]; null for one the editor opens, or another app. */
+        fun of(name: String): FileViewer? = of(FileTypes.of(name))
+
+        /** The viewer for a file of [type]. */
+        fun of(type: FileType): FileViewer? = Image.takeIf { type.family == FileFamily.Image }
     }
 }

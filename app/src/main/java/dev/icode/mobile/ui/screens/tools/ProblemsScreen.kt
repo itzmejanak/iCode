@@ -14,7 +14,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ErrorOutline
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.WarningAmber
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -32,14 +31,13 @@ import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTone
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.domain.Diagnostic
-import dev.icode.mobile.domain.FileTypes
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.Severity
 import dev.icode.mobile.domain.countOf
+import dev.icode.mobile.ui.FileTypeIcon
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
-import dev.icode.mobile.ui.screens.workspace.fileTypeIcon
-import dev.icode.mobile.ui.screens.workspace.fileTypeTint
+import dev.icode.mobile.ui.parentName
 
 /** Problems view within the tools panel; severity counts include every reported row. */
 @Composable
@@ -125,13 +123,12 @@ private fun severityLabel(severity: Severity): String = when (severity) {
 /** A file's problems under its type icon, its name, its folder and how many there are, as VS Code's Problems view heads them. */
 @Composable
 private fun FileHeader(file: String, count: Int) {
-    val type = FileTypes.of(file.substringAfterLast('/'))
     Row(
         modifier = Modifier.fillMaxWidth().padding(top = IcodeSpacing.Space2),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1),
     ) {
-        Icon(fileTypeIcon(type), contentDescription = null, tint = fileTypeTint(type), modifier = Modifier.size(IcodeSizes.IconSm))
+        FileTypeIcon(file.substringAfterLast('/'), folder = false, size = IcodeSizes.IconSm, parent = parentName(file))
         Text(file.substringAfterLast('/'), style = IcodeType.Mono.copy(fontWeight = FontWeight.SemiBold), maxLines = 1)
         Text(
             file.substringBeforeLast('/', ""),

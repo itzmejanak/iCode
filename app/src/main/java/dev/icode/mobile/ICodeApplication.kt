@@ -2,6 +2,7 @@ package dev.icode.mobile
 
 import android.app.Application
 import dev.icode.mobile.data.phone.PhoneService
+import dev.icode.mobile.ui.FileIcons
 import dev.icode.mobile.ui.phone.PhoneOverlays
 
 /**
@@ -13,5 +14,7 @@ class ICodeApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         PhoneService.overlayFactory = ::PhoneOverlays
+        // The file icons' theme, read ahead off the main thread: the first list draws without waiting on it.
+        Thread({ FileIcons.warm(this) }, "file-icons").apply { isDaemon = true }.start()
     }
 }

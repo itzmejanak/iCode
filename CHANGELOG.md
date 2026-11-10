@@ -128,6 +128,14 @@ All notable changes to iCode are documented here. The format follows
   marks, after your own profile), so iCode knows exactly when a command ends.
 
 ### Changed
+- File and folder icons: each kind of file and folder has its own icon, from Material Icon Theme
+  (5.40.0, the icon theme most used in VS Code). This covers 1391 extensions, 2156 file names and
+  4674 folder names, such as TypeScript and its `.d.ts` declarations, `package.json`, `Dockerfile`,
+  `src`, `node_modules`, `.git` and `.github`. A folder's icon changes when it is expanded. One icon
+  set is drawn everywhere: the Explorer, the file explorer, sheets, Quick Open, Source Control,
+  Problems and tab menus. Every icon is at least 3:1 against the background on every theme. The
+  default folder takes the accent colour.
+- SVG files show a picture of themselves in the file explorer's grid.
 - One loading behaviour for the whole app ([docs/loading-plan.md](docs/loading-plan.md)). A tap is
   answered at once, even while iCode is still busy with something else: the button or row you tapped
   stops taking taps, keeps its label, and shows a spinner if the work takes longer than a moment
@@ -146,6 +154,13 @@ All notable changes to iCode are documented here. The format follows
   given yet shows a moving bar instead of one stuck at zero.
 
 ### Fixed
+- `.ts` files were taken for videos: TypeScript filled Files › Videos, its Properties said "Video",
+  and Open with offered video players. A `.ts` file is TypeScript unless its contents are an MPEG
+  transport stream, as a TV recording is. A file with no known extension is recognised by its
+  contents too: a picture, a video, a PDF or an archive. One table now decides what every file is,
+  for the categories, thumbnails, viewers, icons and the type other apps are told.
+- A file that gives no thumbnail is no longer decoded again each time it scrolls back into view.
+- Large Manage storage views (thousands of files) no longer re-sort on every redraw.
 - The assistant: when a provider error is retried after the model has already done something in
   the turn, the retry carries on from the chat. It no longer runs those steps again or asks
   questions that were already answered.
