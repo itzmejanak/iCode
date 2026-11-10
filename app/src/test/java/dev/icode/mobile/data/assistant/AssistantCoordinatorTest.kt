@@ -28,6 +28,7 @@ import dev.icode.mobile.domain.AssistantResult
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantState
 import dev.icode.mobile.domain.AssistantToolKind
+import dev.icode.mobile.domain.AssistantTurnEnd
 import dev.icode.mobile.domain.LineChanges
 import dev.icode.mobile.domain.LineEnding
 import dev.icode.mobile.domain.OpenDocument
@@ -302,6 +303,8 @@ class AssistantCoordinatorTest {
         assertEquals(listOf("Rename x"), state().sessions.map { it.title })
         assertEquals(AssistantChat(state().messages, 700), AssistantChatStore(chatsFolder).load(app, session))
         assertNull(state().failure)
+        // Its end says it changed a file: the dock suggests Source Control (docs/dock-navigation-plan.md D8).
+        assertEquals(AssistantTurnEnd(app, 1, changedFiles = true), state().ended)
     }
 
     @Test fun `Deny tells the model the change was refused, and nothing runs`() {
@@ -314,6 +317,7 @@ class AssistantCoordinatorTest {
         val result = (state().messages[2] as AssistantMessage.Results).results.single()
         assertTrue(result.failed)
         assertEquals("The user did not allow this change", result.output)
+        assertEquals(AssistantTurnEnd(app, 1, changedFiles = false), state().ended)
     }
 
     @Test fun `Allow in the workspace answers this chat's next changes, a new chat asks again, and the mode chosen answers all`() {

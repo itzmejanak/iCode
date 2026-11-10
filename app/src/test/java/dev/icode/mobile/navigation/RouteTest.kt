@@ -77,6 +77,13 @@ class RouteTest {
         assertTrue(nodes.all { it.matches(Regex("""\d+:\d+""")) })
     }
 
+    @Test
+    fun `each tool opens on one of its own main screens, and only the Launcher leaves the workspace`() {
+        dev.icode.mobile.domain.WorkspaceTool.entries.forEach { tool -> assertEquals(tool, tool.home.tool) }
+        assertEquals(setOf(Route.LauncherHome, Route.LauncherEmpty), Route.entries.filter { it.leavesWorkspace }.toSet())
+        assertTrue(Route.entries.filter { it.leavesWorkspace || it.makesWorkspace || it.sheet }.all { it.tool == null })
+    }
+
     private companion object {
         /** The design hands over 40 frames; that total never changes silently. */
         const val TOTAL_FIGMA_FRAMES = 40

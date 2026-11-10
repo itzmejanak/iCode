@@ -39,9 +39,8 @@ internal fun ArrivalEffect(arrival: Arrival?, navigation: NavigationState, pastO
             if (asked == Arrival.Work(BackgroundPlace.Runtime)) onArrived()
             return@LaunchedEffect
         }
-        fun show(route: Route) {
-            if (navigation.current != route) navigation.actions.navigate(route)
-        }
+        // Where the work is, shown as asked for: a tool on its main screen, a page over what is open.
+        fun show(route: Route) = navigation.show(route)
         when (asked) {
             is Arrival.TerminalSession -> gateway.dispatch(ICodeIntent.ShowTerminalSession(asked.id))
             is Arrival.Work -> when (val place = asked.place) {

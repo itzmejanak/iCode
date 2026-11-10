@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Icon
@@ -14,10 +13,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
 
 /** One activity entry rendered on the workspace rail. */
 @Immutable
@@ -31,6 +30,10 @@ data class ActivityRailEntry(
     val accented: Boolean = false,
     /** What it started runs (docs/loading-plan.md §4.2): the spinner in its icon's place, and no second tap. */
     val busy: Boolean = false,
+    /** Its icon's colour where its state gives one (the assistant waiting for you), over the accent's. */
+    val tint: Color? = null,
+    /** A dot on it while something runs there ([IconMarks]). */
+    val dot: Color? = null,
     val onClick: () -> Unit = {},
 )
 
@@ -63,21 +66,13 @@ private fun RailItem(entry: ActivityRailEntry) {
             .busySemantics(entry.busy),
         contentAlignment = Alignment.Center,
     ) {
-        if (entry.active) {
-            Box(
-                Modifier
-                    .align(Alignment.BottomCenter)
-                    .height(2.dp)
-                    .width(20.dp)
-                    .background(IcodeColors.Accent),
-            )
-        }
-        val tint = if (entry.active || entry.accented) IcodeColors.Accent else IcodeColors.TextSecondary
+        if (entry.active) UnderLine(IcodeColors.Accent)
+        val tint = entry.tint ?: if (entry.active || entry.accented) IcodeColors.Accent else IcodeColors.TextSecondary
         if (rememberShownWhileBusy(entry.busy)) {
             IcodeSpinner(Modifier.semantics { contentDescription = entry.label }, size = IcodeSizes.IconLg, color = tint)
         } else {
             Icon(entry.icon, contentDescription = entry.label, tint = tint, modifier = Modifier.size(IcodeSizes.IconLg))
         }
-        if (entry.badge > 0) CountBadge(entry.badge, Modifier.align(Alignment.Center))
+        IconMarks(entry.badge, entry.dot)
     }
 }

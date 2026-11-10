@@ -39,12 +39,15 @@ import dev.icode.mobile.domain.ICodeGateway
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.NoticeIntent
 import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.WorkspaceTool
 import dev.icode.mobile.domain.WorkspacePreferences
 import dev.icode.mobile.domain.WorkspacePreferencesRepository
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.navigation.RouteGroup
 import dev.icode.mobile.navigation.ToolPanelTab
+import dev.icode.mobile.ui.dock.ToolDock
+import dev.icode.mobile.ui.dock.rememberToolDock
 import dev.icode.mobile.ui.editor.CodeEditorSessions
 import dev.icode.mobile.ui.screens.entry.EntryScreenHost
 import dev.icode.mobile.ui.screens.recovery.RecoveryScreenHost
@@ -162,6 +165,8 @@ fun IcodeApp(
             }
         }
         val navigation = rememberNavigationState(initialScreen, captureMode)
+        // The tools' histories are the open workspace's: another's start anew (docs/dock-navigation-plan.md D3).
+        LaunchedEffect(snapshot.activeWorkspaceLocation) { navigation.workspaceIs(snapshot.activeWorkspaceLocation) }
         // Coming back from the terminal, where an agent or a command may have
         // changed files, the Explorer, Source Control and open files catch up.
         val terminalShown = navigation.current == Route.TerminalExpanded && navigation.panelTab == ToolPanelTab.Terminal
@@ -172,6 +177,7 @@ fun IcodeApp(
         }
         val notices = remember { NoticeHostState() }
         val undo = rememberUndoPill(snapshot.explorer.history.news)
+        val dock = rememberToolDock(snapshot, navigation.model.tool)
         val floors = remember { IcodeFloors() }
         ArrivalEffect(arrival, navigation, pastOnboarding = navigation.current !in ONBOARDING_SCREENS, gateway, notices, onArrived)
         val systemPrompts = rememberSystemPrompts(gateway)
@@ -185,12 +191,8 @@ fun IcodeApp(
                     // The permission screen walks on to its next step by itself.
                     is ICodeEffect.SystemPermissionResolved -> Unit
                     // What made the workspace gives way to it, so Back returns to the launcher.
-                    is ICodeEffect.WorkspaceOpened -> if (navigation.current in MAKES_A_WORKSPACE) {
-                        navigation.actions.replace(Route.WorkspaceExplorer)
-                    } else {
-                        navigation.actions.navigate(Route.WorkspaceExplorer)
-                    }
-                    is ICodeEffect.WorkspaceTerminalOpened -> navigation.actions.navigate(Route.TerminalExpanded)
+                    is ICodeEffect.WorkspaceOpened -> navigation.opened(effect.location)
+                    is ICodeEffect.WorkspaceTerminalOpened -> navigation.opened(effect.location.ifEmpty { null }, WorkspaceTool.Terminal)
                     // The creation sheet consumes these request-scoped results.
                     is ICodeEffect.WorkspaceItemChanged, is ICodeEffect.WorkspaceItemFailed -> Unit
                     is ICodeEffect.ConfirmWorkspaceSwitch -> questions.ask(effect)
@@ -198,12 +200,12 @@ fun IcodeApp(
                     is ICodeEffect.ConfirmRecoveredOverwrite -> questions.ask(effect)
                     is ICodeEffect.ExternalChangeDetected -> questions.ask(effect)
                     ICodeEffect.RuntimeRebuildStarted -> navigation.actions.navigate(Route.RuntimeInstalling)
-                    ICodeEffect.GitInitialized -> navigation.actions.navigate(Route.SourceControl)
+                    ICodeEffect.GitInitialized -> navigation.show(Route.SourceControl)
                     is ICodeEffect.DocumentOpened -> {
                         if (effect.lineNumber != null) {
                             editorSessions.get(effect.location).revealAt(effect.lineNumber, effect.column ?: 0)
                         }
-                        navigation.actions.navigate(Route.WorkspaceEditor)
+                        navigation.show(Route.WorkspaceEditor)
                     }
                     is ICodeEffect.Notice -> notices.arrived(effect.notice)
                     // A chat shared as its transcript: Android's share sheet, as the terminal's output is.
@@ -231,7 +233,7 @@ fun IcodeApp(
         }
 
         BackHandler(enabled = navigation.canGoBack) {
-            navigation.actions.back()
+            navigation.back()
         }
 
         CompositionLocalProvider(
@@ -259,10 +261,12 @@ fun IcodeApp(
                             NavigationHost(navigation) { route -> ScreenHost(screen = route, actions = navigation.actions) }
                             FileAsks(snapshot.explorer, gateway)
                         }
-                        // The undo pill above the bell, over every screen but the Notifications page (docs/explorer-gaps-plan.md §3.8).
-                        IcodeFloatingStack(floors, visible = !pageOpen) {
+                        // The undo pill above the bell, the tool dock below them, over every screen but the Notifications page
+                        // (docs/explorer-gaps-plan.md §3.8, docs/dock-navigation-plan.md D6).
+                        IcodeFloatingStack(floors, visible = !pageOpen, onOutside = dock.onOutside) {
                             UndoPill(undo, snapshot.explorer.history)
                             NoticeBell(notices, snapshot.notices, onAll = toAll)
+                            ToolDock(dock, navigation)
                         }
                     }
                 }
@@ -281,9 +285,6 @@ private fun ScreenHost(screen: Route, actions: NavigationActions) {
         RouteGroup.RECOVERY -> RecoveryScreenHost(screen, actions)
     }
 }
-
-/** Screens that make a workspace: once it opens, it takes their place. */
-private val MAKES_A_WORKSPACE = setOf(Route.CloneProgress)
 
 /** The first-run screens; each replaces the one before it. */
 private val ONBOARDING_SCREENS = setOf(
