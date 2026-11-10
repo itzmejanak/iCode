@@ -48,6 +48,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import kotlin.math.abs
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
@@ -56,7 +57,10 @@ import kotlinx.coroutines.launch
  * edge, round on its open side with a grip there in [gripTint], a corner action tall, its [edgeLine]
  * on the open sides only. It never goes: [tucked], it rests in the edge with only its grip showing;
  * swiped into the edge — past half its way, or flung — it tucks, and tapped or pulled out it shows
- * ([onTucked]); short of either it springs back. TalkBack has both as actions on [name].
+ * ([onTucked]); short of either it springs back. TalkBack has both as actions on [name], then [actions].
+ *
+ * With [onSwipeAlong], a swipe up or down along the tucked grip, over half its height, does that:
+ * the dock's switch to the tool used before (docs/dock-navigation-plan.md D9).
  */
 @Composable
 fun IcodeDockedPill(
@@ -65,14 +69,20 @@ fun IcodeDockedPill(
     name: String,
     modifier: Modifier = Modifier,
     gripTint: Color = IcodeColors.Outline,
+    actions: List<CustomAccessibilityAction> = emptyList(),
+    onSwipeAlong: (() -> Unit)? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
     val tuck by rememberUpdatedState(onTucked)
+    val swipe by rememberUpdatedState(onSwipeAlong)
     val scope = rememberCoroutineScope()
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val density = LocalDensity.current
     val flingPx = with(density) { FLING.toPx() }
     val peekPx = with(density) { PEEK.toPx() }
+    val alongPx = with(density) { SWIPE_ALONG.toPx() }
+    // How far a swipe along the grip has gone.
+    var along by remember { mutableFloatStateOf(0f) }
     val line = edgeLine
     var width by remember { mutableIntStateOf(0) }
     // How far it is pushed into the edge, in pixels; offset follows the layout's direction.
@@ -110,8 +120,15 @@ fun IcodeDockedPill(
                 Orientation.Horizontal,
                 onDragStopped = { velocity -> settle(if (rtl) -velocity else velocity) },
             )
+            .draggable(
+                rememberDraggableState { delta -> along += delta },
+                Orientation.Vertical,
+                enabled = tucked && onSwipeAlong != null,
+                onDragStarted = { along = 0f },
+                onDragStopped = { if (abs(along) > alongPx) swipe?.invoke() },
+            )
             .semantics {
-                customActions = listOf(CustomAccessibilityAction(if (tucked) "Show $name" else "Hide $name") { tuck(!tucked); true })
+                customActions = listOf(CustomAccessibilityAction(if (tucked) "Show $name" else "Hide $name") { tuck(!tucked); true }) + actions
             }
             .height(IcodeSizes.CornerAction)
             .clip(DOCKED)
@@ -129,7 +146,8 @@ fun IcodeDockedPill(
 
 /**
  * An action on a docked pill: [icon] in [tint] (muted when not [enabled]), a corner action wide —
- * touch finds it a touch target — with [badge], a count, on it where there is one.
+ * touch finds it a touch target — with [badge], a count, on it where there is one; a [dot] while
+ * something runs there; and a [line] under it, as the rail marks its active entry.
  */
 @Composable
 fun IcodeDockedAction(
@@ -141,13 +159,16 @@ fun IcodeDockedAction(
     enabled: Boolean = true,
     iconModifier: Modifier = Modifier,
     badge: Int? = null,
+    dot: Color? = null,
+    line: Color? = null,
 ) {
     Box(
         modifier.size(IcodeSizes.CornerAction).clip(IcodeShapes.Pill).clickable(enabled = enabled, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
+        line?.let { UnderLine(it) }
         Icon(icon, contentDescription = description, tint = if (enabled) tint else IcodeColors.TextMuted, modifier = iconModifier.size(IcodeSizes.IconLg))
-        badge?.let { CountBadge(it, Modifier.align(Alignment.Center)) }
+        IconMarks(badge ?: 0, dot)
     }
 }
 
@@ -176,3 +197,6 @@ private val PEEK = 16.dp
 
 /** A flick faster than this tucks the pill, or brings it out, however little it moved (as a sheet's swipe). */
 private val FLING = 125.dp
+
+/** How far a swipe along the tucked grip goes to count: more than half the pill's height. */
+private val SWIPE_ALONG = 24.dp

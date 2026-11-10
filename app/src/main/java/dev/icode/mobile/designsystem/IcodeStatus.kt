@@ -78,6 +78,24 @@ fun StatusDot(color: Color, size: Dp = 7.dp) {
     Box(Modifier.size(size).background(color, IcodeShapes.Pill))
 }
 
+/**
+ * What an icon in a [IcodeSizes.TouchTarget] box carries — a rail entry, a docked action: [count]
+ * on its upper end ([CountBadge]), none at zero; a [dot] on its upper start while something runs.
+ */
+@Composable
+internal fun BoxScope.IconMarks(count: Int, dot: Color?) {
+    if (count > 0) CountBadge(count, Modifier.align(Alignment.Center))
+    if (dot != null) {
+        Box(Modifier.align(Alignment.Center).offset(x = -COUNT_BADGE_OFFSET, y = -COUNT_BADGE_OFFSET)) { StatusDot(dot) }
+    }
+}
+
+/** The line under an icon that marks it: the rail's active entry, the dock's tool on screen. */
+@Composable
+internal fun BoxScope.UnderLine(color: Color) {
+    Box(Modifier.align(Alignment.BottomCenter).height(2.dp).width(20.dp).background(color))
+}
+
 /** Dot plus label, used in headers, rows and panels. */
 @Composable
 fun StatusLabel(text: String, color: Color, modifier: Modifier = Modifier) {
