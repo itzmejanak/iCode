@@ -17,6 +17,7 @@ import io.github.rosemoe.sora.text.CharPosition
 import io.github.rosemoe.sora.text.Content
 import io.github.rosemoe.sora.widget.CodeEditor
 import io.github.rosemoe.sora.widget.EditorRenderer
+import io.github.rosemoe.sora.widget.component.EditorAutoCompletion
 
 /** The change markers' colours: added, modified, deleted. */
 internal class MarkerColors(val added: Int, val modified: Int, val deleted: Int)
@@ -41,6 +42,10 @@ internal class IcodeCodeEditor(context: Context) : CodeEditor(context) {
     /** Where its completions come from; null: the file's grammar alone (docs/lsp-plan.md §7). */
     var completer: EditorCompleter? = null
 
+    /** The completion list, iCode's own drawing of Sora's (docs/editor-completion-plan.md D7). */
+    val completions: EditorCompletionWindow
+        get() = getComponent(EditorAutoCompletion::class.java) as EditorCompletionWindow
+
     /** Every language the editor is given completes from the language servers too, when a [completer] is set. */
     override fun setEditorLanguage(lang: Language?) {
         super.setEditorLanguage(lang?.let { if (it is CompletingLanguage) it else CompletingLanguage(it, this) })
@@ -63,6 +68,7 @@ internal class IcodeCodeEditor(context: Context) : CodeEditor(context) {
         setDividerMargin(dpUnit * MARKER_LANE_DP, dividerMarginRight)
         // VS Code's Backspace on an indented empty line removes indentation, not the line.
         props.deleteEmptyLineFast = false
+        replaceComponent(EditorAutoCompletion::class.java, EditorCompletionWindow(this))
     }
 
     override fun onCreateRenderer(): EditorRenderer = ChangeMarkerRenderer(this)

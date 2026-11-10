@@ -532,7 +532,7 @@ Every step shows on the user's pages at once, because both callers go through th
   - Squiggles, from `DiagnosticsContainer`.
   - A tap on one opens a sheet with its messages and any code actions. It is a sheet, not a dialog
     (the 2026-11-04 rule).
-  - Completion appears in Sora's popup.
+  - Completion appears in Sora's popup, drawn as iCode's own since 2026-11-10 ([editor-completion-plan.md](./editor-completion-plan.md)).
   - Hover and signature open from the editor's ⋮ and from a long press on a word, as a small sheet.
   - A chip in the top bar shows the active document's server state: none, starting, running, or
     failed with Restart.

@@ -17,10 +17,10 @@ import io.github.rosemoe.sora.langs.textmate.registry.ThemeRegistry
 import io.github.rosemoe.sora.langs.textmate.registry.model.ThemeModel
 import io.github.rosemoe.sora.langs.textmate.registry.provider.AssetsFileResolver
 import io.github.rosemoe.sora.widget.schemes.EditorColorScheme
+import kotlin.concurrent.thread
 import org.eclipse.tm4e.core.registry.IThemeSource
 import org.json.JSONArray
 import org.json.JSONObject
-import kotlin.concurrent.thread
 
 /**
  * The editor's TextMate theme for a palette, made from [syntaxScopes] and the
@@ -79,9 +79,10 @@ private fun hex(color: Color) = "#%06X".format(color.toArgb() and 0xFFFFFF)
  * Every colour the editor draws besides the code, from the palette: its
  * background and gutter, the current line, the caret, selection and handles,
  * matched brackets, find matches, indent guides, the scroll bar and its line
- * bubble, the selection tool bar, problem underlines and the minimap. The ids
- * Sora keeps for features iCode does not show (completion, hover, signatures,
- * inlay hints) are left alone.
+ * bubble, the selection tool bar, problem underlines, the completion list
+ * (EditorCompletionWindow) and a problem's tooltip, and the minimap. The ids
+ * Sora keeps for features iCode does not show (signatures, inlay hints) are
+ * left alone.
  */
 internal fun editorColors(palette: IcodePalette): Map<Int, Int> = with(palette) {
     val transparent = Color.Transparent
@@ -144,7 +145,7 @@ internal fun editorColors(palette: IcodePalette): Map<Int, Int> = with(palette) 
  * editor and when the theme changes, so the palette's colours go on again after
  * each time; set once beforehand, they were silently lost.
  */
-internal class PaletteColorScheme(registry: ThemeRegistry, private val palette: IcodePalette) :
+internal class PaletteColorScheme(registry: ThemeRegistry, val palette: IcodePalette) :
     TextMateColorScheme(registry, registry.currentThemeModel) {
     init {
         applyPaletteColors()
