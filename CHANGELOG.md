@@ -126,6 +126,22 @@ All notable changes to iCode are documented here. The format follows
   is kept encrypted and never read back.
 - Terminal: every bash tab carries iCode's shell integration (`/etc/icode/bashrc`, OSC 133 and OSC 7
   marks, after your own profile), so iCode knows exactly when a command ends.
+- Theme variants ([docs/theme-variants-plan.md](docs/theme-variants-plan.md)). Dark, Light and
+  AMOLED each have variants, chosen in Appearance from a sheet of live previews. A variant is used
+  as soon as you tap it, and the sheet stays open so you can compare.
+  - Dark has 16 variants: iCode's own, Catppuccin Mocha, Dracula, Gruvbox Dark, Nord, Rosé Pine,
+    Solarized Dark, Tokyo Night, and antigem's Amber Night, Aurora, Deep Ocean, Forest, Graphite,
+    Midnight Aurora, Obsidian and Sunset.
+  - Light has 13: iCode's own, Catppuccin Latte, Gruvbox Light, Rosé Pine Dawn, Solarized Light,
+    Tokyo Night Day, and antigem's Lavender, Linen, Mint, Paper, Porcelain, Sakura and Sky.
+  - AMOLED has 18: iCode's own, every Dark variant on true black, and antigem's Midnight and
+    High Contrast.
+  - Each variant colours the app, the editor's code and the terminal its own way. Every colour still
+    reads at the contrast iCode's own themes keep, with Border Lines on or off.
+  - Each theme remembers its own variant. A theme without one looks exactly as before.
+  - Match Phone, in Appearance, shows Light while the phone is light and Dark or AMOLED while it is
+    dark, each in its own variant.
+  - Settings search finds every variant by name.
 
 ### Changed
 - File and folder icons: each kind of file and folder has its own icon, from Material Icon Theme
