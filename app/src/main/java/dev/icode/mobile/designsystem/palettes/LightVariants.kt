@@ -10,7 +10,7 @@ import androidx.compose.ui.graphics.Color
 internal val LightSeeds: List<ThemeSeed> = listOf(
     ThemeSeed(
         "catppuccin_latte", "Catppuccin Latte", classic = true,
-        page = Color(0xFFEFF1F5), card = Color(0xFFE6E9EF), raised = Color(0xFFCCD0DA), editor = null,
+        page = Color(0xFFE6E9EF), card = Color(0xFFEFF1F5), raised = Color(0xFFCCD0DA), editor = null,
         text = Color(0xFF4C4F69), secondary = Color(0xFF6C6F85), accent = Color(0xFF8839EF),
         green = Color(0xFF40A02B), amber = Color(0xFFDF8E1D), error = Color(0xFFD20F39), blue = Color(0xFF04A5E5),
         syntax = syntax(0xFF8839EF, 0xFFDF8E1D, 0xFF40A02B, 0xFFFE640B, 0xFF8C8FA1, 0xFF1E66F5),

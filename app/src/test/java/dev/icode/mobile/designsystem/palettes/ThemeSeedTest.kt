@@ -79,6 +79,19 @@ class ThemeSeedTest {
         }
     }
 
+    @Test fun `no variant's current line is fainter on its editor than the faintest iCode draws`() {
+        // Catppuccin Latte's was the editor's own tone (1.003 : 1) while its cards stood darker than its page.
+        val faintest = listOf(IcodePalette.Dark, IcodePalette.Light, IcodePalette.Amoled).minOf { contrast(it.editorLineHighlight, it.backgroundDeep) }
+        seeded.forEach { (kind, seed, palette) ->
+            val drawn = contrast(palette.editorLineHighlight, palette.backgroundDeep)
+            assertTrue("$kind ${seed.id} %.4f < %.4f".format(drawn, faintest), drawn >= faintest - LINE_TOLERANCE)
+        }
+        DarkSeeds.forEach { seed ->
+            val black = seed.onBlack()
+            assertTrue(seed.id, contrast(black.editorLineHighlight, black.backgroundDeep) >= faintest - LINE_TOLERANCE)
+        }
+    }
+
     @Test fun `on black, a Dark variant keeps its own colours and takes AMOLED's steps`() {
         val amoled = IcodePalette.Amoled
         DarkSeeds.forEach { seed ->
@@ -121,5 +134,7 @@ class ThemeSeedTest {
         const val EPSILON = 1e-9
         /** The finest lightness step lands within this of a wanted ratio. */
         const val STEP_TOLERANCE = 0.02
+        /** One 8-bit level of a near-black tone. */
+        const val LINE_TOLERANCE = 0.002
     }
 }

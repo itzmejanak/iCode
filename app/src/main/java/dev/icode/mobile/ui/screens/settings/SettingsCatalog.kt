@@ -12,7 +12,10 @@ import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.Storage
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.ui.graphics.vector.ImageVector
+import dev.icode.mobile.designsystem.ThemeVariants
+import dev.icode.mobile.domain.AppTheme
 import dev.icode.mobile.navigation.Route
+import java.text.Normalizer
 
 /** One entry on the settings root page. */
 internal data class SettingsCategory(
@@ -30,8 +33,9 @@ internal data class SettingsCategory(
  * (checked against each page, S8.4); a page that shows a subtitle takes it from here.
  */
 internal val settingsCategories = listOf(
-    SettingsCategory("Appearance", "Theme, UI text size, density, borders, accent", Icons.Outlined.Palette, Route.AppearanceSettings,
-        "dark light amoled color colour theme ui text scale size compact layout density border lines borders outline accent ember"),
+    SettingsCategory("Appearance", "Theme and its variants, UI text size, density, borders, accent", Icons.Outlined.Palette, Route.AppearanceSettings,
+        "dark light amoled color colour theme variant variants ui text scale size compact layout density border lines borders outline accent ember " +
+            themeVariantTerms),
     SettingsCategory("Editor", "Font, indentation, keys, autosave, display", Icons.Outlined.Code, Route.SettingsEditor,
         "font family size tab indent word wrap auto close brackets keyboard suggestions autocorrect keys row home end " +
             "auto save line numbers minimap bracket matching git change markers"),
@@ -51,6 +55,11 @@ internal val settingsCategories = listOf(
     SettingsCategory("Application", "Version, build, and runtime", Icons.Outlined.Info, Route.About,
         "about version build editor engine android licenses source documentation"),
 )
+
+/** Every theme variant's name, as typed with or without its accents ("rose pine" finds Rosé Pine). */
+private val themeVariantTerms: String
+    get() = AppTheme.entries.flatMap { ThemeVariants.of(it) }.map { it.name.lowercase() }.distinct()
+        .flatMap { listOf(it, Normalizer.normalize(it, Normalizer.Form.NFD).replace(Regex("\\p{M}"), "")) }.distinct().joinToString(" ")
 
 /** The open workspace's own settings, reached from the scope bar; search finds them too. */
 internal val workspaceSettingsCategory = SettingsCategory(
