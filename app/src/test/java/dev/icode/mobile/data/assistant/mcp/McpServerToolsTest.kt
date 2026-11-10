@@ -105,6 +105,8 @@ class McpServerToolsTest {
     fun `a server is changed by its id, only in what is given`() {
         run(save, github)
         val id = store.servers().single().id
+        // Its first connection fails on its own time: settled first, its end cannot land after the change.
+        settled(id)
         val changed = run(save, JSONObject().put("id", id).put("enabled", false).put("tools", JSONObject().put("delete_repo", "off")).put("unset", JSONArray().put("GITHUB_TOKEN")))
         assertEquals("Changed GitHub ($id), off.", changed)
         val kept = store.servers().single()
