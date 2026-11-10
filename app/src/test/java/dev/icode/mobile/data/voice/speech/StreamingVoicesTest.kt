@@ -68,6 +68,9 @@ class StreamingVoicesTest {
         }
     }
 
+    /** What the client has sent so far, copied under the lock: the server may still be adding its last frame. */
+    private fun saidSoFar() = synchronized(said) { said.toList() }
+
     private fun sentences(vararg texts: String) = Channel<String>(Channel.UNLIMITED).apply {
         texts.forEach { trySend(it) }
         close()
@@ -95,7 +98,7 @@ class StreamingVoicesTest {
         }
         speak(assemblyAiVoice(server.http, "aai-key", "unused", { output }, base), sentences("Hello.", "Again."), VoiceRequest(voice = "aai-jane", language = "en-US"))
         assertEquals(listOf<Byte>(1, 2, 3, 4, 11, 2, 3, 4), played.toList())
-        assertEquals(listOf("Hello.", "Again."), said.filter { type(it) == "Generate" }.map { JSONObject(it).getString("text") })
+        assertEquals(listOf("Hello.", "Again."), saidSoFar().filter { type(it) == "Generate" }.map { JSONObject(it).getString("text") })
         assertEquals("aai-key", authorization)
         assertEquals(
             mapOf("voice_id" to "aai-jane", "language" to "english", "sample_rate" to "24000", "encoding" to "pcm_s16le", "word_boundaries" to "false"),
@@ -205,7 +208,7 @@ class StreamingVoicesTest {
         speak(openAiVoice(server.http, "sk-test", { output }, base), sentences("One.", "Two."), VoiceRequest(voice = "marin", model = "gpt-realtime-2.1-mini", speed = 1.25f))
         assertEquals(listOf<Byte>(7, 0, 8, 0), played.toList())
         assertEquals(false, early.get())
-        assertEquals(listOf("session.update", "response.create", "response.create"), said.map(::type))
+        assertEquals(listOf("session.update", "response.create", "response.create"), saidSoFar().map(::type))
         assertEquals("Bearer sk-test", authorization)
         assertEquals(mapOf("model" to "gpt-realtime-2.1-mini"), queries.single())
         val session = JSONObject(said.first()).getJSONObject("session")

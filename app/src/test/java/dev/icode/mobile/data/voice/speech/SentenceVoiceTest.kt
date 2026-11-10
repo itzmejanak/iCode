@@ -104,8 +104,8 @@ class SentenceVoiceTest {
         val speaking = launch { SentenceVoice(synthesis) { output }.speak(sentences("One.", "Two."), VoiceRequest(), playing::add) }
         withTimeout(5_000) { started.await() }
         speaking.cancelAndJoin()
-        assertEquals("close", events.last())
-        assertEquals(listOf("play One. at 24000"), played())
+        // Two may still be asked for on another thread as the player stops, so only the player's own events are in order.
+        assertEquals(listOf("play One. at 24000", "close"), synchronized(events) { events.filterNot { it.startsWith("ask") } })
         assertEquals(false, playing.lastOrNull())
     }
 
