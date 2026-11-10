@@ -35,6 +35,8 @@ class CapturePreferences : WorkspacePreferencesRepository {
     override suspend fun setBorderLines(shown: Boolean) = Unit
     override suspend fun setAccentColor(argb: Int?) = Unit
     override suspend fun setThemeVariant(theme: AppTheme, id: String?) = Unit
+    override suspend fun setFollowSystem(theme: AppTheme, follow: Boolean) = Unit
+    override suspend fun setNightTheme(theme: AppTheme) = Unit
     override suspend fun setEditorFontSize(sizeSp: Int) = Unit
     override suspend fun setEditorFontFamily(family: EditorFontFamily) = Unit
     override suspend fun setWordWrap(enabled: Boolean) = Unit

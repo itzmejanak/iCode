@@ -34,7 +34,7 @@ internal data class SettingsCategory(
  */
 internal val settingsCategories = listOf(
     SettingsCategory("Appearance", "Theme and its variants, UI text size, density, borders, accent", Icons.Outlined.Palette, Route.AppearanceSettings,
-        "dark light amoled color colour theme variant variants ui text scale size compact layout density border lines borders outline accent ember " +
+        "dark light amoled color colour theme variant variants auto match phone system day night ui text scale size compact layout density border lines borders outline accent ember " +
             themeVariantTerms),
     SettingsCategory("Editor", "Font, indentation, keys, autosave, display", Icons.Outlined.Code, Route.SettingsEditor,
         "font family size tab indent word wrap auto close brackets keyboard suggestions autocorrect keys row home end " +

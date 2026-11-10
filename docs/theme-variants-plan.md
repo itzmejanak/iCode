@@ -1,8 +1,8 @@
 # Theme variants — plan
 
-Status: **decided** (2026-11-10). The owner approved every recommendation in §8 and the architecture:
-keep iCode's colour system, settings store and theme engine, and keep today's look for existing users
-after the update. T1 is the first cycle. Auto is its own cycle, T6, after T5.
+Status: **done in code** (2026-11-10). T1–T6 are built (§9); the phone checks in §7 are the owner's.
+The owner approved every recommendation in §8 and the architecture: keep iCode's colour system,
+settings store and theme engine, and keep today's look for existing users after the update.
 
 Owner's request: port antigem's appearance themes into iCode, adjusted to what suits iCode. Dark,
 Light and AMOLED stay the primary themes. Each of the three has its own variants, and every new
@@ -258,7 +258,8 @@ theme has its own matching editor colours.)
 **The variant sheet** (`IcodeBottomSheet`)
 - **Title** "Dark variants", "Light variants" or "AMOLED variants", with the count as subtitle.
 - **Sections:**
-  - **iCode**;
+  - **Default**: iCode's own (as built: the design system's section labels are upper case, and
+    "ICODE" read as a typo);
   - **Editor classics**, A to Z. Dark and AMOLED: Catppuccin Mocha, Dracula, Gruvbox Dark, Nord,
     Rosé Pine, Solarized Dark and Tokyo Night. Light: Catppuccin Latte, Gruvbox Light, Rosé Pine
     Dawn, Solarized Light and Tokyo Night Day;
@@ -269,7 +270,8 @@ theme has its own matching editor colours.)
   - the page;
   - a card with two text lines and an accent pill;
   - an editor strip with the keyword, string and function colours;
-  - the green, amber, error and blue dots;
+  - the green, amber, error and blue dots, where the card is wide enough: the three family cards on a
+    small phone leave room only for the code strip;
   - the name underneath.
 
   The variant in use has the accent outline and ✓. TalkBack reads each card as "Nord, selected".
@@ -286,7 +288,7 @@ theme has its own matching editor colours.)
 |---|---|---|
 | domain | `AppSettings.kt` | `AppearanceSettings.variants: Map<AppTheme, String>` (no entry = iCode), `variantOf(theme)`, and `ThemeVariantRules` (what an id may be; iCode's own is stored as no id) |
 | domain | `WorkspacePreferences.kt` | `setThemeVariant(theme, id: String?)` |
-| data | `AndroidWorkspacePreferencesRepository.kt` | The three keys, and a value longer than 40 characters reads as null |
+| data | `AndroidWorkspacePreferencesRepository.kt`, new `AppearanceStore.kt` | The appearance keys and how a stored set reads (moved out so the repository stays under 300 lines); a value that is not an id reads as iCode |
 | debug | `CapturePreferences.kt` | The new setter, as a no-op |
 | designsystem | `palettes/ThemeSeed.kt` | The seed type and the D4 and D5 derivation |
 | designsystem | `palettes/DarkVariants.kt`, `LightVariants.kt`, `AmoledVariants.kt` | The seeds. AMOLED holds Midnight and High Contrast, and the twins are derived |
@@ -295,7 +297,8 @@ theme has its own matching editor colours.)
 | designsystem | `SyntaxColors.kt` | A palette's optional syntax seeds, used before the hue rule |
 | ui | `AppearancePalette.kt` | Passes the family's variant |
 | ui/editor | `EditorTheme.kt` | The theme name from a hash of its rules |
-| ui/screens/settings | `AppearanceScreen.kt`, new `ThemeVariantSheet.kt`, new `ThemePreview.kt` | §4 |
+| designsystem | new `ThemePreview.kt` | The live mini screen of a palette: the family cards and the sheet both draw it |
+| ui/screens/settings | `AppearanceScreen.kt`, new `ThemeVariantSheet.kt` | §4 |
 | ui/screens/settings | `SettingsCatalog.kt` | Variant names as keywords |
 | tools | `check-ui-consistency.sh` | The raw-colour scope (D9) |
 | notices | `THIRD_PARTY_NOTICES.md` | antigem, and each classic palette's project and licence |
@@ -313,15 +316,23 @@ Every file stays at or under 300 lines.
 | **T5** — docs as built | This plan, CHANGELOG, layout.md §20 | — |
 | **T6** — Auto (separate) | Follow the phone's light or dark setting (§6.1) | Its own plan section and owner check before it is built |
 
-### 6.1 T6 — Auto, in outline
+### 6.1 T6 — Auto, as built
 
-Auto is a fourth choice beside the three families. The phone's setting picks Light by day and a dark
-family by night, and each family draws its own remembered variant (D1), so Auto adds no variant of
-its own. Points to settle when T6 starts:
+Auto is **Match Phone**, a row with a toggle under the three family cards, not a fourth family: the
+phone's setting picks Light by day and a dark family by night, and each draws its own remembered
+variant (D1), so Auto adds no variant of its own. The points left open were settled so:
 
-- Which family Auto uses at night: Dark, AMOLED, or the one last chosen.
-- Reading the phone's night mode live (`Configuration.uiMode`), and the system bars following it.
-- The splash and window background, which are Dark's `#0A0D0B` today (§1.1).
+- **At night: Dark or AMOLED, whichever you choose.** Turning Match Phone on while a dark theme
+  shows makes that one the night theme. While it is on, the cards say "Day" and "Night"; tapping the
+  other dark card makes it the night theme, and tapping Light or the night card opens its variants.
+  Turned off, the theme on screen stays.
+- **Stored** as `appearance_follow_system` and `appearance_night_theme`; a night theme stored as
+  Light reads as Dark. `AppearanceSettings.shown(systemDark)` is the one rule, and both roots ask it
+  through `appearancePalette`, the app with Compose's `isSystemInDarkTheme()` (it follows the
+  phone live), the overlays' glow with the service's configuration.
+- **The system bars** follow the palette's kind, as they already did.
+- **Not changed:** the splash and the window behind the first frame stay Dark's `#0A0D0B`, as for
+  Light today; a light start is dark for a moment.
 
 ## 7. Phone checks (owner)
 
@@ -333,6 +344,8 @@ its own. Points to settle when T6 starts:
 5. Border Lines off and Compact Layout work with a variant. So do a custom accent and "Use theme
    default".
 6. Restart: the variant stays.
+7. Match Phone on while AMOLED shows: switching the phone to light shows Light in its variant, and
+   back to dark shows AMOLED. Turned off by day, Light stays.
 
 ## 8. Owner's decisions (2026-11-10)
 
@@ -444,3 +457,35 @@ its own. Points to settle when T6 starts:
   - `everyPalette` now holds 94 palettes: 47 variants, each with and without border lines. Every
     contrast, editor, icon and engine test runs over all of them. The engine test now takes about
     48 s, up from 4 s, and the icon test about 27 s.
+- **T4 — the page and the sheet** (done 2026-11-10).
+  - `designsystem/ThemePreview.kt` draws a palette as a mini screen of itself (§4). It has no
+    semantics of its own: the card it sits on says what it is.
+  - `AppearanceScreen`:
+    - The three cards show their remembered variant, named under the theme ("Dark", "Nord").
+    - Tapping the card in use opens its variants.
+    - A "<Theme> variant" row shows the variant's name and a ›.
+    - "Use theme default" in the accent sheet returns to the variant's own accent.
+    - Every variant's palette is built off the main thread when the page opens, so the sheet's
+      first opening builds none.
+  - `ThemeVariantSheet` is §4: sections Default, Editor classics and More; two cards to a phone's
+    width (`IcodeSizes.ThemeCardMin`, 148 dp); a tap saves at once; the custom-accent line.
+  - Settings search finds every variant by name, typed with or without its accents.
+  - **Seen before the phone:** this sandbox has no device or emulator, so the sheet could not be
+    captured. Instead every variant's palette was exported from the JVM and drawn as the sheet
+    lays it out, along with an editor and terminal sample for several variants. That showed one
+    fault, fixed: **Catppuccin Latte's current line could not be seen**. Its cards were mantle,
+    darker than its base page, so the derived editor (a step darker than the page) took the cards'
+    tone and the line between them (1.003:1). Latte's page is now mantle and its cards base, as
+    Catppuccin's style guide places a secondary pane around the main one. A test now holds every
+    variant's current line at least as visible as iCode's own faintest.
+- **T5 — docs as built** (done 2026-11-10): this plan, the CHANGELOG (Added), and layout.md §20.
+- **T6 — Match Phone** (done 2026-11-10), as §6.1.
+  - Tests: `shown` for each case; storage, the night theme kept, and turned off by day keeping
+    Light; a night theme stored as Light read as Dark; `appearancePalette` by day and night, each
+    in its own variant; settings search for "match phone".
+- **Gate** (after T6):
+  - 1557 unit tests. The only failure is `TreeSizeTest`'s root-only case, as on main.
+  - assembleDebug and assembleRelease build, and both consistency guards pass.
+  - Lint's one error is main's own (`SpeechProviderParts.kt:80`). Its warning at
+    `PhoneOverlays.kt:98`, `ClickableViewAccessibility`, is on main too: that line moved down two
+    lines and did not change.
