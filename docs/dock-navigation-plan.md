@@ -229,24 +229,23 @@ Terminal over Editor.
   thumb. The undo pill and the bell stand above it, one step higher than before (a pill's height
   and an 8 dp gap). The dock is always there, so its place never moves, while the undo pill comes and goes.
   (§8, question 2.) The user can move each pill elsewhere (D11).
-- **Tucked**, as it is by default and again after each switch: only its handle shows in the edge,
-  as the bell's does when tucked: a 30 dp strip, the pill's 48 dp tall, with the dock's own icon in
-  it (D12). The handle takes the tone of what needs you most (D8).
-- **Out**, on a tap on the grip or a pull from the edge: one row of the six tools' icons slides out
-  from the edge. Each icon is 44 dp wide and the pill's height tall, in a fixed order, with the
-  nearest to the thumb first (§8, question 3). A count or a mark on an icon is drawn whole, never
-  cut by the pill's round.
+- **Closed**, as it is by default and again after each switch: its own icon, the tools' grid, as a
+  see-through button (D12, D13), in the tone of what needs you most (D8).
+- **Open**, on a tap: one row of the six tools' icons grows from its icon, which stays where it was,
+  now at the row's docked end. Each icon is 44 dp wide and the pill's 48 dp tall, in a fixed order,
+  with the nearest to the thumb first (§8, question 3). A count or a mark on an icon is drawn whole,
+  never cut by the pill's round.
   - The tool on screen has the rail's accent line, and its icon the accent.
-  - A tap switches and tucks the dock. A tap on the suggested tool goes where the suggestion is
+  - A tap switches and closes the dock. A tap on the suggested tool goes where the suggestion is
     (D8): Terminal on its Problems tab, or on the session whose command ended.
-  - Back, a touch outside, or a swipe back into the edge tucks it. A touch outside does only that,
-    as one outside a menu does.
+  - Its icon, Back, a touch outside, or 6 seconds untouched close it. A touch outside does only
+    that, as one outside a menu does.
 - **Hidden** on every page that is not a tool's main screen (D1), while a sheet is open, on the
   Notifications page and outside a workspace. Inside a workspace its place stays kept while it is
   hidden, so the bell and the undo pill never move as pages open and close.
-- **With the keyboard up** it stays tucked unless pulled out, and moves above the keyboard as the
-  bell does. It never covers the editor's key row or the terminal's extra keys, because those are
-  floors of the stack.
+- **With the keyboard up** it stays closed unless tapped, and moves above the keyboard as the bell
+  does. Where it starts, it never covers the editor's key row or the terminal's extra keys, because
+  those are floors of the stack; moved by the user, it stands where they put it (D11).
 - **Motion and access.**
   - It slides in about 200 ms and follows Android's animation scale; with animations off it simply
     appears.
@@ -269,7 +268,7 @@ looks the same wherever it is reached.
 
 **D8 — Suggestions** (feature c). These follow fixed rules, never guesses (`ToolSuggestions`). One
 suggestion is shown at a time: the newest, and of two at once the first in this table's order. It
-is shown as the grip's tone and that tool's icon in the same tone, said by TalkBack. **It never
+is shown as the closed dock's icon in its tone and that tool's icon in the same tone, said by TalkBack. **It never
 switches by itself.** What was already so when iCode started, or when another workspace opened, is
 no event.
 
@@ -282,8 +281,9 @@ no event.
 | The assistant's turn ended having changed files with its tools, in the open workspace's Git repository | Source Control | It is opened |
 
 **D9 — Quick switch** (feature d).
-- A swipe up or down along the tucked grip switches straight to the tool used before. This is the
-  same gesture Android uses to switch to the last app.
+- A double tap on the closed dock switches straight to the tool used before, as a double tap on
+  antigem's floating switcher goes back (D13). The first tap opens it at once, never waiting to see
+  whether a second comes; the second, on its icon where the first was, switches and closes it.
 - In the opened row, that tool carries a small "last" mark: a quieter line under its icon than the
   accent line of the tool on screen.
 - TalkBack offers "Switch to Editor", naming the tool used before.
@@ -295,9 +295,9 @@ restart: the model's saver keeps all six histories, the tool order and the app s
 2026-11-10).
 - **By default** the pills stand where they always have: the undo pill, the bell, the dock, at the
   end edge's foot, clear of the bars.
-- **Held** (a long press on what shows of a pill, its handle or an icon), a pill is picked up: the
-  phone ticks, the pill lifts off its edge and floats as its own icon in a raised bubble under the
-  finger, anywhere on the screen.
+- **Dragged** (a finger moving on any part of a pill, past the touch slop, D13), a pill is picked
+  up at once: the phone ticks, the pill lifts off its edge and floats as its own icon in a raised
+  bubble under the finger, anywhere on the screen.
 - **Let go**, it docks on the edge nearest the finger — left, right, top or bottom — its middle
   where the finger was along that edge, and glides there. It stays there across restarts,
   app-wide (`AppearanceSettings.pillPlaces`).
@@ -306,22 +306,47 @@ restart: the model's saver keeps all six histories, the tool order and the app s
   keyboard coming up moves a side's pill down with the room. No pill stands over another
   (`PillPlaces.spots`): on one edge they make way for each other, and in a corner a side's pill
   makes way for one across the top or the bottom. Every move is animated.
-- **On another edge** a pill is drawn for it: on the left, the mirror of itself; on the top or the
-  bottom, its row lying along the edge, round on the open side, its handle in a strip above or
-  below the row, tucking up or down. The dock's order runs from the edge on a side, and toward the
-  end, nearest the thumb, on the top or the bottom.
+- **Off the edge itself**: a pill stands 4 dp in from it, and its place is kept from Android's back
+  gesture (`systemGestureExclusion`), which would otherwise take a touch that starts at the edge.
+- **On any edge** a pill opens the same way: its row grows from its icon away from a side, and
+  toward the middle on the top or the bottom (`PillPlaces.iconAtEnd`). Each pill stands on a closed
+  pill's 48 dp square, its footing, so a pill opening moves nothing. The dock's order runs from its
+  icon outward.
 - **TalkBack** offers on each pill "Move … to the … edge" for the other three, and "Move … up" and
   "down" on a side, or left and right on the top or the bottom.
-- A tap, a pull and the swipe along the handle are unchanged: a pill is only picked up when held
-  still for a long press.
+- A tap is the pill's own: a drag only begins once the finger moves.
 
-**D12 — Each pill known at a glance, and quiet when not used** (owner's request, 2026-11-10).
-- **Tucked**, a pill's handle is its own icon — the undo arrow, the bell, the dock's grid — in what
-  needs the user there (the unread tone, the suggestion's), so the three are told apart without
-  opening any. Out, the handle is a grip.
+**D12 — Each pill known at a glance, and quiet when not used** (owner's requests, 2026-11-10).
+- **Its own icon**: the undo arrow (and redo beside it when there is one), the bell, the dock's
+  grid, in what needs the user there (the unread tone, the suggestion's), so the three are told
+  apart without opening any.
+- **See-through**: no slab of its own. Each icon sits on a faint round of the raised surface (60 %),
+  so it reads over code while the screen shows through, inside a 48 dp touch target; a count on it
+  is drawn whole (`IcodePillButton`).
 - **Resting**, as the assistant's bubble over other apps does (`IcodeResting`, one rule for both):
-  a tucked pill left alone 3 seconds fades to 55 %. A touch, a new tone (a notice, a suggestion) or
-  coming out wakes it at once.
+  a pill not awake — the bell after its ring, the undo pill after its change's time, the closed dock
+  with no suggestion — and left alone 3 seconds fades to 55 %. A touch or anything new wakes it.
+
+**D13 — Tap to open, drag to move, as antigem does** (owner's report and request, 2026-11-10: the
+pills could not be dragged; study antigem).
+- **What was wrong.** A pill moved only after a 500 ms still hold, which nothing showed, and a
+  drag did something else: on a side, sideways tucked or pulled it, and up or down was the dock's
+  quick switch (nothing on the bell or the undo pill). Four gestures shared one 30 dp strip flush
+  on the edge, inside Android's back gesture, and a tucked pill was a grey slab pushed into the
+  edge.
+- **What antigem does** (its floating switcher, `FloatingSwitcherWidget.kt`, and its voice orb's
+  snap, `JarvisOverlay.kt`): a finger moving past the touch slop drags it at once, from anywhere on
+  it, its buttons' taps cancelled; a tap opens it at once; a double tap goes back; the open panel
+  grows from the closed pill's corner, so the arrow stays under the finger; it is placed in the
+  layout's placement step and saved once, on the drop; the orb jumps to its new edge and a spring
+  from where it was hides the jump.
+- **As built**, the same: one detector on each pill, the down taken in the initial pass and given
+  to its buttons, the slop then the pill's (`FloatingPills`). Tap opens or does the pill's action;
+  drag moves; double tap on the dock is the quick switch. No pull, no swipe in, no swipe along, no
+  hold.
+- **Where antigem stops, and iCode goes on**: it docks on no edge (the switcher) or only the sides
+  (the orb), lets its widgets overlap, has no resting state, and draws its closed switcher solid.
+  iCode docks on all four edges, never overlaps, rests, and draws its pills see-through.
 
 ## 4. Where the code goes
 
@@ -338,8 +363,8 @@ As built:
 | domain | new `ToolBadges.kt`, `ToolSuggestions.kt` | D7 and D8 from the snapshot, pure |
 | domain, data | `TerminalContract.kt`, `TerminalSessionManager.kt`, `TerminalCommands.kt` | Whether a command runs, per session, from its shell's marks, and how many long ones have ended (§1.4) |
 | domain, data | `AssistantContract.kt`, `AssistantTurns.kt` | A turn's end, and whether its tools changed a file |
-| designsystem | `IcodeDockedPill.kt`, `IcodeFloatingStack.kt`, `IcodeRail.kt`, `IcodeStatus.kt` | The swipe along the grip, TalkBack's actions, the touch outside, a docked action's dot and line, shared with the rail |
-| designsystem | new `IcodeFloatingPills.kt` | Each pill at its place on any edge, held, floated as a bubble and moved (D11) |
+| designsystem | `IcodeDockedPill.kt`, `IcodeFloatingStack.kt`, `IcodeRail.kt`, `IcodeStatus.kt` | The see-through pill buttons and the dock that opens (D12, D13), TalkBack's actions, the touch outside, a docked action's dot and line, shared with the rail |
+| designsystem | new `IcodeFloatingPills.kt` | Each pill on its footing on any edge, dragged, floated as a bubble and docked (D11, D13) |
 | designsystem | `IcodeMetrics.kt` | `IcodeResting`: how the bubble and the pills rest (D12) |
 | domain, data, ui | new `FloatingPills.kt`, `AppearanceStore.kt`, new `ui/FloatingControls.kt` | Where each pill is kept, how pills share an edge, and the stack's three pills (D11) |
 | ui | new `ToolFaces.kt`, `ui/dock/ToolDock.kt` | Each tool's icon; the dock (D6, D9) |
@@ -419,8 +444,8 @@ Assistant.
 - **K1** [P] It shows on the six main screens only. It is hidden on every other page, under
   sheets, on Notifications and outside a workspace.
 - **K2** [P] One-handed: every icon can be reached with the right thumb on a 6.1–6.7" phone held in
-  one hand. A switch takes 2 taps, or 1 swipe for the last tool.
-- **K3** [P] Tucked by default, and only its grip shows. It never covers a bottom bar, the key
+  one hand. A switch takes 2 taps, or a double tap for the last tool.
+- **K3** [P] Closed by default, and only its icon shows. Where it starts, it never covers a bottom bar, the key
   rows or the keyboard. It moves with the keyboard as the bell does.
 - **K4** [P] It slides smoothly, with no dropped frames on the owner's phone, and follows
   Android's animation scale.
@@ -558,6 +583,12 @@ no duplication; no inconsistency; maintainable and scalable; fix the faults foun
   - The tucked strip is 30 dp, room for the icon.
   - Tests: `PillPlacesTest` (the defaults, every edge, no overlap on an edge or in a corner, where a
     pill let go docks, right to left, the stored form).
-- **To check on the phone:** §5's [P] criteria — J1–J3, B5, S2, S3, K1–K6 and E1 — and D11–D12:
-  hold each pill and move it to the top, the bottom and the left; restart iCode; open the keyboard;
-  leave the pills 3 seconds and see them fade; tell the three apart tucked.
+- **N8 — tap to open, drag to move** (2026-11-10): D13. The pill parts are now `IcodePillRow` and
+  `IcodePillButton` (the bell, the undo pill, a closed dock) and `IcodeDockedPill` (the dock, which
+  opens); the edge-flush slab, its handle, its tuck, pull and swipes are gone. The undo pill keeps
+  ↶ where it is docked, so ↷ coming and going never moves it from under the thumb. Tests:
+  `PillPlacesTest` (where a row opens toward).
+- **To check on the phone:** §5's [P] criteria — J1–J3, B5, S2, S3, K1–K6 and E1 — and D11–D13:
+  drag each pill at once, without a hold, to the top, the bottom and the left; tap the dock to open
+  it and a tool to switch; double tap it for the last tool; restart iCode; open the keyboard; leave
+  the pills 3 seconds and see them fade; tell the three apart.

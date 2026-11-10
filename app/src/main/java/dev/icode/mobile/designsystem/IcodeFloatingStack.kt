@@ -104,9 +104,9 @@ internal fun SheetOpen() {
 /**
  * The floating stack (§3.8): [pills] — the undo pill above the bell, the tool dock below them — at
  * the bottom end, above the highest of [floors] and at least [IcodeSizes.FabClearance] up; gone while
- * a sheet is open or the stack is not [visible]. Each pill ([IcodeDockedPill]) sits flush on its edge
- * and says nothing in words (owner's requests, 2026-11-04): icons and counts only, so a long name
- * never stretches it. A pill held and dragged moves to either edge, at any height ([FloatingPills]).
+ * a sheet is open or the stack is not [visible]. Each pill ([IcodePillRow], [IcodeDockedPill]) is its
+ * see-through icons, and says nothing in words (owner's requests, 2026-11-04): icons and counts only,
+ * so a long name never stretches it. A pill dragged moves to any edge, anywhere along it ([FloatingPills]).
  *
  * With [onOutside], a pill is out that a touch anywhere else puts away (the dock's row): that touch
  * does only that, as one outside a menu does.

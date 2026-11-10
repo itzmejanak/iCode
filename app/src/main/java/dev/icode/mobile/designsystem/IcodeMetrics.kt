@@ -100,8 +100,10 @@ object IcodeSizes {
      * padding, the narrowest of which it fits, and touch still finds it a [TouchTarget] wide.
      */
     val CornerAction = 40.dp
-    /** A floating pill's height ([IcodeDockedPill]): a touch target, so its grip and actions are easy to hit. */
+    /** A floating pill's height, and a closed one's square ([IcodeDockedPill]): a touch target, easy to hit. */
     val DockedPill = 48.dp
+    /** The faint round a floating pill's button sits on ([IcodePillButton]): inside its touch target, so a count on it is never cut. */
+    val PillRound = 40.dp
     /** Each action's width on a floating pill: six fit a phone's row with room to spare (docs/dock-navigation-plan.md D6). */
     val DockedAction = 44.dp
     /** A tree row's leading slot, its expand arrow or nothing: the rail beneath the row runs down its middle. */

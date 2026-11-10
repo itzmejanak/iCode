@@ -23,12 +23,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.LiveRegionMode
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeDockedAction
-import dev.icode.mobile.designsystem.IcodeDockedPill
+import dev.icode.mobile.designsystem.IcodePillButton
+import dev.icode.mobile.designsystem.IcodePillRow
 import dev.icode.mobile.designsystem.IcodeSheetOverlay
 import dev.icode.mobile.domain.AppNotice
 import dev.icode.mobile.domain.NoticeIntent
@@ -40,40 +39,40 @@ import kotlinx.coroutines.delay
 
 /**
  * The bell and the sheet, over every screen (docs/notices-plan.md §2.2–2.3): what last rang the bell,
- * whether it is tucked in the edge (its time up, swiped in, or its notice opened) — it never goes —
- * and the notice in the sheet.
+ * whether it is awake — rung, for its time — or at rest, faded until touched (its time up, or its
+ * notice opened); it never goes. And the notice in the sheet.
  */
 @Stable
 internal class NoticeHostState {
     var told: AppNotice.Message? by mutableStateOf(null)
         private set
-    var tucked by mutableStateOf(true)
+    var awake by mutableStateOf(false)
         private set
 
-    /** One more each time the bell comes out: its time starts again. */
-    var outs by mutableIntStateOf(0)
+    /** One more each time the bell wakes: its time starts again. */
+    var wakes by mutableIntStateOf(0)
         private set
     var shown: String? by mutableStateOf(null)
         private set
 
-    /** A notice was said: the bell rings, out of the edge. */
+    /** A notice was said: the bell rings, awake. */
     fun arrived(notice: AppNotice.Message) {
         told = notice
-        show()
+        wake()
     }
 
-    fun show() {
-        tucked = false
-        outs++
+    fun wake() {
+        awake = true
+        wakes++
     }
 
-    fun tuck() {
-        tucked = true
+    fun rest() {
+        awake = false
     }
 
-    /** The notice [id] in its sheet; the bell, having led there, tucks. */
+    /** The notice [id] in its sheet; the bell, having led there, rests. */
     fun open(id: String) {
-        tuck()
+        rest()
         shown = id
     }
 
@@ -94,10 +93,10 @@ internal fun NoticeHost(state: NoticeHostState, notices: List<AppNotice>, pageOp
     val gateway = LocalICodeGateway.current
     Box(Modifier.fillMaxSize()) {
         CompositionLocalProvider(LocalNotices provides state) { content() }
-        LaunchedEffect(state.outs) {
-            if (state.tucked) return@LaunchedEffect
+        LaunchedEffect(state.wakes) {
+            if (!state.awake) return@LaunchedEffect
             delay(NoticeRules.bellMillis(NoticeRules.bellTone(notices) ?: state.told?.tone ?: NoticeTone.Info))
-            state.tuck()
+            state.rest()
         }
         state.shown?.let { id ->
             val notice = notices.firstOrNull { it.id == id }
@@ -122,12 +121,12 @@ internal fun NoticeHost(state: NoticeHostState, notices: List<AppNotice>, pageOp
 }
 
 /**
- * The bell in the floating stack (owner's design, 2026-10-21; since 2026-11-04, the owner's requests,
- * no line, docked on the edge and never gone): a notice brings it out and rings it once, in the most
- * serious unread tone — or a success's green, which is not kept — with the unread count as the
- * Explorer's Source Control count is drawn; TalkBack reads what rang it. On its time, or swiped in,
- * it tucks to its grip, which keeps the unread tone; a tap there, or a pull, brings it out. A tap on
- * it opens the one unread notice; otherwise the Notifications page ([onAll]).
+ * The bell in the floating stack (owner's design, 2026-10-21; since 2026-11-10, a see-through button
+ * the user can move, docs/dock-navigation-plan.md D13): a notice wakes it and rings it once, in the
+ * most serious unread tone — or a success's green, which is not kept — with the unread count as the
+ * Explorer's Source Control count is drawn; TalkBack reads what rang it. On its time it rests, faded,
+ * keeping the unread tone and count, until touched. A tap opens the one unread notice; otherwise the
+ * Notifications page ([onAll]).
  */
 @Composable
 internal fun NoticeBell(state: NoticeHostState, notices: List<AppNotice>, onAll: () -> Unit) {
@@ -142,36 +141,29 @@ internal fun NoticeBell(state: NoticeHostState, notices: List<AppNotice>, onAll:
         ring.animateTo(1f, tween(RING_MILLIS, easing = LinearEasing))
         ring.snapTo(0f)
     }
-    IcodeDockedPill(
-        tucked = state.tucked,
-        onTucked = { if (it) state.tuck() else state.show() },
-        name = "the bell",
-        tone = unreadTone?.tint,
-    ) {
-        IcodeDockedAction(
+    IcodePillRow("the bell", awake = state.awake) { moves ->
+        IcodePillButton(
             Icons.Outlined.Notifications,
-            description = null,
-            tint = (unreadTone ?: told?.tone)?.tint ?: IcodeColors.TextSecondary,
+            description = listOfNotNull(told?.title, "Notifications, ${unread.size} unread").joinToString(". "),
             onClick = {
                 val one = unread.singleOrNull()
                 if (one != null) {
                     state.open(one.id)
                 } else {
-                    state.tuck()
+                    state.rest()
                     onAll()
                 }
             },
-            modifier = Modifier.semantics {
-                contentDescription = listOfNotNull(told?.title, "Notifications, ${unread.size} unread").joinToString(". ")
-                liveRegion = LiveRegionMode.Polite
-            },
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+            tint = (unreadTone ?: told?.tone)?.tint ?: IcodeColors.TextSecondary,
+            badge = unread.size.takeIf { it > 0 },
             // A bell swings from where it hangs: a swing that dies away, three times over.
             iconModifier = Modifier.graphicsLayer {
                 val p = ring.value
                 rotationZ = MAX_SWING_DEGREES * (1 - p) * sin(p * SWINGS * 2 * PI.toFloat())
                 transformOrigin = TransformOrigin(0.5f, 0f)
             },
-            badge = unread.size.takeIf { it > 0 },
+            actions = moves,
         )
     }
 }

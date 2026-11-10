@@ -93,8 +93,8 @@ All notable changes to iCode are documented here. The format follows
 - iCode has no dialogs: every confirmation, question and long operation is a sheet, and every sheet
   closes with a swipe down as well as ×, Back or a tap outside.
 - The bell and the undo pill say nothing in words: a notice rings the bell with the unread count, and
-  the undo pill shows ↶ and ↷. Both are docked flush on the screen's edge and never go: they tuck
-  to their grip, and a tap or a pull brings them out. The explorer's ⋮ has no Undo or Redo now.
+  the undo pill shows ↶ and ↷. Both are see-through icons that never go: left alone they fade,
+  and a touch wakes them. The explorer's ⋮ has no Undo or Redo now.
 - Assistant: a long press on your message offers Edit, and Retry when its turn failed; a message's
   files ride a tab rising from its card, small.
 - Assistant: a model that turns out not to see pictures goes on with the screen's text and is set to
@@ -143,29 +143,29 @@ All notable changes to iCode are documented here. The format follows
     dark, each in its own variant.
   - Settings search finds every variant by name.
 - The tool dock ([docs/dock-navigation-plan.md](docs/dock-navigation-plan.md)). On the Explorer,
-  Editor, Search, Source Control, Assistant and Terminal, a grip in the screen's edge under the bell
-  opens one row of the six tools. A tap switches to a tool as you left it and tucks the row; Back or
-  a touch elsewhere tucks it too. A swipe up or down along the grip switches straight to the tool
-  you used before.
+  Editor, Search, Source Control, Assistant and Terminal, the tools' icon under the bell opens one
+  row of the six tools on a tap, grown from the icon. A tap switches to a tool as you left it and
+  closes the row; its icon, Back, a touch elsewhere or a few seconds untouched close it too. A
+  double tap on the dock switches straight to the tool you used before.
   - Each icon carries its tool's badge: unsaved files on the Editor, changed files on Source
     Control, errors and a dot while a command runs on Terminal, the accent while the assistant
     works and amber while it waits for you. The Explorer's rail shows the same badges.
-  - When something happens out of sight, the dock suggests one tool by colouring the grip and that
-    tool's icon: the assistant asks you something, a pull leaves conflicts, a build finds errors, a
+  - When something happens out of sight, the dock suggests one tool by colouring its own icon and
+    that tool's: the assistant asks you something, a pull leaves conflicts, a build finds errors, a
     command that ran 30 seconds or more ends, or the assistant's turn changes files. A tap on it goes
     straight there, such as Terminal's Problems tab. It never switches by itself.
   - TalkBack reads each tool with its badge and the suggestion, and offers "Switch to …" for the
     tool you used before.
-- The undo pill, the bell and the dock can each be moved anywhere. Hold one until the phone ticks:
-  it lifts off its edge as its icon in a floating bubble, which you drag anywhere on the screen.
-  Let go, and it docks on the nearest edge, left, right, top or bottom, where you let go along it,
-  and stays there after a restart. On the top or the bottom its row lies along the edge and tucks
-  up or down. Pills never cover one another, a keyboard coming up moves a side's pill down with the
-  room, and TalkBack offers Move to each other edge and Move along the edge.
-- Each tucked pill shows its own icon, the undo arrow, the bell or the dock's grid, in the colour
-  of whatever needs you there, so you can tell them apart without opening them. Left alone for 3
-  seconds, a tucked pill fades, as the assistant's bubble over other apps does; a touch or anything
-  new brings it back.
+- The undo pill, the bell and the dock can each be moved anywhere: drag one, and as soon as your
+  finger moves it lifts off its edge as its icon in a floating bubble, which follows you anywhere
+  on the screen. Let go, and it docks on the nearest edge, left, right, top or bottom, where you let
+  go along it, and stays there after a restart. A tap is still a tap. Pills never cover one
+  another, a keyboard coming up moves a side's pill down with the room, and TalkBack offers Move to
+  each other edge and Move along the edge.
+- Each pill is its own icon, the undo arrow, the bell or the dock's grid, see-through on a faint
+  round so the screen shows through, in the colour of whatever needs you there, so you can tell
+  them apart at a glance. Left alone for 3 seconds, a pill fades, as the assistant's bubble over
+  other apps does; a touch or anything new brings it back.
 
 ### Changed
 - Each workspace tool keeps its own history. Going to a tool shows it as you left it, never a
@@ -174,8 +174,9 @@ All notable changes to iCode are documented here. The format follows
   while you use the others. A file, a terminal or a new repository opened for you shows its tool's
   main screen, closing a page such as Find left over it.
 - Inside a workspace the bell and the undo pill stand one step higher, above the dock.
-- The floating pills are bigger and easier to open: 48 dp tall, with larger icons, and a tucked
-  pill shows a 30 dp strip.
+- The floating pills are bigger and easier to hit: each a 48 dp touch target with larger icons,
+  standing 4 dp in from the screen's edge, where Android's Back gesture no longer takes a touch
+  meant for them.
 - The editor's suggestion list marks the chosen row with a quiet lift instead of a reddish block,
   set apart from the rows beside it, so its highlighted letters stay clear.
 - File and folder icons: each kind of file and folder has its own icon, from Material Icon Theme
@@ -227,6 +228,8 @@ All notable changes to iCode are documented here. The format follows
 - A count on a floating pill's icon, such as the dock's Source Control changes or the bell's unread
   notices, was cut off at its corner, and the line under the dock's icons showed as a smudge. Both
   are drawn whole.
+- The floating pills could not be dragged: moving one needed a long, still hold that nothing
+  showed, and a drag tucked it, pulled it out or switched tools instead. A drag now moves it.
 - `.ts` files were taken for videos: TypeScript filled Files › Videos, its Properties said "Video",
   and Open with offered video players. A `.ts` file is TypeScript unless its contents are an MPEG
   transport stream, as a TV recording is. A file with no known extension is recognised by its
