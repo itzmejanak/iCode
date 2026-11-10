@@ -156,6 +156,10 @@ All notable changes to iCode are documented here. The format follows
     straight there, such as Terminal's Problems tab. It never switches by itself.
   - TalkBack reads each tool with its badge and the suggestion, and offers "Switch to …" for the
     tool you used before.
+- The undo pill, the bell and the dock can each be moved. Hold one until the phone ticks, drag it,
+  and let go: it goes to the nearer edge, left or right, at that height, and stays there after a
+  restart. A keyboard coming up moves it down with the room, and pills never cover one another.
+  TalkBack offers Move to the other edge, Move up and Move down.
 
 ### Changed
 - Each workspace tool keeps its own history. Going to a tool shows it as you left it, never a
@@ -164,6 +168,10 @@ All notable changes to iCode are documented here. The format follows
   while you use the others. A file, a terminal or a new repository opened for you shows its tool's
   main screen, closing a page such as Find left over it.
 - Inside a workspace the bell and the undo pill stand one step higher, above the dock.
+- The floating pills are bigger and easier to open: 48 dp tall, with larger icons, and a tucked
+  pill shows a wider strip with a longer grip.
+- The editor's suggestion list marks the chosen row with a quiet lift instead of a reddish block,
+  set apart from the rows beside it, so its highlighted letters stay clear.
 - File and folder icons: each kind of file and folder has its own icon, from Material Icon Theme
   (5.40.0, the icon theme most used in VS Code). This covers 1391 extensions, 2156 file names and
   4674 folder names, such as TypeScript and its `.d.ts` declarations, `package.json`, `Dockerfile`,
@@ -210,6 +218,9 @@ All notable changes to iCode are documented here. The format follows
 - A terminal scrolled back, or a chat scrolled up to an earlier answer, jumped to its end when you
   came back to it. Both come back where you left them.
 - The Explorer's rail said "Source control"; it says "Source Control" as everywhere else.
+- A count on a floating pill's icon, such as the dock's Source Control changes or the bell's unread
+  notices, was cut off at its corner, and the line under the dock's icons showed as a smudge. Both
+  are drawn whole.
 - `.ts` files were taken for videos: TypeScript filled Files › Videos, its Properties said "Video",
   and Open with offered video players. A `.ts` file is TypeScript unless its contents are an MPEG
   transport stream, as a TV recording is. A file with no known extension is recognised by its

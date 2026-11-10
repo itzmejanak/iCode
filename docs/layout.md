@@ -313,7 +313,7 @@ Terminal and Problems primarily belong to the bottom panel. Settings is reached 
 
 On compact screens, activity navigation may be a narrow dock or drawer. On wider screens, it becomes a vertical rail.
 
-**The tool dock** (owner, 2026-11-10: [dock-navigation-plan.md](./dock-navigation-plan.md) D6–D9) is the
+**The tool dock** (owner, 2026-11-10: [dock-navigation-plan.md](./dock-navigation-plan.md) D6–D11) is the
 phone's way between the six tools: Explorer, Editor, Search, Source Control, Assistant and Terminal.
 
 - It is a docked pill at the bottom of the floating stack, under the bell and the undo pill, on
@@ -325,6 +325,8 @@ phone's way between the six tools: Explorer, Editor, Search, Source Control, Ass
   Search, Explorer.
 - A tap switches to a tool as it was left and tucks the row; Back or a touch outside tucks it too.
   A swipe along the tucked grip switches to the tool used before.
+- Each pill of the floating stack — the undo pill, the bell, the dock — can be held and moved to
+  either edge, at any height, and stays there (D11). On the left edge it is its own mirror image.
 - Each icon carries the tool's badge: unsaved files, changed files, errors and a running command,
   the assistant at work or waiting. The Explorer's rail shows the same badges.
 

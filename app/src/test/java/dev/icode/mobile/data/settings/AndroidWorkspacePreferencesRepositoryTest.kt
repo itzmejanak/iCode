@@ -7,7 +7,10 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import dev.icode.mobile.domain.AppTheme
 import dev.icode.mobile.domain.AutoSaveMode
 import dev.icode.mobile.domain.EditorFontFamily
+import dev.icode.mobile.domain.FloatingPill
 import dev.icode.mobile.domain.IndentType
+import dev.icode.mobile.domain.PillPlace
+import dev.icode.mobile.domain.ScreenEdge
 import dev.icode.mobile.domain.ThemeVariantRules
 import dev.icode.mobile.domain.files.ExplorerSettings
 import dev.icode.mobile.domain.files.ExplorerView
@@ -164,6 +167,33 @@ class AndroidWorkspacePreferencesRepositoryTest {
             assertEquals(0xFF4FB3FF.toInt(), reopened.values(null).first().appearance.accentColor)
             reopened.setAccentColor(null)
             assertNull(reopened.values(null).first().appearance.accentColor)
+        } finally {
+            secondScope.cancel()
+        }
+    }
+
+    @Test fun `a pill moved survives a restart, and put back it is where it starts`() = runBlocking {
+        val file = File(temporaryFolder.root, "pills.preferences_pb")
+        val firstScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val repository = AndroidWorkspacePreferencesRepository(
+                PreferenceDataStoreFactory.create(scope = firstScope, produceFile = { file }),
+            )
+            assertEquals(emptyMap<FloatingPill, PillPlace>(), repository.values(null).first().appearance.pillPlaces)
+            repository.setPillPlace(FloatingPill.Dock, PillPlace(ScreenEdge.Start, 0.4f))
+            repository.setPillPlace(FloatingPill.Bell, PillPlace(ScreenEdge.End, 0.9f))
+        } finally {
+            firstScope.coroutineContext.job.cancelAndJoin()
+        }
+        val secondScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val reopened = AndroidWorkspacePreferencesRepository(
+                PreferenceDataStoreFactory.create(scope = secondScope, produceFile = { file }),
+            )
+            val expected = mapOf(FloatingPill.Dock to PillPlace(ScreenEdge.Start, 0.4f), FloatingPill.Bell to PillPlace(ScreenEdge.End, 0.9f))
+            assertEquals(expected, reopened.values("/root/one").first().appearance.pillPlaces)
+            reopened.setPillPlace(FloatingPill.Dock, null)
+            assertEquals(expected - FloatingPill.Dock, reopened.values(null).first().appearance.pillPlaces)
         } finally {
             secondScope.cancel()
         }

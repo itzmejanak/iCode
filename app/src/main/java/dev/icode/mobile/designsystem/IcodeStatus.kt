@@ -90,10 +90,10 @@ internal fun BoxScope.IconMarks(count: Int, dot: Color?) {
     }
 }
 
-/** The line under an icon that marks it: the rail's active entry, the dock's tool on screen. */
+/** The line under an icon that marks it, [lift] above the box's foot: the rail's active entry, the dock's tool on screen. */
 @Composable
-internal fun BoxScope.UnderLine(color: Color) {
-    Box(Modifier.align(Alignment.BottomCenter).height(2.dp).width(20.dp).background(color))
+internal fun BoxScope.UnderLine(color: Color, lift: Dp = 0.dp) {
+    Box(Modifier.align(Alignment.BottomCenter).padding(bottom = lift).height(2.dp).width(20.dp).background(color, IcodeShapes.Track))
 }
 
 /** Dot plus label, used in headers, rows and panels. */

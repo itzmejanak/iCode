@@ -2,10 +2,6 @@ package dev.icode.mobile.ui.dock
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
@@ -26,7 +22,11 @@ import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeDockedAction
 import dev.icode.mobile.designsystem.IcodeDockedPill
 import dev.icode.mobile.designsystem.IcodeSizes
+import dev.icode.mobile.designsystem.LocalPillEdge
+import dev.icode.mobile.designsystem.pillEnter
+import dev.icode.mobile.designsystem.pillExit
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.ScreenEdge
 import dev.icode.mobile.domain.ICodeSnapshot
 import dev.icode.mobile.domain.SuggestionFacts
 import dev.icode.mobile.domain.ToolBadge
@@ -77,12 +77,12 @@ internal fun rememberToolDock(snapshot: ICodeSnapshot, shown: WorkspaceTool?): T
 }
 
 /**
- * The dock in the floating stack, at its bottom, nearest the thumb (D6): in the workspace its place
- * is kept, so the bell and the undo pill above it never move, and it shows on the tools' main
- * screens only. Tucked, only its grip shows, in the suggestion's tone; tapped or pulled out, the six
- * tools in one row, [DOCK_ORDER] from the edge. A tap switches to a tool as it was left — the one
- * suggested, to where the suggestion is — and tucks the dock; Back or a touch outside tucks it too.
- * A swipe along the grip switches to the tool used before (D9).
+ * The dock in the floating stack, at its foot nearest the thumb unless the user moved it (D6, D11):
+ * in the workspace its place is kept, so the pills beside it never move, and it shows on the tools'
+ * main screens only. Tucked, only its grip shows, in the suggestion's tone; tapped or pulled out, the
+ * six tools in one row, [DOCK_ORDER] from whichever edge it is on. A tap switches to a tool as it was
+ * left — the one suggested, to where the suggestion is — and tucks the dock; Back or a touch outside
+ * tucks it too. A swipe along the grip switches to the tool used before (D9).
  */
 @Composable
 internal fun ToolDock(dock: ToolDockState, navigation: NavigationState) {
@@ -90,12 +90,8 @@ internal fun ToolDock(dock: ToolDockState, navigation: NavigationState) {
     if (!model.inWorkspace) return
     val shown = model.onMainScreen
     LaunchedEffect(shown) { if (!shown) dock.tuck() }
-    Box(Modifier.height(IcodeSizes.CornerAction)) {
-        AnimatedVisibility(
-            visible = shown,
-            enter = slideInHorizontally { it } + fadeIn(),
-            exit = slideOutHorizontally { it } + fadeOut(),
-        ) {
+    Box(Modifier.height(IcodeSizes.DockedPill)) {
+        AnimatedVisibility(visible = shown, enter = pillEnter(), exit = pillExit()) {
             Dock(dock, navigation)
         }
     }
@@ -138,8 +134,8 @@ private fun Dock(dock: ToolDockState, navigation: NavigationState) {
             DOCK_ORDER.map { tool -> CustomAccessibilityAction(said(tool)) { go(tool); true } },
         onSwipeAlong = previous?.let { { go(it) } },
     ) {
-        // Drawn from the open side: the first of the order ends up at the edge.
-        DOCK_ORDER.asReversed().forEach { tool ->
+        // The first of the order at the edge, whichever edge the user keeps it on.
+        (if (LocalPillEdge.current == ScreenEdge.End) DOCK_ORDER.asReversed() else DOCK_ORDER).forEach { tool ->
             val badge = badges.getValue(tool)
             IcodeDockedAction(
                 tool.icon,

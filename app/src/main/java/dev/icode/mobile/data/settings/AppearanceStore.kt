@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import dev.icode.mobile.domain.AccentColorRules
 import dev.icode.mobile.domain.AppTheme
 import dev.icode.mobile.domain.AppearanceSettings
+import dev.icode.mobile.domain.PillPlaces
 import dev.icode.mobile.domain.SettingLimits
 import dev.icode.mobile.domain.ThemeVariantRules
 
@@ -27,6 +28,8 @@ internal object AppearanceStore {
     private val darkVariant = stringPreferencesKey("appearance_dark_variant")
     private val lightVariant = stringPreferencesKey("appearance_light_variant")
     private val amoledVariant = stringPreferencesKey("appearance_amoled_variant")
+    /** Where the floating pills were moved to ([PillPlaces.encoded]). */
+    val pillPlaces = stringPreferencesKey("appearance_pill_places")
 
     /** [theme]'s own variant (D1). */
     fun variant(theme: AppTheme) = when (theme) {
@@ -44,6 +47,7 @@ internal object AppearanceStore {
         variants = AppTheme.entries.mapNotNull { each -> ThemeVariantRules.kept(prefs[variant(each)])?.let { each to it } }.toMap(),
         followSystem = prefs[followSystem] ?: defaults.followSystem,
         nightTheme = prefs[nightTheme]?.let(::themeNamed)?.takeIf { AppearanceSettings.canBeNight(it) } ?: defaults.nightTheme,
+        pillPlaces = PillPlaces.decoded(prefs[pillPlaces]),
     )
 
     private fun themeNamed(name: String): AppTheme? = AppTheme.entries.firstOrNull { it.name == name }
