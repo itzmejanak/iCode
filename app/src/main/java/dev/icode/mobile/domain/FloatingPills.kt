@@ -103,6 +103,16 @@ object PillPlaces {
         }
     }
 
+    /**
+     * Whether a pill at [place] keeps its icon at its row's end, so that opened, the row grows toward
+     * the start: on the end edge, where it starts, and on the end half of the top or the bottom.
+     */
+    fun iconAtEnd(place: PillPlace?): Boolean = when (place?.edge) {
+        null, ScreenEdge.End -> true
+        ScreenEdge.Start -> false
+        ScreenEdge.Top, ScreenEdge.Bottom -> place.along > 0.5f
+    }
+
     /** How far along [edge] a pill [pillWidth] by [pillHeight] at [spot] stands, as [PillPlace.along] says. */
     fun alongOf(edge: ScreenEdge, spot: Spot, pillWidth: Float, pillHeight: Float, width: Float, height: Float, rtl: Boolean): Float =
         if (edge.across) {

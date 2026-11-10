@@ -76,6 +76,15 @@ class PillPlacesTest {
     }
 
     @Test
+    fun `opened, a pill's row grows from its icon away from its edge, or toward the middle on the top or the bottom`() {
+        assertEquals(true, PillPlaces.iconAtEnd(null))
+        assertEquals(true, PillPlaces.iconAtEnd(PillPlace(ScreenEdge.End, 0.3f)))
+        assertEquals(false, PillPlaces.iconAtEnd(PillPlace(ScreenEdge.Start, 0.9f)))
+        assertEquals(true, PillPlaces.iconAtEnd(PillPlace(ScreenEdge.Bottom, 0.8f)))
+        assertEquals(false, PillPlaces.iconAtEnd(PillPlace(ScreenEdge.Top, 0.2f)))
+    }
+
+    @Test
     fun `where a pill stands is how far along its edge`() {
         assertEquals(0.5f, PillPlaces.alongOf(ScreenEdge.End, Spot(330f, 376f), 70f, 48f, width, height, rtl = false))
         assertEquals(0f, PillPlaces.alongOf(ScreenEdge.Bottom, Spot(0f, 728f), 290f, 72f, width, height, rtl = false))
