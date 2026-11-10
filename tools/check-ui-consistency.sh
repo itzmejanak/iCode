@@ -10,7 +10,7 @@
 #   tools/check-ui-consistency.sh --update   # rewrite the allowlist baseline
 #
 # Rules:
-#   raw-color    Color(0x…) literals outside designsystem/IcodeColors.kt
+#   raw-color    Color(0x…) literals outside designsystem/IcodeColors.kt and designsystem/palettes/ (docs/theme-variants-plan.md D9)
 #   fq-androidx  fully-qualified androidx.* references inside ui/
 #   dp-literal   hard-coded dp values inside ui/screens
 #   sp-literal   hard-coded sp values inside ui/screens
@@ -38,7 +38,7 @@ emit() { printf '%s|%s|%s\n' "$1" "$2" "$3" >> "$report_file"; }
 count_matches() { # pattern, root
     local pattern="$1" root="$2"
     { grep -rEn "$pattern" "$root" --include='*.kt' 2>/dev/null || true; } \
-        | grep -v '/IcodeColors\.kt:' \
+        | grep -v -e '/IcodeColors\.kt:' -e '/designsystem/palettes/' \
         | awk -F: '{print $1}' \
         | sort | uniq -c \
         | awk '{print $2 " " $1}'

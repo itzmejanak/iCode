@@ -23,6 +23,7 @@ import dev.icode.mobile.domain.TerminalSettings
 import dev.icode.mobile.domain.TerminalCursorStyle
 import dev.icode.mobile.domain.TerminalExtraKey
 import dev.icode.mobile.domain.TerminalSettingRules
+import dev.icode.mobile.domain.ThemeVariantRules
 import dev.icode.mobile.domain.WorkspacePreferences
 import dev.icode.mobile.domain.WorkspacePreferencesRepository
 import dev.icode.mobile.domain.files.ExplorerSettings
@@ -41,16 +42,10 @@ class AndroidWorkspacePreferencesRepository internal constructor(
 ) : WorkspacePreferencesRepository {
     constructor(context: Context) : this(context.applicationContext.workspacePreferencesDataStore)
     // A value missing or out of range reads as the settings types' own default.
-    private val appearanceDefaults = AppearanceSettings()
     private val editorDefaults = EditorSettings()
     private val terminalDefaults = TerminalSettings()
     private val preferenceDefaults = WorkspacePreferences()
     private val globalIndentKey = intPreferencesKey("editor_indent_size")
-    private val themeKey = stringPreferencesKey("appearance_theme")
-    private val uiScaleKey = intPreferencesKey("appearance_ui_text_scale_percent")
-    private val compactKey = booleanPreferencesKey("appearance_compact_layout")
-    private val borderLinesKey = booleanPreferencesKey("appearance_border_lines")
-    private val accentKey = intPreferencesKey("appearance_accent_color")
     private val fontSizeKey = intPreferencesKey("editor_font_size_sp")
     private val fontFamilyKey = stringPreferencesKey("editor_font_family")
     private val wordWrapKey = booleanPreferencesKey("editor_word_wrap")
@@ -79,13 +74,7 @@ class AndroidWorkspacePreferencesRepository internal constructor(
             ?.let { runCatching { IndentType.valueOf(it) }.getOrNull() }
         WorkspacePreferences(
             workspaceLocation = workspaceLocation,
-            appearance = AppearanceSettings(
-                theme = prefs[themeKey]?.let { enumOrNull<AppTheme>(it) } ?: appearanceDefaults.theme,
-                uiTextScalePercent = prefs[uiScaleKey]?.takeIf { it in SettingLimits.uiTextScales } ?: appearanceDefaults.uiTextScalePercent,
-                compactLayout = prefs[compactKey] ?: appearanceDefaults.compactLayout,
-                borderLines = prefs[borderLinesKey] ?: appearanceDefaults.borderLines,
-                accentColor = prefs[accentKey]?.let(AccentColorRules::opaque),
-            ),
+            appearance = AppearanceStore.read(prefs),
             editor = EditorSettings(
                 fontSizeSp = prefs[fontSizeKey]?.takeIf { it in SettingLimits.fontSizesSp } ?: editorDefaults.fontSizeSp,
                 fontFamily = prefs[fontFamilyKey]?.let { enumOrNull<EditorFontFamily>(it) } ?: editorDefaults.fontFamily,
@@ -130,18 +119,39 @@ class AndroidWorkspacePreferencesRepository internal constructor(
         emit(WorkspacePreferences(workspaceLocation = workspaceLocation, loadError = error.message ?: "Settings could not be read"))
     }
 
-    override suspend fun setTheme(theme: AppTheme) { store.edit { it[themeKey] = theme.name } }
+    override suspend fun setTheme(theme: AppTheme) { store.edit { it[AppearanceStore.theme] = theme.name } }
 
     override suspend fun setUiTextScalePercent(percent: Int) {
         require(percent in SettingLimits.uiTextScales)
-        store.edit { it[uiScaleKey] = percent }
+        store.edit { it[AppearanceStore.uiScale] = percent }
     }
 
-    override suspend fun setCompactLayout(compact: Boolean) { store.edit { it[compactKey] = compact } }
-    override suspend fun setBorderLines(shown: Boolean) { store.edit { it[borderLinesKey] = shown } }
+    override suspend fun setCompactLayout(compact: Boolean) { store.edit { it[AppearanceStore.compact] = compact } }
+    override suspend fun setBorderLines(shown: Boolean) { store.edit { it[AppearanceStore.borderLines] = shown } }
 
     override suspend fun setAccentColor(argb: Int?) {
-        store.edit { if (argb == null) it.remove(accentKey) else it[accentKey] = AccentColorRules.opaque(argb) }
+        store.edit { if (argb == null) it.remove(AppearanceStore.accent) else it[AppearanceStore.accent] = AccentColorRules.opaque(argb) }
+    }
+
+    override suspend fun setThemeVariant(theme: AppTheme, id: String?) {
+        require(id == null || ThemeVariantRules.isId(id))
+        val kept = ThemeVariantRules.kept(id)
+        val key = AppearanceStore.variant(theme)
+        store.edit { if (kept == null) it.remove(key) else it[key] = kept }
+    }
+
+    override suspend fun setFollowSystem(theme: AppTheme, follow: Boolean) {
+        store.edit { prefs ->
+            prefs[AppearanceStore.followSystem] = follow
+            // Turned on, the dark theme in use is the one for nights; turned off, the theme on screen stays.
+            if (follow && AppearanceSettings.canBeNight(theme)) prefs[AppearanceStore.nightTheme] = theme.name
+            if (!follow) prefs[AppearanceStore.theme] = theme.name
+        }
+    }
+
+    override suspend fun setNightTheme(theme: AppTheme) {
+        require(AppearanceSettings.canBeNight(theme))
+        store.edit { it[AppearanceStore.nightTheme] = theme.name }
     }
 
     override suspend fun setEditorFontSize(sizeSp: Int) {

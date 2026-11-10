@@ -3,6 +3,7 @@ package dev.icode.mobile.ui
 import android.app.Activity
 import android.content.Intent
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -86,7 +87,7 @@ fun IcodeApp(
     )
     val appearance = preferences.appearance.takeIf { preferences.loaded && preferences.loadError == null }
     val borderLines = appearance?.borderLines ?: true
-    val palette = appearancePalette(appearance)
+    val palette = appearancePalette(appearance, isSystemInDarkTheme())
     SideEffect {
         (context as? Activity)?.window?.let { window ->
             WindowCompat.getInsetsController(window, window.decorView).apply {

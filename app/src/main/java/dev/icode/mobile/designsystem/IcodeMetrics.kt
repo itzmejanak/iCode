@@ -122,7 +122,8 @@ object IcodeSizes {
     /** The assistant's question card's answers, at most: then they scroll, the chat and the buttons in sight. */
     val QuestionAnswers = 280.dp
     val LineNumberGutter = 32.dp
-    val Swatch = 28.dp
+    /** The narrowest a theme variant's card is drawn in its sheet: two to a phone's width (docs/theme-variants-plan.md §4). */
+    val ThemeCardMin = 148.dp
 
     /** The accent picker: its HSV wheel, brightness bar and preset chips. */
     val ColorWheel = 200.dp

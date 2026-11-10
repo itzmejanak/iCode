@@ -35,6 +35,15 @@ interface WorkspacePreferencesRepository {
     suspend fun setBorderLines(shown: Boolean)
     /** Null returns to the theme's own accent. */
     suspend fun setAccentColor(argb: Int?)
+    /** [theme]'s variant from now on; null, or [ThemeVariantRules.ICODE], returns it to iCode's own. */
+    suspend fun setThemeVariant(theme: AppTheme, id: String?)
+    /**
+     * Auto on or off (docs/theme-variants-plan.md T6), [theme] being the one on screen as it is turned:
+     * on, a dark one becomes the theme for nights; off, it stays the theme.
+     */
+    suspend fun setFollowSystem(theme: AppTheme, follow: Boolean)
+    /** The dark theme Auto shows at night; Light is refused. */
+    suspend fun setNightTheme(theme: AppTheme)
     suspend fun setEditorFontSize(sizeSp: Int)
     suspend fun setEditorFontFamily(family: EditorFontFamily)
     suspend fun setWordWrap(enabled: Boolean)

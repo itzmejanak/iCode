@@ -13,6 +13,10 @@ class SettingsCatalogTest {
         assertEquals(Route.AppearanceSettings, searchSettingsCategories("amoled").single().destination)
         assertEquals(Route.AppearanceSettings, searchSettingsCategories("border lines").single().destination)
         assertEquals(Route.AppearanceSettings, searchSettingsCategories("outline").single().destination)
+        // Every theme variant by its name, its accents typed or not (docs/theme-variants-plan.md §4).
+        listOf("dracula", "tokyo night day", "rosé pine", "rose pine dawn", "catppuccin latte", "high contrast", "variant", "match phone").forEach { name ->
+            assertEquals(name, Route.AppearanceSettings, searchSettingsCategories(name).single().destination)
+        }
     }
 
     @Test fun `the editor's terms are its page's controls`() {

@@ -747,6 +747,13 @@ The application ships with the approved dark visual direction as its default. Th
 
 Feature code references semantic tokens only. A theme cannot remove contrast required to distinguish Git and diagnostic states.
 
+Each theme has variants ([theme-variants-plan.md](./theme-variants-plan.md)): iCode's own, the
+editor classics and antigem's designs. A variant gives its colours and keeps its theme's structure:
+any colour it does not give is derived at the step the theme's own palette keeps between those two
+tones. Every colour it gives is kept unless it falls under the floors above; then only its lightness
+moves. A variant is chosen from a sheet of previews of itself (§21). Match Phone shows Light by day
+and Dark or AMOLED by night.
+
 ## 21. Sheets and Menus
 
 iCode has no dialogs (owner's request, 2026-11-04): what a dialog would ask is asked in a sheet, so
