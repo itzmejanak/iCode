@@ -24,6 +24,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
@@ -73,10 +74,11 @@ internal fun AssistantChatView(
         } else {
             val count = rows.size + if (state.failure != null) 1 else 0
             // Each chat opens laid out at its end: never scrolled down through all it holds, drawing
-            // every reply on the way, as it was.
-            val list = remember(state.workspace, state.session) { LazyListState((count - 1).coerceAtLeast(0)) }
+            // every reply on the way, as it was. Left for another tool and come back to, it is where it
+            // was read to (docs/dock-navigation-plan.md D5): its place, and whether it follows, are kept.
+            val list = rememberSaveable(state.workspace, state.session, saver = LazyListState.Saver) { LazyListState((count - 1).coerceAtLeast(0)) }
             // At the end, the list follows what comes; scrolled up to read, it stays, and ↓ brings it back.
-            var following by remember(list) { mutableStateOf(true) }
+            var following by rememberSaveable(state.workspace, state.session) { mutableStateOf(true) }
             // The list's own glide to the end is not the user scrolling away from it.
             var gliding by remember(list) { mutableStateOf(false) }
             LaunchedEffect(list) {
@@ -94,9 +96,13 @@ internal fun AssistantChatView(
             LaunchedEffect(list, rows.size, steps, state.failure, state.turn?.step) {
                 if (following) list.scrollToEnd()
             }
-            // What the user just sent is shown, wherever they were, and what answers it followed.
+            // What the user just sent is shown, wherever they were, and what answers it followed — once:
+            // coming back to the chat is not sending it again.
             val sent = rows.lastOrNull { it is AssistantEntry.Said }?.key
+            var shownSent by rememberSaveable(state.workspace, state.session) { mutableStateOf(sent) }
             LaunchedEffect(list, sent) {
+                if (sent == shownSent) return@LaunchedEffect
+                shownSent = sent
                 following = true
                 list.scrollToEnd()
             }

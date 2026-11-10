@@ -127,8 +127,17 @@ private fun TerminalPane(
     callbacks.onUrl = onUrl
     callbacks.onEndedEnter = onEndedEnter
     callbacks.typing = observe != null
-    callbacks.onEmulatorSet = { callbacks.view?.let(onEmulator) }
     val look = remember { Look() }
+    callbacks.onEmulatorSet = {
+        callbacks.view?.let { view ->
+            look.restoring?.takeIf { it === view.currentSession }?.let { session ->
+                look.restoring = null
+                // The view sets its top row to the latest output once this returns: back where it was, after that.
+                view.post { TerminalScroll.restore(view, session) }
+            }
+            onEmulator(view)
+        }
+    }
     var view by remember { mutableStateOf<TerminalView?>(null) }
     var scrolledBack by remember { mutableStateOf(false) }
     var more by remember { mutableStateOf<TerminalMore?>(null) }
@@ -185,11 +194,16 @@ private fun TerminalPane(
                 }
                 if (session != null) {
                     TerminalPalette.colorFor(session, palette)
-                    if (target.currentSession !== session) target.attachSession(session)
+                    if (target.currentSession !== session) {
+                        TerminalScroll.leave(target)
+                        look.restoring = session
+                        target.attachSession(session)
+                    }
                     target.invalidate()
                 }
             },
             onRelease = { released ->
+                TerminalScroll.leave(released)
                 if (callbacks.view === released) callbacks.view = null
                 if (keys.view === released) keys.view = null
             },
@@ -251,6 +265,8 @@ private fun jumpToLatest(view: TerminalView) {
 private class Look {
     var textSizePx: Int = -1
     var typeface: Typeface? = null
+    /** The session just attached, whose place is set again once the view has sized it ([TerminalScroll]). */
+    var restoring: TerminalSession? = null
 }
 
 private fun terminalTypeface(context: Context, family: EditorFontFamily): Typeface = when (family) {
