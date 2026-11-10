@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.icode.mobile.designsystem.IcodeBrandMark
 import dev.icode.mobile.designsystem.IcodeColors
+import dev.icode.mobile.designsystem.IcodeResting
 import dev.icode.mobile.designsystem.IcodeShapes
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
@@ -141,7 +142,7 @@ private fun Mark(view: PhoneBubbleView, actions: PhoneBubbleActions) {
     val look = view.overlay.look
     val open = view.mode != BubbleMode.Closed
     val scale by animateFloatAsState(if (look == Look.Listening) LISTENING_SCALE else 1f, label = "listening")
-    val fade by animateFloatAsState(if (view.tucked) TUCKED_ALPHA else 1f, label = "tucked")
+    val fade by animateFloatAsState(if (view.tucked) IcodeResting.ALPHA else 1f, label = "tucked")
     val shown by animateFloatAsState(if (open) 0f else 1f, tween(MORPH_MILLIS), label = "shown")
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
@@ -260,7 +261,6 @@ internal fun describe(look: Look): String = when (look) {
 
 private const val LISTENING_SCALE = 1.1f
 private const val PRESSED_SCALE = 0.94f
-private const val TUCKED_ALPHA = 0.55f
 /** How long the bubble and the bar take to give way to each other, and how far they shrink doing it. */
 internal const val MORPH_MILLIS = 220
 internal const val MORPH_SCALE = 0.88f

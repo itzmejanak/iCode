@@ -1,5 +1,9 @@
 package dev.icode.mobile.ui
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Undo
+import androidx.compose.material.icons.outlined.Apps
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateMapOf
@@ -18,8 +22,8 @@ import dev.icode.mobile.ui.screens.settings.rememberSettingSaver
 /**
  * The floating stack over every screen but the Notifications page (docs/explorer-gaps-plan.md §3.8,
  * docs/dock-navigation-plan.md D6, D11): the undo pill above the bell, the tool dock below them, each
- * where the user moved it to, kept app-wide. A pill let go is drawn at its new place at once, while
- * the place is written; one that could not be written is said.
+ * where the user moved it to on any edge, kept app-wide. A pill let go is drawn at its new place at
+ * once, while the place is written; one that could not be written is said.
  */
 @Composable
 internal fun FloatingControls(
@@ -43,6 +47,12 @@ internal fun FloatingControls(
     LaunchedEffect(saver.error) { saver.error?.let { gateway.dispatch(NoticeIntent.Notify(NoticeTone.HeadsUp, it)) } }
     fun pill(which: FloatingPill, content: @Composable () -> Unit) = IcodeStackPill(
         key = which,
+        // What floats under the finger while it is moved.
+        icon = when (which) {
+            FloatingPill.Undo -> Icons.AutoMirrored.Outlined.Undo
+            FloatingPill.Bell -> Icons.Outlined.Notifications
+            FloatingPill.Dock -> Icons.Outlined.Apps
+        },
         place = moved[which] ?: stored[which],
         onPlaced = { place ->
             moved[which] = place

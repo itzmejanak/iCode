@@ -229,9 +229,9 @@ Terminal over Editor.
   thumb. The undo pill and the bell stand above it, one step higher than before (a pill's height
   and an 8 dp gap). The dock is always there, so its place never moves, while the undo pill comes and goes.
   (§8, question 2.) The user can move each pill elsewhere (D11).
-- **Tucked**, as it is by default and again after each switch: only its grip shows in the edge, as
-  the bell's does when tucked: a 24 dp strip, the pill's 48 dp tall. The grip takes the tone of
-  what needs you most (D8).
+- **Tucked**, as it is by default and again after each switch: only its handle shows in the edge,
+  as the bell's does when tucked: a 30 dp strip, the pill's 48 dp tall, with the dock's own icon in
+  it (D12). The handle takes the tone of what needs you most (D8).
 - **Out**, on a tap on the grip or a pull from the edge: one row of the six tools' icons slides out
   from the edge. Each icon is 44 dp wide and the pill's height tall, in a fixed order, with the
   nearest to the thumb first (§8, question 3). A count or a mark on an icon is drawn whole, never
@@ -291,22 +291,37 @@ no event.
 **D10 — Restored where it was left** (feature a). This is D5. It also holds across a process
 restart: the model's saver keeps all six histories, the tool order and the app stack.
 
-**D11 — The pills where the user wants them** (owner's request after the first phone check,
+**D11 — The pills where the user wants them** (owner's requests after the first phone check,
 2026-11-10).
 - **By default** the pills stand where they always have: the undo pill, the bell, the dock, at the
-  end edge's foot.
-- **Held** (a long press on what shows of a pill, grip or icon), a pill is picked up: the phone
-  ticks and it lifts. It follows the finger.
-- **Let go**, it goes to the edge nearer the finger, left or right, at the height it was let go.
-  It stays there across restarts, app-wide (`AppearanceSettings.pillPlaces`).
-- Its height is a share of the room between the floor (bars, the keyboard) and the top bar, so a
-  keyboard coming up moves it down with the room. No pill stands over another
-  (`PillPlaces.bottoms`), and every move is animated.
-- On the left edge a pill is the mirror of itself: round on its right, its grip there, and the
-  dock's order from that edge.
-- TalkBack offers "Move … to the left edge" or the right, "Move … up" and "Move … down" on each pill.
-- A tap, a pull and the swipe along the grip are unchanged: a pill is only picked up when held
+  end edge's foot, clear of the bars.
+- **Held** (a long press on what shows of a pill, its handle or an icon), a pill is picked up: the
+  phone ticks, the pill lifts off its edge and floats as its own icon in a raised bubble under the
+  finger, anywhere on the screen.
+- **Let go**, it docks on the edge nearest the finger — left, right, top or bottom — its middle
+  where the finger was along that edge, and glides there. It stays there across restarts,
+  app-wide (`AppearanceSettings.pillPlaces`).
+- **Anywhere** means the whole screen below the status bar and above the navigation bar: the corners
+  and the bars included, which the user chose to cover. Its place is a share of its edge, so a
+  keyboard coming up moves a side's pill down with the room. No pill stands over another
+  (`PillPlaces.spots`): on one edge they make way for each other, and in a corner a side's pill
+  makes way for one across the top or the bottom. Every move is animated.
+- **On another edge** a pill is drawn for it: on the left, the mirror of itself; on the top or the
+  bottom, its row lying along the edge, round on the open side, its handle in a strip above or
+  below the row, tucking up or down. The dock's order runs from the edge on a side, and toward the
+  end, nearest the thumb, on the top or the bottom.
+- **TalkBack** offers on each pill "Move … to the … edge" for the other three, and "Move … up" and
+  "down" on a side, or left and right on the top or the bottom.
+- A tap, a pull and the swipe along the handle are unchanged: a pill is only picked up when held
   still for a long press.
+
+**D12 — Each pill known at a glance, and quiet when not used** (owner's request, 2026-11-10).
+- **Tucked**, a pill's handle is its own icon — the undo arrow, the bell, the dock's grid — in what
+  needs the user there (the unread tone, the suggestion's), so the three are told apart without
+  opening any. Out, the handle is a grip.
+- **Resting**, as the assistant's bubble over other apps does (`IcodeResting`, one rule for both):
+  a tucked pill left alone 3 seconds fades to 55 %. A touch, a new tone (a notice, a suggestion) or
+  coming out wakes it at once.
 
 ## 4. Where the code goes
 
@@ -324,7 +339,8 @@ As built:
 | domain, data | `TerminalContract.kt`, `TerminalSessionManager.kt`, `TerminalCommands.kt` | Whether a command runs, per session, from its shell's marks, and how many long ones have ended (§1.4) |
 | domain, data | `AssistantContract.kt`, `AssistantTurns.kt` | A turn's end, and whether its tools changed a file |
 | designsystem | `IcodeDockedPill.kt`, `IcodeFloatingStack.kt`, `IcodeRail.kt`, `IcodeStatus.kt` | The swipe along the grip, TalkBack's actions, the touch outside, a docked action's dot and line, shared with the rail |
-| designsystem | new `IcodeFloatingPills.kt` | Each pill at its place on either edge, held and moved (D11) |
+| designsystem | new `IcodeFloatingPills.kt` | Each pill at its place on any edge, held, floated as a bubble and moved (D11) |
+| designsystem | `IcodeMetrics.kt` | `IcodeResting`: how the bubble and the pills rest (D12) |
 | domain, data, ui | new `FloatingPills.kt`, `AppearanceStore.kt`, new `ui/FloatingControls.kt` | Where each pill is kept, how pills share an edge, and the stack's three pills (D11) |
 | ui | new `ToolFaces.kt`, `ui/dock/ToolDock.kt` | Each tool's icon; the dock (D6, D9) |
 | ui/terminal | new `TerminalScroll.kt`, `TerminalHost.kt` | The scroll position kept per session (D5) |
@@ -527,10 +543,21 @@ no duplication; no inconsistency; maintainable and scalable; fix the faults foun
     stands clear of the pill's edge.
   - The pills are bigger and easier to open: 48 dp tall, their actions 44 dp wide with 24 dp icons,
     and a tucked pill shows a 24 dp strip with a longer grip.
-  - D11: each pill can be held and moved to either edge, at any height, and stays there.
+  - D11, first form: each pill can be held and moved to either side, at any height, and stays
+    there (widened in N7).
   - The editor's suggestion list drew its chosen row in the accent at 18 %, a dull red on Ember that
     took the accent letters' contrast and ran into the rows beside it. It is now a quiet lift of the
     text colour (10 %), inset from the list's edges and from its neighbours, as a menu's chosen row.
   - Tests: `PillPlacesTest` and a case in `AndroidWorkspacePreferencesRepositoryTest`.
-- **To check on the phone:** §5's [P] criteria — J1–J3, B5, S2, S3, K1–K6 and E1 — and D11: hold a
-  pill, move it to the left edge and up, restart iCode, open the keyboard.
+- **N7 — anywhere, and known at a glance** (2026-11-10):
+  - D11 as above: the pills dock on all four edges, the whole screen theirs, and float as a bubble
+    while moved. The placement rules are one pure function, `PillPlaces.spots`, with `placeAt` for
+    where a pill let go docks.
+  - D12: each tucked pill shows its own icon, and rests faded when left alone. The bubble's resting
+    time and fade, which were its own constants, are now `IcodeResting`, which both use.
+  - The tucked strip is 30 dp, room for the icon.
+  - Tests: `PillPlacesTest` (the defaults, every edge, no overlap on an edge or in a corner, where a
+    pill let go docks, right to left, the stored form).
+- **To check on the phone:** §5's [P] criteria — J1–J3, B5, S2, S3, K1–K6 and E1 — and D11–D12:
+  hold each pill and move it to the top, the bottom and the left; restart iCode; open the keyboard;
+  leave the pills 3 seconds and see them fade; tell the three apart tucked.

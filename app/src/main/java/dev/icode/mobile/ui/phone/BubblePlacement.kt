@@ -16,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.content.edit
+import dev.icode.mobile.designsystem.IcodeResting
 import dev.icode.mobile.designsystem.IcodeSizes
 import kotlin.math.hypot
 import kotlin.math.roundToInt
@@ -125,7 +126,7 @@ internal class BubblePlacement(
         tucking?.cancel()
         if (!idle) return tuck(false)
         tucking = scope.launch {
-            delay(TUCK_MILLIS)
+            delay(IcodeResting.AFTER_MILLIS)
             tuck(true)
         }
     }
@@ -275,7 +276,6 @@ internal class BubblePlacement(
         const val TARGET_MARGIN_DP = 48f
         /** How near the target's middle the bubble's is put away, in bubbles. */
         const val TARGET_REACH = 1.5f
-        const val TUCK_MILLIS = 3_000L
         const val GLIDE_MILLIS = 220L
         const val FLAGS = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
             WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
