@@ -12,6 +12,8 @@ import kotlinx.coroutines.CompletableDeferred
 internal class TerminalCommands(
     /** A command ended: once, with its record. */
     private val onFinished: (Command) -> Unit = {},
+    /** A command started running, or ended: on the session's main thread, as its output is read. */
+    private val onRunning: (Boolean) -> Unit = {},
 ) : TerminalMarks.Listener {
     /** One command, from its output's start. Its [ended] completes with its exit code. */
     class Command internal constructor(val number: Int) {
@@ -90,6 +92,7 @@ internal class TerminalCommands(
                 // Each line of a multi-line command prints its C; the command is one until its D.
                 if (current != null) return
                 phase = Phase.Running
+                onRunning(true)
                 val started = Command(++count).also { current = it }
                 next.complete(started)
                 next = CompletableDeferred()
@@ -99,6 +102,7 @@ internal class TerminalCommands(
                 val ended = current ?: return
                 current = null
                 phase = Phase.Prompt
+                onRunning(false)
                 ended.directory = directory
                 ended.ended.complete(mark.exitCode)
                 onFinished(ended)

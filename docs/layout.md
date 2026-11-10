@@ -240,17 +240,24 @@ This tree defines hierarchy, not a permanent requirement that every node be visi
 
 ### 7.2 Back behavior
 
+Inside a workspace, each of its six tools — Explorer, Editor, Search, Source Control, Assistant and
+Terminal — keeps a history of its own: its main screen, and the pages opened from it (a diff, Find in
+file, a settings page). A tool is switched to, never stacked: asked for again, it shows as it was
+left ([dock-navigation-plan.md](./dock-navigation-plan.md), owner, 2026-11-10).
+
 Back resolves in this order:
 
-1. dismiss a menu, quick picker, or sheet;
-2. close a transient sheet or drawer;
-3. exit a focused detail route to its parent list;
-4. return from a diff to the originating file or change;
-5. leave a settings route for the previous workspace state;
-6. request confirmation only when leaving would discard unsaved or destructive state;
-7. let Android handle application exit when no internal destination remains.
+1. dismiss a menu, quick picker, sheet, selection or the opened tool dock;
+2. request confirmation only when leaving would discard unsaved or destructive state;
+3. close the current tool's top page, returning to the page or main screen below it: a diff to
+   the change or file it came from, a settings page to where it was opened;
+4. at a tool's main screen, return to the tool used before it, as it was left; the tool left drops
+   out of Back's order, so Back never comes round to it again;
+5. with no tool before it, return to the Launcher;
+6. let Android handle application exit when no internal destination remains.
 
-Back never silently closes a dirty document.
+Outside a workspace, Back closes the application layer's pages (Settings, Workspaces, Clone) down
+to the Launcher, then exits. Back never closes or discards a document, dirty or not.
 
 ### 7.3 Deep routes
 
@@ -305,6 +312,23 @@ The stable workspace activities are:
 Terminal and Problems primarily belong to the bottom panel. Settings is reached from the workspace overflow or Launcher rather than consuming a permanent coding activity.
 
 On compact screens, activity navigation may be a narrow dock or drawer. On wider screens, it becomes a vertical rail.
+
+**The tool dock** (owner, 2026-11-10: [dock-navigation-plan.md](./dock-navigation-plan.md) D6–D9) is the
+phone's way between the six tools: Explorer, Editor, Search, Source Control, Assistant and Terminal.
+
+- It is a docked pill at the bottom of the floating stack, under the bell and the undo pill, on
+  their edge and nearest the thumb.
+- It shows on the six tools' main screens only. Inside a workspace its place is kept on other pages,
+  so the bell above it never moves.
+- Tucked, only its grip shows, in the tone of the one tool it suggests, if any. A tap or a pull
+  brings out one row of the six icons, from the edge: Editor, Terminal, Assistant, Source Control,
+  Search, Explorer.
+- A tap switches to a tool as it was left and tucks the row; Back or a touch outside tucks it too.
+  A swipe along the tucked grip switches to the tool used before.
+- Each icon carries the tool's badge: unsaved files, changed files, errors and a running command,
+  the assistant at work or waiting. The Explorer's rail shows the same badges.
+
+Wide screens and landscape have the same dock for now; a rail in its place there is a later cycle.
 
 ### 8.3 Context sidebar
 

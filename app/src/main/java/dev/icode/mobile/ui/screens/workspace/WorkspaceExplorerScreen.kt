@@ -14,12 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AccountTree
-import androidx.compose.material.icons.outlined.AutoAwesome
-import androidx.compose.material.icons.outlined.FolderOpen
-import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -46,6 +41,8 @@ import dev.icode.mobile.domain.FileEntry
 import dev.icode.mobile.domain.FileKind
 import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.ToolBadges
+import dev.icode.mobile.domain.WorkspaceTool
 import dev.icode.mobile.domain.files.FileSelection
 import dev.icode.mobile.domain.isBusy
 import dev.icode.mobile.navigation.NavigationActions
@@ -60,8 +57,11 @@ import dev.icode.mobile.ui.NewItemButton
 import dev.icode.mobile.ui.SelectionActions
 import dev.icode.mobile.ui.SelectionBar
 import dev.icode.mobile.ui.among
+import dev.icode.mobile.ui.dot
+import dev.icode.mobile.ui.icon
 import dev.icode.mobile.ui.rememberSelection
 import dev.icode.mobile.ui.selectionActions
+import dev.icode.mobile.ui.tint
 
 /**
  * File tree with the workspace activity rail. Select in a row's sheet starts a selection
@@ -105,18 +105,14 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
             )
             Row(Modifier.weight(1f).background(IcodeColors.Surface)) {
                 ActivityRail(
+                    // Each tool as the dock shows it: its icon, name and badge (docs/dock-navigation-plan.md D7).
                     entries = listOf(
-                        ActivityRailEntry(Icons.Outlined.FolderOpen, "Explorer", active = true),
-                        ActivityRailEntry(Icons.Outlined.Terminal, "Terminal", accented = true) {
-                            actions.openPanel(ToolPanelTab.Terminal)
-                        },
-                        ActivityRailEntry(Icons.Outlined.Search, "Search") { actions.navigate(Route.WorkspaceSearch) },
-                        ActivityRailEntry(
-                            Icons.Outlined.AccountTree,
-                            if (state.gitRepository == null) "Initialize Git" else "Source control",
-                            // One badge per changed file, counting a file staged and
-                            // modified once, the way VS Code counts it.
-                            badge = state.gitChanges.map { it.path }.distinct().size,
+                        railEntry(WorkspaceTool.Explorer, active = true),
+                        railEntry(WorkspaceTool.Terminal, accented = true) { actions.openPanel(ToolPanelTab.Terminal) },
+                        railEntry(WorkspaceTool.Search) { actions.navigate(Route.WorkspaceSearch) },
+                        railEntry(
+                            WorkspaceTool.SourceControl,
+                            label = if (state.gitRepository == null) "Initialize Git" else null,
                             busy = state.isBusy(BusyAction.InitializeGit),
                         ) {
                             if (state.gitRepository == null) {
@@ -125,10 +121,7 @@ fun WorkspaceExplorerScreen(actions: NavigationActions) {
                                 actions.navigate(Route.SourceControl)
                             }
                         },
-                        // Accented while it works, wherever the user went meanwhile.
-                        ActivityRailEntry(Icons.Outlined.AutoAwesome, "Assistant", accented = state.assistant.running) {
-                            actions.navigate(Route.Assistant)
-                        },
+                        railEntry(WorkspaceTool.Assistant) { actions.navigate(Route.Assistant) },
                     ),
                     bottomEntries = listOf(
                         ActivityRailEntry(Icons.Outlined.Settings, "Workspace settings") {
@@ -237,6 +230,23 @@ private fun WorkspaceHeader(selection: ExplorerSelection, creation: List<IcodeMe
             else NewItemButton(contentDescription = "Create in workspace", actions = creation)
         },
     )
+}
+
+/**
+ * [tool] on the rail, named [label] where it does something else for now (Initialize Git), with its
+ * badge: the Assistant in the accent while it works, wherever the user went meanwhile.
+ */
+@Composable
+private fun railEntry(
+    tool: WorkspaceTool,
+    label: String? = null,
+    active: Boolean = false,
+    accented: Boolean = false,
+    busy: Boolean = false,
+    onClick: () -> Unit = {},
+): ActivityRailEntry {
+    val badge = ToolBadges.of(tool, LocalICodeSnapshot.current)
+    return ActivityRailEntry(tool.icon, label ?: tool.label, active, badge.count, accented, busy, badge.tint, badge.dot, onClick)
 }
 
 /** A selected file targets its containing visible directory; a folder targets itself. */

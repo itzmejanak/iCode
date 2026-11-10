@@ -15,7 +15,6 @@ import dev.icode.mobile.data.tasks.BackgroundWork
 import dev.icode.mobile.data.tasks.WorkNotifications
 import dev.icode.mobile.domain.BackgroundItem
 import dev.icode.mobile.domain.TerminalSessionState
-import dev.icode.mobile.domain.TerminalSettingRules
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -189,9 +188,9 @@ class RuntimeForegroundService : Service() {
         TerminalNotifications.whereIs(session.title, terminals.workspaceOf(session.id)?.let { File(it).name })
 
     private fun commandFinished(session: TerminalSessionState, finished: FinishedCommand) {
-        terminals.commandFinished(session.id)
+        terminals.commandFinished(session.id, long = finished.long)
         if (!terminals.settings.finishAlerts || terminals.lookingAt.value == session.id) return
-        if (finished.durationMillis < TerminalSettingRules.FINISH_ALERT_MILLIS) return
+        if (!finished.long) return
         alerts.finished(session.id, finished, whereIs(session), shown.openSession(session.id))
     }
 
