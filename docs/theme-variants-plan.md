@@ -1,6 +1,8 @@
 # Theme variants — plan
 
-Status: **plan** (2026-11-10). Nothing is built yet. The owner's choices in §8 come first.
+Status: **decided** (2026-11-10). The owner approved every recommendation in §8 and the architecture:
+keep iCode's colour system, settings store and theme engine, and keep today's look for existing users
+after the update. T1 is the first cycle. Auto is its own cycle, T6, after T5.
 
 Owner's request: port antigem's appearance themes into iCode, adjusted to what suits iCode. Dark,
 Light and AMOLED stay the primary themes. Each of the three has its own variants, and every new
@@ -138,7 +140,7 @@ are iCode's existing ones:
 | Status colours under 4.5:1 | **Adapted**: only their lightness moves (D4) | They are drawn as text: warnings, Git states and diagnostics (layout.md §20). |
 | ThemeManager, SharedPreferences store, identity caches, getters outside composition | **Left** | iCode already has DataStore, an immutable palette passed through a CompositionLocal, and value caches. The singleton is the source of antigem's stale-colour faults. |
 | 96 tokens and sRGB `lerp` derivation | **Left** | iCode's 20 semantic tokens and OKLCH lightness-only derivation are its design system (layout.md §20), and every iCode screen is built on them. |
-| Auto (follow the system) | **Not now** (§8, question 5) | Not requested. Each family remembering its own variant (D1) makes it easy to add later. |
+| Auto (follow the system) | **Its own cycle, T6**, after T5 (owner) | Each family remembering its own variant (D1) means Auto needs no variant of its own. |
 | Custom themes and `theme_mcp` | **Not now** | Not requested. The seed format (D4) is what a later import or assistant tool would write. |
 | `ThemeQuickPanel` | **Not now** | It belongs to the dock shortcut discussion. |
 
@@ -159,7 +161,7 @@ are iCode's existing ones:
 - A variant carries its family's `kind`, so the seven `kind == Light` branches stay correct.
 - Built palettes are cached by value, as the borderless ones are.
 
-**D3 — AMOLED offers every Dark variant on true black, plus the black-only designs.** (§8, question 1)
+**D3 — AMOLED offers every Dark variant on true black, plus the black-only designs.** (Owner, 2026-11-10.)
 - An AMOLED twin is derived, not kept by hand:
   - The page and the editor are black.
   - Each surface keeps its Dark variant's hue and chroma. Its lightness is set so it is as far from
@@ -194,7 +196,8 @@ are iCode's existing ones:
   - Midnight Aurora keeps antigem's hand-set 16.
   - The rest are derived from the status colours, as iCode's own ANSI lists are built.
 
-**D5 — Syntax colours are the variant's own, made readable on its editor.** (§8, question 2)
+**D5 — Syntax colours are the variant's own, made readable on its editor.** (Owner, 2026-11-10: each
+theme has its own matching editor colours.)
 - The iCode variants keep the one-hue rule, unchanged.
 - A Dark or AMOLED variant keeps its 8 syntax colours where they reach 4.5:1 on the editor and the
   current line. Otherwise only their lightness moves, which is today's `onEditor` rule.
@@ -214,7 +217,10 @@ are iCode's existing ones:
 
 **D6 — Names.**
 - The classics take their projects' names: Catppuccin Mocha, Tokyo Night, Rosé Pine and Gruvbox
-  Dark, plus Nord, Dracula, Solarized Dark and Solarized Light. (§8, question 3)
+  Dark, plus Nord, Dracula, Solarized Dark and Solarized Light. (Owner, 2026-11-10.)
+- Light also gets the official light siblings of four classics: **Catppuccin Latte, Gruvbox Light,
+  Rosé Pine Dawn and Tokyo Night Day** (owner, 2026-11-10). antigem has none of them, so their seeds
+  come from each project's own published palette, with the source recorded.
 - antigem's own designs keep their names: Midnight Aurora, Obsidian, Graphite, Midnight, High
   Contrast, Amber Night, Aurora, Deep Ocean, Forest, Sunset, Porcelain, Lavender, Sky, Sakura, Mint,
   Linen and Paper.
@@ -251,8 +257,9 @@ are iCode's existing ones:
 - **Title** "Dark variants", "Light variants" or "AMOLED variants", with the count as subtitle.
 - **Sections:**
   - **iCode**;
-  - **Editor classics**: Catppuccin, Dracula, Gruvbox, Nord, Rosé Pine, Solarized and Tokyo Night,
-    A to Z;
+  - **Editor classics**, A to Z. Dark and AMOLED: Catppuccin Mocha, Dracula, Gruvbox Dark, Nord,
+    Rosé Pine, Solarized Dark and Tokyo Night. Light: Catppuccin Latte, Gruvbox Light, Rosé Pine
+    Dawn, Solarized Light and Tokyo Night Day;
   - **More**: the rest, A to Z.
 - **Cards:** two columns on a phone, more where the sheet is wider.
 - **Each card** is drawn from that variant's palette, exactly as the app would draw it with the
@@ -275,13 +282,14 @@ are iCode's existing ones:
 
 | Layer | File | What |
 |---|---|---|
-| domain | `AppSettings.kt` | `AppearanceSettings.darkVariant`, `lightVariant` and `amoledVariant: String?` (null = iCode) |
+| domain | `AppSettings.kt` | `AppearanceSettings.variants: Map<AppTheme, String>` (no entry = iCode), `variantOf(theme)`, and `ThemeVariantRules` (what an id may be; iCode's own is stored as no id) |
 | domain | `WorkspacePreferences.kt` | `setThemeVariant(theme, id: String?)` |
 | data | `AndroidWorkspacePreferencesRepository.kt` | The three keys, and a value longer than 40 characters reads as null |
 | debug | `CapturePreferences.kt` | The new setter, as a no-op |
 | designsystem | `palettes/ThemeSeed.kt` | The seed type and the D4 and D5 derivation |
 | designsystem | `palettes/DarkVariants.kt`, `LightVariants.kt`, `AmoledVariants.kt` | The seeds. AMOLED holds Midnight and High Contrast, and the twins are derived |
-| designsystem | `IcodeColors.kt` | `IcodePalette.of(theme, variant, borderLines)`. The iCode variants stay the three palettes as they are now |
+| designsystem | `ThemeVariants.kt` | The catalogue: each family's variants in sheet order, iCode's first, and `find(theme, id)`, where an unknown id is iCode |
+| designsystem | `IcodeColors.kt` | `IcodePalette.of(theme, variant, borderLines)`, the variant required so no caller forgets it. The iCode variants stay the three palettes as they are now |
 | designsystem | `SyntaxColors.kt` | A palette's optional syntax seeds, used before the hue rule |
 | ui | `AppearancePalette.kt` | Passes the family's variant |
 | ui/editor | `EditorTheme.kt` | The theme name from a hash of its rules |
@@ -298,9 +306,20 @@ Every file stays at or under 300 lines.
 |---|---|---|
 | **T1** — model and storage | The variant setting, its keys, the setter, the capture fake, and `of(theme, variant, …)` with only the iCode variants | Unit tests: a missing or unknown id gives iCode; the iCode variants are the same objects as today's palettes; the setting survives a restart. Nothing on screen changes |
 | **T2** — derivation | Seeds to palette (D4), AMOLED twins (D3), syntax per variant (D5), ANSI, the TextMate name; `everyPalette` grows to every variant | Tests over every variant × family × Border Lines on and off, through `everyPalette` and the existing tests that use it: every existing floor holds (text 4.5, accent 3, card step 1.12 borderless, syntax 4.5, icons 3, terminal); seeds are kept unless listed as moved; each TextMate theme parses; no two names collide |
-| **T3** — the palettes | The 25 seeds from antigem 2a04d61; the classics' ANSI from each project's own source; names and descriptions; notices | The T2 tests over the real data; the licence of each source recorded |
+| **T3** — the palettes | The 25 seeds from antigem 2a04d61; the four Light classics from their projects' palettes; the classics' ANSI from each project's own source; names and descriptions; notices | The T2 tests over the real data; the licence of each source recorded |
 | **T4** — the page and the sheet | §4 | Both guards; captures of the sheet for each family on Light and Dark |
 | **T5** — docs as built | This plan, CHANGELOG, layout.md §20 | — |
+| **T6** — Auto (separate) | Follow the phone's light or dark setting (§6.1) | Its own plan section and owner check before it is built |
+
+### 6.1 T6 — Auto, in outline
+
+Auto is a fourth choice beside the three families. The phone's setting picks Light by day and a dark
+family by night, and each family draws its own remembered variant (D1), so Auto adds no variant of
+its own. Points to settle when T6 starts:
+
+- Which family Auto uses at night: Dark, AMOLED, or the one last chosen.
+- Reading the phone's night mode live (`Configuration.uiMode`), and the system bars following it.
+- The splash and window background, which are Dark's `#0A0D0B` today (§1.1).
 
 ## 7. Phone checks (owner)
 
@@ -313,15 +332,47 @@ Every file stays at or under 300 lines.
    default".
 6. Restart: the variant stays.
 
-## 8. Questions for the owner
+## 8. Owner's decisions (2026-11-10)
 
-1. **AMOLED:** every Dark variant on true black as well, giving 18 (recommended, D3)? Or only the
-   black designs: iCode AMOLED, Midnight and High Contrast?
-2. **Syntax colours:** each variant's own, so the editor looks like Dracula in Dracula (recommended,
-   D5)? Or iCode's one-hue rule everywhere, so only surfaces and the accent change?
-3. **Names:** the original project names for the four renamed classics (recommended, D6)? Or
-   antigem's names: Mocha, Neon City, Velvet and Ember?
-4. **Light balance:** Light would have 9 variants against Dark's 16. Should T3 also add the official
-   light siblings of the classics: Catppuccin Latte, Gruvbox Light, Rosé Pine Dawn and Tokyo Night
-   Day (recommended)?
-5. **Auto:** follow the phone's light or dark setting, now or later? It is not in this plan.
+| Question | Decision |
+|---|---|
+| AMOLED | Every Dark variant on true black as well, 18 in all (D3) |
+| Syntax colours | Each variant's own, made readable (D5) |
+| Names | The original names: Catppuccin Mocha, Tokyo Night, Rosé Pine and Gruvbox Dark (D6) |
+| Light balance | Add Catppuccin Latte, Gruvbox Light, Rosé Pine Dawn and Tokyo Night Day: Light has 13 variants, Dark 16, AMOLED 18 (D6) |
+| Auto | Yes, as its own cycle after the others (T6, §6.1) |
+| Architecture | Keep iCode's colour system, settings store and theme engine; existing users keep today's look |
+
+## 9. Record
+
+- **T1 — model and storage** (done 2026-11-10). Nothing on screen changes yet: each theme has only
+  iCode's own variant until T3.
+  - `domain/AppSettings.kt`:
+    - `AppearanceSettings.variants`, which maps each theme to its variant id (no entry means
+      iCode's own), and `variantOf(theme)`.
+    - `ThemeVariantRules`: an id is lower-case letters, digits and `_`, up to 40 characters, and
+      iCode's own is kept as no id.
+  - `setThemeVariant(theme, id)` stores the id in one of three DataStore keys,
+    `appearance_dark_variant`, `appearance_light_variant` or `appearance_amoled_variant`.
+    - Choosing iCode's own removes the key.
+    - A stored value that is not an id reads as iCode, and the other keys are left as they are.
+    - The setter refuses a value that is not an id.
+  - `designsystem/ThemeVariants.kt` is the catalogue. Each theme lists iCode's own first, and
+    `find` returns iCode's own for an unknown id. A variant's palette is built the first time it is
+    drawn.
+  - `IcodePalette.of(theme, variant, borderLines)` requires the variant, so no caller can forget it.
+    `appearancePalette` passes the theme's own variant, and Appearance's cards preview their own
+    theme's variant.
+  - `everyPalette`, and the tone tests in `IcodePaletteTest`, loop over every variant. The syntax,
+    editor-theme and icon-colour tests therefore cover each variant added in T3.
+  - Tests:
+    - `ThemeVariantRulesTest` (3).
+    - `AppearancePaletteTest` (4): before settings are read, a theme's own variant, an unknown id,
+      the user's accent.
+    - `IcodePaletteTest`, 2 new: iCode's own however it is named, and the catalogue's rules.
+    - The repository test: each theme's variant survives a restart on its own, and a stored value
+      that is not an id is read as iCode.
+  - Gate:
+    - 1546 unit tests. The only failure is `TreeSizeTest`'s root-only case, as on main.
+    - assembleDebug and assembleRelease build, and both consistency guards pass.
+    - Lint has nothing new. Its one error, `SpeechProviderParts.kt:80`, is already on main.
