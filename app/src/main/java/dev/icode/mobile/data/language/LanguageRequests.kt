@@ -6,6 +6,7 @@ import dev.icode.mobile.domain.LanguageAction
 import dev.icode.mobile.domain.LanguageCompletionItem
 import dev.icode.mobile.domain.LanguageCompletions
 import dev.icode.mobile.domain.LanguagePlace
+import dev.icode.mobile.domain.LanguageServiceRules
 import dev.icode.mobile.domain.Severity
 import dev.icode.mobile.domain.TextPosition
 import dev.icode.mobile.domain.TextRange
@@ -40,6 +41,8 @@ internal class LanguageRequests(
         val text = stateHolder.current.openDocuments.firstOrNull { it.location == location }?.text.orEmpty()
         val before = text.getOrNull(LspText.offsetOf(text, position) - 1)?.toString()
         return serving(location, { it.completion }) { sessions -> sessions.flatMap { session ->
+            // A space, `;`, `(` asks nothing: a word is typed, or the server's own trigger (docs/editor-completion-plan.md D2).
+            if (!LanguageServiceRules.asksCompletion(before, session.capabilities.completionTriggers)) return@flatMap emptyList()
             val trigger = before?.takeIf { it in session.capabilities.completionTriggers }
             val result = runCatching {
                 session.request("textDocument/completion", at(location, position).with("context" to buildJsonObject {

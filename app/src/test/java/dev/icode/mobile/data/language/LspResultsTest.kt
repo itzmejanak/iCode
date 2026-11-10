@@ -65,6 +65,13 @@ class LspResultsTest {
     }
 
     @Test
+    fun `a label's signature and its type are both kept`() {
+        val item = results.completions(json("""[{"label":"useState","kind":3,"labelDetails":{"detail":"(initialState)","description":"react"}}]"""), resolvable = false).single()
+        assertEquals("(initialState)", item.labelDetail)
+        assertEquals("react", item.detail)
+    }
+
+    @Test
     fun `markup, marked strings and signatures read as text`() {
         assertEquals("```python\nx: int\n```\n\nThe x.", LanguageJson.markup(json("""[{"language":"python","value":"x: int"},"The x."]""")))
         assertEquals("**bold**", LanguageJson.markup(json("""{"kind":"markdown","value":"**bold**"}""")))
