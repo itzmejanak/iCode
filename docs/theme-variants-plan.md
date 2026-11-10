@@ -201,11 +201,13 @@ theme has its own matching editor colours.)
 - The iCode variants keep the one-hue rule, unchanged.
 - A Dark or AMOLED variant keeps its 8 syntax colours where they reach 4.5:1 on the editor and the
   current line. Otherwise only their lightness moves, which is today's `onEditor` rule.
-- A Light variant keeps each syntax colour's **hue** and takes iCode's Light lightness (0.47). Its
-  editor is light, like iCode Light's.
+- A Light variant's editor is light, like iCode Light's. Its syntax colours follow the same rule:
+  each keeps its hue and chroma, and only its lightness moves until it reads at 4.5:1. antigem's
+  pastels, made for a dark code block, move darker on the way. The four Light classics' own colours
+  mostly read already. (As built: one rule for every variant, `onEditor`, instead of a fixed 0.47.)
 - Roles map as antigem's own fallbacks do:
   - keyword: Keyword, Control, Tag and Heading;
-  - type: Type, Escape and Attribute;
+  - type: Type, Escape, Attribute and Link;
   - string: String, Inserted and Regex;
   - number: Number and Constant;
   - function: Function, List marker and Changed;
@@ -224,7 +226,7 @@ theme has its own matching editor colours.)
 - antigem's own designs keep their names: Midnight Aurora, Obsidian, Graphite, Midnight, High
   Contrast, Amber Night, Aurora, Deep Ocean, Forest, Sunset, Porcelain, Lavender, Sky, Sakura, Mint,
   Linen and Paper.
-- Descriptions are rewritten for iCode, without "AntiGem's look".
+- The sheet shows names only, so no descriptions are carried over (as built).
 - Each family's first variant is **iCode**.
 
 **D7 — Accent.**
@@ -376,3 +378,69 @@ its own. Points to settle when T6 starts:
     - 1546 unit tests. The only failure is `TreeSizeTest`'s root-only case, as on main.
     - assembleDebug and assembleRelease build, and both consistency guards pass.
     - Lint has nothing new. Its one error, `SpeechProviderParts.kt:80`, is already on main.
+- **T2 — derivation** and **T3 — the palettes** (done 2026-11-10, built together because the
+  derivation's tests run over the real seeds).
+  - `designsystem/palettes/ThemeSeed.kt`:
+    - `ThemeSeed` holds a theme's tones, text, accent, status colours, six code colours, and its
+      project's 16 terminal colours where they exist.
+    - `palette(kind)` follows D4. Floors on the given colours: text and secondary text 4.5:1 on the
+      page, card, raised tone, editor and current line; status colours 4.5:1 on the page and card,
+      and error also on the editor; the accent 3:1, and also on the borderless tones, because the
+      accent never moves there.
+    - Every derived tone takes its family's own step, measured on iCode's palette of that family
+      when the app runs: the editor on Light, the track, the outline, muted text and the diff tints.
+    - Terminal colours are the project's own, or derived from the status colours. Every one except
+      black and bright black reads at 4.5:1 on the terminal.
+    - `onBlack()` makes the AMOLED twin (D3).
+  - `Oklch.stepFrom` is the step helper. It finds the colour of a given hue and chroma that is
+    nearest to a tone while still standing a given ratio from it.
+  - `SyntaxSeeds` and `IcodePalette.syntax` carry a variant's own code colours. `syntaxColor` maps
+    them to roles as D5 says, and iCode's own variants keep the hue rule unchanged.
+  - `DarkVariants.kt`, `LightVariants.kt` and `AmoledVariants.kt` hold the seeds. A script wrote
+    them from antigem 2a04d61, so nothing was copied by hand.
+    - The four Light classics come from their projects' palettes, each role as its Dark sibling
+      takes it.
+    - The classics' terminal colours come from each project's own files. Sources, commits and
+      notices are in `resources/licenses/MIT-Theme-Palettes.txt`, which is also in
+      THIRD_PARTY_NOTICES.md.
+  - `ThemeVariants` lists 16 Dark, 13 Light and 18 AMOLED variants: iCode's own, then the classics,
+    then the rest, each group A to Z.
+  - The TextMate theme name is a hash of every colour the theme draws (`Sha256`), so two variants
+    never share a cached theme.
+  - Two faults found and fixed:
+    - **Borderless tones could swap sides.** With Border Lines off, Rosé Pine Dawn's raised tone
+      moved past its track, and the track then turned back toward it (1.009:1, wanted 1.087).
+      Each tone now keeps to the side of its neighbour it started on. iCode's own three palettes
+      come out unchanged; this was checked value by value.
+    - **The accent could fail on the borderless tones.** A Light variant's page that moves darker
+      without border lines left Porcelain's accent at 2.76:1 on it. The floor now covers those
+      tones too.
+  - Colours that moved to meet a floor; every other seed colour is kept exactly:
+    - Dark:
+      - Amber Night: error, blue.
+      - Dracula: secondary, error.
+      - Gruvbox Dark: error.
+      - Nord: secondary, error, blue.
+      - Solarized Dark: secondary and all four status colours.
+      - Tokyo Night: secondary.
+    - Light:
+      - Catppuccin Latte and Rosé Pine Dawn: secondary and the status colours, plus Rosé Pine
+        Dawn's accent.
+      - Gruvbox Light: secondary, green, amber.
+      - Lavender, Linen, Mint and Sakura: error.
+      - Paper: green, amber.
+      - Porcelain: secondary, accent and the status colours.
+      - Sky: green, error, blue.
+      - Solarized Light: secondary, accent and the status colours.
+      - Tokyo Night Day: text, secondary, accent and the status colours.
+    - The rest of Dark, and Midnight and High Contrast: none.
+  - Tests:
+    - `ThemeSeedTest` (6): the counts and groups; seeds kept unless under a floor and then over
+      it; the family steps; a light editor exactly on Light; the twins on black at AMOLED's steps
+      with their own colours; the classics' terminal colours.
+    - `EditorThemeTest`: names shared only by palettes that draw code alike.
+    - `SyntaxColorsTest`: a variant's six own colours stay apart. Control keywords may be drawn as
+      keywords, as its theme does.
+  - `everyPalette` now holds 94 palettes: 47 variants, each with and without border lines. Every
+    contrast, editor, icon and engine test runs over all of them. The engine test now takes about
+    48 s, up from 4 s, and the icon test about 27 s.

@@ -16,7 +16,7 @@ val BuildEnvironment: AppEnvironment = AppEnvironment.valueOf(BuildConfig.ENVIRO
 /** Which theme a palette is, however its accent was changed. */
 enum class PaletteKind { Dark, Light, Amoled }
 
-/** One complete semantic palette. Light and AMOLED remain review candidates. */
+/** One complete semantic palette: a theme as iCode draws it, or one of its variants (ThemeVariants). */
 @Immutable
 data class IcodePalette(
     val kind: PaletteKind,
@@ -45,6 +45,8 @@ data class IcodePalette(
      * light terminal themes do, so white text stays readable on the light background.
      */
     val terminalAnsi: List<Color>,
+    /** A variant's own code colours (docs/theme-variants-plan.md D5); null: iCode's one hue per role. */
+    val syntax: SyntaxSeeds? = null,
 ) {
     /** Behind a sheet: the screen it opened over stays in sight, dimmed. */
     val sheetScrim: Color get() = backgroundDeep.copy(alpha = 0.5f)

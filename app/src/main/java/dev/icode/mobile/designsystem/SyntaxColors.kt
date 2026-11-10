@@ -1,5 +1,6 @@
 package dev.icode.mobile.designsystem
 
+import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import java.util.concurrent.ConcurrentHashMap
@@ -27,7 +28,7 @@ enum class SyntaxRole(
  * theme's editor is drawn on other tones (Light without border lines) and one
  * would not be, only its lightness moves until it is (SyntaxColorsTest).
  */
-fun IcodePalette.syntaxColor(role: SyntaxRole): Color = when (role) {
+fun IcodePalette.syntaxColor(role: SyntaxRole): Color = syntax?.let { variantColor(it, role) } ?: when (role) {
     SyntaxRole.Plain, SyntaxRole.Variable, SyntaxRole.Strong, SyntaxRole.Emphasis, SyntaxRole.Strikethrough -> textPrimary
     SyntaxRole.Invalid, SyntaxRole.Deleted -> error
     SyntaxRole.Comment, SyntaxRole.TagPunctuation, SyntaxRole.Quote ->
@@ -40,6 +41,32 @@ fun IcodePalette.syntaxColor(role: SyntaxRole): Color = when (role) {
     SyntaxRole.Type, SyntaxRole.Escape -> onEditor(hueColor(195.0))
     SyntaxRole.Attribute, SyntaxRole.Link -> onEditor(hueColor(240.0))
     SyntaxRole.Regex -> onEditor(hueColor(0.0))
+}
+
+/**
+ * A variant's own code colours (docs/theme-variants-plan.md D5): six, as the theme gives them; the
+ * other roles take the one nearest in meaning, as the theme's own editor does.
+ */
+@Immutable
+data class SyntaxSeeds(
+    val keyword: Color,
+    val type: Color,
+    val string: Color,
+    val number: Color,
+    val comment: Color,
+    val function: Color,
+)
+
+/** [role] in a variant's own colours, each kept where it reads on the editor, else only its lightness moved. */
+private fun IcodePalette.variantColor(seeds: SyntaxSeeds, role: SyntaxRole): Color = when (role) {
+    SyntaxRole.Plain, SyntaxRole.Variable, SyntaxRole.Strong, SyntaxRole.Emphasis, SyntaxRole.Strikethrough -> textPrimary
+    SyntaxRole.Invalid, SyntaxRole.Deleted -> error
+    SyntaxRole.Comment, SyntaxRole.TagPunctuation, SyntaxRole.Quote -> onEditor(seeds.comment)
+    SyntaxRole.Keyword, SyntaxRole.Control, SyntaxRole.Tag, SyntaxRole.Heading -> onEditor(seeds.keyword)
+    SyntaxRole.String, SyntaxRole.Inserted, SyntaxRole.Regex -> onEditor(seeds.string)
+    SyntaxRole.Number, SyntaxRole.Constant -> onEditor(seeds.number)
+    SyntaxRole.Function, SyntaxRole.ListMarker, SyntaxRole.Changed -> onEditor(seeds.function)
+    SyntaxRole.Type, SyntaxRole.Escape, SyntaxRole.Attribute, SyntaxRole.Link -> onEditor(seeds.type)
 }
 
 /** [color] as it is where it reads 4.5 : 1 on the editor and its current line; else its lightness moved until it does. */
