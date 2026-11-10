@@ -156,10 +156,16 @@ All notable changes to iCode are documented here. The format follows
     straight there, such as Terminal's Problems tab. It never switches by itself.
   - TalkBack reads each tool with its badge and the suggestion, and offers "Switch to …" for the
     tool you used before.
-- The undo pill, the bell and the dock can each be moved. Hold one until the phone ticks, drag it,
-  and let go: it goes to the nearer edge, left or right, at that height, and stays there after a
-  restart. A keyboard coming up moves it down with the room, and pills never cover one another.
-  TalkBack offers Move to the other edge, Move up and Move down.
+- The undo pill, the bell and the dock can each be moved anywhere. Hold one until the phone ticks:
+  it lifts off its edge as its icon in a floating bubble, which you drag anywhere on the screen.
+  Let go, and it docks on the nearest edge, left, right, top or bottom, where you let go along it,
+  and stays there after a restart. On the top or the bottom its row lies along the edge and tucks
+  up or down. Pills never cover one another, a keyboard coming up moves a side's pill down with the
+  room, and TalkBack offers Move to each other edge and Move along the edge.
+- Each tucked pill shows its own icon, the undo arrow, the bell or the dock's grid, in the colour
+  of whatever needs you there, so you can tell them apart without opening them. Left alone for 3
+  seconds, a tucked pill fades, as the assistant's bubble over other apps does; a touch or anything
+  new brings it back.
 
 ### Changed
 - Each workspace tool keeps its own history. Going to a tool shows it as you left it, never a
@@ -169,7 +175,7 @@ All notable changes to iCode are documented here. The format follows
   main screen, closing a page such as Find left over it.
 - Inside a workspace the bell and the undo pill stand one step higher, above the dock.
 - The floating pills are bigger and easier to open: 48 dp tall, with larger icons, and a tucked
-  pill shows a wider strip with a longer grip.
+  pill shows a 30 dp strip.
 - The editor's suggestion list marks the chosen row with a quiet lift instead of a reddish block,
   set apart from the rows beside it, so its highlighted letters stay clear.
 - File and folder icons: each kind of file and folder has its own icon, from Material Icon Theme

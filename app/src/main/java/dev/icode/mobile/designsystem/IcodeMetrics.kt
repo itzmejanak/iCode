@@ -58,6 +58,16 @@ object IcodeShapes {
     val Sheet = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
 }
 
+/**
+ * How something always on screen rests while it is not used: the assistant's bubble over other apps,
+ * and the floating stack's pills. Left alone this long, it fades to this; anything new, or a touch,
+ * brings it back.
+ */
+object IcodeResting {
+    const val AFTER_MILLIS = 3_000L
+    const val ALPHA = 0.55f
+}
+
 /** Size tokens for icons, bars and shells. */
 object IcodeSizes {
     val IconSm = 16.dp

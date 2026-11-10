@@ -146,7 +146,7 @@ internal fun NoticeBell(state: NoticeHostState, notices: List<AppNotice>, onAll:
         tucked = state.tucked,
         onTucked = { if (it) state.tuck() else state.show() },
         name = "the bell",
-        gripTint = unreadTone?.tint ?: IcodeColors.Outline,
+        tone = unreadTone?.tint,
     ) {
         IcodeDockedAction(
             Icons.Outlined.Notifications,

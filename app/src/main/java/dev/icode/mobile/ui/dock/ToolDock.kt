@@ -90,7 +90,8 @@ internal fun ToolDock(dock: ToolDockState, navigation: NavigationState) {
     if (!model.inWorkspace) return
     val shown = model.onMainScreen
     LaunchedEffect(shown) { if (!shown) dock.tuck() }
-    Box(Modifier.height(IcodeSizes.DockedPill)) {
+    // On a side, its height is kept while it is hidden; across the top or the bottom it lies along the edge, and is not.
+    Box(if (LocalPillEdge.current.across) Modifier else Modifier.height(IcodeSizes.DockedPill)) {
         AnimatedVisibility(visible = shown, enter = pillEnter(), exit = pillExit()) {
             Dock(dock, navigation)
         }
@@ -129,13 +130,13 @@ private fun Dock(dock: ToolDockState, navigation: NavigationState) {
             contentDescription = listOfNotNull("Tools", suggestion?.let { "Suggested: ${it.tool.label}, ${it.why.said}" }).joinToString(". ")
             liveRegion = LiveRegionMode.Polite
         },
-        gripTint = suggestion?.why?.tone?.tint ?: IcodeColors.Outline,
+        tone = suggestion?.why?.tone?.tint,
         actions = listOfNotNull(previous?.let { CustomAccessibilityAction("Switch to ${it.label}") { go(it); true } }) +
             DOCK_ORDER.map { tool -> CustomAccessibilityAction(said(tool)) { go(tool); true } },
         onSwipeAlong = previous?.let { { go(it) } },
     ) {
-        // The first of the order at the edge, whichever edge the user keeps it on.
-        (if (LocalPillEdge.current == ScreenEdge.End) DOCK_ORDER.asReversed() else DOCK_ORDER).forEach { tool ->
+        // The first of the order at the edge on a side; across the top or the bottom, at the end, nearest the thumb.
+        (if (LocalPillEdge.current == ScreenEdge.Start) DOCK_ORDER else DOCK_ORDER.asReversed()).forEach { tool ->
             val badge = badges.getValue(tool)
             IcodeDockedAction(
                 tool.icon,
