@@ -2,7 +2,9 @@ package dev.icode.mobile.designsystem
 
 import android.os.SystemClock
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -13,6 +15,7 @@ import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.indication
@@ -46,6 +49,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.semantics.CustomAccessibilityAction
@@ -57,18 +61,34 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 
 /**
- * A floating pill at rest (docs/dock-navigation-plan.md D12, D13): [content], its buttons
- * ([IcodePillButton]), on no ground of their own. Left alone while not [awake], it fades as the
- * assistant's bubble over other apps does ([IcodeResting]); a touch wakes it at once. It is kept
- * from Android's back gesture, which would otherwise take a touch at the screen's edge. [content] is
- * given TalkBack's moves for [name], for its first button to carry.
+ * A floating pill as one see-through button (docs/dock-navigation-plan.md D12–D14): [icon] in [tint]
+ * on a faint round of the raised surface, so it reads over code while the screen shows through it,
+ * with [badge], a count, and a [dot] on it; a touch target wide and tall, the round inside it, so what
+ * it carries is whole. A new [icon] crossfades in: the undo pill's ↶ turning ↷.
+ *
+ * Left alone while not [awake], it rests as the assistant's bubble over other apps does
+ * ([IcodeResting]): slowly, it sinks half behind its edge ([LocalPillEdge]) and fades, out of the
+ * way of the work; a touch or anything new brings it out at once. A tap on it at rest is still a tap.
+ * It is kept from Android's back gesture, which would otherwise take a touch at the screen's edge.
+ *
+ * [onLongClick], held, does the pill's other action, named [longClickLabel]. TalkBack has that, then
+ * [actions], then the stack's moves for [name].
  */
 @Composable
-fun IcodePillRow(
+fun IcodePillButton(
     name: String,
+    icon: ImageVector,
+    description: String?,
+    onClick: () -> Unit,
     awake: Boolean,
     modifier: Modifier = Modifier,
-    content: @Composable RowScope.(moves: List<CustomAccessibilityAction>) -> Unit,
+    tint: Color = IcodeColors.TextSecondary,
+    badge: Int? = null,
+    dot: Color? = null,
+    iconModifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
+    longClickLabel: String? = null,
+    actions: List<CustomAccessibilityAction> = emptyList(),
 ) {
     var touches by remember { mutableIntStateOf(0) }
     var resting by remember { mutableStateOf(false) }
@@ -78,42 +98,38 @@ fun IcodePillRow(
         delay(IcodeResting.AFTER_MILLIS)
         resting = true
     }
-    val fade by animateFloatAsState(if (resting) IcodeResting.ALPHA else 1f, label = "resting")
+    // 0 out, 1 at rest: sunk half its width behind its edge, faded.
+    val rest by animateFloatAsState(
+        if (resting) 1f else 0f,
+        tween(if (resting) IcodeResting.SETTLE_MILLIS else IcodeResting.WAKE_MILLIS, easing = FastOutSlowInEasing),
+        label = "resting",
+    )
+    val edge = LocalPillEdge.current
+    val way = outward(edge)
+    val sinkPx = with(LocalDensity.current) { (IcodeSizes.DockedPill / 2 + EDGE_INSET).toPx() }
     val moves = LocalPillMoves.current(name)
-    Row(
-        modifier
-            .systemGestureExclusion()
-            .graphicsLayer { alpha = fade }
-            .wakeOnTouch { touches++ },
-        verticalAlignment = Alignment.CenterVertically,
-    ) { content(moves) }
-}
-
-/**
- * A floating pill's button: [icon] in [tint] — muted when not [enabled] — on a faint round of the
- * raised surface, so it reads over code and leaves the screen seen through it; with [badge], a count,
- * and a [dot] on it. A touch target wide and tall, the round inside it, so what it carries is whole.
- */
-@Composable
-fun IcodePillButton(
-    icon: ImageVector,
-    description: String?,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    tint: Color = IcodeColors.TextSecondary,
-    enabled: Boolean = true,
-    badge: Int? = null,
-    dot: Color? = null,
-    iconModifier: Modifier = Modifier,
-    actions: List<CustomAccessibilityAction> = emptyList(),
-) {
     val pressed = remember { MutableInteractionSource() }
     val line = edgeLine
     Box(
         modifier
             .size(IcodeSizes.DockedPill)
-            .clickable(pressed, indication = null, enabled = enabled, role = Role.Button, onClick = onClick)
-            .semantics { if (actions.isNotEmpty()) customActions = actions },
+            .graphicsLayer {
+                val sunk = way * sinkPx * rest
+                if (edge.across) translationY = sunk else translationX = sunk
+                alpha = 1f - (1f - IcodeResting.ALPHA) * rest
+            }
+            // Inside the layer, so the place kept from the back gesture is where the pill is drawn.
+            .systemGestureExclusion()
+            .wakeOnTouch { touches++ }
+            .combinedClickable(
+                interactionSource = pressed,
+                indication = null,
+                role = Role.Button,
+                onLongClickLabel = longClickLabel,
+                onLongClick = onLongClick,
+                onClick = onClick,
+            )
+            .semantics { customActions = actions + moves },
         contentAlignment = Alignment.Center,
     ) {
         Box(
@@ -124,15 +140,17 @@ fun IcodePillButton(
                 .then(if (line != null) Modifier.border(1.dp, line.copy(alpha = SEE_THROUGH), CircleShape) else Modifier)
                 .indication(pressed, LocalIndication.current),
         )
-        Icon(icon, contentDescription = description, tint = if (enabled) tint else IcodeColors.TextMuted, modifier = iconModifier.size(IcodeSizes.IconXl))
+        Crossfade(icon, label = "icon") { shown ->
+            Icon(shown, contentDescription = description, tint = tint, modifier = iconModifier.size(IcodeSizes.IconXl))
+        }
         IconMarks(badge ?: 0, dot)
     }
 }
 
 /**
  * A floating pill that opens (the dock, D6, D13). Closed, it is its own icon ([LocalPillIcon]) as one
- * [IcodePillButton] in [tone], what needs the user there, at rest as [IcodePillRow] says, awake while
- * it has a [tone]. Tapped, it opens at once into one row of [content] on the raised surface, grown from
+ * [IcodePillButton] in [tone], what needs the user there, resting in its edge as that button does,
+ * kept out while it has a [tone]. Tapped, it opens at once into one row of [content] on the raised surface, grown from
  * its icon, which stays under the finger at the row's docked end ([LocalPillIconAtEnd]). That icon
  * tapped closes it again — or, tapped again within a double tap's time of opening it, does
  * [onDoubleTap] — and so does [closeAfterMillis] without a touch. TalkBack reads it as [description],
@@ -179,17 +197,17 @@ fun IcodeDockedPill(
         label = "pill",
     ) { isOpen ->
         if (!isOpen) {
-            IcodePillRow(name, awake = tone != null) { moves ->
-                IcodePillButton(
-                    icon, description,
-                    onClick = {
-                        openedAt = SystemClock.uptimeMillis()
-                        opened(true)
-                    },
-                    tint = tone ?: IcodeColors.TextSecondary,
-                    actions = listOf(show) + actions + moves,
-                )
-            }
+            IcodePillButton(
+                name, icon, description,
+                onClick = {
+                    openedAt = SystemClock.uptimeMillis()
+                    opened(true)
+                },
+                // A suggestion keeps it out: it is what needs the user.
+                awake = tone != null,
+                tint = tone ?: IcodeColors.TextSecondary,
+                actions = listOf(show) + actions,
+            )
         } else {
             val line = edgeLine
             val moves = LocalPillMoves.current(name)

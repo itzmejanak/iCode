@@ -142,7 +142,11 @@ private fun Mark(view: PhoneBubbleView, actions: PhoneBubbleActions) {
     val look = view.overlay.look
     val open = view.mode != BubbleMode.Closed
     val scale by animateFloatAsState(if (look == Look.Listening) LISTENING_SCALE else 1f, label = "listening")
-    val fade by animateFloatAsState(if (view.tucked) IcodeResting.ALPHA else 1f, label = "tucked")
+    val fade by animateFloatAsState(
+        if (view.tucked) IcodeResting.ALPHA else 1f,
+        tween(if (view.tucked) IcodeResting.SETTLE_MILLIS else IcodeResting.WAKE_MILLIS),
+        label = "tucked",
+    )
     val shown by animateFloatAsState(if (open) 0f else 1f, tween(MORPH_MILLIS), label = "shown")
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()

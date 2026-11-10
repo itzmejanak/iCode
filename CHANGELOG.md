@@ -93,8 +93,9 @@ All notable changes to iCode are documented here. The format follows
 - iCode has no dialogs: every confirmation, question and long operation is a sheet, and every sheet
   closes with a swipe down as well as ×, Back or a tap outside.
 - The bell and the undo pill say nothing in words: a notice rings the bell with the unread count, and
-  the undo pill shows ↶ and ↷. Both are see-through icons that never go: left alone they fade,
-  and a touch wakes them. The explorer's ⋮ has no Undo or Redo now.
+  the undo pill is one icon, ↶ while a change can be undone and ↷ once only a redo is left (held,
+  ↶ redoes). Both are see-through icons that never go: left alone they sink half into the screen's
+  edge and fade, and a touch brings them out. The explorer's ⋮ has no Undo or Redo now.
 - Assistant: a long press on your message offers Edit, and Retry when its turn failed; a message's
   files ride a tab rising from its card, small.
 - Assistant: a model that turns out not to see pictures goes on with the screen's text and is set to
@@ -164,8 +165,9 @@ All notable changes to iCode are documented here. The format follows
   each other edge and Move along the edge.
 - Each pill is its own icon, the undo arrow, the bell or the dock's grid, see-through on a faint
   round so the screen shows through, in the colour of whatever needs you there, so you can tell
-  them apart at a glance. Left alone for 3 seconds, a pill fades, as the assistant's bubble over
-  other apps does; a touch or anything new brings it back.
+  them apart at a glance. Left alone for 3 seconds, a pill slowly sinks half into the screen's
+  edge and fades, out of the way of your work, as the assistant's bubble over other apps does; a
+  touch or anything new brings it out.
 
 ### Changed
 - Each workspace tool keeps its own history. Going to a tool shows it as you left it, never a
