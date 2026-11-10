@@ -1,7 +1,8 @@
 # The tool dock: one tap between tools, each keeping its place — plan
 
-Status: **plan, for the owner's approval** (2026-11-10). Nothing is built. The owner's choices in
-§8 come first.
+Status: **approved** (2026-11-10). The owner chose every recommendation in §8 and asked for the whole
+plan, end to end: the architecture migrated cleanly rather than wrapped, no duplication, and faults
+found on the way fixed. The record is §9.
 
 Owner's request: an intelligent, docked navigation manager, the best for iCode's UI and UX and for
 what a user needs. Today the user has to go Back to get anywhere.
@@ -410,18 +411,18 @@ Each cycle is its own commit, with the full gate run before it.
 - Removing the Explorer's rail.
 - Jumping between open files from the dock.
 
-## 8. Questions for the owner
+## 8. Owner's decisions (2026-11-10)
 
-1. **A tool coming back.** Should it be drawn again from what it keeps, as Android's own several
-   back stacks do (recommended, D5)? Or should the tool used before also stay composed but undrawn,
-   so going back to it costs nothing? That uses memory and battery for a screen not seen, and an
-   editor or terminal kept that way could keep the keyboard. The recommended way has a gate (S3):
-   any tool that fails it on your phone moves to the second way.
-2. **The dock's place in the stack.** At the bottom, nearest the thumb and never moving, with the
-   undo pill and the bell one step higher (recommended)? Or above them, where it moves as the undo
-   pill comes and goes?
-3. **The order of the six icons, from the edge outward.** Recommended: Editor, Terminal, Assistant,
-   Source Control, Search, Explorer, so your three journeys' tools are nearest the thumb. Or name
-   your own order.
-4. **A file opened for you shows the Editor's main screen**, closing a Find-in-file page left open
-   over it (recommended, D3). Or should the Editor come back as left, Find page included?
+| Question | Decision |
+|---|---|
+| A tool coming back | Drawn again from what it keeps, as Android's several back stacks do; any tool failing S3 on the phone stays composed instead |
+| The dock's place | At the bottom of the floating stack, nearest the thumb; the undo pill and the bell one step higher |
+| The icons' order from the edge | Editor, Terminal, Assistant, Source Control, Search, Explorer |
+| A file opened for you | Shows the Editor's main screen; a Find page left over it closes |
+
+The owner's further constraints: migrate the navigation cleanly, with no wrapper over the old stack;
+no duplication; no inconsistency; maintainable and scalable; fix the faults found on the way.
+
+## 9. Record
+
+- **N1 — the model:** in progress.

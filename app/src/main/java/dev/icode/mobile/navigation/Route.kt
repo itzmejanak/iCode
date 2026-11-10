@@ -1,5 +1,7 @@
 package dev.icode.mobile.navigation
 
+import dev.icode.mobile.domain.WorkspaceTool
+
 enum class RouteGroup(val label: String) {
     ENTRY("Entry & launcher"),
     WORKSPACE("Workspace"),
@@ -15,14 +17,23 @@ enum class Route(
     val group: RouteGroup,
     /** Drawn as a sheet over the live screen below it, not as a page of its own. */
     val sheet: Boolean = false,
+    /**
+     * The tool whose main screen this is (docs/dock-navigation-plan.md D1): asked for, that tool is
+     * switched to rather than a page pushed. Null for a page, which opens in the tool it is opened from.
+     */
+    val tool: WorkspaceTool? = null,
+    /** Asked for from inside the workspace, the app's own pages show again: the Launcher. */
+    val leavesWorkspace: Boolean = false,
+    /** The page that makes a workspace: once it opens, it takes this page's place, so Back does not show it again. */
+    val makesWorkspace: Boolean = false,
 ) {
     Splash("3:11", "Splash", RouteGroup.ENTRY),
     RuntimeInstalling("3:27", "Runtime installing", RouteGroup.ENTRY),
     PermissionExplanation("3:90", "Permission explanation", RouteGroup.ENTRY),
     // Owner's request (2026-10-29): ask once whether to share anonymous device info (docs/device-telemetry-plan.md).
     DeviceInfoConsent(null, "Device info", RouteGroup.ENTRY),
-    LauncherHome("3:124", "Launcher home", RouteGroup.ENTRY),
-    LauncherEmpty("3:202", "Launcher empty", RouteGroup.ENTRY),
+    LauncherHome("3:124", "Launcher home", RouteGroup.ENTRY, leavesWorkspace = true),
+    LauncherEmpty("3:202", "Launcher empty", RouteGroup.ENTRY, leavesWorkspace = true),
     // Owner's request (2026-09-25): notices move off the launcher onto their own page.
     Notifications(null, "Notifications", RouteGroup.ENTRY),
     // Owner's request (2026-09-30): choose the runtime's tools, as Android Studio's setup does
@@ -34,13 +45,14 @@ enum class Route(
     // The same file explorer, choosing where a clone goes (workspace-destinations-plan.md §2.2).
     ChooseDestination(null, "Choose where", RouteGroup.ENTRY),
     CloneRepository("3:239", "Clone repository", RouteGroup.ENTRY),
-    CloneProgress("3:278", "Clone progress", RouteGroup.ENTRY),
-    WorkspaceExplorer("3:456", "Workspace explorer", RouteGroup.WORKSPACE),
-    WorkspaceEditor("3:519", "Workspace editor", RouteGroup.WORKSPACE),
-    WorkspaceSearch("3:586", "Workspace search", RouteGroup.WORKSPACE),
-    SourceControl("3:641", "Source control", RouteGroup.TOOLS),
+    CloneProgress("3:278", "Clone progress", RouteGroup.ENTRY, makesWorkspace = true),
+    WorkspaceExplorer("3:456", "Workspace explorer", RouteGroup.WORKSPACE, tool = WorkspaceTool.Explorer),
+    WorkspaceEditor("3:519", "Workspace editor", RouteGroup.WORKSPACE, tool = WorkspaceTool.Editor),
+    WorkspaceSearch("3:586", "Workspace search", RouteGroup.WORKSPACE, tool = WorkspaceTool.Search),
+    SourceControl("3:641", "Source control", RouteGroup.TOOLS, tool = WorkspaceTool.SourceControl),
     DiffView("3:706", "Diff view", RouteGroup.TOOLS),
-    QuickOpen("3:760", "Quick open", RouteGroup.TOOLS),
+    // Search's other face: the same screen, finding files by name.
+    QuickOpen("3:760", "Quick open", RouteGroup.TOOLS, tool = WorkspaceTool.Search),
     BranchSelector("3:796", "Branch selector", RouteGroup.TOOLS, sheet = true),
     // Owner's request (2026-10-01): the repository is chosen as the branch is, from Source Control's
     // bottom bar (workspace-destinations-plan.md D7).
@@ -48,17 +60,19 @@ enum class Route(
     // Owner's request (2026-10-22): HEAD's history from Last Commit's corner (docs/git-history-plan.md).
     GitHistory(null, "Commit history", RouteGroup.TOOLS, sheet = true),
     EditorFind("3:835", "Editor find", RouteGroup.TOOLS),
-    TerminalExpanded("3:1070", "Terminal expanded", RouteGroup.TOOLS),
-    ProblemsPanel("3:1127", "Problems panel", RouteGroup.TOOLS),
+    TerminalExpanded("3:1070", "Terminal expanded", RouteGroup.TOOLS, tool = WorkspaceTool.Terminal),
+    // The design's frames of Terminal's other tabs: asked for, Terminal on that tab (ToolPanelTab).
+    ProblemsPanel("3:1127", "Problems panel", RouteGroup.TOOLS, tool = WorkspaceTool.Terminal),
     SettingsRoot("3:1196", "Settings", RouteGroup.SETTINGS),
     SettingsEditor("3:1277", "Editor settings", RouteGroup.SETTINGS),
     SettingsLanguages("3:1344", "Language services", RouteGroup.SETTINGS),
     SettingsLanguageDetail("3:1393", "Language detail", RouteGroup.SETTINGS),
     SettingsRuntime("3:1455", "Runtime environment", RouteGroup.SETTINGS),
     ConflictResolution("3:1509", "Conflict resolution", RouteGroup.TOOLS),
-    EditorEmpty("2003:19", "Editor empty state", RouteGroup.WORKSPACE),
+    // The Editor's face with no file open, drawn as its own frame for the design's captures.
+    EditorEmpty("2003:19", "Editor empty state", RouteGroup.WORKSPACE, tool = WorkspaceTool.Editor),
     CommandPalette("2003:166", "Command palette", RouteGroup.TOOLS),
-    OutputPanel("2003:208", "Output panel", RouteGroup.TOOLS),
+    OutputPanel("2003:208", "Output panel", RouteGroup.TOOLS, tool = WorkspaceTool.Terminal),
     CommitPush("2003:246", "Commit and push", RouteGroup.TOOLS),
     PullFetchProgress("2003:290", "Pull progress", RouteGroup.TOOLS),
     GitAuth("2003:321", "Git credentials", RouteGroup.TOOLS),
@@ -73,7 +87,7 @@ enum class Route(
     DocumentRecovery("2003:813", "Document recovery", RouteGroup.RECOVERY),
     WorkspaceSettings("2003:886", "Workspace settings", RouteGroup.SETTINGS),
     // Owner's request (2026-10-01): iCode's own assistant, on Koog (docs/assistant-koog-plan.md).
-    Assistant(null, "Assistant", RouteGroup.TOOLS),
+    Assistant(null, "Assistant", RouteGroup.TOOLS, tool = WorkspaceTool.Assistant),
     AssistantSettings(null, "Assistant settings", RouteGroup.SETTINGS),
     AssistantProvider(null, "Assistant provider", RouteGroup.SETTINGS),
     // Owner's request (2026-11-03): Assistant settings lead to their own pages, providers among them.
@@ -92,3 +106,14 @@ enum class Route(
     // Owner's request (2026-10-08): Git's credentials and the commit messages' model (commit-message-generator-plan.md M8).
     SourceControlSettings(null, "Source control settings", RouteGroup.SETTINGS),
 }
+
+/** The route each tool opens on, the first time and when its main screen is asked for by its tool. */
+val WorkspaceTool.home: Route
+    get() = when (this) {
+        WorkspaceTool.Explorer -> Route.WorkspaceExplorer
+        WorkspaceTool.Editor -> Route.WorkspaceEditor
+        WorkspaceTool.Search -> Route.WorkspaceSearch
+        WorkspaceTool.SourceControl -> Route.SourceControl
+        WorkspaceTool.Assistant -> Route.Assistant
+        WorkspaceTool.Terminal -> Route.TerminalExpanded
+    }

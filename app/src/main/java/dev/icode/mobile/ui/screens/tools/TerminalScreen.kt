@@ -223,7 +223,7 @@ fun TerminalScreen(actions: NavigationActions) {
                         TerminalBar(
                             running = session?.isRunning == true && runtimeReady,
                             keys = keys,
-                            onEditor = { actions.returnTo(Route.WorkspaceEditor) },
+                            onEditor = { actions.navigate(Route.WorkspaceEditor) },
                         )
                     }
                 }

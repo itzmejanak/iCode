@@ -54,7 +54,8 @@ fun EditorEmptyScreen(actions: NavigationActions) {
         IcodeTopBar(
             title = state.activeWorkspace,
             subtitle = state.activePath,
-            onBack = { actions.navigate(Route.LauncherHome) },
+            // Back as anywhere (docs/dock-navigation-plan.md D4): the tool used before, then the Launcher.
+            onBack = actions.back,
         )
         Row(
             modifier = Modifier.fillMaxWidth().padding(IcodeSpacing.Gutter),
