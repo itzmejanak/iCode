@@ -187,6 +187,8 @@ dependencies {
     implementation("androidx.compose.foundation:foundation")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended:1.7.8")
+    // The file and folder icons (Material Icon Theme, docs/file-kinds-icons-plan.md D6) and SVG thumbnails.
+    implementation("com.caverock:androidsvg-aar:1.4")
     implementation("io.github.rosemoe:editor")
     implementation("io.github.rosemoe:language-textmate")
     // The regex engine the TextMate grammars are written for (Oniguruma, as in VS Code).

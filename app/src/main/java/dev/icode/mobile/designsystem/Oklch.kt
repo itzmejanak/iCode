@@ -53,6 +53,26 @@ internal object Oklch {
         return if (darker) Color.Black else Color.White
     }
 
+    /**
+     * A drawing's [colors] (`0xRRGGBB` each) as they are, when the one that reads best is at least
+     * [minimum] : 1 against each of [behind]; otherwise all moved together — [darker] or lighter, by one
+     * same lightness step, each its hue and chroma kept — until it is. The drawing keeps its own
+     * contrasts, and reads (docs/file-kinds-icons-plan.md D7).
+     */
+    fun readableTogether(colors: List<Int>, behind: List<Color>, minimum: Double, darker: Boolean): List<Color> {
+        val reads = { color: Color -> behind.all { AccentColorRules.contrastRatio(color.toArgb(), it.toArgb()) >= minimum } }
+        val originals = colors.map { rgb -> Color(red = rgb shr 16 and 0xFF, green = rgb shr 8 and 0xFF, blue = rgb and 0xFF) }
+        if (colors.isEmpty() || originals.any(reads)) return originals
+        val lch = colors.map(::lch)
+        var step = LIGHTNESS_STEP
+        while (step <= 1.0) {
+            val moved = lch.map { (l, c, h) -> color((if (darker) l - step else l + step).coerceIn(0.0, 1.0), c, h) }
+            if (moved.any(reads)) return moved
+            step += LIGHTNESS_STEP
+        }
+        return originals.map { if (darker) Color.Black else Color.White }
+    }
+
     /** Lightness, chroma and hue (degrees) of an sRGB colour given as `0xRRGGBB`. */
     private fun lch(rgb: Int): DoubleArray {
         val (r, g, b) = listOf(rgb shr 16, rgb shr 8, rgb).map { decode((it and 0xFF) / 255.0) }

@@ -1,11 +1,21 @@
 package dev.icode.mobile.domain.files
 
 import dev.icode.mobile.domain.ByteSize
+import dev.icode.mobile.domain.FileType
+import dev.icode.mobile.domain.FileTypes
 import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.domain.countOf
 
 /** One file Manage storage counted (docs/explorer-gaps-plan.md §3.10). */
-data class ScannedFile(val location: String, val bytes: Long, val changedAt: Long, val category: FileCategory)
+data class ScannedFile(
+    val location: String,
+    val bytes: Long,
+    val changedAt: Long,
+    /** What it is: by its name, and by its first bytes where the name could not say (docs/file-kinds-icons-plan.md D3). */
+    val type: FileType,
+) {
+    val category: FileCategory = FileCategories.of(type, location.substringAfterLast('/'))
+}
 
 /** One category's share of where Manage storage looked. */
 data class CategoryShare(val category: FileCategory, val files: Int, val bytes: Long)
@@ -110,9 +120,17 @@ object StorageInsights {
         }
     }
 
-    /** [file] after iCode's own [steps]: where it is now — its category by its name there — or null once it went. */
+    /**
+     * [file] after iCode's own [steps]: where it is now, or null once it went. Its kind stays what was
+     * found while its extension does; a new extension is a new kind, by the name.
+     */
     fun after(file: ScannedFile, steps: List<FileStep>): ScannedFile? = after(file.location, steps)?.let { location ->
-        if (location == file.location) file else file.copy(location = location, category = FileCategories.of(location.substringAfterLast('/')))
+        val name = location.substringAfterLast('/')
+        when {
+            location == file.location -> file
+            FilesRules.extension(name) == FilesRules.extension(file.location.substringAfterLast('/')) -> file.copy(location = location)
+            else -> file.copy(location = location, type = FileTypes.of(name))
+        }
     }
 
     /** [group] after iCode's own [steps]: its copies where they are now; null once fewer than two are left. */

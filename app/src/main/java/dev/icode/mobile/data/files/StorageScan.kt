@@ -1,11 +1,11 @@
 package dev.icode.mobile.data.files
 
 import dev.icode.mobile.data.io.DigestAlgorithm
+import dev.icode.mobile.data.io.FileHeads
 import dev.icode.mobile.data.io.isAtOrUnder
 import dev.icode.mobile.data.io.tallyTree
 import dev.icode.mobile.data.io.toHex
 import dev.icode.mobile.domain.files.DuplicateGroup
-import dev.icode.mobile.domain.files.FileCategories
 import dev.icode.mobile.domain.files.FileStep
 import dev.icode.mobile.domain.files.ScanScope
 import dev.icode.mobile.domain.files.ScannedFile
@@ -107,7 +107,8 @@ internal class StorageScan(private val places: FilePlaces, private val trash: Fi
                     override fun visitFile(file: Path, attributes: BasicFileAttributes): FileVisitResult {
                         if (!attributes.isRegularFile) return FileVisitResult.CONTINUE
                         val name = file.fileName.toString()
-                        files += ScannedFile(file.toString(), attributes.size(), attributes.lastModifiedTime().toMillis(), FileCategories.of(name))
+                        // Its kind by its name; its first bytes read only where the name cannot say (`.ts`, none).
+                        files += ScannedFile(file.toString(), attributes.size(), attributes.lastModifiedTime().toMillis(), FileHeads.typeOf(file, name))
                         if (files.size % REPORT_EVERY == 0) onCount(files.size.toLong())
                         return FileVisitResult.CONTINUE
                     }

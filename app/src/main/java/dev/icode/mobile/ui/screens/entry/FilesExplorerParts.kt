@@ -20,7 +20,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
@@ -37,6 +36,7 @@ import dev.icode.mobile.designsystem.IcodeSpinner
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.designsystem.busySemantics
 import dev.icode.mobile.designsystem.rememberShownWhileBusy
+import dev.icode.mobile.domain.FileTypes
 import dev.icode.mobile.domain.FileViewer
 import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.ICodeGateway
@@ -45,14 +45,15 @@ import dev.icode.mobile.domain.RelativeTime
 import dev.icode.mobile.domain.files.BrowsedItem
 import dev.icode.mobile.domain.files.StoragePlace
 import dev.icode.mobile.domain.isOpening
+import dev.icode.mobile.ui.FileTypeIcon
 import dev.icode.mobile.ui.FileViewerState
 import dev.icode.mobile.ui.LocalFileViewer
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.SharedFiles
 import dev.icode.mobile.ui.ThumbnailKind
+import dev.icode.mobile.ui.parentName
 import dev.icode.mobile.ui.rememberThumbnail
-import dev.icode.mobile.ui.screens.workspace.itemIcon
 
 /** `..`: up a folder, as Back. */
 @Composable
@@ -141,15 +142,18 @@ private fun itemActs(item: BrowsedItem, taps: ListingTaps): ItemActs {
     )
 }
 
-/** [item]'s picture: a thumbnail of a picture, a video or an app package once made (§3.12); else its type's icon. */
+/**
+ * [item]'s picture: a thumbnail of a picture, a drawing, a video or an app package once made (§3.12);
+ * else its icon. Its kind is what a scan found it is ([BrowsedItem.type]), or what its name says.
+ */
 @Composable
 internal fun FileIcon(item: BrowsedItem, size: Dp, modifier: Modifier = Modifier) {
-    val thumbnail = rememberThumbnail(item.location, ThumbnailKind.of(item.name).takeUnless { item.folder }, item.changedAt)
+    val kind = if (item.folder) null else ThumbnailKind.of(item.name, item.type ?: FileTypes.of(item.name))
+    val thumbnail = rememberThumbnail(item.location, kind, item.changedAt)
     if (thumbnail != null) {
         Image(thumbnail, contentDescription = null, contentScale = ContentScale.Crop, modifier = modifier.size(size).clip(IcodeShapes.Small))
     } else {
-        val (icon, tint) = iconOf(item)
-        Icon(icon, contentDescription = null, tint = tint, modifier = modifier.size(size))
+        FileTypeIcon(item.name, item.folder, modifier, size, parent = parentName(item.location), type = item.type)
     }
 }
 
@@ -169,7 +173,7 @@ internal class Opening(
     fun inIcode(item: BrowsedItem): (() -> Unit)? = when {
         item.folder -> { { browse(item.location) } }
         item.place == StoragePlace.Private -> { { gateway.dispatch(ICodeIntent.OpenFile(item.location)) } }
-        else -> FileViewer.of(item.name)?.let { kind ->
+        else -> FileViewer.of(item.type ?: FileTypes.of(item.name))?.let { kind ->
             {
                 viewer.show(item.location, item.name, kind)
                 gateway.dispatch(FilesIntent.Opened(item.location))
@@ -183,10 +187,6 @@ internal class Opening(
 /** [Opening] on this screen's own: a folder opened goes to [browse]. */
 @Composable
 internal fun opening(browse: (String) -> Unit) = Opening(LocalContext.current, LocalICodeGateway.current, LocalFileViewer.current, browse)
-
-/** A folder's icon in the accent; a file's by its type. */
-@Composable
-internal fun iconOf(item: BrowsedItem): Pair<ImageVector, Color> = itemIcon(item.name, item.folder)
 
 /**
  * A flat row, as ZArchiver's: [leading] — the type's icon or thumbnail, or a tick — then the name

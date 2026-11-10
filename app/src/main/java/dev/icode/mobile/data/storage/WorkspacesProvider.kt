@@ -13,7 +13,10 @@ import android.provider.DocumentsContract.Document
 import android.provider.DocumentsContract.Root
 import android.provider.DocumentsProvider
 import android.webkit.MimeTypeMap
+import dev.icode.mobile.data.io.FileHeads
 import dev.icode.mobile.data.io.deleteTree
+import dev.icode.mobile.domain.FileType
+import dev.icode.mobile.domain.FileTypes
 import dev.icode.mobile.domain.WorkspaceNameRules
 import java.io.File
 import java.io.FileNotFoundException
@@ -149,13 +152,13 @@ class WorkspacesProvider : DocumentsProvider() {
         if (!top && !workspace) flags = flags or Document.FLAG_SUPPORTS_RENAME or Document.FLAG_SUPPORTS_DELETE or Document.FLAG_SUPPORTS_MOVE
         cursor.newRow().add(Document.COLUMN_DOCUMENT_ID, idOf(file))
             .add(Document.COLUMN_DISPLAY_NAME, if (top) "iCode" else file.name)
-            .add(Document.COLUMN_MIME_TYPE, if (folder) Document.MIME_TYPE_DIR else mimeOf(file.name))
+            .add(Document.COLUMN_MIME_TYPE, if (folder) Document.MIME_TYPE_DIR else mimeOf(file))
             .add(Document.COLUMN_SIZE, if (folder) null else file.length())
             .add(Document.COLUMN_LAST_MODIFIED, file.lastModified())
             .add(Document.COLUMN_FLAGS, flags)
     }
 
-    private fun mimeOf(name: String) = mimeTypeOf(name) ?: "application/octet-stream"
+    private fun mimeOf(file: File) = mimeTypeOf(file) ?: "application/octet-stream"
 
     /** The Explorer's rules for a name inside a workspace. */
     private fun nameError(name: String, folder: Boolean) =
@@ -185,9 +188,22 @@ class WorkspacesProvider : DocumentsProvider() {
             Document.COLUMN_SIZE, Document.COLUMN_LAST_MODIFIED, Document.COLUMN_FLAGS,
         )
 
-        /** A file's kind by its extension, as Android names it; null for one it does not know. */
-        fun mimeTypeOf(name: String): String? =
-            MimeTypeMap.getSingleton().getMimeTypeFromExtension(name.substringAfterLast('.', "").lowercase())
+        /**
+         * A file's kind as other apps are told it (docs/file-kinds-icons-plan.md D4): Android's name for
+         * its extension, unless iCode's own table says it is text and Android calls it a video or a sound
+         * — Android's `.ts` is an MPEG transport stream, TypeScript's is text. Null for one Android does
+         * not know.
+         */
+        fun mimeTypeOf(name: String, type: FileType = FileTypes.of(name)): String? {
+            val android = MimeTypeMap.getSingleton().getMimeTypeFromExtension(name.substringAfterLast('.', "").lowercase())
+            val media = android != null && (android.startsWith("video/") || android.startsWith("audio/"))
+            return if (type.text && media) TEXT else android
+        }
+
+        /** As [mimeTypeOf], [file]'s first bytes read where its name cannot say what it is. */
+        fun mimeTypeOf(file: File): String? = mimeTypeOf(file.name, FileHeads.typeOf(file))
+
+        private const val TEXT = "text/plain"
 
         /** `<applicationId>.workspaces`, as the manifest declares it. */
         fun authorityOf(context: Context) = "${context.packageName}.workspaces"

@@ -14,7 +14,6 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Folder
-import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.Remove
 import androidx.compose.material3.Icon
@@ -39,7 +38,6 @@ import dev.icode.mobile.designsystem.SectionHeader
 import dev.icode.mobile.designsystem.gitStatusTone
 import dev.icode.mobile.designsystem.tint
 import dev.icode.mobile.domain.BusyRules
-import dev.icode.mobile.domain.FileTypes
 import dev.icode.mobile.domain.GitChange
 import dev.icode.mobile.domain.GitChangeRow
 import dev.icode.mobile.domain.GitDiscard
@@ -49,11 +47,10 @@ import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.countOf
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
+import dev.icode.mobile.ui.FileTypeIcon
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.SheetIcon
-import dev.icode.mobile.ui.screens.workspace.fileTypeIcon
-import dev.icode.mobile.ui.screens.workspace.fileTypeTint
-import dev.icode.mobile.ui.screens.workspace.itemIcon
+import dev.icode.mobile.ui.parentName
 
 /**
  * One section of Source Control's changes — staged, or not yet — as a tree (docs/workspace-
@@ -133,11 +130,10 @@ internal fun GitChangeSheet(row: GitChangeRow, staged: Boolean, changes: List<Gi
             onClose = onClose,
             modifier = modifier,
             detail = "${row.path} · ${countOf(row.changes, "change")}",
-            leading = { SheetIcon(Icons.Outlined.Folder, IcodeColors.Accent) },
+            leading = { SheetIcon(row.name.substringAfterLast('/'), folder = true, row.path) },
         )
         is GitChangeRow.File -> {
             val change = row.change
-            val (icon, tint) = itemIcon(change.name, folder = false)
             IcodeActionSheet(
                 title = change.name,
                 actions = listOfNotNull(
@@ -148,7 +144,7 @@ internal fun GitChangeSheet(row: GitChangeRow, staged: Boolean, changes: List<Gi
                 onClose = onClose,
                 modifier = modifier,
                 detail = change.path,
-                leading = { SheetIcon(icon, tint) },
+                leading = { SheetIcon(change.name, folder = false, change.path) },
             )
         }
     }
@@ -170,12 +166,8 @@ private fun ChangeFolderRow(folder: GitChangeRow.Folder, staged: Boolean, onTogg
                     tint = IcodeColors.TextSecondary,
                     modifier = Modifier.size(IcodeSizes.IconSm),
                 )
-                Icon(
-                    if (folder.expanded) Icons.Outlined.FolderOpen else Icons.Outlined.Folder,
-                    contentDescription = null,
-                    tint = if (folder.expanded) IcodeColors.Accent else IcodeColors.TextSecondary,
-                    modifier = Modifier.size(IcodeSizes.IconMd),
-                )
+                // A folder Source Control joined with its one child (`src/main`) is named by its last.
+                FileTypeIcon(folder.name.substringAfterLast('/'), folder = true, open = folder.expanded, parent = parentName(folder.path))
             }
         },
         content = { Text(folder.name, Modifier.weight(1f), style = IcodeType.Body, maxLines = 1, overflow = TextOverflow.Ellipsis) },
@@ -190,7 +182,6 @@ private fun ChangeFolderRow(folder: GitChangeRow.Folder, staged: Boolean, onTogg
 private fun ChangeFileRow(file: GitChangeRow.File, onOpen: () -> Unit, onToggleStage: () -> Unit, onHold: () -> Unit, staging: Boolean) {
     val change = file.change
     val tone = gitStatusTone(change.status).tint()
-    val type = FileTypes.of(change.name)
     val deleted = change.status == GitStatusCodes.DELETED
     IcodeListRow(
         rowShape = RectangleShape,
@@ -201,7 +192,7 @@ private fun ChangeFileRow(file: GitChangeRow.File, onOpen: () -> Unit, onToggleS
         leading = {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
                 Spacer(Modifier.width(IcodeSizes.IconSm))
-                Icon(fileTypeIcon(type), contentDescription = null, tint = fileTypeTint(type), modifier = Modifier.size(IcodeSizes.IconMd))
+                FileTypeIcon(change.name, folder = false, parent = parentName(change.path))
             }
         },
         // As the Explorer: the name in its status colour, the status letter at the end.

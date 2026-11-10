@@ -58,6 +58,16 @@ class StorageScanTest {
         assertEquals(42L, overview.scannedAt)
     }
 
+    @Test fun `a transport stream named ts is a video, TypeScript is code, by what each file holds`() {
+        File(phone, "TV/news.ts").apply { parentFile!!.mkdirs() }.writeBytes(ByteArray(600).also { (0 until 3).forEach { packet -> it[packet * 188] = 0x47 } })
+        file(workspaces, "app/src/thrir-client.ts", "export const client = 1;")
+        file(workspaces, "app/node_modules/x/index.d.ts", "export declare const x: number;")
+        val found = scan.scan(ScanScope.All, { true }) {}.files.associateBy { it.location.substringAfterLast('/') }
+        assertEquals(FileCategory.Videos, found.getValue("news.ts").category)
+        assertEquals(FileCategory.Code, found.getValue("thrir-client.ts").category)
+        assertEquals(FileCategory.Code, found.getValue("index.d.ts").category)
+    }
+
     @Test fun `the largest come first, and copies are found by their contents`() {
         val found = scan.scan(ScanScope.All, { true }) {}
         assertEquals("song.mp3", StorageInsights.largest(found.files).first().location.substringAfterLast('/'))

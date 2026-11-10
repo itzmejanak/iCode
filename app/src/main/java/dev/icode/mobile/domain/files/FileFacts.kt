@@ -1,5 +1,7 @@
 package dev.icode.mobile.domain.files
 
+import dev.icode.mobile.domain.FileType
+
 /** What one item is, as Properties names it (docs/explorer-gaps-plan.md §3.9). */
 enum class FactKind { File, Folder, Workspace, Link }
 
@@ -20,6 +22,8 @@ data class FileFacts(
     val modifiedAt: Long? = null,
     /** A file in Private that runs. */
     val executable: Boolean? = null,
+    /** One file's kind, its first bytes read where its name could not say (docs/file-kinds-icons-plan.md D2). */
+    val type: FileType? = null,
     val measured: TreeFacts? = null,
 )
 

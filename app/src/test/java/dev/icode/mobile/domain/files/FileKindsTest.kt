@@ -1,5 +1,6 @@
 package dev.icode.mobile.domain.files
 
+import dev.icode.mobile.domain.FileTypes
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -45,6 +46,36 @@ class FileKindsTest {
             "Makefile" to FileCategory.Code,
             "data.bin" to FileCategory.Other,
             "LICENSE" to FileCategory.Other,
+            // TypeScript by its name, whatever Android calls `.ts`; a transport stream only by its bytes.
+            "thrir-client.ts" to FileCategory.Code,
+            "lib.dom.d.ts" to FileCategory.Code,
+            "index.mts" to FileCategory.Code,
+            "config.cts" to FileCategory.Code,
+            "movie.m2ts" to FileCategory.Videos,
+            "intro.ogv" to FileCategory.Videos,
+            "clip.MKV" to FileCategory.Videos,
+            "voice.opus" to FileCategory.Audio,
+            "loop.aif" to FileCategory.Audio,
+            "table.csv" to FileCategory.Documents,
+            "letter.docx" to FileCategory.Documents,
+            "sheet.xlsx" to FileCategory.Documents,
+            "book.epub" to FileCategory.Documents,
+            "bundle.aab" to FileCategory.Apps,
+            "pkg.tar.zst" to FileCategory.Archives,
+            "notes.txt.gz" to FileCategory.Archives,
+            "Inter.woff2" to FileCategory.Other,
+            "libc.so" to FileCategory.Other,
+            "app.db" to FileCategory.Other,
+            "scan.jfif" to FileCategory.Images,
         ).forEach { (name, category) -> assertEquals(name, category, FileCategories.of(name)) }
+    }
+
+    @Test fun `what the bytes say decides only where the name could not`() {
+        assertEquals(FileCategory.Videos, FileCategories.of(FileTypes.Video, "news.ts"))
+        assertEquals(FileCategory.Images, FileCategories.of(FileTypes.Image, "download"))
+        // An SVG is a picture here, though the editor reads it as XML; a `.txt` is a document, though plain text.
+        assertEquals(FileCategory.Images, FileCategories.of(FileTypes.of("logo.svg"), "logo.svg"))
+        assertEquals(FileCategory.Code, FileCategories.of(FileTypes.of("feed.xml"), "feed.xml"))
+        assertEquals(FileCategory.Other, FileCategories.of(FileTypes.PlainText, "notes.log"))
     }
 }
