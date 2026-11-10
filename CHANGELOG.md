@@ -142,8 +142,28 @@ All notable changes to iCode are documented here. The format follows
   - Match Phone, in Appearance, shows Light while the phone is light and Dark or AMOLED while it is
     dark, each in its own variant.
   - Settings search finds every variant by name.
+- The tool dock ([docs/dock-navigation-plan.md](docs/dock-navigation-plan.md)). On the Explorer,
+  Editor, Search, Source Control, Assistant and Terminal, a grip in the screen's edge under the bell
+  opens one row of the six tools. A tap switches to a tool as you left it and tucks the row; Back or
+  a touch elsewhere tucks it too. A swipe up or down along the grip switches straight to the tool
+  you used before.
+  - Each icon carries its tool's badge: unsaved files on the Editor, changed files on Source
+    Control, errors and a dot while a command runs on Terminal, the accent while the assistant
+    works and amber while it waits for you. The Explorer's rail shows the same badges.
+  - When something happens out of sight, the dock suggests one tool by colouring the grip and that
+    tool's icon: the assistant asks you something, a pull leaves conflicts, a build finds errors, a
+    command that ran 30 seconds or more ends, or the assistant's turn changes files. A tap on it goes
+    straight there, such as Terminal's Problems tab. It never switches by itself.
+  - TalkBack reads each tool with its badge and the suggestion, and offers "Switch to …" for the
+    tool you used before.
 
 ### Changed
+- Each workspace tool keeps its own history. Going to a tool shows it as you left it, never a
+  second copy. Back first goes back inside the tool, then to the tool you used before, then to the
+  Launcher, then leaves iCode. What a tool holds, such as a commit message being written, stays
+  while you use the others. A file, a terminal or a new repository opened for you shows its tool's
+  main screen, closing a page such as Find left over it.
+- Inside a workspace the bell and the undo pill stand one step higher, above the dock.
 - File and folder icons: each kind of file and folder has its own icon, from Material Icon Theme
   (5.40.0, the icon theme most used in VS Code). This covers 1391 extensions, 2156 file names and
   4674 folder names, such as TypeScript and its `.d.ts` declarations, `package.json`, `Dockerfile`,
@@ -183,6 +203,13 @@ All notable changes to iCode are documented here. The format follows
     two servers give shows once.
 
 ### Fixed
+- Going round in circles: the Assistant's Workspace button stacked a second Explorer, the empty
+  editor's ← put a Launcher on top of the workspace, and Settings' "Open a Workspace" stacked a
+  second Launcher. Workspace now switches to the Explorer, the empty editor's ← is Back, and "Open
+  a Workspace" goes to the one Launcher.
+- A terminal scrolled back, or a chat scrolled up to an earlier answer, jumped to its end when you
+  came back to it. Both come back where you left them.
+- The Explorer's rail said "Source control"; it says "Source Control" as everywhere else.
 - `.ts` files were taken for videos: TypeScript filled Files › Videos, its Properties said "Video",
   and Open with offered video players. A `.ts` file is TypeScript unless its contents are an MPEG
   transport stream, as a TV recording is. A file with no known extension is recognised by its

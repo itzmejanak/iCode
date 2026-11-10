@@ -1,8 +1,9 @@
 # The tool dock: one tap between tools, each keeping its place — plan
 
-Status: **approved** (2026-11-10). The owner chose every recommendation in §8 and asked for the whole
-plan, end to end: the architecture migrated cleanly rather than wrapped, no duplication, and faults
-found on the way fixed. The record is §9.
+Status: **built** (N1–N5), waiting for the owner's phone checks ([P] in §5). Approved 2026-11-10: the
+owner chose every recommendation in §8 and asked for the whole plan, end to end: the architecture
+migrated cleanly rather than wrapped, no duplication, and faults found on the way fixed. What was
+built, and where it differs from §3–§4, is the record in §9.
 
 Owner's request: an intelligent, docked navigation manager, the best for iCode's UI and UX and for
 what a user needs. Today the user has to go Back to get anywhere.
@@ -152,13 +153,15 @@ Rules:
   from the Launcher.
 
 **D2 — Kept as a model, not as a screen's code.**
-- `navigation/NavigationModel.kt` is plain Kotlin with no Compose. It holds the app stack, the six
+- `navigation/Navigation.kt` is plain Kotlin with no Compose. It holds the app stack, the six
   tools' histories and the tool order, and makes every decision of D3 and D4. It is tested on the
-  JVM with no device (§5.3).
-- `NavigationState` becomes a thin Compose wrapper around it, with its saver.
-- **All 167 existing call sites stay as they are.** The model tells a switch from a push by the
-  route named (D3). So every existing button, rail entry, bottom bar, palette command and effect
-  keeps working, now without stacking.
+  JVM with no device (§5.3). Its saved form is `navigation/NavigationSaving.kt`.
+- `NavigationState` holds it for Compose, with its saver, and decides nothing. The old one-list
+  history (`historyNames`) is gone, not wrapped.
+- **The existing call sites stay as they are**, but two. The model tells a switch from a push by the
+  route named (D3), so every existing button, rail entry, bottom bar, palette command and effect
+  keeps working, now without stacking. `returnTo` is gone: its one call, Terminal's Editor, is a
+  `navigate`. The empty editor's ← is Back, as every other screen's is.
 
 **D3 — What each action does.**
 
@@ -166,12 +169,13 @@ Rules:
 |---|---|
 | `navigate(a tool's main screen)` | **Switch** to that tool: its history as it was left, or its main screen the first time. Nothing is pushed. |
 | `navigate(any other page)` | **Push** it on the current tool's history, or on the app stack outside a workspace. A page already in that history is gone back to instead: screens take no arguments, so the same route is the same screen and is never stacked twice. |
-| `replace(page)` | The top of the current history is swapped. `replace(a tool's main screen)` closes the top page, then switches. This is the Command Palette's way. |
-| `returnTo(main screen)`, `openPanel(tab)` | Switch to that tool, and for `openPanel` select the tab. |
+| `replace(page)` | The top page of the current history closes, and the route is gone to as `navigate` goes. A main screen is never replaced, only left: `replace(a tool's main screen)` closes the top page, then switches. This is the Command Palette's way. |
+| `openPanel(tab)` | Switch to Terminal and select the tab. |
+| A tool's other face | Search has two main screens, finding text (`WorkspaceSearch`) and finding files (`QuickOpen`). Asking for the face it does not show starts it on that face. The Editor's are `WorkspaceEditor` and, for the design's captures, `EditorEmpty`. Terminal's tab frames (`ProblemsPanel`, `OutputPanel`) are its one screen on that tab. A dock tap keeps the face as left. |
 | Something opened for the user (a file, a new terminal, a Git repository just made) | Switch to its tool **and show its main screen**: the file is what was asked for, so a Find-in-file page left open over it closes. A dock tap, by contrast, shows a tool exactly as it was left. |
-| A workspace opens | Its six tools start empty, at the Explorer, over the app stack. |
+| A workspace opens | Its six tools start empty, at the Explorer, over the app stack. The page that made it (Clone progress) gives way, so Back does not show it again. |
 | The open workspace is opened again (from the Launcher) | **Back where you were**: its tools as they were left. |
-| Another workspace opens | Its tools start anew: files and branches differ. |
+| Another workspace opens | Its tools start anew: files and branches differ. This holds however it became the open one, a file opened in it included: the tool on screen stays on screen, on its main screen. |
 | `navigate(Launcher)` from inside a workspace | Go to **the** Launcher: the one in the app stack, never a second. The workspace's tools are kept for its return. |
 
 **D4 — Back, always in this order (the owner's).**
@@ -230,11 +234,14 @@ Terminal over Editor.
 - **Out**, on a tap on the grip or a pull from the edge: one row of the six tools' icons slides out
   from the edge. Each icon is a 48 dp touch target, in a fixed order, with the nearest to the thumb
   first (§8, question 3).
-  - The tool on screen has the rail's accent line.
-  - A tap switches and tucks the dock.
-  - Back, a tap outside, or a swipe back into the edge tucks it.
+  - The tool on screen has the rail's accent line, and its icon the accent.
+  - A tap switches and tucks the dock. A tap on the suggested tool goes where the suggestion is
+    (D8): Terminal on its Problems tab, or on the session whose command ended.
+  - Back, a touch outside, or a swipe back into the edge tucks it. A touch outside does only that,
+    as one outside a menu does.
 - **Hidden** on every page that is not a tool's main screen (D1), while a sheet is open, on the
-  Notifications page and outside a workspace.
+  Notifications page and outside a workspace. Inside a workspace its place stays kept while it is
+  hidden, so the bell and the undo pill never move as pages open and close.
 - **With the keyboard up** it stays tucked unless pulled out, and moves above the keyboard as the
   bell does. It never covers the editor's key row or the terminal's extra keys, because those are
   floors of the stack.
@@ -247,7 +254,8 @@ Terminal over Editor.
   Editor button and the Command Palette all stay. Their taps now switch tools instead of stacking.
 
 **D7 — Badges** (feature b). Each badge is computed from the snapshot by a plain rule in `domain`
-and tested.
+(`ToolBadges`) and tested. The Explorer's rail draws the same badges from the same rule, so a tool
+looks the same wherever it is reached.
 
 | Tool | Count | State |
 |---|---|---|
@@ -257,22 +265,25 @@ and tested.
 | Assistant | — | Accent while it works, as on the rail; amber while it waits for your answer or approval |
 | Explorer, Search | — | — |
 
-**D8 — Suggestions** (feature c). These follow fixed rules, never guesses. One suggestion is shown
-at a time: the newest. It is shown as the grip's tone and a mark on that tool's icon, said by
-TalkBack. **It never switches by itself.**
+**D8 — Suggestions** (feature c). These follow fixed rules, never guesses (`ToolSuggestions`). One
+suggestion is shown at a time: the newest, and of two at once the first in this table's order. It
+is shown as the grip's tone and that tool's icon in the same tone, said by TalkBack. **It never
+switches by itself.** What was already so when iCode started, or when another workspace opened, is
+no event.
 
 | When this happens while another tool shows | Suggested | Until |
 |---|---|---|
-| The assistant asks a question or an approval | Assistant | It is answered |
-| The assistant's turn ended having changed files (in a Git repository) | Source Control | Source Control is opened |
-| A run or build ended with errors in Problems | Terminal, on its Problems tab | It is opened |
-| A terminal command that ran 30 s or more ended (the existing alert rule) | Terminal, on that session | It is opened |
+| The assistant asks a question or an approval | Assistant | It is answered, or it is opened |
 | A pull or merge left conflicts | Source Control | They are resolved, or it is opened |
+| A run or build ended with more errors in Problems than before (a build's; a language server's, found as you type, do not count) | Terminal, on its Problems tab | They are gone, or it is opened |
+| A terminal command that ran 30 s or more ended (the finish alert's rule, `FinishedCommand.long`) | Terminal, on that session | The session ends, or it is opened |
+| The assistant's turn ended having changed files with its tools, in the open workspace's Git repository | Source Control | It is opened |
 
 **D9 — Quick switch** (feature d).
 - A swipe up or down along the tucked grip switches straight to the tool used before. This is the
   same gesture Android uses to switch to the last app.
-- In the opened row, that tool carries a small "last" mark.
+- In the opened row, that tool carries a small "last" mark: a quieter line under its icon than the
+  accent line of the tool on screen.
 - TalkBack offers "Switch to Editor", naming the tool used before.
 
 **D10 — Restored where it was left** (feature a). This is D5. It also holds across a process
@@ -280,22 +291,25 @@ restart: the model's saver keeps all six histories, the tool order and the app s
 
 ## 4. Where the code goes
 
+As built:
+
 | Layer | File | What |
 |---|---|---|
-| navigation | new `Tool.kt` | The six tools, and each route's tool or app layer (D1) |
-| navigation | new `NavigationModel.kt` | D3 and D4, pure, with its saved form |
-| navigation | `NavigationActions.kt` | Unchanged for screens; adds `switchTo(tool)` and `previousTool` for the dock |
-| ui | `NavigationState.kt`, `NavigationHost.kt` | Wrap the model; the stable keys of D5 |
+| domain | new `WorkspaceTool.kt` | The six tools and their names; in `domain`, so the badge and suggestion rules need nothing of navigation |
+| navigation | `Route.kt` | Each route's tool (`Route.tool`), the Launcher that leaves the workspace, the page that makes one; each tool's `home` (D1) |
+| navigation | new `Navigation.kt`, `NavigationSaving.kt` | D3 and D4, pure, and its saved form |
+| navigation | `NavigationActions.kt` | Unchanged for screens, but `returnTo` gone |
+| ui | `NavigationState.kt`, `NavigationHost.kt` | Hold the model; the dock's `switchTo`; the stable keys of D5, each forgotten when its page closes |
 | ui | `IcodeApp.kt` | The root `BackHandler` asks the model; the effects as D3; the dock in the floating stack |
-| domain | new `DockRules.kt` | D7 and D8 from the snapshot, pure |
-| data | `TerminalSessionManager` | Publishes whether a command runs, per session (§1.4) |
-| designsystem | `IcodeDockedPill.kt` | The quick-switch swipe along the edge, as an option |
-| ui | new `ui/dock/ToolDock.kt` | The dock (D6, D9) |
-| ui/terminal | `TerminalHost.kt` | The scroll position kept per session (D5) |
+| domain | new `ToolBadges.kt`, `ToolSuggestions.kt` | D7 and D8 from the snapshot, pure |
+| domain, data | `TerminalContract.kt`, `TerminalSessionManager.kt`, `TerminalCommands.kt` | Whether a command runs, per session, from its shell's marks, and how many long ones have ended (§1.4) |
+| domain, data | `AssistantContract.kt`, `AssistantTurns.kt` | A turn's end, and whether its tools changed a file |
+| designsystem | `IcodeDockedPill.kt`, `IcodeFloatingStack.kt`, `IcodeRail.kt`, `IcodeStatus.kt` | The swipe along the grip, TalkBack's actions, the touch outside, a docked action's dot and line, shared with the rail |
+| ui | new `ToolFaces.kt`, `ui/dock/ToolDock.kt` | Each tool's icon; the dock (D6, D9) |
+| ui/terminal | new `TerminalScroll.kt`, `TerminalHost.kt` | The scroll position kept per session (D5) |
 | ui/screens/tools | `AssistantChatView.kt` | The chat position kept per conversation (D5) |
 
-Every file stays at or under 300 lines. `IcodeApp.kt` is at 293 now, so the dock's wiring goes in
-its own file.
+Every file stays at or under 300 lines: `IcodeApp.kt` is at 294.
 
 ## 5. Acceptance criteria
 
@@ -342,7 +356,8 @@ Assistant.
 - **N1** [T] No history holds the same route twice, and no tool's main screen is ever a pushed page.
 - **N2** [T] The tool order holds each tool at most once.
 - **N3** [T] Today's three loops (§1.2) are gone: Assistant › Workspace switches to the Explorer;
-  the empty editor's ← and Settings' "Open a Workspace" go to the one Launcher.
+  the empty editor's ← is Back (built so: D2), and Settings' "Open a Workspace" goes to the one
+  Launcher.
 - **N4** [T] 10 000 random sequences of 60 actions each keep N1, N2 and B2. The random actions are
   every action of D3, the effects, Back and the dock.
 
@@ -389,7 +404,8 @@ Assistant.
 
 - **E1** [P] The rail, bottom bars, Terminal's Editor button, the Command Palette, notifications'
   arrivals and file links all reach the same places as before, with no stacking.
-- **E2** [T] The 167 call sites compile unchanged.
+- **E2** [T] The existing call sites compile unchanged, but the two D2 names: `returnTo`'s one call
+  and the empty editor's ←.
 - **E3** The existing unit tests pass, and so do both consistency guards and both builds.
 
 ## 6. Cycles
@@ -425,4 +441,62 @@ no duplication; no inconsistency; maintainable and scalable; fix the faults foun
 
 ## 9. Record
 
-- **N1 — the model:** in progress.
+- **N1 — the model** (bcce942).
+  - `Navigation` holds the app's pages, the six histories, the tool order, the Terminal tab, the
+    workspace they belong to and a generation that starts anew with each workspace.
+    `NavigationState` holds it for Compose; `NavigationSaving` keeps all of it across a process
+    restart, and a saved form it cannot read starts the app as it would have.
+  - The root `BackHandler` asks the model (D4). The effects: a workspace opened, a terminal opened in
+    one, a repository made, a file opened, a notification's arrival (`show`: the tool on its main
+    screen, D3). A file opened in another workspace starts that workspace's tools anew
+    (`workspaceIs`).
+  - Tests: `NavigationTest` (the journeys' JVM halves, D4's worked examples, B1–B6, N1–N3, F4),
+    `NavigationFuzzTest` (N4: 10 000 random sequences of 60 actions keep N1, N2 and B2),
+    `NavigationSavingTest` (S4) and `RouteTest` (each tool opens on one of its own main screens, and
+    only the Launcher leaves the workspace).
+- **N2 — nothing lost** (ba9a9fa).
+  - Each page's saved state is keyed `<generation>/<tool>/<place>:<route>`, the app's
+    `app/<place>:<route>`, and forgotten when its page closes (S1).
+  - Terminal: `TerminalScroll` keeps each session's place as rows from its oldest line, so new
+    output does not move it, and sets it once the view has its size (Termux sets the top row to the
+    end after the emulator is given). Tested in `TerminalScrollTest`.
+  - Assistant: the chat's list position is saved with the page, with whether it follows the end
+    and the last message it saw sent, so coming back neither jumps to the end nor scrolls again.
+- **N4 — badges and suggestions** (f1e9d9e), built before N3, which draws them.
+  - `ToolBadges` (D7) and `ToolSuggestions` (D8), pure, tested in `ToolBadgesTest` (F2) and
+    `ToolSuggestionsTest` (F3).
+  - Published for them: whether a command runs in a session (`TerminalSessionState.commandRunning`,
+    read from its `TerminalCommands` at each publish, so it is kept in one place); how many long
+    commands each session has ended (`longRunsEnded`, by the finish alert's rule); and each turn's
+    end with whether its tools changed a file (`AssistantState.ended`, `AssistantTurn.changedFiles`).
+    Tested in `TerminalCommandsTest`, `CommandRunsTest`, `AssistantTurnEndTest` and
+    `AssistantCoordinatorTest`.
+- **N3 — the dock** (9d14f58).
+  - `ToolDock` in the floating stack, below the bell (D6), with its state in `ToolDockState`: the
+    row out or tucked, and the suggestion, followed even while the dock is hidden.
+  - `IcodeDockedPill` gained the swipe along the grip and more TalkBack actions;
+    `IcodeDockedAction` a running dot and a line under the icon; `IcodeFloatingStack` the touch
+    outside. The rail and the dock share the dot, the line and the count (`IconMarks`, `UnderLine`),
+    each tool's icon (`ToolFaces`) and name (`WorkspaceTool.label`).
+- **N5 — docs as built:** this record, the decisions above where the build differs, layout.md §7.2
+  and §8.2, and the CHANGELOG.
+- **Gate** at N3 and N4: 1596 unit tests, all passing but `TreeSizeTest`'s unreadable folder, which
+  cannot be unreadable to root in this sandbox; debug and release builds; lint, with only
+  `SpeechProviderParts.kt:80`'s error from before; both consistency guards.
+- **Where the build differs from §3–§4:**
+  - The files are named as §4 now lists them: `Navigation.kt` for `NavigationModel.kt`,
+    `WorkspaceTool.kt` (in `domain`) for `Tool.kt`, `ToolBadges.kt` and `ToolSuggestions.kt` for
+    `DockRules.kt`.
+  - `returnTo` is gone and the empty editor's ← is Back (D2).
+  - Search's and the Editor's two faces, and Terminal's tab frames (D3).
+  - Inside a workspace the dock's place is kept while it is hidden (D6).
+  - The rail draws the dock's badges (D7). The Assistant on it is amber while it waits for you, as
+    on the dock.
+  - A suggestion marks its tool by its icon's colour (D8); the "last" mark is a quieter line (D9).
+- **Faults fixed on the way:**
+  - Today's three loops (§1.2): the Assistant's Workspace switches to the Explorer; the empty
+    editor's ← is Back; Settings' "Open a Workspace" reaches the one Launcher.
+  - A terminal scrolled back, and a chat scrolled up, came back at their ends (§1.3).
+  - The finish alert's 30 seconds were compared in two places; `FinishedCommand.long` is the one rule.
+  - The rail said "Source control"; every other place says "Source Control".
+- **To check on the phone:** §5's [P] criteria — J1–J3, B5, S2, S3, K1–K6 and E1.
