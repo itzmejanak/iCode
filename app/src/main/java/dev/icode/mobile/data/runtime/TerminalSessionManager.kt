@@ -78,9 +78,13 @@ internal class TerminalSessionManager private constructor(
     /** Sessions whose foreground command just ended: what it ran may have changed the workspace. */
     override val commandsFinished: SharedFlow<String> = mutableCommandsFinished.asSharedFlow()
 
-    /** Reported by the foreground service, which samples each session's program; a shell with marks says so itself. */
-    fun commandFinished(sessionId: String) {
+    /** Reported by the foreground service, which samples each session's program; a shell with marks says so itself. A [long] one counts on its session. */
+    @MainThread
+    fun commandFinished(sessionId: String, long: Boolean) {
         if (records[sessionId]?.integrated != true) mutableCommandsFinished.tryEmit(sessionId)
+        val entry = entries[sessionId]?.takeIf { long } ?: return
+        entry.state = entry.state.copy(longRunsEnded = entry.state.longRunsEnded + 1)
+        publish(selectedId = mutableSnapshot.value.selectedId)
     }
 
     private val attention = TerminalAttention()
@@ -206,7 +210,8 @@ internal class TerminalSessionManager private constructor(
         val state = TerminalSessionState(id, title, TerminalStatus.Running, follows = launch.follows, assistant = launch.assistant)
         val entry = Entry(id, launch.workspaceHostPath, state, launch.follows, launch.assistant)
         entries[id] = entry
-        val commands = TerminalCommands { mutableCommandsFinished.tryEmit(id) }.also { records[id] = it }
+        val commands = TerminalCommands(onFinished = { mutableCommandsFinished.tryEmit(id) }, onRunning = { publish(selectedId = mutableSnapshot.value.selectedId) })
+            .also { records[id] = it }
         val callbacks = TerminalSessionCallbacks(
             context = context,
             cursorStyle = { settings.cursorStyle },
@@ -255,7 +260,8 @@ internal class TerminalSessionManager private constructor(
     }
 
     private fun publish(selectedId: String?) {
-        val states = entries.values.map { it.state }
+        // Whether a command runs is its shell's marks', as they are read: a session that has ended runs none.
+        val states = entries.values.map { it.state.copy(commandRunning = records[it.id]?.running == true) }
         val resolved = selectedId?.takeIf { candidate -> states.any { it.id == candidate } }
             ?: states.lastOrNull()?.id
         mutableSnapshot.value = TerminalSnapshot(sessions = states, selectedId = resolved)

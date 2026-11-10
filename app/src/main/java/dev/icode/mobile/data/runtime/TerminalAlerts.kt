@@ -6,9 +6,13 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import dev.icode.mobile.R
+import dev.icode.mobile.domain.TerminalSettingRules
 
 /** A command that held a session's foreground and has let go of it. */
-internal data class FinishedCommand(val program: String, val durationMillis: Long)
+internal data class FinishedCommand(val program: String, val durationMillis: Long) {
+    /** It ran long enough that its end is worth telling: by the finish alert, and on the dock. */
+    val long: Boolean get() = durationMillis >= TerminalSettingRules.FINISH_ALERT_MILLIS
+}
 
 /**
  * What each session has had in its foreground, sample by sample. A command's

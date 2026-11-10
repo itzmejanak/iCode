@@ -1,7 +1,9 @@
 package dev.icode.mobile.data.runtime
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class CommandRunsTest {
@@ -42,6 +44,12 @@ class CommandRunsTest {
         runs.forget("s1")
         assertNull(runs.sample("s1", TerminalForeground.Idle, 60_000))
         assertEquals(FinishedCommand("npm", 60_000), runs.sample("s2", TerminalForeground.Idle, 60_000))
+    }
+
+    @Test
+    fun `a command is long from the finish alert's thirty seconds`() {
+        assertFalse(FinishedCommand("make", 29_999).long)
+        assertTrue(FinishedCommand("make", 30_000).long)
     }
 
     @Test

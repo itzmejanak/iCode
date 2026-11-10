@@ -35,6 +35,13 @@ data class TerminalSessionState(
     val follows: String? = null,
     /** The chat whose tab this is, where its commands run (docs/agent-control-plan.md §3 A4); null for the user's. */
     val assistant: String? = null,
+    /** A command runs in it now, as its shell's marks say (docs/agent-control-plan.md §4.1); a shell without them says nothing. */
+    val commandRunning: Boolean = false,
+    /**
+     * How many of its commands have ended after running at least [TerminalSettingRules.FINISH_ALERT_MILLIS]: one more
+     * is what the finish alert tells and the dock suggests (docs/dock-navigation-plan.md D8).
+     */
+    val longRunsEnded: Int = 0,
 ) {
     val isRunning: Boolean get() = status == TerminalStatus.Running
 

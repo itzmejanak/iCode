@@ -15,9 +15,10 @@ import org.junit.Test
 class TerminalCommandsTest {
     private val finished = mutableListOf<TerminalCommands.Command>()
     private val started = mutableListOf<TerminalCommands.Command>()
+    private val running = mutableListOf<Boolean>()
 
     private fun commands(chunk: Int = Int.MAX_VALUE): TerminalCommands {
-        val commands = TerminalCommands { finished += it }
+        val commands = TerminalCommands(onFinished = { finished += it }, onRunning = { running += it })
         val bytes = RECORDED.toByteArray(Charsets.UTF_8)
         var at = 0
         while (at < bytes.size) {
@@ -52,6 +53,13 @@ class TerminalCommandsTest {
         // Each start is the command that ends next.
         assertEquals(finished.map { it.number }, started.map { it.number })
         assertEquals("two\nls: cannot access '/nonexistent': No such file or directory\n", finished[0].text())
+    }
+
+    @Test
+    fun `each command says once that it runs and once that it ended, however it is read`() {
+        commands(chunk = 1)
+        // A multi-line paste prints a C per line, yet runs as one command.
+        assertEquals(List(3) { listOf(true, false) }.flatten(), running)
     }
 
     @Test

@@ -215,10 +215,15 @@ data class AssistantTurn(
     val aloud: Boolean = false,
     /** The terminal tab the running call's command runs in: its step shows it live while it runs (docs/agent-control-plan.md §6). */
     val terminal: AssistantTerminal? = null,
+    /** One of its tools has changed a file: said when it ends ([AssistantTurnEnd]). */
+    val changedFiles: Boolean = false,
 )
 
 /** A streamed reply as far as it has come: what the model thought, and its answer so far. */
 data class AssistantLive(val reasoning: String, val text: String)
+
+/** A turn that ended (docs/dock-navigation-plan.md D8): its workspace, how many have ended so far, whether its tools changed a file. */
+data class AssistantTurnEnd(val workspace: String, val number: Int, val changedFiles: Boolean)
 
 /** One chat of a workspace, as its history lists it (§12 R5). */
 data class AssistantSession(val id: String, val title: String, val updatedAt: Long)
@@ -244,6 +249,8 @@ data class AssistantState(
     /** Tokens the last request of this chat used; with [AssistantModel.contextWindow], how full it is. */
     val contextTokens: Long? = null,
     val turn: AssistantTurn? = null,
+    /** The last turn to end, in any chat; null until one has. */
+    val ended: AssistantTurnEnd? = null,
     val approval: AssistantApproval? = null,
     /** The turn waits between steps for the user to go on (docs/phone-agent-plan.md L5). */
     val pause: AssistantPause? = null,
@@ -259,6 +266,12 @@ data class AssistantState(
     val commitMessage: AssistantCommitMessage? = null,
 ) {
     val running: Boolean get() = turn != null
+
+    /** The turn in hand has ended: what it waited on goes with it, and its end is said in [ended]. */
+    fun turnEnded(): AssistantState = copy(
+        turn = null, approval = null, pause = null, clarification = null,
+        ended = turn?.let { AssistantTurnEnd(it.workspace, (ended?.number ?: 0) + 1, it.changedFiles) } ?: ended,
+    )
 
     /** The turn waits for the user: an approval, a pause, or the model's questions. */
     val asking: Boolean get() = turn != null && (approval != null || pause != null || clarification != null)

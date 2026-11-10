@@ -154,7 +154,7 @@ internal class AssistantTurns(
                     tools.done()
                     page.listed(workspace)
                     page.refresh(workspace, session)
-                    page.state { it.copy(turn = null, approval = null, pause = null, clarification = null, failure = if (shows(it.workspace, it.session)) failure else it.failure) }
+                    page.state { it.turnEnded().copy(failure = if (shows(it.workspace, it.session)) failure else it.failure) }
                     if (failure != null && !page.current.let { shows(it.workspace, it.session) }) page.say(NoticeTone.Problem, "The assistant's turn failed", failure)
                 }
             }
@@ -260,7 +260,8 @@ internal class AssistantTurns(
             }
             chats.answer(workspace, session, result.copy(changes = changes, printed = step.takePrinted(result.callId)))
             page.refresh(workspace, session)
-            page.state { it.copy(turn = it.turn?.copy(step = THINKING, terminal = null)) }
+            val changed = changes != null && !result.failed
+            page.state { it.copy(turn = it.turn?.copy(step = THINKING, terminal = null, changedFiles = it.turn.changedFiles || changed)) }
         }
 
         override fun used(tokens: Long) {
