@@ -44,6 +44,8 @@ interface WorkspacePreferencesRepository {
     suspend fun setFollowSystem(theme: AppTheme, follow: Boolean)
     /** The dark theme Auto shows at night; Light is refused. */
     suspend fun setNightTheme(theme: AppTheme)
+    /** [pill] kept at [place] from now on; null returns it to where it starts. */
+    suspend fun setPillPlace(pill: FloatingPill, place: PillPlace?)
     suspend fun setEditorFontSize(sizeSp: Int)
     suspend fun setEditorFontFamily(family: EditorFontFamily)
     suspend fun setWordWrap(enabled: Boolean)

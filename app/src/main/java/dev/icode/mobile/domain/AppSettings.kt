@@ -59,6 +59,8 @@ data class AppearanceSettings(
     val followSystem: Boolean = false,
     /** The dark theme Auto shows at night: Dark or AMOLED. */
     val nightTheme: AppTheme = AppTheme.Dark,
+    /** Where the user moved the floating pills to ([PillPlaces]); one not here is where it starts. App-wide. */
+    val pillPlaces: Map<FloatingPill, PillPlace> = emptyMap(),
 ) {
     /** The variant [theme] is drawn in, or null for iCode's own. */
     fun variantOf(theme: AppTheme = this.theme): String? = variants[theme]

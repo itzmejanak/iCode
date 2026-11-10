@@ -4,7 +4,9 @@ import dev.icode.mobile.domain.AppTheme
 import dev.icode.mobile.domain.AutoSaveMode
 import dev.icode.mobile.domain.EditorFontFamily
 import dev.icode.mobile.domain.EditorKey
+import dev.icode.mobile.domain.FloatingPill
 import dev.icode.mobile.domain.IndentType
+import dev.icode.mobile.domain.PillPlace
 import dev.icode.mobile.domain.TerminalCursorStyle
 import dev.icode.mobile.domain.TerminalExtraKey
 import dev.icode.mobile.domain.WorkspacePreferences
@@ -37,6 +39,7 @@ class CapturePreferences : WorkspacePreferencesRepository {
     override suspend fun setThemeVariant(theme: AppTheme, id: String?) = Unit
     override suspend fun setFollowSystem(theme: AppTheme, follow: Boolean) = Unit
     override suspend fun setNightTheme(theme: AppTheme) = Unit
+    override suspend fun setPillPlace(pill: FloatingPill, place: PillPlace?) = Unit
     override suspend fun setEditorFontSize(sizeSp: Int) = Unit
     override suspend fun setEditorFontFamily(family: EditorFontFamily) = Unit
     override suspend fun setWordWrap(enabled: Boolean) = Unit

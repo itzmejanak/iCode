@@ -134,7 +134,8 @@ internal fun editorColors(palette: IcodePalette): Map<Int, Int> = with(palette) 
         EditorColorScheme.COMPLETION_WND_TEXT_PRIMARY to textPrimary,
         EditorColorScheme.COMPLETION_WND_TEXT_SECONDARY to textSecondary,
         EditorColorScheme.COMPLETION_WND_TEXT_MATCHED to accent,
-        EditorColorScheme.COMPLETION_WND_ITEM_CURRENT to accent.copy(alpha = 0.18f),
+        // The chosen row as a menu's: a quiet lift of the text's own colour, so its accent letters still stand out.
+        EditorColorScheme.COMPLETION_WND_ITEM_CURRENT to textPrimary.copy(alpha = 0.1f),
         EditorColorScheme.DIAGNOSTIC_TOOLTIP_BACKGROUND to surfaceElevated,
         EditorColorScheme.DIAGNOSTIC_TOOLTIP_BRIEF_MSG to textPrimary,
         EditorColorScheme.DIAGNOSTIC_TOOLTIP_DETAILED_MSG to textSecondary,

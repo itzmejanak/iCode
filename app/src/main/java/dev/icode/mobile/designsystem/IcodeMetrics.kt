@@ -58,6 +58,19 @@ object IcodeShapes {
     val Sheet = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
 }
 
+/**
+ * How something always on screen rests while it is not used: the assistant's bubble over other apps,
+ * and the floating stack's pills. Left alone [AFTER_MILLIS], it sinks half behind its edge and fades
+ * to [ALPHA], the fade slow, over [SETTLE_MILLIS], so the change draws no eye; anything new, or a
+ * touch, brings it back at once, in [WAKE_MILLIS].
+ */
+object IcodeResting {
+    const val AFTER_MILLIS = 3_000L
+    const val ALPHA = 0.55f
+    const val SETTLE_MILLIS = 700
+    const val WAKE_MILLIS = 180
+}
+
 /** Size tokens for icons, bars and shells. */
 object IcodeSizes {
     val IconSm = 16.dp
@@ -90,6 +103,12 @@ object IcodeSizes {
      * padding, the narrowest of which it fits, and touch still finds it a [TouchTarget] wide.
      */
     val CornerAction = 40.dp
+    /** A floating pill's height, and a closed one's square ([IcodeDockedPill]): a touch target, easy to hit. */
+    val DockedPill = 48.dp
+    /** The faint round a floating pill's button sits on ([IcodePillButton]): inside its touch target, so a count on it is never cut. */
+    val PillRound = 40.dp
+    /** Each action's width on a floating pill: six fit a phone's row with room to spare (docs/dock-navigation-plan.md D6). */
+    val DockedAction = 44.dp
     /** A tree row's leading slot, its expand arrow or nothing: the rail beneath the row runs down its middle. */
     val Disclosure = 24.dp
     /** How far above the screen's bottom the floating + (56 dp) and the margin around it reach: what sits above it clears it by this. */

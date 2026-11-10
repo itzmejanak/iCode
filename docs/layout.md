@@ -313,18 +313,26 @@ Terminal and Problems primarily belong to the bottom panel. Settings is reached 
 
 On compact screens, activity navigation may be a narrow dock or drawer. On wider screens, it becomes a vertical rail.
 
-**The tool dock** (owner, 2026-11-10: [dock-navigation-plan.md](./dock-navigation-plan.md) D6–D9) is the
+**The tool dock** (owner, 2026-11-10: [dock-navigation-plan.md](./dock-navigation-plan.md) D6–D14) is the
 phone's way between the six tools: Explorer, Editor, Search, Source Control, Assistant and Terminal.
 
 - It is a docked pill at the bottom of the floating stack, under the bell and the undo pill, on
   their edge and nearest the thumb.
 - It shows on the six tools' main screens only. Inside a workspace its place is kept on other pages,
   so the bell above it never moves.
-- Tucked, only its grip shows, in the tone of the one tool it suggests, if any. A tap or a pull
-  brings out one row of the six icons, from the edge: Editor, Terminal, Assistant, Source Control,
-  Search, Explorer.
-- A tap switches to a tool as it was left and tucks the row; Back or a touch outside tucks it too.
-  A swipe along the tucked grip switches to the tool used before.
+- Closed, it is its own icon, in the tone of the one tool it suggests, if any. A tap opens one row
+  of the six icons, grown from it: Editor, Terminal, Assistant, Source Control, Search, Explorer,
+  from the icon outward.
+- A tap switches to a tool as it was left and closes the row; its icon, Back, a touch outside or a
+  few seconds untouched close it too. A double tap on the closed dock switches to the tool used
+  before.
+- Each pill of the floating stack — the undo pill, the bell, the dock — is dragged as soon as the
+  finger moves on it: it floats as a bubble anywhere on the screen, and let go, docks on the
+  nearest edge, left, right, top or bottom, 4 dp in from it, where it stays (D11, D13). A tap is
+  the pill's own.
+- Each pill is its own icon, see-through on a faint round, so the three are told apart at a
+  glance; left alone, it slowly sinks half into its edge and fades, as the assistant's bubble does,
+  and a touch or anything new brings it out (D12, D14).
 - Each icon carries the tool's badge: unsaved files, changed files, errors and a running command,
   the assistant at work or waiting. The Explorer's rail shows the same badges.
 
@@ -835,12 +843,12 @@ iCode shows no toasts ([notices-plan.md](./notices-plan.md)); `tools/check-ui-co
 | Info | Accent, info icon | Something happened |
 | Done | Green, check icon | The user's own action, done |
 
-- **The bell** floats at the bottom right of every screen in the floating stack, under the undo pill: above the highest + or foot bar on screen, and at least 88 dp up (`FabClearance`), over the keyboard while it is up. It says nothing in words (owner's request, 2026-11-04): a new notice rings it once, in the most serious unread tone, with the unread count on it (`CountBadge`, as the rail's Source Control count); a Done, never kept, rings it green with no count. TalkBack reads what rang it. It is docked flush on the screen's edge (`IcodeDockedPill`, the owner's choice, 2026-11-04): round on its open side with a grip, 40 dp tall, its edge line on the open sides only. It never goes: out for 15 s for a Problem, 10 s for Heads-up and Info, 3 s for a Done, then it tucks into the edge with only its grip showing, the grip in the most serious unread tone; swiped into the edge — past half its way, or flung — it tucks sooner, and a tap on the grip, or a pull, brings it out (TalkBack: actions). A tap on the bell opens the one unread notice, or the Notifications page. The bell is hidden while the page or a sheet is open.
+- **The bell** floats at the bottom right of every screen in the floating stack, under the undo pill: above the highest + or foot bar on screen, and at least 88 dp up (`FabClearance`), over the keyboard while it is up. It says nothing in words (owner's request, 2026-11-04): a new notice rings it once, in the most serious unread tone, with the unread count on it (`CountBadge`, as the rail's Source Control count); a Done, never kept, rings it green with no count. TalkBack reads what rang it. It is a see-through button (`IcodePillButton`, owner's request, 2026-11-10: [dock-navigation-plan.md](./dock-navigation-plan.md) D12–D13): the bell on a faint round, a 48 dp touch target, 4 dp in from the screen's edge. It never goes: awake for 15 s for a Problem, 10 s for Heads-up and Info, 3 s for a Done, then it rests, half in its edge and faded, keeping its unread tone and count, until touched. Dragged, it moves anywhere, as every floating pill does. A tap on the bell opens the one unread notice, or the Notifications page. The bell is hidden while the page or a sheet is open.
 - **A notice's sheet**: the title, when, the detail (a failure's words in the mono face), **Copy**, **Delete**, and **All Notifications**. Opening it marks the notice read.
 - **The Notifications page** (the launcher's bell): every notice as one row (icon, title, first line, time, unread dot), newest first, up to 100. A tap opens the sheet.
 - **Android's shade**: the unread notices, the newest 20, silent under one summary. A Problem that comes while iCode is out of view pops up. A tap opens the notice's sheet; read in iCode, it leaves the shade.
 - Done is on the bell only: never kept, never posted.
-- **The undo pill**, drawn as the bell, icons only: after an explorer's change, ↶, and ↷ when something can be redone, each saying what it would do, docked as the bell is while anything can be undone or redone, out after a change and tucked 10 s later, pulled or tapped out again; TalkBack reads the change ("Moved 3 items to Trash"). Like the bell, it steps aside while a sheet is open.
+- **The undo pill**, drawn as the bell, one icon whose state is what a tap does: ↶ while an explorer's change can be undone, ↷ once only a redo is left; while both can be done, ↶, held to redo. It says what it would do, is there while anything can be undone or redone, awake after a change and resting in its edge 10 s later. TalkBack reads the change ("Moved 3 items to Trash") and offers the redo. Like the bell, it steps aside while a sheet is open.
 
 ## 22. Loading, Empty, Error, and Read-Only States
 

@@ -1,153 +1,255 @@
 package dev.icode.mobile.designsystem
 
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.animate
-import androidx.compose.animation.core.spring
+import android.os.SystemClock
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.indication
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import kotlin.math.abs
-import kotlin.math.roundToInt
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 /**
- * One of the floating stack's pills (owner's choices, 2026-11-04): docked flush on the screen's end
- * edge, round on its open side with a grip there in [gripTint], a corner action tall, its [edgeLine]
- * on the open sides only. It never goes: [tucked], it rests in the edge with only its grip showing;
- * swiped into the edge — past half its way, or flung — it tucks, and tapped or pulled out it shows
- * ([onTucked]); short of either it springs back. TalkBack has both as actions on [name], then [actions].
+ * A floating pill as one see-through button (docs/dock-navigation-plan.md D12–D14): [icon] in [tint]
+ * on a faint round of the raised surface, so it reads over code while the screen shows through it,
+ * with [badge], a count, and a [dot] on it; a touch target wide and tall, the round inside it, so what
+ * it carries is whole. A new [icon] crossfades in: the undo pill's ↶ turning ↷.
  *
- * With [onSwipeAlong], a swipe up or down along the tucked grip, over half its height, does that:
- * the dock's switch to the tool used before (docs/dock-navigation-plan.md D9).
+ * Left alone while not [awake], it rests as the assistant's bubble over other apps does
+ * ([IcodeResting]): slowly, it sinks half behind its edge ([LocalPillEdge]) and fades, out of the
+ * way of the work; a touch or anything new brings it out at once. A tap on it at rest is still a tap.
+ * It is kept from Android's back gesture, which would otherwise take a touch at the screen's edge.
+ *
+ * [onLongClick], held, does the pill's other action, named [longClickLabel]. TalkBack has that, then
+ * [actions], then the stack's moves for [name].
  */
 @Composable
-fun IcodeDockedPill(
-    tucked: Boolean,
-    onTucked: (Boolean) -> Unit,
+fun IcodePillButton(
     name: String,
+    icon: ImageVector,
+    description: String?,
+    onClick: () -> Unit,
+    awake: Boolean,
     modifier: Modifier = Modifier,
-    gripTint: Color = IcodeColors.Outline,
+    tint: Color = IcodeColors.TextSecondary,
+    badge: Int? = null,
+    dot: Color? = null,
+    iconModifier: Modifier = Modifier,
+    onLongClick: (() -> Unit)? = null,
+    longClickLabel: String? = null,
     actions: List<CustomAccessibilityAction> = emptyList(),
-    onSwipeAlong: (() -> Unit)? = null,
-    content: @Composable RowScope.() -> Unit,
 ) {
-    val tuck by rememberUpdatedState(onTucked)
-    val swipe by rememberUpdatedState(onSwipeAlong)
-    val scope = rememberCoroutineScope()
-    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
-    val density = LocalDensity.current
-    val flingPx = with(density) { FLING.toPx() }
-    val peekPx = with(density) { PEEK.toPx() }
-    val alongPx = with(density) { SWIPE_ALONG.toPx() }
-    // How far a swipe along the grip has gone.
-    var along by remember { mutableFloatStateOf(0f) }
+    var touches by remember { mutableIntStateOf(0) }
+    var resting by remember { mutableStateOf(false) }
+    LaunchedEffect(awake, touches) {
+        resting = false
+        if (awake) return@LaunchedEffect
+        delay(IcodeResting.AFTER_MILLIS)
+        resting = true
+    }
+    // 0 out, 1 at rest: sunk half its width behind its edge, faded.
+    val rest by animateFloatAsState(
+        if (resting) 1f else 0f,
+        tween(if (resting) IcodeResting.SETTLE_MILLIS else IcodeResting.WAKE_MILLIS, easing = FastOutSlowInEasing),
+        label = "resting",
+    )
+    val edge = LocalPillEdge.current
+    val way = outward(edge)
+    val sinkPx = with(LocalDensity.current) { (IcodeSizes.DockedPill / 2 + EDGE_INSET).toPx() }
+    val moves = LocalPillMoves.current(name)
+    val pressed = remember { MutableInteractionSource() }
     val line = edgeLine
-    var width by remember { mutableIntStateOf(0) }
-    // How far it is pushed into the edge, in pixels; offset follows the layout's direction.
-    var pushed by remember { mutableFloatStateOf(0f) }
-    var placed by remember { mutableStateOf(false) }
-    val hidden = (width - peekPx).coerceAtLeast(0f)
-    LaunchedEffect(tucked, hidden) {
-        val rest = if (tucked) hidden else 0f
-        // Its first place is taken at once: a pill that starts tucked never flashes out first.
-        if (!placed) {
-            if (width > 0) placed = true
-            pushed = rest
-        } else {
-            animate(pushed, rest, animationSpec = spring(stiffness = Spring.StiffnessMediumLow)) { value, _ -> pushed = value }
-        }
-    }
-    fun settle(velocity: Float) {
-        val tuckNow = when {
-            velocity > flingPx -> true
-            velocity < -flingPx -> false
-            else -> pushed > hidden / 2
-        }
-        if (tuckNow != tucked) {
-            tuck(tuckNow)
-        } else {
-            scope.launch { animate(pushed, if (tucked) hidden else 0f, animationSpec = spring()) { value, _ -> pushed = value } }
-        }
-    }
-    Row(
+    Box(
         modifier
-            .onSizeChanged { width = it.width }
-            .offset { IntOffset(pushed.roundToInt(), 0) }
-            .draggable(
-                rememberDraggableState { delta -> pushed = (pushed + if (rtl) -delta else delta).coerceIn(0f, hidden) },
-                Orientation.Horizontal,
-                onDragStopped = { velocity -> settle(if (rtl) -velocity else velocity) },
-            )
-            .draggable(
-                rememberDraggableState { delta -> along += delta },
-                Orientation.Vertical,
-                enabled = tucked && onSwipeAlong != null,
-                onDragStarted = { along = 0f },
-                onDragStopped = { if (abs(along) > alongPx) swipe?.invoke() },
-            )
-            .semantics {
-                customActions = listOf(CustomAccessibilityAction(if (tucked) "Show $name" else "Hide $name") { tuck(!tucked); true }) + actions
+            .size(IcodeSizes.DockedPill)
+            .graphicsLayer {
+                val sunk = way * sinkPx * rest
+                if (edge.across) translationY = sunk else translationX = sunk
+                alpha = 1f - (1f - IcodeResting.ALPHA) * rest
             }
-            .height(IcodeSizes.CornerAction)
-            .clip(DOCKED)
-            .background(IcodeColors.SurfaceElevated)
-            .then(if (line != null) Modifier.drawBehind { openEdge(line, rtl) } else Modifier)
-            // Tucked, what shows is its grip: a tap there brings it out.
-            .clickable(enabled = tucked, onClickLabel = "Show $name") { tuck(false) }
-            .padding(start = GRIP_INSET, end = IcodeSpacing.Space1),
-        verticalAlignment = Alignment.CenterVertically,
+            // Inside the layer, so the place kept from the back gesture is where the pill is drawn.
+            .systemGestureExclusion()
+            .wakeOnTouch { touches++ }
+            .combinedClickable(
+                interactionSource = pressed,
+                indication = null,
+                role = Role.Button,
+                onLongClickLabel = longClickLabel,
+                onLongClick = onLongClick,
+                onClick = onClick,
+            )
+            .semantics { customActions = actions + moves },
+        contentAlignment = Alignment.Center,
     ) {
-        Box(Modifier.padding(end = IcodeSpacing.Space1).width(GRIP_WIDTH).height(IcodeSizes.IconMd).background(gripTint, IcodeShapes.Track))
-        content()
+        Box(
+            Modifier
+                .size(IcodeSizes.PillRound)
+                .clip(CircleShape)
+                .background(IcodeColors.SurfaceElevated.copy(alpha = SEE_THROUGH))
+                .then(if (line != null) Modifier.border(1.dp, line.copy(alpha = SEE_THROUGH), CircleShape) else Modifier)
+                .indication(pressed, LocalIndication.current),
+        )
+        Crossfade(icon, label = "icon") { shown ->
+            Icon(shown, contentDescription = description, tint = tint, modifier = iconModifier.size(IcodeSizes.IconXl))
+        }
+        IconMarks(badge ?: 0, dot)
     }
 }
 
 /**
- * An action on a docked pill: [icon] in [tint] (muted when not [enabled]), a corner action wide —
- * touch finds it a touch target — with [badge], a count, on it where there is one; a [dot] while
- * something runs there; and a [line] under it, as the rail marks its active entry.
+ * A floating pill that opens (the dock, D6, D13). Closed, it is its own icon ([LocalPillIcon]) as one
+ * [IcodePillButton] in [tone], what needs the user there, resting in its edge as that button does,
+ * kept out while it has a [tone]. Tapped, it opens at once into one row of [content] on the raised surface, grown from
+ * its icon, which stays under the finger at the row's docked end ([LocalPillIconAtEnd]). That icon
+ * tapped closes it again — or, tapped again within a double tap's time of opening it, does
+ * [onDoubleTap] — and so does [closeAfterMillis] without a touch. TalkBack reads it as [description],
+ * with Show or Hide, then [actions], then the stack's moves.
+ */
+@Composable
+fun IcodeDockedPill(
+    open: Boolean,
+    onOpen: (Boolean) -> Unit,
+    name: String,
+    description: String,
+    modifier: Modifier = Modifier,
+    tone: Color? = null,
+    actions: List<CustomAccessibilityAction> = emptyList(),
+    onDoubleTap: (() -> Unit)? = null,
+    closeAfterMillis: Long? = null,
+    content: @Composable RowScope.() -> Unit,
+) {
+    val opened by rememberUpdatedState(onOpen)
+    val icon = LocalPillIcon.current
+    val atEnd = LocalPillIconAtEnd.current
+    val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
+    val doubleTap = LocalViewConfiguration.current.doubleTapTimeoutMillis
+    var openedAt by remember { mutableLongStateOf(0L) }
+    var touches by remember { mutableIntStateOf(0) }
+    if (open && closeAfterMillis != null) {
+        LaunchedEffect(touches) {
+            delay(closeAfterMillis)
+            opened(false)
+        }
+    }
+    val show = CustomAccessibilityAction("Show $name") { opened(true); true }
+    val hide = CustomAccessibilityAction("Hide $name") { opened(false); true }
+    // Grown from its icon: from the docked end of the row, on the screen.
+    val origin = TransformOrigin(if (atEnd != rtl) 1f else 0f, 0.5f)
+    AnimatedContent(
+        targetState = open,
+        modifier = modifier.wakeOnTouch { touches++ },
+        transitionSpec = {
+            (fadeIn(tween(OPEN_MILLIS)) + scaleIn(tween(OPEN_MILLIS), initialScale = OPEN_FROM, transformOrigin = origin)) togetherWith
+                fadeOut(tween(OPEN_MILLIS / 2)) using SizeTransform(clip = false)
+        },
+        contentAlignment = if (atEnd) Alignment.CenterEnd else Alignment.CenterStart,
+        label = "pill",
+    ) { isOpen ->
+        if (!isOpen) {
+            IcodePillButton(
+                name, icon, description,
+                onClick = {
+                    openedAt = SystemClock.uptimeMillis()
+                    opened(true)
+                },
+                // A suggestion keeps it out: it is what needs the user.
+                awake = tone != null,
+                tint = tone ?: IcodeColors.TextSecondary,
+                actions = listOf(show) + actions,
+            )
+        } else {
+            val line = edgeLine
+            val moves = LocalPillMoves.current(name)
+            // Its own icon, where the closed pill was: tapped, it closes the row, or answers the double tap.
+            val close: @Composable () -> Unit = {
+                Box(
+                    Modifier
+                        .size(IcodeSizes.DockedPill)
+                        .clickable(role = Role.Button, onClickLabel = "Hide $name") {
+                            val again = onDoubleTap != null && SystemClock.uptimeMillis() - openedAt <= doubleTap
+                            if (again) onDoubleTap?.invoke() else opened(false)
+                        }
+                        .semantics { customActions = listOf(hide) + actions + moves },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(icon, contentDescription = description, tint = tone ?: IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconXl))
+                }
+            }
+            Row(
+                Modifier
+                    .systemGestureExclusion()
+                    .height(IcodeSizes.DockedPill)
+                    .shadow(OPEN_ELEVATION, IcodeShapes.Pill)
+                    .clip(IcodeShapes.Pill)
+                    .background(IcodeColors.SurfaceElevated)
+                    .then(if (line != null) Modifier.border(1.dp, line, IcodeShapes.Pill) else Modifier)
+                    .padding(start = if (atEnd) IcodeSpacing.Space1 else 0.dp, end = if (atEnd) 0.dp else IcodeSpacing.Space1),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (!atEnd) close()
+                content()
+                if (atEnd) close()
+            }
+        }
+    }
+}
+
+/**
+ * An action in an opened pill's row: [icon] in [tint] (muted when not [enabled]), a
+ * [IcodeSizes.DockedAction] wide and the pill tall, with [badge], a count, on it where there is one; a
+ * [dot] while something runs there; and a [line] under it, as the rail marks its active entry. Its
+ * press shows in a round of its width; what it carries is drawn over that, whole.
  */
 @Composable
 fun IcodeDockedAction(
@@ -157,46 +259,40 @@ fun IcodeDockedAction(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    iconModifier: Modifier = Modifier,
     badge: Int? = null,
     dot: Color? = null,
     line: Color? = null,
 ) {
+    val pressed = remember { MutableInteractionSource() }
     Box(
-        modifier.size(IcodeSizes.CornerAction).clip(IcodeShapes.Pill).clickable(enabled = enabled, role = Role.Button, onClick = onClick),
+        modifier
+            .width(IcodeSizes.DockedAction)
+            .height(IcodeSizes.DockedPill)
+            .clickable(pressed, indication = null, enabled = enabled, role = Role.Button, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        line?.let { UnderLine(it) }
-        Icon(icon, contentDescription = description, tint = if (enabled) tint else IcodeColors.TextMuted, modifier = iconModifier.size(IcodeSizes.IconLg))
+        Box(Modifier.size(IcodeSizes.DockedAction).clip(IcodeShapes.Pill).indication(pressed, LocalIndication.current))
+        line?.let { UnderLine(it, lift = LINE_LIFT) }
+        Icon(icon, contentDescription = description, tint = if (enabled) tint else IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconXl))
         IconMarks(badge ?: 0, dot)
     }
 }
 
-/** The edge line on the open sides — top, round start, bottom — none along the screen's edge. */
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.openEdge(line: Color, rtl: Boolean) {
-    val stroke = 1.dp.toPx()
-    val inset = stroke / 2
-    val r = size.height / 2
-    val path = Path().apply {
-        moveTo(size.width, inset)
-        lineTo(r, inset)
-        arcTo(Rect(inset, inset, 2 * r - inset, size.height - inset), 270f, -180f, false)
-        lineTo(size.width, size.height - inset)
+/** Any touch here counts, before what it does: a pill wakes, and its time to close starts again. */
+private fun Modifier.wakeOnTouch(touched: () -> Unit): Modifier = pointerInput(Unit) {
+    awaitEachGesture {
+        awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+        touched()
     }
-    scale(if (rtl) -1f else 1f, 1f) { drawPath(path, line, style = Stroke(stroke)) }
 }
 
-/** Round on the open side only: the other is the screen's edge. */
-private val DOCKED = RoundedCornerShape(topStartPercent = 50, bottomStartPercent = 50)
+/** How much of the raised surface a pill's round keeps: the screen shows through the rest. */
+private const val SEE_THROUGH = 0.6f
 
-private val GRIP_WIDTH = 3.dp
+/** An opened pill grows from its icon this long, from this much of its size, and stands this high. */
+private const val OPEN_MILLIS = 180
+private const val OPEN_FROM = 0.9f
+private val OPEN_ELEVATION = 8.dp
 
-/** The grip's place from the open side, and how much of a tucked pill shows: its grip. */
-private val GRIP_INSET = 6.dp
-private val PEEK = 16.dp
-
-/** A flick faster than this tucks the pill, or brings it out, however little it moved (as a sheet's swipe). */
-private val FLING = 125.dp
-
-/** How far a swipe along the tucked grip goes to count: more than half the pill's height. */
-private val SWIPE_ALONG = 24.dp
+/** A docked action's line stands clear of the pill's edge, under its icon. */
+private val LINE_LIFT = 5.dp
