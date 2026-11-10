@@ -331,7 +331,7 @@ fun pillExit(edge: ScreenEdge = LocalPillEdge.current): ExitTransition {
 
 /** Toward [edge] on the screen: 1 for the right or the bottom, -1 for the left or the top. */
 @Composable
-private fun outward(edge: ScreenEdge): Int {
+internal fun outward(edge: ScreenEdge): Int {
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     return when (edge) {
         ScreenEdge.End -> if (rtl) -1 else 1
@@ -349,8 +349,8 @@ private fun edgeName(edge: ScreenEdge, rtl: Boolean): String = when (edge) {
     ScreenEdge.Bottom -> "bottom"
 }
 
-/** How far in from the screen's edges a pill stands: off the edge itself, where Android's gestures start. */
-private val EDGE_INSET = 4.dp
+/** How far in from the screen's edges a pill stands awake: off the edge itself, where Android's gestures start. */
+internal val EDGE_INSET = 4.dp
 
 /** How a pill glides to its new place: as antigem's voice orb settles on its edge. */
 private val GLIDE = spring<IntOffset>(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow)

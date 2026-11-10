@@ -14,16 +14,12 @@ import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodePillButton
-import dev.icode.mobile.designsystem.IcodePillRow
-import dev.icode.mobile.designsystem.LocalPillIconAtEnd
 import dev.icode.mobile.designsystem.pillEnter
 import dev.icode.mobile.designsystem.pillExit
 import dev.icode.mobile.domain.FilesIntent
@@ -82,39 +78,32 @@ internal fun rememberUndoPill(news: FileNews?): UndoPillState {
 
 /**
  * The undo pill in the floating stack, above the bell and drawn as it is (owner's requests,
- * 2026-11-04 and 2026-11-10): see-through buttons only, ↶ to undo where the pill is docked and ↷
- * beside it when there is something to redo, each saying what it would do; there while anything can
- * be undone or redone, awake after a change and at rest on its time. TalkBack reads the change told.
- * The explorer's ⋮ has no Undo or Redo: this is at hand on every screen.
+ * 2026-11-04 and 2026-11-10): one see-through icon, whose state is what a tap does — ↶ while a change
+ * can be undone, ↷ once only a redo is left, so undoing the last change turns it into its redo. While
+ * both can be done, it shows ↶, and held, it redoes. It is there while anything can be undone or
+ * redone, awake after a change and resting in its edge on its time. TalkBack reads the change told and
+ * offers the redo. The explorer's ⋮ has no Undo or Redo: this is at hand on every screen.
  */
 @Composable
 internal fun UndoPill(state: UndoPillState, history: FileHistoryState) {
     val gateway = LocalICodeGateway.current
     AnimatedVisibility(visible = history.undo != null || history.redo != null, enter = pillEnter(), exit = pillExit()) {
-        IcodePillRow(
+        val undo = history.undo
+        val redo = history.redo?.let { "Redo: $it" }
+        val redoes = undo == null
+        IcodePillButton(
             "the undo pill",
+            if (redoes) Icons.AutoMirrored.Outlined.Redo else Icons.AutoMirrored.Outlined.Undo,
+            description = if (redoes) redo else "Undo: $undo",
+            onClick = { gateway.dispatch(if (redoes) FilesIntent.Redo else FilesIntent.Undo) },
             awake = state.awake,
             modifier = Modifier.semantics {
                 state.told?.let { contentDescription = it.line }
                 liveRegion = LiveRegionMode.Polite
             },
-        ) { moves ->
-            val undo = @Composable { Step(Icons.AutoMirrored.Outlined.Undo, history.undo?.let { "Undo: $it" }, moves) { gateway.dispatch(FilesIntent.Undo) } }
-            val redo = @Composable { if (history.redo != null) Step(Icons.AutoMirrored.Outlined.Redo, "Redo: ${history.redo}") { gateway.dispatch(FilesIntent.Redo) } }
-            // ↶ stands where the pill is docked, so ↷ coming and going never moves it from under the thumb.
-            if (LocalPillIconAtEnd.current) {
-                redo()
-                undo()
-            } else {
-                undo()
-                redo()
-            }
-        }
+            tint = IcodeColors.Accent,
+            onLongClick = if (!redoes && redo != null) ({ gateway.dispatch(FilesIntent.Redo) }) else null,
+            longClickLabel = redo.takeUnless { redoes },
+        )
     }
-}
-
-/** ↶ or ↷, saying what it would do; greyed with nothing to do. */
-@Composable
-private fun Step(icon: ImageVector, what: String?, actions: List<CustomAccessibilityAction> = emptyList(), onClick: () -> Unit) {
-    IcodePillButton(icon, what ?: "Nothing to undo", onClick, tint = IcodeColors.Accent, enabled = what != null, actions = actions)
 }

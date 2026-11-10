@@ -60,12 +60,15 @@ object IcodeShapes {
 
 /**
  * How something always on screen rests while it is not used: the assistant's bubble over other apps,
- * and the floating stack's pills. Left alone this long, it fades to this; anything new, or a touch,
- * brings it back.
+ * and the floating stack's pills. Left alone [AFTER_MILLIS], it sinks half behind its edge and fades
+ * to [ALPHA], the fade slow, over [SETTLE_MILLIS], so the change draws no eye; anything new, or a
+ * touch, brings it back at once, in [WAKE_MILLIS].
  */
 object IcodeResting {
     const val AFTER_MILLIS = 3_000L
     const val ALPHA = 0.55f
+    const val SETTLE_MILLIS = 700
+    const val WAKE_MILLIS = 180
 }
 
 /** Size tokens for icons, bars and shells. */

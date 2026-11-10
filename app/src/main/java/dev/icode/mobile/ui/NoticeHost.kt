@@ -27,7 +27,6 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodePillButton
-import dev.icode.mobile.designsystem.IcodePillRow
 import dev.icode.mobile.designsystem.IcodeSheetOverlay
 import dev.icode.mobile.domain.AppNotice
 import dev.icode.mobile.domain.NoticeIntent
@@ -124,9 +123,9 @@ internal fun NoticeHost(state: NoticeHostState, notices: List<AppNotice>, pageOp
  * The bell in the floating stack (owner's design, 2026-10-21; since 2026-11-10, a see-through button
  * the user can move, docs/dock-navigation-plan.md D13): a notice wakes it and rings it once, in the
  * most serious unread tone — or a success's green, which is not kept — with the unread count as the
- * Explorer's Source Control count is drawn; TalkBack reads what rang it. On its time it rests, faded,
- * keeping the unread tone and count, until touched. A tap opens the one unread notice; otherwise the
- * Notifications page ([onAll]).
+ * Explorer's Source Control count is drawn; TalkBack reads what rang it. On its time it rests, half in
+ * its edge and faded, keeping the unread tone and count, until touched. A tap opens the one unread
+ * notice; otherwise the Notifications page ([onAll]).
  */
 @Composable
 internal fun NoticeBell(state: NoticeHostState, notices: List<AppNotice>, onAll: () -> Unit) {
@@ -141,31 +140,30 @@ internal fun NoticeBell(state: NoticeHostState, notices: List<AppNotice>, onAll:
         ring.animateTo(1f, tween(RING_MILLIS, easing = LinearEasing))
         ring.snapTo(0f)
     }
-    IcodePillRow("the bell", awake = state.awake) { moves ->
-        IcodePillButton(
-            Icons.Outlined.Notifications,
-            description = listOfNotNull(told?.title, "Notifications, ${unread.size} unread").joinToString(". "),
-            onClick = {
-                val one = unread.singleOrNull()
-                if (one != null) {
-                    state.open(one.id)
-                } else {
-                    state.rest()
-                    onAll()
-                }
-            },
-            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-            tint = (unreadTone ?: told?.tone)?.tint ?: IcodeColors.TextSecondary,
-            badge = unread.size.takeIf { it > 0 },
-            // A bell swings from where it hangs: a swing that dies away, three times over.
-            iconModifier = Modifier.graphicsLayer {
-                val p = ring.value
-                rotationZ = MAX_SWING_DEGREES * (1 - p) * sin(p * SWINGS * 2 * PI.toFloat())
-                transformOrigin = TransformOrigin(0.5f, 0f)
-            },
-            actions = moves,
-        )
-    }
+    IcodePillButton(
+        "the bell",
+        Icons.Outlined.Notifications,
+        description = listOfNotNull(told?.title, "Notifications, ${unread.size} unread").joinToString(". "),
+        onClick = {
+            val one = unread.singleOrNull()
+            if (one != null) {
+                state.open(one.id)
+            } else {
+                state.rest()
+                onAll()
+            }
+        },
+        awake = state.awake,
+        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+        tint = (unreadTone ?: told?.tone)?.tint ?: IcodeColors.TextSecondary,
+        badge = unread.size.takeIf { it > 0 },
+        // A bell swings from where it hangs: a swing that dies away, three times over.
+        iconModifier = Modifier.graphicsLayer {
+            val p = ring.value
+            rotationZ = MAX_SWING_DEGREES * (1 - p) * sin(p * SWINGS * 2 * PI.toFloat())
+            transformOrigin = TransformOrigin(0.5f, 0f)
+        },
+    )
 }
 
 /** One ring of the bell, and how far and how often it swings. */

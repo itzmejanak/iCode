@@ -317,15 +317,17 @@ restart: the model's saver keeps all six histories, the tool order and the app s
 - A tap is the pill's own: a drag only begins once the finger moves.
 
 **D12 — Each pill known at a glance, and quiet when not used** (owner's requests, 2026-11-10).
-- **Its own icon**: the undo arrow (and redo beside it when there is one), the bell, the dock's
-  grid, in what needs the user there (the unread tone, the suggestion's), so the three are told
-  apart without opening any.
+- **Its own icon**: the undo arrow (one icon for undo and redo, D14), the bell, the dock's grid, in
+  what needs the user there (the unread tone, the suggestion's), so the three are told apart
+  without opening any.
 - **See-through**: no slab of its own. Each icon sits on a faint round of the raised surface (60 %),
   so it reads over code while the screen shows through, inside a 48 dp touch target; a count on it
   is drawn whole (`IcodePillButton`).
 - **Resting**, as the assistant's bubble over other apps does (`IcodeResting`, one rule for both):
   a pill not awake — the bell after its ring, the undo pill after its change's time, the closed dock
-  with no suggestion — and left alone 3 seconds fades to 55 %. A touch or anything new wakes it.
+  with no suggestion — and left alone 3 seconds docks into its edge, out of the way of the work: it
+  slowly (0.7 s) sinks half behind the edge and fades to 55 %. A touch or anything new brings it
+  out at once (0.18 s). A tap on a resting pill is still a tap.
 
 **D13 — Tap to open, drag to move, as antigem does** (owner's report and request, 2026-11-10: the
 pills could not be dragged; study antigem).
@@ -347,6 +349,17 @@ pills could not be dragged; study antigem).
 - **Where antigem stops, and iCode goes on**: it docks on no edge (the switcher) or only the sides
   (the orb), lets its widgets overlap, has no resting state, and draws its closed switcher solid.
   iCode docks on all four edges, never overlaps, rests, and draws its pills see-through.
+
+**D14 — One icon for undo and redo; at rest, in the edge** (owner's requests after the second phone
+check, 2026-11-10: the screenshot showed ↷ beside a greyed ↶ and three round buttons standing out
+from the edge).
+- **One icon, its state what a tap does**: ↶ while a change can be undone; ↷ once only a redo is
+  left, so undoing the last change turns the icon into its redo, crossfaded. While both can be
+  done it shows ↶, and held, it redoes (TalkBack: the redo as an action). Nothing is ever greyed:
+  the icon is there only while it does something.
+- **Docked into the edge at rest** (D12): left alone, a pill sinks half behind its edge, slowly,
+  as it fades, so nothing floats in the way of focused work; it comes out at once on a touch or
+  anything new.
 
 ## 4. Where the code goes
 
@@ -588,7 +601,12 @@ no duplication; no inconsistency; maintainable and scalable; fix the faults foun
   opens); the edge-flush slab, its handle, its tuck, pull and swipes are gone. The undo pill keeps
   ↶ where it is docked, so ↷ coming and going never moves it from under the thumb. Tests:
   `PillPlacesTest` (where a row opens toward).
-- **To check on the phone:** §5's [P] criteria — J1–J3, B5, S2, S3, K1–K6 and E1 — and D11–D13:
+- **N9 — one undo icon, resting in the edge** (2026-11-10): D14. `IcodePillButton` is now the whole
+  closed pill — its resting sink and fade, the back-gesture exclusion, the long press, TalkBack's
+  moves — used by the bell, the undo pill and the closed dock alike; `IcodePillRow` is gone, every
+  closed pill being one icon. The assistant's bubble fades over the same times (`IcodeResting`).
+- **To check on the phone:** §5's [P] criteria — J1–J3, B5, S2, S3, K1–K6 and E1 — and D11–D14:
   drag each pill at once, without a hold, to the top, the bottom and the left; tap the dock to open
-  it and a tool to switch; double tap it for the last tool; restart iCode; open the keyboard; leave
-  the pills 3 seconds and see them fade; tell the three apart.
+  it and a tool to switch; double tap it for the last tool; undo a change and see ↶ turn ↷, and hold
+  ↶ to redo with two changes undone; restart iCode; open the keyboard; leave the pills 3 seconds and
+  see them sink into the edge; tell the three apart.
