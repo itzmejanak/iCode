@@ -23,6 +23,7 @@ import dev.icode.mobile.domain.TerminalSettings
 import dev.icode.mobile.domain.TerminalCursorStyle
 import dev.icode.mobile.domain.TerminalExtraKey
 import dev.icode.mobile.domain.TerminalSettingRules
+import dev.icode.mobile.domain.ThemeVariantRules
 import dev.icode.mobile.domain.WorkspacePreferences
 import dev.icode.mobile.domain.WorkspacePreferencesRepository
 import dev.icode.mobile.domain.files.ExplorerSettings
@@ -51,6 +52,9 @@ class AndroidWorkspacePreferencesRepository internal constructor(
     private val compactKey = booleanPreferencesKey("appearance_compact_layout")
     private val borderLinesKey = booleanPreferencesKey("appearance_border_lines")
     private val accentKey = intPreferencesKey("appearance_accent_color")
+    private val darkVariantKey = stringPreferencesKey("appearance_dark_variant")
+    private val lightVariantKey = stringPreferencesKey("appearance_light_variant")
+    private val amoledVariantKey = stringPreferencesKey("appearance_amoled_variant")
     private val fontSizeKey = intPreferencesKey("editor_font_size_sp")
     private val fontFamilyKey = stringPreferencesKey("editor_font_family")
     private val wordWrapKey = booleanPreferencesKey("editor_word_wrap")
@@ -85,6 +89,7 @@ class AndroidWorkspacePreferencesRepository internal constructor(
                 compactLayout = prefs[compactKey] ?: appearanceDefaults.compactLayout,
                 borderLines = prefs[borderLinesKey] ?: appearanceDefaults.borderLines,
                 accentColor = prefs[accentKey]?.let(AccentColorRules::opaque),
+                variants = AppTheme.entries.mapNotNull { theme -> ThemeVariantRules.kept(prefs[variantKey(theme)])?.let { theme to it } }.toMap(),
             ),
             editor = EditorSettings(
                 fontSizeSp = prefs[fontSizeKey]?.takeIf { it in SettingLimits.fontSizesSp } ?: editorDefaults.fontSizeSp,
@@ -142,6 +147,12 @@ class AndroidWorkspacePreferencesRepository internal constructor(
 
     override suspend fun setAccentColor(argb: Int?) {
         store.edit { if (argb == null) it.remove(accentKey) else it[accentKey] = AccentColorRules.opaque(argb) }
+    }
+
+    override suspend fun setThemeVariant(theme: AppTheme, id: String?) {
+        require(id == null || ThemeVariantRules.isId(id))
+        val kept = ThemeVariantRules.kept(id)
+        store.edit { if (kept == null) it.remove(variantKey(theme)) else it[variantKey(theme)] = kept }
     }
 
     override suspend fun setEditorFontSize(sizeSp: Int) {
@@ -253,6 +264,13 @@ class AndroidWorkspacePreferencesRepository internal constructor(
         val value = this[from] ?: return
         this[to] = value
         remove(from)
+    }
+
+    // Each theme's variant; stored, do not rename.
+    private fun variantKey(theme: AppTheme) = when (theme) {
+        AppTheme.Dark -> darkVariantKey
+        AppTheme.Light -> lightVariantKey
+        AppTheme.Amoled -> amoledVariantKey
     }
 
     // A workspace's own keys; stored, do not rename.

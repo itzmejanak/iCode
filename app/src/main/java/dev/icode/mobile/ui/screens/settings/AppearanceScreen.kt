@@ -72,7 +72,7 @@ fun AppearanceScreen(actions: NavigationActions) {
                 ) {
                     AppTheme.entries.forEach { option ->
                         ThemeSwatch(
-                            sample = IcodePalette.of(option, appearance.borderLines),
+                            sample = IcodePalette.of(option, appearance.variantOf(option), appearance.borderLines),
                             name = option.name,
                             selected = appearance.theme == option,
                             onClick = { saver.save { repository.setTheme(option) } },

@@ -8,6 +8,7 @@ import dev.icode.mobile.domain.AppTheme
 import dev.icode.mobile.domain.AutoSaveMode
 import dev.icode.mobile.domain.EditorFontFamily
 import dev.icode.mobile.domain.IndentType
+import dev.icode.mobile.domain.ThemeVariantRules
 import dev.icode.mobile.domain.files.ExplorerSettings
 import dev.icode.mobile.domain.files.ExplorerView
 import dev.icode.mobile.domain.files.FilesLook
@@ -168,6 +169,38 @@ class AndroidWorkspacePreferencesRepositoryTest {
         }
     }
 
+    @Test fun `each theme's variant survives a restart on its own, and iCode's own is no key at all`() = runBlocking {
+        val file = File(temporaryFolder.root, "variants.preferences_pb")
+        val firstScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val repository = AndroidWorkspacePreferencesRepository(
+                PreferenceDataStoreFactory.create(scope = firstScope, produceFile = { file }),
+            )
+            // Before any choice, every theme is drawn as iCode's own: today's look after the update.
+            assertEquals(emptyMap<AppTheme, String>(), repository.values(null).first().appearance.variants)
+            repository.setThemeVariant(AppTheme.Dark, "nord")
+            repository.setThemeVariant(AppTheme.Amoled, "dracula")
+            repository.setThemeVariant(AppTheme.Light, "sakura")
+            repository.setThemeVariant(AppTheme.Light, ThemeVariantRules.ICODE)
+            assertEquals(true, runCatching { repository.setThemeVariant(AppTheme.Dark, "Not An Id") }.isFailure)
+        } finally {
+            firstScope.coroutineContext.job.cancelAndJoin()
+        }
+        val secondScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        try {
+            val store = PreferenceDataStoreFactory.create(scope = secondScope, produceFile = { file })
+            assertNull(store.data.first()[stringPreferencesKey("appearance_light_variant")])
+            val reopened = AndroidWorkspacePreferencesRepository(store)
+            val appearance = reopened.values("/root/one").first().appearance
+            assertEquals(mapOf(AppTheme.Dark to "nord", AppTheme.Amoled to "dracula"), appearance.variants)
+            assertEquals(AppTheme.Dark, appearance.theme)
+            reopened.setThemeVariant(AppTheme.Dark, null)
+            assertEquals(mapOf(AppTheme.Amoled to "dracula"), reopened.values(null).first().appearance.variants)
+        } finally {
+            secondScope.cancel()
+        }
+    }
+
     @Test fun `terminal alerts are on until switched off, and the choice survives a restart`() = runBlocking {
         val file = File(temporaryFolder.root, "alerts.preferences_pb")
         val firstScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -208,6 +241,8 @@ class AndroidWorkspacePreferencesRepositoryTest {
                 preferences[intPreferencesKey("appearance_ui_text_scale_percent")] = 42
                 preferences[intPreferencesKey("editor_font_size_sp")] = 100
                 preferences[stringPreferencesKey("editor_auto_save")] = "future-mode"
+                preferences[stringPreferencesKey("appearance_dark_variant")] = "Not An Id"
+                preferences[stringPreferencesKey("appearance_light_variant")] = "sakura"
             }
             val current = AndroidWorkspacePreferencesRepository(store).values(null).first()
             assertEquals(2, current.globalIndentSize)
@@ -215,6 +250,7 @@ class AndroidWorkspacePreferencesRepositoryTest {
             assertEquals(100, current.appearance.uiTextScalePercent)
             assertEquals(14, current.editor.fontSizeSp)
             assertEquals(AutoSaveMode.AfterOneSecond, current.editor.autoSave)
+            assertEquals(mapOf(AppTheme.Light to "sakura"), current.appearance.variants)
         } finally {
             scope.cancel()
         }

@@ -101,13 +101,12 @@ data class IcodePalette(
             terminalAnsi = DarkTerminalAnsi,
         )
 
-        /** [theme]'s palette as the app draws it: with its card outlines, or apart by tone without ([borderless]). */
-        fun of(theme: AppTheme, borderLines: Boolean): IcodePalette {
-            val palette = when (theme) {
-                AppTheme.Dark -> Dark
-                AppTheme.Light -> Light
-                AppTheme.Amoled -> Amoled
-            }
+        /**
+         * [theme]'s palette as the app draws it: in its [variant] ([ThemeVariants.find]; null is
+         * iCode's own), with its card outlines, or apart by tone without ([borderless]).
+         */
+        fun of(theme: AppTheme, variant: String?, borderLines: Boolean): IcodePalette {
+            val palette = ThemeVariants.find(theme, variant).palette
             return if (borderLines) palette else palette.borderless()
         }
     }
