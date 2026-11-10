@@ -1,10 +1,6 @@
 package dev.icode.mobile.ui
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.Redo
 import androidx.compose.material.icons.automirrored.outlined.Undo
@@ -26,6 +22,8 @@ import androidx.compose.ui.semantics.semantics
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeDockedAction
 import dev.icode.mobile.designsystem.IcodeDockedPill
+import dev.icode.mobile.designsystem.pillEnter
+import dev.icode.mobile.designsystem.pillExit
 import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.files.FileHistoryState
 import dev.icode.mobile.domain.files.FileNews
@@ -93,11 +91,7 @@ internal fun rememberUndoPill(news: FileNews?): UndoPillState {
 @Composable
 internal fun UndoPill(state: UndoPillState, history: FileHistoryState) {
     val gateway = LocalICodeGateway.current
-    AnimatedVisibility(
-        visible = history.undo != null || history.redo != null,
-        enter = slideInHorizontally { it } + fadeIn(),
-        exit = slideOutHorizontally { it } + fadeOut(),
-    ) {
+    AnimatedVisibility(visible = history.undo != null || history.redo != null, enter = pillEnter(), exit = pillExit()) {
         IcodeDockedPill(
             tucked = state.tucked,
             onTucked = { if (it) state.tuck() else state.show() },

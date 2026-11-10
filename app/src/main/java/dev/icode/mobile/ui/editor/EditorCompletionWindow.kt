@@ -231,12 +231,13 @@ private class CompletionRow(context: Context) : LinearLayout(context) {
     var chosen = false
         set(value) {
             field = value
-            // Inset from the box's edges, as a menu's chosen row.
-            val inset = (CHOSEN_INSET_DP * dp).toInt()
+            // Inset from the box's edges and from the rows beside it, as a menu's chosen row.
+            val side = (CHOSEN_INSET_DP * dp).toInt()
+            val gap = (CHOSEN_GAP_DP * dp).toInt()
             background = if (value) InsetDrawable(GradientDrawable().apply {
                 cornerRadius = CHOSEN_CORNER_DP * dp
                 setColor(chosenColor)
-            }, inset, 0, inset, 0) else null
+            }, side, gap, side, gap) else null
         }
 
     init {
@@ -278,6 +279,7 @@ private class CompletionRow(context: Context) : LinearLayout(context) {
         const val BADGE_CORNER_DP = 5f
         const val CHOSEN_CORNER_DP = 6f
         const val CHOSEN_INSET_DP = 4f
+        const val CHOSEN_GAP_DP = 2f
         const val DETAIL_MAX_DP = 150f
     }
 }

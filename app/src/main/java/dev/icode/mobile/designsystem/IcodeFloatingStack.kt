@@ -1,19 +1,16 @@
 package dev.icode.mobile.designsystem
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -105,11 +102,11 @@ internal fun SheetOpen() {
 }
 
 /**
- * The floating stack (§3.8): [content] — the undo pill above the bell, the tool dock below them — in
- * one column at the bottom end, above the highest of [floors] and at least [IcodeSizes.FabClearance]
- * up; gone while a sheet is open or the stack is not [visible]. Its pills ([IcodeDockedPill]) sit
- * flush on the end edge and say nothing in words (owner's requests, 2026-11-04): icons and counts
- * only, so a long name never stretches them.
+ * The floating stack (§3.8): [pills] — the undo pill above the bell, the tool dock below them — at
+ * the bottom end, above the highest of [floors] and at least [IcodeSizes.FabClearance] up; gone while
+ * a sheet is open or the stack is not [visible]. Each pill ([IcodeDockedPill]) sits flush on its edge
+ * and says nothing in words (owner's requests, 2026-11-04): icons and counts only, so a long name
+ * never stretches it. A pill held and dragged moves to either edge, at any height ([FloatingPills]).
  *
  * With [onOutside], a pill is out that a touch anywhere else puts away (the dock's row): that touch
  * does only that, as one outside a menu does.
@@ -118,8 +115,8 @@ internal fun SheetOpen() {
 fun IcodeFloatingStack(
     floors: IcodeFloors,
     visible: Boolean,
+    pills: List<IcodeStackPill>,
     onOutside: (() -> Unit)? = null,
-    content: @Composable ColumnScope.() -> Unit,
 ) {
     var bottom by remember { mutableFloatStateOf(0f) }
     val shown = visible && !floors.sheetOpen
@@ -130,13 +127,9 @@ fun IcodeFloatingStack(
             // On the touch's first contact: a scroll begun outside it puts it away as a tap does.
             Box(Modifier.fillMaxSize().pointerInput(Unit) { awaitEachGesture { awaitFirstDown(requireUnconsumed = false); outside() } })
         }
-        AnimatedVisibility(
-            visible = shown,
-            modifier = Modifier.align(Alignment.BottomEnd).padding(bottom = maxOf(IcodeSizes.FabClearance, above ?: 0.dp)),
-            enter = slideInHorizontally { it } + fadeIn(),
-            exit = slideOutHorizontally { it } + fadeOut(),
-        ) {
-            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2), content = content)
+        // Each pill slides to and from its own edge.
+        AnimatedVisibility(visible = shown, modifier = Modifier.fillMaxSize(), enter = EnterTransition.None, exit = ExitTransition.None) {
+            FloatingPills(pills, floor = maxOf(IcodeSizes.FabClearance, above ?: 0.dp))
         }
     }
 }

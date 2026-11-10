@@ -25,7 +25,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import dev.icode.mobile.data.settings.AndroidWorkspacePreferencesRepository
 import dev.icode.mobile.data.workspace.DocumentAutoSaveCoordinator
-import dev.icode.mobile.designsystem.IcodeFloatingStack
 import dev.icode.mobile.designsystem.IcodeFloors
 import dev.icode.mobile.designsystem.IcodeScreen
 import dev.icode.mobile.designsystem.IcodeSheetHost
@@ -46,7 +45,6 @@ import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.navigation.RouteGroup
 import dev.icode.mobile.navigation.ToolPanelTab
-import dev.icode.mobile.ui.dock.ToolDock
 import dev.icode.mobile.ui.dock.rememberToolDock
 import dev.icode.mobile.ui.editor.CodeEditorSessions
 import dev.icode.mobile.ui.screens.entry.EntryScreenHost
@@ -261,13 +259,7 @@ fun IcodeApp(
                             NavigationHost(navigation) { route -> ScreenHost(screen = route, actions = navigation.actions) }
                             FileAsks(snapshot.explorer, gateway)
                         }
-                        // The undo pill above the bell, the tool dock below them, over every screen but the Notifications page
-                        // (docs/explorer-gaps-plan.md §3.8, docs/dock-navigation-plan.md D6).
-                        IcodeFloatingStack(floors, visible = !pageOpen, onOutside = dock.onOutside) {
-                            UndoPill(undo, snapshot.explorer.history)
-                            NoticeBell(notices, snapshot.notices, onAll = toAll)
-                            ToolDock(dock, navigation)
-                        }
+                        FloatingControls(floors, visible = !pageOpen, undo, notices, onAll = toAll, dock, navigation)
                     }
                 }
             }

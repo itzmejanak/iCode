@@ -226,14 +226,16 @@ Terminal over Editor.
 
 **D6 — The dock.**
 - **Where.** In the floating stack, on the bell's edge, at the **bottom** of the stack, nearest the
-  thumb. The undo pill and the bell stand above it, one step higher than today (40 dp and an 8 dp
-  gap). The dock is always there, so its place never moves, while the undo pill comes and goes.
-  (§8, question 2.)
+  thumb. The undo pill and the bell stand above it, one step higher than before (a pill's height
+  and an 8 dp gap). The dock is always there, so its place never moves, while the undo pill comes and goes.
+  (§8, question 2.) The user can move each pill elsewhere (D11).
 - **Tucked**, as it is by default and again after each switch: only its grip shows in the edge, as
-  the bell's does when tucked. The grip takes the tone of what needs you most (D8).
+  the bell's does when tucked: a 24 dp strip, the pill's 48 dp tall. The grip takes the tone of
+  what needs you most (D8).
 - **Out**, on a tap on the grip or a pull from the edge: one row of the six tools' icons slides out
-  from the edge. Each icon is a 48 dp touch target, in a fixed order, with the nearest to the thumb
-  first (§8, question 3).
+  from the edge. Each icon is 44 dp wide and the pill's height tall, in a fixed order, with the
+  nearest to the thumb first (§8, question 3). A count or a mark on an icon is drawn whole, never
+  cut by the pill's round.
   - The tool on screen has the rail's accent line, and its icon the accent.
   - A tap switches and tucks the dock. A tap on the suggested tool goes where the suggestion is
     (D8): Terminal on its Problems tab, or on the session whose command ended.
@@ -289,6 +291,23 @@ no event.
 **D10 — Restored where it was left** (feature a). This is D5. It also holds across a process
 restart: the model's saver keeps all six histories, the tool order and the app stack.
 
+**D11 — The pills where the user wants them** (owner's request after the first phone check,
+2026-11-10).
+- **By default** the pills stand where they always have: the undo pill, the bell, the dock, at the
+  end edge's foot.
+- **Held** (a long press on what shows of a pill, grip or icon), a pill is picked up: the phone
+  ticks and it lifts. It follows the finger.
+- **Let go**, it goes to the edge nearer the finger, left or right, at the height it was let go.
+  It stays there across restarts, app-wide (`AppearanceSettings.pillPlaces`).
+- Its height is a share of the room between the floor (bars, the keyboard) and the top bar, so a
+  keyboard coming up moves it down with the room. No pill stands over another
+  (`PillPlaces.bottoms`), and every move is animated.
+- On the left edge a pill is the mirror of itself: round on its right, its grip there, and the
+  dock's order from that edge.
+- TalkBack offers "Move … to the left edge" or the right, "Move … up" and "Move … down" on each pill.
+- A tap, a pull and the swipe along the grip are unchanged: a pill is only picked up when held
+  still for a long press.
+
 ## 4. Where the code goes
 
 As built:
@@ -305,6 +324,8 @@ As built:
 | domain, data | `TerminalContract.kt`, `TerminalSessionManager.kt`, `TerminalCommands.kt` | Whether a command runs, per session, from its shell's marks, and how many long ones have ended (§1.4) |
 | domain, data | `AssistantContract.kt`, `AssistantTurns.kt` | A turn's end, and whether its tools changed a file |
 | designsystem | `IcodeDockedPill.kt`, `IcodeFloatingStack.kt`, `IcodeRail.kt`, `IcodeStatus.kt` | The swipe along the grip, TalkBack's actions, the touch outside, a docked action's dot and line, shared with the rail |
+| designsystem | new `IcodeFloatingPills.kt` | Each pill at its place on either edge, held and moved (D11) |
+| domain, data, ui | new `FloatingPills.kt`, `AppearanceStore.kt`, new `ui/FloatingControls.kt` | Where each pill is kept, how pills share an edge, and the stack's three pills (D11) |
 | ui | new `ToolFaces.kt`, `ui/dock/ToolDock.kt` | Each tool's icon; the dock (D6, D9) |
 | ui/terminal | new `TerminalScroll.kt`, `TerminalHost.kt` | The scroll position kept per session (D5) |
 | ui/screens/tools | `AssistantChatView.kt` | The chat position kept per conversation (D5) |
@@ -499,4 +520,17 @@ no duplication; no inconsistency; maintainable and scalable; fix the faults foun
   - A terminal scrolled back, and a chat scrolled up, came back at their ends (§1.3).
   - The finish alert's 30 seconds were compared in two places; `FinishedCommand.long` is the one rule.
   - The rail said "Source control"; every other place says "Source Control".
-- **To check on the phone:** §5's [P] criteria — J1–J3, B5, S2, S3, K1–K6 and E1.
+- **N6 — the owner's first phone check** (2026-11-10, two screenshots):
+  - The Source Control count on the dock, and the lines under its icons, were cut: each action was
+    clipped to a circle, which took the badge's corner and all but the middle of the line. The
+    press now shows in that circle, and what the icon carries is drawn over it, whole; the line
+    stands clear of the pill's edge.
+  - The pills are bigger and easier to open: 48 dp tall, their actions 44 dp wide with 24 dp icons,
+    and a tucked pill shows a 24 dp strip with a longer grip.
+  - D11: each pill can be held and moved to either edge, at any height, and stays there.
+  - The editor's suggestion list drew its chosen row in the accent at 18 %, a dull red on Ember that
+    took the accent letters' contrast and ran into the rows beside it. It is now a quiet lift of the
+    text colour (10 %), inset from the list's edges and from its neighbours, as a menu's chosen row.
+  - Tests: `PillPlacesTest` and a case in `AndroidWorkspacePreferencesRepositoryTest`.
+- **To check on the phone:** §5's [P] criteria — J1–J3, B5, S2, S3, K1–K6 and E1 — and D11: hold a
+  pill, move it to the left edge and up, restart iCode, open the keyboard.

@@ -18,6 +18,9 @@ import dev.icode.mobile.domain.AutoSaveMode
 import dev.icode.mobile.domain.EditorFontFamily
 import dev.icode.mobile.domain.EditorKey
 import dev.icode.mobile.domain.EditorSettings
+import dev.icode.mobile.domain.FloatingPill
+import dev.icode.mobile.domain.PillPlace
+import dev.icode.mobile.domain.PillPlaces
 import dev.icode.mobile.domain.SettingLimits
 import dev.icode.mobile.domain.TerminalSettings
 import dev.icode.mobile.domain.TerminalCursorStyle
@@ -152,6 +155,13 @@ class AndroidWorkspacePreferencesRepository internal constructor(
     override suspend fun setNightTheme(theme: AppTheme) {
         require(AppearanceSettings.canBeNight(theme))
         store.edit { it[AppearanceStore.nightTheme] = theme.name }
+    }
+
+    override suspend fun setPillPlace(pill: FloatingPill, place: PillPlace?) {
+        store.edit { prefs ->
+            val places = PillPlaces.decoded(prefs[AppearanceStore.pillPlaces]).let { if (place == null) it - pill else it + (pill to place) }
+            if (places.isEmpty()) prefs.remove(AppearanceStore.pillPlaces) else prefs[AppearanceStore.pillPlaces] = PillPlaces.encoded(places)
+        }
     }
 
     override suspend fun setEditorFontSize(sizeSp: Int) {
