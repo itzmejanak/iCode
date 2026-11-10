@@ -128,19 +128,6 @@ All notable changes to iCode are documented here. The format follows
   marks, after your own profile), so iCode knows exactly when a command ends.
 
 ### Changed
-- The editor's suggestion list ([docs/editor-completion-plan.md](docs/editor-completion-plan.md)).
-  - Each row shows a badge for its kind (function, class, field, keyword…) in the editor's own
-    colours, the name with the letters you typed highlighted, its parameters after it, and its type
-    at the right.
-  - The list is as tall as its rows. It opens just under the line, or above it near the bottom of
-    the screen, starting under the word you are typing.
-  - Suggestions match as in VS Code: `aw` lists `await` and `AudioWorklet`, not `DataView`, best
-    match first.
-  - The list no longer opens after a space or `;`.
-  - The first row is shown as chosen, since Enter takes it. The key row's Tab takes the chosen row,
-    and its arrows move the choice.
-  - A server's suggestions past its 500th are no longer dropped before filtering, and a suggestion
-    two servers give shows once.
 - One loading behaviour for the whole app ([docs/loading-plan.md](docs/loading-plan.md)). A tap is
   answered at once, even while iCode is still busy with something else: the button or row you tapped
   stops taking taps, keeps its label, and shows a spinner if the work takes longer than a moment
@@ -157,6 +144,19 @@ All notable changes to iCode are documented here. The format follows
   controls.
 - One spinner, one "waiting" line and one progress bar everywhere; a clone whose share Git has not
   given yet shows a moving bar instead of one stuck at zero.
+- The editor's suggestion list ([docs/editor-completion-plan.md](docs/editor-completion-plan.md)).
+  - Each row shows a badge for its kind (function, class, field, keyword…) in the editor's own
+    colours, the name with the letters you typed highlighted, its parameters after it, and its type
+    at the right.
+  - The list is as tall as its rows. It opens just under the line, or above it near the bottom of
+    the screen, starting under the word you are typing.
+  - Suggestions match as in VS Code: `aw` lists `await` and `AudioWorklet`, not `DataView`, best
+    match first.
+  - The list no longer opens after a space or `;`.
+  - The first row is shown as chosen, since Enter takes it. The key row's Tab takes the chosen row,
+    and its arrows move the choice.
+  - A server's suggestions past its 500th are no longer dropped before filtering, and a suggestion
+    two servers give shows once.
 
 ### Fixed
 - The assistant: when a provider error is retried after the model has already done something in
