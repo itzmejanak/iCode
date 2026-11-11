@@ -28,6 +28,8 @@ import androidx.compose.ui.semantics.semantics
 import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodePillButton
 import dev.icode.mobile.designsystem.IcodeSheetOverlay
+import dev.icode.mobile.designsystem.rememberPillsHidden
+import dev.icode.mobile.designsystem.shownFor
 import dev.icode.mobile.domain.notices.Notice
 import dev.icode.mobile.domain.notices.NoticeAction
 import dev.icode.mobile.domain.NoticeIntent
@@ -36,6 +38,7 @@ import dev.icode.mobile.domain.notices.NoticeTone
 import kotlin.math.PI
 import kotlin.math.sin
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 
 /**
  * The bell and the sheet, over every screen (docs/notices-plan.md §2.2–2.3): what last rang the bell,
@@ -55,9 +58,12 @@ internal class NoticeHostState {
     var shown: String? by mutableStateOf(null)
         private set
 
-    /** A notice was told: the bell rings, awake, unless it is kept as done (docs/notices-redesign-plan.md D3). */
-    fun arrived(notice: Notice) {
-        if (!NoticeRules.rings(notice)) return
+    /**
+     * A notice was told: the bell rings, awake, unless it is kept as done (docs/notices-redesign-plan.md
+     * D3) or the Notifications page, open ([pageOpen]), already shows it.
+     */
+    fun arrived(notice: Notice, pageOpen: Boolean) {
+        if (!NoticeRules.rings(notice, pageOpen)) return
         told = notice
         wake()
     }
@@ -86,8 +92,7 @@ internal val LocalNotices = staticCompositionLocalOf<NoticeHostState> { error("N
 
 /**
  * [content] with [state] to open notices in, and the notice [state] shows in its sheet, its actions
- * done by [onAct]. The bell, awake, rests on its time, wherever it is drawn ([NoticeBell]): the time
- * of the most serious tone counted, or of the tone that rang it.
+ * done by [onAct]. The bell itself, and its time awake, are [NoticeBell]'s.
  */
 @Composable
 internal fun NoticeHost(
@@ -101,11 +106,6 @@ internal fun NoticeHost(
     val gateway = LocalICodeGateway.current
     Box(Modifier.fillMaxSize()) {
         CompositionLocalProvider(LocalNotices provides state) { content() }
-        LaunchedEffect(state.wakes) {
-            if (!state.awake) return@LaunchedEffect
-            delay(NoticeRules.bellMillis(NoticeRules.bellTone(notices) ?: state.told?.tone ?: NoticeTone.Info))
-            state.rest()
-        }
         state.shown?.let { id ->
             val notice = notices.firstOrNull { it.id == id }
             // Read once it is opened; gone (deleted, cleared), its sheet goes with it.
@@ -137,19 +137,33 @@ internal fun NoticeHost(
  * the user can move, docs/dock-navigation-plan.md D13): a notice wakes it and rings it once, in the
  * most serious tone counted — or in the tone that rang it — with the count of what needs the user, as
  * the Explorer's Source Control count is drawn; what is kept as done does not ring it (docs/notices-redesign-plan.md
- * D3, D5). TalkBack reads what rang it. On its time it rests, half in its edge and faded, keeping its
- * tone and count, until touched. A tap, while it is awake, opens what rang it; at rest, the one
- * notice that needs the user; otherwise the Notifications page ([onAll]).
+ * D3, D5). TalkBack reads what rang it. On its time, the time of the most serious tone counted or of
+ * the tone that rang it, it rests, half in its edge and faded, keeping its tone and count, until
+ * touched. A notice kept on the page spends its ring and its time where the bell is seen: told under a
+ * sheet, it rings once the sheet closes, and its time counts only while the stack is shown
+ * ([shownFor]); told with the Notifications page open, it does not ring, the page showing it already
+ * ([NoticeRules.rings]). A tap's own confirmation, not kept on the page ([NoticeRules.kept]), rings and spends its time at
+ * once, seen or not, as it means nothing later. A tap, while it is awake, opens what rang it; at rest, the one notice that needs the
+ * user; otherwise the Notifications page ([onAll]).
  */
 @Composable
 internal fun NoticeBell(state: NoticeHostState, notices: List<Notice>, onAll: () -> Unit) {
     val unread = notices.filter(NoticeRules::counted)
     val told = state.told
     val unreadTone = NoticeRules.bellTone(notices)
+    val hidden = rememberPillsHidden()
+    LaunchedEffect(state.wakes) {
+        if (!state.awake) return@LaunchedEffect
+        val millis = NoticeRules.bellMillis(NoticeRules.bellTone(notices) ?: state.told?.tone ?: NoticeTone.Info)
+        // A tap's own answer is for its moment: held, it would wake the bell long after the tap.
+        if (state.told?.let(NoticeRules::kept) == false) delay(millis) else hidden.shownFor(millis)
+        state.rest()
+    }
     // 0 to 1 over one ring; at rest at both ends.
     val ring = remember { Animatable(0f) }
     LaunchedEffect(told) {
         if (told == null) return@LaunchedEffect
+        if (NoticeRules.kept(told)) hidden.first { !it }
         ring.snapTo(0f)
         ring.animateTo(1f, tween(RING_MILLIS, easing = LinearEasing))
         ring.snapTo(0f)

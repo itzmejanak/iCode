@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Apps
 import androidx.compose.material3.Icon
@@ -39,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -59,6 +61,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
@@ -69,7 +72,11 @@ import dev.icode.mobile.domain.PillPlaces
 import dev.icode.mobile.domain.ScreenEdge
 import kotlin.math.max
 import kotlin.math.roundToInt
+import kotlin.time.TimeSource
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * One pill of the floating stack (docs/dock-navigation-plan.md D11, D13): at [place] — null, at the
@@ -98,6 +105,42 @@ val LocalPillIconAtEnd = staticCompositionLocalOf { true }
 /** TalkBack's ways to move the pill drawn here, named for it: to each other edge, and along its own. */
 val LocalPillMoves = compositionLocalOf<(String) -> List<CustomAccessibilityAction>> { { emptyList() } }
 
+/**
+ * The floating stack is hidden ([IcodeFloors.hidesStack]): its pills stay composed, keeping all they
+ * hold, but are not placed, so none is drawn or touched; they say nothing to TalkBack, keep nothing from
+ * the back gesture ([keptFromBackGesture]), and their own Back is off, so Back closes the sheet.
+ */
+val LocalPillsHidden = compositionLocalOf { false }
+
+/** Whether the pills drawn here are hidden ([LocalPillsHidden]), as it changes: what [shownFor] waits on. */
+@Composable
+internal fun rememberPillsHidden(): Flow<Boolean> {
+    val hidden = rememberUpdatedState(LocalPillsHidden.current)
+    return remember { snapshotFlow { hidden.value } }
+}
+
+/**
+ * Returns once the pills have been shown, not hidden, for [millis] in all. Hidden, the time stops, and
+ * what is left of it runs once they are back, so a wake that tells the user something (the bell's, the
+ * undo pill's) and the open dock's time are spent where the user can see them, and end when they
+ * would have, however many sheets came and went.
+ */
+internal suspend fun Flow<Boolean>.shownFor(millis: Long) {
+    var left = millis
+    while (true) {
+        first { hidden -> !hidden }
+        val shownAt = TimeSource.Monotonic.markNow()
+        withTimeoutOrNull(left) { first { hidden -> hidden } } ?: return
+        // Hidden again before the time is up: what was shown is spent, the rest waits for the pills.
+        left -= shownAt.elapsedNow().inWholeMilliseconds
+        if (left <= 0) return
+    }
+}
+
+/** Kept from Android's back gesture, which would otherwise take a touch at the screen's edge: while the pill is shown. */
+@Composable
+internal fun Modifier.keptFromBackGesture(): Modifier = if (LocalPillsHidden.current) this else systemGestureExclusion()
+
 /** Where the stack's layout last stood a pill, for the pill to glide there, and to say where it is. */
 private class Footing {
     var at: IntOffset? = null
@@ -117,7 +160,7 @@ private class Footing {
  * slop picks it up at once — the phone ticks, and it lifts off its edge as its icon in a floating
  * bubble — and it follows the finger anywhere on the screen. Let go, it docks on the edge nearest the
  * finger, left, right, top or bottom, where the finger was along it, and glides there. A tap is the
- * pill's own.
+ * pill's own. Hidden ([LocalPillsHidden]), they are measured but none is placed.
  */
 @Composable
 internal fun AnimatedVisibilityScope.FloatingPills(pills: List<IcodeStackPill>, floor: Dp) {
@@ -129,8 +172,9 @@ internal fun AnimatedVisibilityScope.FloatingPills(pills: List<IcodeStackPill>, 
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val footings = remember { HashMap<Any, Footing>() }
     val laidPlaces = remember { arrayOfNulls<List<PillPlace?>>(1) }
+    val hidden = LocalPillsHidden.current
     Layout(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().then(if (hidden) Modifier.clearAndSetSemantics { } else Modifier),
         content = { pills.forEach { pill -> key(pill.key) { PillSlot(pill, footings.getOrPut(pill.key) { Footing() }) } } },
     ) { measurables, constraints ->
         val placeables = measurables.map { it.measure(constraints.copy(minWidth = 0, minHeight = 0)) }
@@ -147,6 +191,7 @@ internal fun AnimatedVisibilityScope.FloatingPills(pills: List<IcodeStackPill>, 
         val moved = laidPlaces[0] != null && laidPlaces[0] != places
         laidPlaces[0] = places
         layout(width, height) {
+            if (hidden) return@layout
             placeables.forEachIndexed { i, placeable ->
                 val footX = insetPx + spots[i].x
                 val footY = insetPx + spots[i].y

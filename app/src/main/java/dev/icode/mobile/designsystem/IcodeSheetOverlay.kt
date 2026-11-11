@@ -20,7 +20,8 @@ fun Modifier.behindSheet(shown: Boolean): Modifier = if (shown) blur(IcodeSizes.
 
 /**
  * A sheet over the screen it opens from: the screen dimmed — blur it with [behindSheet] — and a tap
- * outside the sheet, or Back, closes it; the floating stack steps aside while it is open. Sheet routes
+ * outside the sheet, or Back, closes it; the floating stack is hidden while it is open, and comes back
+ * as it was ([IcodeFloatingStack]). Sheet routes
  * are drawn this way, and a screen's own sheets that work on what the screen holds (a message's draft)
  * are too.
  */

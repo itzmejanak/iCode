@@ -24,6 +24,13 @@ object NoticeRules {
      */
     fun rings(notice: Notice): Boolean = notice.keep != NoticeKeep.Done
 
+    /**
+     * Rings the bell when told with the Notifications page open or not ([pageOpen]): what [rings] does,
+     * but what the open page keeps ([kept]) is already in its list there, so it does not ring the bell
+     * as well, to ring once the page is left.
+     */
+    fun rings(notice: Notice, pageOpen: Boolean): Boolean = rings(notice) && !(pageOpen && kept(notice))
+
     /** Kept on the page: all but a tap's own confirmation. */
     fun kept(notice: Notice): Boolean = notice.keep != NoticeKeep.Moment
 

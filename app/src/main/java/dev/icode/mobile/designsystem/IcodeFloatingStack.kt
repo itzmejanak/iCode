@@ -26,7 +26,9 @@ import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.RememberObserver
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -53,7 +55,7 @@ import androidx.compose.ui.unit.dp
 /**
  * What the floating stack — the undo pill above the bell — stands clear of (docs/explorer-gaps-plan.md
  * §3.8): the top edges of the + buttons and foot bars on screen, each reported by the design system's
- * own ([floor]), so no screen wires it; and the sheets open over the screen, while it steps aside.
+ * own ([floor]), so no screen wires it; and the sheets open over the screen, which it is hidden under.
  */
 @Stable
 class IcodeFloors {
@@ -64,6 +66,12 @@ class IcodeFloors {
     val highest: Float? get() = tops.values.minOrNull()
 
     val sheetOpen: Boolean get() = sheets.isNotEmpty()
+
+    /**
+     * The stack is hidden while a sheet is open or it is not [visible] (the Notifications page). Hidden,
+     * its pills stay composed, as they were, and come back so ([LocalPillsHidden]).
+     */
+    fun hidesStack(visible: Boolean): Boolean = !visible || sheetOpen
 
     internal fun report(key: Any, top: Float) {
         tops[key] = top
@@ -90,21 +98,38 @@ internal fun Modifier.floor(): Modifier {
     return onGloballyPositioned { floors.report(key, it.boundsInRoot().top) }
 }
 
-/** A sheet is open over the screen while this is composed: the floating stack steps aside. */
+/**
+ * A sheet is open over the screen while this is composed: the floating stack is hidden under it. It
+ * counts from the composition that first draws the sheet, not once that is applied, so the stack,
+ * composed after the screens, is already hidden in the frame the sheet first appears.
+ */
 @Composable
 internal fun SheetOpen() {
     val floors = LocalIcodeFloors.current ?: return
-    DisposableEffect(floors) {
-        val key = Any()
-        floors.sheet(key)
-        onDispose { floors.leave(key) }
+    remember(floors) { SheetMark(floors) }
+}
+
+/** One open sheet among [floors]: from its first composition until it leaves the composition. */
+internal class SheetMark(private val floors: IcodeFloors) : RememberObserver {
+    init {
+        floors.sheet(this)
     }
+
+    override fun onRemembered() = Unit
+
+    override fun onForgotten() = floors.leave(this)
+
+    override fun onAbandoned() = floors.leave(this)
 }
 
 /**
  * The floating stack (§3.8): [pills] — the undo pill above the bell, the tool dock below them — at
- * the bottom end, above the highest of [floors] and at least [IcodeSizes.FabClearance] up; gone while
- * a sheet is open or the stack is not [visible]. Each pill ([IcodePillRow], [IcodeDockedPill]) is its
+ * the bottom end, above the highest of [floors] and at least [IcodeSizes.FabClearance] up; hidden while
+ * a sheet is open or the stack is not [visible] ([IcodeFloors.hidesStack]). Hidden, the pills stay
+ * composed, so each keeps what it holds: at rest or awake, the dock open, where it stands. They are
+ * not drawn, take no touch, say nothing to TalkBack, keep nothing from the back gesture, and their
+ * Back is off ([LocalPillsHidden]); they go at once, never sliding over a sheet, and come back as they
+ * were, with nothing to wake. They slide in from their edges only the first time they are shown. Each pill ([IcodePillRow], [IcodeDockedPill]) is its
  * see-through icons, and says nothing in words (owner's requests, 2026-11-04): icons and counts only,
  * so a long name never stretches it. A pill dragged moves to any edge, anywhere along it ([FloatingPills]).
  *
@@ -119,17 +144,22 @@ fun IcodeFloatingStack(
     onOutside: (() -> Unit)? = null,
 ) {
     var bottom by remember { mutableFloatStateOf(0f) }
-    val shown = visible && !floors.sheetOpen
+    val hidden = floors.hidesStack(visible)
+    // Shown once, the pills stay composed from then on: hiding them is [LocalPillsHidden]'s.
+    var arrived by remember { mutableStateOf(false) }
+    if (!hidden) arrived = true
     Box(Modifier.fillMaxSize().onGloballyPositioned { bottom = it.boundsInRoot().bottom }) {
         val above = floors.highest?.let { with(LocalDensity.current) { (bottom - it).toDp() } + IcodeSpacing.Space2 }
-        if (onOutside != null && shown) {
+        if (onOutside != null && !hidden) {
             val outside by rememberUpdatedState(onOutside)
             // On the touch's first contact: a scroll begun outside it puts it away as a tap does.
             Box(Modifier.fillMaxSize().pointerInput(Unit) { awaitEachGesture { awaitFirstDown(requireUnconsumed = false); outside() } })
         }
-        // Each pill slides to and from its own edge.
-        AnimatedVisibility(visible = shown, modifier = Modifier.fillMaxSize(), enter = EnterTransition.None, exit = ExitTransition.None) {
-            FloatingPills(pills, floor = maxOf(IcodeSizes.FabClearance, above ?: 0.dp))
+        // Each pill slides in from its own edge, the first time.
+        AnimatedVisibility(visible = arrived, modifier = Modifier.fillMaxSize(), enter = EnterTransition.None, exit = ExitTransition.None) {
+            CompositionLocalProvider(LocalPillsHidden provides hidden) {
+                FloatingPills(pills, floor = maxOf(IcodeSizes.FabClearance, above ?: 0.dp))
+            }
         }
     }
 }

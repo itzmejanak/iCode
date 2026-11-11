@@ -24,7 +24,7 @@ class IcodeFloorsTest {
         assertNull(floors.highest)
     }
 
-    @Test fun `it steps aside while any sheet is open`() {
+    @Test fun `a sheet is open until the last open sheet leaves`() {
         val floors = IcodeFloors()
         val sheet = Any()
         val page = Any()
@@ -34,5 +34,62 @@ class IcodeFloorsTest {
         assertTrue(floors.sheetOpen)
         floors.leave(page)
         assertFalse(floors.sheetOpen)
+    }
+
+    @Test fun `the stack is shown while it is visible and no sheet is open`() {
+        val floors = IcodeFloors()
+        assertFalse(floors.hidesStack(visible = true))
+        floors.report(Any(), 2000f)
+        assertFalse(floors.hidesStack(visible = true))
+    }
+
+    @Test fun `the stack is hidden while it is not visible, the Notifications page`() {
+        val floors = IcodeFloors()
+        assertTrue(floors.hidesStack(visible = false))
+    }
+
+    @Test fun `the stack is hidden while a sheet is open and shown again once it closes`() {
+        val floors = IcodeFloors()
+        val sheet = Any()
+        floors.sheet(sheet)
+        assertTrue(floors.hidesStack(visible = true))
+        floors.leave(sheet)
+        assertFalse(floors.hidesStack(visible = true))
+    }
+
+    @Test fun `with sheets over sheets, the stack is shown again only when the last one closes`() {
+        val floors = IcodeFloors()
+        val itemSheet = Any()
+        val confirm = Any()
+        floors.sheet(itemSheet)
+        floors.sheet(confirm)
+        floors.leave(itemSheet)
+        assertTrue(floors.hidesStack(visible = true))
+        floors.leave(confirm)
+        assertFalse(floors.hidesStack(visible = true))
+    }
+
+    @Test fun `a sheet closing on the Notifications page leaves the stack hidden`() {
+        val floors = IcodeFloors()
+        val sheet = Any()
+        floors.sheet(sheet)
+        floors.leave(sheet)
+        assertTrue(floors.hidesStack(visible = false))
+    }
+
+    @Test fun `a sheet counts as open from its first composition, before it is applied`() {
+        val floors = IcodeFloors()
+        val mark = SheetMark(floors)
+        assertTrue(floors.hidesStack(visible = true))
+        mark.onRemembered()
+        assertTrue(floors.hidesStack(visible = true))
+        mark.onForgotten()
+        assertFalse(floors.hidesStack(visible = true))
+    }
+
+    @Test fun `a sheet whose composition is abandoned leaves the stack shown`() {
+        val floors = IcodeFloors()
+        SheetMark(floors).onAbandoned()
+        assertFalse(floors.hidesStack(visible = true))
     }
 }

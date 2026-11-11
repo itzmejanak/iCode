@@ -38,8 +38,11 @@ data class Navigation(
     /** What is on screen: the top of the tool's history, or of the app's pages. */
     val current: Route get() = shown.last().route
 
-    /** A tool's main screen is on screen: where the dock shows (D6). */
-    val onMainScreen: Boolean get() = tool?.let { historyOf(it).size == 1 } ?: false
+    /**
+     * A tool's main screen is on screen: where the dock shows (D6). A sheet route over it (the Branch
+     * selector) is drawn over the main screen, not in its place, so the main screen is still on screen.
+     */
+    val onMainScreen: Boolean get() = tool?.let { historyOf(it).dropLastWhile(Route::sheet).size == 1 } ?: false
 
     /** The tool Back and the quick switch go to (D4, D9). */
     val previousTool: WorkspaceTool? get() = if (inWorkspace) order.getOrNull(order.lastIndex - 1) else null

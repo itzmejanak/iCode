@@ -28,10 +28,11 @@ import dev.icode.mobile.designsystem.PrimaryButton
 import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.pillEnter
 import dev.icode.mobile.designsystem.pillExit
+import dev.icode.mobile.designsystem.rememberPillsHidden
+import dev.icode.mobile.designsystem.shownFor
 import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.files.FileHistoryState
 import dev.icode.mobile.domain.files.FileNews
-import kotlinx.coroutines.delay
 
 /**
  * The undo pill's state, kept over every screen as the bell's is (docs/explorer-gaps-plan.md §3.8):
@@ -83,16 +84,11 @@ internal class UndoPillState(private var seen: Long? = null) {
     }
 }
 
-/** The pill's state, telling each new change of [news]: the pill awake for its time, then at rest. */
+/** The pill's state, telling each new change of [news]: the pill wakes, and [UndoPill] counts its time. */
 @Composable
 internal fun rememberUndoPill(news: FileNews?): UndoPillState {
     val state = rememberSaveable(saver = UndoPillState.Saver) { UndoPillState() }
     LaunchedEffect(news?.id) { if (news != null) state.tell(news) }
-    LaunchedEffect(state.wakes) {
-        if (!state.awake) return@LaunchedEffect
-        delay(FileNews.HOLD_MILLIS)
-        state.rest()
-    }
     return state
 }
 
@@ -100,12 +96,20 @@ internal fun rememberUndoPill(news: FileNews?): UndoPillState {
  * The undo pill in the floating stack, above the bell and drawn as it is (owner's requests,
  * 2026-11-04 and 2026-11-10): one see-through icon — ↶ while a change can be undone, ↷ once only a
  * redo is left. It is there while anything can be undone or redone, awake after a change and resting
- * in its edge on its time. A tap opens its sheet ([UndoSheet]) and changes nothing (owner's choice,
- * 2026-11-11: docs/notices-redesign-plan.md D5). TalkBack reads the change told. The explorer's ⋮ has
- * no Undo or Redo: this is at hand on every screen.
+ * in its edge on its time, which counts only while the stack is shown ([shownFor]): a change made
+ * under a sheet wakes it for its time once the sheet closes, and a sheet opened while it is awake
+ * stops its time, which then runs on from where it stopped. A tap opens its sheet ([UndoSheet])
+ * and changes nothing (owner's choice, 2026-11-11: docs/notices-redesign-plan.md D5). TalkBack reads
+ * the change told. The explorer's ⋮ has no Undo or Redo: this is at hand on every screen.
  */
 @Composable
 internal fun UndoPill(state: UndoPillState, history: FileHistoryState) {
+    val hidden = rememberPillsHidden()
+    LaunchedEffect(state.wakes) {
+        if (!state.awake) return@LaunchedEffect
+        hidden.shownFor(FileNews.HOLD_MILLIS)
+        state.rest()
+    }
     AnimatedVisibility(visible = history.undo != null || history.redo != null, enter = pillEnter(), exit = pillExit()) {
         IcodePillButton(
             "the undo pill",
