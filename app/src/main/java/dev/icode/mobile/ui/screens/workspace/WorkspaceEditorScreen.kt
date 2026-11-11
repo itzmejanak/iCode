@@ -231,6 +231,8 @@ fun WorkspaceEditorScreen(actions: NavigationActions) {
             val close = { changeIndex = null }
             IcodeSheetOverlay(onClose = close) {
                 EditorChangeSheet(
+                    document = document,
+                    base = lineChanges.base,
                     changes = changes,
                     index = shownChange,
                     onRevert = { activeSession?.revert(it, lineChanges.base) },

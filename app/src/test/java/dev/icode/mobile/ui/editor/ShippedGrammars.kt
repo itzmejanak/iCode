@@ -1,6 +1,12 @@
 package dev.icode.mobile.ui.editor
 
+import dev.icode.mobile.domain.syntax.Languages
 import java.io.File
+import org.eclipse.tm4e.core.grammar.IGrammar
+import org.eclipse.tm4e.core.grammar.IStateStack
+import org.eclipse.tm4e.core.registry.IGrammarSource
+import org.eclipse.tm4e.core.registry.IRegistryOptions
+import org.eclipse.tm4e.core.registry.Registry
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -10,21 +16,49 @@ internal object ShippedGrammars {
 
     class Grammar(val scope: String, val scopes: Set<String>, val includes: Set<String>)
 
+    /** The language catalog the editor registers its grammars from. */
+    val catalog: Languages by lazy { Languages.parse(asset(Languages.ASSET).readText()) }
+
+    /** An asset by its path, as the catalog names it. */
+    fun asset(path: String) = File(assets, path)
+
+    /** Each language's scope and its grammar file, in the catalog's order. */
+    val files: Map<String, File> by lazy { catalog.all.associate { it.scope to asset(it.grammar) } }
+
+    fun source(scope: String): IGrammarSource? = files[scope]?.let(IGrammarSource::fromFile)
+
+    /**
+     * A new tm4e registry over the shipped grammars, through tm4e's public API only. Each call is
+     * cold: nothing parsed or compiled yet. On the JVM its regex engine is joni, not Oniguruma.
+     */
+    fun registry(): Registry = Registry(object : IRegistryOptions {
+        override fun getGrammarSource(scopeName: String): IGrammarSource? = source(scopeName)
+    })
+
+    fun load(registry: Registry, scope: String): IGrammar = checkNotNull(registry.loadGrammar(scope)) { "$scope not loaded" }
+
+    /** Each line's tokens as `start:scope scope…`, the line's state carried to the next as the editor does. */
+    fun scopes(grammar: IGrammar, lines: List<String>): List<List<String>> {
+        var state: IStateStack? = null
+        return lines.map { line ->
+            val result = grammar.tokenizeLine(line, state, null)
+            state = result.ruleStack
+            result.tokens.map { "${it.startIndex}:${it.scopes.joinToString(" ")}" }
+        }
+    }
+
     val all: List<Grammar> by lazy {
-        val languages = JSONObject(File(assets, "textmate/languages.json").readText()).getJSONArray("languages")
-        (0 until languages.length()).map { index ->
-            val entry = languages.getJSONObject(index)
-            val file = File(assets, entry.getString("grammar"))
+        files.map { (scope, file) ->
             val text = file.readText()
             if (file.name.endsWith(".json")) {
                 val grammar = JSONObject(text)
                 val body = grammar.keys().asSequence().filter { it != "name" }.map { grammar.get(it) }.toList()
-                Grammar(entry.getString("scopeName"), body.flatMap(::names).toSet(), body.flatMap(::includes).toSet())
+                Grammar(scope, body.flatMap(::names).toSet(), body.flatMap(::includes).toSet())
             } else {
                 // A plist: the grammar's own title is the first <key>name</key>, not a scope.
                 val names = PLIST_NAME.findAll(text).map { it.groupValues[2] }.drop(1).flatMap(::words).toSet()
                 val includes = PLIST_INCLUDE.findAll(text).map { it.groupValues[1] }.mapNotNull(::external).toSet()
-                Grammar(entry.getString("scopeName"), names, includes)
+                Grammar(scope, names, includes)
             }
         }
     }

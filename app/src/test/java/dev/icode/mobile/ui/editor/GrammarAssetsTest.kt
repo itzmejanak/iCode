@@ -1,7 +1,6 @@
 package dev.icode.mobile.ui.editor
 
 import dev.icode.mobile.domain.FileTypes
-import java.io.File
 import org.eclipse.tm4e.languageconfiguration.internal.model.LanguageConfiguration
 import org.json.JSONArray
 import org.json.JSONObject
@@ -15,16 +14,16 @@ class GrammarAssetsTest {
     /**
      * A grammar that pulls in one the APK does not ship loses whatever that one
      * colours — YAML shipped without its YAML 1.2 grammar was plain for that
-     * reason. So each include is either shipped or a language named here as not
-     * shipped, and this list is exactly those (a stale name fails too).
+     * reason. So each include is either shipped or a scope named here, with the
+     * reason it is not shipped, and this list is exactly those (a stale name fails too).
      */
     @Test fun `every grammar a grammar pulls in is shipped, or named as not shipped`() {
         val missing = ShippedGrammars.all.flatMap { it.includes }.filter { it !in shipped }.toSet()
-        assertEquals(NOT_SHIPPED, missing.toSortedSet())
+        assertEquals(NOT_SHIPPED.keys, missing.toSortedSet())
     }
 
     @Test fun `every shipped grammar is opened by a file type or pulled in by another`() {
-        val opened = FileTypes.rules.mapNotNull { it.type.grammar }.toSet()
+        val opened = FileTypes.rules.mapNotNull { it.type.language }.mapNotNull { ShippedGrammars.catalog.byId(it)?.scope }.toSet()
         val included = ShippedGrammars.all.flatMap { it.includes }.toSet()
         assertEquals(emptySet<String>(), shipped - opened - included)
     }
@@ -35,11 +34,24 @@ class GrammarAssetsTest {
      * editor's analysis fail for YAML and for Markdown, which embeds it.
      */
     @Test fun `every capture is a rule the editor's engine can read`() {
-        val languages = JSONObject(File("src/main/assets/textmate/languages.json").readText()).getJSONArray("languages")
-        val notRules = (0 until languages.length()).map { File("src/main/assets", languages.getJSONObject(it).getString("grammar")) }
+        val notRules = ShippedGrammars.files.values
             .filter { it.name.endsWith(".json") }
             .flatMap { file -> captureEntries(JSONObject(file.readText())).filter { it.second !is JSONObject }.map { "${file.name} ${it.first}" } }
         assertEquals(emptyList<String>(), notRules)
+    }
+
+    /**
+     * Each language loads, with what it includes, and tokenizes in tm4e (on the JVM, with joni): a grammar
+     * the engine cannot read throws here, as Racket's did with a repository entry that was a list. About
+     * 7 s for every language, each in a cold registry.
+     */
+    @Test fun `every shipped grammar loads and tokenizes`() {
+        val lines = listOf("a = \"b\" // c # d", "<x y='z'>1.5</x>", "fun f(x) { return 2 }")
+        val failed = ShippedGrammars.catalog.all.mapNotNull { language ->
+            runCatching { ShippedGrammars.scopes(ShippedGrammars.load(ShippedGrammars.registry(), language.scope), lines) }
+                .exceptionOrNull()?.let { "${language.id}: $it" }
+        }
+        assertEquals(emptyList<String>(), failed)
     }
 
     /** VS Code's configuration files are JSON with comments and trailing commas; strings are left whole. */
@@ -78,10 +90,9 @@ class GrammarAssetsTest {
 
     /** Each language's brackets, comments and indent rules, read by the parser the editor itself uses. */
     @Test fun `every language configuration loads in the editor's own parser`() {
-        val languages = JSONObject(File("src/main/assets/textmate/languages.json").readText()).getJSONArray("languages")
-        val configurations = (0 until languages.length()).map { languages.getJSONObject(it) }
-            .filter { it.has("languageConfiguration") }
-            .map { it.getString("name") to File("src/main/assets", it.getString("languageConfiguration")) }
+        val configurations = ShippedGrammars.catalog.all.mapNotNull { language ->
+            language.configuration?.let { language.id to ShippedGrammars.asset(it) }
+        }
         assertTrue(configurations.size > 30)
         // What the file declares must come back from the parser: a field it cannot read is dropped with only a log line.
         val unreadable = configurations.filter { (_, file) ->
@@ -97,15 +108,63 @@ class GrammarAssetsTest {
     }
 
     private companion object {
-        /** Languages other grammars can embed (a Markdown fence, an assembly block in C) that iCode does not ship. */
-        val NOT_SHIPPED = sortedSetOf(
-            "source.arm", "source.asm", "source.asp.vb.net", "source.clojure", "source.coffee",
-            "source.elixir", "source.erlang", "source.fsharp", "source.glsl", "source.graphql",
-            "source.html", "source.js.jquery", "source.js.regexp", "source.json.comments", "source.julia",
-            "source.objc", "source.perl", "source.perl.6", "source.powershell", "source.r",
-            "source.regexp.python", "source.scala", "source.x86", "source.x86_64", "text.bibtex",
-            "text.haml", "text.html.derivative", "text.html.handlebars", "text.html.javadoc", "text.html.php.blade",
-            "text.log", "text.pug", "text.slim", "text.tex.latex",
+        /** A name another grammar uses where the shipped grammar of that language has another scope. */
+        const val ALIAS = "another name for a shipped grammar's scope"
+
+        /** Embedded only, and declared by no grammar in VS Code 307b60e7, Shiki 8f1828eb or the upstreams shipped. */
+        const val NONE = "no grammar in VS Code or Shiki has this scope"
+
+        /**
+         * Scopes other grammars include (a fence, an assembly block in C, a template's script) that iCode
+         * does not ship, each with why; their text keeps its enclosing colour. Writing them is
+         * tools/import-grammars.py's to decide, not a hand edit to the grammars (docs/editor-grammar-provenance.md).
+         */
+        val NOT_SHIPPED = sortedMapOf(
+            "source.agda" to "$NONE (Agda in Typst)",
+            "source.arm" to "$NONE (inline assembly in C and C++)",
+            "source.asm" to "$NONE (inline assembly in C, C++ and Nim; Shiki's assembly is source.asm.x86_64)",
+            "source.asy" to "$NONE (Asymptote in LaTeX)",
+            "source.asymptote" to "$NONE (Asymptote in LaTeX)",
+            "source.c++" to "$ALIAS: source.cpp (in Crystal and MDX)",
+            "source.css.sass" to "$ALIAS: source.sass (in Vue Vine)",
+            "source.dosbatch" to "$ALIAS: source.batchfile (in Org)",
+            "source.dts" to "$NONE (device trees in reStructuredText)",
+            "source.fs" to "$ALIAS: source.fsharp (in Org)",
+            "source.gfm" to "$ALIAS: text.html.markdown (in MDX)",
+            "source.gitconfig" to "$NONE (in MDX; .gitconfig files are opened as properties, source.ini)",
+            "source.html" to "$ALIAS: text.html.basic (in SassDoc)",
+            "source.jisonlex" to "$NONE (Jison's lexer section)",
+            "source.js.jquery" to "$NONE (in Ruby and Crystal heredocs)",
+            "source.kconfig" to "$NONE (in reStructuredText)",
+            "source.lean4.markdown" to "$NONE (Markdown in Lean doc comments)",
+            "source.less" to "$ALIAS: source.css.less (in Pug)",
+            "source.lisp" to "$ALIAS: source.commonlisp (in Org)",
+            "source.openesql" to "$NONE (embedded SQL in COBOL)",
+            "source.postcss" to "$ALIAS: source.css.postcss (in Vue)",
+            "source.postscript" to "$NONE (in Perl heredocs)",
+            "source.pug" to "$ALIAS: text.pug (in Org)",
+            "source.raku" to "$ALIAS: source.perl.6 (in MDX)",
+            "source.regexp" to "$NONE (regular expressions in AWK)",
+            "source.smarty" to "$NONE (in Smarty templates)",
+            "source.scss" to "$ALIAS: source.css.scss (in Haml)",
+            "source.srs" to "$NONE (in Turtle)",
+            "source.syntax.regexp.tmLanguage" to "$NONE (regular expressions in VS Code snippets)",
+            "source.twig" to "$ALIAS: text.html.twig (in AsciiDoc and LaTeX's Markdown)",
+            "source.vbnet" to "$ALIAS: source.asp.vb.net (in MDX)",
+            "source.vue" to "$ALIAS: text.html.vue (in Vue's HTML and Vue Vine)",
+            "source.x86" to "$NONE (inline assembly in C and C++)",
+            "source.x86_64" to "$NONE (inline assembly in C and C++)",
+            "source.yang" to "$NONE (YANG in AsciiDoc and LaTeX's Markdown)",
+            "text.cfml.basic" to "$NONE (CFML tags in ColdFusion's HTML)",
+            "text.elixir" to "$NONE (EEx templates in Elixir)",
+            "text.html.asciidoc" to "$ALIAS: text.asciidoc (in MDX)",
+            "text.html.javadoc" to "$NONE (Javadoc in Groovy, Genie, Nextflow and Vala)",
+            "text.html.markdown.source.gfm.mson" to "$NONE (MSON data structures in API Blueprint)",
+            "text.json" to "$ALIAS: source.json (in Hurl)",
+            "text.md" to "$ALIAS: text.html.markdown (in MDX)",
+            "text.plain" to "$NONE (plain text in Haml)",
+            "text.python.console" to "$NONE (Python sessions in MDX)",
+            "text.xml.svg" to "$ALIAS: text.xml (in MDX)",
         )
     }
 }

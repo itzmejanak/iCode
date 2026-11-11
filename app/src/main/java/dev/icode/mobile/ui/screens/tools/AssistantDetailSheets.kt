@@ -247,6 +247,7 @@ private fun StepPage(
             approval != null -> {
                 // A command's whole line is its Command already.
                 approval.detail.takeIf { it != command }?.let { StepText("What it will do", it) }
+                approval.code.forEach { StepCode(step, it) }
                 approval.reach?.let { reach ->
                     StepSection("Reaches") { Text(reach.paths.joinToString("\n"), style = IcodeType.MonoSmall) }
                 }
@@ -258,7 +259,7 @@ private fun StepPage(
                 command = command ?: step.call.summary, showCommand = showCommand,
             )
             output != null && printed != null -> StepReplay(printed, output)
-            output != null -> StepText("Output", output)
+            output != null -> StepOutput(step, output)
             else -> Hint(
                 when (step.status) {
                     AssistantStepStatus.Running -> "Running…"

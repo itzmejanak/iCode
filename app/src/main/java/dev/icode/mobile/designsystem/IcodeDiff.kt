@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 
 /** Line classification for inline and conflict diffs. */
@@ -35,11 +36,11 @@ fun DiffKind.tint(): Color = when (this) {
     DiffKind.ConflictIncoming -> IcodeColors.Blue
 }
 
-/** Diff line with dual line numbers and content tinted by kind. */
+/** Diff line with dual line numbers on its kind's background; [content]'s parts with no colour of their own take [contentColor]. */
 @Composable
 fun DiffRow(
     numbers: String,
-    content: String,
+    content: AnnotatedString,
     kind: DiffKind,
     modifier: Modifier = Modifier,
     contentColor: Color = kind.tint(),

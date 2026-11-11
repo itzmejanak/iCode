@@ -63,6 +63,8 @@ android {
     // relies on a log call throwing (GrammarAssetsTest checks what the parser returns).
     testOptions {
         unitTests.isReturnDefaultValues = true
+        // SyntaxBenchmark runs only when asked: -Picode.benchmark=true (docs/syntax-highlighting-plan.md §3.7).
+        unitTests.all { it.systemProperty("icode.benchmark", providers.gradleProperty("icode.benchmark").getOrElse("false")) }
     }
 
     // EditorColours runs on the JVM and on the phone (native Oniguruma): one source for both.
@@ -280,9 +282,55 @@ abstract class CheckPageAlignment : DefaultTask() {
     }
 }
 
+/**
+ * The file types each language opens, from the language catalog (assets/textmate/catalog.json, written by
+ * tools/import-grammars.py) as a Kotlin table for domain/FileTypes.kt, so a language is declared once, in
+ * the catalog, and FileTypes answers at once, with no asset to read first (docs/syntax-highlighting-plan.md
+ * §4.1). Each "files" entry: type (the language's id when absent), family, extensions, names, prefixes,
+ * firstLine.
+ */
+abstract class GenerateCatalogFileTypes : DefaultTask() {
+    @get:InputFile
+    abstract val catalog: RegularFileProperty
+
+    @get:OutputDirectory
+    abstract val output: DirectoryProperty
+
+    @TaskAction
+    fun generate() {
+        @Suppress("UNCHECKED_CAST")
+        val languages = (groovy.json.JsonSlurper().parse(catalog.get().asFile) as Map<String, Any?>)["languages"] as List<Map<String, Any?>>
+        fun literal(text: String?) = text?.let {
+            "\"" + it.replace("\\", "\\\\").replace("\"", "\\\"").replace("$", "\\$") + "\""
+        } ?: "null"
+        fun words(entry: Map<String, Any?>, key: String) = literal((entry[key] as List<*>?).orEmpty().joinToString(" "))
+        val rows = languages.flatMap { language ->
+            @Suppress("UNCHECKED_CAST")
+            (language["files"] as List<Map<String, Any?>>?).orEmpty().map { entry ->
+                val family = (entry["family"] as String).replaceFirstChar(Char::titlecase)
+                "    FileTypes.Declared(${literal((entry["type"] ?: language["id"]) as String)}, FileFamily.$family, " +
+                    "${literal(language["id"] as String)}, ${words(entry, "extensions")}, ${words(entry, "names")}, " +
+                    "${words(entry, "prefixes")}, ${literal(entry["firstLine"] as String?)}),"
+            }
+        }
+        val file = output.get().asFile.resolve("dev/icode/mobile/domain/CatalogFileTypes.kt")
+        file.parentFile.mkdirs()
+        file.writeText(
+            "// Generated from src/main/assets/textmate/catalog.json by app/build.gradle.kts (GenerateCatalogFileTypes). Do not edit.\n" +
+                "package dev.icode.mobile.domain\n\n" +
+                "/** Every file type the language catalog declares, in its order. */\n" +
+                "internal val catalogFileTypes: List<FileTypes.Declared> = listOf(\n" + rows.joinToString("\n") + "\n)\n",
+        )
+    }
+}
+
 androidComponents {
     onVariants { variant ->
         val name = variant.name.replaceFirstChar(Char::titlecase)
+        val fileTypes = tasks.register<GenerateCatalogFileTypes>("generate${name}CatalogFileTypes") {
+            catalog.set(layout.projectDirectory.file("src/main/assets/textmate/catalog.json"))
+        }
+        variant.sources.java?.addGeneratedSourceDirectory(fileTypes, GenerateCatalogFileTypes::output)
         val check = tasks.register<CheckPageAlignment>("check${name}PageAlignment") {
             nativeLibs.set(layout.buildDirectory.dir("intermediates/merged_native_libs/${variant.name}/merge${name}NativeLibs/out/lib"))
             abis.set(android.defaultConfig.ndk.abiFilters.toList())

@@ -7,7 +7,6 @@ import android.util.Log
 import android.util.TypedValue
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.toArgb
 import androidx.core.content.res.ResourcesCompat
@@ -17,7 +16,6 @@ import dev.icode.mobile.domain.EditorFontFamily
 import dev.icode.mobile.domain.EditorKey
 import dev.icode.mobile.domain.EditorSettings
 import dev.icode.mobile.domain.EditorTextRules
-import dev.icode.mobile.domain.FileTypes
 import dev.icode.mobile.domain.GitDiffHunk
 import dev.icode.mobile.domain.IndentType
 import dev.icode.mobile.domain.LineDiff
@@ -25,30 +23,29 @@ import dev.icode.mobile.domain.LineEnding
 import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.domain.SettingLimits
 import dev.icode.mobile.domain.WorkspacePreferences
+import dev.icode.mobile.ui.syntax.PaletteColorScheme
+import dev.icode.mobile.ui.syntax.SyntaxTheme
 import io.github.rosemoe.sora.event.ClickEvent
 import io.github.rosemoe.sora.event.ContentChangeEvent
 import io.github.rosemoe.sora.event.EditorMotionEvent
 import io.github.rosemoe.sora.lang.EmptyLanguage
 import io.github.rosemoe.sora.langs.textmate.TextMateLanguage
-import io.github.rosemoe.sora.langs.textmate.registry.ThemeRegistry
 import io.github.rosemoe.sora.text.LineSeparator
 import io.github.rosemoe.sora.widget.SelectionMovement
 
 /** One view/content/undo history shared by the Editor and Find routes. */
 class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePalette.Dark) {
     internal val editor = IcodeCodeEditor(context)
-    var coloringError: String? by mutableStateOf(null)
-        private set
+    /** Why the document is not coloured, said under the editor (EditorSyntax). */
+    val coloringError: String? get() = syntax.note
 
     private var location: String? = null
-    private var scope: String? = null
     private var acceptedText: String = ""
     private var pendingLocalText: String? = null
     private var pendingReveal: Pair<Int, Int>? = null
     private var onTextChanged: (String) -> Unit = {}
     private val plainTextLanguage = ConfigurablePlainTextLanguage()
-    /** The file's grammar while it has one: its indentation follows the settings. */
-    private var textMate: TextMateLanguage? = null
+    private val syntax = EditorSyntax(editor, plainTextLanguage, ::indent)
     /** Text the backend already holds — the disk's, the assistant's, a restored draft — is going in: not the user's typing. */
     private var applyingOutside = false
     /** A tap on a changed line's gutter: which change; null leaves the gutter to Sora. */
@@ -101,7 +98,7 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
             acceptedText = document.text
             pendingLocalText = null
             editor.setText(document.text)
-            applyLanguage(document)
+            syntax.apply(document)
         } else {
             // The editor's own typing come back, or nothing new: its text is not copied at every keystroke.
             val caughtUp = document.text === pendingLocalText || (pendingLocalText == null && document.text === acceptedText)
@@ -115,7 +112,7 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
                 document.text != acceptedText -> {
                     acceptedText = document.text
                     applyOutside(viewText, document.text)
-                    applyLanguage(document)
+                    syntax.apply(document)
                 }
             }
         }
@@ -223,67 +220,30 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
         preferences = next
         editor.setTabWidth(next.effectiveIndentSize)
         plainTextLanguage.tabs = next.effectiveIndentType == IndentType.Tabs
-        textMate?.apply {
-            setTabSize(next.effectiveIndentSize)
-            useTab(next.effectiveIndentType == IndentType.Tabs)
-        }
+        syntax.textMate?.let(::indent)
+    }
+
+    /** A grammar's indentation, as the settings have it. */
+    private fun indent(language: TextMateLanguage) {
+        language.setTabSize(preferences.effectiveIndentSize)
+        language.useTab(preferences.effectiveIndentType == IndentType.Tabs)
     }
 
     /** Recolor the native view in place; never replace its text or history. */
     fun applyPalette(next: IcodePalette) {
         if (appliedPalette == next) return
         editor.markerColors = MarkerColors(next.green.toArgb(), next.blue.toArgb(), next.error.toArgb())
-        coloringError = runCatching {
-            TextMateAssets.setTheme(next)
-            editor.colorScheme = PaletteColorScheme(ThemeRegistry.getInstance(), next)
+        val failure = runCatching {
+            SyntaxTheme.use(next)
+            editor.colorScheme = PaletteColorScheme(next, editorColors(next))
             appliedPalette = next
-            null
-        }.getOrElse { error ->
-            Log.e("iCodeEditor", "TextMate theme setup failed", error)
-            "Syntax coloring is unavailable: ${error.message ?: error.javaClass.simpleName}"
-        }
+        }.exceptionOrNull()
+        failure?.let { Log.e("iCodeEditor", "TextMate theme setup failed", it) }
+        syntax.themeFailed(failure)
     }
-
-    /** By the file's name, or for a script without an extension, its `#!` line (read up to its end, at most 256 characters). */
-    private fun applyLanguage(document: OpenDocument) {
-        val name = document.name
-        val nextScope = FileTypes.of(name, document.text.take(FIRST_LINE_CHARS).substringBefore('\n')).grammar
-        if (nextScope == scope) return
-        scope = nextScope
-        if (nextScope == null || coloringError != null) {
-            usePlainText()
-            return
-        }
-        // The text shows at once; its colours follow when the grammars have loaded (TextMateAssets).
-        if (!TextMateAssets.grammarsReady) usePlainText()
-        TextMateAssets.whenGrammarsLoaded(editor.context) { failure ->
-            // Another file, or none, since the request: its own request applies instead.
-            if (scope != nextScope || released) return@whenGrammarsLoaded
-            runCatching {
-                failure?.let { throw it }
-                val grammar = TextMateLanguage.create(nextScope, false).apply {
-                    setTabSize(preferences.effectiveIndentSize)
-                    useTab(preferences.effectiveIndentType == IndentType.Tabs)
-                }
-                editor.setEditorLanguage(FileLineBreaksLanguage(grammar) { editor.separator })
-                textMate = grammar
-            }.onFailure { error ->
-                Log.e("iCodeEditor", "Grammar load failed for $name", error)
-                coloringError = "Syntax coloring is unavailable for $name"
-                usePlainText()
-            }
-        }
-    }
-
-    private fun usePlainText() {
-        textMate = null
-        editor.setEditorLanguage(plainTextLanguage)
-    }
-
-    private var released = false
 
     fun release() {
-        released = true
+        syntax.release()
         editor.release()
     }
 }
@@ -292,9 +252,6 @@ private class ConfigurablePlainTextLanguage : EmptyLanguage() {
     var tabs: Boolean = false
     override fun useTab(): Boolean = tabs
 }
-
-/** A `#!` line longer than this is not one a script would start with. */
-private const val FIRST_LINE_CHARS = 256
 
 /** Where Sora reports a tap in the gutter: the line numbers, the marker lane beside them, the divider. */
 private val GUTTER = setOf(EditorMotionEvent.REGION_LINE_NUMBER, EditorMotionEvent.REGION_DIVIDER_MARGIN, EditorMotionEvent.REGION_DIVIDER)

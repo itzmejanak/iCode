@@ -6,6 +6,10 @@ import dev.icode.mobile.designsystem.SyntaxRole
 import dev.icode.mobile.designsystem.everyPalette
 import dev.icode.mobile.designsystem.syntaxColor
 import dev.icode.mobile.domain.AccentColorRules
+import dev.icode.mobile.ui.syntax.DEFAULT_COLOR_ID
+import dev.icode.mobile.ui.syntax.DEFAULT_COLOR_SENTINEL
+import dev.icode.mobile.ui.syntax.editorTheme
+import dev.icode.mobile.ui.syntax.themeName
 import io.github.rosemoe.sora.widget.schemes.EditorColorScheme
 import io.github.rosemoe.sora.langs.textmate.registry.model.ThemeModel
 import org.eclipse.tm4e.core.registry.IThemeSource

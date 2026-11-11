@@ -5,6 +5,8 @@ import dev.icode.mobile.designsystem.SyntaxRole
 import dev.icode.mobile.designsystem.everyPalette
 import dev.icode.mobile.designsystem.syntaxColor
 import dev.icode.mobile.domain.FileTypes
+import dev.icode.mobile.domain.syntax.Languages
+import dev.icode.mobile.ui.syntax.editorTheme
 import org.eclipse.tm4e.core.grammar.IGrammar
 import org.eclipse.tm4e.core.grammar.IStateStack
 import org.eclipse.tm4e.core.internal.grammar.tokenattrs.EncodedTokenAttributes
@@ -29,15 +31,16 @@ internal object EditorColours {
 
     class Sample(val file: String, val lines: List<String>, val expect: List<Expect>)
 
-    /** Every token that is not drawn in its role's colour and style, as a readable line each. */
-    fun wrong(grammars: (scopeName: String) -> IGrammarSource?, oniguruma: Boolean): List<String> =
+    /** Every token that is not drawn in its role's colour and style, as a readable line each; each sample's language from [catalog]. */
+    fun wrong(catalog: Languages, grammars: (scopeName: String) -> IGrammarSource?, oniguruma: Boolean): List<String> =
         everyPalette.flatMap { palette ->
             val registry = Registry(object : IRegistryOptions {
                 override fun getGrammarSource(scopeName: String): IGrammarSource? = grammars(scopeName)
             })
             registry.setTheme(IThemeSource.fromString(IThemeSource.ContentType.JSON, editorTheme(palette).toString()))
             SAMPLES.flatMap { sample ->
-                val grammar = registry.loadGrammar(checkNotNull(FileTypes.of(sample.file).grammar) { sample.file })
+                val language = FileTypes.of(sample.file).language?.let(catalog::byId)
+                val grammar = registry.loadGrammar(checkNotNull(language) { sample.file }.scope)
                     ?: return@flatMap listOf("${sample.file}: grammar not loaded")
                 val tokens = tokenize(grammar, sample.lines)
                 sample.expect.filter { oniguruma || !it.needsOniguruma }.mapNotNull { expect ->

@@ -39,7 +39,7 @@ what is in this repository and `app/build.gradle.kts`. Check each project for it
 | IBM Plex Mono | `app/src/main/resources/licenses/OFL-IBM-Plex-Mono.txt` (OFL-1.1) |
 | Chakra Petch | `app/src/main/resources/licenses/OFL-Chakra-Petch.txt` (OFL-1.1) |
 | KaTeX fonts | `app/src/main/resources/licenses/OFL-KaTeX.txt` (OFL-1.1) |
-| TextMate grammars | `app/src/main/assets/textmate/` (provenance in `docs/editor-grammar-provenance.md`) |
+| TextMate grammars from Sora Editor, VS Code, Shiki's tm-grammars and the languages' upstream repositories (MIT, Apache-2.0, BSD, ISC, MPL-2.0, LGPL, GPL-3.0, Unlicense, TextMate Bundle License) | `app/src/main/assets/textmate/`, imported by `tools/import-grammars.py`; each grammar's source, commit and licence in `docs/editor-grammar-provenance.md` |
 | Material Icon Theme 5.40.0 file and folder icons | `app/src/main/assets/file-icons/`, imported by `tools/import-file-icons.py`; licence `app/src/main/resources/licenses/MIT-Material-Icon-Theme.txt` (MIT) |
 | Theme variant palettes: antigem's themes (GPL-3.0, Santosh Kurmi), and the colours of Catppuccin, Dracula, Nord, Solarized, Rosé Pine, Gruvbox (MIT) and Tokyo Night (Apache-2.0) | `app/src/main/java/dev/icode/mobile/designsystem/palettes/`; sources, commits and notices in `app/src/main/resources/licenses/MIT-Theme-Palettes.txt` |
 

@@ -170,6 +170,31 @@ All notable changes to iCode are documented here. The format follows
   touch or anything new brings it out.
 
 ### Changed
+- Code colouring loads each language when a file first needs it
+  ([docs/syntax-highlighting-plan.md](docs/syntax-highlighting-plan.md), S3). The app no longer parses
+  every grammar at start, so opening a JSON file parses JSON only. A grammar that fails to load turns
+  off colouring for its own language, with a note under the editor naming it; every other language
+  still colours. A file over 2 MiB or 50 000 lines opens plain with the note "Colouring is off for
+  files this large". Each line is coloured up to 10 000 characters and for at most 100 ms, so one
+  minified line no longer holds up the lines after it.
+- Code blocks in chat and in the Markdown preview colour exactly as the editor does, through one
+  shared path (S4). Changing the theme recolours them at once without tokenizing them again, and a
+  block seen before is not tokenized twice. Links in them are now underlined and struck-through text
+  is struck through, as in the editor.
+- Code is coloured everywhere it is shown, as the editor colours it (S5): the diff view, the editor's
+  change sheet, conflict resolution, the assistant's pages for a change it asks to make and for a
+  file it read, and the lines of Find in Files. A line keeps the same colours as in the editor, even
+  inside a block comment or a long string. Diff lines keep their green and red backgrounds and their
+  `+` and `-` markers; their plain text is now in the normal text colour. An assistant change's page
+  shows what it writes under Content, or under Replaces and With for an edit.
+- Many more languages are coloured: 307, up from 42 (S6, part 1). Every text file type the file icons
+  know now opens coloured, from Zig, TOML, Terraform, Nix, Elixir, LaTeX and Svelte to `.dockerignore`,
+  `Procfile` and `requirements.txt`, and code blocks in those languages colour in chat and the Markdown
+  preview. The few left plain (licences, version files, formats with no grammar anywhere) are listed with
+  their reasons in `FileTypeCoverageTest`. The grammars come from VS Code, Shiki and the languages' own
+  repositories, each with its source, commit and licence in
+  [docs/editor-grammar-provenance.md](docs/editor-grammar-provenance.md). Some names now open as VS Code
+  opens them: `tsconfig.json` and `.eslintrc` as JSON with comments, `.log` files as logs.
 - Notifications say what happened and where ([docs/notices-redesign-plan.md](docs/notices-redesign-plan.md)).
   Every notice names its workspace, and its repository, branch, folder or terminal tab where they
   matter, on the Notifications page and in the header of Android's notification. A pull says how
