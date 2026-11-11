@@ -8,7 +8,7 @@ import dev.icode.mobile.designsystem.IcodePalette
 import dev.icode.mobile.designsystem.PaletteKind
 import dev.icode.mobile.designsystem.SyntaxRole
 import dev.icode.mobile.designsystem.syntaxColor
-import dev.icode.mobile.ui.editor.syntaxScopes
+import io.github.rosemoe.sora.langs.textmate.TextMateColorScheme
 import io.github.rosemoe.sora.langs.textmate.registry.ThemeRegistry
 import io.github.rosemoe.sora.langs.textmate.registry.model.ThemeModel
 import org.eclipse.tm4e.core.registry.IThemeSource
@@ -42,6 +42,29 @@ internal object SyntaxTheme {
 }
 
 /**
+ * The editor's colour scheme for [palette]: its code in the current TextMate theme ([SyntaxTheme.use]
+ * first), and the editor's other [colours] (Sora's colour ids to ARGB) over it. Sora applies the theme
+ * again, clearing every colour set on the scheme, when the scheme is attached to an editor and when the
+ * theme changes, so [colours] go on again after each time; set once beforehand, they were silently lost.
+ * Main thread.
+ */
+internal class PaletteColorScheme(val palette: IcodePalette, private val colours: Map<Int, Int>) :
+    TextMateColorScheme(ThemeRegistry.getInstance(), ThemeRegistry.getInstance().currentThemeModel) {
+    init {
+        applyColours()
+    }
+
+    override fun setTheme(themeModel: ThemeModel) {
+        super.setTheme(themeModel)
+        // The super constructor calls this before `colours` is assigned.
+        @Suppress("SENSELESS_COMPARISON")
+        if (colours != null) applyColours()
+    }
+
+    private fun applyColours() = colours.forEach { (id, color) -> setColor(id, color) }
+}
+
+/**
  * The editor's TextMate theme for a palette, made from [syntaxScopes] and the
  * palette's syntax colours: there is no theme file to keep in step. The
  * background and current line are the palette's; the caret, selection,
@@ -52,9 +75,10 @@ internal object SyntaxTheme {
  * text: tm4e numbers the default colour 0, and 0 in a rule means "not set", so
  * a rule drawing plain text (`=` inside `keyword`, `${…}` inside a string)
  * could never win over the broader rule around it. The editor draws colour 0
- * as the palette's text ([DEFAULT_COLOR_ID]).
+ * as the palette's text ([DEFAULT_COLOR_ID]). Each role's colour is [colour]'s, the palette's own
+ * but in tests.
  */
-internal fun editorTheme(palette: IcodePalette): JSONObject {
+internal fun editorTheme(palette: IcodePalette, colour: (SyntaxRole) -> Color = palette::syntaxColor): JSONObject {
     val rules = JSONArray().put(
         JSONObject().put(
             "settings",
@@ -65,7 +89,7 @@ internal fun editorTheme(palette: IcodePalette): JSONObject {
         ),
     )
     syntaxScopes.groupBy({ it.first }, { it.second }).forEach { (role, selectors) ->
-        val settings = JSONObject().put("foreground", hex(palette.syntaxColor(role)))
+        val settings = JSONObject().put("foreground", hex(colour(role)))
         fontStyle(role)?.let { settings.put("fontStyle", it) }
         rules.put(JSONObject().put("scope", selectors.flatten().joinToString(", ")).put("settings", settings))
     }

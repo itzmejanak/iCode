@@ -519,7 +519,7 @@ The minimap is disabled by default on compact screens and remains optional elsew
 
 The **Git change gutter** ([editor-plan.md §3](./editor-plan.md)) marks each line changed against the file's version in Git's index, as VS Code's does: a green bar for added lines, a blue bar for modified ones, a red wedge where lines were deleted, in a lane between the line numbers and the divider. A tap in the gutter of a changed line opens the **change sheet**:
 - "Change 2 of 3" and where it is ("Modified · lines 13–15");
-- its removed lines in red and its added lines in green, numbered as the diff screen numbers them;
+- its removed lines on red and its added lines on green, numbered as the diff screen numbers them, coloured as the file's language: each line as the editor colours it in the whole file, removed ones as in the index version ([syntax-highlighting-plan.md S5](./syntax-highlighting-plan.md));
 - **Revert** and **Stage**, then **Prev** and **Next**, after the up and down arrows (VS Code's own icons for the previous and next change).
 
 While the file has changes, the bottom bar says "3 changes"; a tap opens the sheet at the first change at or after the caret.
@@ -638,7 +638,8 @@ Compact inline diff:
 - removed block followed by added block;
 - clear old/new line labels;
 - next/previous hunk navigation;
-- collapsed unchanged regions.
+- collapsed unchanged regions;
+- code coloured as the file's language on the added and removed backgrounds, each hunk's two sides tokenized whole ([syntax-highlighting-plan.md S5](./syntax-highlighting-plan.md)).
 
 Expanded side-by-side diff:
 
@@ -649,7 +650,7 @@ Expanded side-by-side diff:
 
 ### 16.5 Conflict presentation
 
-Conflict files receive a persistent status strip and distinct markers. Inline actions provide Accept Current, Accept Incoming, Accept Both, and Compare. Manual editing remains available, and Mark Resolved is separate from accepting a block.
+Conflict files receive a persistent status strip and distinct markers. Inline actions provide Accept Current, Accept Incoming, Accept Both, and Compare. Manual editing remains available, and Mark Resolved is separate from accepting a block. Code is coloured as the file's language, each side as the file it would make ([syntax-highlighting-plan.md S5](./syntax-highlighting-plan.md)).
 
 ## 17. Terminal Layout
 

@@ -83,7 +83,7 @@ YAML's configuration is from VS Code 307b60e7 while its grammar is from 337cacaa
 ## Colours (2026-09-29)
 
 No theme file is shipped. The editor builds its TextMate theme for each palette at run time
-(`ui/editor/EditorTheme.kt`) from one scope table (`ui/editor/SyntaxScopes.kt`) and the
+(`ui/syntax/SyntaxTheme.kt`) from one scope table (`ui/syntax/SyntaxScopes.kt`) and the
 palette's syntax colours (`designsystem/SyntaxColors.kt`, values in `IcodeColors.kt`). The
 table's selectors are VS Code's default Dark+ rules — `extensions/theme-defaults/themes/`
 `dark_vs.json` and `dark_plus.json` at the same pinned commit 307b60e7 (MIT) — each assigned to

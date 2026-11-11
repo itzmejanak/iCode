@@ -3,10 +3,10 @@ package dev.icode.mobile.ui.editor
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import dev.icode.mobile.domain.FileTypes
 import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.ui.syntax.SyntaxEngine
 import dev.icode.mobile.ui.syntax.SyntaxLimits
+import dev.icode.mobile.ui.syntax.languageOf
 import io.github.rosemoe.sora.lang.Language
 import io.github.rosemoe.sora.langs.textmate.TextMateLanguage
 
@@ -44,7 +44,7 @@ internal class EditorSyntax(
      * loaded. A file over the file limit ([SyntaxLimits.colours]) or whose grammar failed stays plain.
      */
     fun apply(document: OpenDocument) {
-        val wanted = FileTypes.of(document.name, document.text.take(FIRST_LINE_CHARS).substringBefore('\n')).language
+        val wanted = languageOf(document.name, document.text)
         val large = wanted != null && !SyntaxLimits.colours(document.text)
         val next = wanted.takeUnless { large || themeNote != null }
         note = themeNote ?: if (large) TOO_LARGE else next?.takeIf { SyntaxEngine.failure(it) != null }?.let(::failed)
@@ -78,8 +78,6 @@ internal class EditorSyntax(
     private fun failed(language: String) = "Colouring is off for $language: its grammar could not be loaded"
 
     private companion object {
-        /** A `#!` line longer than this is not one a script would start with. */
-        const val FIRST_LINE_CHARS = 256
         const val TOO_LARGE = "Colouring is off for files this large"
     }
 }

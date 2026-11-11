@@ -26,6 +26,7 @@ import androidx.core.graphics.drawable.toDrawable
 import dev.icode.mobile.designsystem.IcodePalette
 import dev.icode.mobile.designsystem.SyntaxRole
 import dev.icode.mobile.designsystem.syntaxColor
+import dev.icode.mobile.ui.syntax.PaletteColorScheme
 import io.github.rosemoe.sora.lang.completion.CompletionItemKind
 import io.github.rosemoe.sora.widget.component.CompletionLayout
 import io.github.rosemoe.sora.widget.component.EditorAutoCompletion

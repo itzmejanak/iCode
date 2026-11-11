@@ -150,5 +150,24 @@ data class AssistantResult(
     val printed: String? = null,
 )
 
+/** Text a change writes, under [label]: what write_file writes, what edit_file replaces and with what. */
+data class AssistantCode(val label: String, val text: String)
+
+/**
+ * read_file's answer as the model reads it, each line after its number and a tab, written and read in
+ * this one place: a step's page shows the numbers apart from the file's lines, which it colours as the
+ * file is (docs/syntax-highlighting-plan.md S5).
+ */
+object NumberedLines {
+    fun write(start: Int, lines: List<String>): String = lines.mapIndexed { index, line -> "${start + index}\t$line" }.joinToString("\n")
+
+    /** [text]'s lines, each with its number; null for a line with none, such as the note after part of a file. */
+    fun read(text: String): List<Pair<Int?, String>> = text.split('\n').map { line ->
+        val tab = line.indexOf('\t')
+        val number = if (tab > 0) line.substring(0, tab).toIntOrNull() else null
+        if (number != null) number to line.substring(tab + 1) else null to line
+    }
+}
+
 /** A call's command running in a terminal tab: [session] is the tab's ID. */
 data class AssistantTerminal(val callId: String, val session: String)

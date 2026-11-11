@@ -405,3 +405,56 @@ file of that size. S2 chose one data file, `assets/textmate/catalog.json`, read 
   each time an editor opens, since editors no longer share a parsed grammar. Tests:
   `GrammarLoaderTest` (A1, A2), `SyntaxLimitsTest` and `LimitedGrammarTest` (A5). The limits are not
   yet checked on the owner's phone (A8).
+- S4: read-only views have one path, and it works from scopes, not colours. `SyntaxEngine.tokens`
+  tokenizes on the read-only thread, `syntax-tokens`, with that thread's own grammar per language,
+  through tm4e's public `tokenizeLine` (the `LimitedGrammar` wrapper applies the line limits). Each
+  token's scopes go through `SyntaxRoles`, which is built from the one table, `SyntaxScopes` (moved
+  to `ui/syntax/`, beside `SyntaxTheme`, which builds the editor's theme from it), with tm4e's own
+  precedence: the most specific selector wins, parent selectors such as `source.css variable` count
+  only inside those parents, and colour and font style resolve apart. A span is
+  `SyntaxSpan(start, end, style)`, where `SyntaxStyle` holds the role and bold, italic, underline
+  and strikethrough; the plan's form had only bold and italic, but the editor also draws underline
+  and strikethrough, so read-only views now do too. `SyntaxCache` keeps spans by language and text,
+  least recently used dropped first past 1 000 000 characters (2 MB as UTF-16); a block over
+  200 000 characters is not tokenized. `rememberSyntax(language, text)` gives Compose an
+  `AnnotatedString` coloured from the current palette when composed, so a palette change recolours
+  without tokenizing. Markdown fences use it. `textMateRuns`, `CodeRun` and every
+  `org.eclipse.tm4e.core.internal` import in `app/src/main` are gone (G1, G2, G3), and the read-only
+  grammars no longer carry a theme. `PaletteColorScheme` moved to `ui/syntax/SyntaxTheme.kt` and
+  takes the editor's other colours as a map. The backend guard's new rule `tm4e-owner` reports any
+  use of `org.eclipse.tm4e.*` or `io.github.rosemoe.sora.langs.textmate.registry.*` outside
+  `ui/syntax/` in `app/src/main`, and reports none (A6). Sora's `TextMateLanguage` and
+  `TextMateColorScheme`, in `io.github.rosemoe.sora.langs.textmate` itself, are left to the editor,
+  which holds the language `ui/syntax/` gives it. Tests: `SyntaxRolesTest` checks `SyntaxRoles`
+  against tm4e's theme for every scope of every shipped grammar, for each parent selector inside and
+  outside its parents, and character by character for every sample line in `EditorColours` (A4);
+  `SyntaxTokensTest` checks a Kotlin and a Markdown sample's roles, the cache (one tokenizing per
+  text, the size bound) and that every palette colours the same spans with no tokenizing call (A3).
+- S5: code is coloured everywhere it is shown (G4). How a view drawn a line at a time is tokenized:
+  whole texts, never a line alone, so a line keeps the state the lines before it leave (inside a
+  block comment or a raw string), and each line draws its slice of its text's spans
+  (`ui/syntax/SyntaxLines.kt`: `SyntaxLines` slices, `diffSources` and `conflictSources` say which text
+  each line comes from, `rememberSyntaxLines` tokenizes them through `SyntaxEngine.tokens`, and
+  `syntaxString` stays the one colouring function). The editor's change sheet has both whole files,
+  the editor's text and the index version, so each line is coloured as in its whole file: added and
+  unchanged lines from the text, removed ones from the index version. If the hunks no longer match
+  the text (it changed after they were counted), it falls back to the next way. The diff view has only
+  Git's patch, which holds each hunk's lines and no more, so each hunk's two sides (context and added,
+  context and removed) are tokenized whole, each from the grammar's first state: a hunk that starts
+  inside a block comment colours its first lines as code. Reading the whole files for the diff view
+  would mean a second Git read per diff; it is left until that case is seen to matter. Conflict
+  resolution tokenizes the file twice, with every conflict taken as its current side and then as its
+  incoming side: context and current lines are coloured from the first, incoming lines from the
+  second. The assistant's approval for write_file and edit_file now carries the text it writes apart
+  from its summary (`AssistantApproval.code`, from the new `AssistantTool.code`), and its page
+  colours that as the file; read_file's answer is written and read by `NumberedLines` (domain), so the
+  page colours the file's lines and mutes their numbers without the screen parsing tool output. Find
+  in Files colours each matched line alone, since a match has no lines around it. `MonoLine` and
+  `DiffRow` take an `AnnotatedString`, so `designsystem` stays free of `ui/syntax`; diff lines keep
+  their backgrounds and markers, and their plain text takes the normal text colour where the file has
+  a language, the kind's tint where it has none. `languageOf(name, text)` in `ui/syntax` is the one
+  name-and-first-line rule, used by the editor too. Not coloured: the language server's places list
+  (a list row's title, in the proportional face). Tests: `SyntaxLinesTest` checks that every line of a
+  Kotlin diff from whole texts, and every unchanged and added line of a Git patch's hunk, has the spans
+  the whole file gives that line (A4 extended), that stale hunks fall back, that a conflict's sides
+  have the Kotlin roles of the file each makes, and the slicing at `\r` and past the last line.

@@ -7,6 +7,7 @@ import dev.icode.mobile.data.assistant.AssistantFileChanger
 import dev.icode.mobile.data.assistant.AssistantToolException
 import dev.icode.mobile.data.workspace.WorkspaceDocument
 import dev.icode.mobile.data.workspace.WorkspaceFileSource
+import dev.icode.mobile.domain.AssistantCode
 import dev.icode.mobile.domain.AssistantToolKind
 import dev.icode.mobile.domain.AssistantToolName
 import dev.icode.mobile.domain.LineChanges
@@ -84,10 +85,11 @@ internal class WriteFileTool(private val writer: WorkspaceWriter) : AssistantToo
 
     override fun reach(arguments: JSONObject): List<File> = writer.reach(arguments.textOrNull("path"))
 
-    override fun detail(arguments: JSONObject): String {
-        val content = arguments.textOrNull("content").orEmpty()
-        return "${summary(arguments)} (${countOf(content.lines().size, "line")})\n\n${bounded(content, DETAIL_CHARACTERS)}"
-    }
+    override fun detail(arguments: JSONObject): String =
+        "${summary(arguments)} (${countOf(arguments.textOrNull("content").orEmpty().lines().size, "line")})"
+
+    override fun code(arguments: JSONObject): List<AssistantCode> =
+        listOf(AssistantCode("Content", bounded(arguments.textOrNull("content").orEmpty(), DETAIL_CHARACTERS)))
 
     override suspend fun run(arguments: JSONObject): String {
         lastChanges = null
@@ -121,9 +123,10 @@ internal class EditFileTool(private val writer: WorkspaceWriter) : AssistantTool
 
     override fun reach(arguments: JSONObject): List<File> = writer.reach(arguments.textOrNull("path"))
 
-    override fun detail(arguments: JSONObject): String = summary(arguments) +
-        "\n\n− ${bounded(arguments.optString("old_text"), DETAIL_CHARACTERS / 2)}" +
-        "\n\n+ ${bounded(arguments.optString("new_text"), DETAIL_CHARACTERS / 2)}"
+    override fun code(arguments: JSONObject): List<AssistantCode> = listOf(
+        AssistantCode("Replaces", bounded(arguments.optString("old_text"), DETAIL_CHARACTERS / 2)),
+        AssistantCode("With", bounded(arguments.optString("new_text"), DETAIL_CHARACTERS / 2)),
+    )
 
     override suspend fun run(arguments: JSONObject): String {
         lastChanges = null

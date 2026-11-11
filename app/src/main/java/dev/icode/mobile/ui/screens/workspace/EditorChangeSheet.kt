@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ArrowDownward
 import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import dev.icode.mobile.designsystem.IcodeBottomSheet
 import dev.icode.mobile.designsystem.IcodeColors
@@ -18,15 +19,23 @@ import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.TwoColumnActions
 import dev.icode.mobile.domain.GitDiffHunk
 import dev.icode.mobile.domain.LineChangeKind
+import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.domain.kind
 import dev.icode.mobile.ui.GitDiffLineRow
+import dev.icode.mobile.ui.syntax.diffSources
+import dev.icode.mobile.ui.syntax.languageOf
+import dev.icode.mobile.ui.syntax.rememberSyntaxLines
 
 /**
  * One change of the open file against Git's index (docs/editor-plan.md §3.5): its lines, removed
- * then added, and Revert, Stage, and the way to the changes before and after it.
+ * then added, and Revert, Stage, and the way to the changes before and after it. The lines are coloured
+ * as [document]'s language, each as its line in the whole file: added ones in [document]'s text, removed
+ * ones in [base], the index version (docs/syntax-highlighting-plan.md S5).
  */
 @Composable
 internal fun EditorChangeSheet(
+    document: OpenDocument,
+    base: String,
     changes: List<GitDiffHunk>,
     index: Int,
     onRevert: (GitDiffHunk) -> Unit,
@@ -36,6 +45,9 @@ internal fun EditorChangeSheet(
     modifier: Modifier = Modifier,
 ) {
     val change = changes[index]
+    val language = languageOf(document.name, document.text)
+    val sources = remember(changes, base, document.text) { diffSources(changes, base, document.text) }
+    val colouring = rememberSyntaxLines(language, sources.texts)
     IcodeBottomSheet(
         title = "Change ${index + 1} of ${changes.size}",
         onClose = onClose,
@@ -52,7 +64,7 @@ internal fun EditorChangeSheet(
         },
     ) {
         MonoLine(where(change), color = IcodeColors.TextSecondary, style = IcodeType.MonoSmall)
-        change.lines.forEach { GitDiffLineRow(it) }
+        change.lines.forEachIndexed { at, line -> GitDiffLineRow(line, colouring.line(sources.places[index][at], line.text), coloured = language != null) }
     }
 }
 

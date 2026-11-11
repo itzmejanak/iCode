@@ -23,13 +23,13 @@ import dev.icode.mobile.domain.LineEnding
 import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.domain.SettingLimits
 import dev.icode.mobile.domain.WorkspacePreferences
+import dev.icode.mobile.ui.syntax.PaletteColorScheme
 import dev.icode.mobile.ui.syntax.SyntaxTheme
 import io.github.rosemoe.sora.event.ClickEvent
 import io.github.rosemoe.sora.event.ContentChangeEvent
 import io.github.rosemoe.sora.event.EditorMotionEvent
 import io.github.rosemoe.sora.lang.EmptyLanguage
 import io.github.rosemoe.sora.langs.textmate.TextMateLanguage
-import io.github.rosemoe.sora.langs.textmate.registry.ThemeRegistry
 import io.github.rosemoe.sora.text.LineSeparator
 import io.github.rosemoe.sora.widget.SelectionMovement
 
@@ -235,7 +235,7 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
         editor.markerColors = MarkerColors(next.green.toArgb(), next.blue.toArgb(), next.error.toArgb())
         val failure = runCatching {
             SyntaxTheme.use(next)
-            editor.colorScheme = PaletteColorScheme(ThemeRegistry.getInstance(), next)
+            editor.colorScheme = PaletteColorScheme(next, editorColors(next))
             appliedPalette = next
         }.exceptionOrNull()
         failure?.let { Log.e("iCodeEditor", "TextMate theme setup failed", it) }

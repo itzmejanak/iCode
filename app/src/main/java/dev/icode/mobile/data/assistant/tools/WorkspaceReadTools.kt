@@ -9,6 +9,7 @@ import dev.icode.mobile.data.search.WorkspaceSearchEngine
 import dev.icode.mobile.data.workspace.WorkspaceFileSource
 import dev.icode.mobile.domain.AssistantToolKind
 import dev.icode.mobile.domain.AssistantToolName
+import dev.icode.mobile.domain.NumberedLines
 import java.io.File
 import java.io.IOException
 import org.json.JSONObject
@@ -101,10 +102,7 @@ internal class ReadFileTool(
         val start = arguments.intOr("start_line", 1).coerceIn(1, lines.size.coerceAtLeast(1))
         val count = arguments.intOr("line_count", MAX_LINES).coerceIn(1, MAX_LINES)
         val window = lines.drop(start - 1).take(count)
-        val numbered = bounded(
-            window.mapIndexed { index, line -> "${start + index}\t$line" }.joinToString("\n"),
-            MAX_CHARACTERS,
-        )
+        val numbered = bounded(NumberedLines.write(start, window), MAX_CHARACTERS)
         val end = start + window.size - 1
         return if (start == 1 && end >= lines.size) numbered
         else "$numbered\n(lines $start–$end of ${lines.size}; read on with start_line)"

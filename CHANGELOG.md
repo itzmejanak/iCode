@@ -177,6 +177,16 @@ All notable changes to iCode are documented here. The format follows
   still colours. A file over 2 MiB or 50 000 lines opens plain with the note "Colouring is off for
   files this large". Each line is coloured up to 10 000 characters and for at most 100 ms, so one
   minified line no longer holds up the lines after it.
+- Code blocks in chat and in the Markdown preview colour exactly as the editor does, through one
+  shared path (S4). Changing the theme recolours them at once without tokenizing them again, and a
+  block seen before is not tokenized twice. Links in them are now underlined and struck-through text
+  is struck through, as in the editor.
+- Code is coloured everywhere it is shown, as the editor colours it (S5): the diff view, the editor's
+  change sheet, conflict resolution, the assistant's pages for a change it asks to make and for a
+  file it read, and the lines of Find in Files. A line keeps the same colours as in the editor, even
+  inside a block comment or a long string. Diff lines keep their green and red backgrounds and their
+  `+` and `-` markers; their plain text is now in the normal text colour. An assistant change's page
+  shows what it writes under Content, or under Replaces and With for an edit.
 - Notifications say what happened and where ([docs/notices-redesign-plan.md](docs/notices-redesign-plan.md)).
   Every notice names its workspace, and its repository, branch, folder or terminal tab where they
   matter, on the Notifications page and in the header of Android's notification. A pull says how

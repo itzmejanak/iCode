@@ -13,12 +13,12 @@ import io.github.rosemoe.sora.langs.textmate.registry.GrammarRegistry
 import io.github.rosemoe.sora.langs.textmate.registry.ThemeRegistry
 import io.github.rosemoe.sora.langs.textmate.registry.model.DefaultGrammarDefinition
 import io.github.rosemoe.sora.langs.textmate.registry.model.GrammarDefinition
-import io.github.rosemoe.sora.langs.textmate.registry.model.ThemeModel
 import io.github.rosemoe.sora.langs.textmate.registry.provider.AssetsFileResolver
 import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.withContext
 import org.eclipse.tm4e.core.grammar.IGrammar
 import org.eclipse.tm4e.core.registry.IGrammarSource
 
@@ -26,24 +26,25 @@ import org.eclipse.tm4e.core.registry.IGrammarSource
  * The one owner of the TextMate engine (docs/syntax-highlighting-plan.md D2, D4). Nothing is parsed at
  * app start: the catalog is read, and a language's grammar parsed with what it includes, on the one
  * loader thread when a file or block first needs it. Threads cannot share a tm4e grammar (§3.7, S1), so
- * each editor gets an instance of its own ([language]) and the read-only thread has its own
- * ([readOnlyGrammar]). A grammar that fails is its language's alone, logged once ([failure]).
+ * each editor gets an instance of its own ([language]) and the read-only thread has its own, which
+ * [tokens] uses. A grammar that fails is its language's alone, logged once ([failure]).
  */
 internal object SyntaxEngine {
     private const val TAG = "iCodeSyntax"
     private val main = Handler(Looper.getMainLooper())
     private val loader = Executors.newSingleThreadExecutor { Thread(it, "syntax-grammars") }
 
-    /** The read-only views' one tokenizing thread (D6): the grammars [readOnlyGrammar] gives are used there only. */
-    val readOnly: CoroutineDispatcher = Executors.newSingleThreadExecutor { Thread(it, "syntax-tokens") }.asCoroutineDispatcher()
+    /** The read-only views' one tokenizing thread (D6): its grammars and its cache are used there only. */
+    private val readOnly: CoroutineDispatcher = Executors.newSingleThreadExecutor { Thread(it, "syntax-tokens") }.asCoroutineDispatcher()
 
     /** Made on the loader thread at the first request; read from any thread only for [failure]. */
     @Volatile private var grammars: GrammarLoader<GrammarRegistry>? = null
 
     /** The read-only thread's grammar of each language asked for, null for one that failed; [readOnly] only. */
-    private val readOnlyGrammars = mutableMapOf<String, ReadOnly?>()
+    private val readOnlyGrammars = mutableMapOf<String, IGrammar?>()
 
-    private class ReadOnly(val registry: GrammarRegistry, val grammar: IGrammar, var theme: ThemeModel? = null)
+    /** The read-only views' spans; [readOnly] only. */
+    private val cache = SyntaxCache()
 
     /** Why language [id]'s grammar failed to load, or null if it loaded or has not been asked for; any thread. */
     fun failure(id: String): Throwable? = grammars?.failure(id)
@@ -62,24 +63,32 @@ internal object SyntaxEngine {
     }
 
     /**
-     * Catalog language [id]'s grammar for the read-only thread, its colours resolved against [theme]
-     * (made by [SyntaxTheme.of]); null when it could not load. Call on [readOnly] only: it waits for the
-     * loader the first time.
+     * [text]'s spans as catalog language [id] (D5, D6), made on [readOnly] with that thread's own grammar
+     * and kept in its cache; null when [id]'s grammar failed, [text] is past [SyntaxLimits.BLOCK_CHARS],
+     * or tokenizing threw.
      */
-    fun readOnlyGrammar(context: Context, id: String, theme: ThemeModel): IGrammar? {
+    suspend fun tokens(context: Context, id: String, text: String): List<SyntaxSpan>? {
         val app = context.applicationContext
-        val entry = readOnlyGrammars.getOrPut(id) {
-            runCatching {
-                loader.submit(Callable { grammars(app).let { it.load(id) to it.catalog.byId(id)!!.scope } }).get()
-            }.mapCatching { (registry, scope) ->
-                ReadOnly(registry, LimitedGrammar(checkNotNull(registry.findGrammar(scope)) { "$scope did not load" }))
-            }.getOrNull()
-        } ?: return null
-        if (entry.theme !== theme) {
-            entry.registry.setTheme(theme)
-            entry.theme = theme
+        return withContext(readOnly) {
+            cache.tokens(id, text) {
+                runCatching { readOnlyGrammar(app, id)?.let { syntaxSpans(it, text) } }
+                    .onFailure { Log.e(TAG, "Tokenizing $id failed; the block stays plain", it) }
+                    .getOrNull()
+            }
         }
-        return entry.grammar
+    }
+
+    /** Catalog language [id]'s grammar for the read-only thread, null when it could not load. [readOnly] only: it waits for the loader the first time. */
+    private fun readOnlyGrammar(context: Context, id: String): IGrammar? {
+        // Not getOrPut: a language that failed is kept as null, and not asked for again.
+        if (readOnlyGrammars.containsKey(id)) return readOnlyGrammars[id]
+        val grammar: IGrammar? = runCatching {
+            loader.submit(Callable { grammars(context).let { it.load(id) to it.catalog.byId(id)!!.scope } }).get()
+        }.mapCatching { (registry, scope) ->
+            LimitedGrammar(checkNotNull(registry.findGrammar(scope)) { "$scope did not load" })
+        }.getOrNull()
+        readOnlyGrammars[id] = grammar
+        return grammar
     }
 
     /** The loader, made the first time: on the loader thread only. */

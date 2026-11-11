@@ -4,6 +4,7 @@ import dev.icode.mobile.domain.AssistantAnswer
 import dev.icode.mobile.domain.AssistantApproval
 import dev.icode.mobile.domain.AssistantCall
 import dev.icode.mobile.domain.AssistantClarification
+import dev.icode.mobile.domain.AssistantCode
 import dev.icode.mobile.domain.AssistantPause
 import dev.icode.mobile.domain.AssistantQuestion
 import dev.icode.mobile.domain.AssistantReach
@@ -23,11 +24,11 @@ internal class AssistantQuestions(private val page: AssistantPage) {
     private var pause: CompletableDeferred<Unit>? = null
     private var clarification: CompletableDeferred<AssistantReply>? = null
 
-    /** [call] waits for the user's answer; [detail] and [reach] are what its card shows. */
-    suspend fun approve(call: AssistantCall, detail: String, reach: AssistantReach?, always: Boolean = false): AssistantAnswer =
+    /** [call] waits for the user's answer; [detail], [code] and [reach] are what its card and page show. */
+    suspend fun approve(call: AssistantCall, detail: String, code: List<AssistantCode>, reach: AssistantReach?, always: Boolean = false): AssistantAnswer =
         wait(
             hold = { approval = it },
-            show = { it.copy(approval = AssistantApproval(call, detail, reach, always)) },
+            show = { it.copy(approval = AssistantApproval(call, detail, code, reach, always)) },
             hide = { it.copy(approval = null) },
             then = call.summary,
         )

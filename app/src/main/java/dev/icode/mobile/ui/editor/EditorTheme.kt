@@ -4,9 +4,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import dev.icode.mobile.designsystem.IcodePalette
 import dev.icode.mobile.ui.syntax.DEFAULT_COLOR_ID
-import io.github.rosemoe.sora.langs.textmate.TextMateColorScheme
-import io.github.rosemoe.sora.langs.textmate.registry.ThemeRegistry
-import io.github.rosemoe.sora.langs.textmate.registry.model.ThemeModel
 import io.github.rosemoe.sora.widget.schemes.EditorColorScheme
 
 /**
@@ -16,7 +13,7 @@ import io.github.rosemoe.sora.widget.schemes.EditorColorScheme
  * bubble, the selection tool bar, problem underlines, the completion list
  * (EditorCompletionWindow) and a problem's tooltip, and the minimap. The ids
  * Sora keeps for features iCode does not show (signatures, inlay hints) are
- * left alone.
+ * left alone. The editor's PaletteColorScheme sets them over its TextMate theme.
  */
 internal fun editorColors(palette: IcodePalette): Map<Int, Int> = with(palette) {
     val transparent = Color.Transparent
@@ -72,26 +69,4 @@ internal fun editorColors(palette: IcodePalette): Map<Int, Int> = with(palette) 
         EditorColorScheme.MINIMAP_VIEWPORT to textPrimary.copy(alpha = 0.08f),
         EditorColorScheme.MINIMAP_VIEWPORT_BORDER to outline,
     ).mapValues { it.value.toArgb() }
-}
-
-/**
- * The editor's colour scheme for a palette. Sora re-applies the TextMate theme —
- * clearing every colour set on the scheme — when the scheme is attached to an
- * editor and when the theme changes, so the palette's colours go on again after
- * each time; set once beforehand, they were silently lost.
- */
-internal class PaletteColorScheme(registry: ThemeRegistry, val palette: IcodePalette) :
-    TextMateColorScheme(registry, registry.currentThemeModel) {
-    init {
-        applyPaletteColors()
-    }
-
-    override fun setTheme(themeModel: ThemeModel) {
-        super.setTheme(themeModel)
-        // The super constructor calls this before `palette` is assigned.
-        @Suppress("SENSELESS_COMPARISON")
-        if (palette != null) applyPaletteColors()
-    }
-
-    private fun applyPaletteColors() = editorColors(palette).forEach { (id, color) -> setColor(id, color) }
 }

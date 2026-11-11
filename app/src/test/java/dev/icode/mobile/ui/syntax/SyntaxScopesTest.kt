@@ -1,6 +1,7 @@
-package dev.icode.mobile.ui.editor
+package dev.icode.mobile.ui.syntax
 
 import dev.icode.mobile.designsystem.SyntaxRole
+import dev.icode.mobile.ui.editor.ShippedGrammars
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
