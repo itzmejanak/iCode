@@ -72,6 +72,7 @@ import dev.icode.mobile.domain.PillPlaces
 import dev.icode.mobile.domain.ScreenEdge
 import kotlin.math.max
 import kotlin.math.roundToInt
+import kotlin.time.TimeSource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -119,15 +120,20 @@ internal fun rememberPillsHidden(): Flow<Boolean> {
 }
 
 /**
- * Returns once the pills have been shown, not hidden, for [millis] on end. Hidden, the time stops, and
- * it starts again in full once they are back, so a pill's time awake, before it rests or before the
- * dock closes, is all spent where the user can see it.
+ * Returns once the pills have been shown, not hidden, for [millis] in all. Hidden, the time stops, and
+ * what is left of it runs once they are back, so a wake that tells the user something (the bell's, the
+ * undo pill's) and the open dock's time are spent where the user can see them, and end when they
+ * would have, however many sheets came and went.
  */
 internal suspend fun Flow<Boolean>.shownFor(millis: Long) {
+    var left = millis
     while (true) {
         first { hidden -> !hidden }
-        // Hidden again before the time is up: wait for the pills to be back, then start again.
-        withTimeoutOrNull(millis) { first { hidden -> hidden } } ?: return
+        val shownAt = TimeSource.Monotonic.markNow()
+        withTimeoutOrNull(left) { first { hidden -> hidden } } ?: return
+        // Hidden again before the time is up: what was shown is spent, the rest waits for the pills.
+        left -= shownAt.elapsedNow().inWholeMilliseconds
+        if (left <= 0) return
     }
 }
 

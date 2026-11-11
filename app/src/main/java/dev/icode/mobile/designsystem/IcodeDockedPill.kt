@@ -57,6 +57,7 @@ import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 
 /**
  * A floating pill as one see-through button (docs/dock-navigation-plan.md D12–D14): [icon] in [tint]
@@ -66,8 +67,9 @@ import androidx.compose.ui.unit.dp
  *
  * Left alone while not [awake], it rests as the assistant's bubble over other apps does
  * ([IcodeResting]): slowly, it sinks half behind its edge ([LocalPillEdge]) and fades, out of the
- * way of the work; a touch or anything new brings it out at once. Its time to rest counts only while
- * it is shown ([shownFor]), so it never sinks unseen under a sheet. A tap on it at rest is still a tap.
+ * way of the work; a touch or anything new brings it out at once. Its time to rest after a touch runs
+ * whether it is shown or hidden, so a pill whose tap opened a sheet comes back from the sheet at rest;
+ * how long it stays [awake] is its caller's. A tap on it at rest is still a tap.
  * While it is shown it is kept from Android's back gesture, which would otherwise take a touch at the
  * screen's edge ([keptFromBackGesture]).
  *
@@ -92,12 +94,12 @@ fun IcodePillButton(
 ) {
     var touches by remember { mutableIntStateOf(0) }
     var resting by remember { mutableStateOf(false) }
-    val hidden = rememberPillsHidden()
     LaunchedEffect(awake, touches) {
         resting = false
         if (awake) return@LaunchedEffect
-        // Hidden, its time waits: it sinks only where it is seen to.
-        hidden.shownFor(IcodeResting.AFTER_MILLIS)
+        // A plain wait, hidden or not: the touch that opens a sheet is spent there, so the pill
+        // comes back from it at rest. A told wake is held while hidden, by whoever keeps [awake].
+        delay(IcodeResting.AFTER_MILLIS)
         resting = true
     }
     // 0 out, 1 at rest: sunk half its width behind its edge, faded.
@@ -156,7 +158,7 @@ fun IcodePillButton(
  * its icon, which stays under the finger at the row's docked end ([LocalPillIconAtEnd]). That icon
  * tapped closes it again — or, tapped again within a double tap's time of opening it, does
  * [onDoubleTap] — and so does [closeAfterMillis] without a touch while it is shown: hidden
- * ([LocalPillsHidden]) it stays open, and its time starts again when it is back. TalkBack reads it as [description],
+ * ([LocalPillsHidden]) it stays open, and the rest of its time runs once it is back. TalkBack reads it as [description],
  * with Show or Hide, then [actions], then the stack's moves.
  */
 @Composable
@@ -179,7 +181,7 @@ fun IcodeDockedPill(
     val doubleTap = LocalViewConfiguration.current.doubleTapTimeoutMillis
     var openedAt by remember { mutableLongStateOf(0L) }
     var touches by remember { mutableIntStateOf(0) }
-    // Hidden under a sheet, it stays open and its time waits; shown again, its time starts again.
+    // Hidden under a sheet, it stays open and its time waits; shown again, the rest of its time runs.
     val hidden = rememberPillsHidden()
     if (open && closeAfterMillis != null) {
         LaunchedEffect(touches) {

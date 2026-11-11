@@ -214,7 +214,7 @@ fun IcodeApp(
                         }
                         navigation.show(Route.WorkspaceEditor)
                     }
-                    is ICodeEffect.Told -> notices.arrived(effect.notice)
+                    is ICodeEffect.Told -> notices.arrived(effect.notice, pageOpen = navigation.current == Route.Notifications)
                     // A chat shared as its transcript: Android's share sheet, as the terminal's output is.
                     is ICodeEffect.ShareChat -> {
                         val send = Intent(Intent.ACTION_SEND).setType("text/plain")

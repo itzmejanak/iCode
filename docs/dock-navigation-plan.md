@@ -243,7 +243,7 @@ Terminal over Editor.
 - **Hidden** on every page that is not a tool's main screen (D1), while a sheet is open, on the
   Notifications page and outside a workspace. Inside a workspace its place stays kept while it is
   hidden, so the bell and the undo pill never move as pages open and close. Under a sheet it stays
-  as it was, open or closed, its 6 seconds waiting, and Back is the sheet's. That holds for the
+  as it was, open or closed, the rest of its 6 seconds waiting, and Back is the sheet's. That holds for the
   sheet routes over a main screen too (Source Control's Branch selector, Repository selector and
   Commit history): they are drawn over the main screen, so it is still on screen (`onMainScreen`).
 - **With the keyboard up** it stays closed unless tapped, and moves above the keyboard as the bell

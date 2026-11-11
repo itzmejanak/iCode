@@ -97,7 +97,8 @@ internal fun rememberUndoPill(news: FileNews?): UndoPillState {
  * 2026-11-04 and 2026-11-10): one see-through icon — ↶ while a change can be undone, ↷ once only a
  * redo is left. It is there while anything can be undone or redone, awake after a change and resting
  * in its edge on its time, which counts only while the stack is shown ([shownFor]): a change made
- * under a sheet wakes it for its whole time once the sheet closes. A tap opens its sheet ([UndoSheet])
+ * under a sheet wakes it for its time once the sheet closes, and a sheet opened while it is awake
+ * stops its time, which then runs on from where it stopped. A tap opens its sheet ([UndoSheet])
  * and changes nothing (owner's choice, 2026-11-11: docs/notices-redesign-plan.md D5). TalkBack reads
  * the change told. The explorer's ⋮ has no Undo or Redo: this is at hand on every screen.
  */

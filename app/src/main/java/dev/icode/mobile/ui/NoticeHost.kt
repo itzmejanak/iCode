@@ -37,6 +37,7 @@ import dev.icode.mobile.domain.notices.NoticeRules
 import dev.icode.mobile.domain.notices.NoticeTone
 import kotlin.math.PI
 import kotlin.math.sin
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 
 /**
@@ -57,9 +58,12 @@ internal class NoticeHostState {
     var shown: String? by mutableStateOf(null)
         private set
 
-    /** A notice was told: the bell rings, awake, unless it is kept as done (docs/notices-redesign-plan.md D3). */
-    fun arrived(notice: Notice) {
-        if (!NoticeRules.rings(notice)) return
+    /**
+     * A notice was told: the bell rings, awake, unless it is kept as done (docs/notices-redesign-plan.md
+     * D3) or the Notifications page, open ([pageOpen]), already shows it.
+     */
+    fun arrived(notice: Notice, pageOpen: Boolean) {
+        if (!NoticeRules.rings(notice, pageOpen)) return
         told = notice
         wake()
     }
@@ -135,9 +139,11 @@ internal fun NoticeHost(
  * the Explorer's Source Control count is drawn; what is kept as done does not ring it (docs/notices-redesign-plan.md
  * D3, D5). TalkBack reads what rang it. On its time, the time of the most serious tone counted or of
  * the tone that rang it, it rests, half in its edge and faded, keeping its tone and count, until
- * touched. Its ring and its time are spent where it is seen: told while the stack is hidden (under a
- * sheet, on the Notifications page), it rings once it is back, and its time counts from then
- * ([shownFor]). A tap, while it is awake, opens what rang it; at rest, the one notice that needs the
+ * touched. A notice kept on the page spends its ring and its time where the bell is seen: told under a
+ * sheet, it rings once the sheet closes, and its time counts only while the stack is shown
+ * ([shownFor]); told with the Notifications page open, it does not ring, the page showing it already
+ * ([NoticeRules.rings]). A tap's own confirmation, not kept on the page ([NoticeRules.kept]), rings and spends its time at
+ * once, seen or not, as it means nothing later. A tap, while it is awake, opens what rang it; at rest, the one notice that needs the
  * user; otherwise the Notifications page ([onAll]).
  */
 @Composable
@@ -148,14 +154,16 @@ internal fun NoticeBell(state: NoticeHostState, notices: List<Notice>, onAll: ()
     val hidden = rememberPillsHidden()
     LaunchedEffect(state.wakes) {
         if (!state.awake) return@LaunchedEffect
-        hidden.shownFor(NoticeRules.bellMillis(NoticeRules.bellTone(notices) ?: state.told?.tone ?: NoticeTone.Info))
+        val millis = NoticeRules.bellMillis(NoticeRules.bellTone(notices) ?: state.told?.tone ?: NoticeTone.Info)
+        // A tap's own answer is for its moment: held, it would wake the bell long after the tap.
+        if (state.told?.let(NoticeRules::kept) == false) delay(millis) else hidden.shownFor(millis)
         state.rest()
     }
     // 0 to 1 over one ring; at rest at both ends.
     val ring = remember { Animatable(0f) }
     LaunchedEffect(told) {
         if (told == null) return@LaunchedEffect
-        hidden.first { !it }
+        if (NoticeRules.kept(told)) hidden.first { !it }
         ring.snapTo(0f)
         ring.animateTo(1f, tween(RING_MILLIS, easing = LinearEasing))
         ring.snapTo(0f)

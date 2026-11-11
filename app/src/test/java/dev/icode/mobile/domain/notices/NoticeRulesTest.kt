@@ -41,6 +41,16 @@ class NoticeRulesTest {
         }
     }
 
+    @Test fun `with the page open, what it keeps does not ring the bell, and a moment still does`() {
+        listOf(NoticeTone.Problem, NoticeTone.HeadsUp).forEach {
+            assertTrue(NoticeRules.rings(notice(1, it), pageOpen = false))
+            assertFalse(NoticeRules.rings(notice(1, it), pageOpen = true))
+        }
+        val moment = notice(2, NoticeTone.Done, keep = NoticeKeep.Moment)
+        assertTrue(NoticeRules.rings(moment, pageOpen = true))
+        assertFalse(NoticeRules.rings(notice(3, NoticeTone.Done), pageOpen = false))
+    }
+
     @Test fun `problems and heads-ups need the user, the rest are kept as done`() {
         assertEquals(
             listOf(NoticeKeep.NeedsYou, NoticeKeep.NeedsYou, NoticeKeep.Done, NoticeKeep.Done),

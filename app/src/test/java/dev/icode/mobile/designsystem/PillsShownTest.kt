@@ -12,9 +12,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * A pill's time awake counts only while the floating stack is shown ([shownFor]): the bell's and the
- * undo pill's time, a pill's time to rest, the dock's time to close. Real time, so only lower bounds
- * and generous upper ones are asserted.
+ * A told wake counts only while the floating stack is shown ([shownFor]): the bell's and the undo
+ * pill's time, the dock's time to close. Real time, so only lower bounds and generous upper ones are
+ * asserted.
  */
 class PillsShownTest {
     @Test fun `shown throughout, the time is spent once`() = runBlocking {
@@ -31,17 +31,35 @@ class PillsShownTest {
         assertNotNull(withTimeoutOrNull(LONG) { hidden.shownFor(1) })
     }
 
-    @Test fun `hidden part way, the time starts again in full once the pills are back`() = runBlocking {
+    @Test fun `hidden part way, the rest of the time runs once the pills are back`() = runBlocking {
         val hidden = MutableStateFlow(false)
         val start = System.nanoTime()
-        val waited = async { hidden.shownFor(TIME * 2) }
-        delay(TIME)
+        val waited = async { hidden.shownFor(TIME * 4) }
+        delay(TIME * 3)
         hidden.value = true
         delay(TIME)
         hidden.value = false
+        // TIME * 3 shown, TIME hidden, then the TIME left: never the TIME * 4 a plain wait takes.
+        val back = System.nanoTime()
         withTimeout(LONG) { waited.await() }
-        // TIME shown, TIME hidden, then the whole TIME * 2 again: never the TIME * 2 a plain wait takes.
-        assertTrue(elapsed(start) >= TIME * 4)
+        assertTrue(elapsed(start) >= TIME * 5)
+        // Not the whole TIME * 4 again once the pills are back.
+        assertTrue(elapsed(back) < TIME * 3)
+    }
+
+    @Test fun `hidden again and again, the time still ends once it has all been shown`() = runBlocking {
+        val hidden = MutableStateFlow(false)
+        val waited = async { hidden.shownFor(TIME * 3) }
+        repeat(4) {
+            delay(TIME / 2)
+            hidden.value = true
+            delay(TIME / 2)
+            hidden.value = false
+        }
+        // TIME * 2 shown so far; restarting in full would leave TIME * 3 to go, resuming only TIME.
+        val back = System.nanoTime()
+        withTimeout(LONG) { waited.await() }
+        assertTrue(elapsed(back) < TIME * 5 / 2)
     }
 
     private fun elapsed(start: Long) = (System.nanoTime() - start) / 1_000_000
