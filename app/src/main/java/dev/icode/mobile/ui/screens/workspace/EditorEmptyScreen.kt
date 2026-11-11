@@ -8,9 +8,11 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.ManageSearch
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Terminal
 import androidx.compose.material3.Icon
@@ -23,33 +25,41 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import dev.icode.mobile.designsystem.BottomPanelBar
 import dev.icode.mobile.designsystem.EmptyState
 import dev.icode.mobile.designsystem.IcodeBrandMark
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeListRow
-import dev.icode.mobile.designsystem.IcodeNavigationLink
-import dev.icode.mobile.designsystem.IcodeSection
+import dev.icode.mobile.designsystem.IcodeFileRow
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
+import dev.icode.mobile.designsystem.SectionLabel
+import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.RelativeTime
+import dev.icode.mobile.domain.files.FileFolders
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.navigation.ToolPanelTab
-import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.ui.FileTypeIcon
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
+import dev.icode.mobile.ui.parentName
 
-/** Empty editor state with real quick actions and recent files. */
+/**
+ * The editor with no file open (docs/screens-polish-plan.md D2): one list that scrolls above the
+ * Terminal and Problems bar — four ways in as equal tiles, then every file of this workspace opened
+ * lately, as the explorer lists files. The mark and its words only while there are none yet.
+ */
 @Composable
 fun EditorEmptyScreen(actions: NavigationActions) {
     val state = LocalICodeSnapshot.current
     val gateway = LocalICodeGateway.current
     var showCreateFile by remember { mutableStateOf(false) }
+    val root = state.activeWorkspaceLocation
+    val recent = state.explorer.recent.filter { root != null && FileFolders.relative(it.location, root) != null }
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar(
             title = state.activeWorkspace,
@@ -57,40 +67,44 @@ fun EditorEmptyScreen(actions: NavigationActions) {
             // Back as anywhere (docs/dock-navigation-plan.md D4): the tool used before, then the Launcher.
             onBack = actions.back,
         )
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(IcodeSpacing.Gutter),
-            horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.ItemGap),
-        ) {
-            EmptyActionTile(Icons.Outlined.Search, "Quick Open", Modifier.weight(1f)) { actions.navigate(Route.QuickOpen) }
-            EmptyActionTile(Icons.Outlined.Add, "New File", Modifier.weight(1f)) { showCreateFile = true }
-            EmptyActionTile(Icons.Outlined.Terminal, "Open Terminal", Modifier.weight(1f)) { actions.openPanel(ToolPanelTab.Terminal) }
-        }
-        IcodeNavigationLink(
-            label = "Search Workspace",
-            detail = "Find text inside this project's files",
-            icon = Icons.Outlined.Search,
-            onClick = { actions.navigate(Route.WorkspaceSearch) },
-            modifier = Modifier.padding(horizontal = IcodeSpacing.Gutter),
-        )
-        EmptyState(
-            title = "Select a file to begin coding",
-            mark = {
-                IcodeBrandMark(Modifier.size(IcodeSizes.MarkLg))
-            },
-            modifier = Modifier.padding(top = IcodeSpacing.Space6 + IcodeSpacing.Space4),
-        )
-        IcodeSection(
-            "Recent Files",
-            Modifier.padding(start = IcodeSpacing.Gutter, top = IcodeSpacing.SectionGap, end = IcodeSpacing.Gutter).weight(1f),
-        ) {
-            // Recent's files in this workspace, each by its path in it.
-            val inWorkspace = state.explorer.recent.filter { it.location.startsWith("${state.activeWorkspaceLocation}/") }
-            if (inWorkspace.isEmpty()) {
-                Text("Files you open will appear here", style = IcodeType.Caption, color = IcodeColors.TextSecondary)
+        LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(bottom = IcodeSpacing.SectionGap)) {
+            item(key = "ways in") {
+                Column(Modifier.padding(IcodeSpacing.Gutter), verticalArrangement = Arrangement.spacedBy(IcodeSpacing.ItemGap)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.ItemGap)) {
+                        WayIn(Icons.Outlined.Search, "Quick Open", Modifier.weight(1f)) { actions.navigate(Route.QuickOpen) }
+                        WayIn(Icons.AutoMirrored.Outlined.ManageSearch, "Find in Files", Modifier.weight(1f)) { actions.navigate(Route.WorkspaceSearch) }
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.ItemGap)) {
+                        WayIn(Icons.Outlined.Add, "New File", Modifier.weight(1f)) { showCreateFile = true }
+                        WayIn(Icons.Outlined.Terminal, "Terminal", Modifier.weight(1f)) { actions.openPanel(ToolPanelTab.Terminal) }
+                    }
+                }
             }
-            inWorkspace.forEach { document ->
-                RecentFile(document.name, document.location.removePrefix("${state.activeWorkspaceLocation}/"), RelativeTime.since(document.changedAt)) {
-                    gateway.dispatch(ICodeIntent.OpenFile(document.location))
+            if (recent.isEmpty()) {
+                item(key = "nothing yet") {
+                    EmptyState(
+                        title = "No file open",
+                        description = "Files you open appear here",
+                        mark = { IcodeBrandMark(Modifier.size(IcodeSizes.MarkLg)) },
+                        modifier = Modifier.fillMaxWidth().padding(top = IcodeSpacing.Space6),
+                    )
+                }
+            } else {
+                item(key = "recent") {
+                    SectionLabel(
+                        "Recent Files",
+                        Modifier.padding(start = IcodeSpacing.Gutter, top = IcodeSpacing.SectionBreak, end = IcodeSpacing.Gutter, bottom = IcodeSpacing.Space1),
+                    )
+                }
+                items(recent, key = { it.location }) { file ->
+                    IcodeFileRow(
+                        name = file.name,
+                        leading = { FileTypeIcon(file.name, folder = false, size = IcodeSizes.IconXl, parent = parentName(file.location)) },
+                        onClick = { gateway.dispatch(ICodeIntent.OpenFile(file.location)) },
+                        detail = FileFolders.of(file.location, root, state.activeWorkspace),
+                        detailIsPath = true,
+                        trailing = { Text(RelativeTime.since(file.changedAt), style = IcodeType.Caption) },
+                    )
                 }
             }
         }
@@ -103,27 +117,13 @@ fun EditorEmptyScreen(actions: NavigationActions) {
     if (showCreateFile) CreateFileSheet(parentLocation = null, onDismiss = { showCreateFile = false })
 }
 
+/** One way in: its icon and its name, a tile of the grid, all the same height. */
 @Composable
-private fun EmptyActionTile(icon: ImageVector, text: String, modifier: Modifier, onClick: () -> Unit) {
-    IcodeCard(modifier = modifier, padding = PaddingValues(IcodeSpacing.Space2 + IcodeSpacing.Micro), onClick = onClick) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1 + IcodeSpacing.Micro)) {
-            Icon(icon, contentDescription = null, tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconSm))
-            Text(text, style = IcodeType.Caption.copy(color = IcodeColors.TextPrimary), maxLines = 1)
+private fun WayIn(icon: ImageVector, text: String, modifier: Modifier, onClick: () -> Unit) {
+    IcodeCard(modifier = modifier, onClick = onClick) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2)) {
+            Icon(icon, contentDescription = null, tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconMd))
+            Text(text, style = IcodeType.Body, color = IcodeColors.TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
     }
-}
-
-@Composable
-private fun RecentFile(name: String, path: String, age: String, onClick: () -> Unit) {
-    IcodeListRow(
-        card = true,
-        title = name,
-        subtitle = path,
-        titleStyle = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold),
-        onClick = onClick,
-        leading = {
-            Icon(Icons.Outlined.Description, contentDescription = null, tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconXl))
-        },
-        trailing = { Text(age, style = IcodeType.Caption) },
-    )
 }

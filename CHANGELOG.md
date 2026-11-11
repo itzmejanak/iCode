@@ -239,8 +239,25 @@ All notable changes to iCode are documented here. The format follows
     and its arrows move the choice.
   - A server's suggestions past its 500th are no longer dropped before filtering, and a suggestion
     two servers give shows once.
+- The empty editor, Find, About and the Runtime page are redesigned to fit
+  ([docs/screens-polish-plan.md](docs/screens-polish-plan.md)).
+  - **Empty editor.** Its four ways in are equal tiles: Quick Open, Find in Files, New File and
+    Terminal. Every recent file is listed with its own icon and its folder.
+  - **Find.** Files and In Files list each file as the explorer does, all one height, with its
+    folder in the workspace instead of the phone's full path. With nothing typed, Quick Open shows
+    your recent files, and "50 of 312 shown" replaces the amber warning.
+  - **About.** Build is four short facts, and the other rows look like Settings' rows. Export
+    Diagnostics, which did nothing, is gone.
+  - **Runtime page.** One card holds the release, its state as "● Healthy" in your accent colour,
+    and its packages, PRoot, size and free space. Runtime Tools shows how many are installed.
+    Repair and Reset are two rows, and their sheets say all they do.
+  - **Label and value rows.** Everywhere they are used, a value no longer runs into its label and is
+    drawn at the label's size.
 
 ### Fixed
+- The empty editor's recent files scroll: past the screen's height, they were cut off.
+- Quick Open no longer matches the folders iCode keeps a workspace in, so a query such as "data" or
+  "files" matched every file.
 - Going round in circles: the Assistant's Workspace button stacked a second Explorer, the empty
   editor's ← put a Launcher on top of the workspace, and Settings' "Open a Workspace" stacked a
   second Launcher. Workspace now switches to the Explorer, the empty editor's ← is Back, and "Open

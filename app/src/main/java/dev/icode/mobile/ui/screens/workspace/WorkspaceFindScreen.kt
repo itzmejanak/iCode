@@ -26,6 +26,8 @@ import dev.icode.mobile.designsystem.IcodeTextField
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.IndexedFile
+import dev.icode.mobile.domain.files.FileFolders
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
@@ -63,7 +65,13 @@ fun WorkspaceFindScreen(actions: NavigationActions, initialMode: FindMode) {
     var wholeWord by rememberSaveable { mutableStateOf(search.wholeWord) }
     var regex by rememberSaveable { mutableStateOf(search.regex) }
 
-    val rankedFiles = remember(state.fileIndex, query) { rankFiles(state.fileIndex, query) }
+    val root = state.activeWorkspaceLocation
+    val rankedFiles = remember(state.fileIndex, query, root) { rankFiles(state.fileIndex, query, root) }
+    // Nothing typed: what was opened lately in this workspace comes first (docs/layout.md §14).
+    val recentFiles = remember(state.explorer.recent, root) {
+        state.explorer.recent.filter { FileFolders.relative(it.location, root) != null }.map { IndexedFile(it.name, it.location) }
+    }
+    val showingRecent = query.isBlank() && recentFiles.isNotEmpty()
     val resultsAreCurrent = query.isNotBlank() && query.trim() == search.query &&
         matchCase == search.matchCase && wholeWord == search.wholeWord && regex == search.regex
 
@@ -99,11 +107,14 @@ fun WorkspaceFindScreen(actions: NavigationActions, initialMode: FindMode) {
         Box(Modifier.weight(1f)) {
             when (mode) {
                 FindMode.Files -> FileResults(
-                    results = rankedFiles.entries,
+                    results = if (showingRecent) recentFiles else rankedFiles.entries,
+                    recent = showingRecent,
                     query = query,
+                    root = root,
+                    rootName = state.activeWorkspace,
+                    total = rankedFiles.total,
                     indexSize = state.fileIndex.size,
                     indexTruncated = state.fileIndexTruncated,
-                    rankTruncated = rankedFiles.truncated,
                     engine = state.searchEngine,
                     onOpen = { path -> gateway.dispatch(ICodeIntent.OpenFile(path)) },
                 )
@@ -112,6 +123,8 @@ fun WorkspaceFindScreen(actions: NavigationActions, initialMode: FindMode) {
                     query = query,
                     resultsAreCurrent = resultsAreCurrent,
                     engine = state.searchEngine,
+                    root = root,
+                    rootName = state.activeWorkspace,
                     onOpen = { path, line, column ->
                         gateway.dispatch(ICodeIntent.OpenFile(path, line, column))
                     },

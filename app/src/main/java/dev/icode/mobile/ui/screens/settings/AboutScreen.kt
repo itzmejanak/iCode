@@ -6,6 +6,17 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.MenuBook
+import androidx.compose.material.icons.automirrored.outlined.OpenInNew
+import androidx.compose.material.icons.outlined.BugReport
+import androidx.compose.material.icons.outlined.Code
+import androidx.compose.material.icons.outlined.Gavel
+import androidx.compose.material.icons.outlined.NewReleases
+import androidx.compose.material.icons.outlined.PhoneAndroid
+import androidx.compose.material.icons.outlined.PrivacyTip
+import androidx.compose.material.icons.outlined.SystemUpdate
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -16,22 +27,23 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.graphics.vector.ImageVector
 import dev.icode.mobile.BuildConfig
 import dev.icode.mobile.designsystem.CHECKING
-import dev.icode.mobile.designsystem.DetailRow
-import dev.icode.mobile.designsystem.IcodeBrandMark
 import dev.icode.mobile.designsystem.IcodeCard
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeListRow
+import dev.icode.mobile.designsystem.IcodeFact
+import dev.icode.mobile.designsystem.IcodeFactGrid
 import dev.icode.mobile.designsystem.IcodePageColumn
 import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSheetOverlay
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
+import dev.icode.mobile.designsystem.IcodeSpinner
 import dev.icode.mobile.designsystem.IcodeToggle
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
+import dev.icode.mobile.designsystem.SettingRow
 import dev.icode.mobile.designsystem.behindSheet
 import dev.icode.mobile.domain.AppLinks
 import dev.icode.mobile.domain.DeviceInfoConsent
@@ -47,13 +59,13 @@ private const val NOT_AVAILABLE = "Not available yet"
 
 /** A row's title and the link the website's admin set for it (icode-web › App config). */
 private fun diagnosticLinks(links: AppLinks?) = listOf(
-    "View Licenses" to links?.licenses,
-    "View Source" to links?.source,
+    AboutLink.Licenses to links?.licenses,
+    AboutLink.Source to links?.source,
 )
 
 private fun resourceLinks(links: AppLinks?) = listOf(
-    "Documentation" to links?.documentation,
-    "Release Notes" to links?.releaseNotes,
+    AboutLink.Documentation to links?.documentation,
+    AboutLink.ReleaseNotes to links?.releaseNotes,
 )
 
 private fun updateSubtitle(check: UpdateCheck): String = when (check) {
@@ -76,15 +88,19 @@ fun AboutScreen(actions: NavigationActions) {
         gateway.dispatch(WebIntent.RefreshAppConfig)
     }
     val runtime = state.runtimeDetails
-    val buildSpecs = listOf(
-        "App Version" to BuildConfig.VERSION_NAME,
-        "Runtime Version" to when {
-            !runtime.inspected -> CHECKING
-            runtime.release == null -> "Not installed"
-            else -> listOfNotNull(runtime.release, runtime.architecture.takeIf { it.isNotEmpty() }).joinToString(" · ")
-        },
-        "Editor Engine" to "Sora Editor ${BuildConfig.EDITOR_ENGINE_VERSION}",
-        "Min Android API" to "API ${BuildConfig.MIN_SDK}",
+    // Four short facts, each its label over its value (docs/screens-polish-plan.md D4).
+    val build = listOf(
+        IcodeFact("Version", BuildConfig.VERSION_NAME),
+        IcodeFact("Android", "API ${BuildConfig.MIN_SDK} and later"),
+        IcodeFact(
+            "Runtime",
+            when {
+                !runtime.inspected -> CHECKING
+                runtime.releaseName == null -> "Not installed"
+                else -> listOfNotNull(runtime.releaseName, runtime.architecture.takeIf { it.isNotEmpty() }).joinToString(" · ")
+            },
+        ),
+        IcodeFact("Editor", "Sora Editor ${BuildConfig.EDITOR_ENGINE_VERSION}"),
     )
     var reporting by rememberSaveable { mutableStateOf(false) }
     Box(Modifier.fillMaxSize()) {
@@ -92,52 +108,44 @@ fun AboutScreen(actions: NavigationActions) {
             IcodeTopBar("About iCode", subtitle = settingsSubtitle(Route.About), onBack = actions.back)
             IcodePageColumn {
                 AppIdentityHeader(Modifier.padding(vertical = IcodeSpacing.Space4 + IcodeSpacing.Micro))
-                IcodeSection("Build Specifications") {
-                    IcodeCard(Modifier.fillMaxWidth()) {
-                        buildSpecs.forEach { (label, value) -> DetailRow(label, value) }
-                    }
+                IcodeSection("Build") {
+                    IcodeCard(Modifier.fillMaxWidth()) { IcodeFactGrid(build) }
                 }
                 IcodeSection("Diagnostics") {
                     val update = web.update
-                    IcodeListRow(
-                        card = true,
-                        title = "Check for Updates",
+                    SettingRow(
+                        "Check for Updates",
+                        Modifier.fillMaxWidth(),
                         subtitle = updateSubtitle(update),
-                        subtitleStyle = IcodeType.Caption,
+                        leadingIcon = Icons.Outlined.SystemUpdate,
                         onClick = when (update) {
                             is UpdateCheck.Available -> ({ uri.openUri(update.downloadUrl) })
                             UpdateCheck.Checking -> null
                             else -> ({ gateway.dispatch(WebIntent.CheckForUpdates) })
                         },
+                        trailing = { if (update == UpdateCheck.Checking) IcodeSpinner() },
                     )
-                    IcodeListRow(
-                        card = true,
-                        title = "Export Diagnostics",
-                        subtitle = NOT_AVAILABLE,
-                        titleColor = IcodeColors.TextSecondary,
-                        subtitleStyle = IcodeType.Caption,
-                    )
-                    diagnosticLinks(web.links).forEach { (title, url) -> LinkRow(title, url) { uri.openUri(it) } }
+                    diagnosticLinks(web.links).forEach { (link, url) -> LinkRow(link, url) { uri.openUri(it) } }
                 }
                 IcodeSection("Resources") {
-                    IcodeListRow(
-                        card = true,
-                        title = "Report a Bug",
+                    SettingRow(
+                        "Report a Bug",
+                        Modifier.fillMaxWidth(),
                         subtitle = if (web.report.draft.title.isNotBlank()) "Draft saved — tap to finish" else "Screenshots welcome; device info only if you choose",
-                        subtitleStyle = IcodeType.Caption,
+                        leadingIcon = Icons.Outlined.BugReport,
                         onClick = { reporting = true },
                     )
-                    resourceLinks(web.links).forEach { (title, url) -> LinkRow(title, url, titleStyle = IcodeType.Body) { uri.openUri(it) } }
+                    resourceLinks(web.links).forEach { (link, url) -> LinkRow(link, url) { uri.openUri(it) } }
                     if (web.supportText.isNotBlank()) {
                         Text(web.supportText, modifier = Modifier.padding(top = IcodeSpacing.Space2), style = IcodeType.Caption)
                     }
                 }
                 IcodeSection("Privacy") {
-                    IcodeListRow(
-                        card = true,
-                        title = "Share Device Info",
+                    SettingRow(
+                        "Share Device Info",
+                        Modifier.fillMaxWidth(),
                         subtitle = "Anonymous: app and Android version, phone model. Never your files.",
-                        subtitleStyle = IcodeType.Caption,
+                        leadingIcon = Icons.Outlined.PhoneAndroid,
                         onClick = { gateway.dispatch(WebIntent.SetDeviceInfoConsent(web.consent != DeviceInfoConsent.Shared)) },
                         trailing = {
                             IcodeToggle(checked = web.consent == DeviceInfoConsent.Shared) { shared ->
@@ -145,7 +153,7 @@ fun AboutScreen(actions: NavigationActions) {
                             }
                         },
                     )
-                    web.links?.privacy?.let { LinkRow("Privacy Policy", it) { url -> uri.openUri(url) } }
+                    web.links?.privacy?.let { LinkRow(AboutLink.Privacy, it) { url -> uri.openUri(url) } }
                 }
             }
         }
@@ -157,16 +165,31 @@ fun AboutScreen(actions: NavigationActions) {
     }
 }
 
-/** A row the website's admin can point somewhere; until it does, it says so instead of answering a tap with nothing. */
+/** The links About carries, each by its title and its icon. */
+private enum class AboutLink(val title: String, val icon: ImageVector) {
+    Licenses("View Licenses", Icons.Outlined.Gavel),
+    Source("View Source", Icons.Outlined.Code),
+    Documentation("Documentation", Icons.AutoMirrored.Outlined.MenuBook),
+    ReleaseNotes("Release Notes", Icons.Outlined.NewReleases),
+    Privacy("Privacy Policy", Icons.Outlined.PrivacyTip),
+}
+
+/**
+ * A row the website's admin can point somewhere, as Settings' rows are; until it does, it says so
+ * instead of answering a tap with nothing.
+ */
 @Composable
-private fun LinkRow(title: String, url: String?, titleStyle: TextStyle = IcodeType.Body, open: (String) -> Unit) {
-    IcodeListRow(
-        card = true,
-        title = title,
+private fun LinkRow(link: AboutLink, url: String?, open: (String) -> Unit) {
+    SettingRow(
+        link.title,
+        Modifier.fillMaxWidth(),
         subtitle = if (url == null) NOT_AVAILABLE else url.removePrefix("https://"),
-        titleStyle = titleStyle,
+        leadingIcon = link.icon,
+        leadingTint = if (url == null) IcodeColors.TextSecondary else IcodeColors.Accent,
         titleColor = if (url == null) IcodeColors.TextSecondary else IcodeColors.TextPrimary,
-        subtitleStyle = IcodeType.Caption,
         onClick = url?.let { { open(it) } },
+        trailing = {
+            if (url != null) Icon(Icons.AutoMirrored.Outlined.OpenInNew, contentDescription = null, tint = IcodeColors.TextSecondary, modifier = Modifier.size(IcodeSizes.IconSm))
+        },
     )
 }
