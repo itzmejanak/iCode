@@ -63,6 +63,8 @@ android {
     // relies on a log call throwing (GrammarAssetsTest checks what the parser returns).
     testOptions {
         unitTests.isReturnDefaultValues = true
+        // SyntaxBenchmark runs only when asked: -Picode.benchmark=true (docs/syntax-highlighting-plan.md §3.7).
+        unitTests.all { it.systemProperty("icode.benchmark", providers.gradleProperty("icode.benchmark").getOrElse("false")) }
     }
 
     // EditorColours runs on the JVM and on the phone (native Oniguruma): one source for both.

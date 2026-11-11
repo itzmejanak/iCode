@@ -5,7 +5,8 @@ better, but syntax highlighting still has architectural gaps and limits. Underst
 what we need, and whether a migration is needed, to get scalability, no duplication, no
 inconsistency, reliability, stability, performance and speed. Make a proper plan.
 
-Nothing is built yet. §6 records the owner's answers; building follows the cycles in §4.
+§6 records the owner's answers; building follows the cycles in §4. S1 is done (§3.7); nothing in
+the app has changed yet.
 
 ## 1. What stands (verified on `main`, c5b2e01)
 
@@ -46,7 +47,7 @@ Stability, Performance.
 | G5 | **All or nothing at start.** Every grammar is parsed before any can be used: about 1.4 s and all 3.8 MB in memory, even to open one JSON file. One bad grammar fails them all (`Grammars.Failed` is global), so colouring is off everywhere. | `TextMateAssets.whenGrammarsLoaded` | Performance; Reliability; Scalability: every grammar added makes start slower |
 | G6 | **A language is declared in three places.** These are the scope string in `FileTypes`, the entry (name, scope, paths, embedded languages) in `languages.json`, and the asset folder, with the provenance doc as a fourth. Tests check that they agree, but each new language means editing all of them by hand. | `FileTypes.kt`, `languages.json` | Duplication; Scalability |
 | G7 | **No limits for large or minified files.** The editor opens text up to 5 MiB (`WorkspaceFileSource.MAX_TEXT_BYTES`) and colours all of it. A minified line is tokenized for up to 2 s (`LINE_TIME`) before tm4e gives up, and the analyzer keeps a state per line. VS Code stops tokenizing a line past 20 000 characters and skips colouring very large files. | `CodeEditorSession`, Sora defaults | Performance; Stability |
-| G8 | **Thread safety is not established.** `textMateRuns` tokenizes on `Dispatchers.Default` with the same `IGrammar` objects Sora's analyzer threads use. tm4e compiles rules lazily on first use. No test shows two threads tokenizing one grammar safely. | `TextMateCode.kt` | Reliability (to be confirmed by S1's test) |
+| G8 | **Thread safety is not established.** `textMateRuns` tokenizes on `Dispatchers.Default` with the same `IGrammar` objects Sora's analyzer threads use. tm4e compiles rules lazily on first use. No test shows two threads tokenizing one grammar safely. | `TextMateCode.kt` | Reliability. S1 confirmed it: a grammar shared by two threads gives wrong scopes and throws (§3.7, S1 measurements) |
 | G9 | **Coverage gaps, missing and partial.** *Missing:* no grammar for TOML (`Cargo.toml`, `pyproject.toml`), Vue, Svelte, Protobuf, Terraform/HCL, GraphQL, Haskell, Scala, R, Perl, PowerShell, CMake, Nix, Zig, Elixir, JSON5 or CSV, and many more of the text types the icon theme names (`file-icons/theme.json`: 200 language ids, 1391 extensions, 2156 file names). `FileTypes` has no rule for most of these, so they open as plain text. Another 34 scopes that shipped grammars embed are listed as not shipped (`GrammarAssetsTest.NOT_SHIPPED`). *Partial:* some shipped grammars leave large parts of a file plain. Dockerfile (`source.dockerfile`) colours only instruction keywords and quoted strings: `FROM` image names, `ARG`/`ENV` `KEY=value`, the shell commands after `RUN`, flags such as `--from=`, and `EXPOSE` port numbers stay plain. dotenv colours key, value, `export` and interpolation, but numbers and booleans in values stay plain string. No test notices text left without a role. | `FileTypes.kt`, assets, tests | Scalability; Inconsistency |
 | G10 | **No semantic colouring.** The language servers iCode already runs (pyright, clangd, gopls, the TypeScript server) can send semantic tokens, telling a parameter from a field from a type. iCode never asks for them. | `data/language` | Accuracy (later; §3.3) |
 | G11 | **Colouring failures are mostly silent.** A grammar that fails sets `coloringError` and logs. A file colouring had to skip says nothing. | `CodeEditorSession` | Reliability (the user cannot tell "no grammar" from "broken") |
@@ -137,8 +138,8 @@ its grammar and configuration assets, its embedded languages, and its upstream (
   editor still needs a TextMate theme for Sora, and `SyntaxTheme` keeps building it from the same
   table.
 - **One tokenizer thread** for read-only views. It is confined, so read-only tokenizing never races
-  itself. S1's test checks whether the editor's analyzer threads and this one can share a grammar.
-  If they cannot, read-only views get their own grammar instances, loaded once.
+  itself. S1 showed that threads cannot share a grammar, so read-only views get their own grammar
+  instances, loaded once, and each editor session gets its own as well (§3.7, S1 measurements).
 - **An LRU cache** keyed by (language, text hash), bounded by total characters (for example 2 MB),
   so a chat that scrolls past the same block, or a diff opened twice, is not tokenized again.
 
@@ -146,15 +147,98 @@ its grammar and configuration assets, its embedded languages, and its upstream (
 
 `SyntaxLimits`, one place, tested:
 
-| Limit | Value (proposed) | Over it |
-|---|---|---|
-| Line length coloured | 10 000 characters | The rest of that line is plain; the next line starts fresh |
-| Time per line | 100 ms (from 2 s) | That line stays plain; colouring goes on with the next |
-| File coloured | 2 MiB or 50 000 lines | Opens and edits as plain text, with a one-line note in the editor: "Colouring is off for files this large" |
-| Read-only block | 200 000 characters | Plain |
+| Limit | Value | Over it | Why this value (S1, below) |
+|---|---|---|---|
+| Line length coloured | 10 000 characters | The rest of that line is plain; the next line starts fresh | Kept. One minified JS line of 10 000 characters takes 117 ms, about the time limit; at VS Code's 20 000 it takes 243 ms and would stop early anyway. JSON of that length takes 2 ms. The cut must come before tokenizing, since the time limit alone does not protect (see the 1 MiB line) |
+| Time per line | 100 ms (from 2 s) | That line stays plain; colouring goes on with the next | Kept. The slowest ordinary line in 10 000 lines of Kotlin or JSON took 2.2 ms, so 100 ms leaves a wide margin. At 2 s a 1 MiB JS line blocks for 2.4 s and still colours nothing |
+| File coloured | 2 MiB or 50 000 lines | Opens and edits as plain text, with a one-line note in the editor: "Colouring is off for files this large" | Kept. 50 000 lines of Kotlin (1.7 MB) take 1.6 s on the JVM, about 32 µs a line, so a file at either bound takes about 2 s on a desktop CPU and several seconds on a phone, in the background |
+| Read-only block | 200 000 characters | Plain | Kept. About 200 ms of Kotlin or 40 ms of JSON on the one read-only thread |
 
-The values are set from measurements on the owner's phone in S3, not guessed. The editor still
-opens files up to 5 MiB, as today.
+The editor still opens files up to 5 MiB, as today. S1's numbers are from the JVM; S3 checks the
+limits on the owner's phone (A8) and changes a value only if the phone disagrees.
+
+#### S1 measurements
+
+Measured by `SyntaxBenchmark` (`app/src/test/.../ui/editor/SyntaxBenchmark.kt`), which is skipped
+in the normal test run. To run it:
+
+```
+./gradlew :app:testDebugUnitTest --tests 'dev.icode.mobile.ui.editor.SyntaxBenchmark' -Picode.benchmark=true
+```
+
+It prints its report and writes it to `app/build/reports/syntax-benchmark.txt`.
+
+**These are JVM numbers with the joni regex engine,** on OpenJDK 17 in the build sandbox. The phone
+runs the grammars on native Oniguruma (`oniguruma-native`), which exists only for Android, and no
+device or emulator was available. They give the shape and the ratios; absolute times on the phone
+will differ.
+
+*Grammar load,* cold registry each time, median of 5. "Parse" is `loadGrammar` with its include
+closure; "first line" is the first `tokenizeLine`, which compiles the root rules.
+
+| Grammar | Parse | First line |
+|---|---|---|
+| `text.html.markdown` (embeds many) | 35 ms | 51 ms |
+| `source.ruby` | 19 ms | 26 ms |
+| `source.cpp` | 12 ms | 25 ms |
+| `source.php`, `text.html.php` | 7 ms | 7 to 12 ms |
+| `source.ts`, `source.js`, `text.html.basic` | 3 to 5 ms | 8 to 14 ms |
+| `source.kotlin`, `source.java`, `source.python`, `source.go` | 1 to 3 ms | 1 to 2 ms |
+| `source.json`, `source.dockerfile`, `source.dotenv`, `source.ini` | under 0.3 ms | under 0.3 ms |
+
+All 42 loaded into one registry, as `TextMateAssets` does at start, take 77 ms (the phone takes
+about 1.4 s for that and more). Lazy loading (D4) is supported: the costliest single language is
+Markdown at about 86 ms, and JSON costs under 1 ms.
+
+*Large files,* line by line with the state carried, warm grammar, median of 3:
+
+| File | Characters | Total | Per line | Slowest line |
+|---|---|---|---|---|
+| Kotlin, 10 000 lines | 338 060 | 324 ms (547 ms with a cold grammar) | 32 µs | 2.2 ms |
+| JSON, 10 000 lines | 147 744 | 30 ms | 3 µs | 1.6 ms |
+| Kotlin, 50 000 lines | 1 708 060 | 1 626 ms | 33 µs | 1.4 ms |
+
+*One minified line of 1 MiB,* through `tokenizeLine2` with a time limit:
+
+| Line | First 10 000 chars | First 100 000 | Whole line, 100 ms limit | Whole line, 2 s limit |
+|---|---|---|---|---|
+| JS | 117 ms | 1 392 ms | stopped early after 121 ms, nothing coloured | stopped early after 2 409 ms, nothing coloured |
+| JSON | 2 ms | 20 ms | stopped early after 106 ms, coloured to char 461 005 | finished in 240 ms |
+
+For JS, one scan of the whole 1 MiB line costs 118 ms, and the time limit is checked only between
+scans, so a line overruns its limit by at least one scan, and a scan grows with the line. Cutting the line
+at 10 000 characters first bounds a scan at about 1 ms. When JS stops early, `isStoppedEarly()` is
+true and the line comes back as one plain token.
+
+*Two threads, one grammar (G8).* `GrammarThreadsTest.race` releases two threads together, each
+tokenizing its own document with the same grammar, and compares every line's scopes with a
+one-thread run. Over 20 cold rounds of 2 threads by 10 documents (400 documents per grammar), in
+two runs: Markdown had 6 and 31 documents wrong, with 8 and 13 threads throwing
+`ConcurrentModificationException`; shell (heredocs) had 11 and 17 wrong; Kotlin had 2 and 0 wrong,
+with one `ArrayIndexOutOfBoundsException`. A probe that warmed the grammar on one thread first still
+got wrong scopes and exceptions in all three.
+
+**Answer to G8: sharing one tm4e grammar across threads is not safe** on tm4e 0.24.6. A grammar
+keeps unsynchronized state: its rule table is a `HashMap` filled lazily, each rule caches its
+compiled patterns, an end pattern with back-references (heredocs, Markdown fences) is rewritten in
+that cache each time it opens, and on the JVM each joni regex caches its last search. Only the last
+of these is specific to the JVM, so the phone is affected too. One grammar instance per thread is
+safe: `GrammarThreadsTest` checks that two threads, each with its own cold registry, always match
+the one-thread run, in the normal test suite.
+
+What this means for the build:
+
+- **Read-only views get their own grammar instances** (D6, §3.6), loaded once and used only on the
+  one read-only tokenizer thread.
+- **Each editor session gets its own grammar instance too.** Sora runs one analyzer thread per
+  editor, and today every open tab and every Markdown fence (tokenized on `Dispatchers.Default`,
+  several at once) shares the one `IGrammar` per scope in `GrammarRegistry`. S3's engine hands each
+  tokenizing thread its own instance; `TextMateLanguage` has a protected constructor that takes an
+  `IGrammar`, and its `create` overloads take a `GrammarRegistry`. At the load times above, a second
+  instance of a grammar costs a few milliseconds for most languages.
+- **The editor's per-line time needs S3 to replace Sora's default.** Sora's `TextMateAnalyzer`
+  passes a fixed `Duration.ofSeconds(2)` to `tokenizeLine2`, so the 100 ms limit and the 10 000
+  character cut belong in iCode's own analyzer or a subclass.
 
 ## 4. Cycles
 
@@ -247,3 +331,9 @@ resources, or the catalog split over several Kotlin files by family, and records
 - 2026-11-11: owner answered §6. Q1, Q2, Q4 and Q5 as recommended. Q3 widened to full coverage of
   every text file type, with partial grammars (Dockerfile, dotenv and any others the audit finds)
   fixed to colour fully. S6, G9 and §5 (A9, A10) updated to match.
+- S1: measured on the JVM with joni and recorded in §3.7. All four limits kept, with reasons. G8
+  answered: threads cannot share a tm4e grammar, so read-only views and each editor session get
+  their own grammar instance (S3, S4). `GrammarThreadsTest` checks per-thread instances in the
+  normal suite; `SyntaxBenchmark` runs only with `-Picode.benchmark=true`. The test helper
+  `ShippedGrammars` now also gives tests a registry over the shipped grammars, so no test reads
+  `languages.json` on its own.
