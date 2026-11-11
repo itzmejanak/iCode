@@ -173,8 +173,8 @@ repository, branch, remote, subject)`:
 | Keep | What | Bell | Page | Badge count | Shade |
 |---|---|---|---|---|---|
 | **NeedsYou** | Problems and Heads-up | Rings | Kept, 100 at most | Counted while unread | Posted (D7) |
-| **Done** | Info, and confirmations of real changes: files, saves, Git, installs | Rings | Kept, 150 at most, apart from NeedsYou | Never | Only when finished while you were away (D7) |
-| **Moment** | Confirmations of a tap only: "Copied" | Rings | Not kept | Never | Never |
+| **Done** | Info, and confirmations of real changes: files, saves, Git, installs | Info rings; a success (tone Done) does not (§7, Q1) | Kept, 150 at most, apart from NeedsYou | Never | Only when finished while you were away (D7) |
+| **Moment** | Confirmations of a tap only: "Copied" | Rings: it is the tap's only answer | Not kept | Never | Never |
 
 So a delete is kept and can be found again; "Saved" on every save never pushes a problem off the
 page, and never counts.
@@ -185,17 +185,20 @@ page, and never counts.
   `McpNotices`, `PhoneNotices`, `WorkspaceNotices`, `SettingsNotices`, `WebNotices`. Each turns an
   event and its place into a notice draft. They use the words iCode already has — `FileWords`,
   `McpFailures`, `LanguageFailure` — and are tested on the JVM.
-- **One sink**, `data/notices/Notices.tell(draft)`, stamps the id and time and emits it. A failure
-  is told with `Notices.failed(draft, error)`: logged once, credentials masked, the error's words in
-  `output`, the builder's sentence in `detail`.
+- **One sink**, `ICodeStateHolder.tell(notice)`, stamps the id and time and emits it. A failure
+  is told with `tell(notice, subsystem, error)`: logged once, credentials masked, the error's words in
+  `output`, the builder's sentence in `detail`. (Built on the state holder, which every coordinator
+  already has, rather than a new `data/notices/Notices` that each would need passed in; and with no
+  separate draft type: a `Notice` without an id is one.)
 - `notify`, `report` and `failed` on `ICodeStateHolder` are **removed**, every call site migrated,
   not wrapped. `failureText` stays, for what is shown in state.
 - A consistency rule, `notice-text`: a notice's words are written only in `domain/notices/`.
 
 **D5 — The bell and the undo pill.**
-- **The bell** rings for every notice, but (Q2) a file change. Its count is unread NeedsYou only. Its
-  colour is the most serious unread; otherwise, while awake, the tone that rang it.
-- **A tap on the bell**, while it is awake, opens **the notice that rang it**, Done included. At rest:
+- **The bell** rings for every notice but a success (§7, Q1): a file change, a save, a pull done are
+  kept on the page and ring nothing. A Moment ("Copied") still rings. Its count is unread NeedsYou
+  only. Its colour is the most serious unread; otherwise, while awake, the tone that rang it.
+- **A tap on the bell**, while it is awake, opens **the notice that rang it**, when it is kept. At rest:
   the one unread NeedsYou notice, else the page.
 - **The undo pill** (Q2, recommended): a tap opens a small card over it, which says what changed and
   where — "Moved notes.md to Trash · phone · src" — with **Undo**, and **Redo** when there is one. It
@@ -371,6 +374,33 @@ Each cycle is its own commit, with the full gate run before it.
    page as Info, once until a fetch succeeds, never posted; or stay quiet as today? *Recommended:
    keep it, once.*
 
+**The owner's answers (2026-11-11):** "1 yes, 2b, 3 Couldn't, 4 sound, 5 yes, 6 keep", with Q1
+restated as "keep them in the page history but don't ring the bell". So:
+
+1. Done is kept on the page, never counted, and a success does not ring the bell (D3, D5). A
+   Moment still rings, being the only answer to its tap.
+2. (b): the undo pill's tap opens its sheet; Undo and Redo are buttons in it.
+3. "Couldn't …".
+4. Finished while away: DEFAULT, a sound and no pop-up.
+5. Task failures go to Problems, long-command alerts to Finished.
+6. An automatic fetch that fails is kept on the page as Info, once until a fetch succeeds, and never
+   posted.
+
 ## 8. Record
 
-- Nothing built yet.
+- **R1 — the model.** `domain/notices/`: `Notice`, `NoticeTone` (moved here), `NoticeKeep`,
+  `NoticeSource`, `NoticePlace`, `NoticeAction` (OpenFile, Show, OpenSession, OpenUrl, Undo, Run),
+  `NoticeRules` (rings, kept, counted, posted, available, added, the filters), `NoticePlaces`, and
+  the first builders (Terminal, Git, Web, Settings, Files, Assistant). `NoticeIntent` in `domain`
+  (it must share `ICodeIntent`'s package). `ICodeEffect.Notice` is now `ICodeEffect.Told`. The sink
+  on `ICodeStateHolder` (D4). Store v2 writes kind `notice` and reads the three v1 kinds.
+  `AppNotice` and `NoticeLink` are gone. `isAtOrUnder`/`relocated` moved to `domain/PathRules.kt`
+  so places can be read in the domain. `FetchRemote(automatic)` marks iCode's own fetches for R5.
+  `notify`, `report` and `failed` stay on the state holder only until R6 removes them.
+- **R2 — the surfaces.** The bell rings by `NoticeRules.rings`; a tap while awake opens the notice
+  that rang it. The page: All · Needs you · Done, a place chip, Clear by filter, and a line with Turn
+  On when Android's notifications are off. The sheet: when · kind · source, the place in full, the
+  detail, the output folded, the actions available now, Copy, Delete. The undo pill opens
+  `UndoSheet`: the change last made or undone and its place (`FileNews.place`, from
+  `FileNotices.placeOf`), what Undo and Redo would do, and their buttons; the pill's tap and hold no
+  longer undo or redo.

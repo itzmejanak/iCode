@@ -8,7 +8,7 @@ import dev.icode.mobile.data.search.SearchCoordinator
 import dev.icode.mobile.domain.ContentSearchState
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeIntent
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.NoticeTone
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.BufferOverflow

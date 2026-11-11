@@ -2,7 +2,7 @@ package dev.icode.mobile.data.workspace
 
 import android.content.Context
 import dev.icode.mobile.data.io.commitOrFail
-import dev.icode.mobile.data.io.relocated
+import dev.icode.mobile.domain.relocated
 import org.json.JSONArray
 import org.json.JSONObject
 

@@ -11,7 +11,7 @@ import dev.icode.mobile.domain.GitProvider
 import dev.icode.mobile.domain.GitSigningRules
 import dev.icode.mobile.domain.GitSigningState
 import dev.icode.mobile.domain.ICodeIntent
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.NoticeTone
 import dev.icode.mobile.domain.SigningIntent
 import java.util.concurrent.atomic.AtomicBoolean
 

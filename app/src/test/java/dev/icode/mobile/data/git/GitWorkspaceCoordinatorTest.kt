@@ -14,7 +14,7 @@ import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.GitRepositoryState
 import dev.icode.mobile.domain.GitStatusCodes
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.NoticeTone
 import dev.icode.mobile.domain.Said
 import dev.icode.mobile.domain.said
 import java.io.File

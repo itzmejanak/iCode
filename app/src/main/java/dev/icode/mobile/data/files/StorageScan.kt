@@ -2,7 +2,7 @@ package dev.icode.mobile.data.files
 
 import dev.icode.mobile.data.io.DigestAlgorithm
 import dev.icode.mobile.data.io.FileHeads
-import dev.icode.mobile.data.io.isAtOrUnder
+import dev.icode.mobile.domain.isAtOrUnder
 import dev.icode.mobile.data.io.tallyTree
 import dev.icode.mobile.data.io.toHex
 import dev.icode.mobile.domain.files.DuplicateGroup

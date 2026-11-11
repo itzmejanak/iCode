@@ -9,7 +9,7 @@ import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.GitRemoteRules
 import dev.icode.mobile.domain.GitStatusCodes
 import dev.icode.mobile.domain.ICodeEffect
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.NoticeTone
 import dev.icode.mobile.domain.StageLineChange
 import dev.icode.mobile.domain.WorkspaceSummary
 import java.io.IOException

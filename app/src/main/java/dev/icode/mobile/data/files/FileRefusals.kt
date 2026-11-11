@@ -1,6 +1,6 @@
 package dev.icode.mobile.data.files
 
-import dev.icode.mobile.data.io.isAtOrUnder
+import dev.icode.mobile.domain.isAtOrUnder
 import dev.icode.mobile.data.tasks.TaskRunner
 import dev.icode.mobile.data.workspace.WorkspaceUsage
 import dev.icode.mobile.domain.WorkspaceNameRules

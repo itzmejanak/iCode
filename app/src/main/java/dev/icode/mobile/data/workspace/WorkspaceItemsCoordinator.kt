@@ -5,7 +5,7 @@ import dev.icode.mobile.data.files.FilePlaces
 import dev.icode.mobile.data.runtime.GuestPaths
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeIntent
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.NoticeTone
 import dev.icode.mobile.domain.WorkspaceNameRules
 import dev.icode.mobile.domain.files.FileStep
 import dev.icode.mobile.domain.files.FileWords

@@ -1,4 +1,4 @@
-package dev.icode.mobile.data.io
+package dev.icode.mobile.domain
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

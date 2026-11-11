@@ -564,7 +564,7 @@ class AssistantCoordinatorTest {
 
     @Test fun `a chat with nothing in it is not shared`() {
         coordinator.handle(ICodeIntent.ExportAssistantSession("ghost"))
-        until { effects.any { it is ICodeEffect.Notice } }
+        until { effects.any { it is ICodeEffect.Told } }
         assertTrue(effects.any { it.said()?.title == "Nothing to share yet" })
         assertTrue(effects.none { it is ICodeEffect.ShareChat })
     }

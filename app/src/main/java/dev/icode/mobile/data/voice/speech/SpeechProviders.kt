@@ -2,7 +2,7 @@ package dev.icode.mobile.data.voice.speech
 
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.AssistantProviderKind
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.NoticeTone
 import dev.icode.mobile.domain.SpeechIntent
 import dev.icode.mobile.domain.voice.SpeechFailure
 import dev.icode.mobile.domain.voice.SpeechProvider

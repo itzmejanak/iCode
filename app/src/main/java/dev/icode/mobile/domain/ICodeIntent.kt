@@ -125,7 +125,8 @@ sealed interface ICodeIntent {
     data class AddRemote(val name: String, val url: String) : ICodeIntent
     /** What talks to a remote: each its own job, one at a time, followed on the sync page or Clone's. */
     sealed interface TransferIntent : ICodeIntent
-    data object FetchRemote : TransferIntent
+    /** [automatic]: iCode fetched by itself, as a workspace opened or iCode came back; nothing is told of its success. */
+    data class FetchRemote(val automatic: Boolean = false) : TransferIntent
     data object PullRemote : TransferIntent
     data object PushRemote : TransferIntent
     /** Commits what is staged with [message], then pushes it: one transfer. */

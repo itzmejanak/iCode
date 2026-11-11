@@ -3,7 +3,7 @@ package dev.icode.mobile.data.search
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.ContentSearchState
 import dev.icode.mobile.domain.IndexedFile
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.NoticeTone
 import dev.icode.mobile.domain.SearchEngineState
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicInteger

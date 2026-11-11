@@ -1,7 +1,7 @@
 package dev.icode.mobile.data.files
 
 import dev.icode.mobile.data.io.FileHeads
-import dev.icode.mobile.data.io.isAtOrUnder
+import dev.icode.mobile.domain.isAtOrUnder
 import dev.icode.mobile.data.io.tallyTree
 import dev.icode.mobile.data.storage.WorkspacePaths
 import dev.icode.mobile.data.workspace.ICodeStateHolder

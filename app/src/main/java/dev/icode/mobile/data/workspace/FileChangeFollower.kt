@@ -1,7 +1,7 @@
 package dev.icode.mobile.data.workspace
 
 import dev.icode.mobile.data.files.FileFollower
-import dev.icode.mobile.data.io.isAtOrUnder
+import dev.icode.mobile.domain.isAtOrUnder
 import dev.icode.mobile.data.workspace.WorkspaceLifecycleCoordinator.Reopen
 import java.io.File
 

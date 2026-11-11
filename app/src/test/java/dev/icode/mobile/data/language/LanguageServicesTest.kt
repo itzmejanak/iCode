@@ -200,7 +200,7 @@ class LanguageServicesTest {
     @Test
     fun `a server not installed is said only when asked to start, and its page offers its install command`() = runBlocking {
         val notices = Collections.synchronizedList(mutableListOf<String>())
-        scope.launch { stateHolder.effects.collect { effect -> (effect as? dev.icode.mobile.domain.ICodeEffect.Notice)?.let { notices += it.notice.title } } }
+        scope.launch { stateHolder.effects.collect { effect -> (effect as? dev.icode.mobile.domain.ICodeEffect.Told)?.let { notices += it.notice.title } } }
         delay(50)
         programs.missing = setOf("pylsp")
         services.start()

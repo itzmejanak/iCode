@@ -9,9 +9,9 @@ import android.content.Intent
 import androidx.core.net.toUri
 import dev.icode.mobile.MainActivity
 import dev.icode.mobile.R
-import dev.icode.mobile.domain.AppNotice
-import dev.icode.mobile.domain.NoticeRules
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.Notice
+import dev.icode.mobile.domain.notices.NoticeRules
+import dev.icode.mobile.domain.notices.NoticeTone
 
 /**
  * Notices in Android's shade (docs/notices-plan.md §2.5): every unread message, the newest
@@ -34,7 +34,7 @@ internal class NoticeNotifications(private val context: Context, private val not
     }
 
     /** The shade as [notices] are now; a Problem new to it pops up when iCode is not in view ([screenVisible]). */
-    fun show(notices: List<AppNotice>, screenVisible: Boolean) {
+    fun show(notices: List<Notice>, screenVisible: Boolean) {
         val posted = NoticeRules.posted(notices)
         val shown = notifications.activeNotifications.filter { it.id == NOTICE_ID && it.tag != null }.mapTo(hashSetOf()) { it.tag }
         (shown - posted.mapTo(hashSetOf()) { it.id }).forEach { notifications.cancel(it, NOTICE_ID) }
@@ -44,7 +44,7 @@ internal class NoticeNotifications(private val context: Context, private val not
         if (posted.isEmpty()) notifications.cancel(SUMMARY_ID) else notifications.notify(SUMMARY_ID, summary(posted.size))
     }
 
-    private fun message(notice: AppNotice.Message, popUp: Boolean): Notification =
+    private fun message(notice: Notice, popUp: Boolean): Notification =
         Notification.Builder(context, if (popUp) PROBLEMS_CHANNEL else MESSAGES_CHANNEL)
             .setSmallIcon(R.drawable.ic_notification)
             .setColor(context.getColor(R.color.notification_accent))

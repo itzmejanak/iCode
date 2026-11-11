@@ -8,7 +8,7 @@ import dev.icode.mobile.domain.GitIdentityRules
 import dev.icode.mobile.domain.GitRepositoryState
 import dev.icode.mobile.domain.GitSigningKey
 import dev.icode.mobile.domain.ICodeEffect
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.NoticeTone
 import dev.icode.mobile.domain.Said
 import dev.icode.mobile.domain.SigningIntent
 import dev.icode.mobile.domain.said

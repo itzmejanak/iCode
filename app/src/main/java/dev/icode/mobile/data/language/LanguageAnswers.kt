@@ -6,7 +6,7 @@ import dev.icode.mobile.domain.LanguageFeatureIntent
 import dev.icode.mobile.domain.LanguagePlace
 import dev.icode.mobile.domain.LanguageQuery
 import dev.icode.mobile.domain.LanguageResult
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.NoticeTone
 import dev.icode.mobile.domain.TextRange
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job

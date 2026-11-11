@@ -1,6 +1,6 @@
 package dev.icode.mobile.data.tasks
 
-import dev.icode.mobile.data.io.isAtOrUnder
+import dev.icode.mobile.domain.isAtOrUnder
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.WorkTask
 import dev.icode.mobile.domain.ICodeIntent

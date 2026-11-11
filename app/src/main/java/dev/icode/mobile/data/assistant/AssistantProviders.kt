@@ -9,7 +9,7 @@ import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantSettings
 import dev.icode.mobile.domain.ICodeIntent
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.NoticeTone
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job

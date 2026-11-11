@@ -37,11 +37,11 @@ import dev.icode.mobile.domain.GitChange
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.McpIntent
 import dev.icode.mobile.domain.NoticeIntent
-import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
+import dev.icode.mobile.domain.notices.AssistantNotices
 
 /**
  * What is drawn over the chat: its history, the model picker, what to attach, the processes it
@@ -89,7 +89,7 @@ fun AssistantScreen(actions: NavigationActions) {
     val attach = { files: List<DraftFile> ->
         val all = (attached + files).distinctBy { it.location }
         if (all.size > AssistantRules.MAX_ATTACHMENTS) {
-            gateway.dispatch(NoticeIntent.Notify(NoticeTone.HeadsUp, "Five files go with a message at most: ${all.size - AssistantRules.MAX_ATTACHMENTS} not attached"))
+            gateway.dispatch(NoticeIntent.Tell(AssistantNotices.tooManyFiles(all.size - AssistantRules.MAX_ATTACHMENTS, AssistantRules.MAX_ATTACHMENTS)))
         }
         attached = all.take(AssistantRules.MAX_ATTACHMENTS)
     }
