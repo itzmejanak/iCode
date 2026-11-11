@@ -28,7 +28,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -69,7 +68,8 @@ import kotlinx.coroutines.delay
  * Left alone while not [awake], it rests as the assistant's bubble over other apps does
  * ([IcodeResting]): slowly, it sinks half behind its edge ([LocalPillEdge]) and fades, out of the
  * way of the work; a touch or anything new brings it out at once. A tap on it at rest is still a tap.
- * It is kept from Android's back gesture, which would otherwise take a touch at the screen's edge.
+ * While it is shown it is kept from Android's back gesture, which would otherwise take a touch at the
+ * screen's edge ([keptFromBackGesture]).
  *
  * [onLongClick], held, does the pill's other action, named [longClickLabel]. TalkBack has that, then
  * [actions], then the stack's moves for [name].
@@ -119,7 +119,7 @@ fun IcodePillButton(
                 alpha = 1f - (1f - IcodeResting.ALPHA) * rest
             }
             // Inside the layer, so the place kept from the back gesture is where the pill is drawn.
-            .systemGestureExclusion()
+            .keptFromBackGesture()
             .wakeOnTouch { touches++ }
             .combinedClickable(
                 interactionSource = pressed,
@@ -153,7 +153,8 @@ fun IcodePillButton(
  * kept out while it has a [tone]. Tapped, it opens at once into one row of [content] on the raised surface, grown from
  * its icon, which stays under the finger at the row's docked end ([LocalPillIconAtEnd]). That icon
  * tapped closes it again — or, tapped again within a double tap's time of opening it, does
- * [onDoubleTap] — and so does [closeAfterMillis] without a touch. TalkBack reads it as [description],
+ * [onDoubleTap] — and so does [closeAfterMillis] without a touch while it is shown: hidden
+ * ([LocalPillsHidden]) it stays open, and its time starts again when it is back. TalkBack reads it as [description],
  * with Show or Hide, then [actions], then the stack's moves.
  */
 @Composable
@@ -176,7 +177,9 @@ fun IcodeDockedPill(
     val doubleTap = LocalViewConfiguration.current.doubleTapTimeoutMillis
     var openedAt by remember { mutableLongStateOf(0L) }
     var touches by remember { mutableIntStateOf(0) }
-    if (open && closeAfterMillis != null) {
+    // Hidden under a sheet, it stays open and its time waits; shown again, its time starts again.
+    val hidden = LocalPillsHidden.current
+    if (open && closeAfterMillis != null && !hidden) {
         LaunchedEffect(touches) {
             delay(closeAfterMillis)
             opened(false)
@@ -228,7 +231,7 @@ fun IcodeDockedPill(
             }
             Row(
                 Modifier
-                    .systemGestureExclusion()
+                    .keptFromBackGesture()
                     .height(IcodeSizes.DockedPill)
                     .shadow(OPEN_ELEVATION, IcodeShapes.Pill)
                     .clip(IcodeShapes.Pill)

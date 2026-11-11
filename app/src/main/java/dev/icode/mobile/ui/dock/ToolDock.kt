@@ -19,6 +19,7 @@ import dev.icode.mobile.designsystem.IcodeDockedAction
 import dev.icode.mobile.designsystem.IcodeDockedPill
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.LocalPillIconAtEnd
+import dev.icode.mobile.designsystem.LocalPillsHidden
 import dev.icode.mobile.designsystem.pillEnter
 import dev.icode.mobile.designsystem.pillExit
 import dev.icode.mobile.domain.ICodeIntent
@@ -101,8 +102,9 @@ private fun Dock(dock: ToolDockState, navigation: NavigationState) {
     val model = navigation.model
     val suggestion = dock.suggestions.suggestion
     val previous = model.previousTool
-    BackHandler(enabled = dock.open, onBack = dock.close)
-    // Gone with the stack, under a sheet: back again, it is closed.
+    // Hidden under a sheet, it stays open, and Back is the sheet's.
+    BackHandler(enabled = dock.open && !LocalPillsHidden.current, onBack = dock.close)
+    // Gone as the workspace or a tool's main screen is left (never under a sheet): back, it is closed.
     DisposableEffect(dock) { onDispose { dock.close() } }
     val go = { tool: WorkspaceTool ->
         dock.close()

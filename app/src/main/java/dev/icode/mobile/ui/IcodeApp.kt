@@ -267,7 +267,7 @@ fun IcodeApp(
                         NoticeHost(notices, snapshot.notices, pageOpen, onAll = toAll, onAct = { act(it, gateway, navigation.actions) }) {
                             NavigationHost(navigation) { route -> ScreenHost(screen = route, actions = navigation.actions) }
                             FileAsks(snapshot.explorer, gateway)
-                            // Over everything but the floating stack, which steps aside for it.
+                            // Over everything but the floating stack, which is hidden while it is open.
                             UndoSheet(undo, snapshot.explorer.history)
                         }
                         FloatingControls(floors, visible = !pageOpen, undo, notices, onAll = toAll, dock, navigation)

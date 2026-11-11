@@ -317,7 +317,7 @@ sheet on the same base (§3.1), for each item whose name is taken: the two side 
       the screen's edge, round on its open side with a grip;
     - 10 s later it tucks into the edge to its grip, as the bell does, and is pulled or tapped out
       again; it stays docked while anything can be undone or redone.
-    - Not shown while a sheet or the Notifications page is open.
+    - Not shown while a sheet or the Notifications page is open; it comes back as it was, at rest or awake.
     - TalkBack reads the change ("Moved 3 items to Trash", "Restored 3 items") as the bell's.
   - **The explorer's ⋮** has no Undo or Redo since 2026-11-04 (owner's request): the docked pill is
     at hand on every screen.
@@ -986,7 +986,8 @@ Descending.
     reports its top edge (`floor()`), and each `IcodeSheetOverlay` that it is open (`SheetOpen`).
     No screen wires either.
   - **`IcodeFloatingStack`:** a column at the bottom end, above the highest floor, at least
-    `FabClearance` up, and gone while a sheet is open. The bell no longer meets the explorer's +.
+    `FabClearance` up, and hidden while a sheet is open: its pills stay composed and come back as
+    they were. The bell no longer meets the explorer's +.
   - **The pill's parts,** shared by the bell and the undo pill: `IcodeDockedPill` and
     `IcodeDockedAction` (since 2026-11-04, the owner's choice: docked on the edge, no line, no ×).
   - **Tested:** `IcodeFloorsTest`.

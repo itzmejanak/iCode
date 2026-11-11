@@ -292,6 +292,14 @@ All notable changes to iCode are documented here. The format follows
     drawn at the label's size.
 
 ### Fixed
+- Opening a sheet, such as a file's actions from a long press in the Explorer, or the Notifications
+  page no longer resets the floating pills. Before, every sheet removed the pills: a resting pill
+  came back awake and then sank again, an open tool dock was closed, the bell could ring again, and
+  the resting undo pill slid out over the sheet. Now the pills are hidden the moment a sheet or the
+  page opens: nothing of them is drawn over the sheet, they take no touch, TalkBack skips them, the
+  back gesture works at the screen's edge, and Back closes the sheet. When it closes they are back
+  exactly as they were, with nothing to wake. An open dock stays open under a sheet and its time to
+  close starts again once it is back.
 - iCode crashed ("Unable to add window -- token null is not valid") when phone control was turned
   off while the assistant's bubble or glow was changing. Android takes the overlay windows' token
   back the moment the accessibility service is turned off, a moment before the service hears of it;

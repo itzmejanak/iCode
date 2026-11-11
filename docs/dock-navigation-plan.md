@@ -92,8 +92,8 @@ Journey 3 loses the chat's scroll position.
 ### 1.4 What the dock can be built from
 
 - **The floating stack** (`IcodeFloatingStack`) sits at the bottom end, above the highest bottom
-  bar (`IcodeFloors`) and at least 88 dp up. It holds the undo pill over the bell, steps aside
-  while a sheet is open, and moves above the keyboard.
+  bar (`IcodeFloors`) and at least 88 dp up. It holds the undo pill over the bell, is hidden
+  while a sheet is open (its pills kept as they were), and moves above the keyboard.
 - **`IcodeDockedPill`** is flush on the edge with a grip. It tucks into the edge and comes out on a
   tap or a pull, with the swipe, spring and TalkBack actions already done. The dock is one more
   pill of this kind.
@@ -242,7 +242,8 @@ Terminal over Editor.
     that, as one outside a menu does.
 - **Hidden** on every page that is not a tool's main screen (D1), while a sheet is open, on the
   Notifications page and outside a workspace. Inside a workspace its place stays kept while it is
-  hidden, so the bell and the undo pill never move as pages open and close.
+  hidden, so the bell and the undo pill never move as pages open and close. Under a sheet it stays
+  as it was, open or closed, its 6 seconds waiting, and Back is the sheet's.
 - **With the keyboard up** it stays closed unless tapped, and moves above the keyboard as the bell
   does. Where it starts, it never covers the editor's key row or the terminal's extra keys, because
   those are floors of the stack; moved by the user, it stands where they put it (D11).
@@ -463,8 +464,8 @@ Assistant.
 - **K4** [P] It slides smoothly, with no dropped frames on the owner's phone, and follows
   Android's animation scale.
 - **K5** [P] TalkBack reads each tool, its badge, the suggestion and the quick switch.
-- **K6** [P] The bell and the undo pill work as before. They stand one step higher, and still
-  step aside under sheets.
+- **K6** [P] The bell and the undo pill work as before. They stand one step higher, are still
+  hidden under sheets, and come back as they were.
 
 ### 5.6 The four features
 
