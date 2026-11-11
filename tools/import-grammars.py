@@ -10,6 +10,8 @@ ICODE_GRAMMAR_CACHE=<folder> to keep the downloads between runs. This writes, re
     app/src/main/assets/textmate/<folder>/...      each grammar and language configuration, as released
     app/src/main/assets/textmate/catalog.json      one line per language (domain/syntax/Languages.kt)
     docs/editor-grammar-provenance.md              the tables under "Shipped grammars"
+    app/src/test/resources/syntax-samples/shiki/   Shiki's sample of each language with no sample of iCode's
+                                                   own in syntax-samples/icode/ (SyntaxSamplesTest)
 
 What ships, in this order (the first source to declare a scope wins):
 
@@ -19,7 +21,9 @@ What ships, in this order (the first source to declare a scope wins):
 3. Every grammar of Shiki's tm-grammars (textmate-grammars-themes 8f1828eb) whose scope VS Code lacks,
    once its licence is known (Shiki's index, else LICENCES below, checked in the upstream repository).
 4. A language whose Shiki grammar has no known licence, from the maintained upstream GitHub Linguist
-   vendors (UPSTREAM below).
+   vendors (UPSTREAM below), and the grammars Linguist vendors for the formats the icon theme names that
+   neither VS Code nor Shiki covers, and for scopes shipped grammars include. Sora's engine reads JSON and
+   property lists, so a grammar written in CSON or YAML is converted to JSON (cson_loads, yaml_loads).
 
 A grammar no file type opens is shipped only when a shipped grammar includes it (a helper such as
 `source.cpp.embedded.macro`). Injection grammars are not shipped: Sora reads no injections.
@@ -33,7 +37,8 @@ an extension, the one the icon theme draws it as wins. A pattern is kept when it
 a name's beginning (`Dockerfile.*`) or an extension (`*.env`); patterns on a path (`**/.git/config`) are
 not, as the Explorer never lists those folders. The claims that lost are listed in the provenance doc.
 
-Nothing is changed by hand except the files in KEPT, which are left as they are, and the edits in EDITS;
+Nothing is changed by hand except the files in KEPT, which are left as they are (iCode's own Dockerfile and
+.env grammars among them), and the edits in EDITS;
 grammars and configurations Sora's engine cannot read whole are changed as rules_only and
 readable_configuration say, and listed in the provenance doc.
 """
@@ -52,6 +57,8 @@ ASSETS = os.path.join(REPO, "app", "src", "main", "assets")
 TEXTMATE = os.path.join(ASSETS, "textmate")
 CATALOG = os.path.join(TEXTMATE, "catalog.json")
 PROVENANCE = os.path.join(REPO, "docs", "editor-grammar-provenance.md")
+# One sample file per language for the tests (SyntaxSamplesTest): iCode's own in icode/, else Shiki's in shiki/.
+SAMPLES = os.path.join(REPO, "app", "src", "test", "resources", "syntax-samples")
 
 SORA = "0.24.6"
 VSCODE = "307b60e7aba9fe6c2dec8cae5970561b126f807b"
@@ -145,8 +152,9 @@ LICENCES = {
 # Grammars from the maintained upstream repositories GitHub Linguist vendors (linguist d456527f,
 # vendor/grammars, grammars.yml; licences from vendor/licenses/git_submodule): for a Shiki grammar whose
 # upstream states no licence (glsl, tcl, dream-maker), and for the text formats the icon theme names that
-# neither VS Code nor Shiki has a grammar for. Only grammars in JSON or a property list: Sora's engine reads
-# no CSON. id: scope, repository, commit (Linguist's submodule), grammar path, licence.
+# neither VS Code nor Shiki has a grammar for. Sora's engine reads JSON and property lists only, so a grammar
+# in CSON or YAML is converted to JSON. id: scope, repository, commit (Linguist's submodule), grammar path,
+# licence.
 UPSTREAM = {
     "glsl": ("source.glsl", "euler0/sublime-glsl", "59a5f8a3120358657cefdc4b830b4a883ebfbf77", "GLSL.tmLanguage", "Unlicense"),
     "tcl": ("source.tcl", "textmate/tcl.tmbundle", "f06f80144c01ff1e3836cef21cbac62f8e1c5df6", "Syntaxes/Tcl.plist", "TextMate Bundle License"),
@@ -205,6 +213,58 @@ UPSTREAM = {
     "uiua": ("source.uiua", "uiua-lang/uiua-vscode", "333e5b12b27a9981f3e9028e7ebd5165b178e60a", "syntaxes/uiua.tmLanguage.json", "MIT"),  # Uiua
     "vcl": ("source.vcl", "fastly/vscode-fastly-vcl", "01f09f5392d82d3544fe33e086d5fd718083d4c6", "syntaxes/vcl.tmLanguage.json", "MIT"),  # VCL
     "verse": ("source.verse", "simnJS/verse-grammar", "3abf18ec6e8d9fcbbb15be8183cb5b2cb6a621b8", "grammars/verse.tmLanguage.json", "MIT"),  # Verse
+    # Grammars Linguist vendors only in CSON or YAML, read by cson_loads and yaml_loads below.
+    "agc": ("source.agc", "Alhadis/language-agc", "6fb398ee1110d65f4c92c7644e8e6d896dc43300", "grammars/agc.cson", "ISC"),  # Apollo Guidance Computer
+    "cabal": ("source.cabal", "atom-haskell/language-haskell", "a273201bd1ffd518a7700fb883d68b8fb60bcbf3", "grammars/cabal.cson", "MIT"),  # Cabal Config
+    "literate-haskell": ("text.tex.latex.haskell", "atom-haskell/language-haskell", "a273201bd1ffd518a7700fb883d68b8fb60bcbf3", "grammars/literate haskell.cson", "MIT"),  # Literate Haskell
+    "liquid-haskell": ("annotation.liquidhaskell.haskell", "atom-haskell/language-haskell", "a273201bd1ffd518a7700fb883d68b8fb60bcbf3", "grammars/liquid haskell.cson", "MIT"),  # Liquid Haskell, in Literate Haskell
+    "etc": ("etc", "Alhadis/language-etc", "6aa793bd649151119bd946673f8f027f0a9c99c8", "grammars/etc.cson", "ISC"),  # patterns language-etc's grammars share
+    "checksums": ("text.checksums", "Alhadis/language-etc", "6aa793bd649151119bd946673f8f027f0a9c99c8", "grammars/checksums.cson", "ISC"),  # Checksums
+    "gitconfig": ("source.gitconfig", "Alhadis/language-etc", "6aa793bd649151119bd946673f8f027f0a9c99c8", "grammars/gitconfig.cson", "ISC"),  # Git Config
+    "hosts": ("source.hosts", "Alhadis/language-etc", "6aa793bd649151119bd946673f8f027f0a9c99c8", "grammars/hosts.cson", "ISC"),  # Hosts File
+    "m3u": ("source.m3u", "Alhadis/language-etc", "6aa793bd649151119bd946673f8f027f0a9c99c8", "grammars/m3u.cson", "ISC"),  # M3U
+    "mailmap": ("source.mailmap", "Alhadis/language-etc", "6aa793bd649151119bd946673f8f027f0a9c99c8", "grammars/mailmap.cson", "ISC"),  # Git .mailmap
+    "opts": ("source.opts", "Alhadis/language-etc", "6aa793bd649151119bd946673f8f027f0a9c99c8", "grammars/opts.cson", "ISC"),  # Option List
+    "shellcheckrc": ("source.shellcheckrc", "Alhadis/language-etc", "6aa793bd649151119bd946673f8f027f0a9c99c8", "grammars/shellcheckrc.cson", "ISC"),  # ShellCheck Config
+    "lex": ("source.lex", "Alhadis/language-grammars", "daa8548cc820359b078192dc85b6c8845e9db54c", "grammars/lex.cson", "ISC"),  # Lex
+    "lex-regexp": ("source.lex.regexp", "Alhadis/language-grammars", "daa8548cc820359b078192dc85b6c8845e9db54c", "grammars/lex-regexp.cson", "ISC"),  # Lex's patterns
+    "postscript": ("source.postscript", "Alhadis/Atom-PostScript", "8f5309cc78f76b1ce5f3e817d3749d5ee64d5212", "grammars/postscript.cson", "ISC"),  # PostScript
+    "srt": ("text.srt", "Alhadis/language-subtitles", "9acc0aa2c232a7b06aa0e8c1058ee5be81a98837", "grammars/srt.cson", "ISC"),  # SubRip Text
+    "vtt": ("text.vtt", "Alhadis/language-subtitles", "9acc0aa2c232a7b06aa0e8c1058ee5be81a98837", "grammars/vtt.cson", "ISC"),  # WebVTT
+    "firestore": ("source.firestore", "jaysquared/atom-firestore-grammar", "750ec2abef42f7061c6bcc29ed5db3b0a1f3f773", "grammars/firestore.cson", "MIT"),  # Cloud Firestore Security Rules
+    "denizenscript": ("source.denizenscript", "DenizenScript/denizenscript-grammar", "a9a95232026192c0d5eb23557882f9b69a40d66e", "grammars/denizenscript.cson", "MIT"),  # DenizenScript
+    "eml": ("text.eml.basic", "mariozaizar/language-eml", "e92b829c1e68710f1e2d5c039642e3a8ff06db6d", "grammars/language-eml.cson", "MIT"),  # E-mail
+    "ecr": ("text.html.ecr", "atom-crystal/language-crystal", "48b87f541ad787ffab5d4a4a1d366f5db16bca1a", "grammars/html (crystal - ecr).cson", "MIT"),  # HTML+ECR
+    "lilypond": ("source.lilypond", "nwhetsell/linter-lilypond", "eca5b0f91b959d598b601c3dcdf2194a6b1e8e79", "grammars/lilypond.cson", "MIT"),  # LilyPond
+    "macaulay2": ("source.m2", "Macaulay2/language-macaulay2", "e3d0db2a52545b4ce04dd531fd73360bd1407adb", "grammars/macaulay2.cson", "MIT"),  # Macaulay2
+    "meson": ("source.meson", "TingPing/language-meson", "90269533120e84a9f5882346a8d646619e606b39", "grammars/meson.cson", "Apache-2.0"),  # Meson
+    "nunjucks": ("text.html.nunjucks", "alohaas/language-nunjucks", "d865b2a667c53122e749b7d9698f1b2ac0258d98", "grammars/html (nunjucks templates).cson", "MIT"),  # Nunjucks
+    "nunjucks-source": ("source.nunjucks", "alohaas/language-nunjucks", "d865b2a667c53122e749b7d9698f1b2ac0258d98", "grammars/nunjucks templates.cson", "MIT"),  # Nunjucks' tags
+    "velocity": ("source.velocity", "animecyc/AtomLanguageVelocity", "6eb92de5a24991192192d768241be12337015884", "grammars/velocity.cson", "MIT"),  # Velocity Template Language
+    "xquery": ("source.xq", "wcandillon/language-jsoniq", "89a3515410d82ef32995a1d713ece09bd15eb840", "grammars/xquery.cson", "Apache-2.0"),  # XQuery
+    "jsoniq": ("source.jsoniq", "wcandillon/language-jsoniq", "89a3515410d82ef32995a1d713ece09bd15eb840", "grammars/jsoniq.cson", "Apache-2.0"),  # JSONiq
+    "yang": ("source.yang", "DzonyKalafut/language-yang", "c2d4a701d15e0ea7a1cef4f2fe4396b336504d7c", "grammars/yang.cson", "MIT"),  # YANG
+    "harbour": ("source.harbour", "hernad/atom-language-harbour", "ae860b3b02d08bd65827c0a5f0029e65e4df30b4", "grammars/harbour.cson", "MIT"),  # xBase (Harbour)
+    "jisonlex": ("source.jisonlex", "cdibbs/language-jison", "ce8e2c78279b242a95b87e830a60dee55357aedc", "grammars/jisonlex.cson", "MIT"),  # Jison Lex
+    "plantuml": ("source.wsd", "qjebbs/vscode-plantuml", "7bc1758ed73dc269f5721d78c6c6c01f461d7cb0", "syntaxes/plantuml.yaml-tmLanguage", "MIT"),  # PlantUML
+    "slint": ("source.slint", "slint-ui/slint-tmLanguage", "45bd6116b344fb2eebdf506fbda32a5cc57590a3", "Slint.YAML-tmLanguage", "MIT"),  # Slint
+    "sln": ("source.solution", "Nixinova/NovaGrammars", "c6dfb955f070c5aaf3ca7f6ee8d0b1802c6aed95", "grammars/solution.yaml-tmLanguage", "ISC"),  # Microsoft Visual Studio Solution
+    "robots-txt": ("text.robots-txt", "Nixinova/NovaGrammars", "c6dfb955f070c5aaf3ca7f6ee8d0b1802c6aed95", "grammars/robots-txt.yaml-tmLanguage", "ISC"),  # robots.txt
+    # Grammars shipped grammars include, which Linguist vendors.
+    "jflex": ("source.jflex", "jflex-de/jflex.tmbundle", "8b5c0cefc7672ec4d0a5f6d9095256252120fa44", "Syntaxes/JFlex.tmLanguage", "BSD-2-Clause"),  # JFlex
+    "agda": ("source.agda", "agda/agda-github-syntax-highlighting", "ba5005841ff9bdc5186af68befd58ed456fc7a8c", "Agda.tmLanguage", "MIT"),  # Agda
+    "lean4-markdown": ("source.lean4.markdown", "leanprover/vscode-lean4", "5a25e6abb2e973b4c89a053acc74c479c0bb2e9f", "vscode-lean4/syntaxes/lean4-markdown.json", "Apache-2.0"),  # Lean 4 doc comments
+    "regexp": ("source.regexp", "Alhadis/language-regexp", "2e240580b7e7046718b2c495d418f3ded972d618", "grammars/regexp.cson", "ISC"),  # Regular expressions
+    "regexp-posix": ("source.regexp.posix", "Alhadis/language-regexp", "2e240580b7e7046718b2c495d418f3ded972d618", "grammars/regexp-posix.cson", "ISC"),  # POSIX regular expressions
+    "regexp-extended": ("source.regexp.extended", "Alhadis/language-regexp", "2e240580b7e7046718b2c495d418f3ded972d618", "grammars/regexp-extended.cson", "ISC"),  # Extended regular expressions
+    "syon": ("source.sy", "Alhadis/language-regexp", "2e240580b7e7046718b2c495d418f3ded972d618", "grammars/syon.cson", "ISC"),  # SyON
+    "x86": ("source.x86", "calculuswhiz/Assembly-Syntax-Definition", "519b7b3c5f8428832dde72a90041d0707f831e5c", "Assembly x86 AT&T.tmLanguage", "MIT"),  # x86 assembly, AT&T syntax
+    "cfml-basic": ("text.cfml.basic", "SublimeText/ColdFusion", "dbe2f76038fe77fe90b4cc4a0651aa817f14f1a3", "Coldfusion.tmLanguage", "MIT"),  # CFML tags
+    "eex-text": ("text.elixir", "elixir-lang/elixir-tmbundle", "eb63f1a5da138634cff0caf3d777ba147b47670d", "Syntaxes/EEx.tmLanguage", "Apache-2.0"),  # EEx
+    "javadoc": ("text.html.javadoc", "textmate/javadoc.tmbundle", "5276d7a93f0cf53b7d425c39c6968b09ea9f2d40", "Syntaxes/JavaDoc.tmLanguage", "TextMate Bundle License"),  # Javadoc
+    "mson": ("text.html.markdown.source.gfm.mson", "apiaryio/api-blueprint-sublime-plugin", "0a90eff10e71a8f18974410307b3b86c71afb3ed", "MSON.tmLanguage", "MIT"),  # MSON
+    "python-console": ("text.python.console", "MagicStack/MagicPython", "7d0f2b22a5ad8fccbd7341bc7b7a715169283044", "grammars/python-console.cson", "MIT"),  # Python sessions
+    "openesql": ("source.openesql", "spgennard/vscode_cobol", "8be1f9a91a4a25c847ca2fe9dcc4793ead8bc347", "syntaxes/openesql.tmLanguage.json", "MIT"),  # SQL in COBOL
 }
 
 # Shiki grammars not shipped, and why.
@@ -224,6 +284,7 @@ FAMILIES = {
     "xml": "code", "xsl": "code", "sql": "code", "diff": "document", "git-commit": "document", "git-rebase": "document",
     "csv": "document", "tsv": "document", "ignore": "data", "dotenv": "data", "properties": "data", "jsonc": "data",
     "jsonl": "data", "json5": "data", "log": "document", "markdown": "document", "dockercompose": "data",
+    "mailmap": "data",
 }
 KINDS = {"programming": "code", "markup": "code", "data": "data", "prose": "document"}
 
@@ -271,6 +332,11 @@ ICODE_FILES = [
     ("yaml", "", ".snyk", "Snyk's policy, which is YAML"),
     ("procfile", "", "procfile.windows", "a Procfile for Windows"),
     ("pkl", "", "pklproject", "a Pkl project, which is Pkl"),
+    ("cabal", "", "cabal.project.freeze cabal.project.local", "Cabal's project files, which are in Cabal's syntax"),
+    ("meson", "", "meson.options", "Meson's options, the newer name of meson_options.txt"),
+    ("checksums", "shasum", "", "shasum's output, a list of checksums"),
+    ("shellcheckrc", "", "shellcheckrc", "ShellCheck's settings without the dot, as it also reads them"),
+    ("slint", "60", "", "Slint's former extension, from when it was SixtyFPS"),
     ("properties", "", ".gitattributes-global .gitattributes_global", "global Git attributes, as VS Code reads .gitattributes"),
     ("ignore", "", ".gitignore-global", "a global .gitignore"),
 ]
@@ -282,11 +348,35 @@ IGNORE_SUFFIX = "ignore"
 NOT_TEXT = {
     ("extension", "wasm"): "a WebAssembly module is bytes (FileTypes.Executable); its text form is `.wat`",
     ("extension", "txt"): "plain text, though Linguist also gives it to Robot Framework",
+    ("extension", "pdf"): "a PDF is bytes (FileTypes.Pdf), though the PostScript grammar claims it",
+    ("extension", "ai"): "an Illustrator drawing is bytes, though the PostScript grammar claims it",
+    ("extension", "aia"): "an Illustrator action is bytes, though the PostScript grammar claims it",
+    ("extension", "pfb"): "a binary Type 1 font, though the PostScript grammar claims it",
+    ("extension", "eps"): "an EPS picture is shown as a picture, though it is PostScript",
+    ("extension", "epsf"): "an EPS picture is shown as a picture, though it is PostScript",
+    ("extension", "epsi"): "an EPS picture is shown as a picture, though it is PostScript",
+    ("extension", "sum"): "no one format: `go.sum` is Go's (go-sum), and the checksum grammar's other names stay its own",
+    ("name", "authors"): "a list of a project's authors is prose, though the Git mailmap grammar claims it",
 }
 
 # Copied files left as they are: edited for the editor's engine (docs/editor-grammar-provenance.md).
 KEPT = {
     "textmate/markdown/syntaxes/markdown.tmLanguage.json": "bold and italic split into literal-end rules (Sora back-reference bug)",
+    "textmate/docker/syntaxes/docker.tmLanguage.json": (
+        "iCode's grammar, written from moby's (which colours only instruction names and quoted strings): every part of an "
+        "instruction is scoped (the image, its tag and digest, the stage name, `--flag=value` options, ARG, ENV and LABEL "
+        "keys and values, EXPOSE ports and protocols, `$VAR` and `${VAR:-default}`, parser directives, heredocs, the exec "
+        "form's JSON array), and the shell form of RUN, CMD, ENTRYPOINT and HEALTHCHECK CMD, and RUN heredocs, embed "
+        "`source.shell`. Known gap: a line continues only after a backslash, so in a file whose `# escape=` directive picks the backtick "
+        "each line continued with a backtick is read as a new instruction. Taking a backtick everywhere would break "
+        "the shell's own backticks at a line's end; the fix is a rule that begins at the directive and never ends, "
+        "holding a second set of every instruction rule with the backtick in place of the backslash, which this "
+        "script could derive from the backslash rules rather than have it written by hand)"),
+    "textmate/dotenv/syntaxes/dotenv.tmLanguage.json": (
+        "iCode's grammar, written from dotenv-org's (which reads each line with one pattern): a value may be unquoted, "
+        "single-, double- or backtick-quoted, and quoted values may span lines; an unquoted number is a number and "
+        "`true` or `false` a constant; `$VAR`, `${VAR}` and `${VAR:-default}` are variables, in unquoted and "
+        "double-quoted values; a ` #` after an unquoted value starts a comment"),
 }
 
 
@@ -295,7 +385,29 @@ def make_line_comment(text):
     return re.sub(r'"lineComment":\s*\{\s*"comment":\s*"#",\s*"noIndent":\s*true\s*\}', '"lineComment": "#"', text)
 
 
-EDITS = {"textmate/make/language-configuration.json": make_line_comment}
+def numbers(scope):
+    """An edit that gives a grammar with no rule for numbers one, last among its top-level patterns: a number
+    not inside a name (`x1`, `$a2`, `v1.2`), with its decimal parts and an exponent."""
+    rule = {"match": r"(?<![\w$])\d+(?:\.\d+)*(?:[eE][-+]?\d+)?\b", "name": f"constant.numeric.{scope}"}
+
+    def edit(text):
+        if text.lstrip().startswith("<"):  # a property list: the rule goes first, as its array's end is not marked
+            entry = f"<dict><key>match</key><string>{rule['match'].replace('<', '&lt;')}</string><key>name</key><string>{rule['name']}</string></dict>"
+            return re.sub(r"(<key>patterns</key>\s*<array>)", lambda m: m.group(1) + entry, text, count=1)
+        grammar = json.loads(text)
+        grammar["patterns"].append(rule)
+        return json.dumps(grammar, ensure_ascii=False, indent=2) + "\n"
+    edit.__doc__ = f"a rule for numbers (`{rule['name']}`), which the grammar lacks, added to its top-level patterns"
+    return edit
+
+
+EDITS = {
+    "textmate/make/language-configuration.json": make_line_comment,
+    # Code whose grammar colours no number at all (SyntaxSamplesTest).
+    "textmate/rel/rel.json": numbers("rel"),
+    "textmate/cmake/cmake.json": numbers("cmake"),
+    "textmate/tcl/Tcl.plist": numbers("tcl"),
+}
 
 
 def rules_only(path, data):
@@ -410,6 +522,292 @@ def strip_jsonc(text):
             out.append(c)
         i += 1
     return re.sub(r",(\s*[}\]])", r"\1", "".join(out))
+
+
+# --- Reading CSON and YAML grammars ------------------------------------------------------------------------
+# Small readers for the forms grammars are written in, so the script needs nothing beyond Python. Checked to
+# give what CoffeeScript's own reader (cson-parser 4.0.9) and PyYAML 6.0.2 give for every grammar shipped
+# and for all 70 of language-etc's (2026-11-11).
+
+def cson_loads(text):
+    """A CSON grammar (CoffeeScript object notation, as Atom's grammars are written) as JSON values: implicit
+    and braced objects, arrays, quoted and block strings with JavaScript's escapes, yes/no/on/off, comments."""
+    tokens, i, line, start = [], 0, 1, 0
+    while i < len(text):
+        c = text[i]
+        if c == "\n":
+            tokens.append(("nl", None, line, 0))
+            i, line, start = i + 1, line + 1, i + 1
+        elif c in " \t\r":
+            i += 1
+        elif text.startswith("###", i) and not text.startswith("####", i):
+            end = text.index("###", i + 3) + 3
+            line += text.count("\n", i, end)
+            i = end
+        elif c == "#":
+            while i < len(text) and text[i] != "\n":
+                i += 1
+        elif c in "[]{},:":
+            tokens.append((c, None, line, i - start))
+            i += 1
+        elif c in "'\"":
+            quote = c * 3 if text.startswith(c * 3, i) else c
+            j = i + len(quote)
+            while not text.startswith(quote, j):
+                j += 2 if text[j] == "\\" else 1
+            raw = text[i + len(quote):j]
+            value = js_unescape(heredoc(raw) if len(quote) == 3 else re.sub(r"(?<!\\)\n[ \t]*", " ", raw))
+            tokens.append(("value", value, line, i - start))
+            if "\n" in raw:
+                line, start = line + raw.count("\n"), text.rindex("\n", i, j) + 1
+            i = j + len(quote)
+        else:
+            match = re.compile(r"[\w$.+-]+").match(text, i)
+            word = match.group(0)
+            words = {"true": True, "yes": True, "on": True, "false": False, "no": False, "off": False, "null": None}
+            if word in words:
+                value = words[word]
+            elif re.fullmatch(r"[+-]?(\d+\.?\d*|\.\d+)([eE][+-]?\d+)?", word):
+                value = float(word) if re.search(r"[.eE]", word) else int(word)
+            else:
+                value = word
+            tokens.append(("value" if word in words or not isinstance(value, str) else "word", value, line, i - start))
+            i = match.end()
+    tokens.append(("end", None, line + 1, 0))
+    # Each token's line's indentation, which a value on the lines below must exceed.
+    first = {}
+    for token in tokens:
+        first.setdefault(token[2], token[3])
+    position = [0]
+
+    def peek(offset=0):
+        return tokens[position[0] + offset]
+
+    def take(kind=None):
+        token = tokens[position[0]]
+        if kind and token[0] != kind:
+            raise ValueError(f"line {token[2]}: {kind} expected, {token[0]} found")
+        position[0] += 1
+        return token
+
+    def skip(*kinds):
+        while peek()[0] in kinds:
+            take()
+
+    def is_key():
+        return peek()[0] in ("word", "value") and peek(1)[0] == ":"
+
+    def key():
+        token = take()
+        take(":")
+        value = token[1]
+        return value if isinstance(value, str) else json.dumps(value)
+
+    def implicit(column):
+        """Members `key: value` at [column], on lines of their own or after commas."""
+        found = {}
+        while True:
+            line = peek()[2]
+            name = key()
+            found[name] = value(first[line])
+            mark = position[0]
+            if peek()[0] == "," and peek(1)[0] in ("word", "value") and peek(2)[0] == ":":
+                take(",")
+                continue
+            skip("nl")
+            if is_key() and peek()[3] == column:
+                continue
+            position[0] = mark
+            return found
+
+    def value(indent):
+        if peek()[0] == "nl":
+            skip("nl")
+            if peek()[3] <= indent:
+                raise ValueError(f"line {peek()[2]}: a value expected")
+        if is_key():
+            return implicit(peek()[3])
+        token = take()
+        if token[0] == "[":
+            items = []
+            while True:
+                skip("nl", ",")
+                if peek()[0] == "]":
+                    take()
+                    return items
+                items.append(implicit(peek()[3]) if is_key() else value(-1))
+        if token[0] == "{":
+            found = {}
+            while True:
+                skip("nl", ",")
+                if peek()[0] == "}":
+                    take()
+                    return found
+                name = key()
+                found[name] = value(-1)
+        if token[0] in ("value", "word"):
+            return token[1]
+        raise ValueError(f"line {token[2]}: unexpected {token[0]}")
+
+    skip("nl")
+    result = implicit(peek()[3]) if is_key() else value(-1)
+    skip("nl")
+    if peek()[0] != "end":
+        raise ValueError(f"line {peek()[2]}: unexpected {peek()[0]}")
+    return result
+
+
+def heredoc(raw):
+    """A CoffeeScript block string's text: the least indentation of its lines removed, and its first and
+    last line breaks."""
+    indents = [m.group(1) for m in re.finditer(r"\n+([ \t]*)(?=\S)", raw)]
+    indent = min(indents, key=len) if indents else ""
+    if indent:
+        raw = raw.replace("\n" + indent, "\n")
+    return re.sub(r"\n[ \t]*$", "", re.sub(r"^\n", "", raw))
+
+
+def js_unescape(raw):
+    """A JavaScript string literal's escapes: `\\n`, `\\x41`, `\\u0041`; any other escaped character is itself."""
+    simple = {"n": "\n", "t": "\t", "r": "\r", "b": "\b", "f": "\f", "v": "\v", "0": "\0", "\n": ""}
+
+    def one(match):
+        text = match.group(1)
+        if text[0] in "xu" and len(text) > 1:
+            return chr(int(text[2:-1] if text.startswith("u{") else text[1:], 16))
+        return simple.get(text, text)
+    return re.sub(r"\\(x[0-9A-Fa-f]{2}|u\{[0-9A-Fa-f]+\}|u[0-9A-Fa-f]{4}|[\s\S])", one, raw)
+
+
+def yaml_loads(text):
+    """A YAML grammar (`.yaml-tmLanguage`) as JSON values: block and flow mappings and sequences, plain,
+    single- and double-quoted scalars and comments. Scalars stay strings, as the grammar's fields are."""
+    if text.lstrip().startswith("{"):
+        return json.loads(text)
+    lines = []
+    for number, raw in enumerate(text.split("\n"), 1):
+        body = strip_comment(raw)
+        if body.strip() and body.strip() != "---":
+            lines.append((len(body) - len(body.lstrip(" ")), body.strip(), number))
+    position = [0]
+
+    def block(indent):
+        column, body, number = lines[position[0]]
+        if body.startswith("- ") or body == "-":
+            items = []
+            while position[0] < len(lines) and lines[position[0]][0] == column and lines[position[0]][1][:2] in ("- ", "-"):
+                _, body, number = lines[position[0]]
+                rest = body[1:].lstrip(" ")
+                if not rest:
+                    position[0] += 1
+                    items.append(block(column))
+                    continue
+                # `- key: value`: a mapping whose first key is on the dash's line.
+                lines[position[0]] = (column + len(body) - len(rest), rest, number)
+                items.append(block(column) if is_mapping(rest) else (position.__setitem__(0, position[0] + 1) or scalar(rest, number)))
+            return items
+        found = {}
+        while position[0] < len(lines) and lines[position[0]][0] == column:
+            _, body, number = lines[position[0]]
+            name, rest = split_key(body, number)
+            position[0] += 1
+            if rest:
+                found[name] = scalar(rest, number)
+            elif position[0] < len(lines) and (lines[position[0]][0] > column or lines[position[0]][1].startswith("- ") and lines[position[0]][0] == column):
+                found[name] = block(column)
+            else:
+                found[name] = None
+        return found
+
+    return block(-1)
+
+
+def strip_comment(line):
+    """[line] without a `#` comment outside quotes."""
+    quote = None
+    for i, c in enumerate(line):
+        if quote:
+            if c == quote:
+                quote = None
+        elif c in "'\"" and (i == 0 or line[i - 1] in " \t[{,:-"):
+            quote = c
+        elif c == "#" and (i == 0 or line[i - 1] in " \t"):
+            return line[:i].rstrip()
+    return line.rstrip()
+
+
+def is_mapping(body):
+    try:
+        split_key(body, 0)
+        return True
+    except ValueError:
+        return False
+
+
+def split_key(body, number):
+    if body[0] in "'\"":
+        value, end = quoted(body, 0)
+    else:
+        match = re.match(r"([^:{}\[\],]+?)\s*(?=:(\s|$))", body)
+        if not match:
+            raise ValueError(f"line {number}: a key expected")
+        value, end = match.group(1), match.end()
+    if not body[end:].startswith(":"):
+        raise ValueError(f"line {number}: `:` expected")
+    return value, body[end + 1:].strip()
+
+
+def quoted(text, i):
+    quote, j, out = text[i], i + 1, []
+    while True:
+        c = text[j]
+        if quote == "'" and text.startswith("''", j):
+            out.append("'")
+            j += 2
+        elif c == quote:
+            break
+        elif quote == '"' and c == "\\":
+            out.append(json.loads(f'"\\{text[j + 1]}"') if text[j + 1] in 'nrtbf"\\/' else text[j + 1])
+            j += 2
+        else:
+            out.append(c)
+            j += 1
+    return "".join(out), j + 1
+
+
+def scalar(text, number):
+    value, end = flow(text, 0, number)
+    if text[end:].strip():
+        raise ValueError(f"line {number}: unexpected {text[end:]!r}")
+    return value
+
+
+def flow(text, i, number, inside=False):
+    while text[i] == " ":
+        i += 1
+    c = text[i]
+    if c in "[{":
+        close, items, found = "]" if c == "[" else "}", [], {}
+        i += 1
+        while True:
+            while text[i] in " ,":
+                i += 1
+            if text[i] == close:
+                return (items if c == "[" else found), i + 1
+            if c == "[":
+                item, i = flow(text, i, number, True)
+                items.append(item)
+            else:
+                name, i = flow(text, i, number, True)
+                while text[i] == " ":
+                    i += 1
+                if text[i] != ":":
+                    raise ValueError(f"line {number}: `:` expected in {text!r}")
+                found[name], i = flow(text, i + 1, number, True)
+    if c in "'\"":
+        return quoted(text, i)
+    match = re.compile(r"[^,\[\]{}]*?(?=\s*(?:[,\]}]|:\s|$))" if inside else r".*").match(text, i)
+    return match.group(0).strip(), match.end()
 
 
 def vscode(path, commit=VSCODE, missing_ok=False):
@@ -650,10 +1048,18 @@ def main():
         if SOURCES.get(key, {}).get("url", f"https://github.com/{repository}/tree/{commit}") != f"https://github.com/{repository}/tree/{commit}":
             sys.exit(f"{key}: two repositories")
         SOURCES[key] = {"name": f"{repository} {commit[:8]}", "url": f"https://github.com/{repository}/tree/{commit}", "licence": licence}
-        data = fetch(f"{RAW}/{repository}/{commit}/{path}")
+        data, file = fetch(f"{RAW}/{repository}/{commit}/{path}"), path.split("/")[-1]
         if any(l.id == id for l in languages) or scope in by_scope:
             sys.exit(f"{id} ({scope}): taken")
-        language = Language(id, scope, id, path.split("/")[-1], data, key, path, licence)
+        form = re.search(r"\.(cson|ya?ml-tmlanguage)$", file, re.I)
+        if form:
+            # Sora's engine reads JSON and property lists only.
+            reader = cson_loads if form.group(1).lower() == "cson" else yaml_loads
+            data = (json.dumps(reader(data.decode("utf-8")), ensure_ascii=False, indent=2) + "\n").encode()
+            file = file[:form.start()] + ".tmLanguage.json"
+        language = Language(id, scope, id, file, data, key, path, licence)
+        if form:
+            CHANGED.append(f"{language.grammar}: converted from {'CSON' if reader is cson_loads else 'YAML'} to JSON")
         language.origin = (repository, commit, path)
         add(language)
 
@@ -680,6 +1086,12 @@ def main():
                             language.configuration = f"textmate/{language.grammar.split('/')[1]}/language-configuration.json"
                             put(language.configuration, data)
             break
+
+    # A grammar kept as it is: what it includes is the kept file's, not the copied one's.
+    for language in languages:
+        if language.grammar in KEPT:
+            language.data = open(os.path.join(ASSETS, language.grammar), "rb").read()
+            language.includes = grammar_includes(language.grammar, language.data, language.scope)
 
     # Who opens which files.
     linguist = linguist_languages()
@@ -729,7 +1141,7 @@ def main():
     for language in languages:
         for stage, type_id, entry in language.claims:
             for key in keys(entry):
-                if stage > 1 and key not in first and icons.get(key) in (type_id, theme["languageIds"].get(type_id)):
+                if stage > 1 and key not in first and key not in NOT_TEXT and icons.get(key) in (type_id, theme["languageIds"].get(type_id)):
                     claimed.setdefault(key, type_id)
     clashes = []
     types = {}  # type id -> (language, dict)
@@ -786,6 +1198,7 @@ def main():
             language.embedded = None
 
     write(languages, files, clashes, skipped)
+    write_samples(languages, shiki)
 
 
 def extensions_of(name):
@@ -882,6 +1295,32 @@ def write(languages, files, clashes, skipped):
     for line in CHANGED:
         print("changed:", line)
     print(f"{len(languages)} languages, {sum(len(l.types) for l in languages)} file types")
+
+
+def write_samples(languages, shiki):
+    """Shiki's sample (its repository's samples/<name>.sample) of each language that opens files and has no
+    sample of iCode's own: the Shiki grammar's of the same name, else of an alias, else of the same scope."""
+    own = {name.rsplit(".", 1)[0] for name in os.listdir(os.path.join(SAMPLES, "icode"))}
+    folder = os.path.join(SAMPLES, "shiki")
+    os.makedirs(folder, exist_ok=True)
+    written = set()
+    for language in languages:
+        opens = any(t[key] for t in language.types for key in ("extensions", "names", "prefixes", "firstLine"))
+        if not opens or language.id in own:
+            continue
+        names = [e["name"] for e in shiki if e["name"] == language.id]
+        names += [e["name"] for e in shiki if language.id in e.get("aliases", [])]
+        names += [e["name"] for e in shiki if e["scopeName"] == language.scope]
+        for name in names:
+            data = fetch(f"{RAW}/shikijs/textmate-grammars-themes/{SHIKI}/samples/{name}.sample", missing_ok=True)
+            if data is not None:
+                open(os.path.join(folder, f"{language.id}.sample"), "wb").write(data)
+                written.add(f"{language.id}.sample")
+                break
+    for name in os.listdir(folder):
+        if name not in written:
+            os.remove(os.path.join(folder, name))
+    print(f"{len(written)} samples from Shiki, {len(own)} of iCode's own")
 
 
 def write_provenance(languages, used, clashes, skipped):

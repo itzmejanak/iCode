@@ -1,0 +1,5 @@
+# Local names
+127.0.0.1       localhost
+::1             localhost ip6-localhost
+192.168.1.20    nas.local nas   # the file server
+10.0.0.5        build.example.com

@@ -1,0 +1,11 @@
+\ Squares and a loop
+: square ( n -- n*n ) dup * ;
+: squares ( n -- )
+  0 do
+    i square . cr
+  loop ;
+10 squares
+variable total
+42 total !
+( a comment in parentheses )
+." done" cr

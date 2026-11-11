@@ -31,6 +31,10 @@
     },
     {
       "include": "#constants"
+    },
+    {
+      "match": "(?<![\\w$])\\d+(?:\\.\\d+)*(?:[eE][-+]?\\d+)?\\b",
+      "name": "constant.numeric.rel"
     }
   ],
   "repository": {

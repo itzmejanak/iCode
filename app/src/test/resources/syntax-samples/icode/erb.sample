@@ -1,0 +1,13 @@
+<%# The products page %>
+<h1><%= @title %></h1>
+<% if @products.any? %>
+  <ul>
+  <% @products.each do |product| %>
+    <li class="<%= product.kind %>"><%= product.name %>: <%= format("%.2f", product.price * 1.2) %></li>
+  <% end %>
+  </ul>
+<% else %>
+  <p>No products yet.</p>
+<% end %>
+<%== raw_html %>
+<%- trimmed -%>

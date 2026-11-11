@@ -1,0 +1,12 @@
+@AbapCatalog.sqlViewName: 'ZSALESV'
+@EndUserText.label: 'Sales orders'
+define view Z_Sales_Orders
+  as select from vbak as order
+  association [0..*] to vbap as _Items on $projection.OrderId = _Items.vbeln
+{
+  key order.vbeln as OrderId,
+      order.erdat as CreatedOn,
+      cast( order.netwr as abap.dec( 15, 2 ) ) as NetValue,
+      _Items
+}
+where order.auart = 'TA'

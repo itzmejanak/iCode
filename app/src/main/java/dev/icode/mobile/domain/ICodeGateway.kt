@@ -18,5 +18,9 @@ interface ICodeGateway {
     val languageCompletions: LanguageCompletions
         get() = LanguageCompletions.None
 
+    /** The language servers' semantic tokens, asked by the editor (docs/syntax-highlighting-plan.md D8). */
+    val languageHighlights: LanguageHighlights
+        get() = LanguageHighlights.None
+
     fun dispatch(intent: ICodeIntent)
 }

@@ -517,6 +517,12 @@ The code surface includes:
 
 The minimap is disabled by default on compact screens and remains optional elsewhere.
 
+**Colouring** ([syntax-highlighting-plan.md](./syntax-highlighting-plan.md)). Text is coloured by the file's language, from its name or first line; a file opens plain for the moment its grammar takes to load, then colours. With Settings › Editor › Semantic Highlighting on (the default), a language server that offers semantic tokens colours names by what they are, over the grammar's colours, in the same theme colours. When colouring is off, one line in amber small mono under the code surface, above the bottom bar, says why:
+- "Colouring is off for files this large": a file over 2 MiB or 50 000 lines opens and edits as plain text;
+- "Colouring is off for *language*: its grammar could not be loaded": that language alone; every other keeps colouring.
+
+A line longer than 10 000 characters is coloured up to there and plain after, with no note. The same colours are used wherever code is shown: Markdown code blocks, the change sheet (below), the diff view (§16.4), conflict resolution (§16.5), Find in Files results (§15.2), and the assistant's pages for a file it read and a change it asks to make (the text written under Content, or Replaces and With for an edit; a read file's line numbers muted). A read-only block over 200 000 characters stays plain.
+
 The **Git change gutter** ([editor-plan.md §3](./editor-plan.md)) marks each line changed against the file's version in Git's index, as VS Code's does: a green bar for added lines, a blue bar for modified ones, a red wedge where lines were deleted, in a lane between the line numbers and the divider. A tap in the gutter of a changed line opens the **change sheet**:
 - "Change 2 of 3" and where it is ("Modified · lines 13–15");
 - its removed lines on red and its added lines on green, numbered as the diff screen numbers them, coloured as the file's language: each line as the editor colours it in the whole file, removed ones as in the index version ([syntax-highlighting-plan.md S5](./syntax-highlighting-plan.md));
@@ -590,7 +596,7 @@ Quick Open searches files. The Command Palette searches actions. Their result mo
 ### 15.2 Results
 
 Results group under each file's row (§13.5), with its match count and a chevron that folds them.
-Each match shows its line number in a gutter, then a compact excerpt. Selecting a match opens the file and exact range, then returns focus to the editor on compact devices.
+Each match shows its line number in a gutter, then a compact excerpt, coloured as its file's language (the line alone, since a match has no lines around it). Selecting a match opens the file and exact range, then returns focus to the editor on compact devices.
 
 Broad replacement first shows affected file and match counts. Replace All identifies scope and asks for confirmation.
 

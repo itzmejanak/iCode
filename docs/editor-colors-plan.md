@@ -6,6 +6,14 @@ work on all theme types, 100% accurate, no guess and no assumptions; if the desi
 hard to scale, change it — in a clean way, not just jumping into new code". Follows
 [backend-split-rules.md](./backend-split-rules.md) and [ui-split-plan.md](./ui-split-plan.md).
 
+Since 2026-11-11, how grammars are declared, loaded and used is
+[syntax-highlighting-plan.md](./syntax-highlighting-plan.md)'s, and its §1.3 says what stands now:
+one language catalog (`assets/textmate/catalog.json`, 357 languages), the `ui/syntax/` layer that
+loads each grammar when a file first needs it, its limits, and one read-only path that colours code
+outside the editor. This plan's records below name `languages.json` and `TextMateAssets` as they
+were at the time; both are gone. The roles, the palette's syntax colours and the one scope table
+designed here stand, the table now in `ui/syntax/SyntaxScopes.kt`.
+
 ## 1. Measured (2026-09-29)
 
 | # | Finding | Evidence |
@@ -39,7 +47,8 @@ hard to scale, change it — in a clean way, not just jumping into new code". Fo
    - every scope name in every shipped grammar is either coloured by a role or on one explicit
      "plain by design" list (structure such as `meta.*`, `punctuation.*`); a new grammar with an
      unplaced scope fails the test;
-   - every grammar in `languages.json` is reached from the registry, and every registry grammar exists;
+   - every grammar in `languages.json` is reached from the registry, and every registry grammar exists
+     (now every catalog entry's assets exist and every asset folder is used: `LanguageCatalogTest`);
    - the registry's name, extension and `#!` cases.
 
 ## 3. Steps (each: gate, commit; device where it touches a screen)
@@ -112,15 +121,15 @@ definitions of all must be registered for embedded languages to resolve. So:
 
 Check on the phone: time from tap to text and to colours, cold start, by screenshot timeline.
 
-**Done.** `TextMateAssets` loads the grammars once on a background thread, started when the app
-applies its palette; `CodeEditorSession` shows a file as plain text until they are ready, then gives
-it its grammar (unless another file has taken the view meanwhile); a failure falls back to plain
-text and says so, as before. Two faults found on the way, both fixed:
+**Done.** `TextMateAssets` loaded the grammars once on a background thread, started when the app
+applied its palette; `CodeEditorSession` showed a file as plain text until they were ready, then gave
+it its grammar (unless another file had taken the view meanwhile); a failure fell back to plain
+text and said so, as before. Two faults found on the way, both fixed:
 
 - **Tokens drawn in the default colour when the grammars arrived after the file.** Sora gives tm4e
   its theme only when the theme *changes* after the grammar registry exists; the old code happened
-  to re-set the same theme on every editor. The registry is now made on the main thread and handed
-  the current theme before loading starts; later changes reach it through Sora's listener.
+  to re-set the same theme on every editor. The registry was then made on the main thread and handed
+  the current theme before loading started; later changes reached it through Sora's listener.
 - **The theme was built twice at start** — for the stand-in Dark palette used until the settings
   load, then for the owner's. The editor now takes the palette only once the settings have loaded.
 
@@ -137,3 +146,8 @@ On the phone (clean build, cold start):
 A file opened before the grammars are ready was checked with a build that delayed them by 5 s
 (not committed): its text showed at once, uncoloured, and took its colours as soon as they
 loaded.
+
+**Replaced on 2026-11-11** by [syntax-highlighting-plan.md](./syntax-highlighting-plan.md) S3:
+nothing is parsed at start, each language's grammar is parsed with what it includes when a file
+first needs it, each editor has a registry of its own that follows the theme through Sora's
+listener, and a grammar that fails is its language's failure alone.

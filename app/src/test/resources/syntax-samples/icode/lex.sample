@@ -1,0 +1,21 @@
+%{
+/* Counts words and lines */
+#include <stdio.h>
+int words = 0, lines = 0;
+%}
+
+DIGIT    [0-9]
+WORD     [a-zA-Z]+
+
+%%
+{WORD}      { words++; }
+{DIGIT}+    { printf("number: %s\n", yytext); }
+\n          { lines++; }
+.           ;
+%%
+
+int main(void) {
+    yylex();
+    printf("%d %d\n", words, lines);
+    return 0;
+}

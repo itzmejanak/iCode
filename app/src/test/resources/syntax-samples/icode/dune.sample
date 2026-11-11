@@ -1,0 +1,13 @@
+; The library and its tests
+(library
+ (name parser)
+ (libraries str unix)
+ (preprocess (pps ppx_deriving.show)))
+
+(executable
+ (name main)
+ (modules main))
+
+(test
+ (name test_parser)
+ (deps (glob_files *.txt)))

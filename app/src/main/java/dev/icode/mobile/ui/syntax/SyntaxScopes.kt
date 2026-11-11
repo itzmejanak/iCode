@@ -218,6 +218,12 @@ internal val syntaxScopes: List<Pair<SyntaxRole, List<String>>> = listOf(
     SyntaxRole.Quote to listOf("support.quote"),
     SyntaxRole.Link to listOf("markup.link", "markup.other", "markup.reference", "markup.biblioref", "markup.blockid", "entity.name.footnote"),
     SyntaxRole.Plain to listOf("entity.label"),
+    // The grammars converted from CSON (S6 part 2): Haskell's Prelude operators and constructors, as its own
+    // operators and constructors; a Cabal section's name; an Agda pragma, as a preprocessor line.
+    SyntaxRole.Plain to listOf("support.operator.prelude"),
+    SyntaxRole.Tag to listOf("support.tag.prelude"),
+    SyntaxRole.Type to listOf("source.cabal support.other"),
+    SyntaxRole.Keyword to listOf("support.other.agda"),
     // A doc comment's description and address, which are Comment where they are written.
     SyntaxRole.Comment to listOf("constant.other.description", "constant.other.email.link.underline"),
 )

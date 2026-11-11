@@ -18,6 +18,7 @@ import dev.icode.mobile.domain.EditorSettings
 import dev.icode.mobile.domain.EditorTextRules
 import dev.icode.mobile.domain.GitDiffHunk
 import dev.icode.mobile.domain.IndentType
+import dev.icode.mobile.domain.LanguageHighlights
 import dev.icode.mobile.domain.LineDiff
 import dev.icode.mobile.domain.LineEnding
 import dev.icode.mobile.domain.OpenDocument
@@ -32,9 +33,16 @@ import io.github.rosemoe.sora.lang.EmptyLanguage
 import io.github.rosemoe.sora.langs.textmate.TextMateLanguage
 import io.github.rosemoe.sora.text.LineSeparator
 import io.github.rosemoe.sora.widget.SelectionMovement
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.cancel
 
 /** One view/content/undo history shared by the Editor and Find routes. */
-class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePalette.Dark) {
+class CodeEditorSession(
+    context: Context,
+    initialPalette: IcodePalette = IcodePalette.Dark,
+    /** The language servers' semantic tokens, drawn over the grammar's colours. */
+    highlights: LanguageHighlights = LanguageHighlights.None,
+) {
     internal val editor = IcodeCodeEditor(context)
     /** Why the document is not coloured, said under the editor (EditorSyntax). */
     val coloringError: String? get() = syntax.note
@@ -45,7 +53,11 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
     private var pendingReveal: Pair<Int, Int>? = null
     private var onTextChanged: (String) -> Unit = {}
     private val plainTextLanguage = ConfigurablePlainTextLanguage()
-    private val syntax = EditorSyntax(editor, plainTextLanguage, ::indent)
+    private val syntax: EditorSyntax = EditorSyntax(editor, plainTextLanguage, ::indent) { semantic.refresh() }
+    private val scope = MainScope()
+    private val semantic: EditorSemanticTokens = EditorSemanticTokens(scope, coloured = { syntax.textMate != null }, show = { editor.semanticLines = it }) { line ->
+        editor.text.takeIf { line < it.lineCount }?.getLineString(line)
+    }.apply { source = highlights }
     /** Text the backend already holds — the disk's, the assistant's, a restored draft — is going in: not the user's typing. */
     private var applyingOutside = false
     /** A tap on a changed line's gutter: which change; null leaves the gutter to Sora. */
@@ -74,6 +86,7 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
         editor.setEditorLanguage(plainTextLanguage)
         applyPalette(initialPalette)
         editor.subscribeEvent(ContentChangeEvent::class.java) { event, _ ->
+            if (event.action != ContentChangeEvent.ACTION_SET_NEW_TEXT) semantic.edited()
             if (event.action != ContentChangeEvent.ACTION_SET_NEW_TEXT && !applyingOutside) {
                 val text = editor.text.toString()
                 pendingLocalText = text
@@ -98,6 +111,7 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
             acceptedText = document.text
             pendingLocalText = null
             editor.setText(document.text)
+            semantic.open(document.location)
             syntax.apply(document)
         } else {
             // The editor's own typing come back, or nothing new: its text is not copied at every keystroke.
@@ -216,6 +230,7 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
             if (previous != null) editor.restartInput()
         }
         editor.props.symbolPairAutoCompletion = settings.autoCloseBrackets
+        semantic.enabled = settings.semanticHighlighting
         appliedEditorSettings = settings
         preferences = next
         editor.setTabWidth(next.effectiveIndentSize)
@@ -242,7 +257,12 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
         syntax.themeFailed(failure)
     }
 
+    /** A language server started, stopped or changed what it offers: the file's semantic tokens are asked again. */
+    fun languageServersChanged() = semantic.refresh()
+
     fun release() {
+        semantic.release()
+        scope.cancel()
         syntax.release()
         editor.release()
     }

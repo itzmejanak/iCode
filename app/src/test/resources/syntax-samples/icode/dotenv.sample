@@ -1,0 +1,15 @@
+# Database settings
+export DATABASE_URL="postgres://user:pass@localhost:5432/app"
+DB_HOST=localhost
+DB_PORT=5432
+DEBUG=true
+VERBOSE=False
+RATE=0.75
+API_KEY='literal $NOT_EXPANDED'
+GREETING="Hello\n${USER:-friend}, home is $HOME"
+EMPTY=
+PATH_EXTRA=${HOME}/bin:$PATH # trailing comment
+COMMAND=`echo raw`
+PRIVATE_KEY="-----BEGIN KEY-----
+abc123
+-----END KEY-----"

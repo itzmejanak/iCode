@@ -1,0 +1,1336 @@
+{
+  "name": ".gitconfig",
+  "scopeName": "source.gitconfig",
+  "fileTypes": [
+    ".git/config",
+    ".config/git/config",
+    "config.worktree",
+    "gitconfig",
+    "gitmodules",
+    "lfsconfig",
+    "tgitconfig"
+  ],
+  "limitLineLength": false,
+  "maxTokensPerLine": 2048,
+  "patterns": [
+    {
+      "include": "#main"
+    }
+  ],
+  "firstLineMatch": "(?x)\n\n# Emacs modeline\n-\\*-(?i:[ \\t]*(?=[^:;\\s]+[ \\t]*-\\*-)|(?:.*?[ \\t;]|(?<=-\\*-))[ \\t]*mode[ \\t]*:[ \\t]*)\n\t(?i:git-?(?:config|modules))\n(?=[ \\t;]|(?<![-*])-\\*-).*?-\\*-\n\n|\n\n# Vim modeline\n(?:(?:^|[ \\t])(?:vi|Vi(?=m))(?:m[<=>]?[0-9]+|m)?|[ \\t]ex)(?=:(?=[ \\t]*set?[ \\t][^\\r\\n:]+:)|:(?![ \\t]*set?[ \\t]))\n(?:(?:[ \\t]*:[ \\t]*|[ \\t])\\w*(?:[ \\t]*=(?:[^\\\\\\s]|\\\\.)*)?)*[ \\t:]\n(?:filetype|ft|syntax)[ \\t]*=\n\t(?i:git-?(?:config|modules))\n(?=$|\\s|:)",
+  "injections": {
+    "L:meta.bug-matcher.gitconfig string.regexp": {
+      "patterns": [
+        {
+          "name": "punctuation.definition.escape.backslash.gitconfig",
+          "match": "\\\\(?=\\\\)",
+          "captures": {
+            "0": {
+              "name": "sublimelinter.gutter-mark"
+            }
+          }
+        }
+      ]
+    },
+    "L:meta.alias.gitconfig source.embedded.shell, L:meta.command.gitconfig - string.quoted": {
+      "patterns": [
+        {
+          "include": "#escapedNewline"
+        }
+      ]
+    },
+    "L:string.quoted.double.gitconfig source.embedded.shell - string.quoted.*.shell": {
+      "patterns": [
+        {
+          "name": "comment.line.number-sign.shell",
+          "begin": "\\s*(?<![^\\s;\\\\|\\(&])(#)",
+          "end": "(?=\")",
+          "beginCaptures": {
+            "1": {
+              "name": "punctuation.definition.comment.shell"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "repository": {
+    "main": {
+      "patterns": [
+        {
+          "include": "#comments"
+        },
+        {
+          "include": "#bugtraqSection"
+        },
+        {
+          "include": "#includeSection"
+        },
+        {
+          "include": "#aliasSection"
+        },
+        {
+          "include": "#diffSection"
+        },
+        {
+          "include": "#hookSection"
+        },
+        {
+          "include": "#urlSection"
+        },
+        {
+          "include": "#section"
+        }
+      ]
+    },
+    "alias": {
+      "name": "meta.alias.gitconfig",
+      "begin": "(?:^|(?<=\\])\\G)\\s*([A-Za-z][-A-Za-z]*)\\s*(=)",
+      "end": "(?<!\\\\)$|(?=#|;)",
+      "beginCaptures": {
+        "1": {
+          "name": "variable.parameter.assignment.gitconfig"
+        },
+        "2": {
+          "name": "keyword.operator.assignment.key-value.gitconfig"
+        }
+      },
+      "patterns": [
+        {
+          "begin": "\\G\\s*(?=\\\\$)",
+          "end": "(?=\\s*(?!\\\\$)(?=\\S))",
+          "patterns": [
+            {
+              "include": "#escapedNewline"
+            }
+          ]
+        },
+        {
+          "begin": "\\s*(?!\\\\$)(?=\\S)",
+          "end": "(?!\\G)",
+          "patterns": [
+            {
+              "include": "#aliasInnards"
+            }
+          ]
+        }
+      ]
+    },
+    "aliasInnards": {
+      "patterns": [
+        {
+          "name": "meta.shell.command.gitconfig",
+          "begin": "\\G\\s*(?=(?:\"\\s*)?!)",
+          "end": "(?<!\\\\)$",
+          "patterns": [
+            {
+              "name": "string.quoted.double.gitconfig",
+              "match": "\\G(\")\\s*(!)((?:[^\\\\\"]|\\\\.)*+)(\")",
+              "captures": {
+                "1": {
+                  "name": "punctuation.definition.string.begin.gitconfig"
+                },
+                "2": {
+                  "name": "keyword.operator.shell-script.gitconfig"
+                },
+                "3": {
+                  "name": "source.embedded.shell",
+                  "patterns": [
+                    {
+                      "include": "#escapes"
+                    },
+                    {
+                      "include": "source.shell"
+                    }
+                  ]
+                },
+                "4": {
+                  "name": "punctuation.definition.string.end.gitconfig"
+                }
+              }
+            },
+            {
+              "name": "string.quoted.double.gitconfig",
+              "begin": "\\G(\")\\s*(!)",
+              "end": "(\")|((?:[^\\\\\"]|\\\\.)*+)$",
+              "beginCaptures": {
+                "1": {
+                  "name": "punctuation.definition.string.begin.gitconfig"
+                },
+                "2": {
+                  "name": "keyword.operator.shell-script.gitconfig"
+                }
+              },
+              "endCaptures": {
+                "1": {
+                  "name": "punctuation.definition.string.end.gitconfig"
+                },
+                "2": {
+                  "name": "invalid.illegal.syntax.unclosed-string.gitconfig"
+                }
+              },
+              "contentName": "source.embedded.shell",
+              "patterns": [
+                {
+                  "include": "#escapes"
+                },
+                {
+                  "include": "source.shell"
+                }
+              ]
+            },
+            {
+              "name": "keyword.operator.shell-script.gitconfig",
+              "match": "\\G!"
+            },
+            {
+              "include": "#cmdInnards"
+            }
+          ]
+        },
+        {
+          "name": "meta.unquoted.shell.command.gitconfig",
+          "begin": "\\G\\s*(!)",
+          "end": "(?<!\\\\)(?=$)",
+          "beginCaptures": {
+            "1": {
+              "name": "keyword.operator.shell-script.gitconfig"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#escapedNewline"
+            },
+            {
+              "include": "source.shell"
+            }
+          ]
+        },
+        {
+          "name": "meta.git.subcommands.gitconfig",
+          "begin": "\\G\\s*([^\\s\"#;!]+)",
+          "end": "(?<!\\\\)(?=$|#|;)",
+          "beginCaptures": {
+            "0": {
+              "name": "string.unquoted.source.gitconfig"
+            }
+          },
+          "contentName": "string.unquoted.source.gitconfig",
+          "patterns": [
+            {
+              "include": "#escapes"
+            }
+          ]
+        }
+      ]
+    },
+    "aliasSection": {
+      "name": "meta.aliases.section.gitconfig",
+      "begin": "(?xi)\n(?:^|\\G)\n\\s* (\\[)  #1\n\\s* (alias) #2\n(?:\n\t\\s+ (\") ((?:[^\\\\\"\\r\\n]|\\\\.)*+) (\") #3-5\n\t|\n\t(\\.) ([-A-Za-z0-9]+) #6-7\n)?\n\\s* (\\]) #8",
+      "end": "(?!\\G)(?=^\\s*\\[)",
+      "beginCaptures": {
+        "0": {
+          "name": "meta.section.header.gitconfig"
+        },
+        "1": {
+          "name": "punctuation.definition.bracket.square.begin.gitconfig"
+        },
+        "2": {
+          "name": "entity.section.name.gitconfig"
+        },
+        "3": {
+          "name": "punctuation.definition.subsection.begin.gitconfig"
+        },
+        "4": {
+          "name": "entity.subsection.name.gitconfig",
+          "patterns": [
+            {
+              "include": "#sectionEscapes"
+            }
+          ]
+        },
+        "5": {
+          "name": "punctuation.definition.subsection.end.gitconfig"
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#dot"
+            }
+          ]
+        },
+        "7": {
+          "name": "entity.subsection.name.deprecated-syntax.gitconfig"
+        },
+        "8": {
+          "name": "punctuation.definition.bracket.square.end.gitconfig"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#alias"
+        },
+        {
+          "include": "#comments"
+        },
+        {
+          "include": "#variables"
+        }
+      ]
+    },
+    "bugtraqSection": {
+      "name": "meta.bugtraq.section.gitconfig",
+      "begin": "(?:^|\\G)\\s*(?:(\\[)\\s*(bugtraq)\\s*(\\]))",
+      "end": "(?!\\G)(?=^\\s*\\[)",
+      "beginCaptures": {
+        "0": {
+          "name": "meta.section.header.gitconfig"
+        },
+        "1": {
+          "name": "punctuation.definition.bracket.square.begin.gitconfig"
+        },
+        "2": {
+          "name": "entity.section.name.gitconfig"
+        },
+        "3": {
+          "name": "punctuation.definition.bracket.square.end.gitconfig"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#bugtraqLog"
+        },
+        {
+          "include": "#bugtraqUUID"
+        },
+        {
+          "include": "#bugtraqMessage"
+        },
+        {
+          "include": "#bugtraqURL"
+        },
+        {
+          "include": "#comments"
+        },
+        {
+          "include": "#variables"
+        }
+      ]
+    },
+    "bugtraqLog": {
+      "name": "meta.bug-matcher.gitconfig",
+      "begin": "(?i)\\b(logregex)\\s*(=)[ \\t]*",
+      "end": "(?=\\s*(?:$|#|;))",
+      "beginCaptures": {
+        "1": {
+          "name": "variable.parameter.assignment.gitconfig"
+        },
+        "2": {
+          "name": "keyword.operator.assignment.key-value.gitconfig"
+        }
+      },
+      "patterns": [
+        {
+          "name": "string.regexp.gitconfig",
+          "begin": "\\G(\"|')",
+          "end": "\\1",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.regexp.begin.gitconfig"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.regexp.end.gitconfig"
+            }
+          },
+          "patterns": [
+            {
+              "include": "source.regexp"
+            },
+            {
+              "include": "#escapes"
+            }
+          ]
+        },
+        {
+          "include": "#variableInnards"
+        }
+      ]
+    },
+    "bugtraqMessage": {
+      "name": "meta.log-message.gitconfig",
+      "begin": "(?i)\\b(message)\\s*(=)[ \\t]*",
+      "end": "(?=\\s*(?:$|#|;))",
+      "beginCaptures": {
+        "1": {
+          "name": "variable.parameter.assignment.gitconfig"
+        },
+        "2": {
+          "name": "keyword.operator.assignment.key-value.gitconfig"
+        }
+      },
+      "patterns": [
+        {
+          "name": "string.quoted.double.message.gitconfig",
+          "begin": "\\G\"",
+          "end": "\"",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.begin.gitconfig"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.end.gitconfig"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#bugtraqPlaceholder"
+            },
+            {
+              "include": "#escapes"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.message.gitconfig",
+          "begin": "\\G'",
+          "end": "'",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.begin.gitconfig"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.end.gitconfig"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#bugtraqPlaceholder"
+            },
+            {
+              "include": "#escapes"
+            }
+          ]
+        },
+        {
+          "include": "#variableInnards"
+        }
+      ]
+    },
+    "bugtraqPlaceholder": {
+      "name": "constant.other.placeholder.bugid.gitconfig",
+      "match": "%BUGID%"
+    },
+    "bugtraqURL": {
+      "name": "meta.bug-tracker.gitconfig",
+      "begin": "(?i)\\b(url)\\s*(=)[ \\t]*",
+      "end": "(?=\\s*(?:$|#|;))",
+      "beginCaptures": {
+        "1": {
+          "name": "variable.parameter.assignment.gitconfig"
+        },
+        "2": {
+          "name": "keyword.operator.assignment.key-value.gitconfig"
+        }
+      },
+      "patterns": [
+        {
+          "name": "string.other.link.gitconfig",
+          "match": "\\G\\S+",
+          "captures": {
+            "0": {
+              "patterns": [
+                {
+                  "include": "#bugtraqPlaceholder"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "bugtraqUUID": {
+      "name": "meta.provider-uuid.gitconfig",
+      "begin": "(?i)\\b(provideruuid(?:64)?)\\s*(=)[ \\t]*",
+      "end": "(?=\\s*(?:$|#|;))",
+      "beginCaptures": {
+        "1": {
+          "name": "variable.parameter.assignment.gitconfig"
+        },
+        "2": {
+          "name": "keyword.operator.assignment.key-value.gitconfig"
+        }
+      },
+      "patterns": [
+        {
+          "name": "meta.uuid.gitconfig",
+          "match": "(?i)\\G({)([0-9A-F](?:-?[0-9A-F]){31})(})",
+          "captures": {
+            "1": {
+              "patterns": [
+                {
+                  "include": "etc#bracket"
+                }
+              ]
+            },
+            "2": {
+              "patterns": [
+                {
+                  "include": "etc#dash"
+                },
+                {
+                  "include": "etc#hexNoSign"
+                }
+              ]
+            },
+            "3": {
+              "patterns": [
+                {
+                  "include": "etc#bracket"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "include": "#variableInnards"
+        }
+      ]
+    },
+    "cmd": {
+      "name": "meta.command.gitconfig",
+      "begin": "(?:^|(?<=\\])\\G)\\s*(textconv|command|driver)\\s*(=)",
+      "end": "(?<!\\\\)$|(?=#|;)",
+      "beginCaptures": {
+        "1": {
+          "name": "variable.parameter.assignment.gitconfig"
+        },
+        "2": {
+          "name": "keyword.operator.assignment.key-value.gitconfig"
+        }
+      },
+      "patterns": [
+        {
+          "begin": "\\G\\s*(?=\\\\$)",
+          "end": "(?=\\s*(?!\\\\$)(?=\\S))",
+          "patterns": [
+            {
+              "include": "#escapedNewline"
+            }
+          ]
+        },
+        {
+          "begin": "\\s*(?!\\\\$)(?=\\S)",
+          "end": "(?!\\G)",
+          "contentName": "source.embedded.shell",
+          "patterns": [
+            {
+              "include": "#cmdInnards"
+            }
+          ]
+        }
+      ]
+    },
+    "cmdInnards": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.gitconfig",
+          "match": "(\")((?:[^\\\\\"]|\\\\.)*+)(\")",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.string.begin.gitconfig"
+            },
+            "2": {
+              "name": "source.embedded.shell",
+              "patterns": [
+                {
+                  "include": "#escapes"
+                },
+                {
+                  "include": "source.shell"
+                }
+              ]
+            },
+            "3": {
+              "name": "punctuation.definition.string.end.gitconfig"
+            }
+          }
+        },
+        {
+          "name": "string.quoted.double.gitconfig",
+          "begin": "\"",
+          "end": "(\")|((?:[^\\\\\"]|\\\\.)*+)$",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.begin.gitconfig"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "punctuation.definition.string.end.gitconfig"
+            },
+            "2": {
+              "name": "invalid.illegal.syntax.unclosed-string.gitconfig"
+            }
+          },
+          "contentName": "source.embedded.shell",
+          "patterns": [
+            {
+              "include": "#escapes"
+            },
+            {
+              "include": "source.shell"
+            }
+          ]
+        },
+        {
+          "include": "#escapedNewline"
+        },
+        {
+          "include": "source.shell"
+        }
+      ]
+    },
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.line.number-sign.gitconfig",
+          "begin": "#",
+          "end": "$",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.comment.gitconfig"
+            }
+          }
+        },
+        {
+          "name": "comment.line.semicolon.gitconfig",
+          "begin": ";",
+          "end": "$",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.comment.gitconfig"
+            }
+          }
+        }
+      ]
+    },
+    "diffSection": {
+      "name": "meta.diff.section.gitconfig",
+      "begin": "(?xi)\n(?:^|\\G)\n\\s* (\\[)  #1\n\\s* (diff) #2\n(?:\n\t\\s+ (\") ((?:[^\\\\\"\\r\\n]|\\\\.)*+) (\") #3-5\n\t|\n\t(\\.) ([-A-Za-z0-9]+) #6-7\n)\n\\s* (\\]) #8",
+      "end": "(?!\\G)(?=^\\s*\\[)",
+      "beginCaptures": {
+        "0": {
+          "name": "meta.section.header.gitconfig"
+        },
+        "1": {
+          "name": "punctuation.definition.bracket.square.begin.gitconfig"
+        },
+        "2": {
+          "name": "entity.section.name.gitconfig"
+        },
+        "3": {
+          "name": "punctuation.definition.subsection.begin.gitconfig"
+        },
+        "4": {
+          "name": "entity.subsection.name.gitconfig",
+          "patterns": [
+            {
+              "include": "#sectionEscapes"
+            }
+          ]
+        },
+        "5": {
+          "name": "punctuation.definition.subsection.end.gitconfig"
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#dot"
+            }
+          ]
+        },
+        "7": {
+          "name": "entity.subsection.name.deprecated-syntax.gitconfig"
+        },
+        "8": {
+          "name": "punctuation.definition.bracket.square.end.gitconfig"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#cmd"
+        },
+        {
+          "include": "#comments"
+        },
+        {
+          "include": "#variables"
+        }
+      ]
+    },
+    "dot": {
+      "name": "punctuation.delimiter.separator.meta.dot.period.gitconfig",
+      "match": "\\."
+    },
+    "escapes": {
+      "patterns": [
+        {
+          "name": "constant.character.escape.backslash.gitconfig",
+          "match": "(\\\\)\\\\",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.escape.backslash.gitconfig"
+            }
+          }
+        },
+        {
+          "name": "constant.character.escape.quote.gitconfig",
+          "match": "(\\\\)\"",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.escape.backslash.gitconfig"
+            }
+          }
+        },
+        {
+          "name": "constant.character.escape.newline.gitconfig",
+          "match": "(\\\\)n",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.escape.backslash.gitconfig"
+            }
+          }
+        },
+        {
+          "name": "constant.character.escape.tab.gitconfig",
+          "match": "(\\\\)t",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.escape.backslash.gitconfig"
+            }
+          }
+        },
+        {
+          "name": "constant.character.escape.backspace.gitconfig",
+          "match": "(\\\\)b",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.escape.backslash.gitconfig"
+            }
+          }
+        },
+        {
+          "include": "#escapedNewline"
+        },
+        {
+          "name": "invalid.illegal.syntax.escape.gitconfig",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "escapedNewline": {
+      "name": "constant.character.escape.newline.gitconfig",
+      "match": "(\\\\)$\\s*",
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.escape.backslash.gitconfig"
+        }
+      }
+    },
+    "hookCmd": {
+      "name": "meta.command.hook.gitconfig",
+      "begin": "(?:^|(?<=\\])\\G)\\s*(cmdline)\\s*(=)",
+      "end": "(?<!\\\\)$|(?=#|;)",
+      "beginCaptures": {
+        "1": {
+          "name": "variable.parameter.assignment.gitconfig"
+        },
+        "2": {
+          "name": "keyword.operator.assignment.key-value.gitconfig"
+        }
+      },
+      "patterns": [
+        {
+          "begin": "\\G\\s*(?=\\\\$)",
+          "end": "(?=\\s*(?!\\\\$)(?=\\S))",
+          "patterns": [
+            {
+              "include": "#escapedNewline"
+            }
+          ]
+        },
+        {
+          "begin": "\\s*(?!\\\\$)(?=\\S)",
+          "end": "(?!\\G)",
+          "contentName": "source.embedded.batchfile",
+          "patterns": [
+            {
+              "include": "source.batchfile"
+            }
+          ]
+        }
+      ]
+    },
+    "hookSection": {
+      "name": "meta.hook.section.gitconfig",
+      "begin": "(?xi)\n(?:^|\\G)\n\\s* (\\[) #1\n\\s* (hook) #2\n(?:\n\t\\s+ (\") ((?:[^\\\\\"\\r\\n]|\\\\.)*+) (\") #3-5\n\t|\n\t(\\.) ([-A-Za-z0-9]+) #6-7\n)\n\\s* (\\]) #8",
+      "end": "(?!\\G)(?=^\\s*\\[)",
+      "beginCaptures": {
+        "0": {
+          "name": "meta.section.header.gitconfig"
+        },
+        "1": {
+          "name": "punctuation.definition.bracket.square.begin.gitconfig"
+        },
+        "2": {
+          "name": "entity.section.name.gitconfig"
+        },
+        "3": {
+          "name": "punctuation.definition.subsection.begin.gitconfig"
+        },
+        "4": {
+          "name": "entity.subsection.name.gitconfig",
+          "patterns": [
+            {
+              "include": "#sectionEscapes"
+            }
+          ]
+        },
+        "5": {
+          "name": "punctuation.definition.subsection.end.gitconfig"
+        },
+        "6": {
+          "patterns": [
+            {
+              "include": "#dot"
+            }
+          ]
+        },
+        "7": {
+          "name": "entity.subsection.name.deprecated-syntax.gitconfig"
+        },
+        "8": {
+          "name": "punctuation.definition.bracket.square.end.gitconfig"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#hookCmd"
+        },
+        {
+          "include": "#comments"
+        },
+        {
+          "include": "#variables"
+        }
+      ]
+    },
+    "includeSection": {
+      "name": "meta.include.section.gitconfig",
+      "begin": "(?ix)\n(?:^|\\G) \\s*\n(\\[) #1\n\\s*\n(include(?:If)?) #2\n(?:\n\t\\s*\n\t(\") #3\n\t(   #4\n\t\t(?: [^\\\\\"]\n\t\t|   \\\\.\n\t\t)*+\n\t)\n\t(\") #5\n)?+\n\\s* (\\]) #6",
+      "end": "(?!\\G)(?=^\\s*\\[)",
+      "beginCaptures": {
+        "0": {
+          "name": "meta.section.header.gitconfig"
+        },
+        "1": {
+          "name": "punctuation.definition.bracket.square.begin.gitconfig"
+        },
+        "2": {
+          "name": "keyword.control.directive.${2:/downcase}.gitconfig"
+        },
+        "3": {
+          "name": "punctuation.definition.condition.begin.gitconfig"
+        },
+        "4": {
+          "patterns": [
+            {
+              "name": "meta.condition.match-directory.gitconfig",
+              "begin": "(gitdir)((/)i)?(:)",
+              "end": "(?=\\s*(?:$|\"))",
+              "beginCaptures": {
+                "1": {
+                  "name": "entity.name.condition-type.gitconfig"
+                },
+                "2": {
+                  "name": "storage.modifier.ignore-case.gitconfig"
+                },
+                "3": {
+                  "name": "punctuation.separator.modifier.slash.gitconfig"
+                },
+                "4": {
+                  "name": "punctuation.separator.key-value.gitconfig"
+                }
+              },
+              "contentName": "string.other.link.gitconfig",
+              "patterns": [
+                {
+                  "include": "#sectionEscapes"
+                },
+                {
+                  "include": "#includeInnards"
+                }
+              ]
+            },
+            {
+              "name": "meta.condition.match-worktree.gitconfig",
+              "begin": "(onbranch)(:)",
+              "end": "(?=\\s*(?:$|\"))",
+              "beginCaptures": {
+                "1": {
+                  "name": "entity.name.condition-type.gitconfig"
+                },
+                "2": {
+                  "name": "punctuation.separator.key-value.gitconfig"
+                }
+              },
+              "contentName": "string.other.file.name.gitconfig",
+              "patterns": [
+                {
+                  "include": "#sectionEscapes"
+                },
+                {
+                  "include": "#includeInnards"
+                }
+              ]
+            },
+            {
+              "name": "meta.condition.match-config.gitconfig",
+              "begin": "(hasconfig)(:)([^\":]+)(:)",
+              "end": "(?=\\s*(?:$|\"))",
+              "beginCaptures": {
+                "1": {
+                  "name": "entity.name.condition-type.gitconfig"
+                },
+                "2": {
+                  "name": "punctuation.separator.parameter.gitconfig"
+                },
+                "3": {
+                  "name": "variable.parameter.comparison.gitconfig",
+                  "patterns": [
+                    {
+                      "include": "#dot"
+                    },
+                    {
+                      "include": "#sectionEscapes"
+                    },
+                    {
+                      "include": "#includeInnards"
+                    }
+                  ]
+                },
+                "4": {
+                  "name": "punctuation.separator.key-value.gitconfig"
+                }
+              },
+              "contentName": "string.unquoted.argument.gitconfig",
+              "patterns": [
+                {
+                  "include": "#sectionEscapes"
+                },
+                {
+                  "include": "#includeInnards"
+                }
+              ]
+            }
+          ]
+        },
+        "5": {
+          "name": "punctuation.definition.condition.end.gitconfig"
+        },
+        "6": {
+          "name": "punctuation.definition.bracket.square.end.gitconfig"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#includePath"
+        },
+        {
+          "include": "#comments"
+        },
+        {
+          "include": "#variables"
+        }
+      ]
+    },
+    "includePath": {
+      "name": "meta.included-file.gitconfig",
+      "begin": "(?:^|(?<=\\])\\G)\\s*(path)\\s*(=)[ \\t]*",
+      "end": "(?=\\s*(?:(?<!\\\\)$|#|;))",
+      "beginCaptures": {
+        "1": {
+          "name": "variable.parameter.assignment.gitconfig"
+        },
+        "2": {
+          "name": "keyword.operator.assignment.key-value.gitconfig"
+        }
+      },
+      "patterns": [
+        {
+          "name": "string.quoted.double.pathspec.gitconfig",
+          "begin": "\\G\\s*\"",
+          "end": "\"|(?<!\\\\)(?=\\s*$)",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.begin.gitconfig"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.end.gitconfig"
+            }
+          },
+          "contentName": "string.other.link.pathspec.gitconfig",
+          "patterns": [
+            {
+              "include": "#includeInnards"
+            }
+          ]
+        },
+        {
+          "match": "([^\"\\s;#][^;#]*?)(?<=\\S)(?=\\s*(?:$|;|#))",
+          "captures": {
+            "1": {
+              "name": "string.other.link.pathspec.gitconfig",
+              "patterns": [
+                {
+                  "include": "#includeInnards"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "include": "#comments"
+        },
+        {
+          "include": "#variables"
+        }
+      ]
+    },
+    "includeInnards": {
+      "patterns": [
+        {
+          "match": "(?:^|\\G)~(?=/)",
+          "name": "keyword.operator.tilde.gitconfig"
+        },
+        {
+          "match": "(?:^|\\G)\\.(?=/)",
+          "name": "keyword.operator.config-path.gitconfig"
+        },
+        {
+          "match": "\\*\\*",
+          "name": "keyword.operator.glob.wildcard.globstar.gitconfig"
+        },
+        {
+          "match": "[*?]",
+          "name": "keyword.operator.glob.wildcard.gitconfig"
+        },
+        {
+          "match": "/",
+          "name": "punctuation.directory.separator.meta.gitconfig"
+        },
+        {
+          "include": "#escapes"
+        }
+      ]
+    },
+    "section": {
+      "name": "meta.section.gitconfig",
+      "begin": "(?x)\n(?:^|\\G) \\s*\n(?:\n\t(\\[)\\s*(\\]) #1, #2\n\t|\n\t(\\[) #3\n\t\\s*\n\t(?:\n\t\t([-.A-Za-z0-9]+?) #4\n\t\t(?:\n\t\t\t(\\.)           #5\n\t\t\t([-A-Za-z0-9]+) #6\n\t\t)?\n\t)\n\t(?:\n\t\t\\s*\n\t\t(\") #7\n\t\t(   #8\n\t\t\t(?: [^\\\\\"]\n\t\t\t|   \\\\.\n\t\t\t)*+\n\t\t)\n\t\t(\") #9\n\t)?+\n\t\\s* (\\]) #10\n)",
+      "end": "(?!\\G)(?=^\\s*\\[)",
+      "beginCaptures": {
+        "0": {
+          "name": "meta.section.header.gitconfig"
+        },
+        "1": {
+          "name": "punctuation.definition.bracket.square.begin.gitconfig"
+        },
+        "2": {
+          "name": "punctuation.definition.bracket.square.end.gitconfig"
+        },
+        "3": {
+          "name": "punctuation.definition.bracket.square.begin.gitconfig"
+        },
+        "4": {
+          "name": "entity.section.name.gitconfig"
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#dot"
+            }
+          ]
+        },
+        "6": {
+          "name": "entity.subsection.name.deprecated-syntax.gitconfig"
+        },
+        "7": {
+          "name": "punctuation.definition.subsection.begin.gitconfig"
+        },
+        "8": {
+          "name": "entity.subsection.name.gitconfig",
+          "patterns": [
+            {
+              "include": "#sectionEscapes"
+            }
+          ]
+        },
+        "9": {
+          "name": "punctuation.definition.subsection.end.gitconfig"
+        },
+        "10": {
+          "name": "punctuation.definition.bracket.square.end.gitconfig"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#comments"
+        },
+        {
+          "include": "#variables"
+        }
+      ]
+    },
+    "sectionEscapes": {
+      "patterns": [
+        {
+          "name": "constant.character.escape.backslash.gitconfig",
+          "match": "(\\\\)[\\\\\"]",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.escape.backslash.gitconfig"
+            }
+          }
+        },
+        {
+          "name": "constant.character.escape.unknown.gitconfig",
+          "match": "\\\\(?=[^\\\\\"])",
+          "captures": {
+            "0": {
+              "name": "punctuation.definition.escape.backslash.ignored.gitconfig"
+            }
+          }
+        }
+      ]
+    },
+    "variables": {
+      "patterns": [
+        {
+          "name": "meta.variable-field.gitconfig",
+          "begin": "(?i)\\b(signingkey)\\s*(=)",
+          "end": "(?=\\s*(?:$|#|;))",
+          "beginCaptures": {
+            "1": {
+              "name": "variable.parameter.assignment.gitconfig"
+            },
+            "2": {
+              "name": "keyword.operator.assignment.key-value.gitconfig"
+            }
+          },
+          "patterns": [
+            {
+              "name": "constant.other.signing-key.hex.gitconfig",
+              "match": "\\w+"
+            },
+            {
+              "include": "#variableInnards"
+            }
+          ]
+        },
+        {
+          "name": "meta.variable-field.gitconfig",
+          "begin": "(?i)\\b(email|url)\\s*(=)",
+          "end": "(?=\\s*(?:$|#|;))",
+          "beginCaptures": {
+            "1": {
+              "name": "variable.parameter.assignment.gitconfig"
+            },
+            "2": {
+              "name": "keyword.operator.assignment.key-value.gitconfig"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#urlInnards"
+            }
+          ]
+        },
+        {
+          "name": "meta.variable-field.gitconfig",
+          "begin": "([0-9A-Za-z][-0-9A-Za-z]*)\\s*(=)",
+          "end": "(?=\\s*(?:$|#|;))",
+          "beginCaptures": {
+            "1": {
+              "name": "variable.parameter.assignment.gitconfig"
+            },
+            "2": {
+              "name": "keyword.operator.assignment.key-value.gitconfig"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#variableInnards"
+            }
+          ]
+        }
+      ]
+    },
+    "urlSection": {
+      "name": "meta.url.section.gitconfig",
+      "begin": "(?ix)\n(?:^|\\G) \\s*\n(\\[) #1\n\\s*\n(url|https?|core\\.(?:git)?proxy) #2\n(?:\n\t\\s*\n\t(\") #3\n\t(   #4\n\t\t(?: [^\\\\\"]\n\t\t|   \\\\.\n\t\t)*+\n\t)\n\t(\") #5\n)?+\n\\s* (\\]) #6",
+      "end": "(?!\\G)(?=^\\s*\\[)",
+      "beginCaptures": {
+        "0": {
+          "name": "meta.section.header.gitconfig"
+        },
+        "1": {
+          "name": "punctuation.definition.bracket.square.begin.gitconfig"
+        },
+        "2": {
+          "name": "entity.section.name.gitconfig"
+        },
+        "3": {
+          "name": "punctuation.definition.subsection.begin.gitconfig"
+        },
+        "4": {
+          "name": "string.other.link.gitconfig",
+          "patterns": [
+            {
+              "include": "#sectionEscapes"
+            }
+          ]
+        },
+        "5": {
+          "name": "punctuation.definition.subsection.end.gitconfig"
+        },
+        "6": {
+          "name": "punctuation.definition.bracket.square.end.gitconfig"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#comments"
+        },
+        {
+          "include": "#variables"
+        }
+      ]
+    },
+    "urlInnards": {
+      "patterns": [
+        {
+          "name": "string.other.link.gitconfig",
+          "begin": "\"",
+          "end": "\"|(?=\\s*$)",
+          "beginCaptures": {
+            "0": {
+              "name": "string.quoted.string.begin.gitconfig"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "string.quoted.string.end.gitconfig"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#escapes"
+            }
+          ]
+        },
+        {
+          "name": "string.other.link.gitconfig",
+          "match": "(?:[^\\s\";#\\\\]|\\\\.)+",
+          "captures": {
+            "0": {
+              "patterns": [
+                {
+                  "include": "#escapes"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "variableInnards": {
+      "patterns": [
+        {
+          "name": "constant.logical.boolean.$1.gitconfig",
+          "match": "(?i)\\b(true|false|on|off|1|0|yes|no)\\b"
+        },
+        {
+          "name": "constant.numeric.decimal.integer.int.gitconfig",
+          "match": "[-+]?[0-9]+(?=$|[\\s#;])"
+        },
+        {
+          "name": "constant.numeric.decimal.float.gitconfig",
+          "match": "[-+]?(?:[0-9]+\\.[0-9]*|\\.[0-9]+)(?=$|\\s#;)"
+        },
+        {
+          "name": "string.quoted.double.argument.gitconfig",
+          "match": "(\")((?:[^\\\\\"]|\\\\.)*?)(?<!\\\\)(?=\\s*$)",
+          "captures": {
+            "0": {
+              "name": "invalid.illegal.syntax.unclosed-string.gitconfig"
+            },
+            "1": {
+              "name": "punctuation.definition.string.begin.gitconfig"
+            },
+            "2": {
+              "patterns": [
+                {
+                  "include": "#escapes"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "string.quoted.double.argument.gitconfig",
+          "begin": "\"",
+          "end": "\"|(?<!\\\\)(?=\\s*$)",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.begin.gitconfig"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.end.gitconfig"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#escapes"
+            }
+          ]
+        },
+        {
+          "name": "string.unquoted.argument.gitconfig",
+          "match": "(?:[^\\\\\\s\";#]|\\\\.)+",
+          "captures": {
+            "0": {
+              "patterns": [
+                {
+                  "include": "#escapes"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "include": "#escapedNewline"
+        }
+      ]
+    }
+  }
+}

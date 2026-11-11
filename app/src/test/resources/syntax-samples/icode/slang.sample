@@ -1,0 +1,17 @@
+// A compute shader that doubles a buffer
+RWStructuredBuffer<float> values;
+
+interface IScale {
+    float scale(float x);
+}
+
+struct Double : IScale {
+    float scale(float x) { return x * 2.0; }
+}
+
+[shader("compute")]
+[numthreads(64, 1, 1)]
+void main(uint3 id : SV_DispatchThreadID) {
+    Double d;
+    values[id.x] = d.scale(values[id.x]);
+}

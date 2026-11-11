@@ -1,0 +1,13 @@
+xquery version "3.1";
+(: Books cheaper than 30 :)
+declare namespace bk = "http://example.com/books";
+declare variable $limit as xs:decimal := 30.0;
+
+declare function local:title($book as element()) as xs:string {
+  string($book/title)
+};
+
+for $book in doc("books.xml")//book
+where $book/price < $limit
+order by $book/title
+return <cheap>{ local:title($book) }</cheap>

@@ -1,0 +1,15 @@
+## The users page
+#set( $title = "Users" )
+<h1>$title</h1>
+<ul>
+#foreach( $user in $users )
+  <li>$user.name ($user.age)</li>
+#end
+</ul>
+#if( $users.size() > 10 )
+  <p>Many users</p>
+#else
+  <p>Few users</p>
+#end
+#* A block
+   comment *#

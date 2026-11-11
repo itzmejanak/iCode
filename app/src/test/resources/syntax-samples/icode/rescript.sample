@@ -1,0 +1,16 @@
+// A counter
+type action = Increment | Decrement
+
+let reducer = (state, action) =>
+  switch action {
+  | Increment => state + 1
+  | Decrement => state - 1
+  }
+
+@react.component
+let make = (~name: string) => {
+  let (count, setCount) = React.useState(() => 0)
+  <button onClick={_ => setCount(c => c + 1)}>
+    {React.string(`${name}: ${Int.toString(count)}`)}
+  </button>
+}

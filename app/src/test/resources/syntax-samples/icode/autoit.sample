@@ -1,0 +1,12 @@
+#include <MsgBoxConstants.au3>
+; Shows a greeting three times.
+Global $sName = "World"
+Local $iCount = 3
+
+For $i = 1 To $iCount
+    MsgBox($MB_OK, "Greeting", "Hello, " & $sName & " #" & $i)
+Next
+
+Func Add($a, $b)
+    Return $a + $b
+EndFunc

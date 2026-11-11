@@ -1,0 +1,11 @@
+# A demo of the tool
+Output demo.gif
+Set FontSize 22
+Set Width 1200
+Require git
+
+Type "git status"
+Sleep 500ms
+Enter
+Ctrl+C
+Sleep 2s

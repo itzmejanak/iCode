@@ -1,0 +1,17 @@
+\documentclass{article}
+\begin{document}
+
+This module adds numbers.
+
+\begin{code}
+module Add where
+
+-- | Adds two numbers.
+add :: Int -> Int -> Int
+add x y = x + y
+
+main :: IO ()
+main = print (add 2 3)
+\end{code}
+
+\end{document}

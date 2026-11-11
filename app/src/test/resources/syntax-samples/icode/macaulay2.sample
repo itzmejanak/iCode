@@ -1,0 +1,7 @@
+-- An ideal and its Groebner basis
+R = QQ[x, y, z]
+I = ideal(x^2 - y, y^2 - z)
+G = gens gb I
+f = (n) -> if n <= 1 then 1 else n * f(n - 1)
+print f 5
+for i from 1 to 3 do print(i^2)

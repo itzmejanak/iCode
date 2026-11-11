@@ -1,0 +1,13 @@
+// Buttons
+$primary: #0074d9
+
+.button
+  color: white
+  background: $primary
+  padding: 4px 12px
+  &:hover
+    opacity: 0.8
+
+@media (max-width: 600px)
+  .button
+    width: 100%

@@ -113,6 +113,9 @@ class AndroidWorkspacePreferencesRepositoryTest {
             repository.setLineNumbers(false)
             repository.setMinimap(true)
             repository.setBracketMatching(false)
+            // On until turned off (docs/syntax-highlighting-plan.md D8).
+            assertTrue(repository.values(null).first().editor.semanticHighlighting)
+            repository.setSemanticHighlighting(false)
             repository.setIndentSizeOverride("/root/one", 6)
         } finally {
             // DataStore allows one active instance per file; cancel() alone returns before the
@@ -140,6 +143,7 @@ class AndroidWorkspacePreferencesRepositoryTest {
             assertFalse(one.editor.lineNumbers)
             assertEquals(true, one.editor.minimap)
             assertFalse(one.editor.bracketMatching)
+            assertFalse(one.editor.semanticHighlighting)
             assertEquals(6, one.effectiveIndentSize)
             assertEquals(4, two.effectiveIndentSize)
         } finally {

@@ -172,7 +172,7 @@ All notable changes to iCode are documented here. The format follows
 ### Changed
 - Code colouring loads each language when a file first needs it
   ([docs/syntax-highlighting-plan.md](docs/syntax-highlighting-plan.md), S3). The app no longer parses
-  every grammar at start, so opening a JSON file parses JSON only. A grammar that fails to load turns
+  every grammar at start, so the first file colours sooner: opening a JSON file parses JSON only. A grammar that fails to load turns
   off colouring for its own language, with a note under the editor naming it; every other language
   still colours. A file over 2 MiB or 50 000 lines opens plain with the note "Colouring is off for
   files this large". Each line is coloured up to 10 000 characters and for at most 100 ms, so one
@@ -187,7 +187,7 @@ All notable changes to iCode are documented here. The format follows
   inside a block comment or a long string. Diff lines keep their green and red backgrounds and their
   `+` and `-` markers; their plain text is now in the normal text colour. An assistant change's page
   shows what it writes under Content, or under Replaces and With for an edit.
-- Many more languages are coloured: 307, up from 42 (S6, part 1). Every text file type the file icons
+- Many more languages are coloured: 357, up from 42 (S6). Every text file type the file icons
   know now opens coloured, from Zig, TOML, Terraform, Nix, Elixir, LaTeX and Svelte to `.dockerignore`,
   `Procfile` and `requirements.txt`, and code blocks in those languages colour in chat and the Markdown
   preview. The few left plain (licences, version files, formats with no grammar anywhere) are listed with
@@ -195,6 +195,18 @@ All notable changes to iCode are documented here. The format follows
   repositories, each with its source, commit and licence in
   [docs/editor-grammar-provenance.md](docs/editor-grammar-provenance.md). Some names now open as VS Code
   opens them: `tsconfig.json` and `.eslintrc` as JSON with comments, `.log` files as logs.
+- Dockerfiles and `.env` files colour fully (S6, part 2). In a Dockerfile the image, its tag and the
+  stage name, flags such as `--from=` and `--platform=`, ARG, ENV and LABEL keys and values, EXPOSE
+  ports, variables and the shell commands after RUN, CMD and ENTRYPOINT are all coloured; in a `.env`
+  file, numbers, `true` and `false`, variables and values that span lines too. Every language was
+  checked with a sample file, and the words a language leaves plain on purpose are recorded with
+  their reasons. The newest languages include subtitles (`.srt`, `.vtt`),
+  checksum lists, Cabal, Meson, Nunjucks, XQuery, YANG, PlantUML, Slint, Visual Studio solutions,
+  `robots.txt`, `hosts` and `.mailmap`, and Javadoc inside Groovy comments now colours.
+- A language server that offers semantic tokens now colours code by what each name is (S7): with
+  clangd or the TypeScript server, for example, a parameter and a property colour apart. Its colours lie over the grammar's,
+  in the same theme colours, and follow typing after a short pause. Settings › Editor › Semantic
+  Highlighting turns it off; without such a server nothing changes.
 - Notifications say what happened and where ([docs/notices-redesign-plan.md](docs/notices-redesign-plan.md)).
   Every notice names its workspace, and its repository, branch, folder or terminal tab where they
   matter, on the Notifications page and in the header of Android's notification. A pull says how

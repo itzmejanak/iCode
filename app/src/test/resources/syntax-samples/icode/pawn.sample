@@ -1,0 +1,15 @@
+#include <a_samp>
+
+#define MAX_SCORE 100
+
+// Called when the server starts.
+public OnGameModeInit()
+{
+    new count = 0;
+    for (new i = 0; i < MAX_SCORE; i++)
+    {
+        count += i;
+    }
+    printf("Total: %d", count);
+    return 1;
+}

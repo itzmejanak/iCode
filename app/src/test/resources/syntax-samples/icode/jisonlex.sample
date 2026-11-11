@@ -1,0 +1,9 @@
+/* Tokens for a calculator */
+digit       [0-9]
+%%
+\s+                     /* skip whitespace */
+{digit}+("."{digit}+)?  return 'NUMBER';
+"*"                     return '*';
+"+"                     return '+';
+<<EOF>>                 return 'EOF';
+.                       return 'INVALID';

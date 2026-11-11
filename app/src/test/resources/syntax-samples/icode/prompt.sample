@@ -1,0 +1,11 @@
+---
+mode: agent
+description: Review the change for bugs
+tools: ['codebase', 'search']
+---
+# Review
+
+Read the diff and list each **bug** you find, with the file and the line.
+
+- Check error handling
+- Check `null` values

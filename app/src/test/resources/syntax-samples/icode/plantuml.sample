@@ -1,0 +1,17 @@
+@startuml
+' A login sequence
+title Login
+actor User
+participant "Web app" as App
+database Users
+
+User -> App : log in
+App -> Users : find user
+Users --> App : user
+alt valid password
+  App --> User : welcome
+else
+  App --> User : error 401
+end
+note right of App : checks the hash
+@enduml

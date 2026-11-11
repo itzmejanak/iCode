@@ -9,7 +9,9 @@ import dev.icode.mobile.domain.EditorTextRules
 import dev.icode.mobile.domain.GitDiffHunk
 import dev.icode.mobile.domain.LineChangeKind
 import dev.icode.mobile.domain.kind
+import io.github.rosemoe.sora.event.ContentChangeEvent
 import io.github.rosemoe.sora.lang.Language
+import io.github.rosemoe.sora.lang.analysis.StyleUpdateRange
 import io.github.rosemoe.sora.lang.smartEnter.NewlineHandleResult
 import io.github.rosemoe.sora.lang.smartEnter.NewlineHandler
 import io.github.rosemoe.sora.lang.styling.Styles
@@ -61,6 +63,49 @@ internal class IcodeCodeEditor(context: Context) : CodeEditor(context) {
 
     /** The file's line break ([EditorTextRules.separatorOf]). */
     var separator: String = "\n"
+
+    /**
+     * A language server's colours over the grammar's (docs/syntax-highlighting-plan.md D8); null, the
+     * grammar's alone, and the analyzer's styles drawn as they are.
+     */
+    var semanticLines: SemanticLines?
+        get() = semantic
+        set(value) {
+            if (semantic === value) return
+            semantic = value
+            // Drawn again whole: the styles given again, with the runs over them or without.
+            val shown = super.getStyles() ?: return
+            setStyles((shown as? SemanticStyles)?.raw ?: shown)
+        }
+    private var semantic: SemanticLines? = null
+
+    /** The analyzer's styles, with [semanticLines] over them while there are any. */
+    override fun setStyles(styles: Styles?) {
+        val raw = (styles as? SemanticStyles)?.raw ?: styles
+        super.setStyles(if (raw != null && raw.spans != null && semantic != null) SemanticStyles(raw) { semantic } else raw)
+    }
+
+    override fun updateStyles(styles: Styles, range: StyleUpdateRange?) {
+        val shown = super.getStyles() as? SemanticStyles
+        if (shown == null || shown.raw !== styles || range == null) return super.updateStyles(styles, range)
+        shown.sync()
+        super.updateStyles(shown, range)
+    }
+
+    init {
+        // An edit takes the server's colours from the lines it touched until the next answer; the lines
+        // after move with the text. Sora redraws what the edit changed, so nothing is given again here.
+        subscribeEvent(ContentChangeEvent::class.java) { event, _ ->
+            val lines = semantic ?: return@subscribeEvent
+            val start = event.changeStart.line
+            val end = event.changeEnd.line
+            semantic = when (event.action) {
+                ContentChangeEvent.ACTION_INSERT -> lines.inserted(start, end)
+                ContentChangeEvent.ACTION_DELETE -> lines.deleted(start, end)
+                else -> null
+            }
+        }
+    }
 
     init {
         // Room for the markers between the line numbers and the divider, kept whether or not a

@@ -20,6 +20,8 @@ internal class EditorSyntax(
     private val plain: Language,
     /** Sets a new grammar's indentation from the settings. */
     private val indent: (TextMateLanguage) -> Unit,
+    /** The document is coloured another way: by a grammar now loaded, or plain. */
+    private val changed: () -> Unit = {},
 ) {
     /** Why the document is not coloured, said under the editor; null while it is, or while it simply has no grammar. */
     var note: String? by mutableStateOf(null)
@@ -62,6 +64,7 @@ internal class EditorSyntax(
                 indent(grammar)
                 editor.setEditorLanguage(FileLineBreaksLanguage(grammar) { editor.separator })
                 textMate = grammar
+                changed()
             }.onFailure { note = failed(next) }
         }
     }
@@ -73,6 +76,7 @@ internal class EditorSyntax(
     private fun usePlain() {
         textMate = null
         editor.setEditorLanguage(plain)
+        changed()
     }
 
     private fun failed(language: String) = "Colouring is off for $language: its grammar could not be loaded"

@@ -1,0 +1,17 @@
+// Arithmetic expressions
+{
+  function sum(head, tail) { return tail.reduce((a, b) => a + b[3], head); }
+}
+
+Expression
+  = head:Term tail:(_ ("+" / "-") _ Term)* { return sum(head, tail); }
+
+Term
+  = "(" _ expr:Expression _ ")" { return expr; }
+  / Integer
+
+Integer "integer"
+  = [0-9]+ { return parseInt(text(), 10); }
+
+_ "whitespace"
+  = [ \t\n\r]*

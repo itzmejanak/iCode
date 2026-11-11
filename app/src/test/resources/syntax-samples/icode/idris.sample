@@ -1,0 +1,17 @@
+module Main
+
+import Data.Vect
+
+-- | Adds two vectors of the same length.
+addVect : Num a => Vect n a -> Vect n a -> Vect n a
+addVect [] [] = []
+addVect (x :: xs) (y :: ys) = x + y :: addVect xs ys
+
+data Shape = Circle Double | Rect Double Double
+
+area : Shape -> Double
+area (Circle r) = pi * r * r
+area (Rect w h) = w * h
+
+main : IO ()
+main = putStrLn (show (area (Rect 2.0 3.5)))

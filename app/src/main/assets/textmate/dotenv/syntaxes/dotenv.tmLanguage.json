@@ -1,127 +1,204 @@
 {
 	"information_for_contributors": [
-		"This file has been converted from https://github.com/dotenv-org/dotenv-vscode/blob/master/syntaxes/dotenv.tmLanguage.json",
-		"If you want to provide a fix or improvement, please create a pull request against the original repository.",
-		"Once accepted there, we are happy to receive an update request."
+		"iCode's .env grammar, based on dotenv-org's (https://github.com/dotenv-org/dotenv-vscode/blob/master/syntaxes/dotenv.tmLanguage.json, MIT), as VS Code ships it at 307b60e7.",
+		"Changed by iCode: values may be unquoted, single-, double- or backtick-quoted, and quoted values may span lines; an unquoted number is a number and true or false a constant; $VAR, ${VAR} and ${VAR:-default} are variables in unquoted and double-quoted values; ' #' after an unquoted value starts a comment.",
+		"Kept by tools/import-grammars.py (KEPT), which lists the changes in docs/editor-grammar-provenance.md."
 	],
 	"version": "https://github.com/dotenv-org/dotenv-vscode/commit/e7e41baa5b23e01c1ff0567a4e596c24860e7def",
 	"scopeName": "source.dotenv",
 	"patterns": [
 		{
-			"comment": "Full Line Comment",
-			"match": "^\\s?(#.*$)\\n",
-			"captures": {
-				"1": {
-					"patterns": [
-						{
-							"include": "#line-comment"
-						}
-					]
-				}
-			}
+			"include": "#comment"
 		},
 		{
-			"comment": "ENV entry",
-			"match": "^\\s?(.*?)\\s?(\\=)(.*)$",
-			"captures": {
-				"1": {
-					"patterns": [
-						{
-							"include": "#key"
-						}
-					]
-				},
-				"2": {
-					"name": "keyword.operator.assignment.dotenv"
-				},
-				"3": {
-					"name": "property.value.dotenv",
-					"patterns": [
-						{
-							"include": "#line-comment"
-						},
-						{
-							"include": "#double-quoted-string"
-						},
-						{
-							"include": "#single-quoted-string"
-						},
-						{
-							"include": "#interpolation"
-						}
-					]
-				}
-			}
+			"include": "#entry"
 		}
 	],
 	"repository": {
-		"variable": {
-			"comment": "env variable",
-			"match": "[a-zA-Z_]+[a-zA-Z0-9_]*"
-		},
-		"line-comment": {
-			"comment": "Comment",
-			"match": "#.*$",
-			"name": "comment.line.dotenv"
-		},
-		"interpolation": {
-			"comment": "Interpolation (variable substitution)",
-			"match": "(\\$\\{)(.*)(\\})",
+		"comment": {
+			"comment": "A whole-line comment",
+			"match": "^\\s*((#).*)$",
 			"captures": {
 				"1": {
-					"name": "keyword.interpolation.begin.dotenv"
+					"name": "comment.line.number-sign.dotenv"
 				},
 				"2": {
-					"name": "variable.interpolation.dotenv"
-				},
-				"3": {
-					"name": "keyword.interpolation.end.dotenv"
+					"name": "punctuation.definition.comment.dotenv"
 				}
 			}
 		},
-		"escape-characters": {
-			"comment": "Escape characters",
-			"match": "\\\\[nrtfb\"'\\\\]|\\\\u[0123456789ABCDEF]{4}",
-			"name": "constant.character.escape.dotenv"
-		},
-		"double-quoted-string": {
-			"comment": "Double Quoted String",
-			"match": "\"(.*)\"",
-			"name": "string.quoted.double.dotenv",
+		"trailing-comment": {
+			"comment": "A comment after a value: # after a space",
+			"match": "(?<=\\s)((#).*)$",
 			"captures": {
 				"1": {
-					"patterns": [
-						{
-							"include": "#interpolation"
-						},
-						{
-							"include": "#escape-characters"
-						}
-					]
+					"name": "comment.line.number-sign.dotenv"
+				},
+				"2": {
+					"name": "punctuation.definition.comment.dotenv"
 				}
 			}
 		},
-		"single-quoted-string": {
-			"comment": "Single Quoted String",
-			"match": "'(.*)'",
-			"name": "string.quoted.single.dotenv"
-		},
-		"key": {
-			"comment": "Key",
-			"match": "(export\\s)?(.*)",
-			"captures": {
+		"entry": {
+			"comment": "KEY=value, after an optional export",
+			"begin": "^\\s*(?:(export)\\s+)?([A-Za-z_][\\w.-]*)\\s*(=)[ \\t]*",
+			"beginCaptures": {
 				"1": {
 					"name": "keyword.key.export.dotenv"
 				},
 				"2": {
-					"name": "variable.key.dotenv",
+					"name": "variable.key.dotenv"
+				},
+				"3": {
+					"name": "keyword.operator.assignment.dotenv"
+				}
+			},
+			"end": "$",
+			"patterns": [
+				{
+					"include": "#number"
+				},
+				{
+					"include": "#boolean"
+				},
+				{
+					"include": "#double-quoted-string"
+				},
+				{
+					"include": "#single-quoted-string"
+				},
+				{
+					"include": "#backtick-quoted-string"
+				},
+				{
+					"include": "#trailing-comment"
+				},
+				{
+					"include": "#interpolation"
+				},
+				{
+					"include": "#unquoted"
+				}
+			]
+		},
+		"number": {
+			"comment": "A value that is one number",
+			"match": "\\G[-+]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][-+]?\\d+)?(?=[ \\t]*(?:\\s#.*)?$)",
+			"name": "constant.numeric.dotenv"
+		},
+		"boolean": {
+			"comment": "A value that is true or false",
+			"match": "\\G(?i:true|false)(?=[ \\t]*(?:\\s#.*)?$)",
+			"name": "constant.language.boolean.dotenv"
+		},
+		"unquoted": {
+			"match": "(?:[^\\s#$\"'`\\\\]|\\\\.|(?<=\\S)#|\\$(?![{\\w]))+",
+			"name": "string.unquoted.value.dotenv"
+		},
+		"interpolation": {
+			"comment": "Interpolation (variable substitution): ${VAR}, ${VAR:-default}, $VAR",
+			"patterns": [
+				{
+					"begin": "(\\$\\{)([A-Za-z_]\\w*)?",
+					"beginCaptures": {
+						"1": {
+							"name": "keyword.interpolation.begin.dotenv"
+						},
+						"2": {
+							"name": "variable.interpolation.dotenv"
+						}
+					},
+					"end": "\\}",
+					"endCaptures": {
+						"0": {
+							"name": "keyword.interpolation.end.dotenv"
+						}
+					},
 					"patterns": [
 						{
-							"include": "#variable"
+							"match": ":?[-+?=]",
+							"name": "keyword.operator.expansion.dotenv"
+						},
+						{
+							"include": "#interpolation"
+						},
+						{
+							"match": "[^}$]+",
+							"name": "string.unquoted.default.dotenv"
 						}
 					]
+				},
+				{
+					"match": "(\\$)[A-Za-z_]\\w*",
+					"name": "variable.interpolation.dotenv",
+					"captures": {
+						"1": {
+							"name": "punctuation.definition.variable.dotenv"
+						}
+					}
 				}
-			}
+			]
+		},
+		"escape-characters": {
+			"comment": "Escape characters",
+			"match": "\\\\[nrtfb\"'\\\\$`]|\\\\u[0-9A-Fa-f]{4}",
+			"name": "constant.character.escape.dotenv"
+		},
+		"double-quoted-string": {
+			"comment": "Double quoted: escapes and interpolation, over as many lines as it takes",
+			"begin": "\"",
+			"beginCaptures": {
+				"0": {
+					"name": "punctuation.definition.string.begin.dotenv"
+				}
+			},
+			"end": "\"",
+			"endCaptures": {
+				"0": {
+					"name": "punctuation.definition.string.end.dotenv"
+				}
+			},
+			"name": "string.quoted.double.dotenv",
+			"patterns": [
+				{
+					"include": "#escape-characters"
+				},
+				{
+					"include": "#interpolation"
+				}
+			]
+		},
+		"single-quoted-string": {
+			"comment": "Single quoted: taken as written, over as many lines as it takes",
+			"begin": "'",
+			"beginCaptures": {
+				"0": {
+					"name": "punctuation.definition.string.begin.dotenv"
+				}
+			},
+			"end": "'",
+			"endCaptures": {
+				"0": {
+					"name": "punctuation.definition.string.end.dotenv"
+				}
+			},
+			"name": "string.quoted.single.dotenv"
+		},
+		"backtick-quoted-string": {
+			"comment": "Backtick quoted, as dotenv reads it: taken as written",
+			"begin": "`",
+			"beginCaptures": {
+				"0": {
+					"name": "punctuation.definition.string.begin.dotenv"
+				}
+			},
+			"end": "`",
+			"endCaptures": {
+				"0": {
+					"name": "punctuation.definition.string.end.dotenv"
+				}
+			},
+			"name": "string.quoted.other.dotenv"
 		}
 	}
 }

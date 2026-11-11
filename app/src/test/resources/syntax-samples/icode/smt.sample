@@ -1,0 +1,9 @@
+; Is there an x greater than 3 and less than 5?
+(set-logic QF_LIA)
+(declare-const x Int)
+(declare-fun f (Int) Bool)
+(assert (and (> x 3) (< x 5)))
+(assert (f x))
+(check-sat)
+(get-model)
+(exit)

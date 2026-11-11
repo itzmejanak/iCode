@@ -111,8 +111,8 @@ class GrammarAssetsTest {
         /** A name another grammar uses where the shipped grammar of that language has another scope. */
         const val ALIAS = "another name for a shipped grammar's scope"
 
-        /** Embedded only, and declared by no grammar in VS Code 307b60e7, Shiki 8f1828eb or the upstreams shipped. */
-        const val NONE = "no grammar in VS Code or Shiki has this scope"
+        /** Embedded only, and declared by no grammar in VS Code 307b60e7, Shiki 8f1828eb or those GitHub Linguist vendors. */
+        const val NONE = "no grammar in VS Code, Shiki or the grammars GitHub Linguist vendors has this scope"
 
         /**
          * Scopes other grammars include (a fence, an assembly block in C, a template's script) that iCode
@@ -120,7 +120,6 @@ class GrammarAssetsTest {
          * tools/import-grammars.py's to decide, not a hand edit to the grammars (docs/editor-grammar-provenance.md).
          */
         val NOT_SHIPPED = sortedMapOf(
-            "source.agda" to "$NONE (Agda in Typst)",
             "source.arm" to "$NONE (inline assembly in C and C++)",
             "source.asm" to "$NONE (inline assembly in C, C++ and Nim; Shiki's assembly is source.asm.x86_64)",
             "source.asy" to "$NONE (Asymptote in LaTeX)",
@@ -131,20 +130,14 @@ class GrammarAssetsTest {
             "source.dts" to "$NONE (device trees in reStructuredText)",
             "source.fs" to "$ALIAS: source.fsharp (in Org)",
             "source.gfm" to "$ALIAS: text.html.markdown (in MDX)",
-            "source.gitconfig" to "$NONE (in MDX; .gitconfig files are opened as properties, source.ini)",
             "source.html" to "$ALIAS: text.html.basic (in SassDoc)",
-            "source.jisonlex" to "$NONE (Jison's lexer section)",
             "source.js.jquery" to "$NONE (in Ruby and Crystal heredocs)",
             "source.kconfig" to "$NONE (in reStructuredText)",
-            "source.lean4.markdown" to "$NONE (Markdown in Lean doc comments)",
             "source.less" to "$ALIAS: source.css.less (in Pug)",
             "source.lisp" to "$ALIAS: source.commonlisp (in Org)",
-            "source.openesql" to "$NONE (embedded SQL in COBOL)",
             "source.postcss" to "$ALIAS: source.css.postcss (in Vue)",
-            "source.postscript" to "$NONE (in Perl heredocs)",
             "source.pug" to "$ALIAS: text.pug (in Org)",
             "source.raku" to "$ALIAS: source.perl.6 (in MDX)",
-            "source.regexp" to "$NONE (regular expressions in AWK)",
             "source.smarty" to "$NONE (in Smarty templates)",
             "source.scss" to "$ALIAS: source.css.scss (in Haml)",
             "source.srs" to "$NONE (in Turtle)",
@@ -152,18 +145,11 @@ class GrammarAssetsTest {
             "source.twig" to "$ALIAS: text.html.twig (in AsciiDoc and LaTeX's Markdown)",
             "source.vbnet" to "$ALIAS: source.asp.vb.net (in MDX)",
             "source.vue" to "$ALIAS: text.html.vue (in Vue's HTML and Vue Vine)",
-            "source.x86" to "$NONE (inline assembly in C and C++)",
             "source.x86_64" to "$NONE (inline assembly in C and C++)",
-            "source.yang" to "$NONE (YANG in AsciiDoc and LaTeX's Markdown)",
-            "text.cfml.basic" to "$NONE (CFML tags in ColdFusion's HTML)",
-            "text.elixir" to "$NONE (EEx templates in Elixir)",
             "text.html.asciidoc" to "$ALIAS: text.asciidoc (in MDX)",
-            "text.html.javadoc" to "$NONE (Javadoc in Groovy, Genie, Nextflow and Vala)",
-            "text.html.markdown.source.gfm.mson" to "$NONE (MSON data structures in API Blueprint)",
             "text.json" to "$ALIAS: source.json (in Hurl)",
             "text.md" to "$ALIAS: text.html.markdown (in MDX)",
             "text.plain" to "$NONE (plain text in Haml)",
-            "text.python.console" to "$NONE (Python sessions in MDX)",
             "text.xml.svg" to "$ALIAS: text.xml (in MDX)",
         )
     }

@@ -1,0 +1,8 @@
+# Data Structures
+
+## User (object)
++ id: 42 (number, required) - The user's id
++ name: Ann (string)
++ tags (array[string])
+    + admin
++ active: true (boolean)

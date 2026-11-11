@@ -1,0 +1,238 @@
+{
+  "name": "Lex",
+  "scopeName": "source.lex",
+  "fileTypes": [
+    "l",
+    "lex",
+    "flex"
+  ],
+  "patterns": [
+    {
+      "include": "#main"
+    }
+  ],
+  "firstLineMatch": "(?x)\n\n# Emacs modeline\n-\\*-(?i:[ \\t]*(?=[^:;\\s]+[ \\t]*-\\*-)|(?:.*?[ \\t;]|(?<=-\\*-))[ \\t]*mode[ \\t]*:[ \\t]*)\n\t(?i:f?lex)\n(?=[ \\t;]|(?<![-*])-\\*-).*?-\\*-\n\n|\n\t\n# Vim modeline\n(?:(?:^|[ \\t])(?:vi|Vi(?=m))(?:m[<=>]?[0-9]+|m)?|[ \\t]ex)(?=:(?=[ \\t]*set?[ \\t][^\\r\\n:]+:)|:(?![ \\t]*set?[ \\t]))\n(?:(?:[ \\t]*:[ \\t]*|[ \\t])\\w*(?:[ \\t]*=(?:[^\\\\\\s]|\\\\.)*)?)*[ \\t:]\n(?:filetype|ft|syntax)[ \\t]*=\n\t(?i:f?lex)\n(?=$|\\s|:)",
+  "repository": {
+    "main": {
+      "patterns": [
+        {
+          "include": "#jflex"
+        },
+        {
+          "include": "#comments"
+        },
+        {
+          "include": "#definitions"
+        },
+        {
+          "include": "#rules"
+        },
+        {
+          "include": "source.cpp"
+        }
+      ]
+    },
+    "comments": {
+      "patterns": [
+        {
+          "name": "comment.block.lex",
+          "begin": "/\\*",
+          "end": "\\*/",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.begin.comment.lex"
+            }
+          },
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.end.comment.lex"
+            }
+          }
+        },
+        {
+          "name": "comment.line.double-slash.lex",
+          "begin": "//",
+          "end": "(?=$)",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.comment.lex"
+            }
+          }
+        }
+      ]
+    },
+    "definitions": {
+      "name": "meta.definitions.lex",
+      "begin": "\\A(?!\\s*%%)",
+      "end": "^(?=\\s*(?:%%|(?:package|import)\\s+\\w))",
+      "patterns": [
+        {
+          "include": "#comments"
+        },
+        {
+          "include": "#directives"
+        },
+        {
+          "include": "#passthrough"
+        },
+        {
+          "include": "#definition"
+        }
+      ]
+    },
+    "definition": {
+      "name": "meta.definition.lex",
+      "begin": "^\\s*([A-Za-z_][A-Za-z0-9_-]*)",
+      "end": "$",
+      "beginCaptures": {
+        "1": {
+          "name": "entity.name.definition.lex"
+        }
+      },
+      "patterns": [
+        {
+          "name": "meta.pattern.lex",
+          "match": "(?<=\\s)\\S.*",
+          "captures": {
+            "0": {
+              "patterns": [
+                {
+                  "include": "source.lex.regexp"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "jflex": {
+      "name": "meta.jflex.lex",
+      "begin": "^(?=\\s*(?:package|import)\\s+\\w)",
+      "end": "(?=A)B",
+      "patterns": [
+        {
+          "include": "source.jflex"
+        }
+      ]
+    },
+    "directives": {
+      "name": "meta.directive.lex",
+      "begin": "^\\s*((%)\\w+)(?=\\s|$)",
+      "end": "(?=$)",
+      "captures": {
+        "1": {
+          "name": "keyword.control.directive.lex"
+        },
+        "2": {
+          "name": "punctuation.definition.directive.lex"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#comments"
+        },
+        {
+          "match": "\\S+",
+          "name": "constant.language.other.lex"
+        }
+      ]
+    },
+    "passthrough": {
+      "name": "meta.code-chunk.lex",
+      "begin": "^%{",
+      "end": "^%}",
+      "beginCaptures": {
+        "0": {
+          "name": "punctuation.section.embedded.begin.lex"
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.section.embedded.end.lex"
+        }
+      },
+      "patterns": [
+        {
+          "include": "source.cpp"
+        }
+      ]
+    },
+    "rules": {
+      "begin": "^\\s*(%%)\\s*(?:$\\s*|(?=/\\*))",
+      "end": "^\\s*(%%)\\s*(?:$\\s*|(?=/\\*))",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.control.section.begin.lex"
+        }
+      },
+      "endCaptures": {
+        "1": {
+          "name": "keyword.control.section.end.lex"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#passthrough"
+        },
+        {
+          "include": "#rule.pattern"
+        },
+        {
+          "include": "#rule.action"
+        }
+      ]
+    },
+    "rule.pattern": {
+      "name": "meta.pattern.lex",
+      "begin": "(?<=^|\\n)(?=\\S)",
+      "end": "(?=\\s|$)",
+      "patterns": [
+        {
+          "include": "source.lex.regexp"
+        }
+      ]
+    },
+    "rule.action": {
+      "name": "meta.action.lex",
+      "begin": "(?<!^)(?=\\S)",
+      "end": "(?=\\s*$|^)",
+      "patterns": [
+        {
+          "include": "#comments"
+        },
+        {
+          "begin": "(?={)",
+          "end": "(?<=})",
+          "patterns": [
+            {
+              "include": "source.cpp"
+            }
+          ]
+        },
+        {
+          "match": "([^{\\s][^{]*?)\\s*$",
+          "captures": {
+            "1": {
+              "patterns": [
+                {
+                  "include": "source.cpp"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "user-code": {
+      "name": "meta.user-code.lex",
+      "begin": "(?<=^%%|\\s%%)",
+      "end": "(?=A)B",
+      "contentName": "source.embedded.cpp",
+      "patterns": [
+        {
+          "include": "source.cpp"
+        }
+      ]
+    }
+  }
+}

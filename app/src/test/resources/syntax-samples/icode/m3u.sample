@@ -1,0 +1,6 @@
+#EXTM3U
+#EXTINF:215,Artist - First Song
+music/first-song.mp3
+#EXTINF:-1,Radio Stream
+https://radio.example.com/live.aac
+#EXT-X-VERSION:3

@@ -1,0 +1,15 @@
+# Copyright: Public domain.
+# Program:   a counting loop
+
+                SETLOC          4000
+                BANK
+                EBANK=          COUNT
+START           CA              ZERO
+                TS              COUNT           # clear the count
+LOOP            INCR            COUNT
+                CS              LIMIT
+                AD              COUNT
+                BZMF            LOOP
+                TCF             START
+ZERO            DEC             0
+LIMIT           DEC             10

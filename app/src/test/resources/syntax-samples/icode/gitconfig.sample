@@ -1,0 +1,16 @@
+# The user's settings
+[user]
+	name = Ann Example
+	email = ann@example.com
+[core]
+	editor = vim
+	autocrlf = false
+	whitespace = trailing-space,space-before-tab
+[alias]
+	lg = log --graph --oneline
+	st = status -sb
+[remote "origin"]
+	url = https://github.com/example/notes.git
+	fetch = +refs/heads/*:refs/remotes/origin/*
+[pull]
+	rebase = true

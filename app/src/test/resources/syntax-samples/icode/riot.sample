@@ -1,0 +1,16 @@
+<todo>
+  <h3>{ props.title }</h3>
+  <ul>
+    <li each={ item in state.items }>{ item.text }</li>
+  </ul>
+  <button onclick={ add }>Add #{ state.items.length + 1 }</button>
+
+  <script>
+    export default {
+      state: { items: [] },
+      add() {
+        this.update({ items: [...this.state.items, { text: 'New' }] })
+      }
+    }
+  </script>
+</todo>

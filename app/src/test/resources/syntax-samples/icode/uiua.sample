@@ -1,0 +1,7 @@
+# Sums and averages
+Avg ← ÷⊃⧻/+
+Avg [1 2 3 4]
+/+ ⇡10
+Square ← ×.
+Square 12
+&p "done"
