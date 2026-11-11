@@ -405,3 +405,28 @@ file of that size. S2 chose one data file, `assets/textmate/catalog.json`, read 
   each time an editor opens, since editors no longer share a parsed grammar. Tests:
   `GrammarLoaderTest` (A1, A2), `SyntaxLimitsTest` and `LimitedGrammarTest` (A5). The limits are not
   yet checked on the owner's phone (A8).
+- S4: read-only views have one path, and it works from scopes, not colours. `SyntaxEngine.tokens`
+  tokenizes on the read-only thread, `syntax-tokens`, with that thread's own grammar per language,
+  through tm4e's public `tokenizeLine` (the `LimitedGrammar` wrapper applies the line limits). Each
+  token's scopes go through `SyntaxRoles`, which is built from the one table, `SyntaxScopes` (moved
+  to `ui/syntax/`, beside `SyntaxTheme`, which builds the editor's theme from it), with tm4e's own
+  precedence: the most specific selector wins, parent selectors such as `source.css variable` count
+  only inside those parents, and colour and font style resolve apart. A span is
+  `SyntaxSpan(start, end, style)`, where `SyntaxStyle` holds the role and bold, italic, underline
+  and strikethrough; the plan's form had only bold and italic, but the editor also draws underline
+  and strikethrough, so read-only views now do too. `SyntaxCache` keeps spans by language and text,
+  least recently used dropped first past 1 000 000 characters (2 MB as UTF-16); a block over
+  200 000 characters is not tokenized. `rememberSyntax(language, text)` gives Compose an
+  `AnnotatedString` coloured from the current palette when composed, so a palette change recolours
+  without tokenizing. Markdown fences use it. `textMateRuns`, `CodeRun` and every
+  `org.eclipse.tm4e.core.internal` import in `app/src/main` are gone (G1, G2, G3), and the read-only
+  grammars no longer carry a theme. `PaletteColorScheme` moved to `ui/syntax/SyntaxTheme.kt` and
+  takes the editor's other colours as a map. The backend guard's new rule `tm4e-owner` reports any
+  use of `org.eclipse.tm4e.*` or `io.github.rosemoe.sora.langs.textmate.registry.*` outside
+  `ui/syntax/` in `app/src/main`, and reports none (A6). Sora's `TextMateLanguage` and
+  `TextMateColorScheme`, in `io.github.rosemoe.sora.langs.textmate` itself, are left to the editor,
+  which holds the language `ui/syntax/` gives it. Tests: `SyntaxRolesTest` checks `SyntaxRoles`
+  against tm4e's theme for every scope of every shipped grammar, for each parent selector inside and
+  outside its parents, and character by character for every sample line in `EditorColours` (A4);
+  `SyntaxTokensTest` checks a Kotlin and a Markdown sample's roles, the cache (one tokenizing per
+  text, the size bound) and that every palette colours the same spans with no tokenizing call (A3).

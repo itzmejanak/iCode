@@ -20,6 +20,13 @@
 #   byte-format        a byte count formatted outside domain/ByteSize.kt (G1)
 #   notice-text        a notice put together where it is told, not by its area's builder in
 #                      domain/notices/ (docs/notices-redesign-plan.md D4)
+#   tm4e-owner         tm4e (org.eclipse.tm4e.*) or Sora's TextMate registries and theme models
+#                      (io.github.rosemoe.sora.langs.textmate.registry.*) used outside ui/syntax/,
+#                      the one owner of the TextMate engine (docs/syntax-highlighting-plan.md D2, A6).
+#                      Sora's editor-facing TextMate classes in io.github.rosemoe.sora.langs.textmate
+#                      itself (TextMateLanguage, TextMateColorScheme) are not covered: the editor
+#                      holds the language ui/syntax/ gives it. Comment lines are skipped. Only
+#                      app/src/main is checked, so tests may use tm4e.
 
 set -euo pipefail
 
@@ -108,6 +115,12 @@ count_matches '"SHA-?256"|MessageDigest' "$src_root" | { grep -v '/data/io/Sha25
     | { grep -vE '^[^:]+:[0-9]+:.*(class Notice\(|Notice\([0-9])' || true; } \
     | { grep -vE '/domain/notices/|/data/notices/NoticeStore\.kt:' || true; } \
     | awk -F: '{print $1}' | sort | uniq -c | awk '{print $2 " " $1}' | report "notice-text"
+
+# 10. One owner of the TextMate engine: tm4e and Sora's TextMate registries only in ui/syntax/.
+{ grep -rEn 'org\.eclipse\.tm4e\.|io\.github\.rosemoe\.sora\.langs\.textmate\.registry\.' "$src_root" --include='*.kt' 2>/dev/null || true; } \
+    | { grep -vE '^[^:]+:[0-9]+:[[:space:]]*(\*|//|/\*)' || true; } \
+    | { grep -v "^$src_root/ui/syntax/" || true; } \
+    | awk -F: '{print $1}' | sort | uniq -c | awk '{print $2 " " $1}' | report "tm4e-owner"
 
 if [[ "${1:-}" == "--update" ]]; then
     {

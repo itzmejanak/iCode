@@ -1,16 +1,17 @@
-package dev.icode.mobile.ui.editor
+package dev.icode.mobile.ui.syntax
 
 import dev.icode.mobile.designsystem.SyntaxRole
 
 /**
- * Which TextMate scopes take which [SyntaxRole] — the one table every editor
- * theme is built from ([dev.icode.mobile.ui.syntax.editorTheme]).
+ * Which TextMate scopes take which [SyntaxRole]: the one table every editor
+ * theme is built from ([editorTheme]), and the one read-only views resolve
+ * their tokens' roles by ([SyntaxRoles]), so both colour a token alike.
  *
  * First VS Code's default Dark+ selectors (extensions/theme-defaults,
  * `dark_vs.json` + `dark_plus.json`, commit 307b60e7, MIT), written for the
  * same grammars the editor ships; only the colours are iCode's. Then iCode's
  * own additions, for scopes those rules leave uncoloured. A scope that matches
- * nothing takes its enclosing scope's colour, or plain text — on purpose only
+ * nothing takes its enclosing scope's colour, or plain text, on purpose only
  * for [inheritedScopes]; SyntaxScopesTest fails on any grammar scope that is
  * neither placed nor inherited.
  */
