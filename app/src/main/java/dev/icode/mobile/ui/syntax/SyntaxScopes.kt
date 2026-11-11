@@ -183,7 +183,43 @@ internal val syntaxScopes: List<Pair<SyntaxRole, List<String>>> = listOf(
     SyntaxRole.Plain to listOf("entity.name.goto-label", "support.other.php"),
     SyntaxRole.Quote to listOf("markup.quote"),
     // A section's name: a Markdown heading's text, an INI `[section]`.
-    SyntaxRole.Heading to listOf("entity.name.section"),
+    SyntaxRole.Heading to listOf("entity.name.section", "entity.section"),
+    // iCode's additions for the grammars of every language (S6, 2026-11-11). First TextMate's own names
+    // for what has no more specific rule: a constant, a name, an entity.
+    SyntaxRole.Constant to listOf("constant", "support.language", "support.property-value"),
+    SyntaxRole.Type to listOf(
+        "entity", "support.module", "support.tabletype", "support.namespace", "support.package", "support.apex",
+        "support.other.module", "support.other.protocol", "support.other.proto",
+    ),
+    SyntaxRole.Attribute to listOf(
+        "entity.other", "entity.name.record.field", "entity.property", "markup.meta", "support.other.vcl",
+    ),
+    SyntaxRole.Function to listOf("entity.function", "entity.helper", "markup.macro"),
+    SyntaxRole.Variable to listOf(
+        "entity.function.arguments", "entity.function.operands", "entity.function.local-variables",
+        "entity.function.return-value", "entity.global", "support.system", "markup.substitution",
+    ),
+    // Numbers written another way (JSON5's hex and decimal, Turtle's, Nushell's binary).
+    SyntaxRole.Number to listOf("constant.dec", "constant.hex", "constant.binary", "constant.complex", "entity.status", "constant.unit"),
+    SyntaxRole.Keyword to listOf(
+        "constant.boolean", "entity.directive", "entity.other.jinja.delimiter", "entity.other.prompt-prefix",
+        "support.block", "markup.admonition",
+    ),
+    SyntaxRole.Escape to listOf("constant.escape", "markup.other.escape", "markup.character-reference"),
+    SyntaxRole.Regex to listOf("constant.other.character-class"),
+    SyntaxRole.String to listOf(
+        "entity.other.attribute-value", "entity.value", "entity.mime-type", "entity.service", "markup.raw", "markup.monospace",
+        "markup.math",
+    ),
+    SyntaxRole.Tag to listOf("entity.other.attribute-selector", "entity.other.tag", "entity.other.tag-mixin", "entity.other.tag-ref", "entity.tag"),
+    SyntaxRole.Emphasis to listOf("markup.emphasis", "markup.mark", "markup.highlight"),
+    SyntaxRole.Strong to listOf("markup.strong", "support.strong"),
+    SyntaxRole.Strikethrough to listOf("markup.strike"),
+    SyntaxRole.Quote to listOf("support.quote"),
+    SyntaxRole.Link to listOf("markup.link", "markup.other", "markup.reference", "markup.biblioref", "markup.blockid", "entity.name.footnote"),
+    SyntaxRole.Plain to listOf("entity.label"),
+    // A doc comment's description and address, which are Comment where they are written.
+    SyntaxRole.Comment to listOf("constant.other.description", "constant.other.email.link.underline"),
 )
 
 /** Scope prefixes left, on purpose, to the colour of what encloses them. */
@@ -194,14 +230,26 @@ internal val inheritedScopes: List<String> = listOf(
     "punctuation",
     // The root of a language, or of one embedded in another.
     "source", "text",
-    // TypeScript's structural scopes and Markdown's `heading.N` beside `markup.heading`.
-    "case-clause", "cast", "new", "switch-block", "switch-expression", "switch-statement", "heading",
     // A list item's text (its marker is a ListMarker).
     "markup.list",
     // A fenced block: the grammar of its language colours it.
     "markup.fenced_code",
-    // Catch-all and bracket scopes (C's `everything.else`, Dart's `other.source`, C's `ellipses`).
-    "everything", "other", "ellipses",
-    // Parts of a doc comment (JSDoc, SassDoc), which is a Comment.
-    "constant.other.description", "constant.other.email.link.underline",
+    // A fenced or delimited block, a table and its cells, text set higher or lower: their text colours them.
+    "markup.code", "markup.block", "markup.table", "markup.content", "markup.punctuation",
+    "markup.sub", "markup.subscript", "markup.super", "markup.superscript",
+    // Embedded GLSL in Elm, a Handlebars expression: the embedded language colours them.
+    "entity.glsl", "entity.expression", "entity.subexpression", "entity.unescaped",
+    // API Blueprint's fence lines, as Markdown's fence markers.
+    "support.gfm",
+)
+
+/**
+ * TextMate's own first names for scopes (its manual, "Naming Conventions"), and the roots a grammar's
+ * text starts in. A scope under any other first name (C's `everything.else`, TypeScript's `case-clause`,
+ * Hack's `XHPEndTagStart`) is a grammar's own, which no theme styles: it takes what encloses it, as in
+ * VS Code, on purpose (SyntaxScopesTest).
+ */
+internal val namingRoots: Set<String> = setOf(
+    "comment", "constant", "entity", "invalid", "keyword", "markup", "meta", "storage", "string", "support", "variable",
+    "punctuation", "source", "text",
 )
