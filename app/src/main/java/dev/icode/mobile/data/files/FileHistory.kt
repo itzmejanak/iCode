@@ -12,7 +12,8 @@ import dev.icode.mobile.domain.notices.FileNotices
  * explorers, in memory while iCode runs. A change made clears what could be redone. An undo or redo
  * stopped short keeps each side exact: what it reversed moves across, what it did not stays. Read
  * and changed under the mutation lock; the snapshot says what Undo and Redo would do, and the news
- * the undo pill tells.
+ * the undo pill tells. Each change made, undone or redone is also told, kept on the Notifications
+ * page without ringing the bell (docs/notices-redesign-plan.md D3, D9).
  */
 internal class FileHistory(
     private val stateHolder: ICodeStateHolder,
@@ -30,7 +31,7 @@ internal class FileHistory(
     val nextRedo: FileChange? get() = redo.lastOrNull()
 
     /** [change] made: kept to undo, unless it did nothing. */
-    fun record(change: FileChange) {
+    suspend fun record(change: FileChange) {
         if (change.steps.isEmpty()) return
         changed(change.steps)
         push(undo, change)
@@ -39,13 +40,13 @@ internal class FileHistory(
     }
 
     /** [change], taken from Undo, reversed as far as [steps] go. */
-    fun undone(change: FileChange, steps: List<FileStep>) = cross(change, steps, from = undo, to = redo, undone = true)
+    suspend fun undone(change: FileChange, steps: List<FileStep>) = cross(change, steps, from = undo, to = redo, undone = true)
 
     /** [change], taken from Redo, reversed as far as [steps] go. */
-    fun redone(change: FileChange, steps: List<FileStep>) = cross(change, steps, from = redo, to = undo, undone = false)
+    suspend fun redone(change: FileChange, steps: List<FileStep>) = cross(change, steps, from = redo, to = undo, undone = false)
 
     /** What [steps] reversed of [change] goes to the other side; what they did not reach stays where it was. */
-    private fun cross(change: FileChange, steps: List<FileStep>, from: ArrayDeque<FileChange>, to: ArrayDeque<FileChange>, undone: Boolean) {
+    private suspend fun cross(change: FileChange, steps: List<FileStep>, from: ArrayDeque<FileChange>, to: ArrayDeque<FileChange>, undone: Boolean) {
         val at = from.indexOfLast { it === change }
         if (at < 0) return
         from.removeAt(at)
@@ -63,12 +64,17 @@ internal class FileHistory(
         if (side.size > FileChange.DEPTH) side.removeFirst()
     }
 
-    /** What Undo and Redo would do now, and — when there is one — the news of [line], where [steps] were taken. */
-    private fun publish(line: String?, steps: List<FileStep>, undone: Boolean) {
-        val news = line?.let { FileNews(++newsId, it, undone, FileNotices.placeOf(stateHolder.current, steps)) }
+    /**
+     * What Undo and Redo would do now, and — when there is one — the news of [line], where [steps]
+     * were taken, told after the history says what Undo would reverse, so its notice offers Undo.
+     */
+    private suspend fun publish(line: String?, steps: List<FileStep>, undone: Boolean) {
+        val place = line?.let { FileNotices.placeOf(stateHolder.current, steps) }
+        val news = line?.let { FileNews(++newsId, it, undone, place) }
         stateHolder.update { state ->
             val history = FileHistoryState(undo.lastOrNull()?.said, redo.lastOrNull()?.undoneSaid, news ?: state.explorer.history.news)
             state.copy(explorer = state.explorer.copy(history = history))
         }
+        line?.let { stateHolder.tell(FileNotices.changed(it, place)) }
     }
 }

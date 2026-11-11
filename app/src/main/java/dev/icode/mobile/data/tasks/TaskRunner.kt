@@ -4,6 +4,7 @@ import dev.icode.mobile.domain.isAtOrUnder
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.WorkTask
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.notices.Notice
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.cancellation.CancellationException
@@ -87,30 +88,31 @@ internal class TaskRunner(
     /**
      * Starts [work] as a task over [paths], and applies [finished] under the
      * mutation lock when it ends — with null, the cancellation, or the failure.
-     * A failure stays shown, as [failure] or the error's own words, until dismissed.
+     * A failure is told as [failed], the error's own words its output, and stays
+     * shown in the sheet, as those words or [failed]'s title, until dismissed.
      */
     fun start(
         title: String,
         subject: String,
         paths: List<String>,
         cancellable: Boolean,
-        failure: String,
+        failed: Notice,
         work: suspend (Progress) -> Unit,
         finished: suspend (Throwable?) -> Unit,
     ): Long {
         val id = ids.incrementAndGet()
         claims[id] = paths
-        var failed: Throwable? = null
+        var thrown: Throwable? = null
         val job = scope.launch(Dispatchers.IO, start = CoroutineStart.LAZY) {
             try {
                 work(Progress(id))
             } catch (error: Throwable) {
                 if (error is CancellationException) throw error
-                failed = error
+                thrown = error
             }
         }
         // However it ends — done, failed, or cancelled before its body ever ran — it is settled.
-        job.invokeOnCompletion { cause -> settle(id, failed ?: cause, failure, finished) }
+        job.invokeOnCompletion { cause -> settle(id, thrown ?: cause, failed, finished) }
         // Registered before the task can be seen, so a Cancel on its first frame reaches it.
         jobs[id] = job
         stateHolder.update { it.copy(tasks = it.tasks + WorkTask(id, title, subject, cancellable = cancellable, quiet = true)) }
@@ -124,18 +126,25 @@ internal class TaskRunner(
     }
 
     /** Frees [id]'s paths and says how it ended; its result is applied under the mutation lock. */
-    private fun settle(id: Long, outcome: Throwable?, failure: String, finished: suspend (Throwable?) -> Unit) {
+    private fun settle(id: Long, outcome: Throwable?, failed: Notice, finished: suspend (Throwable?) -> Unit) {
         claims.remove(id)
         jobs.remove(id)
-        when (outcome) {
-            null, is CancellationException -> stateHolder.update { state -> state.copy(tasks = state.tasks.filterNot { it.id == id }) }
+        val told = when (outcome) {
+            null, is CancellationException -> {
+                stateHolder.update { state -> state.copy(tasks = state.tasks.filterNot { it.id == id }) }
+                null
+            }
             else -> {
-                val reason = stateHolder.failureText("tasks", failure, outcome)
+                val reason = stateHolder.failureText("tasks", failed.title, outcome)
                 // Said in the sheet: a hidden task comes back to say why it stopped.
                 update(id) { it.copy(failure = reason, hidden = false, quiet = false) }
+                failed.copy(output = reason.takeIf { it != failed.title })
             }
         }
-        scope.launch(NonCancellable) { stateHolder.mutations.withLock { finished(outcome) } }
+        scope.launch(NonCancellable) {
+            told?.let { stateHolder.tell(it) }
+            stateHolder.mutations.withLock { finished(outcome) }
+        }
     }
 
     fun handle(intent: ICodeIntent.TaskIntent) {

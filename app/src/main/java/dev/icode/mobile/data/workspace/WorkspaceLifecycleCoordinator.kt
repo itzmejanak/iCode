@@ -5,7 +5,7 @@ import dev.icode.mobile.domain.relocated
 import dev.icode.mobile.domain.FileViewer
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeIntent
-import dev.icode.mobile.domain.notices.NoticeTone
+import dev.icode.mobile.domain.notices.WorkspaceNotices
 import dev.icode.mobile.domain.WorkspaceNameRules
 import dev.icode.mobile.domain.files.FileStep
 import dev.icode.mobile.domain.files.FileWords
@@ -78,7 +78,7 @@ internal class WorkspaceLifecycleCoordinator(
      */
     suspend fun reveal(location: String, lineNumber: Int? = null, column: Int? = null) {
         val workspace = source.workspaceOf(location) ?: return
-        if (!File(location).exists()) return stateHolder.notify(NoticeTone.HeadsUp, "${File(location).name} is not there")
+        if (!File(location).exists()) return stateHolder.tell(WorkspaceNotices.notThere(stateHolder.current, location))
         val file = File(location).isFile
         if (file) {
             FileViewer.of(File(location).name)?.let { return stateHolder.emit(ICodeEffect.ViewFile(location, it)) }
@@ -108,7 +108,7 @@ internal class WorkspaceLifecycleCoordinator(
     /** After [from] was renamed [to] at the workspaces' top: its settings and history follow, and it opens again as it was. */
     suspend fun renamed(from: String, to: String, reopen: Reopen?) {
         runCatching { moveSettings(from, to) }
-            .onFailure { error -> stateHolder.report("workspace", "The workspace's settings could not follow the rename", error) }
+            .onFailure { error -> stateHolder.tell(WorkspaceNotices.settingsNotMoved(to), "workspace", error) }
         library.relocate(from, to)
         reopen?.let { session.openWithTabs(to, it.tabs.map { tab -> tab.relocated(from, to) }, it.selected?.relocated(from, to)) }
     }
@@ -116,7 +116,7 @@ internal class WorkspaceLifecycleCoordinator(
     /** After [location] stopped being a workspace — moved into a folder, or gone: its settings and its history go. */
     suspend fun retire(location: String) {
         runCatching { forgetSettings(location) }
-            .onFailure { error -> stateHolder.report("workspace", "The workspace's settings could not be cleared", error) }
+            .onFailure { error -> stateHolder.tell(WorkspaceNotices.settingsNotCleared(location), "workspace", error) }
         library.forget(location)
     }
 
