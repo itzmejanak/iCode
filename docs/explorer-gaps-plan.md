@@ -318,6 +318,8 @@ sheet on the same base (§3.1), for each item whose name is taken: the two side 
     - 10 s later it tucks into the edge to its grip, as the bell does, and is pulled or tapped out
       again; it stays docked while anything can be undone or redone.
     - Not shown while a sheet or the Notifications page is open; it comes back as it was, at rest or awake.
+      Its 10 s count only while it is shown, so a change made under a sheet wakes it for all of
+      them once the sheet closes.
     - TalkBack reads the change ("Moved 3 items to Trash", "Restored 3 items") as the bell's.
   - **The explorer's ⋮** has no Undo or Redo since 2026-11-04 (owner's request): the docked pill is
     at hand on every screen.

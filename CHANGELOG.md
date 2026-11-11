@@ -299,7 +299,12 @@ All notable changes to iCode are documented here. The format follows
   page opens: nothing of them is drawn over the sheet, they take no touch, TalkBack skips them, the
   back gesture works at the screen's edge, and Back closes the sheet. When it closes they are back
   exactly as they were, with nothing to wake. An open dock stays open under a sheet and its time to
-  close starts again once it is back.
+  close starts again once it is back. This includes Source Control's Branch selector, Repository
+  selector and Commit history, which used to close the dock and slide it back in when they closed.
+  The pills' times now count only while they are shown: a notice or a file change that arrives
+  under a sheet rings the bell or wakes the undo pill when the sheet closes, for their whole time,
+  and a pill never sinks into its edge unseen. A sheet over a screen now hides the pills in the
+  frame it first appears, not one frame later.
 - iCode crashed ("Unable to add window -- token null is not valid") when phone control was turned
   off while the assistant's bubble or glow was changing. Android takes the overlay windows' token
   back the moment the accessibility service is turned off, a moment before the service hears of it;

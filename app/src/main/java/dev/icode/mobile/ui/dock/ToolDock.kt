@@ -104,7 +104,8 @@ private fun Dock(dock: ToolDockState, navigation: NavigationState) {
     val previous = model.previousTool
     // Hidden under a sheet, it stays open, and Back is the sheet's.
     BackHandler(enabled = dock.open && !LocalPillsHidden.current, onBack = dock.close)
-    // Gone as the workspace or a tool's main screen is left (never under a sheet): back, it is closed.
+    // Gone as the workspace or a tool's main screen is left: back, it is closed. A sheet, a sheet
+    // route over the main screen among them, only hides it (onMainScreen stays true).
     DisposableEffect(dock) { onDispose { dock.close() } }
     val go = { tool: WorkspaceTool ->
         dock.close()

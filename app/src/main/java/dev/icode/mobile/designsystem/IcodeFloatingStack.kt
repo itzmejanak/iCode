@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.RememberObserver
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -97,15 +98,28 @@ internal fun Modifier.floor(): Modifier {
     return onGloballyPositioned { floors.report(key, it.boundsInRoot().top) }
 }
 
-/** A sheet is open over the screen while this is composed: the floating stack is hidden under it. */
+/**
+ * A sheet is open over the screen while this is composed: the floating stack is hidden under it. It
+ * counts from the composition that first draws the sheet, not once that is applied, so the stack,
+ * composed after the screens, is already hidden in the frame the sheet first appears.
+ */
 @Composable
 internal fun SheetOpen() {
     val floors = LocalIcodeFloors.current ?: return
-    DisposableEffect(floors) {
-        val key = Any()
-        floors.sheet(key)
-        onDispose { floors.leave(key) }
+    remember(floors) { SheetMark(floors) }
+}
+
+/** One open sheet among [floors]: from its first composition until it leaves the composition. */
+internal class SheetMark(private val floors: IcodeFloors) : RememberObserver {
+    init {
+        floors.sheet(this)
     }
+
+    override fun onRemembered() = Unit
+
+    override fun onForgotten() = floors.leave(this)
+
+    override fun onAbandoned() = floors.leave(this)
 }
 
 /**

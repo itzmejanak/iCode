@@ -24,7 +24,7 @@ class IcodeFloorsTest {
         assertNull(floors.highest)
     }
 
-    @Test fun `a sheet is open while any sheet is`() {
+    @Test fun `a sheet is open until the last open sheet leaves`() {
         val floors = IcodeFloors()
         val sheet = Any()
         val page = Any()
@@ -75,5 +75,21 @@ class IcodeFloorsTest {
         floors.sheet(sheet)
         floors.leave(sheet)
         assertTrue(floors.hidesStack(visible = false))
+    }
+
+    @Test fun `a sheet counts as open from its first composition, before it is applied`() {
+        val floors = IcodeFloors()
+        val mark = SheetMark(floors)
+        assertTrue(floors.hidesStack(visible = true))
+        mark.onRemembered()
+        assertTrue(floors.hidesStack(visible = true))
+        mark.onForgotten()
+        assertFalse(floors.hidesStack(visible = true))
+    }
+
+    @Test fun `a sheet whose composition is abandoned leaves the stack shown`() {
+        val floors = IcodeFloors()
+        SheetMark(floors).onAbandoned()
+        assertFalse(floors.hidesStack(visible = true))
     }
 }

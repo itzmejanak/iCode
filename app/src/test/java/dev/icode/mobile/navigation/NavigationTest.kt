@@ -174,6 +174,15 @@ class NavigationTest {
         assertFalse(opened.navigate(Route.Notifications).onMainScreen)
     }
 
+    @Test fun `a sheet route over a tool's main screen keeps the dock, one over a page does not`() {
+        val sourceControl = opened.navigate(Route.SourceControl)
+        assertTrue(sourceControl.navigate(Route.BranchSelector).onMainScreen)
+        assertTrue(sourceControl.navigate(Route.RepositorySelector).onMainScreen)
+        assertTrue(sourceControl.navigate(Route.GitHistory).onMainScreen)
+        assertTrue(sourceControl.navigate(Route.BranchSelector).back().onMainScreen)
+        assertFalse(sourceControl.navigate(Route.DiffView).navigate(Route.BranchSelector).onMainScreen)
+    }
+
     @Test fun `the quick switch goes to the tool used before`() {
         val at = opened.show(Route.WorkspaceEditor).switchTo(WorkspaceTool.Terminal)
         assertEquals(WorkspaceTool.Editor, at.previousTool)

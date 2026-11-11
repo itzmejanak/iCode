@@ -40,6 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
@@ -71,7 +72,10 @@ import dev.icode.mobile.domain.PillPlaces
 import dev.icode.mobile.domain.ScreenEdge
 import kotlin.math.max
 import kotlin.math.roundToInt
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * One pill of the floating stack (docs/dock-navigation-plan.md D11, D13): at [place] — null, at the
@@ -106,6 +110,26 @@ val LocalPillMoves = compositionLocalOf<(String) -> List<CustomAccessibilityActi
  * the back gesture ([keptFromBackGesture]), and their own Back is off, so Back closes the sheet.
  */
 val LocalPillsHidden = compositionLocalOf { false }
+
+/** Whether the pills drawn here are hidden ([LocalPillsHidden]), as it changes: what [shownFor] waits on. */
+@Composable
+internal fun rememberPillsHidden(): Flow<Boolean> {
+    val hidden = rememberUpdatedState(LocalPillsHidden.current)
+    return remember { snapshotFlow { hidden.value } }
+}
+
+/**
+ * Returns once the pills have been shown, not hidden, for [millis] on end. Hidden, the time stops, and
+ * it starts again in full once they are back, so a pill's time awake, before it rests or before the
+ * dock closes, is all spent where the user can see it.
+ */
+internal suspend fun Flow<Boolean>.shownFor(millis: Long) {
+    while (true) {
+        first { hidden -> !hidden }
+        // Hidden again before the time is up: wait for the pills to be back, then start again.
+        withTimeoutOrNull(millis) { first { hidden -> hidden } } ?: return
+    }
+}
 
 /** Kept from Android's back gesture, which would otherwise take a touch at the screen's edge: while the pill is shown. */
 @Composable

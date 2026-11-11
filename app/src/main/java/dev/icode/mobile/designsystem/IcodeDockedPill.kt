@@ -57,7 +57,6 @@ import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.delay
 
 /**
  * A floating pill as one see-through button (docs/dock-navigation-plan.md D12–D14): [icon] in [tint]
@@ -67,7 +66,8 @@ import kotlinx.coroutines.delay
  *
  * Left alone while not [awake], it rests as the assistant's bubble over other apps does
  * ([IcodeResting]): slowly, it sinks half behind its edge ([LocalPillEdge]) and fades, out of the
- * way of the work; a touch or anything new brings it out at once. A tap on it at rest is still a tap.
+ * way of the work; a touch or anything new brings it out at once. Its time to rest counts only while
+ * it is shown ([shownFor]), so it never sinks unseen under a sheet. A tap on it at rest is still a tap.
  * While it is shown it is kept from Android's back gesture, which would otherwise take a touch at the
  * screen's edge ([keptFromBackGesture]).
  *
@@ -92,10 +92,12 @@ fun IcodePillButton(
 ) {
     var touches by remember { mutableIntStateOf(0) }
     var resting by remember { mutableStateOf(false) }
+    val hidden = rememberPillsHidden()
     LaunchedEffect(awake, touches) {
         resting = false
         if (awake) return@LaunchedEffect
-        delay(IcodeResting.AFTER_MILLIS)
+        // Hidden, its time waits: it sinks only where it is seen to.
+        hidden.shownFor(IcodeResting.AFTER_MILLIS)
         resting = true
     }
     // 0 out, 1 at rest: sunk half its width behind its edge, faded.
@@ -178,10 +180,10 @@ fun IcodeDockedPill(
     var openedAt by remember { mutableLongStateOf(0L) }
     var touches by remember { mutableIntStateOf(0) }
     // Hidden under a sheet, it stays open and its time waits; shown again, its time starts again.
-    val hidden = LocalPillsHidden.current
-    if (open && closeAfterMillis != null && !hidden) {
+    val hidden = rememberPillsHidden()
+    if (open && closeAfterMillis != null) {
         LaunchedEffect(touches) {
-            delay(closeAfterMillis)
+            hidden.shownFor(closeAfterMillis)
             opened(false)
         }
     }
