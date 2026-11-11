@@ -37,7 +37,6 @@ import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeGateway
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.NoticeIntent
-import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.WorkspaceTool
 import dev.icode.mobile.domain.WorkspacePreferences
 import dev.icode.mobile.domain.WorkspacePreferencesRepository
@@ -55,6 +54,7 @@ import dev.icode.mobile.ui.screens.tools.ToolScreenHost
 import dev.icode.mobile.ui.screens.workspace.WorkspaceScreenHost
 import dev.icode.mobile.ui.terminal.TerminalSessionSource
 import java.io.File
+import dev.icode.mobile.domain.notices.WebNotices
 
 @Composable
 fun IcodeApp(
@@ -141,7 +141,7 @@ fun IcodeApp(
                 snapshot.runtimeHealthy && canFetch
             ) {
                 lastAutomaticFetch = key
-                gateway.dispatch(ICodeIntent.FetchRemote)
+                gateway.dispatch(ICodeIntent.FetchRemote(automatic = true))
             }
         }
         val openDocumentLocations = snapshot.openDocuments.map { it.location }.toSet()
@@ -177,7 +177,7 @@ fun IcodeApp(
         val undo = rememberUndoPill(snapshot.explorer.history.news)
         val dock = rememberToolDock(snapshot, navigation.model.tool)
         val floors = remember { IcodeFloors() }
-        ArrivalEffect(arrival, navigation, pastOnboarding = navigation.current !in ONBOARDING_SCREENS, gateway, notices, onArrived)
+        ArrivalEffect(arrival, navigation, pastOnboarding = navigation.current !in ONBOARDING_SCREENS, gateway, snapshot, notices, onArrived)
         val systemPrompts = rememberSystemPrompts(gateway)
         val fileViewer = remember { FileViewerState() }
 
@@ -205,7 +205,7 @@ fun IcodeApp(
                         }
                         navigation.show(Route.WorkspaceEditor)
                     }
-                    is ICodeEffect.Notice -> notices.arrived(effect.notice)
+                    is ICodeEffect.Told -> notices.arrived(effect.notice)
                     // A chat shared as its transcript: Android's share sheet, as the terminal's output is.
                     is ICodeEffect.ShareChat -> {
                         val send = Intent(Intent.ACTION_SEND).setType("text/plain")
@@ -220,7 +220,7 @@ fun IcodeApp(
                         val view = Intent(Intent.ACTION_VIEW, effect.url.toUri())
                             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                         runCatching { context.startActivity(view) }
-                            .onFailure { gateway.dispatch(NoticeIntent.Notify(NoticeTone.HeadsUp, "No browser is available")) }
+                            .onFailure { gateway.dispatch(NoticeIntent.Tell(WebNotices.noBrowser())) }
                     }
                 }
             }
@@ -255,9 +255,11 @@ fun IcodeApp(
                     FileViewerHost(fileViewer) {
                         val pageOpen = navigation.current == Route.Notifications
                         val toAll = { navigation.actions.navigate(Route.Notifications) }
-                        NoticeHost(notices, snapshot.notices, pageOpen, onAll = toAll) {
+                        NoticeHost(notices, snapshot.notices, pageOpen, onAll = toAll, onAct = { act(it, gateway, navigation.actions) }) {
                             NavigationHost(navigation) { route -> ScreenHost(screen = route, actions = navigation.actions) }
                             FileAsks(snapshot.explorer, gateway)
+                            // Over everything but the floating stack, which steps aside for it.
+                            UndoSheet(undo, snapshot.explorer.history)
                         }
                         FloatingControls(floors, visible = !pageOpen, undo, notices, onAll = toAll, dock, navigation)
                     }

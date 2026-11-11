@@ -2,7 +2,7 @@ package dev.icode.mobile.data.language
 
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.LanguageServiceStatus
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.LanguageNotices
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
@@ -29,12 +29,13 @@ internal class LanguageSessionEvents(
     override fun failed(id: String, kind: LanguageFailure.Kind, words: String, program: String?, asked: Boolean) {
         val name = owner.configuration(id)?.name ?: "A language server"
         owner.missing(id, program?.let { LanguageFailure.installOf(it) ?: "" })
-        val (tone, title) = when (kind) {
-            LanguageFailure.Kind.Missing -> if (asked) NoticeTone.HeadsUp to "$name is not installed" else return
-            LanguageFailure.Kind.NotStarted -> NoticeTone.Problem to "$name could not start"
-            LanguageFailure.Kind.Crashed -> NoticeTone.Problem to "$name stopped"
+        val at = stateHolder.current
+        val notice = when (kind) {
+            LanguageFailure.Kind.Missing -> if (asked) LanguageNotices.missing(at, name, words) else return
+            LanguageFailure.Kind.NotStarted -> LanguageNotices.stopped(at, name, started = false, words)
+            LanguageFailure.Kind.Crashed -> LanguageNotices.stopped(at, name, started = true, words)
         }
-        scope.launch { stateHolder.notify(tone, title, words) }
+        scope.launch { stateHolder.tell(notice) }
     }
 
     override fun log(id: String, line: String) = logs.add(id, line)
@@ -53,12 +54,12 @@ internal class LanguageSessionEvents(
     /** Errors and warnings are said; information and logs go to its log (spec 3.17 MessageType). */
     override fun message(session: LanguageServerSession, type: Int, text: String) {
         logs.add(session.config.id, text)
-        val tone = when (type) {
-            1 -> NoticeTone.Problem
-            2 -> NoticeTone.HeadsUp
+        val error = when (type) {
+            1 -> true
+            2 -> false
             else -> return
         }
-        scope.launch { stateHolder.notify(tone, session.config.name, text) }
+        scope.launch { stateHolder.tell(LanguageNotices.said(stateHolder.current, session.config.name, error, text)) }
     }
 
     override fun progress(session: LanguageServerSession, words: String?) {

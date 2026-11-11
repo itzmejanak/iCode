@@ -1,10 +1,9 @@
 package dev.icode.mobile.data.workspace
 
 import dev.icode.mobile.data.log.BackendLog
-import dev.icode.mobile.domain.AppNotice
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeSnapshot
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.Notice
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -44,17 +43,16 @@ internal class ICodeStateHolder {
     suspend fun emit(effect: ICodeEffect) = mutableEffects.emit(effect)
 
     /**
-     * What the user is told, of [tone] (docs/notices-plan.md): on the bell, and kept on the
-     * Notifications page and in Android's shade unless it is Done.
+     * Tells the user [notice] (docs/notices-redesign-plan.md D4): on the bell, the Notifications page
+     * and Android's shade as its kind says. It is given an id and the time, unless it brings its own.
      */
-    suspend fun notify(tone: NoticeTone, title: String, detail: String? = null) =
-        emit(ICodeEffect.Notice(AppNotice.Message(UUID.randomUUID().toString(), System.currentTimeMillis(), read = false, tone, title, detail)))
+    suspend fun tell(notice: Notice) = emit(
+        ICodeEffect.Told(notice.copy(id = notice.id.ifEmpty { UUID.randomUUID().toString() }, at = notice.at.takeIf { it > 0 } ?: System.currentTimeMillis())),
+    )
 
-    /** A failure the user is told about: logged once, said once — [fallback] its title, the error's own words its detail. */
-    suspend fun report(subsystem: String, fallback: String, error: Throwable) = failed(fallback, failureText(subsystem, fallback, error))
-
-    /** A failure already logged ([failureText]): [title], with [words] as its detail when they say more. */
-    suspend fun failed(title: String, words: String) = notify(NoticeTone.Problem, title, words.takeIf { it != title })
+    /** Tells [notice], a failure: [error] logged once under [subsystem], its words — never a token — the notice's output. */
+    suspend fun tell(notice: Notice, subsystem: String, error: Throwable) =
+        tell(notice.copy(output = failureText(subsystem, notice.title, error).takeIf { it != notice.title }))
 
     /**
      * For a failure the user sees inside state instead (a failed runtime, a

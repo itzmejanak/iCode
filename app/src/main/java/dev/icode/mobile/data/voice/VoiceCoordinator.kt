@@ -21,7 +21,7 @@ import dev.icode.mobile.data.voice.speech.VoiceUse
 import dev.icode.mobile.data.voice.speech.words
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.AssistantProviderKind
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.VoiceNotices
 import dev.icode.mobile.domain.SpeechIntent
 import dev.icode.mobile.domain.VoiceIntent
 import dev.icode.mobile.domain.voice.SpeechWay
@@ -96,7 +96,7 @@ internal class VoiceCoordinator(
         ended = { failure ->
             focus.hold(false)
             update { it.copy(speaking = false, reading = null) }
-            failure?.let { words -> scope.launch { stateHolder.notify(NoticeTone.HeadsUp, "The answer was not read aloud", words) } }
+            failure?.let { words -> scope.launch { stateHolder.tell(VoiceNotices.notReadAloud(words)) } }
         },
     )
 

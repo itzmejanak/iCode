@@ -4,7 +4,10 @@ import dev.icode.mobile.data.workspace.ChangedOnDiskException
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceDocument
 import dev.icode.mobile.domain.GitConflictChoice
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.Notice
+import dev.icode.mobile.domain.notices.NoticePlace
+import dev.icode.mobile.domain.notices.NoticePlaces
+import dev.icode.mobile.domain.notices.SourceControlNotices
 import java.io.File
 
 /**
@@ -30,7 +33,7 @@ internal class GitConflictCoordinator(
     private val files: ConflictFiles,
     private val activeRoot: () -> String?,
     /** Stages the file: an ordinary local Git change. */
-    private val act: suspend (operation: suspend (String) -> Unit, onSuccess: suspend () -> Unit) -> Unit,
+    private val act: suspend (failed: (NoticePlace?) -> Notice, operation: suspend (String) -> Unit, onSuccess: suspend () -> Unit) -> Unit,
     private val stage: suspend (workspace: String, path: String) -> Unit,
     private val refresh: suspend () -> Unit,
 ) {
@@ -55,7 +58,7 @@ internal class GitConflictCoordinator(
             .onFailure { error ->
                 document = null
                 stateHolder.update { it.copy(activeConflict = null) }
-                stateHolder.report("git", "Unable to read the conflicted file", error)
+                stateHolder.tell(SourceControlNotices.conflictUnread(path, placeNow()), "git", error)
             }
     }
 
@@ -76,7 +79,7 @@ internal class GitConflictCoordinator(
         val read = document ?: return
         val section = conflict.sections.firstOrNull { it.startLine == sectionStart } ?: return
         if (files.hasUnsavedEdits(read.location)) {
-            stateHolder.notify(NoticeTone.HeadsUp, "${read.name} has unsaved edits in the editor. Save or close it first")
+            stateHolder.tell(SourceControlNotices.conflictUnsavedFirst(read.name, placeNow()))
             return
         }
         runCatching { files.write(read, GitConflictParser.resolve(conflict, section, choice)) }
@@ -88,12 +91,14 @@ internal class GitConflictCoordinator(
             .onFailure { error ->
                 if (error is ChangedOnDiskException) {
                     open(path)
-                    stateHolder.notify(NoticeTone.HeadsUp, "${read.name} changed on disk and was read again. Choose again")
+                    stateHolder.tell(SourceControlNotices.conflictChangedOnDisk(read.name, placeNow()))
                 } else {
-                    stateHolder.report("git", "Unable to write the resolved file", error)
+                    stateHolder.tell(SourceControlNotices.conflictNotWritten(read.name, placeNow()), "git", error)
                 }
             }
     }
 
-    suspend fun markResolved(path: String) = act({ workspace -> stage(workspace, path) }, {})
+    suspend fun markResolved(path: String) = act({ SourceControlNotices.notMarkedResolved(path, it) }, { workspace -> stage(workspace, path) }, {})
+
+    private fun placeNow() = NoticePlaces.git(stateHolder.current)
 }

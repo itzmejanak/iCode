@@ -7,12 +7,13 @@ import kotlinx.coroutines.flow.asStateFlow
 
 /**
  * What the user is looking at in the terminal: whether iCode's screen is in view, and which
- * session's view is attached. A finished command or a failure the user was watching needs no
- * pop-up ([RuntimeForegroundService]). Written on the main thread, read from anywhere.
+ * session's view is attached. A bell, or a long command's end, in the session the user is looking at
+ * needs no word ([RuntimeForegroundService], [TerminalCoordinator]). Written on the main thread, read
+ * from anywhere.
  */
 internal class TerminalAttention {
     private val mutableScreenVisible = MutableStateFlow(false)
-    /** iCode's screen is in view: work the user was watching there needs no pop-up when it fails. */
+    /** iCode's screen is in view: a problem then rings the bell, not the phone; out of view, what ends is posted. */
     val screenVisible: StateFlow<Boolean> = mutableScreenVisible.asStateFlow()
     private var viewedId: String? = null
     private val mutableLookingAt = MutableStateFlow<String?>(null)

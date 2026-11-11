@@ -13,6 +13,7 @@ import dev.icode.mobile.domain.files.ArchiveFormat
 import dev.icode.mobile.domain.files.ArchiveFormats
 import dev.icode.mobile.domain.files.CompressFormat
 import dev.icode.mobile.domain.files.FileStep
+import dev.icode.mobile.domain.files.FileTask
 import dev.icode.mobile.domain.files.FileWords
 import dev.icode.mobile.domain.files.PasswordAsk
 import java.io.File
@@ -45,13 +46,13 @@ internal class FileArchives(
 ) {
     /** [locations], of one folder, into one archive there: named as asked, or after the one item or the folder. */
     suspend fun compress(locations: List<String>, format: CompressFormat, name: String?) {
-        val folder = locations.map { File(it).parent }.distinct().singleOrNull() ?: return tasks.said("Compress items of one folder at a time")
-        (refusals.archiveInto(folder) ?: refusals.copies(locations))?.let { return tasks.said(it) }
+        val folder = locations.map { File(it).parent }.distinct().singleOrNull() ?: return tasks.said("Compress items of one folder at a time", locations.firstOrNull())
+        (refusals.archiveInto(folder) ?: refusals.copies(locations))?.let { return tasks.said(it, locations.first()) }
         val only = locations.singleOrNull()?.let { File(it).name to Files.isDirectory(File(it).toPath(), LinkOption.NOFOLLOW_LINKS) }
         val archive = name?.trim()?.takeIf { it.isNotEmpty() } ?: ArchiveFormats.archiveName(only, File(folder).name.takeUnless { refusals.isPlaceTop(folder) })
-        WorkspaceNameRules.fileValidationError(archive + format.extension)?.let { return tasks.said(it) }
+        WorkspaceNameRules.fileValidationError(archive + format.extension)?.let { return tasks.said(it, locations.first()) }
         val names = locations.map { File(it).name }
-        tasks.run("Compressing…", FileWords.subject(names), locations + folder, "Unable to compress", keep = { steps ->
+        tasks.run(FileTask.Compress, FileWords.subject(names), locations + folder, keep = { steps ->
             val made = (steps.firstOrNull() as? FileStep.Made)?.location?.let { File(it).name } ?: (archive + format.extension)
             history.record(FileWords.compressed(names, made).copy(steps = steps))
         }) { compress(this, locations, folder, format, archive) }
@@ -61,11 +62,11 @@ internal class FileArchives(
     suspend fun extract(intent: FilesIntent.Extract) {
         asking(null)
         val into = intent.folder ?: File(intent.location).parent.orEmpty()
-        (refusal(intent.location) ?: refusals.extraction(intent.location, into))?.let { return tasks.said(it) }
+        (refusal(intent.location) ?: refusals.extraction(intent.location, into))?.let { return tasks.said(it, intent.location) }
         val password = intent.password?.toCharArray()
         if (needsPassword(intent.location, password)) return asking(PasswordAsk(intent.location, intent.folder))
         val name = File(intent.location).name
-        tasks.run("Extracting…", name, listOf(intent.location, into), "Unable to extract", keep = tasks.kept(FileWords.extracted(name))) {
+        tasks.run(FileTask.Extract, name, listOf(intent.location, into), keep = tasks.kept(FileWords.extracted(name))) {
             extract(this, intent.location, into, password)
         }
     }

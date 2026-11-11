@@ -30,3 +30,18 @@ object FileWords {
 
     fun extracted(archive: String) = FileChange("Extracted $archive", "Moved what $archive held to Trash", emptyList())
 }
+
+/** A file operation run as a task: its sheet's title; what it stopped short of is told as a notice (FileNotices.stopped). */
+enum class FileTask(val title: String) {
+    Move("Moving…"),
+    Copy("Copying…"),
+    Duplicate("Duplicating…"),
+    Rename("Renaming…"),
+    Trash("Moving to Trash…"),
+    Restore("Restoring…"),
+    Undo("Undoing…"),
+    Redo("Redoing…"),
+    Compress("Compressing…"),
+    Extract("Extracting…"),
+    DeleteForGood("Deleting…"),
+}

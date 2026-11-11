@@ -18,6 +18,8 @@
 #                      or under a name this guard cannot read (G1)
 #   sha256-owner       SHA-256 computed outside data/io/Sha256.kt (G1)
 #   byte-format        a byte count formatted outside domain/ByteSize.kt (G1)
+#   notice-text        a notice put together where it is told, not by its area's builder in
+#                      domain/notices/ (docs/notices-redesign-plan.md D4)
 
 set -euo pipefail
 
@@ -98,6 +100,14 @@ count_matches '"SHA-?256"|MessageDigest' "$src_root" | { grep -v '/data/io/Sha25
     | { grep -vE '^[^:]+:[0-9]+:[[:space:]]*(\*|//|/\*)' || true; } \
     | { grep -v '/domain/ByteSize\.kt:' || true; } \
     | awk -F: '{print $1}' | sort | uniq -c | awk '{print $2 " " $1}' | report "byte-format"
+
+# 9. A notice's words are written only in its area's builder (docs/notices-redesign-plan.md D4): a
+#    Notice is made in domain/notices/, or read back by its store — never put together where it is
+#    told. What shares the name is not a notice: an arrival's or a link's class, a notification's id.
+{ grep -rEn '(^|[^A-Za-z.])Notice\(' "$src_root" --include='*.kt' 2>/dev/null || true; } \
+    | { grep -vE '^[^:]+:[0-9]+:.*(class Notice\(|Notice\([0-9])' || true; } \
+    | { grep -vE '/domain/notices/|/data/notices/NoticeStore\.kt:' || true; } \
+    | awk -F: '{print $1}' | sort | uniq -c | awk '{print $2 " " $1}' | report "notice-text"
 
 if [[ "${1:-}" == "--update" ]]; then
     {

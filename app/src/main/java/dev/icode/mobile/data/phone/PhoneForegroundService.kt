@@ -2,9 +2,6 @@ package dev.icode.mobile.data.phone
 
 import android.Manifest
 import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -13,9 +10,11 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import androidx.core.content.ContextCompat
-import dev.icode.mobile.R
 import dev.icode.mobile.data.log.BackendLog
-import dev.icode.mobile.data.tasks.WorkNotifications
+import dev.icode.mobile.data.notify.IcodeChannel
+import dev.icode.mobile.data.notify.IcodeNotifications
+import dev.icode.mobile.data.notify.NotificationKey
+import dev.icode.mobile.data.notify.NotificationLink
 import dev.icode.mobile.data.workspace.AndroidICodeGateway
 import dev.icode.mobile.data.workspace.ICodeProcess
 import dev.icode.mobile.domain.BackgroundPlace
@@ -40,7 +39,7 @@ import kotlinx.coroutines.launch
 class PhoneForegroundService : Service() {
     private val scope = MainScope()
     private lateinit var gateway: AndroidICodeGateway
-    private lateinit var notifications: NotificationManager
+    private lateinit var shade: IcodeNotifications
     /** The bubble is out: the notification offers Show bubble only while it is put away. */
     private var bubble = true
     private var started = false
@@ -49,24 +48,18 @@ class PhoneForegroundService : Service() {
 
     override fun onCreate() {
         super.onCreate()
-        notifications = getSystemService(NotificationManager::class.java)
-        notifications.createNotificationChannel(
-            NotificationChannel(CHANNEL, "Phone control", NotificationManager.IMPORTANCE_LOW).apply {
-                description = "Shown while the assistant can use this phone"
-                setShowBadge(false)
-            },
-        )
+        shade = IcodeNotifications(this)
         // Android's deadline is five seconds from startForegroundService(): take the foreground
         // here, before attaching to the process, so a busy main thread cannot miss it. A start()
         // upgrades to the microphone in onStartCommand; a notification's action keeps the base.
-        runCatching { startForeground(NOTIFICATION, notification(), baseType()) }
+        runCatching { startForeground(NotificationKey.PhoneControl.id, notification(), baseType()) }
             .onFailure { BackendLog.w(TAG, "Phone control's service could not take the foreground (${it.javaClass.simpleName})") }
         gateway = ICodeProcess.attach(this)
         active = true
         scope.launch {
             gateway.snapshot.map { it.phone.bubble }.distinctUntilChanged().collect {
                 bubble = it
-                if (started) notifications.notify(NOTIFICATION, notification())
+                if (started) shade.post(NotificationKey.PhoneControl, notification())
             }
         }
     }
@@ -98,12 +91,12 @@ class PhoneForegroundService : Service() {
         val allowed = microphone && ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         val base = baseType()
         val held = try {
-            startForeground(NOTIFICATION, notification(), base or (if (allowed) ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE else 0))
+            startForeground(NotificationKey.PhoneControl.id, notification(), base or (if (allowed) ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE else 0))
             allowed
         } catch (refused: SecurityException) {
             // Android refused the microphone (iCode left the screen meanwhile): the service runs without it.
             BackendLog.w(TAG, "The microphone was refused (${refused.javaClass.simpleName})")
-            startForeground(NOTIFICATION, notification(), base)
+            startForeground(NotificationKey.PhoneControl.id, notification(), base)
             false
         }
         started = true
@@ -114,16 +107,12 @@ class PhoneForegroundService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE else 0
 
     private fun notification(): Notification {
-        fun action(title: String, action: String) = Notification.Action.Builder(
-            null, title,
-            PendingIntent.getService(this, action.hashCode(), Intent(this, PhoneForegroundService::class.java).setAction(action), PendingIntent.FLAG_IMMUTABLE),
-        ).build()
-        return Notification.Builder(this, CHANNEL)
-            .setSmallIcon(R.drawable.ic_notification)
-            .setColor(getColor(R.color.notification_accent))
+        fun action(title: String, action: String) =
+            shade.action(title, shade.toService(PhoneForegroundService::class.java, action, "icode://phone/$action"))
+        return shade.builder(IcodeChannel.PhoneControl)
             .setContentTitle("Phone control is on")
             .setContentText("The assistant can use this phone")
-            .setContentIntent(WorkNotifications.open(this, BackgroundPlace.Assistant))
+            .setContentIntent(shade.open(NotificationLink.Work(BackgroundPlace.Assistant)))
             .setOngoing(true)
             .setCategory(Notification.CATEGORY_SERVICE)
             .apply {
@@ -135,9 +124,6 @@ class PhoneForegroundService : Service() {
 
     companion object {
         private const val TAG = "PhoneForegroundService"
-        private const val CHANNEL = "icode.phone-control"
-        // Clear of the terminal's (4711, 5000s, 6000s) and the work's (7000s to 9000s).
-        private const val NOTIFICATION = 10_000
         private const val EXTRA_MICROPHONE = "microphone"
         private const val ACTION_SHOW_BUBBLE = "dev.icode.mobile.phone.SHOW_BUBBLE"
         private const val ACTION_TURN_OFF = "dev.icode.mobile.phone.TURN_OFF"

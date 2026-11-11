@@ -35,7 +35,9 @@ import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.domain.TextEncoding
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.Said
 import dev.icode.mobile.domain.said
+import dev.icode.mobile.domain.notices.NoticeTone
 import java.io.File
 import java.util.Collections
 import java.util.concurrent.CopyOnWriteArrayList
@@ -455,7 +457,7 @@ class AssistantCoordinatorTest {
         coordinator.handle(ICodeIntent.SendAssistantMessage("at once"))
         until { state().approval != null }
         coordinator.handle(ICodeIntent.SendAssistantMessage("second"))
-        until { effects.any { "working in app" in it.said()?.title.orEmpty() } }
+        until { effects.any { it.said() == Said(NoticeTone.HeadsUp, "Wait for the assistant to finish", "It is working in app. Or stop it there.") } }
         assertEquals(1, requests.size)
         coordinator.handle(ICodeIntent.StopAssistant)
         until { state().turn == null }
@@ -499,7 +501,7 @@ class AssistantCoordinatorTest {
         coordinator.handle(ICodeIntent.SendAssistantMessage("Rename x"))
         until { state().approval != null }
         coordinator.handle(ICodeIntent.DeleteAssistantSession(state().session!!))
-        until { effects.any { it.said()?.title == "Stop the assistant before deleting this chat" } }
+        until { effects.any { it.said()?.title == "Stop the assistant first" } }
         coordinator.handle(ICodeIntent.StopAssistant)
         until { state().turn == null }
         assertEquals(1, state().sessions.size)
@@ -564,7 +566,7 @@ class AssistantCoordinatorTest {
 
     @Test fun `a chat with nothing in it is not shared`() {
         coordinator.handle(ICodeIntent.ExportAssistantSession("ghost"))
-        until { effects.any { it is ICodeEffect.Notice } }
+        until { effects.any { it is ICodeEffect.Told } }
         assertTrue(effects.any { it.said()?.title == "Nothing to share yet" })
         assertTrue(effects.none { it is ICodeEffect.ShareChat })
     }
@@ -825,7 +827,7 @@ class AssistantCoordinatorTest {
     @Test fun `a terminal that cannot open is said, and a deleted chat's tabs close with it`() {
         tabRefusal = "The Linux runtime is not installed"
         coordinator.handle(ICodeIntent.OpenAssistantTerminal)
-        until { effects.any { it.said()?.title == "The Linux runtime is not installed" } }
+        until { effects.any { it.said() == Said(NoticeTone.Problem, "Couldn't open the chat's terminal", output = "The Linux runtime is not installed") } }
         assertNull(state().tab)
         said("one")
         val chat = state().session!!

@@ -8,7 +8,7 @@ import androidx.core.content.edit
 import dev.icode.mobile.data.phone.shizuku.ShizukuShell
 import dev.icode.mobile.data.runtime.TerminalSessionManager
 import dev.icode.mobile.data.workspace.ICodeStateHolder
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.PhoneNotices
 import dev.icode.mobile.domain.PhoneIntent
 import dev.icode.mobile.domain.phone.PhoneAccess
 import kotlinx.coroutines.CoroutineScope
@@ -66,7 +66,7 @@ internal class PhoneCoordinator(
             PhoneIntent.Refresh -> refresh()
             PhoneIntent.RequestShizuku -> shizuku.requestPermission { refresh() }
             PhoneIntent.TurnOnWithShizuku -> scope.launch(Dispatchers.IO) {
-                if (!shizuku.turnOnService(component)) stateHolder.notify(NoticeTone.Problem, "Shizuku could not turn phone control on", "Turn it on in Android's Accessibility settings instead")
+                if (!shizuku.turnOnService(component)) stateHolder.tell(PhoneNotices.shizukuRefused())
                 refresh()
             }
             PhoneIntent.TurnOff -> PhoneService.current.value?.disableSelf()

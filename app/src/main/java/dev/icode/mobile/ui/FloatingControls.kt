@@ -13,11 +13,11 @@ import dev.icode.mobile.designsystem.IcodeFloors
 import dev.icode.mobile.designsystem.IcodeStackPill
 import dev.icode.mobile.domain.FloatingPill
 import dev.icode.mobile.domain.NoticeIntent
-import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.PillPlace
 import dev.icode.mobile.ui.dock.ToolDock
 import dev.icode.mobile.ui.dock.ToolDockState
 import dev.icode.mobile.ui.screens.settings.rememberSettingSaver
+import dev.icode.mobile.domain.notices.SettingsNotices
 
 /**
  * The floating stack over every screen but the Notifications page (docs/explorer-gaps-plan.md §3.8,
@@ -44,7 +44,7 @@ internal fun FloatingControls(
     // Let go, ahead of the store; each gone once the store has it.
     val moved = remember { mutableStateMapOf<FloatingPill, PillPlace>() }
     LaunchedEffect(stored) { moved.keys.toList().forEach { pill -> if (stored[pill] == moved[pill]) moved.remove(pill) } }
-    LaunchedEffect(saver.error) { saver.error?.let { gateway.dispatch(NoticeIntent.Notify(NoticeTone.HeadsUp, it)) } }
+    LaunchedEffect(saver.error) { saver.error?.let { gateway.dispatch(NoticeIntent.Tell(SettingsNotices.pillNotKept(it))) } }
     fun pill(which: FloatingPill, content: @Composable () -> Unit) = IcodeStackPill(
         key = which,
         // What floats under the finger while it is moved.

@@ -19,7 +19,7 @@ import dev.icode.mobile.domain.AssistantSettings
 import dev.icode.mobile.domain.AssistantTerminal
 import dev.icode.mobile.domain.AssistantTurn
 import dev.icode.mobile.domain.LineChanges
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.AssistantNotices
 import java.io.File
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -96,7 +96,7 @@ internal class AssistantTurns(
     private fun launch(workspace: String, session: String, aloud: Boolean = false, work: suspend Turn.() -> Unit) = synchronized(lock) {
         if (job?.isActive == true) {
             val name = page.current.turn?.workspaceName ?: AssistantPlace.name(workspace)
-            return@synchronized page.say(NoticeTone.HeadsUp, "The assistant is working in $name: stop it, or wait")
+            return@synchronized page.tell(AssistantNotices.busy(name))
         }
         place = workspace to session
         job = scope.launch { Turn(workspace, session, aloud).run(work) }
@@ -111,7 +111,7 @@ internal class AssistantTurns(
     )
 
     /** A turn in [session] of [workspace], and the events of its engine. */
-    private inner class Turn(val workspace: String, val session: String, val aloud: Boolean) : AssistantEvents {
+    private inner class Turn(val workspace: String, val session: String, val aloud: Boolean, val began: Long = System.currentTimeMillis()) : AssistantEvents {
         /** The step its tools are on (L2, L3), and the hand-over its phone tools wait on (§5.5). */
         val step = AssistantStep(
             clarify = questions::clarify,
@@ -125,6 +125,7 @@ internal class AssistantTurns(
 
         suspend fun run(work: suspend Turn.() -> Unit) {
             var failure: String? = null
+            var stopped = false
             try {
                 val name = runCatching { describe(workspace).name }.getOrElse { AssistantPlace.name(workspace) }
                 page.state {
@@ -133,8 +134,8 @@ internal class AssistantTurns(
                     it.copy(turn = AssistantTurn(workspace, name, session, THINKING, aloud = aloud), session = shown, failure = if (shows(it.workspace, shown)) null else it.failure)
                 }
                 work()
-            } catch (stopped: CancellationException) {
-                // Stopped by the user, with its workspace, or with the backend: what was said and done stays.
+            } catch (cancelled: CancellationException) {
+                stopped = true // By the user, with its workspace, or with the backend: what was said and done stays.
             } catch (refused: AssistantTurnException) {
                 failure = refused.message
             } catch (unexpected: Exception) {
@@ -155,7 +156,7 @@ internal class AssistantTurns(
                     page.listed(workspace)
                     page.refresh(workspace, session)
                     page.state { it.turnEnded().copy(failure = if (shows(it.workspace, it.session)) failure else it.failure) }
-                    if (failure != null && !page.current.let { shows(it.workspace, it.session) }) page.say(NoticeTone.Problem, "The assistant's turn failed", failure)
+                    page.ended(workspace, session, failure, stopped, began, shown = page.current.let { shows(it.workspace, it.session) })
                 }
             }
         }
@@ -214,8 +215,7 @@ internal class AssistantTurns(
         /** [request] going on from the chat as saved: its steps so far are the history, and nothing new is said. */
         private fun goOn(request: AssistantTurnRequest) = request.copy(history = AssistantRules.forModel(chats.of(workspace, session).messages).messages, input = null)
 
-        private suspend fun runWithRetry(block: suspend (Int) -> Unit) =
-            AssistantRetries.runWithRetry(step = ::step, block = block)
+        private suspend fun runWithRetry(block: suspend (Int) -> Unit) = AssistantRetries.runWithRetry(step = ::step, block = block)
 
         /** [history] summarized by the model and marked in the chat. */
         suspend fun compact(setup: Setup, history: AssistantHistory) =
@@ -279,7 +279,7 @@ internal class AssistantTurns(
             runCatching { providers.saveProvider(provider.id, provider.kind, provider.name, provider.baseUrl, key = null, models) }
                 .onFailure { return }
             page.state { it.copy(settings = settings()) }
-            page.say(NoticeTone.HeadsUp, "${model.id} does not see pictures", "It goes on with the screen's text, and is set to read no images from now on.")
+            page.tell(AssistantNotices.noPictures(model.id))
         }
 
         private fun shows(shownWorkspace: String?, shownSession: String?) = shownWorkspace == workspace && shownSession == session

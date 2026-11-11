@@ -1,9 +1,13 @@
 package dev.icode.mobile.data.assistant
 
 import dev.icode.mobile.data.workspace.ICodeStateHolder
+import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantSession
 import dev.icode.mobile.domain.AssistantState
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.AssistantNotices
+import dev.icode.mobile.domain.notices.Notice
+import dev.icode.mobile.domain.notices.NoticePlace
+import dev.icode.mobile.domain.notices.NoticeRules
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -73,7 +77,20 @@ internal class AssistantPage(
 
     fun state(change: (AssistantState) -> AssistantState) = stateHolder.update { it.copy(assistant = change(it.assistant)) }
 
-    fun say(tone: NoticeTone, title: String, detail: String? = null) {
-        scope.launch { stateHolder.notify(tone, title, detail) }
+    fun tell(notice: Notice) {
+        scope.launch { stateHolder.tell(notice) }
+    }
+
+    /**
+     * [session]'s turn in [workspace] ended (docs/notices-redesign-plan.md D9): its [failure] told
+     * when its chat is not the one [shown]; one that ran long, unless [stopped], kept and posted
+     * should iCode be out of view by then. Where it is: the workspace, and the chat by its title.
+     */
+    fun ended(workspace: String, session: String, failure: String?, stopped: Boolean, began: Long, shown: Boolean) {
+        val chat = NoticePlace(AssistantPlace.name(workspace), workspace, subject = chats.sessions(workspace).firstOrNull { it.id == session }?.title)
+        when {
+            failure != null -> if (!shown) tell(AssistantNotices.stopped(failure, chat))
+            !stopped && System.currentTimeMillis() - began >= NoticeRules.LONG_WORK_MILLIS -> tell(AssistantNotices.finished(chat))
+        }
     }
 }

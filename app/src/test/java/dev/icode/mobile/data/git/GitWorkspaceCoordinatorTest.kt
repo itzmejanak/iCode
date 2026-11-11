@@ -14,7 +14,7 @@ import dev.icode.mobile.domain.GitOperationState
 import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.GitRepositoryState
 import dev.icode.mobile.domain.GitStatusCodes
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.NoticeTone
 import dev.icode.mobile.domain.Said
 import dev.icode.mobile.domain.said
 import java.io.File
@@ -118,8 +118,8 @@ class GitWorkspaceCoordinatorTest {
 
         harness.coordinator.stage("x")
 
-        assertEquals(Said(NoticeTone.Problem, "Git operation failed", "pathspec 'x' did not match any files"), withTimeout(2_000) { message.await() }.said())
-        assertEquals(listOf("iCode/git Git operation failed"), logged)
+        assertEquals(Said(NoticeTone.Problem, "Couldn't stage x", output = "pathspec 'x' did not match any files"), withTimeout(2_000) { message.await() }.said())
+        assertEquals(listOf("iCode/git Couldn't stage x"), logged)
         assertEquals(listOf("stage $root x"), git.calls)
     }
 
@@ -131,20 +131,22 @@ class GitWorkspaceCoordinatorTest {
 
         harness.coordinator.commit("message")
 
-        assertEquals(Said(NoticeTone.HeadsUp, "Open a workspace first"), withTimeout(2_000) { message.await() }.said())
+        assertEquals(Said(NoticeTone.HeadsUp, "Open a workspace first", "Git works in the open workspace."), withTimeout(2_000) { message.await() }.said())
         assertTrue(git.calls.isEmpty())
     }
 
-    @Test fun `a commit refreshes and then announces itself`() = runBlocking {
+    @Test fun `a commit refreshes and then says what went in, onto which branch, with its message`() = runBlocking {
         val git = FakeGit().apply { snapshot = GitWorkspaceSnapshot(repository(), emptyList()) }
         val harness = Harness(git, root)
+        val staged = listOf(change.copy(staged = true), change.copy(path = "b.txt", name = "b.txt", staged = true), change.copy(staged = false))
+        harness.stateHolder.update { it.copy(gitRepository = repository(), gitChanges = staged) }
         val effect = async { harness.stateHolder.effects.first() }
         yield()
 
-        harness.coordinator.commit("first")
+        harness.coordinator.commit("Fix the build\n\nIt failed on Android 12.")
 
-        assertEquals(Said(NoticeTone.Done, "Commit created"), withTimeout(2_000) { effect.await() }.said())
-        assertEquals(listOf("commit $root first", "inspect $root"), git.calls)
+        assertEquals(Said(NoticeTone.Done, "Committed 2 files to ${repository().branch}", "Fix the build"), withTimeout(2_000) { effect.await() }.said())
+        assertEquals(listOf("commit $root Fix the build\n\nIt failed on Android 12.", "inspect $root"), git.calls)
     }
 
     @Test fun `without Git a repository on disk still names its branch`() = runBlocking {
@@ -236,7 +238,7 @@ class GitWorkspaceCoordinatorTest {
 
         harness.coordinator.confirmDiscard()
 
-        assertEquals(Said(NoticeTone.Problem, "Git operation failed", "a.txt changed after you confirmed. Review it again"), withTimeout(2_000) { message.await() }.said())
+        assertEquals(Said(NoticeTone.Problem, "Couldn't discard the changes to a.txt", output = "a.txt changed after you confirmed. Review it again"), withTimeout(2_000) { message.await() }.said())
         assertEquals(listOf("inspect $root"), git.calls)
     }
 
@@ -373,7 +375,7 @@ class GitWorkspaceCoordinatorTest {
         harness.coordinator.compareWithEditor("a.txt", "unsaved".toByteArray())
 
         assertEquals(
-            Said(NoticeTone.HeadsUp, "Comparing uses Git, which is not installed yet. Install it from Source Control"),
+            Said(NoticeTone.HeadsUp, "Install Git to compare", "Install it from Source Control."),
             withTimeout(2_000) { message.await() }.said(),
         )
         assertTrue(git.calls.isEmpty())

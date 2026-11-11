@@ -1,5 +1,7 @@
 package dev.icode.mobile.domain
 
+import dev.icode.mobile.domain.notices.NoticeTone
+
 /**
  * A tool the dock suggests (docs/dock-navigation-plan.md D8), and [why]: something that happened
  * while another tool showed. [session] is the terminal whose long command ended.

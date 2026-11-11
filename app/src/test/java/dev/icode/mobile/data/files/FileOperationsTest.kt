@@ -296,6 +296,7 @@ class FileOperationsTest {
         assertFalse(note.exists())
         val item = stateHolder.current.explorer.trash.single()
         assertEquals("Moved note.md to Trash", undo)
+        assertTrue("kept on the Notifications page too", "Moved note.md to Trash" in messages)
         File(app, "a").deleteRecursively()
         perform(FilesIntent.Restore(listOf(item.id)))
         assertEquals("kept", note.readText())

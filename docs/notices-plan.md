@@ -8,6 +8,15 @@ ways:
 3. a bell floats at the bottom right of whatever screen is open, for a few seconds, so the user
    can go to it.
 
+> **Replaced in part (2026-11-11) by [notices-redesign-plan.md](notices-redesign-plan.md).** A notice
+> is now one `Notice` that says where it happened (its workspace, repository, branch, folder), built
+> by its area's builder in `domain/notices/`; `AppNotice`, `notify`, `report` and `failed` are gone.
+> Done is kept on the page, apart from what needs the user, and never rings the bell (§2.6 below no
+> longer holds). The page filters by kind and place; the sheet shows the place, the tool's output and
+> the actions. Android's shade has eight channels in three groups, Problems takes the task failures,
+> and Finished holds what ended while iCode was away (§2.5 below is replaced by the redesign's D7).
+> What follows is the record of the first cycle.
+
 ## 1. What stands (verified)
 
 ### 1.1 What iCode says today
@@ -118,21 +127,23 @@ Opening it marks the notice read.
 
 | Channel | Importance | Holds |
 |---|---|---|
-| **Messages** (new) | `LOW`: no sound, no pop-up | Every unread message notice, up to the 20 newest, grouped under one "iCode · Messages" summary |
-| **Problems** (new) | `HIGH`: pops up | A Problem that arrives while iCode is out of view (the same test `WorkNotifications` uses for task failures) |
+| **Messages** (new) | `LOW`: no sound, no pop-up | Every unread message notice, up to the 20 newest, grouped under one "Notifications" summary |
+| **Problems** (new) | `HIGH`: pops up | A Problem that arrives while iCode is out of view (since the redesign, also what were task failures) |
 
 - A tap opens iCode with that notice's sheet (a new `Arrival.Notice`); the summary opens the page.
 - The two kinds found at start-up (terminal sessions and Git transfers the previous process took
   with it) stay on the page and the launcher bell's dot, as now: the user is opening iCode when
   they are found.
 - A notice read, deleted or cleared in iCode is withdrawn from the shade.
-- Swiping one away in the shade leaves it unread in iCode, as a mail app does.
+- Swiping one away in the shade leaves it unread in iCode, as a mail app does, and — since the
+  redesign — it is not posted again.
 - Without the notification permission, the bell and the page still work.
 - The user can change either channel in Android's settings.
 
 ### 2.6 Done
 
-Done shows on the bell only. It is not kept and not posted, so "Saved" on every save never pushes
+*Replaced: Done is kept on the page, without ringing the bell (notices-redesign-plan.md D3).* As
+first built, Done showed on the bell only. It is not kept and not posted, so "Saved" on every save never pushes
 a problem off the page or fills the shade. Copying on Android 13 and later stays as it is:
 Android shows its own confirmation, so iCode adds none.
 

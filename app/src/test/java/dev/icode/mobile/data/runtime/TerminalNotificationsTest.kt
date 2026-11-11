@@ -1,7 +1,6 @@
 package dev.icode.mobile.data.runtime
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TerminalNotificationsTest {
@@ -17,11 +16,5 @@ class TerminalNotificationsTest {
     @Test fun `an alert names the tab and its workspace`() {
         assertEquals("bash · superpowers", TerminalNotifications.whereIs("bash", "superpowers"))
         assertEquals("bash 2", TerminalNotifications.whereIs("bash 2", null))
-    }
-
-    @Test fun `each session keeps one row, apart from the parent`() {
-        assertEquals(5003, TerminalNotifications.rowId("session-3"))
-        assertEquals(TerminalNotifications.rowId("session-3"), TerminalNotifications.rowId("session-3"))
-        assertTrue(TerminalNotifications.rowId("odd") != TerminalNotifications.PARENT_ID)
     }
 }

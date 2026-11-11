@@ -1,7 +1,8 @@
 package dev.icode.mobile.data.workspace
 
 import dev.icode.mobile.data.files.FileFollower
-import dev.icode.mobile.data.io.isAtOrUnder
+import dev.icode.mobile.domain.isAtOrUnder
+import dev.icode.mobile.domain.notices.WorkspaceNotices
 import dev.icode.mobile.data.workspace.WorkspaceLifecycleCoordinator.Reopen
 import java.io.File
 
@@ -60,7 +61,7 @@ internal class FileChangeFollower(
             refreshWorkspaceState(root)
             if (!folder) reindex(root)
         }.onFailure { error ->
-            stateHolder.report("workspace", "${if (folder) "Folder" else "File"} created, but the workspace could not refresh", error)
+            stateHolder.tell(WorkspaceNotices.changeNotShown(stateHolder.current, root, made = location), "workspace", error)
         }
     }
 
@@ -77,7 +78,7 @@ internal class FileChangeFollower(
             tree.reload(active)
             refreshWorkspaceState(active)
             reindex(active)
-        }.onFailure { error -> stateHolder.report("workspace", "The change was made, but the workspace could not refresh", error) }
+        }.onFailure { error -> stateHolder.tell(WorkspaceNotices.changeNotShown(stateHolder.current, active), "workspace", error) }
     }
 
     /** Hidden files shown or not: the explorer's folder, and the open workspace's tree, read again. */
@@ -87,6 +88,6 @@ internal class FileChangeFollower(
         runCatching {
             tree.reload(active)
             refreshWorkspaceState(active)
-        }.onFailure { error -> stateHolder.report("workspace", "Unable to list the workspace again", error) }
+        }.onFailure { error -> stateHolder.tell(WorkspaceNotices.notListed(stateHolder.current, active), "workspace", error) }
     }
 }

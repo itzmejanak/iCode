@@ -1,7 +1,10 @@
 package dev.icode.mobile.data.workspace
 
 import dev.icode.mobile.data.log.BackendLog
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.ICodeEffect
+import dev.icode.mobile.domain.notices.Notice
+import dev.icode.mobile.domain.notices.NoticeSource
+import dev.icode.mobile.domain.notices.NoticeTone
 import dev.icode.mobile.domain.Said
 import dev.icode.mobile.domain.said
 import java.io.IOException
@@ -12,6 +15,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -27,13 +31,24 @@ class ICodeStateHolderTest {
         BackendLog.writer = originalWriter
     }
 
-    @Test fun `a reported failure is one log line and one notice, its title the caller's and its detail the error's own words`() = runBlocking {
+    @Test fun `a failure told is one log line and one notice, its title the builder's and its output the error's own words`() = runBlocking {
         val holder = ICodeStateHolder()
         val effect = async(start = CoroutineStart.UNDISPATCHED) { holder.effects.first() }
-        holder.report("git", "Push failed", IOException("Remote rejected the push"))
-        assertEquals(Said(NoticeTone.Problem, "Push failed", "Remote rejected the push"), effect.await().said())
+        holder.tell(Notice(NoticeTone.Problem, NoticeSource.Git, "Couldn't push main"), "git", IOException("Remote rejected the push"))
+        assertEquals(Said(NoticeTone.Problem, "Couldn't push main", output = "Remote rejected the push"), effect.await().said())
         assertEquals(1, logged.size)
-        assertEquals(true, logged.single().startsWith("iCode/git Push failed\njava.io.IOException: Remote rejected the push"))
+        assertEquals(true, logged.single().startsWith("iCode/git Couldn't push main\njava.io.IOException: Remote rejected the push"))
+    }
+
+    @Test fun `a notice told gets an id and the time, unless it brings its own`() = runBlocking {
+        val holder = ICodeStateHolder()
+        val first = async(start = CoroutineStart.UNDISPATCHED) { holder.effects.first() }
+        holder.tell(Notice(NoticeTone.Info, NoticeSource.Git, "Fetched origin"))
+        val stamped = (first.await() as ICodeEffect.Told).notice
+        assertTrue(stamped.id.isNotEmpty() && stamped.at > 0)
+        val second = async(start = CoroutineStart.UNDISPATCHED) { holder.effects.first() }
+        holder.tell(stamped.copy(id = "web:1", at = 7))
+        assertEquals("web:1" to 7L, (second.await() as ICodeEffect.Told).notice.let { it.id to it.at })
     }
 
     @Test fun `an error without words falls back to the caller's`() {

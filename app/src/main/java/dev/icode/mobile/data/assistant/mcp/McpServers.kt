@@ -18,7 +18,8 @@ import dev.icode.mobile.domain.McpState
 import dev.icode.mobile.domain.McpStatus
 import dev.icode.mobile.domain.McpToolChoice
 import dev.icode.mobile.domain.McpTransport
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.McpNotices
+import dev.icode.mobile.domain.notices.Notice
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
@@ -84,7 +85,7 @@ internal class McpServers(
             McpIntent.Connect -> { publish(); servers(activeRoot()).filter { it.enabled }.forEach(connections::ensure) }
             is McpIntent.SaveServer -> save(activeRoot(), intent.server).said(intent.server)
             is McpIntent.ImportServers -> import(intent.json, intent.single)
-                .onSuccess { if (it.ignored.isNotEmpty()) say("Not read: ${it.ignored.joinToString()}", null, NoticeTone.Info) }.said(null)
+                .onSuccess { if (it.ignored.isNotEmpty()) told(McpNotices.notImported(it.ignored)) }.said(null)
             is McpIntent.RemoveServer -> remove(activeRoot(), intent.id).said(null)
             is McpIntent.SetServerEnabled -> enable(activeRoot(), intent.id, intent.enabled).said(null)
             is McpIntent.SetToolChoice -> choose(activeRoot(), intent.id, intent.tool, intent.choice).said(null)
@@ -199,7 +200,7 @@ internal class McpServers(
 
     /** A page's change refused: the user's notice. */
     private suspend fun Result<*>.said(server: McpServer?) {
-        exceptionOrNull()?.let { say(it.message ?: "The MCP servers could not be changed", server) }
+        exceptionOrNull()?.let { told(McpNotices.notChanged(stateHolder.current, server?.name, it.message)) }
     }
 
     /** A sign-in's step, its failure said in its words, or the network's. */
@@ -209,9 +210,9 @@ internal class McpServers(
         } catch (stopped: CancellationException) {
             throw stopped
         } catch (refused: McpSignIn.Refused) {
-            say(refused.message ?: "The sign-in failed", server)
+            told(McpNotices.notSignedIn(stateHolder.current, server?.name, refused.message ?: "The server refused it."))
         } catch (failure: Exception) {
-            say(McpFailures.of(failure, server?.name ?: "The sign-in", (server?.transport as? McpTransport.Remote)?.url), server)
+            told(McpNotices.notSignedIn(stateHolder.current, server?.name, McpFailures.of(failure, server?.name ?: "The sign-in", (server?.transport as? McpTransport.Remote)?.url)))
         }
     }
 
@@ -231,10 +232,10 @@ internal class McpServers(
     /** A prompt's or a resource's text, from [id]'s server, into the composer's draft. */
     private suspend fun draft(id: String, read: suspend (McpConnection) -> String) {
         val server = server(id) ?: return
-        val connection = connections.ensure(server).await() ?: return say("${server.name} is not connected", server)
+        val connection = connections.ensure(server).await() ?: return told(McpNotices.notConnected(stateHolder.current, server.name))
         runCatching { read(connection) }
             .onSuccess { text -> stateHolder.update { it.copy(mcp = it.mcp.copy(draft = text)) } }
-            .onFailure { failure -> if (failure is CancellationException) throw failure else say(McpFailures.of(failure, server.name), server) }
+            .onFailure { failure -> if (failure is CancellationException) throw failure else told(McpNotices.notRead(stateHolder.current, server.name, McpFailures.of(failure, server.name))) }
     }
 
     private fun publish() {
@@ -244,8 +245,8 @@ internal class McpServers(
         stateHolder.update { it.copy(mcp = it.mcp.copy(servers = servers, states = shown, signedIn = signedIn)) }
     }
 
-    private suspend fun say(title: String, server: McpServer?, tone: NoticeTone = NoticeTone.HeadsUp) {
-        stateHolder.notify(tone, title, server?.name)
+    private suspend fun told(notice: Notice) {
+        stateHolder.tell(notice)
         publish()
     }
 

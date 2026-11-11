@@ -4,7 +4,7 @@ import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.ManagedProcess
 import dev.icode.mobile.domain.ManagedProcessState
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.NoticeTone
 import dev.icode.mobile.domain.Said
 import dev.icode.mobile.domain.TerminalSessionState
 import dev.icode.mobile.domain.TerminalSettings
@@ -22,9 +22,11 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.yield
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -45,6 +47,8 @@ class TerminalCoordinatorTest {
         override val snapshot = MutableStateFlow(TerminalSnapshot())
         override val endings = MutableSharedFlow<TerminalEnding>(extraBufferCapacity = 8)
         override val commandsFinished = MutableSharedFlow<String>(extraBufferCapacity = 8)
+        override val longCommandsEnded = MutableSharedFlow<LongCommandEnded>(extraBufferCapacity = 8)
+        override val lookingAt = MutableStateFlow<String?>(null)
         val calls = mutableListOf<String>()
         val workspaces = mutableMapOf<String, String?>()
         var opened: String? = "session-1"
@@ -110,14 +114,14 @@ class TerminalCoordinatorTest {
     @Test fun `without the runtime nothing is opened`() = runBlocking {
         val harness = Harness(installed = false)
         val effect = harness.nextEffect { harness.coordinator.open() }
-        assertEquals(Said(NoticeTone.HeadsUp, "Install the Linux runtime before opening a terminal"), effect.said())
+        assertEquals(Said(NoticeTone.HeadsUp, "Install the Linux runtime first", "Terminal sessions run in it."), effect.said())
         assertTrue(harness.sessions.calls.isEmpty())
     }
 
     @Test fun `a session that could not start is said`() = runBlocking {
         val harness = Harness().apply { sessions.opened = null }
         val effect = harness.nextEffect { harness.coordinator.open() }
-        assertEquals(Said(NoticeTone.Problem, "Unable to start a terminal session"), effect.said())
+        assertEquals(Said(NoticeTone.Problem, "Couldn't start a terminal session"), effect.said())
     }
 
     @Test fun `a workspace opened for its terminal reuses its running session`() = runBlocking {
@@ -179,13 +183,38 @@ class TerminalCoordinatorTest {
             assertEquals(settings, harness.sessions.applied)
 
             val effect = harness.nextEffect { harness.sessions.endings.emit(TerminalEnding("session-1", "bash", 3)) }
-            assertEquals(Said(NoticeTone.Info, "bash exited with code 3"), effect.said())
+            assertEquals(Said(NoticeTone.Info, "bash ended with exit code 3"), effect.said())
 
             harness.sessions.workspaces["session-1"] = root
             harness.sessions.workspaces["session-2"] = "/storage/emulated/0/other"
             harness.sessions.commandsFinished.emit("session-2")
             harness.sessions.commandsFinished.emit("session-1")
             assertEquals(1, harness.changed)
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test fun `a long command's end is told where it ran, unless it was watched, posted away as the setting says`() = runBlocking {
+        val harness = Harness()
+        val scope = CoroutineScope(Dispatchers.Unconfined)
+        try {
+            harness.stateHolder.update { it.copy(activeWorkspace = "app", activeWorkspaceLocation = root) }
+            harness.coordinator.follow(scope, flowOf(TerminalSettings(finishAlerts = false)))
+            harness.sessions.snapshot.value = TerminalSnapshot(listOf(running("session-1")), "session-1")
+            harness.sessions.workspaces["session-1"] = root
+
+            val told = harness.nextEffect { harness.sessions.longCommandsEnded.emit(LongCommandEnded("session-1", "npm", 130_000)) }
+            val notice = (told as ICodeEffect.Told).notice
+            assertEquals("npm finished after 2 min", notice.title)
+            assertEquals("app · bash", notice.place?.line)
+            assertEquals(false, notice.tellAway)
+
+            harness.sessions.lookingAt.value = "session-1"
+            val watched = async { withTimeoutOrNull(300) { harness.stateHolder.effects.first() } }
+            yield()
+            harness.sessions.longCommandsEnded.emit(LongCommandEnded("session-1", "npm", 130_000))
+            assertNull("the user saw it end", watched.await())
         } finally {
             scope.cancel()
         }

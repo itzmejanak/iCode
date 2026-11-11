@@ -11,7 +11,8 @@ import dev.icode.mobile.domain.GitRemoteRules
 import dev.icode.mobile.domain.GitSyncAction
 import dev.icode.mobile.domain.GitTransferLabel
 import dev.icode.mobile.domain.ICodeIntent
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.GitNotices
+import dev.icode.mobile.domain.notices.NoticePlaces
 import dev.icode.mobile.domain.WorkspaceRuntimePath
 import java.io.File
 import java.util.concurrent.atomic.AtomicLong
@@ -48,7 +49,9 @@ internal class GitTransferCoordinator(
     /** Commit & Push's commit: null once made, else Git's words. */
     private val commit: suspend (message: String) -> String?,
     private val ledger: TransferLedger,
+    clock: () -> Long = System::currentTimeMillis,
 ) {
+    private val outcomes = GitTransferOutcomes(stateHolder, git, clock)
     private val operations = AtomicLong()
     private var job: Job? = null
     private var running = ""
@@ -56,7 +59,7 @@ internal class GitTransferCoordinator(
 
     /** The transfer [intent] asks for; its job, when one started. */
     fun handle(intent: ICodeIntent.TransferIntent): Job? = when (intent) {
-        ICodeIntent.FetchRemote -> fetch()
+        is ICodeIntent.FetchRemote -> fetch(intent.automatic)
         ICodeIntent.PullRemote -> pull()
         ICodeIntent.PushRemote -> push()
         is ICodeIntent.CommitAndPush -> commitAndPush(intent.message)
@@ -64,9 +67,10 @@ internal class GitTransferCoordinator(
         ICodeIntent.CancelGitTransfer -> cancel().let { null }
     }
 
-    fun fetch(): Job? = start(GitTransferLabel.FETCHING) { id ->
+    /** [automatic]: iCode's own, as a workspace opens or iCode comes back — it says nothing unless it fails, once. */
+    fun fetch(automatic: Boolean = false): Job? = start(GitTransferLabel.FETCHING, automatic) { id ->
         if (refused(GitTransferLabel.FETCHING, GitSyncAction.Fetch)) return@start
-        runRemote(id, GitTransferLabel.FETCHING) { workspace, config, onStderr -> git.fetch(workspace, config, onStderr) }
+        runRemote(id, GitTransferLabel.FETCHING, automatic) { workspace, config, onStderr -> git.fetch(workspace, config, onStderr) }
     }
 
     fun pull(): Job? = start(GitTransferLabel.PULLING) { id ->
@@ -78,7 +82,10 @@ internal class GitTransferCoordinator(
 
     /** Commits what is staged, then pushes it — one transfer; a commit Git refuses is not pushed. */
     fun commitAndPush(message: String): Job? = start(GitTransferLabel.COMMITTING) { id ->
-        commit(message)?.let { failure -> return@start finish(GitOperationState.Failed(GitTransferLabel.COMMITTING, failure)) }
+        commit(message)?.let { failure ->
+            outcomes.begin(activeRoot(), GitTransferLabel.COMMITTING).failed(failure)
+            return@start finish(GitOperationState.Failed(GitTransferLabel.COMMITTING, failure))
+        }
         push(id)
     }
 
@@ -86,11 +93,11 @@ internal class GitTransferCoordinator(
     fun clone(url: String, directoryName: String, branch: String = "", into: String? = null): Job? =
         start(GitTransferLabel.CLONING) { id -> clone(id, url.trim(), directoryName.trim(), branch.trim(), into?.let(::File) ?: workspaces.root) }
 
-    /** Starts [work] as the one transfer, or says which one is still running. */
-    private fun start(label: String, work: suspend (id: Long) -> Unit): Job? = synchronized(this) {
+    /** Starts [work] as the one transfer, or says which one is still running — unless iCode asked for it itself ([automatic]). */
+    private fun start(label: String, automatic: Boolean = false, work: suspend (id: Long) -> Unit): Job? = synchronized(this) {
         if (job?.isActive == true) {
-            val busy = running.lowercase()
-            scope.launch { stateHolder.notify(NoticeTone.HeadsUp, "Git is still $busy; try again when it finishes") }
+            val busy = GitNotices.busy(running, NoticePlaces.git(stateHolder.current))
+            if (!automatic) scope.launch { stateHolder.tell(busy) }
             return null
         }
         val id = operations.incrementAndGet()
@@ -159,6 +166,7 @@ internal class GitTransferCoordinator(
             stateHolder.update { it.copy(gitOperation = GitOperationState.Failed(label, problem)) }
             return
         }
+        val told = outcomes.beginClone(directoryName, url)
         // A new install has no Git until something needs it, and a clone is
         // often the first thing that does: install it as part of this clone.
         if (!git.isAvailable()) {
@@ -169,6 +177,7 @@ internal class GitTransferCoordinator(
                 val reason = (installed as? GitOutcome.Failure)?.message ?: "Git could not be installed"
                 BackendLog.w("git", "Git install before clone failed: $reason")
                 stateHolder.update { it.copy(gitOperation = GitOperationState.Failed(label, reason, installing)) }
+                told.failed(reason, installing)
                 return
             }
             stateHolder.update { it.copy(gitAvailable = true) }
@@ -191,15 +200,16 @@ internal class GitTransferCoordinator(
             throw cancelled
         } catch (error: Exception) {
             runCatching { staging.discard(folder) }
-            stateHolder.update {
-                it.copy(gitOperation = GitOperationState.Failed(label, stateHolder.failureText("git", "Clone failed", error), transcript))
-            }
+            val reason = stateHolder.failureText("git", "Clone failed", error)
+            stateHolder.update { it.copy(gitOperation = GitOperationState.Failed(label, reason, transcript)) }
+            told.failed(reason, transcript)
             return
         }
         // The clone is whole: what it made is shown before it says so, so the progress screen gives
         // way to it and never to the workspace open before; Cancel no longer applies.
         withContext(NonCancellable) { openClone(target.path) }
         stateHolder.update { it.copy(gitOperation = GitOperationState.Succeeded(label, transcript), projectDestination = null) }
+        told.succeeded(target.path)
     }
 
     private fun cloneProblem(url: String, directoryName: String, branch: String, into: File): String? {
@@ -217,12 +227,15 @@ internal class GitTransferCoordinator(
     private suspend fun runRemote(
         id: Long,
         label: String,
+        automatic: Boolean = false,
         operation: suspend (workspace: String, config: List<String>, onStderr: (String) -> Unit) -> Unit,
     ) {
         val workspace = activeRoot() ?: return finish(GitOperationState.Failed(label, "Open a workspace first"))
+        val outcome = outcomes.begin(workspace, label, automatic)
         synchronized(this) { running = label }
         stateHolder.update { it.copy(gitOperation = GitOperationState.Running(label)) }
-        ledger.started(label, workspaces.guestOf(workspace) ?: workspace)
+        val repository = stateHolder.current.gitRepository?.takeUnless { it.detached }
+        ledger.started(label, workspaces.guestOf(workspace) ?: workspace, repository?.branch, repository?.upstream)
         var transcript = emptyList<String>()
         try {
             withCredentials { config ->
@@ -234,16 +247,15 @@ internal class GitTransferCoordinator(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
-            stateHolder.update {
-                it.copy(gitOperation = GitOperationState.Failed(label, stateHolder.failureText("git", "$label failed", error), transcript))
-            }
+            val reason = stateHolder.failureText("git", "$label failed", error)
+            stateHolder.update { it.copy(gitOperation = GitOperationState.Failed(label, reason, transcript)) }
+            outcome.failed(reason, transcript)
             return
         }
         stateHolder.update { it.copy(gitOperation = GitOperationState.Succeeded(label, transcript)) }
         refresh(workspace)
-        // The progress surface closes itself, so the outcome is
-        // reported here or it is never reported at all.
-        stateHolder.notify(NoticeTone.Done, completionMessage(label, transcript))
+        // The progress surface closes itself, so the outcome is told here or never at all.
+        outcome.succeeded(transcript)
     }
 
     /**
@@ -276,14 +288,6 @@ internal class GitTransferCoordinator(
             val safe = BackendLog.credentialSafe(line)
             if (safe.length > MAX_LINE_CHARS) safe.take(MAX_LINE_CHARS) + "…" else safe
         }
-
-    /** Prefers Git's own last word, such as "Already up to date." */
-    private fun completionMessage(label: String, transcript: List<String>): String {
-        val summary = transcript.lastOrNull { line ->
-            line.startsWith("Already up to date") || line.startsWith("Everything up-to-date")
-        }
-        return summary ?: "$label complete"
-    }
 
     private companion object {
         const val MAX_LINE_CHARS = 400

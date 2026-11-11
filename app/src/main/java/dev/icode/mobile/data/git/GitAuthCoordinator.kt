@@ -11,7 +11,11 @@ import dev.icode.mobile.domain.GitProvider
 import dev.icode.mobile.domain.GitSigningRules
 import dev.icode.mobile.domain.GitSigningState
 import dev.icode.mobile.domain.ICodeIntent
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.GitNotices
+import dev.icode.mobile.domain.notices.Notice
+import dev.icode.mobile.domain.notices.NoticePlace
+import dev.icode.mobile.domain.notices.NoticePlaces
+import dev.icode.mobile.domain.notices.SourceControlNotices
 import dev.icode.mobile.domain.SigningIntent
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -27,7 +31,7 @@ internal class GitAuthCoordinator(
     private val credentials: GitCredentialOperations,
     private val activeRoot: () -> String?,
     /** A change to the open repository, refreshed like any other local Git change. */
-    private val actInRepository: suspend (operation: suspend (String) -> Unit, onSuccess: suspend () -> Unit) -> Unit,
+    private val actInRepository: suspend (failed: (NoticePlace?) -> Notice, operation: suspend (String) -> Unit, onSuccess: suspend () -> Unit) -> Unit,
     /** The repository's identity shows in Source Control, so it is read again after a change. */
     private val refreshRepository: suspend (root: String) -> Unit,
 ) {
@@ -42,17 +46,18 @@ internal class GitAuthCoordinator(
     }
 
     suspend fun configureRepositoryIdentity(name: String, email: String) = actInRepository(
+        SourceControlNotices::identityNotSet,
         { workspace -> config.configureIdentity(workspace, name, email) },
         { refresh() },
     )
 
     suspend fun configureGlobalIdentity(name: String, email: String) {
         if (name.isBlank() || !GitIdentityRules.isValidEmail(email)) {
-            stateHolder.notify(NoticeTone.HeadsUp, "Enter a name and valid Git author email")
+            stateHolder.tell(GitNotices.identityIncomplete())
             return
         }
         if (!config.isAvailable()) {
-            stateHolder.notify(NoticeTone.HeadsUp, "Install Git in the runtime first")
+            stateHolder.tell(GitNotices.needsGit())
             return
         }
         runCatching {
@@ -61,7 +66,7 @@ internal class GitAuthCoordinator(
             activeRoot()?.let { refreshRepository(it) }
             refresh()
         }.onFailure { error ->
-            stateHolder.report("git", "Could not save Git identity", error)
+            stateHolder.tell(GitNotices.identityNotSaved(), "git", error)
         }
     }
 
@@ -74,7 +79,7 @@ internal class GitAuthCoordinator(
             refreshRepository(workspace)
             refresh()
         }.onFailure { error ->
-            stateHolder.report("git", "Could not reset repository identity", error)
+            stateHolder.tell(GitNotices.identityNotReset(NoticePlaces.git(stateHolder.current)), "git", error)
         }
     }
 
@@ -82,7 +87,7 @@ internal class GitAuthCoordinator(
         runCatching {
             credentials.saveHttps(host, username, token)
         }.onFailure { error ->
-            stateHolder.report("git", "Unable to save the token", error)
+            stateHolder.tell(GitNotices.tokenNotSaved(host), "git", error)
         }
         refresh()
     }
@@ -91,7 +96,7 @@ internal class GitAuthCoordinator(
         runCatching {
             credentials.clearHttpsCredentials()
         }.onFailure { error ->
-            stateHolder.report("git", "Unable to remove the token", error)
+            stateHolder.tell(GitNotices.tokenNotRemoved(), "git", error)
         }
         refresh()
     }
@@ -101,7 +106,7 @@ internal class GitAuthCoordinator(
         ICodeIntent.GenerateSshKey -> generateSshKey()
         is ICodeIntent.TestGitConnection -> testConnection(intent.url)
         SigningIntent.InstallGnuPg -> alone(GitAuthWork.InstallingGnuPg) {
-            credentials.ensureGnuPg().takeUnless { it.succeeded }?.let { stateHolder.notify(NoticeTone.Problem, it.message) }
+            credentials.ensureGnuPg().takeUnless { it.succeeded }?.let { stateHolder.tell(GitNotices.gnuPgNotInstalled(it.message)) }
             refresh()
         }
         SigningIntent.CreateKey -> createSigningKey()
@@ -111,7 +116,7 @@ internal class GitAuthCoordinator(
         // Nothing on the page changes with it, so its outcome is said either way.
         is SigningIntent.ChangePassphrase -> alone(GitAuthWork.ChangingPassphrase) {
             val outcome = credentials.changeSigningPassphrase(intent.fingerprint)
-            stateHolder.notify(if (outcome.succeeded) NoticeTone.Done else NoticeTone.Problem, outcome.message)
+            stateHolder.tell(if (outcome.succeeded) GitNotices.passphraseChanged() else GitNotices.passphraseNotChanged(outcome.message))
         }
     }
 
@@ -122,12 +127,12 @@ internal class GitAuthCoordinator(
     private suspend fun createSigningKey() = alone(GitAuthWork.CreatingSigningKey) {
         val name = config.readConfig(GitConfigScope.Global, "user.name")
         val email = config.readConfig(GitConfigScope.Global, "user.email")
-        if (name.isNullOrBlank() || email.isNullOrBlank()) return@alone stateHolder.notify(NoticeTone.HeadsUp, "Save a default commit identity first")
+        if (name.isNullOrBlank() || email.isNullOrBlank()) return@alone stateHolder.tell(GitNotices.identityFirst())
         val before = credentials.signingKeys().mapTo(hashSetOf()) { it.fingerprint }
         val outcome = credentials.createSigningKey("$name <$email>")
         val created = credentials.signingKeys().firstOrNull { it.fingerprint !in before }
         if (created == null) {
-            stateHolder.notify(NoticeTone.Problem, outcome.message)
+            stateHolder.tell(GitNotices.signingKeyNotMade(outcome.message))
             return@alone refresh()
         }
         configureSigning {
@@ -146,7 +151,7 @@ internal class GitAuthCoordinator(
     }
 
     private suspend fun configureSigning(change: suspend () -> Unit) {
-        runCatching { change() }.onFailure { error -> stateHolder.report("git", "Could not change commit signing", error) }
+        runCatching { change() }.onFailure { error -> stateHolder.tell(GitNotices.signingNotChanged(), "git", error) }
         refresh()
     }
 
@@ -154,7 +159,7 @@ internal class GitAuthCoordinator(
     suspend fun generateSshKey() = alone(GitAuthWork.GeneratingKey) {
         val client = credentials.ensureSshAvailable()
         val outcome = if (client.succeeded) credentials.generateSshKey(credentials.describeHttps() ?: "icode") else client
-        if (!outcome.succeeded) stateHolder.notify(NoticeTone.Problem, outcome.message)
+        if (!outcome.succeeded) stateHolder.tell(GitNotices.sshKeyNotMade(outcome.message))
         refresh()
     }
 

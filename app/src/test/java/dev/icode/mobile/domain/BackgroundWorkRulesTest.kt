@@ -24,23 +24,18 @@ class BackgroundWorkRulesTest {
         assertEquals("node_modules/a/b.js", item.detail)
         assertEquals(ICodeIntent.CancelTask(12), item.cancel)
         assertEquals(BackgroundPlace.Task(12), item.place)
-        assertTrue(item.running && item.watched)
-        assertEquals(12, item.number)
     }
 
-    @Test fun `while counting it says so, a delete has no Cancel, and a hidden task is out of view`() {
+    @Test fun `while counting it says so, and a delete has no Cancel, even hidden`() {
         val item = BackgroundWorkRules.of(empty.copy(tasks = listOf(task(3, hidden = true)))).single()
         assertEquals("Deleting…", item.heading)
         assertEquals("Counting node_modules", item.detail)
         assertNull(item.fraction)
         assertNull(item.cancel)
-        assertFalse(item.watched)
     }
 
-    @Test fun `a failed task stops running and says why`() {
-        val item = BackgroundWorkRules.of(empty.copy(tasks = listOf(task(4, failure = "Permission denied")))).single()
-        assertFalse(item.running)
-        assertEquals("Permission denied", item.failure)
+    @Test fun `a failed task is not carried, its sheet and its notice saying why`() {
+        assertTrue(BackgroundWorkRules.of(empty.copy(tasks = listOf(task(4, failure = "Permission denied")))).isEmpty())
     }
 
     @Test fun `a clone is carried with Git's phase and share, and opens its own page`() {
@@ -53,7 +48,6 @@ class BackgroundWorkRulesTest {
         assertEquals("icode · Receiving objects", item.detail)
         assertEquals(ICodeIntent.CancelGitTransfer, item.cancel)
         assertEquals(BackgroundPlace.Clone, item.place)
-        assertEquals(900, item.number)
     }
 
     @Test fun `a pull opens the sync page, and a finished transfer is not carried`() {
@@ -61,6 +55,8 @@ class BackgroundWorkRulesTest {
         assertEquals(BackgroundPlace.Sync, BackgroundWorkRules.of(pulling).single().place)
         val done = empty.copy(gitOperation = GitOperationState.Succeeded(GitTransferLabel.PULLING))
         assertTrue(BackgroundWorkRules.of(done).isEmpty())
+        val failed = empty.copy(gitOperation = GitOperationState.Failed(GitTransferLabel.PULLING, "rejected"))
+        assertTrue("a transfer that stopped short is told, not carried", BackgroundWorkRules.of(failed).isEmpty())
         val installingGit = empty.copy(gitOperation = GitOperationState.Running("Installing Git"))
         assertTrue("installing Git is the tools' run, carried as theirs", BackgroundWorkRules.of(installingGit).isEmpty())
     }
@@ -74,7 +70,7 @@ class BackgroundWorkRulesTest {
         assertEquals("runtime", item.key)
         assertEquals("Repairing the Linux runtime 50%", item.heading)
         assertEquals(BackgroundPlace.Runtime, item.place)
-        assertTrue(item.cancel == null && item.running)
+        assertNull(item.cancel)
 
         val extracting = snapshot.copy(runtime = RuntimeState.Installing("Extracting Ubuntu base", RuntimeInstallStep.Extracting, 1024, 4096))
         val counted = BackgroundWorkRules.of(extracting).single()
@@ -82,6 +78,7 @@ class BackgroundWorkRulesTest {
         assertEquals(0.25f, counted.fraction)
         val configuring = snapshot.copy(runtime = RuntimeState.Installing("Configuring the runtime", RuntimeInstallStep.Configuring))
         assertEquals("Repairing the Linux runtime", BackgroundWorkRules.of(configuring).single().heading)
+        assertTrue(BackgroundWorkRules.of(snapshot.copy(runtime = RuntimeState.Failed("No space left"))).isEmpty())
     }
 
     @Test fun `a tools install is carried with apt's step and count, cancellable only while downloading`() {
@@ -104,7 +101,7 @@ class BackgroundWorkRulesTest {
         assertEquals(null, counted.cancel)
 
         val failed = installing.copy(failure = "Could not install SSH client: E: Unable to fetch")
-        assertEquals(false, BackgroundWorkRules.of(empty.copy(runtimeTools = RuntimeToolsState(work = failed))).single().running)
+        assertTrue(BackgroundWorkRules.of(empty.copy(runtimeTools = RuntimeToolsState(work = failed))).isEmpty())
     }
 
     @Test fun `a place survives the notification that carries it`() {
@@ -128,7 +125,6 @@ class BackgroundWorkRulesTest {
         assertEquals(ICodeIntent.StopAssistant, item.cancel)
         assertEquals("Stop", item.cancelLabel)
         assertEquals(BackgroundPlace.Assistant, item.place)
-        assertEquals(903, item.number)
         assertNull(item.question)
 
         val call = AssistantCall("c1", "run_command", """{"command":"npm test"}""", "Run `npm test`", AssistantToolKind.Command)
@@ -150,7 +146,6 @@ class BackgroundWorkRulesTest {
         assertEquals("Stop All", item.cancelLabel)
         assertFalse("a server runs until it is stopped: no bar", item.progresses)
         assertEquals(BackgroundPlace.Processes, item.place)
-        assertEquals(904, item.number)
         assertEquals(BackgroundPlace.Processes, BackgroundPlace.decode(item.place.encoded()))
     }
 
@@ -179,7 +174,6 @@ class BackgroundWorkRulesTest {
         assertEquals(GpgIntent.Answer("941", GpgAnswer.Cancel), item.cancel)
         assertFalse(item.progresses)
         assertEquals(BackgroundPlace.Gpg, item.place)
-        assertEquals(905, item.number)
         val confirm = prompt.copy(asksPassphrase = false)
         assertEquals("Answer GnuPG", BackgroundWorkRules.of(empty.copy(gpgPrompts = listOf(confirm))).single().question)
     }

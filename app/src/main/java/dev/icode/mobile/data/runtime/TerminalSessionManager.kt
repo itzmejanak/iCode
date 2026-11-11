@@ -78,26 +78,27 @@ internal class TerminalSessionManager private constructor(
     /** Sessions whose foreground command just ended: what it ran may have changed the workspace. */
     override val commandsFinished: SharedFlow<String> = mutableCommandsFinished.asSharedFlow()
 
-    /** Reported by the foreground service, which samples each session's program; a shell with marks says so itself. A [long] one counts on its session. */
+    private val mutableLongCommands = MutableSharedFlow<LongCommandEnded>(extraBufferCapacity = ENDINGS_BUFFER)
+    /** Commands that ran long and have ended, told as notices. */
+    override val longCommandsEnded: SharedFlow<LongCommandEnded> = mutableLongCommands.asSharedFlow()
+
+    /** Reported by the foreground service, which samples each session's program (a shell with marks says so itself); a long one counts on its session, and is told. */
     @MainThread
-    fun commandFinished(sessionId: String, long: Boolean) {
+    fun commandFinished(sessionId: String, command: FinishedCommand) {
         if (records[sessionId]?.integrated != true) mutableCommandsFinished.tryEmit(sessionId)
-        val entry = entries[sessionId]?.takeIf { long } ?: return
+        val entry = entries[sessionId]?.takeIf { command.long } ?: return
         entry.state = entry.state.copy(longRunsEnded = entry.state.longRunsEnded + 1)
         publish(selectedId = mutableSnapshot.value.selectedId)
+        mutableLongCommands.tryEmit(LongCommandEnded(sessionId, command.program, command.durationMillis))
     }
 
     private val attention = TerminalAttention()
     val screenVisible: StateFlow<Boolean> get() = attention.screenVisible
-    val lookingAt: StateFlow<String?> get() = attention.lookingAt
+    override val lookingAt: StateFlow<String?> get() = attention.lookingAt
 
     @MainThread
     fun setScreenVisible(visible: Boolean) = attention.setScreenVisible(visible)
 
-    /**
-     * Opens a session, or selects a running one for the same workspace when
-     * [reuseExisting]. Returns null when the runtime is not installed.
-     */
     override suspend fun open(workspaceHostPath: String?, reuseExisting: Boolean): String? =
         openOr({ if (reuseExisting) selectRunning(workspaceHostPath) else null }) { TerminalLaunch.prepare(layout, settings, workspaceHostPath) }
 
@@ -256,7 +257,7 @@ internal class TerminalSessionManager private constructor(
         }
         val title = entry.state.title
         close(id)
-        mutableEndings.tryEmit(TerminalEnding(id, title, exitStatus))
+        mutableEndings.tryEmit(TerminalEnding(id, title, exitStatus, entry.workspaceHostPath))
     }
 
     private fun publish(selectedId: String?) {

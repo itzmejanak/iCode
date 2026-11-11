@@ -1,11 +1,11 @@
 package dev.icode.mobile.data.workspace
 
 import dev.icode.mobile.data.files.FileShortcuts
-import dev.icode.mobile.data.io.isAtOrUnder
-import dev.icode.mobile.data.io.relocated
+import dev.icode.mobile.domain.isAtOrUnder
+import dev.icode.mobile.domain.relocated
 import dev.icode.mobile.data.runtime.GuestPaths
 import dev.icode.mobile.domain.ExternalChange
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.EditorNotices
 import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeIntent
@@ -50,7 +50,7 @@ internal class DocumentSessionCoordinator(
         }
         val root = activeRoot()
         if (root == null || paths.within(root, location) == null) {
-            stateHolder.notify(NoticeTone.HeadsUp, "The selected file is outside the active workspace")
+            stateHolder.tell(EditorNotices.outsideWorkspace(location))
             return
         }
         runCatching {
@@ -74,7 +74,7 @@ internal class DocumentSessionCoordinator(
             recovery.opened(document)
         }.onFailure { error ->
             if (error is NotTextException && announce) stateHolder.emit(ICodeEffect.OpenInOtherApp(location))
-            else stateHolder.report("documents", "Unable to open document", error)
+            else stateHolder.tell(EditorNotices.notOpened(stateHolder.current, location), "documents", error)
         }
     }
 
@@ -101,7 +101,7 @@ internal class DocumentSessionCoordinator(
         if (automatic && (expectedWorkspace != activeRoot() ||
                 !stateHolder.current.isCurrentAutoSaveRequest(location, expectedWorkspace, expectedText))) return false
         if (sourceDocument == null || openDocument == null) {
-            stateHolder.notify(NoticeTone.HeadsUp, "The document is no longer open")
+            stateHolder.tell(EditorNotices.noLongerOpen(stateHolder.current, location))
             return false
         }
         // Changed on disk under these edits: nothing is written until the user picks a version.
@@ -125,11 +125,11 @@ internal class DocumentSessionCoordinator(
             true
         }.onFailure { error ->
             if (error is ChangedOnDiskException) changedUnderEdits(location, openDocument.name)
-            else stateHolder.report("documents", "Unable to save document", error)
+            else stateHolder.tell(EditorNotices.notSaved(stateHolder.current, location), "documents", error)
         }.getOrDefault(false)
         if (!saved) return false
         recovery.saved(location)
-        if (!automatic) stateHolder.notify(NoticeTone.Done, "Saved")
+        if (!automatic) stateHolder.tell(EditorNotices.saved(stateHolder.current, location))
         return true
     }
 
@@ -149,7 +149,7 @@ internal class DocumentSessionCoordinator(
     suspend fun close(location: String, saveChanges: Boolean?) {
         val document = stateHolder.current.openDocuments.firstOrNull { it.location == location } ?: return
         if (document.dirty && saveChanges == null) {
-            stateHolder.notify(NoticeTone.HeadsUp, "Choose Save, Discard or Cancel before closing ${document.name}")
+            stateHolder.tell(EditorNotices.unsavedFirst(stateHolder.current, location))
             return
         }
         if (document.dirty && saveChanges == true && !save(location)) return
@@ -165,7 +165,7 @@ internal class DocumentSessionCoordinator(
     suspend fun closeOthers(keepLocation: String, saveChanges: Boolean?) {
         val others = stateHolder.current.openDocuments.filterNot { it.location == keepLocation }
         if (others.any { it.dirty } && saveChanges == null) {
-            stateHolder.notify(NoticeTone.HeadsUp, "Choose Save, Discard or Cancel before closing dirty tabs")
+            stateHolder.tell(EditorNotices.unsavedTabsFirst(stateHolder.current, others.count { it.dirty }))
             return
         }
         if (saveChanges == true) {
@@ -255,7 +255,7 @@ internal class DocumentSessionCoordinator(
                 DiskDecision.Reload -> disk?.let(::takeDiskVersion)
                 DiskDecision.Ask -> changedUnderEdits(document.location, document.name)
                 DiskDecision.Gone -> if (goneNotified.add(document.location)) {
-                    stateHolder.notify(NoticeTone.Info, "${document.name} was deleted outside iCode; its text stays open here")
+                    stateHolder.tell(EditorNotices.deletedOutside(stateHolder.current, document.location))
                 }
             }
         }
@@ -264,7 +264,7 @@ internal class DocumentSessionCoordinator(
     /** The disk wins: the unsaved edits are dropped, by the user's choice. */
     suspend fun reloadFromDisk(location: String) {
         val disk = runCatching { source.readDocument(location) }.getOrElse { error ->
-            stateHolder.report("documents", "Unable to read the file on disk", error)
+            stateHolder.tell(EditorNotices.diskUnread(stateHolder.current, location), "documents", error)
             return
         }
         takeDiskVersion(disk)
@@ -274,7 +274,7 @@ internal class DocumentSessionCoordinator(
     /** The editor wins: its text is saved over exactly the version now on disk. */
     suspend fun overwriteDisk(location: String) {
         val disk = runCatching { source.readDocument(location) }.getOrElse { error ->
-            stateHolder.report("documents", "Unable to read the file on disk", error)
+            stateHolder.tell(EditorNotices.diskUnread(stateHolder.current, location), "documents", error)
             return
         }
         sources[location] = disk

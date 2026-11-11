@@ -9,7 +9,7 @@ import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.AssistantSettings
 import dev.icode.mobile.domain.ICodeIntent
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.AssistantNotices
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -59,14 +59,14 @@ internal class AssistantProviders(
         val saved = settings().providers.firstOrNull { it.id == intent.id }
         val keySaved = saved?.hasKey == true && saved.kind == intent.kind
         AssistantRules.providerProblem(intent.kind, intent.name, intent.baseUrl, !intent.key.isNullOrBlank(), keySaved, intent.models)
-            ?.let { return stateHolder.notify(NoticeTone.HeadsUp, it) }
+            ?.let { return stateHolder.tell(AssistantNotices.providerRefused(it)) }
         val stored = runCatching {
             store.saveProvider(intent.id, intent.kind, intent.name, AssistantRules.storedBaseUrl(intent.kind, intent.baseUrl), intent.key, intent.models)
         }
-        stored.exceptionOrNull()?.let { return stateHolder.notify(NoticeTone.Problem, "Unable to save the provider", it.message) }
+        stored.exceptionOrNull()?.let { return stateHolder.tell(AssistantNotices.providerNotSaved(intent.name.trim(), it.message)) }
         shown()
         page.state { it.copy(editing = stored.getOrNull(), available = null) }
-        stateHolder.notify(NoticeTone.Done, "${intent.name.trim()} saved")
+        stateHolder.tell(AssistantNotices.providerSaved(intent.name.trim()))
     }
 
     fun remove(id: String) = remember {
@@ -110,7 +110,7 @@ internal class AssistantProviders(
     /** A choice kept, then shown; a failure said. */
     fun remember(change: () -> Unit) {
         runCatching(change).exceptionOrNull()?.let { failure ->
-            scope.launch { stateHolder.notify(NoticeTone.Problem, "Unable to save the assistant's settings", failure.message) }
+            scope.launch { stateHolder.tell(AssistantNotices.settingsNotSaved(failure.message)) }
             return
         }
         shown()

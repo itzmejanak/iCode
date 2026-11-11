@@ -9,6 +9,9 @@ import dev.icode.mobile.data.tasks.TaskRunner
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.notices.Notice
+import dev.icode.mobile.domain.notices.NoticeSource
+import dev.icode.mobile.domain.notices.NoticeTone
 import java.io.File
 import java.nio.file.Files
 import java.util.Collections
@@ -103,7 +106,7 @@ class StorageTransfersTest {
             subject = source.name,
             paths = listOf(source.path, target.path),
             cancellable = true,
-            failure = "Unable to copy",
+            failed = Notice(NoticeTone.Problem, NoticeSource.Files, "Couldn't copy it"),
             work = { progress -> carried = transfers.carry(source, target, cut, progress) },
             finished = { ended.complete(carried) },
         )

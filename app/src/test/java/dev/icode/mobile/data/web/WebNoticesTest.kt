@@ -1,24 +1,27 @@
 package dev.icode.mobile.data.web
 
-import dev.icode.mobile.domain.AppNotice
-import dev.icode.mobile.domain.NoticeLink
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.Notice
+import dev.icode.mobile.domain.notices.NoticeAction
+import dev.icode.mobile.domain.notices.NoticeKeep
+import dev.icode.mobile.domain.notices.NoticeSource
+import dev.icode.mobile.domain.notices.NoticeTone
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class WebNoticesTest {
     private fun read(vararg items: String) = WebJson.notices(JSONObject("""{"notices":[${items.joinToString()}]}"""), now = 42L)
 
-    @Test fun `each level reads as the app's own tone`() {
-        val tones = read(
+    @Test fun `each level reads as the app's own tone, and every one needs the user`() {
+        val notices = read(
             """{"id":"a","title":"A","body":"x","level":"critical"}""",
             """{"id":"b","title":"B","body":"x","level":"warning"}""",
             """{"id":"c","title":"C","body":"x","level":"info"}""",
-        ).map { it.tone }
-        assertEquals(listOf(NoticeTone.Problem, NoticeTone.HeadsUp, NoticeTone.Info), tones)
+        )
+        assertEquals(listOf(NoticeTone.Problem, NoticeTone.HeadsUp, NoticeTone.Info), notices.map { it.tone })
+        assertTrue(notices.all { it.keep == NoticeKeep.NeedsYou && it.source == NoticeSource.Website })
     }
 
     @Test fun `a website notice is kept under web and its id, with its time, body and link`() {
@@ -27,15 +30,15 @@ class WebNoticesTest {
         assertTrue(notice.fromWebsite)
         assertEquals(1_793_347_200_000L, notice.at)
         assertEquals("Builds fail", notice.detail)
-        assertEquals(NoticeLink("https://icodze.vercel.app/notices", "Read more"), notice.link)
+        assertEquals(listOf(NoticeAction.OpenUrl("https://icodze.vercel.app/notices", "Read more")), notice.actions)
     }
 
     @Test fun `no link, or one that is not https, means no button`() {
-        assertNull(read("""{"id":"a","title":"A","body":"x","level":"info","linkUrl":null}""").single().link)
-        assertNull(read("""{"id":"a","title":"A","body":"x","level":"info","linkUrl":"http://x.dev"}""").single().link)
+        assertTrue(read("""{"id":"a","title":"A","body":"x","level":"info","linkUrl":null}""").single().actions.isEmpty())
+        assertTrue(read("""{"id":"a","title":"A","body":"x","level":"info","linkUrl":"http://x.dev"}""").single().actions.isEmpty())
     }
 
-    @Test fun `a phone's own message is not from the website`() {
-        assertTrue(!AppNotice.Message("m1", 1, read = false, tone = NoticeTone.Info, title = "Saved").fromWebsite)
+    @Test fun `a phone's own notice is not from the website`() {
+        assertFalse(Notice(NoticeTone.Info, NoticeSource.Editor, "Saved notes.md").fromWebsite)
     }
 }

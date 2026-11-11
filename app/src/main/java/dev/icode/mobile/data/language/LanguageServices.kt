@@ -14,7 +14,8 @@ import dev.icode.mobile.domain.LanguageService
 import dev.icode.mobile.domain.LanguageServiceConfiguration
 import dev.icode.mobile.domain.LanguageServiceRules
 import dev.icode.mobile.domain.LanguageServiceStatus
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.LanguageNotices
+import dev.icode.mobile.domain.notices.LanguageNotices.Asked
 import dev.icode.mobile.domain.WorkspacePreferencesRepository
 import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
@@ -191,16 +192,17 @@ internal class LanguageServices(
      * (docs/loading-plan.md §4.1) — and its failure said as a notice.
      */
     suspend fun perform(intent: LanguageIntent) {
-        val (title, result) = when (intent) {
-            is LanguageIntent.Save -> "Not saved" to save(intent.configuration)
-            is LanguageIntent.Remove -> "Not removed" to remove(intent.id)
-            is LanguageIntent.Start -> "Not started" to start(intent.id)
-            is LanguageIntent.Stop -> "Not stopped" to stop(intent.id)
-            is LanguageIntent.Restart -> "Not restarted" to restart(intent.id)
-            is LanguageIntent.Install -> "Not installed" to install(intent.command)
+        // Each by its server's name, read before what was asked is done: a removed one has none after.
+        val (asked, server, result) = when (intent) {
+            is LanguageIntent.Save -> Triple(Asked.Save, intent.configuration.name, save(intent.configuration))
+            is LanguageIntent.Remove -> Triple(Asked.Remove, configuration(intent.id)?.name, remove(intent.id))
+            is LanguageIntent.Start -> Triple(Asked.Start, configuration(intent.id)?.name, start(intent.id))
+            is LanguageIntent.Stop -> Triple(Asked.Stop, configuration(intent.id)?.name, stop(intent.id))
+            is LanguageIntent.Restart -> Triple(Asked.Restart, configuration(intent.id)?.name, restart(intent.id))
+            is LanguageIntent.Install -> Triple(Asked.Install, null, install(intent.command))
             else -> return handle(intent)
         }
-        result.onFailure { failure -> stateHolder.notify(NoticeTone.HeadsUp, title, LanguageFailure.wordsOf(failure)) }
+        result.onFailure { failure -> stateHolder.tell(LanguageNotices.notDone(stateHolder.current, asked, server, LanguageFailure.wordsOf(failure))) }
     }
 
     /** A server asked iCode to apply a change to the workspace. */
@@ -221,7 +223,7 @@ internal class LanguageServices(
             languageServices = LanguageServiceRules.rows(configs, shown = emptyList(), changed = null),
             languageServicesLoadError = loaded.exceptionOrNull()?.let { error -> stateHolder.failureText("language", "Unable to load saved services", error) },
         ) }
-        loaded.exceptionOrNull()?.let { error -> scope.launch { stateHolder.report("language", "Unable to load language services", error) } }
+        loaded.exceptionOrNull()?.let { error -> scope.launch { stateHolder.tell(LanguageNotices.notLoaded(), "language", error) } }
     }
 
     companion object {
