@@ -33,8 +33,9 @@ class LanguagePoolTest {
     private val readied = Collections.synchronizedList(mutableListOf<LanguageServerSession>())
     private val events = object : LanguagePool.Events {
         override fun status(id: String, status: LanguageServiceStatus, pid: Int?, message: String?, capabilities: List<String>) {
-            statuses += id to status
+            // The message first: tests wait on statuses, then read messages, so a status seen has its message.
             messages += message
+            statuses += id to status
         }
         override fun failed(id: String, kind: LanguageFailure.Kind, words: String, program: String?, asked: Boolean) {
             failures += kind to asked
@@ -99,7 +100,8 @@ class LanguagePoolTest {
             until("server $crash running") { programs.started.size == crash && pool.ready("a") === readied.lastOrNull() && pool.ready("a") != null }
             programs.started.last().crash(2)
         }
-        until("failed") { statuses.lastOrNull() == ("a" to LanguageServiceStatus.Failed) }
+        // The pool tells the status, then the failure, from its own thread: wait for both.
+        until("failed") { statuses.lastOrNull() == ("a" to LanguageServiceStatus.Failed) && failures.isNotEmpty() }
         assertTrue(messages.last()!!.startsWith("Stopped after 5 exits"))
         assertEquals(listOf(LanguageFailure.Kind.Crashed to false), failures.toList())
         pool.ensure(config("a"), workspace, asked = false)
@@ -127,7 +129,7 @@ class LanguagePoolTest {
     fun `a program missing from the runtime fails with how to install it`() = runBlocking {
         programs.missing = setOf("pylsp")
         pool.ensure(config("p", "pylsp"), workspace, asked = false)
-        until("failed") { statuses.lastOrNull() == ("p" to LanguageServiceStatus.Failed) }
+        until("failed") { statuses.lastOrNull() == ("p" to LanguageServiceStatus.Failed) && failures.isNotEmpty() }
         assertEquals("pylsp is not in the Linux runtime. Install it in a terminal: sudo apt install -y python3-pylsp", messages.last())
         assertTrue(programs.started.isEmpty())
         assertEquals(listOf(LanguageFailure.Kind.Missing to false), failures.toList())
