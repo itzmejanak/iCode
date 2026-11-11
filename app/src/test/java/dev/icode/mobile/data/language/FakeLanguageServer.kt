@@ -63,6 +63,9 @@ internal class FakeServer(
     /** Tells iCode [method] with [params], as a server's notification. */
     fun notifyClient(method: String, params: String) = LspFraming.write(toClient.output, """{"jsonrpc":"2.0","method":"$method","params":$params}""")
 
+    /** Asks iCode [method] with no params, as a server's request numbered [id]. */
+    fun askClient(id: Int, method: String) = LspFraming.write(toClient.output, """{"jsonrpc":"2.0","id":$id,"method":"$method"}""")
+
     /** The process ends with [code], as a crash would end it. */
     fun crash(code: Int = 1) = end(code)
 

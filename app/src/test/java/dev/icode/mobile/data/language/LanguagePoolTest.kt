@@ -50,6 +50,7 @@ class LanguagePoolTest {
         override fun progress(session: LanguageServerSession, words: String?) = Unit
         override fun capabilitiesChanged(session: LanguageServerSession) = Unit
         override fun refreshDiagnostics(session: LanguageServerSession) = Unit
+        override fun refreshSemanticTokens(session: LanguageServerSession) = Unit
         override suspend fun applyEdit(session: LanguageServerSession, edit: JsonObject): Boolean = false
     }
     private val pool = LanguagePool(scope, programs, uris, { emptyMap() }, client, events, backoff = longArrayOf(10, 10, 10, 10, 10))

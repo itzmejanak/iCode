@@ -53,7 +53,8 @@ internal class LanguageServices(
     val features = LanguageRequests(stateHolder, documents, diagnostics, pool, uris, hosts)
     /** What the editor asks as it is typed in: completions, and semantic tokens for its colours. */
     val completions: LanguageCompletions get() = features
-    val highlights: LanguageHighlights = LanguageSemanticTokens(stateHolder, documents, pool)
+    val semanticTokens = LanguageSemanticTokens(stateHolder, documents, pool)
+    val highlights: LanguageHighlights get() = semanticTokens
     private val answers = LanguageAnswers(stateHolder, scope, features)
 
     fun start() {

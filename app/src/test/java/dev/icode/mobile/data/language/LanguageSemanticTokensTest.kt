@@ -13,10 +13,13 @@ import java.nio.file.Files
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.yield
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.After
@@ -74,6 +77,19 @@ class LanguageSemanticTokensTest {
         assertEquals(listOf(SemanticToken(0, 4, 1, "parameter", setOf("declaration"))), second.tokens)
         val delta = server.sent("textDocument/semanticTokens/full/delta").single()["params"]!!.jsonObject
         assertEquals("1", delta["previousResultId"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `a server asking for its tokens again has every editor ask`() = runBlocking {
+        val programs = FakePrograms(OFFERING)
+        val services = started(programs)
+        val server = programs.started.single()
+        val workspace = server.sent("initialize").single()["params"]!!.jsonObject["capabilities"]!!.jsonObject["workspace"]!!.jsonObject
+        assertEquals("true", workspace["semanticTokens"]!!.jsonObject["refreshSupport"]!!.jsonPrimitive.content)
+        val refreshed = async { services.highlights.refreshes.first() }
+        yield()
+        server.askClient(77, "workspace/semanticTokens/refresh")
+        withTimeout(10_000) { refreshed.await() }
     }
 
     @Test

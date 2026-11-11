@@ -37,7 +37,7 @@ commit. What is left is the owner's phone check (A8) and the open items at the e
 - **The theme is built at run time** from the palette, so every theme and accent colours code.
 - **The grammars are pinned and recorded**, and the tests catch drift.
 
-### 1.3 What stands now (after S8, 600e120)
+### 1.3 What stands now (after S8)
 
 | Piece | Where | What it does |
 |---|---|---|
@@ -69,7 +69,7 @@ Stability, Performance.
 | G7 | **No limits for large or minified files.** The editor opens text up to 5 MiB (`WorkspaceFileSource.MAX_TEXT_BYTES`) and colours all of it. A minified line is tokenized for up to 2 s (`LINE_TIME`) before tm4e gives up, and the analyzer keeps a state per line. VS Code stops tokenizing a line past 20 000 characters and skips colouring very large files. | `CodeEditorSession`, Sora defaults | Performance; Stability |
 | G8 | **Thread safety is not established.** `textMateRuns` tokenizes on `Dispatchers.Default` with the same `IGrammar` objects Sora's analyzer threads use. tm4e compiles rules lazily on first use. No test shows two threads tokenizing one grammar safely. | `TextMateCode.kt` | Reliability. S1 confirmed it: a grammar shared by two threads gives wrong scopes and throws (§3.7, S1 measurements) |
 | G9 | **Coverage gaps, missing and partial.** *Missing:* no grammar for TOML (`Cargo.toml`, `pyproject.toml`), Vue, Svelte, Protobuf, Terraform/HCL, GraphQL, Haskell, Scala, R, Perl, PowerShell, CMake, Nix, Zig, Elixir, JSON5 or CSV, and many more of the text types the icon theme names (`file-icons/theme.json`: 200 language ids, 1391 extensions, 2156 file names). `FileTypes` has no rule for most of these, so they open as plain text. Another 34 scopes that shipped grammars embed are listed as not shipped (`GrammarAssetsTest.NOT_SHIPPED`). *Partial:* some shipped grammars leave large parts of a file plain. Dockerfile (`source.dockerfile`) colours only instruction keywords and quoted strings: `FROM` image names, `ARG`/`ENV` `KEY=value`, the shell commands after `RUN`, flags such as `--from=`, and `EXPOSE` port numbers stay plain. dotenv colours key, value, `export` and interpolation, but numbers and booleans in values stay plain string. No test notices text left without a role. | `FileTypes.kt`, assets, tests | Scalability; Inconsistency |
-| G10 | **No semantic colouring.** The language servers iCode already runs (pyright, clangd, gopls, the TypeScript server) can send semantic tokens, telling a parameter from a field from a type. iCode never asks for them. | `data/language` | Accuracy (later; §3.3) |
+| G10 | **No semantic colouring.** Some of the language servers iCode already runs (clangd and the TypeScript server; gopls once its `semanticTokens` setting is on) can send semantic tokens, telling a parameter from a field from a type. iCode never asks for them. | `data/language` | Accuracy (later; §3.3) |
 | G11 | **Colouring failures are mostly silent.** A grammar that fails sets `coloringError` and logs. A file colouring had to skip says nothing. | `CodeEditorSession` | Reliability (the user cannot tell "no grammar" from "broken") |
 
 ## 3. Decisions
@@ -312,7 +312,7 @@ Sora 0.24.6 lets iCode set every limit without its own analyzer:
 | **S4: role spans and one read-only path** | `tokens()` and `rememberSyntax()`; LRU cache; Markdown fences moved over; `textMateRuns` and its internal imports gone | G1, G2, G3, G8 | No `org.eclipse.tm4e.core.internal` import (guard rule); a palette change re-tokenizes nothing (test) |
 | **S5: code everywhere** | The diff view, change sheet, conflict resolution and assistant file previews coloured through `rememberSyntax` | G4 | The same file's lines get the same roles in the editor and in its diff (test on spans) |
 | **S6: full coverage** | Every text file type colours, and colours fully (Q3, §4.1). | G9 | A9 and A10 green; every new scope placed in `SyntaxScopes`; include closure test green |
-| **S7: semantic tokens** (optional) | LSP `textDocument/semanticTokens/full` and its delta form, laid over TextMate; token type → role table; setting | G10 | With pyright: parameters and properties coloured apart; without a server, unchanged |
+| **S7: semantic tokens** (optional) | LSP `textDocument/semanticTokens/full` and its delta form, laid over TextMate; token type → role table; setting | G10 | With clangd or the TypeScript server: parameters and properties coloured apart; without a server that offers tokens, unchanged |
 | **S8: docs** | This record, `editor-plan.md`, `editor-colors-plan.md`, provenance, `layout.md` where the editor's note appears, CHANGELOG | None | None |
 
 Each cycle is its own commit, with the full gate and both guards run before it. A new backend guard
@@ -580,9 +580,10 @@ are met; A8 is left for the owner.
   a gap too. The first run left 3 115 tokens without a role in 229 samples; most were names, which
   stay plain by design.
   Fixed at the root: Rel, CMake and Tcl had no rule for numbers; the script now adds one (EDITS,
-  `numbers`). SyntaxScopes places the new grammars' scopes in existing roles: `support.operator`
-  (Plain, as `keyword.operator`), `support.tag` (Tag), `support.other` (Type) and Agda's pragmas
-  (Keyword, as a preprocessor line).
+  `numbers`). SyntaxScopes places the new grammars' scopes in existing roles: Haskell's
+  `support.operator.prelude` (Plain, as `keyword.operator`) and `support.tag.prelude` (Tag), Cabal's
+  section names (`source.cabal support.other`, Type, scoped to Cabal so no other `support.other.*`
+  changes) and Agda's pragmas (Keyword, as a preprocessor line).
   Coverage (A9): the script now reads CSON and YAML grammars and converts them to JSON (stdlib only;
   checked to match CoffeeScript's `cson-parser` 4.0.9 and PyYAML 6.0.2 on every converted file and on
   all 70 language-etc grammars). That ships the 36 file types `FileTypeCoverageTest` exempted as CSON
@@ -614,7 +615,9 @@ are met; A8 is left for the owner.
   server answers deltas, and the whole file again when a delta fails. An answer for text the server no
   longer has is dropped. With no such server nothing is sent, not even the file's pending change.
   `LspSemanticTokens` decodes the integers and applies deltas. The editor asks when the file's grammar
-  has loaded, when a running server starts or changes what it offers, and 500 ms after typing stops;
+  has loaded, when a running server starts or changes what it offers, when a server asks it to
+  (`workspace/semanticTokens/refresh`, for a server whose analysis finished after its first answer),
+  and 500 ms after typing stops;
   each question cancels the last, and a server gets 5 s. Files with no grammar, or past the limits, are
   not asked about. `ui/syntax/SemanticRoles` is the table: VS Code's own defaults at 307b60e7 (token type
   and modifiers to TextMate scopes, such as `parameter` to `variable.parameter` and `readonly` variables
@@ -635,7 +638,10 @@ are met; A8 is left for the owner.
   `SemanticRolesTest` (every standard type but `label` and `modifier` has a role; parameter and property
   differ), `SemanticLinesTest` (runs on unchanged lines only, edits, the overlay on Sora's spans) and
   `EditorSemanticTokensTest` (setting off, no server, no grammar: nothing asked; typing asks once it
-  stops). Not yet seen on the owner's phone with pyright. Tests: 1 725, up from 1 707.
+  stops). Not yet seen on the owner's phone. Of the presets, clangd and the TypeScript server offer
+  tokens as installed; gopls offers them only with its `semanticTokens` setting on, and pyright and
+  pylsp offer none (pyright 1.1.414's `initialize` answer has no `semanticTokensProvider`; Python's
+  semantic colours are a Pylance feature, which basedpyright reimplements). Tests: 1 725, up from 1 707.
 - S8: docs. §1.3 says what stands now and §5 which acceptance criteria are met.
   `editor-colors-plan.md`, `editor-plan.md`, `markdown-rendering-plan.md`, `lsp-plan.md`,
   `layout.md` and the provenance doc's opening no longer describe `TextMateAssets`, eager loading or
@@ -658,11 +664,21 @@ On the owner's phone, since no device was available to the build:
 - `EditorColoursDeviceTest` on the phone's engine, for the patterns joni rejects on the JVM (176 in
   the samples; Ruby's block parameters among them). It is an instrumented run, so it needs the
   owner's OK first (§6 of `editor-colors-plan.md` records why).
-- S7 with pyright on a `.py` file: parameters and properties colour apart, over the grammar's
-  colours; a line being typed returns to the grammar's colours until about 0.5 s after typing stops,
-  with no flicker elsewhere; a large file with tokens scrolls smoothly; turning the setting off
-  restores the grammar's colours at once; pylsp, which offers no tokens, changes nothing; clangd,
-  gopls and the TypeScript server colour sensibly.
+- S7 with clangd on a C or C++ file, or the TypeScript server on a `.ts` file: parameters and
+  properties colour apart, over the grammar's colours; a line being typed returns to the grammar's
+  colours until about 0.5 s after typing stops, with no flicker elsewhere; a large file with tokens
+  scrolls smoothly; turning the setting off restores the grammar's colours at once; pyright and
+  pylsp, which offer no tokens, change nothing; gopls with `semanticTokens` on colours sensibly.
+
+For the owner to decide:
+
+- Python and semantic colours: the Python (Pyright) preset offers no semantic tokens, so the
+  setting changes nothing in `.py` files. Should the preset move to basedpyright (which offers
+  them), should basedpyright be added as a second Python preset, or should Python stay as it is?
+- gopls sends tokens only with its `semanticTokens` setting on. Should the gopls preset turn it on?
+- A Dockerfile whose `# escape=` directive picks the backtick: its continued lines colour as new
+  instructions (recorded in the provenance doc). Is that gap acceptable, or should the grammar
+  carry a second set of instruction rules for it?
 
 Left as they are, each with its reason in its cycle above:
 

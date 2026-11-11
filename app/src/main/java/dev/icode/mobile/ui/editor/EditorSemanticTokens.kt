@@ -34,7 +34,7 @@ internal class EditorSemanticTokens(
             refresh()
         }
 
-    /** The editor setting (Settings › Editor › Semantic Colouring). */
+    /** The editor setting (Settings › Editor › Semantic Highlighting). */
     var enabled: Boolean = true
         set(value) {
             if (field == value) return

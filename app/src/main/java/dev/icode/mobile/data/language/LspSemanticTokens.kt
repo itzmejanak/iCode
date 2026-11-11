@@ -37,7 +37,8 @@ internal object LspSemanticTokens {
      */
     fun dataOf(result: JsonElement?, previous: IntArray?): Data? {
         val answer = result as? JsonObject ?: return null
-        val resultId = (answer["resultId"] as? JsonPrimitive)?.content
+        // `"resultId": null` is no id, not the id "null".
+        val resultId = LanguageJson.string(answer, "resultId")
         (answer["data"] as? JsonArray)?.let { return Data(resultId, ints(it)) }
         val edits = answer["edits"] as? JsonArray ?: return null
         return Data(resultId, applied(previous ?: return null, edits) ?: return null)

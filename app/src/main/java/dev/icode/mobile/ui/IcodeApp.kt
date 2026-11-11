@@ -116,6 +116,9 @@ fun IcodeApp(
             snapshot.languageServices.filter { it.status == LanguageServiceStatus.Running }.map { it.id to it.capabilities }
         }
         LaunchedEffect(editorSessions, servers) { editorSessions.languageServersChanged() }
+        LaunchedEffect(editorSessions, gateway) {
+            gateway.languageHighlights.refreshes.collect { editorSessions.languageServersChanged() }
+        }
         // Until the settings load, the palette stands in; the editor's theme is built for the real one.
         LaunchedEffect(editorSessions, palette, preferences.loaded) {
             if (preferences.loaded) editorSessions.applyPalette(palette)

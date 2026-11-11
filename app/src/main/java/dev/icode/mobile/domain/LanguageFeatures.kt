@@ -1,5 +1,8 @@
 package dev.icode.mobile.domain
 
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
+
 // What the editor and the pages ask the language servers (docs/lsp-plan.md §5.5, §7): each answer in
 // iCode's own types, never the protocol's JSON.
 
@@ -77,6 +80,9 @@ interface LanguageHighlights {
      * null, with nothing asked, when none does, and null when it did not answer in time.
      */
     suspend fun semanticTokens(location: String): SemanticTokens?
+
+    /** Each time a server asks for its tokens to be asked again (`workspace/semanticTokens/refresh`). */
+    val refreshes: Flow<Unit> get() = emptyFlow()
 
     companion object {
         val None = object : LanguageHighlights {

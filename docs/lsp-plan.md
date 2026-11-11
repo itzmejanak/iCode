@@ -456,7 +456,7 @@ Only what is built in the same cycle is advertised. The list grows L5 → L9.
 - `semanticTokens` (added by [syntax-highlighting-plan.md](./syntax-highlighting-plan.md) S7):
   `full` with `delta`, no `range`, the protocol's standard token types and modifiers, the
   `relative` format, no overlapping or multi-line tokens, `augmentsSyntaxTokens`; and
-  `workspace.semanticTokens.refreshSupport: false`
+  `workspace.semanticTokens.refreshSupport: true` (a refresh asks every open editor again)
 
 ### 5.6 Speed
 

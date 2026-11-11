@@ -51,8 +51,8 @@ internal object LspMessages {
             putJsonObject("didChangeConfiguration") { put("dynamicRegistration", false) }
             putJsonObject("symbol") { put("dynamicRegistration", true) }
             putJsonObject("diagnostics") { put("refreshSupport", true) }
-            // The editor asks again as the file is edited; a server's own call to ask is not answered.
-            putJsonObject("semanticTokens") { put("refreshSupport", false) }
+            // The editor asks again as the file is edited, and when a server asks it to (its analysis finished).
+            putJsonObject("semanticTokens") { put("refreshSupport", true) }
         }
         putJsonObject("textDocument") {
             putJsonObject("synchronization") { put("dynamicRegistration", true); put("didSave", true); put("willSave", false) }

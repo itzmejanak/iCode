@@ -78,4 +78,9 @@ class LspSemanticTokensTest {
         assertNull(LspSemanticTokens.dataOf(json("""{"edits":[]}"""), null))
         assertNull(LspSemanticTokens.dataOf(null, null))
     }
+
+    @Test
+    fun `a null resultId is no id`() {
+        assertNull(LspSemanticTokens.dataOf(json("""{"resultId":null,"data":[0,0,1,0,0]}"""), null)!!.resultId)
+    }
 }

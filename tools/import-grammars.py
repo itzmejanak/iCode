@@ -367,7 +367,9 @@ KEPT = {
         "instruction is scoped (the image, its tag and digest, the stage name, `--flag=value` options, ARG, ENV and LABEL "
         "keys and values, EXPOSE ports and protocols, `$VAR` and `${VAR:-default}`, parser directives, heredocs, the exec "
         "form's JSON array), and the shell form of RUN, CMD, ENTRYPOINT and HEALTHCHECK CMD, and RUN heredocs, embed "
-        "`source.shell`"),
+        "`source.shell`. Known gap: a line continues only after a backslash, so in a file whose `# escape=` directive picks the backtick "
+        "each line continued with a backtick is read as a new instruction (a grammar cannot carry the directive "
+        "through the file, and taking a backtick everywhere would break the shell's own backticks at a line's end)"),
     "textmate/dotenv/syntaxes/dotenv.tmLanguage.json": (
         "iCode's grammar, written from dotenv-org's (which reads each line with one pattern): a value may be unquoted, "
         "single-, double- or backtick-quoted, and quoted values may span lines; an unquoted number is a number and "

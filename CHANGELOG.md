@@ -199,12 +199,12 @@ All notable changes to iCode are documented here. The format follows
   stage name, flags such as `--from=` and `--platform=`, ARG, ENV and LABEL keys and values, EXPOSE
   ports, variables and the shell commands after RUN, CMD and ENTRYPOINT are all coloured; in a `.env`
   file, numbers, `true` and `false`, variables and values that span lines too. Every language was
-  checked with a sample file. The newest languages include subtitles (`.srt`, `.vtt`),
+  checked with a sample file, and the words a language leaves plain on purpose are recorded with
+  their reasons. The newest languages include subtitles (`.srt`, `.vtt`),
   checksum lists, Cabal, Meson, Nunjucks, XQuery, YANG, PlantUML, Slint, Visual Studio solutions,
-  `robots.txt`, `hosts` and `.mailmap`, and Javadoc inside Groovy comments now colours. The words a language
-  leaves plain on purpose are listed with their reasons in `SyntaxSamples`.
+  `robots.txt`, `hosts` and `.mailmap`, and Javadoc inside Groovy comments now colours.
 - A language server that offers semantic tokens now colours code by what each name is (S7): with
-  pyright, for example, a parameter and a property colour apart. Its colours lie over the grammar's,
+  clangd or the TypeScript server, for example, a parameter and a property colour apart. Its colours lie over the grammar's,
   in the same theme colours, and follow typing after a short pause. Settings › Editor › Semantic
   Highlighting turns it off; without such a server nothing changes.
 - Notifications say what happened and where ([docs/notices-redesign-plan.md](docs/notices-redesign-plan.md)).

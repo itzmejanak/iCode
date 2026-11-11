@@ -5,6 +5,9 @@ import dev.icode.mobile.domain.LanguageHighlights
 import dev.icode.mobile.domain.SemanticTokens
 import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -24,6 +27,14 @@ internal class LanguageSemanticTokens(
     private class Last(val serviceId: String, val resultId: String, val data: IntArray)
 
     private val last = ConcurrentHashMap<String, Last>()
+    private val asked = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
+
+    override val refreshes: SharedFlow<Unit> = asked
+
+    /** A server asked for its tokens again: every editor asks at once. */
+    fun refresh() {
+        asked.tryEmit(Unit)
+    }
 
     override suspend fun semanticTokens(location: String): SemanticTokens? {
         val open = stateHolder.current.openDocuments.map { it.location }.toSet()
