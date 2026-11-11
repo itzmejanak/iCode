@@ -1,8 +1,8 @@
 package dev.icode.mobile.domain
 
 import dev.icode.mobile.domain.files.ArchiveFormat
+import dev.icode.mobile.domain.syntax.Languages
 import java.io.File
-import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -10,17 +10,17 @@ import org.junit.Test
 
 class FileTypesTest {
     @Test fun `react extensions select react grammars`() {
-        assertEquals("source.tsx", FileTypes.of("App.tsx").grammar)
-        assertEquals("source.js.jsx", FileTypes.of("View.jsx").grammar)
+        assertEquals("typescriptreact", FileTypes.of("App.tsx").language)
+        assertEquals("javascriptreact", FileTypes.of("View.jsx").language)
     }
 
     @Test fun `a fence's language by id or extension`() {
         val cases = mapOf(
-            "kotlin" to "source.kotlin", "kt" to "source.kotlin", "Python" to "source.python", "py" to "source.python",
-            "bash" to "source.shell", "sh" to "source.shell", "shell" to "source.shell", "ts" to "source.ts", "tsx" to "source.tsx",
-            "json" to "source.json", "yml" to "source.yaml", "c++" to "source.cpp", "diff" to "source.diff", "dockerfile" to "source.dockerfile",
+            "kotlin" to "kotlin", "kt" to "kotlin", "Python" to "python", "py" to "python",
+            "bash" to "shellscript", "sh" to "shellscript", "shell" to "shellscript", "ts" to "typescript", "tsx" to "typescriptreact",
+            "json" to "json", "yml" to "yaml", "c++" to "cpp", "diff" to "diff", "dockerfile" to "dockerfile",
         )
-        cases.forEach { (language, grammar) -> assertEquals(language, grammar, FileTypes.ofLanguage(language).grammar) }
+        cases.forEach { (fence, language) -> assertEquals(fence, language, FileTypes.ofLanguage(fence).language) }
         assertEquals(FileTypes.PlainText, FileTypes.ofLanguage("text"))
         assertEquals(FileTypes.PlainText, FileTypes.ofLanguage("mermaid"))
     }
@@ -51,7 +51,7 @@ class FileTypesTest {
 
     @Test fun `case does not matter`() {
         assertEquals(FileTypes.Markdown, FileTypes.of("README.MD"))
-        assertEquals("source.kotlin", FileTypes.of("Build.KTS").grammar)
+        assertEquals("kotlin", FileTypes.of("Build.KTS").language)
     }
 
     @Test fun `each type has a family for the lists`() {
@@ -73,7 +73,7 @@ class FileTypesTest {
     @Test fun `text is what the editor opens, the other kinds are their formats' bytes`() {
         listOf("Main.kt", "package.json", "notes.md", "LICENSE", "table.csv", "logo.svg").forEach { assertTrue(it, FileTypes.of(it).text) }
         listOf("photo.jpg", "clip.mp4", "paper.pdf", "letter.docx", "site.zip", "app.apk", "font.otf", "lib.so").forEach { assertFalse(it, FileTypes.of(it).text) }
-        assertTrue(FileTypes.rules.all { it.type.grammar == null || it.type.text })
+        assertTrue(FileTypes.rules.all { it.type.language == null || it.type.text })
     }
 
     @Test fun `archives are the endings Extract reads, an app package an app first`() {
@@ -116,11 +116,10 @@ class FileTypesTest {
         assertEquals(FileTypes.rules.map { it.type.id }.size, FileTypes.rules.map { it.type.id }.toSet().size)
     }
 
-    @Test fun `every grammar a file type names is shipped`() {
-        val registry = JSONObject(File("src/main/assets/textmate/languages.json").readText()).getJSONArray("languages")
-        val shipped = (0 until registry.length()).map { registry.getJSONObject(it).getString("scopeName") }.toSet()
-        val named = FileTypes.rules.mapNotNull { it.type.grammar }.toSet()
-        assertEquals(emptySet<String>(), named - shipped)
+    @Test fun `every language a file type names is in the catalog`() {
+        val catalog = Languages.parse(File("src/main/assets", Languages.ASSET).readText())
+        val named = FileTypes.rules.mapNotNull { it.type.language }.toSet()
+        assertEquals(emptySet<String>(), named.filter { catalog.byId(it) == null }.toSet())
         assertTrue(named.isNotEmpty())
     }
 

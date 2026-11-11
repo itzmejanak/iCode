@@ -51,7 +51,7 @@ import kotlinx.coroutines.withContext
 internal fun MarkdownCodeBlock(block: MarkdownBlock.Code, type: MarkdownType, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val gateway = LocalICodeGateway.current
-    val runs = codeRuns(block.language?.let { FileTypes.ofLanguage(it).grammar }, block.text)
+    val runs = codeRuns(block.language?.let { FileTypes.ofLanguage(it).language }, block.text)
     val code = remember(block.text, runs) {
         buildAnnotatedString {
             append(block.text)
@@ -85,15 +85,17 @@ internal fun MarkdownCodeBlock(block: MarkdownBlock.Code, type: MarkdownType, mo
     }
 }
 
-/** [code]'s colours by grammar [scope], off the main thread, again when the palette changes; null until they are. */
+/** [code]'s colours as the catalog's [language], off the main thread, again when the palette changes; null until they are. */
 @Composable
-private fun codeRuns(scope: String?, code: String): List<CodeRun>? {
+private fun codeRuns(language: String?, code: String): List<CodeRun>? {
     val context = LocalContext.current
     val palette = LocalIcodePalette.current
     var loaded by remember { mutableStateOf(TextMateAssets.grammarsReady) }
-    if (!loaded && scope != null) LaunchedEffect(Unit) { TextMateAssets.whenGrammarsLoaded(context) { failure -> loaded = failure == null } }
-    val runs by produceState<List<CodeRun>?>(null, scope, code, loaded, palette) {
-        value = if (loaded && scope != null) withContext(Dispatchers.Default) { runCatching { textMateRuns(scope, code) }.getOrNull() } else null
+    if (!loaded && language != null) LaunchedEffect(Unit) { TextMateAssets.whenGrammarsLoaded(context) { failure -> loaded = failure == null } }
+    val runs by produceState<List<CodeRun>?>(null, language, code, loaded, palette) {
+        value = if (loaded && language != null) {
+            withContext(Dispatchers.Default) { runCatching { textMateRuns(TextMateAssets.scopeOf(language), code) }.getOrNull() }
+        } else null
     }
     return runs
 }

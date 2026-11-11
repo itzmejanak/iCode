@@ -2,9 +2,9 @@ package dev.icode.mobile.ui.editor
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import dev.icode.mobile.domain.syntax.Languages
 import org.eclipse.tm4e.core.internal.oniguruma.impl.onig.NativeOnigConfig
 import org.eclipse.tm4e.core.registry.IGrammarSource
-import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -20,13 +20,9 @@ class EditorColoursDeviceTest {
     @Test fun everyLanguagesTokensTakeTheirRolesColourOnEveryTheme() {
         assertTrue("native Oniguruma is what the editor runs on", NativeOnigConfig.isAvailable())
         val assets = InstrumentationRegistry.getInstrumentation().targetContext.assets
-        val languages = JSONObject(assets.open("textmate/languages.json").reader().readText()).getJSONArray("languages")
-        val paths = (0 until languages.length()).associate { index ->
-            val entry = languages.getJSONObject(index)
-            entry.getString("scopeName") to entry.getString("grammar")
-        }
-        val wrong = EditorColours.wrong({ scope ->
-            paths[scope]?.let { path -> IGrammarSource.fromInputStream(assets.open(path), path, null) }
+        val catalog = Languages.parse(assets.open(Languages.ASSET).reader().use { it.readText() })
+        val wrong = EditorColours.wrong(catalog, { scope ->
+            catalog.byScope(scope)?.grammar?.let { path -> IGrammarSource.fromInputStream(assets.open(path), path, null) }
         }, oniguruma = true)
         assertEquals("", wrong.joinToString("\n"))
     }

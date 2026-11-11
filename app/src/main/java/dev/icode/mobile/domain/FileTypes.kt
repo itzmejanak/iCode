@@ -9,11 +9,12 @@ import dev.icode.mobile.domain.files.ArchiveFormat
 enum class FileFamily { Code, Data, Document, Image, Video, Audio, Archive, App, Binary }
 
 /**
- * A kind of file: the TextMate grammar the editor colours it with, if one is shipped, its family,
- * and whether it is [text] — what the editor opens — or bytes of a format of their own. Only
- * [FileTypes] makes them (docs/file-kinds-icons-plan.md D1).
+ * A kind of file: the [language] the editor colours it as, by its id in the language catalog
+ * ([dev.icode.mobile.domain.syntax.Languages]), if one is shipped, its family, and whether it is
+ * [text] — what the editor opens — or bytes of a format of their own. Only [FileTypes] makes them
+ * (docs/file-kinds-icons-plan.md D1).
  */
-data class FileType(val id: String, val family: FileFamily, val grammar: String?, val text: Boolean = true)
+data class FileType(val id: String, val family: FileFamily, val language: String?, val text: Boolean = true)
 
 /**
  * The one answer to "what kind of file is this?" — for the editor's colours, the explorers, their
@@ -30,7 +31,7 @@ data class FileType(val id: String, val family: FileFamily, val grammar: String?
  */
 object FileTypes {
     val PlainText = FileType("plaintext", FileFamily.Document, null)
-    val Markdown = FileType("markdown", FileFamily.Document, "text.html.markdown")
+    val Markdown = FileType("markdown", FileFamily.Document, "markdown")
     val Image = FileType("image", FileFamily.Image, null, text = false)
     val Video = FileType("video", FileFamily.Video, null, text = false)
     val Audio = FileType("audio", FileFamily.Audio, null, text = false)
@@ -52,48 +53,48 @@ object FileTypes {
     )
 
     internal val rules: List<Rule> = listOf(
-        code("kotlin", "source.kotlin", "kt kts"),  // Sora Editor's grammar; VS Code has no Kotlin
-        code("java", "source.java", "java jav"),
-        code("python", "source.python", "py rpy pyw cpy gyp gypi pyi ipy pyt", names = "sconstruct sconscript", firstLine = """^#!\s*/?.*\bpython[0-9.-]*\b"""),
+        code("kotlin", "kotlin", "kt kts"),  // Sora Editor's grammar; VS Code has no Kotlin
+        code("java", "java", "java jav"),
+        code("python", "python", "py rpy pyw cpy gyp gypi pyi ipy pyt", names = "sconstruct sconscript", firstLine = """^#!\s*/?.*\bpython[0-9.-]*\b"""),
         // Before JavaScript: its `\bnode` also matches `ts-node`.
-        code("typescript", "source.ts", "ts cts mts", firstLine = """^#!.*\b(deno|bun|ts-node)\b"""),
-        code("javascript", "source.js", "js es6 mjs cjs pac", names = "jakefile", firstLine = """^#!.*\bnode"""),
-        code("javascriptreact", "source.js.jsx", "jsx"),
-        code("typescriptreact", "source.tsx", "tsx"),
-        code("html", "text.html.basic", "html htm shtml xhtml xht mdoc jsp asp aspx jshtm volt ejs rhtml"),
-        code("xml", "text.xml", "xml xsd ascx atom axml axaml bpmn cpt csl csproj csproj.user dita ditamap dtd ent mod dtml fsproj fxml iml isml jmx launch menu mxml nuspec opml owl proj props pt publishsettings pubxml pubxml.user rbxlx rbxmx rdf rng rss shproj slnx storyboard svg targets tld tmx vbproj vbproj.user vcxproj vcxproj.filters wixproj wsdl wxi wxl wxs xaml xbl xib xlf xliff xpdl xul xoml", firstLine = """(\<\?xml.*)|(\<svg)|(\<\!doctype\s+svg)"""),
-        code("xsl", "text.xml.xsl", "xsl xslt"),
-        code("css", "source.css", "css"),
-        code("scss", "source.css.scss", "scss"),
-        code("less", "source.css.less", "less"),
-        code("shell", "source.shell", "sh bash bashrc bash_aliases bash_profile bash_login ebuild eclass profile bash_logout xprofile xsession xsessionrc zsh zshrc zprofile zlogin zlogout zshenv zsh-theme fish ksh csh cshrc tcshrc yashrc yash_profile", names = "apkbuild pkgbuild .envrc .hushlogin zshrc zshenv zlogin zprofile zlogout bashrc_apple_terminal zshrc_apple_terminal", firstLine = """^#!.*\b(bash|fish|zsh|sh|ksh|dtksh|pdksh|mksh|ash|dash|yash|sh|csh|jcsh|tcsh|itcsh).*|^#\s*-\*-[^*]*mode:\s*shell-script[^*]*-\*-"""),
-        code("bat", "source.batchfile", "bat cmd"),
-        code("rust", "source.rust", "rs"),
-        code("go", "source.go", "go"),
-        code("c", "source.c", "c i"),
-        code("cpp", "source.cpp", "cpp cppm cc ccm cxx cxxm c++ c++m hpp hh hxx h++ h ii ino inl ipp ixx mpp mxx tpp txx hpp.in h.in"),
-        code("csharp", "source.cs", "cs csx cake"),
-        code("php", "text.html.php", "php php4 php5 phtml ctp", firstLine = """^#!\s*/.*\bphp\b"""),
-        code("ruby", "source.ruby", "rb rbx rjs gemspec rake ru erb podspec rbi", names = "rakefile gemfile guardfile podfile capfile cheffile hobofile vagrantfile appraisals rantfile berksfile berksfile.lock thorfile puppetfile dangerfile brewfile fastfile appfile deliverfile matchfile scanfile snapfile gymfile", firstLine = """^#!\s*/.*\bruby\b"""),
-        code("swift", "source.swift", "swift"),
-        code("dart", "source.dart", "dart"),
-        code("lua", "source.lua", "lua"),
-        code("groovy", "source.groovy", "groovy gvy gradle jenkinsfile nf", names = "jenkinsfile", prefixes = "jenkinsfile", firstLine = """^#!.*\bgroovy\b"""),
-        code("sql", "source.sql", "sql dsql"),
-        code("dockerfile", "source.dockerfile", "dockerfile containerfile", names = "dockerfile containerfile", prefixes = "dockerfile. containerfile."),
-        code("makefile", "source.makefile", "mak mk", names = "makefile gnumakefile ocamlmakefile", firstLine = """^#!\s*/usr/bin/make"""),
-        data("json", "source.json", "json bowerrc jscsrc webmanifest js.map css.map ts.map har jslintrc jsonld geojson ipynb vuerc jsonc eslintrc eslintrc.json jsfmtrc jshintrc swcrc hintrc babelrc toolset.jsonc code-snippets tsbuildinfo", names = "composer.lock .watchmanconfig babel.config.json bun.lock .babelrc.json .ember-cli typedoc.json tsconfig.json jsconfig.json"),
-        data("jsonl", "source.json.lines", "jsonl ndjson"),
+        code("typescript", "typescript", "ts cts mts", firstLine = """^#!.*\b(deno|bun|ts-node)\b"""),
+        code("javascript", "javascript", "js es6 mjs cjs pac", names = "jakefile", firstLine = """^#!.*\bnode"""),
+        code("javascriptreact", "javascriptreact", "jsx"),
+        code("typescriptreact", "typescriptreact", "tsx"),
+        code("html", "html", "html htm shtml xhtml xht mdoc jsp asp aspx jshtm volt ejs rhtml"),
+        code("xml", "xml", "xml xsd ascx atom axml axaml bpmn cpt csl csproj csproj.user dita ditamap dtd ent mod dtml fsproj fxml iml isml jmx launch menu mxml nuspec opml owl proj props pt publishsettings pubxml pubxml.user rbxlx rbxmx rdf rng rss shproj slnx storyboard svg targets tld tmx vbproj vbproj.user vcxproj vcxproj.filters wixproj wsdl wxi wxl wxs xaml xbl xib xlf xliff xpdl xul xoml", firstLine = """(\<\?xml.*)|(\<svg)|(\<\!doctype\s+svg)"""),
+        code("xsl", "xsl", "xsl xslt"),
+        code("css", "css", "css"),
+        code("scss", "scss", "scss"),
+        code("less", "less", "less"),
+        code("shell", "shellscript", "sh bash bashrc bash_aliases bash_profile bash_login ebuild eclass profile bash_logout xprofile xsession xsessionrc zsh zshrc zprofile zlogin zlogout zshenv zsh-theme fish ksh csh cshrc tcshrc yashrc yash_profile", names = "apkbuild pkgbuild .envrc .hushlogin zshrc zshenv zlogin zprofile zlogout bashrc_apple_terminal zshrc_apple_terminal", firstLine = """^#!.*\b(bash|fish|zsh|sh|ksh|dtksh|pdksh|mksh|ash|dash|yash|sh|csh|jcsh|tcsh|itcsh).*|^#\s*-\*-[^*]*mode:\s*shell-script[^*]*-\*-"""),
+        code("bat", "bat", "bat cmd"),
+        code("rust", "rust", "rs"),
+        code("go", "go", "go"),
+        code("c", "c", "c i"),
+        code("cpp", "cpp", "cpp cppm cc ccm cxx cxxm c++ c++m hpp hh hxx h++ h ii ino inl ipp ixx mpp mxx tpp txx hpp.in h.in"),
+        code("csharp", "csharp", "cs csx cake"),
+        code("php", "php", "php php4 php5 phtml ctp", firstLine = """^#!\s*/.*\bphp\b"""),
+        code("ruby", "ruby", "rb rbx rjs gemspec rake ru erb podspec rbi", names = "rakefile gemfile guardfile podfile capfile cheffile hobofile vagrantfile appraisals rantfile berksfile berksfile.lock thorfile puppetfile dangerfile brewfile fastfile appfile deliverfile matchfile scanfile snapfile gymfile", firstLine = """^#!\s*/.*\bruby\b"""),
+        code("swift", "swift", "swift"),
+        code("dart", "dart", "dart"),
+        code("lua", "lua", "lua"),
+        code("groovy", "groovy", "groovy gvy gradle jenkinsfile nf", names = "jenkinsfile", prefixes = "jenkinsfile", firstLine = """^#!.*\bgroovy\b"""),
+        code("sql", "sql", "sql dsql"),
+        code("dockerfile", "dockerfile", "dockerfile containerfile", names = "dockerfile containerfile", prefixes = "dockerfile. containerfile."),
+        code("makefile", "makefile", "mak mk", names = "makefile gnumakefile ocamlmakefile", firstLine = """^#!\s*/usr/bin/make"""),
+        data("json", "json", "json bowerrc jscsrc webmanifest js.map css.map ts.map har jslintrc jsonld geojson ipynb vuerc jsonc eslintrc eslintrc.json jsfmtrc jshintrc swcrc hintrc babelrc toolset.jsonc code-snippets tsbuildinfo", names = "composer.lock .watchmanconfig babel.config.json bun.lock .babelrc.json .ember-cli typedoc.json tsconfig.json jsconfig.json"),
+        data("jsonl", "jsonl", "jsonl ndjson"),
         data("json5", null, "json5"),  // no grammar shipped: JSON5's syntax is not JSON's
-        data("yaml", "source.yaml", "yaml yml eyaml eyml cff yaml-tmlanguage yaml-tmpreferences yaml-tmtheme winget", firstLine = """^#cloud-config"""),
-        data("ini", "source.ini", "ini"),
-        data("properties", "source.ini", "conf properties cfg directory gitattributes gitconfig gitmodules editorconfig repo", names = "gitconfig"),
-        data("dotenv", "source.dotenv", "env", names = ".env .flaskenv user-dirs.dirs", prefixes = ".env."),
-        data("ignore", "source.ignore", "gitignore_global gitignore git-blame-ignore-revs"),
+        data("yaml", "yaml", "yaml yml eyaml eyml cff yaml-tmlanguage yaml-tmpreferences yaml-tmtheme winget", firstLine = """^#cloud-config"""),
+        data("ini", "ini", "ini"),
+        data("properties", "ini", "conf properties cfg directory gitattributes gitconfig gitmodules editorconfig repo", names = "gitconfig"),
+        data("dotenv", "dotenv", "env", names = ".env .flaskenv user-dirs.dirs", prefixes = ".env."),
+        data("ignore", "ignore", "gitignore_global gitignore git-blame-ignore-revs"),
         markdown("md mkd mkdn mdwn mdown markdown markdn mdtxt mdtext litcoffee ron ronn workbook"),
-        document("diff", "source.diff", "diff patch rej"),
-        document("git-commit", "text.git-commit", "", names = "commit_editmsg merge_msg"),
-        document("git-rebase", "text.git-rebase", "", names = "git-rebase-todo"),
+        document("diff", "diff", "diff patch rej"),
+        document("git-commit", "git-commit", "", names = "commit_editmsg merge_msg"),
+        document("git-rebase", "git-rebase", "", names = "git-rebase-todo"),
         // Comma- and tab-separated values: a table to read, text the editor opens.
         document("csv", null, "csv tsv"),
         // Pictures Android's own decoder reads (SVG is XML, above: its source is what is edited).
@@ -192,18 +193,18 @@ object FileTypes {
 
     private fun code(
         id: String,
-        grammar: String?,
+        language: String?,
         extensions: String,
         names: String = "",
         prefixes: String = "",
         firstLine: String? = null,
-    ) = rule(FileType(id, FileFamily.Code, grammar), extensions, names, prefixes, firstLine)
+    ) = rule(FileType(id, FileFamily.Code, language), extensions, names, prefixes, firstLine)
 
-    private fun data(id: String, grammar: String?, extensions: String, names: String = "", prefixes: String = "", firstLine: String? = null) =
-        rule(FileType(id, FileFamily.Data, grammar), extensions, names, prefixes, firstLine)
+    private fun data(id: String, language: String?, extensions: String, names: String = "", prefixes: String = "", firstLine: String? = null) =
+        rule(FileType(id, FileFamily.Data, language), extensions, names, prefixes, firstLine)
 
-    private fun document(id: String, grammar: String?, extensions: String, names: String = "") =
-        rule(FileType(id, FileFamily.Document, grammar), extensions, names, "", null)
+    private fun document(id: String, language: String?, extensions: String, names: String = "") =
+        rule(FileType(id, FileFamily.Document, language), extensions, names, "", null)
 
     private fun markdown(extensions: String) = rule(Markdown, extensions, "", "", null)
 

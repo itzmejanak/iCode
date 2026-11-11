@@ -1,5 +1,6 @@
 package dev.icode.mobile.ui.editor
 
+import dev.icode.mobile.domain.syntax.Languages
 import java.io.File
 import org.eclipse.tm4e.core.grammar.IGrammar
 import org.eclipse.tm4e.core.grammar.IStateStack
@@ -15,14 +16,14 @@ internal object ShippedGrammars {
 
     class Grammar(val scope: String, val scopes: Set<String>, val includes: Set<String>)
 
-    /** Each registered scope and its grammar file, in `languages.json` order. */
-    val files: Map<String, File> by lazy {
-        val languages = JSONObject(File(assets, "textmate/languages.json").readText()).getJSONArray("languages")
-        (0 until languages.length()).associate { index ->
-            val entry = languages.getJSONObject(index)
-            entry.getString("scopeName") to File(assets, entry.getString("grammar"))
-        }
-    }
+    /** The language catalog the editor registers its grammars from. */
+    val catalog: Languages by lazy { Languages.parse(asset(Languages.ASSET).readText()) }
+
+    /** An asset by its path, as the catalog names it. */
+    fun asset(path: String) = File(assets, path)
+
+    /** Each language's scope and its grammar file, in the catalog's order. */
+    val files: Map<String, File> by lazy { catalog.all.associate { it.scope to asset(it.grammar) } }
 
     fun source(scope: String): IGrammarSource? = files[scope]?.let(IGrammarSource::fromFile)
 
