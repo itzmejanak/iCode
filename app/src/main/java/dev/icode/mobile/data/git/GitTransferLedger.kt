@@ -7,7 +7,8 @@ import dev.icode.mobile.domain.notices.Notice
 
 /** A transfer in flight, written down so an ending nobody saw can still be told. */
 internal interface TransferLedger {
-    fun started(label: String, target: String)
+    /** [branch] and [upstream]: what it moved, and where to, when it is a branch's. */
+    fun started(label: String, target: String, branch: String? = null, upstream: String? = null)
     fun finished()
 }
 
@@ -20,9 +21,11 @@ internal class GitTransferLedger(context: Context) : TransferLedger {
     private val preferences = context.applicationContext.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
 
     // Committed at once: the process may be gone before an apply() reaches the disk.
-    override fun started(label: String, target: String) = preferences.edit(commit = true) {
+    override fun started(label: String, target: String, branch: String?, upstream: String?) = preferences.edit(commit = true) {
         putString(KEY_LABEL, label)
         putString(KEY_TARGET, target)
+        putString(KEY_BRANCH, branch)
+        putString(KEY_UPSTREAM, upstream)
         putLong(KEY_AT, System.currentTimeMillis())
     }
 
@@ -33,8 +36,10 @@ internal class GitTransferLedger(context: Context) : TransferLedger {
         val label = preferences.getString(KEY_LABEL, null) ?: return null
         val target = preferences.getString(KEY_TARGET, null).orEmpty()
         val at = preferences.getLong(KEY_AT, 0L)
+        val branch = preferences.getString(KEY_BRANCH, null)
+        val upstream = preferences.getString(KEY_UPSTREAM, null)
         finished()
-        return GitNotices.cutShort(label, target).copy(id = "git-transfer-$at", at = at)
+        return GitNotices.cutShort(label, target, branch, upstream).copy(id = "git-transfer-$at", at = at)
     }
 
     private companion object {
@@ -43,5 +48,7 @@ internal class GitTransferLedger(context: Context) : TransferLedger {
         const val KEY_LABEL = "label"
         const val KEY_TARGET = "target"
         const val KEY_AT = "at"
+        const val KEY_BRANCH = "branch"
+        const val KEY_UPSTREAM = "upstream"
     }
 }

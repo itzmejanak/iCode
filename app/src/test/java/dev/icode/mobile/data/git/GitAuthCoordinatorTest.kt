@@ -51,7 +51,7 @@ class GitAuthCoordinatorTest {
             config,
             credentials,
             activeRoot = { root },
-            actInRepository = { operation, onSuccess ->
+            actInRepository = { _, operation, onSuccess ->
                 events += "act"
                 operation(root!!)
                 onSuccess()
@@ -79,14 +79,14 @@ class GitAuthCoordinatorTest {
     @Test fun `a default identity is checked before Git is asked`() = runBlocking {
         val harness = Harness()
         val effect = harness.nextMessage { harness.coordinator.configureGlobalIdentity("Ada", "not-an-email") }
-        assertEquals(Said(NoticeTone.HeadsUp, "Enter a name and valid Git author email"), effect.said())
+        assertEquals(Said(NoticeTone.HeadsUp, "Enter a name and a valid email first", "Git puts them on every commit."), effect.said())
         assertTrue(harness.config.values.isEmpty())
     }
 
     @Test fun `a default identity needs Git in the runtime`() = runBlocking {
         val harness = Harness().apply { config.available = false }
         val effect = harness.nextMessage { harness.coordinator.configureGlobalIdentity("Ada", "ada@example.com") }
-        assertEquals(Said(NoticeTone.HeadsUp, "Install Git in the runtime first"), effect.said())
+        assertEquals(Said(NoticeTone.HeadsUp, "Install Git first", "Install it from Source Control."), effect.said())
     }
 
     @Test fun `a default identity is saved trimmed and read back for every repository`() = runBlocking {
@@ -151,7 +151,7 @@ class GitAuthCoordinatorTest {
 
         val effect = harness.nextMessage { harness.coordinator.saveToken("github.com", "ada", "") }
 
-        assertEquals(Said(NoticeTone.Problem, "Unable to save the token", "Enter a personal access token"), effect.said())
+        assertEquals(Said(NoticeTone.Problem, "Couldn't save the token for github.com", output = "Enter a personal access token"), effect.said())
         assertNull(harness.stateHolder.current.gitAuth.httpsAccount)
     }
 
@@ -162,7 +162,7 @@ class GitAuthCoordinatorTest {
 
         val effect = harness.nextMessage { harness.coordinator.clearToken() }
 
-        assertEquals(Said(NoticeTone.Problem, "Unable to remove the token"), effect.said())
+        assertEquals(Said(NoticeTone.Problem, "Couldn't remove the token", output = "Unable to remove the token"), effect.said())
         assertEquals("ada@github.com", harness.stateHolder.current.gitAuth.httpsAccount)
     }
 
@@ -173,7 +173,7 @@ class GitAuthCoordinatorTest {
 
         val effect = harness.nextMessage { harness.coordinator.generateSshKey() }
 
-        assertEquals(Said(NoticeTone.Problem, "Could not download SSH client: E: Unable to fetch some archives"), effect.said())
+        assertEquals(Said(NoticeTone.Problem, "Couldn't create an SSH key", output = "Could not download SSH client: E: Unable to fetch some archives"), effect.said())
         assertNull(harness.stateHolder.current.gitAuth.work)
         assertFalse(harness.stateHolder.current.gitAuth.hasSshKey)
     }
@@ -223,7 +223,7 @@ class GitAuthCoordinatorTest {
     @Test fun `no key is made without a default identity, and gpg's refusal is said in its words`() = runBlocking {
         val harness = Harness()
         assertEquals(
-            Said(NoticeTone.HeadsUp, "Save a default commit identity first"),
+            Said(NoticeTone.HeadsUp, "Save a default commit identity first", "A signing key is made for it."),
             harness.nextMessage { harness.coordinator.handle(SigningIntent.CreateKey) }.said(),
         )
         assertTrue(harness.credentials.created.isEmpty())
@@ -231,7 +231,7 @@ class GitAuthCoordinatorTest {
         harness.config.values["Global user.email"] = "ada@example.com"
         harness.credentials.creation = "key generation failed: Operation cancelled"
         assertEquals(
-            Said(NoticeTone.Problem, "key generation failed: Operation cancelled"),
+            Said(NoticeTone.Problem, "Couldn't create a signing key", output = "key generation failed: Operation cancelled"),
             harness.nextMessage { harness.coordinator.handle(SigningIntent.CreateKey) }.said(),
         )
         assertNull(harness.config.values["Global commit.gpgsign"])
@@ -257,7 +257,7 @@ class GitAuthCoordinatorTest {
     @Test fun `a passphrase is changed for the key named, and that is said`() = runBlocking {
         val harness = Harness()
         val effect = harness.nextMessage { harness.coordinator.handle(SigningIntent.ChangePassphrase("ABC")) }
-        assertEquals(Said(NoticeTone.Done, "Passphrase changed"), effect.said())
+        assertEquals(Said(NoticeTone.Done, "Changed the signing key's passphrase"), effect.said())
         assertEquals(listOf("ABC"), harness.credentials.passphrases)
     }
 
