@@ -257,7 +257,7 @@ internal class TerminalSessionManager private constructor(
         }
         val title = entry.state.title
         close(id)
-        mutableEndings.tryEmit(TerminalEnding(id, title, exitStatus))
+        mutableEndings.tryEmit(TerminalEnding(id, title, exitStatus, entry.workspaceHostPath))
     }
 
     private fun publish(selectedId: String?) {

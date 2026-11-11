@@ -446,3 +446,14 @@ restated as "keep them in the page history but don't ring the bell". So:
   already clear" a Moment. "Git operation failed" is gone: `act` takes what each operation could not
   do. A commit says how many files went onto which branch, the message's first line under it. The
   ledger keeps the branch and upstream, so a pull cut short says which branch.
+- **R6 — the rest.** Terminal, Run, Runtime, Languages, Search, Assistant, MCP, Phone and Voice tell
+  through `TerminalNotices`, `RunNotices`, `RuntimeNotices`, `LanguageNotices`, `SearchNotices`,
+  `AssistantNotices`, `McpNotices`, `PhoneNotices` and `VoiceNotices`. A shell's exit is said with
+  its workspace (`TerminalEnding.workspace`). A runtime install, repair or reset says it is done,
+  posted when away; one that failed says so once (D10.5), a first install with Try Again. An
+  assistant turn that failed in a chat not shown says where — the workspace and the chat's title —
+  with Open Assistant; one that ran 30 s or more and ended, unless stopped, is kept and posted when
+  away. An MCP server is named in the place only (D10.7); a page's refusal keeps its words as the
+  title. A tap with nothing to act on ("Nothing to share yet") is a Moment. `notify`, `report` and
+  `failed` are gone from `ICodeStateHolder`; `tools/check-backend-consistency.sh` has the rule
+  `notice-text`: a `Notice` is made only in `domain/notices/`, or read back by its store.

@@ -4,8 +4,6 @@ import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeSnapshot
 import dev.icode.mobile.domain.notices.Notice
-import dev.icode.mobile.domain.notices.NoticeSource
-import dev.icode.mobile.domain.notices.NoticeTone
 import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -55,13 +53,6 @@ internal class ICodeStateHolder {
     /** Tells [notice], a failure: [error] logged once under [subsystem], its words — never a token — the notice's output. */
     suspend fun tell(notice: Notice, subsystem: String, error: Throwable) =
         tell(notice.copy(output = failureText(subsystem, notice.title, error).takeIf { it != notice.title }))
-
-    /** Until each area is told through its own builder (docs/notices-redesign-plan.md R6). */
-    suspend fun notify(tone: NoticeTone, title: String, detail: String? = null) = tell(Notice(tone, NoticeSource.ICode, title, detail = detail))
-
-    suspend fun report(subsystem: String, fallback: String, error: Throwable) = failed(fallback, failureText(subsystem, fallback, error))
-
-    suspend fun failed(title: String, words: String) = notify(NoticeTone.Problem, title, words.takeIf { it != title })
 
     /**
      * For a failure the user sees inside state instead (a failed runtime, a

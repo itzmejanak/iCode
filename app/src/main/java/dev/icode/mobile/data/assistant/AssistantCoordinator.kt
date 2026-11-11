@@ -20,7 +20,8 @@ import dev.icode.mobile.domain.AssistantSession
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.McpIntent
-import dev.icode.mobile.domain.notices.NoticeTone
+import dev.icode.mobile.domain.notices.AssistantNotices
+import dev.icode.mobile.domain.notices.NoticePlace
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
@@ -117,7 +118,7 @@ internal class AssistantCoordinator(
             is ICodeIntent.SaveAssistantProvider -> settings.save(intent)
             is ICodeIntent.RemoveAssistantProvider -> settings.remove(intent.id)
             is ICodeIntent.ListAssistantModels -> settings.list(intent)
-            ICodeIntent.WriteCommitMessage -> activeRoot()?.let(commitMessages::write) ?: page.say(NoticeTone.HeadsUp, "Open a workspace first")
+            ICodeIntent.WriteCommitMessage -> activeRoot()?.let(commitMessages::write) ?: page.tell(AssistantNotices.openWorkspaceFirst())
             ICodeIntent.CommitMessageTaken -> commitMessages.taken()
             is ICodeIntent.ChooseCommitModel -> settings.remember { providers.chooseCommitModel(intent.choice) }
             is McpIntent -> mcp?.handle(intent)
@@ -162,7 +163,7 @@ internal class AssistantCoordinator(
     private fun place(): String? =
         activeRoot() ?: page.current.workspace ?: stateHolder.current.workspaces.maxByOrNull { it.lastOpenedAt }?.location
 
-    private fun noWorkspace() = page.say(NoticeTone.HeadsUp, "Open a workspace in iCode first")
+    private fun noWorkspace() = page.tell(AssistantNotices.openWorkspaceFirst())
 
     /** The shown chat's own tab — a new chat given its ID, as sending would — for the menu's Terminal sheet. */
     private fun openTerminal() {
@@ -171,7 +172,7 @@ internal class AssistantCoordinator(
         scope.launch {
             runCatching { openTab(workspace, session) }
                 .onSuccess { id -> page.state { if (it.workspace == workspace && it.session == session) it.copy(tab = id) else it } }
-                .onFailure { page.say(NoticeTone.HeadsUp, it.message ?: "The terminal could not be opened") }
+                .onFailure { page.tell(AssistantNotices.terminalNotOpened(it.message ?: it.javaClass.simpleName)) }
         }
     }
 
@@ -188,7 +189,7 @@ internal class AssistantCoordinator(
     private fun retry() {
         val workspace = page.current.workspace ?: return
         val session = page.current.session ?: return
-        if (chats.of(workspace, session).messages.lastOrNull() !is AssistantMessage.User) return page.say(NoticeTone.HeadsUp, "Nothing to send again")
+        if (chats.of(workspace, session).messages.lastOrNull() !is AssistantMessage.User) return page.tell(AssistantNotices.nothingToSendAgain())
         turns.retry(workspace, session)
     }
 
@@ -206,13 +207,13 @@ internal class AssistantCoordinator(
     private fun compact() {
         val workspace = page.current.workspace ?: return
         val session = page.current.session ?: return
-        if (AssistantRules.forModel(chats.of(workspace, session).messages).messages.isEmpty()) return page.say(NoticeTone.HeadsUp, "Nothing to compact yet")
+        if (AssistantRules.forModel(chats.of(workspace, session).messages).messages.isEmpty()) return page.tell(AssistantNotices.nothingToCompact())
         turns.compact(workspace, session)
     }
 
     private fun delete(session: String) {
         val workspace = page.current.workspace ?: return
-        if (turns.running == (workspace to session)) return page.say(NoticeTone.HeadsUp, "Stop the assistant before deleting this chat")
+        if (turns.running == (workspace to session)) return page.tell(AssistantNotices.stopFirst(NoticePlace(AssistantPlace.name(workspace), workspace)))
         chats.delete(workspace, session)
         scope.launch { forget(workspace, session) }
         if (page.current.session == session) page.display(workspace, null) else page.listed(workspace)
@@ -222,7 +223,7 @@ internal class AssistantCoordinator(
     private fun export(session: String) {
         val workspace = page.current.workspace ?: return
         val chat = chats.of(workspace, session)
-        if (chat.messages.isEmpty()) return page.say(NoticeTone.HeadsUp, "Nothing to share yet")
+        if (chat.messages.isEmpty()) return page.tell(AssistantNotices.nothingToShare())
         val listed = page.current.sessions.firstOrNull { it.id == session }
         val title = listed?.title ?: AssistantRules.sessionTitle(
             chat.messages.firstNotNullOfOrNull { it as? AssistantMessage.User }?.text.orEmpty(),

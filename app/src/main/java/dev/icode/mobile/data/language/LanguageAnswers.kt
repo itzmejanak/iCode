@@ -6,7 +6,7 @@ import dev.icode.mobile.domain.LanguageFeatureIntent
 import dev.icode.mobile.domain.LanguagePlace
 import dev.icode.mobile.domain.LanguageQuery
 import dev.icode.mobile.domain.LanguageResult
-import dev.icode.mobile.domain.notices.NoticeTone
+import dev.icode.mobile.domain.notices.LanguageNotices
 import dev.icode.mobile.domain.TextRange
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -59,12 +59,12 @@ internal class LanguageAnswers(
                     }
                     LanguageQuery.Format -> {
                         requests.format(location).getOrThrow()
-                        stateHolder.notify(NoticeTone.Done, "Formatted")
+                        stateHolder.tell(LanguageNotices.formatted(stateHolder.current, location))
                         null
                     }
                     LanguageQuery.Rename -> {
-                        val files = requests.rename(location, at, intent.newName?.trim().orEmpty().ifEmpty { throw IllegalArgumentException("Enter the new name") }).getOrThrow()
-                        stateHolder.notify(NoticeTone.Done, "Renamed", if (files == 1) "in 1 file" else "in $files files")
+                        val to = intent.newName?.trim().orEmpty().ifEmpty { throw IllegalArgumentException("Enter the new name") }
+                        stateHolder.tell(LanguageNotices.renamed(stateHolder.current, to, requests.rename(location, at, to).getOrThrow()))
                         null
                     }
                 }
@@ -77,7 +77,7 @@ internal class LanguageAnswers(
         val (session, _, action) = actions.getOrNull(index) ?: return
         show(null)
         scope.launch {
-            requests.run(session, action).onFailure { stateHolder.notify(NoticeTone.HeadsUp, "Not applied", LanguageFailure.wordsOf(it)) }
+            requests.run(session, action).onFailure { stateHolder.tell(LanguageNotices.notApplied(stateHolder.current, LanguageFailure.wordsOf(it))) }
         }
     }
 
