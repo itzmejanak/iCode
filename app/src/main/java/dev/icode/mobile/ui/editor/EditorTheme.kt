@@ -1,91 +1,13 @@
 package dev.icode.mobile.ui.editor
 
-import android.content.Context
-import android.os.Handler
-import android.os.Looper
-import androidx.annotation.MainThread
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
-import dev.icode.mobile.data.io.Sha256
 import dev.icode.mobile.designsystem.IcodePalette
-import dev.icode.mobile.designsystem.PaletteKind
-import dev.icode.mobile.designsystem.SyntaxRole
-import dev.icode.mobile.designsystem.syntaxColor
-import dev.icode.mobile.domain.syntax.Language
-import dev.icode.mobile.domain.syntax.Languages
+import dev.icode.mobile.ui.syntax.DEFAULT_COLOR_ID
 import io.github.rosemoe.sora.langs.textmate.TextMateColorScheme
-import io.github.rosemoe.sora.langs.textmate.registry.FileProviderRegistry
-import io.github.rosemoe.sora.langs.textmate.registry.GrammarRegistry
 import io.github.rosemoe.sora.langs.textmate.registry.ThemeRegistry
-import io.github.rosemoe.sora.langs.textmate.registry.model.DefaultGrammarDefinition
-import io.github.rosemoe.sora.langs.textmate.registry.model.GrammarDefinition
 import io.github.rosemoe.sora.langs.textmate.registry.model.ThemeModel
-import io.github.rosemoe.sora.langs.textmate.registry.provider.AssetsFileResolver
 import io.github.rosemoe.sora.widget.schemes.EditorColorScheme
-import kotlin.concurrent.thread
-import org.eclipse.tm4e.core.registry.IGrammarSource
-import org.eclipse.tm4e.core.registry.IThemeSource
-import org.json.JSONArray
-import org.json.JSONObject
-
-/**
- * The editor's TextMate theme for a palette, made from [syntaxScopes] and the
- * palette's syntax colours — there is no theme file to keep in step. The
- * background and current line are the palette's; the caret, selection,
- * current line number and matched brackets follow the accent, set by
- * [CodeEditorSession.applyPalette] over this.
- *
- * The theme's default colour is [DEFAULT_COLOR_SENTINEL], not the palette's
- * text: tm4e numbers the default colour 0, and 0 in a rule means "not set", so
- * a rule drawing plain text — `=` inside `keyword`, `${…}` inside a string —
- * could never win over the broader rule around it. The editor draws colour 0
- * as the palette's text ([DEFAULT_COLOR_ID]).
- */
-internal fun editorTheme(palette: IcodePalette): JSONObject {
-    val rules = JSONArray().put(
-        JSONObject().put(
-            "settings",
-            JSONObject()
-                .put("background", hex(palette.backgroundDeep))
-                .put("foreground", DEFAULT_COLOR_SENTINEL)
-                .put("lineHighlight", hex(palette.editorLineHighlight)),
-        ),
-    )
-    syntaxScopes.groupBy({ it.first }, { it.second }).forEach { (role, selectors) ->
-        val settings = JSONObject().put("foreground", hex(palette.syntaxColor(role)))
-        fontStyle(role)?.let { settings.put("fontStyle", it) }
-        rules.put(JSONObject().put("scope", selectors.flatten().joinToString(", ")).put("settings", settings))
-    }
-    return JSONObject().put("name", themeName(palette)).put("settings", rules)
-}
-
-/**
- * [palette]'s TextMate theme by every colour it holds — the editor, its current line and each role's —
- * so two palettes share a cached theme only when they draw code alike: a variant's own colours, or the
- * same theme on other tones (without border lines), are themes of their own (docs/theme-variants-plan.md D5).
- */
-internal fun themeName(palette: IcodePalette): String {
-    val colours = listOf(palette.backgroundDeep, palette.editorLineHighlight) + SyntaxRole.entries.map { palette.syntaxColor(it) }
-    return "icode-${palette.kind.name.lowercase()}-" + Sha256.hex(colours.joinToString(",") { hex(it) }).take(NAME_DIGITS)
-}
-
-/** 64 bits of the digest name a theme: far past any count of palettes the app draws. */
-private const val NAME_DIGITS = 16
-
-/** A colour no role draws with (tested), standing for "the text colour" in the theme. */
-internal const val DEFAULT_COLOR_SENTINEL = "#010101"
-
-/** The editor's colour id for tm4e's colour 0: Sora maps tm4e colour `n` to id `255 + n`. */
-internal const val DEFAULT_COLOR_ID = 255
-
-private fun fontStyle(role: SyntaxRole): String? = listOfNotNull(
-    "bold".takeIf { role.bold },
-    "italic".takeIf { role.italic },
-    "underline".takeIf { role.underline },
-    "strikethrough".takeIf { role.strikethrough },
-).joinToString(" ").ifEmpty { null }
-
-private fun hex(color: Color) = "#%06X".format(color.toArgb() and 0xFFFFFF)
 
 /**
  * Every colour the editor draws besides the code, from the palette: its
@@ -172,92 +94,4 @@ internal class PaletteColorScheme(registry: ThemeRegistry, val palette: IcodePal
     }
 
     private fun applyPaletteColors() = editorColors(palette).forEach { (id, color) -> setColor(id, color) }
-}
-
-/**
- * The shipped grammars, registered from the language catalog ([Languages]), and each
- * palette kind's theme. Main thread, except the grammars' one load: parsing all 42 took ~1.4 s on the owner's phone, and done
- * where the first editor was made it froze the screen. They load once in the
- * background instead, after a theme is current (their colours resolve against
- * one), and an editor that needs them first draws its text uncoloured.
- */
-internal object TextMateAssets {
-    private sealed interface Grammars {
-        data object NotStarted : Grammars
-        data object Loading : Grammars
-        data object Ready : Grammars
-        data class Failed(val error: Throwable) : Grammars
-    }
-
-    private val main = Handler(Looper.getMainLooper())
-    private var grammars: Grammars = Grammars.NotStarted
-    @Volatile private var languages: Languages? = null
-    private val waiting = mutableListOf<(Throwable?) -> Unit>()
-
-    val grammarsReady: Boolean @MainThread get() = grammars == Grammars.Ready
-
-    /** The scope of the catalog's language [id], once the grammars have loaded; any thread. */
-    fun scopeOf(id: String): String = checkNotNull(languages?.byId(id)) { "Language $id is not loaded" }.scope
-
-    /** Makes [palette]'s theme current, building it the first time; every editor and the grammars take it, so only when it is not. */
-    @MainThread fun setTheme(palette: IcodePalette) {
-        val registry = ThemeRegistry.getInstance()
-        val name = themeName(palette)
-        if (registry.currentThemeModel?.name == name) return
-        if (registry.findThemeByThemeName(name) == null) {
-            val source = IThemeSource.fromString(IThemeSource.ContentType.JSON, editorTheme(palette).toString())
-            registry.loadTheme(ThemeModel(source, name).apply { isDark = palette.kind != PaletteKind.Light }, true)
-        }
-        check(registry.setTheme(name)) { "TextMate theme $name is unavailable" }
-    }
-
-    /** Starts the grammars loading, once; a theme must be current ([setTheme]). */
-    @MainThread fun preload(context: Context) = whenGrammarsLoaded(context) { }
-
-    /** Runs [onLoaded] on the main thread once the grammars are loaded, with the failure if they could not be. */
-    @MainThread fun whenGrammarsLoaded(context: Context, onLoaded: (failure: Throwable?) -> Unit) {
-        when (val state = grammars) {
-            Grammars.Ready -> return onLoaded(null)
-            is Grammars.Failed -> return onLoaded(state.error)
-            Grammars.Loading -> waiting += onLoaded
-            Grammars.NotStarted -> {
-                waiting += onLoaded
-                grammars = Grammars.Loading
-                // tm4e colours tokens by the theme its registry was handed, and Sora hands one over
-                // only on a later change: without this, every token was drawn in the default colour.
-                val assets = context.applicationContext.assets
-                val registry = runCatching {
-                    FileProviderRegistry.getInstance().addFileProvider(AssetsFileResolver(assets))
-                    val theme = checkNotNull(ThemeRegistry.getInstance().currentThemeModel) { "No TextMate theme is current" }
-                    GrammarRegistry.getInstance().apply { setTheme(theme) }
-                }
-                thread(name = "textmate-grammars", priority = Thread.MIN_PRIORITY) {
-                    val result = registry.mapCatching { grammarRegistry ->
-                        val catalog = Languages.parse(assets.open(Languages.ASSET).bufferedReader().use { it.readText() })
-                        grammarRegistry.loadGrammars(catalog.all.map(::definition))
-                        catalog
-                    }
-                    main.post {
-                        languages = result.getOrNull()
-                        grammars = result.exceptionOrNull()?.let(Grammars::Failed) ?: Grammars.Ready
-                        val loaded = waiting.toList()
-                        waiting.clear()
-                        loaded.forEach { it(result.exceptionOrNull()) }
-                    }
-                }
-            }
-        }
-    }
-
-    /** [language] as Sora registers a grammar: its file, configuration, name and scope, and what it embeds. */
-    private fun definition(language: Language): GrammarDefinition {
-        val file = checkNotNull(FileProviderRegistry.getInstance().tryGetInputStream(language.grammar)) { "${language.grammar} cannot be opened" }
-        val definition = DefaultGrammarDefinition.withLanguageConfiguration(
-            IGrammarSource.fromInputStream(file, language.grammar, Charsets.UTF_8),
-            language.configuration,
-            language.id,
-            language.scope,
-        )
-        return if (language.embedded.isEmpty()) definition else definition.withEmbeddedLanguages(language.embedded)
-    }
 }

@@ -1,7 +1,6 @@
 package dev.icode.mobile.ui.editor
 
 import android.content.Context
-import android.util.Log
 import android.view.ViewGroup
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
@@ -34,13 +33,8 @@ class CodeEditorSessions(private val context: Context) {
         sessions.values.forEach { it.applyPreferences(next) }
     }
 
-    /** Also starts the grammars loading, at app start, so the first file need not wait for them. */
     fun applyPalette(next: IcodePalette) {
         palette = next
-        runCatching {
-            TextMateAssets.setTheme(next)
-            TextMateAssets.preload(context)
-        }.onFailure { error -> Log.e("iCodeEditor", "TextMate theme setup failed", error) }
         sessions.values.forEach { it.applyPalette(next) }
     }
 

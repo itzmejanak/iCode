@@ -4,7 +4,7 @@ import dev.icode.mobile.designsystem.SyntaxRole
 
 /**
  * Which TextMate scopes take which [SyntaxRole] — the one table every editor
- * theme is built from ([editorTheme]).
+ * theme is built from ([dev.icode.mobile.ui.syntax.editorTheme]).
  *
  * First VS Code's default Dark+ selectors (extensions/theme-defaults,
  * `dark_vs.json` + `dark_plus.json`, commit 307b60e7, MIT), written for the

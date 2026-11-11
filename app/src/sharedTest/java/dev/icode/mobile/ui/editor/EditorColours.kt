@@ -6,6 +6,7 @@ import dev.icode.mobile.designsystem.everyPalette
 import dev.icode.mobile.designsystem.syntaxColor
 import dev.icode.mobile.domain.FileTypes
 import dev.icode.mobile.domain.syntax.Languages
+import dev.icode.mobile.ui.syntax.editorTheme
 import org.eclipse.tm4e.core.grammar.IGrammar
 import org.eclipse.tm4e.core.grammar.IStateStack
 import org.eclipse.tm4e.core.internal.grammar.tokenattrs.EncodedTokenAttributes

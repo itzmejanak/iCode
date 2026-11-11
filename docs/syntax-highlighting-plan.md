@@ -5,8 +5,8 @@ better, but syntax highlighting still has architectural gaps and limits. Underst
 what we need, and whether a migration is needed, to get scalability, no duplication, no
 inconsistency, reliability, stability, performance and speed. Make a proper plan.
 
-§6 records the owner's answers; building follows the cycles in §4. S1 is done (§3.7); nothing in
-the app has changed yet.
+§6 records the owner's answers; building follows the cycles in §4. S1 to S3 are done (§3.4, §3.5,
+§3.7 and §7 record what each built).
 
 ## 1. What stands (verified on `main`, c5b2e01)
 
@@ -126,10 +126,11 @@ it was copied from, the upstream commit and the licence).
   checks the compiler would have given.
 - `FileTypes` rules name a language **id** (`FileType.language`); the scope is looked up in the
   catalog.
-- `languages.json` is gone. `TextMateAssets` builds Sora's `DefaultGrammarDefinition` from each
-  catalog entry (grammar, configuration, id as Sora's name, scope, embedded languages) and passes
-  the list to `GrammarRegistry.loadGrammars`. This is the same call Sora's own reader made, so
-  registration is unchanged. Sora 0.24.6 supports this through public API.
+- `languages.json` is gone. The engine builds Sora's `DefaultGrammarDefinition` from each catalog
+  entry (grammar, configuration, id as Sora's name, scope, embedded languages), the same definition
+  Sora's own reader made. S2 passed them all to `GrammarRegistry.loadGrammars` at start; since S3,
+  `SyntaxEngine` passes only the ones a language needs to `GrammarRegistry.loadGrammar` (§3.5).
+  Sora 0.24.6 supports both through public API.
 - The provenance doc's tables are the catalog's, row for row, checked by `LanguageCatalogTest`. The
   same test checks that each grammar's own `scopeName` is the catalog's scope, that `includes` is
   what the grammar file pulls in, that `upstream` is the commit in the grammar's `version` field,
@@ -204,7 +205,7 @@ closure; "first line" is the first `tokenizeLine`, which compiles the root rules
 | `source.kotlin`, `source.java`, `source.python`, `source.go` | 1 to 3 ms | 1 to 2 ms |
 | `source.json`, `source.dockerfile`, `source.dotenv`, `source.ini` | under 0.3 ms | under 0.3 ms |
 
-All 42 loaded into one registry, as `TextMateAssets` does at start, take 77 ms (the phone takes
+All 42 loaded into one registry, as `TextMateAssets` did at start before S3, take 77 ms (the phone takes
 about 1.4 s for that and more). Lazy loading (D4) is supported: the costliest single language is
 Markdown at about 86 ms, and JSON costs under 1 ms.
 
@@ -257,6 +258,29 @@ What this means for the build:
 - **The editor's per-line time needs S3 to replace Sora's default.** Sora's `TextMateAnalyzer`
   passes a fixed `Duration.ofSeconds(2)` to `tokenizeLine2`, so the 100 ms limit and the 10 000
   character cut belong in iCode's own analyzer or a subclass.
+
+#### What Sora's API allows (S3)
+
+Sora 0.24.6 lets iCode set every limit without its own analyzer:
+
+- **Time and length per line: yes, through the grammar.** `TextMateAnalyzer` cannot be given a time
+  (its `tokenizeLine` calls `tokenizeLine2(line, state, Duration.ofSeconds(2))` itself), and
+  `TextMateLanguage` builds its analyzer in a private method, so neither can be swapped. But the
+  analyzer only calls `IGrammar.tokenizeLine2`, and `TextMateLanguage`'s protected constructor takes
+  any `IGrammar`. `ui/syntax/LimitedGrammar` wraps the real grammar: it lowers any time asked for to
+  100 ms, and tokenizes a line longer than 10 000 characters only up to there, the rest one plain
+  token of the grammar's root scope. The next line goes on from the state the long line started in,
+  as VS Code does, so a minified line cannot leave the lines after it inside a string. Read-only
+  views use the same wrapper, so the limits are in one place for every caller.
+- **File size and line count: decided before Sora is involved.** `EditorSyntax` asks
+  `SyntaxLimits.colours(text)` before it asks for a grammar; over the limit the editor keeps Sora's
+  plain language and says "Colouring is off for files this large".
+- **A grammar per editor: yes.** `GrammarRegistry(null)` is a registry of its own over a new tm4e
+  `Registry`, and `loadGrammar(definition)` fills it. Unlike `GrammarRegistry.getInstance()` it does
+  not follow the current theme by itself, so each editor's language adds a `ThemeChangeListener`
+  that calls its registry's `setTheme`, and removes it in `destroy()`, which Sora calls when the
+  editor changes language or is released. tm4e's `Theme` caches its matches in a
+  `ConcurrentHashMap`, so editors can share one theme model.
 
 ## 4. Cycles
 
@@ -363,3 +387,21 @@ file of that size. S2 chose one data file, `assets/textmate/catalog.json`, read 
   same grammars. The shell language's id is now VS Code's `shellscript`. The YAML row now names its
   real upstream, textmate/yaml.tmbundle, where the old table named RedCMD's grammar, which is not
   shipped.
+- S3: `ui/syntax/SyntaxEngine` is now the one owner of Sora's TextMate registries. Nothing is parsed
+  at app start; `TextMateAssets` and its `loadGrammars` of all 42 grammars are gone. A language's
+  grammar is parsed with its include closure (from the catalog's `includes`, followed through each
+  included language) on one loader thread, `syntax-grammars`, the first time a file or block needs
+  it. Each editor gets a registry and grammar of its own, and the read-only thread (`syntax-tokens`,
+  for Markdown fences until S4) has its own per language, so no two threads share a grammar (G8).
+  The loading logic is `GrammarLoader`; a grammar that throws is its language's failure alone,
+  logged once and not tried again, and a language that includes it still loads with those rules
+  plain. Its files open plain with a note naming the language by its catalog id, such as "Colouring
+  is off for kotlin: its grammar could not be loaded". `SyntaxLimits` holds the four limits of §3.7, unchanged; `LimitedGrammar` applies the
+  line limits (above, "What Sora's API allows"), and files over 2 MiB or 50 000 lines open plain
+  with "Colouring is off for files this large". `SyntaxTheme` builds and registers each palette's
+  theme (moved from `EditorTheme.kt`); Markdown fences now resolve colours against their own
+  palette's theme instead of the current one. Opening a file now shows it plain for the moment its
+  grammar takes to parse (a few milliseconds for most languages on the JVM, Markdown about 86 ms),
+  each time an editor opens, since editors no longer share a parsed grammar. Tests:
+  `GrammarLoaderTest` (A1, A2), `SyntaxLimitsTest` and `LimitedGrammarTest` (A5). The limits are not
+  yet checked on the owner's phone (A8).

@@ -170,6 +170,13 @@ All notable changes to iCode are documented here. The format follows
   touch or anything new brings it out.
 
 ### Changed
+- Code colouring loads each language when a file first needs it
+  ([docs/syntax-highlighting-plan.md](docs/syntax-highlighting-plan.md), S3). The app no longer parses
+  every grammar at start, so opening a JSON file parses JSON only. A grammar that fails to load turns
+  off colouring for its own language, with a note under the editor naming it; every other language
+  still colours. A file over 2 MiB or 50 000 lines opens plain with the note "Colouring is off for
+  files this large". Each line is coloured up to 10 000 characters and for at most 100 ms, so one
+  minified line no longer holds up the lines after it.
 - Notifications say what happened and where ([docs/notices-redesign-plan.md](docs/notices-redesign-plan.md)).
   Every notice names its workspace, and its repository, branch, folder or terminal tab where they
   matter, on the Notifications page and in the header of Android's notification. A pull says how
