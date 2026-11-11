@@ -14,11 +14,11 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.ComposeView
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
+import dev.icode.mobile.data.notify.NotificationLink
 import dev.icode.mobile.data.phone.PhoneOverlayHost
 import dev.icode.mobile.data.phone.PhoneService
 import dev.icode.mobile.data.runtime.TerminalSessionManager
 import dev.icode.mobile.data.settings.AndroidWorkspacePreferencesRepository
-import dev.icode.mobile.data.tasks.WorkNotifications
 import dev.icode.mobile.data.workspace.ICodeProcess
 import dev.icode.mobile.designsystem.IcodeTheme
 import dev.icode.mobile.domain.BackgroundPlace
@@ -148,7 +148,7 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
         open = {
             to(BubbleMode.Closed)
             // Started straight from the service: a bound accessibility service may start activities from the background.
-            service.startActivity(WorkNotifications.intentFor(service, BackgroundPlace.Assistant))
+            service.startActivity(NotificationLink.intent(service, NotificationLink.Work(BackgroundPlace.Assistant)))
         },
         mute = ::mute,
         cancel = ::cancelVoice,

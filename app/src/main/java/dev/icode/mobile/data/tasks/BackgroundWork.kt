@@ -28,8 +28,7 @@ internal object BackgroundWork {
     /**
      * Publishes [items] as they change, and [dispatch] takes a notification's Cancel. The service
      * starts as work begins — always on the user's action, while iCode is in front, the only time
-     * Android lets an app start one. A failure read in iCode, dismissed or run again leaves the
-     * notification drawer too.
+     * Android lets an app start one.
      */
     fun follow(context: Context, scope: CoroutineScope, items: Flow<List<BackgroundItem>>, dispatch: (ICodeIntent) -> Unit) {
         this.dispatch = dispatch
@@ -37,16 +36,13 @@ internal object BackgroundWork {
             items.distinctUntilChanged().collect { next ->
                 val before = mutableItems.value
                 mutableItems.value = next
-                if (before.none { it.running } && next.any { it.running }) RuntimeForegroundService.ensureRunning(context)
-                before.filterNot { it.running }
-                    .filter { failed -> next.none { it.key == failed.key && it.failure == failed.failure } }
-                    .forEach { WorkNotifications.dismissFailure(context, it) }
+                if (before.isEmpty() && next.isNotEmpty()) RuntimeForegroundService.ensureRunning(context)
             }
         }
     }
 
     /** Cancel on [key]'s notification: sent only while that work still runs and may be cancelled. */
     fun cancel(key: String) {
-        items.value.firstOrNull { it.key == key && it.running }?.cancel?.let(dispatch)
+        items.value.firstOrNull { it.key == key }?.cancel?.let(dispatch)
     }
 }

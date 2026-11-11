@@ -2,10 +2,15 @@ package dev.icode.mobile.ui
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import dev.icode.mobile.domain.BackgroundPlace
 import dev.icode.mobile.domain.ICodeGateway
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.ICodeSnapshot
 import dev.icode.mobile.domain.McpIntent
+import dev.icode.mobile.domain.NoticeIntent
+import dev.icode.mobile.domain.notices.NoticeRules
 import dev.icode.mobile.navigation.Route
 
 /** What Android asked iCode's screen to show as it opened or came back to the front. */
@@ -16,8 +21,11 @@ sealed interface Arrival {
     /** Background work's notification: where iCode shows that work (docs/long-operations-plan.md §6). */
     data class Work(val place: BackgroundPlace) : Arrival
 
-    /** A notice in Android's shade: its sheet; their summary, without [id]: the Notifications page (docs/notices-plan.md §2.5). */
-    data class Notice(val id: String?) : Arrival
+    /**
+     * A notice in Android's shade: its sheet; their summary, without [id]: the Notifications page; its
+     * button ([act]): its main action, done while it still can be, else its sheet (docs/notices-redesign-plan.md D7).
+     */
+    data class Notice(val id: String?, val act: Boolean = false) : Arrival
 
     /** A remote MCP server's sign-in came back (docs/mcp-plan.md §8.2): finished, and its servers shown. */
     data class SignedIn(val answer: String) : Arrival {
@@ -32,7 +40,16 @@ sealed interface Arrival {
  * notification needs nothing then: onboarding is already showing the install.
  */
 @Composable
-internal fun ArrivalEffect(arrival: Arrival?, navigation: NavigationState, pastOnboarding: Boolean, gateway: ICodeGateway, notices: NoticeHostState, onArrived: () -> Unit) {
+internal fun ArrivalEffect(
+    arrival: Arrival?,
+    navigation: NavigationState,
+    pastOnboarding: Boolean,
+    gateway: ICodeGateway,
+    snapshot: ICodeSnapshot,
+    notices: NoticeHostState,
+    onArrived: () -> Unit,
+) {
+    val current by rememberUpdatedState(snapshot)
     LaunchedEffect(arrival, pastOnboarding) {
         val asked = arrival ?: return@LaunchedEffect
         if (!pastOnboarding) {
@@ -54,7 +71,18 @@ internal fun ArrivalEffect(arrival: Arrival?, navigation: NavigationState, pastO
                 BackgroundPlace.Gpg -> Unit
             }
             // A notice's sheet is drawn over whatever is open.
-            is Arrival.Notice -> if (asked.id != null) notices.open(asked.id) else show(Route.Notifications)
+            is Arrival.Notice -> when (val id = asked.id) {
+                null -> show(Route.Notifications)
+                else -> {
+                    val action = current.notices.firstOrNull { it.id == id }?.takeIf { asked.act }?.let { NoticeRules.available(it, current).firstOrNull() }
+                    if (action == null) {
+                        notices.open(id)
+                    } else {
+                        gateway.dispatch(NoticeIntent.Read(id))
+                        act(action, gateway, navigation.actions)
+                    }
+                }
+            }
             is Arrival.SignedIn -> {
                 gateway.dispatch(McpIntent.SignedIn(asked.answer))
                 show(Route.McpServers)

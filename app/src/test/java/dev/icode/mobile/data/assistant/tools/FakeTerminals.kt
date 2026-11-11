@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.assistant.tools
 
 import dev.icode.mobile.data.runtime.FollowedOutput
+import dev.icode.mobile.data.runtime.LongCommandEnded
 import dev.icode.mobile.data.runtime.TerminalCommands
 import dev.icode.mobile.data.runtime.TerminalEnding
 import dev.icode.mobile.data.runtime.TerminalSessions
@@ -32,6 +33,8 @@ internal class FakeTerminals(private val directory: String = "/workspace/app") :
     override val snapshot = MutableStateFlow(TerminalSnapshot())
     override val endings = MutableSharedFlow<TerminalEnding>()
     override val commandsFinished = MutableSharedFlow<String>()
+    override val longCommandsEnded = MutableSharedFlow<LongCommandEnded>()
+    override val lookingAt = MutableStateFlow<String?>(null)
 
     /** A tab of the user's, at a prompt; [marks] false for a shell that prints none. */
     fun userTab(title: String, marks: Boolean = true): String = add(title, null, "/w/app", marks)

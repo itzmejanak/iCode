@@ -16,9 +16,6 @@ sealed interface NoticeIntent : ICodeIntent {
     /** Clear all: what [filter] shows. */
     data class Clear(val filter: NoticeFilter = NoticeFilter.All) : NoticeIntent
 
-    /** Swiped from Android's shade: not posted again, still unread here. */
-    data class Dismissed(val id: String) : NoticeIntent
-
     /** What a screen has to say, told as the backend's notices are. */
     data class Tell(val notice: Notice) : NoticeIntent
 }

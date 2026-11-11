@@ -24,15 +24,29 @@ object TerminalNotices {
     fun exited(tab: String, code: Int, place: NoticePlace?) =
         Notice(NoticeTone.Info, NoticeSource.Terminal, "$tab ended with exit code $code", place)
 
-    /** A command that ran a long time ended ([alert]: worth the shade while away, as the user's setting says). */
-    fun finished(program: String, after: String, place: NoticePlace?, session: String, alert: Boolean) = Notice(
+    /**
+     * A command that ran [millis] ended, "npm finished after 2 min" — its exit status is not known, so
+     * nothing claims success. [alert]: worth the shade while away, as the user's setting says.
+     */
+    fun finished(program: String, millis: Long, place: NoticePlace?, session: String, alert: Boolean) = Notice(
         NoticeTone.Done,
         NoticeSource.Terminal,
-        "$program finished after $after",
+        "$program finished after ${spokenDuration(millis)}",
         place,
-        actions = listOf(NoticeAction.OpenSession(session)),
+        actions = listOf(NoticeAction.OpenSession(session, "Open Terminal")),
         tellAway = alert,
     )
+
+    /** "45 s", "2 min", "1 h 5 min". */
+    fun spokenDuration(millis: Long): String {
+        val seconds = millis / 1_000
+        return when {
+            seconds < 60 -> "$seconds s"
+            seconds < 3_600 -> "${seconds / 60} min"
+            else -> listOfNotNull("${seconds / 3_600} h", (seconds % 3_600 / 60).takeIf { it > 0 }?.let { "$it min" })
+                .joinToString(" ")
+        }
+    }
 
     fun needsRuntime() = Notice(NoticeTone.HeadsUp, NoticeSource.Terminal, "Install the Linux runtime first", detail = "Terminal sessions run in it.")
 

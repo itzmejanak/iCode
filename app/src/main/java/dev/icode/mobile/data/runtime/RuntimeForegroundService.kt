@@ -2,7 +2,6 @@ package dev.icode.mobile.data.runtime
 
 import android.annotation.SuppressLint
 import android.app.Notification
-import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -11,6 +10,8 @@ import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import android.os.SystemClock
+import dev.icode.mobile.data.notify.IcodeNotifications
+import dev.icode.mobile.data.notify.NotificationKey
 import dev.icode.mobile.data.tasks.BackgroundWork
 import dev.icode.mobile.data.tasks.WorkNotifications
 import dev.icode.mobile.domain.BackgroundItem
@@ -40,13 +41,13 @@ import kotlinx.coroutines.launch
  * Its own notification says what runs ("1 session · 1 task running") and is the
  * parent of the session rows, each with Exit and a wakelock toggle; tapping a
  * row opens that session. Background work has its own notifications
- * ([WorkNotifications]): progress, with Cancel where allowed, and failures.
+ * ([WorkNotifications]): progress, with Cancel where allowed, and its questions.
  */
 class RuntimeForegroundService : Service() {
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private lateinit var terminals: TerminalSessionManager
-    private lateinit var notifications: NotificationManager
+    private lateinit var shade: IcodeNotifications
     private lateinit var shown: TerminalNotifications
     private var sessions: List<TerminalSessionState> = emptyList()
     private var selectedId: String? = null
@@ -74,10 +75,9 @@ class RuntimeForegroundService : Service() {
     override fun onCreate() {
         super.onCreate()
         terminals = TerminalSessionManager.get(this)
-        notifications = getSystemService(NotificationManager::class.java)
-        shown = TerminalNotifications(this)
-        shown.createChannel(notifications)
-        workShown = WorkNotifications(this, notifications)
+        shade = IcodeNotifications(this)
+        shown = TerminalNotifications(this, shade)
+        workShown = WorkNotifications(shade)
         scope.launch {
             // Leaving iCode is followed too: a question asked while it was in view pops up when it goes.
             combine(terminals.snapshot, BackgroundWork.items, terminals.screenVisible) { snapshot, items, _ -> snapshot to items }
@@ -92,7 +92,7 @@ class RuntimeForegroundService : Service() {
                     delay(NOTIFY_INTERVAL_MILLIS)
                 }
         }
-        alerts = TerminalAlerts(this, notifications)
+        alerts = TerminalAlerts(shade)
         scope.launch { terminals.bells.collect(::bellRang) }
         // Looking at a session answers its alert.
         scope.launch { terminals.lookingAt.collect { id -> id?.let(alerts::clear) } }
@@ -131,13 +131,13 @@ class RuntimeForegroundService : Service() {
         super.onDestroy()
     }
 
-    private val idle: Boolean get() = sessions.isEmpty() && work.none { it.running }
+    private val idle: Boolean get() = sessions.isEmpty() && work.isEmpty()
 
     /** Shows the current work, or stops when there is none. */
     private fun show() {
         keptAwake.retainAll(sessions.map { it.id }.toSet())
         applyWakeLock()
-        // Before stopping: the last work may have just failed, and that is said once.
+        // Before stopping: the last work's progress goes with it.
         workShown.show(work, terminals.screenVisible.value)
         if (idle) {
             clearSessionRows()
@@ -147,7 +147,7 @@ class RuntimeForegroundService : Service() {
         }
         // Updating a notification does not restart the service, so this is
         // safe while iCode is in the background.
-        notifications.notify(TerminalNotifications.PARENT_ID, parentNotification())
+        shade.post(NotificationKey.Running, parentNotification())
         showSessionRows()
     }
 
@@ -161,10 +161,7 @@ class RuntimeForegroundService : Service() {
             val workspace = terminals.workspaceOf(session.id)?.let { File(it).name }
             val text = TerminalNotifications.rowText(workspace, foreground, session.id in keptAwake)
             if (postedRows[session.id] != text) {
-                notifications.notify(
-                    TerminalNotifications.rowId(session.id),
-                    shown.sessionRow(session, index, text, session.id in keptAwake),
-                )
+                shade.post(NotificationKey.Session, shown.sessionRow(session, index, text, session.id in keptAwake), tag = session.id)
                 postedRows[session.id] = text
             }
         }
@@ -176,7 +173,7 @@ class RuntimeForegroundService : Service() {
 
     /** A session that no longer runs: its row, its command timing and its alert go. */
     private fun forget(sessionId: String) {
-        notifications.cancel(TerminalNotifications.rowId(sessionId))
+        shade.cancel(NotificationKey.Session, sessionId)
         postedRows.remove(sessionId)
         commandRuns.forget(sessionId)
         // Left behind, an alert would only open a session that has ended.
@@ -187,12 +184,8 @@ class RuntimeForegroundService : Service() {
     private fun whereIs(session: TerminalSessionState): String =
         TerminalNotifications.whereIs(session.title, terminals.workspaceOf(session.id)?.let { File(it).name })
 
-    private fun commandFinished(session: TerminalSessionState, finished: FinishedCommand) {
-        terminals.commandFinished(session.id, long = finished.long)
-        if (!terminals.settings.finishAlerts || terminals.lookingAt.value == session.id) return
-        if (!finished.long) return
-        alerts.finished(session.id, finished, whereIs(session), shown.openSession(session.id))
-    }
+    /** Told by the sessions as a notice, when it ran long ([TerminalCoordinator]). */
+    private fun commandFinished(session: TerminalSessionState, finished: FinishedCommand) = terminals.commandFinished(session.id, finished)
 
     private fun bellRang(sessionId: String) {
         if (!terminals.settings.bellAlerts || terminals.lookingAt.value == sessionId) return
@@ -203,13 +196,13 @@ class RuntimeForegroundService : Service() {
     }
 
     private fun parentNotification(): Notification =
-        shown.parent(sessions.size, work.filter { it.running }.map { it.title }, selectedId?.takeIf { id -> sessions.any { it.id == id } })
+        shown.parent(sessions.size, work.map { it.title }, selectedId?.takeIf { id -> sessions.any { it.id == id } })
 
     private fun startForegroundCompat(notification: Notification) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(TerminalNotifications.PARENT_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+            startForeground(NotificationKey.Running.id, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
         } else {
-            startForeground(TerminalNotifications.PARENT_ID, notification)
+            startForeground(NotificationKey.Running.id, notification)
         }
     }
 

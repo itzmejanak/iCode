@@ -1,14 +1,12 @@
 package dev.icode.mobile.data.runtime
 
 import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
-import androidx.core.net.toUri
-import dev.icode.mobile.MainActivity
 import dev.icode.mobile.R
+import dev.icode.mobile.data.notify.IcodeChannel
+import dev.icode.mobile.data.notify.IcodeNotifications
+import dev.icode.mobile.data.notify.NotificationLink
 import dev.icode.mobile.domain.TerminalSessionState
 
 /**
@@ -17,17 +15,8 @@ import dev.icode.mobile.domain.TerminalSessionState
  * wake-lock toggle, and the intents behind them. Tapping a row opens that
  * session; the parent opens the selected one.
  */
-internal class TerminalNotifications(private val context: Context) {
+internal class TerminalNotifications(private val context: Context, private val shade: IcodeNotifications) {
     private val createdAt = System.currentTimeMillis() - ORDER_PARENT * ORDER_STEP_MILLIS
-
-    fun createChannel(notifications: NotificationManager) {
-        notifications.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "Development runtime", NotificationManager.IMPORTANCE_LOW).apply {
-                description = "Shown while terminal sessions or long operations run"
-                setShowBadge(false)
-            },
-        )
-    }
 
     /**
      * The group's parent, and the service's foreground notification. Its
@@ -60,32 +49,17 @@ internal class TerminalNotifications(private val context: Context) {
             .setContentTitle(session.title)
             .setContentText(text)
             .setContentIntent(openSession(session.id))
-            .addAction(action("Exit", serviceIntent(RuntimeForegroundService.ACTION_EXIT_SESSION, session.id)))
+            .addAction(shade.action("Exit", serviceIntent(RuntimeForegroundService.ACTION_EXIT_SESSION, session.id)))
             .addAction(
-                action(
+                shade.action(
                     if (awake) "Release wakelock" else "Acquire wakelock",
                     serviceIntent(RuntimeForegroundService.ACTION_TOGGLE_WAKE_LOCK, session.id),
                 ),
             )
             .build()
 
-    /** Opens iCode on [sessionId]'s terminal, reusing the screen that is already open. */
-    fun openSession(sessionId: String?): PendingIntent {
-        val intent = Intent(context, MainActivity::class.java)
-            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-        if (sessionId != null) {
-            intent.setAction(MainActivity.ACTION_SHOW_TERMINAL_SESSION)
-                .putExtra(MainActivity.EXTRA_TERMINAL_SESSION_ID, sessionId)
-                // Distinct data keeps one pending intent per session.
-                .setData("icode://terminal/$sessionId".toUri())
-        }
-        return PendingIntent.getActivity(
-            context,
-            sessionId?.let(::rowId) ?: REQUEST_OPEN_APP,
-            intent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-        )
-    }
+    /** Opens iCode on [sessionId]'s terminal, or as it was without one, reusing the screen that is already open. */
+    fun openSession(sessionId: String?): PendingIntent = shade.open(sessionId?.let(NotificationLink::Session) ?: NotificationLink.App)
 
     /**
      * [order] places the row: Android lists a group newest first, using a
@@ -94,45 +68,23 @@ internal class TerminalNotifications(private val context: Context) {
      * themselves are never shown.
      */
     private fun baseBuilder(order: Int): Notification.Builder =
-        Notification.Builder(context, CHANNEL_ID)
+        shade.builder(IcodeChannel.Running)
             .setWhen(createdAt + order * ORDER_STEP_MILLIS)
             .setShowWhen(false)
-            .setSmallIcon(R.drawable.ic_notification)
-            .setColor(context.getColor(R.color.notification_accent))
             .setGroup(GROUP)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
 
-    private fun action(title: String, intent: PendingIntent): Notification.Action =
-        Notification.Action.Builder(null, title, intent).build()
-
-    private fun serviceIntent(action: String, sessionId: String): PendingIntent {
-        val intent = Intent(context, RuntimeForegroundService::class.java)
-            .setAction(action)
-            .putExtra(RuntimeForegroundService.EXTRA_SESSION_ID, sessionId)
-            // Distinct data keeps one pending intent per session and action.
-            .setData("icode://terminal/$sessionId/$action".toUri())
-        return PendingIntent.getService(
-            context,
-            rowId(sessionId),
-            intent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-        )
-    }
+    private fun serviceIntent(action: String, sessionId: String): PendingIntent =
+        shade.toService(RuntimeForegroundService::class.java, action, "icode://terminal/$sessionId/$action") {
+            putExtra(RuntimeForegroundService.EXTRA_SESSION_ID, sessionId)
+        }
 
     companion object {
-        const val PARENT_ID = 4711
-        private const val CHANNEL_ID = "icode.runtime"
         /** The service's group: its summary, the session rows and the work's progress rows. */
         const val GROUP = "icode.terminal"
-        private const val SESSION_ROW_BASE = 5000
         private const val ORDER_PARENT = 1000
         private const val ORDER_STEP_MILLIS = 1000L
-        private const val REQUEST_OPEN_APP = 1
-
-        /** Stable per session: "session-3" is always row 5003. */
-        fun rowId(sessionId: String): Int =
-            SESSION_ROW_BASE + (sessionId.substringAfterLast('-').toIntOrNull() ?: (sessionId.hashCode() and 0xFFF))
 
         /** "superpowers · running opencode · wake lock held". */
         fun rowText(workspace: String?, foreground: TerminalForeground, awake: Boolean): String {
