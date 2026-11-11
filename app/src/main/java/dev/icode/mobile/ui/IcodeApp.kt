@@ -177,7 +177,7 @@ fun IcodeApp(
         val undo = rememberUndoPill(snapshot.explorer.history.news)
         val dock = rememberToolDock(snapshot, navigation.model.tool)
         val floors = remember { IcodeFloors() }
-        ArrivalEffect(arrival, navigation, pastOnboarding = navigation.current !in ONBOARDING_SCREENS, gateway, notices, onArrived)
+        ArrivalEffect(arrival, navigation, pastOnboarding = navigation.current !in ONBOARDING_SCREENS, gateway, snapshot, notices, onArrived)
         val systemPrompts = rememberSystemPrompts(gateway)
         val fileViewer = remember { FileViewerState() }
 

@@ -4,7 +4,10 @@ import androidx.annotation.MainThread
 import dev.icode.mobile.domain.isAtOrUnder
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.ManagedProcess
+import dev.icode.mobile.domain.notices.NoticePlace
+import dev.icode.mobile.domain.notices.NoticePlaces
 import dev.icode.mobile.domain.notices.NoticeTone
+import dev.icode.mobile.domain.notices.TerminalNotices
 import dev.icode.mobile.domain.TerminalSettings
 import dev.icode.mobile.domain.TerminalSnapshot
 import dev.icode.mobile.domain.ICodeEffect
@@ -20,6 +23,9 @@ import kotlinx.coroutines.withContext
 /** A tab removed because its shell exited by itself. */
 internal data class TerminalEnding(val id: String, val title: String, val exitCode: Int)
 
+/** A command that ran long ([FinishedCommand.long]) in session [id], ended. */
+internal data class LongCommandEnded(val id: String, val program: String, val durationMillis: Long)
+
 /**
  * A process's output, for a tab of its own: [key] is the process, [title] its name, [log] where its
  * output is written in the runtime, [workspaceHostPath] the workspace it runs in.
@@ -31,6 +37,10 @@ internal interface TerminalSessions {
     val snapshot: StateFlow<TerminalSnapshot>
     val endings: SharedFlow<TerminalEnding>
     val commandsFinished: SharedFlow<String>
+    val longCommandsEnded: SharedFlow<LongCommandEnded>
+
+    /** The session the user is looking at: iCode on screen and that session's view attached; null otherwise. */
+    val lookingAt: StateFlow<String?>
 
     /** Opens a session, or selects a running one of the workspace when [reuseExisting]; null without a runtime. */
     suspend fun open(workspaceHostPath: String?, reuseExisting: Boolean): String?
@@ -97,9 +107,28 @@ internal class TerminalCoordinator(
                 if (workspace != null && workspace == activeRoot()) workspaceChanged()
             }
         }
+        scope.launch { terminals.longCommandsEnded.collect { ended -> tellFinished(ended) } }
         scope.launch {
-            settings.collect { next -> withContext(main) { terminals.applySettings(next) } }
+            settings.collect { next ->
+                finishAlerts = next.finishAlerts
+                withContext(main) { terminals.applySettings(next) }
+            }
         }
+    }
+
+    /** The user's Alert When a Long Command Ends, as last applied. */
+    @Volatile private var finishAlerts = TerminalSettings().finishAlerts
+
+    /**
+     * A long command's end (docs/notices-redesign-plan.md D9), unless the user watched it end: kept on
+     * the Notifications page, where it ran, and — when the user asked for it — posted to Finished
+     * while iCode is out of view.
+     */
+    private suspend fun tellFinished(ended: LongCommandEnded) {
+        if (terminals.lookingAt.value == ended.id) return
+        val (tab, workspace) = withContext(main) { terminals.snapshot.value.sessions.firstOrNull { it.id == ended.id }?.title to terminals.workspaceOf(ended.id) }
+        val where = workspace?.let { NoticePlaces.of(stateHolder.current, it, inside = false) } ?: NoticePlace(NoticePlaces.RUNTIME)
+        stateHolder.tell(TerminalNotices.finished(ended.program, ended.durationMillis, where.copy(subject = tab), ended.id, alert = finishAlerts))
     }
 
     /** "+": always a new session, in the open workspace. */

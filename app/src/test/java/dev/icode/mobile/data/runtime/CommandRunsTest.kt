@@ -51,12 +51,4 @@ class CommandRunsTest {
         assertFalse(FinishedCommand("make", 29_999).long)
         assertTrue(FinishedCommand("make", 30_000).long)
     }
-
-    @Test
-    fun `durations are said the way a person would`() {
-        assertEquals("45 s", spokenDuration(45_900))
-        assertEquals("2 min", spokenDuration(130_000))
-        assertEquals("1 h", spokenDuration(3_600_000))
-        assertEquals("1 h 5 min", spokenDuration(3_900_000))
-    }
 }

@@ -1,7 +1,7 @@
 package dev.icode.mobile.data.notices
 
-import android.app.NotificationManager
 import android.content.Context
+import dev.icode.mobile.data.notify.IcodeNotifications
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.NoticeIntent
@@ -20,7 +20,7 @@ import kotlinx.coroutines.launch
  */
 internal class NoticeBoard(context: Context, private val stateHolder: ICodeStateHolder, private val screenVisible: StateFlow<Boolean>) {
     private val store = NoticeStore.get(context)
-    private val shade = NoticeNotifications(context, context.getSystemService(NotificationManager::class.java))
+    private val shade = NoticeNotifications(context, IcodeNotifications(context))
 
     /**
      * Follows what is told — from before anything else starts, so nothing is told before it can be
@@ -47,7 +47,6 @@ internal class NoticeBoard(context: Context, private val stateHolder: ICodeState
         is NoticeIntent.Read -> store.markRead(intent.id)
         is NoticeIntent.Delete -> store.delete(intent.id)
         is NoticeIntent.Clear -> store.clear(intent.filter)
-        is NoticeIntent.Dismissed -> store.dismiss(intent.id)
         is NoticeIntent.Tell -> stateHolder.tell(intent.notice)
     }
 }

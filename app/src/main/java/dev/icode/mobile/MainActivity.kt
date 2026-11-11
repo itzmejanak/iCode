@@ -10,8 +10,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import dev.icode.mobile.capture.CaptureEnvironment
+import dev.icode.mobile.data.notify.NotificationLink
 import dev.icode.mobile.data.runtime.TerminalSessionManager
-import dev.icode.mobile.domain.BackgroundPlace
 import dev.icode.mobile.navigation.Route
 import dev.icode.mobile.ui.Arrival
 import dev.icode.mobile.ui.IcodeApp
@@ -68,30 +68,18 @@ class MainActivity : ComponentActivity() {
         arrivalIn(intent)?.let { arrival = it }
     }
 
+    /** What a notification's tap ([NotificationLink]) or a sign-in asks to show. */
     private fun arrivalIn(intent: Intent?): Arrival? {
-        val asked = intent ?: return null
-        return when (asked.action) {
-            ACTION_SHOW_TERMINAL_SESSION -> asked.getStringExtra(EXTRA_TERMINAL_SESSION_ID)?.let(Arrival::TerminalSession)
-            ACTION_SHOW_WORK -> BackgroundPlace.decode(asked.getStringExtra(EXTRA_WORK_PLACE))?.let(Arrival::Work)
-            ACTION_SHOW_NOTICE -> Arrival.Notice(asked.getStringExtra(EXTRA_NOTICE_ID))
-            ACTION_SIGNED_IN -> asked.getStringExtra(EXTRA_SIGN_IN)?.let(Arrival::SignedIn)
-            else -> null
+        if (intent?.action == ACTION_SIGNED_IN) return intent.getStringExtra(EXTRA_SIGN_IN)?.let(Arrival::SignedIn)
+        return when (val link = NotificationLink.read(intent)) {
+            is NotificationLink.Session -> Arrival.TerminalSession(link.id)
+            is NotificationLink.Work -> Arrival.Work(link.place)
+            is NotificationLink.Notice -> Arrival.Notice(link.id, link.act)
+            NotificationLink.App, null -> null
         }
     }
 
     companion object {
-        /** Opens iCode on one terminal session: its workspace, the Terminal panel, that tab. */
-        const val ACTION_SHOW_TERMINAL_SESSION = "dev.icode.mobile.action.SHOW_TERMINAL_SESSION"
-        const val EXTRA_TERMINAL_SESSION_ID = "terminal_session"
-
-        /** Opens iCode on a piece of background work, from its notification: [EXTRA_WORK_PLACE] says where. */
-        const val ACTION_SHOW_WORK = "dev.icode.mobile.action.SHOW_WORK"
-        const val EXTRA_WORK_PLACE = "work_place"
-
-        /** Opens iCode on a notice, from Android's shade: [EXTRA_NOTICE_ID]'s sheet, or the Notifications page without one. */
-        const val ACTION_SHOW_NOTICE = "dev.icode.mobile.action.SHOW_NOTICE"
-        const val EXTRA_NOTICE_ID = "notice"
-
         /** A remote MCP server's sign-in came back ([SignInReturnActivity]): [EXTRA_SIGN_IN] is the browser's answer. */
         const val ACTION_SIGNED_IN = "dev.icode.mobile.action.SIGNED_IN"
         const val EXTRA_SIGN_IN = "sign_in"

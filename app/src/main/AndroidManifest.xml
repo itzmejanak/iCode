@@ -157,6 +157,11 @@
                 android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
                 android:value="Continues user-started developer processes such as builds, development servers, interactive shells and a coding assistant's work while the app is in the background." />
         </service>
+
+        <!-- A notice swiped from the notification shade: only iCode's own notifications send it. -->
+        <receiver
+            android:name="dev.icode.mobile.data.notices.NoticeSwipedReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>

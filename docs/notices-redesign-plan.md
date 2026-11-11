@@ -404,3 +404,20 @@ restated as "keep them in the page history but don't ring the bell". So:
   `UndoSheet`: the change last made or undone and its place (`FileNews.place`, from
   `FileNotices.placeOf`), what Undo and Redo would do, and their buttons; the pill's tap and hold no
   longer undo or redo.
+- **R3 — Android.** `data/notify/IcodeChannels` registers the three groups and eight channels in
+  `ICodeApplication.onCreate` and deletes `icode.work-failures`; the ids users set choices for are
+  kept. `data/notify/IcodeNotifications` is the one builder (icon, colour, channel, the place as
+  sub-text), with `NotificationKey` (one id per kind, tagged by the session, the work's key or the
+  notice) and `NotificationLink` (the one tap encoding; MainActivity reads it back). All five posters
+  use it. The work's failure notification is gone, and with it `BackgroundItem.failure`, `watched`
+  and `number`: work that stopped short is not carried, and is told as a Problem notice — the
+  runtime install's already, a task's in R4, a Git transfer's in R5, a tools run's in R6 (until
+  then, on its own page only). So an install failure out of view posts once (D10.5). A long
+  command's end is `TerminalNotices.finished`, told by `TerminalCoordinator` from the sessions'
+  `longCommandsEnded`, unless the user watched it end; out of view and with the user's setting on, it
+  is posted to Finished. `TerminalAlerts` keeps only the bell, on "A program asks for you". A
+  notice's notification says where in its header, has its first action as a button when that only
+  opens something, and a swipe sends `NoticeSwipedReceiver`, which marks it dismissed in the store
+  itself (not through the gateway, which a process started for the swipe alone would have to build);
+  `NoticeIntent.Dismissed` is not needed and is gone. Git's work has one key, `git`: a clone and a
+  pull never run at once.
