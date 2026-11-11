@@ -457,3 +457,7 @@ restated as "keep them in the page history but don't ring the bell". So:
   title. A tap with nothing to act on ("Nothing to share yet") is a Moment. `notify`, `report` and
   `failed` are gone from `ICodeStateHolder`; `tools/check-backend-consistency.sh` has the rule
   `notice-text`: a `Notice` is made only in `domain/notices/`, or read back by its store.
+- **R7 — docs.** notices-plan.md is marked replaced where this plan replaces it (§2.5, §2.6, the
+  model; D10.8); layout.md §21.5 describes the bell, the sheet, the page, the shade and the undo pill
+  as built; the CHANGELOG says what changed. A1–A7 are JVM tests and guards that pass. Still to try
+  on the phone: A8–A10, which this sandbox cannot run.
