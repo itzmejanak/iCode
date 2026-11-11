@@ -1,0 +1,22 @@
+@0xdbb9ad1f14bf0b36;
+
+# An address book.
+struct Person {
+  name @0 :Text;
+  email @1 :Text;
+  phones @2 :List(PhoneNumber);
+
+  struct PhoneNumber {
+    number @0 :Text;
+    type @1 :Type;
+
+    enum Type {
+      mobile @0;
+      home @1;
+    }
+  }
+}
+
+interface Directory {
+  find @0 (name :Text) -> (person :Person);
+}

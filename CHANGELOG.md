@@ -187,6 +187,22 @@ All notable changes to iCode are documented here. The format follows
   inside a block comment or a long string. Diff lines keep their green and red backgrounds and their
   `+` and `-` markers; their plain text is now in the normal text colour. An assistant change's page
   shows what it writes under Content, or under Replaces and With for an edit.
+- Many more languages are coloured: 307, up from 42 (S6, part 1). Every text file type the file icons
+  know now opens coloured, from Zig, TOML, Terraform, Nix, Elixir, LaTeX and Svelte to `.dockerignore`,
+  `Procfile` and `requirements.txt`, and code blocks in those languages colour in chat and the Markdown
+  preview. The few left plain (licences, version files, formats with no grammar anywhere) are listed with
+  their reasons in `FileTypeCoverageTest`. The grammars come from VS Code, Shiki and the languages' own
+  repositories, each with its source, commit and licence in
+  [docs/editor-grammar-provenance.md](docs/editor-grammar-provenance.md). Some names now open as VS Code
+  opens them: `tsconfig.json` and `.eslintrc` as JSON with comments, `.log` files as logs.
+- Dockerfiles and `.env` files colour fully (S6, part 2). In a Dockerfile the image, its tag and the
+  stage name, flags such as `--from=` and `--platform=`, ARG, ENV and LABEL keys and values, EXPOSE
+  ports, variables and the shell commands after RUN, CMD and ENTRYPOINT are all coloured; in a `.env`
+  file, numbers, `true` and `false`, variables and values that span lines too. Every language was
+  checked with a sample file, and 357 are now coloured, up from 307: subtitles (`.srt`, `.vtt`),
+  checksum lists, Cabal, Meson, Nunjucks, XQuery, YANG, PlantUML, Slint, Visual Studio solutions,
+  `robots.txt`, `hosts`, `.mailmap` and more, and Javadoc inside Groovy comments. The words a language
+  leaves plain on purpose are listed with their reasons in `SyntaxSamples`.
 - Notifications say what happened and where ([docs/notices-redesign-plan.md](docs/notices-redesign-plan.md)).
   Every notice names its workspace, and its repository, branch, folder or terminal tab where they
   matter, on the Notifications page and in the header of Android's notification. A pull says how

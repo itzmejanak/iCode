@@ -1,0 +1,18 @@
+*** Settings ***
+Library           SeleniumLibrary
+Suite Setup       Open Browser    ${URL}    chrome
+
+*** Variables ***
+${URL}            https://example.com
+${TIMEOUT}        10
+
+*** Test Cases ***
+Valid Login
+    [Documentation]    Logs in with good details.
+    Input Text    id=username    demo
+    Click Button    Login
+    Page Should Contain    Welcome
+
+*** Keywords ***
+Open Login Page
+    Go To    ${URL}/login

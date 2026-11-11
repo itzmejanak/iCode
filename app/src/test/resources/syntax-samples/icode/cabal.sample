@@ -1,0 +1,18 @@
+cabal-version:      3.0
+name:               notes
+version:            0.1.0.0
+synopsis:           A notes app
+license:            MIT
+build-type:         Simple
+
+-- The library
+library
+    exposed-modules:  Notes, Notes.Parser
+    build-depends:    base >=4.14 && <5,
+                      text ^>=2.0
+    hs-source-dirs:   src
+    default-language: Haskell2010
+
+executable notes
+    main-is:          Main.hs
+    build-depends:    base, notes

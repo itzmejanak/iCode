@@ -1,0 +1,32 @@
+{
+  "name": ".mailmap",
+  "scopeName": "source.mailmap",
+  "fileTypes": [
+    "AUTHORS",
+    "mailmap"
+  ],
+  "patterns": [
+    {
+      "include": "#main"
+    }
+  ],
+  "repository": {
+    "main": {
+      "patterns": [
+        {
+          "include": "etc#comment"
+        },
+        {
+          "include": "etc#email"
+        },
+        {
+          "include": "#authorName"
+        }
+      ]
+    },
+    "authorName": {
+      "name": "entity.name.author.mailmap",
+      "match": "(?x) (?<=\\s|^|\\G)(?!\\.|\\#)\n[^\\[\\(<⟨«\"'‘“`@\\s][^\\[\\(<⟨«“@]*?\n(?=\\s+(?:[\\[\\]\\(\\)<>⟨⟩«»\"'‘’“”`\\s@.]))"
+    }
+  }
+}

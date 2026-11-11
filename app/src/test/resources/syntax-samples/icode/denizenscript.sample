@@ -1,0 +1,11 @@
+# Greets a player who joins
+greeting_world:
+    type: world
+    debug: false
+    events:
+        after player joins:
+        - narrate "Welcome, <player.name>!"
+        - if <player.has_flag[visited]>:
+            - narrate "Welcome back"
+        - flag player visited
+        - wait 5s

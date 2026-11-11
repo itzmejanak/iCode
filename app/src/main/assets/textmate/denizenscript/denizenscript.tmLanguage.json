@@ -1,0 +1,161 @@
+{
+  "scopeName": "source.denizenscript",
+  "name": "DenizenScript",
+  "fileTypes": [
+    "dsc"
+  ],
+  "patterns": [
+    {
+      "include": "#comments"
+    },
+    {
+      "include": "#todo_comments"
+    },
+    {
+      "include": "#header_comments"
+    },
+    {
+      "include": "#keys"
+    },
+    {
+      "include": "#commands"
+    },
+    {
+      "include": "#double_quotes"
+    },
+    {
+      "include": "#single_quotes"
+    },
+    {
+      "include": "#tags"
+    },
+    {
+      "include": "#def_brackets"
+    },
+    {
+      "include": "#not_script_keys"
+    }
+  ],
+  "repository": {
+    "comments": {
+      "begin": "(?i)^\\s*#(?!\\s*todo|(?:\\s*(?:\\||\\+|=|#|_|@|\\/)))",
+      "end": "\\n",
+      "name": "comment.line.number-sign.denizenscript"
+    },
+    "todo_comments": {
+      "begin": "(?i)^\\s*#\\s*(?:todo)",
+      "end": "\\n",
+      "name": "variable.todo-comment.denizenscript"
+    },
+    "header_comments": {
+      "begin": "^\\s*#\\s*(?:\\||\\+|=|#|_|@|\\/)",
+      "end": "\\n",
+      "name": "keyword.header-comment.denizenscript"
+    },
+    "keys": {
+      "begin": "(?i)(^(?!^\\s*-|#|\\n|^\\s*(?:interact scripts|default constants|data|constants|text|lore|aliases|slots|enchantments|input|description)(?=:\\n)).*?)(?=(:)\\s)",
+      "end": "\\s",
+      "beginCaptures": {
+        "1": {
+          "name": "markup.heading.key.denizenscript"
+        },
+        "2": {
+          "name": "operator.colon.denizenscript"
+        }
+      }
+    },
+    "not_script_keys": {
+      "begin": "(?i)(^(?!.*- |#|\\n).*(?=interact scripts|default constants|data|constants|text|lore|aliases|slots|enchantments|input|description).*)(?=(:)\\n)",
+      "end": "^(?!.*- |\\n|\\s*#)",
+      "beginCaptures": {
+        "1": {
+          "name": "markup.heading.not_script_key.denizenscript"
+        },
+        "2": {
+          "name": "operator.colon.denizenscript"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#tags"
+        },
+        {
+          "include": "#def_brackets"
+        },
+        {
+          "include": "#comments"
+        },
+        {
+          "include": "#todo_comments"
+        },
+        {
+          "include": "#header_comments"
+        }
+      ]
+    },
+    "commands": {
+      "begin": "^\\s*(-)\\s([^\\s<>\"':]+)",
+      "end": "\\s",
+      "captures": {
+        "1": {
+          "name": "operator.dash.denizenscript"
+        },
+        "2": {
+          "name": "entity.other.command.denizenscript"
+        }
+      }
+    },
+    "double_quotes": {
+      "begin": "(?<=\\s)\"",
+      "end": "(?:\")",
+      "name": "string.quoted.double.denizenscript",
+      "patterns": [
+        {
+          "include": "#tags"
+        },
+        {
+          "include": "#def_brackets"
+        }
+      ]
+    },
+    "single_quotes": {
+      "begin": "(?<=\\s)'",
+      "end": "(?:')",
+      "name": "string.quoted.single.denizenscript",
+      "patterns": [
+        {
+          "include": "#tags"
+        },
+        {
+          "include": "#def_brackets"
+        }
+      ]
+    },
+    "tags": {
+      "begin": "<(?!-|\\s|=)",
+      "end": ">",
+      "name": "constant.language.tag.denizenscript",
+      "patterns": [
+        {
+          "include": "#tags"
+        },
+        {
+          "include": "#def_brackets"
+        }
+      ]
+    },
+    "def_brackets": {
+      "begin": "(?<=\\w|<|&)\\[",
+      "end": "\\]",
+      "name": "entity.name.tag.def_brackets.denizenscript",
+      "patterns": [
+        {
+          "include": "#tags"
+        },
+        {
+          "include": "#def_brackets"
+        }
+      ]
+    }
+  }
+}

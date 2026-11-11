@@ -1,0 +1,14 @@
+%!PS-Adobe-3.0
+%%Title: A box
+%%EndComments
+/inch { 72 mul } def
+/box {
+  newpath 0 0 moveto 1 inch 0 rlineto 0 1 inch rlineto closepath
+} def
+gsave
+  2 inch 3 inch translate
+  0.5 setgray box fill
+grestore
+/Helvetica findfont 12 scalefont setfont
+72 72 moveto (Hello) show
+showpage

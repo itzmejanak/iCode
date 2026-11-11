@@ -1,0 +1,7 @@
+# Build output
+build/
+*.class
+/out/**
+!keep.me
+.env.*
+node_modules

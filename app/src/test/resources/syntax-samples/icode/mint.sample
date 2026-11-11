@@ -1,0 +1,16 @@
+component Counter {
+  state count : Number = 0
+
+  /* Adds one */
+  fun increment : Promise(Void) {
+    next { count: count + 1 }
+  }
+
+  fun render : Html {
+    <div>
+      <button onClick={increment}>
+        "Clicked #{Number.toString(count)} times"
+      </button>
+    </div>
+  }
+}

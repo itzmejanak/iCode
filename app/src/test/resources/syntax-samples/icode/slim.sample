@@ -1,0 +1,13 @@
+doctype html
+html
+  head
+    title = @title
+  body
+    / A comment
+    h1.title Welcome
+    - if @users.any?
+      ul
+        - @users.each do |user|
+          li = user.name
+    - else
+      p No users yet.

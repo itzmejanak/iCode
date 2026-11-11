@@ -1,0 +1,11 @@
+jsoniq version "1.0";
+(: Orders over 100 :)
+let $orders := json-file("orders.json")
+for $order in $orders
+where $order.total gt 100
+group by $customer := $order.customer
+return {
+  "customer": $customer,
+  "count": count($order),
+  "active": true
+}

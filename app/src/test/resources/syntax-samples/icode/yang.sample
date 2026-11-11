@@ -1,0 +1,19 @@
+module example-system {
+  yang-version 1.1;
+  namespace "urn:example:system";
+  prefix "sys";
+
+  // The system's settings
+  container system {
+    leaf host-name {
+      type string;
+      description "The host's name.";
+    }
+    leaf mtu {
+      type uint16 {
+        range "68..1500";
+      }
+      default 1500;
+    }
+  }
+}

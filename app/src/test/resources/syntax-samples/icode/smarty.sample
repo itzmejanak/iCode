@@ -1,0 +1,12 @@
+{* The users page *}
+<h1>{$title|escape}</h1>
+{if $users|@count > 0}
+  <ul>
+  {foreach $users as $user}
+    <li>{$user.name} ({$user.age + 1})</li>
+  {/foreach}
+  </ul>
+{else}
+  <p>No users</p>
+{/if}
+{include file="footer.tpl" year=2026}

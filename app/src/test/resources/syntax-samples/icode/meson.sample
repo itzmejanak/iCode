@@ -1,0 +1,12 @@
+project('notes', 'c',
+  version : '1.0.0',
+  default_options : ['warning_level=3'])
+
+# The library and the program
+cc = meson.get_compiler('c')
+m = cc.find_library('m', required : false)
+lib = static_library('notes', 'notes.c', dependencies : m)
+exe = executable('notes', 'main.c', link_with : lib, install : true)
+if get_option('tests')
+  test('basic', exe, args : ['--count', '3'])
+endif

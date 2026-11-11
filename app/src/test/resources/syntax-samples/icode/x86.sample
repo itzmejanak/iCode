@@ -1,0 +1,10 @@
+# Exits with status 0, AT&T syntax
+    .section .text
+    .globl _start
+_start:
+    movl    $1, %eax        # the exit system call
+    xorl    %ebx, %ebx
+    addl    $0x10, %ecx
+    int     $0x80
+msg:
+    .ascii  "Hello\n"

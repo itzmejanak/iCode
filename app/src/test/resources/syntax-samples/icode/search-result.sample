@@ -1,0 +1,12 @@
+# Query: tokenize
+# Flags: CaseSensitive
+# Including: src
+
+7 results - 2 files
+
+src/parser.c:
+  12: static void tokenize(const char *line) {
+  40:     tokenize(next);
+
+src/main.c:
+   3: #include "tokenize.h"

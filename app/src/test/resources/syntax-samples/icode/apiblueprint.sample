@@ -1,0 +1,16 @@
+FORMAT: 1A
+HOST: https://api.example.com
+
+# Notes API
+
+A simple API for notes.
+
+## Notes Collection [/notes]
+
+### List All Notes [GET]
+
++ Response 200 (application/json)
+
+        [
+            { "id": 1, "title": "Buy milk" }
+        ]

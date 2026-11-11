@@ -1,0 +1,15 @@
+<cfset greeting = "Hello">
+<!--- A list of users --->
+<cfquery name="users" datasource="app">
+    SELECT id, name FROM users WHERE active = 1
+</cfquery>
+<html>
+<body>
+    <cfoutput query="users">
+        <p>#greeting#, #name# (#id#)</p>
+    </cfoutput>
+    <cfif users.recordCount GT 10>
+        <p>Many users</p>
+    </cfif>
+</body>
+</html>

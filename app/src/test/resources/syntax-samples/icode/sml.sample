@@ -1,0 +1,15 @@
+(* Factorial and a list *)
+fun fact 0 = 1
+  | fact n = n * fact (n - 1)
+
+val squares = map (fn x => x * x) [1, 2, 3]
+
+datatype shape = Circle of real | Square of real
+
+fun area (Circle r) = 3.14 * r * r
+  | area (Square s) = s * s
+
+structure Stack = struct
+  type 'a t = 'a list
+  val empty = []
+end

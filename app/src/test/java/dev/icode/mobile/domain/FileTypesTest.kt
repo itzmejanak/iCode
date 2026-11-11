@@ -22,7 +22,9 @@ class FileTypesTest {
         )
         cases.forEach { (fence, language) -> assertEquals(fence, language, FileTypes.ofLanguage(fence).language) }
         assertEquals(FileTypes.PlainText, FileTypes.ofLanguage("text"))
-        assertEquals(FileTypes.PlainText, FileTypes.ofLanguage("mermaid"))
+        assertEquals(FileTypes.PlainText, FileTypes.ofLanguage("no-such-language"))
+        // A language no file is named for still colours its fences.
+        assertEquals("mermaid", FileTypes.ofLanguage("mermaid").language)
     }
 
     @Test fun `unknown names are plain text`() {
@@ -42,7 +44,7 @@ class FileTypesTest {
             "main.c" to "c", "api.h" to "cpp", "vec.hpp.in" to "cpp", "a.c++" to "cpp", "App.cs" to "csharp",
             "index.php" to "php", "View.swift" to "swift", "style.scss" to "scss", "theme.less" to "less",
             "init.lua" to "lua", "main.dart" to "dart", "config.ini" to "ini",
-            ".bashrc" to "shell", "PKGBUILD" to "shell", "tsconfig.json" to "json", ".eslintrc" to "json",
+            ".bashrc" to "shell", "PKGBUILD" to "shell", "tsconfig.json" to "jsonc", ".eslintrc" to "jsonc", "package.json" to "json",
             "app.js.map" to "json", "events.jsonl" to "jsonl", "page.xslt" to "xsl", "App.csproj" to "xml",
             "types.pyi" to "python", "index.es6" to "javascript", "notes.mdown" to "markdown", "page.jsp" to "html",
         )
@@ -83,7 +85,7 @@ class FileTypesTest {
     }
 
     @Test fun `the bytes are read only where the name cannot say`() {
-        listOf("clip.ts", "index.mts", "README", "download", "notes.log").forEach { assertTrue(it, FileTypes.needsContent(it)) }
+        listOf("clip.ts", "index.mts", "README", "download", "notes.unknown").forEach { assertTrue(it, FileTypes.needsContent(it)) }
         listOf("lib.dom.d.ts", "types.d.mts", "a.cts", "Main.kt", "clip.mp4", "logo.svg", "package.json").forEach { assertFalse(it, FileTypes.needsContent(it)) }
     }
 
@@ -138,6 +140,7 @@ class FileTypesTest {
         assertEquals("ruby", FileTypes.of("setup", "#!/usr/bin/env ruby").id)
         assertEquals("makefile", FileTypes.of("build", "#!/usr/bin/make -f").id)
         assertEquals("groovy", FileTypes.of("deploy", "#!/usr/bin/env groovy").id)
+        assertEquals("awk", FileTypes.of("count", "#!/usr/bin/awk -f").id)
         assertEquals("typescript", FileTypes.of("serve", "#!/usr/bin/env ts-node").id)
         assertEquals("typescript", FileTypes.of("serve", "#!/usr/bin/env -S deno run").id)
         assertEquals("xml", FileTypes.of("feed", "<?xml version=\"1.0\"?>").id)
@@ -148,7 +151,7 @@ class FileTypesTest {
 
     @Test fun `the name wins over the first line, and a line that runs nothing known is plain`() {
         assertEquals(FileTypes.Markdown, FileTypes.of("notes.md", "#!/bin/bash"))
-        listOf("", "# a comment", "#!", "#!/usr/bin/env", "#!/usr/bin/env -S", "#!/usr/bin/awk -f").forEach { line ->
+        listOf("", "# a comment", "#!", "#!/usr/bin/env", "#!/usr/bin/env -S", "#!/usr/bin/nothing-known -f").forEach { line ->
             assertEquals(line, FileTypes.PlainText, FileTypes.of("run", line))
         }
     }

@@ -1,0 +1,12 @@
+component accessors="true" {
+    property name="name" type="string";
+
+    // Says hello.
+    public string function greet(required string who) {
+        var count = 3;
+        for (var i = 1; i <= count; i++) {
+            writeOutput("Hello, " & who & "!");
+        }
+        return "done";
+    }
+}

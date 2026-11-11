@@ -458,3 +458,112 @@ file of that size. S2 chose one data file, `assets/textmate/catalog.json`, read 
   Kotlin diff from whole texts, and every unchanged and added line of a Git patch's hunk, has the spans
   the whole file gives that line (A4 extended), that stale hunks fall back, that a conflict's sides
   have the Kotlin roles of the file each makes, and the slicing at `\r` and past the last line.
+- S6, part 1 (full coverage of file types): the catalog holds 307 languages, up from 42, and every
+  text type the icon theme names opens coloured or is exempted with its reason (A9). The grammars are
+  written by `tools/import-grammars.py`, pinned to Sora Editor 0.24.6, VS Code 307b60e7 (337cacaa for
+  YAML), Shiki's tm-grammars 8f1828eb and GitHub Linguist d456527f; rerunning it reproduces every
+  asset, the catalog and the provenance tables, and every grammar shipped before is byte for byte the
+  same. Order: Sora's seven, then every grammar of VS Code's extensions (66), then every Shiki grammar
+  whose scope VS Code lacks (176), then 57 grammars from the upstream repositories Linguist vendors:
+  three for Shiki grammars whose upstream states no licence (GLSL, Tcl, DreamMaker) and 54 for text
+  formats the icon theme names that neither VS Code nor Shiki covers (ColdFusion, AutoIt, Caddyfile,
+  Procfile, pip requirements, Robot Framework, Smarty, Slim, Standard ML and others). A grammar no file
+  type opens ships only when another includes it; injection grammars do not ship, since Sora reads no
+  injections. Not shipped: DAX (no licence stated), Shiki's Razor (VS Code's ships), VS Code's YAML
+  1.x and platform grammars, and 17 Shiki helper grammars that are injections or that nothing
+  includes; the provenance doc lists each with why.
+  Licences: the 33 Shiki grammars whose index gives `?`, `NOASSERTION` or `GNU` were checked in their
+  upstream repositories at the pinned commits (LICENSE files, README licence sections, package.json);
+  every licence shipped (MIT, Apache-2.0, BSD, ISC, MPL-2.0, LGPL-3.0, GPL-3.0, Unlicense, TextMate
+  Bundle License) is compatible with iCode's GPL-3.0.
+  Which files a language opens is now data: each catalog line's `files` (type, family, extensions,
+  names, prefixes, first line), from VS Code's `contributes.languages`, then the grammar's upstream VS
+  Code extension, then the grammar's own `fileTypes`, then Linguist, then a short list of iCode's own
+  claims with reasons; the first claim wins, and where only languages VS Code lacks claim a name, the
+  icon theme's choice wins. The build (`GenerateCatalogFileTypes` in `app/build.gradle.kts`) turns them
+  into the Kotlin table `domain/FileTypes.kt` reads, so FileTypes answers at once and a language is
+  declared in one place (A7); FileTypes keeps only the formats of other bytes and is 174 lines.
+  Behaviour changes, each VS Code's own choice: `tsconfig.json`, `.eslintrc` and VS Code's settings
+  files open as JSON with comments (`jsonc`), `.log` files as logs, `compose.yaml` as `dockercompose`
+  (the YAML grammar), and `#!/usr/bin/awk` scripts as AWK.
+  Changed on import, each reproducibly and listed in the provenance doc: capture or repository entries
+  that are not rules are dropped or emptied in Racket, Stata and Wikitext (VS Code's engine skips them;
+  Sora's failed the whole grammar), configurations tm4e's parser cannot read whole are normalised
+  (Hurl, Rel, Stata), and five that declare nothing are not shipped. The orphan
+  `ini/properties.language-configuration.json` is removed: `properties` and `ini` share `source.ini`,
+  Sora takes one configuration per grammar, and `.properties` files kept INI's configuration.
+  `SyntaxScopes` gained TextMate's own first names as fallbacks (`constant`, `entity`, `entity.other`,
+  `entity.function`, `markup.raw`, `markup.link`, ...) in existing roles, no new colours; a scope
+  outside TextMate's naming roots (`XHPEndTagStart`, `case-clause`) is left to what encloses it, as in
+  VS Code's themes, which `SyntaxScopesTest` now applies through `namingRoots`. JSDoc's description
+  and address scopes moved from inherited to Comment, which is how they were drawn.
+  `GrammarAssetsTest.NOT_SHIPPED` holds 45 scopes, each with its reason: another name for a shipped
+  grammar's scope (`source.c++`, `text.json`), or a scope no grammar in VS Code, Shiki or the shipped
+  upstreams declares (inline assembly, Javadoc, Agda in Typst). Its new test loads and tokenizes every
+  language on the JVM (joni): all 307 load. Joni's per-pattern rejections are not counted; the
+  per-language sample test (S6 part 2) shows what they leave plain, and `EditorColoursDeviceTest`
+  covers the phone's engine. `FileTypeCoverageTest` walks theme.json: 83 icon groups and 320 entries
+  are exempt, each with its reason: bytes (pictures, 3D models, archives, databases...), prose
+  (licences, readmes), no grammar anywhere (152 entries, such as `.pgn`, `.neon`, `.ass`), a grammar
+  Linguist has only in CSON (36, such as `.srt`, `.cabal`, `.njk`) or YAML (PlantUML, Slint, Visual
+  Studio solutions, robots.txt), a tool's settings that may be JSON, YAML or JavaScript, a version
+  file, an empty marker, a tool's output, a script whose first line decides, or a theme language id
+  of an extension iCode lacks.
+  Size: grammar assets 3 722 144 bytes in 79 files before, 14 921 116 bytes in 501 files after, which
+  the APK stores in 1 893 259 bytes (release) and 2 491 306 (debug). APKs: release 20 606 010 bytes
+  before (built at 0d465ce), 22 205 966 after; debug 110 808 662 before, 111 492 714 after. With lazy
+  loading (S3) none of this is parsed until a file needs it.
+- S6, part 2 (no gaps inside a file, A10): Dockerfile and `.env` colour fully, every shipped language is
+  checked with a sample, and the catalog holds 357 languages, up from 307.
+  Dockerfile: no maintained upstream grammar does more than moby's (VS Code's and Shiki's are both
+  moby's, which colours only instruction names and quoted strings), so the grammar is now iCode's own,
+  written from moby's and kept by the script (KEPT). The image is a Type, its tag and digest Constants,
+  the `AS` stage name a Type, `--flag=value` options Keywords with their values (`--mount=type=cache`
+  keys as Attributes), ARG, ENV and LABEL keys Attributes and their values Strings, Numbers or
+  Keywords (`true`), EXPOSE ports Numbers and protocols Keywords, `$VAR` and `${VAR:-default}`
+  Variables, parser directives (`# syntax=`) Keywords in a comment, and the exec form's JSON array
+  Strings. The shell form of RUN, CMD, ENTRYPOINT and HEALTHCHECK CMD, and RUN heredocs, embed
+  `source.shell`, so `apt-get` is a Function and its arguments Strings; the catalog's includes now
+  read the kept file, so the shell grammar is in Dockerfile's closure.
+  `.env`: dotenv-org's grammar read each line with one pattern, so `$VAR`, values over several lines
+  and a comment after a value were plain. iCode's grammar, also kept, colours keys (Attribute),
+  `export` (Keyword), unquoted, single-, double- and backtick-quoted values (String), escapes,
+  `${VAR}`, `${VAR:-default}` and `$VAR` (Variable), whole-line and trailing comments, and gives an
+  unquoted number the Number role and `true` or `false` the Keyword role, as JSON and YAML draw them.
+  Samples: one per language that opens files, 331 in all: Shiki's 227 (written by the script from its
+  repository's `samples/` at 8f1828eb) and 104 of iCode's own where Shiki has none or its sample is
+  not the language (ERB's is a Ruby program; Dockerfile and `.env` are iCode's, to cover every part).
+  `SyntaxSamplesTest` tokenizes each on the JVM and fails on a word left without a role, unless it is
+  a name the code chose (plain in VS Code's themes too, unless the grammar calls it a variable), or the
+  language is one of 8 whose free text is prose (Markdown, AsciiDoc, Org, Wikitext, XML's element
+  text, Gherkin's steps, e-mail, search results), or `SyntaxSamples.EXCEPTIONS` names the word with its
+  reason (53 languages, such as values INI, nginx and iCalendar draw as text, a Tcl command inside
+  braces, CSS that XSL does not embed). A name the same sample colours as a keyword elsewhere counts as
+  a gap too. The first run left 3 115 tokens without a role in 229 samples; most were names, which
+  stay plain by design.
+  Fixed at the root: Rel, CMake and Tcl had no rule for numbers; the script now adds one (EDITS,
+  `numbers`). SyntaxScopes places the new grammars' scopes in existing roles: `support.operator`
+  (Plain, as `keyword.operator`), `support.tag` (Tag), `support.other` (Type) and Agda's pragmas
+  (Keyword, as a preprocessor line).
+  Coverage (A9): the script now reads CSON and YAML grammars and converts them to JSON (stdlib only;
+  checked to match CoffeeScript's `cson-parser` 4.0.9 and PyYAML 6.0.2 on every converted file and on
+  all 70 language-etc grammars). That ships the 36 file types `FileTypeCoverageTest` exempted as CSON
+  and the 4 exempted as YAML, and 6 theme language ids (cabal, hosts, nunjucks, slint, xquery, yang).
+  Of the 152 `NONE` entries, `.vm`, `.mailmap`, `.sy`, `.ms` and `.eex` now open coloured; the others
+  still have no grammar in VS Code, Shiki or Linguist's vendored grammars. Of the 45 `NOT_SHIPPED`
+  scopes, 14 now ship (Agda, Git config, Jison's lexer, Lean doc comments, OpenESQL, PostScript,
+  regular expressions, YANG, x86 assembly, CFML tags, EEx, Javadoc, MSON, Python sessions), so Groovy's
+  Javadoc comments and API Blueprint's data structures colour; 31 remain. PostScript's claims of
+  `.pdf`, `.ai`, `.pfb` and EPS pictures, the checksum grammar's `.sum` (so `go.sum` stays Go's) and
+  Mailmap's `AUTHORS` are not taken (NOT_TEXT); iCode's claims add `cabal.project.local` and
+  `.freeze`, `meson.options`, `.shasum`, `shellcheckrc` and Slint's old `.60`. `hosts` moves from
+  INI to its own grammar.
+  Joni: the samples reach 176 patterns joni rejects (169 variable-length lookbehinds), almost all in
+  AutoHotkey (89), Common Lisp (20) and AutoHotkey v2 (17); the rest are one to eight each in Svelte,
+  Log, Desktop, OCaml, TeX, SyON, Hy, Crystal, SystemVerilog and nine others. tm4e drops such a pattern
+  on the JVM only; the phone's Oniguruma reads them (`EditorColoursDeviceTest`). Ruby's sample is the
+  one exception whose reason is the JVM's: joni rejects the lookbehind of the rule for a block's
+  `|params|`, so the class's body reads as a block's parameters.
+  Size: grammar assets 15 933 591 bytes in 554 files, up from 14 921 116 in 501, stored in 2 050 748
+  bytes in the release APK (2 686 037 in debug). APKs: release 22 378 436 bytes, up from 22 205 966;
+  debug 112 459 844, up from 111 492 714. Tests: 1 707, up from 1 702.

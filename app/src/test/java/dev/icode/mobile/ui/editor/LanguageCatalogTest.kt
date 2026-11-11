@@ -46,12 +46,20 @@ class LanguageCatalogTest {
         assertEquals("javascript", catalog.byId("html")?.embedded?.get("source.js"))
     }
 
-    /** A grammar file names the commit it was converted from (`version`); the catalog records the same. */
+    /**
+     * A grammar file names the commit it was converted from (`version`); the catalog records the same.
+     * Shiki's grammars keep no `version`: Shiki's index names each one's file at its commit, which the
+     * catalog records instead (tools/import-grammars.py).
+     */
     @Test fun `each language's upstream is the commit its grammar names`() {
         val wrong = catalog.all.filter { language ->
             val file = ShippedGrammars.asset(language.grammar)
             val version = if (file.name.endsWith(".json")) JSONObject(file.readText()).optString("version").ifEmpty { null } else null
-            version != language.upstream
+            when {
+                version != null -> version != language.upstream
+                language.source.key == "shiki" -> language.upstream != null && !SHIKI_UPSTREAM.matches(language.upstream!!)
+                else -> language.upstream != null
+            }
         }.map { it.id }
         assertEquals(emptyList<String>(), wrong)
     }
@@ -77,6 +85,7 @@ class LanguageCatalogTest {
     private companion object {
         const val PROVENANCE_HEADING = "## Shipped grammars"
         val PLIST_SCOPE = Regex("<key>scopeName</key>\\s*<string>([^<]*)</string>")
+        val SHIKI_UPSTREAM = Regex("https://github.com/[^/]+/[^/]+/blob/[0-9a-f]{40}/.+")
 
         fun provenanceTables(catalog: Languages): List<String> {
             val sources = catalog.all.map { it.source }.distinct()
@@ -88,7 +97,7 @@ class LanguageCatalogTest {
 
         /** `owner/repo@commit` as a link, or the source itself when the grammar names no other origin. */
         fun upstream(language: Language): String = language.upstream?.let { url ->
-            val match = Regex("https://github.com/([^/]+/[^/]+)/commit/([0-9a-f]{8})").find(url)
+            val match = Regex("https://github.com/([^/]+/[^/]+)/(?:commit|blob)/([0-9a-f]{8})").find(url)
             match?.let { "[${it.groupValues[1]}@${it.groupValues[2]}]($url)" } ?: url
         } ?: "None: ${language.source.name} is the origin"
     }

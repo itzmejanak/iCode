@@ -1,0 +1,12 @@
+HAI 1.2
+BTW counts to ten
+CAN HAS STDIO?
+I HAS A count ITZ 0
+IM IN YR loop UPPIN YR count TIL BOTH SAEM count AN 10
+  VISIBLE "count: " count
+IM OUTTA YR loop
+O RLY?
+  YA RLY
+    VISIBLE "done"
+OIC
+KTHXBYE

@@ -1,0 +1,5 @@
+--require spec_helper
+--format documentation
+--color
+--exclude-pattern "spec/slow/**/*_spec.rb"
+-I lib

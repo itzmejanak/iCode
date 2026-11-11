@@ -1,0 +1,11 @@
+pick 4f2a9c1 Add the tokenizer
+reword 9b8d7e6 Fix empty lines
+squash 1a2b3c4 Tidy the tests
+fixup 5d6e7f8 Typo
+drop 0c0ffee Debug output
+exec make test
+
+# Rebase 1234567..0c0ffee onto 1234567 (6 commands)
+#
+# Commands:
+# p, pick <commit> = use commit

@@ -1,0 +1,8 @@
+<h1><%= title %></h1>
+<%# The list of users %>
+<ul>
+  <% users.forEach(function (user) { %>
+    <li><%= user.name %> (<%= user.age + 1 %>)</li>
+  <% }); %>
+</ul>
+<%- include('footer', { year: 2026 }) %>
