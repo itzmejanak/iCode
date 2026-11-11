@@ -1,7 +1,6 @@
 package dev.icode.mobile.ui.editor
 
 import dev.icode.mobile.domain.FileTypes
-import java.io.File
 import org.eclipse.tm4e.languageconfiguration.internal.model.LanguageConfiguration
 import org.json.JSONArray
 import org.json.JSONObject
@@ -24,7 +23,7 @@ class GrammarAssetsTest {
     }
 
     @Test fun `every shipped grammar is opened by a file type or pulled in by another`() {
-        val opened = FileTypes.rules.mapNotNull { it.type.grammar }.toSet()
+        val opened = FileTypes.rules.mapNotNull { it.type.language }.mapNotNull { ShippedGrammars.catalog.byId(it)?.scope }.toSet()
         val included = ShippedGrammars.all.flatMap { it.includes }.toSet()
         assertEquals(emptySet<String>(), shipped - opened - included)
     }
@@ -35,8 +34,7 @@ class GrammarAssetsTest {
      * editor's analysis fail for YAML and for Markdown, which embeds it.
      */
     @Test fun `every capture is a rule the editor's engine can read`() {
-        val languages = JSONObject(File("src/main/assets/textmate/languages.json").readText()).getJSONArray("languages")
-        val notRules = (0 until languages.length()).map { File("src/main/assets", languages.getJSONObject(it).getString("grammar")) }
+        val notRules = ShippedGrammars.files.values
             .filter { it.name.endsWith(".json") }
             .flatMap { file -> captureEntries(JSONObject(file.readText())).filter { it.second !is JSONObject }.map { "${file.name} ${it.first}" } }
         assertEquals(emptyList<String>(), notRules)
@@ -78,10 +76,9 @@ class GrammarAssetsTest {
 
     /** Each language's brackets, comments and indent rules, read by the parser the editor itself uses. */
     @Test fun `every language configuration loads in the editor's own parser`() {
-        val languages = JSONObject(File("src/main/assets/textmate/languages.json").readText()).getJSONArray("languages")
-        val configurations = (0 until languages.length()).map { languages.getJSONObject(it) }
-            .filter { it.has("languageConfiguration") }
-            .map { it.getString("name") to File("src/main/assets", it.getString("languageConfiguration")) }
+        val configurations = ShippedGrammars.catalog.all.mapNotNull { language ->
+            language.configuration?.let { language.id to ShippedGrammars.asset(it) }
+        }
         assertTrue(configurations.size > 30)
         // What the file declares must come back from the parser: a field it cannot read is dropped with only a log line.
         val unreadable = configurations.filter { (_, file) ->

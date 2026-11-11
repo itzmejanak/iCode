@@ -109,14 +109,32 @@ It is on a setting, default on.
 
 ### 3.4 One catalog for languages (D3)
 
-`domain/syntax/Languages.kt` lists each language once: its `id` (VS Code's language id), `scope`,
-its grammar and configuration assets, its embedded languages, and its upstream (commit and licence).
+The catalog lists each language once: its `id` (VS Code's language id), `scope`, its grammar and
+configuration assets, its embedded languages, the grammars it includes, and its origin (the source
+it was copied from, the upstream commit and the licence).
 
-- `FileTypes` rules name a language **id**; the scope is looked up.
-- `languages.json` is no longer hand-written. The engine registers grammars from the catalog
-  (Sora's `GrammarDefinition` API), or a Gradle task generates the JSON from the catalog. S2 picks
-  whichever Sora 0.24.6 supports cleanly.
-- The provenance doc's table comes from the catalog's upstream fields, with a test that it matches.
+- **Its form (decided in S2): one data file, `assets/textmate/catalog.json`, read by
+  `domain/syntax/Languages.kt`.** The file has a `sources` map (Sora Editor 0.24.6, VS Code at
+  307b60e7 and at 337cacaa, each with its URL and licence) and a `languages` array with one line
+  per language. `Languages.parse` reads it and offers `all`, `byId` and `byScope`. A data file has
+  no length limit, so 250 languages fit, while `Languages.kt` stays small and under the 300-line
+  guard. A tool writes it as easily as a person does: S6's import script appends entries, as
+  `tools/import-file-icons.py` writes `file-icons/theme.json`, which `domain/files/FileIconTheme.kt`
+  parses the same way. Kotlin files split by family were the other choice: they would be checked
+  by the compiler, but a 250-entry catalog would need a generator that splits its output to stay
+  under the guard, and every entry would be a code change. The tests below give the data file the
+  checks the compiler would have given.
+- `FileTypes` rules name a language **id** (`FileType.language`); the scope is looked up in the
+  catalog.
+- `languages.json` is gone. `TextMateAssets` builds Sora's `DefaultGrammarDefinition` from each
+  catalog entry (grammar, configuration, id as Sora's name, scope, embedded languages) and passes
+  the list to `GrammarRegistry.loadGrammars`. This is the same call Sora's own reader made, so
+  registration is unchanged. Sora 0.24.6 supports this through public API.
+- The provenance doc's tables are the catalog's, row for row, checked by `LanguageCatalogTest`. The
+  same test checks that each grammar's own `scopeName` is the catalog's scope, that `includes` is
+  what the grammar file pulls in, that `upstream` is the commit in the grammar's `version` field,
+  that embedded languages name catalog ids, and that every asset folder is used. `FileTypesTest`
+  checks that every id a rule names is in the catalog.
 - Adding a language means one catalog entry, one asset folder and one `FileTypes` rule. The tests
   say what else is missing.
 
@@ -258,8 +276,8 @@ rule, `tm4e-owner`, keeps every tm4e and Sora-registry import inside `ui/syntax/
 
 **The catalog's size (S2).** Full coverage (S6) means about 250 languages. The guards limit every
 Kotlin file in `domain/` and `ui/` to 300 lines, so the catalog cannot be one hand-written Kotlin
-file of that size. S2 picks the form, for example a generated data file read through Java
-resources, or the catalog split over several Kotlin files by family, and records the choice here.
+file of that size. S2 chose one data file, `assets/textmate/catalog.json`, read by
+`domain/syntax/Languages.kt` (§3.4).
 
 ### 4.1 S6 in full
 
@@ -337,3 +355,11 @@ resources, or the catalog split over several Kotlin files by family, and records
   normal suite; `SyntaxBenchmark` runs only with `-Picode.benchmark=true`. The test helper
   `ShippedGrammars` now also gives tests a registry over the shipped grammars, so no test reads
   `languages.json` on its own.
+- S2: the language catalog is `assets/textmate/catalog.json`, read by `domain/syntax/Languages.kt`
+  (§3.4 gives the form and why). `FileTypes` rules name language ids, `languages.json` is gone and
+  the editor registers its grammars from the catalog through Sora's `GrammarDefinition` API. The
+  provenance doc's tables now list every grammar with its source, upstream commit and licence, and
+  a test keeps them equal to the catalog. Behaviour is unchanged: the same files colour with the
+  same grammars. The shell language's id is now VS Code's `shellscript`. The YAML row now names its
+  real upstream, textmate/yaml.tmbundle, where the old table named RedCMD's grammar, which is not
+  shipped.

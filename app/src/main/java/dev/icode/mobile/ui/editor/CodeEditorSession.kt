@@ -41,7 +41,7 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
         private set
 
     private var location: String? = null
-    private var scope: String? = null
+    private var language: String? = null
     private var acceptedText: String = ""
     private var pendingLocalText: String? = null
     private var pendingReveal: Pair<Int, Int>? = null
@@ -247,10 +247,10 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
     /** By the file's name, or for a script without an extension, its `#!` line (read up to its end, at most 256 characters). */
     private fun applyLanguage(document: OpenDocument) {
         val name = document.name
-        val nextScope = FileTypes.of(name, document.text.take(FIRST_LINE_CHARS).substringBefore('\n')).grammar
-        if (nextScope == scope) return
-        scope = nextScope
-        if (nextScope == null || coloringError != null) {
+        val nextLanguage = FileTypes.of(name, document.text.take(FIRST_LINE_CHARS).substringBefore('\n')).language
+        if (nextLanguage == language) return
+        language = nextLanguage
+        if (nextLanguage == null || coloringError != null) {
             usePlainText()
             return
         }
@@ -258,10 +258,10 @@ class CodeEditorSession(context: Context, initialPalette: IcodePalette = IcodePa
         if (!TextMateAssets.grammarsReady) usePlainText()
         TextMateAssets.whenGrammarsLoaded(editor.context) { failure ->
             // Another file, or none, since the request: its own request applies instead.
-            if (scope != nextScope || released) return@whenGrammarsLoaded
+            if (language != nextLanguage || released) return@whenGrammarsLoaded
             runCatching {
                 failure?.let { throw it }
-                val grammar = TextMateLanguage.create(nextScope, false).apply {
+                val grammar = TextMateLanguage.create(TextMateAssets.scopeOf(nextLanguage), false).apply {
                     setTabSize(preferences.effectiveIndentSize)
                     useTab(preferences.effectiveIndentType == IndentType.Tabs)
                 }
