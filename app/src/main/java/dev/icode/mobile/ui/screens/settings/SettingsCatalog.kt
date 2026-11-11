@@ -38,7 +38,7 @@ internal val settingsCategories = listOf(
             themeVariantTerms),
     SettingsCategory("Editor", "Font, indentation, keys, autosave, display", Icons.Outlined.Code, Route.SettingsEditor,
         "font family size tab indent word wrap auto close brackets keyboard suggestions autocorrect keys row home end " +
-            "auto save line numbers minimap bracket matching git change markers"),
+            "auto save line numbers minimap bracket matching semantic highlighting colouring coloring git change markers"),
     SettingsCategory("Terminal", "Font, extra keys, scrollback, background", Icons.Outlined.Terminal, Route.TerminalSettings,
         "font family size scrollback extra keys keyboard cursor block underline bar " +
             "background notifications battery optimization bell alert long command"),

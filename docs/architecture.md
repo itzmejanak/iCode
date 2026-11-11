@@ -492,8 +492,8 @@ HTTPS credential helpers, SSH keys, agent sockets, and command-line authenticati
 
 Syntax highlighting and language intelligence are separate:
 
-- TextMate or Tree-sitter supplies lexical and structural highlighting;
-- LSP supplies project-aware intelligence;
+- TextMate grammars supply lexical highlighting, through one layer, `ui/syntax/` (Tree-sitter was weighed and not taken: [syntax-highlighting-plan.md](./syntax-highlighting-plan.md) D1);
+- LSP supplies project-aware intelligence, and a server's semantic tokens, where it offers them, are laid over the grammar's colours;
 - the editor engine renders results;
 - the language supervisor owns server processes and protocol state.
 

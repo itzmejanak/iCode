@@ -74,5 +74,7 @@ internal class LanguageSessionEvents(
 
     override fun refreshDiagnostics(session: LanguageServerSession) = owner.documents.pullAll(session)
 
+    override fun refreshSemanticTokens(session: LanguageServerSession) = owner.semanticTokens.refresh()
+
     override suspend fun applyEdit(session: LanguageServerSession, edit: JsonObject): Boolean = owner.applyEdit(session, edit)
 }

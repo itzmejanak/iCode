@@ -43,6 +43,7 @@ internal class LanguageServerSession(
         fun progress(session: LanguageServerSession, words: String?)
         fun capabilitiesChanged(session: LanguageServerSession)
         fun refreshDiagnostics(session: LanguageServerSession)
+        fun refreshSemanticTokens(session: LanguageServerSession)
         suspend fun applyEdit(session: LanguageServerSession, edit: JsonObject): Boolean
     }
 
@@ -126,6 +127,7 @@ internal class LanguageServerSession(
             "window/workDoneProgress/create" -> JsonNull
             "window/showMessageRequest" -> JsonNull.also { message(params) }
             "workspace/diagnostic/refresh" -> JsonNull.also { client.refreshDiagnostics(this@LanguageServerSession) }
+            "workspace/semanticTokens/refresh" -> JsonNull.also { client.refreshSemanticTokens(this@LanguageServerSession) }
             "workspace/applyEdit" -> buildJsonObject {
                 val edit = (params as? JsonObject)?.get("edit") as? JsonObject
                 put("applied", edit != null && client.applyEdit(this@LanguageServerSession, edit))

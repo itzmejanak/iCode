@@ -283,9 +283,11 @@ parser or layout would end iCode's process, not just fail one formula.
 
 ### 3.3 Code
 
-- Fenced code is coloured exactly as the editor colours it, by its TextMate grammar and theme:
-  - `IGrammar.tokenizeLine2`, whose foreground colour indices come from the theme `EditorTheme`
-    already set on Sora's `GrammarRegistry`;
+- Fenced code is coloured exactly as the editor colours it, by its TextMate grammar:
+  - `rememberSyntax(language, text)` in `ui/syntax/`, the read-only path every view of code shares
+    since [syntax-highlighting-plan.md](./syntax-highlighting-plan.md) S4: role spans from the
+    grammar's scopes, cached, coloured from the palette when drawn; a block over 200 000 characters
+    stays plain;
   - the fence's language is resolved through `FileTypes`, the one answer to what kind of file this is.
 - An unknown language is plain mono.
 - A block scrolls sideways (no wrapping), with its language and a **Copy** button on its header.
@@ -360,7 +362,7 @@ decoded, and a line's inline content needs it before layout.
 | Part | Files |
 |---|---|
 | Domain | `domain/markdown/`: `MarkdownModel.kt` (the document, blocks, inlines), `MarkdownParser.kt` (a file read whole; `MarkdownStream`, an answer as it streams; front matter), `MarkdownBlockReader.kt` and `MarkdownInlineReader.kt` (JetBrains' tree → the model; footnotes; ```` ```math ````; reference definitions), `MarkdownHtml.kt` and `MarkdownHtmlBlocks.kt` (the HTML set), `MarkdownAssembly.kt` (open and close tags to blocks; references resolved; footnotes numbered; anchors), `MathDelimiters.kt` (an answer's `\(…\)` and `\[…\]`), `MarkdownLinks.kt` (where a document's links lead, link and image targets, GitHub slugs), `MathLayout.kt` (the display list, read from RaTeX's JSON; the limits; the cache); `FileTypes.ofLanguage` (a fence's language) |
-| UI | `ui/markdown/`: `MarkdownContent.kt` (the two hosts, selection, zoom, where a tap goes), `MarkdownType.kt` (type and colours), `MarkdownBlocks.kt`, `MarkdownInlines.kt` (annotated strings, links, inline math), `MarkdownTable.kt`, `MarkdownCode.kt` (a code block), `MarkdownMath.kt` (display math, drawing a layout), `MathGlyphs.kt` (the KaTeX typefaces, a glyph on Android's canvas), `MarkdownImages.kt`; `ui/editor/TextMateCode.kt` (code coloured as the editor colours it); `ui/ImageViewer.decodeImage` (also from bytes) |
+| UI | `ui/markdown/`: `MarkdownContent.kt` (the two hosts, selection, zoom, where a tap goes), `MarkdownType.kt` (type and colours), `MarkdownBlocks.kt`, `MarkdownInlines.kt` (annotated strings, links, inline math), `MarkdownTable.kt`, `MarkdownCode.kt` (a code block), `MarkdownMath.kt` (display math, drawing a layout), `MathGlyphs.kt` (the KaTeX typefaces, a glyph on Android's canvas), `MarkdownImages.kt`; `ui/syntax/RememberSyntax.kt` (code coloured as the editor colours it); `ui/ImageViewer.decodeImage` (also from bytes) |
 | Math engine | `app/src/main/java/io/ratex/RaTeXEngine.kt` (the JNI binding, §3.2); `third_party/ratex/` (`README.md`, `jniLibs/arm64-v8a/libratex_ffi.so`); `app/src/main/assets/ratex/fonts/KaTeX_*.ttf`; `app/src/main/resources/licenses/` (`OFL-KaTeX.txt`, `RaTeX.txt`) |
 | Callers | `WorkspaceEditorScreen` (preview), `AssistantParts` and `AssistantChatView` (answers; the last one streams while its turn runs) |
 | Removed | `ui/editor/MarkdownPreview.kt` and its instrumented test, Markwon's four artifacts, the `TableRowSpan` R8 rule |

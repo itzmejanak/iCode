@@ -19,14 +19,20 @@ class SyntaxScopesTest {
      * Nothing left over: every scope any shipped grammar can give a token is
      * either placed in a role or, on purpose, left to what encloses it (a scope
      * outside TextMate's naming roots is a grammar's own, and inherits). A new
-     * grammar with a scope nobody decided about fails here, naming it.
+     * grammar with a scope nobody decided about fails here, naming it. A
+     * selector under a grammar's root (`source.cabal support.other`) places
+     * that grammar's scopes only.
      */
     @Test fun `every scope of every shipped grammar is placed or deliberately inherited`() {
         val simple = selectors.filter { ' ' !in it.first }.toMap()
-        val undecided = grammarScopes().filter { scope ->
-            scope.substringBefore('.') in namingRoots &&
-                prefixes(scope).none { it in simple } && inheritedScopes.none { scope == it || scope.startsWith("$it.") }
-        }
+        val rooted = selectors.map { it.first.split(' ') }.filter { it.size == 2 }.map { it[0] to it[1] }.toSet()
+        val undecided = ShippedGrammars.all.flatMap { grammar ->
+            grammar.scopes.filter { scope ->
+                scope.substringBefore('.') in namingRoots &&
+                    prefixes(scope).none { it in simple || grammar.scope to it in rooted } &&
+                    inheritedScopes.none { scope == it || scope.startsWith("$it.") }
+            }
+        }.toSet()
         assertEquals(emptyList<String>(), undecided.sorted())
     }
 

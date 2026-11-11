@@ -62,6 +62,10 @@ internal class LspCapabilities(private val server: JsonObject, private val regis
     /** It answers `textDocument/diagnostic` (3.17 pull diagnostics). */
     val pullDiagnostics: Boolean get() = provides("diagnosticProvider", "textDocument/diagnostic")
 
+    /** Its semantic tokens' legend, when it answers `textDocument/semanticTokens/full`; null when it does not. */
+    val semanticTokens: LspSemanticTokens.Legend?
+        get() = optionsOf("semanticTokensProvider", "textDocument/semanticTokens")?.let(LspSemanticTokens::legendOf)
+
     /** What the Languages page lists it can do, in the order an editor offers them. */
     fun labels(): List<String> = listOfNotNull(
         "Completion".takeIf { completion },
@@ -75,6 +79,7 @@ internal class LspCapabilities(private val server: JsonObject, private val regis
         "Rename".takeIf { rename },
         "Code actions".takeIf { codeActions },
         "Diagnostics on request".takeIf { pullDiagnostics },
+        "Semantic colouring".takeIf { semanticTokens != null },
     )
 
     fun withRegistration(method: String, options: JsonObject) = LspCapabilities(server, registered + (method to options))

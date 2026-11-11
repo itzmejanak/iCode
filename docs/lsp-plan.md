@@ -35,6 +35,7 @@ What it asks for, and where this plan answers it:
 | L3–L5 | 960a6c5 | Configuration v2 and presets (`domain/LanguageServiceRules.kt`, `LanguageServicePresets.kt`), `LanguageIntent`, the owner `LanguageServices` with the pool, sessions, documents and problems; the coordinator and process manager deleted |
 | L6–L9 | f7a295b | Problems in the editor (`ui/editor/EditorProblems.kt`) and the Explorer, completion (`ui/editor/EditorCompletion.kt`), the palette's language commands and their sheet, edits, the assistant's eleven tools |
 | Fixes | c89144b | `stopAll` takes only the servers running when it is called; a server stopped with the screens starts again when its file is edited; imports resolved off the main thread |
+| Semantic tokens | 600e120 | [syntax-highlighting-plan.md](./syntax-highlighting-plan.md) S7: `data/language/LspSemanticTokens.kt` (legend, decoding, deltas), `LanguageSemanticTokens.kt` (`LanguageHighlights`: full, then delta, from the first ready server that offers them); the editor lays them over the grammar's colours; Settings › Editor › Semantic Highlighting; "Semantic colouring" among a server's capabilities |
 
 **Checked here.** This sandbox is x86-64 Linux. The Android SDK 36, NDK 27.0.12077973 and CMake 3.22.1
 were installed for the work, so for the first time an agent's container ran the whole Gradle gate:
@@ -452,6 +453,10 @@ Only what is built in the same cycle is advertised. The list grows L5 → L9.
 - `workspace.applyEdit`, `workspaceEdit.documentChanges`, `configuration`, `workspaceFolders`
 - `didChangeWatchedFiles.dynamicRegistration`, as decided by D8
 - `window.workDoneProgress`
+- `semanticTokens` (added by [syntax-highlighting-plan.md](./syntax-highlighting-plan.md) S7):
+  `full` with `delta`, no `range`, the protocol's standard token types and modifiers, the
+  `relative` format, no overlapping or multi-line tokens, `augmentsSyntaxTokens`; and
+  `workspace.semanticTokens.refreshSupport: true` (a refresh asks every open editor again)
 
 ### 5.6 Speed
 
@@ -591,7 +596,6 @@ A move never shares a step with a change in behaviour.
 ## 10. Not now
 
 - Debugging (DAP).
-- Semantic tokens: TextMate stays the highlighter (§16).
 - Inlay hints, code lens, call and type hierarchy, folding ranges from the server.
 - Notebooks.
 - Servers over TCP or remote machines.
