@@ -1,0 +1,17 @@
+import regex
+
+# An application's settings
+schema App:
+    name: str
+    replicas: int = 1
+    labels?: {str:str}
+
+    check:
+        replicas >= 1, "at least one replica"
+        regex.match(name, r"^[a-z]+$")
+
+app = App {
+    name = "notes"
+    replicas = 3
+    labels = {"tier": "web"}
+}

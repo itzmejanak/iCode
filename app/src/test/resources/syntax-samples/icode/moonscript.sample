@@ -1,0 +1,12 @@
+-- A class and a loop
+class Animal
+  new: (@name) =>
+  speak: => print "I am #{@name}"
+
+dogs = [Animal name for name in *{"Rex", "Fido"}]
+for i, dog in ipairs dogs
+  dog\speak!
+
+total = 0
+total += i for i = 1, 10
+print total, 3.5

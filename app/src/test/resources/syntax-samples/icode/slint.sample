@@ -1,0 +1,19 @@
+import { Button, VerticalBox } from "std-widgets.slint";
+
+// A counter
+export component MainWindow inherits Window {
+    in-out property <int> counter: 42;
+    callback clicked();
+    width: 300px;
+
+    VerticalBox {
+        Text {
+            text: "Counter: \{root.counter}";
+            color: #3366ff;
+        }
+        Button {
+            text: "Add";
+            clicked => { root.counter += 1; }
+        }
+    }
+}

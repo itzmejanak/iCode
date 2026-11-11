@@ -1,0 +1,16 @@
+#include <cstdio>
+// Adds two vectors on the GPU.
+__global__ void add(const float *a, const float *b, float *out, int n) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < n) out[i] = a[i] + b[i];
+}
+
+int main() {
+    const int n = 1024;
+    float *a;
+    cudaMalloc(&a, n * sizeof(float));
+    add<<<4, 256>>>(a, a, a, n);
+    cudaDeviceSynchronize();
+    printf("done %d\n", n);
+    return 0;
+}

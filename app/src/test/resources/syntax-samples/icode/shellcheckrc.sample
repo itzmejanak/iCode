@@ -1,0 +1,6 @@
+# Settings for ShellCheck
+disable=SC2034,SC2154
+enable=require-variable-braces
+external-sources=true
+shell=bash
+source-path=SCRIPTDIR

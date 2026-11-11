@@ -1,0 +1,13 @@
+REBOL [
+    Title: "Greeting"
+    Date: 1-Jan-2026
+]
+
+; Says hello to each name
+names: ["Ann" "Bob"]
+foreach name names [
+    print rejoin ["Hello, " name "!"]
+]
+total: 0
+repeat i 10 [total: total + i]
+print total

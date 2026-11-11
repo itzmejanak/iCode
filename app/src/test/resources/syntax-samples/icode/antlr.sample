@@ -1,0 +1,19 @@
+grammar Expr;
+
+options { language = Java; }
+
+// Parser rules
+prog : stat+ EOF ;
+stat : expr NEWLINE      # printExpr
+     | ID '=' expr NEWLINE # assign
+     ;
+expr : expr ('*'|'/') expr
+     | INT
+     | ID
+     ;
+
+// Lexer rules
+ID      : [a-zA-Z]+ ;
+INT     : [0-9]+ ;
+NEWLINE : '\r'? '\n' ;
+WS      : [ \t]+ -> skip ;

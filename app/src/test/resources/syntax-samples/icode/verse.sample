@@ -1,0 +1,14 @@
+using { /Fortnite.com/Devices }
+using { /Verse.org/Simulation }
+
+# A device that counts players
+counter_device := class(creative_device):
+    @editable
+    Threshold : int = 3
+
+    var Count : int = 0
+
+    OnBegin<override>()<suspends> : void =
+        set Count += 1
+        if (Count >= Threshold):
+            Print("Ready: {Count}")

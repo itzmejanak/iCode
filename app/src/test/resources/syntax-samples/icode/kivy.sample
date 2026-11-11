@@ -1,0 +1,13 @@
+#:kivy 2.1.0
+#:import utils kivy.utils
+
+<RootWidget>:
+    orientation: 'vertical'
+    padding: 10
+    Label:
+        text: 'Hello'
+        font_size: 24
+        color: utils.get_color_from_hex('#ff0000')
+    Button:
+        text: 'Press'
+        on_press: root.pressed(self)

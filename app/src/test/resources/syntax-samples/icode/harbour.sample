@@ -1,0 +1,14 @@
+#include "inkey.ch"
+// Shows a greeting
+PROCEDURE Main()
+   LOCAL cName := "World"
+   LOCAL nCount := 3
+   LOCAL i
+
+   FOR i := 1 TO nCount
+      ? "Hello, " + cName + " #" + Str( i )
+   NEXT
+   IF nCount > 2
+      QOut( "done" )
+   ENDIF
+   RETURN

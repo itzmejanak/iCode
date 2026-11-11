@@ -1,0 +1,6 @@
+<%# A plain-text letter %>
+Dear <%= @name %>,
+
+<%= for item <- @items do %>
+  * <%= item.title %>: <%= item.count + 1 %>
+<% end %>

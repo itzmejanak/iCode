@@ -1,0 +1,13 @@
+{% extends "base.njk" %}
+{# The users page #}
+{% block content %}
+  <h1>{{ title | upper }}</h1>
+  <ul>
+  {% for user in users %}
+    <li>{{ user.name }} ({{ user.age + 1 }})</li>
+  {% else %}
+    <li>No users</li>
+  {% endfor %}
+  </ul>
+  {% set total = 42 %}
+{% endblock %}

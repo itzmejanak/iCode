@@ -1,0 +1,11 @@
+// A build graph
+digraph build {
+    rankdir = LR;
+    node [shape = box, color = "blue"];
+    parse -> check -> emit;
+    check -> report [label = "errors", weight = 2];
+    subgraph cluster_0 {
+        label = "back end";
+        emit;
+    }
+}

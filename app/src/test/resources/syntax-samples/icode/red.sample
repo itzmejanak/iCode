@@ -1,0 +1,11 @@
+Red [
+    Title: "Greeting"
+]
+
+; Says hello to each name
+names: ["Ann" "Bob"]
+foreach name names [
+    print rejoin ["Hello, " name "!"]
+]
+square: func [n [integer!]] [n * n]
+print square 12

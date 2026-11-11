@@ -1,0 +1,984 @@
+{
+  "name": "WebVTT",
+  "scopeName": "text.vtt",
+  "mimeType": "text/vtt",
+  "fileTypes": [
+    "vtt"
+  ],
+  "firstLineMatch": "\\A﻿?WEBVTT(?:[\\n\\r \\t]|z)",
+  "patterns": [
+    {
+      "name": "meta.file-body.vtt",
+      "begin": "\\A﻿?(WEBVTT)(?=$|[ \\t])",
+      "end": "(?=A)B",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.control.start-file.vtt"
+        }
+      },
+      "patterns": [
+        {
+          "name": "meta.header.vtt",
+          "begin": "\\G",
+          "end": "^[ \\t]*$",
+          "contentName": "comment.line.ignored.vtt",
+          "patterns": [
+            {
+              "include": "#setting"
+            }
+          ]
+        },
+        {
+          "include": "#main"
+        }
+      ]
+    },
+    {
+      "include": "#main"
+    }
+  ],
+  "repository": {
+    "main": {
+      "patterns": [
+        {
+          "include": "#comment"
+        },
+        {
+          "include": "#region"
+        },
+        {
+          "include": "#style"
+        },
+        {
+          "include": "#cue"
+        }
+      ]
+    },
+    "badArrow": {
+      "name": "invalid.illegal.syntax.unexpected-separator.vtt",
+      "match": "\\S*?-->\\S*"
+    },
+    "charRef": {
+      "patterns": [
+        {
+          "include": "text.html.basic#character-reference"
+        }
+      ]
+    },
+    "class": {
+      "patterns": [
+        {
+          "name": "support.constant.colour.foreground.$2.vtt",
+          "match": "(\\.)(black|blue|cyan|lime|magenta|red|white|yellow)(?=$|[\\s&<>.])",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.entity.class.vtt"
+            }
+          }
+        },
+        {
+          "name": "support.constant.colour.background.$2.vtt",
+          "match": "(\\.)bg_(black|blue|cyan|lime|magenta|red|white|yellow)(?=$|[\\s&<>.])",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.entity.class.vtt"
+            }
+          }
+        },
+        {
+          "name": "entity.other.attribute-name.class.vtt",
+          "match": "(\\.)[^\\s&<>.]+",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.entity.class.vtt"
+            }
+          }
+        }
+      ]
+    },
+    "comment": {
+      "name": "comment.block.vtt",
+      "begin": "^NOTE(?=$|\\s)",
+      "end": "^[ \\t]*$",
+      "beginCaptures": {
+        "0": {
+          "name": "storage.type.start-comment.vtt"
+        }
+      }
+    },
+    "cue": {
+      "name": "meta.cue.block.vtt",
+      "begin": "(?x)\n(?=\n\t^\n\t(?:\\d{2,}:)?\\d{2}:\\d{2}\\.\\d{3}  # Start time\n\t[ \\t]+ --> [ \\t]+                  # Separator\n\t(?:\\d{2,}:)?\\d{2}:\\d{2}\\.\\d{3}  # End time\n\t(?:$|[ \\t])\n)\n|\n# Cue identifier\n^((?!.*?-->)[^\\r\\n]+)$",
+      "end": "^[ \\t]*$",
+      "beginCaptures": {
+        "1": {
+          "name": "entity.name.cue.vtt"
+        }
+      },
+      "patterns": [
+        {
+          "include": "#cueTimings"
+        },
+        {
+          "include": "#cuePayload"
+        }
+      ]
+    },
+    "cueComponents": {
+      "patterns": [
+        {
+          "include": "#cueSpan"
+        },
+        {
+          "include": "#cueTimestamp"
+        },
+        {
+          "include": "#cueDash"
+        },
+        {
+          "include": "#charRef"
+        }
+      ]
+    },
+    "cueDash": {
+      "name": "markup.quote.quotation-dash.vtt",
+      "match": "(?:^|\\G)([-–—―⸺⸻〜〰︱︲﹘﹣－])",
+      "captures": {
+        "1": {
+          "name": "punctuation.section.quote.vtt"
+        }
+      }
+    },
+    "cueSpan": {
+      "patterns": [
+        {
+          "name": "meta.span.class-span.vtt",
+          "begin": "(<)(c)(?=$|\\s|/?>|\\.)",
+          "end": "(?=^[ \\t]*$)|((</)(c)\\s*(>))|(/>)",
+          "beginCaptures": {
+            "0": {
+              "name": "meta.tag.opening.vtt"
+            },
+            "1": {
+              "name": "punctuation.definition.tag.begin.vtt"
+            },
+            "2": {
+              "name": "entity.name.tag.localname.vtt"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "meta.tag.closing.vtt"
+            },
+            "2": {
+              "name": "punctuation.definition.tag.begin.vtt"
+            },
+            "3": {
+              "name": "entity.name.tag.localname.vtt"
+            },
+            "4": {
+              "name": "punctuation.definition.tag.end.vtt"
+            },
+            "5": {
+              "name": "punctuation.definition.tag.end.self-closing.vtt"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#cueSpanStart"
+            },
+            {
+              "include": "#cueSpanBody"
+            }
+          ]
+        },
+        {
+          "name": "meta.span.italics-span.vtt",
+          "begin": "(<)(i)(?=$|\\s|/?>|\\.)",
+          "end": "(?=^[ \\t]*$)|((</)(i)\\s*(>))|(/>)",
+          "beginCaptures": {
+            "0": {
+              "name": "meta.tag.opening.vtt"
+            },
+            "1": {
+              "name": "punctuation.definition.tag.begin.vtt"
+            },
+            "2": {
+              "name": "entity.name.tag.localname.vtt"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "meta.tag.closing.vtt"
+            },
+            "2": {
+              "name": "punctuation.definition.tag.begin.vtt"
+            },
+            "3": {
+              "name": "entity.name.tag.localname.vtt"
+            },
+            "4": {
+              "name": "punctuation.definition.tag.end.vtt"
+            },
+            "5": {
+              "name": "punctuation.definition.tag.end.self-closing.vtt"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#cueSpanStart"
+            },
+            {
+              "name": "markup.italic.vtt",
+              "begin": "(?<=>)",
+              "end": "(?=</[A-Za-z_:]|^[ \\t]*$)",
+              "patterns": [
+                {
+                  "include": "#cueComponents"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "meta.span.bold-span.vtt",
+          "begin": "(<)(b)(?=$|\\s|/?>|\\.)",
+          "end": "(?=^[ \\t]*$)|((</)(b)\\s*(>))|(/>)",
+          "beginCaptures": {
+            "0": {
+              "name": "meta.tag.opening.vtt"
+            },
+            "1": {
+              "name": "punctuation.definition.tag.begin.vtt"
+            },
+            "2": {
+              "name": "entity.name.tag.localname.vtt"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "meta.tag.closing.vtt"
+            },
+            "2": {
+              "name": "punctuation.definition.tag.begin.vtt"
+            },
+            "3": {
+              "name": "entity.name.tag.localname.vtt"
+            },
+            "4": {
+              "name": "punctuation.definition.tag.end.vtt"
+            },
+            "5": {
+              "name": "punctuation.definition.tag.end.self-closing.vtt"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#cueSpanStart"
+            },
+            {
+              "name": "markup.bold.vtt",
+              "begin": "(?<=>)",
+              "end": "(?=</[A-Za-z_:]|^[ \\t]*$)",
+              "patterns": [
+                {
+                  "include": "#cueComponents"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "meta.span.underline-span.vtt",
+          "begin": "(<)(u)(?=$|\\s|/?>|\\.)",
+          "end": "(?=^[ \\t]*$)|((</)(u)\\s*(>))|(/>)",
+          "beginCaptures": {
+            "0": {
+              "name": "meta.tag.opening.vtt"
+            },
+            "1": {
+              "name": "punctuation.definition.tag.begin.vtt"
+            },
+            "2": {
+              "name": "entity.name.tag.localname.vtt"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "meta.tag.closing.vtt"
+            },
+            "2": {
+              "name": "punctuation.definition.tag.begin.vtt"
+            },
+            "3": {
+              "name": "entity.name.tag.localname.vtt"
+            },
+            "4": {
+              "name": "punctuation.definition.tag.end.vtt"
+            },
+            "5": {
+              "name": "punctuation.definition.tag.end.self-closing.vtt"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#cueSpanStart"
+            },
+            {
+              "name": "markup.underline.vtt",
+              "begin": "(?<=>)",
+              "end": "(?=</[A-Za-z_:]|^[ \\t]*$)",
+              "contentName": "string.other.link.vtt",
+              "patterns": [
+                {
+                  "include": "#cueComponents"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "meta.span.ruby-span.vtt",
+          "begin": "(<)(ruby)(?=$|\\s|/?>|\\.)",
+          "end": "(?=^[ \\t]*$)|((</)(ruby)\\s*(>))|(/>)",
+          "beginCaptures": {
+            "0": {
+              "name": "meta.tag.opening.vtt"
+            },
+            "1": {
+              "name": "punctuation.definition.tag.begin.vtt"
+            },
+            "2": {
+              "name": "entity.name.tag.localname.vtt"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "meta.tag.closing.vtt"
+            },
+            "2": {
+              "name": "punctuation.definition.tag.begin.vtt"
+            },
+            "3": {
+              "name": "entity.name.tag.localname.vtt"
+            },
+            "4": {
+              "name": "punctuation.definition.tag.end.vtt"
+            },
+            "5": {
+              "name": "punctuation.definition.tag.end.self-closing.vtt"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#cueSpanStart"
+            },
+            {
+              "include": "#cueSpanBody"
+            }
+          ]
+        },
+        {
+          "name": "meta.span.ruby-text-span.vtt",
+          "begin": "(<)(rt)(?=$|\\s|/?>|\\.)",
+          "end": "(?=^[ \\t]*$)|((</)(rt)\\s*(>))|(/>)|(?=\\s*</ruby\\s*>)",
+          "beginCaptures": {
+            "0": {
+              "name": "meta.tag.opening.vtt"
+            },
+            "1": {
+              "name": "punctuation.definition.tag.begin.vtt"
+            },
+            "2": {
+              "name": "entity.name.tag.localname.vtt"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "meta.tag.closing.vtt"
+            },
+            "2": {
+              "name": "punctuation.definition.tag.begin.vtt"
+            },
+            "3": {
+              "name": "entity.name.tag.localname.vtt"
+            },
+            "4": {
+              "name": "punctuation.definition.tag.end.vtt"
+            },
+            "5": {
+              "name": "punctuation.definition.tag.end.self-closing.vtt"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#cueSpanStart"
+            },
+            {
+              "include": "#cueSpanBody"
+            }
+          ]
+        },
+        {
+          "name": "meta.span.voice-span.vtt",
+          "begin": "(<)(v)(?=$|\\s|/?>|\\.)",
+          "end": "(?=^[ \\t]*$)|((</)(v)\\s*(>))|(/>)",
+          "beginCaptures": {
+            "0": {
+              "name": "meta.tag.opening.vtt"
+            },
+            "1": {
+              "name": "punctuation.definition.tag.begin.vtt"
+            },
+            "2": {
+              "name": "entity.name.tag.localname.vtt"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "meta.tag.closing.vtt"
+            },
+            "2": {
+              "name": "punctuation.definition.tag.begin.vtt"
+            },
+            "3": {
+              "name": "entity.name.tag.localname.vtt"
+            },
+            "4": {
+              "name": "punctuation.definition.tag.end.vtt"
+            },
+            "5": {
+              "name": "punctuation.definition.tag.end.self-closing.vtt"
+            }
+          },
+          "patterns": [
+            {
+              "name": "meta.tag.opening.vtt",
+              "begin": "\\G(?!\\s*/>)((?:\\.[^\\s&<>.]+)*\\.?)?",
+              "end": ">|(?=\\s*/>|^[ \\t]*$)",
+              "beginCaptures": {
+                "1": {
+                  "patterns": [
+                    {
+                      "include": "#class"
+                    }
+                  ]
+                }
+              },
+              "endCaptures": {
+                "0": {
+                  "name": "punctuation.definition.tag.end.vtt"
+                }
+              },
+              "patterns": [
+                {
+                  "name": "meta.annotation.vtt",
+                  "begin": "(?:[ \\t]|^|\\G)(?=\\S)(?!>|&)",
+                  "end": "(?=$|>|&|^[ \\t]*$)",
+                  "contentName": "entity.name.voice.vtt",
+                  "patterns": [
+                    {
+                      "include": "#charRef"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "include": "#cueSpanBody"
+            }
+          ]
+        },
+        {
+          "name": "meta.span.language-span.vtt",
+          "begin": "(<)(lang)(?=$|\\s|/?>|\\.)",
+          "end": "(?=^[ \\t]*$)|((</)(lang)\\s*(>))|(/>)",
+          "beginCaptures": {
+            "0": {
+              "name": "meta.tag.opening.vtt"
+            },
+            "1": {
+              "name": "punctuation.definition.tag.begin.vtt"
+            },
+            "2": {
+              "name": "entity.name.tag.localname.vtt"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "meta.tag.closing.vtt"
+            },
+            "2": {
+              "name": "punctuation.definition.tag.begin.vtt"
+            },
+            "3": {
+              "name": "entity.name.tag.localname.vtt"
+            },
+            "4": {
+              "name": "punctuation.definition.tag.end.vtt"
+            },
+            "5": {
+              "name": "punctuation.definition.tag.end.self-closing.vtt"
+            }
+          },
+          "patterns": [
+            {
+              "name": "meta.tag.opening.vtt",
+              "begin": "\\G(?!\\s*/>)((?:\\.[^\\s&<>.]+)*\\.?)?",
+              "end": ">|(?=\\s*/>|^[ \\t]*$)",
+              "beginCaptures": {
+                "1": {
+                  "patterns": [
+                    {
+                      "include": "#class"
+                    }
+                  ]
+                }
+              },
+              "endCaptures": {
+                "0": {
+                  "name": "punctuation.definition.tag.end.vtt"
+                }
+              },
+              "patterns": [
+                {
+                  "name": "meta.annotation.vtt",
+                  "begin": "(?:[ \\t]|^|\\G)(?=\\S)(?!>|&)",
+                  "end": "(?=$|>|&|^[ \\t]*$)",
+                  "contentName": "constant.language.locale.bcp47.vtt",
+                  "patterns": [
+                    {
+                      "include": "#charRef"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "include": "#cueSpanBody"
+            }
+          ]
+        },
+        {
+          "name": "meta.span.$2-span.vtt",
+          "begin": "(<)([A-Za-z_:][-\\w:]*)(?=$|\\s|/?>|\\.)",
+          "end": "(?=^[ \\t]*$)|((</)(\\2)\\s*(>))|(/>)",
+          "beginCaptures": {
+            "0": {
+              "name": "meta.tag.opening.vtt"
+            },
+            "1": {
+              "name": "punctuation.definition.tag.begin.vtt"
+            },
+            "2": {
+              "name": "entity.name.tag.localname.vtt"
+            }
+          },
+          "endCaptures": {
+            "1": {
+              "name": "meta.tag.closing.vtt"
+            },
+            "2": {
+              "name": "punctuation.definition.tag.begin.vtt"
+            },
+            "3": {
+              "name": "entity.name.tag.localname.vtt"
+            },
+            "4": {
+              "name": "punctuation.definition.tag.end.vtt"
+            },
+            "5": {
+              "name": "punctuation.definition.tag.end.self-closing.vtt"
+            }
+          },
+          "patterns": [
+            {
+              "name": "meta.tag.opening.vtt",
+              "begin": "\\G(?!\\s*/>)((?:\\.[^\\s&<>.]+)*\\.?)?",
+              "end": ">|(?=\\s*/>|^[ \\t]*$)",
+              "beginCaptures": {
+                "1": {
+                  "patterns": [
+                    {
+                      "include": "#class"
+                    }
+                  ]
+                }
+              },
+              "endCaptures": {
+                "0": {
+                  "name": "punctuation.definition.tag.end.vtt"
+                }
+              },
+              "patterns": [
+                {
+                  "name": "meta.annotation.vtt",
+                  "begin": "(?:[ \\t]|^|\\G)(?=\\S)(?!>|&)",
+                  "end": "(?=$|>|&|^[ \\t]*$)",
+                  "contentName": "string.unquoted.annotation.vtt",
+                  "patterns": [
+                    {
+                      "include": "#charRef"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "include": "#cueSpanBody"
+            }
+          ]
+        }
+      ]
+    },
+    "cueSpanStart": {
+      "name": "meta.tag.opening.vtt",
+      "begin": "\\G(?!\\s*/>)((?:\\.[^\\s&<>.]+)*\\.?)?",
+      "end": ">|(?=\\s*/>|^[ \\t]*$)",
+      "beginCaptures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#class"
+            }
+          ]
+        }
+      },
+      "endCaptures": {
+        "0": {
+          "name": "punctuation.definition.tag.end.vtt"
+        }
+      },
+      "contentName": "invalid.illegal.unexpected-annotation.vtt",
+      "patterns": [
+        {
+          "include": "#charRef"
+        }
+      ]
+    },
+    "cueSpanBody": {
+      "name": "meta.content.vtt",
+      "begin": "(?<=>)",
+      "end": "(?=</[A-Za-z_:]|^[ \\t]*$)",
+      "patterns": [
+        {
+          "include": "#cueComponents"
+        }
+      ]
+    },
+    "cuePayload": {
+      "name": "meta.cue.payload.vtt",
+      "begin": "^(?=[ \\t]*\\S)",
+      "end": "(?=^[ \\t]*$)(?!\\G)",
+      "patterns": [
+        {
+          "include": "#cueComponents"
+        }
+      ]
+    },
+    "cueTimestamp": {
+      "name": "constant.other.cue-timestamp.vtt",
+      "match": "(<)((?:\\d{2,}:)?\\d{2}:\\d{2}\\.\\d{3})(>)",
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.timestamp.begin.vtt"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#timestamp"
+            }
+          ]
+        },
+        "3": {
+          "name": "punctuation.definition.timestamp.end.vtt"
+        }
+      }
+    },
+    "cueTimings": {
+      "name": "meta.cue.timings.vtt",
+      "begin": "(?x) (?:^|\\G)\n((?:\\d{2,}:)?\\d{2}:\\d{2}\\.\\d{3}) # Start time\n[ \\t]+ (-->) [ \\t]+                 # Separator\n((?:\\d{2,}:)?\\d{2}:\\d{2}\\.\\d{3}) # End time\n(?=$|[ \\t])  [ \\t]*                 # Gap before “#cueSettings”",
+      "end": "$",
+      "beginCaptures": {
+        "1": {
+          "name": "meta.start-time.vtt",
+          "patterns": [
+            {
+              "include": "#timestamp"
+            }
+          ]
+        },
+        "2": {
+          "name": "keyword.operator.timespan.vtt"
+        },
+        "3": {
+          "name": "meta.end-time.vtt",
+          "patterns": [
+            {
+              "include": "#timestamp"
+            }
+          ]
+        }
+      },
+      "patterns": [
+        {
+          "include": "#cueSettings"
+        }
+      ]
+    },
+    "cueSettings": {
+      "name": "meta.cue.settings-list.vtt",
+      "begin": "(?<=[ \\t]|^)(?!$)",
+      "end": "$",
+      "patterns": [
+        {
+          "include": "#badArrow"
+        },
+        {
+          "include": "#setting"
+        }
+      ]
+    },
+    "region": {
+      "name": "meta.region-definition.block.vtt",
+      "begin": "^(REGION)[ \\t]*$",
+      "end": "^[ \\t]*$",
+      "beginCaptures": {
+        "1": {
+          "name": "storage.type.region.vtt"
+        }
+      },
+      "patterns": [
+        {
+          "name": "meta.setting.with-value.vtt",
+          "match": "^(id)(:)(?:(.*?-->.*?)|(\\S+))",
+          "captures": {
+            "1": {
+              "name": "variable.assignment.setting-name.vtt"
+            },
+            "2": {
+              "name": "keyword.operator.assignment.key-value.colon.vtt"
+            },
+            "3": {
+              "patterns": [
+                {
+                  "include": "#badArrow"
+                }
+              ]
+            },
+            "4": {
+              "name": "entity.name.region.vtt"
+            }
+          }
+        },
+        {
+          "include": "#setting"
+        }
+      ]
+    },
+    "style": {
+      "name": "meta.style.block.vtt",
+      "begin": "^(STYLE)[ \\t]*$",
+      "end": "^[ \\t]*$",
+      "beginCaptures": {
+        "1": {
+          "name": "storage.type.style.vtt"
+        }
+      },
+      "contentName": "source.embedded.css",
+      "patterns": [
+        {
+          "include": "source.css"
+        }
+      ]
+    },
+    "setting": {
+      "name": "meta.setting.generic.vtt",
+      "begin": "([^\\s:]+?)(:)",
+      "end": "(?!\\G)",
+      "beginCaptures": {
+        "1": {
+          "name": "variable.assignment.setting-name.vtt"
+        },
+        "2": {
+          "name": "keyword.operator.assignment.key-value.colon.vtt"
+        }
+      },
+      "patterns": [
+        {
+          "begin": "\\G(?=[ \\t]*\\S)",
+          "end": "(?!\\G)(?=\\s|$)",
+          "patterns": [
+            {
+              "match": "(?<=scroll:)\\G([ \\t]*)(up)(?=$|\\s)",
+              "captures": {
+                "1": {
+                  "name": "punctuation.whitespace.inline.vtt"
+                },
+                "2": {
+                  "name": "constant.language.scroll-setting.vtt"
+                }
+              }
+            },
+            {
+              "match": "(?<=vertical:)\\G([ \\t]*)(rl|lr)(?=$|\\s)",
+              "captures": {
+                "1": {
+                  "name": "punctuation.whitespace.inline.vtt"
+                },
+                "2": {
+                  "name": "constant.language.vertical-setting.vtt"
+                }
+              }
+            },
+            {
+              "match": "(?<=line:)\\G([ \\t]*)(start|center|end)(?=$|\\s)",
+              "captures": {
+                "1": {
+                  "name": "punctuation.whitespace.inline.vtt"
+                },
+                "2": {
+                  "name": "constant.language.line-setting.vtt"
+                }
+              }
+            },
+            {
+              "match": "(?<=position:)\\G([ \\t]*)([0-9]+%,)(center|line-left|line-right)(?=$|\\s)",
+              "captures": {
+                "1": {
+                  "name": "punctuation.whitespace.inline.vtt"
+                },
+                "2": {
+                  "patterns": [
+                    {
+                      "include": "#settingValue"
+                    }
+                  ]
+                },
+                "3": {
+                  "name": "constant.language.position-setting.vtt"
+                }
+              }
+            },
+            {
+              "match": "(?<=align:)\\G([ \\t]*)(center|end|left|right|start)(?=$|\\s)",
+              "captures": {
+                "1": {
+                  "name": "punctuation.whitespace.inline.vtt"
+                },
+                "2": {
+                  "patterns": [
+                    {
+                      "include": "#settingValue"
+                    }
+                  ]
+                },
+                "3": {
+                  "name": "constant.language.align-setting.vtt"
+                }
+              }
+            },
+            {
+              "include": "#settingValue"
+            }
+          ]
+        }
+      ]
+    },
+    "settingValue": {
+      "patterns": [
+        {
+          "name": "constant.numeric.percentage.vtt",
+          "match": "[0-9]+(?:\\.[0-9]+)?(%)",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.percentage.vtt"
+            }
+          }
+        },
+        {
+          "name": "constant.numeric.integer.int.vtt",
+          "match": "[0-9]+\\b(?!%|\\.[0-9])"
+        },
+        {
+          "name": "constant.language.auto.vtt",
+          "match": "\\bauto\\b(?=$|\\s|,)"
+        },
+        {
+          "name": "punctuation.separator.delimiter.comma.vtt",
+          "match": ","
+        },
+        {
+          "include": "#badArrow"
+        },
+        {
+          "name": "constant.other.setting-value.vtt",
+          "match": ".+"
+        }
+      ]
+    },
+    "timestamp": {
+      "name": "meta.timestamp.vtt",
+      "match": "(?x)\n(?:(\\d{2,})(:))?            # Hours        (≥ 00)\n(?:([0-5]\\d)|(\\d{2}))(:)   # Minutes      (00-59)\n(?:([0-5]\\d)|(\\d{2}))(\\.) # Seconds      (00-59)\n(\\d{3})                     # Milliseconds (000-999)",
+      "captures": {
+        "1": {
+          "name": "constant.numeric.timestamp.unit.hour.vtt"
+        },
+        "2": {
+          "patterns": [
+            {
+              "include": "#timestampColon"
+            }
+          ]
+        },
+        "3": {
+          "name": "constant.numeric.timestamp.unit.minute.vtt"
+        },
+        "4": {
+          "name": "invalid.illegal.value.out-of-range.vtt"
+        },
+        "5": {
+          "patterns": [
+            {
+              "include": "#timestampColon"
+            }
+          ]
+        },
+        "6": {
+          "name": "constant.numeric.timestamp.unit.second.vtt"
+        },
+        "7": {
+          "name": "invalid.illegal.value.out-of-range.vtt"
+        },
+        "8": {
+          "patterns": [
+            {
+              "include": "#timestampDecimal"
+            }
+          ]
+        },
+        "9": {
+          "name": "constant.numeric.timestamp.unit.millisecond.vtt"
+        }
+      }
+    },
+    "timestampColon": {
+      "name": "meta.separator.colon.vtt",
+      "match": ":",
+      "captures": {
+        "0": {
+          "name": "punctuation.separator.delimiter.vtt"
+        }
+      }
+    },
+    "timestampDecimal": {
+      "name": "meta.separator.decimal.fraction.radix-point.vtt",
+      "match": "\\.",
+      "captures": {
+        "0": {
+          "name": "punctuation.separator.decimal.vtt"
+        }
+      }
+    }
+  }
+}

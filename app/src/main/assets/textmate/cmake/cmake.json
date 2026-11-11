@@ -117,9 +117,12 @@
     {
       "match": "\\b(?i:(CMAKE_)?(C(?:XX_FLAGS|MAKE_CXX_FLAGS_DEBUG|MAKE_CXX_FLAGS_MINSIZEREL|MAKE_CXX_FLAGS_RELEASE|MAKE_CXX_FLAGS_RELWITHDEBINFO)))\\b",
       "name": "variable.source.cmake"
+    },
+    {
+      "match": "(?<![\\w$])\\d+(?:\\.\\d+)*(?:[eE][-+]?\\d+)?\\b",
+      "name": "constant.numeric.cmake"
     }
   ],
-  "repository": {
-  },
+  "repository": {},
   "scopeName": "source.cmake"
 }

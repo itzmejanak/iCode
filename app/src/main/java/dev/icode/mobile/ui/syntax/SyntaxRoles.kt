@@ -50,13 +50,7 @@ internal class SyntaxRoles(rules: List<Pair<SyntaxRole, List<String>>>) {
 
     /** [scopes], root first as tm4e gives a token's, drawn: Plain where no rule names any of them. */
     fun style(scopes: List<String>): SyntaxStyle {
-        var role: SyntaxRole? = null
-        var style = NOT_SET
-        scopes.indices.forEach { level ->
-            val rule = match(scopes, level)
-            if (rule.role != null) role = rule.role
-            if (rule.style != NOT_SET) style = rule.style
-        }
+        val (role, style) = resolve(scopes)
         val set = style != NOT_SET
         return SyntaxStyle(
             role ?: SyntaxRole.Plain,
@@ -65,6 +59,20 @@ internal class SyntaxRoles(rules: List<Pair<SyntaxRole, List<String>>>) {
             underline = set && style and UNDERLINE != 0,
             strikethrough = set && style and STRIKETHROUGH != 0,
         )
+    }
+
+    /** The role a rule gives [scopes], or null where no rule names any of them (drawn Plain). */
+    fun named(scopes: List<String>): SyntaxRole? = resolve(scopes).first
+
+    private fun resolve(scopes: List<String>): Pair<SyntaxRole?, Int> {
+        var role: SyntaxRole? = null
+        var style = NOT_SET
+        scopes.indices.forEach { level ->
+            val rule = match(scopes, level)
+            if (rule.role != null) role = rule.role
+            if (rule.style != NOT_SET) style = rule.style
+        }
+        return role to style
     }
 
     /** The rule for `scopes[level]` within the scopes enclosing it (tm4e's Theme.match). */

@@ -1,0 +1,6 @@
+# Gives every player a diamond
+give @a minecraft:diamond 1
+execute as @a[tag=winner] at @s run summon minecraft:firework_rocket ~ ~1 ~
+scoreboard objectives add kills playerKillCount
+tellraw @a {"text": "Round over", "color": "gold"}
+effect give @p minecraft:speed 30 2 true

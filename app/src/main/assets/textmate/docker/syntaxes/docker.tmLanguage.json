@@ -1,90 +1,90 @@
 {
 	"information_for_contributors": [
-		"This file has been converted from https://github.com/moby/moby/blob/master/contrib/syntax/textmate/Docker.tmbundle/Syntaxes/Dockerfile.tmLanguage",
-		"If you want to provide a fix or improvement, please create a pull request against the original repository.",
-		"Once accepted there, we are happy to receive an update request."
+		"iCode's Dockerfile grammar, based on moby's (https://github.com/moby/moby/blob/master/contrib/syntax/textmate/Docker.tmbundle/Syntaxes/Dockerfile.tmLanguage, Apache-2.0), as VS Code ships it at 307b60e7.",
+		"Changed by iCode: every part of an instruction is scoped (image, tag, digest, stage name, flags, keys and values, ports, variables, heredocs, exec form), and the shell form of RUN, CMD, ENTRYPOINT and HEALTHCHECK CMD embeds source.shell.",
+		"Kept by tools/import-grammars.py (KEPT), which lists the changes in docs/editor-grammar-provenance.md."
 	],
 	"version": "https://github.com/moby/moby/commit/c2029cb2574647e4bc28ed58486b8e85883eedb9",
 	"name": "Dockerfile",
 	"scopeName": "source.dockerfile",
 	"patterns": [
 		{
+			"include": "#directive"
+		},
+		{
+			"include": "#comment-line"
+		},
+		{
+			"include": "#from"
+		},
+		{
+			"include": "#exec-form"
+		},
+		{
+			"include": "#run"
+		},
+		{
+			"include": "#shell-form"
+		},
+		{
+			"include": "#healthcheck"
+		},
+		{
+			"include": "#arg"
+		},
+		{
+			"include": "#env-legacy"
+		},
+		{
+			"include": "#pairs"
+		},
+		{
+			"include": "#expose"
+		},
+		{
+			"include": "#copy"
+		},
+		{
+			"include": "#arguments"
+		},
+		{
+			"include": "#unknown"
+		},
+		{
+			"include": "#line-continuation"
+		},
+		{
+			"include": "#variable"
+		},
+		{
+			"include": "#string"
+		}
+	],
+	"repository": {
+		"directive": {
+			"comment": "A parser directive: # syntax=, # escape=, # check=",
+			"match": "^(\\s*)((#)\\s*(?i:(syntax|escape|check))\\s*(=)\\s*(.*?)\\s*$\\n?)",
 			"captures": {
-				"1": {
-					"name": "keyword.other.special-method.dockerfile"
-				},
 				"2": {
-					"name": "keyword.other.special-method.dockerfile"
-				}
-			},
-			"match": "^\\s*\\b(?i:(FROM))\\b.*?\\b(?i:(AS))\\b"
-		},
-		{
-			"captures": {
-				"1": {
-					"name": "keyword.control.dockerfile"
+					"name": "comment.line.number-sign.directive.dockerfile"
 				},
-				"2": {
-					"name": "keyword.other.special-method.dockerfile"
-				}
-			},
-			"match": "^\\s*(?i:(ONBUILD)\\s+)?(?i:(ADD|ARG|CMD|COPY|ENTRYPOINT|ENV|EXPOSE|FROM|HEALTHCHECK|LABEL|MAINTAINER|RUN|SHELL|STOPSIGNAL|USER|VOLUME|WORKDIR))\\s"
-		},
-		{
-			"captures": {
-				"1": {
-					"name": "keyword.operator.dockerfile"
+				"3": {
+					"name": "punctuation.definition.comment.dockerfile"
 				},
-				"2": {
-					"name": "keyword.other.special-method.dockerfile"
+				"4": {
+					"name": "keyword.other.directive.dockerfile"
+				},
+				"5": {
+					"name": "keyword.operator.assignment.dockerfile"
+				},
+				"6": {
+					"name": "string.unquoted.directive.dockerfile"
 				}
-			},
-			"match": "^\\s*(?i:(ONBUILD)\\s+)?(?i:(CMD|ENTRYPOINT))\\s"
+			}
 		},
-		{
-			"include": "#string-character-escape"
-		},
-		{
-			"begin": "\"",
-			"beginCaptures": {
-				"1": {
-					"name": "punctuation.definition.string.begin.dockerfile"
-				}
-			},
-			"end": "\"",
-			"endCaptures": {
-				"1": {
-					"name": "punctuation.definition.string.end.dockerfile"
-				}
-			},
-			"name": "string.quoted.double.dockerfile",
-			"patterns": [
-				{
-					"include": "#string-character-escape"
-				}
-			]
-		},
-		{
-			"begin": "'",
-			"beginCaptures": {
-				"1": {
-					"name": "punctuation.definition.string.begin.dockerfile"
-				}
-			},
-			"end": "'",
-			"endCaptures": {
-				"1": {
-					"name": "punctuation.definition.string.end.dockerfile"
-				}
-			},
-			"name": "string.quoted.single.dockerfile",
-			"patterns": [
-				{
-					"include": "#string-character-escape"
-				}
-			]
-		},
-		{
+		"comment-line": {
+			"comment": "A comment is a whole line; # later in a line is not one",
+			"match": "^(\\s*)((#).*$\\n?)",
 			"captures": {
 				"1": {
 					"name": "punctuation.whitespace.comment.leading.dockerfile"
@@ -95,15 +95,781 @@
 				"3": {
 					"name": "punctuation.definition.comment.dockerfile"
 				}
+			}
+		},
+		"line-continuation": {
+			"match": "\\\\[ \\t]*\\n",
+			"name": "constant.character.escape.line-continuation.dockerfile"
+		},
+		"escape": {
+			"match": "\\\\.",
+			"name": "constant.character.escape.dockerfile"
+		},
+		"variable": {
+			"patterns": [
+				{
+					"match": "(\\$)(\\{)(\\w+)(?:(:?[-+?])([^}]*))?(\\})",
+					"captures": {
+						"0": {
+							"name": "variable.other.dockerfile"
+						},
+						"1": {
+							"name": "punctuation.definition.variable.dockerfile"
+						},
+						"2": {
+							"name": "punctuation.definition.variable.begin.dockerfile"
+						},
+						"4": {
+							"name": "keyword.operator.expansion.dockerfile"
+						},
+						"5": {
+							"name": "string.unquoted.default.dockerfile",
+							"patterns": [
+								{
+									"include": "#variable"
+								}
+							]
+						},
+						"6": {
+							"name": "punctuation.definition.variable.end.dockerfile"
+						}
+					}
+				},
+				{
+					"match": "(\\$)\\w+",
+					"name": "variable.other.dockerfile",
+					"captures": {
+						"1": {
+							"name": "punctuation.definition.variable.dockerfile"
+						}
+					}
+				}
+			]
+		},
+		"string": {
+			"patterns": [
+				{
+					"name": "string.quoted.double.dockerfile",
+					"begin": "\"",
+					"end": "\"",
+					"beginCaptures": {
+						"0": {
+							"name": "punctuation.definition.string.begin.dockerfile"
+						}
+					},
+					"endCaptures": {
+						"0": {
+							"name": "punctuation.definition.string.end.dockerfile"
+						}
+					},
+					"patterns": [
+						{
+							"include": "#line-continuation"
+						},
+						{
+							"include": "#escape"
+						},
+						{
+							"include": "#variable"
+						}
+					]
+				},
+				{
+					"name": "string.quoted.single.dockerfile",
+					"begin": "'",
+					"end": "'",
+					"beginCaptures": {
+						"0": {
+							"name": "punctuation.definition.string.begin.dockerfile"
+						}
+					},
+					"endCaptures": {
+						"0": {
+							"name": "punctuation.definition.string.end.dockerfile"
+						}
+					},
+					"patterns": [
+						{
+							"include": "#escape"
+						}
+					]
+				}
+			]
+		},
+		"json-array": {
+			"comment": "The exec form: a JSON array of strings",
+			"begin": "\\[",
+			"end": "\\]",
+			"beginCaptures": {
+				"0": {
+					"name": "punctuation.definition.array.begin.dockerfile"
+				}
 			},
-			"comment": "comment.line",
-			"match": "^(\\s*)((#).*$\\n?)"
-		}
-	],
-	"repository": {
-		"string-character-escape": {
-			"name": "constant.character.escaped.dockerfile",
-			"match": "\\\\."
+			"endCaptures": {
+				"0": {
+					"name": "punctuation.definition.array.end.dockerfile"
+				}
+			},
+			"name": "meta.array.dockerfile",
+			"patterns": [
+				{
+					"include": "#line-continuation"
+				},
+				{
+					"name": "string.quoted.double.dockerfile",
+					"begin": "\"",
+					"end": "\"",
+					"beginCaptures": {
+						"0": {
+							"name": "punctuation.definition.string.begin.dockerfile"
+						}
+					},
+					"endCaptures": {
+						"0": {
+							"name": "punctuation.definition.string.end.dockerfile"
+						}
+					},
+					"patterns": [
+						{
+							"include": "#escape"
+						}
+					]
+				},
+				{
+					"match": ",",
+					"name": "punctuation.separator.array.dockerfile"
+				},
+				{
+					"match": "[^\\s,\\]\\\\]+",
+					"name": "invalid.illegal.dockerfile"
+				}
+			]
+		},
+		"flag": {
+			"comment": "--from=stage, --platform=$TARGET, --mount=type=cache,target=/root/.cache, --chmod=644",
+			"patterns": [
+				{
+					"match": "(?<=\\s)(--)(from)(=)((?:[^\\s\\\\$\\\"']|\\\\.|\\$(?:\\{[^}]*\\}|\\w+))+)",
+					"captures": {
+						"1": {
+							"name": "constant.other.option.dockerfile"
+						},
+						"2": {
+							"name": "constant.other.option.dockerfile"
+						},
+						"3": {
+							"name": "keyword.operator.assignment.dockerfile"
+						},
+						"4": {
+							"name": "entity.name.type.stage.dockerfile",
+							"patterns": [
+								{
+									"include": "#variable"
+								}
+							]
+						}
+					}
+				},
+				{
+					"match": "(?<=\\s)(--[\\w-]+)(?:(=)((?:[^\\s\\\\$\\\"']|\\\\.|\\$(?:\\{[^}]*\\}|\\w+))*))?",
+					"captures": {
+						"1": {
+							"name": "constant.other.option.dockerfile"
+						},
+						"2": {
+							"name": "keyword.operator.assignment.dockerfile"
+						},
+						"3": {
+							"patterns": [
+								{
+									"include": "#flag-value"
+								}
+							]
+						}
+					}
+				}
+			]
+		},
+		"flag-value": {
+			"patterns": [
+				{
+					"include": "#variable"
+				},
+				{
+					"match": "([\\w.-]+)(=)",
+					"captures": {
+						"1": {
+							"name": "entity.other.attribute-name.dockerfile"
+						},
+						"2": {
+							"name": "keyword.operator.assignment.dockerfile"
+						}
+					}
+				},
+				{
+					"match": ",",
+					"name": "punctuation.separator.dockerfile"
+				},
+				{
+					"include": "#number"
+				},
+				{
+					"include": "#boolean"
+				},
+				{
+					"match": "[^\\s,=$\\\\]+",
+					"name": "string.unquoted.dockerfile"
+				}
+			]
+		},
+		"number": {
+			"match": "(?<![\\w.$/-])[-+]?\\d+(?:\\.\\d+)?(?:ms|s|m|h|[kKmMgG][bB]?)?(?![\\w.:/-])",
+			"name": "constant.numeric.dockerfile"
+		},
+		"boolean": {
+			"match": "(?<![\\w.$/-])(?i:true|false)(?![\\w.:/-])",
+			"name": "constant.language.boolean.dockerfile"
+		},
+		"from": {
+			"name": "meta.instruction.from.dockerfile",
+			"begin": "^\\s*(?i:(ONBUILD)\\s+)?(?i:(FROM))(?=\\s|$)[ \\t]*",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.control.onbuild.dockerfile"
+				},
+				"2": {
+					"name": "keyword.other.special-method.dockerfile"
+				}
+			},
+			"end": "(?<!\\\\)(?=\\n)",
+			"patterns": [
+				{
+					"include": "#comment-line"
+				},
+				{
+					"include": "#line-continuation"
+				},
+				{
+					"include": "#flag"
+				},
+				{
+					"match": "\\s(?i:(AS))\\s+((?:[^\\s\\\\$\\\"']|\\\\.|\\$(?:\\{[^}]*\\}|\\w+))+)",
+					"captures": {
+						"1": {
+							"name": "keyword.other.special-method.dockerfile"
+						},
+						"2": {
+							"name": "entity.name.type.stage.dockerfile",
+							"patterns": [
+								{
+									"include": "#variable"
+								}
+							]
+						}
+					}
+				},
+				{
+					"comment": "An image: name, then :tag, then @digest",
+					"match": "(?<=\\s)(?!--)((?:[^\\s\\\\$\\\"']|\\\\.|\\$(?:\\{[^}]*\\}|\\w+))+?)(?:(:)((?:[\\w.-]|\\$(?:\\{[^}]*\\}|\\w+))+))?(?:(@)([\\w:+.-]+))?(?=\\s|$)",
+					"captures": {
+						"1": {
+							"name": "entity.name.type.image.dockerfile",
+							"patterns": [
+								{
+									"include": "#variable"
+								}
+							]
+						},
+						"2": {
+							"name": "punctuation.separator.tag.dockerfile"
+						},
+						"3": {
+							"name": "constant.other.tag.dockerfile",
+							"patterns": [
+								{
+									"include": "#variable"
+								}
+							]
+						},
+						"4": {
+							"name": "punctuation.separator.digest.dockerfile"
+						},
+						"5": {
+							"name": "constant.other.digest.dockerfile"
+						}
+					}
+				}
+			]
+		},
+		"exec-form": {
+			"name": "meta.instruction.exec.dockerfile",
+			"begin": "^\\s*(?i:(ONBUILD)\\s+)?(?i:(RUN|CMD|ENTRYPOINT|SHELL))[ \\t]*(?=\\[\\s*\\\")",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.control.onbuild.dockerfile"
+				},
+				"2": {
+					"name": "keyword.other.special-method.dockerfile"
+				}
+			},
+			"end": "(?<!\\\\)(?=\\n)",
+			"patterns": [
+				{
+					"include": "#comment-line"
+				},
+				{
+					"include": "#line-continuation"
+				},
+				{
+					"include": "#json-array"
+				}
+			]
+		},
+		"heredoc": {
+			"comment": "RUN <<EOF: a script, in the shell's syntax",
+			"begin": "(<<)(-?)\\s*([\\\"']?)(\\w+)(\\3)",
+			"end": "^\\s*(\\4)[ \\t]*$",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.operator.heredoc.dockerfile"
+				},
+				"2": {
+					"name": "keyword.operator.heredoc.dockerfile"
+				},
+				"4": {
+					"name": "keyword.control.heredoc-token.dockerfile"
+				}
+			},
+			"endCaptures": {
+				"1": {
+					"name": "keyword.control.heredoc-token.dockerfile"
+				}
+			},
+			"contentName": "meta.embedded.block.shell",
+			"patterns": [
+				{
+					"include": "source.shell"
+				}
+			]
+		},
+		"file-heredoc": {
+			"comment": "COPY <<EOF /path: a file's text",
+			"begin": "(<<)(-?)\\s*([\\\"']?)(\\w+)(\\3)",
+			"end": "^\\s*(\\4)[ \\t]*$",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.operator.heredoc.dockerfile"
+				},
+				"2": {
+					"name": "keyword.operator.heredoc.dockerfile"
+				},
+				"4": {
+					"name": "keyword.control.heredoc-token.dockerfile"
+				}
+			},
+			"endCaptures": {
+				"1": {
+					"name": "keyword.control.heredoc-token.dockerfile"
+				}
+			},
+			"contentName": "string.unquoted.heredoc.dockerfile"
+		},
+		"shell": {
+			"comment": "Shell commands. The shell grammar starts a command only after a line's start or a separator, so the first command after an instruction starts here, as the shell grammar's normal_statement does",
+			"patterns": [
+				{
+					"begin": "(?<=[ \\t])(?=[^\\s#\\\\;|&()`{}\\[\\]<>!])",
+					"end": "(?=;|\\||&|\\n|\\)|\\`|\\{|\\}|[ \\t]*#|\\])(?<!\\\\)",
+					"name": "meta.statement.shell",
+					"patterns": [
+						{
+							"include": "source.shell#typical_statements"
+						}
+					]
+				},
+				{
+					"include": "source.shell"
+				}
+			]
+		},
+		"run": {
+			"name": "meta.instruction.run.dockerfile",
+			"begin": "^\\s*(?i:(ONBUILD)\\s+)?(?i:(RUN))(?=\\s|$)[ \\t]*",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.control.onbuild.dockerfile"
+				},
+				"2": {
+					"name": "keyword.other.special-method.dockerfile"
+				}
+			},
+			"end": "(?<!\\\\)(?=\\n)",
+			"patterns": [
+				{
+					"include": "#comment-line"
+				},
+				{
+					"include": "#line-continuation"
+				},
+				{
+					"include": "#flag"
+				},
+				{
+					"include": "#heredoc"
+				},
+				{
+					"include": "#shell"
+				}
+			]
+		},
+		"shell-form": {
+			"name": "meta.instruction.shell.dockerfile",
+			"begin": "^\\s*(?i:(ONBUILD)\\s+)?(?i:(CMD|ENTRYPOINT))(?=\\s|$)[ \\t]*",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.control.onbuild.dockerfile"
+				},
+				"2": {
+					"name": "keyword.other.special-method.dockerfile"
+				}
+			},
+			"end": "(?<!\\\\)(?=\\n)",
+			"patterns": [
+				{
+					"include": "#comment-line"
+				},
+				{
+					"include": "#line-continuation"
+				},
+				{
+					"include": "#heredoc"
+				},
+				{
+					"include": "#shell"
+				}
+			]
+		},
+		"healthcheck": {
+			"name": "meta.instruction.healthcheck.dockerfile",
+			"begin": "^\\s*(?i:(ONBUILD)\\s+)?(?i:(HEALTHCHECK))(?=\\s|$)[ \\t]*",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.control.onbuild.dockerfile"
+				},
+				"2": {
+					"name": "keyword.other.special-method.dockerfile"
+				}
+			},
+			"end": "(?<!\\\\)(?=\\n)",
+			"patterns": [
+				{
+					"include": "#comment-line"
+				},
+				{
+					"include": "#line-continuation"
+				},
+				{
+					"include": "#flag"
+				},
+				{
+					"match": "(?<=\\s)(?i:NONE)\\b",
+					"name": "constant.language.none.dockerfile"
+				},
+				{
+					"begin": "(?<=\\s)(?i:(CMD))[ \\t]*(?=\\[\\s*\\\")",
+					"end": "(?<!\\\\)(?=\\n)",
+					"beginCaptures": {
+						"1": {
+							"name": "keyword.other.special-method.dockerfile"
+						}
+					},
+					"patterns": [
+						{
+							"include": "#line-continuation"
+						},
+						{
+							"include": "#json-array"
+						}
+					]
+				},
+				{
+					"begin": "(?<=\\s)(?i:(CMD))(?=\\s|$)[ \\t]*",
+					"end": "(?<!\\\\)(?=\\n)",
+					"beginCaptures": {
+						"1": {
+							"name": "keyword.other.special-method.dockerfile"
+						}
+					},
+					"patterns": [
+						{
+							"include": "#shell"
+						}
+					]
+				}
+			]
+		},
+		"key": {
+			"match": "([\\w.-]+|\\\"[^\\\"]*\\\")(=)",
+			"captures": {
+				"1": {
+					"name": "variable.key.dockerfile"
+				},
+				"2": {
+					"name": "keyword.operator.assignment.dockerfile"
+				}
+			}
+		},
+		"value": {
+			"comment": "A value after =: a number, true or false, a quoted string, or unquoted text",
+			"patterns": [
+				{
+					"include": "#variable"
+				},
+				{
+					"include": "#string"
+				},
+				{
+					"match": "(?<==)[-+]?\\d+(?:\\.\\d+)?(?=\\s|\\\\?$)",
+					"name": "constant.numeric.dockerfile"
+				},
+				{
+					"match": "(?<==)(?i:true|false)(?=\\s|\\\\?$)",
+					"name": "constant.language.boolean.dockerfile"
+				},
+				{
+					"match": "(?:[^\\s\\\\$\\\"'=]|\\\\.)+",
+					"name": "string.unquoted.value.dockerfile"
+				}
+			]
+		},
+		"arg": {
+			"name": "meta.instruction.arg.dockerfile",
+			"begin": "^\\s*(?i:(ONBUILD)\\s+)?(?i:(ARG))(?=\\s|$)[ \\t]*",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.control.onbuild.dockerfile"
+				},
+				"2": {
+					"name": "keyword.other.special-method.dockerfile"
+				}
+			},
+			"end": "(?<!\\\\)(?=\\n)",
+			"patterns": [
+				{
+					"include": "#comment-line"
+				},
+				{
+					"include": "#line-continuation"
+				},
+				{
+					"include": "#key"
+				},
+				{
+					"match": "(?<=\\s)[\\w.-]+(?=\\s|\\\\?$)",
+					"name": "variable.key.dockerfile"
+				},
+				{
+					"include": "#value"
+				}
+			]
+		},
+		"env-legacy": {
+			"comment": "ENV KEY value, the older form: one key and the rest of the line as its value",
+			"name": "meta.instruction.env.dockerfile",
+			"begin": "^\\s*(?i:(ONBUILD)\\s+)?(?i:(ENV))\\s+([\\w.-]+)(?=\\s+(?![\\w.-]+=))",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.control.onbuild.dockerfile"
+				},
+				"2": {
+					"name": "keyword.other.special-method.dockerfile"
+				},
+				"3": {
+					"name": "variable.key.dockerfile"
+				}
+			},
+			"end": "(?<!\\\\)(?=\\n)",
+			"patterns": [
+				{
+					"include": "#comment-line"
+				},
+				{
+					"include": "#line-continuation"
+				},
+				{
+					"include": "#variable"
+				},
+				{
+					"include": "#string"
+				},
+				{
+					"match": "(?:[^\\s\\\\$\\\"']|\\\\.)+",
+					"name": "string.unquoted.value.dockerfile"
+				}
+			]
+		},
+		"pairs": {
+			"name": "meta.instruction.pairs.dockerfile",
+			"begin": "^\\s*(?i:(ONBUILD)\\s+)?(?i:(ENV|LABEL))(?=\\s|$)[ \\t]*",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.control.onbuild.dockerfile"
+				},
+				"2": {
+					"name": "keyword.other.special-method.dockerfile"
+				}
+			},
+			"end": "(?<!\\\\)(?=\\n)",
+			"patterns": [
+				{
+					"include": "#comment-line"
+				},
+				{
+					"include": "#line-continuation"
+				},
+				{
+					"include": "#key"
+				},
+				{
+					"include": "#value"
+				}
+			]
+		},
+		"expose": {
+			"name": "meta.instruction.expose.dockerfile",
+			"begin": "^\\s*(?i:(ONBUILD)\\s+)?(?i:(EXPOSE))(?=\\s|$)[ \\t]*",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.control.onbuild.dockerfile"
+				},
+				"2": {
+					"name": "keyword.other.special-method.dockerfile"
+				}
+			},
+			"end": "(?<!\\\\)(?=\\n)",
+			"patterns": [
+				{
+					"include": "#comment-line"
+				},
+				{
+					"include": "#line-continuation"
+				},
+				{
+					"include": "#variable"
+				},
+				{
+					"match": "\\b\\d+(?:-\\d+)?\\b",
+					"name": "constant.numeric.port.dockerfile"
+				},
+				{
+					"match": "(/)((?i:tcp|udp|sctp))\\b",
+					"captures": {
+						"1": {
+							"name": "punctuation.separator.protocol.dockerfile"
+						},
+						"2": {
+							"name": "constant.language.protocol.dockerfile"
+						}
+					}
+				}
+			]
+		},
+		"copy": {
+			"name": "meta.instruction.copy.dockerfile",
+			"begin": "^\\s*(?i:(ONBUILD)\\s+)?(?i:(COPY|ADD))(?=\\s|$)[ \\t]*",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.control.onbuild.dockerfile"
+				},
+				"2": {
+					"name": "keyword.other.special-method.dockerfile"
+				}
+			},
+			"end": "(?<!\\\\)(?=\\n)",
+			"patterns": [
+				{
+					"include": "#comment-line"
+				},
+				{
+					"include": "#line-continuation"
+				},
+				{
+					"include": "#flag"
+				},
+				{
+					"include": "#file-heredoc"
+				},
+				{
+					"include": "#json-array"
+				},
+				{
+					"include": "#argument"
+				}
+			]
+		},
+		"arguments": {
+			"name": "meta.instruction.arguments.dockerfile",
+			"begin": "^\\s*(?i:(ONBUILD)\\s+)?(?i:(WORKDIR|USER|VOLUME|STOPSIGNAL|MAINTAINER))(?=\\s|$)[ \\t]*",
+			"beginCaptures": {
+				"1": {
+					"name": "keyword.control.onbuild.dockerfile"
+				},
+				"2": {
+					"name": "keyword.other.special-method.dockerfile"
+				}
+			},
+			"end": "(?<!\\\\)(?=\\n)",
+			"patterns": [
+				{
+					"include": "#comment-line"
+				},
+				{
+					"include": "#line-continuation"
+				},
+				{
+					"include": "#json-array"
+				},
+				{
+					"match": "\\bSIG[A-Z0-9+-]+\\b",
+					"name": "constant.other.signal.dockerfile"
+				},
+				{
+					"include": "#argument"
+				}
+			]
+		},
+		"argument": {
+			"patterns": [
+				{
+					"include": "#variable"
+				},
+				{
+					"include": "#string"
+				},
+				{
+					"match": "(?:[^\\s\\\\$\\\"']|\\\\.)+",
+					"name": "string.unquoted.argument.dockerfile"
+				}
+			]
+		},
+		"unknown": {
+			"comment": "An instruction Docker does not know: its name, then its arguments",
+			"name": "meta.instruction.unknown.dockerfile",
+			"begin": "^\\s*([A-Za-z]+)(?=\\s|$)",
+			"end": "(?<!\\\\)(?=\\n)",
+			"beginCaptures": {
+				"1": {
+					"name": "invalid.illegal.instruction.dockerfile"
+				}
+			},
+			"patterns": [
+				{
+					"include": "#line-continuation"
+				},
+				{
+					"include": "#argument"
+				}
+			]
 		}
 	}
 }

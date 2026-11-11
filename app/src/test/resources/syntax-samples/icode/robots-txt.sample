@@ -1,0 +1,10 @@
+# Rules for crawlers
+User-agent: *
+Disallow: /admin/
+Allow: /admin/public/
+Crawl-delay: 10
+
+User-agent: Googlebot
+Disallow:
+
+Sitemap: https://example.com/sitemap.xml

@@ -61,8 +61,8 @@ class GrammarLoaderTest {
         assertEquals(markdown.scope, closure.first())
         assertTrue(closure.containsAll(listOf("text.html.basic", "source.css", "source.js")))
         assertTrue("a fence's language is in the closure", "source.julia" in closure)
-        val groovy = loader.closure(ShippedGrammars.catalog.byId("groovy")!!).map { it.scope }
-        assertTrue("text.html.javadoc is not shipped", "text.html.javadoc" in ShippedGrammars.catalog.byId("groovy")!!.includes && "text.html.javadoc" !in groovy)
+        val haml = loader.closure(ShippedGrammars.catalog.byId("haml")!!).map { it.scope }
+        assertTrue("text.plain is not shipped", "text.plain" in ShippedGrammars.catalog.byId("haml")!!.includes && "text.plain" !in haml)
         val reachable = closure.flatMap { ShippedGrammars.catalog.byScope(it)!!.includes }.filter { ShippedGrammars.catalog.byScope(it) != null }
         assertTrue("every shipped include of a member is in the closure", closure.containsAll(reachable))
     }

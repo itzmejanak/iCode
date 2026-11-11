@@ -87,6 +87,36 @@ extension's `cgmanifest.json`.
 | uiua-lang/uiua-vscode 333e5b12 | https://github.com/uiua-lang/uiua-vscode/tree/333e5b12b27a9981f3e9028e7ebd5165b178e60a | MIT |
 | fastly/vscode-fastly-vcl 01f09f53 | https://github.com/fastly/vscode-fastly-vcl/tree/01f09f5392d82d3544fe33e086d5fd718083d4c6 | MIT |
 | simnJS/verse-grammar 3abf18ec | https://github.com/simnJS/verse-grammar/tree/3abf18ec6e8d9fcbbb15be8183cb5b2cb6a621b8 | MIT |
+| Alhadis/language-agc 6fb398ee | https://github.com/Alhadis/language-agc/tree/6fb398ee1110d65f4c92c7644e8e6d896dc43300 | ISC |
+| atom-haskell/language-haskell a273201b | https://github.com/atom-haskell/language-haskell/tree/a273201bd1ffd518a7700fb883d68b8fb60bcbf3 | MIT |
+| Alhadis/language-etc 6aa793bd | https://github.com/Alhadis/language-etc/tree/6aa793bd649151119bd946673f8f027f0a9c99c8 | ISC |
+| Alhadis/language-grammars daa8548c | https://github.com/Alhadis/language-grammars/tree/daa8548cc820359b078192dc85b6c8845e9db54c | ISC |
+| Alhadis/Atom-PostScript 8f5309cc | https://github.com/Alhadis/Atom-PostScript/tree/8f5309cc78f76b1ce5f3e817d3749d5ee64d5212 | ISC |
+| Alhadis/language-subtitles 9acc0aa2 | https://github.com/Alhadis/language-subtitles/tree/9acc0aa2c232a7b06aa0e8c1058ee5be81a98837 | ISC |
+| jaysquared/atom-firestore-grammar 750ec2ab | https://github.com/jaysquared/atom-firestore-grammar/tree/750ec2abef42f7061c6bcc29ed5db3b0a1f3f773 | MIT |
+| DenizenScript/denizenscript-grammar a9a95232 | https://github.com/DenizenScript/denizenscript-grammar/tree/a9a95232026192c0d5eb23557882f9b69a40d66e | MIT |
+| mariozaizar/language-eml e92b829c | https://github.com/mariozaizar/language-eml/tree/e92b829c1e68710f1e2d5c039642e3a8ff06db6d | MIT |
+| atom-crystal/language-crystal 48b87f54 | https://github.com/atom-crystal/language-crystal/tree/48b87f541ad787ffab5d4a4a1d366f5db16bca1a | MIT |
+| nwhetsell/linter-lilypond eca5b0f9 | https://github.com/nwhetsell/linter-lilypond/tree/eca5b0f91b959d598b601c3dcdf2194a6b1e8e79 | MIT |
+| Macaulay2/language-macaulay2 e3d0db2a | https://github.com/Macaulay2/language-macaulay2/tree/e3d0db2a52545b4ce04dd531fd73360bd1407adb | MIT |
+| TingPing/language-meson 90269533 | https://github.com/TingPing/language-meson/tree/90269533120e84a9f5882346a8d646619e606b39 | Apache-2.0 |
+| alohaas/language-nunjucks d865b2a6 | https://github.com/alohaas/language-nunjucks/tree/d865b2a667c53122e749b7d9698f1b2ac0258d98 | MIT |
+| animecyc/AtomLanguageVelocity 6eb92de5 | https://github.com/animecyc/AtomLanguageVelocity/tree/6eb92de5a24991192192d768241be12337015884 | MIT |
+| wcandillon/language-jsoniq 89a35154 | https://github.com/wcandillon/language-jsoniq/tree/89a3515410d82ef32995a1d713ece09bd15eb840 | Apache-2.0 |
+| DzonyKalafut/language-yang c2d4a701 | https://github.com/DzonyKalafut/language-yang/tree/c2d4a701d15e0ea7a1cef4f2fe4396b336504d7c | MIT |
+| hernad/atom-language-harbour ae860b3b | https://github.com/hernad/atom-language-harbour/tree/ae860b3b02d08bd65827c0a5f0029e65e4df30b4 | MIT |
+| cdibbs/language-jison ce8e2c78 | https://github.com/cdibbs/language-jison/tree/ce8e2c78279b242a95b87e830a60dee55357aedc | MIT |
+| qjebbs/vscode-plantuml 7bc1758e | https://github.com/qjebbs/vscode-plantuml/tree/7bc1758ed73dc269f5721d78c6c6c01f461d7cb0 | MIT |
+| slint-ui/slint-tmLanguage 45bd6116 | https://github.com/slint-ui/slint-tmLanguage/tree/45bd6116b344fb2eebdf506fbda32a5cc57590a3 | MIT |
+| Nixinova/NovaGrammars c6dfb955 | https://github.com/Nixinova/NovaGrammars/tree/c6dfb955f070c5aaf3ca7f6ee8d0b1802c6aed95 | ISC |
+| jflex-de/jflex.tmbundle 8b5c0cef | https://github.com/jflex-de/jflex.tmbundle/tree/8b5c0cefc7672ec4d0a5f6d9095256252120fa44 | BSD-2-Clause |
+| agda/agda-github-syntax-highlighting ba500584 | https://github.com/agda/agda-github-syntax-highlighting/tree/ba5005841ff9bdc5186af68befd58ed456fc7a8c | MIT |
+| leanprover/vscode-lean4 5a25e6ab | https://github.com/leanprover/vscode-lean4/tree/5a25e6abb2e973b4c89a053acc74c479c0bb2e9f | Apache-2.0 |
+| Alhadis/language-regexp 2e240580 | https://github.com/Alhadis/language-regexp/tree/2e240580b7e7046718b2c495d418f3ded972d618 | ISC |
+| calculuswhiz/Assembly-Syntax-Definition 519b7b3c | https://github.com/calculuswhiz/Assembly-Syntax-Definition/tree/519b7b3c5f8428832dde72a90041d0707f831e5c | MIT |
+| textmate/javadoc.tmbundle 5276d7a9 | https://github.com/textmate/javadoc.tmbundle/tree/5276d7a93f0cf53b7d425c39c6968b09ea9f2d40 | TextMate Bundle License |
+| MagicStack/MagicPython 7d0f2b22 | https://github.com/MagicStack/MagicPython/tree/7d0f2b22a5ad8fccbd7341bc7b7a715169283044 | MIT |
+| spgennard/vscode_cobol 8be1f9a9 | https://github.com/spgennard/vscode_cobol/tree/8be1f9a91a4a25c847ca2fe9dcc4793ead8bc347 | MIT |
 
 | Language | Scope | Copied from | Upstream | Licence |
 |---|---|---|---|---|
@@ -397,6 +427,56 @@ extension's `cgmanifest.json`.
 | `uiua` | `source.uiua` | uiua-lang/uiua-vscode 333e5b12 `syntaxes/uiua.tmLanguage.json` | None: uiua-lang/uiua-vscode 333e5b12 is the origin | MIT |
 | `vcl` | `source.vcl` | fastly/vscode-fastly-vcl 01f09f53 `syntaxes/vcl.tmLanguage.json` | None: fastly/vscode-fastly-vcl 01f09f53 is the origin | MIT |
 | `verse` | `source.verse` | simnJS/verse-grammar 3abf18ec `grammars/verse.tmLanguage.json` | None: simnJS/verse-grammar 3abf18ec is the origin | MIT |
+| `agc` | `source.agc` | Alhadis/language-agc 6fb398ee `grammars/agc.cson` | None: Alhadis/language-agc 6fb398ee is the origin | ISC |
+| `cabal` | `source.cabal` | atom-haskell/language-haskell a273201b `grammars/cabal.cson` | None: atom-haskell/language-haskell a273201b is the origin | MIT |
+| `literate-haskell` | `text.tex.latex.haskell` | atom-haskell/language-haskell a273201b `grammars/literate haskell.cson` | None: atom-haskell/language-haskell a273201b is the origin | MIT |
+| `liquid-haskell` | `annotation.liquidhaskell.haskell` | atom-haskell/language-haskell a273201b `grammars/liquid haskell.cson` | None: atom-haskell/language-haskell a273201b is the origin | MIT |
+| `etc` | `etc` | Alhadis/language-etc 6aa793bd `grammars/etc.cson` | None: Alhadis/language-etc 6aa793bd is the origin | ISC |
+| `checksums` | `text.checksums` | Alhadis/language-etc 6aa793bd `grammars/checksums.cson` | None: Alhadis/language-etc 6aa793bd is the origin | ISC |
+| `gitconfig` | `source.gitconfig` | Alhadis/language-etc 6aa793bd `grammars/gitconfig.cson` | None: Alhadis/language-etc 6aa793bd is the origin | ISC |
+| `hosts` | `source.hosts` | Alhadis/language-etc 6aa793bd `grammars/hosts.cson` | None: Alhadis/language-etc 6aa793bd is the origin | ISC |
+| `m3u` | `source.m3u` | Alhadis/language-etc 6aa793bd `grammars/m3u.cson` | None: Alhadis/language-etc 6aa793bd is the origin | ISC |
+| `mailmap` | `source.mailmap` | Alhadis/language-etc 6aa793bd `grammars/mailmap.cson` | None: Alhadis/language-etc 6aa793bd is the origin | ISC |
+| `opts` | `source.opts` | Alhadis/language-etc 6aa793bd `grammars/opts.cson` | None: Alhadis/language-etc 6aa793bd is the origin | ISC |
+| `shellcheckrc` | `source.shellcheckrc` | Alhadis/language-etc 6aa793bd `grammars/shellcheckrc.cson` | None: Alhadis/language-etc 6aa793bd is the origin | ISC |
+| `lex` | `source.lex` | Alhadis/language-grammars daa8548c `grammars/lex.cson` | None: Alhadis/language-grammars daa8548c is the origin | ISC |
+| `lex-regexp` | `source.lex.regexp` | Alhadis/language-grammars daa8548c `grammars/lex-regexp.cson` | None: Alhadis/language-grammars daa8548c is the origin | ISC |
+| `postscript` | `source.postscript` | Alhadis/Atom-PostScript 8f5309cc `grammars/postscript.cson` | None: Alhadis/Atom-PostScript 8f5309cc is the origin | ISC |
+| `srt` | `text.srt` | Alhadis/language-subtitles 9acc0aa2 `grammars/srt.cson` | None: Alhadis/language-subtitles 9acc0aa2 is the origin | ISC |
+| `vtt` | `text.vtt` | Alhadis/language-subtitles 9acc0aa2 `grammars/vtt.cson` | None: Alhadis/language-subtitles 9acc0aa2 is the origin | ISC |
+| `firestore` | `source.firestore` | jaysquared/atom-firestore-grammar 750ec2ab `grammars/firestore.cson` | None: jaysquared/atom-firestore-grammar 750ec2ab is the origin | MIT |
+| `denizenscript` | `source.denizenscript` | DenizenScript/denizenscript-grammar a9a95232 `grammars/denizenscript.cson` | None: DenizenScript/denizenscript-grammar a9a95232 is the origin | MIT |
+| `eml` | `text.eml.basic` | mariozaizar/language-eml e92b829c `grammars/language-eml.cson` | None: mariozaizar/language-eml e92b829c is the origin | MIT |
+| `ecr` | `text.html.ecr` | atom-crystal/language-crystal 48b87f54 `grammars/html (crystal - ecr).cson` | None: atom-crystal/language-crystal 48b87f54 is the origin | MIT |
+| `lilypond` | `source.lilypond` | nwhetsell/linter-lilypond eca5b0f9 `grammars/lilypond.cson` | None: nwhetsell/linter-lilypond eca5b0f9 is the origin | MIT |
+| `macaulay2` | `source.m2` | Macaulay2/language-macaulay2 e3d0db2a `grammars/macaulay2.cson` | None: Macaulay2/language-macaulay2 e3d0db2a is the origin | MIT |
+| `meson` | `source.meson` | TingPing/language-meson 90269533 `grammars/meson.cson` | None: TingPing/language-meson 90269533 is the origin | Apache-2.0 |
+| `nunjucks` | `text.html.nunjucks` | alohaas/language-nunjucks d865b2a6 `grammars/html (nunjucks templates).cson` | None: alohaas/language-nunjucks d865b2a6 is the origin | MIT |
+| `nunjucks-source` | `source.nunjucks` | alohaas/language-nunjucks d865b2a6 `grammars/nunjucks templates.cson` | None: alohaas/language-nunjucks d865b2a6 is the origin | MIT |
+| `velocity` | `source.velocity` | animecyc/AtomLanguageVelocity 6eb92de5 `grammars/velocity.cson` | None: animecyc/AtomLanguageVelocity 6eb92de5 is the origin | MIT |
+| `xquery` | `source.xq` | wcandillon/language-jsoniq 89a35154 `grammars/xquery.cson` | None: wcandillon/language-jsoniq 89a35154 is the origin | Apache-2.0 |
+| `jsoniq` | `source.jsoniq` | wcandillon/language-jsoniq 89a35154 `grammars/jsoniq.cson` | None: wcandillon/language-jsoniq 89a35154 is the origin | Apache-2.0 |
+| `yang` | `source.yang` | DzonyKalafut/language-yang c2d4a701 `grammars/yang.cson` | None: DzonyKalafut/language-yang c2d4a701 is the origin | MIT |
+| `harbour` | `source.harbour` | hernad/atom-language-harbour ae860b3b `grammars/harbour.cson` | None: hernad/atom-language-harbour ae860b3b is the origin | MIT |
+| `jisonlex` | `source.jisonlex` | cdibbs/language-jison ce8e2c78 `grammars/jisonlex.cson` | None: cdibbs/language-jison ce8e2c78 is the origin | MIT |
+| `plantuml` | `source.wsd` | qjebbs/vscode-plantuml 7bc1758e `syntaxes/plantuml.yaml-tmLanguage` | None: qjebbs/vscode-plantuml 7bc1758e is the origin | MIT |
+| `slint` | `source.slint` | slint-ui/slint-tmLanguage 45bd6116 `Slint.YAML-tmLanguage` | None: slint-ui/slint-tmLanguage 45bd6116 is the origin | MIT |
+| `sln` | `source.solution` | Nixinova/NovaGrammars c6dfb955 `grammars/solution.yaml-tmLanguage` | None: Nixinova/NovaGrammars c6dfb955 is the origin | ISC |
+| `robots-txt` | `text.robots-txt` | Nixinova/NovaGrammars c6dfb955 `grammars/robots-txt.yaml-tmLanguage` | None: Nixinova/NovaGrammars c6dfb955 is the origin | ISC |
+| `jflex` | `source.jflex` | jflex-de/jflex.tmbundle 8b5c0cef `Syntaxes/JFlex.tmLanguage` | None: jflex-de/jflex.tmbundle 8b5c0cef is the origin | BSD-2-Clause |
+| `agda` | `source.agda` | agda/agda-github-syntax-highlighting ba500584 `Agda.tmLanguage` | None: agda/agda-github-syntax-highlighting ba500584 is the origin | MIT |
+| `lean4-markdown` | `source.lean4.markdown` | leanprover/vscode-lean4 5a25e6ab `vscode-lean4/syntaxes/lean4-markdown.json` | [microsoft/vscode@df3ae4ad](https://github.com/microsoft/vscode/blob/df3ae4adefbb780f5f686e58ac6a8d305a8c86dc/extensions/markdown-basics/syntaxes/markdown.tmLanguage.json) | Apache-2.0 |
+| `regexp` | `source.regexp` | Alhadis/language-regexp 2e240580 `grammars/regexp.cson` | None: Alhadis/language-regexp 2e240580 is the origin | ISC |
+| `regexp-posix` | `source.regexp.posix` | Alhadis/language-regexp 2e240580 `grammars/regexp-posix.cson` | None: Alhadis/language-regexp 2e240580 is the origin | ISC |
+| `regexp-extended` | `source.regexp.extended` | Alhadis/language-regexp 2e240580 `grammars/regexp-extended.cson` | None: Alhadis/language-regexp 2e240580 is the origin | ISC |
+| `syon` | `source.sy` | Alhadis/language-regexp 2e240580 `grammars/syon.cson` | None: Alhadis/language-regexp 2e240580 is the origin | ISC |
+| `x86` | `source.x86` | calculuswhiz/Assembly-Syntax-Definition 519b7b3c `Assembly x86 AT&T.tmLanguage` | None: calculuswhiz/Assembly-Syntax-Definition 519b7b3c is the origin | MIT |
+| `cfml-basic` | `text.cfml.basic` | SublimeText/ColdFusion dbe2f760 `Coldfusion.tmLanguage` | None: SublimeText/ColdFusion dbe2f760 is the origin | MIT |
+| `eex-text` | `text.elixir` | elixir-lang/elixir-tmbundle eb63f1a5 `Syntaxes/EEx.tmLanguage` | None: elixir-lang/elixir-tmbundle eb63f1a5 is the origin | Apache-2.0 |
+| `javadoc` | `text.html.javadoc` | textmate/javadoc.tmbundle 5276d7a9 `Syntaxes/JavaDoc.tmLanguage` | None: textmate/javadoc.tmbundle 5276d7a9 is the origin | TextMate Bundle License |
+| `mson` | `text.html.markdown.source.gfm.mson` | apiaryio/api-blueprint-sublime-plugin 0a90eff1 `MSON.tmLanguage` | None: apiaryio/api-blueprint-sublime-plugin 0a90eff1 is the origin | MIT |
+| `python-console` | `text.python.console` | MagicStack/MagicPython 7d0f2b22 `grammars/python-console.cson` | None: MagicStack/MagicPython 7d0f2b22 is the origin | MIT |
+| `openesql` | `source.openesql` | spgennard/vscode_cobol 8be1f9a9 `syntaxes/openesql.tmLanguage.json` | [microsoft/vscode-mssql@61ae0eb2](https://github.com/microsoft/vscode-mssql/commit/61ae0eb21ac53883a23e09913a5ae77a59126ff9) | MIT |
 
 The JSX and TSX grammars are registered separately from JavaScript and
 TypeScript so the capture fixture `App.tsx` and real React files receive their
@@ -410,7 +490,53 @@ YAML's configuration is from VS Code 307b60e7 while its grammar is from 337cacaa
 tools/import-grammars.py makes these changes, each time it runs:
 
 - `textmate/markdown/syntaxes/markdown.tmLanguage.json`: bold and italic split into literal-end rules (Sora back-reference bug)
+- `textmate/docker/syntaxes/docker.tmLanguage.json`: iCode's grammar, written from moby's (which colours only instruction names and quoted strings): every part of an instruction is scoped (the image, its tag and digest, the stage name, `--flag=value` options, ARG, ENV and LABEL keys and values, EXPOSE ports and protocols, `$VAR` and `${VAR:-default}`, parser directives, heredocs, the exec form's JSON array), and the shell form of RUN, CMD, ENTRYPOINT and HEALTHCHECK CMD, and RUN heredocs, embed `source.shell`
+- `textmate/dotenv/syntaxes/dotenv.tmLanguage.json`: iCode's grammar, written from dotenv-org's (which reads each line with one pattern): a value may be unquoted, single-, double- or backtick-quoted, and quoted values may span lines; an unquoted number is a number and `true` or `false` a constant; `$VAR`, `${VAR}` and `${VAR:-default}` are variables, in unquoted and double-quoted values; a ` #` after an unquoted value starts a comment
 - `textmate/make/language-configuration.json`: tm4e's parser reads `lineComment` only as a string; VS Code's form is an object with `noIndent`.
+- `textmate/rel/rel.json`: a rule for numbers (`constant.numeric.rel`), which the grammar lacks, added to its top-level patterns
+- `textmate/cmake/cmake.json`: a rule for numbers (`constant.numeric.cmake`), which the grammar lacks, added to its top-level patterns
+- `textmate/tcl/Tcl.plist`: a rule for numbers (`constant.numeric.tcl`), which the grammar lacks, added to its top-level patterns
+- `textmate/agc/agc.tmLanguage.json`: converted from CSON to JSON
+- `textmate/cabal/cabal.tmLanguage.json`: converted from CSON to JSON
+- `textmate/literate-haskell/literate haskell.tmLanguage.json`: converted from CSON to JSON
+- `textmate/liquid-haskell/liquid haskell.tmLanguage.json`: converted from CSON to JSON
+- `textmate/etc/etc.tmLanguage.json`: converted from CSON to JSON
+- `textmate/checksums/checksums.tmLanguage.json`: converted from CSON to JSON
+- `textmate/gitconfig/gitconfig.tmLanguage.json`: converted from CSON to JSON
+- `textmate/hosts/hosts.tmLanguage.json`: converted from CSON to JSON
+- `textmate/m3u/m3u.tmLanguage.json`: converted from CSON to JSON
+- `textmate/mailmap/mailmap.tmLanguage.json`: converted from CSON to JSON
+- `textmate/opts/opts.tmLanguage.json`: converted from CSON to JSON
+- `textmate/shellcheckrc/shellcheckrc.tmLanguage.json`: converted from CSON to JSON
+- `textmate/lex/lex.tmLanguage.json`: converted from CSON to JSON
+- `textmate/lex-regexp/lex-regexp.tmLanguage.json`: converted from CSON to JSON
+- `textmate/postscript/postscript.tmLanguage.json`: converted from CSON to JSON
+- `textmate/srt/srt.tmLanguage.json`: converted from CSON to JSON
+- `textmate/vtt/vtt.tmLanguage.json`: converted from CSON to JSON
+- `textmate/firestore/firestore.tmLanguage.json`: converted from CSON to JSON
+- `textmate/denizenscript/denizenscript.tmLanguage.json`: converted from CSON to JSON
+- `textmate/eml/language-eml.tmLanguage.json`: converted from CSON to JSON
+- `textmate/ecr/html (crystal - ecr).tmLanguage.json`: converted from CSON to JSON
+- `textmate/lilypond/lilypond.tmLanguage.json`: converted from CSON to JSON
+- `textmate/macaulay2/macaulay2.tmLanguage.json`: converted from CSON to JSON
+- `textmate/meson/meson.tmLanguage.json`: converted from CSON to JSON
+- `textmate/nunjucks/html (nunjucks templates).tmLanguage.json`: converted from CSON to JSON
+- `textmate/nunjucks-source/nunjucks templates.tmLanguage.json`: converted from CSON to JSON
+- `textmate/velocity/velocity.tmLanguage.json`: converted from CSON to JSON
+- `textmate/xquery/xquery.tmLanguage.json`: converted from CSON to JSON
+- `textmate/jsoniq/jsoniq.tmLanguage.json`: converted from CSON to JSON
+- `textmate/yang/yang.tmLanguage.json`: converted from CSON to JSON
+- `textmate/harbour/harbour.tmLanguage.json`: converted from CSON to JSON
+- `textmate/jisonlex/jisonlex.tmLanguage.json`: converted from CSON to JSON
+- `textmate/plantuml/plantuml.tmLanguage.json`: converted from YAML to JSON
+- `textmate/slint/Slint.tmLanguage.json`: converted from YAML to JSON
+- `textmate/sln/solution.tmLanguage.json`: converted from YAML to JSON
+- `textmate/robots-txt/robots-txt.tmLanguage.json`: converted from YAML to JSON
+- `textmate/regexp/regexp.tmLanguage.json`: converted from CSON to JSON
+- `textmate/regexp-posix/regexp-posix.tmLanguage.json`: converted from CSON to JSON
+- `textmate/regexp-extended/regexp-extended.tmLanguage.json`: converted from CSON to JSON
+- `textmate/syon/syon.tmLanguage.json`: converted from CSON to JSON
+- `textmate/python-console/python-console.tmLanguage.json`: converted from CSON to JSON
 - `textmate/bsl/language-configuration.json`: not shipped, as it declares no comment and no bracket
 - `textmate/glimmer-js/language-configuration.json`: not shipped, as it declares no comment and no bracket
 - `textmate/glimmer-ts/language-configuration.json`: not shipped, as it declares no comment and no bracket
@@ -495,6 +621,11 @@ language:
 - `yaml`: `.snyk`: Snyk's policy, which is YAML
 - `procfile`: `procfile.windows`: a Procfile for Windows
 - `pkl`: `pklproject`: a Pkl project, which is Pkl
+- `cabal`: `cabal.project.freeze` `cabal.project.local`: Cabal's project files, which are in Cabal's syntax
+- `meson`: `meson.options`: Meson's options, the newer name of meson_options.txt
+- `checksums`: `.shasum`: shasum's output, a list of checksums
+- `shellcheckrc`: `shellcheckrc`: ShellCheck's settings without the dot, as it also reads them
+- `slint`: `.60`: Slint's former extension, from when it was SixtyFPS
 - `properties`: `.gitattributes-global` `.gitattributes_global`: global Git attributes, as VS Code reads .gitattributes
 - `ignore`: `.gitignore-global`: a global .gitignore
 - `ignore`: every dot file the icon theme names whose name ends in `ignore`, a list of paths in .gitignore's syntax
@@ -554,6 +685,8 @@ The claims that lost:
 - extension `fcgi`: `shell`, not `ruby` (Linguist)
 - extension `fish`: `shell`, not `fish` (Linguist)
 - extension `fish`: `shell`, not `fish` (its upstream)
+- extension `flex`: `lex`, not `jflex` (Linguist)
+- extension `flex`: `lex`, not `jflex` (its grammar's fileTypes)
 - extension `for`: `fortran-fixed-form`, not `forth` (Linguist)
 - extension `fr`: `forth`, not `haskell` (Linguist)
 - extension `frag`: `glsl`, not `javascript` (Linguist)
@@ -562,6 +695,9 @@ The claims that lost:
 - extension `fs`: `fsharp`, not `glsl` (Linguist)
 - extension `fs`: `fsharp`, not `glsl` (its grammar's fileTypes)
 - extension `geojson`: `json`, not `jsonl` (Linguist)
+- extension `gitconfig`: `properties`, not `gitconfig` (Linguist)
+- extension `gitconfig`: `properties`, not `gitconfig` (its grammar's fileTypes)
+- extension `gitmodules`: `properties`, not `gitconfig` (its grammar's fileTypes)
 - extension `gltf`: `json`, not `jsonl` (Linguist)
 - extension `gs`: `genie`, not `glsl` (Linguist)
 - extension `gs`: `genie`, not `glsl` (its grammar's fileTypes)
@@ -594,6 +730,8 @@ The claims that lost:
 - extension `jsonl`: `jsonl`, not `json` (Linguist)
 - extension `jsonld`: `json`, not `javascript` (Linguist)
 - extension `jsx`: `javascriptreact`, not `javascript` (Linguist)
+- extension `l`: `common-lisp`, not `lex` (Linguist)
+- extension `l`: `common-lisp`, not `lex` (its grammar's fileTypes)
 - extension `lbx`: `tex`, not `latex` (Linguist)
 - extension `ltx`: `latex`, not `tex` (Linguist)
 - extension `m`: `objective-c`, not `matlab` (Linguist)
@@ -610,6 +748,7 @@ The claims that lost:
 - extension `mm`: `objective-cpp`, not `xml` (Linguist)
 - extension `mojo`: `mojo`, not `xml` (Linguist)
 - extension `mount`: `systemd`, not `ini` (Linguist)
+- extension `msg`: `rosmsg`, not `eml` (its grammar's fileTypes)
 - extension `mustache`: `handlebars`, not `smarty` (Linguist)
 - extension `network`: `systemd`, not `ini` (Linguist)
 - extension `nf`: `groovy`, not `nextflow` (Linguist)
@@ -633,6 +772,8 @@ The claims that lost:
 - extension `pp`: `puppet`, not `pascal` (Linguist)
 - extension `pp`: `puppet`, not `pascal` (its grammar's fileTypes)
 - extension `prc`: `plsql`, not `sql` (Linguist)
+- extension `prg`: `plsql`, not `harbour` (Linguist)
+- extension `prg`: `plsql`, not `harbour` (its grammar's fileTypes)
 - extension `pro`: `prolog`, not `ini` (Linguist)
 - extension `properties`: `properties`, not `ini` (Linguist)
 - extension `r`: `r`, not `rebol` (Linguist)
@@ -650,6 +791,8 @@ The claims that lost:
 - extension `s`: `asm`, not `mipsasm` (its grammar's fileTypes)
 - extension `s`: `asm`, not `riscv` (its grammar's fileTypes)
 - extension `s`: `asm`, not `riscv` (its upstream)
+- extension `s`: `asm`, not `x86` (Linguist)
+- extension `s`: `asm`, not `x86` (its grammar's fileTypes)
 - extension `sarif`: `json`, not `jsonl` (Linguist)
 - extension `sch`: `plsql`, not `scheme` (Linguist)
 - extension `sch`: `plsql`, not `scheme` (its grammar's fileTypes)
@@ -717,6 +860,8 @@ The claims that lost:
 - name `.c8rc`: `json`, not `jsonl` (Linguist)
 - name `.eslintrc`: `jsonc` by its extension, not `yaml` (Linguist)
 - name `.flaskenv`: `dotenv`, not `shell` (Linguist)
+- name `.gitconfig`: `properties` by its extension, not `gitconfig` (Linguist)
+- name `.gitmodules`: `properties` by its extension, not `gitconfig` (Linguist)
 - name `.htmlhintrc`: `json`, not `jsonl` (Linguist)
 - name `.imgbotconfig`: `json`, not `jsonl` (Linguist)
 - name `.jslintrc`: `json` by its extension, not `jsonc` (Linguist)
@@ -735,6 +880,7 @@ The claims that lost:
 - name `composer.lock`: `json`, not `jsonl` (Linguist)
 - name `deno.lock`: `json`, not `jsonl` (Linguist)
 - name `flake.lock`: `json`, not `jsonl` (Linguist)
+- name `hosts`: `hosts`, not `ini` (Linguist)
 - name `makefile.boot`: `clojure` by its extension, not `makefile` (Linguist)
 - name `makefile.frag`: `glsl` by its extension, not `makefile` (Linguist)
 - name `makefile.inc`: `asm` by its extension, not `makefile` (Linguist)
@@ -746,9 +892,19 @@ The claims that lost:
 - name `nim.cfg`: `properties` by its extension, not `nim` (its upstream)
 - name `package.resolved`: `json`, not `jsonl` (Linguist)
 - name `pipfile.lock`: `json`, not `jsonl` (Linguist)
+- name `s`: `riscv`, not `x86` (its grammar's fileTypes)
 - name `tslint.json`: `json` by its extension, not `jsonc` (Linguist)
 - extension `wasm`: none, a WebAssembly module is bytes (FileTypes.Executable); its text form is `.wat`
 - extension `txt`: none, plain text, though Linguist also gives it to Robot Framework
+- extension `pdf`: none, a PDF is bytes (FileTypes.Pdf), though the PostScript grammar claims it
+- extension `ai`: none, an Illustrator drawing is bytes, though the PostScript grammar claims it
+- extension `aia`: none, an Illustrator action is bytes, though the PostScript grammar claims it
+- extension `pfb`: none, a binary Type 1 font, though the PostScript grammar claims it
+- extension `eps`: none, an EPS picture is shown as a picture, though it is PostScript
+- extension `epsf`: none, an EPS picture is shown as a picture, though it is PostScript
+- extension `epsi`: none, an EPS picture is shown as a picture, though it is PostScript
+- extension `sum`: none, no one format: `go.sum` is Go's (go-sum), and the checksum grammar's other names stay its own
+- name `authors`: none, a list of a project's authors is prose, though the Git mailmap grammar claims it
 
 ## Every language (2026-11-11, S6 part 1)
 
@@ -764,6 +920,29 @@ whose licences Linguist records. Every licence is compatible with iCode's GPL-3.
 `properties` language shares `source.ini` with `ini`, and Sora takes one configuration per
 grammar, so `ini/properties.language-configuration.json` is no longer shipped: `.properties`
 files use INI's configuration (`;` as the line comment), as they did.
+
+## No gaps inside a file (2026-11-11, S6 part 2)
+
+The catalog holds 357 grammars. The 50 added come from the repositories GitHub Linguist
+vendors, at the commits Linguist pins: 41 are written in CSON (Atom's form) or YAML, which
+Sora's engine does not read, so the script converts them to JSON as it copies them
+(`cson_loads` and `yaml_loads`, small readers checked to give what CoffeeScript's own
+`cson-parser` 4.0.9 and PyYAML 6.0.2 give for every one of these files and for all 70 of
+language-etc's grammars). They open subtitles, checksums, Cabal, Meson, Nunjucks, XQuery,
+YANG, PlantUML, Slint, Visual Studio solutions, robots.txt, hosts and mailmap files and the
+other formats listed in the tables, and they ship the scopes other grammars include that no
+source had before: Agda, Git config, Jison's lexer, PostScript, regular expressions, x86
+assembly, Javadoc, CFML tags, EEx, MSON and Python sessions. Licences are Linguist's records
+(`vendor/licenses/git_submodule`): MIT, ISC, Apache-2.0, BSD-2-Clause and the TextMate Bundle
+License.
+
+Two grammars are iCode's own, kept by the script (KEPT) and based on the ones VS Code ships:
+Dockerfile (from moby's, Apache-2.0) and `.env` (from dotenv-org's, MIT). "Changed on import"
+lists what each changes. Three grammars that colour no number get one rule for numbers by an
+edit the script makes (`numbers` in EDITS): Rel, CMake and Tcl. A sample per language
+(`app/src/test/resources/syntax-samples`, Shiki's where it has one, else iCode's) is
+tokenized by `SyntaxSamplesTest`; the words it allows to stay plain are listed there with
+their reasons.
 
 ## Colours (2026-09-29)
 
