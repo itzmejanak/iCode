@@ -37,6 +37,8 @@ import dev.icode.mobile.domain.countOf
 import dev.icode.mobile.domain.files.FileFolders
 import dev.icode.mobile.ui.FileTypeIcon
 import dev.icode.mobile.ui.parentName
+import dev.icode.mobile.ui.syntax.languageOf
+import dev.icode.mobile.ui.syntax.rememberSyntax
 
 /** Result cap keeps the list responsive on large workspaces. */
 private const val MAX_FILE_RESULTS = 50
@@ -169,7 +171,9 @@ internal fun TextResults(
                             horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
                         ) {
                             MonoLine(match.lineNumber.toString().padStart(width), color = IcodeColors.TextMuted, style = IcodeType.MonoSmall, maxLines = 1)
-                            MonoLine(match.lineText.trim(), Modifier.weight(1f), style = IcodeType.MonoSmall, maxLines = 1)
+                            // The line alone, coloured as the file's language (docs/syntax-highlighting-plan.md S5).
+                            val line = match.lineText.trim()
+                            MonoLine(rememberSyntax(languageOf(result.name, ""), line), Modifier.weight(1f), style = IcodeType.MonoSmall, maxLines = 1)
                         }
                     }
                 }

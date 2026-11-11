@@ -6,10 +6,12 @@ import dev.icode.mobile.data.search.RipgrepIndexOutcome
 import dev.icode.mobile.data.search.RipgrepSearchOutcome
 import dev.icode.mobile.data.search.WorkspaceSearchEngine
 import dev.icode.mobile.data.workspace.WorkspaceFileSource
+import dev.icode.mobile.domain.AssistantCode
 import dev.icode.mobile.domain.ContentMatch
 import dev.icode.mobile.domain.ContentSearchResult
 import dev.icode.mobile.domain.IndexedFile
 import dev.icode.mobile.domain.LineChanges
+import dev.icode.mobile.domain.NumberedLines
 import java.io.File
 import java.nio.file.Files
 import kotlinx.coroutines.runBlocking
@@ -124,6 +126,18 @@ class AssistantToolsTest {
         assertEquals("2\tline 2\n3\tline 3\n(lines 2–3 of 5; read on with start_line)", read.run(args("path" to "notes.md", "start_line" to 2, "line_count" to 2)))
         assertEquals("Read notes.md", read.summary(args("path" to "notes.md")))
         assertTrue(refused { read.run(JSONObject()) }.contains("Missing the “path” argument"))
+        // The page reads the lines back apart from their numbers, to colour them as the file.
+        assertEquals(
+            listOf(2 to "line 2", 3 to "line 3", null to "(lines 2–3 of 5; read on with start_line)"),
+            NumberedLines.read(read.run(args("path" to "notes.md", "start_line" to 2, "line_count" to 2))),
+        )
+    }
+
+    @Test fun `a change's approval says what it does and holds the text it writes apart, to colour as its file`() {
+        val write = WriteFileTool(writer).let { it.detail(args("path" to "a.kt", "content" to "val a = 1\nval b = 2")) to it.code(args("path" to "a.kt", "content" to "val a = 1\nval b = 2")) }
+        assertEquals("Write a.kt (2 lines)" to listOf(AssistantCode("Content", "val a = 1\nval b = 2")), write)
+        val edit = EditFileTool(writer).let { it.detail(args("path" to "a.kt", "old_text" to "1", "new_text" to "2")) to it.code(args("path" to "a.kt", "old_text" to "1", "new_text" to "2")) }
+        assertEquals("Edit a.kt" to listOf(AssistantCode("Replaces", "1"), AssistantCode("With", "2")), edit)
     }
 
     @Test fun `a write creates the file and its folders, or replaces one, and the workspace refreshes`() = runBlocking {

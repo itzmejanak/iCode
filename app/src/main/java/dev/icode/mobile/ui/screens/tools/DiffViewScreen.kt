@@ -14,6 +14,7 @@ import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -36,6 +37,9 @@ import dev.icode.mobile.domain.isBusy
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.ui.GitDiffLineRow
 import dev.icode.mobile.ui.LocalICodeSnapshot
+import dev.icode.mobile.ui.syntax.diffSources
+import dev.icode.mobile.ui.syntax.languageOf
+import dev.icode.mobile.ui.syntax.rememberSyntaxLines
 import kotlinx.coroutines.launch
 
 /**
@@ -52,6 +56,10 @@ fun DiffViewScreen(actions: NavigationActions) {
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     var hunkIndex by rememberSaveable(diff?.path) { mutableIntStateOf(0) }
+    // Coloured as the file's language, each hunk's sides tokenized whole (docs/syntax-highlighting-plan.md S5).
+    val language = diff?.let { languageOf(it.path.substringAfterLast('/'), firstLineOf(it)) }
+    val sources = remember(diff) { diff?.let { diffSources(it.hunks) } }
+    val colouring = rememberSyntaxLines(language, sources?.texts.orEmpty())
 
     Column(Modifier.fillMaxSize()) {
         IcodeTopBar(
@@ -88,7 +96,7 @@ fun DiffViewScreen(actions: NavigationActions) {
             else -> {
                 PinchToScaleText(Modifier.weight(1f)) {
                     LazyColumn(state = listState) {
-                        diff.hunks.forEach { hunk ->
+                        diff.hunks.forEachIndexed { hunkAt, hunk ->
                             item(key = "header-${hunk.header}-${hunk.newStart}") {
                                 MonoLine(
                                     text = hunk.header,
@@ -99,7 +107,10 @@ fun DiffViewScreen(actions: NavigationActions) {
                                     color = IcodeColors.TextSecondary,
                                 )
                             }
-                            items(hunk.lines.size) { lineIndex -> GitDiffLineRow(hunk.lines[lineIndex]) }
+                            items(hunk.lines.size) { lineIndex ->
+                                val line = hunk.lines[lineIndex]
+                                GitDiffLineRow(line, colouring.line(sources?.places?.get(hunkAt)?.get(lineIndex), line.text), coloured = language != null)
+                            }
                         }
                     }
                 }
@@ -141,6 +152,10 @@ fun DiffViewScreen(actions: NavigationActions) {
         }
     }
 }
+
+/** The file's first line when the diff shows it: what names a script with no extension. */
+private fun firstLineOf(diff: GitFileDiff): String =
+    diff.hunks.firstOrNull()?.lines?.firstOrNull { it.newLine == 1 }?.text.orEmpty()
 
 /** Header rows are list items too, so a hunk's first row sits after its header. */
 private fun itemIndexOfHunk(diff: GitFileDiff, hunkIndex: Int): Int {

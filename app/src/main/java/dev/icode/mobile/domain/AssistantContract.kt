@@ -172,8 +172,9 @@ sealed interface AssistantMessage {
 /** A call waiting for the user: a change, a command, or a reach outside the workspace. */
 data class AssistantApproval(
     val call: AssistantCall,
-    /** What it will do, in full enough to judge: the command, or the file and the text it replaces. */
+    /** What it will do, in full enough to judge: the command, or the file it changes. */
     val detail: String,
+    /** The text a change writes, coloured on its page as its file is (docs/syntax-highlighting-plan.md S5). */ val code: List<AssistantCode> = emptyList(),
     /** What it reaches outside the chat's workspace; null when it asks as a change or a command only. */
     val reach: AssistantReach? = null,
     /** Asked each time, in every mode (docs/agent-control-plan.md §3 A9): no "Allow in". */

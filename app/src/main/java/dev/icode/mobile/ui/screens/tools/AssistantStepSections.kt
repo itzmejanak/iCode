@@ -40,6 +40,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.Dp
 import dev.icode.mobile.designsystem.CodeSurface
 import dev.icode.mobile.designsystem.IcodeBottomSheet
@@ -66,18 +67,19 @@ import dev.icode.mobile.ui.terminal.TerminalReplay
 // printed — which the menu's Terminal sheet shows too, for the chat's own tab.
 
 /**
- * A step's [text] under its [label], all of it, selectable, with Copy at its corner. On a page that
- * does not scroll, [modifier] gives it its share, and what does not fit scrolls within it ([bounded]).
+ * A step's [text] under its [label], all of it, selectable, with Copy at its corner, drawn as [shown]
+ * (code coloured as its file's language). On a page that does not scroll, [modifier] gives it its
+ * share, and what does not fit scrolls within it ([bounded]).
  */
 @Composable
-internal fun StepText(label: String, text: String, modifier: Modifier = Modifier, bounded: Boolean = false) {
+internal fun StepText(label: String, text: String, modifier: Modifier = Modifier, bounded: Boolean = false, shown: AnnotatedString = AnnotatedString(text)) {
     val context = LocalContext.current
     val gateway = LocalICodeGateway.current
     StepSection(label, trailing = { CopyChip { copyText(context, label, text, "$label copied", gateway::dispatch) } }, modifier) {
         CodeSurface(Modifier.fillMaxWidth().then(if (bounded) Modifier.weight(1f, fill = false) else Modifier), padding = PaddingValues(IcodeSpacing.Space2)) {
             SelectionContainer {
                 Text(
-                    text,
+                    shown,
                     style = IcodeType.MonoSmall.copy(color = IcodeColors.TextPrimary),
                     modifier = if (bounded) Modifier.verticalScroll(rememberScrollState()) else Modifier,
                 )

@@ -1,6 +1,7 @@
 package dev.icode.mobile.data.assistant
 
 import dev.icode.mobile.domain.AssistantCall
+import dev.icode.mobile.domain.AssistantCode
 import dev.icode.mobile.domain.AssistantEffort
 import dev.icode.mobile.domain.AssistantMessage
 import dev.icode.mobile.domain.AssistantModel
@@ -124,6 +125,9 @@ internal interface AssistantTool {
 
     /** What an approval shows before a change or a command; a read is never asked about. */
     fun detail(arguments: JSONObject): String = summary(arguments)
+
+    /** The text a change writes, which the approval shows after [detail] in its file's language; none for most tools. Never throws. */
+    fun code(arguments: JSONObject): List<AssistantCode> = emptyList()
 
     /**
      * The workspace file [arguments] read or change, relative to its top, for the page to open;

@@ -16,6 +16,7 @@ import dev.icode.mobile.designsystem.IcodePalette
 import dev.icode.mobile.designsystem.LocalIcodePalette
 import dev.icode.mobile.designsystem.SyntaxRole
 import dev.icode.mobile.designsystem.syntaxColor
+import dev.icode.mobile.domain.FileTypes
 
 /**
  * [text] coloured as catalog language [language] (docs/syntax-highlighting-plan.md D2, D5), the one way
@@ -35,6 +36,16 @@ internal fun rememberSyntax(language: String?, text: String): AnnotatedString {
     val spans = made?.takeIf { it.first == text }?.second.orEmpty()
     return remember(text, spans, palette) { syntaxString(text, spans, palette) }
 }
+
+/**
+ * The catalog language of a file named [name] whose text starts with [text], as every view colours it: by
+ * its name, else for a script with no extension by its first line (`#!/usr/bin/env python3`).
+ */
+internal fun languageOf(name: String, text: String): String? =
+    FileTypes.of(name, text.take(FIRST_LINE_CHARS).substringBefore('\n')).language
+
+/** A `#!` line longer than this is not one a script would start with. */
+private const val FIRST_LINE_CHARS = 256
 
 /** [text] with [spans] drawn in [palette]'s colours; Plain in the text's own colour. */
 internal fun syntaxString(text: String, spans: List<SyntaxSpan>, palette: IcodePalette): AnnotatedString = buildAnnotatedString {

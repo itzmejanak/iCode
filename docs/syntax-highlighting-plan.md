@@ -430,3 +430,31 @@ file of that size. S2 chose one data file, `assets/textmate/catalog.json`, read 
   outside its parents, and character by character for every sample line in `EditorColours` (A4);
   `SyntaxTokensTest` checks a Kotlin and a Markdown sample's roles, the cache (one tokenizing per
   text, the size bound) and that every palette colours the same spans with no tokenizing call (A3).
+- S5: code is coloured everywhere it is shown (G4). How a view drawn a line at a time is tokenized:
+  whole texts, never a line alone, so a line keeps the state the lines before it leave (inside a
+  block comment or a raw string), and each line draws its slice of its text's spans
+  (`ui/syntax/SyntaxLines.kt`: `SyntaxLines` slices, `diffSources` and `conflictSources` say which text
+  each line comes from, `rememberSyntaxLines` tokenizes them through `SyntaxEngine.tokens`, and
+  `syntaxString` stays the one colouring function). The editor's change sheet has both whole files,
+  the editor's text and the index version, so each line is coloured as in its whole file: added and
+  unchanged lines from the text, removed ones from the index version. If the hunks no longer match
+  the text (it changed after they were counted), it falls back to the next way. The diff view has only
+  Git's patch, which holds each hunk's lines and no more, so each hunk's two sides (context and added,
+  context and removed) are tokenized whole, each from the grammar's first state: a hunk that starts
+  inside a block comment colours its first lines as code. Reading the whole files for the diff view
+  would mean a second Git read per diff; it is left until that case is seen to matter. Conflict
+  resolution tokenizes the file twice, with every conflict taken as its current side and then as its
+  incoming side: context and current lines are coloured from the first, incoming lines from the
+  second. The assistant's approval for write_file and edit_file now carries the text it writes apart
+  from its summary (`AssistantApproval.code`, from the new `AssistantTool.code`), and its page
+  colours that as the file; read_file's answer is written and read by `NumberedLines` (domain), so the
+  page colours the file's lines and mutes their numbers without the screen parsing tool output. Find
+  in Files colours each matched line alone, since a match has no lines around it. `MonoLine` and
+  `DiffRow` take an `AnnotatedString`, so `designsystem` stays free of `ui/syntax`; diff lines keep
+  their backgrounds and markers, and their plain text takes the normal text colour where the file has
+  a language, the kind's tint where it has none. `languageOf(name, text)` in `ui/syntax` is the one
+  name-and-first-line rule, used by the editor too. Not coloured: the language server's places list
+  (a list row's title, in the proportional face). Tests: `SyntaxLinesTest` checks that every line of a
+  Kotlin diff from whole texts, and every unchanged and added line of a Git patch's hunk, has the spans
+  the whole file gives that line (A4 extended), that stale hunks fall back, that a conflict's sides
+  have the Kotlin roles of the file each makes, and the slicing at `\r` and past the last line.

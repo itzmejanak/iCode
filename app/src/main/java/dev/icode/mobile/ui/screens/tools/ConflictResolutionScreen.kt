@@ -13,6 +13,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.AnnotatedString
 import dev.icode.mobile.designsystem.CodeSurface
 import dev.icode.mobile.designsystem.DiffBand
 import dev.icode.mobile.designsystem.DiffKind
@@ -39,6 +40,11 @@ import dev.icode.mobile.domain.isBusy
 import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
+import dev.icode.mobile.ui.syntax.SyntaxColouring
+import dev.icode.mobile.ui.syntax.SyntaxPlace
+import dev.icode.mobile.ui.syntax.conflictSources
+import dev.icode.mobile.ui.syntax.languageOf
+import dev.icode.mobile.ui.syntax.rememberSyntaxLines
 
 /**
  * Merge conflict resolution on the real conflicted file.
@@ -106,15 +112,19 @@ fun ConflictResolutionScreen(actions: NavigationActions) {
  *
  * Lines outside a conflict are context; each marker block becomes a pair of
  * bands with the choices attached, so the user acts where they are reading.
+ * Code is coloured as the file's language, each side as the file it would make
+ * (docs/syntax-highlighting-plan.md S5).
  */
 @Composable
 private fun ConflictedFile(conflict: GitConflictFile, working: Pair<Int, GitConflictChoice>?, onChoice: (GitConflictSection, GitConflictChoice) -> Unit) {
+    val sources = remember(conflict) { conflictSources(conflict) }
+    val colouring = rememberSyntaxLines(languageOf(conflict.path.substringAfterLast('/'), conflict.lines.firstOrNull().orEmpty()), sources.texts)
     var line = 0
     while (line < conflict.lines.size) {
         val section = conflict.sections.firstOrNull { it.startLine == line }
         if (section == null) {
             MonoLine(
-                conflict.lines[line].ifBlank { " " },
+                colouring.shown(sources.context[line], conflict.lines[line]),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = IcodeSpacing.Space3),
@@ -123,7 +133,8 @@ private fun ConflictedFile(conflict: GitConflictFile, working: Pair<Int, GitConf
             )
             line++
         } else {
-            ConflictSection(section, working?.let { (start, choice) -> if (start == section.startLine) choice else null }, working != null) { choice -> onChoice(section, choice) }
+            val choosing = working?.let { (start, choice) -> if (start == section.startLine) choice else null }
+            ConflictSection(section, sources.sides[section.startLine], colouring, choosing, working != null) { choice -> onChoice(section, choice) }
             line = section.endLine + 1
         }
     }
@@ -131,11 +142,18 @@ private fun ConflictedFile(conflict: GitConflictFile, working: Pair<Int, GitConf
 
 /** [working] is the choice being written for this section; while [anyWorking], no other is taken. */
 @Composable
-private fun ConflictSection(section: GitConflictSection, working: GitConflictChoice?, anyWorking: Boolean, onChoice: (GitConflictChoice) -> Unit) {
+private fun ConflictSection(
+    section: GitConflictSection,
+    places: Pair<List<SyntaxPlace>, List<SyntaxPlace>>?,
+    colouring: SyntaxColouring,
+    working: GitConflictChoice?,
+    anyWorking: Boolean,
+    onChoice: (GitConflictChoice) -> Unit,
+) {
     DiffBand("<<<<<<< ${section.currentLabel} (Current Change)", DiffKind.ConflictCurrent)
-    SideLines(section.current)
+    SideLines(section.current, places?.first, colouring)
     DiffBand("=======", DiffKind.Separator)
-    SideLines(section.incoming)
+    SideLines(section.incoming, places?.second, colouring)
     DiffBand(">>>>>>> ${section.incomingLabel} (Incoming Change)", DiffKind.ConflictIncoming)
     ThreeColumnActions(
         modifier = Modifier.padding(IcodeSpacing.Space3),
@@ -151,7 +169,7 @@ private fun ChoiceButton(label: String, choice: GitConflictChoice, working: GitC
 
 /** An empty side is stated rather than drawn as nothing, which reads as a bug. */
 @Composable
-private fun SideLines(lines: List<String>) {
+private fun SideLines(lines: List<String>, places: List<SyntaxPlace>?, colouring: SyntaxColouring) {
     if (lines.isEmpty()) {
         MonoLine(
             "(empty)",
@@ -161,9 +179,9 @@ private fun SideLines(lines: List<String>) {
         )
         return
     }
-    lines.forEach { text ->
+    lines.forEachIndexed { at, text ->
         MonoLine(
-            text.ifBlank { " " },
+            colouring.shown(places?.getOrNull(at), text),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = IcodeSpacing.Space3, vertical = IcodeSpacing.Micro),
@@ -172,6 +190,9 @@ private fun SideLines(lines: List<String>) {
         )
     }
 }
+
+/** A blank line is one space, so it keeps its height. */
+private fun SyntaxColouring.shown(place: SyntaxPlace?, text: String) = if (text.isBlank()) AnnotatedString(" ") else line(place, text)
 
 @Composable
 private fun ConflictFooter(conflict: GitConflictFile, enabled: Boolean, onMarkResolved: () -> Unit) {
