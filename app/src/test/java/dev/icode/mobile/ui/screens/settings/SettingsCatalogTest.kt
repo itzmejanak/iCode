@@ -24,6 +24,7 @@ class SettingsCatalogTest {
         assertEquals(Route.SettingsEditor, searchSettingsCategories("keyboard suggestions").single().destination)
         assertEquals(Route.SettingsEditor, searchSettingsCategories("git change markers").single().destination)
         assertEquals(Route.SettingsEditor, searchSettingsCategories("auto close brackets").single().destination)
+        assertEquals(Route.SettingsEditor, searchSettingsCategories("semantic highlighting").single().destination)
         // Removed from the page (docs/editor-plan.md §5): no longer found there.
         assertTrue(searchSettingsCategories("format on save").isEmpty())
     }

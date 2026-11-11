@@ -567,3 +567,34 @@ file of that size. S2 chose one data file, `assets/textmate/catalog.json`, read 
   Size: grammar assets 15 933 591 bytes in 554 files, up from 14 921 116 in 501, stored in 2 050 748
   bytes in the release APK (2 686 037 in debug). APKs: release 22 378 436 bytes, up from 22 205 966;
   debug 112 459 844, up from 111 492 714. Tests: 1 707, up from 1 702.
+- S7: semantic tokens (D8, G10). iCode now tells servers it reads `textDocument/semanticTokens/full`
+  and its delta form (relative format, the protocol's standard types and modifiers, no ranges, no
+  multi-line or overlapping tokens, `augmentsSyntaxTokens`), and reads each server's legend from its
+  capabilities or a later registration; the Languages page lists "Semantic colouring" for a server that
+  offers it. `LanguageSemanticTokens` asks the first ready server that serves the open file, has it open
+  and offers them, after the file's change has gone out; it asks a delta from its last answer when the
+  server answers deltas, and the whole file again when a delta fails. An answer for text the server no
+  longer has is dropped. With no such server nothing is sent, not even the file's pending change.
+  `LspSemanticTokens` decodes the integers and applies deltas. The editor asks when the file's grammar
+  has loaded, when a running server starts or changes what it offers, and 500 ms after typing stops;
+  each question cancels the last, and a server gets 5 s. Files with no grammar, or past the limits, are
+  not asked about. `ui/syntax/SemanticRoles` is the table: VS Code's own defaults at 307b60e7 (token type
+  and modifiers to TextMate scopes, such as `parameter` to `variable.parameter` and `readonly` variables
+  to `variable.other.constant`), each resolved by `SyntaxRoles` from `SyntaxScopes`, so a semantic token
+  draws in the role its scope has and there are no new colours. A parameter draws as Variable, a
+  property as Attribute. `label`, `modifier` and a server's own types have no rule and keep the
+  grammar's colour, as in VS Code. Sora 0.24.6 has no way to lay styles over its analyzer's (its
+  `StylePatch` classes exist but nothing draws them), so `IcodeCodeEditor` gives Sora a `SemanticStyles`
+  in place of the analyzer's styles while there are runs: the same blocks and line styles, and spans
+  that read the analyzer's and lay the runs over them line by line, keeping the grammar's background
+  and bold or italic. Each role's colour has its own editor colour id (200 + its index), set from the
+  palette with the editor's other colours. Runs apply only to lines whose text is the text the server
+  answered for; an edit drops the runs of the lines it touched and moves the lines after it, until the
+  next answer. Setting: Settings › Editor › Semantic Highlighting, on by default; off, or with no
+  server, the analyzer's styles are given to Sora as they are. Tests: `LspSemanticTokensTest` (legend,
+  decoding, deltas), `LanguageSemanticTokensTest` (full then delta against an in-process server; no
+  request to a server without the capability, no server started for a file nothing serves),
+  `SemanticRolesTest` (every standard type but `label` and `modifier` has a role; parameter and property
+  differ), `SemanticLinesTest` (runs on unchanged lines only, edits, the overlay on Sora's spans) and
+  `EditorSemanticTokensTest` (setting off, no server, no grammar: nothing asked; typing asks once it
+  stops). Not yet seen on the owner's phone with pyright. Tests: 1 725, up from 1 707.

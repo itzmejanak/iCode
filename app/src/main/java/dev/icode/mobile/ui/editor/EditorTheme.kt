@@ -3,6 +3,8 @@ package dev.icode.mobile.ui.editor
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import dev.icode.mobile.designsystem.IcodePalette
+import dev.icode.mobile.designsystem.SyntaxRole
+import dev.icode.mobile.designsystem.syntaxColor
 import dev.icode.mobile.ui.syntax.DEFAULT_COLOR_ID
 import io.github.rosemoe.sora.widget.schemes.EditorColorScheme
 
@@ -13,7 +15,8 @@ import io.github.rosemoe.sora.widget.schemes.EditorColorScheme
  * bubble, the selection tool bar, problem underlines, the completion list
  * (EditorCompletionWindow) and a problem's tooltip, and the minimap. The ids
  * Sora keeps for features iCode does not show (signatures, inlay hints) are
- * left alone. The editor's PaletteColorScheme sets them over its TextMate theme.
+ * left alone. Each syntax role's colour too, at [semanticColorId], for a language server's colours
+ * over the grammar's (SemanticStyles). The editor's PaletteColorScheme sets them over its TextMate theme.
  */
 internal fun editorColors(palette: IcodePalette): Map<Int, Int> = with(palette) {
     val transparent = Color.Transparent
@@ -68,5 +71,13 @@ internal fun editorColors(palette: IcodePalette): Map<Int, Int> = with(palette) 
         EditorColorScheme.MINIMAP_BACKGROUND to backgroundDeep,
         EditorColorScheme.MINIMAP_VIEWPORT to textPrimary.copy(alpha = 0.08f),
         EditorColorScheme.MINIMAP_VIEWPORT_BORDER to outline,
-    ).mapValues { it.value.toArgb() }
+    ).plus(SyntaxRole.entries.associate { semanticColorId(it) to syntaxColor(it) }).mapValues { it.value.toArgb() }
 }
+
+/**
+ * The editor's colour id for [role], drawn by a language server's token: past Sora's own ids, which end
+ * before 100, and below the TextMate theme's, which start at [DEFAULT_COLOR_ID].
+ */
+internal fun semanticColorId(role: SyntaxRole): Int = SEMANTIC_COLOR_BASE + role.ordinal
+
+private const val SEMANTIC_COLOR_BASE = 200

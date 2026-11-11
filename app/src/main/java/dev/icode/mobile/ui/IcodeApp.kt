@@ -36,6 +36,7 @@ import dev.icode.mobile.domain.GitSyncAction
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeGateway
 import dev.icode.mobile.domain.ICodeIntent
+import dev.icode.mobile.domain.LanguageServiceStatus
 import dev.icode.mobile.domain.NoticeIntent
 import dev.icode.mobile.domain.WorkspaceTool
 import dev.icode.mobile.domain.WorkspacePreferences
@@ -109,7 +110,12 @@ fun IcodeApp(
             }
         }
         val questions = rememberICodeQuestions()
-        val editorSessions = remember(context, gateway) { CodeEditorSessions(context) }
+        val editorSessions = remember(context, gateway) { CodeEditorSessions(context, gateway.languageHighlights) }
+        // What the running servers offer, not each progress message: their semantic tokens are asked again.
+        val servers = remember(snapshot.languageServices) {
+            snapshot.languageServices.filter { it.status == LanguageServiceStatus.Running }.map { it.id to it.capabilities }
+        }
+        LaunchedEffect(editorSessions, servers) { editorSessions.languageServersChanged() }
         // Until the settings load, the palette stands in; the editor's theme is built for the real one.
         LaunchedEffect(editorSessions, palette, preferences.loaded) {
             if (preferences.loaded) editorSessions.applyPalette(palette)

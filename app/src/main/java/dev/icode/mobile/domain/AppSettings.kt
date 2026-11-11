@@ -192,6 +192,8 @@ data class EditorSettings(
     val changeMarkers: Boolean = true,
     /** Typing an opening bracket or quote adds its closing one. */
     val autoCloseBrackets: Boolean = true,
+    /** A language server's semantic tokens coloured over the grammar's (docs/syntax-highlighting-plan.md D8). */
+    val semanticHighlighting: Boolean = true,
 )
 
 /**

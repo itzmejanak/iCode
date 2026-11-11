@@ -48,6 +48,43 @@ interface LanguageCompletions {
     }
 }
 
+/**
+ * A name a language server classified (`textDocument/semanticTokens`): [length] characters from
+ * [column] of [line], counted as the editor counts (UTF-16), with its [type] and [modifiers] by name.
+ */
+data class SemanticToken(val line: Int, val column: Int, val length: Int, val type: String, val modifiers: Set<String>)
+
+/** A file's semantic tokens, for [text]: the text the server had when it answered. */
+class SemanticTokens(val text: String, val tokens: List<SemanticToken>)
+
+/** The protocol's own token types and modifiers (spec 3.17 `SemanticTokenTypes`, `SemanticTokenModifiers`), as iCode tells servers it knows them. */
+object SemanticTokenNames {
+    val types = listOf(
+        "namespace", "type", "class", "enum", "interface", "struct", "typeParameter", "parameter", "variable", "property",
+        "enumMember", "event", "function", "method", "macro", "keyword", "modifier", "comment", "string", "number",
+        "regexp", "operator", "decorator", "label",
+    )
+    val modifiers = listOf(
+        "declaration", "definition", "readonly", "static", "deprecated", "abstract", "async", "modification",
+        "documentation", "defaultLibrary",
+    )
+}
+
+/** Semantic tokens for the editor, laid over its grammar's colours (docs/syntax-highlighting-plan.md D8). */
+interface LanguageHighlights {
+    /**
+     * The tokens of the open file at [location] from a running server serving it that offers them;
+     * null, with nothing asked, when none does, and null when it did not answer in time.
+     */
+    suspend fun semanticTokens(location: String): SemanticTokens?
+
+    companion object {
+        val None = object : LanguageHighlights {
+            override suspend fun semanticTokens(location: String): SemanticTokens? = null
+        }
+    }
+}
+
 /** What can be asked about a place in a file, from the Command Palette. */
 enum class LanguageQuery(val title: String, val capability: String) {
     Definition("Go to Definition", "Go to definition"),

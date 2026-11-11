@@ -60,6 +60,7 @@ class AndroidWorkspacePreferencesRepository internal constructor(
     private val keyboardSuggestionsKey = booleanPreferencesKey("editor_keyboard_suggestions")
     private val changeMarkersKey = booleanPreferencesKey("editor_change_markers")
     private val autoCloseBracketsKey = booleanPreferencesKey("editor_auto_close_brackets")
+    private val semanticHighlightingKey = booleanPreferencesKey("editor_semantic_highlighting")
     private val terminalFontSizeKey = intPreferencesKey("terminal_font_size_sp")
     private val terminalFontFamilyKey = stringPreferencesKey("terminal_font_family")
     private val terminalScrollbackKey = intPreferencesKey("terminal_scrollback_lines")
@@ -90,6 +91,7 @@ class AndroidWorkspacePreferencesRepository internal constructor(
                 keyboardSuggestions = prefs[keyboardSuggestionsKey] ?: editorDefaults.keyboardSuggestions,
                 changeMarkers = prefs[changeMarkersKey] ?: editorDefaults.changeMarkers,
                 autoCloseBrackets = prefs[autoCloseBracketsKey] ?: editorDefaults.autoCloseBrackets,
+                semanticHighlighting = prefs[semanticHighlightingKey] ?: editorDefaults.semanticHighlighting,
             ),
             terminal = TerminalSettings(
                 fontSizeSp = prefs[terminalFontSizeKey]?.takeIf { it in SettingLimits.fontSizesSp } ?: terminalDefaults.fontSizeSp,
@@ -187,6 +189,8 @@ class AndroidWorkspacePreferencesRepository internal constructor(
     override suspend fun setChangeMarkers(enabled: Boolean) { store.edit { it[changeMarkersKey] = enabled } }
 
     override suspend fun setAutoCloseBrackets(enabled: Boolean) { store.edit { it[autoCloseBracketsKey] = enabled } }
+
+    override suspend fun setSemanticHighlighting(enabled: Boolean) { store.edit { it[semanticHighlightingKey] = enabled } }
 
     override suspend fun setLineNumbers(enabled: Boolean) { store.edit { it[lineNumbersKey] = enabled } }
 

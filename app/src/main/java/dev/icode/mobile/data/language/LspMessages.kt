@@ -1,5 +1,6 @@
 package dev.icode.mobile.data.language
 
+import dev.icode.mobile.domain.SemanticTokenNames
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -50,6 +51,8 @@ internal object LspMessages {
             putJsonObject("didChangeConfiguration") { put("dynamicRegistration", false) }
             putJsonObject("symbol") { put("dynamicRegistration", true) }
             putJsonObject("diagnostics") { put("refreshSupport", true) }
+            // The editor asks again as the file is edited; a server's own call to ask is not answered.
+            putJsonObject("semanticTokens") { put("refreshSupport", false) }
         }
         putJsonObject("textDocument") {
             putJsonObject("synchronization") { put("dynamicRegistration", true); put("didSave", true); put("willSave", false) }
@@ -65,6 +68,18 @@ internal object LspMessages {
                     putJsonObject("resolveSupport") { putJsonArray("properties") { add("documentation"); add("detail"); add("additionalTextEdits") } }
                 }
                 put("contextSupport", true)
+            }
+            // Laid over the grammar's colours (docs/syntax-highlighting-plan.md D8): whole files, and their deltas.
+            putJsonObject("semanticTokens") {
+                put("dynamicRegistration", true)
+                putJsonObject("requests") { put("range", false); putJsonObject("full") { put("delta", true) } }
+                putJsonArray("tokenTypes") { SemanticTokenNames.types.forEach { add(it) } }
+                putJsonArray("tokenModifiers") { SemanticTokenNames.modifiers.forEach { add(it) } }
+                putJsonArray("formats") { add("relative") }
+                put("overlappingTokenSupport", false)
+                put("multilineTokenSupport", false)
+                put("serverCancelSupport", true)
+                put("augmentsSyntaxTokens", true)
             }
             putJsonObject("hover") { put("dynamicRegistration", true); putJsonArray("contentFormat") { add("markdown"); add("plaintext") } }
             putJsonObject("signatureHelp") {

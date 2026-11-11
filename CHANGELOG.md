@@ -203,6 +203,10 @@ All notable changes to iCode are documented here. The format follows
   checksum lists, Cabal, Meson, Nunjucks, XQuery, YANG, PlantUML, Slint, Visual Studio solutions,
   `robots.txt`, `hosts`, `.mailmap` and more, and Javadoc inside Groovy comments. The words a language
   leaves plain on purpose are listed with their reasons in `SyntaxSamples`.
+- A language server that offers semantic tokens now colours code by what each name is (S7): with
+  pyright, for example, a parameter and a property colour apart. Its colours lie over the grammar's,
+  in the same theme colours, and follow typing after a short pause. Settings › Editor › Semantic
+  Highlighting turns it off; without such a server nothing changes.
 - Notifications say what happened and where ([docs/notices-redesign-plan.md](docs/notices-redesign-plan.md)).
   Every notice names its workspace, and its repository, branch, folder or terminal tab where they
   matter, on the Notifications page and in the header of Android's notification. A pull says how

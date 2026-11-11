@@ -49,7 +49,6 @@ import dev.icode.mobile.domain.ICodeGateway
 import dev.icode.mobile.domain.GpgIntent
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.ICodeSnapshot
-import dev.icode.mobile.domain.LanguageCompletions
 import dev.icode.mobile.domain.LanguageIntent
 import dev.icode.mobile.domain.PhoneIntent
 import dev.icode.mobile.domain.VoiceIntent
@@ -182,7 +181,8 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
 
     override val snapshot: StateFlow<ICodeSnapshot> = stateHolder.snapshot
     override val effects: SharedFlow<ICodeEffect> = stateHolder.effects
-    override val languageCompletions: LanguageCompletions get() = languages.features
+    override val languageCompletions get() = languages.completions
+    override val languageHighlights get() = languages.highlights
 
     init {
         notices.start(scope) { listOfNotNull(terminals.ledger.takePrevious(), interruptedTransfer) }

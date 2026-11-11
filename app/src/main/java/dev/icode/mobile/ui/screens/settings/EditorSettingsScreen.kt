@@ -104,6 +104,9 @@ fun EditorSettingsScreen(actions: NavigationActions) {
                 SettingRow("Bracket Matching", Modifier.fillMaxWidth()) {
                     IcodeToggle(editor.bracketMatching) { saver.save { repository.setBracketMatching(it) } }
                 }
+                SettingRow("Semantic Highlighting", Modifier.fillMaxWidth(), subtitle = "A language server colours parameters, properties and types") {
+                    IcodeToggle(editor.semanticHighlighting) { saver.save { repository.setSemanticHighlighting(it) } }
+                }
                 SettingRow("Git Change Markers", Modifier.fillMaxWidth(), subtitle = "Changed lines marked beside the line numbers") {
                     IcodeToggle(editor.changeMarkers) { saver.save { repository.setChangeMarkers(it) } }
                 }

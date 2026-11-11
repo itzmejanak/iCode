@@ -11,18 +11,23 @@ import dev.icode.mobile.designsystem.IcodePalette
 import dev.icode.mobile.domain.Diagnostic
 import dev.icode.mobile.domain.GitDiffHunk
 import dev.icode.mobile.domain.LanguageCompletions
+import dev.icode.mobile.domain.LanguageHighlights
 import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.domain.WorkspacePreferences
 
 /** Per-document Sora views preserve each tab's undo, caret, scroll and fold state. */
-class CodeEditorSessions(private val context: Context) {
+class CodeEditorSessions(
+    private val context: Context,
+    /** The language servers' semantic tokens, for every editor (docs/syntax-highlighting-plan.md D8). */
+    private val highlights: LanguageHighlights = LanguageHighlights.None,
+) {
     private val sessions = mutableMapOf<String, CodeEditorSession>()
     private var preferences = WorkspacePreferences()
     private var palette = IcodePalette.Dark
 
     fun get(location: String): CodeEditorSession =
         sessions.getOrPut(location) {
-            CodeEditorSession(context, palette).also {
+            CodeEditorSession(context, palette, highlights).also {
                 it.applyPreferences(preferences)
                 it.applyPalette(palette)
             }
@@ -37,6 +42,9 @@ class CodeEditorSessions(private val context: Context) {
         palette = next
         sessions.values.forEach { it.applyPalette(next) }
     }
+
+    /** A language server started, stopped or changed what it offers. */
+    fun languageServersChanged() = sessions.values.forEach { it.languageServersChanged() }
 
     fun releaseClosed(openLocations: Set<String>) {
         val closed = sessions.keys.filterNot { it in openLocations }

@@ -57,6 +57,7 @@ interface WorkspacePreferencesRepository {
     suspend fun setKeyboardSuggestions(enabled: Boolean)
     suspend fun setChangeMarkers(enabled: Boolean)
     suspend fun setAutoCloseBrackets(enabled: Boolean)
+    suspend fun setSemanticHighlighting(enabled: Boolean)
     suspend fun setTerminalFontSize(sizeSp: Int)
     suspend fun setTerminalFontFamily(family: EditorFontFamily)
     suspend fun setTerminalScrollbackLimit(lines: Int)

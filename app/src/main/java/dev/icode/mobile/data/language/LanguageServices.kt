@@ -8,6 +8,8 @@ import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceFileSource
 import dev.icode.mobile.domain.IndentType
+import dev.icode.mobile.domain.LanguageCompletions
+import dev.icode.mobile.domain.LanguageHighlights
 import dev.icode.mobile.domain.LanguageFeatureIntent
 import dev.icode.mobile.domain.LanguageIntent
 import dev.icode.mobile.domain.LanguageService
@@ -49,6 +51,9 @@ internal class LanguageServices(
     val pool = LanguagePool(scope, stdio, uris, ::variablesOf, sessions, sessions)
     val documents = LanguageDocumentSync(stateHolder, scope, pool, diagnostics, uris, { configs }, activeRoot)
     val features = LanguageRequests(stateHolder, documents, diagnostics, pool, uris, hosts)
+    /** What the editor asks as it is typed in: completions, and semantic tokens for its colours. */
+    val completions: LanguageCompletions get() = features
+    val highlights: LanguageHighlights = LanguageSemanticTokens(stateHolder, documents, pool)
     private val answers = LanguageAnswers(stateHolder, scope, features)
 
     fun start() {
