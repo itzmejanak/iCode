@@ -53,7 +53,7 @@ class SyntaxBenchmark {
             val registry = ShippedGrammars.registry()
             millis { scopes.forEach { ShippedGrammars.load(registry, it) } }
         }.median()
-        line("all ${scopes.size} into one registry, as TextMateAssets does at start: %.0f ms (median of 5)".format(all))
+        line("all ${scopes.size} into one registry, as the app did at start before S3: %.0f ms (median of 5)".format(all))
     }
 
     private fun coldLoad(scope: String): Pair<Double, Double> {

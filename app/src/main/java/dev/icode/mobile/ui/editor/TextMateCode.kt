@@ -1,9 +1,10 @@
 package dev.icode.mobile.ui.editor
 
 import androidx.compose.ui.graphics.Color
-import io.github.rosemoe.sora.langs.textmate.registry.GrammarRegistry
-import io.github.rosemoe.sora.langs.textmate.registry.ThemeRegistry
-import java.time.Duration
+import dev.icode.mobile.ui.syntax.DEFAULT_COLOR_SENTINEL
+import dev.icode.mobile.ui.syntax.SyntaxLimits
+import io.github.rosemoe.sora.langs.textmate.registry.model.ThemeModel
+import org.eclipse.tm4e.core.grammar.IGrammar
 import org.eclipse.tm4e.core.grammar.IStateStack
 import org.eclipse.tm4e.core.internal.grammar.tokenattrs.EncodedTokenAttributes
 import org.eclipse.tm4e.core.internal.theme.FontStyle
@@ -12,18 +13,17 @@ import org.eclipse.tm4e.core.internal.theme.FontStyle
 internal data class CodeRun(val start: Int, val end: Int, val color: Color?, val bold: Boolean, val italic: Boolean)
 
 /**
- * [code] coloured as the editor colours it (docs/markdown-rendering-plan.md §3.3): by the grammar
- * [scope] names and the palette's theme, through the tm4e the editor's own analyzer uses. Off the main
- * thread, once [TextMateAssets] has the grammars loaded; null when [scope] has no grammar.
+ * [code] coloured as the editor colours it (docs/markdown-rendering-plan.md §3.3): by [grammar] and the
+ * palette's [theme] model, through the tm4e the editor's own analyzer uses. On the read-only thread
+ * (SyntaxEngine.readOnly), with the grammar SyntaxEngine.readOnlyGrammar gives there.
  */
-internal fun textMateRuns(scope: String, code: String): List<CodeRun>? {
-    val grammar = GrammarRegistry.getInstance().findGrammar(scope) ?: return null
-    val theme = ThemeRegistry.getInstance().currentThemeModel?.theme ?: return null
+internal fun textMateRuns(grammar: IGrammar, theme: ThemeModel, code: String): List<CodeRun> {
+    val colours = theme.theme
     val runs = mutableListOf<CodeRun>()
     var state: IStateStack? = null
     var offset = 0
     code.split('\n').forEach { line ->
-        val result = grammar.tokenizeLine2(line, state, LINE_TIME)
+        val result = grammar.tokenizeLine2(line, state, SyntaxLimits.LINE_TIME)
         state = result.ruleStack
         val tokens = result.tokens
         for (at in tokens.indices step 2) {
@@ -35,7 +35,7 @@ internal fun textMateRuns(scope: String, code: String): List<CodeRun>? {
             runs += CodeRun(
                 offset + start,
                 offset + end,
-                theme.getColor(EncodedTokenAttributes.getForeground(metadata))?.let(::themeColor),
+                colours.getColor(EncodedTokenAttributes.getForeground(metadata))?.let(::themeColor),
                 bold = style and FontStyle.Bold != 0,
                 italic = style and FontStyle.Italic != 0,
             )
@@ -56,6 +56,3 @@ private fun themeColor(hex: String): Color? {
     }
     return Color(red = (rgba shr 24 and 0xFF).toInt(), green = (rgba shr 16 and 0xFF).toInt(), blue = (rgba shr 8 and 0xFF).toInt(), alpha = (rgba and 0xFF).toInt())
 }
-
-/** A line's tokenizing gives up after this, as the editor's analyzer's (Sora's TextMateAnalyzer). */
-private val LINE_TIME = Duration.ofSeconds(2)

@@ -13,12 +13,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -36,15 +33,16 @@ import dev.icode.mobile.domain.markdown.MarkdownBlock
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.copyText
 import dev.icode.mobile.ui.editor.CodeRun
-import dev.icode.mobile.ui.editor.TextMateAssets
 import dev.icode.mobile.ui.editor.textMateRuns
-import kotlinx.coroutines.Dispatchers
+import dev.icode.mobile.ui.syntax.SyntaxEngine
+import dev.icode.mobile.ui.syntax.SyntaxLimits
+import dev.icode.mobile.ui.syntax.SyntaxTheme
 import kotlinx.coroutines.withContext
 
 /**
  * A code block (docs/markdown-rendering-plan.md §3.3): its language and Copy above it, its lines never
  * wrapped and scrolling sideways. Coloured as the editor colours the fence's language as a file type
- * ([FileTypes.ofLanguage]) once the grammars have loaded; plain until then, and for a language with no
+ * ([FileTypes.ofLanguage]) once its grammar has loaded; plain until then, and for a language with no
  * grammar (`mermaid`, `text`).
  */
 @Composable
@@ -85,16 +83,20 @@ internal fun MarkdownCodeBlock(block: MarkdownBlock.Code, type: MarkdownType, mo
     }
 }
 
-/** [code]'s colours as the catalog's [language], off the main thread, again when the palette changes; null until they are. */
+/**
+ * [code]'s colours as the catalog's [language], on the read-only thread, again when the palette changes;
+ * null until they are, and for a block past [SyntaxLimits.BLOCK_CHARS].
+ */
 @Composable
 private fun codeRuns(language: String?, code: String): List<CodeRun>? {
     val context = LocalContext.current
     val palette = LocalIcodePalette.current
-    var loaded by remember { mutableStateOf(TextMateAssets.grammarsReady) }
-    if (!loaded && language != null) LaunchedEffect(Unit) { TextMateAssets.whenGrammarsLoaded(context) { failure -> loaded = failure == null } }
-    val runs by produceState<List<CodeRun>?>(null, language, code, loaded, palette) {
-        value = if (loaded && language != null) {
-            withContext(Dispatchers.Default) { runCatching { textMateRuns(TextMateAssets.scopeOf(language), code) }.getOrNull() }
+    val theme = remember(palette) { runCatching { SyntaxTheme.of(palette) }.getOrNull() }
+    val runs by produceState<List<CodeRun>?>(null, language, code, theme) {
+        value = if (language != null && theme != null && SyntaxLimits.coloursBlock(code)) {
+            withContext(SyntaxEngine.readOnly) {
+                runCatching { SyntaxEngine.readOnlyGrammar(context, language, theme)?.let { textMateRuns(it, theme, code) } }.getOrNull()
+            }
         } else null
     }
     return runs
