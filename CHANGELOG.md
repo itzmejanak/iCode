@@ -255,6 +255,12 @@ All notable changes to iCode are documented here. The format follows
     drawn at the label's size.
 
 ### Fixed
+- iCode crashed ("Unable to add window -- token null is not valid") when phone control was turned
+  off while the assistant's bubble or glow was changing. Android takes the overlay windows' token
+  back the moment the accessibility service is turned off, a moment before the service hears of it;
+  a window added in between threw. Adding a window can now fail: the overlays are put away, whole,
+  and phone control shows again when it is turned back on. A service connected twice no longer
+  leaves its first overlays drawing.
 - The empty editor's recent files scroll: past the screen's height, they were cut off.
 - Quick Open no longer matches the folders iCode keeps a workspace in, so a query such as "data" or
   "files" matched every file.
