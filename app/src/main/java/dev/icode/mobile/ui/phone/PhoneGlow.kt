@@ -20,7 +20,7 @@ import dev.icode.mobile.domain.phone.PhoneOverlay
  * no touch, so nothing of the screen is ever covered. It breathes slowly while the agent acts — not
  * when the system's animations are off — and dims while it waits.
  */
-internal class PhoneGlow(private val context: Context, private val windows: WindowManager) {
+internal class PhoneGlow(private val context: Context, private val windows: OverlayWindows) {
     private val thickness = (THICKNESS_DP * context.resources.displayMetrics.density).toInt()
     private val strips = Edge.entries.map { Strip(context, it) }
     private var accent = 0
@@ -41,7 +41,8 @@ internal class PhoneGlow(private val context: Context, private val windows: Wind
         }
         level = if (glow == PhoneOverlay.Glow.Dim) DIM else 1f
         if (!shown) {
-            strips.forEach { windows.addView(it, it.params()) }
+            // All four or none: a token taken back midway leaves no strip behind.
+            if (!strips.all { windows.add(it, it.params()) }) return hide()
             shown = true
         }
         if (glow == PhoneOverlay.Glow.On && ValueAnimator.areAnimatorsEnabled()) {
@@ -54,8 +55,7 @@ internal class PhoneGlow(private val context: Context, private val windows: Wind
 
     fun hide() {
         breathing.cancel()
-        if (!shown) return
-        strips.forEach { runCatching { windows.removeViewImmediate(it) } }
+        strips.forEach(windows::remove)
         shown = false
     }
 

@@ -26,6 +26,8 @@ class PhoneService : AccessibilityService() {
     override fun onServiceConnected() {
         lastEvent = SystemClock.uptimeMillis()
         connected.value = this
+        // Connected again without an unbind between: the earlier overlays are put away, not left drawing.
+        overlays?.detach()
         overlays = overlayFactory?.invoke(this)
     }
 

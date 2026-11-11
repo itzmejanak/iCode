@@ -49,7 +49,7 @@ internal class OverlayFrame(context: Context, private val touched: (MotionEvent)
  * a while, it glides half behind its edge and fades; anything new brings it out.
  */
 internal class BubblePlacement(
-    private val windows: WindowManager,
+    private val windows: OverlayWindows,
     private val view: View,
     private val bar: View,
     private val density: Float,
@@ -257,18 +257,16 @@ internal class BubblePlacement(
         }.roundToInt()
     }
 
-    fun screen(): Pair<Int, Int> = windows.currentWindowMetrics.bounds.let { it.width() to it.height() }
+    fun screen(): Pair<Int, Int> = windows.manager.currentWindowMetrics.bounds.let { it.width() to it.height() }
 
     /** The window's size as laid out, or the bubble's before it is. */
     private fun measured(): Pair<Int, Int> = (view.width.takeIf { it > 0 } ?: size) to (view.height.takeIf { it > 0 } ?: size)
 
     /** How far the system bars and the cutout reach on each side. */
-    private fun insets(): Insets = windows.currentWindowMetrics.windowInsets
+    private fun insets(): Insets = windows.manager.currentWindowMetrics.windowInsets
         .getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
 
-    private fun update(window: View, params: WindowManager.LayoutParams) {
-        if (window.isAttachedToWindow) windows.updateViewLayout(window, params)
-    }
+    private fun update(window: View, params: WindowManager.LayoutParams) = windows.update(window, params)
 
     private companion object {
         const val SIDE_MARGIN_DP = 12f

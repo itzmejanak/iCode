@@ -56,7 +56,7 @@ import kotlinx.coroutines.withContext
  */
 internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHost {
     private val gateway = ICodeProcess.attach(service)
-    private val windows = service.getSystemService(WindowManager::class.java)
+    private val windows = OverlayWindows(service.getSystemService(WindowManager::class.java)) { putAway() }
     private val owner = OverlayOwner()
     private val scope = MainScope()
     private val glow = PhoneGlow(service, windows)
@@ -111,13 +111,19 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
     }
 
     override fun detach() {
-        scope.cancel()
-        glow.hide()
-        // A drag cut short ends here, put away with the rest: its window gone, nothing of it is shown again.
-        place.drop(away = true)
-        (listOf(bubbleWindow, bar).filter { bubbleOut } + listOf(target).filter { targetOut }).forEach { runCatching { windows.removeViewImmediate(it) } }
+        putAway()
         owner.stop()
         ICodeProcess.detach()
+    }
+
+    /** Every window gone and nothing shown again; safe twice, and for a window never added. Also what a revoked token ([OverlayWindows]) does, before [detach]. */
+    private fun putAway() {
+        scope.cancel()
+        glow.hide()
+        place.drop(away = true)
+        listOf(bubbleWindow, bar, target).forEach(windows::remove)
+        bubbleOut = false
+        targetOut = false
     }
 
     override suspend fun hideForCapture() = withContext(Dispatchers.Main) {
@@ -233,13 +239,14 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
         val next = PhoneOverlay.of(now.assistant, now.voice, now.phone, onScreen, muted = muted && mode == BubbleMode.Typing, now.mcp.question)
         overlay = next
         glow.show(next.glow, appearancePalette(preferences.appearance.takeIf { preferences.loaded }, service.systemDark).accent.toArgb())
+        if (!windows.usable) return
         if (next.bubble && !bubbleOut) {
-            windows.addView(bubbleWindow, place.params)
-            windows.addView(bar, place.barParams)
-            bubbleOut = true
+            // Both or neither: half a window is none.
+            bubbleOut = windows.add(bubbleWindow, place.params) && windows.add(bar, place.barParams)
+            if (!bubbleOut) return listOf(bubbleWindow, bar).forEach(windows::remove)
         } else if (!next.bubble && bubbleOut) {
             enter(BubbleMode.Closed)
-            listOf(bubbleWindow, bar).forEach(windows::removeViewImmediate)
+            listOf(bubbleWindow, bar).forEach(windows::remove)
             bubbleOut = false
         }
         place.rest(next.look == Look.Idle && mode == BubbleMode.Closed && !next.asking, scope)
@@ -249,17 +256,14 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
     private fun drag() {
         place.dragTo(finger.first, finger.second)
         overTarget = place.overTarget()
-        if (!targetOut) {
-            windows.addView(target, place.targetParams)
-            targetOut = true
-        }
+        if (!targetOut && windows.add(target, place.targetParams)) targetOut = true
     }
 
     /** Let go: on the target at the top, put away — and a turn on the phone stopped, the voice silenced — else docked on the nearest edge. */
     private fun dropped() {
         if (!place.dragging) return
         if (targetOut) {
-            windows.removeViewImmediate(target)
+            windows.remove(target)
             targetOut = false
         }
         place.drop(away = overTarget)
