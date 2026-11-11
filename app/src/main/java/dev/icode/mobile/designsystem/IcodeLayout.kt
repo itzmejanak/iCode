@@ -9,6 +9,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 
 /**
@@ -24,6 +25,7 @@ fun MonoLine(
     color: Color = IcodeColors.TextPrimary,
     style: TextStyle = IcodeType.Mono,
     maxLines: Int = 3,
+    textAlign: TextAlign? = null,
 ) {
     Text(
         text,
@@ -31,6 +33,7 @@ fun MonoLine(
         style = style.scaledBy(LocalCodeTextScale.current).copy(color = color),
         maxLines = maxLines,
         overflow = TextOverflow.Ellipsis,
+        textAlign = textAlign,
     )
 }
 

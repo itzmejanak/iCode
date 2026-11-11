@@ -24,4 +24,12 @@ data class RuntimeDetails(
     val rootfsSize: StorageMeasurement? = null,
     val availableBytes: Long = 0,
     val prootVersion: String? = null,
-)
+) {
+    /** The release by its name alone — "Ubuntu 24.04.5 LTS" — without its codename or the word "base". */
+    val releaseName: String?
+        get() = release?.substringBefore(" (")?.removeSuffix(" base")?.trim()?.ifEmpty { null }
+
+    /** Its codename — "noble" — when the release names one. */
+    val codename: String?
+        get() = release?.substringAfter("(", "")?.substringBefore(")")?.trim()?.ifEmpty { null }
+}

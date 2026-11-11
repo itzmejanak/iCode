@@ -27,7 +27,17 @@ class WorkspaceFindResultsTest {
         val ranked = rankFiles(files, "file")
 
         assertEquals(50, ranked.entries.size)
+        assertEquals(80, ranked.total)
         assertTrue(ranked.truncated)
+    }
+
+    @Test fun `the phone's folders iCode keeps a workspace in never match a query`() {
+        val root = "/data/data/dev.icode.mobile/files/workspaces/app"
+        val files = listOf(IndexedFile("a.kt", "$root/src/a.kt"), IndexedFile("data.json", "$root/data.json"))
+
+        assertEquals(listOf("data.json"), rankFiles(files, "data", root).entries.map { it.name })
+        assertEquals(listOf("a.kt"), rankFiles(files, "src", root).entries.map { it.name })
+        assertTrue(rankFiles(files, "workspaces", root).entries.isEmpty())
     }
 
     private fun file(path: String) = IndexedFile(path.substringAfterLast('/'), path)

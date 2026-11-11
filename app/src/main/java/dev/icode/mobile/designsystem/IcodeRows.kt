@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
@@ -29,6 +30,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -140,7 +142,10 @@ fun IcodeListRow(
     }
 }
 
-/** Settings row: leading icon — in the accent, or its own [leadingTint] — title, optional subtitle and a trailing control. */
+/**
+ * Settings row: leading icon — in the accent, or its own [leadingTint] — title (in [titleColor]: the
+ * error's for what cannot be undone), optional subtitle and a trailing control.
+ */
 @Composable
 fun SettingRow(
     title: String,
@@ -148,6 +153,7 @@ fun SettingRow(
     subtitle: String? = null,
     leadingIcon: ImageVector? = null,
     leadingTint: Color = IcodeColors.Accent,
+    titleColor: Color = IcodeColors.TextPrimary,
     onClick: (() -> Unit)? = null,
     trailing: @Composable RowScope.() -> Unit = {},
 ) {
@@ -164,7 +170,7 @@ fun SettingRow(
                 }
             }
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold))
+                Text(title, style = IcodeType.Body.copy(color = titleColor, fontWeight = FontWeight.SemiBold))
                 if (subtitle != null) Text(subtitle, style = IcodeType.Caption, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
             trailing()
@@ -172,26 +178,83 @@ fun SettingRow(
     }
 }
 
-/** Label/value pair used by detail, runtime, build and recovery sections; [valueIcon] leads the value, in its colour. */
+/**
+ * Label/value pair used by detail, runtime, build and recovery sections; [valueIcon] leads the value,
+ * in its colour. The label keeps its width and a gap, and the value takes the rest, at the end and the
+ * label's size, on two lines at most — so however long the value, it never meets its label
+ * (docs/screens-polish-plan.md D1).
+ */
 @Composable
 fun DetailRow(
     label: String,
     value: String,
     modifier: Modifier = Modifier,
     valueColor: Color = IcodeColors.TextPrimary,
-    valueStyle: TextStyle = IcodeType.Mono,
+    valueStyle: TextStyle = IcodeType.MonoSmall,
     valueIcon: ImageVector? = null,
 ) {
     Row(
         modifier = modifier.fillMaxWidth().padding(vertical = IcodeSpacing.Space1),
-        horizontalArrangement = Arrangement.SpaceBetween,
+        horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3),
     ) {
-        Text(label, style = IcodeType.Caption)
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1)) {
+        Text(label, style = IcodeType.Caption, maxLines = 1)
+        Row(
+            modifier = Modifier.weight(1f),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space1, Alignment.End),
+        ) {
             valueIcon?.let { Icon(it, contentDescription = null, tint = valueColor, modifier = Modifier.size(IcodeSizes.IconSm)) }
-            MonoLine(value, color = valueColor, style = valueStyle)
+            MonoLine(value, Modifier.weight(1f, fill = false), color = valueColor, style = valueStyle, maxLines = 2, textAlign = TextAlign.End)
         }
     }
+}
+
+/**
+ * One file or folder, the same height in every list of them (docs/screens-polish-plan.md D1): the
+ * explorer's, Recent's, Find's. [leading] — its type's icon or thumbnail, or a tick — then its [name]
+ * over its [detail], one line each, and [trailing] at its end. A detail that is a folder
+ * ([detailIsPath]) loses its start rather than its end, so the folders nearest the file show.
+ * [compact]: the name alone. Drawn edge to edge, rows selected together are one band.
+ */
+@Composable
+fun IcodeFileRow(
+    name: String,
+    leading: @Composable () -> Unit,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    detail: String? = null,
+    detailIsPath: Boolean = false,
+    nameColor: Color = IcodeColors.TextPrimary,
+    selected: Boolean = false,
+    inset: Dp = IcodeSpacing.Gutter,
+    compact: Boolean = false,
+    onLongClick: (() -> Unit)? = null,
+    trailing: (@Composable RowScope.() -> Unit)? = null,
+) {
+    IcodeListRow(
+        modifier = modifier,
+        selected = selected,
+        rowShape = RectangleShape,
+        inset = inset,
+        onClick = onClick,
+        onLongClick = onLongClick,
+        leading = leading,
+        compact = compact,
+        content = {
+            Column(Modifier.weight(1f).then(if (compact) Modifier.padding(vertical = IcodeSpacing.Space2) else Modifier)) {
+                Text(name, style = IcodeType.Body.copy(color = nameColor), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (!compact && detail != null) {
+                    Text(
+                        detail,
+                        style = IcodeType.Caption,
+                        maxLines = 1,
+                        overflow = if (detailIsPath) TextOverflow.StartEllipsis else TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        },
+        trailing = trailing,
+    )
 }
 
 /** Square badge holding an icon, used as a row or header leading element. */

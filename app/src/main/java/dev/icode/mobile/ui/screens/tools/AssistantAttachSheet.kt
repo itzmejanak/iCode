@@ -62,7 +62,7 @@ internal fun AssistantAttachSheet(
     // As Quick Open does: the index is asked for when it is needed, not before.
     LaunchedEffect(root) { if (root != null) gateway.dispatch(ICodeIntent.PrepareWorkspaceSearch) }
     var query by rememberSaveable { mutableStateOf("") }
-    val ranked = remember(snapshot.fileIndex, query) { rankFiles(snapshot.fileIndex, query) }
+    val ranked = remember(snapshot.fileIndex, query, root) { rankFiles(snapshot.fileIndex, query, root) }
     val full = attached.size >= AssistantRules.MAX_ATTACHMENTS
     val open = snapshot.activeDocument?.takeIf { query.isBlank() && root != null && it.location.startsWith("$root/") }
     val listed = ranked.entries.filter { it.path != open?.location }

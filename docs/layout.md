@@ -540,14 +540,23 @@ Language and Git actions are shown contextually rather than occupying permanent 
 
 ### 13.4 Empty editor
 
-When no file is open, the editor offers:
+When no file is open, the editor is one list that scrolls above the Terminal and Problems bar
+([screens-polish-plan.md](./screens-polish-plan.md) D2):
 
-- Quick Open;
-- New File;
-- Open terminal;
-- recent files within the active workspace.
+- four ways in, as equal tiles two to a row: Quick Open, Find in Files, New File, Terminal;
+- every file of the active workspace opened lately, newest first, each as the explorer lists files
+  (`IcodeFileRow`): its type's icon, its name, its folder in the workspace (the workspace's name at
+  its top), and how long ago;
+- while there are none yet, the mark, "No file open" and "Files you open appear here".
 
 It does not duplicate the full Launcher.
+
+### 13.5 File rows
+
+Every list of files — the explorer, the empty editor's Recent, Quick Open, In Files — draws a file
+the same way and the same height (`IcodeFileRow`): its icon, its name on one line, and on a second
+line, cut from its start when it is long, its folder in the workspace — never the phone's folders
+iCode keeps the workspace in.
 
 ## 14. Quick Open and Command Palette
 
@@ -557,8 +566,10 @@ Quick Open and commands use a shared native picker pattern:
 - centered bounded overlay on expanded layouts;
 - immediate keyboard focus;
 - streamed and ranked results;
-- recent items before input;
-- path, command category, or shortcut as secondary text;
+- recent items before input: with nothing typed, Quick Open lists the files opened lately;
+- path, command category, or shortcut as secondary text: a file's folder in the workspace (§13.5),
+  matched against the query as its name is;
+- what does not fit said quietly in a caption ("50 of 312 shown"), not as a warning;
 - arrow-key and touch navigation;
 - dismissal that restores previous editor focus.
 
@@ -578,7 +589,8 @@ Quick Open searches files. The Command Palette searches actions. Their result mo
 
 ### 15.2 Results
 
-Results group under file paths. Each match shows line number and a compact highlighted excerpt. Selecting a match opens the file and exact range, then returns focus to the editor on compact devices.
+Results group under each file's row (§13.5), with its match count and a chevron that folds them.
+Each match shows its line number in a gutter, then a compact excerpt. Selecting a match opens the file and exact range, then returns focus to the editor on compact devices.
 
 Broad replacement first shows affected file and match counts. Replace All identifies scope and asks for confirmation.
 
@@ -743,6 +755,20 @@ paragraph: what a row needs said is its subtitle ([phone-agent-plan.md](./phone-
 ### 19.3 Detail page
 
 A detail page owns one entity or cohesive configuration. It includes identity, status, editable fields, validation, advanced subsection, and relevant actions. Destructive actions remain separated from routine fields.
+
+A label beside its value (`DetailRow`) keeps its width and a gap; the value takes the rest, at the
+end and the label's size, on two lines at most. Short facts of one thing — a build's, a runtime's —
+stand two to a row, each its label over its value (`IcodeFactGrid`). A state is a dot and a word
+(`StatusLabel`), not a card of its own.
+
+- **Runtime Environment** ([screens-polish-plan.md](./screens-polish-plan.md) D5): one card — the
+  release by name over its codename and the architecture, its state beside it ("● Healthy" in the
+  accent, as on the Launcher; Installing, Failed, Not installed otherwise), and, ready, its
+  packages, PRoot, size and the phone's free space; not ready, why, with Set Up the Runtime. Then
+  Tools (Runtime Tools, "12 of 13 installed") and Maintenance: Repair and Reset as rows, each with
+  what it keeps, Reset's in red; the sheet that confirms one says all it does. The page scrolls.
+- **About iCode** (D4): the mark and name; Build as four facts — Version, Android, Runtime, Editor;
+  then Diagnostics, Resources and Privacy as Settings' rows, each with its icon.
 
 ### 19.4 Scope
 
