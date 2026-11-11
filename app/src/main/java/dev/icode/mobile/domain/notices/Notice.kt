@@ -63,7 +63,7 @@ enum class NoticeKeep {
     /** Problems and heads-ups: they ring the bell, count, and are posted. */
     NeedsYou,
 
-    /** What happened and what was done: kept apart, never counted; a success never rings the bell. */
+    /** What happened and what was done: kept apart, never counted, and it never rings the bell. */
     Done,
 
     /** A confirmation of a tap only: it rings, and is not kept. */

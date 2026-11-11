@@ -9,7 +9,10 @@ import dev.icode.mobile.domain.GitOutcome
 import dev.icode.mobile.domain.GitRemoteRules
 import dev.icode.mobile.domain.GitStatusCodes
 import dev.icode.mobile.domain.ICodeEffect
-import dev.icode.mobile.domain.notices.NoticeTone
+import dev.icode.mobile.domain.notices.Notice
+import dev.icode.mobile.domain.notices.NoticePlace
+import dev.icode.mobile.domain.notices.NoticePlaces
+import dev.icode.mobile.domain.notices.SourceControlNotices
 import dev.icode.mobile.domain.StageLineChange
 import dev.icode.mobile.domain.WorkspaceSummary
 import java.io.IOException
@@ -112,20 +115,14 @@ internal class GitWorkspaceCoordinator(
 
     suspend fun initialize() {
         val workspace = activeRoot()
-        if (workspace == null) {
-            stateHolder.notify(NoticeTone.HeadsUp, "Open a workspace before initializing Git")
-            return
-        }
-        if (git.isRepository(workspace)) {
-            stateHolder.notify(NoticeTone.HeadsUp, "This folder is already inside a Git repository")
-            return
-        }
+        if (workspace == null) return stateHolder.tell(SourceControlNotices.openWorkspaceFirst())
+        if (git.isRepository(workspace)) return stateHolder.tell(SourceControlNotices.alreadyRepository(placeNow()))
         runCatching {
             git.initialize(workspace)
             refresh(workspace)
             stateHolder.emit(ICodeEffect.GitInitialized)
         }.onFailure { error ->
-            stateHolder.report("git", "Unable to initialize Git", error)
+            stateHolder.tell(SourceControlNotices.notInitialized(placeNow()), "git", error)
         }
     }
 
@@ -155,40 +152,35 @@ internal class GitWorkspaceCoordinator(
         if (available) stateHolder.mutations.withLock { refreshActive() }
     }
 
-    suspend fun stage(path: String) = act(operation = { workspace -> git.stage(workspace, path) })
+    suspend fun stage(path: String) = act({ SourceControlNotices.notStaged(path, it) }, { workspace -> git.stage(workspace, path) })
 
-    suspend fun unstage(path: String) = act(operation = { workspace -> git.unstage(workspace, path) })
+    suspend fun unstage(path: String) = act({ SourceControlNotices.notUnstaged(path, it) }, { workspace -> git.unstage(workspace, path) })
 
-    suspend fun stageAll() = act(operation = { workspace -> git.stageAll(workspace) })
+    suspend fun stageAll() = act({ SourceControlNotices.notStaged(null, it) }, { workspace -> git.stageAll(workspace) })
 
     /** One change of an open file, from the editor's change sheet (docs/editor-plan.md §3.5). */
-    suspend fun stageLineChange(intent: StageLineChange) = act(operation = { lineChanges.stage(intent) })
+    suspend fun stageLineChange(intent: StageLineChange) = act(SourceControlNotices::changeNotStaged, { lineChanges.stage(intent) })
 
-    suspend fun unstageAll() = act(operation = { workspace -> git.unstageAll(workspace) })
+    suspend fun unstageAll() = act({ SourceControlNotices.notUnstaged(null, it) }, { workspace -> git.unstageAll(workspace) })
 
-    /** Null once committed, else Git's words — said as a message too, unless [quiet] (Commit & Push shows them). */
-    suspend fun commit(message: String, quiet: Boolean = false): String? = act(
-        operation = { workspace -> git.commit(workspace, message) },
-        onSuccess = { stateHolder.notify(NoticeTone.Done, "Commit created") },
-        quiet = quiet,
-    )
+    /** Null once committed — told as what went in, read [before] — else Git's words, told too unless [quiet] (Commit & Push tells them). */
+    suspend fun commit(message: String, quiet: Boolean = false): String? = stateHolder.current.let { before ->
+        act({ SourceControlNotices.notCommitted(before) }, { workspace -> git.commit(workspace, message) }, { stateHolder.tell(SourceControlNotices.committed(before, message)) }, quiet)
+    }
 
-    suspend fun switchBranch(branch: String) = act(operation = { workspace -> git.switchBranch(workspace, branch) })
+    suspend fun switchBranch(branch: String) = act({ SourceControlNotices.notSwitched(branch, it) }, { workspace -> git.switchBranch(workspace, branch) })
 
-    suspend fun createBranch(branch: String) = act(operation = { workspace -> git.createBranch(workspace, branch) })
+    suspend fun createBranch(branch: String) = act({ SourceControlNotices.branchNotCreated(branch, it) }, { workspace -> git.createBranch(workspace, branch) })
 
-    suspend fun deleteBranch(branch: String) = act(operation = { workspace -> git.deleteBranch(workspace, branch) })
+    suspend fun deleteBranch(branch: String) = act({ SourceControlNotices.branchNotDeleted(branch, it) }, { workspace -> git.deleteBranch(workspace, branch) })
 
     suspend fun checkoutRemote(remoteBranch: String) =
-        act(operation = { workspace -> git.checkoutRemote(workspace, remoteBranch) })
+        act({ SourceControlNotices.notCheckedOut(remoteBranch, it) }, { workspace -> git.checkoutRemote(workspace, remoteBranch) })
 
     suspend fun addRemote(name: String, url: String) {
         val problem = GitRemoteRules.nameError(name) ?: GitRemoteRules.urlError(url)
-        if (problem != null) {
-            stateHolder.notify(NoticeTone.HeadsUp, problem)
-            return
-        }
-        act(operation = { workspace -> git.addRemote(workspace, name, url) })
+        if (problem != null) return stateHolder.tell(SourceControlNotices.remoteRefused(problem, placeNow()))
+        act({ SourceControlNotices.remoteNotAdded(name, it) }, { workspace -> git.addRemote(workspace, name, url) })
     }
 
     suspend fun openDiff(path: String, staged: Boolean) {
@@ -197,7 +189,7 @@ internal class GitWorkspaceCoordinator(
             .onSuccess { diff -> stateHolder.update { if (it.activeWorkspaceLocation != workspace) it else it.copy(activeDiff = diff) } }
             .onFailure { error ->
                 stateHolder.update { it.copy(activeDiff = null) }
-                stateHolder.report("git", "Unable to read the diff", error)
+                stateHolder.tell(SourceControlNotices.diffUnread(path, placeNow()), "git", error)
             }
     }
 
@@ -210,10 +202,7 @@ internal class GitWorkspaceCoordinator(
      */
     suspend fun compareWithEditor(path: String, editorBytes: ByteArray) {
         val workspace = activeRoot() ?: return
-        if (!git.isAvailable()) {
-            stateHolder.notify(NoticeTone.HeadsUp, "Comparing uses Git, which is not installed yet. Install it from Source Control")
-            return
-        }
+        if (!git.isAvailable()) return stateHolder.tell(SourceControlNotices.compareNeedsGit())
         stateHolder.update { it.copy(activeDiff = null) }
         runCatching { git.compareWithBytes(workspace, path, editorBytes) }
             .onSuccess { outcome ->
@@ -221,10 +210,10 @@ internal class GitWorkspaceCoordinator(
                     is GitOutcome.Success -> stateHolder.update {
                         it.copy(activeDiff = outcome.value ?: GitFileDiff(path = path, hunks = emptyList()))
                     }
-                    is GitOutcome.Failure -> stateHolder.failed(COMPARE_FAILED, outcome.message)
+                    is GitOutcome.Failure -> stateHolder.tell(SourceControlNotices.notCompared(path, placeNow()).copy(output = outcome.message))
                 }
             }
-            .onFailure { error -> stateHolder.report("git", COMPARE_FAILED, error) }
+            .onFailure { error -> stateHolder.tell(SourceControlNotices.notCompared(path, placeNow()), "git", error) }
     }
 
     /** Holds what discarding [path] — a file, or all a folder holds — would throw away, for its confirmation. */
@@ -242,10 +231,10 @@ internal class GitWorkspaceCoordinator(
         val confirmed = stateHolder.current.pendingDiscard ?: return
         try {
             if (!isDiscardablePath(confirmed.path)) {
-                stateHolder.notify(NoticeTone.HeadsUp, "${confirmed.path} is not a change iCode can discard")
+                stateHolder.tell(SourceControlNotices.notDiscardable(confirmed.path, placeNow()))
                 return
             }
-            act(operation = { workspace ->
+            act({ SourceControlNotices.notDiscarded(confirmed.name, it) }, { workspace ->
                 refresh(workspace)
                 val current = GitDiscard.of(stateHolder.current.gitChanges, confirmed.path)
                 if (current?.changes?.toSet() != confirmed.changes.toSet()) throw IOException("${confirmed.name} changed after you confirmed. Review it again")
@@ -267,33 +256,39 @@ internal class GitWorkspaceCoordinator(
 
     suspend fun abort() {
         val inProgress = stateHolder.current.gitRepository?.inProgress ?: return
-        act(operation = { workspace -> git.abortInProgress(workspace, inProgress) })
+        act({ SourceControlNotices.notAborted(inProgress, it) }, { workspace -> git.abortInProgress(workspace, inProgress) })
     }
 
     /**
      * Runs [operation] on the open workspace's repository and reads it again. Returns null when it
-     * was done, else what went wrong in Git's words — said on the bell too, unless [quiet].
+     * was done, else what went wrong in Git's words — told too, unless [quiet], as [failed] says
+     * what could not be done, where it was (read as it starts), those words its output.
      */
     suspend fun act(
+        failed: (NoticePlace?) -> Notice,
         operation: suspend (String) -> Unit,
         onSuccess: suspend () -> Unit = {},
         quiet: Boolean = false,
     ): String? {
-        val workspace = activeRoot() ?: return OPEN_A_WORKSPACE.also { if (!quiet) stateHolder.notify(NoticeTone.HeadsUp, it) }
-        val failure = runCatching {
+        val workspace = activeRoot() ?: return OPEN_A_WORKSPACE.also { if (!quiet) stateHolder.tell(SourceControlNotices.openWorkspaceFirst()) }
+        val place = placeNow()
+        val error = runCatching {
             operation(workspace)
             refresh(workspace)
             onSuccess()
-        }.exceptionOrNull()?.let { error -> stateHolder.failureText("git", GIT_FAILED, error) }
-        if (failure != null && !quiet) stateHolder.failed(GIT_FAILED, failure)
+        }.exceptionOrNull() ?: return null
+        val notice = failed(place)
+        val failure = stateHolder.failureText("git", notice.title, error)
+        if (!quiet) stateHolder.tell(notice.copy(output = failure.takeIf { it != notice.title }))
         return failure
     }
+
+    /** Where Git works now: the workspace, the repository among several, the branch and where it goes. */
+    private fun placeNow() = NoticePlaces.git(stateHolder.current)
 
     private companion object {
         /** Long enough to absorb a burst of saves, short enough to feel immediate. */
         const val REFRESH_DEBOUNCE_MILLIS = 350L
         const val OPEN_A_WORKSPACE = "Open a workspace first"
-        const val GIT_FAILED = "Git operation failed"
-        const val COMPARE_FAILED = "Unable to compare the two versions"
     }
 }

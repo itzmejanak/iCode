@@ -11,8 +11,9 @@ object StorageNotices {
         detail = "Runtime installs, Git, terminal sessions and language servers use its cache. Then clear it.",
     )
 
+    /** Nothing to clear is the tap's answer alone: it rings, and is not kept. */
     fun cacheCleared(removed: Int) = if (removed == 0) {
-        Notice(NoticeTone.Info, NoticeSource.Storage, "The runtime's cache is already clear", runtime)
+        Notice(NoticeTone.Info, NoticeSource.Storage, "The runtime's cache is already clear", runtime, keep = NoticeKeep.Moment)
     } else {
         Notice(NoticeTone.Done, NoticeSource.Storage, "Removed ${countOf(removed, "cached item")} from the runtime", runtime)
     }

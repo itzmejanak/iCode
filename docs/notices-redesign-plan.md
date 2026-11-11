@@ -173,7 +173,7 @@ repository, branch, remote, subject)`:
 | Keep | What | Bell | Page | Badge count | Shade |
 |---|---|---|---|---|---|
 | **NeedsYou** | Problems and Heads-up | Rings | Kept, 100 at most | Counted while unread | Posted (D7) |
-| **Done** | Info, and confirmations of real changes: files, saves, Git, installs | Info rings; a success (tone Done) does not (§7, Q1) | Kept, 150 at most, apart from NeedsYou | Never | Only when finished while you were away (D7) |
+| **Done** | Info, and confirmations of real changes: files, saves, Git, installs | Never (§7, Q1 and Q6) | Kept, 150 at most, apart from NeedsYou | Never | Only when finished while you were away (D7) |
 | **Moment** | Confirmations of a tap only: "Copied" | Rings: it is the tap's only answer | Not kept | Never | Never |
 
 So a delete is kept and can be found again; "Saved" on every save never pushes a problem off the
@@ -195,8 +195,9 @@ page, and never counts.
 - A consistency rule, `notice-text`: a notice's words are written only in `domain/notices/`.
 
 **D5 — The bell and the undo pill.**
-- **The bell** rings for every notice but a success (§7, Q1): a file change, a save, a pull done are
-  kept on the page and ring nothing. A Moment ("Copied") still rings. Its count is unread NeedsYou
+- **The bell** rings for what needs the user and for a Moment ("Copied"). What is kept as Done — a
+  file change, a save, a pull done, a shell's exit, an automatic fetch that failed — is kept on the
+  page and rings nothing (§7, Q1 and Q6). Its count is unread NeedsYou
   only. Its colour is the most serious unread; otherwise, while awake, the tone that rang it.
 - **A tap on the bell**, while it is awake, opens **the notice that rang it**, when it is kept. At rest:
   the one unread NeedsYou notice, else the page.
@@ -431,3 +432,17 @@ restated as "keep them in the page history but don't ring the bell". So:
   per file, failed saves apart from them, and a refresh that keeps failing folds per workspace. When
   a notice has no detail, the shade shows its output. The refusal sentences (`FileRefusals`,
   `WorkspaceUsage`, `PlaceFiles`) are shared with the sheets and kept as they are.
+- **R5 — Git.** `GitNotices` (transfers, clone, credentials) and `SourceControlNotices` (the local
+  operations, conflicts). `GitTransferOutcomes` reads each transfer's place, branch, upstream and
+  time as it begins and tells how it ended (A3): a pull counts HEAD before and after with Git
+  (`GitTransferOperations.commitsBetween`, `rev-list --count`), a push what the branch was ahead by,
+  a fetch what its upstream gained; "already up to date" and "nothing to push" from Git's own words;
+  where Git cannot say, the title says less. A failure says what could not be done, why where iCode
+  knows Git's words (rejected, cannot fast-forward, sign-in refused, unreachable), with Pull, Fetch
+  Again or Source Control, and Git's lines as output. A transfer of 30 s or more is posted to
+  Finished when iCode is away by its end. iCode's own fetch says nothing when it works, and a failure
+  once per workspace until a transfer there works, as Info kept as done: never posted, never ringing.
+  So the bell's rule became "what is kept as Done never rings" (D3, D5), and "the runtime's cache is
+  already clear" a Moment. "Git operation failed" is gone: `act` takes what each operation could not
+  do. A commit says how many files went onto which branch, the message's first line under it. The
+  ledger keeps the branch and upstream, so a pull cut short says which branch.

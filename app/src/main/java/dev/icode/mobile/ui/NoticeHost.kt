@@ -55,7 +55,7 @@ internal class NoticeHostState {
     var shown: String? by mutableStateOf(null)
         private set
 
-    /** A notice was told: the bell rings, awake, unless it is a success (docs/notices-redesign-plan.md D3). */
+    /** A notice was told: the bell rings, awake, unless it is kept as done (docs/notices-redesign-plan.md D3). */
     fun arrived(notice: Notice) {
         if (!NoticeRules.rings(notice)) return
         told = notice
@@ -136,7 +136,7 @@ internal fun NoticeHost(
  * The bell in the floating stack (owner's design, 2026-10-21; since 2026-11-10, a see-through button
  * the user can move, docs/dock-navigation-plan.md D13): a notice wakes it and rings it once, in the
  * most serious tone counted — or in the tone that rang it — with the count of what needs the user, as
- * the Explorer's Source Control count is drawn; a success does not ring it (docs/notices-redesign-plan.md
+ * the Explorer's Source Control count is drawn; what is kept as done does not ring it (docs/notices-redesign-plan.md
  * D3, D5). TalkBack reads what rang it. On its time it rests, half in its edge and faded, keeping its
  * tone and count, until touched. A tap, while it is awake, opens what rang it; at rest, the one
  * notice that needs the user; otherwise the Notifications page ([onAll]).

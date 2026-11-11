@@ -17,8 +17,12 @@ object NoticeRules {
     /** Work that ran this long is worth telling when it ends while iCode is out of view (D7); a long command's too. */
     const val LONG_WORK_MILLIS = 30_000L
 
-    /** Rings the bell: all but a success (owner's decision, 2026-11-11), and a tap's own confirmation. */
-    fun rings(notice: Notice): Boolean = notice.keep == NoticeKeep.Moment || notice.tone != NoticeTone.Done
+    /**
+     * Rings the bell: what needs the user, and a tap's own confirmation. What is kept as done — a
+     * success, or what happened on its own — is kept silently (owner's decisions, 2026-11-11: §7, Q1
+     * and Q6).
+     */
+    fun rings(notice: Notice): Boolean = notice.keep != NoticeKeep.Done
 
     /** Kept on the page: all but a tap's own confirmation. */
     fun kept(notice: Notice): Boolean = notice.keep != NoticeKeep.Moment

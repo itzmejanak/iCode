@@ -228,6 +228,9 @@ internal class GitRepositoryClient(private val cli: CliGitService) :
         expect(workspacePath, arguments, onStderr, config)
     }
 
+    override suspend fun commitsBetween(workspacePath: String, from: String, to: String): Int? =
+        cli.run(workspacePath, listOf("rev-list", "--count", "$from..$to")).takeIf { it.succeeded }?.stdout?.trim()?.toIntOrNull()
+
     /** Clones into [destinationPath]; the caller opens the result only on success. */
     override suspend fun clone(
         url: String,

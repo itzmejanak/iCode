@@ -67,6 +67,9 @@ internal interface GitTransferOperations {
     suspend fun fetch(workspacePath: String, config: List<String>, onStderr: ((String) -> Unit)?)
     suspend fun pull(workspacePath: String, config: List<String>, onStderr: ((String) -> Unit)?)
     suspend fun push(workspacePath: String, setUpstream: Boolean, branch: String, config: List<String>, onStderr: ((String) -> Unit)?)
+
+    /** The commits [to] has that [from] has not — what a pull brought, HEAD before to HEAD after; null when Git cannot say. */
+    suspend fun commitsBetween(workspacePath: String, from: String, to: String): Int?
     suspend fun clone(
         url: String,
         destinationPath: String,

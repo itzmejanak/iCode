@@ -27,14 +27,15 @@ class NoticeRulesTest {
         explorer = ExplorerState(history = FileHistoryState(undo = undo)),
     )
 
-    @Test fun `a success is kept without ringing the bell, a moment rings without being kept`() {
-        val done = notice(1, NoticeTone.Done)
-        assertTrue(NoticeRules.kept(done))
-        assertFalse(NoticeRules.rings(done))
+    @Test fun `what is kept as done rings nothing, what needs the user rings, and a moment rings without being kept`() {
+        listOf(NoticeTone.Done, NoticeTone.Info).forEach {
+            assertTrue(NoticeRules.kept(notice(1, it)))
+            assertFalse(NoticeRules.rings(notice(1, it)))
+        }
         val moment = notice(2, NoticeTone.Done, keep = NoticeKeep.Moment)
         assertFalse(NoticeRules.kept(moment))
         assertTrue(NoticeRules.rings(moment))
-        listOf(NoticeTone.Problem, NoticeTone.HeadsUp, NoticeTone.Info).forEach {
+        listOf(NoticeTone.Problem, NoticeTone.HeadsUp).forEach {
             assertTrue(NoticeRules.kept(notice(3, it)))
             assertTrue(NoticeRules.rings(notice(3, it)))
         }
