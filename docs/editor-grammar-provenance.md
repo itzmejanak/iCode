@@ -6,8 +6,9 @@ language catalog, `app/src/main/assets/textmate/catalog.json`
 (`domain/syntax/Languages.kt`, docs/syntax-highlighting-plan.md D3): its id,
 scope, grammar and configuration files, what it embeds and includes, the source
 it was copied from, the upstream commit the grammar file names as its own origin
-(its `version` field), and its licence. The editor registers its grammars from the
-catalog.
+(its `version` field), and its licence. `ui/syntax/SyntaxEngine` loads a language's
+grammar from the catalog, with the grammars it includes, the first time a file or
+code block needs it.
 
 Unknown text extensions fall back to a readable uncolored editor rather than
 guessing a grammar. Binary/malformed files remain rejected by `DocumentCodec`.
