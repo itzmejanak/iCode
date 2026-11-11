@@ -16,7 +16,7 @@ import dev.icode.mobile.designsystem.IcodeSheetOverlay
 import dev.icode.mobile.designsystem.behindSheet
 import dev.icode.mobile.domain.FileViewer
 import dev.icode.mobile.domain.NoticeIntent
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.FileNotices
 
 /** A file in a viewer of iCode's own: [location] a path, or a picked file's `content://` URI. */
 internal data class ViewedFile(val location: String, val name: String, val viewer: FileViewer)
@@ -57,7 +57,7 @@ internal fun FileViewerHost(state: FileViewerState, content: @Composable () -> U
     val unreadable = {
         state.close()
         if (shown.location.startsWith(CONTENT_URI)) {
-            gateway.dispatch(NoticeIntent.Notify(NoticeTone.HeadsUp, "${shown.name} cannot be shown"))
+            gateway.dispatch(NoticeIntent.Tell(FileNotices.cannotShow(shown.name)))
         } else {
             SharedFiles.open(context, shown.location, gateway::dispatch)
         }

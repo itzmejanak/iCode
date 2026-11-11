@@ -1,7 +1,7 @@
 package dev.icode.mobile.data.workspace
 
 import dev.icode.mobile.data.log.BackendLog
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.NoticeTone
 import dev.icode.mobile.domain.Said
 import dev.icode.mobile.domain.said
 import java.io.IOException

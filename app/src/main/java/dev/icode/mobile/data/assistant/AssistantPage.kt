@@ -3,7 +3,7 @@ package dev.icode.mobile.data.assistant
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.AssistantSession
 import dev.icode.mobile.domain.AssistantState
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.NoticeTone
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 

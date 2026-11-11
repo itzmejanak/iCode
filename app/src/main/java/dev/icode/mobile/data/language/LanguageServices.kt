@@ -14,7 +14,7 @@ import dev.icode.mobile.domain.LanguageService
 import dev.icode.mobile.domain.LanguageServiceConfiguration
 import dev.icode.mobile.domain.LanguageServiceRules
 import dev.icode.mobile.domain.LanguageServiceStatus
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.NoticeTone
 import dev.icode.mobile.domain.WorkspacePreferencesRepository
 import java.util.UUID
 import kotlinx.coroutines.CoroutineScope

@@ -8,7 +8,7 @@ import androidx.core.content.edit
 import dev.icode.mobile.data.phone.shizuku.ShizukuShell
 import dev.icode.mobile.data.runtime.TerminalSessionManager
 import dev.icode.mobile.data.workspace.ICodeStateHolder
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.NoticeTone
 import dev.icode.mobile.domain.PhoneIntent
 import dev.icode.mobile.domain.phone.PhoneAccess
 import kotlinx.coroutines.CoroutineScope

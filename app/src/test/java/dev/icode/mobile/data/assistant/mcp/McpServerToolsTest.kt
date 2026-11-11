@@ -181,9 +181,9 @@ class McpServerToolsTest {
     @Test
     fun `a page's change refused is the user's notice`() = runBlocking {
         servers.start()
-        val notice = async(start = CoroutineStart.UNDISPATCHED) { withTimeout(5_000) { stateHolder.effects.first { it is ICodeEffect.Notice } } }
+        val notice = async(start = CoroutineStart.UNDISPATCHED) { withTimeout(5_000) { stateHolder.effects.first { it is ICodeEffect.Told } } }
         servers.handle(McpIntent.SaveServer(McpServer("", " ", "", McpTransport.Local("npx"))))
-        val said = (notice.await() as ICodeEffect.Notice).notice
+        val said = (notice.await() as ICodeEffect.Told).notice
         assertEquals("Name the server", said.title)
     }
 }

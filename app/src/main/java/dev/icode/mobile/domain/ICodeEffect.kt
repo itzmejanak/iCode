@@ -1,5 +1,7 @@
 package dev.icode.mobile.domain
 
+import dev.icode.mobile.domain.notices.Notice
+
 sealed interface ICodeEffect {
     data class RequestSystemPermission(val permission: SystemPermission) : ICodeEffect
     data class SystemPermissionResolved(val permission: SystemPermission, val granted: Boolean) : ICodeEffect
@@ -22,8 +24,8 @@ sealed interface ICodeEffect {
     /** A file changed on disk under unsaved edits; the External Change screen asks which wins. */
     data class ExternalChangeDetected(val location: String) : ICodeEffect
     data object RuntimeRebuildStarted : ICodeEffect
-    /** What iCode says, on the bell; the Notifications page and Android's shade keep it ([NoticeRules.kept]). */
-    data class Notice(val notice: AppNotice.Message) : ICodeEffect
+    /** What iCode tells the user: the bell, the Notifications page and Android's shade take it (docs/notices-redesign-plan.md). */
+    data class Told(val notice: Notice) : ICodeEffect
 
     /** A chat was exported: its transcript, to be shared as text. */
     data class ShareChat(val title: String, val text: String) : ICodeEffect

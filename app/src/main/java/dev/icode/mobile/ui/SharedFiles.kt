@@ -9,9 +9,9 @@ import dev.icode.mobile.data.storage.WorkspacesProvider
 import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.NoticeIntent
-import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.domain.files.FileWords
 import java.io.File
+import dev.icode.mobile.domain.notices.FileNotices
 
 /**
  * iCode's files as other apps receive them (docs/open-with-plan.md): through its one FileProvider,
@@ -53,7 +53,7 @@ internal object SharedFiles {
 
     /** [file]'s URI to hand out; null, and said, when the provider does not serve it. */
     private fun handable(context: Context, file: File, dispatch: (ICodeIntent) -> Unit): Uri? =
-        uriOf(context, file) ?: null.also { dispatch(NoticeIntent.Notify(NoticeTone.HeadsUp, "${file.name} cannot be handed to another app")) }
+        uriOf(context, file) ?: null.also { dispatch(NoticeIntent.Tell(FileNotices.cannotHandOver(file.name))) }
 
     /** A kind Android does not name goes to every app that takes any file. */
     private fun typeOf(file: File): String = WorkspacesProvider.mimeTypeOf(file) ?: "*/*"

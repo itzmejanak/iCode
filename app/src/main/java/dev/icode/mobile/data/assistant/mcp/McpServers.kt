@@ -18,7 +18,7 @@ import dev.icode.mobile.domain.McpState
 import dev.icode.mobile.domain.McpStatus
 import dev.icode.mobile.domain.McpToolChoice
 import dev.icode.mobile.domain.McpTransport
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.NoticeTone
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel

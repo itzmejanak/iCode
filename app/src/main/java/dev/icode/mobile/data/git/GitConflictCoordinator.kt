@@ -4,7 +4,7 @@ import dev.icode.mobile.data.workspace.ChangedOnDiskException
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.data.workspace.WorkspaceDocument
 import dev.icode.mobile.domain.GitConflictChoice
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.NoticeTone
 import java.io.File
 
 /**

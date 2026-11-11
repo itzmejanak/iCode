@@ -1,9 +1,8 @@
 package dev.icode.mobile.data.web
 
 import dev.icode.mobile.domain.AppLinks
-import dev.icode.mobile.domain.AppNotice
-import dev.icode.mobile.domain.NoticeLink
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.Notice
+import dev.icode.mobile.domain.notices.WebNotices
 import dev.icode.mobile.domain.ReportDraft
 import dev.icode.mobile.domain.ReportKind
 import dev.icode.mobile.domain.ReportPolicy
@@ -56,32 +55,26 @@ internal object WebJson {
     }
 
     /**
-     * The website's notices as the app's own messages (contracts/api-v1.md): one tone per level, kept
-     * under `web:<id>` so the Notifications page, the bell and the shade treat them as any other.
+     * The website's notices as the app's own (contracts/api-v1.md): one tone per level, kept under
+     * `web:<id>` so the Notifications page, the bell and the shade treat them as any other.
      * [now] stands in for a missing or unreadable time.
      */
-    fun notices(json: JSONObject, now: Long = System.currentTimeMillis()): List<AppNotice.Message> {
+    fun notices(json: JSONObject, now: Long = System.currentTimeMillis()): List<Notice> {
         val array = json.optJSONArray("notices") ?: return emptyList()
         return (0 until array.length()).mapNotNull { i ->
             val item = array.optJSONObject(i) ?: return@mapNotNull null
             val id = item.optString("id").takeIf { it.isNotEmpty() } ?: return@mapNotNull null
             val title = item.optString("title").takeIf { it.isNotBlank() } ?: return@mapNotNull null
-            AppNotice.Message(
-                id = AppNotice.WEBSITE_PREFIX + id,
+            WebNotices.fromWebsite(
+                id = id,
                 at = item.optString("at").let { at -> runCatching { java.time.Instant.parse(at).toEpochMilli() }.getOrDefault(now) },
-                read = false,
-                tone = toneOf(item.optString("level")),
+                level = item.optString("level"),
                 title = title,
-                detail = item.optString("body").takeIf { it.isNotBlank() },
-                link = item.optUrl("linkUrl")?.let { NoticeLink(it, item.optString("linkLabel").takeIf { l -> l.isNotBlank() && !item.isNull("linkLabel") } ?: "Open link") },
+                body = item.optString("body").takeIf { it.isNotBlank() },
+                link = item.optUrl("linkUrl"),
+                linkLabel = item.optString("linkLabel").takeIf { l -> l.isNotBlank() && !item.isNull("linkLabel") },
             )
         }
-    }
-
-    fun toneOf(level: String): NoticeTone = when (level) {
-        "critical" -> NoticeTone.Problem
-        "warning" -> NoticeTone.HeadsUp
-        else -> NoticeTone.Info
     }
 
     fun deviceJson(installId: String, facts: DeviceFacts): JSONObject = JSONObject()

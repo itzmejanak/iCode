@@ -2,7 +2,7 @@ package dev.icode.mobile.data.language
 
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.LanguageServiceStatus
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.NoticeTone
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject

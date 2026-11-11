@@ -2,7 +2,8 @@ package dev.icode.mobile.data.git
 
 import android.content.Context
 import androidx.core.content.edit
-import dev.icode.mobile.domain.AppNotice
+import dev.icode.mobile.domain.notices.GitNotices
+import dev.icode.mobile.domain.notices.Notice
 
 /** A transfer in flight, written down so an ending nobody saw can still be told. */
 internal interface TransferLedger {
@@ -28,12 +29,12 @@ internal class GitTransferLedger(context: Context) : TransferLedger {
     override fun finished() = preferences.edit(commit = true) { clear() }
 
     /** The transfer the previous process never finished, told once; call before any transfer can start. */
-    fun takeInterrupted(): AppNotice.GitTransferInterrupted? {
+    fun takeInterrupted(): Notice? {
         val label = preferences.getString(KEY_LABEL, null) ?: return null
         val target = preferences.getString(KEY_TARGET, null).orEmpty()
         val at = preferences.getLong(KEY_AT, 0L)
         finished()
-        return AppNotice.GitTransferInterrupted(id = "git-transfer-$at", at = at, read = false, label = label, target = target)
+        return GitNotices.cutShort(label, target).copy(id = "git-transfer-$at", at = at)
     }
 
     private companion object {

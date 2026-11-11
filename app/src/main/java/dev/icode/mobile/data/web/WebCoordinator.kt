@@ -134,7 +134,7 @@ internal class WebCoordinator(
         val fresh = runCatching { client.notices() }.getOrNull()?.filterNot { notices.knows(it.id) } ?: return
         fresh.sortedBy { it.at }.forEach { notice ->
             notices.add(notice)
-            stateHolder.emit(ICodeEffect.Notice(notice))
+            stateHolder.emit(ICodeEffect.Told(notice))
         }
     }
 

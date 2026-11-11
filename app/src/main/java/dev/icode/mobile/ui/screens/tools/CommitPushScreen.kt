@@ -147,7 +147,7 @@ fun CommitPushScreen(actions: NavigationActions) {
                 left = {
                     SecondaryButton(
                         "FETCH",
-                        { sync(ICodeIntent.FetchRemote) },
+                        { sync(ICodeIntent.FetchRemote()) },
                         Modifier.fillMaxWidth(),
                         enabled = blocked(GitSyncAction.Fetch) == null,
                     )

@@ -38,13 +38,13 @@ import dev.icode.mobile.domain.AssistantRules
 import dev.icode.mobile.domain.FileViewer
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.domain.NoticeIntent
-import dev.icode.mobile.domain.NoticeTone
 import dev.icode.mobile.ui.LocalFileViewer
 import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.SharedFiles
 import dev.icode.mobile.ui.rememberThumbnail
 import dev.icode.mobile.ui.ThumbnailKind
 import java.io.File
+import dev.icode.mobile.domain.notices.AssistantNotices
 
 /** A file going with the message: a workspace file's location, or a phone file's `content://` URI. */
 internal data class DraftFile(val location: String, val name: String, val kind: AssistantAttachmentKind)
@@ -92,7 +92,7 @@ private fun launch(dispatch: (ICodeIntent) -> Unit, start: () -> Unit) {
     try {
         start()
     } catch (missing: ActivityNotFoundException) {
-        dispatch(NoticeIntent.Notify(NoticeTone.HeadsUp, "No app on this phone can do that"))
+        dispatch(NoticeIntent.Tell(AssistantNotices.noApp()))
     }
 }
 

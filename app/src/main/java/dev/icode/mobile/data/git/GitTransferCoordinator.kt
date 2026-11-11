@@ -11,7 +11,7 @@ import dev.icode.mobile.domain.GitRemoteRules
 import dev.icode.mobile.domain.GitSyncAction
 import dev.icode.mobile.domain.GitTransferLabel
 import dev.icode.mobile.domain.ICodeIntent
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.NoticeTone
 import dev.icode.mobile.domain.WorkspaceRuntimePath
 import java.io.File
 import java.util.concurrent.atomic.AtomicLong
@@ -56,7 +56,7 @@ internal class GitTransferCoordinator(
 
     /** The transfer [intent] asks for; its job, when one started. */
     fun handle(intent: ICodeIntent.TransferIntent): Job? = when (intent) {
-        ICodeIntent.FetchRemote -> fetch()
+        is ICodeIntent.FetchRemote -> fetch(intent.automatic)
         ICodeIntent.PullRemote -> pull()
         ICodeIntent.PushRemote -> push()
         is ICodeIntent.CommitAndPush -> commitAndPush(intent.message)
@@ -64,7 +64,7 @@ internal class GitTransferCoordinator(
         ICodeIntent.CancelGitTransfer -> cancel().let { null }
     }
 
-    fun fetch(): Job? = start(GitTransferLabel.FETCHING) { id ->
+    fun fetch(automatic: Boolean = false): Job? = start(GitTransferLabel.FETCHING) { id ->
         if (refused(GitTransferLabel.FETCHING, GitSyncAction.Fetch)) return@start
         runRemote(id, GitTransferLabel.FETCHING) { workspace, config, onStderr -> git.fetch(workspace, config, onStderr) }
     }

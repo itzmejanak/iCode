@@ -19,7 +19,7 @@ import dev.icode.mobile.domain.AssistantSettings
 import dev.icode.mobile.domain.AssistantTerminal
 import dev.icode.mobile.domain.AssistantTurn
 import dev.icode.mobile.domain.LineChanges
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.NoticeTone
 import java.io.File
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope

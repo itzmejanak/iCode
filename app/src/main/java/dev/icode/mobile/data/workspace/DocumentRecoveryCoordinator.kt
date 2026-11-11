@@ -1,6 +1,6 @@
 package dev.icode.mobile.data.workspace
 
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.NoticeTone
 import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.domain.RecoverableDraft
 import dev.icode.mobile.domain.ICodeEffect

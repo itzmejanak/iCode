@@ -1,11 +1,11 @@
 package dev.icode.mobile.data.workspace
 
 import dev.icode.mobile.data.files.FileHistory
-import dev.icode.mobile.data.io.relocated
+import dev.icode.mobile.domain.relocated
 import dev.icode.mobile.domain.FileViewer
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeIntent
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.NoticeTone
 import dev.icode.mobile.domain.WorkspaceNameRules
 import dev.icode.mobile.domain.files.FileStep
 import dev.icode.mobile.domain.files.FileWords

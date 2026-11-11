@@ -1,5 +1,7 @@
 package dev.icode.mobile.domain.files
 
+import dev.icode.mobile.domain.notices.NoticePlace
+
 /**
  * What one operation did, step by step, so it can be undone (docs/explorer-gaps-plan.md §3.8). Each
  * step names what is where now.
@@ -127,8 +129,8 @@ val Reversal.paths: List<String>
  */
 data class FileHistoryState(val undo: String? = null, val redo: String? = null, val news: FileNews? = null)
 
-/** A change just made ([undone] false) or undone, for the undo pill (§3.8). */
-data class FileNews(val id: Long, val line: String, val undone: Boolean) {
+/** A change just made ([undone] false) or undone, and where, for the undo pill (§3.8; docs/notices-redesign-plan.md D5). */
+data class FileNews(val id: Long, val line: String, val undone: Boolean, val place: NoticePlace? = null) {
     companion object {
         /** The pill stays this long after a change, unless × puts it away first, and goes. */
         const val HOLD_MILLIS = 10_000L

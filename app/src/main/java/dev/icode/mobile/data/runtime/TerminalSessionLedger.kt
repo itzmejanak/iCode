@@ -9,9 +9,10 @@ import android.provider.Settings
 import androidx.annotation.MainThread
 import androidx.annotation.WorkerThread
 import androidx.core.content.edit
-import dev.icode.mobile.domain.AppNotice
 import dev.icode.mobile.domain.LostTerminalSession
 import dev.icode.mobile.domain.LostTerminalSessions
+import dev.icode.mobile.domain.notices.Notice
+import dev.icode.mobile.domain.notices.TerminalNotices
 import dev.icode.mobile.domain.ProcessEndCause
 import java.util.concurrent.atomic.AtomicBoolean
 import org.json.JSONArray
@@ -59,22 +60,18 @@ internal class TerminalSessionLedger(context: Context) {
      * ended, so not on the main thread.
      */
     @WorkerThread
-    fun takePrevious(): AppNotice.TerminalSessionsEnded? {
+    fun takePrevious(): Notice? {
         if (!taken.compareAndSet(false, true)) return null
         val record = previous ?: return null
         val restarted = record.boot != bootCount
         val exit = if (restarted) null else exitOf(record.pid)
-        return AppNotice.TerminalSessionsEnded(
-            // The dead process's boot and pid: the same end is never stored twice.
-            id = "terminal-sessions-ended:${record.boot}:${record.pid}",
-            at = exit?.timestamp ?: System.currentTimeMillis(),
-            read = false,
-            lost = LostTerminalSessions(
-                sessions = record.sessions,
-                cause = ProcessEnds.cause(restarted, exit?.reason, Build.VERSION.SDK_INT),
-                endedAt = exit?.timestamp,
-            ),
+        val lost = LostTerminalSessions(
+            sessions = record.sessions,
+            cause = ProcessEnds.cause(restarted, exit?.reason, Build.VERSION.SDK_INT),
+            endedAt = exit?.timestamp,
         )
+        // The dead process's boot and pid: the same end is never stored twice.
+        return TerminalNotices.sessionsEnded(lost).copy(id = "terminal-sessions-ended:${record.boot}:${record.pid}", at = exit?.timestamp ?: System.currentTimeMillis())
     }
 
     private fun exitOf(pid: Int): ApplicationExitInfo? = runCatching {

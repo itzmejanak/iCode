@@ -2,6 +2,7 @@ package dev.icode.mobile.domain
 
 import dev.icode.mobile.domain.files.ExplorerState
 import dev.icode.mobile.domain.files.FilesBrowserState
+import dev.icode.mobile.domain.notices.Notice
 import dev.icode.mobile.domain.phone.PhoneAccess
 import dev.icode.mobile.domain.voice.VoiceState
 
@@ -76,7 +77,7 @@ data class ICodeSnapshot(
     val voice: VoiceState = VoiceState(),
     val terminal: TerminalSnapshot = TerminalSnapshot(),
     /** The Notifications page, newest first. */
-    val notices: List<AppNotice> = emptyList(),
+    val notices: List<Notice> = emptyList(),
     /** Where the next clone goes; none, a new workspace (docs/workspace-destinations-plan.md). */
     val projectDestination: ProjectDestination? = null,
     /** Every explorer's clipboard, question, undo and redo, and Trash (docs/explorer-gaps-plan.md §4). */

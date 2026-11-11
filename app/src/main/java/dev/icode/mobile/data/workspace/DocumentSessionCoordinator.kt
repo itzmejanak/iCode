@@ -1,11 +1,11 @@
 package dev.icode.mobile.data.workspace
 
 import dev.icode.mobile.data.files.FileShortcuts
-import dev.icode.mobile.data.io.isAtOrUnder
-import dev.icode.mobile.data.io.relocated
+import dev.icode.mobile.domain.isAtOrUnder
+import dev.icode.mobile.domain.relocated
 import dev.icode.mobile.data.runtime.GuestPaths
 import dev.icode.mobile.domain.ExternalChange
-import dev.icode.mobile.domain.NoticeTone
+import dev.icode.mobile.domain.notices.NoticeTone
 import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeIntent

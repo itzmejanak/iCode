@@ -1,5 +1,7 @@
 package dev.icode.mobile.domain
 
+import dev.icode.mobile.domain.notices.NoticeTone
+
 /**
  * What a tool's icon carries, on the dock and the rail alike (docs/dock-navigation-plan.md D7):
  * [count] over it, zero for none; its icon in [tone] while the tool is busy or waits for the user;

@@ -5,6 +5,7 @@ import dev.icode.mobile.domain.files.FileChange
 import dev.icode.mobile.domain.files.FileHistoryState
 import dev.icode.mobile.domain.files.FileNews
 import dev.icode.mobile.domain.files.FileStep
+import dev.icode.mobile.domain.notices.FileNotices
 
 /**
  * Undo and redo (docs/explorer-gaps-plan.md §3.8): the last [FileChange.DEPTH] changes made in the
@@ -34,7 +35,7 @@ internal class FileHistory(
         changed(change.steps)
         push(undo, change)
         redo.clear()
-        publish(change.said, undone = false)
+        publish(change.said, change.steps, undone = false)
     }
 
     /** [change], taken from Undo, reversed as far as [steps] go. */
@@ -50,11 +51,11 @@ internal class FileHistory(
         from.removeAt(at)
         val left = change.steps.dropLast(steps.size)
         if (left.isNotEmpty()) from.add(at, change.copy(steps = left))
-        if (steps.isEmpty()) return publish(null, undone)
+        if (steps.isEmpty()) return publish(null, steps, undone)
         changed(steps)
         val reversed = change.undoneBy(steps)
         push(to, reversed)
-        publish(reversed.said, undone)
+        publish(reversed.said, steps, undone)
     }
 
     private fun push(side: ArrayDeque<FileChange>, change: FileChange) {
@@ -62,9 +63,9 @@ internal class FileHistory(
         if (side.size > FileChange.DEPTH) side.removeFirst()
     }
 
-    /** What Undo and Redo would do now, and — when there is one — the news of [line]. */
-    private fun publish(line: String?, undone: Boolean) {
-        val news = line?.let { FileNews(++newsId, it, undone) }
+    /** What Undo and Redo would do now, and — when there is one — the news of [line], where [steps] were taken. */
+    private fun publish(line: String?, steps: List<FileStep>, undone: Boolean) {
+        val news = line?.let { FileNews(++newsId, it, undone, FileNotices.placeOf(stateHolder.current, steps)) }
         stateHolder.update { state ->
             val history = FileHistoryState(undo.lastOrNull()?.said, redo.lastOrNull()?.undoneSaid, news ?: state.explorer.history.news)
             state.copy(explorer = state.explorer.copy(history = history))

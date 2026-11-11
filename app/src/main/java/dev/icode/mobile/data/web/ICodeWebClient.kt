@@ -23,7 +23,7 @@ internal class ICodeWebClient(private val baseUrl: String = BuildConfig.ICODE_WE
     fun latestRelease(): WebJson.Latest =
         WebJson.latest(getJson("/api/v1/app/releases/latest?channel=${BuildConfig.UPDATE_CHANNEL}&abi=arm64-v8a&versionCode=${BuildConfig.VERSION_CODE}"))
 
-    fun notices(): List<dev.icode.mobile.domain.AppNotice.Message> =
+    fun notices(): List<dev.icode.mobile.domain.notices.Notice> =
         WebJson.notices(getJson("/api/v1/app/notices?placement=app&versionCode=${BuildConfig.VERSION_CODE}"))
 
     /** What the website says of the runtime manifest; [etag] is the one last kept, for a 304. */
