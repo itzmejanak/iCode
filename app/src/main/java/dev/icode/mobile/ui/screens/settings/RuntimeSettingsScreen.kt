@@ -2,14 +2,13 @@ package dev.icode.mobile.ui.screens.settings
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.Extension
-import androidx.compose.material.icons.outlined.WarningAmber
+import androidx.compose.material.icons.outlined.RestartAlt
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -18,19 +17,24 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import dev.icode.mobile.designsystem.CHECKING
-import dev.icode.mobile.designsystem.DangerButton
-import dev.icode.mobile.designsystem.DetailRow
 import dev.icode.mobile.designsystem.IcodeCard
+import dev.icode.mobile.designsystem.IcodeColors
 import dev.icode.mobile.designsystem.IcodeConfirmSheet
+import dev.icode.mobile.designsystem.IcodeFact
+import dev.icode.mobile.designsystem.IcodeFactGrid
+import dev.icode.mobile.designsystem.IcodePageColumn
 import dev.icode.mobile.designsystem.IcodeSection
 import dev.icode.mobile.designsystem.IcodeSpacing
-import dev.icode.mobile.designsystem.IcodeTone
+import dev.icode.mobile.designsystem.IcodeSpinner
+import dev.icode.mobile.designsystem.IcodeTextButton
 import dev.icode.mobile.designsystem.IcodeTopBar
 import dev.icode.mobile.designsystem.IcodeType
-import dev.icode.mobile.designsystem.NoticeCard
-import dev.icode.mobile.designsystem.SecondaryButton
 import dev.icode.mobile.designsystem.SettingRow
+import dev.icode.mobile.designsystem.StatusLabel
 import dev.icode.mobile.domain.BusyAction
 import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.ICodeIntent
@@ -39,7 +43,6 @@ import dev.icode.mobile.domain.RuntimeInstallReason
 import dev.icode.mobile.domain.RuntimeState
 import dev.icode.mobile.domain.RuntimeTools
 import dev.icode.mobile.domain.RuntimeToolsState
-import dev.icode.mobile.domain.countOf
 import dev.icode.mobile.domain.isBusy
 import dev.icode.mobile.domain.storageSizeLabel
 import dev.icode.mobile.navigation.NavigationActions
@@ -51,11 +54,11 @@ import dev.icode.mobile.ui.LocalICodeSnapshot
 private enum class RuntimeRebuild { Repair, Reset }
 
 /**
- * Runtime health, what is actually installed, and the way out of a broken one.
- *
- * An interrupted package operation can leave a runtime that cannot repair
- * itself from inside — measured on device — so rebuilding it has to be
- * reachable here rather than only by clearing the app's data.
+ * The runtime (docs/screens-polish-plan.md D5): one card — the release, its state as a dot and a word,
+ * and what can be measured of it — then its tools, and the way out of a broken one. An interrupted
+ * package operation can leave a runtime that cannot repair itself from inside — measured on device —
+ * so rebuilding it has to be reachable here rather than only by clearing the app's data. What each
+ * rebuild keeps is said in a line; all of it, in the sheet that confirms it.
  */
 @Composable
 fun RuntimeSettingsScreen(actions: NavigationActions) {
@@ -68,75 +71,35 @@ fun RuntimeSettingsScreen(actions: NavigationActions) {
 
     LaunchedEffect(Unit) { gateway.dispatch(ICodeIntent.RefreshRuntimeDetails) }
 
+    // From the confirmed tap until the runtime is rebuilt: neither starts twice, and the one asked says it runs.
+    val rebuilding = state.isBusy(BusyAction.Runtime) || state.runtime is RuntimeState.Downloading || state.runtime is RuntimeState.Installing
+    val running = when (state.runtimeInstallReason) {
+        RuntimeInstallReason.Repair -> RuntimeRebuild.Repair
+        RuntimeInstallReason.Reset -> RuntimeRebuild.Reset
+        RuntimeInstallReason.Initial -> confirmed
+    }.takeIf { rebuilding }
+
     Column(Modifier.fillMaxSize()) {
-        IcodeTopBar("Runtime Environment", onBack = actions.back)
-        // The page's rhythm, without scrolling: the rebuilds stay at its foot.
-        Column(
-            modifier = Modifier.fillMaxSize().padding(IcodeSpacing.Gutter),
-            verticalArrangement = Arrangement.spacedBy(IcodeSpacing.SectionGap),
-        ) {
-            val healthy = state.runtime is RuntimeState.Ready
-            NoticeCard(
-                tone = if (healthy) IcodeTone.Success else IcodeTone.Warning,
-                title = if (healthy) "Runtime Healthy" else "Runtime Unavailable",
-                icon = if (healthy) Icons.Outlined.Check else Icons.Outlined.WarningAmber,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(runtimeSummary(state.runtime), style = IcodeType.Caption)
-            }
-            IcodeSection("Technical Details") {
-                IcodeCard(Modifier.fillMaxWidth()) {
-                    // Until the first read lands, every row says so rather than "Not measured".
-                    val checking = CHECKING.takeUnless { details.inspected }
-                    DetailRow("Architecture", checking ?: details.architecture.ifBlank { UNKNOWN })
-                    DetailRow("Runtime Home", checking ?: details.rootfsPath.ifBlank { UNKNOWN })
-                    DetailRow("Installed Packages", checking ?: packageCount(details))
-                    DetailRow("Disk Usage", checking ?: diskUsage(details))
-                    DetailRow("PRoot Version", checking ?: details.prootVersion ?: UNKNOWN)
-                    DetailRow("Manifest", state.web.manifest.let { if (it.fromWebsite) "iCode website · rev ${it.revision ?: 1}" else "Built-in" })
-                }
+        IcodeTopBar("Runtime Environment", subtitle = settingsSubtitle(Route.SettingsRuntime), onBack = actions.back)
+        IcodePageColumn {
+            RuntimeCard(state.runtime, details, onSetUp = { actions.navigate(Route.RuntimeInstalling) })
+            IcodeSection("Tools") {
                 SettingRow(
                     "Runtime Tools",
-                    modifier = Modifier.fillMaxWidth(),
-                    subtitle = toolsSummary(state.runtimeTools),
+                    Modifier.fillMaxWidth(),
+                    subtitle = toolsCount(state.runtimeTools),
                     leadingIcon = Icons.Outlined.Extension,
                     onClick = { actions.navigate(Route.RuntimeTools) },
+                    trailing = { Chevron() },
                 )
             }
-            Spacer(Modifier.weight(1f))
-            // From the confirmed tap until the runtime is rebuilt: neither starts twice, and the one asked says it runs.
-            val rebuilding = state.isBusy(BusyAction.Runtime) || state.runtime is RuntimeState.Downloading || state.runtime is RuntimeState.Installing
-            val running = when (state.runtimeInstallReason) {
-                RuntimeInstallReason.Repair -> RuntimeRebuild.Repair
-                RuntimeInstallReason.Reset -> RuntimeRebuild.Reset
-                RuntimeInstallReason.Initial -> confirmed
-            }.takeIf { rebuilding }
-            IcodeSection {
-                SecondaryButton(
-                    "Repair Runtime",
-                    { pending = RuntimeRebuild.Repair },
-                    Modifier.fillMaxWidth(),
-                    enabled = !rebuilding,
-                    busy = running == RuntimeRebuild.Repair,
-                )
-                Text(
-                    "Reinstalls the base system and keeps your home directory and workspaces. " +
-                        "Packages you installed are not kept.",
-                    style = IcodeType.Caption,
-                )
-            }
-            IcodeSection {
-                DangerButton(
-                    "Reset Runtime",
-                    { pending = RuntimeRebuild.Reset },
-                    Modifier.fillMaxWidth(),
-                    enabled = !rebuilding,
-                    busy = running == RuntimeRebuild.Reset,
-                )
-                Text(
-                    "Removes everything in the runtime, including your home directory and installed tools. Workspaces are kept.",
-                    style = IcodeType.Caption,
-                )
+            IcodeSection("Maintenance") {
+                Rebuild("Repair Runtime", "Keeps your home and workspaces", Icons.Outlined.Build, IcodeColors.Accent, rebuilding, running == RuntimeRebuild.Repair) {
+                    pending = RuntimeRebuild.Repair
+                }
+                Rebuild("Reset Runtime", "Keeps only your workspaces", Icons.Outlined.RestartAlt, IcodeColors.Error, rebuilding, running == RuntimeRebuild.Reset) {
+                    pending = RuntimeRebuild.Reset
+                }
             }
         }
     }
@@ -169,17 +132,76 @@ fun RuntimeSettingsScreen(actions: NavigationActions) {
     }
 }
 
-private fun packageCount(details: RuntimeDetails): String =
-    details.installedPackages?.let { countOf(it, "package") } ?: UNKNOWN
-
-/** The measured size, or where its measurement stands, against real free space. */
-private fun diskUsage(details: RuntimeDetails): String {
-    val used = details.rootfsSize?.bytes?.let { "${ByteSize.format(it)} used" } ?: storageSizeLabel(details.rootfsSize)
-    return "$used · ${ByteSize.format(details.availableBytes)} free"
+/**
+ * The runtime in one card: its release, by name, over its codename and the phone's architecture; its
+ * state beside it, a dot and a word — healthy in the accent, as the Launcher says it. Ready, what can
+ * be measured of it; otherwise what it is doing, or why it cannot run, and the way to set it up.
+ */
+@Composable
+private fun RuntimeCard(runtime: RuntimeState, details: RuntimeDetails, onSetUp: () -> Unit) {
+    IcodeCard(Modifier.fillMaxWidth()) {
+        Column(verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space3)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(IcodeSpacing.Micro)) {
+                    Text(details.releaseName ?: "Linux runtime", style = IcodeType.Title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    val about = listOfNotNull(details.codename, details.architecture.ifBlank { null }).joinToString(" · ")
+                    if (about.isNotEmpty()) Text(about, style = IcodeType.MonoSmall, maxLines = 1)
+                }
+                val (word, color) = stateOf(runtime)
+                StatusLabel(word, color)
+            }
+            if (runtime is RuntimeState.Ready) {
+                IcodeFactGrid(facts(details))
+            } else {
+                Text(summaryOf(runtime), style = IcodeType.Caption)
+                if (runtime is RuntimeState.NotInstalled || runtime is RuntimeState.Failed) IcodeTextButton("Set Up the Runtime", onSetUp)
+            }
+        }
+    }
 }
 
-/** What the runtime is right now, known from start-up, before any detail is read. */
-private fun runtimeSummary(runtime: RuntimeState): String = when (runtime) {
+/** A rebuild's row: what it is, what it keeps; busy while it runs, and neither taps while one does. */
+@Composable
+private fun Rebuild(title: String, keeps: String, icon: ImageVector, tint: Color, rebuilding: Boolean, busy: Boolean, onClick: () -> Unit) {
+    SettingRow(
+        title,
+        Modifier.fillMaxWidth(),
+        subtitle = keeps,
+        leadingIcon = icon,
+        leadingTint = if (rebuilding) IcodeColors.TextMuted else tint,
+        titleColor = when {
+            rebuilding -> IcodeColors.TextMuted
+            tint == IcodeColors.Error -> IcodeColors.Error
+            else -> IcodeColors.TextPrimary
+        },
+        onClick = onClick.takeUnless { rebuilding },
+        trailing = { if (busy) IcodeSpinner() else Chevron() },
+    )
+}
+
+/** What it is now, as a word and its colour. */
+@Composable
+private fun stateOf(runtime: RuntimeState): Pair<String, Color> = when (runtime) {
+    is RuntimeState.Ready -> "Healthy" to IcodeColors.Accent
+    is RuntimeState.Downloading, is RuntimeState.Installing -> "Installing" to IcodeColors.Amber
+    is RuntimeState.Failed -> "Failed" to IcodeColors.Error
+    is RuntimeState.NotInstalled -> "Not installed" to IcodeColors.Amber
+    RuntimeState.Unknown -> "Checking" to IcodeColors.TextMuted
+}
+
+/** What can be measured of a ready runtime; each says it is checking until the first read lands. */
+private fun facts(details: RuntimeDetails): List<IcodeFact> {
+    val checking = CHECKING.takeUnless { details.inspected }
+    return listOf(
+        IcodeFact("Packages", checking ?: details.installedPackages?.toString() ?: UNKNOWN),
+        IcodeFact("PRoot", checking ?: details.prootVersion ?: UNKNOWN),
+        IcodeFact("Runtime size", checking ?: details.rootfsSize?.bytes?.let(ByteSize::format) ?: storageSizeLabel(details.rootfsSize)),
+        IcodeFact("Free on phone", checking ?: ByteSize.format(details.availableBytes)),
+    )
+}
+
+/** What the runtime is doing, or why it cannot run. */
+private fun summaryOf(runtime: RuntimeState): String = when (runtime) {
     RuntimeState.Unknown -> CHECKING
     is RuntimeState.Ready -> runtime.release
     is RuntimeState.NotInstalled -> runtime.reason
@@ -190,10 +212,8 @@ private fun runtimeSummary(runtime: RuntimeState): String = when (runtime) {
 
 private const val UNKNOWN = "Not measured"
 
-/** "2 of 6 installed: Git, SSH client". */
-private fun toolsSummary(tools: RuntimeToolsState): String {
+/** "12 of 13 installed": their names are on the tools' own page. */
+private fun toolsCount(tools: RuntimeToolsState): String {
     if (tools.installed == null) return CHECKING
-    val installed = RuntimeTools.all.filter(tools::isInstalled)
-    val count = "${installed.size} of ${RuntimeTools.all.size} installed"
-    return if (installed.isEmpty()) count else "$count: ${installed.joinToString { it.name }}"
+    return "${RuntimeTools.all.count(tools::isInstalled)} of ${RuntimeTools.all.size} installed"
 }

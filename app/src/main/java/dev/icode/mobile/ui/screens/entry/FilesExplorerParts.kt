@@ -19,7 +19,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
@@ -28,7 +27,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import dev.icode.mobile.designsystem.IcodeCheckbox
 import dev.icode.mobile.designsystem.IcodeColors
-import dev.icode.mobile.designsystem.IcodeListRow
+import dev.icode.mobile.designsystem.IcodeFileRow
 import dev.icode.mobile.designsystem.IcodeShapes
 import dev.icode.mobile.designsystem.IcodeSizes
 import dev.icode.mobile.designsystem.IcodeSpacing
@@ -189,9 +188,9 @@ internal class Opening(
 internal fun opening(browse: (String) -> Unit) = Opening(LocalContext.current, LocalICodeGateway.current, LocalFileViewer.current, browse)
 
 /**
- * A flat row, as ZArchiver's: [leading] — the type's icon or thumbnail, or a tick — then the name
- * over its detail, and when it changed ([end]) at the end; [compact], one line, the detail at the end.
- * Ticked, it is drawn square and edge to edge, so rows ticked together are one band, as the IDE tree's.
+ * A flat row, as ZArchiver's ([IcodeFileRow], every list of files' row): [leading] — the type's icon
+ * or thumbnail, or a tick — then the name over its detail, and when it changed ([end]) at the end;
+ * [compact], one line, the detail at the end.
  */
 @Composable
 private fun FileRow(
@@ -205,21 +204,15 @@ private fun FileRow(
     onLongClick: (() -> Unit)? = null,
     selected: Boolean = false,
 ) {
-    IcodeListRow(
-        modifier = modifier,
-        selected = selected,
-        rowShape = RectangleShape,
-        inset = IcodeSpacing.Gutter,
-        onClick = onClick,
-        onLongClick = onLongClick,
+    IcodeFileRow(
+        name = name,
         leading = leading,
+        onClick = onClick,
+        modifier = modifier,
+        detail = detail,
+        selected = selected,
         compact = compact,
-        content = {
-            Column(Modifier.weight(1f).then(if (compact) Modifier.padding(vertical = IcodeSpacing.Space2) else Modifier)) {
-                Text(name, style = IcodeType.Body, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (!compact) detail?.let { Text(it, style = IcodeType.Caption, maxLines = 1) }
-            }
-        },
+        onLongClick = onLongClick,
         trailing = {
             val said = if (compact) detail else end?.let(RelativeTime::since)
             said?.let { Text(it, style = IcodeType.Caption) }
