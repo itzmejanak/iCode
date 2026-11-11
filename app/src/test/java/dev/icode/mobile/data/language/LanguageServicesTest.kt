@@ -212,7 +212,7 @@ class LanguageServicesTest {
         assertTrue(notices.isEmpty())
         services.start(id).getOrThrow()
         until("said") { notices.isNotEmpty() }
-        assertEquals(listOf("Python is not installed"), notices.toList())
+        assertEquals(listOf("Install Python first"), notices.toList())
         programs.missing = emptySet()
         services.start(id).getOrThrow()
         until("running") { services.pool.ready(id) != null }

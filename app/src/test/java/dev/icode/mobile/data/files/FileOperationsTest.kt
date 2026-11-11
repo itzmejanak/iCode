@@ -12,8 +12,9 @@ import dev.icode.mobile.data.workspace.WorkspaceLifecycleCoordinator.Reopen
 import dev.icode.mobile.data.workspace.WorkspaceUsage
 import dev.icode.mobile.domain.FilesIntent
 import dev.icode.mobile.domain.GitOutcome
+import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeIntent
-import dev.icode.mobile.domain.said
+import dev.icode.mobile.domain.notices.NoticeKeep
 import dev.icode.mobile.domain.files.CompressFormat
 import dev.icode.mobile.domain.files.ConflictAnswer
 import dev.icode.mobile.domain.files.PasswordAsk
@@ -52,7 +53,11 @@ class FileOperationsTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val stateHolder = ICodeStateHolder()
     private val tasks = TaskRunner(stateHolder, scope)
+    /** What was said — refusals, notes, failures — which ends an operation as a refresh does. */
     private val messages = Collections.synchronizedList(mutableListOf<String>())
+
+    /** The changes kept as done, told before an operation has finished following them. */
+    private val kept = Collections.synchronizedList(mutableListOf<String>())
 
     private val workspaces by lazy { temp.newFolder("files", "workspaces").canonicalFile }
     private val phone by lazy { temp.newFolder("emulated", "0").canonicalFile }
@@ -107,7 +112,12 @@ class FileOperationsTest {
 
     @Before fun listen() {
         BackendLog.writer = { _, _, _ -> }
-        scope.launch(Dispatchers.Unconfined) { stateHolder.effects.collect { effect -> effect.said()?.let { messages += it.title } } }
+        scope.launch(Dispatchers.Unconfined) {
+            stateHolder.effects.collect { effect ->
+                val notice = (effect as? ICodeEffect.Told)?.notice ?: return@collect
+                if (notice.keep == NoticeKeep.Done) kept += notice.title else messages += notice.title
+            }
+        }
     }
 
     @After fun stop() {
@@ -296,7 +306,7 @@ class FileOperationsTest {
         assertFalse(note.exists())
         val item = stateHolder.current.explorer.trash.single()
         assertEquals("Moved note.md to Trash", undo)
-        assertTrue("kept on the Notifications page too", "Moved note.md to Trash" in messages)
+        assertTrue("kept on the Notifications page too", "Moved note.md to Trash" in kept)
         File(app, "a").deleteRecursively()
         perform(FilesIntent.Restore(listOf(item.id)))
         assertEquals("kept", note.readText())

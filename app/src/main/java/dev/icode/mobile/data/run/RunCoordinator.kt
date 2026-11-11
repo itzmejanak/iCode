@@ -16,6 +16,7 @@ import dev.icode.mobile.domain.ManagedProcess
 import dev.icode.mobile.domain.RunConfiguration
 import dev.icode.mobile.domain.RunRecord
 import dev.icode.mobile.domain.RunRules
+import dev.icode.mobile.domain.notices.RunNotices
 import java.io.File
 import java.io.IOException
 import kotlinx.coroutines.CoroutineScope
@@ -85,13 +86,13 @@ internal class RunCoordinator(
             is ICodeIntent.SaveRunCommand -> workspace?.let {
                 scope.launch {
                     runCatching { saveCommand(it, intent.id, intent.name, intent.command) }
-                        .onFailure { error -> stateHolder.report("run", "Unable to save the command", error) }
+                        .onFailure { error -> stateHolder.tell(RunNotices.commandNotSaved(stateHolder.current, intent.name), "run", error) }
                 }
             }
             is ICodeIntent.DeleteRunCommand -> workspace?.let {
                 scope.launch {
                     runCatching { deleteCommand(it, intent.id) }
-                        .onFailure { error -> stateHolder.report("run", "Unable to delete the command", error) }
+                        .onFailure { error -> stateHolder.tell(RunNotices.commandNotDeleted(stateHolder.current), "run", error) }
                 }
             }
         }

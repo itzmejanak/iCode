@@ -3,7 +3,7 @@ package dev.icode.mobile.data.search
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.ContentSearchState
 import dev.icode.mobile.domain.IndexedFile
-import dev.icode.mobile.domain.notices.NoticeTone
+import dev.icode.mobile.domain.notices.SearchNotices
 import dev.icode.mobile.domain.SearchEngineState
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicInteger
@@ -82,7 +82,7 @@ internal class SearchCoordinator(
         val root = activeRoot()
         val normalized = query.trim()
         if (root == null) {
-            scope.launch { stateHolder.notify(NoticeTone.HeadsUp, "Open a workspace before searching") }
+            scope.launch { stateHolder.tell(SearchNotices.openWorkspaceFirst()) }
             return
         }
         if (normalized.isBlank()) {

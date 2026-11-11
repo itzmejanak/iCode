@@ -416,6 +416,21 @@ class GitTransferCoordinatorTest {
         assertFalse(NoticeRules.rings(pulled))
     }
 
+    @Test fun `a pull still says where it ran after another workspace was opened, and says less than it cannot know`() = runBlocking {
+        val harness = Harness(this, FakeTransfers().apply { between = 3 })
+        harness.stateHolder.update {
+            it.copy(activeWorkspace = "app", activeWorkspaceLocation = root, gitRepository = repository(upstream = "origin/feature").copy(lastCommit = commit("aaaaaaaaaaaa")))
+        }
+        // Opened meanwhile: what is read afterwards is the other workspace's.
+        harness.refreshed = { it.copy(activeWorkspace = "other", activeWorkspaceLocation = "/w/other", gitRepository = null) }
+
+        val pulled = toldWhile(harness) { harness.coordinator.pull()?.join() }.single()
+
+        assertEquals("app · feature → origin/feature", pulled.place?.line)
+        assertEquals("Pulled into feature", pulled.title)
+        assertTrue("nothing counted against another workspace", harness.git.counted.isEmpty())
+    }
+
     @Test fun `a pull that brought nothing says the branch is up to date, and one Git cannot count says less`() = runBlocking {
         val harness = Harness(this, FakeTransfers())
         harness.stateHolder.update { it.copy(gitRepository = repository(upstream = "origin/feature")) }

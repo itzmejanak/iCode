@@ -79,7 +79,7 @@ internal sealed interface NotificationLink {
         fun read(intent: Intent?): NotificationLink? = when (intent?.action) {
             ACTION_SESSION -> intent.getStringExtra(EXTRA_SESSION)?.let(::Session)
             ACTION_WORK -> BackgroundPlace.decode(intent.getStringExtra(EXTRA_WORK))?.let(::Work)
-            ACTION_NOTICE -> Notice(intent.getStringExtra(EXTRA_NOTICE), intent.getBooleanExtra(EXTRA_ACT, false))
+            ACTION_NOTICE -> NotificationLink.Notice(intent.getStringExtra(EXTRA_NOTICE), intent.getBooleanExtra(EXTRA_ACT, false))
             else -> null
         }
     }

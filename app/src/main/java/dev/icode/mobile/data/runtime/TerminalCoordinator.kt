@@ -6,7 +6,6 @@ import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.ManagedProcess
 import dev.icode.mobile.domain.notices.NoticePlace
 import dev.icode.mobile.domain.notices.NoticePlaces
-import dev.icode.mobile.domain.notices.NoticeTone
 import dev.icode.mobile.domain.notices.TerminalNotices
 import dev.icode.mobile.domain.TerminalSettings
 import dev.icode.mobile.domain.TerminalSnapshot
@@ -21,7 +20,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /** A tab removed because its shell exited by itself. */
-internal data class TerminalEnding(val id: String, val title: String, val exitCode: Int)
+internal data class TerminalEnding(val id: String, val title: String, val exitCode: Int, val workspace: String? = null)
 
 /** A command that ran long ([FinishedCommand.long]) in session [id], ended. */
 internal data class LongCommandEnded(val id: String, val program: String, val durationMillis: Long)
@@ -98,7 +97,7 @@ internal class TerminalCoordinator(
         // other code is said once, so a shell that failed on its own is not silent.
         scope.launch {
             terminals.endings.collect { ending ->
-                if (ending.exitCode != 0) stateHolder.notify(NoticeTone.Info, "${ending.title} exited with code ${ending.exitCode}")
+                if (ending.exitCode != 0) stateHolder.tell(TerminalNotices.exited(ending.title, ending.exitCode, ending.workspace?.let(::placeOf)))
             }
         }
         scope.launch {
@@ -127,19 +126,14 @@ internal class TerminalCoordinator(
     private suspend fun tellFinished(ended: LongCommandEnded) {
         if (terminals.lookingAt.value == ended.id) return
         val (tab, workspace) = withContext(main) { terminals.snapshot.value.sessions.firstOrNull { it.id == ended.id }?.title to terminals.workspaceOf(ended.id) }
-        val where = workspace?.let { NoticePlaces.of(stateHolder.current, it, inside = false) } ?: NoticePlace(NoticePlaces.RUNTIME)
+        val where = workspace?.let(::placeOf) ?: NoticePlace(NoticePlaces.RUNTIME)
         stateHolder.tell(TerminalNotices.finished(ended.program, ended.durationMillis, where.copy(subject = tab), ended.id, alert = finishAlerts))
     }
 
     /** "+": always a new session, in the open workspace. */
     suspend fun open() {
-        if (!runtimeInstalled()) {
-            stateHolder.notify(NoticeTone.HeadsUp, "Install the Linux runtime before opening a terminal")
-            return
-        }
-        if (terminals.open(activeRoot(), reuseExisting = false) == null) {
-            stateHolder.notify(NoticeTone.Problem, "Unable to start a terminal session")
-        }
+        if (!runtimeInstalled()) return stateHolder.tell(TerminalNotices.needsRuntime())
+        if (terminals.open(activeRoot(), reuseExisting = false) == null) stateHolder.tell(TerminalNotices.notStarted(NoticePlaces.workspace(stateHolder.current)))
     }
 
     /** A new session in the open workspace with [command] typed at its prompt, as the user would type it; false when none opened. */
@@ -158,13 +152,8 @@ internal class TerminalCoordinator(
      * a panel drawn twice, or drawn while "Open Terminal" runs, meet in one shell.
      */
     suspend fun ensure() {
-        if (!runtimeInstalled()) {
-            stateHolder.notify(NoticeTone.HeadsUp, "Install the Linux runtime before opening a terminal")
-            return
-        }
-        if (terminals.open(activeRoot(), reuseExisting = true) == null) {
-            stateHolder.notify(NoticeTone.Problem, "Unable to start a terminal session")
-        }
+        if (!runtimeInstalled()) return stateHolder.tell(TerminalNotices.needsRuntime())
+        if (terminals.open(activeRoot(), reuseExisting = true) == null) stateHolder.tell(TerminalNotices.notStarted(NoticePlaces.workspace(stateHolder.current)))
     }
 
     /** The workspace [location] was opened for its terminal: its running session, or a new one. */
@@ -172,7 +161,7 @@ internal class TerminalCoordinator(
         if (!runtimeInstalled()) return
         runCatching { terminals.open(location, reuseExisting = true) }
             .onSuccess { stateHolder.update { it.copy(terminal = terminals.snapshot.value) } }
-            .onFailure { error -> stateHolder.report("terminal", "Unable to start terminal", error) }
+            .onFailure { error -> stateHolder.tell(TerminalNotices.notStarted(placeOf(location)), "terminal", error) }
     }
 
     /** Whether a session opened in [location], or in a folder inside it, still runs. */
@@ -191,9 +180,9 @@ internal class TerminalCoordinator(
      * already following it, else a new one — in the workspace it runs in.
      */
     suspend fun showOutput(process: ManagedProcess, log: String) {
-        if (!runtimeInstalled()) return stateHolder.notify(NoticeTone.HeadsUp, "Install the Linux runtime before opening a terminal")
+        if (!runtimeInstalled()) return stateHolder.tell(TerminalNotices.needsRuntime())
         val id = terminals.follow(FollowedOutput(process.id, process.name, process.workspace, log))
-            ?: return stateHolder.notify(NoticeTone.Problem, "Unable to show ${process.name}'s output")
+            ?: return stateHolder.tell(TerminalNotices.outputNotShown(process.name, placeOf(process.workspace)))
         show(id)
     }
 
@@ -209,9 +198,12 @@ internal class TerminalCoordinator(
             terminals.workspaceOf(id) ?: ""
         }
         when (workspace) {
-            null -> stateHolder.notify(NoticeTone.HeadsUp, "That terminal session has ended")
+            null -> stateHolder.tell(TerminalNotices.ended())
             "" -> stateHolder.emit(ICodeEffect.WorkspaceTerminalOpened(activeRoot().orEmpty()))
             else -> openWorkspaceTerminal(workspace)
         }
     }
+
+    /** A workspace, by where it is: its name, when it is one. */
+    private fun placeOf(workspace: String) = NoticePlaces.of(stateHolder.current, workspace, inside = false)
 }

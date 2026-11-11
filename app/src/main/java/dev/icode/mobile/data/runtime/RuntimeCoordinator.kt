@@ -4,7 +4,8 @@ import android.content.Context
 import dev.icode.mobile.data.log.BackendLog
 import dev.icode.mobile.data.system.AndroidSystemAccess
 import dev.icode.mobile.data.workspace.ICodeStateHolder
-import dev.icode.mobile.domain.notices.NoticeTone
+import dev.icode.mobile.domain.notices.NoticeRules
+import dev.icode.mobile.domain.notices.RuntimeNotices
 import dev.icode.mobile.domain.RuntimeInstallReason
 import dev.icode.mobile.domain.RuntimeInstallStep
 import dev.icode.mobile.domain.RuntimeState
@@ -86,11 +87,11 @@ internal class RuntimeCoordinator(
     suspend fun install(reason: RuntimeInstallReason): Boolean {
         if (installing || stateHolder.current.runtime is RuntimeState.Downloading ||
             stateHolder.current.runtime is RuntimeState.Installing) {
-            stateHolder.notify(NoticeTone.HeadsUp, "Runtime installation is already running")
+            stateHolder.tell(RuntimeNotices.busy())
             return false
         }
         if (reason != RuntimeInstallReason.Initial && sessionsRunning()) {
-            stateHolder.notify(NoticeTone.HeadsUp, "Close running terminal sessions, language services and processes before rebuilding the runtime")
+            stateHolder.tell(RuntimeNotices.closeFirst())
             return false
         }
         val label = when (reason) {
@@ -105,6 +106,7 @@ internal class RuntimeCoordinator(
         ) }
         // The Installing state above is background work: the foreground service keeps the
         // process while it lasts (docs/long-operations-plan.md §6).
+        val began = System.currentTimeMillis()
         installJob = scope.launch {
             try {
                 RuntimeInstaller(appContext, layout).install(reason).collect { state ->
@@ -118,17 +120,18 @@ internal class RuntimeCoordinator(
                             runtimeTools = it.runtimeTools.copy(offerPending = built && layout.toolsOffer.exists()),
                         )
                     }
-                    if (state is RuntimeState.Failed) {
-                        stateHolder.failed(INSTALL_FAILED, state.reason)
+                    if (state is RuntimeState.Failed) stateHolder.tell(RuntimeNotices.notInstalled(reason, state.reason))
+                    if (state is RuntimeState.Ready) {
+                        refreshDetails()
+                        stateHolder.tell(RuntimeNotices.installed(reason, away = System.currentTimeMillis() - began >= NoticeRules.LONG_WORK_MILLIS))
                     }
-                    if (state is RuntimeState.Ready) refreshDetails()
                 }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
                 val message = stateHolder.failureText("runtime", INSTALL_FAILED, error)
                 stateHolder.update { it.copy(runtime = RuntimeState.Failed(message), runtimeHealthy = false) }
-                stateHolder.failed(INSTALL_FAILED, message)
+                stateHolder.tell(RuntimeNotices.notInstalled(reason, message))
             }
         }
         return true

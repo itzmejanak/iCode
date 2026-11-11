@@ -20,9 +20,12 @@ object TerminalNotices {
         )
     }
 
-    /** A shell that exited with an error. */
+    /** A shell that exited with an error: kept, quietly, as what happened. */
     fun exited(tab: String, code: Int, place: NoticePlace?) =
         Notice(NoticeTone.Info, NoticeSource.Terminal, "$tab ended with exit code $code", place)
+
+    fun outputNotShown(process: String, place: NoticePlace?) =
+        Notice(NoticeTone.Problem, NoticeSource.Terminal, "Couldn't show $process's output", place)
 
     /**
      * A command that ran [millis] ended, "npm finished after 2 min" — its exit status is not known, so

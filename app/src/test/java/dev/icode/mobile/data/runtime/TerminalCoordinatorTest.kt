@@ -114,14 +114,14 @@ class TerminalCoordinatorTest {
     @Test fun `without the runtime nothing is opened`() = runBlocking {
         val harness = Harness(installed = false)
         val effect = harness.nextEffect { harness.coordinator.open() }
-        assertEquals(Said(NoticeTone.HeadsUp, "Install the Linux runtime before opening a terminal"), effect.said())
+        assertEquals(Said(NoticeTone.HeadsUp, "Install the Linux runtime first", "Terminal sessions run in it."), effect.said())
         assertTrue(harness.sessions.calls.isEmpty())
     }
 
     @Test fun `a session that could not start is said`() = runBlocking {
         val harness = Harness().apply { sessions.opened = null }
         val effect = harness.nextEffect { harness.coordinator.open() }
-        assertEquals(Said(NoticeTone.Problem, "Unable to start a terminal session"), effect.said())
+        assertEquals(Said(NoticeTone.Problem, "Couldn't start a terminal session"), effect.said())
     }
 
     @Test fun `a workspace opened for its terminal reuses its running session`() = runBlocking {
@@ -183,7 +183,7 @@ class TerminalCoordinatorTest {
             assertEquals(settings, harness.sessions.applied)
 
             val effect = harness.nextEffect { harness.sessions.endings.emit(TerminalEnding("session-1", "bash", 3)) }
-            assertEquals(Said(NoticeTone.Info, "bash exited with code 3"), effect.said())
+            assertEquals(Said(NoticeTone.Info, "bash ended with exit code 3"), effect.said())
 
             harness.sessions.workspaces["session-1"] = root
             harness.sessions.workspaces["session-2"] = "/storage/emulated/0/other"

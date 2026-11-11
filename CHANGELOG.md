@@ -170,6 +170,27 @@ All notable changes to iCode are documented here. The format follows
   touch or anything new brings it out.
 
 ### Changed
+- Notifications say what happened and where ([docs/notices-redesign-plan.md](docs/notices-redesign-plan.md)).
+  Every notice names its workspace, and its repository, branch, folder or terminal tab where they
+  matter, on the Notifications page and in the header of Android's notification. A pull says how
+  many commits it brought into which branch; a push, a fetch, a clone and a commit say what they did.
+  A failure says what couldn't be done ("Couldn't pull into main") and why when iCode knows, with
+  Git's or the tool's own words folded under it and a next step such as Pull or Try Again.
+- What you do is kept. Each file change (moved to Trash, copied, renamed, made, undone, redone), a
+  Delete for good, a save, a finished install or Git transfer stays on the Notifications page, apart
+  from what needs you, with Undo while it can still be undone. It never rings the bell.
+- The undo pill shows the change and where before anything is undone: a tap opens it, with Undo and
+  Redo. A tap alone no longer undoes.
+- The Notifications page filters by All, Needs you and Done, and by place; Clear all clears what the
+  filter shows. The same notice told again soon after shows once, with how many times. When
+  Android's notifications are off for iCode, the page says so, with Turn On.
+- Android's notification channels are grouped as Running, Needs you and Updates. Task failures are
+  now in Problems. Work that ran 30 seconds or more and ended while iCode was out of view — a long
+  command, a Git transfer, a clone, a runtime install, an assistant turn — sounds once in the new
+  Finished channel, with no pop-up. A runtime install that fails is posted once, and a notification
+  you swipe away stays away.
+- iCode's own fetch, when a workspace opens or iCode comes back, says nothing when it works, and a
+  failure once, quietly, on the Notifications page only.
 - Each workspace tool keeps its own history. Going to a tool shows it as you left it, never a
   second copy. Back first goes back inside the tool, then to the tool you used before, then to the
   Launcher, then leaves iCode. What a tool holds, such as a commit message being written, stays

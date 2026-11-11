@@ -2,7 +2,7 @@ package dev.icode.mobile.data.voice.speech
 
 import dev.icode.mobile.data.workspace.ICodeStateHolder
 import dev.icode.mobile.domain.AssistantProviderKind
-import dev.icode.mobile.domain.notices.NoticeTone
+import dev.icode.mobile.domain.notices.VoiceNotices
 import dev.icode.mobile.domain.SpeechIntent
 import dev.icode.mobile.domain.voice.SpeechFailure
 import dev.icode.mobile.domain.voice.SpeechProvider
@@ -115,7 +115,7 @@ internal class SpeechProviders(
     }
 
     private fun Result<SpeechProvider>.said() = onFailure { failure ->
-        scope.launch { stateHolder.notify(NoticeTone.HeadsUp, failure.message ?: "The speech provider was not saved") }
+        scope.launch { stateHolder.tell(VoiceNotices.providerRefused(failure.message)) }
     }
 
     private fun refuse(words: String): Nothing = throw IllegalArgumentException(words)
