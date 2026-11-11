@@ -641,14 +641,15 @@ are met; A8 is left for the owner.
   stops). Not yet seen on the owner's phone. Of the presets, clangd and the TypeScript server offer
   tokens as installed; gopls offers them only with its `semanticTokens` setting on, and pyright and
   pylsp offer none (pyright 1.1.414's `initialize` answer has no `semanticTokensProvider`; Python's
-  semantic colours are a Pylance feature, which basedpyright reimplements). Tests: 1 725, up from 1 707.
+  semantic colours are a Pylance feature, which basedpyright reimplements). Tests: 1 727, up from 1 707
+  (two of them, for the refresh request and a null `resultId`, added by the fixes after review).
 - S8: docs. §1.3 says what stands now and §5 which acceptance criteria are met.
   `editor-colors-plan.md`, `editor-plan.md`, `markdown-rendering-plan.md`, `lsp-plan.md`,
   `layout.md` and the provenance doc's opening no longer describe `TextMateAssets`, eager loading or
   `textMateRuns` as current; the CHANGELOG's Unreleased lines cover what users see.
   Totals over S1 to S7: languages 42 to 357; grammar assets 3 722 144 bytes in 79 files to
   15 933 591 in 554; release APK 20 606 010 bytes (built at 0d465ce, before S6 added grammars) to
-  22 397 528 at 600e120, debug 110 808 662 to 113 924 096; JVM tests 1 653 before S1 to 1 725. Every
+  22 397 528 at 600e120, debug 110 808 662 to 113 924 096; JVM tests 1 653 before S1 to 1 727. Every
   gate failed only `TreeSizeTest` (the build sandbox runs as root) and lint's `NonObservableLocale`
   at `SpeechProviderParts.kt:80`, both known before S1.
 
@@ -669,6 +670,10 @@ On the owner's phone, since no device was available to the build:
   colours until about 0.5 s after typing stops, with no flicker elsewhere; a large file with tokens
   scrolls smoothly; turning the setting off restores the grammar's colours at once; pyright and
   pylsp, which offer no tokens, change nothing; gopls with `semanticTokens` on colours sensibly.
+- S7's refresh: open a C or C++ file in a project clangd is still indexing, and check that its
+  semantic colours appear once indexing finishes, without editing the file. No test covers the
+  `IcodeApp` collector that passes a server's `workspace/semanticTokens/refresh` to the open
+  editors.
 
 For the owner to decide:
 
@@ -678,7 +683,9 @@ For the owner to decide:
 - gopls sends tokens only with its `semanticTokens` setting on. Should the gopls preset turn it on?
 - A Dockerfile whose `# escape=` directive picks the backtick: its continued lines colour as new
   instructions (recorded in the provenance doc). Is that gap acceptable, or should the grammar
-  carry a second set of instruction rules for it?
+  carry a second set of instruction rules for it, entered at the directive? If so, should
+  `tools/import-grammars.py` derive that set from the backslash rules, so that no one writes or
+  maintains the copies by hand?
 
 Left as they are, each with its reason in its cycle above:
 
@@ -701,3 +708,7 @@ Left as they are, each with its reason in its cycle above:
 - The MIT, BSD and Apache notice texts are not bundled per grammar, as before this plan; the
   provenance doc records each grammar's source and licence (S6, part 1).
 - Servers that offer only range semantic tokens are not asked (S7).
+- A server's `workspace/semanticTokens/refresh` makes every open editor ask its own server again,
+  not only the files that server serves, so with several servers running each refresh costs one
+  request per open file. Passing the session through and asking only that server's files would
+  avoid it (S7).

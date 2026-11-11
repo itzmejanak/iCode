@@ -368,8 +368,10 @@ KEPT = {
         "keys and values, EXPOSE ports and protocols, `$VAR` and `${VAR:-default}`, parser directives, heredocs, the exec "
         "form's JSON array), and the shell form of RUN, CMD, ENTRYPOINT and HEALTHCHECK CMD, and RUN heredocs, embed "
         "`source.shell`. Known gap: a line continues only after a backslash, so in a file whose `# escape=` directive picks the backtick "
-        "each line continued with a backtick is read as a new instruction (a grammar cannot carry the directive "
-        "through the file, and taking a backtick everywhere would break the shell's own backticks at a line's end)"),
+        "each line continued with a backtick is read as a new instruction. Taking a backtick everywhere would break "
+        "the shell's own backticks at a line's end; the fix is a rule that begins at the directive and never ends, "
+        "holding a second set of every instruction rule with the backtick in place of the backslash, which this "
+        "script could derive from the backslash rules rather than have it written by hand)"),
     "textmate/dotenv/syntaxes/dotenv.tmLanguage.json": (
         "iCode's grammar, written from dotenv-org's (which reads each line with one pattern): a value may be unquoted, "
         "single-, double- or backtick-quoted, and quoted values may span lines; an unquoted number is a number and "
