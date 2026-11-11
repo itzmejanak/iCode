@@ -44,7 +44,8 @@ internal class NoticeNotifications(private val context: Context, private val sha
         val problem = notice.tone == NoticeTone.Problem
         return shade.builder(channelOf(notice, screenVisible), place = notice.place?.line)
             .setContentTitle(notice.title)
-            .apply { notice.detail?.let { setContentText(it).setStyle(Notification.BigTextStyle().bigText(it)) } }
+            // Why, or — with nothing more to say — the error's own words.
+            .apply { (notice.detail ?: notice.output)?.let { setContentText(it).setStyle(Notification.BigTextStyle().bigText(it)) } }
             .setCategory(if (problem) Notification.CATEGORY_ERROR else Notification.CATEGORY_STATUS)
             .setWhen(notice.at)
             .setShowWhen(true)

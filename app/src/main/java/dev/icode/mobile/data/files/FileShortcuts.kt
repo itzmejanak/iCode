@@ -11,6 +11,8 @@ import dev.icode.mobile.domain.files.FavoriteFolder
 import dev.icode.mobile.domain.files.FileStep
 import dev.icode.mobile.domain.files.StorageInsights
 import dev.icode.mobile.domain.files.StoragePlace
+import dev.icode.mobile.domain.notices.FileNotices
+import dev.icode.mobile.domain.notices.Notice
 import java.io.File
 
 /**
@@ -30,14 +32,14 @@ internal class FileShortcuts(
     private val lock = Any()
 
     /** [location] opened, or saved: Recent's top. */
-    suspend fun opened(location: String) = change("Recent files could not be saved") {
+    suspend fun opened(location: String) = change(FileNotices.recentNotKept()) {
         store.updateRecentDocuments { touchRecentDocument(it, StoredRecentDocument(location, clock()), paths::workspaceOf) }
     }
 
     suspend fun handle(intent: FilesIntent.Shortcut) {
         when (intent) {
             is FilesIntent.Opened -> opened(intent.location)
-            is FilesIntent.Favorite -> change("Favorites could not be saved") {
+            is FilesIntent.Favorite -> change(FileNotices.favoritesNotKept()) {
                 store.updateFavorites { pinned -> (pinned - intent.location).let { if (intent.pinned) it + intent.location else it } }
             }
         }
@@ -74,8 +76,8 @@ internal class FileShortcuts(
         stateHolder.update { it.copy(explorer = it.explorer.copy(recent = recent, favorites = favorites)) }
     }
 
-    private suspend fun change(failure: String, write: () -> Unit) {
-        runCatching { synchronized(lock, write) }.onFailure { error -> stateHolder.report("files", failure, error) }
+    private suspend fun change(failed: Notice, write: () -> Unit) {
+        runCatching { synchronized(lock, write) }.onFailure { error -> stateHolder.tell(failed, "files", error) }
         publish()
     }
 }

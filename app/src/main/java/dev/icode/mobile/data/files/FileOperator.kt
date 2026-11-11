@@ -3,7 +3,8 @@ package dev.icode.mobile.data.files
 import dev.icode.mobile.data.io.measureTree
 import dev.icode.mobile.data.tasks.TaskRunner
 import dev.icode.mobile.data.workspace.ICodeStateHolder
-import dev.icode.mobile.domain.notices.NoticeTone
+import dev.icode.mobile.domain.notices.FileNotices
+import dev.icode.mobile.domain.notices.NoticePlaces
 import dev.icode.mobile.domain.files.FileStep
 import dev.icode.mobile.domain.files.TrashedItem
 import java.io.File
@@ -35,7 +36,7 @@ internal class FileOperator(
         if (!crossing) progress.item(File(from).name)
         val reopen = locked { follower.leaving(from) }
         try {
-            if (crossing) said(transfers.carry(File(from), File(to), cut = true, progress).summary(cut = true))
+            if (crossing) said(transfers.carry(File(from), File(to), cut = true, progress).summary(cut = true), to)
             else places.of(from).move(from, to)
         } catch (stopped: Throwable) {
             locked { follower.stayed(from, reopen) }
@@ -47,7 +48,7 @@ internal class FileOperator(
 
     /** [from] copied as [to], in its place or into the other. */
     suspend fun copy(from: String, to: String, progress: TaskRunner.Progress): FileStep.Made {
-        if (transfers.crosses(from, to)) said(transfers.carry(File(from), File(to), cut = false, progress).summary(cut = false))
+        if (transfers.crosses(from, to)) said(transfers.carry(File(from), File(to), cut = false, progress).summary(cut = false), to)
         else places.of(from).copy(from, to, progress::item)
         return FileStep.Made(to)
     }
@@ -104,9 +105,9 @@ internal class FileOperator(
     fun isEmptyFolder(location: String): Boolean =
         Files.isDirectory(File(location).toPath(), LinkOption.NOFOLLOW_LINKS) && File(location).list()?.isEmpty() == true
 
-    /** What a transfer could not carry, said once it is done. */
-    private suspend fun said(summary: String?) {
-        summary?.let { stateHolder.notify(NoticeTone.HeadsUp, it) }
+    /** What a transfer to [to] could not carry, said once it is done, where it went. */
+    private suspend fun said(summary: String?, to: String) {
+        summary?.let { stateHolder.tell(FileNotices.headsUp(it, NoticePlaces.of(stateHolder.current, to))) }
     }
 
     /** What follows a change, under the mutation lock: done even when the task is stopped meanwhile. */

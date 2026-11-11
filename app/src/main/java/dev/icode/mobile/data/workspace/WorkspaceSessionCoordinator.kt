@@ -8,7 +8,7 @@ import dev.icode.mobile.data.search.SearchCoordinator
 import dev.icode.mobile.domain.ContentSearchState
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeIntent
-import dev.icode.mobile.domain.notices.NoticeTone
+import dev.icode.mobile.domain.notices.WorkspaceNotices
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.BufferOverflow
@@ -67,7 +67,7 @@ internal class WorkspaceSessionCoordinator(
         announce: Boolean = true,
     ) {
         if (!source.isWorkspace(location)) {
-            stateHolder.notify(NoticeTone.HeadsUp, "This workspace no longer exists")
+            stateHolder.tell(WorkspaceNotices.gone(location))
             library.refresh()
             return
         }
@@ -122,7 +122,7 @@ internal class WorkspaceSessionCoordinator(
             }
         }.onFailure { error ->
             library.refresh()
-            stateHolder.report("workspace", "Unable to open the workspace", error)
+            stateHolder.tell(WorkspaceNotices.notOpened(location), "workspace", error)
         }
     }
 
@@ -194,7 +194,7 @@ internal class WorkspaceSessionCoordinator(
         val root = activeRoot
         if (root == null || source.workspaceOf(location) != root) {
             val home = library.workspaceHolding(location) ?: run {
-                stateHolder.notify(NoticeTone.HeadsUp, "${File(location).name} is outside iCode's workspaces: import its folder, or discard the draft")
+                stateHolder.tell(WorkspaceNotices.draftOutside(location))
                 return
             }
             open(home, persist = true)
@@ -287,7 +287,7 @@ internal class WorkspaceSessionCoordinator(
             }
             documents.reconcileWithDisk()
         }.onFailure { error ->
-            stateHolder.report("workspace", "Unable to refresh workspace", error)
+            stateHolder.tell(WorkspaceNotices.notRefreshed(stateHolder.current, root), "workspace", error)
         }
     }
 

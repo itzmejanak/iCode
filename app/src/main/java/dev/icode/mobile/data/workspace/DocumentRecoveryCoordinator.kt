@@ -1,6 +1,6 @@
 package dev.icode.mobile.data.workspace
 
-import dev.icode.mobile.domain.notices.NoticeTone
+import dev.icode.mobile.domain.notices.EditorNotices
 import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.domain.RecoverableDraft
 import dev.icode.mobile.domain.ICodeEffect
@@ -65,7 +65,7 @@ internal class DocumentRecoveryCoordinator(
                 stateHolder.update { it.copy(recoverableDrafts = drafts) }
             }
         }.onFailure { error ->
-            stateHolder.report("documents", "Unable to read the recovery drafts", error)
+            stateHolder.tell(EditorNotices.draftsUnread(), "documents", error)
         }
     }
 
@@ -138,7 +138,7 @@ internal class DocumentRecoveryCoordinator(
                 }
             }
         }.onFailure { error ->
-            stateHolder.report("documents", "Unable to keep a recovery draft", error)
+            stateHolder.tell(EditorNotices.draftNotKept(stateHolder.current, location), "documents", error)
         }
     }
 
@@ -151,7 +151,7 @@ internal class DocumentRecoveryCoordinator(
         val draft = draftMutex.withLock { draftStore.read(location) } ?: return
         val document = stateHolder.current.openDocuments.firstOrNull { it.location == location } ?: return
         if (document.dirty) {
-            stateHolder.notify(NoticeTone.HeadsUp, "This document has newer edits. Save or discard them before restoring a draft")
+            stateHolder.tell(EditorNotices.newerEditsFirst(stateHolder.current, location))
             return
         }
         val sourceDocument = sourceOf(location) ?: return
@@ -170,7 +170,7 @@ internal class DocumentRecoveryCoordinator(
     /** "Keep disk version": the draft goes and the file opens for editing again. */
     suspend fun keepDiskVersion(location: String) {
         if (stateHolder.current.openDocuments.firstOrNull { it.location == location }?.dirty == true) {
-            stateHolder.notify(NoticeTone.HeadsUp, "This document has new edits; close or save them before discarding recovery")
+            stateHolder.tell(EditorNotices.newEditsFirst(stateHolder.current, location))
             return
         }
         discard(location)
@@ -225,7 +225,7 @@ internal class DocumentRecoveryCoordinator(
                 }
             }
         }.onFailure { error ->
-            stateHolder.report("documents", "File saved, but recovery cache could not update", error)
+            stateHolder.tell(EditorNotices.draftNotUpdated(stateHolder.current, location), "documents", error)
         }
     }
 

@@ -5,7 +5,9 @@ import dev.icode.mobile.data.files.FilePlaces
 import dev.icode.mobile.data.runtime.GuestPaths
 import dev.icode.mobile.domain.ICodeEffect
 import dev.icode.mobile.domain.ICodeIntent
-import dev.icode.mobile.domain.notices.NoticeTone
+import dev.icode.mobile.domain.notices.FileNotices
+import dev.icode.mobile.domain.notices.Notice
+import dev.icode.mobile.domain.notices.NoticePlaces
 import dev.icode.mobile.domain.WorkspaceNameRules
 import dev.icode.mobile.domain.files.FileStep
 import dev.icode.mobile.domain.files.FileWords
@@ -36,30 +38,30 @@ internal class WorkspaceItemsCoordinator(
      * menu's, the file explorer's. Made in the open workspace, it opens in the editor.
      */
     suspend fun createFile(intent: ICodeIntent.CreateFile) {
-        val parent = intent.parentLocation ?: activeRoot() ?: return fail(intent.requestId, "Open a workspace before creating a file")
+        val parent = intent.parentLocation ?: activeRoot() ?: return fail(intent.requestId, "Open a workspace before creating a file", near = null)
         val root = creationRoot(parent, intent.expectedWorkspace, intent.requestId) ?: return
         val name = intent.name.trim()
-        WorkspaceNameRules.fileValidationError(name)?.let { return fail(intent.requestId, it) }
+        WorkspaceNameRules.fileValidationError(name)?.let { return fail(intent.requestId, it, parent, inside = false) }
         runCatching { places.of(parent).create(parent, name, isFolder = false).path }
             .onSuccess { location ->
                 made(location, name, folder = false)
                 if (intent.requestId != null) stateHolder.emit(ICodeEffect.WorkspaceItemChanged(intent.requestId, location))
                 if (root == activeRoot()) documents.open(location)
             }
-            .onFailure { error -> failed(intent.requestId, "Unable to create file", error) }
+            .onFailure { error -> failed(intent.requestId, FileNotices.notMade(name, placeOf(parent, inside = false)), error) }
     }
 
     /** A new folder in any workspace's folder, or on phone storage. */
     suspend fun createFolder(intent: ICodeIntent.CreateWorkspaceFolder) {
         creationRoot(intent.parentLocation, intent.expectedWorkspace, intent.requestId) ?: return
         val name = intent.name.trim()
-        WorkspaceNameRules.workspaceFolderValidationError(name)?.let { return fail(intent.requestId, it) }
+        WorkspaceNameRules.workspaceFolderValidationError(name)?.let { return fail(intent.requestId, it, intent.parentLocation, inside = false) }
         runCatching { places.of(intent.parentLocation).create(intent.parentLocation, name, isFolder = true).path }
             .onSuccess { location ->
                 made(location, name, folder = true)
                 stateHolder.emit(ICodeEffect.WorkspaceItemChanged(intent.requestId, location))
             }
-            .onFailure { error -> failed(intent.requestId, "Unable to create folder", error) }
+            .onFailure { error -> failed(intent.requestId, FileNotices.notMade(name, placeOf(intent.parentLocation, inside = false)), error) }
     }
 
     /**
@@ -71,8 +73,8 @@ internal class WorkspaceItemsCoordinator(
         if (places.storage.contains(parent)) return places.storage.root.path.takeIf { accessRefusal(parent, requestId) == null }
         val root = source.workspaceOf(parent)
         return when {
-            root == null || !isCreationParent(root, parent) -> null.also { fail(requestId, "Choose a folder inside a workspace") }
-            expectedWorkspace != null && expectedWorkspace != root -> null.also { fail(requestId, "The workspace changed. Choose the folder again") }
+            root == null || !isCreationParent(root, parent) -> null.also { fail(requestId, "Choose a folder inside a workspace", near = null) }
+            expectedWorkspace != null && expectedWorkspace != root -> null.also { fail(requestId, "The workspace changed. Choose the folder again", near = null) }
             else -> root
         }
     }
@@ -80,13 +82,13 @@ internal class WorkspaceItemsCoordinator(
     /** An item renamed in its folder; a whole workspace by the [lifecycle], its settings following. */
     suspend fun rename(intent: ICodeIntent.RenameWorkspaceItem) {
         if (follower.isWorkspace(intent.location)) return lifecycle.rename(intent.location, intent.newName, intent.requestId)
-        if (!places.storage.contains(intent.location) && source.workspaceOf(intent.location) == null) return fail(intent.requestId, "It is not in a workspace")
+        if (!places.storage.contains(intent.location) && source.workspaceOf(intent.location) == null) return fail(intent.requestId, "It is not in a workspace", near = null)
         accessRefusal(intent.location, intent.requestId)?.let { return }
         val name = intent.newName.trim()
         val nameError = if (File(intent.location).isDirectory) WorkspaceNameRules.workspaceFolderValidationError(name)
         else WorkspaceNameRules.fileValidationError(name)
-        nameError?.let { return fail(intent.requestId, it) }
-        usage.holding(intent.location, whole = false)?.let { return fail(intent.requestId, it) }
+        nameError?.let { return fail(intent.requestId, it, intent.location) }
+        usage.holding(intent.location, whole = false)?.let { return fail(intent.requestId, it, intent.location) }
         runCatching { places.of(intent.location).rename(intent.location, name).path }
             .onSuccess { target ->
                 follower.moved(intent.location, target, reopen = null)
@@ -94,7 +96,7 @@ internal class WorkspaceItemsCoordinator(
                 follower.refresh(listOf(intent.location, target))
                 stateHolder.emit(ICodeEffect.WorkspaceItemChanged(intent.requestId, target))
             }
-            .onFailure { error -> failed(intent.requestId, "Unable to rename", error) }
+            .onFailure { error -> failed(intent.requestId, FileNotices.notRenamed(File(intent.location).name, placeOf(intent.location)), error) }
     }
 
     /** What follows a new file or folder: kept to undo, and shown where it was made. */
@@ -109,14 +111,20 @@ internal class WorkspaceItemsCoordinator(
 
     /** Phone storage can be changed only with All Files Access: why not now, told to the sheet; null when it can. */
     private suspend fun accessRefusal(location: String, requestId: String?): String? =
-        places.accessRefusal(listOf(location))?.also { fail(requestId, it) }
+        places.accessRefusal(listOf(location))?.also { fail(requestId, it, location) }
 
-    /** What was refused: to the sheet that asked, by [requestId], else on the bell. */
-    private suspend fun fail(requestId: String?, message: String) =
-        if (requestId == null) stateHolder.notify(NoticeTone.HeadsUp, message) else stateHolder.emit(ICodeEffect.WorkspaceItemFailed(requestId, message))
+    /** What was refused: to the sheet that asked, by [requestId], else on the bell, about [near] (its folder, unless not [inside]). */
+    private suspend fun fail(requestId: String?, message: String, near: String?, inside: Boolean = true) =
+        if (requestId == null) {
+            stateHolder.tell(FileNotices.headsUp(message, near?.let { placeOf(it, inside) }))
+        } else {
+            stateHolder.emit(ICodeEffect.WorkspaceItemFailed(requestId, message))
+        }
 
-    /** What failed: to the sheet that asked, in the error's words, else on the bell as [fallback]. */
-    private suspend fun failed(requestId: String?, fallback: String, error: Throwable) = stateHolder.failureText("workspace", fallback, error).let { words ->
-        if (requestId == null) stateHolder.failed(fallback, words) else stateHolder.emit(ICodeEffect.WorkspaceItemFailed(requestId, words))
+    /** What failed: to the sheet that asked, in the error's words, else on the bell as [notice], those words its output. */
+    private suspend fun failed(requestId: String?, notice: Notice, error: Throwable) = stateHolder.failureText("workspace", notice.title, error).let { words ->
+        if (requestId == null) stateHolder.tell(notice.copy(output = words.takeIf { it != notice.title })) else stateHolder.emit(ICodeEffect.WorkspaceItemFailed(requestId, words))
     }
+
+    private fun placeOf(location: String, inside: Boolean = true) = NoticePlaces.of(stateHolder.current, location, inside)
 }

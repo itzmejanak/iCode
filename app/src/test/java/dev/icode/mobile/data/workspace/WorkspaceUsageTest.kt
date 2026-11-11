@@ -9,6 +9,9 @@ import dev.icode.mobile.domain.LineEnding
 import dev.icode.mobile.domain.OpenDocument
 import dev.icode.mobile.domain.RecoverableDraft
 import dev.icode.mobile.domain.TextEncoding
+import dev.icode.mobile.domain.notices.Notice
+import dev.icode.mobile.domain.notices.NoticeSource
+import dev.icode.mobile.domain.notices.NoticeTone
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
@@ -92,7 +95,7 @@ class WorkspaceUsageTest {
     @Test fun `a task holding it says what it does`() = runBlocking {
         val release = CountDownLatch(1)
         tasks.start(
-            "Deleting…", "src", listOf("$app/src"), cancellable = false, failure = "Unable to delete",
+            "Deleting…", "src", listOf("$app/src"), cancellable = false, failed = Notice(NoticeTone.Problem, NoticeSource.Files, "Couldn't delete src"),
             work = { release.await(5, TimeUnit.SECONDS) }, finished = {},
         )
         val deadline = System.currentTimeMillis() + 5_000

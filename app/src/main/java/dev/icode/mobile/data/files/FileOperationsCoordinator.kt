@@ -13,6 +13,7 @@ import dev.icode.mobile.domain.files.ExplorerSettings
 import dev.icode.mobile.domain.files.FileClipboard
 import dev.icode.mobile.domain.files.FileSelection
 import dev.icode.mobile.domain.files.FileStep
+import dev.icode.mobile.domain.files.FileTask
 import dev.icode.mobile.domain.files.FileWords
 import dev.icode.mobile.domain.files.HeldItem
 import dev.icode.mobile.domain.files.RenameRule
@@ -120,21 +121,21 @@ internal class FileOperationsCoordinator(
     /** Held for Paste; nothing moves yet. */
     private suspend fun hold(locations: List<String>, cut: Boolean) {
         val items = FileSelection.covering(locations).map(::held)
-        items.firstOrNull { !fileExists(it.location) }?.let { return said("${it.name} no longer exists") }
+        items.firstOrNull { !fileExists(it.location) }?.let { return said("${it.name} no longer exists", it.location) }
         clipboard(FileClipboard(items, cut).takeIf { items.isNotEmpty() })
     }
 
     /** [items] into the folder [into]; a cut [pasted] leaves the clipboard once it moved anything. */
     private suspend fun transfer(items: List<HeldItem>, into: String, move: Boolean, pasted: Boolean) {
-        refusals.transfer(items, into, move)?.let { return said(it) }
+        refusals.transfer(items, into, move)?.let { return said(it, items.firstOrNull()?.location) }
         val names = items.map { it.name }
         val locations = items.map { it.location }
         val crossing = locations.any { operator.transfers.crosses(it, into) }
         tasks.run(
-            title = if (move) "Moving…" else "Copying…",
+            task = if (move) FileTask.Move else FileTask.Copy,
             subject = FileWords.subject(names),
             paths = locations + into,
-            failure = "Unable to ${if (move) "move" else "copy"}",
+            into = refusals.nameOf(into),
             counted = locations.takeIf { !move || crossing },
             keep = { steps ->
                 history.record((if (move) FileWords.moved(names, refusals.nameOf(into)) else FileWords.copied(names, refusals.nameOf(into))).copy(steps = steps))
@@ -144,38 +145,38 @@ internal class FileOperationsCoordinator(
     }
 
     private suspend fun duplicate(locations: List<String>) {
-        refusals.copies(locations)?.let { return said(it) }
+        refusals.copies(locations)?.let { return said(it, locations.firstOrNull()) }
         val names = locations.map { File(it).name }
-        tasks.run("Duplicating…", FileWords.subject(names), locations, "Unable to duplicate", counted = locations, keep = tasks.kept(FileWords.duplicated(names))) {
+        tasks.run(FileTask.Duplicate, FileWords.subject(names), locations, counted = locations, keep = tasks.kept(FileWords.duplicated(names))) {
             duplicate(locations)
         }
     }
 
     /** One rule renaming [locations], all in one folder, checked again here against what the folder holds now. */
     private suspend fun renameMany(locations: List<String>, rule: RenameRule) {
-        val folder = locations.map { File(it).parent }.distinct().singleOrNull() ?: return said("Rename items of one folder at a time")
-        refusals.changes(locations)?.let { return said(it) }
+        val folder = locations.map { File(it).parent }.distinct().singleOrNull() ?: return said("Rename items of one folder at a time", locations.firstOrNull())
+        refusals.changes(locations)?.let { return said(it, locations.first()) }
         val sources = locations.map { RenameSource(it, File(it).name, Files.isDirectory(File(it).toPath(), LinkOption.NOFOLLOW_LINKS)) }
         val taken = File(folder).list().orEmpty().toSet() - sources.map { it.name }.toSet()
         val previews = BatchRename.preview(sources, rule, taken, ignoreCase = places.storage.contains(folder))
         val problem = previews.firstNotNullOfOrNull { it.problem } ?: refusals.workspaceNames(folder, previews.filter { it.changes }.map { it.to })
-        if (problem != null || !BatchRename.ready(previews)) return said(problem ?: "Nothing would change")
+        if (problem != null || !BatchRename.ready(previews)) return said(problem ?: "Nothing would change", locations.first())
         val renames = previews.filter { it.changes }.map { it.location to File(folder, it.to).path }
         val words = renames.singleOrNull()?.let { (from, to) -> FileWords.renamed(File(from).name, File(to).name) } ?: FileWords.renamedMany(renames.size)
-        tasks.run("Renaming…", FileWords.subject(renames.map { File(it.first).name }), locations, "Unable to rename", keep = tasks.kept(words)) { rename(renames) }
+        tasks.run(FileTask.Rename, FileWords.subject(renames.map { File(it.first).name }), locations, keep = tasks.kept(words)) { rename(renames) }
     }
 
     private suspend fun trash(locations: List<String>) {
-        refusals.changes(locations)?.let { return said(it) }
+        refusals.changes(locations)?.let { return said(it, locations.firstOrNull()) }
         val names = locations.map { File(it).name }
-        tasks.run("Moving to Trash…", FileWords.subject(names), locations, "Unable to move to Trash", keep = tasks.kept(FileWords.trashed(names))) { trash(locations) }
+        tasks.run(FileTask.Trash, FileWords.subject(names), locations, keep = tasks.kept(FileWords.trashed(names))) { trash(locations) }
     }
 
     private suspend fun restore(items: List<TrashedItem>) {
         if (items.isEmpty()) return said("It is no longer in Trash")
-        refusals.restore(items)?.let { return said(it) }
+        refusals.restore(items)?.let { return said(it, items.first().from) }
         val names = items.map { it.name }
-        tasks.run("Restoring…", FileWords.subject(names), items.map { it.from }, "Unable to restore", keep = tasks.kept(FileWords.restored(names))) { restore(items) }
+        tasks.run(FileTask.Restore, FileWords.subject(names), items.map { it.from }, keep = tasks.kept(FileWords.restored(names))) { restore(items) }
     }
 
     /** The last change undone, or the last undone done again — once nothing it touches changed since. */
@@ -183,13 +184,12 @@ internal class FileOperationsCoordinator(
         if (reversing) return said("Wait for the ${if (undo) "undo" else "redo"} running to finish")
         val change = (if (undo) history.nextUndo else history.nextRedo) ?: return
         val reversals = change.reversals
-        refusals.reversal(change)?.let { return said(it) }
+        refusals.reversal(change)?.let { return said(it, reversals.firstOrNull()?.paths?.firstOrNull()) }
         reversing = true
         tasks.run(
-            title = if (undo) "Undoing…" else "Redoing…",
+            task = if (undo) FileTask.Undo else FileTask.Redo,
             subject = if (undo) change.said else change.undoneSaid,
             paths = reversals.flatMap { it.paths },
-            failure = "Unable to ${if (undo) "undo" else "redo"}",
             keep = { steps ->
                 reversing = false
                 if (undo) history.undone(change, steps) else history.redone(change, steps)
@@ -202,7 +202,7 @@ internal class FileOperationsCoordinator(
     private fun held(location: String) =
         HeldItem(location, File(location).name, Files.isDirectory(File(location).toPath(), LinkOption.NOFOLLOW_LINKS), follower.isWorkspace(location))
 
-    private suspend fun said(words: String) = tasks.said(words)
+    private suspend fun said(words: String, near: String? = null) = tasks.said(words, near)
 
     companion object {
         fun create(

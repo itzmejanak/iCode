@@ -6,7 +6,8 @@ import dev.icode.mobile.data.io.measureTree
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.storage.PhoneStorage
 import dev.icode.mobile.data.storage.WorkspacesProvider
-import dev.icode.mobile.domain.notices.NoticeTone
+import dev.icode.mobile.domain.notices.StorageNotices
+import dev.icode.mobile.domain.notices.WorkspaceNotices
 import dev.icode.mobile.domain.files.BrowsedItem
 import dev.icode.mobile.domain.files.ExplorerView
 import dev.icode.mobile.domain.FileKind
@@ -122,14 +123,14 @@ internal class WorkspaceLibraryCoordinator(
     /** A workspace renamed: its place in the list and saved session follow. */
     suspend fun relocate(from: String, to: String) {
         runCatching { store.relocate(from, to) }
-            .onFailure { error -> stateHolder.report("workspace", "The workspace's history could not follow the rename", error) }
+            .onFailure { error -> stateHolder.tell(WorkspaceNotices.historyNotMoved(to), "workspace", error) }
         refresh()
     }
 
     /** A workspace deleted: what was kept about it goes. */
     suspend fun forget(location: String) {
         runCatching { store.forget(location) }
-            .onFailure { error -> stateHolder.report("workspace", "The deleted workspace's history could not be cleared", error) }
+            .onFailure { error -> stateHolder.tell(WorkspaceNotices.historyNotCleared(location), "workspace", error) }
         refresh()
     }
 
@@ -239,16 +240,16 @@ internal class WorkspaceLibraryCoordinator(
 
     suspend fun clearCache() {
         if (tasksRunning()) {
-            stateHolder.notify(NoticeTone.HeadsUp, "Finish runtime, Git, terminal and language service tasks before clearing cache")
+            stateHolder.tell(StorageNotices.cacheBusy())
             return
         }
         runCatching {
             StorageInspector.clearRuntimeCache(appContext.cacheDir, runtimeLayout.prootTemp)
         }.onSuccess { removed ->
-            stateHolder.notify(NoticeTone.Done, if (removed == 0) "Runtime cache is already clear" else "Removed $removed cached runtime items")
+            stateHolder.tell(StorageNotices.cacheCleared(removed))
             refreshStorage()
         }.onFailure { error ->
-            stateHolder.report("storage", "Unable to clear runtime cache", error)
+            stateHolder.tell(StorageNotices.cacheNotCleared(), "storage", error)
         }
     }
 
@@ -257,7 +258,7 @@ internal class WorkspaceLibraryCoordinator(
     /** Kept as it changes, so a process Android ends can reopen the same workspace and tabs. */
     suspend fun saveSession(session: StoredSession?) {
         runCatching { store.saveSession(session) }
-            .onFailure { error -> stateHolder.report("workspace", "The open workspace could not be remembered", error) }
+            .onFailure { error -> stateHolder.tell(WorkspaceNotices.sessionNotKept(), "workspace", error) }
     }
 
     /** The workspace [location] lies in, when it is there; null for anything outside the workspaces. */

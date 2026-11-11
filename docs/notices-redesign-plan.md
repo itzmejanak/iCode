@@ -421,3 +421,13 @@ restated as "keep them in the page history but don't ring the bell". So:
   itself (not through the gateway, which a process started for the swipe alone would have to build);
   `NoticeIntent.Dismissed` is not needed and is gone. Git's work has one key, `git`: a clone and a
   pull never run at once.
+- **R4 — files, editor, workspaces, storage.** Every notice of `data/files`, `data/workspace` and
+  `data/tasks` is built in `FileNotices`, `EditorNotices`, `WorkspaceNotices` or `StorageNotices`,
+  with its place. `FileHistory` tells each change made, undone or redone in the undo pill's words, as
+  Done with Undo (A1). Delete for good says what went, from where. A file task is a `FileTask`
+  (domain/files/FileWords.kt): its sheet's title and what it stopped short of — "Couldn't move
+  notes.md to Trash" — come from it; `TaskRunner.start` takes that notice, tells it with the error's
+  words as output, and keeps them in the sheet. A refusal is told near what it was about. Saves fold
+  per file, failed saves apart from them, and a refresh that keeps failing folds per workspace. When
+  a notice has no detail, the shade shows its output. The refusal sentences (`FileRefusals`,
+  `WorkspaceUsage`, `PlaceFiles`) are shared with the sheets and kept as they are.

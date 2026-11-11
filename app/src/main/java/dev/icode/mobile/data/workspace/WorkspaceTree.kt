@@ -5,6 +5,7 @@ import dev.icode.mobile.domain.isAtOrUnder
 import dev.icode.mobile.domain.relocated
 import dev.icode.mobile.domain.FileEntry
 import dev.icode.mobile.domain.GitTreeStatus
+import dev.icode.mobile.domain.notices.WorkspaceNotices
 import java.io.File
 
 /**
@@ -57,7 +58,7 @@ internal class WorkspaceTree(
                 expanded += location
             }.exceptionOrNull()
         }
-        if (error != null) stateHolder.report("workspace", "Unable to read folder", error)
+        if (error != null) stateHolder.tell(WorkspaceNotices.folderUnread(stateHolder.current, location), "workspace", error)
         if (synchronized(treeLock) { root == currentRoot }) {
             stateHolder.update { snapshot ->
                 if (snapshot.activeWorkspaceLocation != root) snapshot
