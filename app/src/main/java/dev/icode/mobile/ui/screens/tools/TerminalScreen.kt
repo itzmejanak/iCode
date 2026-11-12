@@ -77,7 +77,7 @@ fun TerminalScreen(actions: NavigationActions) {
         else if (shouldAutoOpenTerminal(actions.panelTab, runtimeReady, attemptedFirstOpen)) {
             attemptedFirstOpen = true
             // Not "+": a panel drawn again must find the session it asked for, not start another.
-            gateway.dispatch(ICodeIntent.EnsureTerminalSession)
+            gateway.dispatch(ICodeIntent.EnsureTerminalSession(actions.inWorkspace))
         }
     }
     // Preserve the terminal's last-tab exit behavior only when the user is
@@ -113,7 +113,8 @@ fun TerminalScreen(actions: NavigationActions) {
                     horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space5),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    ToolPanelTab.entries.forEach { tab ->
+                    // Run, Problems and Output are the workspace's: outside it, Terminal alone (docs/home-plan.md §2).
+                    (if (actions.inWorkspace) ToolPanelTab.entries else listOf(ToolPanelTab.Terminal)).forEach { tab ->
                         BottomBarEntry(
                             BottomBarItem(
                                 label = when (tab) {
@@ -132,7 +133,7 @@ fun TerminalScreen(actions: NavigationActions) {
                 }
                 when (actions.panelTab) {
                     ToolPanelTab.Terminal -> AddButton("New terminal session", enabled = runtimeReady, busy = state.isBusy(BusyAction.OpenTerminal)) {
-                        gateway.dispatch(ICodeIntent.OpenTerminalSession)
+                        gateway.dispatch(ICodeIntent.OpenTerminalSession(actions.inWorkspace))
                     }
                     ToolPanelTab.Run -> AddButton("New command", enabled = state.activeWorkspaceLocation != null) {
                         commandAsk = RunCommandAsk(RunCommandAsk.What.New)

@@ -54,7 +54,7 @@ object BusyRules {
         is ICodeIntent.ResolveWorkspaceSwitch -> Busy(BusyAction.OpenWorkspace, intent.path)
         is ICodeIntent.OpenFile -> Busy(BusyAction.OpenFile, intent.path)
         is ICodeIntent.OpenRecoverableDraft -> Busy(BusyAction.OpenFile, intent.location)
-        ICodeIntent.OpenTerminalSession, ICodeIntent.EnsureTerminalSession -> Busy(BusyAction.OpenTerminal)
+        is ICodeIntent.OpenTerminalSession, is ICodeIntent.EnsureTerminalSession -> Busy(BusyAction.OpenTerminal)
         is ICodeIntent.CloseTerminalSession -> Busy(BusyAction.CloseTab, intent.id)
         is ICodeIntent.CloseDocument -> Busy(BusyAction.CloseTab, intent.location)
         // An automatic save is no one's tap: nothing shows it.

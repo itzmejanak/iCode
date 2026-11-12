@@ -14,6 +14,11 @@ class NavigationSavingTest {
         assertEquals(at, NavigationSaving.restored(NavigationSaving.saved(at), Route.Splash))
     }
 
+    @Test fun `Terminal outside the workspace comes back where it was`() {
+        val at = Navigation.start(Route.LauncherHome).opened("/ws/one").back().openPanel(ToolPanelTab.Terminal)
+        assertEquals(at, NavigationSaving.restored(NavigationSaving.saved(at), Route.Splash))
+    }
+
     @Test fun `a workspace path with the format's own marks in it comes back whole`() {
         val at = Navigation.start(Route.LauncherHome).opened("/ws/a,b;c=d")
         assertEquals("/ws/a,b;c=d", NavigationSaving.restored(NavigationSaving.saved(at), Route.Splash).workspace)

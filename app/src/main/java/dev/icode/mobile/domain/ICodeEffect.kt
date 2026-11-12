@@ -8,6 +8,8 @@ sealed interface ICodeEffect {
     data class OpenSystemSettings(val permission: SystemPermission) : ICodeEffect
     data class WorkspaceOpened(val location: String) : ICodeEffect
     data class WorkspaceTerminalOpened(val location: String) : ICodeEffect
+    /** A tab in no workspace was shown: Terminal opens outside the workspace (docs/home-plan.md §2). */
+    data object TerminalOutsideWorkspace : ICodeEffect
     /** The answer to the sheet that asked, by request id: created or renamed, and where it is now. */
     data class WorkspaceItemChanged(val requestId: String, val location: String) : ICodeEffect
     data class WorkspaceItemFailed(val requestId: String, val message: String) : ICodeEffect

@@ -167,6 +167,45 @@ class NavigationTest {
         assertEquals(listOf(Route.WorkspaceExplorer, Route.LauncherHome), terminal.backs())
     }
 
+    @Test fun `Terminal asked for from the Launcher opens there, outside the workspace, and Back is the Launcher`() {
+        listOf(Navigation.start(Route.LauncherHome), opened.back()).forEach { home ->
+            val terminal = home.openPanel(ToolPanelTab.Terminal)
+            assertEquals(Route.TerminalExpanded, terminal.current)
+            assertFalse(terminal.inWorkspace)
+            assertFalse(terminal.onMainScreen)
+            assertEquals(ToolPanelTab.Terminal, terminal.shownTab)
+            assertEquals(home, terminal.back())
+            assertEquals(terminal, home.navigate(Route.TerminalExpanded))
+        }
+    }
+
+    @Test fun `inside the workspace Terminal is its tool, and its other tabs always are`() {
+        assertTrue(opened.openPanel(ToolPanelTab.Terminal).inWorkspace)
+        val problems = Navigation.start(Route.LauncherHome).openPanel(ToolPanelTab.Problems)
+        assertTrue(problems.inWorkspace)
+        assertEquals(ToolPanelTab.Problems, problems.shownTab)
+    }
+
+    @Test fun `outside the workspace Terminal shows its own tab, whatever the tool's was`() {
+        val home = opened.openPanel(ToolPanelTab.Output).back().back()
+        assertEquals(ToolPanelTab.Output, home.panelTab)
+        assertEquals(ToolPanelTab.Terminal, home.openPanel(ToolPanelTab.Terminal).shownTab)
+    }
+
+    @Test fun `a tab in no workspace is shown outside it, from inside it too`() {
+        val shown = opened.showTerminalOutside()
+        assertEquals(Route.TerminalExpanded, shown.current)
+        assertFalse(shown.inWorkspace)
+        assertEquals(listOf(Route.LauncherHome), shown.backs())
+    }
+
+    @Test fun `entering the workspace closes Terminal outside it, so Back never shows Terminal twice`() {
+        val inside = Navigation.start(Route.LauncherHome).openPanel(ToolPanelTab.Terminal).openPanel(ToolPanelTab.Problems)
+        assertEquals(listOf(Route.LauncherHome), inside.app)
+        assertEquals(listOf(Route.LauncherHome), inside.backs())
+        assertEquals(listOf(Route.LauncherHome), Navigation.start(Route.LauncherHome).openPanel(ToolPanelTab.Terminal).opened("/ws/one").app)
+    }
+
     @Test fun `the dock shows on a tool's main screen only`() {
         assertTrue(opened.onMainScreen)
         assertFalse(opened.navigate(Route.WorkspaceSettings).onMainScreen)

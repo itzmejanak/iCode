@@ -185,10 +185,13 @@ sealed interface ICodeIntent {
     data object RepairRuntime : ICodeIntent
     /** Rebuilds the base system and discards the guest home directory. */
     data object ResetRuntime : ICodeIntent
-    /** "+": always a new session. */
-    data object OpenTerminalSession : ICodeIntent
-    /** The panel needs a session: the open workspace's running one, or a new one only when there is none. */
-    data object EnsureTerminalSession : ICodeIntent
+    /**
+     * "+": always a new session, in the open workspace while its tools are on screen ([inWorkspace]);
+     * outside it, in no workspace, where a login starts: `$HOME` (docs/home-plan.md §2).
+     */
+    data class OpenTerminalSession(val inWorkspace: Boolean) : ICodeIntent
+    /** The panel needs a session: a running one where "+" would open one, or a new one only when there is none. */
+    data class EnsureTerminalSession(val inWorkspace: Boolean) : ICodeIntent
     data class SelectTerminalSession(val id: String) : ICodeIntent
 
     /** Bring a session to the front: its workspace, the Terminal panel, that tab (from its notification). */

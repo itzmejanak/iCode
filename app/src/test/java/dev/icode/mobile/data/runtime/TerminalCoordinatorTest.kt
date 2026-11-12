@@ -100,27 +100,34 @@ class TerminalCoordinatorTest {
 
     @Test fun `plus always opens a new session in the open workspace`() = runBlocking {
         val harness = Harness()
-        harness.coordinator.open()
+        harness.coordinator.open(inWorkspace = true)
         assertEquals(listOf("open $root reuse=false"), harness.sessions.calls)
     }
 
     @Test fun `the panel's own open reuses the workspace's running session`() = runBlocking {
         val harness = Harness()
-        harness.coordinator.ensure()
-        harness.coordinator.ensure()
+        harness.coordinator.ensure(inWorkspace = true)
+        harness.coordinator.ensure(inWorkspace = true)
         assertEquals(listOf("open $root reuse=true", "open $root reuse=true"), harness.sessions.calls)
+    }
+
+    @Test fun `outside the workspace a tab is in none, so it starts where a login does, though a workspace is open`() = runBlocking {
+        val harness = Harness()
+        harness.coordinator.open(inWorkspace = false)
+        harness.coordinator.ensure(inWorkspace = false)
+        assertEquals(listOf("open null reuse=false", "open null reuse=true"), harness.sessions.calls)
     }
 
     @Test fun `without the runtime nothing is opened`() = runBlocking {
         val harness = Harness(installed = false)
-        val effect = harness.nextEffect { harness.coordinator.open() }
+        val effect = harness.nextEffect { harness.coordinator.open(inWorkspace = true) }
         assertEquals(Said(NoticeTone.HeadsUp, "Install the Linux runtime first", "Terminal sessions run in it."), effect.said())
         assertTrue(harness.sessions.calls.isEmpty())
     }
 
     @Test fun `a session that could not start is said`() = runBlocking {
         val harness = Harness().apply { sessions.opened = null }
-        val effect = harness.nextEffect { harness.coordinator.open() }
+        val effect = harness.nextEffect { harness.coordinator.open(inWorkspace = true) }
         assertEquals(Said(NoticeTone.Problem, "Couldn't start a terminal session"), effect.said())
     }
 
@@ -158,11 +165,12 @@ class TerminalCoordinatorTest {
         assertEquals(listOf(process.workspace), harness.opened)
     }
 
-    @Test fun `a session with no workspace opens the panel where it is`() = runBlocking {
+    @Test fun `a session with no workspace is shown outside the workspace, though one is open`() = runBlocking {
         val harness = Harness()
         harness.sessions.snapshot.value = TerminalSnapshot(listOf(running("session-3")))
         val effect = harness.nextEffect { harness.coordinator.show("session-3") }
-        assertEquals(ICodeEffect.WorkspaceTerminalOpened(root), effect)
+        assertEquals(ICodeEffect.TerminalOutsideWorkspace, effect)
+        assertEquals(listOf("select session-3"), harness.sessions.calls)
     }
 
     @Test fun `an ended session is said, not shown`() = runBlocking {

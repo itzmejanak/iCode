@@ -24,14 +24,15 @@ class NavigationState internal constructor(initial: Navigation, private val capt
         private set
 
     val current: Route get() = model.current
-    val panelTab: ToolPanelTab get() = model.panelTab
+    val panelTab: ToolPanelTab get() = model.shownTab
     val canGoBack: Boolean get() = model.canGoBack
 
     val actions: NavigationActions get() = NavigationActions(
         navigate = { model = model.navigate(it) },
         replace = { model = model.replace(it) },
         openPanel = { model = model.openPanel(it) },
-        panelTab = model.panelTab,
+        panelTab = model.shownTab,
+        inWorkspace = model.inWorkspace,
         back = ::back,
         canGoBack = model.canGoBack,
         captureMode = captureMode,
@@ -54,6 +55,11 @@ class NavigationState internal constructor(initial: Navigation, private val capt
     /** A workspace opened, on [tool] when something in it was asked for. */
     fun opened(location: String?, tool: WorkspaceTool? = null) {
         model = model.opened(location, tool)
+    }
+
+    /** A tab in no workspace shown for the user: Terminal outside the workspace. */
+    fun showTerminalOutside() {
+        model = model.showTerminalOutside()
     }
 
     /** The open workspace, however it came to be: another's tools start anew. */

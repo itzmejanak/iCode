@@ -318,8 +318,8 @@ class AndroidICodeGateway internal constructor(context: Context) : ICodeGateway 
                         // through the one installer rather than a second path.
                         ICodeIntent.RepairRuntime -> if (runtime.install(RuntimeInstallReason.Repair)) stateHolder.emit(ICodeEffect.RuntimeRebuildStarted)
                         ICodeIntent.ResetRuntime -> if (runtime.install(RuntimeInstallReason.Reset)) stateHolder.emit(ICodeEffect.RuntimeRebuildStarted)
-                        ICodeIntent.OpenTerminalSession -> terminal.open()
-                        ICodeIntent.EnsureTerminalSession -> terminal.ensure()
+                        is ICodeIntent.OpenTerminalSession -> terminal.open(intent.inWorkspace)
+                        is ICodeIntent.EnsureTerminalSession -> terminal.ensure(intent.inWorkspace)
                         is ICodeIntent.SelectTerminalSession -> terminal.select(intent.id)
                         is ICodeIntent.ShowTerminalSession -> terminal.show(intent.id)
                         is ICodeIntent.ShowProcessOutput -> execution.processes.info(intent.id)?.let { terminal.showOutput(it, execution.processes.logOf(it.id)) }

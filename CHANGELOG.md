@@ -175,6 +175,10 @@ All notable changes to iCode are documented here. The format follows
   foot. On the bar, the runtime is VS Code's remote button, in the accent while it is healthy and
   amber while it needs installing, with the Runtime page or the install behind it. Terminal and
   Assistant open their own pages, badged as on the dock, and the bell sits on the right.
+- Terminal opened from the home starts in `$HOME`, as a login shell does, whatever workspace is open.
+  It opens over the home, with no dock, its Terminal tab alone. Back returns to the home. Inside a
+  workspace, Terminal is its tool as before. A tab in no workspace, shown from its notification,
+  opens there too.
 - Code colouring loads each language when a file first needs it
   ([docs/syntax-highlighting-plan.md](docs/syntax-highlighting-plan.md), S3). The app no longer parses
   every grammar at start, so the first file colours sooner: opening a JSON file parses JSON only. A grammar that fails to load turns
