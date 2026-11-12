@@ -199,7 +199,8 @@ fun IcodeApp(
                     is ICodeEffect.SystemPermissionResolved -> Unit
                     // What made the workspace gives way to it, so Back returns to the launcher.
                     is ICodeEffect.WorkspaceOpened -> navigation.opened(effect.location)
-                    is ICodeEffect.WorkspaceTerminalOpened -> navigation.opened(effect.location.ifEmpty { null }, WorkspaceTool.Terminal)
+                    is ICodeEffect.WorkspaceTerminalOpened -> navigation.opened(effect.location, WorkspaceTool.Terminal)
+                    ICodeEffect.TerminalOutsideWorkspace -> navigation.showTerminalOutside()
                     // The creation sheet consumes these request-scoped results.
                     is ICodeEffect.WorkspaceItemChanged, is ICodeEffect.WorkspaceItemFailed -> Unit
                     is ICodeEffect.ConfirmWorkspaceSwitch -> questions.ask(effect)

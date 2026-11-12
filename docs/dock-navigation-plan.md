@@ -364,6 +364,11 @@ from the edge).
   as it fades, so nothing floats in the way of focused work; it comes out at once on a touch or
   anything new.
 
+**D15 — Terminal from the home** (owner, 2026-11-12, docs/home-plan.md §2): Terminal's own tab,
+asked for while the app's pages are on screen, opens there as a page, with no dock. Its tabs then
+start in no workspace, so in `$HOME`, and Back returns to the home. Entering the workspace closes it.
+Inside the workspace, Terminal stays its tool.
+
 ## 4. Where the code goes
 
 As built:

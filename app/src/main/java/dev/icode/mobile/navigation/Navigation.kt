@@ -15,6 +15,8 @@ import dev.icode.mobile.domain.WorkspaceTool
  * - Back closes a tool's page, then goes to the tool used before, then to the app's pages (the
  *   Launcher), then leaves iCode ([back]). A tool Back has left drops out of the order, so Back never
  *   comes back to it and cannot go round.
+ * - Terminal asked for from the app's pages opens there, as a page outside the workspace: its tabs
+ *   start where a login starts, `$HOME` (docs/home-plan.md §2).
  */
 data class Navigation(
     /** The app's pages outside the workspace, the first at the bottom: onboarding, the Launcher, Settings. */
@@ -25,7 +27,7 @@ data class Navigation(
     val order: List<WorkspaceTool> = emptyList(),
     /** The workspace's tools are on screen, not the app's pages. */
     val inWorkspace: Boolean = false,
-    /** Terminal's open tab. */
+    /** The Terminal tool's open tab. */
     val panelTab: ToolPanelTab = ToolPanelTab.Terminal,
     /** The workspace the tools' histories belong to. */
     val workspace: String? = null,
@@ -44,6 +46,9 @@ data class Navigation(
      */
     val onMainScreen: Boolean get() = tool?.let { historyOf(it).dropLastWhile(Route::sheet).size == 1 } ?: false
 
+    /** Terminal's tab on screen: the tool's own, and outside the workspace its only one, Terminal. */
+    val shownTab: ToolPanelTab get() = if (inWorkspace) panelTab else ToolPanelTab.Terminal
+
     /** The tool Back and the quick switch go to (D4, D9). */
     val previousTool: WorkspaceTool? get() = if (inWorkspace) order.getOrNull(order.lastIndex - 1) else null
 
@@ -60,6 +65,7 @@ data class Navigation(
     data class Entry(val key: String, val route: Route)
 
     fun navigate(route: Route): Navigation = when {
+        route == Route.TerminalExpanded && !inWorkspace -> push(route)
         route.tool != null -> switchTo(route.tool, face = route)
         route.leavesWorkspace && inWorkspace -> copy(inWorkspace = false).push(route)
         else -> push(route)
@@ -68,8 +74,12 @@ data class Navigation(
     /** This page closes, and [route] is gone to: a main screen is never replaced, only left. */
     fun replace(route: Route): Navigation = closingPage().navigate(route)
 
-    /** Terminal on [tab]. */
-    fun openPanel(tab: ToolPanelTab): Navigation = copy(panelTab = tab).switchTo(WorkspaceTool.Terminal)
+    /** Terminal on [tab]; its own tab asked for from the app's pages opens there, outside the workspace. */
+    fun openPanel(tab: ToolPanelTab): Navigation =
+        if (tab == ToolPanelTab.Terminal && !inWorkspace) push(Route.TerminalExpanded) else copy(panelTab = tab).switchTo(WorkspaceTool.Terminal)
+
+    /** A tab in no workspace shown for the user, from wherever iCode is: Terminal outside the workspace. */
+    fun showTerminalOutside(): Navigation = copy(inWorkspace = false).openPanel(ToolPanelTab.Terminal)
 
     /**
      * [tool], as it was left — or, asked for by one of its main screens ([face]) other than the one it
@@ -83,10 +93,9 @@ data class Navigation(
             wanted != null && history.first() != wanted -> listOf(wanted)
             else -> history
         }
-        return copy(
+        return inside().copy(
             tools = tools + (tool to next),
             order = order - tool + tool,
-            inWorkspace = true,
             panelTab = face?.panelTabOrNull() ?: panelTab,
         )
     }
@@ -124,8 +133,8 @@ data class Navigation(
         val start = if (fresh) made.startedAt(location) else made
         return when {
             tool != null -> start.show(tool.home)
-            fresh -> start.copy(inWorkspace = true)
-            !inWorkspace -> if (start.order.isEmpty()) start.switchTo(WorkspaceTool.Explorer) else start.copy(inWorkspace = true)
+            fresh -> start.inside()
+            !inWorkspace -> if (start.order.isEmpty()) start.switchTo(WorkspaceTool.Explorer) else start.inside()
             else -> start.show(WorkspaceTool.Explorer.home)
         }
     }
@@ -140,6 +149,12 @@ data class Navigation(
         val started = startedAt(location)
         return if (onScreen == null || onScreen == WorkspaceTool.Explorer) started else started.show(onScreen.home)
     }
+
+    /**
+     * The workspace's tools on screen. Terminal outside the workspace closes as they open: Back from
+     * them never shows Terminal again, now with no tool to switch to.
+     */
+    private fun inside() = copy(inWorkspace = true, app = app - Route.TerminalExpanded)
 
     private fun startedAt(location: String) = copy(
         tools = mapOf(WorkspaceTool.Explorer to listOf(Route.WorkspaceExplorer)),

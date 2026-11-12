@@ -130,10 +130,10 @@ internal class TerminalCoordinator(
         stateHolder.tell(TerminalNotices.finished(ended.program, ended.durationMillis, where.copy(subject = tab), ended.id, alert = finishAlerts))
     }
 
-    /** "+": always a new session, in the open workspace. */
-    suspend fun open() {
+    /** "+": always a new session, in the open workspace, or outside it ([inWorkspace] false) in none: `$HOME`. */
+    suspend fun open(inWorkspace: Boolean) {
         if (!runtimeInstalled()) return stateHolder.tell(TerminalNotices.needsRuntime())
-        if (terminals.open(activeRoot(), reuseExisting = false) == null) stateHolder.tell(TerminalNotices.notStarted(NoticePlaces.workspace(stateHolder.current)))
+        if (terminals.open(workspace(inWorkspace), reuseExisting = false) == null) stateHolder.tell(TerminalNotices.notStarted(where(inWorkspace)))
     }
 
     /** A new session in the open workspace with [command] typed at its prompt, as the user would type it; false when none opened. */
@@ -151,10 +151,17 @@ internal class TerminalCoordinator(
      * time (the gateway's lock), so reusing a running session is enough to make
      * a panel drawn twice, or drawn while "Open Terminal" runs, meet in one shell.
      */
-    suspend fun ensure() {
+    suspend fun ensure(inWorkspace: Boolean) {
         if (!runtimeInstalled()) return stateHolder.tell(TerminalNotices.needsRuntime())
-        if (terminals.open(activeRoot(), reuseExisting = true) == null) stateHolder.tell(TerminalNotices.notStarted(NoticePlaces.workspace(stateHolder.current)))
+        if (terminals.open(workspace(inWorkspace), reuseExisting = true) == null) stateHolder.tell(TerminalNotices.notStarted(where(inWorkspace)))
     }
+
+    /** Where a tab asked for starts: the open workspace, or none, so it starts where a login does. */
+    private fun workspace(inWorkspace: Boolean): String? = if (inWorkspace) activeRoot() else null
+
+    /** Where a tab that could not start was asked for, as a tab in no workspace is told ([tellFinished]). */
+    private fun where(inWorkspace: Boolean): NoticePlace? =
+        if (inWorkspace) NoticePlaces.workspace(stateHolder.current) else NoticePlace(NoticePlaces.RUNTIME)
 
     /** The workspace [location] was opened for its terminal: its running session, or a new one. */
     suspend fun openIn(location: String) {
@@ -189,7 +196,8 @@ internal class TerminalCoordinator(
     /**
      * Selects the session, then opens its workspace on the Terminal panel. The
      * workspace path reuses the running session the selection now names, and
-     * goes through the same dirty-document confirmation as any switch.
+     * goes through the same dirty-document confirmation as any switch. A session in
+     * no workspace is shown outside the workspace, where it was opened.
      */
     suspend fun show(id: String) {
         val workspace = withContext(main) {
@@ -199,7 +207,7 @@ internal class TerminalCoordinator(
         }
         when (workspace) {
             null -> stateHolder.tell(TerminalNotices.ended())
-            "" -> stateHolder.emit(ICodeEffect.WorkspaceTerminalOpened(activeRoot().orEmpty()))
+            "" -> stateHolder.emit(ICodeEffect.TerminalOutsideWorkspace)
             else -> openWorkspaceTerminal(workspace)
         }
     }

@@ -44,7 +44,8 @@ object NavigationSaving {
 
     /**
      * The model's rules (§5.3), which every step keeps: no history holds a route twice; each tool's
-     * starts on one of its own main screens and holds only pages after it; the app's pages are pages;
+     * starts on one of its own main screens and holds only pages after it; the app's pages are pages,
+     * or Terminal outside the workspace while the app's pages are on screen (docs/home-plan.md §2);
      * the order names each opened tool at most once; and what is on screen exists.
      */
     fun wellFormed(navigation: Navigation): Boolean = with(navigation) {
@@ -53,7 +54,7 @@ object NavigationSaving {
                 history.first().tool == tool && history.first() == Navigation.faceOf(history.first()) &&
                 history.drop(1).all { it.tool == null }
         }
-        histories && app.distinct() == app && app.all { it.tool == null } &&
+        histories && app.distinct() == app && app.all { it.tool == null || (it == Route.TerminalExpanded && !inWorkspace) } &&
             order.distinct() == order && order.all { it in tools } &&
             if (inWorkspace) order.isNotEmpty() else app.isNotEmpty()
     }

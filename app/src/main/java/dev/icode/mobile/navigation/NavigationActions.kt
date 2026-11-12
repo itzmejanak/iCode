@@ -15,6 +15,8 @@ data class NavigationActions(
     /** Terminal, on that tab. */
     val openPanel: (ToolPanelTab) -> Unit,
     val panelTab: ToolPanelTab,
+    /** The workspace's tools are on screen; false on the app's pages, where Terminal's tabs start in `$HOME`. */
+    val inWorkspace: Boolean,
     /** Back (D4): this tool's page, then the tool used before, then the Launcher. */
     val back: () -> Unit,
     /**
