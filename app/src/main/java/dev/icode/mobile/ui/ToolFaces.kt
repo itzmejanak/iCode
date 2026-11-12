@@ -32,3 +32,6 @@ internal val ToolBadge.tint: Color?
 /** The dot its [ToolBadge.runs] puts on a tool's icon, as a running process's. */
 internal val ToolBadge.dot: Color?
     @Composable get() = if (runs) IcodeColors.Green else null
+
+/** "Source Control, 3 changes": a tool and what its badge says, as TalkBack says them on the dock and the home's status bar. */
+internal fun ToolBadge.spoken(tool: WorkspaceTool): String = listOfNotNull(tool.label, said).joinToString(", ")
