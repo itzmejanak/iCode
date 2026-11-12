@@ -24,7 +24,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.absoluteOffset
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Apps
@@ -47,6 +47,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -153,7 +154,7 @@ private class Footing {
 }
 
 /**
- * [pills] on the screen's edges, [EDGE_INSET] in from them, each at its place and none over another
+ * [pills] on the screen's edges, flush on them ([edgeTab]), each at its place and none over another
  * ([PillPlaces.spots]); those at no place [floor] up, clear of the bars. Each stands on a closed pill's
  * square, its footing: opened, its row grows from there, its icon kept on the footing, so nothing moves
  * as it opens. A pill is moved as antigem's floating switcher is: a finger moving on it past the touch
@@ -167,7 +168,6 @@ internal fun AnimatedVisibilityScope.FloatingPills(pills: List<IcodeStackPill>, 
     val density = LocalDensity.current
     val floorPx = with(density) { floor.toPx() }
     val gapPx = with(density) { IcodeSpacing.Space2.toPx() }
-    val insetPx = with(density) { EDGE_INSET.toPx() }
     val footPx = with(density) { IcodeSizes.DockedPill.toPx() }
     val rtl = LocalLayoutDirection.current == LayoutDirection.Rtl
     val footings = remember { HashMap<Any, Footing>() }
@@ -180,21 +180,21 @@ internal fun AnimatedVisibilityScope.FloatingPills(pills: List<IcodeStackPill>, 
         val placeables = measurables.map { it.measure(constraints.copy(minWidth = 0, minHeight = 0)) }
         val width = constraints.maxWidth
         val height = constraints.maxHeight
-        val areaWidth = width - 2 * insetPx
-        val areaHeight = height - 2 * insetPx
+        val areaWidth = width.toFloat()
+        val areaHeight = height.toFloat()
         // A pill showing nothing takes no room: the bell stays put while the undo pill comes and goes.
         val laid = pills.indices.map { i ->
             if (placeables[i].height > 0) PillPlaces.Laid(footPx, footPx, pills[i].place) else PillPlaces.Laid(0f, 0f, pills[i].place)
         }
-        val spots = PillPlaces.spots(laid, areaWidth, areaHeight, (floorPx - insetPx).coerceAtLeast(0f), gapPx, rtl)
+        val spots = PillPlaces.spots(laid, areaWidth, areaHeight, floorPx, gapPx, rtl)
         val places = pills.map { it.place }
         val moved = laidPlaces[0] != null && laidPlaces[0] != places
         laidPlaces[0] = places
         layout(width, height) {
             if (hidden) return@layout
             placeables.forEachIndexed { i, placeable ->
-                val footX = insetPx + spots[i].x
-                val footY = insetPx + spots[i].y
+                val footX = spots[i].x
+                val footY = spots[i].y
                 footings[pills[i].key]?.apply {
                     at = IntOffset(footX.roundToInt(), footY.roundToInt())
                     glide = moved
@@ -206,8 +206,8 @@ internal fun AnimatedVisibilityScope.FloatingPills(pills: List<IcodeStackPill>, 
                 // Opened, its row grows from the footing, its icon's end kept there, and stays on the screen.
                 val iconOnRight = PillPlaces.iconAtEnd(pills[i].place) != rtl
                 val x = (if (iconOnRight) footX + footPx - placeable.width else footX)
-                    .coerceIn(insetPx, max(insetPx, width - insetPx - placeable.width))
-                val y = (footY + (footPx - placeable.height) / 2).coerceIn(insetPx, max(insetPx, height - insetPx - placeable.height))
+                    .coerceIn(0f, max(0f, (width - placeable.width).toFloat()))
+                val y = (footY + (footPx - placeable.height) / 2).coerceIn(0f, max(0f, (height - placeable.height).toFloat()))
                 placeable.place(x.roundToInt(), y.roundToInt())
             }
         }
@@ -295,9 +295,8 @@ private fun AnimatedVisibilityScope.PillSlot(pill: IcodeStackPill, footing: Foot
                     val place = drawn[0]?.takeIf { it.isAttached }?.let { here ->
                         val parent = here.parentLayoutCoordinates ?: return@let null
                         val finger = parent.localPositionOf(here, grab ?: Offset.Zero)
-                        val inset = EDGE_INSET.toPx()
                         PillPlaces.placeAt(
-                            finger.x - inset, finger.y - inset, footing.areaWidth, footing.areaHeight,
+                            finger.x, finger.y, footing.areaWidth, footing.areaHeight,
                             footing.size, footing.size, rtl,
                         )
                     }
@@ -334,13 +333,13 @@ private fun AnimatedVisibilityScope.PillSlot(pill: IcodeStackPill, footing: Foot
     }
 }
 
-/** The pill being moved: its [icon] in a raised bubble centred [at] the finger, [lift] of the way up. */
+/** The pill being moved: its [icon] on a raised tile centred [at] the finger, [lift] of the way up. */
 @Composable
 private fun FloatingBubble(icon: ImageVector, at: Offset?, lift: Float) {
     var last by remember { mutableStateOf(Offset.Zero) }
     if (at != null) last = at
     val line = edgeLine
-    val bubble = with(LocalDensity.current) { IcodeSizes.Bubble.toPx() }
+    val bubble = with(LocalDensity.current) { IcodeSizes.DockedPill.toPx() }
     Box(
         Modifier
             .absoluteOffset { (last - Offset(bubble / 2, bubble / 2)).round() }
@@ -350,10 +349,10 @@ private fun FloatingBubble(icon: ImageVector, at: Offset?, lift: Float) {
                 scaleY = scale
                 alpha = lift
             }
-            .size(IcodeSizes.Bubble)
-            .shadow(BUBBLE_ELEVATION, CircleShape)
-            .background(IcodeColors.SurfaceElevated, CircleShape)
-            .then(if (line != null) Modifier.border(1.dp, line, CircleShape) else Modifier),
+            .size(IcodeSizes.DockedPill)
+            .shadow(BUBBLE_ELEVATION, LIFTED)
+            .background(IcodeColors.SurfaceElevated, LIFTED)
+            .then(if (line != null) Modifier.border(1.dp, line, LIFTED) else Modifier),
         contentAlignment = Alignment.Center,
     ) {
         Icon(icon, contentDescription = null, tint = IcodeColors.Accent, modifier = Modifier.size(IcodeSizes.IconXl))
@@ -372,6 +371,17 @@ fun pillEnter(edge: ScreenEdge = LocalPillEdge.current): EnterTransition {
 fun pillExit(edge: ScreenEdge = LocalPillEdge.current): ExitTransition {
     val way = outward(edge)
     return if (edge.across) slideOutVertically { way * it } + fadeOut() else slideOutHorizontally { way * it } + fadeOut()
+}
+
+/**
+ * A pill's shape on [edge] (docs/dock-navigation-plan.md D16): flat where it meets its edge, flush on it,
+ * and round inside, its corners half its height — a tab drawn out of the edge, closed or open.
+ */
+internal fun edgeTab(edge: ScreenEdge): Shape = when (edge) {
+    ScreenEdge.Start -> RoundedCornerShape(topEndPercent = 50, bottomEndPercent = 50)
+    ScreenEdge.End -> RoundedCornerShape(topStartPercent = 50, bottomStartPercent = 50)
+    ScreenEdge.Top -> RoundedCornerShape(bottomStartPercent = 50, bottomEndPercent = 50)
+    ScreenEdge.Bottom -> RoundedCornerShape(topStartPercent = 50, topEndPercent = 50)
 }
 
 /** Toward [edge] on the screen: 1 for the right or the bottom, -1 for the left or the top. */
@@ -394,15 +404,15 @@ private fun edgeName(edge: ScreenEdge, rtl: Boolean): String = when (edge) {
     ScreenEdge.Bottom -> "bottom"
 }
 
-/** How far in from the screen's edges a pill stands awake: off the edge itself, where Android's gestures start. */
-internal val EDGE_INSET = 4.dp
-
 /** How a pill glides to its new place: as antigem's voice orb settles on its edge. */
 private val GLIDE = spring<IntOffset>(dampingRatio = Spring.DampingRatioLowBouncy, stiffness = Spring.StiffnessMediumLow)
 
 /** How far TalkBack's moves along an edge take a pill: a fifth of the edge. */
 private const val MOVE_STEP = 0.2f
 
-/** The bubble rises from smaller as it is picked up, and sinks back so as it is let go. */
+/** The tile rises from smaller as it is picked up, and sinks back so as it is let go. */
 private const val BUBBLE_FROM = 0.6f
 private val BUBBLE_ELEVATION = 8.dp
+
+/** A moved pill's tile: a pill's square, its corners soft, not a ball (D16). */
+private val LIFTED = RoundedCornerShape(12.dp)
