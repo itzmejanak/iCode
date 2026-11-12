@@ -35,6 +35,7 @@ import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 import dev.icode.mobile.ui.NavigationState
 import dev.icode.mobile.ui.dot
+import dev.icode.mobile.ui.spoken
 import dev.icode.mobile.ui.icon
 import dev.icode.mobile.ui.tint
 
@@ -157,8 +158,7 @@ private fun Dock(dock: ToolDockState, navigation: NavigationState) {
 
 /** "Source Control, 3 changes, suggested: the assistant changed files": a tool as TalkBack says it. */
 private fun said(tool: WorkspaceTool, badge: ToolBadge, suggestion: ToolSuggestion?): String = listOfNotNull(
-    tool.label,
-    badge.said,
+    badge.spoken(tool),
     suggestion?.takeIf { it.tool == tool }?.let { "suggested: ${it.why.said}" },
 ).joinToString(", ")
 

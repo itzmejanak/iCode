@@ -360,18 +360,20 @@ The bottom panel owns Terminal, Run, Problems, and Output. It supports collapsed
 
 ### 9.1 Content order
 
-1. Product identity and concise purpose.
-2. Primary actions: Import, Clone Repository, Workspaces.
+VS Code's Welcome page with its status bar ([home-plan.md](./home-plan.md)):
+
+1. Product identity, and Settings.
+2. Start: Import…, Clone Repository…, Workspaces, as links.
 3. Recent: the five most recently opened workspaces, with the logo as a letterpress behind
    ([workspaces-page-plan.md](./workspaces-page-plan.md)).
-4. Runtime notice only when installation, repair, or update needs attention.
-5. Settings and About access.
+4. The status bar: the runtime as VS Code's remote button (the accent while healthy, amber while it
+   needs installing, and the way to act), Terminal and Assistant as the dock shows them, and the bell.
 
 ### 9.2 Workspace row
 
 Each row may show:
 
-- workspace name;
+- workspace name, as a link in the accent;
 - its `/workspace/<name>` path;
 - repository branch when cheaply available;
 - last-opened time;

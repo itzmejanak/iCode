@@ -170,6 +170,11 @@ All notable changes to iCode are documented here. The format follows
   touch or anything new brings it out.
 
 ### Changed
+- The home looks like VS Code's Welcome page ([docs/home-plan.md](docs/home-plan.md)): Start (Import…,
+  Clone Repository…, Workspaces) and Recent, as links over the logo, and VS Code's status bar at the
+  foot. On the bar, the runtime is VS Code's remote button, in the accent while it is healthy and
+  amber while it needs installing, with the Runtime page or the install behind it. Terminal and
+  Assistant open their own pages, badged as on the dock, and the bell sits on the right.
 - Code colouring loads each language when a file first needs it
   ([docs/syntax-highlighting-plan.md](docs/syntax-highlighting-plan.md), S3). The app no longer parses
   every grammar at start, so the first file colours sooner: opening a JSON file parses JSON only. A grammar that fails to load turns
