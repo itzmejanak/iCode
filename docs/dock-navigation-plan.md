@@ -299,8 +299,8 @@ restart: the model's saver keeps all six histories, the tool order and the app s
 - **By default** the pills stand where they always have: the undo pill, the bell, the dock, at the
   end edge's foot, clear of the bars.
 - **Dragged** (a finger moving on any part of a pill, past the touch slop, D13), a pill is picked
-  up at once: the phone ticks, the pill lifts off its edge and floats as its own icon in a raised
-  bubble under the finger, anywhere on the screen.
+  up at once: the phone ticks, the pill lifts off its edge and floats as its own icon on a raised
+  tile under the finger, anywhere on the screen (D16).
 - **Let go**, it docks on the edge nearest the finger — left, right, top or bottom — its middle
   where the finger was along that edge, and glides there. It stays there across restarts,
   app-wide (`AppearanceSettings.pillPlaces`).
@@ -309,8 +309,9 @@ restart: the model's saver keeps all six histories, the tool order and the app s
   keyboard coming up moves a side's pill down with the room. No pill stands over another
   (`PillPlaces.spots`): on one edge they make way for each other, and in a corner a side's pill
   makes way for one across the top or the bottom. Every move is animated.
-- **Off the edge itself**: a pill stands 4 dp in from it, and its place is kept from Android's back
-  gesture (`systemGestureExclusion`), which would otherwise take a touch that starts at the edge.
+- **On the edge itself** (D16; it stood 4 dp in from it before): a pill is flush on its edge, and its
+  place is kept from Android's back gesture (`systemGestureExclusion`), which would otherwise take a
+  touch that starts at the edge.
 - **On any edge** a pill opens the same way: its row grows from its icon away from a side, and
   toward the middle on the top or the bottom (`PillPlaces.iconAtEnd`). Each pill stands on a closed
   pill's 48 dp square, its footing, so a pill opening moves nothing. The dock's order runs from its
@@ -323,9 +324,9 @@ restart: the model's saver keeps all six histories, the tool order and the app s
 - **Its own icon**: the undo arrow (one icon for undo and redo, D14), the bell, the dock's grid, in
   what needs the user there (the unread tone, the suggestion's), so the three are told apart
   without opening any.
-- **See-through**: no slab of its own. Each icon sits on a faint round of the raised surface (60 %),
-  so it reads over code while the screen shows through, inside a 48 dp touch target; a count on it
-  is drawn whole (`IcodePillButton`).
+- **See-through**: no slab of its own. Each icon sits on a faint tab of the raised surface (60 %),
+  the 48 dp touch target's size and shaped as D16 draws it, so it reads over code while the screen
+  shows through; a count on it is drawn whole (`IcodePillButton`).
 - **Resting**, as the assistant's bubble over other apps does (`IcodeResting`, one rule for both):
   a pill not awake — the bell after its ring, the undo pill after its change's time, the closed dock
   with no suggestion — and left alone 3 seconds docks into its edge, out of the way of the work: it
@@ -368,6 +369,15 @@ from the edge).
 asked for while the app's pages are on screen, opens there as a page, with no dock. Its tabs then
 start in no workspace, so in `$HOME`, and Back returns to the home. Entering the workspace closes it.
 Inside the workspace, Terminal stays its tool.
+
+**D16 — Pills drawn out of their edge** (owner's choice of Option B, 2026-11-12: the pills felt
+detached from their edge as they opened, and too round as they moved).
+- **One shape for every pill:** flat where it meets its edge, flush on it, and round on the inside,
+  its corners half its height (`edgeTab`). Closed, it is a half-round tab; open, the row is the same
+  tab drawn longer, out of the edge. On the top or the bottom it hangs from the edge the same way.
+  - At rest it sinks half behind its edge: the round half shows.
+  - Open, its shadow is 4 dp, down from 8, since it no longer stands apart.
+- **Moved:** the pill's own 48 dp square as a raised tile with 12 dp corners, not a 52 dp ball.
 
 ## 4. Where the code goes
 

@@ -179,6 +179,10 @@ All notable changes to iCode are documented here. The format follows
   It opens over the home, with no dock, its Terminal tab alone. Back returns to the home. Inside a
   workspace, Terminal is its tool as before. A tab in no workspace, shown from its notification,
   opens there too.
+- The floating pills (undo, bell and the tool dock) are drawn out of their edge
+  ([docs/dock-navigation-plan.md](docs/dock-navigation-plan.md) D16). Each is flush on its edge, flat
+  there and round inside, closed and open alike, and a pill being moved is a tile with soft corners
+  instead of a ball.
 - Code colouring loads each language when a file first needs it
   ([docs/syntax-highlighting-plan.md](docs/syntax-highlighting-plan.md), S3). The app no longer parses
   every grammar at start, so the first file colours sooner: opening a JSON file parses JSON only. A grammar that fails to load turns

@@ -327,12 +327,12 @@ phone's way between the six tools: Explorer, Editor, Search, Source Control, Ass
   few seconds untouched close it too. A double tap on the closed dock switches to the tool used
   before.
 - Each pill of the floating stack — the undo pill, the bell, the dock — is dragged as soon as the
-  finger moves on it: it floats as a bubble anywhere on the screen, and let go, docks on the
-  nearest edge, left, right, top or bottom, 4 dp in from it, where it stays (D11, D13). A tap is
-  the pill's own.
-- Each pill is its own icon, see-through on a faint round, so the three are told apart at a
-  glance; left alone, it slowly sinks half into its edge and fades, as the assistant's bubble does,
-  and a touch or anything new brings it out (D12, D14).
+  finger moves on it: it floats as a tile anywhere on the screen, and let go, docks flush on the
+  nearest edge, left, right, top or bottom, where it stays (D11, D13, D16). A tap is the pill's own.
+- Each pill is its own icon, see-through on a faint tab drawn out of its edge, flat there and round
+  inside, closed and open alike (D16), so the three are told apart at a glance. Left alone, it
+  slowly sinks half into its edge and fades, as the assistant's bubble does, and a touch or anything
+  new brings it out (D12, D14).
 - Each icon carries the tool's badge: unsaved files, changed files, errors and a running command,
   the assistant at work or waiting. The Explorer's rail shows the same badges.
 

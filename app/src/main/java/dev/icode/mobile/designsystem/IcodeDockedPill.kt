@@ -27,7 +27,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -60,10 +59,10 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 
 /**
- * A floating pill as one see-through button (docs/dock-navigation-plan.md D12–D14): [icon] in [tint]
- * on a faint round of the raised surface, so it reads over code while the screen shows through it,
- * with [badge], a count, and a [dot] on it; a touch target wide and tall, the round inside it, so what
- * it carries is whole. A new [icon] crossfades in: the undo pill's ↶ turning ↷.
+ * A floating pill as one see-through button (docs/dock-navigation-plan.md D12–D14, D16): [icon] in
+ * [tint] on a faint tab of the raised surface, flush on its edge and round inside ([edgeTab]), so it
+ * reads over code while the screen shows through it, with [badge], a count, and a [dot] on it; a touch
+ * target wide and tall, the tab its whole size. A new [icon] crossfades in: the undo pill's ↶ turning ↷.
  *
  * Left alone while not [awake], it rests as the assistant's bubble over other apps does
  * ([IcodeResting]): slowly, it sinks half behind its edge ([LocalPillEdge]) and fades, out of the
@@ -110,7 +109,8 @@ fun IcodePillButton(
     )
     val edge = LocalPillEdge.current
     val way = outward(edge)
-    val sinkPx = with(LocalDensity.current) { (IcodeSizes.DockedPill / 2 + EDGE_INSET).toPx() }
+    val sinkPx = with(LocalDensity.current) { (IcodeSizes.DockedPill / 2).toPx() }
+    val tab = edgeTab(edge)
     val moves = LocalPillMoves.current(name)
     val pressed = remember { MutableInteractionSource() }
     val line = edgeLine
@@ -138,10 +138,10 @@ fun IcodePillButton(
     ) {
         Box(
             Modifier
-                .size(IcodeSizes.PillRound)
-                .clip(CircleShape)
+                .matchParentSize()
+                .clip(tab)
                 .background(IcodeColors.SurfaceElevated.copy(alpha = SEE_THROUGH))
-                .then(if (line != null) Modifier.border(1.dp, line.copy(alpha = SEE_THROUGH), CircleShape) else Modifier)
+                .then(if (line != null) Modifier.border(1.dp, line.copy(alpha = SEE_THROUGH), tab) else Modifier)
                 .indication(pressed, LocalIndication.current),
         )
         Crossfade(icon, label = "icon") { shown ->
@@ -154,7 +154,7 @@ fun IcodePillButton(
 /**
  * A floating pill that opens (the dock, D6, D13). Closed, it is its own icon ([LocalPillIcon]) as one
  * [IcodePillButton] in [tone], what needs the user there, resting in its edge as that button does,
- * kept out while it has a [tone]. Tapped, it opens at once into one row of [content] on the raised surface, grown from
+ * kept out while it has a [tone]. Tapped, it opens at once into one row of [content] on the raised surface, flush on its edge and round inside ([edgeTab]), grown from
  * its icon, which stays under the finger at the row's docked end ([LocalPillIconAtEnd]). That icon
  * tapped closes it again — or, tapped again within a double tap's time of opening it, does
  * [onDoubleTap] — and so does [closeAfterMillis] without a touch while it is shown: hidden
@@ -217,6 +217,7 @@ fun IcodeDockedPill(
             )
         } else {
             val line = edgeLine
+            val tab = edgeTab(LocalPillEdge.current)
             val moves = LocalPillMoves.current(name)
             // Its own icon, where the closed pill was: tapped, it closes the row, or answers the double tap.
             val close: @Composable () -> Unit = {
@@ -237,10 +238,10 @@ fun IcodeDockedPill(
                 Modifier
                     .keptFromBackGesture()
                     .height(IcodeSizes.DockedPill)
-                    .shadow(OPEN_ELEVATION, IcodeShapes.Pill)
-                    .clip(IcodeShapes.Pill)
+                    .shadow(OPEN_ELEVATION, tab)
+                    .clip(tab)
                     .background(IcodeColors.SurfaceElevated)
-                    .then(if (line != null) Modifier.border(1.dp, line, IcodeShapes.Pill) else Modifier)
+                    .then(if (line != null) Modifier.border(1.dp, line, tab) else Modifier)
                     .padding(start = if (atEnd) IcodeSpacing.Space1 else 0.dp, end = if (atEnd) 0.dp else IcodeSpacing.Space1),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -299,7 +300,7 @@ private const val SEE_THROUGH = 0.6f
 /** An opened pill grows from its icon this long, from this much of its size, and stands this high. */
 private const val OPEN_MILLIS = 180
 private const val OPEN_FROM = 0.9f
-private val OPEN_ELEVATION = 8.dp
+private val OPEN_ELEVATION = 4.dp
 
 /** A docked action's line stands clear of the pill's edge, under its icon. */
 private val LINE_LIFT = 5.dp
