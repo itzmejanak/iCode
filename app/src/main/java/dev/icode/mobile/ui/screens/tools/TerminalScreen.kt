@@ -72,9 +72,13 @@ fun TerminalScreen(actions: NavigationActions) {
     // Starting a panel on Run/Problems/Output must not start a shell. Closing the
     // last shell must not silently reopen one or dismiss the other two tabs.
     var attemptedFirstOpen by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(actions.panelTab, runtimeReady, terminal.sessions.isEmpty()) {
-        if (terminal.sessions.isNotEmpty()) attemptedFirstOpen = true
-        else if (shouldAutoOpenTerminal(actions.panelTab, runtimeReady, attemptedFirstOpen)) {
+    LaunchedEffect(actions.panelTab, runtimeReady, terminal.sessions.isEmpty(), actions.inWorkspace) {
+        if (terminal.sessions.isNotEmpty()) {
+            attemptedFirstOpen = true
+            // A tab of where this page is: the open workspace's inside it, one in no workspace (`$HOME`)
+            // outside it — the one running there, else a new one — never another's (docs/home-plan.md §2).
+            if (actions.panelTab == ToolPanelTab.Terminal && runtimeReady) gateway.dispatch(ICodeIntent.EnsureTerminalSession(actions.inWorkspace))
+        } else if (shouldAutoOpenTerminal(actions.panelTab, runtimeReady, attemptedFirstOpen)) {
             attemptedFirstOpen = true
             // Not "+": a panel drawn again must find the session it asked for, not start another.
             gateway.dispatch(ICodeIntent.EnsureTerminalSession(actions.inWorkspace))

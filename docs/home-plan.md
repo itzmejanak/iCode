@@ -18,7 +18,7 @@ in the runtime, the workspaces or the backend changes.
 |---|---|---|
 | Top bar | "iCode", Settings | Settings |
 | Start | Import…, Clone Repository…, Workspaces: links in the accent (`IcodeListRow`) | The file explorer at phone storage; Clone; the file explorer at iCode's storage |
-| Recent | The five recent workspaces (`WorkspaceRow`): the name as a link, the path, the branch, the time, ⋮ and a long press | The workspace; its sheet |
+| Recent | The five recent workspaces (`WorkspaceRow`, owner's choice A, 2026-11-13): a folder icon, the open workspace's open and in the accent; the name as a link; under it the branch, with Source Control's own branch icon (`CallSplit`), and the time; ⋮ and a long press. The path is not shown: it is always `/workspace/<name>`, the name again | The workspace; its sheet |
 | Behind | The logo as a letterpress (`IcodeWatermark`) | — |
 | Status bar, left | The runtime as VS Code's remote button (`IcodeIcons.Runtime`): the accent while healthy, amber otherwise | Healthy: Runtime Environment. Otherwise: the runtime's install, as the old label did |
 | Status bar | Terminal (`IcodeDockedAction`, `ToolBadges`), as the dock draws and badges it | The Terminal page outside the workspace, its tabs starting in `$HOME` (§2) |
@@ -46,6 +46,10 @@ in the runtime, the workspaces or the backend changes.
   - Run, Problems and Output belong to the workspace, so only Terminal shows.
   - No dock shows, and Back returns to the home.
 - **Inside the workspace** Terminal is its tool, as before; its tabs start in the workspace.
+- **The tab shown is where the page is** (owner, 2026-11-13: a workspace's tab was shown on the home's
+  Terminal once one had been opened). Each time the page opens on Terminal it shows the running tab of
+  its place: the open workspace's inside, one in no workspace outside. If there is none, it opens one
+  there. Every tab stays listed, and a tap on another still shows it.
 - **A tab in no workspace**, shown from its notification, opens on the Terminal page outside the
   workspace, wherever iCode is. Entering the workspace from that page closes it, so Back never shows
   Terminal twice.

@@ -175,6 +175,12 @@ All notable changes to iCode are documented here. The format follows
   foot. On the bar, the runtime is VS Code's remote button, in the accent while it is healthy and
   amber while it needs installing, with the Runtime page or the install behind it. Terminal and
   Assistant open their own pages, badged as on the dock, and the bell sits on the right.
+- The home's Recent list draws each workspace's folder, the open one open and in the accent, and
+  under its name its branch, with Source Control's branch icon, and when it was opened. Its
+  `/workspace/<name>` path, the name again, is no longer shown.
+- Terminal shows a tab of where it is opened: from the home one in `$HOME`, inside a workspace one of
+  that workspace. Each is the one running there, else a new one. Before, a workspace's tab opened
+  once stayed on the home's Terminal.
 - Terminal opened from the home starts in `$HOME`, as a login shell does, whatever workspace is open.
   It opens over the home, with no dock, its Terminal tab alone. Back returns to the home. Inside a
   workspace, Terminal is its tool as before. A tab in no workspace, shown from its notification,
