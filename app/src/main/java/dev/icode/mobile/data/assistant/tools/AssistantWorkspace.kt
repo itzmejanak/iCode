@@ -6,34 +6,38 @@ import dev.icode.mobile.data.runtime.GuestPaths
 import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.data.storage.WorkspacePaths
 import dev.icode.mobile.domain.AssistantPermissions
+import dev.icode.mobile.domain.AssistantPlace
 import java.io.File
 import java.io.IOException
 import org.json.JSONObject
 
 /**
- * The place a turn works in, and the runtime its tools reach (docs/runtime-contract-plan.md §4.3): a
- * workspace. A path the
- * model writes is a path in the runtime — absolute as written, `~` as root's home, relative from this
- * place's top — and names the file the runtime would, its links followed as PRoot follows them
+ * Where a turn works, and the runtime its tools reach (docs/runtime-contract-plan.md §4.3): its chat's
+ * workspace, or for a chat in none, `$HOME`, where a login starts (docs/home-plan.md §2). A path the
+ * model writes is a path in the runtime — absolute as written, `~` as root's home, relative from
+ * [root] — and names the file the runtime would, its links followed as PRoot follows them
  * ([GuestPaths]). Phone storage is in the runtime too (L8), read with All Files Access.
  */
 internal class AssistantWorkspace(
-    /** Its location in iCode's storage. */
-    root: File,
+    /** The chat's workspace, by its location in iCode's storage; null for a chat in none. */
+    workspace: File?,
     private val paths: GuestPaths,
     /** All Files Access, as Android answers it now: phone storage is read with it. */
     private val storageAccess: () -> Boolean = { true },
 ) {
-    val root: File = root.canonicalFile
+    val workspace: File? = workspace?.canonicalFile
 
-    /** Its path in the runtime — `/workspace/<name>`: the path the model is told. */
+    /** Where its tools start and a relative path starts: the workspace's top, or `$HOME` in none. */
+    val root: File = this.workspace ?: paths.hostOf(RuntimeLayout.GUEST_HOME).canonicalFile
+
+    /** [root]'s path in the runtime — `/workspace/<name>`, or `/root`: the path the model is told. */
     val guestPath: String = requireNotNull(paths.guestOf(this.root.path)) { "${this.root} is not in the runtime" }
 
-    /** "app". */
-    val name: String get() = root.name
+    /** "app"; "~" in no workspace. */
+    val name: String get() = AssistantPlace.name(place)
 
-    /** What the processes it starts belong to: the workspace's location. */
-    val place: String get() = root.path
+    /** What the processes it starts belong to: the workspace's location; null in none. */
+    val place: String? get() = workspace?.path
 
     /** [path] as the model wrote it, as the file on the phone it names; it need not exist. */
     fun resolve(path: String): File {
@@ -52,8 +56,8 @@ internal class AssistantWorkspace(
         return file
     }
 
-    /** [file]'s path from the workspace's top, `src/App.kt` or `.`; null when it is not in this workspace. */
-    fun relative(file: File): String? = WorkspacePaths.relative(file.path, root.path)?.ifEmpty { "." }
+    /** [file]'s path from the workspace's top, `src/App.kt` or `.`; null when it is not in this workspace, or there is none. */
+    fun relative(file: File): String? = workspace?.let { WorkspacePaths.relative(file.path, it.path)?.ifEmpty { "." } }
 
     /** [file]'s path in the runtime. */
     fun guestOf(file: File): String = paths.guestOf(file.path) ?: file.path
@@ -61,11 +65,15 @@ internal class AssistantWorkspace(
     /** [file] as the model is told it, and can write it back: from the workspace's top inside it, its runtime path elsewhere. */
     fun shown(file: File): String = relative(file) ?: guestOf(file)
 
-    /** What [path], as the model wrote it, reaches ([AssistantTool.reach]): the workspace's top when absent. */
+    /** What [path], as the model wrote it, reaches ([AssistantTool.reach]): [root] when absent. */
     fun reach(path: String?): List<File> = listOfNotNull(runCatching { resolve(path ?: ".") }.getOrNull())
 
-    /** The runtime paths of [files] outside this workspace (docs/assistant-permissions-plan.md §4.2). */
-    fun outside(files: List<File>): List<String> = files.filter { relative(it) == null }.map(::guestOf).distinct()
+    /**
+     * The runtime paths of [files] outside this workspace (docs/assistant-permissions-plan.md §4.2). In
+     * no workspace there is no boundary to cross: the mode alone decides (docs/home-plan.md §2).
+     */
+    fun outside(files: List<File>): List<String> =
+        if (workspace == null) emptyList() else files.filter { relative(it) == null }.map(::guestOf).distinct()
 
     /** The folder "Allow in this chat" opens for [path], a runtime path outside the workspace (§4.4). */
     fun rootOf(path: String): String? = AssistantPermissions.rootOf(

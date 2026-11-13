@@ -24,7 +24,7 @@ internal class AssistantGate(
     private val page: AssistantPage,
     private val questions: AssistantQuestions,
     /** The chat the turn is in: its place and its session. */
-    private val workspace: String,
+    private val workspace: String?,
     private val session: String,
     /** The chat's mode now: the setting, raised by its own answers. */
     private val permission: () -> AssistantPermission,

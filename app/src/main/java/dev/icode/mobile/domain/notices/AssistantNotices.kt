@@ -41,14 +41,17 @@ object AssistantNotices {
     /** A turn that failed in a chat not shown: why, in its words, and the chat to open. */
     fun stopped(failure: String, chat: NoticePlace) = Notice(
         NoticeTone.Problem, NoticeSource.Assistant, "The assistant stopped", chat,
-        detail = failure, actions = listOf(NoticeAction.Show(NoticeTarget.Assistant)),
+        detail = failure, actions = listOf(NoticeAction.Show(assistantOf(chat))),
     )
 
     /** A turn that ran long and ended: kept, and posted should iCode be out of view by then. */
     fun finished(chat: NoticePlace) = Notice(
         NoticeTone.Done, NoticeSource.Assistant, "The assistant finished", chat,
-        actions = listOf(NoticeAction.Show(NoticeTarget.Assistant)), tellAway = true,
+        actions = listOf(NoticeAction.Show(assistantOf(chat))), tellAway = true,
     )
+
+    /** Where [chat]'s page is: inside its workspace, or outside it for a chat in none. */
+    private fun assistantOf(chat: NoticePlace) = if (chat.workspaceLocation == null) NoticeTarget.AssistantOutside else NoticeTarget.Assistant
 
     // Providers and settings.
 

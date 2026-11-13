@@ -25,7 +25,7 @@ internal class FakeTerminals(private val directory: String = "/workspace/app") :
     val typed = mutableListOf<String>()
     val opened = mutableListOf<String>()
     private val records = mutableMapOf<String, TerminalCommands>()
-    private val workspaces = mutableMapOf<String, String>()
+    private val workspaces = mutableMapOf<String, String?>()
     private val directories = mutableMapOf<String, String>()
     private var hanging: Pair<String, Answer>? = null
     private var next = 1
@@ -39,13 +39,13 @@ internal class FakeTerminals(private val directory: String = "/workspace/app") :
     /** A tab of the user's, at a prompt; [marks] false for a shell that prints none. */
     fun userTab(title: String, marks: Boolean = true): String = add(title, null, "/w/app", marks)
 
-    override suspend fun openAssistant(workspaceHostPath: String, chat: String, fresh: Boolean): String {
+    override suspend fun openAssistant(workspaceHostPath: String?, chat: String, fresh: Boolean): String {
         if (!fresh) snapshot.value.sessions.firstOrNull { it.assistant == chat && it.isRunning }?.let { return it.id }
         val count = snapshot.value.sessions.count { it.assistant != null }
         return add(if (count == 0) "Assistant" else "Assistant ${count + 1}", chat, workspaceHostPath, true).also { opened += it }
     }
 
-    private fun add(title: String, chat: String?, workspace: String, marks: Boolean): String {
+    private fun add(title: String, chat: String?, workspace: String?, marks: Boolean): String {
         val id = "session-${next++}"
         records[id] = TerminalCommands()
         workspaces[id] = workspace

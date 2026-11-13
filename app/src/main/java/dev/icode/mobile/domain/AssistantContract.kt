@@ -202,8 +202,8 @@ enum class AssistantAnswer { Allow, AllowInChat, Deny }
 
 /** The turn in hand: one at a time, in the chat it started in. */
 data class AssistantTurn(
-    /** Its workspace's location. */
-    val workspace: String,
+    /** Its workspace's location; null for a chat in none, which works in `$HOME` (docs/home-plan.md §2). */
+    val workspace: String?,
     val workspaceName: String,
     val session: String,
     /** "Thinking…", "Read src/App.kt", "Waiting for your answer", "Compacting the chat…". */
@@ -224,7 +224,7 @@ data class AssistantTurn(
 data class AssistantLive(val reasoning: String, val text: String)
 
 /** A turn that ended (docs/dock-navigation-plan.md D8): its workspace, how many have ended so far, whether its tools changed a file. */
-data class AssistantTurnEnd(val workspace: String, val number: Int, val changedFiles: Boolean)
+data class AssistantTurnEnd(val workspace: String?, val number: Int, val changedFiles: Boolean)
 
 /** One chat of a workspace, as its history lists it (§12 R5). */
 data class AssistantSession(val id: String, val title: String, val updatedAt: Long)
@@ -240,9 +240,9 @@ data class AssistantState(
     val adding: AssistantProviderKind? = null,
     /** The models its server lists, once asked. */
     val available: AssistantAvailable? = null,
-    /** The place whose chats are shown — a workspace's location; null until the page opens. */
+    /** The page has opened [workspace]'s chats, newest first in [sessions]: a workspace's location, or null for the chats in none. */
+    val opened: Boolean = false,
     val workspace: String? = null,
-    /** That place's chats, newest first. */
     val sessions: List<AssistantSession> = emptyList(),
     /** The chat shown; null for a new one, not yet written to. */
     val session: String? = null,

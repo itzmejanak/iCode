@@ -194,7 +194,8 @@ internal class PhoneOverlays(private val service: PhoneService) : PhoneOverlayHo
     /** Sent to the chat iCode shows — "Open in iCode" opens the same one — and answered aloud. */
     private fun send(text: String) {
         if (text.isBlank()) return
-        if (snapshot?.assistant?.workspace == null) gateway.dispatch(ICodeIntent.OpenAssistant)
+        // Not opened yet: the open workspace's chats, else those in no workspace (docs/home-plan.md §2).
+        if (snapshot?.assistant?.opened != true) gateway.dispatch(ICodeIntent.OpenAssistant(inWorkspace = true))
         gateway.dispatch(ICodeIntent.SendAssistantMessage(text.trim(), aloud = true))
         draft = ""
         muted = false

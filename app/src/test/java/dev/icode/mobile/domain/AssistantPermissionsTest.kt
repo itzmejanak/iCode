@@ -50,6 +50,10 @@ class AssistantPermissionsTest {
         assertEquals(AskFirst, AssistantPermissions.effective(AskFirst, allowedInWorkspace = false))
         assertEquals(AutoInWorkspace, AssistantPermissions.effective(AutoInWorkspace, allowedInWorkspace = true))
         assertEquals(FullAccess, AssistantPermissions.effective(FullAccess, allowedInWorkspace = false))
+        // In no workspace there is none to run in without asking: only Full access asks nothing (docs/home-plan.md §2).
+        assertEquals(AskFirst, AssistantPermissions.effective(AutoInWorkspace, allowedInWorkspace = false, inWorkspace = false))
+        assertEquals(AskFirst, AssistantPermissions.effective(AskFirst, allowedInWorkspace = true, inWorkspace = false))
+        assertEquals(FullAccess, AssistantPermissions.effective(FullAccess, allowedInWorkspace = false, inWorkspace = false))
     }
 
     @Test fun `allowing in this chat opens another workspace whole, a repository at its top, else the folder, never the root`() {

@@ -23,7 +23,8 @@ internal fun languageServiceTools(services: LanguageServices, workspace: Assista
     SaveLanguageServiceTool(services),
     RemoveLanguageServiceTool(services),
     ControlLanguageServiceTool(services),
-) + languageCodeTools(services, workspace)
+    // Its servers run for the workspace open in the editor: a chat in no workspace has no code of theirs to ask about.
+) + if (workspace.workspace == null) emptyList() else languageCodeTools(services, workspace)
 
 internal class ListLanguageServicesTool(private val services: LanguageServices) : AssistantTool {
     override val name = AssistantToolName.ListLanguageServices.id

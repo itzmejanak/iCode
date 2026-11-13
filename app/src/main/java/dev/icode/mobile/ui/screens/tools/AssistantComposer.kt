@@ -112,7 +112,7 @@ internal fun AssistantComposer(
                         when {
                             // The questions above it wait: what is sent now answers them (D5).
                             state.replying -> "Or answer in your own words"
-                            settings.mode == AssistantMode.Ask -> "Ask about ${AssistantPlace.name(state.workspace.orEmpty())}"
+                            settings.mode == AssistantMode.Ask -> state.workspace?.let { "Ask about ${AssistantPlace.name(it)}" } ?: "Ask anything"
                             settings.mode == AssistantMode.Plan -> "Plan what to build"
                             settings.mode == AssistantMode.Code -> "Describe what to build"
                             else -> "What would you like to build?"
@@ -189,7 +189,7 @@ internal fun AssistantComposer(
                     val placeIcon = Icons.Outlined.FolderOpen
                     Icon(placeIcon, contentDescription = null, tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconSm))
                     Text(
-                        AssistantPlace.name(state.workspace.orEmpty()),
+                        AssistantPlace.name(state.workspace),
                         style = IcodeType.Caption.copy(color = IcodeColors.TextMuted),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -198,7 +198,7 @@ internal fun AssistantComposer(
                 // Permissions are the chat's, chosen here as VS Code's are (docs/assistant-permissions-plan.md §4.1).
                 Choice(
                     state.permission.label, "Permissions", AssistantPermission.entries, state.permission, AssistantPermission::label,
-                    { permissionLine(it, AssistantPlace.name(state.workspace.orEmpty())) },
+                    { permissionLine(it, state.workspace?.let(AssistantPlace::name)) },
                     icon = true,
                 ) { gateway.dispatch(ICodeIntent.SetAssistantPermission(it)) }
             }
@@ -207,11 +207,16 @@ internal fun AssistantComposer(
     }
 }
 
-/** What [permission] lets run in [workspace], said where it is chosen. */
-internal fun permissionLine(permission: AssistantPermission, workspace: String): String = when (permission) {
-    AssistantPermission.AskFirst -> "Changes, commands and anything outside $workspace wait for Allow"
-    AssistantPermission.AutoInWorkspace -> "Runs in $workspace without asking; anything outside it waits for Allow"
-    AssistantPermission.FullAccess -> "Changes, commands and anything outside $workspace run without asking"
+/**
+ * What [permission] lets run in [workspace], by its name, said where it is chosen. In no workspace
+ * (null) there is none to run in without asking: only Full access asks nothing (docs/home-plan.md §2).
+ */
+internal fun permissionLine(permission: AssistantPermission, workspace: String?): String = when {
+    workspace == null && permission == AssistantPermission.FullAccess -> "Changes and commands run without asking"
+    workspace == null -> "Changes and commands wait for Allow: there is no workspace to run in without asking"
+    permission == AssistantPermission.AskFirst -> "Changes, commands and anything outside $workspace wait for Allow"
+    permission == AssistantPermission.AutoInWorkspace -> "Runs in $workspace without asking; anything outside it waits for Allow"
+    else -> "Changes, commands and anything outside $workspace run without asking"
 }
 
 /** "o3 · High": the model, and its effort ("Auto" for the provider's own) where it offers one. */

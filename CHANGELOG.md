@@ -179,6 +179,12 @@ All notable changes to iCode are documented here. The format follows
   It opens over the home, with no dock, its Terminal tab alone. Back returns to the home. Inside a
   workspace, Terminal is its tool as before. A tab in no workspace, shown from its notification,
   opens there too.
+- The Assistant opened from the home works in no workspace, from `$HOME`, as the home's Terminal does
+  ([docs/home-plan.md](docs/home-plan.md) §2). Its chats are kept apart from every workspace's.
+  - There is no workspace to run in without asking, so changes and commands ask, under Ask first and
+    Auto in workspace alike. Only Full access asks nothing.
+  - Inside a workspace the Assistant is as it was.
+  - "Open a workspace first" is gone: the Assistant works with no workspace at all.
 - The floating pills (undo, bell and the tool dock) are drawn out of their edge
   ([docs/dock-navigation-plan.md](docs/dock-navigation-plan.md) D16). Each is flush on its edge, flat
   there and round inside, closed and open alike, and a pill being moved is a tile with soft corners

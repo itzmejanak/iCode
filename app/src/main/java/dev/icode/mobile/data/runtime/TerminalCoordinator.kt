@@ -29,7 +29,7 @@ internal data class LongCommandEnded(val id: String, val program: String, val du
  * A process's output, for a tab of its own: [key] is the process, [title] its name, [log] where its
  * output is written in the runtime, [workspaceHostPath] the workspace it runs in.
  */
-internal data class FollowedOutput(val key: String, val title: String, val workspaceHostPath: String, val log: String)
+internal data class FollowedOutput(val key: String, val title: String, val workspaceHostPath: String?, val log: String)
 
 /** What iCode asks of the process's terminal sessions; tests put a fake in their place. */
 internal interface TerminalSessions {
@@ -51,7 +51,7 @@ internal interface TerminalSessions {
      * A chat's tab (docs/agent-control-plan.md §3 A4): its running one unless [fresh], else a new one;
      * the user's own selection stays. Null without a runtime.
      */
-    suspend fun openAssistant(workspaceHostPath: String, chat: String, fresh: Boolean): String?
+    suspend fun openAssistant(workspaceHostPath: String?, chat: String, fresh: Boolean): String?
 
     /** [id]'s commands as its shell's marks bound them; null once it is gone. Any thread. */
     fun commands(id: String): TerminalCommands?
@@ -189,7 +189,7 @@ internal class TerminalCoordinator(
     suspend fun showOutput(process: ManagedProcess, log: String) {
         if (!runtimeInstalled()) return stateHolder.tell(TerminalNotices.needsRuntime())
         val id = terminals.follow(FollowedOutput(process.id, process.name, process.workspace, log))
-            ?: return stateHolder.tell(TerminalNotices.outputNotShown(process.name, placeOf(process.workspace)))
+            ?: return stateHolder.tell(TerminalNotices.outputNotShown(process.name, process.workspace?.let(::placeOf) ?: NoticePlace(NoticePlaces.RUNTIME)))
         show(id)
     }
 

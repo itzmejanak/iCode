@@ -22,6 +22,7 @@ import dev.icode.mobile.domain.AssistantModel
 import dev.icode.mobile.domain.AssistantModelSpec
 import dev.icode.mobile.domain.AssistantPause
 import dev.icode.mobile.domain.AssistantPermission
+import dev.icode.mobile.domain.AssistantPermissions
 import dev.icode.mobile.domain.AssistantProviderKind
 import dev.icode.mobile.domain.AssistantReach
 import dev.icode.mobile.domain.AssistantResult
@@ -147,8 +148,8 @@ class AssistantCoordinatorTest {
             },
         )
     }
-    private val forgotten = CopyOnWriteArrayList<Pair<String, String>>()
-    private val opened = CopyOnWriteArrayList<Pair<String, String>>()
+    private val forgotten = CopyOnWriteArrayList<Pair<String?, String>>()
+    private val opened = CopyOnWriteArrayList<Pair<String?, String>>()
     private var tabRefusal: String? = null
 
     @Before fun start() {
@@ -157,7 +158,7 @@ class AssistantCoordinatorTest {
         openAI
         coordinator.start()
         until { state().settings.ready && state().catalogue.isNotEmpty() }
-        coordinator.handle(ICodeIntent.OpenAssistant)
+        coordinator.handle(ICodeIntent.OpenAssistant(inWorkspace = true))
         until { state().workspace == app }
     }
 
@@ -214,12 +215,57 @@ class AssistantCoordinatorTest {
         said("one")
         val chat = state().session
         home = true
-        coordinator.handle(ICodeIntent.OpenAssistant)
+        coordinator.handle(ICodeIntent.OpenAssistant(inWorkspace = true))
         said("two")
         assertEquals(app, state().workspace)
         assertEquals(chat, state().session)
         assertEquals(listOf("app", "app"), places)
         assertEquals(1, chats.sessions(app).size)
+    }
+
+    @Test fun `outside the workspace the page shows the chats in none, and one sent there works from home, apart from the workspace's`() {
+        said("in app")
+        coordinator.handle(ICodeIntent.OpenAssistant(inWorkspace = false))
+        until { state().opened && state().workspace == null }
+        assertTrue(state().sessions.isEmpty())
+        said("from home")
+        assertNull(state().workspace)
+        assertEquals(listOf("from home"), chats.sessions(null).map { it.title })
+        assertEquals(listOf("in app"), chats.sessions(app).map { it.title })
+        assertEquals("~", places.last())
+        assertTrue(requests.last().instructions, requests.last().instructions.contains("You work in no workspace, from /root, root's home,"))
+        assertEquals(AssistantTurnEnd(null, 2, changedFiles = false), state().ended)
+        // Inside the workspace again, its own chats.
+        coordinator.handle(ICodeIntent.OpenAssistant(inWorkspace = true))
+        until { state().workspace == app }
+        assertEquals(listOf("in app"), state().sessions.map { it.title })
+    }
+
+    @Test fun `in no workspace a change asks under Auto in workspace too, with nothing to allow it in, and runs once allowed`() {
+        coordinator.handle(ICodeIntent.SetAssistantPermission(AssistantPermission.AutoInWorkspace))
+        until { state().settings.permission == AssistantPermission.AutoInWorkspace }
+        coordinator.handle(ICodeIntent.OpenAssistant(inWorkspace = false))
+        until { state().opened && state().workspace == null }
+        editTurn()
+        coordinator.handle(ICodeIntent.SendAssistantMessage("Rename x"))
+        until { state().approval != null }
+        assertNull(state().approval!!.reach)
+        assertNull(AssistantPermissions.allowIn(state().approval!!, null))
+        assertTrue(ran.isEmpty())
+        coordinator.handle(ICodeIntent.AnswerAssistant("c1", AssistantAnswer.Allow))
+        until { state().turn == null }
+        assertEquals(listOf("edit_file"), ran)
+    }
+
+    @Test fun `in no workspace Full access asks nothing`() {
+        coordinator.handle(ICodeIntent.SetAssistantPermission(AssistantPermission.FullAccess))
+        until { state().settings.permission == AssistantPermission.FullAccess }
+        coordinator.handle(ICodeIntent.OpenAssistant(inWorkspace = false))
+        until { state().opened && state().workspace == null }
+        editTurn()
+        coordinator.handle(ICodeIntent.SendAssistantMessage("Rename x"))
+        until { requests.size == 1 && state().turn == null }
+        assertEquals(listOf("edit_file"), ran)
     }
 
     @Test fun `a new chat away from the workspace starts in that same workspace`() {
@@ -486,7 +532,7 @@ class AssistantCoordinatorTest {
         coordinator.handle(ICodeIntent.OpenAssistantSession(first))
         until { state().session == first }
         assertEquals("Re: first chat", (state().messages.last() as AssistantMessage.Reply).text)
-        coordinator.handle(ICodeIntent.OpenAssistant)
+        coordinator.handle(ICodeIntent.OpenAssistant(inWorkspace = true))
         Thread.sleep(50)
         assertEquals(first, state().session)
 

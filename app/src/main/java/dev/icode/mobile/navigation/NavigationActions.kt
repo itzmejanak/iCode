@@ -10,6 +10,10 @@ package dev.icode.mobile.navigation
 data class NavigationActions(
     /** A tool's main screen switches to that tool, as it was left; any other route opens over this screen. */
     val navigate: (Route) -> Unit,
+    /** What was opened for the user (D3): a tool's main screen, inside the workspace; a page over what is open. */
+    val show: (Route) -> Unit,
+    /** Terminal or the Assistant outside the workspace ([opensOutside]), from wherever iCode is: a tab or a chat in no workspace. */
+    val outside: (Route) -> Unit,
     /** This page closes, then [Route] is gone to: a sibling settings page, a palette's command. */
     val replace: (Route) -> Unit,
     /** Terminal, on that tab. */

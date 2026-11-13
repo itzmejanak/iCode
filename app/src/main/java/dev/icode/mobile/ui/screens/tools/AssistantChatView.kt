@@ -193,7 +193,7 @@ internal fun AssistantChatView(
             // Its gap to the composer is the composer's own top padding: one, not two.
             AssistantApprovalCard(
                 approval,
-                AssistantPlace.name(state.workspace.orEmpty()),
+                state.workspace?.let(AssistantPlace::name),
                 Modifier.padding(start = IcodeSpacing.Space3, end = IcodeSpacing.Space3, top = IcodeSpacing.Space2),
                 onDetails = asked?.let { (row, step) -> { onOpen(row, step) } },
             )

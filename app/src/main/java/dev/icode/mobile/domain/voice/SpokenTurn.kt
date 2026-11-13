@@ -30,7 +30,7 @@ sealed interface VoiceCue {
  */
 class SpokenTurn {
     /** The workspace and chat of the turn read now; null when none is. */
-    private var reading: Pair<String, String>? = null
+    private var reading: Pair<String?, String>? = null
 
     /** The chat's length when the turn began: its replies come after it, and after its own message. */
     private var base = 0
@@ -85,8 +85,8 @@ class SpokenTurn {
     private fun asked(before: AssistantState, after: AssistantState): List<VoiceCue> {
         val approval = after.approval
         if (approval != null && approval.call.id != before.approval?.call?.id) {
-            val bound = AssistantPlace.name(after.turn?.workspace ?: after.workspace.orEmpty())
-            return listOf(VoiceCue.Say("${SpokenText.of(AssistantPermissions.question(approval, bound))} ${SpokenText.of(approval.call.summary)}"))
+            val workspace = if (after.turn != null) after.turn.workspace else after.workspace
+            return listOf(VoiceCue.Say("${SpokenText.of(AssistantPermissions.question(approval, AssistantPlace.name(workspace)))} ${SpokenText.of(approval.call.summary)}"))
         }
         val clarification = after.clarification
         if (clarification != null && clarification.call.id != before.clarification?.call?.id) {

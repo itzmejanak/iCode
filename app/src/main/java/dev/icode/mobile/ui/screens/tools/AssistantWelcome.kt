@@ -24,7 +24,8 @@ import dev.icode.mobile.domain.AssistantState
 /** An empty chat: the logo over its letterpress, as on the home screen, and a few things to ask. */
 @Composable
 internal fun AssistantWelcome(state: AssistantState, modifier: Modifier, onSuggestion: (String) -> Unit) {
-    val workspace = AssistantPlace.name(state.workspace.orEmpty())
+    // The workspace's name; null for a chat in none, which works in `~` (docs/home-plan.md §2).
+    val workspace = state.workspace?.let(AssistantPlace::name)
     val asking = state.settings.mode == AssistantMode.Ask
     val planning = state.settings.mode == AssistantMode.Plan
     val orchestrating = state.settings.mode == AssistantMode.Orchestrator
@@ -37,16 +38,17 @@ internal fun AssistantWelcome(state: AssistantState, modifier: Modifier, onSugge
         ) {
             EmptyState(
                 title = when {
-                    asking -> "Ask about $workspace"
-                    planning -> "Plan for $workspace"
+                    asking -> workspace?.let { "Ask about $it" } ?: "Ask anything"
+                    planning -> workspace?.let { "Plan for $it" } ?: "Plan with the assistant"
                     orchestrating -> "Build with orchestration"
                     else -> "Build with the assistant"
                 },
                 description = when {
-                    asking -> "It reads this workspace to answer, and changes nothing."
+                    asking -> if (workspace != null) "It reads this workspace to answer, and changes nothing." else "It reads to answer, and changes nothing."
                     planning -> "It reads everything to understand and plan. It never changes files or runs commands."
                     orchestrating -> "It plans, implements and verifies step by step, reporting what it did."
-                    else -> "It reads and changes $workspace's files and runs commands in its terminal. ${permissionLine(state.permission, workspace)}."
+                    else -> (if (workspace != null) "It reads and changes $workspace's files and runs commands in its terminal. " else "It works from ~ and runs commands in its terminal. ") +
+                        "${permissionLine(state.permission, workspace)}."
                 },
                 mark = { IcodeBrandMark(Modifier.size(IcodeSizes.MarkLg)) },
             )

@@ -1,6 +1,6 @@
 # iCode's home
 
-Status: **built** (2026-11-12): the home UI, and the home's Terminal in `$HOME` (§2). The phone checks (§4) are still to be run.
+Status: **built** (2026-11-13): the home UI, and the home's Terminal and Assistant in `$HOME` (§2). The phone checks (§4) are still to be run.
 
 > "Redesign my mobile app home UI to make it look like VS Code, keeping the same features." Option A
 > with Option 1's status bar; "clicking Terminal and Assistant opens the existing pages, not new
@@ -22,7 +22,7 @@ in the runtime, the workspaces or the backend changes.
 | Behind | The logo as a letterpress (`IcodeWatermark`) | — |
 | Status bar, left | The runtime as VS Code's remote button (`IcodeIcons.Runtime`): the accent while healthy, amber otherwise | Healthy: Runtime Environment. Otherwise: the runtime's install, as the old label did |
 | Status bar | Terminal (`IcodeDockedAction`, `ToolBadges`), as the dock draws and badges it | The Terminal page outside the workspace, its tabs starting in `$HOME` (§2) |
-| Status bar | Assistant, the same way; muted while there is no workspace to work in | `navigate(Route.Assistant)`, as the rail |
+| Status bar | Assistant, the same way | The Assistant page outside the workspace, on the chats in no workspace, which work in `$HOME` (§2) |
 | Status bar, right | The bell, with the accent dot while anything is unread or Document Recovery holds work | Notifications |
 
 - **Gone:** the three tiles (`LauncherActionTile`), the "RUNTIME HEALTHY" label, the top bar's bell,
@@ -55,13 +55,43 @@ in the runtime, the workspaces or the backend changes.
   - `OpenTerminalSession` and `EnsureTerminalSession` say it.
   - `TerminalCoordinator` starts the tab in the open workspace or in none.
 
-**Assistant** is still the workspace's tool, reached as from the Explorer's rail:
-- **With a workspace open:** it opens in it, and Back goes through its tools, then to the home
-  (docs/dock-navigation-plan.md D4).
-- **With none open:** it opens the chat shown last, else the most recently opened workspace's chats.
-- **With no workspace at all:** its button is muted.
-- **Not yet:** opening it from `$HOME` needs a chat in no workspace, which chats cannot be today
-  (docs/phone-agent-plan.md L1).
+**Assistant** (owner, 2026-11-12: "the Assistant from home should open from `cd $HOME`", and rule (a)):
+- **From the home** it is the Assistant page outside the workspace, as Terminal is.
+  - It shows the chats in **no workspace**. Their turns work from `$HOME`, where a login starts, so
+    a relative path starts there, as a home tab's commands do.
+  - Their commands, processes and their own terminal tab start there too, and belong to no workspace.
+  - Its subtitle and the place line name it `~`, as the shell does.
+- **Inside the workspace** it is its tool, on the workspace's chats, as before.
+- **With no workspace open in the tool**, it keeps the chat shown, so the page and the bubble stay in
+  the chat the user was in. Before the page has opened, the bubble writes to the open workspace's
+  chats, else to the chats in no workspace. The old fall back to the most recently opened workspace
+  is gone.
+- **What a chat in no workspace may do** (rule a):
+  - With no workspace there is no boundary: nothing is outside one, so reads run.
+  - "Auto in workspace" has no workspace to run in, so changes and commands ask as under "Ask first".
+  - Only "Full access" asks nothing.
+  - There is no "Allow in …" for a change or a command: there is no workspace to allow it in.
+  - Apps, MCP servers and terminal tabs are still asked about as places of their own.
+  - The mode line under the chip says so.
+- **What it is not offered:**
+  - the Run tab's tools (a workspace's Run tab);
+  - the language servers' code tools, which run for the workspace open in the editor;
+  - `AGENTS.md`;
+  - a workspace's `.mcp.json` servers.
+
+  Its instructions say it works in no workspace, from `/root`.
+- **How it is built:** nothing is renamed and nothing new stands in for `/root`.
+  - "No workspace" is `null` wherever a chat's workspace was a location, as a terminal tab's
+    already was: `AssistantChats`, `AssistantChatStore`, `AssistantTurns`, `AssistantGate`,
+    `ManagedProcess`, `TerminalRuns`.
+  - `AssistantWorkspace(null, …)` works from the runtime's own `$HOME`, which `TerminalLaunch`
+    already uses.
+  - The chats in no workspace are kept in their own folder of the chat store.
+  - `AssistantState.opened` tells the page that has opened on them from one not opened yet.
+  - `OpenAssistant(inWorkspace)` says where the page is.
+  - `AssistantPermissions.effective(…, inWorkspace)` applies rule (a).
+  - A notice of such a chat opens it outside the workspace (`NoticeTarget.AssistantOutside`).
+  - Arrivals and the bubble do the same.
 
 ## 3. Considered and dropped
 

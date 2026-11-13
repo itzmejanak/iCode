@@ -50,14 +50,14 @@ import dev.icode.mobile.ui.copyText
  * What a row of the chat opens (docs/assistant-sheets-plan.md §2.2–§2.3): a run of steps, the
  * reasoning, or a compaction's summary. [entry] is the chat's as it is
  * now, so what a step does while its sheet is open shows there. [step] opens a run at that step;
- * [approval] is the question waiting, which its step's page shows and answers; [workspace] is its name.
+ * [approval] is the question waiting, which its step's page shows and answers; [workspace] is its name, null in no workspace.
  */
 @Composable
 internal fun AssistantEntrySheet(
     entry: AssistantEntry,
     step: String?,
     approval: AssistantApproval?,
-    workspace: String,
+    workspace: String?,
     modifier: Modifier,
     onClose: () -> Unit,
     onDiff: (GitChange) -> Unit,
@@ -145,7 +145,7 @@ private fun AssistantStepsSheet(
     entry: AssistantEntry.Steps,
     start: String?,
     approval: AssistantApproval?,
-    workspace: String,
+    workspace: String?,
     modifier: Modifier,
     onClose: () -> Unit,
     onDiff: (GitChange) -> Unit,
@@ -192,7 +192,7 @@ private fun AssistantStepsSheet(
 private fun StepPage(
     step: AssistantEntry.Step,
     approval: AssistantApproval?,
-    workspace: String,
+    workspace: String?,
     modifier: Modifier,
     onClose: () -> Unit,
     onBack: (() -> Unit)?,

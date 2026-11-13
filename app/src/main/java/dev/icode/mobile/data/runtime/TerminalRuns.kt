@@ -57,7 +57,7 @@ internal class TerminalRuns(
     fun chatOf(id: String): String? = terminals.snapshot.value.sessions.firstOrNull { it.id == id }?.assistant
 
     /** [chat]'s own tab in [workspace]: its running one, unless [fresh], else a new one. Throws [Refused]. */
-    suspend fun tabOf(workspace: String, chat: String, fresh: Boolean): String =
+    suspend fun tabOf(workspace: String?, chat: String, fresh: Boolean): String =
         terminals.openAssistant(workspace, chat, fresh) ?: throw Refused("The Linux runtime is not installed")
 
     /** [chat]'s running tab, if it has one. */

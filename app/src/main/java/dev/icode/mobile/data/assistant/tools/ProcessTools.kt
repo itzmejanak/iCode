@@ -4,6 +4,7 @@ import dev.icode.mobile.data.assistant.AssistantParameter
 import dev.icode.mobile.data.assistant.AssistantParameterType
 import dev.icode.mobile.data.assistant.AssistantTool
 import dev.icode.mobile.data.assistant.AssistantToolException
+import dev.icode.mobile.data.runtime.GuestPaths
 import dev.icode.mobile.data.runtime.RuntimeProcesses
 import dev.icode.mobile.domain.AssistantToolKind
 import dev.icode.mobile.domain.AssistantToolName
@@ -29,15 +30,20 @@ internal suspend fun localPortAnswers(port: Int): Boolean = withContext(Dispatch
 
 private const val CONNECT_MILLIS = 300
 
-/** What a call naming a process by its `id` reaches: that process's workspace (docs/assistant-permissions-plan.md §4.2). */
-private fun RuntimeProcesses.reach(arguments: JSONObject): List<File> =
-    arguments.textOrNull("id")?.let(::info)?.let { listOf(File(it.workspace)) }.orEmpty()
+/**
+ * What a call naming a process by its `id` reaches (docs/assistant-permissions-plan.md §4.2): that
+ * process's workspace, or where one a chat in no workspace started runs (docs/home-plan.md §2).
+ */
+private fun RuntimeProcesses.reach(arguments: JSONObject, paths: GuestPaths): List<File> {
+    val process = arguments.textOrNull("id")?.let(::info) ?: return emptyList()
+    return listOfNotNull(process.workspace?.let(::File) ?: runCatching { paths.hostOf(process.directory) }.getOrNull())
+}
 
 /** What the model reads of a process: its ID and name, its command, where and how it runs, its workspace and its ports. */
 private suspend fun describe(process: ManagedProcess, answers: suspend (Int) -> Boolean, now: Long): String = buildString {
     append("${process.id} · ${process.name} · ${ProcessRules.stateLabel(process.state, now, process.startedAt)}")
     (process.state as? ManagedProcessState.Ended)?.let { append(" (exit code ${it.code}: ${ProcessRules.exitMeaning(it.code)})") }
-    append("\n`${process.command}` in ${process.directory} · workspace “${File(process.workspace).name}”")
+    append("\n`${process.command}` in ${process.directory} · " + (process.workspace?.let { "workspace “${File(it).name}”" } ?: "no workspace"))
     if (process.ports.isNotEmpty()) {
         val ports = process.ports.map { port -> "$port " + if (process.running && answers(port)) "(answers)" else "(does not answer)" }
         append("\nPorts its output names: ").append(ports.joinToString())
@@ -109,6 +115,7 @@ internal class StartProcessTool(
 /** Every process iCode runs, each with its workspace, or one's state and its output since the assistant last looked: read-only. */
 internal class ProcessStatusTool(
     private val processes: RuntimeProcesses,
+    private val paths: GuestPaths,
     private val answers: suspend (Int) -> Boolean = ::localPortAnswers,
     private val clock: () -> Long = System::currentTimeMillis,
 ) : AssistantTool {
@@ -121,7 +128,7 @@ internal class ProcessStatusTool(
 
     override fun summary(arguments: JSONObject): String = arguments.textOrNull("id")?.let { "Check $it" } ?: "List processes"
 
-    override fun reach(arguments: JSONObject): List<File> = processes.reach(arguments)
+    override fun reach(arguments: JSONObject): List<File> = processes.reach(arguments, paths)
 
     override suspend fun run(arguments: JSONObject): String {
         val id = arguments.textOrNull("id")
@@ -145,7 +152,7 @@ internal class ProcessStatusTool(
 }
 
 /** Writes to a running process's input; asked about first. */
-internal class SendProcessInputTool(private val processes: RuntimeProcesses) : AssistantTool {
+internal class SendProcessInputTool(private val processes: RuntimeProcesses, private val paths: GuestPaths) : AssistantTool {
     override val name = AssistantToolName.SendProcessInput.id
     override val description = "Writes text to the input of a process started with start_process — an answer to its " +
         "prompt, a line for its console — then answers what it printed in the next second."
@@ -158,7 +165,7 @@ internal class SendProcessInputTool(private val processes: RuntimeProcesses) : A
 
     override fun summary(arguments: JSONObject): String = "Send input to ${arguments.textOrNull("id").orEmpty()}"
 
-    override fun reach(arguments: JSONObject): List<File> = processes.reach(arguments)
+    override fun reach(arguments: JSONObject): List<File> = processes.reach(arguments, paths)
 
     override fun detail(arguments: JSONObject): String = arguments.textOrNull("text").orEmpty()
 
@@ -182,6 +189,7 @@ internal class SendProcessInputTool(private val processes: RuntimeProcesses) : A
 /** Stops a process; asked about first. */
 internal class StopProcessTool(
     private val processes: RuntimeProcesses,
+    private val paths: GuestPaths,
     private val clock: () -> Long = System::currentTimeMillis,
 ) : AssistantTool {
     override val name = AssistantToolName.StopProcess.id
@@ -192,7 +200,7 @@ internal class StopProcessTool(
 
     override fun summary(arguments: JSONObject): String = "Stop ${arguments.textOrNull("id").orEmpty()}"
 
-    override fun reach(arguments: JSONObject): List<File> = processes.reach(arguments)
+    override fun reach(arguments: JSONObject): List<File> = processes.reach(arguments, paths)
 
     override suspend fun run(arguments: JSONObject): String {
         val id = arguments.text("id")

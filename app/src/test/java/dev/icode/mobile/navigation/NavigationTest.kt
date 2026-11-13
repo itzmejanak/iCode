@@ -193,7 +193,7 @@ class NavigationTest {
     }
 
     @Test fun `a tab in no workspace is shown outside it, from inside it too`() {
-        val shown = opened.showTerminalOutside()
+        val shown = opened.showOutside(Route.TerminalExpanded)
         assertEquals(Route.TerminalExpanded, shown.current)
         assertFalse(shown.inWorkspace)
         assertEquals(listOf(Route.LauncherHome), shown.backs())
@@ -204,6 +204,22 @@ class NavigationTest {
         assertEquals(listOf(Route.LauncherHome), inside.app)
         assertEquals(listOf(Route.LauncherHome), inside.backs())
         assertEquals(listOf(Route.LauncherHome), Navigation.start(Route.LauncherHome).openPanel(ToolPanelTab.Terminal).opened("/ws/one").app)
+    }
+
+    @Test fun `the Assistant asked for from the Launcher opens there, outside the workspace, and shown inside closes it`() {
+        val home = Navigation.start(Route.LauncherHome)
+        val assistant = home.navigate(Route.Assistant)
+        assertEquals(Route.Assistant, assistant.current)
+        assertFalse(assistant.inWorkspace)
+        assertFalse(assistant.onMainScreen)
+        assertEquals(home, assistant.back())
+        assertTrue(opened.navigate(Route.Assistant).inWorkspace)
+        val inside = assistant.show(Route.Assistant)
+        assertTrue(inside.inWorkspace)
+        assertEquals(listOf(Route.LauncherHome), inside.app)
+        val outside = opened.showOutside(Route.Assistant)
+        assertFalse(outside.inWorkspace)
+        assertEquals(listOf(Route.LauncherHome), outside.backs())
     }
 
     @Test fun `the dock shows on a tool's main screen only`() {

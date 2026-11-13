@@ -250,8 +250,9 @@ private fun Question(view: PhoneBubbleView, actions: PhoneBubbleActions) {
     val pause = assistant.pause
     val clarification = assistant.clarification?.takeIf { approval == null && pause == null }
     val asked = view.overlay.question?.takeIf { approval == null && pause == null && clarification == null }
-    val bound = AssistantPlace.name(assistant.turn?.workspace ?: assistant.workspace.orEmpty())
-    val title = approval?.let { AssistantPermissions.question(it, bound) } ?: pause?.kind?.question
+    // The chat at work, else the one shown: its workspace, or none.
+    val workspace = if (assistant.turn != null) assistant.turn.workspace else assistant.workspace
+    val title = approval?.let { AssistantPermissions.question(it, AssistantPlace.name(workspace)) } ?: pause?.kind?.question
         ?: clarification?.let { AssistantQuestionRules.TITLE } ?: asked?.let { "${it.server} asks" }
     Text(title.orEmpty(), style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold))
     Text(
@@ -262,7 +263,7 @@ private fun Question(view: PhoneBubbleView, actions: PhoneBubbleActions) {
         if (approval != null) {
             val answer = { it: AssistantAnswer -> dispatch(ICodeIntent.AnswerAssistant(approval.call.id, it)) }
             SecondaryButton("Deny", { answer(AssistantAnswer.Deny) }, compact = true)
-            AssistantPermissions.allowIn(approval, bound)?.let { SecondaryButton(it, { answer(AssistantAnswer.AllowInChat) }, compact = true) }
+            AssistantPermissions.allowIn(approval, workspace?.let(AssistantPlace::name))?.let { SecondaryButton(it, { answer(AssistantAnswer.AllowInChat) }, compact = true) }
             PrimaryButton(AssistantPermissions.allowOnce(approval), { answer(AssistantAnswer.Allow) }, compact = true)
         } else if (pause != null) {
             SecondaryButton("Stop", { dispatch(ICodeIntent.StopAssistant) }, compact = true)

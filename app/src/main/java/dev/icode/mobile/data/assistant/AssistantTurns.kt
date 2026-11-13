@@ -54,22 +54,22 @@ internal class AssistantTurns(
 ) {
     private val lock = Any()
     private var job: Job? = null
-    /** The workspace and chat [job] works in. */
-    private var place: Pair<String, String>? = null
+    /** The workspace — null for none — and chat [job] works in. */
+    private var place: Pair<String?, String>? = null
     /** The call running now: what an approval is about. */
     private var calling: AssistantCall? = null
 
     /** The lines each change to a file added and removed, by call, until its result is recorded. */
     private val counted = mutableMapOf<String, LineChanges>()
 
-    /** The workspace and chat of the turn in hand; null when none runs. */
-    val running: Pair<String, String>? get() = synchronized(lock) { place }
+    /** The workspace — null for none — and chat of the turn in hand; null when none runs. */
+    val running: Pair<String?, String>? get() = synchronized(lock) { place }
 
-    fun send(workspace: String, session: String, input: String, attachments: List<String>, aloud: Boolean = false) =
+    fun send(workspace: String?, session: String, input: String, attachments: List<String>, aloud: Boolean = false) =
         launch(workspace, session, aloud) { converse(input, attachments) }
 
     /** The last message, unanswered, sent again with its files as they were (§13 P9). */
-    fun retry(workspace: String, session: String) = launch(workspace, session) {
+    fun retry(workspace: String?, session: String) = launch(workspace, session) {
         val setup = setup()
         val message = chats.withdraw(workspace, session) ?: return@launch
         AssistantRules.attachmentProblem(message.attachments.map { it.kind }, setup.model)?.let {
@@ -79,7 +79,7 @@ internal class AssistantTurns(
         talk(setup, message)
     }
 
-    fun compact(workspace: String, session: String) = launch(workspace, session) {
+    fun compact(workspace: String?, session: String) = launch(workspace, session) {
         compact(setup(), AssistantRules.forModel(chats.of(workspace, session).messages))
     }
 
@@ -93,7 +93,7 @@ internal class AssistantTurns(
     }
 
     /** One turn at a time: the job, not the page, decides — a second Send in the same instant finds the first. */
-    private fun launch(workspace: String, session: String, aloud: Boolean = false, work: suspend Turn.() -> Unit) = synchronized(lock) {
+    private fun launch(workspace: String?, session: String, aloud: Boolean = false, work: suspend Turn.() -> Unit) = synchronized(lock) {
         if (job?.isActive == true) {
             val name = page.current.turn?.workspaceName ?: AssistantPlace.name(workspace)
             return@synchronized page.tell(AssistantNotices.busy(name))
@@ -111,7 +111,7 @@ internal class AssistantTurns(
     )
 
     /** A turn in [session] of [workspace], and the events of its engine. */
-    private inner class Turn(val workspace: String, val session: String, val aloud: Boolean, val began: Long = System.currentTimeMillis()) : AssistantEvents {
+    private inner class Turn(val workspace: String?, val session: String, val aloud: Boolean, val began: Long = System.currentTimeMillis()) : AssistantEvents {
         /** The step its tools are on (L2, L3), and the hand-over its phone tools wait on (§5.5). */
         val step = AssistantStep(
             clarify = questions::clarify,
@@ -121,17 +121,17 @@ internal class AssistantTurns(
         )
 
         /** This chat's mode now: the setting, raised by its own answers. */
-        fun permission(): AssistantPermission = AssistantPermissions.effective(settings().permission, chats.allowedInWorkspace(workspace, session))
+        fun permission(): AssistantPermission = AssistantPermissions.effective(settings().permission, chats.allowedInWorkspace(workspace, session), workspace != null)
 
         suspend fun run(work: suspend Turn.() -> Unit) {
             var failure: String? = null
             var stopped = false
             try {
-                val name = runCatching { describe(workspace).name }.getOrElse { AssistantPlace.name(workspace) }
+                val name = workspace?.let { runCatching { describe(it).name }.getOrNull() } ?: AssistantPlace.name(workspace)
                 page.state {
                     // A new chat on the page is this one from now: it is listed with its first message.
-                    val shown = if (it.workspace == workspace && it.session == null) session else it.session
-                    it.copy(turn = AssistantTurn(workspace, name, session, THINKING, aloud = aloud), session = shown, failure = if (shows(it.workspace, shown)) null else it.failure)
+                    val shown = if (it.opened && it.workspace == workspace && it.session == null) session else it.session
+                    it.copy(turn = AssistantTurn(workspace, name, session, THINKING, aloud = aloud), session = shown, failure = if (shows(it.opened, it.workspace, shown)) null else it.failure)
                 }
                 work()
             } catch (cancelled: CancellationException) {
@@ -155,8 +155,8 @@ internal class AssistantTurns(
                     tools.done()
                     page.listed(workspace)
                     page.refresh(workspace, session)
-                    page.state { it.turnEnded().copy(failure = if (shows(it.workspace, it.session)) failure else it.failure) }
-                    page.ended(workspace, session, failure, stopped, began, shown = page.current.let { shows(it.workspace, it.session) })
+                    page.state { it.turnEnded().copy(failure = if (shows(it.opened, it.workspace, it.session)) failure else it.failure) }
+                    page.ended(workspace, session, failure, stopped, began, shown = page.current.let { shows(it.opened, it.workspace, it.session) })
                 }
             }
         }
@@ -231,8 +231,8 @@ internal class AssistantTurns(
             val model = settings.model
             val connection = provider?.let { providers.connection(it.id) }
             if (model == null || connection == null) throw AssistantTurnException(NOT_SET_UP)
-            val root = runCatching { describe(workspace) }.getOrElse { throw AssistantTurnException("This workspace no longer exists") }
-            return Setup(settings, connection, model, AssistantWorkspace(File(root.location), paths, storageAccess))
+            val folder = workspace?.let { runCatching { File(describe(it).location) }.getOrElse { throw AssistantTurnException("This workspace no longer exists") } }
+            return Setup(settings, connection, model, AssistantWorkspace(folder, paths, storageAccess))
         }
 
         override fun writing(reasoning: String, text: String) {
@@ -282,7 +282,7 @@ internal class AssistantTurns(
             page.tell(AssistantNotices.noPictures(model.id))
         }
 
-        private fun shows(shownWorkspace: String?, shownSession: String?) = shownWorkspace == workspace && shownSession == session
+        private fun shows(opened: Boolean, shownWorkspace: String?, shownSession: String?) = opened && shownWorkspace == workspace && shownSession == session
 
         private fun step(text: String) = page.state { it.copy(turn = it.turn?.copy(step = text)) }
     }

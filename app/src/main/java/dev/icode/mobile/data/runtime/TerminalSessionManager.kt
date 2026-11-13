@@ -102,7 +102,7 @@ internal class TerminalSessionManager private constructor(
     override suspend fun open(workspaceHostPath: String?, reuseExisting: Boolean): String? =
         openOr({ if (reuseExisting) selectRunning(workspaceHostPath) else null }) { TerminalLaunch.prepare(layout, settings, workspaceHostPath) }
 
-    override suspend fun openAssistant(workspaceHostPath: String, chat: String, fresh: Boolean): String? =
+    override suspend fun openAssistant(workspaceHostPath: String?, chat: String, fresh: Boolean): String? =
         openOr({ if (fresh) null else entries.values.firstOrNull { it.assistant == chat && it.state.isRunning }?.id }, select = false) {
             TerminalLaunch.assistant(layout, settings, workspaceHostPath, chat)
         }
