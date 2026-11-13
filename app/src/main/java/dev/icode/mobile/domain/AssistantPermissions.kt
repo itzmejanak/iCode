@@ -82,12 +82,16 @@ object AssistantPermissions {
         }
     }
 
-    /** [approval]'s "Allow in" answer, for this chat: in its place, its app, or the folders it reaches; null where none would do. */
-    fun allowIn(approval: AssistantApproval, bound: String): String? {
+    /**
+     * [approval]'s "Allow in" answer, for this chat: in its workspace [bound], its app, or the folders
+     * it reaches; null where none would do — a change or a command in a chat in no workspace ([bound]
+     * null) has none to be allowed in.
+     */
+    fun allowIn(approval: AssistantApproval, bound: String?): String? {
         val reach = approval.reach
         return when {
             approval.always -> null
-            reach == null -> "Allow in $bound"
+            reach == null -> bound?.let { "Allow in $it" }
             reach.place != null -> "Allow in ${reach.place.name}"
             reach.roots.isNotEmpty() -> "Allow in Chat"
             else -> null
@@ -97,9 +101,16 @@ object AssistantPermissions {
     /** [approval]'s answer for this once. */
     fun allowOnce(approval: AssistantApproval): String = if (approval.reach == null) "Allow" else "Allow Once"
 
-    /** The chat's mode: the [setting], or Auto in workspace once the chat answered "Allow in" its workspace. */
-    fun effective(setting: AssistantPermission, allowedInWorkspace: Boolean): AssistantPermission =
-        if (allowedInWorkspace && setting == AssistantPermission.AskFirst) AssistantPermission.AutoInWorkspace else setting
+    /**
+     * The chat's mode: the [setting], or Auto in workspace once the chat answered "Allow in" its
+     * workspace. A chat in no workspace ([inWorkspace] false) has none to run in without asking: Auto
+     * in workspace asks there as Ask first does, and only Full access asks nothing (docs/home-plan.md §2).
+     */
+    fun effective(setting: AssistantPermission, allowedInWorkspace: Boolean, inWorkspace: Boolean = true): AssistantPermission = when {
+        !inWorkspace -> if (setting == AssistantPermission.FullAccess) setting else AssistantPermission.AskFirst
+        allowedInWorkspace && setting == AssistantPermission.AskFirst -> AssistantPermission.AutoInWorkspace
+        else -> setting
+    }
 
     /**
      * The folder "Allow in this chat" opens for [path], a runtime path outside the chat's workspace

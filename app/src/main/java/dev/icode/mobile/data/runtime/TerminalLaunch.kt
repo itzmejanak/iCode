@@ -42,15 +42,16 @@ internal class TerminalLaunch private constructor(
 
         /**
          * A chat's tab (docs/agent-control-plan.md §3 A4): bash with iCode's integration, whatever the
-         * login shell, in [workspaceHostPath], where nothing pages. Null when the runtime is not installed.
+         * login shell, in [workspaceHostPath] — in no workspace, where a login starts, `$HOME` — where
+         * nothing pages. Null when the runtime is not installed.
          */
-        fun assistant(layout: RuntimeLayout, settings: TerminalSettings, workspaceHostPath: String, chat: String): TerminalLaunch? {
+        fun assistant(layout: RuntimeLayout, settings: TerminalSettings, workspaceHostPath: String?, chat: String): TerminalLaunch? {
             if (!layout.isInstalled) return null
             layout.ensureGuestGroups()
             val argv = layout.prootCommand(
                 guestCommand = ShellIntegration.command(BASH),
                 variables = GuestVariables.of(GuestContext.AssistantTerminal, layout.loginShell()),
-                guestWorkingDirectory = layout.workspaces.guestOf(workspaceHostPath) ?: RuntimeLayout.GUEST_HOME,
+                guestWorkingDirectory = workspaceHostPath?.let(layout.workspaces::guestOf) ?: RuntimeLayout.GUEST_HOME,
                 killOnExit = true,
             )
             return TerminalLaunch(

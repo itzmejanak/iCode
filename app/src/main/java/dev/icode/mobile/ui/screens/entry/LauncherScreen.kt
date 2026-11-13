@@ -193,8 +193,8 @@ private fun HomeStatusBar(state: ICodeSnapshot, actions: NavigationActions) {
             )
         }
         StatusTool(WorkspaceTool.Terminal, state) { actions.openPanel(ToolPanelTab.Terminal) }
-        // The assistant works in a workspace: with none there is nothing to open it in.
-        StatusTool(WorkspaceTool.Assistant, state, enabled = state.workspaces.isNotEmpty()) { actions.navigate(Route.Assistant) }
+        // Both open outside the workspace: Terminal's tabs and the Assistant's chats start in `$HOME` (docs/home-plan.md §2).
+        StatusTool(WorkspaceTool.Assistant, state) { actions.navigate(Route.Assistant) }
         Spacer(Modifier.weight(1f))
         // Unsaved work waiting in Document Recovery keeps the dot until it is resolved.
         val unread = state.notices.any { !it.read } || state.recoverableDrafts.isNotEmpty()
@@ -210,14 +210,13 @@ private fun HomeStatusBar(state: ICodeSnapshot, actions: NavigationActions) {
 
 /** [tool] on the status bar, with the badge the dock gives it ([ToolBadges]). */
 @Composable
-private fun StatusTool(tool: WorkspaceTool, state: ICodeSnapshot, enabled: Boolean = true, onClick: () -> Unit) {
+private fun StatusTool(tool: WorkspaceTool, state: ICodeSnapshot, onClick: () -> Unit) {
     val badge = ToolBadges.of(tool, state)
     IcodeDockedAction(
         tool.icon,
         description = badge.spoken(tool),
         tint = badge.tint ?: IcodeColors.TextSecondary,
         onClick = onClick,
-        enabled = enabled,
         badge = badge.count.takeIf { it > 0 },
         dot = badge.dot,
     )

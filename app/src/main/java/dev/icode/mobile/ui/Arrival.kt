@@ -66,7 +66,12 @@ internal fun ArrivalEffect(
                 BackgroundPlace.Sync -> show(Route.PullFetchProgress)
                 BackgroundPlace.Runtime -> show(Route.RuntimeInstalling)
                 BackgroundPlace.RuntimeTools -> show(Route.RuntimeTools)
-                BackgroundPlace.Assistant, BackgroundPlace.Processes -> show(Route.Assistant)
+                // The chat at work, else the one shown: one in no workspace is outside it (docs/home-plan.md §2).
+                BackgroundPlace.Assistant, BackgroundPlace.Processes -> {
+                    val assistant = current.assistant
+                    val outside = assistant.turn?.let { it.workspace == null } ?: (assistant.opened && assistant.workspace == null)
+                    if (outside) navigation.showOutside(Route.Assistant) else show(Route.Assistant)
+                }
                 // The GnuPG sheet is drawn over whatever is open.
                 BackgroundPlace.Gpg -> Unit
             }

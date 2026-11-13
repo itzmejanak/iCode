@@ -15,8 +15,9 @@ import dev.icode.mobile.domain.WorkspaceTool
  * - Back closes a tool's page, then goes to the tool used before, then to the app's pages (the
  *   Launcher), then leaves iCode ([back]). A tool Back has left drops out of the order, so Back never
  *   comes back to it and cannot go round.
- * - Terminal asked for from the app's pages opens there, as a page outside the workspace: its tabs
- *   start where a login starts, `$HOME` (docs/home-plan.md §2).
+ * - Terminal and the Assistant asked for from the app's pages open there, as pages outside the
+ *   workspace ([opensOutside]): Terminal's tabs start where a login starts, `$HOME`, and the Assistant
+ *   shows the chats in no workspace (docs/home-plan.md §2).
  */
 data class Navigation(
     /** The app's pages outside the workspace, the first at the bottom: onboarding, the Launcher, Settings. */
@@ -65,7 +66,7 @@ data class Navigation(
     data class Entry(val key: String, val route: Route)
 
     fun navigate(route: Route): Navigation = when {
-        route == Route.TerminalExpanded && !inWorkspace -> push(route)
+        route.opensOutside && !inWorkspace -> push(route)
         route.tool != null -> switchTo(route.tool, face = route)
         route.leavesWorkspace && inWorkspace -> copy(inWorkspace = false).push(route)
         else -> push(route)
@@ -78,8 +79,14 @@ data class Navigation(
     fun openPanel(tab: ToolPanelTab): Navigation =
         if (tab == ToolPanelTab.Terminal && !inWorkspace) push(Route.TerminalExpanded) else copy(panelTab = tab).switchTo(WorkspaceTool.Terminal)
 
-    /** A tab in no workspace shown for the user, from wherever iCode is: Terminal outside the workspace. */
-    fun showTerminalOutside(): Navigation = copy(inWorkspace = false).openPanel(ToolPanelTab.Terminal)
+    /**
+     * What is outside the workspace shown for the user, from wherever iCode is: a tab or a chat in no
+     * workspace, on Terminal or the Assistant outside it ([opensOutside]).
+     */
+    fun showOutside(route: Route): Navigation {
+        require(route.opensOutside) { "$route opens in the workspace" }
+        return copy(inWorkspace = false).navigate(route)
+    }
 
     /**
      * [tool], as it was left — or, asked for by one of its main screens ([face]) other than the one it
@@ -151,10 +158,10 @@ data class Navigation(
     }
 
     /**
-     * The workspace's tools on screen. Terminal outside the workspace closes as they open: Back from
-     * them never shows Terminal again, now with no tool to switch to.
+     * The workspace's tools on screen. Terminal and the Assistant outside the workspace close as they
+     * open: Back from them never shows either again, now with no tool to switch to.
      */
-    private fun inside() = copy(inWorkspace = true, app = app - Route.TerminalExpanded)
+    private fun inside() = copy(inWorkspace = true, app = app.filterNot { it.opensOutside })
 
     private fun startedAt(location: String) = copy(
         tools = mapOf(WorkspaceTool.Explorer to listOf(Route.WorkspaceExplorer)),

@@ -91,6 +91,18 @@ class AssistantToolsTest {
         assertEquals(listOf("/etc", "/workspace/other/x"), workspace.outside(listOf(root, File(root, "src"), File(runtime.rootfs, "etc"), File(runtime.workspaces, "other/x"))))
     }
 
+    @Test fun `a chat in no workspace works from root's home, where nothing is outside a workspace`() {
+        val home = AssistantWorkspace(null, runtime.paths)
+        assertEquals("/root", home.guestPath)
+        assertEquals(File(runtime.rootfs, "root").canonicalFile, home.root)
+        assertEquals("~", home.name)
+        assertEquals(null, home.place)
+        assertEquals(File(runtime.rootfs, "root/notes.txt").canonicalFile, home.resolve("notes.txt"))
+        val elsewhere = listOf(home.resolve("/etc/hosts"), runtime.root)
+        assertTrue(home.outside(elsewhere).isEmpty())
+        assertEquals("/etc/hosts", home.shown(home.resolve("/etc/hosts")))
+    }
+
     @Test fun `Allow in Chat opens another workspace whole, a repository at its top, else the folder`() {
         File(runtime.rootfs, "root/projects/api/.git").mkdirs()
         File(runtime.rootfs, "root/projects/api/lib").mkdirs()

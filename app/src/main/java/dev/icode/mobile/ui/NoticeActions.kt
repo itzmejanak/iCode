@@ -32,7 +32,9 @@ internal fun act(action: NoticeAction, gateway: ICodeGateway, navigation: Naviga
             NoticeTarget.RuntimeTools -> navigation.navigate(Route.RuntimeTools)
             NoticeTarget.Languages -> navigation.navigate(Route.SettingsLanguages)
             NoticeTarget.McpServers -> navigation.navigate(Route.McpServers)
-            NoticeTarget.Assistant -> navigation.navigate(Route.Assistant)
+            // A chat in a workspace inside it, as its notice is offered only while that one is open; one in none outside.
+            NoticeTarget.Assistant -> navigation.show(Route.Assistant)
+            NoticeTarget.AssistantOutside -> navigation.outside(Route.Assistant)
         }
     }
 }

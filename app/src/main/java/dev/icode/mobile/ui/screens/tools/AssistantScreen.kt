@@ -61,8 +61,8 @@ fun AssistantScreen(actions: NavigationActions) {
     val gateway = LocalICodeGateway.current
     val snapshot = LocalICodeSnapshot.current
     val state = snapshot.assistant
-    // The open workspace's chats, again when the workspace changes under the page.
-    LaunchedEffect(snapshot.activeWorkspaceLocation) { gateway.dispatch(ICodeIntent.OpenAssistant) }
+    // Inside the workspace its chats, again when the workspace changes under the page; outside it, the chats in none.
+    LaunchedEffect(snapshot.activeWorkspaceLocation, actions.inWorkspace) { gateway.dispatch(ICodeIntent.OpenAssistant(actions.inWorkspace)) }
     var sheet by rememberSaveable { mutableStateOf<AssistantSheet?>(null) }
     // The chat's rows, each run of steps one: drawn, and opened in a sheet by key, at a step of a run.
     val rows = remember(state) { AssistantStepRules.rows(AssistantRules.entries(state)) }
@@ -94,14 +94,14 @@ fun AssistantScreen(actions: NavigationActions) {
         attached = all.take(AssistantRules.MAX_ATTACHMENTS)
     }
     val pickers = rememberAssistantPickers(onPicked = attach)
-    val ready = state.settings.ready && state.workspace != null
+    val ready = state.settings.ready && state.opened
     val title = state.sessions.firstOrNull { it.id == state.session }?.title ?: "New chat"
 
     Box(Modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize().behindSheet(sheet != null)) {
             IcodeTopBar(
                 if (ready) title else "Assistant",
-                subtitle = state.workspace?.let(AssistantPlace::name),
+                subtitle = if (state.opened) AssistantPlace.name(state.workspace) else null,
                 onBack = actions.back,
                 actions = {
                     if (ready) {
@@ -132,8 +132,8 @@ fun AssistantScreen(actions: NavigationActions) {
             )
             when {
                 !state.settings.ready -> AssistantSetUp(Modifier.weight(1f)) { actions.navigate(Route.AssistantProviders) }
-                // A workspace's chats are always shown once the page has opened.
-                state.workspace == null -> Box(Modifier.weight(1f)) { IcodeWatermark(Modifier.align(Alignment.Center)) }
+                // Its chats are shown once the page has opened.
+                !state.opened -> Box(Modifier.weight(1f)) { IcodeWatermark(Modifier.align(Alignment.Center)) }
                 else -> AssistantChatView(
                     state,
                     rows,
@@ -183,7 +183,7 @@ fun AssistantScreen(actions: NavigationActions) {
                     AssistantSheet.Terminal -> AssistantTerminalSheet(state.tab, modifier, close)
                     AssistantSheet.Entry -> entry?.let {
                         val approval = state.approval?.takeIf { state.runningHere }
-                        AssistantEntrySheet(it, stepKey, approval, AssistantPlace.name(state.workspace.orEmpty()), modifier, close, onDiff)
+                        AssistantEntrySheet(it, stepKey, approval, state.workspace?.let(AssistantPlace::name), modifier, close, onDiff)
                     }
                     AssistantSheet.Actions -> entry?.let {
                         AssistantActionsSheet(it, modifier, close, onDiff) { said ->

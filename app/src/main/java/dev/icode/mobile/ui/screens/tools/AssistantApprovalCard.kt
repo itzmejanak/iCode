@@ -36,6 +36,7 @@ import dev.icode.mobile.domain.AssistantApproval
 import dev.icode.mobile.domain.AssistantElsewhere
 import dev.icode.mobile.domain.AssistantPause
 import dev.icode.mobile.domain.AssistantPermissions
+import dev.icode.mobile.domain.AssistantPlace
 import dev.icode.mobile.domain.AssistantToolKind
 import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.ui.LocalICodeGateway
@@ -47,7 +48,7 @@ import dev.icode.mobile.ui.LocalICodeGateway
  * it asks [onDetails]: its step's sheet, with all it will do (docs/assistant-sheets-plan.md §2.3).
  */
 @Composable
-internal fun AssistantApprovalCard(approval: AssistantApproval, workspace: String, modifier: Modifier, onDetails: (() -> Unit)?) {
+internal fun AssistantApprovalCard(approval: AssistantApproval, workspace: String?, modifier: Modifier, onDetails: (() -> Unit)?) {
     val command = approval.call.kind == AssistantToolKind.Command
     val reach = approval.reach
     IcodeCard(modifier.fillMaxWidth(), padding = PaddingValues(IcodeSpacing.Space2)) {
@@ -72,7 +73,7 @@ internal fun AssistantApprovalCard(approval: AssistantApproval, workspace: Strin
                         tint = IcodeColors.Amber,
                         modifier = Modifier.size(IcodeSizes.IconSm),
                     )
-                    Text(AssistantPermissions.question(approval, workspace), style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.weight(1f))
+                    Text(AssistantPermissions.question(approval, AssistantPlace.name(workspace)), style = IcodeType.Body.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.weight(1f))
                     if (onDetails != null) {
                         Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = IcodeColors.TextMuted, modifier = Modifier.size(IcodeSizes.IconMd))
                     }
@@ -118,7 +119,7 @@ internal fun AssistantPauseCard(pause: AssistantPause, modifier: Modifier) {
 
 /** Deny, Allow in, Allow, at the end of [modifier]'s width: the card's answers, and its step's sheet's. */
 @Composable
-internal fun ApprovalAnswers(approval: AssistantApproval, workspace: String, modifier: Modifier) {
+internal fun ApprovalAnswers(approval: AssistantApproval, workspace: String?, modifier: Modifier) {
     val gateway = LocalICodeGateway.current
     val answer = { it: AssistantAnswer -> gateway.dispatch(ICodeIntent.AnswerAssistant(approval.call.id, it)) }
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(IcodeSpacing.Space2, Alignment.End)) {
@@ -129,11 +130,11 @@ internal fun ApprovalAnswers(approval: AssistantApproval, workspace: String, mod
 }
 
 /** What the middle answer opens, for this chat until iCode closes; null when it opens nothing. */
-internal fun allowInMeaning(approval: AssistantApproval, workspace: String): String? {
+internal fun allowInMeaning(approval: AssistantApproval, workspace: String?): String? {
     val reach = approval.reach
     return when {
         approval.always -> null
-        reach == null -> "Allow in $workspace: this chat's changes and commands in $workspace stop asking, until iCode closes."
+        reach == null -> workspace?.let { "Allow in $it: this chat's changes and commands in $it stop asking, until iCode closes." }
         reach.place?.kind == AssistantElsewhere.Kind.App -> "Allow in ${reach.place.name}: this chat acts in ${reach.place.name} without asking, until iCode closes."
         reach.place?.kind == AssistantElsewhere.Kind.Server -> "Allow in ${reach.place.name}: this chat uses ${reach.place.name}'s tools without asking, until iCode closes."
         reach.place?.kind == AssistantElsewhere.Kind.Terminal -> "Allow in ${reach.place.name}: this chat runs, reads and types in your ${reach.place.name} without asking, until iCode closes."

@@ -214,10 +214,10 @@ sealed interface ICodeIntent {
     /** The assistant (docs/assistant-koog-plan.md): its turns are their own job, never behind the mutation lock. */
     sealed interface AssistantIntent : ICodeIntent
     /**
-     * The Assistant page opened, or the workspace under it changed: that workspace's chats are shown;
-     * away from any, those of the one shown last, else of the one opened last.
+     * The Assistant page opened, or the workspace under it changed: inside the workspace ([inWorkspace])
+     * the open workspace's chats are shown; outside it, the chats in no workspace (docs/home-plan.md §2).
      */
-    data object OpenAssistant : AssistantIntent
+    data class OpenAssistant(val inWorkspace: Boolean) : AssistantIntent
     /** One of the shown place's chats, from its history. */
     data class OpenAssistantSession(val id: String) : AssistantIntent
     data class DeleteAssistantSession(val id: String) : AssistantIntent

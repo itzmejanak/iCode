@@ -60,8 +60,8 @@ internal class AssistantShell(
         runCatching { workspace.resolve(path).isDirectory }.getOrDefault(false)
 
     companion object {
-        /** A chat as its terminal tabs know it: its workspace, and its ID there. */
-        fun chatOf(workspace: AssistantWorkspace, chat: String): String = "${workspace.place}#$chat"
+        /** A chat as its terminal tabs know it: its workspace — none, empty — and its ID there. */
+        fun chatOf(workspace: AssistantWorkspace, chat: String): String = "${workspace.place.orEmpty()}#$chat"
 
         /** Over the `command` context's own: a model reads a process's output, so no colour codes. */
         private val PROCESS_ENVIRONMENT = mapOf("NO_COLOR" to "1")

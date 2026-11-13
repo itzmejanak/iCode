@@ -107,6 +107,12 @@ enum class Route(
     SourceControlSettings(null, "Source control settings", RouteGroup.SETTINGS),
 }
 
+/**
+ * Asked for while the app's pages are on screen, it opens there, outside the workspace: Terminal's own
+ * tab, its tabs then starting in `$HOME`, and the Assistant, on the chats in no workspace (docs/home-plan.md §2).
+ */
+val Route.opensOutside: Boolean get() = this == Route.TerminalExpanded || this == Route.Assistant
+
 /** The route each tool opens on, the first time and when its main screen is asked for by its tool. */
 val WorkspaceTool.home: Route
     get() = when (this) {

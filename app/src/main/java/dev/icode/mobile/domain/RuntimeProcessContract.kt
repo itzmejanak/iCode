@@ -7,8 +7,8 @@ package dev.icode.mobile.domain
 data class ManagedProcess(
     /** iCode's own, in this process's lifetime: `p1`, `p2`… */
     val id: String,
-    /** The workspace it runs in: its location. */
-    val workspace: String,
+    /** The workspace it runs in, by its location; null for one a chat in no workspace started (docs/home-plan.md §2). */
+    val workspace: String?,
     /** What it is called: given when started, or its command's first word. */
     val name: String,
     val command: String,

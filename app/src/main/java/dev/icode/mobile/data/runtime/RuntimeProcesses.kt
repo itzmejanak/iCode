@@ -40,7 +40,7 @@ internal class RuntimeProcesses(
     private val grace: Long = GRACE_MILLIS,
 ) {
     /** What to start: [command] in bash, in [directory] (the guest's), seeing only [workspace]. */
-    data class Launch(val workspace: String, val directory: String, val command: String, val environment: Map<String, String>)
+    data class Launch(val workspace: String?, val directory: String, val command: String, val environment: Map<String, String>)
 
     /** What the assistant reads of a process: its state, and its output since it last looked. */
     data class Read(val process: ManagedProcess, val output: String, val missed: Boolean)
@@ -64,7 +64,7 @@ internal class RuntimeProcesses(
     }
 
     /** Starts [command]; the process, or why it was not started. */
-    fun start(workspace: String, directory: String, command: String, name: String?, environment: Map<String, String>): Result<ManagedProcess> {
+    fun start(workspace: String?, directory: String, command: String, name: String?, environment: Map<String, String>): Result<ManagedProcess> {
         val entry = synchronized(lock) {
             val spawned = try {
                 launch(Launch(workspace, directory, command, environment))

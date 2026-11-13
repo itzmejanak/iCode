@@ -89,9 +89,9 @@ internal class AssistantQuestions(private val page: AssistantPage) {
      * A message sent in the chat of [workspace] and [session] while the turn there asks its questions:
      * it is the reply (D5). False when no question waits there — the message is a message.
      */
-    fun replyWith(workspace: String, session: String, text: String): Boolean {
+    fun replyWith(workspace: String?, session: String, text: String): Boolean {
         val shown = page.current
-        val asked = shown.clarification?.takeIf { shown.turn?.workspace == workspace && shown.turn.session == session } ?: return false
+        val asked = shown.clarification?.takeIf { shown.turn?.let { it.workspace == workspace && it.session == session } == true } ?: return false
         reply(asked.call.id, AssistantReply.Said(text))
         return true
     }

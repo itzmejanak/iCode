@@ -201,7 +201,7 @@ Each is fixed where it is, not worked around beside it.
 
 | | Limit | Fix |
 |---|---|---|
-| L1 | A chat must belong to a workspace | Kept: chats belong only to workspaces. The separate Phone chats were removed (Nov 2026); phone tools are offered to any chat while Phone control is on, and the bubble uses the chat iCode shows |
+| L1 | A chat must belong to a workspace | Kept: chats belong only to workspaces. The separate Phone chats were removed (Nov 2026); phone tools are offered to any chat while Phone control is on, and the bubble uses the chat iCode shows. Since 2026-11-13 a chat may also be in no workspace, the home's, working from `$HOME` (docs/home-plan.md §2) |
 | L2 | A tool can answer only text | A phone tool's answer may carry a **screen**: its text, and a picture for models that see. The turn places the picture where each client takes it (§3.6) |
 | L3 | Seeing what an action did costs another step | After a reply's calls run, the turn adds **one screen**: what the phone shows once it has settled. A reply that taps, types and submits sees the result in the same step |
 | L4 | Questions wait on the chat page or a notification | The **bubble** shows the question and its answers, on any screen |

@@ -66,17 +66,17 @@ class AssistantShellTest {
         // The login environment, and no colour: a model reads its output.
         assertEquals(mapOf("PATH" to "/root/.nvm/bin:/usr/bin", "NVM_DIR" to "/root/.nvm", "NO_COLOR" to "1"), environments.single().filterKeys { it in setOf("PATH", "NVM_DIR", "NO_COLOR") })
 
-        val status = ProcessStatusTool(processes, answers = { false })
+        val status = ProcessStatusTool(processes, runtime.paths, answers = { false })
         assertTrue(status.run(JSONObject()).startsWith("p1 · uvicorn · Running"))
         assertTrue(status.run(JSONObject().put("id", "p1")).endsWith("No new output"))
         spawned.single().say("GET / 200\n")
         Thread.sleep(100)
         assertTrue(status.run(JSONObject().put("id", "p1")).endsWith("GET / 200\n"))
 
-        assertTrue(SendProcessInputTool(processes).run(JSONObject().put("id", "p1").put("text", "y")).startsWith("Sent to p1."))
+        assertTrue(SendProcessInputTool(processes, runtime.paths).run(JSONObject().put("id", "p1").put("text", "y")).startsWith("Sent to p1."))
         assertEquals("y\n", spawned.single().input.toString())
 
-        assertEquals("Stopped p1", StopProcessTool(processes).run(JSONObject().put("id", "p1")))
+        assertEquals("Stopped p1", StopProcessTool(processes, runtime.paths).run(JSONObject().put("id", "p1")))
         assertEquals(listOf(PosixSignal.TERM), spawned.single().signals)
     }
 
@@ -89,12 +89,12 @@ class AssistantShellTest {
 
     @Test fun `every workspace's processes are reached, each said with its workspace, and a ninth starts`() = runBlocking {
         repeat(9) { processes.start("/w/other", "/workspace/other", "vite $it", null, emptyMap()).getOrThrow() }
-        val listed = ProcessStatusTool(processes, answers = { false }).run(JSONObject())
+        val listed = ProcessStatusTool(processes, runtime.paths, answers = { false }).run(JSONObject())
         assertTrue(listed, listed.startsWith("p1 · vite · Running"))
         assertTrue(listed, listed.contains("`vite 8` in /workspace/other · workspace “other”"))
-        assertEquals("Stopped p9", StopProcessTool(processes).run(JSONObject().put("id", "p9")))
+        assertEquals("Stopped p9", StopProcessTool(processes, runtime.paths).run(JSONObject().put("id", "p9")))
         try {
-            StopProcessTool(processes).run(JSONObject().put("id", "p10"))
+            StopProcessTool(processes, runtime.paths).run(JSONObject().put("id", "p10"))
             fail("expected a refusal")
         } catch (refused: AssistantToolException) {
             assertEquals("There is no process p10", refused.message)
@@ -102,7 +102,7 @@ class AssistantShellTest {
     }
 
     @Test fun `no process is said so`() = runBlocking {
-        assertEquals("No processes", ProcessStatusTool(processes).run(JSONObject()))
+        assertEquals("No processes", ProcessStatusTool(processes, runtime.paths).run(JSONObject()))
     }
 
     private fun <T> runAsync(block: suspend () -> T) = scope.async { block() }

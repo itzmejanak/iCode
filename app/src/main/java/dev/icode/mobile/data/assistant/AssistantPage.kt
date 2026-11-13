@@ -23,26 +23,26 @@ internal class AssistantPage(
     val current: AssistantState get() = stateHolder.current.assistant
 
     /**
-     * [workspace]'s chats — a place: a workspace's location, or the phone — the one open stays; else
-     * [running], the turn's chat there; else the newest.
+     * [workspace]'s chats — the chats in no workspace when null — the one open stays; else [running],
+     * the turn's chat there; else the newest.
      */
-    fun show(workspace: String, running: Pair<String, String>?) {
+    fun show(workspace: String?, running: Pair<String?, String>?) {
         val sessions = chats.sessions(workspace)
         val session = when {
-            current.workspace == workspace -> current.session
+            current.opened && current.workspace == workspace -> current.session
             else -> running?.takeIf { it.first == workspace }?.second ?: sessions.firstOrNull()?.id
         }
         display(workspace, session, sessions)
     }
 
     /** [session] of [workspace] open; null for a new chat. */
-    fun display(workspace: String, session: String?, sessions: List<AssistantSession> = chats.sessions(workspace)) {
+    fun display(workspace: String?, session: String?, sessions: List<AssistantSession> = chats.sessions(workspace)) {
         val chat = session?.let { chats.of(workspace, it) } ?: AssistantChat()
         val allowed = session != null && chats.allowedInWorkspace(workspace, session)
         state {
-            val same = it.workspace == workspace && it.session == session
+            val same = it.opened && it.workspace == workspace && it.session == session
             it.copy(
-                workspace = workspace, sessions = sessions, session = session, messages = chat.messages,
+                opened = true, workspace = workspace, sessions = sessions, session = session, messages = chat.messages,
                 contextTokens = chat.contextTokens, allowedInWorkspace = allowed, failure = if (same) it.failure else null,
                 tab = if (same) it.tab else null,
             )
@@ -53,26 +53,26 @@ internal class AssistantPage(
      * [session] of [workspace] as it is now, when it is open. A reply just [recorded] replaces what
      * was shown of it as it was written, in the same change: never both on the page, nor neither.
      */
-    fun refresh(workspace: String, session: String, recorded: Boolean = false) {
+    fun refresh(workspace: String?, session: String, recorded: Boolean = false) {
         val chat = chats.of(workspace, session)
         val allowed = chats.allowedInWorkspace(workspace, session)
         state {
             val turn = if (recorded) it.turn?.copy(live = null) else it.turn
-            if (it.workspace != workspace || it.session != session) it.copy(turn = turn)
+            if (!it.opened || it.workspace != workspace || it.session != session) it.copy(turn = turn)
             else it.copy(messages = chat.messages, contextTokens = chat.contextTokens, allowedInWorkspace = allowed, turn = turn)
         }
     }
 
     /** [workspace]'s list as saved now. */
-    fun listed(workspace: String) {
+    fun listed(workspace: String?) {
         val sessions = chats.sessions(workspace)
-        state { if (it.workspace == workspace) it.copy(sessions = sessions) else it }
+        state { if (it.opened && it.workspace == workspace) it.copy(sessions = sessions) else it }
     }
 
     /** [workspace] was deleted: nothing of it stays on the page. */
     fun forgotten(workspace: String) = state {
         if (it.workspace != workspace) it
-        else it.copy(workspace = null, sessions = emptyList(), session = null, messages = emptyList(), contextTokens = null, allowedInWorkspace = false)
+        else it.copy(opened = false, workspace = null, sessions = emptyList(), session = null, messages = emptyList(), contextTokens = null, allowedInWorkspace = false)
     }
 
     fun state(change: (AssistantState) -> AssistantState) = stateHolder.update { it.copy(assistant = change(it.assistant)) }
@@ -86,7 +86,7 @@ internal class AssistantPage(
      * when its chat is not the one [shown]; one that ran long, unless [stopped], kept and posted
      * should iCode be out of view by then. Where it is: the workspace, and the chat by its title.
      */
-    fun ended(workspace: String, session: String, failure: String?, stopped: Boolean, began: Long, shown: Boolean) {
+    fun ended(workspace: String?, session: String, failure: String?, stopped: Boolean, began: Long, shown: Boolean) {
         val chat = NoticePlace(AssistantPlace.name(workspace), workspace, subject = chats.sessions(workspace).firstOrNull { it.id == session }?.title)
         when {
             failure != null -> if (!shown) tell(AssistantNotices.stopped(failure, chat))

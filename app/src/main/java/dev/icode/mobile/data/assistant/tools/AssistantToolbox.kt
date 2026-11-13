@@ -42,19 +42,17 @@ internal class AssistantToolbox(
     private val shell = AssistantShell(execution.environment, execution.processes, terminal)
     private val processes = execution.processes
 
-    /** What a deleted chat leaves in the runtime goes: its terminal tabs, in the workspace at [location]. */
-    suspend fun forget(location: String, chat: String) = terminal.close(chatOf(location, chat))
+    /** What a deleted chat leaves in the runtime goes: its terminal tabs, in the workspace at [location] or in none. */
+    suspend fun forget(location: String?, chat: String) = terminal.close(chatOf(location, chat))
 
-    /** [chat]'s own tab in the workspace at [location], opened if it has none. Throws [TerminalRuns.Refused]. */
-    suspend fun openTab(location: String, chat: String): String = terminal.tabOf(place(location).place, chatOf(location, chat), fresh = false)
+    /** [chat]'s own tab in the workspace at [location], or in none, opened if it has none. Throws [TerminalRuns.Refused]. */
+    suspend fun openTab(location: String?, chat: String): String = terminal.tabOf(location, chatOf(location, chat), fresh = false)
 
-    private fun place(location: String) = AssistantWorkspace(File(location), execution.layout.paths)
-
-    private fun chatOf(location: String, chat: String) = AssistantShell.chatOf(place(location), chat)
+    private fun chatOf(location: String?, chat: String) = AssistantShell.chatOf(AssistantWorkspace(location?.let(::File), execution.layout.paths), chat)
 
     /**
      * The tools of a chat in [workspace], on [step]: the phone's while phone control is on; the Run
-     * tab's for a workspace only.
+     * tab's for a workspace only, none for a chat in no workspace (docs/home-plan.md §2).
      */
     fun forWorkspace(workspace: AssistantWorkspace, chat: String, step: AssistantStep): List<AssistantTool> {
         val writer = WorkspaceWriter(workspace, source, unsavedEdits, changed)
@@ -71,15 +69,16 @@ internal class AssistantToolbox(
             ReadTerminalTool(workspace, chat, terminal),
             SendTerminalInputTool(workspace, chat, terminal),
             StartProcessTool(workspace, chat, shell, processes, runtimeInstalled),
-            ProcessStatusTool(processes),
-            SendProcessInputTool(processes),
-            StopProcessTool(processes),
+            ProcessStatusTool(processes, execution.layout.paths),
+            SendProcessInputTool(processes, execution.layout.paths),
+            StopProcessTool(processes, execution.layout.paths),
         ) + (if (phone.on) PhoneTools(phone, step).all() else emptyList())
-        return files + listOf(
+        val run = if (workspace.workspace == null) emptyList() else listOf(
             RunAndroidAppTool(workspace, runs),
             ListRunCommandsTool(workspace, runs),
             SaveRunCommandTool(workspace, runs),
             DeleteRunCommandTool(workspace, runs),
-        ) + speechProviderTools(speech) + languageServiceTools(languages, workspace) + AskUserTool(step)
+        )
+        return files + run + speechProviderTools(speech) + languageServiceTools(languages, workspace) + AskUserTool(step)
     }
 }

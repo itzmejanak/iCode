@@ -13,11 +13,15 @@ import java.io.File
  * project's own notes, and the summary of a compacted chat — and a message with its files.
  */
 internal object AssistantInstructions {
-    /** What the user approves under [permission] (docs/assistant-permissions-plan.md §4.6). */
-    private fun approvals(name: String, permission: AssistantPermission): String = when (permission) {
-        AssistantPermission.AskFirst -> "The user approves each change and command, and anything outside “$name”, before it runs."
-        AssistantPermission.AutoInWorkspace -> "Changes and commands in “$name” run without asking; anything outside it is asked of the user first."
-        AssistantPermission.FullAccess -> "No approval is asked of the user."
+    /**
+     * What the user approves under [permission] (docs/assistant-permissions-plan.md §4.6), in the
+     * workspace [name]; in none (null), each change and command but under Full access (docs/home-plan.md §2).
+     */
+    private fun approvals(name: String?, permission: AssistantPermission): String = when {
+        permission == AssistantPermission.FullAccess -> "No approval is asked of the user."
+        name == null -> "The user approves each change and command before it runs."
+        permission == AssistantPermission.AskFirst -> "The user approves each change and command, and anything outside “$name”, before it runs."
+        else -> "Changes and commands in “$name” run without asking; anything outside it is asked of the user first."
     }
 
     /** When the user decides (docs/assistant-questions-plan.md D1): asked with options, never guessed, nor asked in prose. */
@@ -68,7 +72,7 @@ internal object AssistantInstructions {
         appendLine("- Call multiple independent tools at once (e.g. read several files in parallel).")
         appendLine("- When one result is needed for the next, use tools one at a time.")
         appendLine("- Never guess parameters or use placeholders. $ASKING")
-        projectNotes(workspace.root)?.let { notes ->
+        workspace.workspace?.let(::projectNotes)?.let { notes ->
             appendLine()
             appendLine("The project's own instructions, from its AGENTS.md:")
             appendLine(notes)
@@ -80,14 +84,19 @@ internal object AssistantInstructions {
         }
     }
 
-    /** Where a workspace's chat works, and its mode's role (docs/assistant-koog-plan.md §12 R8). */
+    /**
+     * Where a chat works — its workspace, or for a chat in none root's home (docs/home-plan.md §2) — and
+     * its mode's role (docs/assistant-koog-plan.md §12 R8).
+     */
     private fun StringBuilder.workspace(workspace: AssistantWorkspace, mode: AssistantMode, permission: AssistantPermission) {
+        val inWorkspace = workspace.workspace != null
         appendLine("## Workspace")
         appendLine(
-            "You work in “${workspace.name}”, at ${workspace.guestPath} in the user's own Ubuntu Linux on their phone " +
+            (if (inWorkspace) "You work in “${workspace.name}”, at ${workspace.guestPath}" else "You work in no workspace, from ${workspace.guestPath}, root's home,") +
+                " in the user's own Ubuntu Linux on their phone " +
                 "(ARM64, under PRoot: uid 0 without root's powers, no systemd; `apt` installs packages), on the user's behalf. " +
                 "Every workspace is under /workspace. $STORAGE The tools reach the whole runtime: a relative path starts at " +
-                "${workspace.guestPath}, `~` is /root. ${approvals(workspace.name, permission)} " +
+                "${workspace.guestPath}, `~` is /root. ${approvals(workspace.name.takeIf { inWorkspace }, permission)} " +
                 "What PRoot and Android cannot do here is in ${RuntimeLayout.README_PATH}.",
         )
         appendLine()

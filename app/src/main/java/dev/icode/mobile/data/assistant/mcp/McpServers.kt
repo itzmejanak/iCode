@@ -106,7 +106,7 @@ internal class McpServers(
     }
 
     /** What a turn in [workspace] is offered: each server that is on, connected first, its tools in what [room] is left. */
-    suspend fun offer(workspace: String, step: AssistantStep, taken: Set<String>, room: Int, offers: (AssistantTool) -> Boolean): AssistantTools.Offered {
+    suspend fun offer(workspace: String?, step: AssistantStep, taken: Set<String>, room: Int, offers: (AssistantTool) -> Boolean): AssistantTools.Offered {
         connections.wanted()
         // A workspace's server not trusted yet waits for its page; it is not missed.
         val wanted = servers(workspace).filter { it.enabled && (it.workspace == null || workspaces.trusted(it)) }

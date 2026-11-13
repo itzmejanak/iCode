@@ -22,11 +22,11 @@ import org.json.JSONObject
 // its .mcp.json's, and trusting one stays the user's. Every change is asked about, in every mode.
 
 /** The tools a chat in [workspace] has over [servers]. */
-internal fun mcpServerTools(workspace: String, servers: McpServers): List<AssistantTool> =
+internal fun mcpServerTools(workspace: String?, servers: McpServers): List<AssistantTool> =
     listOf(ListMcpServersTool(workspace, servers), SaveMcpServerTool(workspace, servers), RemoveMcpServerTool(workspace, servers))
 
 /** The servers this chat's tools come from, and how each is: read-only. */
-internal class ListMcpServersTool(private val workspace: String, private val servers: McpServers) : AssistantTool {
+internal class ListMcpServersTool(private val workspace: String?, private val servers: McpServers) : AssistantTool {
     override val name = AssistantToolName.ListMcpServers.id
     override val description = "Lists the MCP servers whose tools chats are offered — the user's own, and this workspace's .mcp.json's: " +
         "each one's id, name, whether it is on and how it is, how it is reached (a command in the Linux runtime, or an " +
@@ -74,7 +74,7 @@ internal class ListMcpServersTool(private val workspace: String, private val ser
 }
 
 /** A server added — from fields, or a pasted configuration — or one changed; asked about each time. */
-internal class SaveMcpServerTool(private val workspace: String, private val servers: McpServers) : AssistantTool {
+internal class SaveMcpServerTool(private val workspace: String?, private val servers: McpServers) : AssistantTool {
     override val name = AssistantToolName.SaveMcpServer.id
     override val description = "Adds MCP servers or changes one, as the MCP pages do; the user is asked first, every time. To add, give " +
         "config — the JSON a server's README gives ({\"mcpServers\": {…}} or one server's) — or the fields: name, then command " +
@@ -223,7 +223,7 @@ internal class SaveMcpServerTool(private val workspace: String, private val serv
 }
 
 /** One of the user's servers forgotten, its values and sign-in with it; asked about each time. */
-internal class RemoveMcpServerTool(private val workspace: String, private val servers: McpServers) : AssistantTool {
+internal class RemoveMcpServerTool(private val workspace: String?, private val servers: McpServers) : AssistantTool {
     override val name = AssistantToolName.RemoveMcpServer.id
     override val description = "Removes one of the user's MCP servers, by its id (list_mcp_servers): its values, its sign-in and its tools' " +
         "choices are forgotten. The user is asked first, every time. A server from the workspace's .mcp.json is removed from that file."

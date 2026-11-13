@@ -69,7 +69,7 @@ internal fun AssistantChatsSheet(state: AssistantState, modifier: Modifier, onCl
         },
     ) {
         if (state.sessions.size > SEARCH_FROM) Search(query, "Search chats") { query = it }
-        if (shown.isEmpty()) Hint(if (state.sessions.isEmpty()) "No chats in ${state.workspace?.let(AssistantPlace::name) ?: "here"} yet" else "No chat matches")
+        if (shown.isEmpty()) Hint(if (state.sessions.isEmpty()) "No chats in ${AssistantPlace.name(state.workspace)} yet" else "No chat matches")
         shown.forEach { session ->
             val working = state.turn?.let { it.workspace == state.workspace && it.session == session.id } == true
             IcodeListRow(

@@ -153,6 +153,8 @@ enum class NoticeTarget(val label: String) {
     Languages("Open Language Servers"),
     McpServers("Open MCP Servers"),
     Assistant("Open Assistant"),
+    /** The Assistant outside the workspace, where a chat in no workspace is (docs/home-plan.md §2). */
+    AssistantOutside("Open Assistant"),
 }
 
 /** Something a notice can do again, with nothing more to say. */

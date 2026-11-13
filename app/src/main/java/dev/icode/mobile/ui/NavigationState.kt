@@ -29,6 +29,8 @@ class NavigationState internal constructor(initial: Navigation, private val capt
 
     val actions: NavigationActions get() = NavigationActions(
         navigate = { model = model.navigate(it) },
+        show = ::show,
+        outside = ::showOutside,
         replace = { model = model.replace(it) },
         openPanel = { model = model.openPanel(it) },
         panelTab = model.shownTab,
@@ -57,9 +59,9 @@ class NavigationState internal constructor(initial: Navigation, private val capt
         model = model.opened(location, tool)
     }
 
-    /** A tab in no workspace shown for the user: Terminal outside the workspace. */
-    fun showTerminalOutside() {
-        model = model.showTerminalOutside()
+    /** A tab or a chat in no workspace shown for the user: Terminal or the Assistant outside the workspace. */
+    fun showOutside(route: Route) {
+        model = model.showOutside(route)
     }
 
     /** The open workspace, however it came to be: another's tools start anew. */
