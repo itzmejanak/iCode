@@ -80,7 +80,8 @@ place is the same screen, Private only.
   Terminal], Rename…, Cut, Copy, Paste *name*, Copy path, Delete…. Shared items show the same menu except
   Open, which exists only where there is something to open.
 - **No ⋮ on rows**, in any explorer, the Explorer's tree included: a long press is how a file manager
-  opens an item's menu. The home screen's workspace rows keep their ⋮; the home screen is not an explorer.
+  opens an item's menu. The home screen's workspace rows kept their ⋮ until the owner's choice A
+  (2026-11-15, docs/home-plan.md §1): they are drawn as the Workspaces page's rows, with a long press.
 
 ### 3.3 Floating +
 

@@ -135,7 +135,7 @@ design: the same sheet handles things like files folder info and others things s
   | Where | Today | The sheet |
   |---|---|---|
   | The explorer's rows, the workspaces at Private's top | long press, dropdown | the item's actions (§3.3) |
-  | The home screen's workspace rows | ⋮ and long press, dropdown | the same workspace sheet as the explorer's |
+  | The home screen's workspace rows | long press (⋮ until 2026-11-15, docs/home-plan.md §1), dropdown | the same workspace sheet as the explorer's |
   | The IDE tree's rows | long press, dropdown | the item's actions |
   | A selection, in either explorer | — | its ⋯ (§3.2) |
   | Trash and Recent | — | Restore, Delete permanently, Properties; Show in folder and the item's actions |
