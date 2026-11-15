@@ -18,7 +18,7 @@ in the runtime, the workspaces or the backend changes.
 |---|---|---|
 | Top bar | "iCode", Settings | Settings |
 | Start | Import…, Clone Repository…, Workspaces: links in the accent (`IcodeListRow`) | The file explorer at phone storage; Clone; the file explorer at iCode's storage |
-| Recent | The five recent workspaces (`WorkspaceRow`, owner's choice A, 2026-11-13): a folder icon, the open workspace's open and in the accent; the name as a link; under it the branch, with Source Control's own branch icon (`CallSplit`), and the time; ⋮ and a long press. The path is not shown: it is always `/workspace/<name>`, the name again | The workspace; its sheet |
+| Recent | The five recent workspaces (`WorkspaceRow`, owner's choice A, 2026-11-15), each drawn as the Workspaces page draws it: its folder's icon from the file icon theme (`FileTypeIcon`, so Stack and Videos have their own), open for the workspace open, whose name is in the accent; under the name the branch, with Source Control's branch icon (`CallSplit`); the time at the end; a long press for its sheet. The path is not shown: it is always `/workspace/<name>`, the name again | The workspace; its sheet |
 | Behind | The logo as a letterpress (`IcodeWatermark`) | — |
 | Status bar, left | The runtime as VS Code's remote button (`IcodeIcons.Runtime`): the accent while healthy, amber otherwise | Healthy: Runtime Environment. Otherwise: the runtime's install, as the old label did |
 | Status bar | Terminal (`IcodeDockedAction`, `ToolBadges`), as the dock draws and badges it | The Terminal page outside the workspace, its tabs starting in `$HOME` (§2) |

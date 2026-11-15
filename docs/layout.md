@@ -373,11 +373,13 @@ VS Code's Welcome page with its status bar ([home-plan.md](./home-plan.md)):
 
 Each row may show:
 
-- its folder icon, open and in the accent for the workspace open;
-- workspace name, as a link in the accent;
-- repository branch when cheaply available, with Source Control's branch icon, then the last-opened
-  time; its path, `/workspace/<name>`, is the name again and not shown;
-- its sheet, from ⋮ or a long press: the one the file explorer shows a workspace with (§12.2) —
+- its folder's icon, as the Workspaces page draws it (the file icon theme's), open for the
+  workspace open;
+- workspace name, in the accent for the workspace open;
+- repository branch when cheaply available, with Source Control's branch icon; its path,
+  `/workspace/<name>`, is the name again and not shown;
+- the last-opened time at the end, as the Workspaces page's rows end;
+- its sheet, from a long press, as on the Workspaces page: the one the file explorer shows a workspace with (§12.2) —
   Open, Open Terminal, Show in Workspaces, then every action on a folder. Cut and Copy use iCode's
   one clipboard; what waits on it shows as a bar with Paste in both explorers.
 
