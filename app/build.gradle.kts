@@ -171,7 +171,7 @@ dependencies {
     implementation("org.apache.commons:commons-compress:1.27.1")
     // Commons Compress's own optional dependency for .7z and .xz (0BSD, pure Java;
     // docs/workspaces-and-files.md).
-    implementation("org.tukaani:xz:1.10")
+    implementation("org.tukaani:xz:1.12")
     // The renderer and input view. Apache-2.0 per termux-app LICENSE.md; see docs/runtime-and-terminal.md.
     // Its emulator is built from third_party/termux-terminal-emulator, the same release with iCode's tap.
     implementation("com.github.termux.termux-app:terminal-view:v0.118.3") {
