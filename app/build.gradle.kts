@@ -164,7 +164,7 @@ dependencies {
     implementation(soraBom)
     androidTestImplementation(composeBom)
 
-    implementation("androidx.core:core-ktx:1.17.0")
+    implementation("androidx.core:core-ktx:1.19.1")
     // Accent colour picker. 1.1.4 is the newest release built for Kotlin 2.3 and
     // Compose 1.10+; later ones need Kotlin 2.4 (docs/design-and-navigation.md).
     implementation("com.github.skydoves:colorpicker-compose:1.1.4")
