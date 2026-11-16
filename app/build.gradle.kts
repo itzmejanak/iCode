@@ -18,7 +18,7 @@ val releaseStage = mapOf("preview" to 1, "beta" to 2, "stable" to 9)[releaseChan
     ?: error("releaseChannel is preview, beta or stable, not $releaseChannel")
 
 // One version for the editor engine: the dependency, and what About reports.
-val soraEditorVersion = "0.24.6"
+val soraEditorVersion = "0.24.7"
 // One version for the assistant's Koog modules; an upgrade repeats docs/assistant-and-mcp.md.
 val koogVersion = "1.3.0"
 
