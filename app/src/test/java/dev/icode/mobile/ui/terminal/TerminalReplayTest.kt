@@ -5,7 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * A replay's frame fits the rows its output fills (docs/agent-control-plan.md §6), on Termux's real
+ * A replay's frame fits the rows its output fills (docs/assistant-and-mcp.md), on Termux's real
  * emulator: wraps, scrollback and the cursor are its own.
  */
 class TerminalReplayTest {

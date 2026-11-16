@@ -1,6 +1,6 @@
 package dev.icode.mobile.domain
 
-// The runtime tools as their page lists them (docs/runtime-tools-plan.md §8.7): a tree, as Android
+// The runtime tools as their page lists them (docs/runtime-and-terminal.md): a tree, as Android
 // Studio's SDK Manager shows its tools — a tool's add-ons beneath it, a family's versions beneath it.
 
 /** A tool with versions installed side by side, each its own row beneath the family's: the NDK. */
@@ -23,7 +23,7 @@ sealed interface RuntimeToolNode {
     val summary: String
     /** What in iCode needs it. */
     val usedBy: String?
-    /** What it requires that no row above it names (docs/android-ndk-plan.md §3.1): ticked with it. */
+    /** What it requires that no row above it names (docs/runtime-and-terminal.md): ticked with it. */
     val needs: List<RuntimeTool>
     val children: List<RuntimeToolNode>
 

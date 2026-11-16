@@ -1,6 +1,6 @@
 package dev.icode.mobile.domain
 
-// Background work (docs/long-operations-plan.md §6): everything iCode is doing that must outlive
+// Background work (docs/runtime-and-terminal.md): everything iCode is doing that must outlive
 // its screen, as the foreground service keeps it alive and its notifications carry it.
 
 /** Where iCode shows a piece of background work: what a tap on its notification opens. */
@@ -95,7 +95,7 @@ object BackgroundWorkRules {
      * Everything running in [snapshot]: each task, the Git transfer, the runtime install, the tools
      * apt is installing or removing, the assistant's turn, the managed processes that run, and gpg's
      * question waiting on its sheet. What stopped short is not carried: its page says why, and so
-     * does its notice (docs/notices-redesign-plan.md D7).
+     * does its notice (docs/engineering-rules.md).
      */
     fun of(snapshot: ICodeSnapshot): List<BackgroundItem> = buildList {
         snapshot.tasks.filterNot { it.quiet || it.failure != null }.forEach { add(task(it)) }

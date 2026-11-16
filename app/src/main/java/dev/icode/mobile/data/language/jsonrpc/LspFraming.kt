@@ -7,8 +7,8 @@ import java.io.OutputStream
 
 /**
  * The base protocol's frames (LSP 3.17 "Base Protocol"): `Content-Length: n\r\n`, any other headers,
- * `\r\n`, then n bytes of UTF-8 JSON. The only place iCode reads or writes them (docs/lsp-plan.md §5.1).
- * Both bounds end the connection rather than buffer without limit (D7).
+ * `\r\n`, then n bytes of UTF-8 JSON. The only place iCode reads or writes them (docs/editor-and-language-services.md).
+ * Both bounds end the connection rather than buffer without limit.
  */
 internal object LspFraming {
     const val MAX_HEADER_BYTES = 8 * 1024

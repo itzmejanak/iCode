@@ -49,7 +49,7 @@ import dev.icode.mobile.domain.ICodeIntent
 import dev.icode.mobile.ui.LocalICodeGateway
 import kotlinx.coroutines.delay
 
-// The processes the assistant started (docs/runtime-foundation-plan.md §3.7): a row above the
+// The processes the assistant started (docs/runtime-and-terminal.md): a row above the
 // composer while any is listed, and the sheet it opens.
 
 /** "2 running · 1 ended", and a caret: the Processes sheet is a tap away. */
@@ -70,7 +70,7 @@ internal fun AssistantProcessesRow(processes: List<ManagedProcess>, onOpen: () -
 }
 
 /**
- * Every process, this workspace's first (docs/runtime-foundation-plan.md §6 P4), each one row: its
+ * Every process, this workspace's first (docs/runtime-and-terminal.md), each one row: its
  * state, name and command, its ports — each opens the phone's browser — and Stop while it runs, or
  * Remove once it has ended. A tap on a row is its output, in the terminal: the sheet lists, the
  * terminal shows.

@@ -1,7 +1,7 @@
 package dev.icode.mobile.domain.files
 
 /**
- * What the explorer chooses a folder for, as a folder picker (docs/explorer-gaps-plan.md §3.5): where
+ * What the explorer chooses a folder for, as a folder picker (docs/workspaces-and-files.md): where
  * a clone goes, in Private; or, in either place, where items are moved or copied, or archives
  * extracted.
  */

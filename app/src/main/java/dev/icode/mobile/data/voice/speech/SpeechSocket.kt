@@ -20,7 +20,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * One hearing over a WebSocket, the same for every streaming provider (docs/speech-plan.md §4.3): the
+ * One hearing over a WebSocket, the same for every streaming provider (docs/voice-and-phone-control.md): the
  * microphone's audio goes up as it comes, what comes down is the provider's to read, and the hearing
  * ends at the first final words or failure — or when a deadline the provider set passes. Each adapter
  * gives only its protocol: how audio is framed, what a message means, what its close codes say.

@@ -55,7 +55,7 @@ internal fun editorColors(palette: IcodePalette): Map<Int, Int> = with(palette) 
         EditorColorScheme.PROBLEM_ERROR to error,
         EditorColorScheme.PROBLEM_WARNING to amber,
         EditorColorScheme.PROBLEM_TYPO to blue,
-        // A language server's completions and a problem's tooltip (docs/lsp-plan.md §7), as the sheets are drawn.
+        // A language server's completions and a problem's tooltip (docs/editor-and-language-services.md), as the sheets are drawn.
         EditorColorScheme.COMPLETION_WND_BACKGROUND to surfaceElevated,
         EditorColorScheme.COMPLETION_WND_CORNER to outline,
         EditorColorScheme.COMPLETION_WND_TEXT_PRIMARY to textPrimary,

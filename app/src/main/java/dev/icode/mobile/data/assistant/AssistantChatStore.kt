@@ -23,9 +23,9 @@ import org.json.JSONObject
 internal data class AssistantChat(val messages: List<AssistantMessage> = emptyList(), val contextTokens: Long? = null)
 
 /**
- * Each workspace's chats, in iCode's storage (§4.6, §12 R5): a folder per workspace named by the
+ * Each workspace's chats, in iCode's storage: a folder per workspace named by the sha256 of its
  * sha256 of its location — a name never has to be made safe for a file — and one for the chats in no
- * workspace (docs/home-plan.md §2), [NO_WORKSPACE], holding one file per chat
+ * workspace (docs/design-and-navigation.md), [NO_WORKSPACE], holding one file per chat
  * and `index.json`, the list its history shows. Each chat file also names its own title and time, so
  * an index that cannot be read is made again from them. Every file is written whole and renamed into
  * place: a killed process leaves the last state saved, never half of one.

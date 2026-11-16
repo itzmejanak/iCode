@@ -26,7 +26,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * The Notifications page's notices (docs/notices-redesign-plan.md D3): kept until the user deletes
+ * The Notifications page's notices (docs/engineering-rules.md): kept until the user deletes
  * them, newest first, what needs the user and the rest each up to their own most
  * ([NoticeRules.added]). One per process, so every screen and service sees the same list. What an
  * earlier build kept is read and kept on.

@@ -39,7 +39,7 @@ internal class Unpacked(val entries: Long, val skipped: Int)
 internal class ArchiveIndex(val entries: Long, val bytes: Long)
 
 /**
- * Reading archives (docs/explorer-gaps-plan.md §3.11), for the runtime's pinned downloads — its root
+ * Reading archives (docs/workspaces-and-files.md), for the runtime's pinned downloads — its root
  * filesystem, a tool's zips and tar.gz — and the explorer's Extract alike, on Commons Compress, and
  * XZ for Java for .7z and .xz. Every entry lands inside the folder, whatever its name says: `../` in
  * an entry is the oldest trick there is. Ownership is ignored: there is one user. Hard links are
@@ -120,7 +120,7 @@ internal object Archives {
         }
     }
 
-    /** A 7z holds files and folders only: no links, no executable bits (§2). */
+    /** A 7z holds files and folders only: no links, no executable bits. */
     private fun sevenZ(archive: File, password: CharArray?, writer: EntryWriter) = sevenZFile(archive, password).use { seven ->
         while (true) {
             val entry = seven.nextEntry ?: break

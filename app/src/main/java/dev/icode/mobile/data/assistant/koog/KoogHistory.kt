@@ -22,14 +22,14 @@ import java.io.File
 import org.json.JSONObject
 
 /**
- * The chat in iCode's words ↔ Koog's messages (§4.2). Tool-call IDs pass through exactly: a provider
+ * The chat in iCode's words ↔ Koog's messages. Tool-call IDs pass through exactly: a provider
  * matches a result to its call by ID. Reasoning stays within the turn it was given in.
  */
 internal object KoogHistory {
     /**
      * The prompt a request starts from: the system instructions, then [messages] — every call
      * answered, the new message last — for [model]: an image or a PDF goes as itself to a model
-     * that reads it, and as a line of text to one that does not (§13 P8).
+     * that reads it, and as a line of text to one that does not.
      */
     fun prompt(instructions: String, messages: List<AssistantMessage>, params: LLMParams, model: LLModel): Prompt = prompt(PROMPT_ID, params) {
         system(instructions)

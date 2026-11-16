@@ -33,7 +33,7 @@ import org.junit.Assert.fail
 import org.junit.Test
 
 /**
- * The agent's MCP tools (docs/agent-control-plan.md §5) over the pages' own operations: what it adds,
+ * The agent's MCP tools (docs/assistant-and-mcp.md) over the pages' own operations: what it adds,
  * changes and removes is what the pages show, a value is never read back, and a workspace's server
  * stays its file's.
  */

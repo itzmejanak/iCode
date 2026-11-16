@@ -18,7 +18,7 @@ import org.junit.Assert.fail
 import org.junit.Test
 
 /**
- * The agent's speech provider tools (docs/speech-plan.md §6) over the pages' own operations: what it
+ * The agent's speech provider tools (docs/voice-and-phone-control.md) over the pages' own operations: what it
  * adds, changes and removes is what the pages show, and a key is never read back.
  */
 class SpeechProviderToolsTest {

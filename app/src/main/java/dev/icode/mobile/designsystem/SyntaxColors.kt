@@ -44,7 +44,7 @@ fun IcodePalette.syntaxColor(role: SyntaxRole): Color = syntax?.let { variantCol
 }
 
 /**
- * A variant's own code colours (docs/theme-variants-plan.md D5): six, as the theme gives them; the
+ * A variant's own code colours (docs/design-and-navigation.md): six, as the theme gives them; the
  * other roles take the one nearest in meaning, as the theme's own editor does.
  */
 @Immutable

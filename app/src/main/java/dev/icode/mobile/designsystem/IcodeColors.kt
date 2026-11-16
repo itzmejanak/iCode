@@ -10,7 +10,7 @@ import dev.icode.mobile.domain.AccentColorRules
 import dev.icode.mobile.domain.AppEnvironment
 import dev.icode.mobile.domain.AppTheme
 
-/** This build's environment (docs/environments-plan.md): its accent is each theme's own. */
+/** This build's environment (docs/build-and-release.md): its accent is each theme's own. */
 val BuildEnvironment: AppEnvironment = AppEnvironment.valueOf(BuildConfig.ENVIRONMENT)
 
 /** Which theme a palette is, however its accent was changed. */
@@ -45,7 +45,7 @@ data class IcodePalette(
      * light terminal themes do, so white text stays readable on the light background.
      */
     val terminalAnsi: List<Color>,
-    /** A variant's own code colours (docs/theme-variants-plan.md D5); null: iCode's one hue per role. */
+    /** A variant's own code colours (docs/design-and-navigation.md); null: iCode's one hue per role. */
     val syntax: SyntaxSeeds? = null,
 ) {
     /** Behind a sheet: the screen it opened over stays in sight, dimmed. */

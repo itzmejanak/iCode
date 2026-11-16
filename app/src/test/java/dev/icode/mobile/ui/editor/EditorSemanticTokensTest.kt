@@ -20,7 +20,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** When one editor asks for semantic tokens, and when it does not (S7). */
+/** When one editor asks for semantic tokens, and when it does not. */
 class EditorSemanticTokensTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
     private val asked = Collections.synchronizedList(mutableListOf<String>())

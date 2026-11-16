@@ -1,7 +1,7 @@
 package dev.icode.mobile.domain.notices
 
 /**
- * Something iCode tells the user (docs/notices-redesign-plan.md D1): what happened, to what, and
+ * Something iCode tells the user (docs/engineering-rules.md): what happened, to what, and
  * where — on the bell, the Notifications page and Android's shade. Its words are written only by the
  * builders of this package, one per area; [id] and [at] are given by whoever tells it, unless the
  * notice brings its own (the website's, what the previous process left).
@@ -9,9 +9,9 @@ package dev.icode.mobile.domain.notices
 data class Notice(
     val tone: NoticeTone,
     val source: NoticeSource,
-    /** What happened, to what: one line (D8). */
+    /** What happened, to what: one line. */
     val title: String,
-    /** Where it happened (D2), captured when the work began. */
+    /** Where it happened, captured when the work began. */
     val place: NoticePlace? = null,
     /** Why, and what to do next: sentences. */
     val detail: String? = null,
@@ -20,9 +20,9 @@ data class Notice(
     /** At most two; the first is the main one. */
     val actions: List<NoticeAction> = emptyList(),
     val keep: NoticeKeep = NoticeKeep.of(tone),
-    /** Work worth Android's shade when it ends while iCode is out of view (D7: Finished while you were away). */
+    /** Work worth Android's shade when it ends while iCode is out of view. */
     val tellAway: Boolean = false,
-    /** The same event told again soon after folds into this one (D6). */
+    /** The same event told again soon after folds into this one. */
     val repeatKey: String? = null,
     val id: String = "",
     val at: Long = 0L,
@@ -43,7 +43,7 @@ data class Notice(
     }
 }
 
-/** How serious it is, in order, the most serious first: its colour and icon (docs/notices-plan.md §2.1). */
+/** How serious it is, in order, the most serious first: its colour and icon (docs/engineering-rules.md). */
 enum class NoticeTone {
     /** Something failed. */
     Problem,
@@ -58,7 +58,7 @@ enum class NoticeTone {
     Done,
 }
 
-/** What a notice is kept as (D3). */
+/** What a notice is kept as. */
 enum class NoticeKeep {
     /** Problems and heads-ups: they ring the bell, count, and are posted. */
     NeedsYou,
@@ -99,7 +99,7 @@ enum class NoticeSource(val label: String) {
 }
 
 /**
- * Where it happened (D2): the workspace — or, outside one, the place: Phone storage, the Linux
+ * Where it happened: the workspace — or, outside one, the place: Phone storage, the Linux
  * runtime — the repository when the workspace holds several, the branch and where it goes, and what
  * it was about: a folder or file in the workspace, a terminal tab, a chat, a server, a model.
  */
@@ -122,7 +122,7 @@ data class NoticePlace(
     }
 }
 
-/** What a notice offers to do (D1): a closed set, stored by name, done by the screens. */
+/** What a notice offers to do: a closed set, stored by name, done by the screens. */
 sealed interface NoticeAction {
     val label: String
 
@@ -153,7 +153,7 @@ enum class NoticeTarget(val label: String) {
     Languages("Open Language Servers"),
     McpServers("Open MCP Servers"),
     Assistant("Open Assistant"),
-    /** The Assistant outside the workspace, where a chat in no workspace is (docs/home-plan.md §2). */
+    /** The Assistant outside the workspace, where a chat in no workspace is (docs/design-and-navigation.md). */
     AssistantOutside("Open Assistant"),
 }
 

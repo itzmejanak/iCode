@@ -1,7 +1,7 @@
 package dev.icode.mobile.data.assistant.tools
 
 /**
- * The paths a command line names (docs/assistant-permissions-plan.md §4.5), its words split as its
+ * The paths a command line names (docs/assistant-and-mcp.md), its words split as its
  * shell splits them: quotes, `\` escapes, a `#` comment, and `;`, `&`, `|`, `(`, `)`, `<`, `>`
  * between words. A word names a path when it starts with `/`, `~`, `./` or `../`, or is `.` or `..`,
  * whole or after its first `=` (`--prefix=/opt`). Where a variable, a substitution or a glob makes the

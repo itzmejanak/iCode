@@ -17,8 +17,9 @@ import dev.icode.mobile.domain.WorkspaceNameRules
 import dev.icode.mobile.domain.WorkspaceRuntimePath
 
 /**
- * Renaming one item, wherever it is asked: the item sheet's Rename… page (docs/explorer-gaps-plan.md
- * §3.1). It holds the new name, and why a name cannot be, as it is typed: a workspace's rules, a
+ * Renaming one item, wherever it is asked: the item sheet's Rename… page
+ * (docs/workspaces-and-files.md). It holds the new name, and why a name cannot be, as it is typed: a
+ * workspace's rules, a
  * folder's or a file's ([WorkspaceNameRules]). The request is answered by its id; a refusal is said
  * under the field.
  */

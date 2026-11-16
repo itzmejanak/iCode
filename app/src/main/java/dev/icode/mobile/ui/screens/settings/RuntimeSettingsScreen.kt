@@ -54,7 +54,7 @@ import dev.icode.mobile.ui.LocalICodeSnapshot
 private enum class RuntimeRebuild { Repair, Reset }
 
 /**
- * The runtime (docs/screens-polish-plan.md D5): one card — the release, its state as a dot and a word,
+ * The runtime (docs/design-and-navigation.md): one card — the release, its state as a dot and a word,
  * and what can be measured of it — then its tools, and the way out of a broken one. An interrupted
  * package operation can leave a runtime that cannot repair itself from inside — measured on device —
  * so rebuilding it has to be reachable here rather than only by clearing the app's data. What each

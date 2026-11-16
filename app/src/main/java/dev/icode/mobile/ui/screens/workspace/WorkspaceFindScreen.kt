@@ -67,7 +67,7 @@ fun WorkspaceFindScreen(actions: NavigationActions, initialMode: FindMode) {
 
     val root = state.activeWorkspaceLocation
     val rankedFiles = remember(state.fileIndex, query, root) { rankFiles(state.fileIndex, query, root) }
-    // Nothing typed: what was opened lately in this workspace comes first (docs/layout.md §14).
+    // Nothing typed: what was opened lately in this workspace comes first (docs/design-and-navigation.md).
     val recentFiles = remember(state.explorer.recent, root) {
         state.explorer.recent.filter { FileFolders.relative(it.location, root) != null }.map { IndexedFile(it.name, it.location) }
     }

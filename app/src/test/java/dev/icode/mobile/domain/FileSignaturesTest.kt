@@ -4,7 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** What first bytes say a file is (docs/file-kinds-icons-plan.md D2): each format by its own signature, and text by none. */
+/** What first bytes say a file is (docs/workspaces-and-files.md): each format by its own signature, and text by none. */
 class FileSignaturesTest {
     private fun bytes(vararg parts: Any): ByteArray = parts.flatMap { part ->
         when (part) {

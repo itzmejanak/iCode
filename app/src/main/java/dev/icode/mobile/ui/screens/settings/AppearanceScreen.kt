@@ -70,10 +70,10 @@ fun AppearanceScreen(actions: NavigationActions) {
     val accentArgb = accent.toArgb()
     var pickingAccent by remember { mutableStateOf(false) }
     var variantsOf by remember { mutableStateOf<AppTheme?>(null) }
-    // With Match Phone on, the phone's light or dark mode chooses the theme (docs/theme-variants-plan.md T6).
+    // With Match Phone on, the phone's light or dark mode chooses the theme (docs/design-and-navigation.md).
     val shown = appearance.shown(isSystemInDarkTheme())
     val variant = ThemeVariants.find(shown, appearance.variantOf(shown))
-    // The variant's own accent, before the user's: what "Use theme default" returns to (D7).
+    // The variant's own accent, before the user's: what "Use theme default" returns to.
     val themeAccent = IcodePalette.of(shown, variant.id, appearance.borderLines).accent.toArgb()
     // Every variant made once, off the main thread, before its sheet is opened.
     LaunchedEffect(appearance.borderLines) {

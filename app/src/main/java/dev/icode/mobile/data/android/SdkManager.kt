@@ -6,7 +6,7 @@ import dev.icode.mobile.domain.ToolSetupProgress
 import java.io.IOException
 
 /**
- * Google's sdkmanager in the guest (docs/android-toolchain-plan.md §4.2), as the Android SDK's setups
+ * Google's sdkmanager in the guest (docs/runtime-and-terminal.md), as the Android SDK's setups
  * run it: its stdin closed, so a licence it does not find accepted is declined, never waited on.
  */
 internal class SdkManager(private val guest: GuestCommand) {

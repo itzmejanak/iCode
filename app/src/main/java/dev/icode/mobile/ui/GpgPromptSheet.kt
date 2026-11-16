@@ -16,7 +16,7 @@ import dev.icode.mobile.domain.GpgPrompt
 import dev.icode.mobile.domain.ICodeGateway
 
 /**
- * What gpg-agent asks through iCode's pinentry (docs/gpg-signing-plan.md), in its own words and
+ * What gpg-agent asks through iCode's pinentry (docs/source-control.md), in its own words and
  * with its own buttons: a key's passphrase, or a yes or no. gpg-agent keeps the passphrase it is
  * given; iCode keeps nothing.
  */

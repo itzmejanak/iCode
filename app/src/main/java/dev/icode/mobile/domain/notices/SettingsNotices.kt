@@ -1,6 +1,6 @@
 package dev.icode.mobile.domain.notices
 
-/** What settings, and iCode's own controls, tell (docs/notices-redesign-plan.md D8). */
+/** What settings, and iCode's own controls, tell (docs/engineering-rules.md). */
 object SettingsNotices {
     /** A copy confirmed where Android does not confirm it itself ([what]: "Path copied"). */
     fun copied(what: String) = Notice(NoticeTone.Done, NoticeSource.ICode, what, keep = NoticeKeep.Moment)

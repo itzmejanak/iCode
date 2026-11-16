@@ -9,7 +9,7 @@ import dev.icode.mobile.domain.AssistantSession
 import java.util.UUID
 
 /**
- * The chats as last seen in this process (§4.6, §12 R5): each read from [store] the first time,
+ * The chats as last seen in this process: each read from [store] the first time,
  * saved after every change, so a killed process loses at most the reply in flight. "Allow All in
  * This Chat" lives here too, and lasts as long as the chat does in this process.
  */
@@ -21,7 +21,7 @@ internal class AssistantChats(
 
     private val lock = Any()
     private val loaded = mutableMapOf<Key, AssistantChat>()
-    /** What each chat's answers allowed beyond the setting (docs/assistant-permissions-plan.md §4.4): until iCode closes. */
+    /** What each chat's answers allowed beyond the setting (docs/assistant-and-mcp.md): until iCode closes. */
     private class Answers(var inWorkspace: Boolean = false, val roots: MutableSet<String> = linkedSetOf())
 
     private val answers = mutableMapOf<Key, Answers>()
@@ -39,13 +39,13 @@ internal class AssistantChats(
     fun append(workspace: String?, session: String, message: AssistantMessage) =
         change(workspace, session) { it.copy(messages = it.messages + message) }
 
-    /** Keeps an image's or a PDF's bytes in [session]'s folder; returns where (§13 P7). */
+    /** Keeps an image's or a PDF's bytes in [session]'s folder; returns where. */
     fun keep(workspace: String?, session: String, bytes: ByteArray, extension: String): String =
         store.keep(workspace, session, bytes, extension)
 
     /**
      * Takes back [session]'s last message when nothing answered it — a turn that failed before any
-     * reply — to send again (§13 P9); null when there is none.
+     * reply — to send again; null when there is none.
      */
     fun withdraw(workspace: String?, session: String): AssistantMessage.User? = synchronized(lock) {
         val chat = of(workspace, session)
@@ -84,7 +84,7 @@ internal class AssistantChats(
     }
 
     /**
-     * [summary] marks where the model's view of the chat starts again (§12 R4): after what it covers
+     * [summary] marks where the model's view of the chat starts again: after what it covers
      * — before a message still waiting for its answer, which is not part of it — with the meter reset.
      */
     fun compacted(workspace: String?, session: String, summary: String) = change(workspace, session) { chat ->

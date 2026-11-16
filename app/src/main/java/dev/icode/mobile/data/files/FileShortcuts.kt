@@ -16,7 +16,7 @@ import dev.icode.mobile.domain.notices.Notice
 import java.io.File
 
 /**
- * The explorers' ways back (docs/explorer-gaps-plan.md §3.14), kept in the workspace store: Recent,
+ * The explorers' ways back (docs/workspaces-and-files.md), kept in the workspace store: Recent,
  * the files opened in iCode — by the editor, a viewer, Open with — in workspaces and on phone
  * storage, newest first, a save putting its file on top; and Favorites, folders pinned app-wide.
  * Both follow iCode's own moves. What went is kept and not shown, so a restore brings it back. The

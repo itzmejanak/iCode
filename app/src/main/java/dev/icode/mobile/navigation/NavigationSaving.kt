@@ -3,7 +3,7 @@ package dev.icode.mobile.navigation
 import dev.icode.mobile.domain.WorkspaceTool
 
 /**
- * [Navigation] as strings for Android's saved state (D10): the app's pages, each tool's history, the
+ * [Navigation] as strings for Android's saved state: the app's pages, each tool's history, the
  * order, the tab and the workspace survive the process being stopped. Read back, only what is still
  * a route or a tool, and only histories that keep the model's rules, are taken; anything else starts
  * iCode afresh rather than somewhere that cannot be.
@@ -43,10 +43,10 @@ object NavigationSaving {
     }
 
     /**
-     * The model's rules (§5.3), which every step keeps: no history holds a route twice; each tool's
+     * The model's rules, which every step keeps: no history holds a route twice; each tool's
      * starts on one of its own main screens and holds only pages after it; the app's pages are pages,
      * or Terminal and the Assistant outside the workspace while the app's pages are on screen
-     * ([opensOutside], docs/home-plan.md §2);
+     * ([opensOutside], docs/design-and-navigation.md);
      * the order names each opened tool at most once; and what is on screen exists.
      */
     fun wellFormed(navigation: Navigation): Boolean = with(navigation) {

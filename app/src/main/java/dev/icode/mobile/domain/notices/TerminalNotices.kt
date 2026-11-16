@@ -5,7 +5,7 @@ import dev.icode.mobile.domain.LostTerminalSessions
 import dev.icode.mobile.domain.ProcessEndCause
 import dev.icode.mobile.domain.countOf
 
-/** What the terminal tells (docs/notices-redesign-plan.md D8, D9). */
+/** What the terminal tells (docs/engineering-rules.md). */
 object TerminalNotices {
     /** The sessions iCode's previous process took with it. */
     fun sessionsEnded(lost: LostTerminalSessions): Notice {

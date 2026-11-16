@@ -8,9 +8,9 @@ import org.junit.Assume.assumeTrue
 import org.junit.Test
 
 /**
- * Cycle S1's measurements (docs/syntax-highlighting-plan.md §3.7): grammar load time per shipped
- * scope, tokenize time for large files and for a 1 MB minified line, and how often a grammar
- * shared by two threads goes wrong (G8). Not part of the normal run; run it with
+ * Syntax performance measurements (docs/editor-and-language-services.md): grammar load time per shipped
+ * scope, tokenize time for large files and for a 1 MB minified line, and whether a grammar shared by
+ * two threads fails. Not part of the normal run; run it with
  *
  *     ./gradlew :app:testDebugUnitTest --tests 'dev.icode.mobile.ui.editor.SyntaxBenchmark' -Picode.benchmark=true
  *

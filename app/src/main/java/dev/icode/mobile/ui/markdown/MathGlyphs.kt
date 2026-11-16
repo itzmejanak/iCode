@@ -12,7 +12,7 @@ import dev.icode.mobile.domain.markdown.MathLayout
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * RaTeX's fonts (docs/markdown-rendering-plan.md §2.4): the 19 KaTeX faces it names, from the APK's
+ * RaTeX's fonts (docs/editor-and-language-services.md): the 19 KaTeX faces it names, from the APK's
  * assets, each loaded once; the system's for the rest (`CJK-Regular`, `Emoji-Fallback`), whose
  * fallback covers CJK and emoji, as RaTeX-CMP's Android painter has it.
  */

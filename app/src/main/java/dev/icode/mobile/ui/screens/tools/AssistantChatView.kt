@@ -75,7 +75,7 @@ internal fun AssistantChatView(
             val count = rows.size + if (state.failure != null) 1 else 0
             // Each chat opens laid out at its end: never scrolled down through all it holds, drawing
             // every reply on the way, as it was. Left for another tool and come back to, it is where it
-            // was read to (docs/dock-navigation-plan.md D5): its place, and whether it follows, are kept.
+            // was read to (docs/design-and-navigation.md): its place, and whether it follows, are kept.
             val list = rememberSaveable(state.workspace, state.session, saver = LazyListState.Saver) { LazyListState((count - 1).coerceAtLeast(0)) }
             // At the end, the list follows what comes; scrolled up to read, it stays, and ↓ brings it back.
             var following by rememberSaveable(state.workspace, state.session) { mutableStateOf(true) }

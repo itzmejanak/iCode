@@ -23,7 +23,7 @@ import dev.icode.mobile.domain.RuntimeToolTree
 import dev.icode.mobile.domain.RuntimeToolsState
 
 /**
- * Select Tools, as Android Studio's SDK Manager lists its tools (docs/runtime-tools-plan.md §8.7–8.9):
+ * Select Tools, as Android Studio's SDK Manager lists its tools (docs/runtime-and-terminal.md):
  * iCode's own first, then the rest, each tool's add-ons beneath it and a family's versions beneath the
  * family. A row with rows beneath it opens and closes by its arrow; [open] holds the open ones, by id.
  * A tick changes the whole [choice], kept whole: what a tool needs is ticked with it.

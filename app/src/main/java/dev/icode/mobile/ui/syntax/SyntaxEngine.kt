@@ -23,10 +23,10 @@ import org.eclipse.tm4e.core.grammar.IGrammar
 import org.eclipse.tm4e.core.registry.IGrammarSource
 
 /**
- * The one owner of the TextMate engine (docs/syntax-highlighting-plan.md D2, D4). Nothing is parsed at
+ * The one owner of the TextMate engine (docs/editor-and-language-services.md). Nothing is parsed at
  * app start: the catalog is read, and a language's grammar parsed with what it includes, on the one
- * loader thread when a file or block first needs it. Threads cannot share a tm4e grammar (§3.7, S1), so
- * each editor gets an instance of its own ([language]) and the read-only thread has its own, which
+ * loader thread when a file or block first needs it. Threads cannot share a tm4e grammar, so each
+ * editor gets an instance of its own ([language]) and the read-only thread has its own, which
  * [tokens] uses. A grammar that fails is its language's alone, logged once ([failure]).
  */
 internal object SyntaxEngine {
@@ -34,7 +34,7 @@ internal object SyntaxEngine {
     private val main = Handler(Looper.getMainLooper())
     private val loader = Executors.newSingleThreadExecutor { Thread(it, "syntax-grammars") }
 
-    /** The read-only views' one tokenizing thread (D6): its grammars and its cache are used there only. */
+    /** The read-only views' one tokenizing thread: its grammars and its cache are used there only. */
     private val readOnly: CoroutineDispatcher = Executors.newSingleThreadExecutor { Thread(it, "syntax-tokens") }.asCoroutineDispatcher()
 
     /** Made on the loader thread at the first request; read from any thread only for [failure]. */
@@ -63,7 +63,7 @@ internal object SyntaxEngine {
     }
 
     /**
-     * [text]'s spans as catalog language [id] (D5, D6), made on [readOnly] with that thread's own grammar
+     * [text]'s spans as catalog language [id], made on [readOnly] with that thread's own grammar
      * and kept in its cache; null when [id]'s grammar failed, [text] is past [SyntaxLimits.BLOCK_CHARS],
      * or tokenizing threw.
      */

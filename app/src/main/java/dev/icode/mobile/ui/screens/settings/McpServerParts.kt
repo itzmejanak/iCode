@@ -43,7 +43,7 @@ import dev.icode.mobile.domain.McpValue
 import dev.icode.mobile.ui.LocalICodeGateway
 
 /**
- * A server's environment or headers: each a name and a value, secret unless unlocked (D8). A secret
+ * A server's environment or headers: each a name and a value, secret unless unlocked. A secret
  * saved is never shown again: its field is empty, and what is typed there replaces it. [fixed]: a
  * workspace's server, whose names its file gives.
  */
@@ -93,7 +93,7 @@ internal fun McpValuesEditor(title: String, values: List<McpValue>, fixed: Boole
     }
 }
 
-/** Its tools: each on or off, and, on, asking first or running without asking — the user's choice alone (§6.4). */
+/** Its tools: each on or off, and, on, asking first or running without asking — the user's choice alone. */
 @Composable
 internal fun McpToolsSection(server: McpServer, state: McpServerState) {
     if (state.tools.isEmpty()) return

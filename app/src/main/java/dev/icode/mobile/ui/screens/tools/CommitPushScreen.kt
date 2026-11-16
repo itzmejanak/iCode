@@ -125,7 +125,7 @@ fun CommitPushScreen(actions: NavigationActions) {
                         SectionLabel("Last Commit")
                         MonoLine("No commits yet", color = IcodeColors.TextMuted)
                     } else {
-                        // Its corner opens the branch's whole history (docs/git-history-plan.md).
+                        // Its corner opens the branch's whole history (docs/source-control.md).
                         SectionHeader("Last Commit", IcodeIcons.Expand, "Commit history", { actions.navigate(Route.GitHistory) })
                         CommitFacts(lastCommit.id, lastCommit.message, lastCommit.author, lastCommit.authoredAtEpochMillis) {
                             lastCommit.signature?.let { signature ->
@@ -178,7 +178,7 @@ private fun branchSummary(repository: GitRepositoryState?): String = when {
     else -> "Local repository · ${countOf(repository.branches.size, "branch", "branches")}"
 }
 
-/** Git's verdict on a commit's signature (docs/gpg-signing-plan.md §7), and its colour: Verified by whom, or why not. */
+/** Git's verdict on a commit's signature (docs/source-control.md), and its colour: Verified by whom, or why not. */
 @Composable
 private fun verdictOf(signature: GitCommitSignature): Pair<String, Color> = when (signature.status) {
     GitSignatureStatus.Verified -> "Verified" + signature.signer?.let { " · " + it.substringBefore(" <") }.orEmpty() to IcodeColors.Green

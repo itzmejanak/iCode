@@ -25,7 +25,7 @@ import dev.icode.mobile.ui.SheetFolder
 import dev.icode.mobile.ui.SheetIcon
 
 /**
- * The file explorer's [ItemSheet] (docs/explorer-gaps-plan.md §3.1–§3.3, §3.10): one item, from its
+ * The file explorer's [ItemSheet] (docs/workspaces-and-files.md): one item, from its
  * long press, or a selection's [items], from its ⋯ — every explorer's actions ([FileItemActions]),
  * with the explorer's own [screen] actions. Open is what a tap does ([opening]); at Private's top the
  * items are workspaces, which Open opens in the IDE, with Open Terminal beside. In a folder ([here])

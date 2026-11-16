@@ -59,7 +59,7 @@ data class BottomBarItem(
     val choice: Boolean = false,
     /** Drawn before the label: a choice's in the accent, any other's in the label's colour. */
     val icon: ImageVector? = null,
-    /** A [choice] being changed now (docs/loading-plan.md §4.2): the spinner in [icon]'s place, and no second tap. */
+    /** A [choice] being changed now (docs/design-and-navigation.md): the spinner in [icon]'s place, and no second tap. */
     val busy: Boolean = false,
 )
 

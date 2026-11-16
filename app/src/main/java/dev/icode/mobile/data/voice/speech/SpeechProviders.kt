@@ -12,7 +12,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 /**
- * The speech providers' one owner (docs/speech-plan.md §1, §4.5): the pages' intents and the agent's
+ * The speech providers' one owner (docs/voice-and-phone-control.md): the pages' intents and the agent's
  * tools call the same operations, one at a time, and what either changes shows at once. A refusal is
  * the user's notice, and the model's words.
  */
@@ -20,7 +20,7 @@ internal class SpeechProviders(
     private val store: SpeechProviderStore,
     private val stateHolder: ICodeStateHolder,
     private val scope: CoroutineScope,
-    /** The key of the assistant's OpenAI provider [id], decrypted for a hearing; null when it has none (§9 D4). */
+    /** The key of the assistant's OpenAI provider [id], decrypted for a hearing; null when it has none. */
     private val assistantKey: (id: String) -> String?,
 ) {
     private val lock = Any()

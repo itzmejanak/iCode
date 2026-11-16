@@ -1,7 +1,7 @@
 package dev.icode.mobile.domain
 
 /**
- * How much the assistant does without asking (docs/assistant-permissions-plan.md §4.1). The chat's
+ * How much the assistant does without asking (docs/assistant-and-mcp.md). The chat's
  * workspace is the boundary in every mode but [FullAccess], as Codex's presets draw it.
  */
 enum class AssistantPermission(val label: String) {
@@ -19,7 +19,7 @@ enum class AssistantPermission(val label: String) {
 enum class AssistantAsk { Change, Command, Outside }
 
 /**
- * What a call reaches outside its chat's workspace (§4.3): [paths] as they resolve in the runtime,
+ * What a call reaches outside its chat's workspace: [paths] as they resolve in the runtime,
  * and the folders "Allow in this chat" opens ([AssistantPermissions.rootOf]); none where nothing
  * smaller than `/` would do.
  */
@@ -31,8 +31,8 @@ data class AssistantReach(
 )
 
 /**
- * A place outside the files a call acts in, asked about as a folder outside is (docs/phone-agent-plan.md
- * L6, docs/mcp-plan.md §6.4, docs/agent-control-plan.md §3 A4): an app on the phone, an MCP server, or a
+ * A place outside the files a call acts in, asked about as a folder outside is
+ * (docs/voice-and-phone-control.md, docs/assistant-and-mcp.md): an app on the phone, an MCP server, or a
  * terminal tab of the user's. "Allow in" opens its [root].
  */
 data class AssistantElsewhere(val name: String, val root: String, val kind: Kind) {
@@ -41,9 +41,9 @@ data class AssistantElsewhere(val name: String, val root: String, val kind: Kind
 
 object AssistantPermissions {
     /**
-     * What a call of [kind] asks under [permission] (§4.2), [outside] when it reaches beyond the
+     * What a call of [kind] asks under [permission], [outside] when it reaches beyond the
      * workspace and this chat has not opened where, [always] for one asked in every mode
-     * (docs/agent-control-plan.md §3 A9): null when it runs.
+     * (docs/assistant-and-mcp.md): null when it runs.
      */
     fun ask(permission: AssistantPermission, kind: AssistantToolKind, outside: Boolean, always: Boolean = false): AssistantAsk? = when {
         always -> if (kind == AssistantToolKind.Command) AssistantAsk.Command else AssistantAsk.Change
@@ -104,7 +104,7 @@ object AssistantPermissions {
     /**
      * The chat's mode: the [setting], or Auto in workspace once the chat answered "Allow in" its
      * workspace. A chat in no workspace ([inWorkspace] false) has none to run in without asking: Auto
-     * in workspace asks there as Ask first does, and only Full access asks nothing (docs/home-plan.md §2).
+     * in workspace asks there as Ask first does, and only Full access asks nothing (docs/design-and-navigation.md).
      */
     fun effective(setting: AssistantPermission, allowedInWorkspace: Boolean, inWorkspace: Boolean = true): AssistantPermission = when {
         !inWorkspace -> if (setting == AssistantPermission.FullAccess) setting else AssistantPermission.AskFirst
@@ -113,8 +113,8 @@ object AssistantPermissions {
     }
 
     /**
-     * The folder "Allow in this chat" opens for [path], a runtime path outside the chat's workspace
-     * (§4.4): another workspace whole; else the Git repository holding it, its top the nearest
+     * The folder "Allow in this chat" opens for [path], a runtime path outside the chat's workspace:
+     * another workspace whole; else the Git repository holding it, its top the nearest
      * folder [isRepository] says so of; else its folder ([path] itself when [isFolder]). Never `/`:
      * null then.
      */
@@ -127,15 +127,15 @@ object AssistantPermissions {
     }
 
     /**
-     * What "Allow in *app* for this chat" opens for an app on the phone (docs/phone-agent-plan.md L6),
+     * What "Allow in *app* for this chat" opens for an app on the phone (docs/voice-and-phone-control.md),
      * kept with the folders a chat opened: never a runtime path, which starts with `/`.
      */
     fun appRoot(packageName: String): String = "app:$packageName"
 
-    /** What "Allow in *server*" opens for an MCP server (docs/mcp-plan.md §6.4): never a runtime path either. */
+    /** What "Allow in *server*" opens for an MCP server (docs/assistant-and-mcp.md): never a runtime path either. */
     fun serverRoot(id: String): String = "mcp:$id"
 
-    /** What "Allow in *tab*" opens for a terminal tab of the user's (docs/agent-control-plan.md §3 A4), while it runs. */
+    /** What "Allow in *tab*" opens for a terminal tab of the user's (docs/assistant-and-mcp.md), while it runs. */
     fun terminalRoot(sessionId: String): String = "terminal:$sessionId"
 
     /** [path] is [root] or under it, both runtime paths. */

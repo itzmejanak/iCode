@@ -48,19 +48,19 @@ data class ActionTarget(val location: String, val name: String, val folder: Bool
 }
 
 /**
- * What opens a page of the item sheet (docs/explorer-gaps-plan.md §3.1): Compress… — none where the
+ * What opens a page of the item sheet (docs/workspaces-and-files.md): Compress… — none where the
  * sheet has no one folder for many — and Properties.
  */
 class SheetPageActions(val compress: (() -> Unit)?, val properties: () -> Unit)
 
 /**
- * What only an explorer's own screen offers: the file explorer's folder picker (§3.5), and selection,
- * starting with the items given (§3.2) — the file explorer's, and the IDE tree's.
+ * What only an explorer's own screen offers: the file explorer's folder picker, and selection,
+ * starting with the items given — the file explorer's, and the IDE tree's.
  */
 class ScreenActions(val pick: ((FolderPick) -> Unit)?, val select: ((List<String>) -> Unit)?)
 
 /**
- * The one owner of the actions on files and folders (docs/explorer-gaps-plan.md §3.1, §3.3): every
+ * The one owner of the actions on files and folders (docs/workspaces-and-files.md): every
  * explorer and the home screen show the same list, in the same order, in the item's sheet
  * ([ItemSheet]) — an item's, or a selection's. What differs is only what a place has to offer:
  * [open] (Expand in the IDE's tree), [showInList] on the home screen and in a view, [screen] in the
@@ -71,17 +71,17 @@ object FileItemActions {
     fun pasteLabel(clipboard: FileClipboard?): String = clipboard?.let { "Paste ${it.name}" } ?: "Paste"
 
     /**
-     * The actions on [targets] — one item, or a selection's many — in groups (§3.1, §3.3). Opening,
+     * The actions on [targets] — one item, or a selection's many — in groups. Opening,
      * for one: [open], what opening is here — a file into the editor, a folder into the list or open
      * in the tree; none where there is nothing to open it in — and for a file Open with…; Share… for
      * files, every one at once; a workspace's Open Terminal; and [showInList], the way to where it is
-     * listed — a workspace's Workspaces, a view's file's folder (§3.10). Then Cut, Copy, one item's
+     * listed — a workspace's Workspaces, a view's file's folder. Then Cut, Copy, one item's
      * Paste — named by what is held, greyed with nothing held; [onPaste] puts it into a folder, or
      * beside a file — the explorer's Move to… and Copy to…, and Duplicate. Rename…: one's name, or
      * many by a rule ([onRename], where there is one). Archives extracted here, or to a folder; else
      * Compress…, where the format and name are chosen, in one place: never at Private's top, where
      * only workspaces are. Folders' Favorites. Copy path or paths, and Properties. The explorer's
-     * Select. Delete last, to Trash: it can be undone (§3.7). Rename…, Compress… and Properties open
+     * Select. Delete last, to Trash: it can be undone. Rename…, Compress… and Properties open
      * [pages] of the sheet.
      */
     fun of(
@@ -153,7 +153,7 @@ object FileItemActions {
 
     /**
      * What + makes in the folder shown: New folder, and New file where a file can go. Paste is the
-     * paste bar's, shown whenever something is held (docs/storage-explorer-plan.md §3.3).
+     * paste bar's, shown whenever something is held (docs/workspaces-and-files.md).
      */
     fun creation(onNewFile: (() -> Unit)?, onNewFolder: () -> Unit): List<IcodeMenuAction> =
         listOfNotNull(

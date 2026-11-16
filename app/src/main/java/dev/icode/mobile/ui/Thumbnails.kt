@@ -25,7 +25,7 @@ import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 
-/** What a thumbnail is made from (docs/explorer-gaps-plan.md §3.12): a picture, an SVG drawing, a video's frame, or an app package's own icon. */
+/** What a thumbnail is made from (docs/workspaces-and-files.md): a picture, an SVG drawing, a video's frame, or an app package's own icon. */
 internal enum class ThumbnailKind {
     Picture,
     Drawing,
@@ -49,7 +49,7 @@ internal enum class ThumbnailKind {
 }
 
 /**
- * Small pictures of files (§3.12), by Android's own means: `ImageDecoder` for a picture, turned the
+ * Small pictures of files, by Android's own means: `ImageDecoder` for a picture, turned the
  * way the camera held it ([decodeImage]); AndroidSVG for an SVG, as the file icons are drawn;
  * `ThumbnailUtils` for a video's frame; `PackageManager` for an app package's icon. Made off the main
  * thread, a few at a time however many are on screen, and kept in memory by where the file is and when

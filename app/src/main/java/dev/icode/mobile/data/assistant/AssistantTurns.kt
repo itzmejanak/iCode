@@ -30,7 +30,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * The assistant's work (§4.4, §12 R1, R4, R6, R8): one turn at a time, its own job, never behind the
+ * The assistant's work: one turn at a time, its own job, never behind the
  * mutation lock — a message answered, or a chat compacted — and the questions it asks before a
  * change or a command. What it does goes to its chat, and onto the [page] when that chat is open.
  */
@@ -47,7 +47,7 @@ internal class AssistantTurns(
     /** The runtime's paths: what the turn's workspace resolves the model's paths through. */
     private val paths: GuestPaths,
     private val attachments: AssistantAttachments,
-    /** All Files Access, as Android answers it now: phone storage is read with it (docs/phone-agent-plan.md L8). */
+    /** All Files Access, as Android answers it now: phone storage is read with it (docs/voice-and-phone-control.md). */
     private val storageAccess: () -> Boolean,
     /** What the turn asks the user; its answers come to it from the coordinator. */
     private val questions: AssistantQuestions,
@@ -68,7 +68,7 @@ internal class AssistantTurns(
     fun send(workspace: String?, session: String, input: String, attachments: List<String>, aloud: Boolean = false) =
         launch(workspace, session, aloud) { converse(input, attachments) }
 
-    /** The last message, unanswered, sent again with its files as they were (§13 P9). */
+    /** The last message, unanswered, sent again with its files as they were. */
     fun retry(workspace: String?, session: String) = launch(workspace, session) {
         val setup = setup()
         val message = chats.withdraw(workspace, session) ?: return@launch
@@ -112,7 +112,7 @@ internal class AssistantTurns(
 
     /** A turn in [session] of [workspace], and the events of its engine. */
     private inner class Turn(val workspace: String?, val session: String, val aloud: Boolean, val began: Long = System.currentTimeMillis()) : AssistantEvents {
-        /** The step its tools are on (L2, L3), and the hand-over its phone tools wait on (§5.5). */
+        /** The step its tools are on, and the hand-over its phone tools wait on. */
         val step = AssistantStep(
             clarify = questions::clarify,
             handOver = { why -> questions.pause(AssistantPause(AssistantPause.Kind.HandOver, why), THINKING) },
@@ -200,12 +200,12 @@ internal class AssistantTurns(
                 try {
                     return runWithRetry { attempt ->
                         step(if (attempt == 0) THINKING else "Preparing to retry…")
-                        // A retry after the model answered goes on from the chat: what it ran or asked is not done again (D9).
+                        // A retry after the model answered goes on from the chat: what it ran or asked is not done again.
                         if (attempt > 0 && AssistantRules.replied(chats.of(workspace, session).messages)) next = goOn(next)
                         engine.run(next, this)
                     }
                 } catch (limit: AssistantStepLimitException) {
-                    // The user says whether it goes on; it goes on from the chat as it is (L5).
+                    // The user says whether it goes on; it goes on from the chat as it is.
                     questions.pause(AssistantPause(AssistantPause.Kind.StepLimit, "It has taken $MAX_STEPS steps on this message."), THINKING)
                     next = goOn(next)
                 }
@@ -293,7 +293,7 @@ internal class AssistantTurns(
         const val THINKING = "Thinking…"
         const val COMPACTING = "Compacting the chat…"
 
-        /** The phone tools' names start so: a turn that calls one acts on the phone (§5.6). */
+        /** The phone tools' names start so: a turn that calls one acts on the phone. */
         const val PHONE_TOOLS = "phone_"
         const val NOT_SET_UP = "Set up the assistant first: add a provider and choose a model"
     }

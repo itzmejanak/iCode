@@ -3,7 +3,7 @@ package dev.icode.mobile.navigation
 import dev.icode.mobile.domain.WorkspaceTool
 
 /**
- * Where iCode is (docs/dock-navigation-plan.md §2–§3): the app's own pages, and the open workspace's
+ * Where iCode is (docs/design-and-navigation.md): the app's own pages, and the open workspace's
  * six tools, each with a history of its own, in the order they were used. Every navigation decision
  * is made here; screens ask for routes ([NavigationActions]) and the composition root holds this
  * ([dev.icode.mobile.ui.NavigationState]). Immutable: each step gives the next.
@@ -17,7 +17,7 @@ import dev.icode.mobile.domain.WorkspaceTool
  *   comes back to it and cannot go round.
  * - Terminal and the Assistant asked for from the app's pages open there, as pages outside the
  *   workspace ([opensOutside]): Terminal's tabs start where a login starts, `$HOME`, and the Assistant
- *   shows the chats in no workspace (docs/home-plan.md §2).
+ *   shows the chats in no workspace (docs/design-and-navigation.md).
  */
 data class Navigation(
     /** The app's pages outside the workspace, the first at the bottom: onboarding, the Launcher, Settings. */
@@ -42,7 +42,7 @@ data class Navigation(
     val current: Route get() = shown.last().route
 
     /**
-     * A tool's main screen is on screen: where the dock shows (D6). A sheet route over it (the Branch
+     * A tool's main screen is on screen: where the dock shows. A sheet route over it (the Branch
      * selector) is drawn over the main screen, not in its place, so the main screen is still on screen.
      */
     val onMainScreen: Boolean get() = tool?.let { historyOf(it).dropLastWhile(Route::sheet).size == 1 } ?: false
@@ -50,7 +50,7 @@ data class Navigation(
     /** Terminal's tab on screen: the tool's own, and outside the workspace its only one, Terminal. */
     val shownTab: ToolPanelTab get() = if (inWorkspace) panelTab else ToolPanelTab.Terminal
 
-    /** The tool Back and the quick switch go to (D4, D9). */
+    /** The tool Back and the quick switch go to. */
     val previousTool: WorkspaceTool? get() = if (inWorkspace) order.getOrNull(order.lastIndex - 1) else null
 
     /** Back has somewhere to go inside iCode; otherwise Android's own Back leaves it. */
@@ -59,7 +59,7 @@ data class Navigation(
     /** The history on screen, each entry with the key its screen's kept state goes by. */
     val shown: List<Entry> get() = tool?.let { entriesOf(it) } ?: appEntries
 
-    /** Every entry any history holds: what their screens keep lives exactly as long (D5). */
+    /** Every entry any history holds: what their screens keep lives exactly as long. */
     val keys: List<String> get() = appEntries.map { it.key } + tools.keys.flatMap { tool -> entriesOf(tool).map { it.key } }
 
     /** One screen in a history, and the key of what it keeps. */
@@ -108,7 +108,7 @@ data class Navigation(
     }
 
     /**
-     * What was opened for the user (D3): a file, a terminal, a repository just made, a notification's
+     * What was opened for the user: a file, a terminal, a repository just made, a notification's
      * place. A tool shows its main screen, whatever page was left over it; a page is gone to.
      */
     fun show(route: Route): Navigation {
@@ -117,7 +117,7 @@ data class Navigation(
         return switched.copy(tools = switched.tools + (tool to switched.historyOf(tool).take(1)))
     }
 
-    /** Back (D4); this, unchanged, when only Android's own Back is left. */
+    /** Back; this, unchanged, when only Android's own Back is left. */
     fun back(): Navigation {
         val tool = tool ?: return if (app.size > 1) copy(app = app.dropLast(1)) else this
         val history = historyOf(tool)
@@ -131,7 +131,7 @@ data class Navigation(
 
     /**
      * A workspace was opened at [location] (null: the one open), on [tool] when something in it was
-     * asked for (a terminal), else as D3 says: a new one on its Explorer, the open one again where it
+     * asked for (a terminal), else by its origin: a new one on its Explorer, the open one again where it
      * was left from the Launcher, or on its Explorer from inside it. The page that made it gives way.
      */
     fun opened(location: String?, tool: WorkspaceTool? = null): Navigation {

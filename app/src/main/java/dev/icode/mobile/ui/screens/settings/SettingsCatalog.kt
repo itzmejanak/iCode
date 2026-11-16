@@ -29,8 +29,8 @@ internal data class SettingsCategory(
 
 /**
  * One navigation/search catalog; every hit opens its existing settings page. A
- * subtitle says only what its page holds, and the search terms name its controls
- * (checked against each page, S8.4); a page that shows a subtitle takes it from here.
+ * subtitle says only what its page holds, and the search terms name its controls;
+ * a page that shows a subtitle takes it from here.
  */
 internal val settingsCategories = listOf(
     SettingsCategory("Appearance", "Theme and its variants, UI text size, density, borders, accent", Icons.Outlined.Palette, Route.AppearanceSettings,

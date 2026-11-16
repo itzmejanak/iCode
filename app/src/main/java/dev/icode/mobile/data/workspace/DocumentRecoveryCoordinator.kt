@@ -18,13 +18,13 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 /**
- * Unsaved work that must survive the process (S3): the draft kept for every
+ * Unsaved work that must survive the process: the draft kept for every edited document, the question a
  * edited document, the question a leftover draft raises when its file opens,
  * and Document Recovery's list of what the last session left behind.
  *
  * Draft files are written off the mutation lock under their own [draftMutex],
  * so slow storage never holds up the editor; and [draftDelayMillis] after a
- * file's last edit, not at every keystroke (docs/icons-plan.md §5).
+ * file's last edit, not at every keystroke (docs/design-and-navigation.md).
  */
 internal class DocumentRecoveryCoordinator(
     private val stateHolder: ICodeStateHolder,

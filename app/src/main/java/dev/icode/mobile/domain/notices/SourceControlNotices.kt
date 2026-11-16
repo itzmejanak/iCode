@@ -5,7 +5,7 @@ import dev.icode.mobile.domain.ICodeSnapshot
 import dev.icode.mobile.domain.countOf
 
 /**
- * What Source Control's own operations tell (docs/notices-redesign-plan.md D8, D9): each that failed
+ * What Source Control's own operations tell (docs/engineering-rules.md): each that failed
  * by what it could not do — never "Git operation failed" — Git's words its output, where it ran; a
  * commit by what it committed; and a conflicted file's resolution.
  */

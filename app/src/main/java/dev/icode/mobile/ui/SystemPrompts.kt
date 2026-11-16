@@ -37,7 +37,7 @@ class SystemPrompts internal constructor(
 ) {
     /** Shows Android's prompt for [permission]. */
     // The battery prompt is the owner's decision; Google Play limits it to
-    // listed use cases (docs/terminal-background-plan.md §7).
+    // listed use cases (docs/runtime-and-terminal.md).
     @SuppressLint("BatteryLife")
     fun request(permission: SystemPermission) {
         when (permission) {

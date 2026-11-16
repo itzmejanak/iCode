@@ -19,10 +19,10 @@ import dev.icode.mobile.designsystem.syntaxColor
 import dev.icode.mobile.domain.FileTypes
 
 /**
- * [text] coloured as catalog language [language] (docs/syntax-highlighting-plan.md D2, D5), the one way
+ * [text] coloured as catalog language [language] (docs/editor-and-language-services.md), the one way
  * every read-only view colours code: tokenized on the read-only thread ([SyntaxEngine.tokens]) once per
  * language and text, and coloured from the current palette when composed, so a palette change recolours
- * without tokenizing again (A3). Plain while its tokens are made, and for a null [language], one whose
+ * without tokenizing again. Plain while its tokens are made, and for a null [language], one whose
  * grammar failed, or a text past [SyntaxLimits.BLOCK_CHARS].
  */
 @Composable

@@ -43,7 +43,7 @@ import dev.icode.mobile.domain.markdown.MathPath
 import io.ratex.RaTeXEngine
 import kotlin.math.max
 
-/** Every formula iCode draws, laid out once by RaTeX (third_party/ratex) and kept (docs/markdown-rendering-plan.md §3.2). */
+/** Every formula iCode draws, laid out once by RaTeX (third_party/ratex) and kept (docs/editor-and-language-services.md). */
 internal val mathLayouts = MathLayouts(RaTeXEngine::layout)
 
 /** [document]'s formulas laid out ahead, off the main thread, so drawing it lays out none. */

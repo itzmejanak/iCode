@@ -6,9 +6,9 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** When colouring stops (docs/syntax-highlighting-plan.md D7; A5): the values S1 kept, and each decision. */
+/** When colouring stops (docs/editor-and-language-services.md): the measured values and each decision. */
 class SyntaxLimitsTest {
-    @Test fun `the limits are the ones S1 measured and kept`() {
+    @Test fun `the measured limits are kept`() {
         assertEquals(10_000, SyntaxLimits.LINE_CHARS)
         assertEquals(Duration.ofMillis(100), SyntaxLimits.LINE_TIME)
         assertEquals(2 * 1024 * 1024, SyntaxLimits.FILE_BYTES)

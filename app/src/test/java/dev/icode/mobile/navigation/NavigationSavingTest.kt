@@ -4,7 +4,7 @@ import dev.icode.mobile.domain.WorkspaceTool
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** §5.4 S4: the six histories, the order and the app's pages survive the process; nothing else is invented. */
+/** The six histories, the order and the app's pages survive the process; nothing else is invented. */
 class NavigationSavingTest {
     @Test fun `every part survives a process restart`() {
         val at = Navigation.start(Route.LauncherHome).opened("/ws/one")

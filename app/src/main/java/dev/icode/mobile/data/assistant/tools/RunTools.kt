@@ -9,11 +9,11 @@ import dev.icode.mobile.domain.AssistantToolName
 import dev.icode.mobile.domain.RunConfiguration
 import org.json.JSONObject
 
-// The Run tab for the assistant (docs/run-tab-plan.md §2.5): Build & Run, and the commands saved
+// The Run tab for the assistant (docs/runtime-and-terminal.md): Build & Run, and the commands saved
 // there — listed, added, changed and deleted through the RunCoordinator the tab's +, Edit and
 // Delete use, so the open tab shows each at once.
 
-/** Build & Run, as the Run tab's ▶ starts it (docs/run-tab-plan.md); asked about first. */
+/** Build & Run, as the Run tab's ▶ starts it (docs/runtime-and-terminal.md); asked about first. */
 internal class RunAndroidAppTool(private val workspace: AssistantWorkspace, private val runs: RunCoordinator) : AssistantTool {
     override val name = AssistantToolName.RunAndroidApp.id
     override val description = "Builds this workspace's Android app with the project's own Gradle wrapper " +

@@ -7,7 +7,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
-/** A file's kind where it lies (docs/file-kinds-icons-plan.md D2): its first bytes read only where its name cannot say. */
+/** A file's kind where it lies (docs/workspaces-and-files.md): its first bytes read only where its name cannot say. */
 class FileHeadsTest {
     @get:Rule val temp = TemporaryFolder()
 

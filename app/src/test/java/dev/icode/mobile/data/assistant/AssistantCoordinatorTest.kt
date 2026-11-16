@@ -351,7 +351,7 @@ class AssistantCoordinatorTest {
         assertEquals(listOf("Rename x"), state().sessions.map { it.title })
         assertEquals(AssistantChat(state().messages, 700), AssistantChatStore(chatsFolder).load(app, session))
         assertNull(state().failure)
-        // Its end says it changed a file: the dock suggests Source Control (docs/dock-navigation-plan.md D8).
+        // Its end says it changed a file: the dock suggests Source Control (docs/design-and-navigation.md).
         assertEquals(AssistantTurnEnd(app, 1, changedFiles = true), state().ended)
     }
 

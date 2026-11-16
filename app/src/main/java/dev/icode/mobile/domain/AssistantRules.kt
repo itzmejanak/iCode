@@ -24,7 +24,7 @@ sealed interface AssistantEntry {
         val output: String? = null,
         /** For a change to a file, the lines it added and removed. */
         val changes: LineChanges? = null,
-        /** For a command, what it printed, as printed: its replay (docs/agent-control-plan.md §6). */
+        /** For a command, what it printed, as printed: its replay (docs/assistant-and-mcp.md). */
         val printed: String? = null,
     ) : AssistantEntry
 
@@ -47,7 +47,7 @@ object AssistantRules {
     /** A chat is compacted before a turn once its last request filled this share of the window. */
     const val COMPACT_AT = 0.8f
 
-    /** Files sent with one message, at most (§12 R6). */
+    /** Files sent with one message, at most. */
     const val MAX_ATTACHMENTS = 5
 
     /**
@@ -59,7 +59,7 @@ object AssistantRules {
 
     /**
      * The turn has answered since the user's message — a reply, a call's result: a retry then goes on
-     * from the chat, never asking or running again what it did (docs/assistant-questions-plan.md D9).
+     * from the chat, never asking or running again what it did (docs/assistant-and-mcp.md).
      */
     fun replied(messages: List<AssistantMessage>): Boolean = messages.isNotEmpty() && messages.last() !is AssistantMessage.User
 
@@ -126,7 +126,7 @@ object AssistantRules {
         if (tokens == null || window == null || window <= 0) null else (tokens.toFloat() / window).coerceIn(0f, 1f)
 
     /**
-     * What the meter says (§13), always: "84k / 200k" — the tokens of the chat's last request, of
+     * What the meter always says: "84k / 200k" — the tokens of the chat's last request, of
      * the model's window — or "84k tokens" where the window is unknown; 0 before the first request.
      */
     fun contextLabel(tokens: Long?, window: Long?): String =
@@ -161,7 +161,7 @@ object AssistantRules {
     fun effortFor(effort: AssistantEffort?, model: AssistantModel?): AssistantEffort? =
         effort?.takeIf { model != null && it in model.efforts }
 
-    /** What is wrong with a provider's form, in the words the form shows; null when it can be saved (§13 P1–P3). */
+    /** What is wrong with a provider's form, in the words the form shows; null when it can be saved. */
     fun providerProblem(
         kind: AssistantProviderKind,
         name: String,
@@ -182,7 +182,7 @@ object AssistantRules {
     /**
      * Advice past what blocks saving a provider: OpenRouter's address on an OpenAI-compatible server
      * loses what only the OpenRouter type reads — the models' reasoning, which OpenRouter sends as
-     * `reasoning` and Koog's OpenAI client reads as `reasoning_content` (docs/runtime-foundation-plan.md D8).
+     * `reasoning` and Koog's OpenAI client reads as `reasoning_content` (docs/runtime-and-terminal.md).
      */
     fun providerHint(kind: AssistantProviderKind, baseUrl: String): String? {
         if (kind != AssistantProviderKind.OpenAICompatible) return null

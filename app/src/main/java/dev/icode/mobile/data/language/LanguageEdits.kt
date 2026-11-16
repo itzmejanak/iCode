@@ -8,7 +8,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.intOrNull
 
 /**
- * What iCode needs from the rest of the backend to apply a server's edit (docs/lsp-plan.md §5.7):
+ * What iCode needs from the rest of the backend to apply a server's edit (docs/editor-and-language-services.md):
  * an open file's text goes through the editor's own path, a closed one's through the file source.
  */
 internal class LanguageHosts(
@@ -24,7 +24,7 @@ internal class LanguageHosts(
 )
 
 /**
- * A `WorkspaceEdit` applied whole or not at all (§5.7): text edits only, every file inside the open
+ * A `WorkspaceEdit` applied whole or not at all: text edits only, every file inside the open
  * workspace, and each open file still holding exactly the text the server was sent — else nothing
  * changes and the reason is returned.
  */

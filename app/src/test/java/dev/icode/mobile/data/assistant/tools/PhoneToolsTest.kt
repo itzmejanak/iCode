@@ -24,7 +24,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** The phone's tools (docs/phone-agent-plan.md §5.3, L2, L3, L6), over a scripted phone. */
+/** The phone's tools (docs/voice-and-phone-control.md), over a scripted phone. */
 class PhoneToolsTest {
     private fun element(number: Int, label: String, app: String = "com.whatsapp") =
         PhoneElement(number, "button", label, emptyList(), setOf(PhoneAbility.Tap), PhoneBounds(0, 0, 10, 10), app, listOf(0, number))

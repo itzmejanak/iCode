@@ -25,7 +25,7 @@ import io.github.rosemoe.sora.widget.component.EditorAutoCompletion
 internal class MarkerColors(val added: Int, val modified: Int, val deleted: Int)
 
 /**
- * Sora's editor as iCode uses it (docs/editor-plan.md): Git change markers in the gutter, Backspace
+ * Sora's editor as iCode uses it (docs/editor-and-language-services.md): Git change markers in the gutter, Backspace
  * back to the previous tab stop in leading whitespace, and every line break typed or pasted
  * written as the file's own.
  */
@@ -41,10 +41,10 @@ internal class IcodeCodeEditor(context: Context) : CodeEditor(context) {
 
     var markerColors = MarkerColors(0, 0, 0)
 
-    /** Where its completions come from; null: the file's grammar alone (docs/lsp-plan.md §7). */
+    /** Where its completions come from; null: the file's grammar alone (docs/editor-and-language-services.md). */
     var completer: EditorCompleter? = null
 
-    /** The completion list, iCode's own drawing of Sora's (docs/editor-completion-plan.md D7). */
+    /** The completion list, iCode's own drawing of Sora's (docs/editor-and-language-services.md). */
     val completions: EditorCompletionWindow
         get() = getComponent(EditorAutoCompletion::class.java) as EditorCompletionWindow
 
@@ -53,7 +53,7 @@ internal class IcodeCodeEditor(context: Context) : CodeEditor(context) {
         super.setEditorLanguage(lang?.let { if (it is CompletingLanguage) it else CompletingLanguage(it, this) })
     }
 
-    /** The file's problems (docs/lsp-plan.md §7), drawn under their text; a new list replaces the last one whole. */
+    /** The file's problems (docs/editor-and-language-services.md), drawn under their text; a new list replaces the last one whole. */
     var problems: List<Diagnostic> = emptyList()
         set(value) {
             if (field === value) return
@@ -65,7 +65,7 @@ internal class IcodeCodeEditor(context: Context) : CodeEditor(context) {
     var separator: String = "\n"
 
     /**
-     * A language server's colours over the grammar's (docs/syntax-highlighting-plan.md D8); null, the
+     * A language server's colours over the grammar's (docs/editor-and-language-services.md); null, the
      * grammar's alone, and the analyzer's styles drawn as they are.
      */
     var semanticLines: SemanticLines?

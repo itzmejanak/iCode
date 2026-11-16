@@ -3,7 +3,7 @@ package dev.icode.mobile.domain.files
 import dev.icode.mobile.domain.WorkspaceNameRules
 
 /**
- * One rule renaming many (docs/explorer-gaps-plan.md §3.4). A file's rule works on its name before
+ * One rule renaming many (docs/workspaces-and-files.md). A file's rule works on its name before
  * the extension, which it keeps — but for [Extension], whose work the extension is; a folder's on its
  * whole name, and [Extension] leaves a folder as it is.
  */

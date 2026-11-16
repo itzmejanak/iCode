@@ -12,8 +12,8 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * The speech providers the user added, which one listens and which one speaks (docs/speech-plan.md §4.5,
- * docs/tts-plan.md §4.5): the preferences `icode.speech`. Each key is encrypted by a Keystore key of iCode's own and is in no
+ * The speech providers the user added, which one listens and which one speaks (docs/voice-and-phone-control.md,
+ * docs/voice-and-phone-control.md): the preferences `icode.speech`. Each key is encrypted by a Keystore key of iCode's own and is in no
  * provider this returns: [key] alone decrypts it, for a hearing.
  */
 internal class SpeechProviderStore(

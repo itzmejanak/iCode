@@ -18,7 +18,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
 
 /**
- * Runs the user's long operations (docs/long-operations-plan.md): each on its
+ * Runs the user's long operations (docs/runtime-and-terminal.md): each on its
  * own job, outside the mutation lock, so opening, saving and Git do not wait
  * behind a large delete. A task claims the paths it works on until it ends;
  * its result is applied under the lock. Progress reaches the snapshot a few

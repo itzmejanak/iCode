@@ -1,6 +1,6 @@
 package dev.icode.mobile.domain
 
-// The run that installs or removes runtime tools (docs/runtime-tools-plan.md §3.4): apt, then each
+// The run that installs or removes runtime tools (docs/runtime-and-terminal.md): apt, then each
 // tool's setup, as the page, a button waiting on it and its notification see it.
 
 enum class RuntimeToolAction { Install, Remove }

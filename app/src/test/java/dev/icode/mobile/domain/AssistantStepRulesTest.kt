@@ -4,7 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** A run of steps as the chat draws it (docs/assistant-sheets-plan.md §2.1). */
+/** A run of steps as the chat draws it (docs/assistant-and-mcp.md). */
 class AssistantStepRulesTest {
     private fun step(
         key: String,

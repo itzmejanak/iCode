@@ -8,7 +8,7 @@ import org.intellij.markdown.flavours.gfm.GFMElementTypes
 import org.intellij.markdown.flavours.gfm.GFMTokenTypes
 
 /**
- * Markdown's blocks from the parser's nodes to iCode's (docs/markdown-rendering-plan.md §3.1). It
+ * Markdown's blocks from the parser's nodes to iCode's (docs/editor-and-language-services.md). It
  * gathers the link reference definitions and footnotes it meets; [source] is the text the nodes'
  * offsets are in.
  */

@@ -26,11 +26,11 @@ import dev.icode.mobile.domain.files.RenamePreview
 import dev.icode.mobile.domain.files.RenameRule
 import dev.icode.mobile.domain.files.RenameSource
 
-/** The rules batch rename offers (docs/explorer-gaps-plan.md §3.4), as its segmented control names them. */
+/** The rules batch rename offers (docs/workspaces-and-files.md), as its segmented control names them. */
 private enum class RuleKind(val label: String) { Replace("Replace"), Add("Add"), Number("Number"), Extension("Extension") }
 
 /**
- * Rename… for many (§3.4): one rule, chosen by the segmented control, and its fields; then each old
+ * Rename… for many: one rule, chosen by the segmented control, and its fields; then each old
  * name over its new one, with why a new name cannot be. Rename is offered once something changes and
  * nothing is refused; it is one step to undo.
  */

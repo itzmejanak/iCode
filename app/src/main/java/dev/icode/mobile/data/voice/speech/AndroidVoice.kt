@@ -18,7 +18,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 /**
- * Android's text-to-speech (docs/tts-plan.md §1.1), with the engine and voice the user chose in
+ * Android's text-to-speech (docs/voice-and-phone-control.md), with the engine and voice the user chose in
  * Android's settings: each sentence queued the moment it comes, so the first is heard while the model
  * still writes the rest. The engine is made when a session begins — while the model still thinks — and
  * let go once none has spoken for a while.

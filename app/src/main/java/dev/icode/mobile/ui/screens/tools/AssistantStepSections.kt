@@ -62,8 +62,8 @@ import dev.icode.mobile.ui.terminal.TerminalHost
 import dev.icode.mobile.ui.terminal.TerminalKeys
 import dev.icode.mobile.ui.terminal.TerminalReplay
 
-// A step's page, part by part (docs/assistant-sheets-plan.md §2.2): its texts under their names, and a
-// command's terminal (docs/agent-control-plan.md §6) — the tab it ran in, live while open, else what it
+// A step's page, part by part (docs/assistant-and-mcp.md): its texts under their names, and a
+// command's terminal (docs/assistant-and-mcp.md) — the tab it ran in, live while open, else what it
 // printed — which the menu's Terminal sheet shows too, for the chat's own tab.
 
 /**
@@ -113,7 +113,7 @@ private fun StepHeading(label: String, trailing: @Composable RowScope.() -> Unit
 
 /**
  * Whether a sheet's live terminal is typed into — it has the focus, and the keyboard is up — and what
- * hears its focus; [key] starts it afresh. Typed into, the sheet is the terminal (docs/agent-control-plan.md §6).
+ * hears its focus; [key] starts it afresh. Typed into, the sheet is the terminal (docs/assistant-and-mcp.md).
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -123,7 +123,7 @@ internal fun rememberTyping(key: Any?, live: Boolean): Pair<Boolean, (Boolean) -
 }
 
 /**
- * The chat's own terminal tab, from the menu (docs/agent-control-plan.md §6): the shell its commands run
+ * The chat's own terminal tab, from the menu (docs/assistant-and-mcp.md): the shell its commands run
  * in, as it is now, the user's to use too. The sheet is the terminal, black and edge to edge with its
  * header — Open in Terminal an icon there, beside × — the terminal right under it; typed into, down to
  * the keyboard, its keys on it. [tab] is the tab the menu opened, null until it has.
@@ -170,7 +170,7 @@ internal fun AssistantTerminalSheet(tab: String?, modifier: Modifier, onClose: (
  * [framed], it is a part of a step's page: named, with Open in Terminal, which shows the tab there, the
  * sheet closed, in a frame of its own; else the sheet is the terminal, flush. [onFocus] hears the view
  * take the keyboard and let it go. [typing], it is the whole sheet, black and edge to edge as the
- * Terminal panel (docs/agent-control-plan.md §6): the terminal down to the keyboard, the extra keys on
+ * Terminal panel (docs/assistant-and-mcp.md): the terminal down to the keyboard, the extra keys on
  * it, and — while the sheet's ⓘ says so ([showCommand]) — [command] over its top, with Copy and Open in
  * Terminal. One view throughout, so the shell and its keyboard stay as they are.
  */

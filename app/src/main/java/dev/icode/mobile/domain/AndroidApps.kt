@@ -1,14 +1,14 @@
 package dev.icode.mobile.domain
 
-// Build & Run (docs/android-toolchain-plan.md §4.4): an Android project's app, built in the Linux
+// Build & Run (docs/runtime-and-terminal.md): an Android project's app, built in the Linux
 // runtime by the project's own Gradle, installed on this phone and opened — one kind of run on the
-// Terminal panel's Run tab (docs/run-tab-plan.md).
+// Terminal panel's Run tab (docs/runtime-and-terminal.md).
 
 /** An Android app of a workspace: the Gradle module that builds it, by its folder ("" for the top). */
 data class AndroidProject(
     val workspace: String,
     val module: String,
-    /** Its build compiles C or C++ (docs/android-ndk-plan.md §3.5): it needs CMake and an NDK. */
+    /** Its build compiles C or C++ (docs/runtime-and-terminal.md): it needs CMake and an NDK. */
     val native: Boolean,
 ) {
     /** `:app:assembleDebug`, or `assembleDebug` for a project that is one module. */
@@ -53,6 +53,6 @@ object GradleIssues {
     private const val MAX_FAILURE = 300
     private val KOTLIN = Regex("""^([ew]): file://(/[^:]+):(\d+):(\d+) (.+)$""")
     private val JAVAC = Regex("""^(/[^:]+\.java):(\d+): (error|warning): (.+)$""")
-    /** clang's, as the Android plugin's C and C++ tasks print it, with or without their `C/C++: ` prefix (docs/android-ndk-plan.md §3.5). */
+    /** clang's, as the Android plugin's C and C++ tasks print it, with or without their `C/C++: ` prefix (docs/runtime-and-terminal.md). */
     private val CLANG = Regex("""^(?:C/C\+\+: )?(/[^:]+):(\d+):(\d+): (error|fatal error|warning): (.+)$""")
 }

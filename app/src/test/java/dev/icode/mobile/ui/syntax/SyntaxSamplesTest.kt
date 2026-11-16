@@ -11,7 +11,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * Each shipped language colours its sample fully (docs/syntax-highlighting-plan.md A10): one sample per
+ * Each shipped language colours its sample fully (docs/editor-and-language-services.md): one sample per
  * language that opens files, in src/test/resources/syntax-samples (iCode's own in icode/, else Shiki's,
  * which tools/import-grammars.py writes to shiki/), tokenized on the JVM as the editor tokenizes and
  * resolved by the same [SyntaxRoles]. A word left without a role is a gap, unless it is a name the code

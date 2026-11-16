@@ -4,7 +4,7 @@ import dev.icode.mobile.data.runtime.RuntimeLayout
 import java.io.File
 
 /**
- * Where the Android SDK tool installs, and what (docs/android-toolchain-plan.md §4.2): Android
+ * Where the Android SDK tool installs, and what (docs/runtime-and-terminal.md): Android
  * Studio's own location on Linux, in the guest home, so Repair keeps it. One place, read by its
  * setup and by Build & Run.
  */
@@ -27,7 +27,7 @@ internal object AndroidSdk {
     const val GUEST_BUILD_TOOLS = "$GUEST_ROOT/build-tools/$BUILD_TOOLS"
     const val GUEST_SDKMANAGER = "$GUEST_ROOT/cmdline-tools/latest/bin/sdkmanager"
 
-    /** Side by side, as Android Studio installs them (docs/android-ndk-plan.md §3.2): `cmake/<version>`, `ndk/<revision>`. */
+    /** Side by side, as Android Studio installs them (docs/runtime-and-terminal.md): `cmake/<version>`, `ndk/<revision>`. */
     fun cmake(version: String) = "cmake/$version"
     fun ndk(revision: String) = "ndk/$revision"
 }

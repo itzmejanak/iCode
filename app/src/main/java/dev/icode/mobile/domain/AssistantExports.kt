@@ -1,7 +1,7 @@
 package dev.icode.mobile.domain
 
 /**
- * A chat as it is shared (§12 R9 — export): the transcript a session is shared by, mirroring the
+ * A chat as it is shared: the transcript a session is shared by, mirroring the
  * page itself — what was said, what the assistant answered, and each step with what it did and the
  * output that followed. Text only, bounded: a chat holds a command's whole output, and a share
  * intent carries a limited amount.

@@ -49,7 +49,7 @@ import dev.icode.mobile.domain.notices.AssistantNotices
 /** A file going with the message: a workspace file's location, or a phone file's `content://` URI. */
 internal data class DraftFile(val location: String, val name: String, val kind: AssistantAttachmentKind)
 
-/** What Attach opens on the phone (§13 P6): no permission is asked for any of them; [camera] is null on a phone without one. */
+/** What Attach opens on the phone: no permission is asked for any of them; [camera] is null on a phone without one. */
 internal class AssistantPickers(val photos: () -> Unit, val files: () -> Unit, val camera: (() -> Unit)?)
 
 /**
@@ -137,7 +137,7 @@ internal fun AssistantThumbnail(location: String, kind: AssistantAttachmentKind,
 }
 
 /**
- * What a tap on a file going with a message opens (docs/file-viewers-plan.md): a picture, at
+ * What a tap on a file going with a message opens (docs/workspaces-and-files.md): a picture, at
  * [picture], in the image viewer; a file of the chat's workspace, at [workspaceFile], in the editor;
  * nothing for a phone's other files, kept only as they were sent.
  */

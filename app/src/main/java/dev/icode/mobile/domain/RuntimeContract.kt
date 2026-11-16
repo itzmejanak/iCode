@@ -6,8 +6,8 @@ enum class RuntimeInstallReason { Initial, Repair, Reset }
 /**
  * Observable state of the Linux runtime.
  *
- * Features wait on this rather than bootstrapping the runtime themselves
- * (architecture.md section 14.2). Every state is derived from a verified fact:
+ * Features wait on this rather than bootstrapping the runtime themselves. Every state is derived
+ * from a verified fact:
  * [Ready] means a health check passed, not that installation was attempted.
  */
 /** The steps of building the runtime once its base system is downloaded, in order. */
@@ -37,7 +37,7 @@ sealed interface RuntimeState {
     /**
      * Building the runtime from its base system: [step], said as [label], and how far it has got
      * where the step counts — [done] of the pinned archive's [total] entries while extracting
-     * (docs/onboarding-polish-plan.md §3.2).
+     * (docs/design-and-navigation.md).
      */
     data class Installing(
         val label: String,

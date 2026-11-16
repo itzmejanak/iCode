@@ -13,7 +13,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** docs/theme-variants-plan.md D3, D4 and D5: how a ported theme becomes a palette. */
+/** docs/design-and-navigation.md: how a ported theme becomes a palette. */
 class ThemeSeedTest {
     private val seeded = listOf(
         PaletteKind.Dark to DarkSeeds, PaletteKind.Light to LightSeeds, PaletteKind.Amoled to AmoledSeeds,

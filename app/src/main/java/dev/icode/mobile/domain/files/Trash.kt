@@ -3,7 +3,7 @@ package dev.icode.mobile.domain.files
 import java.util.concurrent.TimeUnit
 
 /**
- * Something deleted, waiting in its place's trash (docs/explorer-gaps-plan.md §3.7): [id] names it
+ * Something deleted, waiting in its place's trash (docs/workspaces-and-files.md): [id] names it
  * there, and [heldAt] is where it is held; [from] is where it was, and where Restore puts it back —
  * [path], as the runtime names it.
  */
@@ -21,7 +21,7 @@ data class TrashedItem(
     /** A whole workspace: restored, it is one again. */
     val workspace: Boolean,
 ) {
-    /** As Trash's view lists it (§3.10): where it is held, so its picture can be shown; where it was, and when it went. */
+    /** As Trash's view lists it: where it is held, so its picture can be shown; where it was, and when it went. */
     val row: BrowsedItem get() = BrowsedItem(name, heldAt, path, place, folder, bytes, changedAt = deletedAt)
 }
 

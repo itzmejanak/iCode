@@ -32,7 +32,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 
-/** Appearance › Border Lines: whether a surface draws the line at its edge (docs/border-lines-plan.md). */
+/** Appearance › Border Lines: whether a surface draws the line at its edge (docs/design-and-navigation.md). */
 internal val LocalIcodeBorderLines = staticCompositionLocalOf { true }
 
 /** Whether cards stand on a sheet, and so one step above it, as a page's cards are above the page. */
@@ -124,7 +124,7 @@ fun SectionHeader(
     modifier: Modifier = Modifier,
     actionLabel: String? = null,
     onAction: (() -> Unit)? = null,
-    /** What the action started runs: the spinner before its label, and no second tap (docs/loading-plan.md §4.2). */
+    /** What the action started runs: the spinner before its label, and no second tap (docs/design-and-navigation.md). */
     busy: Boolean = false,
 ) {
     Row(modifier = modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {

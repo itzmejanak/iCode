@@ -7,7 +7,7 @@ import java.util.concurrent.ConcurrentHashMap
  * (src/vs/platform/theme/common/tokenClassificationRegistry.ts, commit 307b60e7, MIT), by token type
  * and the modifiers it must have. A token takes the rule with the most modifiers it has, and of that
  * rule the first scope [syntaxScopes] colours, so a parameter is drawn as `variable.parameter` is.
- * No colours of its own: the roles are the one table's (docs/syntax-highlighting-plan.md D8).
+ * No colours of its own: the roles are the one table's (docs/editor-and-language-services.md).
  */
 internal val semanticScopes: List<Triple<String, Set<String>, List<String>>> = listOf(
     Triple("comment", emptySet(), listOf("comment")),

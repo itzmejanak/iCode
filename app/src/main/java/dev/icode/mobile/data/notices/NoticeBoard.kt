@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 /**
- * iCode's notices (docs/notices-redesign-plan.md): what is told anywhere is kept on the
+ * iCode's notices (docs/engineering-rules.md): what is told anywhere is kept on the
  * Notifications page unless it is a moment's, and what needs the user — or work that finished while
  * iCode was out of view — is in Android's shade until read.
  */

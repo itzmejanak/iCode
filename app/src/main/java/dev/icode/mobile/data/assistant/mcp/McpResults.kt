@@ -18,7 +18,7 @@ import io.modelcontextprotocol.kotlin.sdk.types.TextContent
 import io.modelcontextprotocol.kotlin.sdk.types.TextResourceContents
 
 /**
- * What a tool answered, as the model reads it (docs/mcp-plan.md §6.3): its text; an image as the
+ * What a tool answered, as the model reads it (docs/assistant-and-mcp.md): its text; an image as the
  * step's picture to a model that sees pictures, said in words to one that does not; what is meant for
  * the user alone left out; bounded as a command's output is.
  */

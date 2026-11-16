@@ -3,7 +3,7 @@ package dev.icode.mobile.domain.files
 import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.RelativeTime
 
-/** An answer to a name already there (docs/explorer-gaps-plan.md §3.6). */
+/** An answer to a name already there (docs/workspaces-and-files.md). */
 enum class ConflictAnswer(val label: String) {
     /** The one there goes to Trash, and the one coming takes its place. */
     Replace("Replace"),

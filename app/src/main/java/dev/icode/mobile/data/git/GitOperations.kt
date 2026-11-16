@@ -8,7 +8,7 @@ import dev.icode.mobile.domain.GitSigningKey
 
 // What each Git owner needs from the real client, narrow enough for a test to fake.
 
-/** What the editor's change markers read from Git and write to it (docs/editor-plan.md §3); tests put a fake in their place. */
+/** What the editor's change markers read from Git and write to it (docs/editor-and-language-services.md); tests put a fake in their place. */
 internal interface GitIndexOperations {
     suspend fun isAvailable(): Boolean
     /** The top of the repository holding [location], read from disk; null when none does. */

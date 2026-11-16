@@ -25,7 +25,7 @@ internal interface ConflictFiles {
 }
 
 /**
- * One conflicted file (S5): its marker blocks, each resolved on its own —
+ * One conflicted file: its marker blocks, each resolved on its own —
  * current, incoming or both — and then marked resolved, which stages it.
  */
 internal class GitConflictCoordinator(

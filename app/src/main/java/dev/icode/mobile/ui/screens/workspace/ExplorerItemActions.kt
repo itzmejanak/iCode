@@ -54,7 +54,7 @@ import dev.icode.mobile.ui.SheetIcon
 import dev.icode.mobile.ui.parentName
 
 /**
- * The tree's [ItemSheet] (docs/explorer-gaps-plan.md §3.1, §3.2): one row's, from its long press, or
+ * The tree's [ItemSheet] (docs/workspaces-and-files.md): one row's, from its long press, or
  * the selection's [entries], from its ⋯ — every explorer's actions ([FileItemActions]). For one, Open
  * is a file into the editor, a folder's Expand or Collapse, which only the tree has; Paste goes into a
  * folder row itself, or beside a file row into the folder it sits in ([creationParentLocation]); and

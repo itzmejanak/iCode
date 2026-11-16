@@ -8,7 +8,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * Gap G8: can two threads tokenize with one tm4e grammar? They cannot. tm4e 0.24.6 keeps
+ * Can two threads tokenize with one tm4e grammar? They cannot. tm4e 0.24.6 keeps
  * unsynchronized state in a grammar: its rule table is a HashMap, each rule caches its compiled
  * patterns, an end pattern with back-references is rewritten in that cache on every line it
  * opens, and on the JVM each joni regex caches its last search. A shared grammar gives wrong

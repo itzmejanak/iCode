@@ -45,14 +45,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * What the blocks of a document on screen share (docs/markdown-rendering-plan.md §3): where its links
+ * What the blocks of a document on screen share (docs/editor-and-language-services.md): where its links
  * lead, whether its `https` images load, and where a tap goes. One per document on screen; the same
  * object while it streams, so a block that did not change is not drawn again.
  */
 @Stable
 internal class MarkdownContext(
     val place: MarkdownPlace?,
-    /** A file's preview loads `https` images; an answer does not, as one could be steered to leak through them (§3.4). */
+    /** A file's preview loads `https` images; an answer does not, as one could be steered to leak through them. */
     val remoteImages: Boolean,
     private val follow: (MarkdownTarget) -> Unit,
     /** Brings the block at an index into view; the footnotes are after the last block. */

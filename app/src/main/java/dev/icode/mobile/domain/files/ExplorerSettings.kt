@@ -1,6 +1,6 @@
 package dev.icode.mobile.domain.files
 
-/** How the explorer draws what it lists (docs/explorer-gaps-plan.md §3.12): rows with detail, single lines, or tiles. */
+/** How the explorer draws what it lists (docs/workspaces-and-files.md): rows with detail, single lines, or tiles. */
 enum class FilesView { Detailed, Compact, Grid }
 
 /** A list's view and order: what the ☰ panel chooses. */
@@ -35,11 +35,11 @@ data class FilesLook(
     }
 }
 
-/** Where Manage storage looks (§3.10): both places, or one. */
+/** Where Manage storage looks: both places, or one. */
 enum class ScanScope(val label: String) { All("All"), Private("Private"), Shared("Shared") }
 
 /**
- * The explorer's settings, app-wide (§3.12, §3.13): whether names starting with "." are listed, the
+ * The explorer's settings, app-wide: whether names starting with "." are listed, the
  * folders' one look, and each view's own once changed.
  */
 data class ExplorerSettings(

@@ -1,8 +1,8 @@
 package dev.icode.mobile.domain
 
 /**
- * What a file's first bytes say it is, for the names that cannot say (docs/file-kinds-icons-plan.md
- * D2): each format's own signature — its "magic number" — as the format's specification gives it and
+ * What a file's first bytes say it is, for the names that cannot say (docs/workspaces-and-files.md):
+ * each format's own signature — its "magic number" — as the format's specification gives it and
  * `file(1)` reads it. Only formats a person keeps are here, each strong enough that text never starts
  * so: no text file begins with a NUL, a byte of 0x80 or more that is not UTF-8, or a run of these.
  */

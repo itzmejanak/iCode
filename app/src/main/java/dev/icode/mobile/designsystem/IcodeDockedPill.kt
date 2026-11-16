@@ -59,7 +59,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 
 /**
- * A floating pill as one see-through button (docs/dock-navigation-plan.md D12–D14, D16): [icon] in
+ * A floating pill as one see-through button (docs/design-and-navigation.md): [icon] in
  * [tint] on a faint tab of the raised surface, flush on its edge and round inside ([edgeTab]), so it
  * reads over code while the screen shows through it, with [badge], a count, and a [dot] on it; a touch
  * target wide and tall, the tab its whole size. A new [icon] crossfades in: the undo pill's ↶ turning ↷.
@@ -152,7 +152,7 @@ fun IcodePillButton(
 }
 
 /**
- * A floating pill that opens (the dock, D6, D13). Closed, it is its own icon ([LocalPillIcon]) as one
+ * A floating pill that opens, such as the dock. Closed, it is its own icon ([LocalPillIcon]) as one
  * [IcodePillButton] in [tone], what needs the user there, resting in its edge as that button does,
  * kept out while it has a [tone]. Tapped, it opens at once into one row of [content] on the raised surface, flush on its edge and round inside ([edgeTab]), grown from
  * its icon, which stays under the finger at the row's docked end ([LocalPillIconAtEnd]). That icon

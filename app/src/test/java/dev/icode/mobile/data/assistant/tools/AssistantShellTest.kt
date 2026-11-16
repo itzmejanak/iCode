@@ -25,7 +25,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
-/** A chat's processes start where its terminal tab's shell is, with the login environment (docs/agent-control-plan.md §4.2). */
+/** A chat's processes start where its terminal tab's shell is, with the login environment (docs/assistant-and-mcp.md). */
 class AssistantShellTest {
     @get:Rule val temp = TemporaryFolder()
 

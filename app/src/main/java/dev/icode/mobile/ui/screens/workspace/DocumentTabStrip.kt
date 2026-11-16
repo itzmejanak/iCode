@@ -39,7 +39,7 @@ internal fun DocumentTabStrip(
 }
 
 /**
- * A tab's sheet (docs/explorer-gaps-plan.md §3.1), titled with its file and where the runtime has it
+ * A tab's sheet (docs/workspaces-and-files.md), titled with its file and where the runtime has it
  * ([path]): New file, Close other tabs — all but this one — Close saved tabs, and Close it, last.
  */
 @Composable

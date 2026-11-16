@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <!-- All Files Access: Import reads a folder on phone storage, and only reads it. Asked where
-         Import needs it, never at onboarding (docs/workspace-storage-plan.md §4.8). -->
+         Import needs it, never at onboarding (docs/workspaces-and-files.md). -->
     <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
     <!-- Downloading the runtime root filesystem. -->
     <uses-permission android:name="android.permission.INTERNET" />
@@ -11,7 +11,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <!-- Voice (docs/phone-agent-plan.md §5.8): the microphone, only while listening; from the bubble
+    <!-- Voice (docs/voice-and-phone-control.md): the microphone, only while listening; from the bubble
          through phone control's service, which holds it while iCode is away. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
@@ -21,14 +21,14 @@
     <!-- Onboarding and Terminal Settings show Android's own prompt to exempt
          iCode from battery optimization (owner's decision). Google Play
          allows this only for listed use cases; see
-         docs/terminal-background-plan.md §7. -->
+         docs/runtime-and-terminal.md. -->
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <!-- Build & Run installs the app it built, through Android's package installer: Android asks
-         the user to allow it once, and confirms each install (docs/android-toolchain-plan.md §4.5).
+         the user to allow it once, and confirms each install (docs/runtime-and-terminal.md).
          Distribution through Google Play requires declaring this use. -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
-    <!-- Phone control (docs/phone-agent-plan.md): the apps the launcher lists, opened by name;
+    <!-- Phone control (docs/voice-and-phone-control.md): the apps the launcher lists, opened by name;
          Shizuku, found to say its state. -->
     <queries>
         <intent>
@@ -45,7 +45,7 @@
         </intent>
     </queries>
 
-    <!-- Every workspace lives in iCode's own storage (docs/workspace-storage-plan.md §4.7):
+    <!-- Every workspace lives in iCode's own storage (docs/workspaces-and-files.md):
          uninstalling asks whether to keep that data. App info keeps Android's own Clear
          storage (owner, 2026-09-30). -->
     <application
@@ -71,7 +71,7 @@
             </intent-filter>
         </activity>
 
-        <!-- A remote MCP server's sign-in comes back here, on iCode's own scheme (docs/mcp-plan.md §8.2). -->
+        <!-- A remote MCP server's sign-in comes back here, on iCode's own scheme (docs/assistant-and-mcp.md). -->
         <activity
             android:name=".SignInReturnActivity"
             android:exported="true"
@@ -87,7 +87,7 @@
         </activity>
 
         <!-- The workspaces in Android's Files app, and to any app the user picks them for;
-             only the system's documents UI binds it (docs/workspace-storage-plan.md §4.6). -->
+             only the system's documents UI binds it (docs/workspaces-and-files.md). -->
         <provider
             android:name="dev.icode.mobile.data.storage.WorkspacesProvider"
             android:authorities="${applicationId}.workspaces"
@@ -100,8 +100,8 @@
         </provider>
 
         <!-- A file handed to another app, one URI and one grant at a time: a workspace's or phone
-             storage's file to Open with or Share (docs/open-with-plan.md), and the assistant's photo
-             the camera app writes (docs/assistant-koog-plan.md §13 P6). -->
+             storage's file to Open with or Share (docs/workspaces-and-files.md), and the assistant's photo
+             the camera app writes (docs/assistant-and-mcp.md). -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.files"
@@ -112,9 +112,9 @@
                 android:resource="@xml/shared_file_paths" />
         </provider>
 
-        <!-- The assistant on the whole phone (docs/phone-agent-plan.md §5.1): it reads and operates the
+        <!-- The assistant on the whole phone (docs/voice-and-phone-control.md): it reads and operates the
              screen for the user's own requests, and hosts the bubble and the glow. Not an
-             accessibility tool, and never claims to be one (§3.2). -->
+             accessibility tool, and never claims to be one. -->
         <service
             android:name="dev.icode.mobile.data.phone.PhoneService"
             android:exported="false"
@@ -138,7 +138,7 @@
             android:exported="true"
             android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
 
-        <!-- Phone control's service (docs/phone-agent-plan.md §5.8, §5.9): keeps the agent alive while
+        <!-- Phone control's service (docs/voice-and-phone-control.md): keeps the agent alive while
              phone control is on, and the microphone for the bubble while iCode is away. -->
         <service
             android:name="dev.icode.mobile.data.phone.PhoneForegroundService"

@@ -5,7 +5,7 @@ import org.eclipse.tm4e.core.grammar.IGrammar
 import org.eclipse.tm4e.core.grammar.IStateStack
 
 /**
- * A run of code drawn one way (docs/syntax-highlighting-plan.md D5): characters [start] to [end] of the
+ * A run of code drawn one way (docs/editor-and-language-services.md): characters [start] to [end] of the
  * text, as [style] says. A role, not a colour: the colour is the palette's when drawn, so a palette
  * change recolours without tokenizing again.
  */
@@ -43,8 +43,8 @@ internal fun syntaxSpans(grammar: IGrammar, text: String, roles: SyntaxRoles = S
 private val PLAIN = SyntaxStyle(SyntaxRole.Plain)
 
 /**
- * The read-only views' tokens, least recently used dropped first once the texts held pass [maxChars]
- * (D6): a chat scrolled past the same block, or a diff opened twice, is tokenized once. Keyed by the
+ * The read-only views' tokens, least recently used dropped first once the texts held pass [maxChars]:
+ * a chat scrolled past the same block, or a diff opened twice, is tokenized once. Keyed by the
  * language and the text (its hash, then its characters), so two texts never share spans. A text past
  * [SyntaxLimits.BLOCK_CHARS] is not coloured. One thread only: SyntaxEngine's `syntax-tokens`.
  */

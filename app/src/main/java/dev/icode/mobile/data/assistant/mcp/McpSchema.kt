@@ -12,7 +12,7 @@ import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 
 /**
- * A tool's JSON Schema as iCode's parameter types (docs/mcp-plan.md §6.2), which Koog carries to every
+ * A tool's JSON Schema as iCode's parameter types (docs/assistant-and-mcp.md), which Koog carries to every
  * provider. A local `$ref` is inlined and a network one refused (the spec's rule); unions become one-of,
  * `allOf` objects one object; what Koog has no field for — formats, patterns, bounds, defaults — is
  * written into the description, so the model still reads it. Bounded in depth and size.

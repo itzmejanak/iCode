@@ -17,7 +17,7 @@ import dev.icode.mobile.domain.McpValue
 import org.json.JSONArray
 import org.json.JSONObject
 
-// The agent's hold on the MCP servers (docs/agent-control-plan.md §5): what the MCP pages show and do,
+// The agent's hold on the MCP servers (docs/assistant-and-mcp.md): what the MCP pages show and do,
 // through McpServers' own operations. A value is given, never read back; a workspace's server stays
 // its .mcp.json's, and trusting one stays the user's. Every change is asked about, in every mode.
 

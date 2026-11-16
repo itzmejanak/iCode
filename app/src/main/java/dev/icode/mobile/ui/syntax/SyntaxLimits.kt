@@ -3,8 +3,8 @@ package dev.icode.mobile.ui.syntax
 import java.time.Duration
 
 /**
- * When colouring stops (docs/syntax-highlighting-plan.md D7, §3.7), every limit in one place. The values
- * are the ones S1 measured and kept; the plan gives the numbers behind each.
+ * When colouring stops (docs/editor-and-language-services.md), every measured limit and its reason in
+ * one place.
  */
 object SyntaxLimits {
     /** A line is coloured up to here; the rest of it is plain. Cut before tokenizing: tm4e checks its time only between scans. */

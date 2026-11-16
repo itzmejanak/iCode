@@ -22,7 +22,7 @@ internal object AppearanceStore {
     val compact = booleanPreferencesKey("appearance_compact_layout")
     val borderLines = booleanPreferencesKey("appearance_border_lines")
     val accent = intPreferencesKey("appearance_accent_color")
-    /** Auto (docs/theme-variants-plan.md T6). */
+    /** Auto (docs/design-and-navigation.md). */
     val followSystem = booleanPreferencesKey("appearance_follow_system")
     val nightTheme = stringPreferencesKey("appearance_night_theme")
     private val darkVariant = stringPreferencesKey("appearance_dark_variant")
@@ -31,7 +31,7 @@ internal object AppearanceStore {
     /** Where the floating pills were moved to ([PillPlaces.encoded]). */
     val pillPlaces = stringPreferencesKey("appearance_pill_places")
 
-    /** [theme]'s own variant (D1). */
+    /** [theme]'s own variant. */
     fun variant(theme: AppTheme) = when (theme) {
         AppTheme.Dark -> darkVariant
         AppTheme.Light -> lightVariant

@@ -13,7 +13,7 @@ import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import kotlinx.serialization.json.putJsonObject
 
-/** What iCode tells a server about itself (docs/lsp-plan.md §5.5): only what it has built. */
+/** What iCode tells a server about itself (docs/editor-and-language-services.md): only what it has built. */
 internal object LspMessages {
     fun initialize(
         rootGuest: String,
@@ -69,7 +69,7 @@ internal object LspMessages {
                 }
                 put("contextSupport", true)
             }
-            // Laid over the grammar's colours (docs/syntax-highlighting-plan.md D8): whole files, and their deltas.
+            // Laid over the grammar's colours (docs/editor-and-language-services.md): whole files, and their deltas.
             putJsonObject("semanticTokens") {
                 put("dynamicRegistration", true)
                 putJsonObject("requests") { put("range", false); putJsonObject("full") { put("delta", true) } }

@@ -13,10 +13,10 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * The language servers running in the open workspace (docs/lsp-plan.md §5.3): one per configuration,
+ * The language servers running in the open workspace (docs/editor-and-language-services.md): one per configuration,
  * started when a document it serves opens or the user starts it; at most [MAX_RUNNING] at once, the
  * one unused longest stopping for another; stopped after [IDLE_MILLIS] without a document; restarted
- * after a crash with growing waits, until [CRASHES] in [CRASH_WINDOW_MILLIS] leave it Failed (D6).
+ * after a crash with growing waits, until [CRASHES] in [CRASH_WINDOW_MILLIS] leave it Failed.
  */
 internal class LanguagePool(
     private val scope: CoroutineScope,
@@ -26,7 +26,7 @@ internal class LanguagePool(
     private val client: LanguageServerSession.Client,
     private val events: Events,
     private val clock: () -> Long = System::currentTimeMillis,
-    /** The waits before each restart after a crash, D6's; shorter in tests. */
+    /** The waits before each restart after a crash; shorter in tests. */
     private val backoff: LongArray = BACKOFF_MILLIS,
 ) {
     /** What the owner shows and does as servers come and go. */

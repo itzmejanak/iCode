@@ -2,7 +2,7 @@ package dev.icode.mobile.domain.notices
 
 import dev.icode.mobile.domain.countOf
 
-/** What the assistant tells (docs/notices-redesign-plan.md D8, D9): of a chat, where it is — its workspace and title. */
+/** What the assistant tells (docs/engineering-rules.md): of a chat, where it is — its workspace and title. */
 object AssistantNotices {
     fun noApp() = Notice(NoticeTone.HeadsUp, NoticeSource.Assistant, "Install an app that can do that", detail = "No app on this phone opens it.")
 

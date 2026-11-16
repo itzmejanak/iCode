@@ -7,7 +7,7 @@ import dev.icode.mobile.data.workspace.WorkspaceLifecycleCoordinator.Reopen
 import java.io.File
 
 /**
- * What follows a change to files in iCode's own state (docs/explorer-gaps-plan.md §4), whoever made
+ * What follows a change to files in iCode's own state (docs/workspaces-and-files.md), whoever made
  * it — a rename, an operation, an undo. Inside one workspace, its tabs and tree follow a move; out
  * of it, its tabs close. A whole workspace is closed before it moves or goes, opened again where it
  * was renamed, and retired once it is no workspace any more — the [lifecycle]'s steps. Each runs

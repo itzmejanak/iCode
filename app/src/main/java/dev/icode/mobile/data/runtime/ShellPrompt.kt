@@ -4,7 +4,7 @@ import dev.icode.mobile.data.storage.WorkspacePaths
 import java.io.File
 
 /**
- * iCode's prompt, a default for new runtimes (docs/runtime-contract-plan.md §5).
+ * iCode's prompt, a default for new runtimes (docs/runtime-and-terminal.md).
  *
  * `root@localhost:/workspace` says nothing useful on a phone, where the line
  * is short and there is only ever one host and one user. The prompt is the

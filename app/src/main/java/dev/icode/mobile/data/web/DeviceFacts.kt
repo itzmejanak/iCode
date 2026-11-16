@@ -8,7 +8,7 @@ import java.util.Locale
 
 /**
  * Everything iCode ever sends about a device — and only after the user agreed
- * (docs/device-telemetry-plan.md §3). Nothing about workspaces, files, remotes, keys or prompts.
+ * (PRIVACY.md). Nothing about workspaces, files, remotes, keys or prompts.
  */
 internal data class DeviceFacts(
     val appVersionName: String,

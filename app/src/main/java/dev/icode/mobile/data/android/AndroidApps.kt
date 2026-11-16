@@ -32,7 +32,7 @@ internal interface AndroidBuilds {
 }
 
 /**
- * Build & Run (docs/android-toolchain-plan.md §4.4), the Run tab's Android app: the project's own
+ * Build & Run (docs/runtime-and-terminal.md), the Run tab's Android app: the project's own
  * Gradle wrapper builds the debug APK as a managed process — its output is that process's tab, Stop
  * is its Stop — and when it ends with 0 the APK is installed ([ApkInstaller]) and opened. What the
  * build printed as problems goes to Problems. It keeps no state: the run's record is the Run tab's.

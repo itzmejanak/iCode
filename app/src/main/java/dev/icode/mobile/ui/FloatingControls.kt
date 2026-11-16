@@ -20,8 +20,8 @@ import dev.icode.mobile.ui.screens.settings.rememberSettingSaver
 import dev.icode.mobile.domain.notices.SettingsNotices
 
 /**
- * The floating stack over every screen but the Notifications page (docs/explorer-gaps-plan.md §3.8,
- * docs/dock-navigation-plan.md D6, D11): the undo pill above the bell, the tool dock below them, each
+ * The floating stack over every screen but the Notifications page (docs/workspaces-and-files.md,
+ * docs/design-and-navigation.md): the undo pill above the bell, the tool dock below them, each
  * where the user moved it to on any edge, kept app-wide. A pill let go is drawn at its new place at
  * once, while the place is written; one that could not be written is said.
  */

@@ -119,7 +119,7 @@ internal fun AssistantChatsSheet(state: AssistantState, modifier: Modifier, onCl
 }
 
 /**
- * A model to choose, from every provider's (§13 P1): grouped by provider, each said with what it
+ * A model to choose, from every provider: grouped by provider, each said with what it
  * reads and whether it reasons; [showEffort] adds the chosen one's reasoning effort above them;
  * [reset] sets the hope back to what the tool uses by default. Chosen and chosen-for decide what
  * picking does (the chat then, a commit message in Source Control's settings).

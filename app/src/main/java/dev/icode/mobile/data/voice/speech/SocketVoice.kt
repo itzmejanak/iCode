@@ -15,7 +15,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.selects.select
 
-/** What a streaming provider's frames say (docs/tts-plan.md §4.3): each adapter gives only its protocol. */
+/** What a streaming provider's frames say (docs/voice-and-phone-control.md): each adapter gives only its protocol. */
 internal interface VoiceProtocol {
     /** What the provider is told when the socket opens, before any sentence. */
     val opening: List<String> get() = emptyList()
@@ -46,7 +46,7 @@ internal interface VoiceProtocol {
 }
 
 /**
- * The socket runner (docs/tts-plan.md §4.3): one WebSocket per speech session, opened at once — while
+ * The socket runner (docs/voice-and-phone-control.md): one WebSocket per speech session, opened at once — while
  * the model still thinks — each sentence sent as it comes and its audio played as it arrives, so the
  * next is being made while one plays. A socket the provider closes while there is nothing to say is
  * opened again for the next sentence. Hushed, the socket closes at once, and with it the provider's

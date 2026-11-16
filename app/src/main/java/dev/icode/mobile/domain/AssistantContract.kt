@@ -1,6 +1,6 @@
 package dev.icode.mobile.domain
 
-// The assistant (docs/assistant-koog-plan.md): iCode's own chat beside the workspace. These are the
+// The assistant (docs/assistant-and-mcp.md): iCode's own chat beside the workspace. These are the
 // only assistant types screens see; the engine behind them (Koog) stays inside data/assistant/koog.
 
 /** Where the assistant's model is served from: one of Koog's clients, or any OpenAI-compatible server. */
@@ -25,7 +25,7 @@ enum class AssistantProviderKind(
     OpenAICompatible("OpenAI-compatible", needsKey = false, asksBaseUrl = true),
 }
 
-/** How much a model reasons before it answers, in the words its provider uses (§12 R3). */
+/** How much a model reasons before it answers, in the words its provider uses. */
 enum class AssistantEffort(val label: String) {
     Minimal("Minimal"),
     Low("Low"),
@@ -37,7 +37,7 @@ enum class AssistantEffort(val label: String) {
     On("On"),
 }
 
-/** What a turn may do (§12 R8): implement, plan, answer, or orchestrate. */
+/** What a turn may do: implement, plan, answer, or orchestrate. */
 enum class AssistantMode(val label: String, val description: String) {
     Code("Code", "Reads, changes files and runs commands"),
     Plan("Plan", "Reads and analyzes; plans changes without making them"),
@@ -58,7 +58,7 @@ data class AssistantModel(
     val reasons: Boolean = false,
     val images: Boolean = false,
     val documents: Boolean = false,
-    /** Koog knows it, so these are Koog's facts; otherwise they are what the user said (§13 P4). */
+    /** Koog knows it, so these are Koog's facts; otherwise they are what the user said. */
     val known: Boolean = false,
 ) {
     /** What a provider keeps of it: its ID, and for a model Koog does not know, what the user said of it. */
@@ -76,7 +76,7 @@ data class AssistantModelSpec(
     val reasoning: Boolean = false,
 )
 
-/** A provider the user added (§13 P1): never its key, only whether one is saved. */
+/** A provider the user added: never its key, only whether one is saved. */
 data class AssistantProvider(
     /** iCode's own. */
     val id: String,
@@ -98,7 +98,7 @@ data class AssistantSettings(
     val providers: List<AssistantProvider> = emptyList(),
     /** Null until a provider has a model. */
     val choice: AssistantChoice? = null,
-    /** What runs without asking, every chat's to start with (docs/assistant-permissions-plan.md §4.1). */
+    /** What runs without asking, every chat's to start with (docs/assistant-and-mcp.md). */
     val permission: AssistantPermission = AssistantPermission.AskFirst,
     /** Null: the provider's default ("Auto"). */
     val effort: AssistantEffort? = null,
@@ -122,7 +122,7 @@ data class AssistantSettings(
     val ready: Boolean get() = model != null
 }
 
-/** A provider's models as its server lists them (§13 P2, P5), for its settings page. */
+/** A provider's models as its server lists them, for its settings page. */
 data class AssistantAvailable(
     /** The provider being edited: its ID, or "" for one being added. */
     val provider: String,
@@ -132,10 +132,10 @@ data class AssistantAvailable(
     val failure: String? = null,
 )
 
-/** What a file sent with a message is to the model (§13 P7). */
+/** What a file sent with a message is to the model. */
 enum class AssistantAttachmentKind { Text, Image, Document }
 
-/** A file sent with a message, as it was then (§12 R6, §13 P7). */
+/** A file sent with a message, as it was then. */
 data class AssistantAttachment(
     /** "src/App.kt" for a workspace's file; its own name for one from the phone. */
     val name: String,
@@ -163,7 +163,7 @@ sealed interface AssistantMessage {
     data class Results(val results: List<AssistantResult>) : AssistantMessage
 
     /**
-     * The chat before this point, summarized by the model to fit its context (§12 R4): later turns
+     * The chat before this point, summarized by the model to fit its context: later turns
      * send this summary in place of what it covers; the page still shows everything.
      */
     data class Compacted(val summary: String) : AssistantMessage
@@ -174,15 +174,15 @@ data class AssistantApproval(
     val call: AssistantCall,
     /** What it will do, in full enough to judge: the command, or the file it changes. */
     val detail: String,
-    /** The text a change writes, coloured on its page as its file is (docs/syntax-highlighting-plan.md S5). */ val code: List<AssistantCode> = emptyList(),
+    /** The text a change writes, coloured on its page as its file is (docs/editor-and-language-services.md). */ val code: List<AssistantCode> = emptyList(),
     /** What it reaches outside the chat's workspace; null when it asks as a change or a command only. */
     val reach: AssistantReach? = null,
-    /** Asked each time, in every mode (docs/agent-control-plan.md §3 A9): no "Allow in". */
+    /** Asked each time, in every mode (docs/assistant-and-mcp.md): no "Allow in". */
     val always: Boolean = false,
 )
 
 /**
- * A question a turn asks between its steps, about no call (docs/phone-agent-plan.md L5, §5.5): whether
+ * A question a turn asks between its steps, about no call (docs/voice-and-phone-control.md): whether
  * it goes on past its step limit, or, on the phone, a step only the user can take. Continue goes on;
  * Stop ends the turn.
  */
@@ -196,13 +196,13 @@ data class AssistantPause(val kind: Kind, /** What the card says under its quest
 /**
  * The user's answer to an approval. [AllowInChat] opens, for this chat until iCode closes, the
  * [AssistantReach.roots] of an outside call, or the chat's workspace (Auto in workspace) for a
- * change or a command (docs/assistant-permissions-plan.md §4.3).
+ * change or a command (docs/assistant-and-mcp.md).
  */
 enum class AssistantAnswer { Allow, AllowInChat, Deny }
 
 /** The turn in hand: one at a time, in the chat it started in. */
 data class AssistantTurn(
-    /** Its workspace's location; null for a chat in none, which works in `$HOME` (docs/home-plan.md §2). */
+    /** Its workspace's location; null for a chat in none, which works in `$HOME` (docs/design-and-navigation.md). */
     val workspace: String?,
     val workspaceName: String,
     val session: String,
@@ -210,11 +210,11 @@ data class AssistantTurn(
     val step: String,
     /** The reply being written, as far as it has come; null between replies, and where replies come whole. */
     val live: AssistantLive? = null,
-    /** It has acted on the phone: the screen's edges glow while it works (docs/phone-agent-plan.md §5.6). */
+    /** It has acted on the phone: the screen's edges glow while it works (docs/voice-and-phone-control.md). */
     val onPhone: Boolean = false,
-    /** Read aloud, as Spoken replies said when it was sent (§5.8): its instructions ask for a short spoken answer. */
+    /** Read aloud, as Spoken replies said when it was sent: its instructions ask for a short spoken answer. */
     val aloud: Boolean = false,
-    /** The terminal tab the running call's command runs in: its step shows it live while it runs (docs/agent-control-plan.md §6). */
+    /** The terminal tab the running call's command runs in: its step shows it live while it runs (docs/assistant-and-mcp.md). */
     val terminal: AssistantTerminal? = null,
     /** One of its tools has changed a file: said when it ends ([AssistantTurnEnd]). */
     val changedFiles: Boolean = false,
@@ -223,10 +223,10 @@ data class AssistantTurn(
 /** A streamed reply as far as it has come: what the model thought, and its answer so far. */
 data class AssistantLive(val reasoning: String, val text: String)
 
-/** A turn that ended (docs/dock-navigation-plan.md D8): its workspace, how many have ended so far, whether its tools changed a file. */
+/** A turn that ended (docs/design-and-navigation.md): its workspace, how many have ended so far, whether its tools changed a file. */
 data class AssistantTurnEnd(val workspace: String?, val number: Int, val changedFiles: Boolean)
 
-/** One chat of a workspace, as its history lists it (§12 R5). */
+/** One chat of a workspace, as its history lists it. */
 data class AssistantSession(val id: String, val title: String, val updatedAt: Long)
 
 /** The assistant as the screens show it. */
@@ -253,9 +253,9 @@ data class AssistantState(
     /** The last turn to end, in any chat; null until one has. */
     val ended: AssistantTurnEnd? = null,
     val approval: AssistantApproval? = null,
-    /** The turn waits between steps for the user to go on (docs/phone-agent-plan.md L5). */
+    /** The turn waits between steps for the user to go on (docs/voice-and-phone-control.md). */
     val pause: AssistantPause? = null,
-    /** The model's questions, waiting for the user's reply (docs/assistant-questions-plan.md). */
+    /** The model's questions, waiting for the user's reply (docs/assistant-and-mcp.md). */
     val clarification: AssistantClarification? = null,
     /** The chat shown answered "Allow in" its workspace: it runs as Auto in workspace until iCode closes. */
     val allowedInWorkspace: Boolean = false,
@@ -283,13 +283,13 @@ data class AssistantState(
     /** The turn in hand belongs to the chat shown, not to another one. */
     val runningHere: Boolean get() = turn != null && turn.workspace == workspace && turn.session == session
 
-    /** The turn of the chat shown waits on its questions: a message sent now is the reply (docs/assistant-questions-plan.md D5). */
+    /** The turn of the chat shown waits on its questions: a message sent now is the reply (docs/assistant-and-mcp.md). */
     val replying: Boolean get() = runningHere && clarification != null
 }
 
 /**
  * A commit message the model writes from [workspace]'s staged changes
- * (docs/commit-message-generator-plan.md M6): being written, written, or why it could not be.
+ * (docs/assistant-and-mcp.md): being written, written, or why it could not be.
  */
 data class AssistantCommitMessage(
     val workspace: String,

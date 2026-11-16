@@ -4,7 +4,7 @@ import java.io.ByteArrayOutputStream
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** docs/agent-control-plan.md §3 A2: OSC 133 and OSC 7 found wherever a read cuts them; every other byte passed on. */
+/** docs/assistant-and-mcp.md: OSC 133 and OSC 7 found wherever a read cuts them; every other byte passed on. */
 class TerminalMarksTest {
     private class Seen : TerminalMarks.Listener {
         val output = ByteArrayOutputStream()

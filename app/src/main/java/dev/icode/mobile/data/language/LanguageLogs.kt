@@ -7,7 +7,7 @@ import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Each language service's log (docs/lsp-plan.md §5.2): what iCode saw of it — started, initialized,
+ * Each language service's log (docs/editor-and-language-services.md): what iCode saw of it — started, initialized,
  * exited, the server's own `window/logMessage` — at most [EVENTS] lines, then its stderr's last
  * [STDERR] lines from its log in the runtime.
  */

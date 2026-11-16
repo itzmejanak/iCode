@@ -19,7 +19,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** docs/mcp-plan.md §6.3: what a tool answered, as the model reads it. */
+/** docs/assistant-and-mcp.md: what a tool answered, as the model reads it. */
 class McpResultsTest {
     private val png = byteArrayOf(1, 2, 3, 4)
     private val image = ImageContent(Base64.getEncoder().encodeToString(png), "image/png")

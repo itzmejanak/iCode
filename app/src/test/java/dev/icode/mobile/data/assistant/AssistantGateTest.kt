@@ -23,10 +23,10 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
 /**
- * An act in an app on the phone asks about the app, as a folder outside does (docs/phone-agent-plan.md L6);
- * an MCP server's tool asks about its server the same way (docs/mcp-plan.md §6.4), and a command in the
- * user's own terminal tab about that tab (docs/agent-control-plan.md §4.3) — in the chat's own, as a
- * command; a change to the MCP servers asks every time, in every mode (§3 A9).
+ * An act in an app on the phone asks about the app, as a folder outside does (docs/voice-and-phone-control.md);
+ * an MCP server's tool asks about its server the same way (docs/assistant-and-mcp.md), and a command in the
+ * user's own terminal tab about that tab — in the chat's own, as a command; a change to the MCP
+ * servers asks every time, in every mode.
  */
 class AssistantGateTest {
     @get:Rule val temp = TemporaryFolder()

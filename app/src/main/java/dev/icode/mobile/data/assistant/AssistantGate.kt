@@ -12,10 +12,10 @@ import dev.icode.mobile.domain.LineChanges
 import org.json.JSONObject
 
 /**
- * The gate every call passes (docs/assistant-permissions-plan.md §5): what it reaches outside the
+ * The gate every call passes (docs/assistant-and-mcp.md): what it reaches outside the
  * chat's place, less what the chat opened, and the chat's mode decide whether it asks, once. An act in
  * an app on the phone asks about the app alone, as a folder outside does: allowed there for the chat,
- * it runs (docs/phone-agent-plan.md L6).
+ * it runs (docs/voice-and-phone-control.md).
  */
 internal class AssistantGate(
     private val tool: AssistantTool,

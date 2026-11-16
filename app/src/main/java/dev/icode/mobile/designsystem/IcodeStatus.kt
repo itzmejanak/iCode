@@ -192,7 +192,7 @@ private const val SWEEP_WIDTH = 0.3f
 private const val SWEEP_MILLIS = 1100
 
 /**
- * The ring a long setup step fills (docs/onboarding-polish-plan.md §3.1), the tracks' colours on a
+ * The ring a long setup step fills (docs/design-and-navigation.md), the tracks' colours on a
  * circle: [progress] 0..1 as the step measures it, or null while its share is unknown, the arc then
  * sweeping. [content] sits at its centre. A new step should start a new ring (`key`), so the arc
  * never runs back.

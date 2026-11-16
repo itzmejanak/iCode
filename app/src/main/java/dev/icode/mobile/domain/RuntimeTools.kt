@@ -1,6 +1,6 @@
 package dev.icode.mobile.domain
 
-// Runtime tools (docs/runtime-tools-plan.md): what the Linux runtime can install — chosen on the
+// Runtime tools (docs/runtime-and-terminal.md): what the Linux runtime can install — chosen on the
 // Set Up Tools page or in Runtime Tools, or installed when a feature that needs one is used.
 
 /** A tool the user chooses; [packages] are what apt installs for it, and [setup] what follows them. */
@@ -15,17 +15,17 @@ data class RuntimeTool(
     /** In Standard: what iCode's own features use. */
     val recommended: Boolean = false,
     /**
-     * The data layer's setup, by id, run after [packages] (docs/android-toolchain-plan.md §4.1): what
+     * The data layer's setup, by id, run after [packages] (docs/runtime-and-terminal.md): what
      * apt has no package for. Null for a tool apt installs whole.
      */
     val setup: String? = null,
     /** The licence installing it accepts, by id: its text is shown, and accepted, before it is installed. */
     val licence: String? = null,
-    /** The tools it needs, by id (docs/android-ndk-plan.md §3.1): ticked with it, and it goes when they go. */
+    /** The tools it needs, by id (docs/runtime-and-terminal.md): ticked with it, and it goes when they go. */
     val requires: List<String> = emptyList(),
     /**
      * The tool the page lists it beneath, by id — one it [requires] — as Android Studio's SDK Manager
-     * lists CMake and the NDK among the SDK's tools (docs/runtime-tools-plan.md §8.7). Null at the top.
+     * lists CMake and the NDK among the SDK's tools (docs/runtime-and-terminal.md). Null at the top.
      */
     val within: String? = null,
     /** The family it is a version of, its row beneath the family's and titled by its version: an NDK. */
@@ -56,12 +56,12 @@ object RuntimeTools {
         "Build & Run for Android apps", listOf("openjdk-17-jdk-headless"), setup = "android-sdk", licence = "android-sdk-license",
     )
 
-    /** Android Studio's CMake (docs/android-ndk-plan.md §2.3). */
+    /** Android Studio's CMake (docs/runtime-and-terminal.md). */
     const val CMAKE_VERSION = "3.22.1"
 
     /**
      * The NDKs it installs, newest first, each with the Android Gradle plugins that pick it by default
-     * (docs/android-ndk-plan.md §2.3). Each is one row, its summary, and the Gradle guard's default for those
+     * (docs/runtime-and-terminal.md). Each is one row, its summary, and the Gradle guard's default for those
      * plugins; another is one entry here and one pin in the runtime manifest.
      */
     val ndkRevisions: List<NdkRevision> = listOf(
@@ -87,7 +87,7 @@ object RuntimeTools {
         listOf("build-essential"),
     )
 
-    /** Node.js's current LTS from nodejs.org, and uv from the wheel PyPI publishes (docs/mcp-plan.md R1): Ubuntu's own Node.js is v18. */
+    /** Node.js's current LTS from nodejs.org, and uv from the wheel PyPI publishes (docs/assistant-and-mcp.md): Ubuntu's own Node.js is v18. */
     const val NODE_VERSION = "26.13.0"
     const val UV_VERSION = "0.13.7"
     val NodeJs = RuntimeTool("nodejs", "Node.js $NODE_VERSION", "node, npm and npx", "MCP servers that start with npx", emptyList(), setup = "nodejs")
@@ -102,7 +102,7 @@ object RuntimeTools {
     fun byId(id: String): RuntimeTool? = index[id]
 
     /**
-     * What a build with C or C++ needs (docs/android-ndk-plan.md §3.5), as Build & Run says it when it is
+     * What a build with C or C++ needs (docs/runtime-and-terminal.md), as Build & Run says it when it is
      * missing: "This app builds C or C++, with CMake 3.22.1 and NDK (Side by side) 28.2.13676358 or
      * 27.0.12077973, built for this phone".
      */
@@ -113,7 +113,7 @@ object RuntimeTools {
 
     /**
      * An NDK's row, named as Android Studio's SDK Tools tab names it. Its package is xz: the runtime unpacks
-     * the NDK's tar.xz itself, out of the app's memory (docs/android-ndk-plan.md §7.6).
+     * the NDK's tar.xz itself, out of the app's memory (docs/runtime-and-terminal.md).
      */
     private fun ndk(ndk: NdkRevision) = RuntimeTool(
         ndkId(ndk.revision), "${Ndk.name} ${ndk.revision}", "For Android Gradle plugin ${ndk.firstAgp}–${ndk.lastAgp}", NATIVE_USE,
@@ -163,7 +163,7 @@ object RuntimeToolRules {
         RuntimeTools.standard + RuntimeTools.all.filter { isInstalled(it, installed) }.map { it.id }
 
     /**
-     * [choice] with [id] ticked or unticked, kept whole (docs/android-ndk-plan.md §3.1): ticking a tool
+     * [choice] with [id] ticked or unticked, kept whole (docs/runtime-and-terminal.md): ticking a tool
      * ticks what it requires, and unticking one unticks what requires it.
      */
     fun toggle(choice: Set<String>, id: String, catalog: List<RuntimeTool> = RuntimeTools.all): Set<String> =
@@ -248,7 +248,7 @@ object RuntimeToolRules {
     }
 }
 
-/** The page's steps (docs/runtime-tools-plan.md §8). */
+/** The page's steps (docs/runtime-and-terminal.md). */
 enum class RuntimeToolStep { InstallType, Select, Verify, Licence }
 
 /** What a tool's row says at its end. */
@@ -262,7 +262,7 @@ sealed interface RuntimeToolStatus {
     data object SizeUnknown : RuntimeToolStatus
 }
 
-/** Where measuring the tools' downloads stands (docs/onboarding-polish-plan.md §3.4). */
+/** Where measuring the tools' downloads stands (docs/design-and-navigation.md). */
 enum class RuntimeToolMeasuring {
     /** apt is reading the package lists, once, before a size can be measured. */
     Lists,
@@ -291,7 +291,7 @@ data class RuntimeToolsState(
     fun isInstalled(tool: RuntimeTool): Boolean =
         installed?.let { RuntimeToolRules.isInstalled(tool, it) } == true
 
-    /** CMake and an NDK are installed: Build & Run builds an app with C or C++ (docs/android-ndk-plan.md §3.5). */
+    /** CMake and an NDK are installed: Build & Run builds an app with C or C++ (docs/runtime-and-terminal.md). */
     val buildsNative: Boolean get() = isInstalled(RuntimeTools.Cmake) && RuntimeTools.ndks.values.any(::isInstalled)
 
     /** The run installing [tool] now, for a button that waits on it; null when none does. */

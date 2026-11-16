@@ -26,7 +26,7 @@ import dev.icode.mobile.ui.copyText
 import dev.icode.mobile.ui.syntax.rememberSyntax
 
 /**
- * A code block (docs/markdown-rendering-plan.md §3.3): its language and Copy above it, its lines never
+ * A code block (docs/editor-and-language-services.md): its language and Copy above it, its lines never
  * wrapped and scrolling sideways. Coloured through [rememberSyntax] as the editor colours the fence's
  * language as a file type ([FileTypes.ofLanguage]); plain until its tokens are made, and for a language
  * with no grammar (`mermaid`, `text`).

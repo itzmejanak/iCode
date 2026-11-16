@@ -8,7 +8,7 @@ import java.io.File
 internal class TestRuntime(base: File, name: String = "app") {
     val rootfs = File(base.canonicalFile, "rootfs").apply { mkdirs(); File(this, "root").mkdirs() }
     val workspaces = File(base.canonicalFile, "workspaces").apply { mkdirs() }
-    /** Phone storage, bound where it is (docs/phone-agent-plan.md L8), and `/sdcard` naming it. */
+    /** Phone storage, bound where it is (docs/voice-and-phone-control.md), and `/sdcard` naming it. */
     val shared = File(base.canonicalFile, "storage/emulated/0").apply { mkdirs() }
     val paths = GuestPaths(rootfs, WorkspacePaths(workspaces), shared).also {
         java.nio.file.Files.createSymbolicLink(File(rootfs, "sdcard").toPath(), shared.toPath())

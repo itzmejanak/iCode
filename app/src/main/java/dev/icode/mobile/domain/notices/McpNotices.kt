@@ -3,7 +3,7 @@ package dev.icode.mobile.domain.notices
 import dev.icode.mobile.domain.ICodeSnapshot
 
 /**
- * What the MCP servers tell (docs/notices-redesign-plan.md D8, D9): by the server's name, said once
+ * What the MCP servers tell (docs/engineering-rules.md): by the server's name, said once
  * — in the place, not again in the detail — with the words of [McpFailures] or the server's.
  */
 object McpNotices {

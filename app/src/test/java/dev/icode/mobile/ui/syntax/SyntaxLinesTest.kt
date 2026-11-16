@@ -10,7 +10,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Code drawn a line at a time colours each line as its whole file does (docs/syntax-highlighting-plan.md S5, A4 extended). */
+/** Code drawn a line at a time colours each line as its whole file does (docs/editor-and-language-services.md extended). */
 class SyntaxLinesTest {
     private val kotlin = languageOf("Demo.kt", "")!!
 

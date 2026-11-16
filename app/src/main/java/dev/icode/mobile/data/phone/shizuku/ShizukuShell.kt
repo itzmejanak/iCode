@@ -19,7 +19,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import rikka.shizuku.Shizuku
 
 /**
- * Shizuku, as iCode uses it (docs/phone-agent-plan.md §5.11): its state, read live; the user's
+ * Shizuku, as iCode uses it (docs/voice-and-phone-control.md): its state, read live; the user's
  * permission, asked once; and the shell process iCode's [ShellUserService] runs in, bound when first
  * needed and kept while iCode runs.
  */
@@ -77,7 +77,7 @@ internal class ShizukuShell(private val context: Context) {
         jpeg?.let { PhoneShot(it, width, height, scale) }
     }
 
-    /** Turns iCode's accessibility service on, restricted settings allowed first: one tap instead of Android's walk (§5.9). */
+    /** Turns iCode's accessibility service on, restricted settings allowed first: one tap instead of Android's walk. */
     suspend fun turnOnService(component: String): Boolean {
         // Android 13's guard on apps installed from a file; older versions have no such op, and refuse it.
         run("appops set ${context.packageName} ACCESS_RESTRICTED_SETTINGS allow")

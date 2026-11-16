@@ -17,7 +17,7 @@ import java.util.UUID
 import kotlin.coroutines.cancellation.CancellationException
 
 /**
- * One operation on many items, inside its task (docs/explorer-gaps-plan.md §3.3–§3.8, §3.11): each
+ * One operation on many items, inside its task (docs/workspaces-and-files.md): each
  * carried, duplicated, renamed, put in Trash, restored, reversed, or — an archive's — settled in turn
  * through [operator]. A name already there is asked about through [questions] — Replace, Merge, Keep
  * both, Skip, or stop — and in Private a merge never touches Git's `.git`. Every step done is kept in

@@ -1,8 +1,8 @@
 package dev.icode.mobile.domain
 
 /**
- * An MCP server the assistant uses (docs/mcp-plan.md §5.1): one the user added to iCode, or one a
- * workspace's `.mcp.json` declares ([workspace], M6). Its secret values are never here: only whether
+ * An MCP server the assistant uses (docs/assistant-and-mcp.md): one the user added to iCode, or one a
+ * workspace's `.mcp.json` declares ([workspace]). Its secret values are never here: only whether
  * one is saved.
  */
 data class McpServer(
@@ -38,7 +38,7 @@ sealed interface McpTransport {
     data class Remote(
         val url: String,
         val headers: List<McpValue> = emptyList(),
-        /** An OAuth client ID the user registered with the server's sign-in, when it asks for one (M5). */
+        /** An OAuth client ID the user registered with the server's sign-in, when it asks for one. */
         val clientId: String? = null,
     ) : McpTransport
 }
@@ -76,7 +76,7 @@ data class McpToolInfo(
     /** The server's display name for it: its `title`, else its annotations' title. */
     val title: String?,
     val description: String,
-    /** What the server says of it: hints, never trusted to skip a question (§2.1). */
+    /** What the server says of it: hints, never trusted to skip a question. */
     val readOnly: Boolean = false,
     val destructive: Boolean = false,
     /** Why it is left out of chats: a schema iCode cannot read. */
@@ -85,12 +85,12 @@ data class McpToolInfo(
     val shown: String get() = title ?: name
 }
 
-/** A prompt a server offers the user (M8): its name and what it asks for. */
+/** A prompt a server offers the user: its name and what it asks for. */
 data class McpPromptInfo(val name: String, val title: String?, val description: String, val arguments: List<McpPromptArgument>)
 
 data class McpPromptArgument(val name: String, val description: String, val required: Boolean)
 
-/** A resource a server offers (M8), to attach to a message. */
+/** A resource a server offers, to attach to a message. */
 data class McpResourceInfo(val uri: String, val name: String, val title: String?, val description: String, val mimeType: String?)
 
 /** A server's connection now, as its rows and its page show it. */
@@ -110,7 +110,7 @@ data class McpServerState(
 data class McpLog(val server: String, val lines: List<String>)
 
 /**
- * A question a server asks the user mid-call (M4, elicitation): a form of [fields], or a page of its
+ * A question a server asks the user mid-call (elicitation): a form of [fields], or a page of its
  * own at [url]. Answered with [McpAnswer].
  */
 data class McpQuestion(
@@ -144,7 +144,7 @@ data class McpAnswer(val id: Long, val action: Action, val values: Map<String, S
     enum class Action { Accept, Decline, Cancel }
 }
 
-/** One server found in the MCP Registry (M7), with what adding it needs. */
+/** One server found in the MCP Registry, with what adding it needs. */
 data class McpRegistryEntry(
     val name: String,
     val title: String?,
@@ -166,7 +166,7 @@ data class McpRegistrySearch(
 data class McpState(
     val servers: List<McpServer> = emptyList(),
     val states: Map<String, McpServerState> = emptyMap(),
-    /** The remote servers signed in (M5), by ID. */
+    /** The remote servers signed in, by ID. */
     val signedIn: Set<String> = emptySet(),
     /** The server whose page is open: one saved, or one being added ([McpServer.id] ""). */
     val editing: McpServer? = null,
@@ -174,7 +174,7 @@ data class McpState(
     val log: McpLog? = null,
     val question: McpQuestion? = null,
     val registry: McpRegistrySearch? = null,
-    /** A prompt's or a resource's text (M8), for the composer to take into its draft. */
+    /** A prompt's or a resource's text, for the composer to take into its draft. */
     val draft: String? = null,
     /** The servers' tools the last chat left out, over [McpRules.MAX_TOOLS] a request with iCode's own. */
     val leftOut: Int = 0,

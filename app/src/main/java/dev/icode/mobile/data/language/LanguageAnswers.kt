@@ -14,8 +14,9 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
 
 /**
- * The Command Palette's questions to the servers, answered in a sheet over the editor (docs/lsp-plan.md
- * §7): one answer at a time, a new question replacing the last; formatting and renames are said as
+ * The Command Palette's questions to the servers, answered in a sheet over the editor
+ * (docs/editor-and-language-services.md): one answer at a time, a new question replacing the last;
+ * formatting and renames are said as
  * notices once applied.
  */
 internal class LanguageAnswers(

@@ -16,7 +16,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 /**
- * The editor's open files, as the servers see them (docs/lsp-plan.md §5.6, D3): followed from the
+ * The editor's open files, as the servers see them (docs/editor-and-language-services.md): followed from the
  * snapshot, so every way a file opens, changes, moves or closes — typing, a reload, the assistant, a
  * rename — reaches them alike. A server starts when a file it serves opens; changes go out
  * [QUIET_MILLIS] after typing stops, at most every [MAX_WAIT_MILLIS] while it goes on, and at once

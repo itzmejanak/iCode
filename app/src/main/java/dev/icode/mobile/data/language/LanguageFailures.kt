@@ -3,7 +3,7 @@ package dev.icode.mobile.data.language
 import dev.icode.mobile.data.language.jsonrpc.JsonRpcConnection
 import dev.icode.mobile.domain.LanguageServicePresets
 
-/** Why a language server could not do what was asked, in the user's words (docs/lsp-plan.md §5.8). */
+/** Why a language server could not do what was asked, in the user's words (docs/editor-and-language-services.md). */
 internal sealed class LanguageFailure(message: String) : Exception(message) {
     /** Its program is not in the runtime; how its preset installs it, when one names it. */
     class Missing(val program: String) : LanguageFailure(

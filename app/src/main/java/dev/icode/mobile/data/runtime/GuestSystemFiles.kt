@@ -3,7 +3,7 @@ package dev.icode.mobile.data.runtime
 import java.io.File
 
 /**
- * What iCode sets in the base system at install and Repair (docs/runtime-contract-plan.md F12),
+ * What iCode sets in the base system at install and Repair (docs/runtime-and-terminal.md),
  * written with the runtime as `sudo` is ([GuestSudo]), each file saying so on its first line
  * ([RuntimeLayout.MANAGED]): what Android leaves out, and what a phone's storage needs.
  */

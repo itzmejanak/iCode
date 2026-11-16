@@ -28,7 +28,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 
 /**
- * The assistant (docs/assistant-koog-plan.md): its intents, its settings, and its workspaces'
+ * The assistant (docs/assistant-and-mcp.md): its intents, its settings, and its workspaces'
  * lifecycle. The page shows ([AssistantPage]), the turns work ([AssistantTurns]); settings and
  * [AssistantChats] are its stores, and [AssistantEngine] answers.
  */
@@ -50,9 +50,9 @@ internal class AssistantCoordinator(
     attachments: (openText: (String) -> String?) -> AssistantAttachments,
     /** Git, for a workspace, in the repository it works in: what a commit message is written from. */
     git: suspend (workspace: String, arguments: List<String>) -> CliGitService.CommandResult,
-    /** All Files Access, as Android answers it now: phone storage is read with it (docs/phone-agent-plan.md L8). */
+    /** All Files Access, as Android answers it now: phone storage is read with it (docs/voice-and-phone-control.md). */
     storageAccess: () -> Boolean,
-    /** The MCP servers, whose tools join a turn's after iCode's own (docs/mcp-plan.md); none in tests that need none. */
+    /** The MCP servers, whose tools join a turn's after iCode's own (docs/assistant-and-mcp.md); none in tests that need none. */
     private val mcp: McpServers? = null,
     /** A chat deleted: what it left in the runtime goes, its terminal tabs ([AssistantToolbox.forget]). */
     private val forget: suspend (workspace: String?, chat: String) -> Unit = { _, _ -> },
@@ -95,7 +95,7 @@ internal class AssistantCoordinator(
         when (intent) {
             is ICodeIntent.OpenAssistant -> {
                 // Inside the workspace its chats — with none open, those shown, so the page and the bubble stay
-                // in the chat the user was in; outside it, the chats in no workspace (docs/home-plan.md §2).
+                // in the chat the user was in; outside it, the chats in no workspace (docs/design-and-navigation.md).
                 page.show(if (intent.inWorkspace) activeRoot() ?: page.current.workspace else null, turns.running)
                 mcp?.handle(McpIntent.Connect)
             }
@@ -152,7 +152,7 @@ internal class AssistantCoordinator(
         val shown = page.current
         val workspace = here()
         val session = shown.session?.takeIf { shown.opened && shown.workspace == workspace } ?: chats.newSession()
-        // Sent while the turn there asks its questions: the reply, not a new turn refused as working (D5).
+        // Sent while the turn there asks its questions: the reply, not a new turn refused as working.
         if (attachments.isEmpty() && questions.replyWith(workspace, session, input)) return
         // Read aloud as Spoken replies says: decided once, so the turn's instructions and its voice agree.
         turns.send(workspace, session, input, attachments, stateHolder.current.voice.spoken.speaks(aloud))
@@ -161,7 +161,7 @@ internal class AssistantCoordinator(
     /**
      * The workspace whose chats a message goes to, null for the chats in none: the page's, so the
      * bubble and "Open in iCode" stay in the chat the user was in; before the page has opened, the open
-     * workspace's, else the chats in no workspace (docs/home-plan.md §2).
+     * workspace's, else the chats in no workspace (docs/design-and-navigation.md).
      */
     private fun here(): String? = if (page.current.opened) page.current.workspace else activeRoot()
 

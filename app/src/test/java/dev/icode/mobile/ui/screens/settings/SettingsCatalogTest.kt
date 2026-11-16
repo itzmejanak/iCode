@@ -13,7 +13,7 @@ class SettingsCatalogTest {
         assertEquals(Route.AppearanceSettings, searchSettingsCategories("amoled").single().destination)
         assertEquals(Route.AppearanceSettings, searchSettingsCategories("border lines").single().destination)
         assertEquals(Route.AppearanceSettings, searchSettingsCategories("outline").single().destination)
-        // Every theme variant by its name, its accents typed or not (docs/theme-variants-plan.md §4).
+        // Every theme variant by its name, its accents typed or not (docs/design-and-navigation.md).
         listOf("dracula", "tokyo night day", "rosé pine", "rose pine dawn", "catppuccin latte", "high contrast", "variant", "match phone").forEach { name ->
             assertEquals(name, Route.AppearanceSettings, searchSettingsCategories(name).single().destination)
         }
@@ -25,7 +25,7 @@ class SettingsCatalogTest {
         assertEquals(Route.SettingsEditor, searchSettingsCategories("git change markers").single().destination)
         assertEquals(Route.SettingsEditor, searchSettingsCategories("auto close brackets").single().destination)
         assertEquals(Route.SettingsEditor, searchSettingsCategories("semantic highlighting").single().destination)
-        // Removed from the page (docs/editor-plan.md §5): no longer found there.
+        // Removed from the page (docs/editor-and-language-services.md): no longer found there.
         assertTrue(searchSettingsCategories("format on save").isEmpty())
     }
 

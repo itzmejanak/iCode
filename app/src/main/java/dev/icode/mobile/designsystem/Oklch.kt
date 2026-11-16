@@ -57,7 +57,7 @@ internal object Oklch {
      * A drawing's [colors] (`0xRRGGBB` each) as they are, when the one that reads best is at least
      * [minimum] : 1 against each of [behind]; otherwise all moved together — [darker] or lighter, by one
      * same lightness step, each its hue and chroma kept — until it is. The drawing keeps its own
-     * contrasts, and reads (docs/file-kinds-icons-plan.md D7).
+     * contrasts, and reads (docs/workspaces-and-files.md).
      */
     fun readableTogether(colors: List<Int>, behind: List<Color>, minimum: Double, darker: Boolean): List<Color> {
         val reads = { color: Color -> behind.all { AccentColorRules.contrastRatio(color.toArgb(), it.toArgb()) >= minimum } }
@@ -76,7 +76,7 @@ internal object Oklch {
     /**
      * A colour of [chroma] and [hue] whose lightness is the nearest to [from]'s, on its [darker] or
      * lighter side, that still stands [minimum] : 1 from it — the step a palette keeps between two of
-     * its tones (docs/theme-variants-plan.md D4). The other side when that one has no room.
+     * its tones (docs/design-and-navigation.md). The other side when that one has no room.
      */
     fun stepFrom(chroma: Double, hue: Double, from: Color, minimum: Double, darker: Boolean): Color =
         step(chroma, hue, from, minimum, darker) ?: step(chroma, hue, from, minimum, !darker) ?: if (darker) Color.Black else Color.White

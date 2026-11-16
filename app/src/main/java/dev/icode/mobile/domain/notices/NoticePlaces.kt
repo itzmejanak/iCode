@@ -5,8 +5,8 @@ import dev.icode.mobile.domain.isAtOrUnder
 import java.io.File
 
 /**
- * Where a notice is about, read from the snapshot when the work begins (docs/notices-redesign-plan.md
- * D2), so that it still says where after another workspace is opened.
+ * Where a notice is about, read from the snapshot when the work begins (docs/engineering-rules.md),
+ * so that it still says where after another workspace is opened.
  */
 object NoticePlaces {
     /** Phone storage, and iCode's own, as the file explorer names them. */

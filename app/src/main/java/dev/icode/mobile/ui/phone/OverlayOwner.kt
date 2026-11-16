@@ -7,7 +7,7 @@ import androidx.savedstate.SavedStateRegistryController
 import androidx.savedstate.SavedStateRegistryOwner
 
 /**
- * What Compose needs from a window that is no activity's (docs/phone-agent-plan.md §5.7): a lifecycle,
+ * What Compose needs from a window that is no activity's (docs/voice-and-phone-control.md): a lifecycle,
  * resumed while the overlays are, and a saved-state registry, with nothing to restore.
  */
 internal class OverlayOwner : SavedStateRegistryOwner {

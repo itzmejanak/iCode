@@ -28,7 +28,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
-/** Pins identity and credential handling as it leaves the gateway (S5.4). */
+/** Pins identity and credential handling as it leaves the gateway. */
 class GitAuthCoordinatorTest {
     private val root = "/workspace/app"
     private val originalWriter = BackendLog.writer

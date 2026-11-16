@@ -8,8 +8,9 @@ import java.nio.file.Paths
 import java.nio.file.StandardCopyOption
 
 /**
- * An imported repository's checkout brought back to what Git recorded (docs/workspace-storage-plan.md
- * §4.5). Git on phone storage recorded `core.fileMode=false` and `core.symlinks=false`, and wrote
+ * An imported repository's checkout brought back to what Git recorded
+ * (docs/workspaces-and-files.md). Git on phone storage recorded `core.fileMode=false` and
+ * `core.symlinks=false`, and wrote
  * executables without `+x` and each link as a file holding its target. [SCRIPT] asks Git what it
  * recorded, [Reader] reads the answer as it streams, [restore] puts back `+x` and the links — a
  * link only where the file is as Git wrote it, so nothing the user changed is touched — and

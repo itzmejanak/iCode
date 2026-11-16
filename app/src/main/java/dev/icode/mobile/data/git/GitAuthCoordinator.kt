@@ -20,9 +20,9 @@ import dev.icode.mobile.domain.SigningIntent
 import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Who commits and how Git reaches a remote (S5): the author identity, the
+ * Who commits and how Git reaches a remote: the author identity, the
  * saved token, the SSH key, the connection test, and the key commits are
- * signed with (docs/gpg-signing-plan.md §7). What reaches the snapshot
+ * signed with (docs/source-control.md). What reaches the snapshot
  * describes a credential; it is never the secret itself.
  */
 internal class GitAuthCoordinator(

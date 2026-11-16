@@ -5,7 +5,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * A formula as RaTeX lays it out (docs/markdown-rendering-plan.md §2.4): its size and what to draw.
+ * A formula as RaTeX lays it out (docs/editor-and-language-services.md): its size and what to draw.
  * Lengths are in ems of the size it is drawn at, so one layout serves every zoom; y grows downwards
  * from the formula's top, and its baseline is at [height]. Colours are ARGB, laid out in [INK].
  */
@@ -95,10 +95,10 @@ sealed interface MathOutcome {
 }
 
 /**
- * Formulas laid out once each (§3.2), the newest [capacity] kept. [engine] lays LaTeX out, in display
+ * Formulas laid out once each, the newest [capacity] kept. [engine] lays LaTeX out, in display
  * or inline style, to RaTeX's JSON, or throws with why it cannot. Safe from any thread.
  *
- * Limits (§2.4): a formula over [MAX_SOURCE] characters, or one wider than [MAX_WIDTH_EM] or taller
+ * A formula over [MAX_SOURCE] characters, or one wider than [MAX_WIDTH_EM] or taller
  * than [MAX_HEIGHT_EM], is shown as its source.
  */
 class MathLayouts(private val engine: (latex: String, display: Boolean) -> String, private val capacity: Int = 256) {

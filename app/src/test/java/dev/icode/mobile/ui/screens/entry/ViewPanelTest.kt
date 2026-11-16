@@ -8,7 +8,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** The ☰ panel offers View and Sort as an option panel, the choices in use marked (docs/explorer-gaps-plan.md §3.12). */
+/** The ☰ panel offers View and Sort as an option panel, the choices in use marked (docs/workspaces-and-files.md). */
 class ViewPanelTest {
     private val looks = mutableListOf<FilesLook>()
     private val hidden = mutableListOf<Boolean>()

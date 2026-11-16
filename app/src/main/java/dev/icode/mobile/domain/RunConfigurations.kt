@@ -1,6 +1,6 @@
 package dev.icode.mobile.domain
 
-// The Terminal panel's Run tab (docs/run-tab-plan.md): what the open workspace can start — each
+// The Terminal panel's Run tab (docs/runtime-and-terminal.md): what the open workspace can start — each
 // Android app iCode finds in it, and the commands the user saved — each run a managed process.
 
 /** One thing the Run tab starts. */

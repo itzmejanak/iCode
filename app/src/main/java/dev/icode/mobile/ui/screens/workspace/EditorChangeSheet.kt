@@ -27,10 +27,10 @@ import dev.icode.mobile.ui.syntax.languageOf
 import dev.icode.mobile.ui.syntax.rememberSyntaxLines
 
 /**
- * One change of the open file against Git's index (docs/editor-plan.md §3.5): its lines, removed
+ * One change of the open file against Git's index (docs/editor-and-language-services.md): its lines, removed
  * then added, and Revert, Stage, and the way to the changes before and after it. The lines are coloured
  * as [document]'s language, each as its line in the whole file: added ones in [document]'s text, removed
- * ones in [base], the index version (docs/syntax-highlighting-plan.md S5).
+ * ones in [base], the index version (docs/editor-and-language-services.md).
  */
 @Composable
 internal fun EditorChangeSheet(

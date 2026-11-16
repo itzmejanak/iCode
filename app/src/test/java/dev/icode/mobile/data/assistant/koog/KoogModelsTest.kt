@@ -24,7 +24,7 @@ import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Koog's catalogue as iCode offers it, and the parameters each request carries (§12 R2–R4). */
+/** Koog's catalogue as iCode offers it, and the parameters each request carries. */
 class KoogModelsTest {
     private val catalogue = KoogModels.catalogue
 

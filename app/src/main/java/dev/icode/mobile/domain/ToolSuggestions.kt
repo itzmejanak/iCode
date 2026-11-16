@@ -3,13 +3,13 @@ package dev.icode.mobile.domain
 import dev.icode.mobile.domain.notices.NoticeTone
 
 /**
- * A tool the dock suggests (docs/dock-navigation-plan.md D8), and [why]: something that happened
+ * A tool the dock suggests (docs/design-and-navigation.md), and [why]: something that happened
  * while another tool showed. [session] is the terminal whose long command ended.
  */
 data class ToolSuggestion(val why: Why, val session: String? = null) {
     val tool: WorkspaceTool get() = why.tool
 
-    /** Each rule of D8: its tool, the tone the dock's grip takes, and what TalkBack says. */
+    /** Each rule's tool, the tone the dock's grip takes, and what TalkBack says. */
     enum class Why(val tool: WorkspaceTool, val tone: NoticeTone, val said: String) {
         Asking(WorkspaceTool.Assistant, NoticeTone.HeadsUp, "the assistant is waiting for you"),
         Conflicts(WorkspaceTool.SourceControl, NoticeTone.Problem, "conflicts to resolve"),
@@ -47,7 +47,7 @@ data class SuggestionFacts(
 }
 
 /**
- * The dock's one suggestion (D8), following the facts snapshot by snapshot ([next]). Fixed rules,
+ * The dock's one suggestion, following the facts snapshot by snapshot ([next]). Fixed rules,
  * never guesses: something happens while another tool shows, and its tool is suggested until it is
  * shown or what it is about has passed. The newest wins; of two at once, the first in [ToolSuggestion.Why]'s
  * order. It never switches by itself.

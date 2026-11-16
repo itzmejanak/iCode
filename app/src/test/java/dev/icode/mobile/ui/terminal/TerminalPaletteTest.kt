@@ -8,7 +8,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class TerminalPaletteTest {
-    /** Each build's accent is its icon's (docs/environments-plan.md): read it, never a fixed literal. */
+    /** Each build's accent is its icon's (docs/build-and-release.md): read it, never a fixed literal. */
     @Test fun `the cursor slot, which the prompt draws with, is the accent in effect`() {
         assertEquals(hex(IcodePalette.Dark.accent), TerminalPalette.schemeOf(IcodePalette.Dark).getProperty("cursor"))
         assertEquals(hex(IcodePalette.Light.accent), TerminalPalette.schemeOf(IcodePalette.Light).getProperty("cursor"))

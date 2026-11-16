@@ -17,7 +17,7 @@ interface TerminalSessionSource {
     /** Calls [onScreenChanged] whenever that session's screen changes, until the handle is closed. */
     fun observe(id: String, onScreenChanged: () -> Unit): AutoCloseable
 
-    /** What a command printed, as a session that runs nothing (docs/agent-control-plan.md §6); null without a terminal. */
+    /** What a command printed, as a session that runs nothing (docs/assistant-and-mcp.md); null without a terminal. */
     fun replay(printed: String, settings: TerminalSettings): TerminalSession?
 
     companion object {

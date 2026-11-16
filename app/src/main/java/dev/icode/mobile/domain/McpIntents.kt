@@ -1,6 +1,6 @@
 package dev.icode.mobile.domain
 
-/** MCP servers' settings and their questions (docs/mcp-plan.md §5.2), in the assistant's order. */
+/** MCP servers' settings and their questions (docs/assistant-and-mcp.md), in the assistant's order. */
 sealed interface McpIntent : ICodeIntent.AssistantIntent {
     /** The MCP pages or the Assistant page opened: the servers that are on connect, if they are not. */
     data object Connect : McpIntent
@@ -28,7 +28,7 @@ sealed interface McpIntent : ICodeIntent.AssistantIntent {
      */
     data class Edit(val server: McpServer?) : McpIntent
 
-    /** A remote server's sign-in (M5): the browser opens on its authorization page. */
+    /** A remote server's sign-in: the browser opens on its authorization page. */
     data class SignIn(val id: String) : McpIntent
     data class SignOut(val id: String) : McpIntent
 
@@ -38,19 +38,19 @@ sealed interface McpIntent : ICodeIntent.AssistantIntent {
         override fun toString(): String = "SignedIn(…)"
     }
 
-    /** A server's question answered (M4). */
+    /** A server's question answered. */
     data class Answer(val answer: McpAnswer) : McpIntent
 
-    /** A workspace's server trusted, so it may start, or not (M6). */
+    /** A workspace's server trusted, so it may start, or not. */
     data class Trust(val id: String, val trusted: Boolean) : McpIntent
 
-    /** The MCP Registry searched (M7); null closes the search. A server found is added with [SaveServer]. */
+    /** The MCP Registry searched; null closes the search. A server found is added with [SaveServer]. */
     data class SearchRegistry(val query: String?) : McpIntent
 
-    /** A server's prompt, filled with [arguments], into the composer's draft (M8). */
+    /** A server's prompt, filled with [arguments], into the composer's draft. */
     data class UsePrompt(val id: String, val name: String, val arguments: Map<String, String>) : McpIntent
 
-    /** A server's resource read into the composer's draft (M8). */
+    /** A server's resource read into the composer's draft. */
     data class UseResource(val id: String, val uri: String) : McpIntent
 
     /** The composer took the draft. */

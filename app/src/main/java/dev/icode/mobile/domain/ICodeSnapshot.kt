@@ -10,12 +10,12 @@ data class ICodeSnapshot(
     val workspaces: List<WorkspaceSummary>,
     /** [workspaces] has been read once: before, an empty list is "not read yet", not "none". */
     val workspacesLoaded: Boolean = false,
-    /** What the user asked that runs now (docs/loading-plan.md §4): published on the tap, gone when done. */
+    /** What the user asked that runs now (docs/design-and-navigation.md): published on the tap, gone when done. */
     val busy: Set<Busy> = emptySet(),
     val files: List<FileEntry>,
     val gitChanges: List<GitChange>,
     val gitRepository: GitRepositoryState? = null,
-    /** The repositories in the open workspace (docs/workspace-destinations-plan.md §2.6); [gitRepository] is the chosen one's. */
+    /** The repositories in the open workspace (docs/workspaces-and-files.md); [gitRepository] is the chosen one's. */
     val gitRepositories: List<String> = emptyList(),
     /** Why Git could not read the open workspace's repository, in Git's words; its files open all the same. */
     val gitFailure: String? = null,
@@ -24,7 +24,7 @@ data class ICodeSnapshot(
     val languageServices: List<LanguageService>,
     val languageServicesLoadError: String? = null,
     val selectedLanguageServiceId: String? = null,
-    /** The language servers' problems in the open workspace (docs/lsp-plan.md §5.4), errors first. */
+    /** The language servers' problems in the open workspace (docs/editor-and-language-services.md), errors first. */
     val languageDiagnostics: List<Diagnostic> = emptyList(),
     /** The selected language service's log: its stderr's last lines and what iCode saw of it. */
     val languageServiceLog: List<String> = emptyList(),
@@ -71,18 +71,18 @@ data class ICodeSnapshot(
     val runtimeDetails: RuntimeDetails = RuntimeDetails(),
     /** What Android allows iCode (storage, notifications, battery); null until checked. */
     val systemAccess: SystemAccess? = null,
-    /** What iCode may do on the phone (docs/phone-agent-plan.md §5.9). */
+    /** What iCode may do on the phone (docs/voice-and-phone-control.md). */
     val phone: PhoneAccess = PhoneAccess(),
-    /** Voice in and out: its settings, models, the microphone and what is heard (docs/phone-agent-plan.md §5.8). */
+    /** Voice in and out: its settings, models, the microphone and what is heard (docs/voice-and-phone-control.md). */
     val voice: VoiceState = VoiceState(),
     val terminal: TerminalSnapshot = TerminalSnapshot(),
     /** The Notifications page, newest first. */
     val notices: List<Notice> = emptyList(),
-    /** Where the next clone goes; none, a new workspace (docs/workspace-destinations-plan.md). */
+    /** Where the next clone goes; none, a new workspace (docs/workspaces-and-files.md). */
     val projectDestination: ProjectDestination? = null,
-    /** Every explorer's clipboard, question, undo and redo, and Trash (docs/explorer-gaps-plan.md §4). */
+    /** Every explorer's clipboard, question, undo and redo, and Trash (docs/workspaces-and-files.md). */
     val explorer: ExplorerState = ExplorerState(),
-    /** Long operations running, or failed and not yet seen (docs/long-operations-plan.md). */
+    /** Long operations running, or failed and not yet seen (docs/runtime-and-terminal.md). */
     val tasks: List<WorkTask> = emptyList(),
     /** The runtime's tools: what dpkg has, what each would download, and the apt run in hand. */
     val runtimeTools: RuntimeToolsState = RuntimeToolsState(),
@@ -99,11 +99,11 @@ data class ICodeSnapshot(
      * here yet", which otherwise look identical to every Git surface.
      */
     val gitAvailable: Boolean? = null,
-    /** Each open file's Git changes, by location, for those Git's index holds (docs/editor-plan.md §3). */
+    /** Each open file's Git changes, by location, for those Git's index holds (docs/editor-and-language-services.md). */
     val lineChanges: Map<String, DocumentLineChanges> = emptyMap(),
     /** The diff currently being viewed, or null when no file is open in the diff surface. */
     val activeDiff: GitFileDiff? = null,
-    /** HEAD's history as the History sheet last read it (docs/git-history-plan.md); null before it first opens. */
+    /** HEAD's history as the History sheet last read it (docs/source-control.md); null before it first opens. */
     val gitHistory: GitHistory? = null,
     /** The conflicted file currently open for resolution. */
     val activeConflict: GitConflictFile? = null,
@@ -128,7 +128,7 @@ data class ICodeSnapshot(
     val processes: List<ManagedProcess> = emptyList(),
     /** iCode's assistant: its settings, the shown workspace's chat and the turn in hand. */
     val assistant: AssistantState = AssistantState(),
-    /** The assistant's MCP servers (docs/mcp-plan.md): their settings, connections and questions. */
+    /** The assistant's MCP servers (docs/assistant-and-mcp.md): their settings, connections and questions. */
     val mcp: McpState = McpState(),
 ) {
     /** [location], in the open workspace, as the runtime names it: what Copy path gives. */

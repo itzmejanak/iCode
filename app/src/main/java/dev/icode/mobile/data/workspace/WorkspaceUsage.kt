@@ -7,7 +7,7 @@ import dev.icode.mobile.domain.OpenDocument
 import java.io.File
 
 /**
- * One answer to "may this change now?" (docs/workspaces-page-plan.md §2.8), asked before anything
+ * One answer to "may this change now?" (docs/workspaces-and-files.md), asked before anything
  * renames, moves or deletes a workspace or an item in one — the Workspaces page, the Explorer and
  * the clipboard alike. What holds it: a task (whose sheet then shows), a file at or under it with
  * unsaved edits or an unanswered recovery question, work waiting in Document Recovery under it,

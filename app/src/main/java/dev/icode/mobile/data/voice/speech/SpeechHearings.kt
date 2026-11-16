@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
 internal class SpeechUse(val provider: SpeechProvider, val engine: SpeechEngine, val request: SpeechRequest)
 
 /**
- * One hearing at a time (docs/speech-plan.md §4.1), whichever engine hears it: its words go to
+ * One hearing at a time (docs/voice-and-phone-control.md), whichever engine hears it: its words go to
  * [heard] as they come, final once the user stopped talking, or why nothing was heard. A tap that
  * starts another leaves an earlier one's words alone.
  */

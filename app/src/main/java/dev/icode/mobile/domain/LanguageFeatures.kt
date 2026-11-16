@@ -3,7 +3,7 @@ package dev.icode.mobile.domain
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 
-// What the editor and the pages ask the language servers (docs/lsp-plan.md §5.5, §7): each answer in
+// What the editor and the pages ask the language servers (docs/editor-and-language-services.md): each answer in
 // iCode's own types, never the protocol's JSON.
 
 /** A replacement of [range] by [newText], in the file's places as LSP counts them. */
@@ -73,7 +73,7 @@ object SemanticTokenNames {
     )
 }
 
-/** Semantic tokens for the editor, laid over its grammar's colours (docs/syntax-highlighting-plan.md D8). */
+/** Semantic tokens for the editor, laid over its grammar's colours (docs/editor-and-language-services.md). */
 interface LanguageHighlights {
     /**
      * The tokens of the open file at [location] from a running server serving it that offers them;

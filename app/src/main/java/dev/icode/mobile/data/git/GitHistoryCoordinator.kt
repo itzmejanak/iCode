@@ -9,7 +9,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /**
- * Source Control's History sheet (docs/git-history-plan.md §3): HEAD's history, [PAGE] commits at a
+ * Source Control's History sheet (docs/source-control.md): HEAD's history, [PAGE] commits at a
  * time. Reading it changes nothing, so it never waits on the mutation lock; one read runs at a time.
  */
 internal class GitHistoryCoordinator(

@@ -49,7 +49,7 @@ internal class CommandRuns {
  * set to `terminal_bell`, when it finishes or waits for input). A channel of its own, apart from the
  * silent session rows, so that it can sound; one alert per session, replaced by the next. A long
  * command's end is a notice ([TerminalCoordinator]), posted to Finished while iCode is out of view
- * (docs/notices-redesign-plan.md D7).
+ * (docs/engineering-rules.md).
  */
 internal class TerminalAlerts(private val shade: IcodeNotifications) {
     /** "claude needs your attention — bash · superpowers". A program ringing again before the user comes back updates, silently. */

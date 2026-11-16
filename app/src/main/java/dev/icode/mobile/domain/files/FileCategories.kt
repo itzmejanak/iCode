@@ -5,7 +5,7 @@ import dev.icode.mobile.domain.FileType
 import dev.icode.mobile.domain.FileTypes
 
 /**
- * The kinds Manage storage counts space by, each a view of its own (docs/explorer-gaps-plan.md §3.10);
+ * The kinds Manage storage counts space by, each a view of its own (docs/workspaces-and-files.md);
  * [one] names one file of it, as Properties does.
  */
 enum class FileCategory(val label: String, val one: String) {
@@ -25,7 +25,7 @@ object FileCategories {
 
     /**
      * The category of a file named [name] that is of [type] — [FileTypes]' answer, by its bytes too
-     * where the name could not say (docs/file-kinds-icons-plan.md D1). Its family decides, with two
+     * where the name could not say (docs/workspaces-and-files.md). Its family decides, with two
      * exceptions: an SVG, which the editor reads as XML, is a picture here; a `.txt`, plain text to the
      * editor as any unknown name is, is a document.
      */

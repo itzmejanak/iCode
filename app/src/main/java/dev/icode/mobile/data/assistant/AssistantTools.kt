@@ -8,8 +8,8 @@ import dev.icode.mobile.domain.AssistantToolKind
 import dev.icode.mobile.domain.McpRules
 
 /**
- * What a turn's tools are made from (docs/mcp-plan.md §6): iCode's own — the MCP servers' own management
- * among them (docs/agent-control-plan.md §5) — then its MCP servers'.
+ * What a turn's tools are made from (docs/assistant-and-mcp.md): iCode's own — the MCP servers' own management
+ * among them (docs/assistant-and-mcp.md) — then its MCP servers'.
  */
 internal interface AssistantTools {
     /** The tools a chat in [place] is offered on [step] in [mode], and what their servers tell the model. */
@@ -22,7 +22,7 @@ internal interface AssistantTools {
     class Offered(val tools: List<AssistantTool>, val instructions: String = "", val leftOut: Int = 0)
 
     companion object {
-        /** A reading mode is offered only what reads (§4.3). */
+        /** A reading mode is offered only what reads. */
         fun offers(mode: AssistantMode, tool: AssistantTool): Boolean =
             mode == AssistantMode.Code || mode == AssistantMode.Orchestrator || tool.kind == AssistantToolKind.Read
 

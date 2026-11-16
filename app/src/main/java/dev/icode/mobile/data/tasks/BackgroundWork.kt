@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 /**
- * The iCode app's background work (docs/long-operations-plan.md §6), published for
+ * The iCode app's background work (docs/runtime-and-terminal.md), published for
  * [RuntimeForegroundService]: it keeps the process while any of it runs and carries it in
  * notifications. The process's one gateway [follow]s its own; a notification's Cancel comes back
  * through [cancel] to that gateway.

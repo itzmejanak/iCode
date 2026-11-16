@@ -1,8 +1,9 @@
 package dev.icode.mobile.ui.syntax
 
 /**
- * What SyntaxSamplesTest allows a sample to leave without a role, and why (docs/syntax-highlighting-plan.md
- * A10, S6 part 2). Each is how the language's grammar draws it, as VS Code draws it too: the grammar has no
+ * What SyntaxSamplesTest allows a sample to leave without a role, and why
+ * (docs/editor-and-language-services.md). Each is how the language's grammar draws it, as VS Code draws
+ * it too: the grammar has no
  * rule there, not iCode's table. A grammar iCode could fix is fixed instead (tools/import-grammars.py EDITS).
  */
 internal object SyntaxSamples {

@@ -6,7 +6,7 @@ import java.io.IOException
 import org.json.JSONObject
 
 /**
- * Finds a workspace's Android apps (docs/android-toolchain-plan.md §4.4): a Gradle build — its
+ * Finds a workspace's Android apps (docs/runtime-and-terminal.md): a Gradle build — its
  * wrapper and `settings.gradle(.kts)` at the top — and each module, the top or a folder in it, that
  * holds `src/main/AndroidManifest.xml` and applies the Android application plugin, by its id
  * (`com.android.application`) or its version-catalog alias (`libs.plugins.android.application`).

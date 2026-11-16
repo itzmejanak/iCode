@@ -3,7 +3,7 @@ package dev.icode.mobile.data.files
 import dev.icode.mobile.data.workspace.WorkspaceLifecycleCoordinator.Reopen
 
 /**
- * What follows each change the operations make, in iCode's own state (docs/explorer-gaps-plan.md §4)
+ * What follows each change the operations make, in iCode's own state (docs/workspaces-and-files.md)
  * — tabs, the tree, a whole workspace closed, renamed or retired, the listings: the
  * FileChangeFollower's, called under the mutation lock as each change is made.
  */

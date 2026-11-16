@@ -10,7 +10,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** Every file and folder icon reads on every theme, and keeps its own colours where it does (docs/file-kinds-icons-plan.md D7). */
+/** Every file and folder icon reads on every theme, and keeps its own colours where it does (docs/workspaces-and-files.md). */
 class FileIconColoursTest {
     private val icons = File("src/main/assets/file-icons/icons").listFiles()!!.associate { it.name.removeSuffix(".svg") to it.readText() }
 

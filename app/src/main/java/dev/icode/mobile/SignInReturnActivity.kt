@@ -5,7 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 
 /**
- * Where a remote MCP server's sign-in comes back to (docs/mcp-plan.md §8.2): the browser opens iCode's
+ * Where a remote MCP server's sign-in comes back to (docs/assistant-and-mcp.md): the browser opens iCode's
  * own scheme, and this hands the answer to the iCode screen already open, then goes. Anything may open
  * the scheme: the sign-in checks the answer's `state` before it uses it.
  */

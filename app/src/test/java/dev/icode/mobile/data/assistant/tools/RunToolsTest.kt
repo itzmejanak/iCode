@@ -28,7 +28,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
-/** The assistant's Run tab tools, over the RunCoordinator the tab itself uses (docs/run-tab-plan.md §2.5). */
+/** The assistant's Run tab tools, over the RunCoordinator the tab itself uses (docs/runtime-and-terminal.md). */
 class RunToolsTest {
     @get:Rule val temp = TemporaryFolder()
 

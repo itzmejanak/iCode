@@ -62,7 +62,7 @@ import dev.icode.mobile.domain.files.StoragePlace
 import dev.icode.mobile.ui.screens.workspace.icon
 
 /**
- * The folder picker's foot bar (§3.5): where it is, what goes there, and the button that puts it
+ * The folder picker's foot bar: where it is, what goes there, and the button that puts it
  * there — or why it cannot. At Private's top ([top]) what goes there becomes a workspace.
  */
 @Composable
@@ -79,7 +79,7 @@ internal fun PickBar(pick: FolderPick, browser: FilesBrowserState?, top: Boolean
 }
 
 /**
- * The explorer's ⋮ (§3.14): Select — in Duplicates, Select extra copies too ([onExtraCopies]) —
+ * The explorer's ⋮: Select — in Duplicates, Select extra copies too ([onExtraCopies]) —
  * Manage storage and Storage settings. Undo and Redo are the docked undo pill's, at hand on every
  * screen (owner's request, 2026-11-04).
  */
@@ -109,7 +109,7 @@ internal fun ExplorerMenu(
 }
 
 /**
- * ▾, "go to" (docs/explorer-gaps-plan.md §3.14): the two places, each with its path; each folder
+ * ▾, "go to" (docs/workspaces-and-files.md): the two places, each with its path; each folder
  * pinned to Favorites, with its path; then Recent, and Trash with how much it holds — what is shown
  * ([view], or else [browser]'s place) ticked.
  */
@@ -143,7 +143,7 @@ internal fun goTo(
     }
 
 /**
- * ☰, the view panel (§3.12), as ZArchiver's: an option panel ([IcodeOptionPanelButton]) of what
+ * ☰, the view panel, as ZArchiver's: an option panel ([IcodeOptionPanelButton]) of what
  * [viewPanel] offers. Each choice is kept: [onLook] for the list shown, [onHidden] for every listing.
  */
 @Composable
@@ -175,7 +175,7 @@ internal fun viewPanel(
     ).takeIf { sortable },
 )
 
-/** What stands for each view (§3.10): in ▾, and over one with nothing in it. */
+/** What stands for each view: in ▾, and over one with nothing in it. */
 internal val ExplorerView.icon: ImageVector
     get() = when (this) {
         ExplorerView.Recent -> Icons.Outlined.History

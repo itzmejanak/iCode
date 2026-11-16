@@ -19,7 +19,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** The providers that answer once the user stopped (docs/speech-plan.md §4.3, §4.4): when a hearing ends, and what each is sent. */
+/** The providers that answer once the user stopped (docs/voice-and-phone-control.md): when a hearing ends, and what each is sent. */
 class UploadSpeechTest {
     @Volatile private var answer: Pair<HttpStatusCode, String> = HttpStatusCode.OK to "{}"
     @Volatile private var body = ByteArray(0)

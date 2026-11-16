@@ -20,8 +20,8 @@ import dev.icode.mobile.domain.AssistantProviderKind
 import org.json.JSONObject
 
 /**
- * One of Koog's clients for a connection (§4.2), on the HTTP stack iCode hands it: never one Koog
- * would find by `ServiceLoader`, which R8 may not keep.
+ * One of Koog's clients for a connection, on the HTTP stack iCode hands it: never one Koog
+ * would find by `ServiceLoader`, which code shrinking need not preserve.
  */
 internal object KoogClients {
     fun create(connection: AssistantConnection, http: KoogHttpClient.Factory): LLMClient {

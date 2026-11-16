@@ -17,7 +17,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * The MCP Registry (docs/mcp-plan.md M7): its v0.1 API, frozen, searched by name for the latest
+ * The MCP Registry (docs/assistant-and-mcp.md): its v0.1 API, frozen, searched by name for the latest
  * version of each server. A server found is shown as it would be added — a remote address first, as a
  * phone runs nothing for it, else an npm package by `npx` or a PyPI one by `uvx` — for the user to
  * check and fill before saving. One that needs Docker, .NET or a download is not offered.
@@ -72,7 +72,7 @@ internal class McpRegistry(private val http: HttpClient, private val address: St
             return McpTransport.Remote(url, values(remote.optJSONArray("headers")))
         }
 
-        /** npm by `npx -y`, PyPI by `uvx`, over stdio: what the Linux runtime has (R1). */
+        /** npm by `npx -y`, PyPI by `uvx`, over stdio: what the Linux runtime has. */
         private fun local(found: JSONObject): McpTransport? {
             if (found.optJSONObject("transport")?.optString("type") != "stdio") return null
             val identifier = found.optString("identifier").takeIf(String::isNotBlank) ?: return null

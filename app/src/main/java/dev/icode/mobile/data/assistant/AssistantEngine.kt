@@ -14,7 +14,7 @@ import java.io.File
 import org.json.JSONObject
 
 /**
- * What runs the assistant's turns (docs/assistant-koog-plan.md §4.1): Koog today
+ * What runs the assistant's turns (docs/assistant-and-mcp.md): Koog today
  * ([dev.icode.mobile.data.assistant.koog.KoogAssistantEngine]); an external agent or another
  * framework could be another. Nothing but this boundary's own types crosses it, so the coordinator,
  * the tools, the stores and the screens never change with the engine.
@@ -27,7 +27,7 @@ internal interface AssistantEngine {
     fun model(kind: AssistantProviderKind, spec: AssistantModelSpec): AssistantModel
 
     /**
-     * The models [connection]'s server offers, as it lists them (§13 P2): the engine's facts where it
+     * The models [connection]'s server offers, as it lists them: the engine's facts where it
      * knows a model, the server's where it says (Ollama). Asking proves the address and the key.
      */
     suspend fun available(connection: AssistantConnection): List<AssistantModel>
@@ -39,7 +39,7 @@ internal interface AssistantEngine {
      */
     suspend fun run(turn: AssistantTurnRequest, events: AssistantEvents)
 
-    /** A summary of [history] by the model, for the chat to go on from in fewer tokens (§12 R4). */
+    /** A summary of [history] by the model, for the chat to go on from in fewer tokens. */
     suspend fun compact(connection: AssistantConnection, model: AssistantModel, instructions: String, history: List<AssistantMessage>): String
 
     /** [request] answered by the model in one reply, with no tools and nothing streamed: a commit's message. */
@@ -65,14 +65,14 @@ internal data class AssistantTurnRequest(
     val instructions: String,
     /** The chat since its last compaction, every call answered ([dev.icode.mobile.domain.AssistantRules.forModel]). */
     val history: List<AssistantMessage>,
-    /** The new message; null when the turn goes on from [history] as it is, past a pause (docs/phone-agent-plan.md L5). */
+    /** The new message; null when the turn goes on from [history] as it is, past a pause (docs/voice-and-phone-control.md). */
     val input: AssistantMessage.User?,
     val tools: List<AssistantTool>,
     /** Requests at most; then [AssistantStepLimitException]. */
     val maxSteps: Int,
     /**
      * The picture a step's calls left for the model to see — the screen after them — taken once their
-     * results are sent, and sent with them where the provider takes one (docs/phone-agent-plan.md L2).
+     * results are sent, and sent with them where the provider takes one (docs/voice-and-phone-control.md).
      */
     val picture: () -> AssistantPicture? = { null },
 )
@@ -109,10 +109,10 @@ internal class AssistantToolException(message: String) : Exception(message)
 /** A turn that could not go on, in the words the page shows. */
 internal open class AssistantTurnException(message: String, cause: Throwable? = null) : Exception(message, cause)
 
-/** The turn reached its step limit: the user says whether it goes on (docs/phone-agent-plan.md L5). */
+/** The turn reached its step limit: the user says whether it goes on (docs/voice-and-phone-control.md). */
 internal class AssistantStepLimitException : AssistantTurnException("Stopped at the step limit — send a message to continue")
 
-/** One tool the model may call: iCode code over one of iCode's owners (§4.3). */
+/** One tool the model may call: iCode code over one of iCode's owners. */
 internal interface AssistantTool {
     /** As the model calls it: `read_file`. */
     val name: String
@@ -140,13 +140,13 @@ internal interface AssistantTool {
 
     /**
      * The files and folders [arguments] reach, as the runtime follows them: what the gate checks
-     * against the chat's workspace (docs/assistant-permissions-plan.md §4.2). Never throws.
+     * against the chat's workspace (docs/assistant-and-mcp.md). Never throws.
      */
     fun reach(arguments: JSONObject): List<File> = emptyList()
 
     /**
      * The user answers each call, in every mode, Full access included, with no "Allow in" for later
-     * (docs/agent-control-plan.md §3 A9): what it changes outlasts the chat, as an MCP server does.
+     * (docs/assistant-and-mcp.md): what it changes outlasts the chat, as an MCP server does.
      */
     val asksAlways: Boolean get() = false
 
@@ -160,7 +160,7 @@ internal interface AssistantFileChanger {
 }
 
 /**
- * A parameter's type: the JSON Schema shapes Koog carries to every provider (docs/mcp-plan.md §6.2).
+ * A parameter's type: the JSON Schema shapes Koog carries to every provider (docs/assistant-and-mcp.md).
  * iCode's own tools use the first three; an MCP server's tool may use any of them, nested.
  */
 internal sealed interface AssistantParameterType {

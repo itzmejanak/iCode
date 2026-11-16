@@ -1,6 +1,6 @@
 package dev.icode.mobile.domain
 
-// Commit signing (docs/gpg-signing-plan.md §7): the Signing step of Git Credentials, and a commit's
+// Commit signing (docs/source-control.md): the Signing step of Git Credentials, and a commit's
 // signature in Git's own verdict. gpg makes and keeps the keys; Git's global config says which one
 // signs, and whether every commit is signed.
 

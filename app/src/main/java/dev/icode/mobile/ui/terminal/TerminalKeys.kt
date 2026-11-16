@@ -11,7 +11,7 @@ import dev.icode.mobile.domain.TerminalExtraKey
 
 /**
  * What iCode's own controls send the terminal: the extra keys row's keys, and the bar's Paste, Stop
- * and Clear (layout.md §17.3).
+ * and Clear (docs/runtime-and-terminal.md).
  *
  * CTRL and ALT are sticky: tap one, then the key it applies to. The view reads
  * them when that key arrives — typed on the keyboard or tapped in the row — and

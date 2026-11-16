@@ -10,8 +10,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * When one editor asks the language servers for its file's semantic tokens (docs/syntax-highlighting-plan.md
- * D8): when the file opens and its grammar has loaded, when a server starts or changes what it offers,
+ * When one editor asks the language servers for its file's semantic tokens
+ * (docs/editor-and-language-services.md): when the file opens and its grammar has loaded, when a server
+ * starts or changes what it offers,
  * and [QUIET_MILLIS] after typing stops. A new question cancels the one before it. Nothing is asked
  * with the setting off, with no [source], or while the file has no grammar's colours (none, or past
  * the limits), and then the editor draws its grammar's colours alone. Main thread.

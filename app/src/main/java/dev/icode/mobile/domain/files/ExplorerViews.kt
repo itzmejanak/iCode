@@ -4,7 +4,7 @@ import dev.icode.mobile.domain.ByteSize
 import dev.icode.mobile.domain.countOf
 
 /**
- * A list the explorer shows that is no folder (docs/explorer-gaps-plan.md §3.10): files gathered
+ * A list the explorer shows that is no folder (docs/workspaces-and-files.md): files gathered
  * from anywhere. Each keeps its own look, under [key], and opens with [opensWith] until it is
  * changed. Manage storage's views list where it looked, [scope]; Recent and Trash hold what iCode
  * did anywhere.
@@ -85,7 +85,7 @@ object ExplorerViews {
     }
 
     /**
-     * A view's subtitle (§3.10): where it looked, and how much it found — "All · 1204 files · 3.2 GB";
+     * A view's subtitle: where it looked, and how much it found — "All · 1204 files · 3.2 GB";
      * Trash's, how long it keeps what it holds.
      */
     fun found(view: ExplorerView, rows: List<BrowsedItem>): String {

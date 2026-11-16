@@ -4,7 +4,7 @@ import dev.icode.mobile.domain.GpgRequests
 import java.io.File
 
 /**
- * gpg's side of signed commits (docs/gpg-signing-plan.md), written with the runtime as `sudo` is
+ * gpg's side of signed commits (docs/source-control.md), written with the runtime as `sudo` is
  * ([GuestSudo]): iCode's pinentry and agent program — one script under both names — and the system's
  * gpg settings that name them. A user's own `~/.gnupg` files override these: gpg reads `/etc/gnupg`
  * first.
@@ -42,7 +42,7 @@ internal object GuestGpg {
      */
     fun script(requests: String): String = listOf(
         "#!/bin/sh",
-        "# ${RuntimeLayout.MANAGED} under two names (docs/gpg-signing-plan.md).",
+        "# ${RuntimeLayout.MANAGED} under two names (docs/source-control.md).",
         "# icode-pinentry: gpg-agent's pinentry; it asks for a passphrase, or a yes or",
         "#   no, in iCode's own sheet.",
         "# icode-gpg-agent: gpg's agent program; it has iCode start gpg-agent in a",

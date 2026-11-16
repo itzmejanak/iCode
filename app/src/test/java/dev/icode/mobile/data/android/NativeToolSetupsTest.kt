@@ -8,7 +8,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** CMake's and the NDKs' setups (docs/android-ndk-plan.md §3.2, §3.3): their ids, pins and what each takes from its archive. */
+/** CMake's and the NDKs' setups (docs/runtime-and-terminal.md): their ids, pins and what each takes from its archive. */
 class NativeToolSetupsTest {
     private val manifest = RuntimeManifest.parse(File("src/main/assets/${RuntimeManifest.ASSET}").readText())
 

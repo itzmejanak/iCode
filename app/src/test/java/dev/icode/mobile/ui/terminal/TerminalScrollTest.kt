@@ -4,7 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** docs/dock-navigation-plan.md D5 and J2: a session left scrolled back comes back to the same lines. */
+/** docs/design-and-navigation.md: a session left scrolled back comes back to the same lines. */
 class TerminalScrollTest {
     @Test fun `at the latest output nothing is kept, so it follows what comes`() {
         assertNull(TerminalScroll.keptPlace(topRow = 0, transcriptRows = 500))

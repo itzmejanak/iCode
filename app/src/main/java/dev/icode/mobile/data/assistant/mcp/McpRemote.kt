@@ -11,7 +11,7 @@ import io.modelcontextprotocol.kotlin.sdk.shared.Transport
 import org.json.JSONObject
 
 /**
- * Remote servers' HTTP (docs/mcp-plan.md §8.1): one client for MCP in the process, with SSE. Streamable
+ * Remote servers' HTTP (docs/assistant-and-mcp.md): one client for MCP in the process, with SSE. Streamable
  * HTTP comes first; an address that answers 400, 404 or 405 with no JSON-RPC error of its own speaks
  * the older HTTP+SSE, as the spec's backward compatibility says.
  */

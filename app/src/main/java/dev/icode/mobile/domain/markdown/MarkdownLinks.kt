@@ -5,7 +5,7 @@ import java.net.URLDecoder
 import java.util.Base64
 
 /**
- * Where a rendered document's relative links start (docs/markdown-rendering-plan.md §3.4). A file's
+ * Where a rendered document's relative links start (docs/editor-and-language-services.md). A file's
  * links resolve against its [folder], and `/…` against the workspace's [root], as GitHub reads a
  * repository's. An answer's resolve against the workspace. In both, paths under [runtimeRoot] — the
  * workspace as the runtime names it, `/workspace/app` — are the workspace's own.
@@ -51,7 +51,7 @@ sealed interface MarkdownImageSource {
         override fun hashCode() = bytes.contentHashCode()
     }
 
-    /** `https://`, which only a file's preview loads (§3.4). */
+    /** `https://`, which only a file's preview loads. */
     data class Remote(val url: String) : MarkdownImageSource
 }
 

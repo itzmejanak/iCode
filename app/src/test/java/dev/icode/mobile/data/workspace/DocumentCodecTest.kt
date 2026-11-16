@@ -30,7 +30,7 @@ class DocumentCodecTest {
         assertEquals(source.toList(), DocumentCodec.encode(decoded.text, decoded.encoding, false).toList())
     }
 
-    // Not text: the editor hands it to another app (docs/open-with-plan.md).
+    // Not text: the editor hands it to another app (docs/workspaces-and-files.md).
     @Test(expected = NotTextException::class)
     fun `binary data is rejected`() {
         DocumentCodec.decode(byteArrayOf(1, 0, 2, 3, 0, 4))

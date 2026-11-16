@@ -9,7 +9,7 @@ internal data class SemanticRun(val start: Int, val end: Int, val style: SyntaxS
 
 /**
  * A server's answer as runs, by line, each line with its text as the server had it
- * (docs/syntax-highlighting-plan.md D8). Made off the main thread; tokens whose type no rule colours
+ * (docs/editor-and-language-services.md). Made off the main thread; tokens whose type no rule colours
  * ([SemanticRoles]) leave the grammar's colours, so they have no run.
  */
 internal class SemanticAnswer(private val lines: Map<Int, Pair<String, List<SemanticRun>>>) {

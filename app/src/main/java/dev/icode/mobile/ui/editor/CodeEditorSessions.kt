@@ -18,7 +18,7 @@ import dev.icode.mobile.domain.WorkspacePreferences
 /** Per-document Sora views preserve each tab's undo, caret, scroll and fold state. */
 class CodeEditorSessions(
     private val context: Context,
-    /** The language servers' semantic tokens, for every editor (docs/syntax-highlighting-plan.md D8). */
+    /** The language servers' semantic tokens, for every editor (docs/editor-and-language-services.md). */
     private val highlights: LanguageHighlights = LanguageHighlights.None,
 ) {
     private val sessions = mutableMapOf<String, CodeEditorSession>()

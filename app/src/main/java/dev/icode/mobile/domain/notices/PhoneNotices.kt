@@ -1,6 +1,6 @@
 package dev.icode.mobile.domain.notices
 
-/** What phone control tells (docs/notices-redesign-plan.md D8). */
+/** What phone control tells (docs/engineering-rules.md). */
 object PhoneNotices {
     fun shizukuRefused() = Notice(
         NoticeTone.Problem, NoticeSource.Phone, "Couldn't turn phone control on with Shizuku",

@@ -43,7 +43,7 @@ internal class ICodeStateHolder {
     suspend fun emit(effect: ICodeEffect) = mutableEffects.emit(effect)
 
     /**
-     * Tells the user [notice] (docs/notices-redesign-plan.md D4): on the bell, the Notifications page
+     * Tells the user [notice] (docs/engineering-rules.md): on the bell, the Notifications page
      * and Android's shade as its kind says. It is given an id and the time, unless it brings its own.
      */
     suspend fun tell(notice: Notice) = emit(

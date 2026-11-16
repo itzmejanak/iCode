@@ -2,7 +2,7 @@ package dev.icode.mobile.domain.phone
 
 /**
  * Where the agent goes straight, by intent, never through the launcher's pages
- * (docs/phone-agent-plan.md §5.4): an app by its name, a link, a Settings page by its name.
+ * (docs/voice-and-phone-control.md): an app by its name, a link, a Settings page by its name.
  */
 object PhonePlaces {
     /** An app the launcher lists: its name as the user sees it. */
@@ -35,7 +35,7 @@ object PhonePlaces {
 
     /**
      * The pages, as `android.provider.Settings` names their actions. Accessibility is not among them:
-     * which services read the screen is the user's alone (§5.5).
+     * which services read the screen is the user's alone.
      */
     val SETTINGS = listOf(
         SettingsPage("Settings", "android.settings.SETTINGS", listOf("main", "home")),

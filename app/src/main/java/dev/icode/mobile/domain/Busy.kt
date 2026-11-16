@@ -3,7 +3,7 @@ package dev.icode.mobile.domain
 import kotlinx.coroutines.flow.first
 
 /**
- * What the user asked that iCode is doing now (docs/loading-plan.md §4): published the moment the tap
+ * What the user asked that iCode is doing now (docs/design-and-navigation.md): published the moment the tap
  * is dispatched, before the work waits for anything, and gone when it is done — so a button shows it
  * is working at once, and a second tap on it does nothing. One kind of "busy" for every action; an
  * action with progress of its own (a transfer, the runtime, a task) keeps its own state beside it.

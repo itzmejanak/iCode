@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Backend consistency guard (code-separation plan S5.10; extended by step G).
+# Backend consistency guard; enforces selected rules from docs/engineering-rules.md.
 #
 # Same ratchet as tools/check-ui-consistency.sh: tools/backend-debt-allowlist.txt
 # records the maximum allowed count per (rule, file). Counts may only shrink.
@@ -15,14 +15,14 @@
 #   workspace-git-cli  Git commands issued from data/workspace instead of a Git owner
 #   screen-data-import screens or design system reaching into data/ past the gateway
 #   store-owner        a SharedPreferences file or DataStore opened in more than one file,
-#                      or under a name this guard cannot read (G1)
-#   sha256-owner       SHA-256 computed outside data/io/Sha256.kt (G1)
-#   byte-format        a byte count formatted outside domain/ByteSize.kt (G1)
+#                      or under a name this guard cannot read
+#   sha256-owner       SHA-256 computed outside data/io/Sha256.kt
+#   byte-format        a byte count formatted outside domain/ByteSize.kt
 #   notice-text        a notice put together where it is told, not by its area's builder in
-#                      domain/notices/ (docs/notices-redesign-plan.md D4)
+#                      domain/notices/ (docs/engineering-rules.md)
 #   tm4e-owner         tm4e (org.eclipse.tm4e.*) or Sora's TextMate registries and theme models
 #                      (io.github.rosemoe.sora.langs.textmate.registry.*) used outside ui/syntax/,
-#                      the one owner of the TextMate engine (docs/syntax-highlighting-plan.md D2, A6).
+#                      the one owner of the TextMate engine (docs/editor-and-language-services.md).
 #                      Sora's editor-facing TextMate classes in io.github.rosemoe.sora.langs.textmate
 #                      itself (TextMateLanguage, TextMateColorScheme) are not covered: the editor
 #                      holds the language ui/syntax/ gives it. Comment lines are skipped. Only
@@ -101,14 +101,14 @@ done
 count_matches '"SHA-?256"|MessageDigest' "$src_root" | { grep -v '/data/io/Sha256\.kt ' || true; } | report "sha256-owner"
 
 # 8. One byte vocabulary: sizes people read go through ByteSize ("MB" and "MiB" for one unit,
-#    integer division, a limit typed beside its constant — all seen before G1).
+#    integer division, a limit typed beside its constant — all patterns this guard prevents).
 #    Comments may quote an example.
 { grep -rEn '/ *\(?1024\b|"[^"]*([0-9]|\}) ?(KB|MB|GB|KiB|MiB|GiB)\b' "$src_root" --include='*.kt' 2>/dev/null || true; } \
     | { grep -vE '^[^:]+:[0-9]+:[[:space:]]*(\*|//|/\*)' || true; } \
     | { grep -v '/domain/ByteSize\.kt:' || true; } \
     | awk -F: '{print $1}' | sort | uniq -c | awk '{print $2 " " $1}' | report "byte-format"
 
-# 9. A notice's words are written only in its area's builder (docs/notices-redesign-plan.md D4): a
+# 9. A notice's words are written only in its area's builder (docs/engineering-rules.md): a
 #    Notice is made in domain/notices/, or read back by its store — never put together where it is
 #    told. What shares the name is not a notice: an arrival's or a link's class, a notification's id.
 { grep -rEn '(^|[^A-Za-z.])Notice\(' "$src_root" --include='*.kt' 2>/dev/null || true; } \

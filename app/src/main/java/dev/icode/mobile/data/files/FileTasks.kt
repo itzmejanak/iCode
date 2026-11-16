@@ -14,7 +14,7 @@ import dev.icode.mobile.domain.files.paths
 import java.io.File
 
 /**
- * The explorers' operations run as tasks (docs/explorer-gaps-plan.md §3.5–§3.8, §3.11), off the
+ * The explorers' operations run as tasks (docs/workspaces-and-files.md), off the
  * mutation lock, each with its [FileBatch] over the task's progress. Once one ends — done, stopped
  * or failed — what it did is kept, what it noted said, Trash read again when it changed, and then
  * every explorer.
@@ -30,7 +30,7 @@ internal class FileTasks(
 ) {
     /**
      * [work] as a [task] over [paths], [counted] first when it copies; what it did, once it ends, to
-     * [keep]. Where it is — the folder of its first path — is read as it starts (D2), for what it
+     * [keep]. Where it is — the folder of its first path — is read as it starts, for what it
      * stopped short of, told into the folder [into] for a move or a copy.
      */
     fun run(

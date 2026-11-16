@@ -13,7 +13,7 @@ import java.util.Locale
 import org.json.JSONArray
 import org.json.JSONObject
 
-// The providers that read aloud over one WebSocket per speech session (docs/tts-plan.md §4.3), each
+// The providers that read aloud over one WebSocket per speech session (docs/voice-and-phone-control.md), each
 // read from its own source: AssemblyAI's SDK, Deepgram's AsyncAPI spec and OpenAI's OpenAPI spec.
 // What is read aloud goes only to the provider that speaks, and is never logged.
 
@@ -34,7 +34,7 @@ private fun closedAs(code: Int?, reason: String?): ProviderFailed? = when (code)
 }
 
 /**
- * AssemblyAI's text-to-speech session (§1.3): `wss://<host>/v1/ws` with the voice, the model where one
+ * AssemblyAI's text-to-speech session: `wss://<host>/v1/ws` with the voice, the model where one
  * is chosen, the language by its English name, `pcm_s16le` at 24 kHz; the key in `Authorization` as it
  * is. Each sentence is `Generate` then `Flush`; its `Audio` plays as it comes, `FlushDone` ends it.
  * `Terminate` at the end.
@@ -90,7 +90,7 @@ private object AssemblyAiProtocol : VoiceProtocol {
 }
 
 /**
- * Deepgram's `wss://api.deepgram.com/v1/speak` (§1.4): the voice as its `model`, `linear16` at 24 kHz,
+ * Deepgram's `wss://api.deepgram.com/v1/speak`: the voice as its `model`, `linear16` at 24 kHz,
  * the speed where one is chosen; the key as `Token`. Each sentence is `Speak` then `Flush`; its binary
  * audio plays as it comes, `Flushed` ends it. `Close` at the end.
  */
@@ -125,7 +125,7 @@ private object DeepgramProtocol : VoiceProtocol {
 }
 
 /**
- * OpenAI's Realtime API (§1.2, §9 D3): a `realtime` session on the speaking model, audio out as PCM at
+ * OpenAI's Realtime API: a `realtime` session on the speaking model, audio out as PCM at
  * 24 kHz in the voice and at the speed chosen, told to read each sentence word for word. Each sentence
  * is one out-of-band response — its own context, nothing kept in the conversation — and one at a time,
  * as the API lets only one write at once; its `response.output_audio.delta` plays as it comes.
@@ -183,7 +183,7 @@ internal class OpenAiProtocol(private val request: VoiceRequest) : VoiceProtocol
     override fun closed(code: Int?, reason: String?) = closedAs(code, reason)
 
     internal companion object {
-        /** The model its spec sends new integrations to, after its Speech API (§9 D3). */
+        /** The model OpenAI's specification sends new integrations to after its Speech API. */
         const val MODEL = "gpt-realtime-2.1-mini"
 
         /** What the model is told: read, never answer. */

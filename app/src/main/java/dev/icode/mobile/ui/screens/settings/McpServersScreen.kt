@@ -49,7 +49,7 @@ import dev.icode.mobile.ui.LocalICodeGateway
 import dev.icode.mobile.ui.LocalICodeSnapshot
 
 /**
- * Settings › Assistant › MCP Servers (docs/mcp-plan.md §4.2): a row for each server — its name, its
+ * Settings › Assistant › MCP Servers (docs/assistant-and-mcp.md): a row for each server — its name, its
  * kind and where it is, its state and its switch — the open workspace's own under them; + adds one.
  * Opening the page connects the servers that are on.
  */

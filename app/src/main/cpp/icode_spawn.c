@@ -1,7 +1,7 @@
 // Process bridge for the Linux runtime.
 //
 // Every non-interactive runtime process arrives here: git, ripgrep, language
-// servers and the installer (architecture.md section 10.5). Each gets pipes for
+// servers and the installer (docs/runtime-and-terminal.md). Each gets pipes for
 // its input and output. Interactive shells do not: a terminal session gets its
 // pseudo-terminal from the terminal library (see TerminalSessionManager).
 

@@ -90,7 +90,7 @@ fun WorkspaceEditorScreen(actions: NavigationActions) {
             handledRevealVersion = version
         }
     }
-    // The file's Git changes (docs/editor-plan.md §3), and the one the change sheet shows.
+    // The file's Git changes (docs/editor-and-language-services.md), and the one the change sheet shows.
     val lineChanges = document?.let { state.lineChanges[it.location] }
     val changes = lineChanges?.changes.orEmpty()
     var changeIndex by rememberSaveable(document?.location) { mutableStateOf<Int?>(null) }
@@ -203,7 +203,7 @@ fun WorkspaceEditorScreen(actions: NavigationActions) {
                     MonoLine(error, color = IcodeColors.Amber, style = IcodeType.MonoSmall)
                 }
             }
-            // While the keyboard is open the keys row takes the bottom bar's place (docs/editor-plan.md §4).
+            // While the keyboard is open the keys row takes the bottom bar's place (docs/editor-and-language-services.md).
             val typing = WindowInsets.isImeVisible && document?.readOnly == false && !(markdownPreview && isMarkdown)
             if (typing && editorPreferences.keys.isNotEmpty()) {
                 EditorKeyRow(editorPreferences.keys, onKey = { activeSession?.press(it) })

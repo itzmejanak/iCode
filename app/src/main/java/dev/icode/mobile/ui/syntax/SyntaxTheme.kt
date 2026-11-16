@@ -16,7 +16,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Each palette's TextMate theme (docs/syntax-highlighting-plan.md D2), built from [syntaxScopes] the
+ * Each palette's TextMate theme (docs/editor-and-language-services.md), built from [syntaxScopes] the
  * first time it is asked for and kept in Sora's theme registry. Main thread.
  */
 internal object SyntaxTheme {
@@ -99,7 +99,7 @@ internal fun editorTheme(palette: IcodePalette, colour: (SyntaxRole) -> Color = 
 /**
  * [palette]'s TextMate theme by every colour it holds (the editor, its current line and each role's),
  * so two palettes share a cached theme only when they draw code alike: a variant's own colours, or the
- * same theme on other tones (without border lines), are themes of their own (docs/theme-variants-plan.md D5).
+ * same theme on other tones (without border lines), are themes of their own (docs/design-and-navigation.md).
  */
 internal fun themeName(palette: IcodePalette): String {
     val colours = listOf(palette.backgroundDeep, palette.editorLineHighlight) + SyntaxRole.entries.map { palette.syntaxColor(it) }

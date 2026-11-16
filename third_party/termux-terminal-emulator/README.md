@@ -14,7 +14,7 @@ library. Keep the three in step.
 ## Why it is here
 
 iCode reads what a terminal prints, as the emulator gets it, to know where each command's output
-starts and ends (docs/agent-control-plan.md §3 A2). The library gives no way to: `TerminalSession`
+starts and ends (docs/assistant-and-mcp.md). The library gives no way to: `TerminalSession`
 is final, and its bytes go from a private queue to the emulator alone.
 
 ## What iCode changed
@@ -25,7 +25,7 @@ Two additions to `TerminalSession.java`, each line marked `iCode:`:
   thread, after the emulator has the bytes;
 - `TerminalSession.replay(printed, transcriptRows, client)`: a session that runs nothing and shows
   a command's recorded output, so the view that draws a live terminal draws a finished command the
-  same way (docs/agent-control-plan.md §3 A7). Its emulator is given the bytes when a view first
+  same way (docs/assistant-and-mcp.md). Its emulator is given the bytes when a view first
   sizes it; it has no pty to resize, and it has ended from the start, so nothing typed is sent.
 
 Nothing else differs from the tag.

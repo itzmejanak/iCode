@@ -1,4 +1,4 @@
-# Push a tag to release (docs/environments-plan.md); its version must equal versionName in
+# Push a tag to release (docs/build-and-release.md); its version must equal versionName in
 # app/build.gradle.kts, and its suffix picks the build:
 #   v0.2.0            stable   dev.icode.mobile          the original icon; GitHub's Latest
 #   v0.2.0-beta.N     beta     dev.icode.mobile.beta     a pre-release

@@ -8,7 +8,7 @@ import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** docs/dock-navigation-plan.md §5: the owner's journeys, Back, and no duplicates or loops. */
+/** docs/design-and-navigation.md: the owner's journeys, Back, and no duplicates or loops. */
 class NavigationTest {
     /** The Launcher, then a workspace opened on its Explorer, as a user arrives. */
     private val opened = Navigation.start(Route.LauncherHome).opened("/ws/one")

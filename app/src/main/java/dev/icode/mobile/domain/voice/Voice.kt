@@ -1,6 +1,6 @@
 package dev.icode.mobile.domain.voice
 
-// Voice in and out (docs/phone-agent-plan.md §5.8), with Android's own speech recognition and text-to-speech:
+// Voice in and out (docs/voice-and-phone-control.md), with Android's own speech recognition and text-to-speech:
 // what the user chose, and what the screens show of it.
 
 /** When the assistant's answers are read aloud. */
@@ -43,18 +43,18 @@ data class VoiceState(
     val microphone: Boolean = false,
     /**
      * The microphone works while iCode is away: phone control's foreground service holds it, started
-     * while iCode was on screen (docs/phone-agent-plan.md §5.8).
+     * while iCode was on screen (docs/voice-and-phone-control.md).
      */
     val away: Boolean = false,
     val heard: Heard? = null,
     val speaking: Boolean = false,
     /** The answer read on request ([dev.icode.mobile.domain.VoiceIntent.Read]), by its key, while it is read. */
     val reading: String? = null,
-    /** The speech providers (docs/speech-plan.md), Android's first. */
+    /** The speech providers (docs/voice-and-phone-control.md), Android's first. */
     val providers: List<SpeechProvider> = listOf(SpeechProvider.Android),
     /** The one that listens, by its ID. */
     val inUse: String = SpeechProvider.ANDROID,
-    /** The one that reads the answers aloud, by its ID (docs/tts-plan.md). */
+    /** The one that reads the answers aloud, by its ID (docs/voice-and-phone-control.md). */
     val speaker: String = SpeechProvider.ANDROID,
     /** The provider its page shows; a new one has the ID "". */
     val editing: SpeechProvider? = null,

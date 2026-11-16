@@ -12,7 +12,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 /**
- * What the Assistant page shows (§12 R5): a place's chats and the one open, read from [chats].
+ * What the Assistant page shows: a place's chats and the one open, read from [chats].
  * Everything is read before the state is changed: no file is read inside an update.
  */
 internal class AssistantPage(
@@ -82,7 +82,7 @@ internal class AssistantPage(
     }
 
     /**
-     * [session]'s turn in [workspace] ended (docs/notices-redesign-plan.md D9): its [failure] told
+     * [session]'s turn in [workspace] ended (docs/engineering-rules.md): its [failure] told
      * when its chat is not the one [shown]; one that ran long, unless [stopped], kept and posted
      * should iCode be out of view by then. Where it is: the workspace, and the chat by its title.
      */

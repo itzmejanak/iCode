@@ -27,8 +27,8 @@ import dev.icode.mobile.navigation.NavigationActions
 import dev.icode.mobile.navigation.Route
 
 /**
- * The bottom bar of Source Control and of its sync page, the same on both (workspace-destinations-
- * plan.md D7), as VS Code's status bar: on the left the repository — when the workspace holds more
+ * The bottom bar of Source Control and of its sync page, the same on both
+ * (docs/source-control.md), as VS Code's status bar: on the left the repository — when the workspace holds more
  * than one — and the branch, each a button that says which it is and opens its sheet, its name cut
  * short to fit; on the right the arrows up and down with what is to push and to pull, opening the
  * sync page and lit there.

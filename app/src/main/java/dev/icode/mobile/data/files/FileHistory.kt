@@ -8,12 +8,12 @@ import dev.icode.mobile.domain.files.FileStep
 import dev.icode.mobile.domain.notices.FileNotices
 
 /**
- * Undo and redo (docs/explorer-gaps-plan.md §3.8): the last [FileChange.DEPTH] changes made in the
+ * Undo and redo (docs/workspaces-and-files.md): the last [FileChange.DEPTH] changes made in the
  * explorers, in memory while iCode runs. A change made clears what could be redone. An undo or redo
  * stopped short keeps each side exact: what it reversed moves across, what it did not stays. Read
  * and changed under the mutation lock; the snapshot says what Undo and Redo would do, and the news
  * the undo pill tells. Each change made, undone or redone is also told, kept on the Notifications
- * page without ringing the bell (docs/notices-redesign-plan.md D3, D9).
+ * page without ringing the bell (docs/engineering-rules.md).
  */
 internal class FileHistory(
     private val stateHolder: ICodeStateHolder,

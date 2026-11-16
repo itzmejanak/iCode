@@ -16,7 +16,7 @@ import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Modifier
 
 /**
- * The actions on one thing, or on a selection, as a sheet (docs/explorer-gaps-plan.md §3.1), on the
+ * The actions on one thing, or on a selection, as a sheet (docs/workspaces-and-files.md), on the
  * base every sheet is drawn on. Its head: [leading], the item's icon or thumbnail, then [title] and
  * [detail] ("12 items · main"). Then [actions] as rows: each one's icon, label and detail where one
  * helps, greyed when not possible, ✓ when chosen. A line comes before each group
@@ -61,7 +61,7 @@ fun IcodeActionSheet(
 }
 
 /**
- * The pages a sheet opens within itself (§3.1): [current] is the one shown, null for the sheet's own
+ * The pages a sheet opens within itself: [current] is the one shown, null for the sheet's own
  * first page. [open] goes to another; [back] steps back one, and Back does too, before it closes the
  * sheet.
  */

@@ -12,7 +12,7 @@ import dev.icode.mobile.domain.GitDiffLineKind
 
 /**
  * One line of a Git diff, as the diff screen and the editor's change sheet draw it: [content] is its text,
- * coloured by the file's language when [coloured] (docs/syntax-highlighting-plan.md S5), its plain parts
+ * coloured by the file's language when [coloured] (docs/editor-and-language-services.md), its plain parts
  * then in the text's own colour on the kind's background, as the editor draws them; else all in the kind's tint.
  */
 @Composable

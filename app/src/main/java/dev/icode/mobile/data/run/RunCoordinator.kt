@@ -26,7 +26,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 /**
- * The Terminal panel's Run tab (docs/run-tab-plan.md §2.2): the open workspace's configurations —
+ * The Terminal panel's Run tab (docs/runtime-and-terminal.md): the open workspace's configurations —
  * its Android apps, then the commands saved — and each run's record. Every run is a managed
  * process; the Run tab and the assistant's `run_android_app` both start runs here, and both save
  * and delete commands here (the assistant's `save_run_command`, `delete_run_command`).

@@ -6,7 +6,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** One rule renaming many (docs/explorer-gaps-plan.md §3.4). */
+/** One rule renaming many (docs/workspaces-and-files.md). */
 class BatchRenameTest {
     private val beach = RenameSource("/p/IMG_001.jpeg", "IMG_001.jpeg", folder = false)
     private val park = RenameSource("/p/IMG_002.JPEG", "IMG_002.JPEG", folder = false)

@@ -16,12 +16,12 @@ import dev.icode.mobile.data.voice.speech.speechProviderTools
 import dev.icode.mobile.data.workspace.WorkspaceFileSource
 import java.io.File
 
-/** Every tool the assistant has (§4.3), made for the workspace and the chat a turn works in. */
+/** Every tool the assistant has, made for the workspace and the chat a turn works in. */
 internal class AssistantToolbox(
     private val source: WorkspaceFileSource,
     private val search: WorkspaceSearchEngine,
     private val git: CliGitService,
-    /** The runtime the tools run in: also where the assistant's local MCP servers start (docs/mcp-plan.md §7). */
+    /** The runtime the tools run in: also where the assistant's local MCP servers start (docs/assistant-and-mcp.md). */
     val execution: RuntimeExecution,
     private val runs: RunCoordinator,
     val runtimeInstalled: () -> Boolean,
@@ -29,13 +29,13 @@ internal class AssistantToolbox(
     private val unsavedEdits: (String) -> Boolean,
     /** Files changed outside the editor: the tree, Git and the index refresh. */
     private val changed: () -> Unit,
-    /** The phone, for every chat while phone control is on (docs/phone-agent-plan.md §5.3). */
+    /** The phone, for every chat while phone control is on (docs/voice-and-phone-control.md). */
     private val phone: PhoneControl,
-    /** The Terminal panel's own sessions, where the assistant's commands run (docs/agent-control-plan.md §4). */
+    /** The Terminal panel's own sessions, where the assistant's commands run (docs/assistant-and-mcp.md). */
     terminals: TerminalSessions,
-    /** What hears the microphone, which the assistant sets up as the user does (docs/speech-plan.md §6). */
+    /** What hears the microphone, which the assistant sets up as the user does (docs/voice-and-phone-control.md). */
     private val speech: SpeechProviders,
-    /** The language servers, which the assistant sets up and asks as the user does (docs/lsp-plan.md §6). */
+    /** The language servers, which the assistant sets up and asks as the user does (docs/editor-and-language-services.md). */
     private val languages: LanguageServices,
 ) {
     private val terminal = TerminalRuns(terminals)
@@ -52,7 +52,7 @@ internal class AssistantToolbox(
 
     /**
      * The tools of a chat in [workspace], on [step]: the phone's while phone control is on; the Run
-     * tab's for a workspace only, none for a chat in no workspace (docs/home-plan.md §2).
+     * tab's for a workspace only, none for a chat in no workspace (docs/design-and-navigation.md).
      */
     fun forWorkspace(workspace: AssistantWorkspace, chat: String, step: AssistantStep): List<AssistantTool> {
         val writer = WorkspaceWriter(workspace, source, unsavedEdits, changed)

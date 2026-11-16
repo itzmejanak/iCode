@@ -3,7 +3,7 @@ package dev.icode.mobile.domain.files
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** The explorer's views (docs/explorer-gaps-plan.md §3.10): what each lists, what it says it found, and how a screen keeps it. */
+/** The explorer's views (docs/workspaces-and-files.md): what each lists, what it says it found, and how a screen keeps it. */
 class ExplorerViewsTest {
     private val notes = BrowsedItem("notes.txt", "/phone/Download/notes.txt", "/storage/emulated/0/Download/notes.txt", StoragePlace.Shared, folder = false, bytes = 1024, changedAt = 2)
     private val app = TrashedItem("t1", "app", "/w/app", "/workspace/app", "/trash/files/t1", StoragePlace.Private, deletedAt = 5, folder = true, bytes = 3072, workspace = true)

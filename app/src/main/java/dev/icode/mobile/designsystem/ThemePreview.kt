@@ -22,7 +22,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * A palette as a small screen of itself (docs/theme-variants-plan.md §4): its page; a card with two
+ * A palette as a small screen of itself (docs/design-and-navigation.md): its page; a card with two
  * lines of text and an accent button; a line of code in three of its colours on its editor; and its
  * green, amber, error and blue. Drawn from [palette] alone, whichever palette the app is in, with the
  * card's line while Border Lines is on, as the app draws it. A picture only: the card it is on says

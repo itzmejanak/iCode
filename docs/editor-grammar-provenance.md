@@ -1,32 +1,59 @@
 # Editor grammar provenance
 
-The TextMate grammars are bundled in the APK so syntax coloring works without
-network access or a language server. Every shipped grammar is one entry in the
-language catalog, `app/src/main/assets/textmate/catalog.json`
-(`domain/syntax/Languages.kt`, docs/syntax-highlighting-plan.md D3): its id,
-scope, grammar and configuration files, what it embeds and includes, the source
-it was copied from, the upstream commit the grammar file names as its own origin
-(its `version` field), and its licence. `ui/syntax/SyntaxEngine` loads a language's
-grammar from the catalog, with the grammars it includes, the first time a file or
-code block needs it.
+iCode bundles its TextMate grammars in the APK so syntax highlighting does not
+require a network connection or a language server. The canonical inventory is
+`app/src/main/assets/textmate/catalog.json`. Each catalog entry identifies a
+language, scope, grammar and optional configuration, include and embedded-language
+relationships, file associations, copied source, upstream lineage, and licence.
+The editor registers grammars from this catalog. The build also derives the Kotlin
+file-type table consumed by `FileTypes` from the catalog's `files` records.
 
-Unknown text extensions fall back to a readable uncolored editor rather than
-guessing a grammar. Binary/malformed files remain rejected by `DocumentCodec`.
+Unknown text extensions open without syntax highlighting instead of being assigned
+a guessed grammar. Binary and malformed files remain subject to `DocumentCodec`.
+
+## Reproducing the catalog
+
+Run the importer from the repository root:
+
+```console
+tools/import-grammars.py
+```
+
+Set `ICODE_GRAMMAR_CACHE` to a directory to retain downloaded inputs between runs.
+The importer replaces generated TextMate assets, writes `catalog.json`, refreshes
+its generated sections in this document, and refreshes Shiki-provided syntax
+samples. Run it from a clean worktree so those replacements can be reviewed. The
+result is reproducible from the declared source refs and the checked-in files named
+by `KEPT`, provided the pinned sources remain available.
+
+Scope selection uses this precedence. A scope supplied by an earlier source is not
+taken from a later one:
+
+1. The selected Java, Kotlin, Python, XML, HTML, JavaScript, and Markdown grammars
+   from Sora Editor tag `0.24.6`, plus YAML from VS Code commit
+   `337cacaafa0248ef6db264f52971d283b40aa94d`.
+2. Built-in extension grammars from VS Code commit
+   `307b60e7aba9fe6c2dec8cae5970561b126f807b`.
+3. Grammars for remaining scopes from Shiki's `textmate-grammars-themes` commit
+   `8f1828ebccc57930cf0adde9b35ae929584fe191`, when their licence metadata is known.
+4. Grammars from the maintained upstream repositories recorded by GitHub Linguist
+   commit `d456527fe93355baa28c3c29d542c97282b61bc7`. Each such repository is pinned
+   separately in `UPSTREAM` and recorded as the copied source in the catalog.
+
+Expected later copies of an existing scope are skipped. Unexpected duplicate scopes,
+language IDs, type IDs, or conflicting asset paths make the importer fail.
 
 ## Shipped grammars
 
-`tools/import-grammars.py` writes the grammars, the catalog and the two tables below
-from pinned sources: Sora Editor 0.24.6, VS Code 307b60e7 (and 337cacaa for YAML),
-Shiki's tm-grammars 8f1828eb for the languages VS Code lacks, and, for the rest, the
-upstream repositories GitHub Linguist d456527f vendors. Its own top comment gives the
-order and the rules; rerunning it reproduces every file. The tables are the catalog's,
-row for row (`LanguageCatalogTest` fails on any difference and prints the tables as
-they must read). Files are copied unchanged except for the edits recorded below and
-under "Changed on import". Sora Editor is
-LGPL-2.1-or-later; a grammar Sora ships keeps its upstream's licence where the
-file names an upstream. The Kotlin grammar names none, so it is recorded under
-Sora's licence. VS Code's sources and licences per extension are also in each
-extension's `cgmanifest.json`.
+These tables are a direct projection of `catalog.json` and are generated in catalog
+order. `LanguageCatalogTest` compares every table line under this heading exactly,
+so the tables must be changed through the importer rather than edited by hand.
+
+A source row identifies the repository or release from which files were copied.
+A language row records the grammar-level licence and any upstream origin named by
+the grammar's `version` field or by Shiki's index. `None` means the copied source is
+treated as the origin; an upstream value is lineage metadata, not a second copied
+source.
 
 | Source | Where | Licence |
 |---|---|---|
@@ -479,16 +506,32 @@ extension's `cgmanifest.json`.
 | `python-console` | `text.python.console` | MagicStack/MagicPython 7d0f2b22 `grammars/python-console.cson` | None: MagicStack/MagicPython 7d0f2b22 is the origin | MIT |
 | `openesql` | `source.openesql` | spgennard/vscode_cobol 8be1f9a9 `syntaxes/openesql.tmLanguage.json` | [microsoft/vscode-mssql@61ae0eb2](https://github.com/microsoft/vscode-mssql/commit/61ae0eb21ac53883a23e09913a5ae77a59126ff9) | MIT |
 
-The JSX and TSX grammars are registered separately from JavaScript and
-TypeScript so the capture fixture `App.tsx` and real React files receive their
-proper scopes. A language's configuration file is from the same source as its
-grammar, with two exceptions: JSX uses JavaScript's configuration (Sora), and
-YAML's configuration is from VS Code 307b60e7 while its grammar is from 337cacaa
-(see below).
+The generated inventory above is the complete shipped set. Grammars with file
+associations form the roots; helper grammars appear only when reached through the
+transitive include closure described below.
 
 ## Changed on import
 
-tools/import-grammars.py makes these changes, each time it runs:
+The importer owns the inventory in this section. It performs these current
+transformations and normalizations:
+
+- CSON and YAML grammars selected through `UPSTREAM` are converted to JSON because
+  Sora reads JSON and property-list TextMate grammars, not those source formats.
+- Asset file names are restricted to plain ASCII for APK paths.
+- For JSON grammars, non-object capture entries are removed and non-object
+  repository entries become empty rules. VS Code ignores those values, while Sora
+  otherwise rejects the grammar containing them.
+- Language configurations are parsed as JSONC. Object or list forms of
+  `lineComment` are reduced to one string, oversized `blockComment` lists are
+  reduced to one pair, and configurations with no comment or bracket declaration
+  are omitted.
+- `EDITS` normalizes Make's line-comment form and adds numeric rules to the Rel,
+  CMake, and Tcl grammars.
+- `KEPT` preserves the checked-in Markdown, Dockerfile, and dotenv grammars instead
+  of replacing them with downloaded copies.
+
+The generated list below names every retained local grammar, explicit edit, format
+conversion, and readability normalization applied by the current importer:
 
 - `textmate/markdown/syntaxes/markdown.tmLanguage.json`: bold and italic split into literal-end rules (Sora back-reference bug)
 - `textmate/docker/syntaxes/docker.tmLanguage.json`: iCode's grammar, written from moby's (which colours only instruction names and quoted strings): every part of an instruction is scoped (the image, its tag and digest, the stage name, `--flag=value` options, ARG, ENV and LABEL keys and values, EXPOSE ports and protocols, `$VAR` and `${VAR:-default}`, parser directives, heredocs, the exec form's JSON array), and the shell form of RUN, CMD, ENTRYPOINT and HEALTHCHECK CMD, and RUN heredocs, embed `source.shell`. Known gap: a line continues only after a backslash, so in a file whose `# escape=` directive picks the backtick each line continued with a backtick is read as a new instruction. Taking a backtick everywhere would break the shell's own backticks at a line's end; the fix is a rule that begins at the directive and never ends, holding a second set of every instruction rule with the backtick in place of the backslash, which this script could derive from the backslash rules rather than have it written by hand)
@@ -552,7 +595,16 @@ tools/import-grammars.py makes these changes, each time it runs:
 
 ## Not shipped
 
-Grammars the sources hold that iCode does not ship, and why:
+Shipping starts from every grammar that owns at least one file-type rule, then
+follows known `include` scopes transitively. A helper grammar with no direct file
+association ships only when that closure reaches it. A candidate outside both the
+root set and include closure does not ship. Injection grammars also do not ship
+because Sora does not load TextMate injections.
+
+An include that names no imported scope remains a documented exception in
+`GrammarAssetsTest`; it does not create a catalog entry. Embedded-language mappings
+are kept only when every mapped catalog ID survives selection. The importer owns
+the current exclusion inventory:
 
 - `angular-expression`: no file type opens it and no shipped grammar includes it
 - `angular-inline-style`: an injection grammar, which Sora does not read
@@ -581,12 +633,36 @@ Grammars the sources hold that iCode does not ship, and why:
 - `source.c.platform` (VS Code): 568 KB of platform constants that no grammar includes
 - `source.yaml` (VS Code): VS Code 337cacaa's YAML grammar ships instead (see YAML below)
 
+## YAML source exception
+
+YAML intentionally comes from the separate VS Code pin. The YAML grammar at the
+general VS Code pin mis-scopes ordinary mappings in Sora's engine, so iCode ships
+the TextMate YAML grammar from commit
+`337cacaafa0248ef6db264f52971d283b40aa94d`. Its language configuration still
+comes from the general VS Code source.
+
 ## Names and extensions claimed twice
 
-Each name and extension opens one language: the first to claim it (VS Code, then the language's
-upstream, then its grammar's `fileTypes`, then Linguist, then iCode's own below), or the one the
-icon theme draws it as. iCode's own claims, for formats the icon theme names that no source gives a
-language:
+Each exact name, extension, or accepted filename prefix resolves to one file type.
+Claims are considered in this order:
+
+1. VS Code `contributes.languages`.
+2. The grammar's upstream VS Code extension, when present.
+3. The grammar's own `fileTypes`.
+4. GitHub Linguist `languages.yml`.
+5. Explicit iCode additions.
+
+The first claim wins. When no VS Code language claims a key, the Material Icon
+Theme mapping may select the matching language before the later stages. A later
+whole-name claim cannot override the language already implied by an extension in
+that name; for example, the extension owner of `.eslintrc` wins. `NOT_TEXT`
+removes binary, ambiguous, and intentionally plain-text associations regardless of
+source.
+
+Filename patterns are accepted only as exact names, `*.extension`, or a trailing
+star prefix such as `Dockerfile.*`. Path patterns are discarded because the
+Explorer does not expose those paths. The generated inventory below records iCode's
+fallback claims, every losing claim, and every excluded non-text claim:
 
 - `xml`: `.tmlanguage` `.plist` `.manifest` `.project` `.jrxml` `.dmn` `.xml.dist.sample` `.bcf` `.vbox` `.vbox-prev` `.drawio` `.dio`: XML formats: TextMate grammars and property lists, Windows manifests, Eclipse projects, JasperReports, DMN, BibLaTeX control files, VirtualBox machines, draw.io diagrams
 - `yaml`: `.yml.dist` `.yaml.dist`: YAML kept as a template to copy
@@ -907,106 +983,112 @@ The claims that lost:
 - extension `sum`: none, no one format: `go.sum` is Go's (go-sum), and the checksum grammar's other names stay its own
 - name `authors`: none, a list of a project's authors is prose, though the Git mailmap grammar claims it
 
-## Every language (2026-11-11, S6 part 1)
+## iCode-maintained grammars
 
-The catalog grew from 42 grammars to 307, so that every text type the icon theme names
-opens coloured (docs/syntax-highlighting-plan.md §4.1, A9; `FileTypeCoverageTest`). Each
-language's file names, extensions, name patterns and first lines are now the catalog's
-`files`, not Kotlin rules: the build turns them into the table `domain/FileTypes.kt` reads,
-so a language is declared in one place. Licences: Shiki's index gives none, `?` or
-`NOASSERTION` for 33 grammars; each was checked in its upstream repository at the pinned
-commit (the file or field is named in the script's `LICENCES`). DAX states none and is not
-shipped; GLSL, Tcl and DreamMaker come from the maintained grammars Linguist vendors instead,
-whose licences Linguist records. Every licence is compatible with iCode's GPL-3.0. VS Code's
-`properties` language shares `source.ini` with `ini`, and Sora takes one configuration per
-grammar, so `ini/properties.language-configuration.json` is no longer shipped: `.properties`
-files use INI's configuration (`;` as the line comment), as they did.
+The Dockerfile and dotenv catalog rows keep VS Code as their copied source because
+that records their base lineage. Their checked-in grammar files are iCode-maintained
+derivatives, and `KEPT` prevents the importer from overwriting them.
 
-## No gaps inside a file (2026-11-11, S6 part 2)
+### Dockerfile
 
-The catalog holds 357 grammars. The 50 added come from the repositories GitHub Linguist
-vendors, at the commits Linguist pins: 41 are written in CSON (Atom's form) or YAML, which
-Sora's engine does not read, so the script converts them to JSON as it copies them
-(`cson_loads` and `yaml_loads`, small readers checked to give what CoffeeScript's own
-`cson-parser` 4.0.9 and PyYAML 6.0.2 give for every one of these files and for all 70 of
-language-etc's grammars). They open subtitles, checksums, Cabal, Meson, Nunjucks, XQuery,
-YANG, PlantUML, Slint, Visual Studio solutions, robots.txt, hosts and mailmap files and the
-other formats listed in the tables, and they ship the scopes other grammars include that no
-source had before: Agda, Git config, Jison's lexer, PostScript, regular expressions, x86
-assembly, Javadoc, CFML tags, EEx, MSON and Python sessions. Licences are Linguist's records
-(`vendor/licenses/git_submodule`): MIT, ISC, Apache-2.0, BSD-2-Clause and the TextMate Bundle
-License.
+The Dockerfile grammar is based on the Moby grammar shipped by the pinned VS Code
+source. Its upstream version is Moby commit
+`c2029cb2574647e4bc28ed58486b8e85883eedb9`, under Apache-2.0. iCode adds scopes
+for instruction operands, flags, keys and values, image tags and digests, stage
+names, ports, variables, parser directives, heredocs, and exec-form arrays. Shell
+forms of `RUN`, `CMD`, `ENTRYPOINT`, and `HEALTHCHECK CMD`, plus `RUN` heredocs,
+embed `source.shell`.
 
-Two grammars are iCode's own, kept by the script (KEPT) and based on the ones VS Code ships:
-Dockerfile (from moby's, Apache-2.0) and `.env` (from dotenv-org's, MIT). "Changed on import"
-lists what each changes. Three grammars that colour no number get one rule for numbers by an
-edit the script makes (`numbers` in EDITS): Rel, CMake and Tcl. A sample per language
-(`app/src/test/resources/syntax-samples`, Shiki's where it has one, else iCode's) is
-tokenized by `SyntaxSamplesTest`; the words it allows to stay plain are listed there with
-their reasons.
+The grammar recognizes `# escape=` as a parser directive, but line continuation
+still matches only a backslash followed by optional horizontal whitespace and a
+newline. A Dockerfile that selects the backtick escape therefore tokenizes each
+backtick-continued physical line as a new instruction. Matching backticks globally
+would consume valid shell command-substitution backticks at line ends. Supporting
+this directive requires directive-aware state with backtick variants of the
+affected instruction rules; that behavior is not implemented.
 
-## Colours (2026-09-29)
+### dotenv
 
-No theme file is shipped. The editor builds its TextMate theme for each palette at run time
-(`ui/syntax/SyntaxTheme.kt`) from one scope table (`ui/syntax/SyntaxScopes.kt`) and the
-palette's syntax colours (`designsystem/SyntaxColors.kt`, values in `IcodeColors.kt`). The
-table's selectors are VS Code's default Dark+ rules — `extensions/theme-defaults/themes/`
-`dark_vs.json` and `dark_plus.json` at the same pinned commit 307b60e7 (MIT) — each assigned to
-an iCode role, followed by iCode's own additions for scopes those rules leave uncoloured. The
-Sora sample theme `darcula.json` and the two preview themes are removed.
+The dotenv grammar is based on the dotenv-org grammar shipped by the pinned VS Code
+source. Its upstream version is dotenv-org commit
+`e7e41baa5b23e01c1ff0567a4e596c24860e7def`, under MIT. iCode distinguishes
+unquoted, single-quoted, double-quoted, and backtick-quoted values; supports
+multiline quoted values; scopes unquoted numbers and booleans; recognizes `$VAR`,
+`${VAR}`, and `${VAR:-default}` expansion where applicable; and recognizes trailing
+comments after unquoted values.
 
-## Grammars added 2026-09-29 (editor-colors-plan E4)
+Focused assertions in `SyntaxSamplesTest` protect the visible Dockerfile and dotenv
+scopes described above.
 
-Copied unchanged from VS Code at the same pinned commit 307b60e7 (the extension folder named),
-each with its `language-configuration.json`. Their file names, extensions, name patterns and `#!`
-programs in `domain/FileTypes.kt` are the extension's own `contributes.languages`. Their
-sources, upstreams and licences are in the tables under "Shipped grammars".
+## Regex-engine constraints
 
-Not shipped: `cpp/syntaxes/platform.tmLanguage.json` (568 KB, included by no grammar) and CUDA.
-Languages the shipped grammars can embed but iCode does not ship (assembly and GLSL in C++, HAML,
-Slim and GraphQL in Ruby, Javadoc in Groovy, Blade in PHP, and a Markdown fence's many languages)
-are listed, exactly, in `GrammarAssetsTest`; their text keeps its enclosing colour. Path-only
-patterns (`**/.git/config`, `**/rebase-merge/done`) are not matched: they are inside `.git` or a
-home configuration folder, which the Explorer never lists.
+Android uses Sora's native Oniguruma integration, the regular-expression engine for
+which TextMate grammars are written. JVM unit tests use Joni. Joni rejects some
+Oniguruma expressions, especially variable-length lookbehinds; tm4e then drops the
+affected rule on the JVM. A missing or differently scoped JVM token can therefore
+be a JVM-engine limitation rather than the behavior of the Android editor.
 
-YAML: VS Code's current grammar (RedCMD's YAML 1.2, adopted by VS Code in 2024) is not shipped. On the
-editor's engine it scopes `key: value` as one plain scalar and every `:` as
-`invalid.illegal.multiline-key` (EditorColoursTest). `yaml/syntaxes/yaml.tmLanguage.json` is instead
-VS Code's long-standing grammar from textmate/yaml.tmbundle (TextMate Bundle License), as VS Code
-itself shipped it until 2024, taken from VS Code commit 337cacaa (its October 2024 revert to it).
+`EditorColoursTest` runs expectations that do not require Oniguruma. The Android
+`EditorColoursDeviceTest` asserts that native Oniguruma is available and runs the
+full shared expectation set. `GrammarAssetsTest` still loads and tokenizes every
+shipped grammar on the JVM to catch unreadable assets and failures outside those
+known engine differences.
 
-One edit to a copied file: `make/language-configuration.json` writes `lineComment` as the string
-`"#"`. VS Code's form, an object with `noIndent`, is newer than the parser in Sora's tm4e, which
-rejects it (the configuration would be lost and an error logged). `GrammarAssetsTest` loads every
-configuration through that parser.
+Sora also mishandles captured-text back-references while constructing dynamic `end`
+patterns: captured delimiter text is inserted literally, so a delimiter containing
+regular-expression metacharacters can change the generated pattern. The checked-in
+Markdown grammar works around this by splitting bold and italic into separate
+asterisk and underscore rules with literal end patterns. `KEPT` preserves that
+workaround. Other dynamic delimiters remain subject to the Sora behavior, including
+Rust and Swift raw strings, Ruby percent literals with metacharacter delimiters, and
+heredoc names containing `-` or `.`.
 
-## The first sixteen languages, aligned (2026-09-29, E4c)
+## Licence metadata boundaries
 
-Their names, extensions, name patterns and first-line expressions in `domain/FileTypes.kt` are
-now also their VS Code extensions' own (`java`, `python`, `javascript`, `typescript-basics`,
-`json`, `html`, `xml`, `css`, `markdown-basics`, `shellscript`, `rust`, `go`, `yaml` at
-307b60e7); Kotlin keeps `kt`, `kts` (Sora's grammar; VS Code has none). JSON with comments
-(`.jsonc`, `.eslintrc`, `tsconfig.json`) uses the shipped `source.json`, whose grammar already
-colours comments. Added from the same commit: the language configurations JSON, TypeScript, CSS,
-shell, Rust, Go and YAML lacked; XSL (`xml/syntaxes/xsl.tmLanguage.json`) and JSON Lines
-(`json/syntaxes/JSONL.tmLanguage.json`), each with its configuration.
+The source-level licence in the first generated table applies to the repository or
+release from which iCode copied files. The language-level licence in the second
+table applies to that grammar. These values can differ. An `Upstream` value records
+lineage declared by a grammar or by Shiki's index; it does not change the copied
+source.
 
-Second edit, withdrawn with those files: three notes inside YAML 1.x `beginCaptures`; the grammar
-now shipped has none. `GrammarAssetsTest` still fails on any capture that is not a rule.
+For Sora entries, the importer records the identified grammar licence where the
+file names an upstream. Kotlin names no separate origin, so its row uses Sora's
+LGPL-2.1-or-later metadata. VS Code grammars begin with the VS Code source licence;
+when a grammar identifies another GitHub repository, the importer uses the matching
+`cgmanifest.json` registration's licence when available. Shiki's index supplies
+licence metadata where it is specific; `LICENCES` records manually checked upstream
+metadata for otherwise unknown or nonspecific entries, and a grammar with no known
+terms is skipped. Repositories selected through `UPSTREAM` use the licence and
+commit recorded by Linguist's vendored-repository metadata.
 
-## The regex engine and one engine bug (2026-09-29)
+The catalog and this document are provenance and licence metadata, not bundled
+copies of every licence text or a legal compatibility determination. See
+`THIRD_PARTY_NOTICES.md` for the project's notice boundary.
 
-- **Native Oniguruma** (`io.github.rosemoe:oniguruma-native`, Sora 0.24.6; Oniguruma is BSD-2): the
-  engine the grammars are written for. Without it tm4e uses joni, which rejects 9 of the 9,649
-  regular expressions in the shipped grammars (variable-length lookbehinds) and drops their rules:
-  CSS selectors, TypeScript's `export default`, C#'s `await`, Ruby block parameters. The JVM tests
-  still run joni; `EditorColoursDeviceTest` runs the same check on the phone.
-- **Sora bug, back-references:** tm4e quotes a captured text for `Matcher.appendReplacement`, but
-  Sora's `MatcherUtils.replaceAll` appends it literally, so an `end` that refers to a capture
-  containing a regular-expression character becomes a different pattern: `(\1)` for `**` ends at
-  once. Third edit to a copied file: `markdown/syntaxes/markdown.tmLanguage.json` splits `bold` and
-  `italic` into an asterisk rule and an underscore rule (`bold_underscore`, `italic_underscore`)
-  with literal ends, same behaviour as VS Code. Still affected until Sora is fixed: Rust `r#"…"#`
-  and Swift `#"…"#` raw strings, Ruby `%w[…]`-style literals with a bracket or `|` delimiter,
-  heredoc names containing `-` or `.`.
+## Verification
+
+Run the exact provenance-table check from the repository root with:
+
+```console
+./gradlew :app:testDebugUnitTest --tests "dev.icode.mobile.ui.editor.LanguageCatalogTest.the provenance doc's tables are the catalog's"
+```
+
+The related test contracts are:
+
+- `LanguageCatalogTest` verifies catalog assets, unique identities, declared scopes,
+  include sets, embedded IDs, upstream metadata, and the generated tables.
+- `GrammarAssetsTest` verifies include closure and documented exceptions, requires
+  every shipped grammar to be opened or included, checks Sora-readable captures and
+  language configurations, and loads and tokenizes every grammar with JVM tm4e.
+- `SyntaxSamplesTest` requires one sample for every language that opens files.
+  Checked-in samples under `syntax-samples/icode` override generated Shiki samples.
+  The test rejects missing or stale samples, unexplained unscoped words, and stale
+  exceptions.
+- `FileTypeCoverageTest` requires every text-like format known to the Material Icon
+  Theme to resolve to a grammar or a current reasoned exemption.
+- `FileTypesTest` checks important file associations and requires generated
+  extensions, names, prefixes, and type IDs to remain unique.
+- `EditorColoursTest` checks JVM-compatible color expectations, while
+  `EditorColoursDeviceTest` checks the shared expectations with native Oniguruma on
+  Android.
 

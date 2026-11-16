@@ -2,7 +2,7 @@ package dev.icode.mobile.domain
 
 /**
  * What the model is asked for a commit message, and what of its answer is the message
- * (docs/commit-message-generator-plan.md M2, M3).
+ * (docs/assistant-and-mcp.md).
  */
 object CommitMessageRules {
     const val INSTRUCTIONS =

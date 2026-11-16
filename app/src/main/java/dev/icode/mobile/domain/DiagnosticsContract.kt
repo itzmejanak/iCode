@@ -1,6 +1,6 @@
 package dev.icode.mobile.domain
 
-// Problems reported for the workspace (docs/lsp-plan.md §5.4): a build's, and the language servers'.
+// Problems reported for the workspace (docs/editor-and-language-services.md): a build's, and the language servers'.
 
 data class Diagnostic(
     val severity: Severity,

@@ -1,7 +1,7 @@
 package dev.icode.mobile.domain
 
 /**
- * Language servers known to install in iCode's Ubuntu 24.04 ARM64 runtime (docs/lsp-plan.md §2.4, D9):
+ * Language servers known to install in iCode's Ubuntu 24.04 ARM64 runtime (docs/editor-and-language-services.md):
  * data only, no code per language. Nothing installs without the user's tap or the assistant's command,
  * asked as any command is.
  */

@@ -15,7 +15,7 @@ import kotlinx.coroutines.launch
 internal class VoiceUse(val provider: SpeechProvider, val engine: VoiceEngine, val request: VoiceRequest)
 
 /**
- * One speech session at a time (docs/tts-plan.md §4), whichever engine says it: a turn's sentences, the
+ * One speech session at a time (docs/voice-and-phone-control.md), whichever engine says it: a turn's sentences, the
  * chat's ▶, or Play Sample. A session that begins stops the one before it; its engine gets ready at
  * once — while the model still thinks — and says each sentence in turn until the session ends. What is
  * said is never logged; a failure logs its type only.

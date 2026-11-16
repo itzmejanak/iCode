@@ -8,7 +8,7 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * Finds a repository on the host the way Git does — the folder, then each parent, for a `.git`
  * directory or a `.git` file naming one — but never above the workspaces
- * (docs/workspace-storage-plan.md §4.2). Git still decides what is a repository: this gives its
+ * (docs/workspaces-and-files.md). Git still decides what is a repository: this gives its
  * commands the working directory whose root-relative paths they report, and gives the launcher a
  * branch without starting a process.
  */
@@ -48,7 +48,7 @@ internal class GitLocator(private val paths: WorkspacePaths) {
     }
 
     /**
-     * The repositories in [workspace] (docs/workspace-destinations-plan.md §2.6), read again from
+     * The repositories in [workspace] (docs/workspaces-and-files.md), read again from
      * disk: the one it is in, if any, then each folder below it with a `.git` of its own, [depth]
      * levels down — not in a hidden folder, `node_modules` or through a link. Where Git runs follows.
      */

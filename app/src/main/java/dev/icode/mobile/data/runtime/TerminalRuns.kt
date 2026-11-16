@@ -9,7 +9,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
 /**
- * Commands run in a terminal tab as the user would type them (docs/agent-control-plan.md §4.2): the
+ * Commands run in a terminal tab as the user would type them (docs/assistant-and-mcp.md): the
  * tab's prompt waits empty; the command goes in as a paste, then Enter; its output is what its marks
  * bound; at its time limit comes Ctrl-C. The tabs are [terminals]' — the user's own sessions — so what
  * runs here shows in the Terminal panel as it runs, and the user can answer it or stop it there.
@@ -64,7 +64,7 @@ internal class TerminalRuns(
     fun runningTabOf(chat: String): String? =
         terminals.snapshot.value.sessions.firstOrNull { it.assistant == chat && it.isRunning }?.id
 
-    /** [chat]'s tabs closed, as the user closes one: the chat is deleted (docs/agent-control-plan.md §3 A4). */
+    /** [chat]'s tabs closed, as the user closes one: the chat is deleted (docs/assistant-and-mcp.md). */
     suspend fun close(chat: String) = withContext(main) {
         terminals.snapshot.value.sessions.filter { it.assistant == chat }.forEach { terminals.close(it.id) }
     }

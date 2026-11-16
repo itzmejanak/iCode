@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The PRoot facts iCode's runtime contract stands on (docs/runtime-contract-plan.md §9.2), checked
+# The PRoot facts iCode's runtime contract stands on (docs/runtime-and-terminal.md), checked
 # against PRoot built from the pinned third_party/proot commit with iCode's patches, on this Linux
 # host: a test root filesystem borrows the host's /usr and /etc, and each check starts PRoot the way
 # RuntimeLayout does.
@@ -61,7 +61,7 @@ check() {
     fi
 }
 
-# §3.1: the guest has exactly the variables it is given; PRoot's never reach it.
+# Guest environment isolation: the guest has exactly the variables it is given; PRoot's never reach it.
 check "the guest's environment is exactly env -i's" \
     "HOME=/root|ICODE_CONTEXT=command|PATH=/usr/bin:/bin" \
     "$(whole /usr/bin/env -i HOME=/root ICODE_CONTEXT=command PATH=/usr/bin:/bin /usr/bin/env | sort | paste -sd'|')"
@@ -69,21 +69,21 @@ check "env -i finds a bare command on the new PATH (language servers start so)" 
     "found" \
     "$(whole /usr/bin/env -i PATH=/usr/bin:/bin bash -c 'echo found')"
 
-# §3.3: the login snapshot, as GuestEnvironment.script reads it.
+# Login environment snapshot, as GuestEnvironment.script reads it.
 snapshot="exec '/bin/bash' -l -i -c '/usr/bin/printf '\''\\000icode-environment\\000'\''; /usr/bin/env -0' </dev/null"
 check "the snapshot's marker comes before the variables" \
     "icode-environment" \
     "$(whole /usr/bin/env -i HOME=/root PATH=/usr/bin:/bin HISTFILE=/dev/null /bin/sh -c "{ $snapshot
 }" 2>/dev/null | tr '\0' '\n' | sed -n 2p)"
 
-# §4.1: one tree for every launch: what one writes under /workspace is the file every other sees.
+# Shared workspace tree: one tree for every launch, so every launch sees writes under /workspace.
 whole /usr/bin/env -i PATH=/usr/bin:/bin /bin/sh -c 'echo probe > /workspace/other/probe.txt'
 check "a file one launch writes in a workspace is on the phone where the Explorer reads it" \
     "probe" "$(cat "$lab/workspaces/other/probe.txt")"
 check "and the next launch reads the same file" \
     "probe" "$(whole /usr/bin/env -i PATH=/usr/bin:/bin /bin/cat /workspace/other/probe.txt)"
 
-# §1.3: links as GuestPaths follows them.
+# Guest path link behavior, as GuestPaths follows links.
 whole /usr/bin/env -i PATH=/usr/bin:/bin /bin/sh -c 'ln -s /workspace/other/README.md /root/readme; echo data > /root/a; ln /root/a /root/b'
 check "a link made in the runtime keeps the runtime path it names" \
     "/workspace/other/README.md" "$(readlink "$lab/rootfs/root/readme")"

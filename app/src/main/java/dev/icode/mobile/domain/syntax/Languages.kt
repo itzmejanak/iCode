@@ -6,7 +6,7 @@ import org.json.JSONObject
 data class GrammarSource(val key: String, val name: String, val url: String, val licence: String)
 
 /**
- * A language the editor can colour (docs/syntax-highlighting-plan.md D3): its [id] (VS Code's language id
+ * A language the editor can colour (docs/editor-and-language-services.md): its [id] (VS Code's language id
  * where VS Code has one), its TextMate [scope], its [grammar] and [configuration] as asset paths, the
  * languages [embedded] in it (scope to language id, as Sora reads them), the other grammars it [includes]
  * by scope, and where its grammar comes from: the [source] and the [path] in it, the [upstream] commit the

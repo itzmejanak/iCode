@@ -21,7 +21,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 
 /**
- * Copy and cut between iCode's storage and phone storage (docs/storage-explorer-plan.md §4.1), one
+ * Copy and cut between iCode's storage and phone storage (docs/workspaces-and-files.md), one
  * item at a time inside the operation's task, with Import's engine: refused before anything is
  * written when it would not fit — or, for a cut, when not all of it can go. Into iCode's storage a
  * folder is staged and put in place once complete, a repository's checkout restored as Git

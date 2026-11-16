@@ -38,7 +38,7 @@ import dev.icode.mobile.domain.voice.Voices
 import dev.icode.mobile.ui.LocalICodeGateway
 import java.util.Locale
 
-// The parts of a speech provider's page (docs/speech-plan.md §5, docs/tts-plan.md §5).
+// The parts of a speech provider's page (docs/voice-and-phone-control.md).
 
 /** A voice chosen from those [saved]'s API listed ([choices]), or why they could not be listed, or that they are being asked for. */
 @Composable

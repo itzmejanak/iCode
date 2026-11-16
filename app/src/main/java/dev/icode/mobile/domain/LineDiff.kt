@@ -15,7 +15,7 @@ val GitDiffHunk.markedLine: Int get() = if (newCount == 0) newStart else newStar
 
 /**
  * A text's changes against a base text, line by line, as `git diff -U0` writes them
- * (docs/editor-plan.md §3.2): each line with its line break, so a last line without one, or one
+ * (docs/editor-and-language-services.md): each line with its line break, so a last line without one, or one
  * whose break changed, is a changed line, as Git counts it.
  */
 object LineDiff {

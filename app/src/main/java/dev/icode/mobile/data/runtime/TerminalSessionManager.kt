@@ -35,14 +35,14 @@ import kotlinx.coroutines.withContext
  * Confined to the main thread, where Termux delivers output and exits and
  * where a session must be created. Only [open] may be called from elsewhere.
  *
- * A tab lives exactly as long as its shell (docs/terminal-maturity-plan.md
+ * A tab lives exactly as long as its shell (docs/runtime-and-terminal.md
  * section 4): a shell that exits is removed and reported on [endings]; one
  * killed by a signal stays so the user can see what happened; closing a tab
  * hangs its session up the way a closing terminal does. A process's output has
  * a tab of its own ([follow]), which closes without a word.
  *
  * One per process ([get]), not per screen: closing iCode's screen must not end
- * a shell the user left running (docs/terminal-background-plan.md). Only the
+ * a shell the user left running (docs/runtime-and-terminal.md). Only the
  * user ends sessions — by closing a tab, `exit`, or Exit in the notification.
  */
 internal class TerminalSessionManager private constructor(
@@ -50,7 +50,7 @@ internal class TerminalSessionManager private constructor(
     private val layout: RuntimeLayout,
 ) : TerminalSessions {
     private val entries = linkedMapOf<String, Entry>()
-    /** Each running session's commands, for any thread (docs/agent-control-plan.md §4.1). */
+    /** Each running session's commands, for any thread (docs/assistant-and-mcp.md). */
     private val records = ConcurrentHashMap<String, TerminalCommands>()
     private val sessionNames = TerminalSessionNames()
     private val mainHandler = Handler(Looper.getMainLooper())

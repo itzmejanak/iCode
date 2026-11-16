@@ -4,7 +4,7 @@ import dev.icode.mobile.data.runtime.RuntimeLayout
 import dev.icode.mobile.domain.RuntimeTools
 
 /**
- * What the Android SDK tool sets for Gradle (docs/android-toolchain-plan.md §4.3), each setting
+ * What the Android SDK tool sets for Gradle (docs/runtime-and-terminal.md), each setting
  * once, in the place Gradle documents for it:
  *
  * - **`~/.gradle/gradle.properties`**, a block marked as iCode's: the Gradle properties. The user's
@@ -12,7 +12,7 @@ import dev.icode.mobile.domain.RuntimeTools
  *   gets the phone's figure. The rest of the file is the user's and is never touched.
  * - **`~/.gradle/init.d/icode-android.gradle`**: the build tools an Android module uses when its
  *   build names none — the ARM64 ones — and the CMake a module with C or C++ uses when it names
- *   none (docs/android-ndk-plan.md §3.4). A build that names its own keeps them. A module whose NDK
+ *   none (docs/runtime-and-terminal.md). A build that names its own keeps them. A module whose NDK
  *   or CMake is not installed here for ARM64 stops with what to do, before the Android Gradle
  *   plugin would download Google's: built for x86-64, hundreds of megabytes that cannot run.
  */
@@ -23,10 +23,10 @@ internal object GradleSettings {
     /** The block, with the heap [heapMegabytes] sets. */
     fun block(heapMegabytes: Int): String = listOf(
         BEGIN,
-        // Gradle's own aapt2 download is built for x86-64 and cannot run here (L1).
+        // Gradle's own aapt2 download is built for x86-64 and cannot run here.
         "android.aapt2FromMavenOverride=${AndroidSdk.GUEST_BUILD_TOOLS}/aapt2",
         "org.gradle.jvmargs=-Xmx${heapMegabytes}m -XX:MaxMetaspaceSize=512m -Dfile.encoding=UTF-8",
-        // Few processes: Android 12+ stops an app's children beyond about 32 (L8).
+        // Few processes: Android 12+ stops an app's children beyond about 32.
         "org.gradle.workers.max=2",
         "org.gradle.parallel=false",
         "kotlin.compiler.execution.strategy=in-process",
@@ -35,7 +35,7 @@ internal object GradleSettings {
         END,
     ).joinToString("\n")
 
-    /** A quarter of the phone's memory, between 768 MB and 2 GB (L3). */
+    /** A quarter of the phone's memory, between 768 MB and 2 GB. */
     fun heapMegabytes(totalMemoryBytes: Long): Int =
         (totalMemoryBytes / 4 / BYTES_PER_MEGABYTE).coerceIn(MIN_HEAP_MEGABYTES, MAX_HEAP_MEGABYTES).toInt()
 

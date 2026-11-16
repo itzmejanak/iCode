@@ -8,7 +8,7 @@ package io.ratex
 /**
  * RaTeX's native library (third_party/ratex): LaTeX laid out as KaTeX lays it out. The library binds
  * by JNI name to this class and its two native functions, so their package, names and signatures are
- * RaTeX-CMP's, unchanged. Blocking, for about a millisecond a formula (docs/markdown-rendering-plan.md §2.4).
+ * RaTeX-CMP's, unchanged. Blocking, for about a millisecond a formula (docs/editor-and-language-services.md).
  */
 object RaTeXEngine {
     init {

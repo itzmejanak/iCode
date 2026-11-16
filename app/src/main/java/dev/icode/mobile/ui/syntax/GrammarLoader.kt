@@ -5,9 +5,9 @@ import dev.icode.mobile.domain.syntax.Languages
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Loads one language's grammar with what it includes, on demand (docs/syntax-highlighting-plan.md D4).
+ * Loads one language's grammar with what it includes, on demand (docs/editor-and-language-services.md).
  * Each [load] fills a new registry ([newRegistry]), since a tm4e grammar must not be shared between
- * threads (§3.7, S1): each editor and the read-only thread get their own. A grammar that fails to [add]
+ * threads: each editor and the read-only thread get their own. A grammar that fails to [add]
  * is that language's failure alone. It is reported once ([onFailure]) and never tried again; a language
  * that includes it still loads, with those rules left plain, as for a scope the catalog does not ship.
  *

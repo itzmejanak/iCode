@@ -5,7 +5,7 @@ import dev.icode.mobile.domain.WorkspaceRuntimePath
 import java.io.File
 
 /**
- * How a workspace is reached (docs/workspace-storage-plan.md §4.2). Every workspace is a folder in
+ * How a workspace is reached (docs/workspaces-and-files.md). Every workspace is a folder in
  * [root], `files/workspaces`, and every runtime launch binds that folder whole at [GUEST_ROOT]. A
  * location — the host path every store keys by — and a guest path are one path under two roots;
  * this is the only code that exchanges them.

@@ -6,7 +6,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** The panel's choices, kept for folders and for each view (docs/explorer-gaps-plan.md §3.10, §3.12). */
+/** The panel's choices, kept for folders and for each view (docs/workspaces-and-files.md). */
 class ExplorerSettingsTest {
     @Test fun `folders open as today, newest first in rows`() {
         assertEquals(FilesLook(FilesView.Detailed, FilesSort.Date, descending = true), ExplorerSettings().look(null))

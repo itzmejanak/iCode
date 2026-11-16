@@ -11,7 +11,7 @@ import dev.icode.mobile.domain.AssistantTurn
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** A turn read aloud as it is written (docs/phone-agent-plan.md §5.8). */
+/** A turn read aloud as it is written (docs/voice-and-phone-control.md). */
 class SpokenTurnTest {
     private val reader = SpokenTurn()
     private val earlier = listOf(AssistantMessage.User("before"), AssistantMessage.Reply("Old answer."))

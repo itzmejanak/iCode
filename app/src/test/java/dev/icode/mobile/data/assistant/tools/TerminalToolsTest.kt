@@ -30,7 +30,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 
-/** The agent's commands in terminal tabs (docs/agent-control-plan.md §4): its own, a new one, or one of the user's. */
+/** The agent's commands in terminal tabs (docs/assistant-and-mcp.md): its own, a new one, or one of the user's. */
 class TerminalToolsTest {
     @get:Rule val temp = TemporaryFolder()
 

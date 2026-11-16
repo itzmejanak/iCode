@@ -12,7 +12,7 @@ import dev.icode.mobile.domain.LanguageServiceConfiguration
 import dev.icode.mobile.domain.LanguageServicePresets
 import org.json.JSONObject
 
-// The agent's hold on the language services (docs/lsp-plan.md §6): what Settings › Languages shows and
+// The agent's hold on the language services (docs/editor-and-language-services.md): what Settings › Languages shows and
 // does, through LanguageServices' own operations. A configuration outlasts the chat and its command runs
 // in the runtime later, so every change is asked about, in every mode, as MCP servers and speech
 // providers are; starting and stopping a server is a command, asked as the chat's mode says.

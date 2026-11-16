@@ -2,7 +2,7 @@ package dev.icode.mobile.domain.notices
 
 import dev.icode.mobile.domain.RuntimeInstallReason
 
-/** What the Linux runtime's install, repair and reset tell (docs/notices-redesign-plan.md D8, D9). */
+/** What the Linux runtime's install, repair and reset tell (docs/engineering-rules.md). */
 object RuntimeNotices {
     private val runtime = NoticePlace(NoticePlaces.RUNTIME)
 

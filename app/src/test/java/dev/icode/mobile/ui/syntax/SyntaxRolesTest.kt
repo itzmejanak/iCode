@@ -20,7 +20,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * [SyntaxRoles] against the editor's own TextMate theme (A4): the theme is [editorTheme] with a colour of
+ * [SyntaxRoles] against the editor's own TextMate theme: the theme is [editorTheme] with a colour of
  * its own for each role, so the colour tm4e gives a token names the role the editor draws it in.
  */
 class SyntaxRolesTest {
@@ -61,7 +61,7 @@ class SyntaxRolesTest {
         assertEquals(null, disagreement(link))
     }
 
-    /** A4: each sample line of each shipped language, every character, as the editor's analyzer path draws it. */
+    /** Each sample line of each shipped language, every character, as the editor's analyzer path draws it. */
     @Test fun `the editor and tokens() draw every sample line alike`() {
         val registry = ShippedGrammars.registry()
         registry.setTheme(IThemeSource.fromString(IThemeSource.ContentType.JSON, json))

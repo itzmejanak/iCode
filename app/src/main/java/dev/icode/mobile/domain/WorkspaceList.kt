@@ -2,7 +2,7 @@ package dev.icode.mobile.domain
 
 import dev.icode.mobile.domain.files.FilesRules
 
-// The workspace list (docs/workspaces-page-plan.md): the one list of workspaces, as the home screen
+// The workspace list (docs/workspaces-and-files.md): the one list of workspaces, as the home screen
 // and Storage settings show it; the Workspaces page orders and finds it as a file explorer (FilesRules).
 
 object WorkspaceListRules {

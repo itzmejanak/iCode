@@ -6,7 +6,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/** docs/theme-variants-plan.md D1. */
+/** docs/design-and-navigation.md. */
 class ThemeVariantRulesTest {
     @Test fun `an id is lower-case letters, digits and underscores, up to 40`() {
         listOf("nord", "catppuccin_mocha", "a", "x".repeat(40), "solarized_light2").forEach { assertTrue(it, ThemeVariantRules.isId(it)) }
