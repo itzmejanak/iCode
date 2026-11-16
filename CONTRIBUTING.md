@@ -104,7 +104,7 @@ Before requesting review, check whether the change:
 - stores, transmits, logs, exports, or deletes new data; if so, update [PRIVACY.md](PRIVACY.md);
 - adds a permission, exported Android component, deep link, native/runtime boundary, download, provider, MCP path, or credential flow; if so, include a security review and update [SECURITY.md](SECURITY.md) when the public scope changes;
 - adds or updates a dependency, native component, grammar, font, icon, palette, or runtime download; if so, verify provenance and license terms and update [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), the grammar catalog/provenance, and bundled license resources as applicable;
-- changes release behavior; if so, confirm that the `## [0.1.0]` changelog section remains extractable by the release workflow; and
+- changes release behavior; if so, confirm that the current `versionName`'s `## [<versionName>]` changelog section remains extractable by the release workflow; and
 - preserves user control at trust boundaries, keeps secrets in Keystore-backed storage where supported, validates paths and URLs, and avoids secrets or workspace content in logs.
 
 Do not make legal compatibility claims that the repository's source and license files do not establish. Release-license audits remain tracked in the [roadmap](docs/roadmap.md).

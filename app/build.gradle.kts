@@ -31,7 +31,7 @@ android {
         applicationId = "dev.icode.mobile"
         minSdk = 30
         targetSdk = 36
-        versionName = "0.1.0"
+        versionName = "0.2.0"
         // MAJOR·10 000 000 + MINOR·100 000 + PATCH·1 000 + stage·100 + number: it rises within every channel
         // and across them. Order is by this code, never by name: in SemVer, beta sorts before preview.
         versionCode = versionName!!.split('.').map(String::toInt).let { (major, minor, patch) ->

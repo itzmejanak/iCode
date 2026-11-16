@@ -66,7 +66,7 @@ The application configuration currently declares:
 - `ndkVersion = 27.0.12077973`;
 - CMake `3.22.1`;
 - one packaged ABI, `arm64-v8a`;
-- `versionName = 0.1.0` in the current source.
+- `versionName = 0.2.0` in the current source.
 
 Release tags are validated against `versionName` at workflow runtime, so use the pattern in [Release tags](#release-tags) rather than copying the current number into scripts.
 
